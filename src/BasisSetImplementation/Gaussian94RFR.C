@@ -10,7 +10,6 @@
 #include "Cluster/Atom.H"
 #include "Misc/ptr_vector.h"
 #include "oml/vector.h"
-//#include "oml/shellsort.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>

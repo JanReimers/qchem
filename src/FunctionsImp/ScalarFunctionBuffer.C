@@ -7,7 +7,6 @@
 #include "oml/imp/binio.h"
 #include <iostream>
 #include "oml/io3d.h"
-//#include "oml/vector_io.h"
 
 
 template <class T> ScalarFunctionBuffer<T>::ScalarFunctionBuffer()

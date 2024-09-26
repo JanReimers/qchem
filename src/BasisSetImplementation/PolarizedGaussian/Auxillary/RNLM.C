@@ -6,7 +6,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryFJ.H"
 #include "Misc/IntPower.H"
 #include "oml/vector.h"
-//#include "Misc/ptr_vector.h"
 #include <iostream>
 #include <cassert>
 

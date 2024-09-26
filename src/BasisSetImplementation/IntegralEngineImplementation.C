@@ -5,14 +5,12 @@
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/BasisSetBrowser.H"
-//#include "oml/vector_io.h"
 #include <iostream>
 #include <cassert>
 
 #define TYPE_STRING "TBasisSet"
 #define TYPE TBasisSet<double>
 #include "Misc/Persistent/IDRef.Ci"
-//#include "oml/isnan.h"
 
 template class IDRef<const TBasisSet<double> >;
 template class IDRef<const TBasisSet<std::complex<double> > >;

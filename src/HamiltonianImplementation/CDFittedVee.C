@@ -36,7 +36,6 @@ void CDFittedVee::UseChargeDensity(const ChargeDensity* cd)
 //              /
 //  Where ro is the fitted charge density.
 //
-//#include "BasisSet/QuantumNumber.H"
 
 HamiltonianTerm::SMat CDFittedVee::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
 {

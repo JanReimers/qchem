@@ -7,7 +7,6 @@
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
-//#include "oml/vector_io.h"
 #include <iostream>
 #include <stdlib.h>
 

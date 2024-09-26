@@ -5,12 +5,10 @@
 #include "BasisSet/IntegralDataBase.H"
 #include "ChargeDensity/ChargeDensity.H"
 #include "BasisSet/TBasisSet.H"
-//#include "oml/isnan.h"
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
-//#include "oml/vector_io.h"
 #include <iostream>
 #include <cassert>
 

@@ -5,7 +5,6 @@
 #include "Misc/EigenSolver.H"
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/IntegralDataBase.H"
-//#include "oml/isnan.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include "oml/numeric.h"

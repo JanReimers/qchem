@@ -14,7 +14,6 @@
 #include "Cluster/Cluster.H"
 #include "Misc/MatrixList.H"
 #include "Misc/ERIProxy.H"
-//#include "Misc/ERIList.H"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>

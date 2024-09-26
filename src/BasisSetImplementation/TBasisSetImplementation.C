@@ -10,7 +10,6 @@
 #include "Mesh/Mesh.H"
 #include "Misc/MatrixList.H"
 #include "Misc/ERIProxy.H"
-//#include "oml/isnan.h"
 #include "oml/smatrix.h"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"

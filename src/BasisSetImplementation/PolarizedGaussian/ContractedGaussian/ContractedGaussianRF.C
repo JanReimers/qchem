@@ -14,7 +14,6 @@
 #include "oml/io3d.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
-//#include "oml/vector_io.h"
 #include <cmath>
 #include <iostream>
 #include <sstream>

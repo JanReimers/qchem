@@ -8,3 +8,7 @@ TestPersistent
 UnitTests/Atom.db
 
 *.dat
+
+qchemUT
+
+*.a

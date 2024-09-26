@@ -48,7 +48,6 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-//#include "BasisSet/QuantumNumber.H"
 
 HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
 {

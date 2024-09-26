@@ -5,7 +5,6 @@
 
 
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
-//#include "oml/list.h"
 #include <fstream>
 #include <string>
 

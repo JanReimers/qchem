@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
-		<Project filename="dft.cbp" />
+		<Project filename="qchem.cbp" />
 		<Project filename="UnitTests/UnitTests.cbp">
-			<Depends filename="dft.cbp" />
+			<Depends filename="qchem.cbp" />
 		</Project>
 		<Project filename="../../oml/oml.cbp" />
 	</Workspace>

@@ -12,7 +12,6 @@
 #include "oml/imp/binio.h"
 #include "oml/numeric.h"
 #include "oml/vector.h"
-//#include "oml/vector_io.h"
 #include "Misc/stl_io.h"
 #include <iostream>
 #include <cassert>

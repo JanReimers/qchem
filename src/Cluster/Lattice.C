@@ -7,7 +7,6 @@
 #include "Cluster/ClusterBrowser.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
-//#include "oml/heapsort.h"
 #include <iostream>
 #include <cassert>
 #include <cmath>
