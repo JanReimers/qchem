@@ -1,0 +1,18 @@
+#/bin/ksh
+#   export PATH1=./:($PATH)
+rm -f He.*
+echo Making molecular integration mesh
+mkmesh -a He mhl,200 gauss,1
+echo  He 0 0,0,0 - - >He.atm
+mkcl -a He
+echo Making basis sets
+echo 0 29 0.0001 100000.0 >He.bsd
+mkbas -a -v  He sg
+mkbas -a -v -c He sg
+mkbas -a -v -n -x He sg
+echo Making hamiltonian
+mkcd  -a -v -g He
+mkham -v -a -p -f He 0.77679269
+echo Starting SCF iterations
+scfiter -e1e-8 -x1.0 -n40  -k0 He
+

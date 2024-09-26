@@ -1,0 +1,10 @@
+Done: -Support std::vector std:;set streaming
+Done: -Migrate from OML Array<T> to std::vector<T>
+Done: -Migrate from OML List<T> to std::vector<T>,set<T>
+    
+    -SMAT does not support S+=Xpr
+    -Support V*S without including matrix.h
+    -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
+    -Range based iterators for ptr_vector and optr_vector.
+    -Lattice unit tests?
+    -template <class T> T Max(const std::vector<T>& v) in one place

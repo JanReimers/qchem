@@ -1,0 +1,18 @@
+#
+echo "usage: doAtom Symbol charge alpha"
+rm -f DFTDataBase.tmp
+rm -f $1.*
+echo Making molecular integration mesh
+mkmesh -RMHL -AGauss -n60 -d12 -omesh.dat
+echo  $1 $2 0,0,0 - - >atom.inp
+mkcl $1.cl atom.inp
+echo Making basis sets
+mkbas -vt  dz $1.cl $1.bs 
+mkbas -vct A1 $1.cl $1ro.bs 
+mkbas -vxt A1 $1.cl $1xc.bs -mmesh.dat 
+echo Making hamiltonian
+mkcd -B$1ro.bs -C$1.cl -o$1.ro -z
+mkham -x$1xc.bs -S$3 -f $1.cl $1.ham 
+echo Starting SCF iterations
+scfiter -H$1.ham -O$1.bs -r$1.ro -e1e-8 -x0.6 -n40 
+cp $1.ro ../AtomCDs/$1.ro

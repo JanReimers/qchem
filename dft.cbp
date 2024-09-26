@@ -1,0 +1,725 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="dft" />
+		<Option makefile="makefile" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="../Debug/dft" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Debug/" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-Wall" />
+					<Add option="-std=c++17" />
+					<Add option="-g" />
+					<Add option="-DDEBUG" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="../Release/dft" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Release/" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-Wall" />
+					<Add option="-DNDEBUG" />
+				</Compiler>
+			</Target>
+			<Target title="Debug-Linux">
+				<Option output="../Debug/dft" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Debug/" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-DDEBUG" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-std=c++17" />
+			<Add option="-fopenmp" />
+			<Add directory="src" />
+			<Add directory="../" />
+			<Add directory="../../oml/include" />
+		</Compiler>
+		<Unit filename="src/BasisSet/BasisFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/BasisFunction.H" />
+		<Unit filename="src/BasisSet/BasisGroup.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/BasisGroup.H" />
+		<Unit filename="src/BasisSet/BasisGroupBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/BasisGroupBrowser.H" />
+		<Unit filename="src/BasisSet/BasisSet.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/BasisSet.H" />
+		<Unit filename="src/BasisSet/BasisSetBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/BasisSetBrowser.H" />
+		<Unit filename="src/BasisSet/IntegralDataBase.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/IntegralDataBase.H" />
+		<Unit filename="src/BasisSet/IntegralEngine.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/IntegralEngine.H" />
+		<Unit filename="src/BasisSet/QuantumNumber.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/QuantumNumber.H" />
+		<Unit filename="src/BasisSet/TBasisFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/TBasisFunction.H" />
+		<Unit filename="src/BasisSet/TBasisSet.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/TBasisSet.H" />
+		<Unit filename="src/BasisSet/TBasisSetBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSet/TBasisSetBrowser.H" />
+		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.H" />
+		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.H" />
+		<Unit filename="src/BasisSetImplementation/NumericalIE.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/NumericalIE.H" />
+		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.H" />
+		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.H" />
+		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBS.H" />
+		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveIE.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryData.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryFJ.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryFJ.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/FJLookUp.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianH3.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianH3.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianRF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianRF.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianH3.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianH3.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionImplementation/RadialFunctionImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionImplementation/RadialFunctionImplementation.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/GaussianIntegrals.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/Wigner3j.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/Wigner3j.H" />
+		<Unit filename="src/BasisSetImplementation/TBasisSetImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/TBasisSetImplementation.H" />
+		<Unit filename="src/BasisSetImplementation/UnitSymmetryQN.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/UnitSymmetryQN.H" />
+		<Unit filename="src/ChargeDensity/ChargeDensity.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensity/ChargeDensity.H" />
+		<Unit filename="src/ChargeDensity/FittedCD.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensity/FittedCD.H" />
+		<Unit filename="src/ChargeDensity/FittedPolarizedCD.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensity/FittedPolarizedCD.H" />
+		<Unit filename="src/ChargeDensity/PolarizedCD.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensity/PolarizedCD.H" />
+		<Unit filename="src/ChargeDensityImplementation/CompositeCD/CompositeCD.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensityImplementation/CompositeCD/CompositeCD.H" />
+		<Unit filename="src/ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H" />
+		<Unit filename="src/ChargeDensityImplementation/FittedCDImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensityImplementation/FittedCDImplementation.H" />
+		<Unit filename="src/ChargeDensityImplementation/PolarizedCDImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/ChargeDensityImplementation/PolarizedCDImplementation.H" />
+		<Unit filename="src/Cluster/Atom.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Cluster/Atom.H" />
+		<Unit filename="src/Cluster/Cluster.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Cluster/Cluster.H" />
+		<Unit filename="src/Cluster/ClusterBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Cluster/ClusterBrowser.H" />
+		<Unit filename="src/Cluster/Lattice.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Cluster/Lattice.H" />
+		<Unit filename="src/Cluster/Molecule.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Cluster/Molecule.H" />
+		<Unit filename="src/Cluster/UnitCell.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Cluster/UnitCell.H" />
+		<Unit filename="src/DFTDataBase/DFTDataBase.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/DFTDataBase/DFTDataBase.H" />
+		<Unit filename="src/DFTDataBase/HeapDB/HeapDB.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/DFTDataBase/HeapDB/HeapDB.H" />
+		<Unit filename="src/DFTDataBase/Instance.Ci" />
+		<Unit filename="src/DFTDataBase/InstanceComplexIDB.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/DFTDataBase/InstanceIDB.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/BasisSetFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/BasisSetFactories1.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/ChargeDensityFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/ClusterFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/ExchangeFunctionalFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/FittedFunctionFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/HamiltonianFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/MeshFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/OrbitalFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/RadialFunctionFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/TriangleFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Factories/WaveFunctionFactories.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/FittedFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/FittedFunction.H" />
+		<Unit filename="src/Functions/FittedFunctionClient.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/FittedFunctionClient.H" />
+		<Unit filename="src/Functions/PlottableScalarFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/PlottableScalarFunction.H" />
+		<Unit filename="src/Functions/PlottableVectorFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/PlottableVectorFunction.H" />
+		<Unit filename="src/Functions/Plotter.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/Plotter.H" />
+		<Unit filename="src/Functions/ScalarFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/ScalarFunction.H" />
+		<Unit filename="src/Functions/VectorFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Functions/VectorFunction.H" />
+		<Unit filename="src/FunctionsImp/ConstrainedFF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/ConstrainedFF.H" />
+		<Unit filename="src/FunctionsImp/DumpScalarData.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/DumpScalarData.H" />
+		<Unit filename="src/FunctionsImp/DumpVectorData.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/DumpVectorData.H" />
+		<Unit filename="src/FunctionsImp/FittedFunctionImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/FittedFunctionImplementation.H" />
+		<Unit filename="src/FunctionsImp/IntegralConstrainedFF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/IntegralConstrainedFF.H" />
+		<Unit filename="src/FunctionsImp/PlotterImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/PlotterImplementation.H" />
+		<Unit filename="src/FunctionsImp/ScalarFunctionBuffer.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/ScalarFunctionBuffer.H" />
+		<Unit filename="src/FunctionsImp/VectorFunctionBuffer.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/FunctionsImp/VectorFunctionBuffer.H" />
+		<Unit filename="src/Hamiltonian/ExchangeFunctional.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Hamiltonian/ExchangeFunctional.H" />
+		<Unit filename="src/Hamiltonian/Hamiltonian.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Hamiltonian/Hamiltonian.H" />
+		<Unit filename="src/Hamiltonian/HamiltonianTerm.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Hamiltonian/HamiltonianTerm.H" />
+		<Unit filename="src/Hamiltonian/TotalEnergy.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Hamiltonian/TotalEnergy.H" />
+		<Unit filename="src/HamiltonianImplementation/CDFittedVee.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/CDFittedVee.H" />
+		<Unit filename="src/HamiltonianImplementation/ExactVee.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/ExactVee.H" />
+		<Unit filename="src/HamiltonianImplementation/ExactVen.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/ExactVen.H" />
+		<Unit filename="src/HamiltonianImplementation/ExactVnn.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/ExactVnn.H" />
+		<Unit filename="src/HamiltonianImplementation/ExchangeFunctionalImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/ExchangeFunctionalImplementation.H" />
+		<Unit filename="src/HamiltonianImplementation/FittedVxc.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/FittedVxc.H" />
+		<Unit filename="src/HamiltonianImplementation/HamiltonianImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/HamiltonianImplementation.H" />
+		<Unit filename="src/HamiltonianImplementation/HamiltonianTermImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/HamiltonianTermImplementation.H" />
+		<Unit filename="src/HamiltonianImplementation/HartreeFockVxc.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/HartreeFockVxc.H" />
+		<Unit filename="src/HamiltonianImplementation/Kinetic.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/Kinetic.H" />
+		<Unit filename="src/HamiltonianImplementation/LDAVxc.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/LDAVxc.H" />
+		<Unit filename="src/HamiltonianImplementation/PolarizedFittedVxc.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/PolarizedFittedVxc.H" />
+		<Unit filename="src/HamiltonianImplementation/PolarizedHartreeFockVxc.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/PolarizedHartreeFockVxc.H" />
+		<Unit filename="src/HamiltonianImplementation/SlaterExchange.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/HamiltonianImplementation/SlaterExchange.H" />
+		<Unit filename="src/Mesh/AngularMesh/AngularMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/AngularMesh.H" />
+		<Unit filename="src/Mesh/AngularMesh/AngularMeshBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/AngularMeshBrowser.H" />
+		<Unit filename="src/Mesh/AngularMesh/AngularMeshImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/AngularMeshImplementation.H" />
+		<Unit filename="src/Mesh/AngularMesh/EulerMaclarenAngularMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/EulerMaclarenAngularMesh.H" />
+		<Unit filename="src/Mesh/AngularMesh/GaussAngularMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/GaussAngularMesh.H" />
+		<Unit filename="src/Mesh/AngularMesh/GaussLegendre.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/GaussLegendreAngularMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AngularMesh/GaussLegendreAngularMesh.H" />
+		<Unit filename="src/Mesh/AtomMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/AtomMesh.H" />
+		<Unit filename="src/Mesh/ComplexMeshIntegrator.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/LinearMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/LinearMesh.H" />
+		<Unit filename="src/Mesh/Mesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/Mesh.H" />
+		<Unit filename="src/Mesh/MeshBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/MeshBrowser.H" />
+		<Unit filename="src/Mesh/MeshImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/MeshImplementation.H" />
+		<Unit filename="src/Mesh/MeshIntegrator.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/MeshIntegrator.H" />
+		<Unit filename="src/Mesh/MoleculeMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/MoleculeMesh.H" />
+		<Unit filename="src/Mesh/RadialMesh/LogRadialMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/RadialMesh/LogRadialMesh.H" />
+		<Unit filename="src/Mesh/RadialMesh/MHLRadialMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/RadialMesh/MHLRadialMesh.H" />
+		<Unit filename="src/Mesh/RadialMesh/RadialMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/RadialMesh/RadialMesh.H" />
+		<Unit filename="src/Mesh/RadialMesh/RadialMeshBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/RadialMesh/RadialMeshBrowser.H" />
+		<Unit filename="src/Mesh/RadialMesh/RadialMeshImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/RadialMesh/RadialMeshImplementation.H" />
+		<Unit filename="src/Mesh/UnitCellMesh.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Mesh/UnitCellMesh.H" />
+		<Unit filename="src/Misc/DFTDefines.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/DFTDefines.H" />
+		<Unit filename="src/Misc/DFTFiles.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/DFTFiles.H" />
+		<Unit filename="src/Misc/ERIList.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/ERIList.H" />
+		<Unit filename="src/Misc/ERIProxy.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/ERIProxy.H" />
+		<Unit filename="src/Misc/EigenSolver.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/EigenSolver.H" />
+		<Unit filename="src/Misc/IntPower.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/IntPower.H" />
+		<Unit filename="src/Misc/MatrixList.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/MatrixList.H" />
+		<Unit filename="src/Misc/PeriodicTable.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/PeriodicTable.H" />
+		<Unit filename="src/Misc/Persistent/IDRef.Ci" />
+		<Unit filename="src/Misc/Persistent/IDRef.H" />
+		<Unit filename="src/Misc/Persistent/PerDB.Ci" />
+		<Unit filename="src/Misc/Persistent/PerDB.H" />
+		<Unit filename="src/Misc/Persistent/PerRef.Ci" />
+		<Unit filename="src/Misc/Persistent/PerRef.H" />
+		<Unit filename="src/Misc/Persistent/Persistent.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/Persistent/Persistent.H" />
+		<Unit filename="src/Misc/Polarization.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/Polarization.H" />
+		<Unit filename="src/Misc/Spin.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/Spin.H" />
+		<Unit filename="src/Misc/Triangle/Triangle.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/Triangle/Triangle.H" />
+		<Unit filename="src/Misc/UniqueID/UniqueID.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/UniqueID/UniqueID.H" />
+		<Unit filename="src/Misc/Unpickle.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/Unpickle.H" />
+		<Unit filename="src/Misc/ptrvector_io.h" />
+		<Unit filename="src/Misc/rc_ptr.H" />
+		<Unit filename="src/Misc/stl_io.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Misc/stl_io.h" />
+		<Unit filename="src/Orbital/ElectronContainer.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/ElectronContainer.H" />
+		<Unit filename="src/Orbital/ElectronDumper.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/ElectronDumper.H" />
+		<Unit filename="src/Orbital/EnergyLevel.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/EnergyLevel.H" />
+		<Unit filename="src/Orbital/FermiThermalizer.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/FermiThermalizer.H" />
+		<Unit filename="src/Orbital/Orbital.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/Orbital.H" />
+		<Unit filename="src/Orbital/OrbitalGroup.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/OrbitalGroup.H" />
+		<Unit filename="src/Orbital/OrbitalGroupBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/OrbitalGroupBrowser.H" />
+		<Unit filename="src/Orbital/TOrbital.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/TOrbital.H" />
+		<Unit filename="src/Orbital/TOrbitalGroup.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/TOrbitalGroup.H" />
+		<Unit filename="src/Orbital/TOrbitalGroupBrowser.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Orbital/TOrbitalGroupBrowser.H" />
+		<Unit filename="src/OrbitalImplementation/ElectronContainerImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/OrbitalImplementation/ElectronContainerImplementation.H" />
+		<Unit filename="src/OrbitalImplementation/OrbitalGroupImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/OrbitalImplementation/OrbitalGroupImplementation.H" />
+		<Unit filename="src/OrbitalImplementation/OrbitalImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/OrbitalImplementation/OrbitalImplementation.H" />
+		<Unit filename="src/OrbitalImplementation/TOrbitalGroupImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/OrbitalImplementation/TOrbitalGroupImplementation.H" />
+		<Unit filename="src/OrbitalImplementation/TOrbitalImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/OrbitalImplementation/TOrbitalImplementation.H" />
+		<Unit filename="src/WaveFunction/PolarizedWF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunction/PolarizedWF.H" />
+		<Unit filename="src/WaveFunction/SCFIterator.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunction/SCFIterator.H" />
+		<Unit filename="src/WaveFunction/SCFIteratorImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunction/SCFIteratorImplementation.H" />
+		<Unit filename="src/WaveFunction/WaveFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunction/WaveFunction.H" />
+		<Unit filename="src/WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H" />
+		<Unit filename="src/WaveFunctionImp/MasterWF/MasterPolarizedWF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/MasterWF/MasterPolarizedWF.H" />
+		<Unit filename="src/WaveFunctionImp/MasterWF/MasterUnPolarizedWF.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H" />
+		<Unit filename="src/WaveFunctionImp/MasterWF/PolarizedSCFIterator.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/MasterWF/PolarizedSCFIterator.H" />
+		<Unit filename="src/WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H" />
+		<Unit filename="src/WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H" />
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

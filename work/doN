@@ -1,0 +1,17 @@
+#/bin/ksh
+echo "usage: doAtom Symbol charge alpha"
+export PATH=./:$PATH
+rm -f N.*
+echo Making molecular integration mesh
+mkmesh N mhl,60 gauss,12
+echo  N 0 0,0,0 - - >N.atm
+mkcl N
+echo Making basis sets
+mkbas -v   N dz
+mkbas -v -c  N A1
+mkbas -v -x -n N A1
+echo Making hamiltonian
+mkcd -g N
+mkham -p N 0.75197
+echo Starting SCF iterations
+scfiter -e1e-8 -x0.6 -n40 -p3 N

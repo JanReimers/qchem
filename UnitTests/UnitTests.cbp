@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="UnitTests" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="../TestPersistent" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option external_deps="../../Debug/libdft.a;" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-DDEBUG" />
+				</Compiler>
+				<Linker>
+					<Add directory="../../Debug" />
+					<Add directory="../../../oml/Debug" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="../TestPersistent" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option external_deps="../../Release/libdft.a;" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-DNDEBUG" />
+				</Compiler>
+				<Linker>
+					<Add directory="../../Release" />
+					<Add directory="../../../oml/Release" />
+				</Linker>
+			</Target>
+			<Target title="Debug-Linux">
+				<Option output="../TestPersistent" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option external_deps="../../Debug/libdft.a;" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-DDEBUG" />
+				</Compiler>
+				<Linker>
+					<Add directory="../../Debug" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-std=c++17" />
+			<Add directory="../src" />
+			<Add directory="../../" />
+			<Add directory="../../../oml/include" />
+			<Add directory="/usr/local/include" />
+			<Add directory="../Applications" />
+		</Compiler>
+		<Linker>
+			<Add option="-fopenmp" />
+			<Add library="dft" />
+			<Add library="Misc" />
+			<Add library="oml" />
+			<Add library="ArgTable" />
+			<Add library="gtest" />
+			<Add library="pthread" />
+			<Add directory="/usr/local/lib" />
+		</Linker>
+		<Unit filename="../Applications/Gaussian94RFR/Gaussian94RFR.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="AtomTester.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="AtomTester.H" />
+		<Unit filename="AtomTests.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="BaseTester.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="BaseTester.H" />
+		<Unit filename="DFTTester.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="DFTTester.H" />
+		<Unit filename="ERIList.C">
+			<Option compilerVar="CPP" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="HartreeFockTester.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="HartreeFockTester.H" />
+		<Unit filename="MoleculeTester.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="MoleculeTester.H" />
+		<Unit filename="MoleculeTests.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="Persistance.C">
+			<Option compilerVar="CPP" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="SemiHFTester.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="SemiHFTester.H" />
+		<Unit filename="SlaterIntegral.C">
+			<Option compilerVar="CPP" />
+			<Option target="Debug" />
+		</Unit>
+		<Unit filename="UTMain.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="stl_io.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="stl_io_fwd.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

@@ -1,0 +1,5609 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language english
+\language_package default
+\inputencoding auto-legacy-plain
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics dvips
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize letter
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 0
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 0
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine natbib
+\cite_engine_type authoryear
+\biblio_style plainnat
+\use_bibtopic false
+\use_indices false
+\paperorientation landscape
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1cm
+\rightmargin 1cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Subsubsection*
+HF Theory
+\end_layout
+
+\begin_layout Subsubsection*
+Notation:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Formula $\phi_{i}^{\alpha}(\overrightarrow{r_{i}})$
+\end_inset
+
+ Spacial orbital with index 
+\begin_inset Formula $i$
+\end_inset
+
+ and spin 
+\begin_inset Formula $\alpha$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Formula $\Psi\left(\overrightarrow{r_{1\alpha}},\overrightarrow{r_{1\beta}},...\overrightarrow{r_{n\beta}}\right)=\left|\phi_{1}^{\alpha}\phi_{1}^{\beta}\phi_{2}^{\alpha}\phi_{2}^{\beta}...\phi_{n^{\alpha}}^{\alpha}\phi_{n^{\beta}}^{\beta}\right|$
+\end_inset
+
+ Slater determinant wave function.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Formula $n_{\alpha}$
+\end_inset
+
+ Number of electrons with spin 
+\begin_inset Formula $\alpha$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Formula $\hat{h}$
+\end_inset
+
+ 
+\begin_inset Formula $=-\frac{1}{2}\nabla_{i}^{2}+\sum_{c}\frac{1}{\left|\overrightarrow{R}_{C}-\overrightarrow{r_{i}}\right|}$
+\end_inset
+
+ one electron Hamiltonian operator for electron 
+\begin_inset Formula $i$
+\end_inset
+
+.
+ First term is the kinetic energy,
+ and the second term is the electron-nuclear attraction.
+\end_layout
+
+\begin_layout Subsubsection*
+Total Energy
+\end_layout
+
+\begin_layout Standard
+We can define the one electron part of the energy as
+\begin_inset Formula 
+\[
+h_{i}^{\alpha}=\left\langle \phi_{i}^{\alpha}\left|-\frac{1}{2}\nabla_{i}^{2}+\sum_{C}\frac{1}{\left|\overrightarrow{R}_{C}-\overrightarrow{r_{i}}\right|}\right|\phi_{i}^{\alpha}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+h=\sum_{i=1}^{n^{\alpha}}h_{i}^{\alpha}+\sum_{i=1}^{n^{\beta}}h_{i}^{\beta}
+\]
+
+\end_inset
+
+and similarly for 
+\begin_inset Formula $\beta$
+\end_inset
+
+ spin.
+ Defining Coulomb,
+ 
+\begin_inset Formula $J$
+\end_inset
+
+ and exchange 
+\begin_inset Formula $K$
+\end_inset
+
+ terms as
+\begin_inset Formula 
+\[
+J_{i}^{\alpha}=\sum_{j=1}^{n^{\alpha}}\left\langle \phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{i}^{\alpha}=\sum_{j=1}^{n^{\alpha}}\left\langle \phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{i}^{\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})\right\rangle 
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+E=\sum_{i=1}^{n^{\alpha}}h_{i}^{\alpha}+\sum_{i=1}^{n^{\beta}}h_{i}^{\beta}+\frac{1}{2}\sum_{i=1}^{n^{\alpha}}\left(J_{i}^{\alpha}+J_{i}^{\beta}-K_{i}^{\alpha}\right)+\frac{1}{2}\sum_{i=1}^{n^{\beta}}\left(J_{i}^{\alpha}+J_{i}^{\beta}-K_{i}^{\beta}\right)
+\]
+
+\end_inset
+
+The energy is minimized if
+\begin_inset Formula 
+\[
+\left(\hat{h_{i}^{\alpha}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\alpha}}\right)\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\varepsilon_{i}^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(h_{i}^{\beta}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\beta}}\right)\phi_{i}^{\beta}(\overrightarrow{r_{1}})=\varepsilon_{i}^{\beta}\phi_{i}^{\beta}(\overrightarrow{r_{1}}),
+\]
+
+\end_inset
+
+these are known as the unpolarized Hartree-Fock equations.
+ Notice that the factors of half disapeared for the coloumb and exchange terms.
+ This is simply because those terms depend on the square of the orbitals.
+ The Coulomb and exchange operator are defined as follows
+\begin_inset Formula 
+\[
+\hat{J^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})}=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{i}^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{i}^{\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
+\]
+
+\end_inset
+
+Notice that 
+\begin_inset Formula $\hat{J}$
+\end_inset
+
+ can operate on orbitals with opposite spin,
+ where 
+\begin_inset Formula $\hat{K}$
+\end_inset
+
+ cannot,
+ i.e.
+ 
+\begin_inset Formula $K_{i}^{\alpha}\phi_{i}^{\beta}(\overrightarrow{r_{1}})=0$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection*
+Unpolarized Roothan Hall Equations,
+ Derivation
+\end_layout
+
+\begin_layout Standard
+In order to faculitate a so called analytic solution,
+ the orbitals are now expanded in terms of some basis set 
+\begin_inset Formula $g_{a}(\overrightarrow{r_{i}})$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{a}c_{ia}^{\alpha}g_{a}(\overrightarrow{r_{i}})
+\]
+
+\end_inset
+
+with the expansion coefficients depending on the spin.
+ If we left multiply the HF equations above by 
+\begin_inset Formula $\phi_{i}^{\alpha}$
+\end_inset
+
+ and integrate we get
+\begin_inset Formula 
+\[
+\sum_{i}c_{ia}^{\alpha}c_{ib}^{\alpha}\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}^{\alpha}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\alpha}}\right|g_{b}(\overrightarrow{r_{i}})\right\rangle =\varepsilon_{i}^{\alpha}\sum_{i}c_{ia}^{\alpha}c_{ib}^{\alpha}\left\langle g_{a}(\overrightarrow{r_{i}})|g_{b}(\overrightarrow{r_{i}})\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{i}c_{ia}^{\beta}c_{ib}^{\beta}\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}^{\beta}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\mathbf{}}}\right|g_{b}(\overrightarrow{r_{i}})\right\rangle =\varepsilon_{i}^{\mathbf{\beta}}\sum_{i}c_{ia}^{\beta}c_{ib}^{\beta}\left\langle g_{a}(\overrightarrow{r_{i}})|g_{b}(\overrightarrow{r_{i}})\right\rangle 
+\]
+
+\end_inset
+
+Which are generalized eigenvalue problems
+\begin_inset Formula 
+\[
+F^{\alpha}C^{\alpha}=\varepsilon^{\alpha}SC^{\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F^{\beta}C^{\beta}=\varepsilon^{\beta}SC^{\beta}
+\]
+
+\end_inset
+
+ with overlap
+\begin_inset Formula 
+\[
+S_{ab}=\left\langle g_{a}(\overrightarrow{r_{1}})|g_{b}(\overrightarrow{r_{1}})\right\rangle 
+\]
+
+\end_inset
+
+and Fock matricies
+\begin_inset Formula 
+\[
+F_{ab}^{\alpha}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{h^{\alpha}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\alpha}}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F_{ab}^{\beta}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{h^{\beta}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\beta}}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
+\]
+
+\end_inset
+
+Let's pick these terms apart a little more.
+ The one electron part is actually not spin dependent
+\begin_inset Formula 
+\[
+h_{ab}=\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}}\right|g_{b}(\overrightarrow{r_{i}})\right\rangle ,
+\]
+
+\end_inset
+
+ And neither is the total coloumb repulsion matrix
+\begin_inset Formula 
+\[
+J_{ab}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{J^{\alpha}}\hat{+J^{\beta}}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle =\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{J}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle .
+\]
+
+\end_inset
+
+Only the exchange matrix
+\begin_inset Formula 
+\[
+K_{ab}^{\alpha}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{K^{\alpha}}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
+\]
+
+\end_inset
+
+is spin dependent.
+ We can expand both of the matricies as follows
+\begin_inset Formula 
+\[
+J_{ab}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{J}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\frac{1}{r_{12}}\sum_{cd}\left(\sum_{j}^{n^{\alpha}}c_{ja}^{\alpha}c_{jb}^{\alpha}+\sum_{j}^{n^{\beta}}c_{ja}^{\beta}c_{jb}^{\beta}\right)g_{c}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{cd}\left(D_{cd}^{\alpha}+D_{cd}^{\beta}\right)\left\langle g_{a}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\left|\frac{1}{r_{12}}\right|g_{c}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{cd}\left(D_{cd}^{\alpha}+D_{cd}^{\beta}\right)\left\langle ab||cd\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{cd}D_{cd}\left\langle ab||cd\right\rangle 
+\]
+
+\end_inset
+
+which defines the density matrix for each spin
+\begin_inset Formula 
+\[
+D_{cd}^{\alpha}=\sum_{j}^{n^{\alpha}}c_{ja}^{\alpha}c_{jb}^{\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{cd}^{\beta}=\sum_{j}^{n^{\beta}}c_{ja}^{\beta}c_{jb}^{\mathbf{\beta}}
+\]
+
+\end_inset
+
+and to total density matrix
+\begin_inset Formula 
+\[
+D_{cd}=D_{cd}^{\alpha}+D_{cd}^{\beta}
+\]
+
+\end_inset
+
+with the summations over occupied orbitals.
+ The exchange matrix is defined using the same notation
+\begin_inset Formula 
+\[
+K_{ab}^{\alpha}=\sum_{cd}D_{cd}^{\alpha}\left\langle ac||bd\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{\beta}=\sum_{cd}D_{cd}^{\beta}\left\langle ac||bd\right\rangle 
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Unpolarized Roothan Hall Equations,
+ Summary
+\end_layout
+
+\begin_layout Standard
+Build the Fock matricies
+\begin_inset Formula 
+\[
+F_{ab}^{\alpha}=H_{ab}+J_{ab}-K_{ab}^{\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F_{ab}^{\beta}=H_{ab}+J_{ab}-K_{ab}^{\beta}
+\]
+
+\end_inset
+
+with
+\begin_inset Formula 
+\[
+H_{ab}=\left\langle g_{a}\left|\hat{h}\right|g_{b}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{ab}==\sum_{cd}D_{cd}\left\langle ab||cd\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{\alpha}=\sum_{cd}D_{cd}^{\alpha}\left\langle ac||bd\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{\beta}=\sum_{cd}D_{cd}^{\beta}\left\langle ac||bd\right\rangle .
+\]
+
+\end_inset
+
+Then solve the matrix eigen problems:
+\begin_inset Formula 
+\[
+F^{\alpha}C^{\alpha}=\varepsilon^{\alpha}SC^{\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F^{\beta}C^{\beta}=\varepsilon^{\beta}SC^{\beta}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The total energy expression becomes
+\begin_inset Formula 
+\[
+E=E_{NN}+\sum_{ab}D_{ab}H_{ab}+\frac{1}{2}\sum_{ab}D_{ab}J_{ab}-\frac{1}{2}\sum_{ab}D_{ab}^{\alpha}K_{ab}^{\alpha}-\frac{1}{2}\sum_{ab}D_{ab}^{\beta}K_{ab}^{\beta}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Restricted Roothan Hall Equations
+\end_layout
+
+\begin_layout Standard
+If all electrons in the system are paired then we can make the following simplifications:
+\begin_inset Formula 
+\[
+n^{\alpha}=n^{\beta},\:\phi_{i}^{\alpha}=\phi_{i}^{\beta},\:c_{ja}^{\alpha}=c_{ja}^{\beta},\:D_{ab}^{\alpha}=D_{ab}^{\beta}=\frac{1}{2}D_{ab},\:K_{ab}^{\alpha}=K_{ab}^{\beta},\:F_{ab}^{\alpha}=F_{ab}^{\beta}
+\]
+
+\end_inset
+
+resulting in
+\begin_inset Formula 
+\[
+F_{ab}=H_{ab}+J_{ab}-K_{ab}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}=\frac{1}{2}\sum_{cd}D_{cd}\left\langle ac||bd\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{cd}=2\sum_{j}^{n}c_{ja}c_{jb}
+\]
+
+\end_inset
+
+and one eigen problem
+\begin_inset Formula 
+\[
+FC=\varepsilon SC
+\]
+
+\end_inset
+
+Some authors don not put the factor of 
+\begin_inset Formula $2$
+\end_inset
+
+ into the density matric definition,
+ in which case it gets moved into the Fock matrix definition.
+\end_layout
+
+\begin_layout Standard
+The total energy expression becomes
+\begin_inset Formula 
+\[
+E=E_{NN}+\sum_{ab}D_{ab}H_{ab}+\frac{1}{2}\sum_{ab}D_{ab}J_{ab}-\frac{1}{2}\sum_{ab}D_{ab}K_{ab}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+One Center Guassian Repulsion Integrals
+\end_layout
+
+\begin_layout Standard
+For atom calculations we us the following basis set
+\begin_inset Formula 
+\[
+g(l_{a},m_{a},\alpha_{a};r,\theta,\phi)=g_{a}(\overrightarrow{r})=r^{l_{a}}e^{-\alpha_{a}r^{2}}\sqrt{4\pi}Y_{l_{a}m_{a}}(\theta,\phi)
+\]
+
+\end_inset
+
+The factor of 
+\begin_inset Formula $\sqrt{4\pi}$
+\end_inset
+
+ is there to compensate for the fact that the spherical harmonic are normalized,
+ and to get an overlap value of 
+\begin_inset Formula $\left(\frac{\pi}{\alpha}\right)^{3/2}$
+\end_inset
+
+ as found in the literature.
+ For one electron integrals the angular part does nothing other than enforce some orthogonality between between basis functions with differing 
+\begin_inset Formula $l$
+\end_inset
+
+ values,
+ and degeneracy between between basis functions with differing 
+\begin_inset Formula $m$
+\end_inset
+
+ values.
+ As a result we end up with a symmetry adapted basis set with separated secular equations for each 
+\begin_inset Formula $l$
+\end_inset
+
+ value.
+ Levels with quantum number 
+\begin_inset Formula $l$
+\end_inset
+
+ have degeneracy of 
+\begin_inset Formula $2l+1$
+\end_inset
+
+ for a spin polarized calculation.
+\end_layout
+
+\begin_layout Standard
+If we want to assign a degeneracy of 
+\begin_inset Formula $2l+1$
+\end_inset
+
+ to orbitals with angular momentum 
+\begin_inset Formula $l$
+\end_inset
+
+ then basis functions need to be averaged (not summed) over 
+\begin_inset Formula $m$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g(l_{a},\alpha_{a};r,\theta,\phi)=\frac{1}{2l_{a}+1}\sum_{m_{a}=-l_{a}}^{l_{a}}g(l_{a},m_{a},\alpha_{a};r,\theta,\phi)=\sqrt{4\pi}r^{l_{a}}e^{-\alpha_{a}r^{2}}\frac{1}{2l_{a}+1}\sum_{m_{a}=-l_{a}}^{l_{a}}Y_{l_{a}m_{a}}(\theta,\phi).
+\]
+
+\end_inset
+
+From this we get the general overlap integral
+\begin_inset Formula 
+\[
+<a|b>=4\pi\left[\intop_{0}^{\infty}r^{2+l_{a}+l_{b}}e^{-\left(\alpha_{a}+\alpha_{b}\right)r^{2}}\right]\left[\frac{1}{2l_{a}+1}\frac{1}{2l_{b}+1}\sum_{m_{a}=-l_{a}}^{l_{a}}\sum_{m_{b}=-l_{b}}^{l_{b}}\left\langle Y_{l_{a}m_{a}}|Y_{l_{b}m_{b}}\right\rangle \right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=4\pi\left[\intop_{0}^{\infty}r^{2+l_{a}+l_{b}}e^{-\left(\alpha_{a}+\alpha_{b}\right)r^{2}}\right]\left[\frac{1}{2l_{a}+1}\frac{1}{2l_{b}+1}\sum_{m_{a}=-l_{a}}^{l_{a}}\sum_{m_{b}=-l_{b}}^{l_{b}}\delta_{m_{a},m_{b}}\delta_{l_{a},l_{b}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\delta_{l_{a},l_{b}}4\pi\left[\intop_{0}^{\infty}r^{2+2l_{a}}e^{-\alpha_{ab}r^{2}}\right]\left[\frac{1}{2l_{a}+1}\frac{1}{2l_{b}+1}\sum_{m_{a}=-l_{a}}^{l_{a}}1\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\delta_{l_{a},l_{b}}\frac{4\pi}{2l_{a}+1}\intop_{0}^{\infty}r^{2+2l_{a}}e^{-\alpha_{ab}r^{2}}.
+\]
+
+\end_inset
+
+So all 1 electron integrals pick up a factor of 
+\begin_inset Formula $\frac{1}{2l+1}$
+\end_inset
+
+ and of course there is no overlap between different 
+\begin_inset Formula $l$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Repulsion integrals are less trivial.
+ The general ERI,
+ before averaging over 
+\begin_inset Formula $m_{i}'s$
+\end_inset
+
+ looks like
+\begin_inset Formula 
+\[
+<ab\Vert cd>=\left(4\pi\right)^{2}\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+=\int r_{1}^{2}dr_{1}\int r_{2}^{2}dr_{2}\:r_{1}^{l_{a}+l_{b}}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}}e^{-\alpha_{cd}r_{2}^{2}}\:\left(4\pi\right)^{2}\int d\Omega_{1}\int d\Omega_{2}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})\frac{1}{r_{12}}Y_{l_{c}m_{c}}^{*}(\Omega_{2})Y_{l_{d}m_{d}}(\Omega_{2})
+\]
+
+\end_inset
+
+where the solid angle 
+\begin_inset Formula $d\Omega_{1}=sin\theta_{1}d\theta_{1}d\phi_{1}$
+\end_inset
+
+.
+ The angular integrals are non trivial because of the 
+\begin_inset Formula $\frac{1}{r_{12}}$
+\end_inset
+
+ factor which is angle dependent.
+ In order to attack this we need to do a multi-pole expansion of this term (See Levine 9.64)
+\begin_inset Formula 
+\[
+\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{l=0}^{\infty}\frac{4\pi}{2l+1}\left(\frac{r_{<}}{r_{>}}\right)^{l}\sum_{m=-l}^{l}Y_{lm}^{*}(\Omega_{1})Y_{lm}(\Omega_{2})
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $r_{>}=r_{1}$
+\end_inset
+
+ when 
+\begin_inset Formula $r_{1}>r_{2}$
+\end_inset
+
+ and versa visa.
+ Plugging this in we get angular integrals 
+\begin_inset Formula 
+\[
+A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m}\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{l-m}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}\int d\Omega_{1}Y_{l_{a},m_{a}}^{*}(\Omega_{1})Y_{l,m_{a}-m_{b}}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}c^{l}\left(l_{a},m_{a},l_{b},m_{b}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m+m_{a}}\int d\Omega_{1}Y_{l_{a},-m_{a}}(\Omega_{1})Y_{l,-m}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m+m_{a}}\frac{\sqrt{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2l+1\right)}}{\sqrt{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & l\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & l\\
+-m_{a} & m_{b} & -m
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{2}=\int d\Omega_{2}Y_{l_{c}m_{c}}^{*}(\Omega_{2})Y_{lm}(\Omega_{2})Y_{l_{d}m_{d}}(\Omega_{2})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\delta_{m,m_{c}-m_{d}}\:c^{l}(l_{c},m_{c},l_{d},m_{d})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m_{c}}\frac{\sqrt{\left(2l_{c}+1\right)\left(2l_{d}+1\right)\left(2l+1\right)}}{\sqrt{4\pi}}\left(\begin{array}{ccc}
+l_{c} & l_{d} & l\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{d} & l\\
+m_{c} & m_{d} & ,m
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{1}A_{2}=\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}\delta_{m,m_{c}-m_{d}}c^{l}\left(l_{a},m_{a},l_{b},m_{b}\right)\:c^{l}(l_{c},m_{c},l_{d},m_{d})
+\]
+
+\end_inset
+
+where the 
+\begin_inset Formula $c's$
+\end_inset
+
+ are the 
+\begin_inset CommandInset href
+LatexCommand href
+name "slater coefficients"
+target "http://en.wikipedia.org/wiki/Slater_integrals"
+literal "false"
+
+\end_inset
+
+.
+ We would like to average this over all of the 
+\begin_inset Formula $m_{i}$
+\end_inset
+
+'s and arrive at a simplification.
+ If we could equate any pair of 
+\begin_inset Formula $m_{i}$
+\end_inset
+
+'s or any pair of 
+\begin_inset Formula $l_{i}$
+\end_inset
+
+'s then we can make progress.
+ The sum over 
+\begin_inset Formula $m$
+\end_inset
+
+ disappears because of the 
+\begin_inset Formula $\delta$
+\end_inset
+
+ function constrains.
+ These integrals are non trivial,
+ and general expression involves expansion in Clebsh-Gorden coefficients or Wigner 
+\begin_inset Formula $3j$
+\end_inset
+
+ symbols.
+ However we can state that the integrals are zero unless these restrictions are satisfied
+\begin_inset Formula 
+\[
+m=m_{b}-m_{a}=m_{c}-m_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{a}-l_{b}\right|\leq l\leq l_{a}+l_{b}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{c}-l_{d}\right|\leq l\leq l_{c}+l_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+l\;even
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The Condon-Slater rules tell us that the HF energy only depends on two electron integrals with 
+\begin_inset Formula $l_{a}=l_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{c}=l_{d}$
+\end_inset
+
+ for the Coulomb term,
+ and 
+\begin_inset Formula $l_{a}=l_{c}$
+\end_inset
+
+and 
+\begin_inset Formula $l_{b}=l_{d}$
+\end_inset
+
+for the exchange term.
+ 
+\end_layout
+
+\begin_layout Section*
+Magnetic summation
+\end_layout
+
+\begin_layout Standard
+Johnson (W.R.
+ Johnson Lectures on atomic physics) writes down the following expression after summation over the magnetic quantum numbers:
+\end_layout
+
+\begin_layout Subsubsection*
+Coloumb Case
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+<ab\Vert cd>=(4\pi)^{2}\delta_{l_{a},l_{b}}\delta_{l_{c},l_{d}}R_{0}(l_{a},l_{a},l_{c},l_{c})\label{eq:Coulomb}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Exchange Case
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+<ab\Vert cd>=(4\pi)^{2}\frac{1}{2}\delta_{l_{a},l_{c}}\delta_{l_{b},l_{d}}\sum_{l}\left(\begin{array}{ccc}
+l_{a} & l & l_{b}\\
+0 & 0 & 0
+\end{array}\right)^{2}R_{l}(l_{a},l_{b},l_{a},l_{b})\label{eq:Exchange l sum}
+\end{equation}
+
+\end_inset
+
+where the slater integral can be calculated by differentiating two generating functions (See 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Appendix-B:-Slater"
+nolink "false"
+
+\end_inset
+
+):
+\begin_inset Formula 
+\[
+R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\left[\frac{\left[l_{c}+l_{d}+l+1\right]!!}{2^{\frac{1}{2}\left(l_{c}+l_{d}+l\right)}}D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-l\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3+l_{c}+l_{d}+l}}}+\frac{\left[l_{a}+l_{b}+l+1\right]!!}{2^{\frac{1}{2}\left(l_{a}+l_{b}+l\right)}}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-l\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3+l_{a}+l_{b}+l}}}\right].
+\]
+
+\end_inset
+
+Let's evaluate some of these.
+ Defining
+\begin_inset Formula 
+\[
+R_{0}(0,0,0,0)=\frac{\sqrt{\pi}}{8}\;\frac{1}{\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}}}
+\]
+
+\end_inset
+
+Table of 
+\begin_inset Formula $R_{l}\left(l_{a},l_{b},l_{c},l_{d}\right)/R_{0}(0,0,0,0)$
+\end_inset
+
+ Even l:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(l_{a},l_{b},l_{c},l_{d}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l=0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l=2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l=4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(0,0,0,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,1,0,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\left(\frac{1}{\alpha_{ab}}+\frac{1}{2\alpha_{abcd}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,1,1,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{4}\left(\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\alpha_{abcd}^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(0,2,0,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\alpha_{abcd}^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(2,2,2,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\alpha_{abcd}^{4}}\left[\frac{63}{4}+2\alpha_{abcd}\left(\frac{\alpha_{cd}}{\alpha_{ab}^{2}}+\frac{\alpha_{ab}}{\alpha_{cd}^{2}}\right)+7\left(\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}\right)\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{105}{8\alpha_{abcd}^{4}}\left[\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}+\frac{9}{2}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{945}{16\alpha_{abcd}^{4}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Odd l:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(l_{a},l_{b},l_{c},l_{d}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l=0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l=3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,0,1,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{3}{2\alpha_{abcd}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(1,2,1,2\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{15}{4\alpha_{abcd}^{3}}\left[\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}+\frac{7}{2}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{105}{8\alpha_{abcd}^{3}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now we can perform the summation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Exchange l sum"
+nolink "false"
+
+\end_inset
+
+ to get codeable expressions for the exchange integrals:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle sp\Vert sp\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{1}{6}R_{1}(0,1,0,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle pp\Vert pp\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}R_{0}(1,1,1,1)+\frac{1}{15}R_{2}(1,1,1,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle sd\Vert sd\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{1}{10}R_{2}(0,2,0,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle pd\Vert pd\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{1}{15}R_{1}(1,2,1,2)+\frac{3}{70}R_{3}(0,2,0,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle dd\Vert dd\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{1}{10}R_{0}(2,2,2,2)+\frac{1}{35}R_{2}(2,2,2,2)+\frac{1}{35}R_{4}(2,2,2,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Defining
+\begin_inset Formula 
+\[
+\lambda=(4\pi)^{2}R_{0}\left(0,0,0,0\right)=\frac{2\pi^{\nicefrac{5}{2}}}{\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Coulomb
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Exchange
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle ss|ss\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle pp|ss\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda\left(\frac{1}{\alpha_{ab}}+\frac{1}{2\alpha_{abcd}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle ps|ps\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda\frac{3}{6\alpha_{abcd}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle pp|pp\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda\frac{3}{4}\left(\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda\frac{1}{4}\left(\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{3}{\alpha_{abcd}^{2}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+McMurchie ans Davidson Scheme
+\end_layout
+
+\begin_layout Subsection*
+Molecular case
+\end_layout
+
+\begin_layout Standard
+M&D express the repulsion integral as
+\begin_inset Formula 
+\[
+<g_{a}g_{b}\Vert g_{c}g_{d}>=\lambda E_{ab}E_{cd}\:\sum_{N_{ab}=0}^{n_{a}+n_{b}}\sum_{N_{cd}=0}^{n_{c}+n_{d}}d_{N_{ab}}^{n_{a}n_{b}}d_{N_{cd}}^{n_{c}n_{d}}\:\sum_{L_{ab}=0}^{l_{a}+l_{b}}\sum_{L_{cd}=0}^{l_{c}+l_{d}}e_{L_{ab}}^{l_{a}l_{b}}e_{L_{cd}}^{l_{c}l_{d}}\:\sum_{M_{ab}=0}^{m_{a}+m_{b}}\sum_{M_{cd}=0}^{m_{c}+m_{d}}f_{M_{ab}}^{m_{a}m_{b}}f_{M_{cd}}^{m_{c}m_{d}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\:\left(-1\right)^{N_{cd}+L_{cd}+M_{cd}}R_{N_{ab}+N_{cd},L_{ab}+l_{cd},M_{ab}+M_{cd}}
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+\lambda=\frac{2\pi^{5/2}}{\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+E_{ab}=\exp\left(-\frac{\alpha_{a}\alpha_{b}\left|\overrightarrow{A}-\overrightarrow{B}\right|^{2}}{\alpha_{a}+\alpha_{b}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{NLM}=\left(\frac{\partial}{P_{x}}\right)^{N}\left(\frac{\partial}{P_{y}}\right)^{L}\left(\frac{\partial}{P_{z}}\right)^{M}F_{o}(T)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+T=\frac{\alpha_{ab}\alpha_{ac}}{\alpha_{abcd}}\left|\frac{\alpha_{a}\overrightarrow{A}-\alpha_{b}\overrightarrow{B}}{\alpha_{ab}}-\frac{\alpha_{c}\overrightarrow{C}-\alpha_{d}\overrightarrow{D}}{\alpha_{cd}}\right|^{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F_{o}\left(T\right)=\intop_{0}^{1}e^{-Tu^{2}}du
+\]
+
+\end_inset
+
+is the Boys integral.
+ The Hermite expansion coefficients 
+\begin_inset Formula $d_{N}^{n_{a},n_{b}}$
+\end_inset
+
+obey the recursion relations
+\begin_inset Formula 
+\[
+d_{N}^{n_{a}+1,n_{b}}=\frac{1}{2\alpha_{ab}}d_{N-1}^{n_{a},n_{b}}+\left|\frac{\alpha_{a}\overrightarrow{A}-\alpha_{b}\overrightarrow{B}}{\alpha_{ab}}-\overrightarrow{A}\right|d_{N}^{n_{a},n_{b}}+\left(N+1\right)d_{N+1}^{n_{a},n_{b}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{N}^{n_{a},n_{b}+1}=\frac{1}{2\alpha_{ab}}d_{N-1}^{n_{a},n_{b}}+\left|\frac{\alpha_{a}\overrightarrow{A}-\alpha_{b}\overrightarrow{B}}{\alpha_{ab}}-\overrightarrow{B}\right|d_{N}^{n_{a},n_{b}}+\left(N+1\right)d_{N+1}^{n_{a},n_{b}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{0}^{00}=1
+\]
+
+\end_inset
+
+ and any negative indices yield zero.
+\end_layout
+
+\begin_layout Subsection*
+Atomic Case
+\end_layout
+
+\begin_layout Standard
+For a single center we see significant simplications
+\begin_inset Formula 
+\[
+E_{ab}=1,\;T=0\;F_{j}(0)=\frac{1}{2j+1}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{N}^{n_{a}+1,n_{b}}=d_{N}^{n_{a},n_{b}+1}=\frac{1}{2\alpha_{ab}}d_{N-1}^{n_{a},n_{b}}+\left(N+1\right)d_{N+1}^{n_{a},n_{b}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{1}^{n_{a}+1,n_{b}}=d_{1}^{n_{a},n_{b}+1}=\frac{1}{2\alpha_{ab}}d_{0}^{n_{a},n_{b}}+2d_{2}^{n_{a},n_{b}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{1}^{10}=d_{1}^{01}=\frac{1}{2\alpha_{ab}}d_{0}^{00}=\frac{1}{2\alpha_{ab}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{0}^{20}=d_{0}^{02}=d_{0}^{11}=d_{1}^{10}=d_{1}^{01}=\frac{1}{2\alpha_{ab}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{2}^{20}=d_{2}^{02}=d_{2}^{11}=\frac{1}{2\alpha_{ab}}d_{1}^{10}=\frac{1}{\left(2\alpha_{ab}\right)^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{1}^{12}=d_{1}^{12}=\frac{1}{2\alpha_{ab}}d_{0}^{11}+2d_{2}^{11}=\frac{1}{\left(2\alpha_{ab}\right)^{2}}+2\frac{1}{\left(2\alpha_{ab}\right)^{2}}=\frac{3}{\left(2\alpha_{ab}\right)^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{1}^{20}=d_{1}^{02}=d_{1}^{11}=\frac{1}{2\alpha_{ab}}d_{0}^{10}=0
+\]
+
+\end_inset
+
+N=0
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="5">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{a}\setminus n_{b}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2\alpha}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2\alpha}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2\alpha}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+N=1
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="5">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{a}\setminus n_{b}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2\alpha}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2\alpha}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+N=2
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="5">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{a}\setminus n_{b}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{\left(2\alpha\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The auxiliary functions 
+\begin_inset Formula $R_{NLM}$
+\end_inset
+
+ still require some care,
+ we define
+\begin_inset Formula 
+\[
+R_{000,j}=\left(-2\alpha\right)^{j}F_{j}(T)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\alpha=\frac{\alpha_{ab}\alpha_{ac}}{\alpha_{abcd}}
+\]
+
+\end_inset
+
+the recursion relations for 
+\begin_inset Formula $R_{NLM}$
+\end_inset
+
+are
+\begin_inset Formula 
+\[
+R_{00M+1,j}=MR_{00M-1,,j+1}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{0L+1M,j}=LR_{0L-1M,,j+1}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{N+1LM,j}=NR_{N-1LM,,j+1}.
+\]
+
+\end_inset
+
+We see that odd values are now excluded.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $R_{N00,j}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="7">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $N\setminus j$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{2}{3}\alpha$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{4}{5}\alpha^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{8}{7}\alpha^{3}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{16}{9}\alpha^{4}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{32}{11}\alpha^{5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{2}{3}\alpha$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{4}{5}\alpha^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{8}{7}\alpha^{3}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{16}{9}\alpha^{4}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{32}{11}\alpha^{5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3\cdot\frac{4}{5}\alpha^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-3\cdot\frac{8}{7}\alpha^{3}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3\cdot\frac{16}{9}\alpha^{4}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-3\cdot\frac{32}{11}\alpha^{5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+6
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-5\cdot3\cdot\frac{8}{7}\alpha^{3}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $5\cdot3\cdot\frac{16}{9}\alpha^{4}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-5\cdot3\cdot\frac{32}{11}\alpha^{5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+8
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $7\cdot5\cdot3\cdot\frac{16}{9}\alpha^{4}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-7\cdot5\cdot3\cdot\frac{32}{11}\alpha^{5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+10
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-9\cdot7\cdot5\cdot3\cdot\frac{32}{11}\alpha^{5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We are not interested is cross direction integrals so we can focus on the 
+\begin_inset Formula $x$
+\end_inset
+
+ direction and set all 
+\begin_inset Formula $l,m$
+\end_inset
+
+ values to zero.
+\begin_inset Formula 
+\[
+<g_{a}g_{b}\Vert g_{c}g_{d}>=\lambda\:\sum_{N_{ab}=0}^{n_{a}+n_{b}}\sum_{N_{cd}=0}^{n_{c}+n_{d}}d_{N_{ab}}^{n_{a}n_{b}}d_{N_{cd}}^{n_{c}n_{d}}\:\left(-1\right)^{N_{cd}}R_{N_{ab}+N_{cd},0,0}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle ss\parallel sp_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+All 
+\begin_inset Formula $nlm's$
+\end_inset
+
+ are zero except 
+\begin_inset Formula $n_{d}=1$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<ss\parallel sp_{x}>=\lambda\sum_{N_{cd}=0}^{1}d_{N_{cd}}^{01}\:\left(-1\right)^{N_{cd}}R_{N_{cd},0,0}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\left[d_{0}^{01}\:R_{000}-d_{1}^{01}\:R_{100}\right]
+\]
+
+\end_inset
+
+So we need to evaluate 
+\begin_inset Formula $d_{0}^{01}$
+\end_inset
+
+,
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $d_{1}^{01}$
+\end_inset
+
+,
+ 
+\begin_inset Formula $R_{000}$
+\end_inset
+
+,
+ 
+\begin_inset Formula $R_{100}$
+\end_inset
+
+.
+ Using the recusions relations
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula 
+\[
+d_{N}^{10}=d_{N}^{01}=\frac{1}{2\alpha_{cd}}d_{N-1}^{00}+\left(N+1\right)d_{N+1}^{00}
+\]
+
+\end_inset
+
+we can see that 
+\begin_inset Formula $d_{0}^{01}=0$
+\end_inset
+
+ and 
+\begin_inset Formula 
+\[
+d_{1}^{01}=\frac{1}{2\alpha_{cd}}+2d_{2}^{00}
+\]
+
+\end_inset
+
+ but we can also see that 
+\begin_inset Formula $d_{N}^{00}=0$
+\end_inset
+
+ for all 
+\begin_inset Formula $N$
+\end_inset
+
+.
+ We also see that 
+\begin_inset Formula $R_{N00}=0$
+\end_inset
+
+for all odd 
+\begin_inset Formula $N$
+\end_inset
+
+.
+ Using 
+\begin_inset Formula $R_{000}=1$
+\end_inset
+
+ the final result is
+\begin_inset Formula 
+\[
+<ss\parallel sp_{x}>=\lambda\left[d_{0}^{01}\:R_{000}-d_{1}^{01}\:R_{100}\right]=\lambda\left[0\bullet1-\frac{1}{2\alpha_{cd}}\bullet0\right]=0
+\]
+
+\end_inset
+
+as expected by symmetry.
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle sp_{x}\parallel sp_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{b}=n_{d}=1$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<sp_{x}\parallel sp_{x}>=\lambda\:\sum_{N_{ab}=0}^{1}\sum_{N_{cd}=0}^{1}d_{N_{ab}}^{01}d_{N_{cd}}^{01}\:\left(-1\right)^{N_{cd}}R_{N_{ab}+N_{cd},0,0}
+\]
+
+\end_inset
+
+but 
+\begin_inset Formula $R_{N_{ab}+N_{cd},0,0}=0$
+\end_inset
+
+ unless 
+\begin_inset Formula $N_{ab}+N_{cd}$
+\end_inset
+
+ is even which leaves only two terms in sum 
+\begin_inset Formula $N_{ab}=N_{cd}=0$
+\end_inset
+
+ and 
+\begin_inset Formula $N_{ab}=N_{cd}=1$
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+<sp_{x}\parallel sp_{x}>=\lambda\:\left[d_{0}^{01}d_{0}^{01}R_{000}-d_{1}^{01}d_{1}^{01}R_{200}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\lambda\:\left[0\bullet0\bullet1-\frac{1}{4\alpha_{ab}\alpha_{cd}}R_{200}\right].
+\]
+
+\end_inset
+
+Using the recusrion relations
+\begin_inset Formula 
+\[
+R_{200,0}=1\bullet R_{000,1}=\left(-2\alpha\right)^{1}F_{1}(0)=-2\alpha\frac{1}{2\bullet1+1}=-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<sp_{x}\parallel sp_{x}>=\frac{\lambda}{6\alpha_{abcd}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle sp_{x}\parallel sp_{y}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{b}=l_{d}=1$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<sp_{x}\parallel sp_{xy}>=\lambda\:\sum_{N_{ab}=0}^{1}\sum_{L_{cd}=0}^{1}d_{N_{ab}}^{01}e_{L_{cd}}^{01}\:\left(-1\right)^{L_{cd}}R_{N_{ab},L_{cd},0}
+\]
+
+\end_inset
+
+but 
+\begin_inset Formula $R_{N_{ab},L_{cd},0}=0$
+\end_inset
+
+ unless 
+\begin_inset Formula $N_{ab}\&L_{cd}$
+\end_inset
+
+ are even which leaves only one term in sum 
+\begin_inset Formula $N_{ab}=N_{cd}=0$
+\end_inset
+
+ a.
+\begin_inset Formula 
+\[
+<sp_{x}\parallel sp_{x}>=\lambda\:\left[d_{0}^{01}e_{0}^{01}R_{000}\right]=0
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle ss\parallel p_{x}p_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{c}=n_{d}=1$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<ss\parallel p_{x}p_{x}>=\lambda\:\sum_{N_{cd}=0}^{2}d_{N_{cd}}^{11}\:\left(-1\right)^{N_{cd}}R_{N_{cd},0,0}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\lambda\:\left[d_{0}^{11}R_{000}+d_{2}^{11}R_{200}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+d_{N}^{11}=\frac{1}{2\alpha_{cd}}d_{N-1}^{01}+\left(N+1\right)d_{N+1}^{01}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{2\alpha_{cd}}d_{N-1}^{10}+\left(N+1\right)d_{N+1}^{10}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{0}^{11}=\frac{1}{2\alpha_{cd}}d_{-1}^{01}+d_{1}^{01}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=0+\frac{1}{2\alpha_{cd}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{2}^{11}=\frac{1}{2\alpha_{cd}}d_{1}^{01}+\left(N+1\right)d_{3}^{01}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{1}{\left(2\alpha_{cd}\right)^{2}}+0
+\]
+
+\end_inset
+
+and finally
+\begin_inset Formula 
+\[
+<ss\parallel p_{x}p_{x}>=\lambda\:\left[\frac{1}{2\alpha_{cd}}\bullet1-\frac{1}{\left(2\alpha_{cd}\right)^{2}}\bullet\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{2\alpha_{cd}}\left[1-\frac{1}{3}\frac{\alpha_{ab}}{\alpha_{abcd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{2\alpha_{cd}}\left[\frac{3\alpha_{abcd}-\alpha_{ab}}{3\alpha_{abcd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda\left(2\alpha_{ab}+3\alpha_{cd}\right)}{6\alpha_{cd}\alpha_{abcd}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle sp_{x}\parallel p_{x}p_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{b}=n_{c}=n_{d}=1$
+\end_inset
+
+ and by symmetry we expect that this should be zero,
+ let's make sure.
+\begin_inset Formula 
+\[
+<sp_{x}\parallel p_{x}p_{x}>=\lambda\:\sum_{N_{ab}=0}^{1}\sum_{N_{cd}=0}^{2}d_{N_{ab}}^{01}d_{N_{cd}}^{11}\:\left(-1\right)^{N_{cd}}R_{N_{ab}+N_{cd},0,0}
+\]
+
+\end_inset
+
+As usual only certain combinations 
+\begin_inset Formula $\{N_{ab},N_{cd}\}=\{0,0\},\{0,2\},\{1,1\}$
+\end_inset
+
+ result in even 
+\begin_inset Formula $N_{ab}+N_{cd}$
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+<sp_{x}\parallel p_{x}p_{x}>=\lambda\:\left[d_{0}^{01}d_{0}^{11}R_{000}+d_{0}^{01}d_{2}^{11}R_{200}+d_{1}^{01}d_{1}^{11}R_{200}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\:\left[0\bullet d_{0}^{11}R_{000}+0\bullet d_{2}^{11}R_{200}+d_{1}^{01}\bullet0\bullet R_{200}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=0
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Case
+\begin_inset Formula $\left\langle p_{x}p_{x}\parallel p_{x}p_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{a}=n_{b}=n_{c}=n_{d}=1$
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{x}p_{x}>=\lambda\:\sum_{N_{ab}=0}^{2}\sum_{N_{cd}=0}^{2}d_{N_{ab}}^{11}d_{N_{cd}}^{11}\:\left(-1\right)^{N_{cd}}R_{N_{ab}+N_{cd},0,0}
+\]
+
+\end_inset
+
+As usual only certain combinations 
+\begin_inset Formula $\{N_{ab},N_{cd}\}=\{0,0\},\{0,2\},\{2,0\},\{1,1\},\{2,2\}$
+\end_inset
+
+ result in even 
+\begin_inset Formula $N_{ab}+N_{cd}$
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{x}p_{x}>=\lambda\:\left[d_{0}^{11}d_{0}^{11}R_{000}+d_{2}^{11}d_{0}^{11}R_{200}+d_{0}^{11}d_{2}^{11}R_{200}-d_{1}^{11}d_{1}^{11}R_{200}+d_{2}^{11}d_{2}^{11}R_{400}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\:\left[\frac{1}{2\alpha_{ab}}\cdot\frac{1}{2\alpha_{cd}}\cdot1+\frac{1}{4\alpha_{ab}^{2}}\cdot\frac{1}{2\alpha_{cd}}\cdot\left(-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)+\frac{1}{2\alpha_{ab}}\cdot\frac{1}{4\alpha_{cd}^{2}}\cdot\left(-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)-0\cdot0\cdot R_{200}+\frac{1}{4\alpha_{ab}^{2}}\cdot\frac{1}{4\alpha_{cd}^{2}}\cdot R_{400}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{400,0}=3R_{200,1}=3\cdot1\cdot R_{000,2}=3\cdot\left(-2\alpha\right)^{2}F_{2}(0)=12\alpha^{2}\frac{1}{5}=\frac{12}{5}\left(\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)^{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{x}p_{x}>=\frac{\lambda}{\alpha_{ab}\alpha_{cd}}\left[\frac{1}{4}-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\left(\frac{1}{4\alpha_{ab}}\cdot\frac{1}{2}+\frac{1}{2}\cdot\frac{1}{4\alpha_{cd}}\right)+\frac{1}{4\alpha_{ab}}\cdot\frac{1}{4\alpha_{cd}}\frac{12}{5}\left(\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)^{2}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{\alpha_{ab}\alpha_{cd}}\left[\frac{1}{4}-\frac{2}{3\cdot8}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\left(\frac{1}{\alpha_{ab}}+\frac{1}{\alpha_{cd}}\right)+\frac{3}{20}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4\alpha_{ab}\alpha_{cd}}\left[1-\frac{1}{3}+\frac{3}{5}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4\alpha_{ab}\alpha_{cd}}\left[\frac{2}{3}+\frac{3}{5}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4}\left[\frac{2}{3\alpha_{ab}\alpha_{cd}}+\frac{3}{5\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4}\left[\frac{10\alpha_{abcd}^{2}}{15\alpha_{ab}\alpha_{cd}\alpha_{abcd}^{2}}+\frac{9\alpha_{ab}\alpha_{cd}}{15\alpha_{ab}\alpha_{cd}\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4}\frac{\left(5\alpha_{ab}+2\alpha_{cd}\right)\left(5\alpha_{ac}+2\alpha_{cd}\right)}{15\alpha_{ab}\alpha_{cd}\alpha_{abcd}^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4}\frac{\left(3\alpha_{ab}+2\alpha_{abcd}\right)\left(3\alpha_{ac}+2\alpha_{abcd}\right)}{15\left(\alpha_{ab}\alpha_{abcd}\right)\left(\alpha_{cd}\alpha_{abcd}\right)}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{60}\left(\frac{3}{\alpha_{abcd}}+\frac{2}{\alpha_{ab}}\right)\left(\frac{3}{\alpha_{abcd}}+\frac{2}{\alpha_{cd}}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle p_{x}p_{x}\parallel p_{y}p_{y}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{a}=n_{b}=l_{c}=l_{d}=1$
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{y}p_{y}>=\lambda\:\sum_{N_{ab}=0}^{2}\sum_{L_{cd}=0}^{2}d_{N_{ab}}^{11}e_{L_{cd}}^{11}\:\left(-1\right)^{L_{cd}}R_{N_{ab},L_{cd},0}
+\]
+
+\end_inset
+
+As usual only certain combinations 
+\begin_inset Formula $\{N_{ab},N_{cd}\}=\{0,0\},\{0,2\},\{2,0\},\{2,2\}$
+\end_inset
+
+ result in even 
+\begin_inset Formula $N_{ab}\&N_{cd}$
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{y}p_{y}>=\lambda\:\left[d_{0}^{11}e_{0}^{11}R_{000}+d_{2}^{11}e_{0}^{11}R_{200}+d_{0}^{11}e_{2}^{11}R_{020}+d_{2}^{11}e_{2}^{11}R_{220}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\:\left[\frac{1}{2\alpha_{ab}}\cdot\frac{1}{2\alpha_{cd}}\cdot1+\frac{1}{4\alpha_{ab}^{2}}\cdot\frac{1}{2\alpha_{cd}}\cdot\left(-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)+\frac{1}{2\alpha_{ab}}\cdot\frac{1}{4\alpha_{cd}^{2}}\cdot\left(-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)+\frac{1}{4\alpha_{ab}^{2}}\cdot\frac{1}{4\alpha_{cd}^{2}}\cdot R_{220}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{220,0}=1\cdot R_{020,1}=1\cdot1\cdot R_{000,2}=\left(-2\alpha\right)^{2}F_{2}(0)=4\alpha^{2}\frac{1}{5}=\frac{4}{5}\left(\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)^{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{y}p_{y}>=\frac{\lambda}{\alpha_{ab}\alpha_{cd}}\left[\frac{1}{4}-\frac{2}{3}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\left(\frac{1}{4\alpha_{ab}}\cdot\frac{1}{2}+\frac{1}{2}\cdot\frac{1}{4\alpha_{cd}}\right)+\frac{1}{4\alpha_{ab}}\cdot\frac{1}{4\alpha_{cd}}\frac{3}{5}\left(\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)^{2}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{\alpha_{ab}\alpha_{cd}}\left[\frac{1}{4}-\frac{2}{3\cdot8}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\left(\frac{1}{\alpha_{ab}}+\frac{1}{\alpha_{cd}}\right)+\frac{1}{20}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4\alpha_{ab}\alpha_{cd}}\left[1-\frac{1}{3}+\frac{1}{5}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4\alpha_{ab}\alpha_{cd}}\left[\frac{2}{3}+\frac{1}{5}\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4}\left[\frac{2}{3\alpha_{ab}\alpha_{cd}}+\frac{1}{5\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Case
+\begin_inset Formula $\left\langle p_{x}p_{y}\parallel p_{x}p_{y}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\begin_inset Formula $n_{a}=l_{b}=n_{c}=l_{d}=1$
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+<p_{x}p_{y}\parallel p_{x}p_{y}>=\lambda\:\sum_{N_{ab}=0}^{1}\sum_{N_{cd}=0}^{1}\sum_{L_{ab}=0}^{1}\sum_{L_{cd}=0}^{1}d_{N_{ab}}^{10}d_{N_{cd}}^{10}e_{L_{ab}}^{01}e_{L_{cd}}^{01}\:\left(-1\right)^{N_{cd}+L_{cd}}R_{N_{ab}+N_{cd},L_{ab}+L_{cd},0}
+\]
+
+\end_inset
+
+As usual only certain combinations 
+\begin_inset Formula $\{N_{ab},N_{cd},L_{ab},L_{cd}\}=\{0,0,0,0\},\{1,1,0,0\},\{0,0,1,1\},\{1,1,1,1\}$
+\end_inset
+
+ result in non zero R's 
+\begin_inset Formula 
+\[
+<p_{x}p_{y}\parallel p_{x}p_{y}>=\lambda\:\left[d_{0}^{10}d_{0}^{10}e_{0}^{01}e_{0}^{01}R_{000}+d_{1}^{10}d_{1}^{10}e_{0}^{01}e_{0}^{01}R_{200}+d_{0}^{10}d_{0}^{10}e_{1}^{01}e_{1}^{01}R_{020}+d_{1}^{10}d_{1}^{10}e_{1}^{01}e_{1}^{01}R_{220}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\:\left[d_{1}^{10}d_{1}^{10}e_{1}^{01}e_{1}^{01}R_{220}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\:\frac{1}{4\alpha_{ab}^{2}}\cdot\frac{1}{4\alpha_{cd}^{2}}\cdot\frac{4}{5}\left(\frac{\alpha_{ab}\alpha_{cd}}{\alpha_{abcd}}\right)^{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda\:\frac{1}{20\alpha_{abcd}^{2}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Azimuth Summations
+\end_layout
+
+\begin_layout Standard
+Now is we do a sum over 
+\begin_inset Formula $m$
+\end_inset
+
+ we get
+\begin_inset Formula 
+\[
+<p_{x}p_{x}\parallel p_{x}p_{x}>+<p_{x}p_{x}\parallel p_{y}p_{y}>+<p_{x}p_{x}\parallel p_{z}p_{z}>=\frac{\lambda}{4}\left[\frac{6}{3\alpha_{ab}\alpha_{cd}}+\frac{5}{5\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\lambda}{4}\left[\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula 
+\[
+\sum_{m}<p_{x}p_{m}\parallel p_{x}p_{m}>+\sum_{m\neq x}<p_{x}p_{x}\parallel p_{m}p_{m}>
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=3<p_{x}p_{x}\parallel p_{x}p_{x}>+6<p_{x}p_{x}\parallel p_{y}p_{y}>+12<p_{x}p_{y}\parallel p_{x}p_{y}>
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=3\frac{\lambda}{4}\left[\frac{2}{3\alpha_{ab}\alpha_{cd}}+\frac{3}{5\alpha_{abcd}^{2}}\right]+6\frac{\lambda}{4}\left[\frac{2}{3\alpha_{ab}\alpha_{cd}}+\frac{1}{5\alpha_{abcd}^{2}}\right]+12\frac{\lambda}{4}\left[\frac{1}{5\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=3\frac{\lambda}{4}\left[\frac{2+4+0}{3\alpha_{ab}\alpha_{cd}}+\frac{3+2+4}{5\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=3\frac{\lambda}{4}\left[\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{9}{5\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+Summery
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Integral
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Formula
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle ss\parallel ss\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\lambda$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle sp_{x}\parallel sp_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{\lambda}{6\alpha_{abcd}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle ss\parallel p_{x}p_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{\lambda}{6}\left(\frac{1}{\alpha_{abcd}}+\frac{2}{\alpha_{cd}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle p_{x}p_{x}\parallel p_{x}p_{x}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{\lambda}{4}\left[\frac{2}{3\alpha_{ab}\alpha_{cd}}+\frac{3}{5\alpha_{abcd}^{2}}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle p_{x}p_{x}\parallel p_{y}p_{y}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{\lambda}{4}\left[\frac{2}{3\alpha_{ab}\alpha_{cd}}+\frac{1}{5\alpha_{abcd}^{2}}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\langle p_{x}p_{y}\parallel p_{x}p_{y}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{\lambda}{4}\left[\frac{1}{5\alpha_{abcd}^{2}}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sum_{m}\left\langle p_{m_{a}}p_{m_{b}}\parallel p_{m_{c}}p_{m_{d}}\right\rangle $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{\lambda}{4}\left[\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{7}{5\alpha_{abcd}^{2}}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+The Gaussian basis function
+\end_layout
+
+\begin_layout Standard
+The standard polarized Gaussian basis function centered at 
+\begin_inset Formula \ensuremath{\vec{A}}
+
+\end_inset
+
+ is 
+\begin_inset Formula 
+\begin{equation}
+g(\vec{r})=(r_{x}-A_{x})^{n}(r_{y}-A_{y})^{l}(r_{z}-A_{z})^{m}\:e^{-\alpha(\vec{r}-\vec{A})^{2}}\label{PolarizedGaussian}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+=\left(\frac{1}{2\alpha}\frac{\partial}{\partial A_{x}}\right)^{n}\left(\frac{1}{2\alpha}\frac{\partial}{\partial A_{y}}\right)^{l}\left(\frac{1}{2\alpha}\frac{\partial}{\partial A_{z}}\right)^{m}\:e^{-\alpha(\vec{r}-\vec{A})^{2}}.\label{DifferentialGuassian}
+\end{equation}
+
+\end_inset
+
+ The Fourier transform is (using) 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+g(\vec{k})=\left(\frac{1}{2\alpha}\frac{\partial}{\partial A_{x}}\right)^{n}\left(\frac{1}{2\alpha}\frac{\partial}{\partial A_{y}}\right)^{l}\left(\frac{1}{2\alpha}\frac{\partial}{\partial A_{z}}\right)^{m}\:\left(\frac{\pi}{\alpha}\right)^{\frac{3}{2}}\:e^{i\vec{k}\cdot\vec{A}}\:e^{-\frac{k^{2}}{4\alpha}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+g(\vec{k})=\left(\frac{1}{2\alpha}ik_{x}\right)^{n}\left(\frac{1}{2\alpha}ik_{y}\right)^{l}\left(\frac{1}{2\alpha}ik_{z}\right)^{m}\:\left(\frac{\pi}{\alpha}\right)^{\frac{3}{2}}\:e^{i\vec{k}\cdot\vec{A}}\:e^{-\frac{k^{2}}{4\alpha}}.\label{FTGuassian}
+\end{equation}
+
+\end_inset
+
+This is useful for evaluation lattice sums of of integrals such as 
+\begin_inset Formula 
+\begin{equation}
+S_{ab}(\vec{k})=\sum_{\vec{R}}e^{-i\vec{k}\cdot\vec{R}}\:\int d^{3}\vec{r}\:g_{a}(\vec{r})g_{b}(\vec{r}+\vec{R})\label{Blochoverlap}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{\vec{R}}e^{-i\vec{k}\cdot\vec{R}}\:\left(\frac{1}{2\pi}\right)^{6}\:\int d^{3}\vec{k}_{1}\:\int d^{3}\vec{k}_{2}\:g_{a}(\vec{k}_{1})g_{b}(\vec{k}_{2})\:e^{-i\vec{k}_{2}\cdot\vec{R}}\:\int d^{3}\vec{r}\:e^{-i(\vec{k}_{1}+\vec{k}_{2})\cdot\vec{r}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{\vec{R}}e^{-i\vec{k}\cdot\vec{R}}\:\left(\frac{1}{2\pi}\right)^{6}\:\int d^{3}\vec{k}_{1}\:\int d^{3}\vec{k}_{2}\:g_{a}(\vec{k}_{1})g_{b}(\vec{k}_{2})\:e^{-i\vec{k}_{2}\cdot\vec{R}}\:(2\pi)^{3}\delta(\vec{k}_{1}+\vec{k}_{2})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(\frac{1}{2\pi}\right)^{3}\:\int d^{3}\vec{k}_{1}\:g_{a}(\vec{k}_{1})g_{b}(-\vec{k}_{1})\:\sum_{\vec{R}}e^{i(\vec{k}_{1}-\vec{k})\cdot\vec{R}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(\frac{1}{2\pi}\right)^{3}\:\int d^{3}\vec{k}_{1}\:g_{a}(\vec{k}_{1})g_{b}(-\vec{k}_{1})\:\frac{\left(2\pi\right)^{3}}{\Omega}\sum_{\vec{G}}\delta(\vec{G}+\vec{k}_{1}-\vec{k})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+=\frac{1}{\Omega}\:\sum_{\vec{G}}\:g_{a}(\vec{k}-\vec{G})g_{b}(\vec{G}-\vec{k})\label{RLsumforBlochOverlap}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Appendix A:
+ Standard Gaussian Integrals
+\end_layout
+
+\begin_layout Standard
+At this point it makes sense to look at some specific cases.
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}re^{-\alpha r^{2}}dr=\frac{1}{2\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop re^{-\alpha r^{2}}dr=-\frac{e^{-\alpha r^{2}}}{2\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}r^{2n}e^{-\alpha r^{2}}dr=\sqrt{\pi}\frac{\left(2n\right)!}{n!}\left(\frac{1}{2\sqrt{\alpha}}\right)^{2n+1}
+\]
+
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}r^{2}e^{-\alpha r^{2}}dr=\frac{\sqrt{4\pi}}{\left(4\alpha\right)^{3/2}}=\frac{1}{4}\sqrt{\frac{\pi}{\alpha^{3}}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}r^{4}e^{-\alpha r^{2}}dr=\sqrt{\pi}\frac{4!}{2!}\left(\frac{1}{2\sqrt{\alpha}}\right)^{5}=\frac{3}{8}\sqrt{\frac{\pi}{\alpha^{5}}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Appendix-B:-Slater"
+
+\end_inset
+
+Appendix B:
+ Slater Integrals over Gaussians:
+\end_layout
+
+\begin_layout Standard
+The general Slater integral is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\left(\intop_{0}^{r1}\frac{r_{2}^{l}}{r_{1}^{l+1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{r_{1}^{l}}{r_{2}^{l+1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\left(\frac{1}{r_{1}^{l+1}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+l+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+r_{1}^{l}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-l+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}-l+1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+l+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+l+2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-l+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}.
+\]
+
+\end_inset
+
+We know from the angular rules that 
+\begin_inset Formula $l_{a}+l_{b}+l$
+\end_inset
+
+ is even,
+ in which case 
+\begin_inset Formula $l_{a}+l_{b}-l$
+\end_inset
+
+ must also be even.
+ Defining 
+\begin_inset Formula 
+\[
+L_{+}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}+l\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}-l\right)
+\]
+
+\end_inset
+
+and the differential operators
+\begin_inset Formula 
+\[
+D_{ab}^{n}=\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{n}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{L_{+}^{cd}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{L_{+}^{ab}+2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{L_{-}^{cd}+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=D_{ab}^{L_{-}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}D_{cd}^{L_{+}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}D_{cd}^{L_{-}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\left[-e^{-\alpha_{cd}r_{2}^{2}}\right]_{r_{1}}^{\infty}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{abcd}r_{1}^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\frac{1}{2\alpha_{ab}}\frac{1}{4}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\frac{1}{4}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\left[D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-l\right)}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}+l\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3}}}+D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}+l\right)}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-l\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}\right]
+\]
+
+\end_inset
+
+The 
+\begin_inset Formula $L^{+}$
+\end_inset
+
+ derivatives are easy to evaluate in the general case,
+ yielding
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\left[\frac{\left[l_{c}+l_{d}+l+1\right]!!}{2^{\frac{1}{2}\left(l_{c}+l_{d}+l\right)}}D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-l\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3+l_{c}+l_{d}+l}}}+\frac{\left[l_{a}+l_{b}+l+1\right]!!}{2^{\frac{1}{2}\left(l_{a}+l_{b}+l\right)}}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-l\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3+l_{a}+l_{b}+l}}}\right].
+\]
+
+\end_inset
+
+If we define
+\begin_inset Formula 
+\[
+I_{ab}(n)=\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{n}}}
+\]
+
+\end_inset
+
+We can now use this relation recursively to generate the final derivatives
+\begin_inset Formula 
+\[
+D_{ab}I_{ab}(n)=I_{ab}(n)\left(\frac{n}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)=I_{ab}(n)I_{ab}^{(1)}(n)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{ab}^{2}I_{ab}(n)=I_{ab}(n)\left[\left(I_{ab}^{(1)}(n)\right)^{2}+I_{ab}^{(2)}(n)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{ab}^{3}I_{ab}(n)=I_{ab}(n)I_{ab}^{(1)}(n)\left[\left(I_{ab}^{(1)}(n)\right)^{2}+I_{ab}^{(2)}(n)\right]+I_{ab}(n)\left[2I_{ab}^{(1)}(n)I_{ab}^{(2)}(n)+I_{ab}^{(3)}(n)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=I_{ab}(n)\left[\left(I_{ab}^{(1)}(n)\right)^{3}+3I_{ab}^{(1)}(n)I_{ab}^{(2)}(n)+I_{ab}^{(3)}(n)\right]
+\]
+
+\end_inset
+
+For 
+\begin_inset Formula $m>0$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+I_{ab}^{(m+1)}(n)=D_{ab}^{m}\left(\frac{n}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=m!\left(\frac{n}{2\alpha_{abcd}^{m+1}}+\frac{1}{\alpha_{ab}^{m+1}}\right)
+\]
+
+\end_inset
+
+=
+\end_layout
+
+\begin_layout Subsection*
+Appendix C:
+ Some slater integrals
+\end_layout
+
+\begin_layout Subsubsection*
+Case 
+\begin_inset Formula $R^{0}\left(0,0,0,0\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R^{0}\left(0,0,0,0\right)=\iint\frac{1}{r_{>}}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\left(\intop_{0}^{r1}\frac{1}{r_{1}}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{1}{r_{2}}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\left(r_{1}^{-1}\intop_{0}^{r1}r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\left[-\frac{e^{-\alpha_{cd}r_{2}^{2}}}{2\alpha_{cd}}\right]_{r_{1}}^{\infty}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\left(r_{1}^{-1}\intop_{0}^{r1}r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\frac{1}{2\alpha_{cd}}e^{-\alpha_{cd}r_{1}^{2}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{abcd}r_{1}^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\intop_{0}^{r_{2}}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}+\frac{1}{2\alpha_{cd}}\frac{1}{4}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{8\alpha_{ab}}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}+\frac{1}{8\alpha_{cd}}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\;\frac{1}{\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Case 
+\begin_inset Formula $R_{0}\left(l_{a},l_{a},l_{b},l_{b}\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{0}\left(l_{a},l_{a},l_{c},l_{c}\right)=\left(-1\right)^{l_{a}+l_{c}}\:\frac{\partial^{l_{a}}}{\partial\alpha_{ab}^{l_{a}}}\frac{\partial^{l_{c}}}{\partial\alpha_{cd}^{l_{c}}}R^{0}\left(0,0,0,0\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{0}\left(1,1,0,0\right)=-\frac{\partial}{\partial\alpha_{ab}}R^{0}\left(0,0,0,0\right)=R^{0}\left(0,0,0,0\right)\left(\frac{1}{\alpha_{ab}}+\frac{1}{2\alpha_{abcd}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{0}\left(1,1,1,1\right)=\frac{\partial}{\partial\alpha_{ab}}\frac{\partial}{\partial\alpha_{cd}}R^{0}\left(0,0,0,0\right)=\frac{3}{4}R^{0}\left(0,0,0,0\right)\left(\frac{2}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Case 
+\begin_inset Formula $R_{1}\left(1,0,1,0\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+\begin_inset Formula 
+\[
+R_{1}(1,0,1,0)=\iint\frac{r_{<}}{r_{>}^{2}}\:r_{1}^{3}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{3}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{3}e^{-\alpha_{ab}r_{1}^{2}}\left(\intop_{0}^{r1}\frac{r_{2}}{r_{1}^{2}}\:r_{2}^{3}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{r_{1}}{r_{2}^{2}}\:r_{2}^{3}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{4}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{4}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R^{0}\left(0,0,0,0\right)\frac{3}{2\alpha_{abcd}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\left[\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{1}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3}}}+\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{1}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{3\sqrt{\pi}}{16\sqrt{\alpha_{abcd}^{5}}}\left[\frac{1}{\alpha_{ab}}+\frac{1}{\alpha_{cd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{3\sqrt{\pi}}{16\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}=R^{0}\left(0,0,0,0\right)\frac{3}{2\alpha_{abcd}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Case 
+\begin_inset Formula $R_{2}\left(1,1,1,1\right)$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{2}(1,1,1,1)=\iint\frac{r_{<}^{2}}{r_{>}^{3}}\:r_{1}^{4}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{4}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\left(\intop_{0}^{r1}\frac{r_{2}^{2}}{r_{1}^{3}}\:r_{2}^{4}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{r_{1}^{2}}{r_{2}^{3}}\:r_{2}^{4}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R^{0}\left(0,0,0,0\right)\frac{15}{4\alpha_{abcd}^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\left[\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{2}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3}}}+\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{2}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{15\sqrt{\pi}}{32}\left[\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{7}}}+\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{15\sqrt{\pi}}{32}\left[\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{7}}}+\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\right]
+\]
+
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula 
+\[
+\frac{15\sqrt{\pi}}{32\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{5}}}=R^{0}\left(0,0,0,0\right)\frac{15}{4\alpha_{abcd}^{2}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Case 
+\begin_inset Formula $R_{2}\left(0,2,0,2\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{2}\left(0,2,0,2\right)=R_{2}(1,1,1,1)
+\]
+
+\end_inset
+
+Case 
+\begin_inset Formula $R_{1}\left(1,2,1,2\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{1}\left(1,2,1,2\right)=\frac{\sqrt{\pi}}{8}\left[\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{1}\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{2}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3}}}+\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{2}\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{1}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{15\sqrt{\pi}}{32}\left[\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{1}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{7}}}+\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{1}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{15\sqrt{\pi}}{32}\left[\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{7}}}\left(\frac{7}{2\alpha_{abcd}}\mathbf{+\frac{1}{\alpha_{ab}}}\right)+\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\left(\frac{7}{2\alpha_{abcd}}\mathbf{+\frac{1}{\alpha_{cd}}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{15\sqrt{\pi}}{32\sqrt{\alpha_{abcd}^{7}}}\left[\frac{1}{\alpha_{ab}}\left(\frac{7}{2\alpha_{abcd}}\mathbf{+\frac{1}{\alpha_{ab}}}\right)+\frac{1}{\alpha_{cd}}\left(\frac{7}{2\alpha_{abcd}}\mathbf{+\frac{1}{\alpha_{cd}}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{15\sqrt{\pi}}{32\sqrt{\alpha_{abcd}^{7}}}\left[\frac{1}{\alpha_{ab}^{2}}+\frac{1}{\alpha_{cd}^{2}}+\frac{7}{2\alpha_{abcd}}\left(\mathbf{\frac{1}{\alpha_{ab}}+\frac{1}{\alpha_{cd}}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{15\sqrt{\pi}}{32\sqrt{\alpha_{abcd}^{7}}}\left[\frac{1}{\alpha_{ab}^{2}}+\frac{1}{\alpha_{cd}^{2}}+\frac{7}{2\alpha_{ab}\alpha_{cd}}\right]=R^{0}\left(0,0,0,0\right)\frac{15}{4\alpha_{abcd}^{3}}\left[\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}+\frac{7}{2}\right]
+\]
+
+\end_inset
+
+Case 
+\begin_inset Formula $R_{3}\left(1,2,1,2\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{2}\left(1,2,1,2\right)=\frac{\sqrt{\pi}}{8}\left[\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{3}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3}}}+\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{3}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{105\sqrt{\pi}}{64\sqrt{\alpha_{abcd}^{9}}}\left[\frac{1}{\alpha_{ab}}+\frac{1}{\alpha_{cd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{105\sqrt{\pi}}{64\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}=R^{0}\left(0,0,0,0\right)\frac{105}{8\alpha_{abcd}^{3}}
+\]
+
+\end_inset
+
+Case 
+\begin_inset Formula $R_{0}\left(2,2,2,2\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{0}\left(0,2,0,2\right)=\frac{15\sqrt{\pi}}{32}\left[\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{2}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{7}}}+\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{2}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{15\sqrt{\pi}}{32}\left[\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{7}}}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)^{2}+\frac{7}{2\alpha_{abcd}^{2}}+\frac{1}{\alpha_{ab}^{2}}\right]+\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{acd}}\right)^{2}+\frac{7}{2\alpha_{abcd}^{2}}+\frac{1}{\alpha_{cd}^{2}}\right]\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{15\sqrt{\pi}}{32\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\left[\alpha_{cd}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)^{2}+\frac{7}{2\alpha_{abcd}^{2}}+\frac{1}{\alpha_{ab}^{2}}\right]+\alpha_{ab}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{cd}}\right)^{2}+\frac{7}{2\alpha_{abcd}^{2}}+\frac{1}{\alpha_{cd}^{2}}\right]\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{15\sqrt{\pi}}{32\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\left[\frac{7}{2\alpha_{abcd}}+\alpha_{cd}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)^{2}+\frac{1}{\alpha_{ab}^{2}}\right]+\alpha_{ab}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{cd}}\right)^{2}+\frac{1}{\alpha_{cd}^{2}}\right]\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{15\sqrt{\pi}}{32\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{7}}}\left[\frac{7}{2\alpha_{abcd}}+\alpha_{cd}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)^{2}+\frac{1}{\alpha_{ab}^{2}}\right]+\alpha_{ab}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{cd}}\right)^{2}+\frac{1}{\alpha_{cd}^{2}}\right]\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R_{0}(0,0,0,0)\frac{15}{4\alpha_{abcd}^{4}}\left[\frac{7}{2}+\alpha_{abcd}\alpha_{cd}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}\right)^{2}+\frac{1}{\alpha_{ab}^{2}}\right]+\alpha_{abcd}\alpha_{ab}\left[\left(\frac{7}{2\alpha_{abcd}}+\frac{1}{\alpha_{cd}}\right)^{2}+\frac{1}{\alpha_{cd}^{2}}\right]\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R_{0}(0,0,0,0)\frac{15}{4\alpha_{abcd}^{4}}\left[\frac{7}{2}+\alpha_{abcd}\alpha_{cd}\left[\frac{49}{4\alpha_{abcd}}+\frac{2}{\alpha_{ab}^{2}}+\frac{7}{\alpha_{abcd}\alpha_{ab}}\right]+\alpha_{abcd}\alpha_{ab}\left[\frac{49}{4\alpha_{abcd}}+\frac{2}{\alpha_{cd}^{2}}+\frac{7}{\alpha_{abcd}\alpha_{cd}}\right]\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R_{0}(0,0,0,0)\frac{15}{4\alpha_{abcd}^{4}}\left[\frac{7}{2}+\frac{49\alpha_{cd}}{4\alpha_{abcd}}+\frac{2\alpha_{abcd}\alpha_{cd}}{\alpha_{ab}^{2}}+\frac{7\alpha_{cd}}{\alpha_{ab}}+\frac{49\alpha_{ab}}{4\alpha_{abcd}}+\frac{2\alpha_{abcd}\alpha_{ab}}{\alpha_{cd}^{2}}+\frac{7\alpha_{ab}}{\alpha_{cd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R_{0}(0,0,0,0)\frac{15}{4\alpha_{abcd}^{4}}\left[\frac{63}{4}+2\alpha_{abcd}\left(\frac{\alpha_{cd}}{\alpha_{ab}^{2}}+\frac{\alpha_{ab}}{\alpha_{cd}^{2}}\right)+7\left(\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}\right)\right]
+\]
+
+\end_inset
+
+Case 
+\begin_inset Formula $R_{2}\left(2,2,2,2\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{2}\left(0,2,0,2\right)=\frac{105\sqrt{\pi}}{64}\left[\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{1}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{9}}}+\left(-\frac{\partial}{\partial\alpha_{cd}}\right)^{1}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{9}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{105\sqrt{\pi}}{64}\left[\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{9}}}\left(\frac{9}{2\alpha_{abcd}}\mathbf{+\frac{1}{\alpha_{ab}}}\right)+\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{9}}}\left(\frac{9}{2\alpha_{abcd}}\mathbf{+\frac{1}{\alpha_{cd}}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{105\sqrt{\pi}}{64\sqrt{\alpha_{abcd}^{9}}}\left[\frac{1}{\alpha_{ab}^{2}}+\frac{1}{\alpha_{cd}^{2}}+\frac{9}{2\alpha_{abcd}}\left(\mathbf{\frac{1}{\alpha_{ab}}+\frac{1}{\alpha_{cd}}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{105\sqrt{\pi}}{64\sqrt{\alpha_{abcd}^{9}}}\left[\frac{1}{\alpha_{ab}^{2}}+\frac{1}{\alpha_{cd}^{2}}+\frac{9}{2\alpha_{ab}\alpha_{cd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{105\sqrt{\pi}}{64\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{9}}}\left[\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}+\frac{9}{2}\right]=R_{0}(0,0,0,0)\frac{105}{8\alpha_{abcd}^{4}}\left[\frac{\alpha_{cd}}{\alpha_{ab}}+\frac{\alpha_{ab}}{\alpha_{cd}}+\frac{9}{2}\right]
+\]
+
+\end_inset
+
+Case 
+\begin_inset Formula $R_{4}\left(2,2,2,2\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{4}\left(0,2,0,2\right)=\frac{945\sqrt{\pi}}{128}\left[\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{11}}}+\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{11}}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{945\sqrt{\pi}}{128\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{9}}}=R_{0}(0,0,0,0)\frac{945}{16\alpha_{abcd}^{4}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

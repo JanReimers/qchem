@@ -1,0 +1,14 @@
+#/bin/ksh
+export PATH=./:$PATH
+rm N2.*
+mkmesh N mhl,60 gauss,12
+echo  N 0 -1.03,0,0 N.msh ../AtomCDs/N.cd  >N2.atm
+echo  N 0  1.04,0,0 N.msh ../AtomCDs/N.cd >>N2.atm
+mkcl N2
+mkmesh N2 pa
+mkbas -v   N2 dz
+mkbas -v -c  N2 A1
+mkbas -v -x -n N2 A1
+mkcd N2
+mkham -f N2 0.75197
+scfiter -e1e-5 -x0.7 -n40 N2

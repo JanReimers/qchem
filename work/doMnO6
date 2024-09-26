@@ -1,0 +1,22 @@
+#
+rm -f DFTDataBase.tmp
+echo Making molecular integration mesh
+mkmesh -RMHL -AGauss -n30 -d12 -omesh.dat
+echo  Mn 3    0,0,0 mesh.dat ../AtomCDs/Mn.ro > MnO6.inp
+echo  O  -2  -2,0,0 mesh.dat ../AtomCDs/O.ro >>MnO6.inp
+echo  O  -2   2,0,0 mesh.dat ../AtomCDs/O.ro >>MnO6.inp
+echo  O  -2   0,-2,0 mesh.dat ../AtomCDs/O.ro >>MnO6.inp
+echo  O  -2   0,2,0 mesh.dat ../AtomCDs/O.ro >>MnO6.inp
+echo  O  -2   0,0,-2 mesh.dat ../AtomCDs/O.ro >>MnO6.inp
+echo  O  -2   0,0,2 mesh.dat ../AtomCDs/O.ro >>MnO6.inp
+mkcl MnO6.cl MnO6.inp
+mkmesh -cMnO6.cl -oMnO6mesh.dat 
+echo Making basis sets
+mkbas    -tdz MnO6.cl MnO6.bs 
+mkbas -c -tA1 MnO6.cl MnO6ro.bs 
+mkbas -x -tA1 MnO6.cl MnO6xc.bs -mMnO6mesh.dat 
+echo Making hamiltonian
+mkcd -BMnO6ro.bs -CMnO6.cl -oMnO6.ro 
+mkham -xMnO6xc.bs -S0.75 -f MnO6.cl MnO6.ham -p
+echo Starting SCF iterations
+scfiter -HMnO6.ham -OMnO6.bs -rMnO6.ro  -e1e-5 -x1.0 -n10 -p4
