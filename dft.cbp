@@ -52,8 +52,7 @@
 			<Add option="-std=c++17" />
 			<Add option="-fopenmp" />
 			<Add directory="src" />
-			<Add directory="../" />
-			<Add directory="../../oml/include" />
+			<Add directory="../oml/include" />
 		</Compiler>
 		<Unit filename="src/BasisSet/BasisFunction.C">
 			<Option compilerVar="CPP" />
@@ -75,6 +74,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/BasisSetBrowser.H" />
+		<Unit filename="src/BasisSet/Gaussian94RFR.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Gaussian94RFR.H" />
 		<Unit filename="src/BasisSet/IntegralDataBase.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -103,6 +106,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.H" />
+		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.H" />
 		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -612,6 +619,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/Unpickle.H" />
+		<Unit filename="src/Misc/pmstream.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/Misc/ptrvector_io.h" />
 		<Unit filename="src/Misc/rc_ptr.H" />
 		<Unit filename="src/Misc/stl_io.C">

@@ -5,7 +5,7 @@
 #include "DFTDataBase/HeapDB/HeapDB.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSet/BasisGroup.H"
-#include "Gaussian94RFR/Gaussian94RFR.H"
+#include "BasisSet/Gaussian94RFR.H"
 #include "Mesh/MoleculeMesh.H"
 
 

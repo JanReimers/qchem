@@ -1,0 +1,10 @@
+
+*.layout
+
+*.o
+
+TestPersistent
+
+UnitTests/Atom.db
+
+*.dat

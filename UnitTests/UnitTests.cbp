@@ -18,7 +18,7 @@
 				</Compiler>
 				<Linker>
 					<Add directory="../../Debug" />
-					<Add directory="../../../oml/Debug" />
+					<Add directory="../../oml/Debug" />
 				</Linker>
 			</Target>
 			<Target title="Release">
@@ -55,24 +55,16 @@
 			<Add option="-Wall" />
 			<Add option="-std=c++17" />
 			<Add directory="../src" />
-			<Add directory="../../" />
-			<Add directory="../../../oml/include" />
-			<Add directory="/usr/local/include" />
-			<Add directory="../Applications" />
+			<Add directory="../../oml/include" />
 		</Compiler>
 		<Linker>
 			<Add option="-fopenmp" />
 			<Add library="dft" />
-			<Add library="Misc" />
 			<Add library="oml" />
-			<Add library="ArgTable" />
 			<Add library="gtest" />
 			<Add library="pthread" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
-		<Unit filename="../Applications/Gaussian94RFR/Gaussian94RFR.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="AtomTester.C">
 			<Option compilerVar="CPP" />
 		</Unit>
