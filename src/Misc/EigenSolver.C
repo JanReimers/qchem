@@ -1,7 +1,5 @@
 // File: EigenSolver.C  General eigen solver.
 
-
-
 #include "Misc/EigenSolver.H"
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/IntegralDataBase.H"
@@ -12,8 +10,6 @@
 #include <iostream>
 #include <cmath>
 #include <stdlib.h>
-
-//inline double real(double f) {return f;}
 
 template <class T> EigenSolver<T>::EigenSolver(const TBasisSet<T>& set, double Tolerance)
 {

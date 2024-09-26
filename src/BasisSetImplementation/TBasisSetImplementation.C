@@ -19,11 +19,6 @@
 #include <cassert>
 #include <iostream>
 
-//inline double real(double a)
-//{
-//    return a;
-//}
-
 //-----------------------------------------------------------------------------
 //
 //  Construction zone

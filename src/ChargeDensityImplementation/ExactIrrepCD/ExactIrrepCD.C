@@ -19,14 +19,6 @@
 #include <stdlib.h>
 
 typedef Vector3D<std::complex<double> > Vec3;
-//inline double real(double a)
-//{
-//    return a;
-//}
-//inline double conj(double a)
-//{
-//    return a;
-//}
 
 double FastContraction(const Vector<double>&, const SMatrix<double>&);
 RVec3  FastContraction(const Vector<RVec3 >&, const Vector<double>&, const SMatrix<double>&);
@@ -122,8 +114,6 @@ template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetExchange
     assert(itsBasisSet->GetID()==bs->GetID());
     return SMat();
 }
-
-//inline double imag(double d) {return 0.0;}
 
 template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
 {
