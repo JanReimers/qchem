@@ -1,0 +1,28 @@
+// File: PolarizedSCFIterator.H  SCF convergence for a UnPolarized wave function.
+
+
+
+#include "WaveFunction/SCFIteratorImplementation.H"
+
+class ChargeDensity;
+class PolarizedWF;
+
+class PolarizedSCFIterator
+    : virtual public SCFIteratorImplementation
+{
+public:
+    PolarizedSCFIterator(PolarizedWF* W, Hamiltonian*, ChargeDensity* guess, double nElectrons, double spin, double kT, bool showplot);
+
+    virtual bool   Iterate(double relax, double epsRo, int Nmax, double kT);
+    virtual void   DumpElectrons  (WaveFunction*, double kT);
+    virtual double DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
+    virtual void   DisplayEigen   () const;
+
+private:
+    void DecideElectronCounts(double total, double spin);
+
+    double itsTotalUp;
+    double itsTotalDown;
+    double itsUpEf;
+    double itsDownEf;
+};

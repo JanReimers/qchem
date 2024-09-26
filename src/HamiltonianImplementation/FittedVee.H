@@ -1,0 +1,55 @@
+// File: FittedVee.H  Fitted Coulomb potential
+#ifndef _FittedVee_H_
+#define _FittedVee_H_
+
+#pragma interface
+
+#include "FunctionsImp/FittedFunctionImplementation.H"
+#include "HamiltonianImplementation/FittablePotentialImplementation.H"
+
+
+//###############################################################################
+//
+//  Linear least squares fit the Coulomb potential.
+//              /
+//  V_fit(r1) = | dr2 Ro(r2)/r12 .
+//              /
+//  Where Ro is actually a fitted charge density.
+//  The fit basis set is
+//  inserted by the constructor,  and is not owned by FittedVee, and as such
+//  does not get deleted in ~FittedVee.
+//
+//  This does not seem to get used anywhere.
+//
+class FittedVee
+    : public virtual Potential
+    , public virtual FittedFunction
+    , private        FittablePotentialImplementation
+    , private        FittedFunctionImplementation<double>
+{
+public:
+    FittedVee(                       );
+    FittedVee(const rc_ptr<BasisSet>&);
+    // Required by ScalarFunction
+    virtual double   operator ()(const RVec3& r) const
+    {
+        return FittedFunctionImplementation<double>::operator()(r);
+    }
+    virtual RVec3    Gradient   (const RVec3& r) const
+    {
+        return FittedFunctionImplementation<double>::Gradient  (r);
+    }
+    // Required by Potential
+    virtual void BuildHamiltonian(const BasisSet*,const Spin&) const;
+    virtual void GetEnergy       (TotalEnergy&               ) const;
+    // Required by FittablePotential.
+    virtual void UseChargeDensity(const ChargeDensity& fit,const ChargeDensity& exact );
+
+    virtual std::ostream&   Write(std::ostream&) const;
+    virtual std::istream&   Read (std::istream&)      ;
+    virtual Potential* Clone(        ) const;
+};
+
+
+
+#endif

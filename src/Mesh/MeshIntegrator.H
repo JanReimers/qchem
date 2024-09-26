@@ -1,0 +1,56 @@
+// File: MeshIntegrator.H  Abstract interface for all integration Meshes.
+#ifndef _MeshIntegrator_H_
+#define _MeshIntegrator_H_
+
+
+
+#include "oml/imp/index_t.h"
+template <class T> class Matrix;
+template <class T> class SMatrix;
+template <class T> class Vector;
+template <class T> class Vector3D;
+
+template <class T> class ScalarFunction;
+template <class T> class VectorFunction;
+
+class Mesh;
+class MeshImplementation;
+
+template <class T> class MeshIntegrator
+{
+public:
+    typedef Matrix<T>      Mat;
+    typedef SMatrix<T>     SMat;
+    typedef Vector<T>      Vec;
+    typedef Vector3D<T>    Vec3;
+    typedef Vector<double> RVec;
+
+    MeshIntegrator(const Mesh*);
+    virtual ~MeshIntegrator() {};
+
+    typedef ScalarFunction<double> Rf;
+    typedef ScalarFunction<T>      Sf;
+    typedef VectorFunction<T>      Vf;
+
+    virtual RVec Integrate  (const Vf& a            ) const; // real(<ai>)
+    virtual RVec Normalize  (const Vf& a            ) const; // <ai|ai> always real
+
+    virtual SMat Overlap    (const Vf& a            ) const; // <ai|aj>
+    virtual  Vec Overlap    (const Rf& a,const Vf& b) const; // <a |bi>
+    virtual  Mat Overlap    (const Vf& a,const Vf& b) const; // <ai|bj>
+    virtual SMat Overlap3C  (const Vf& a,const Sf& b) const; // <ai|b|aj>
+
+    virtual SMat Repulsion  (const Vf& a            ) const; // <ai|aj>
+    virtual  Vec Repulsion  (const Rf& a,const Vf& b) const; // <a |1/r12|bi>
+    virtual  Mat Repulsion  (const Vf& a,const Vf& b) const; // <ai|1/r12|bj>
+    virtual SMat Repulsion3C(const Vf& a,const Sf& b) const; // <aiaj|1/r12|b>
+
+    virtual SMat Nuclear    (const Vf& a            ) const; // <ai|1/r|aj>
+    virtual SMat Grad       (const Vf& a            ) const; // <grad(ai)|grad(aj)>
+
+private:
+    const MeshImplementation* itsMesh;
+};
+
+#endif //_MeshIntegrator_H_
+
