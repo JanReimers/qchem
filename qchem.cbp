@@ -8,7 +8,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="Debug">
-				<Option output="../Debug/dft" prefix_auto="1" extension_auto="1" />
+				<Option output="./Debug/qchem" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="obj/Debug/" />
 				<Option type="2" />
@@ -22,7 +22,7 @@
 				</Compiler>
 			</Target>
 			<Target title="Release">
-				<Option output="../Release/dft" prefix_auto="1" extension_auto="1" />
+				<Option output="./Release/qchem" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="obj/Release/" />
 				<Option type="2" />
@@ -34,19 +34,6 @@
 					<Add option="-DNDEBUG" />
 				</Compiler>
 			</Target>
-			<Target title="Debug-Linux">
-				<Option output="../Debug/dft" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="" />
-				<Option object_output="obj/Debug/" />
-				<Option type="2" />
-				<Option compiler="gcc" />
-				<Option createDefFile="1" />
-				<Compiler>
-					<Add option="-Wall" />
-					<Add option="-g" />
-					<Add option="-DDEBUG" />
-				</Compiler>
-			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-std=c++17" />
@@ -54,6 +41,9 @@
 			<Add directory="src" />
 			<Add directory="../oml/include" />
 		</Compiler>
+		<Linker>
+			<Add option="-fopenmp" />
+		</Linker>
 		<Unit filename="src/BasisSet/BasisFunction.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -74,10 +64,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/BasisSetBrowser.H" />
-		<Unit filename="src/BasisSet/Gaussian94RFR.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSet/Gaussian94RFR.H" />
 		<Unit filename="src/BasisSet/IntegralDataBase.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -728,6 +714,7 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H" />
+		<Unit filename="src/types.H" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>

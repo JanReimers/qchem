@@ -62,6 +62,11 @@ public:
     std::vector<RVec3>  GetBonds        (int BasisNumber, double distance) const;
     std::vector<RVec3>  GetBondsInSphere(int BasisNumber, double distance) const;
 
+    virtual const_iterator begin() const {return itsAtoms->begin();}
+    virtual const_iterator end  () const {return itsAtoms->end  ();} 
+    virtual       iterator begin()       {return itsAtoms->begin();}
+    virtual       iterator end  ()       {return itsAtoms->end  ();} 
+    
     std::ostream& Write(std::ostream&) const;
     std::istream& Read (std::istream&)      ;
 

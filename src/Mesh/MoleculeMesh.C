@@ -5,7 +5,6 @@
 #include "Mesh/MoleculeMesh.H"
 #include "Mesh/MeshBrowser.H"
 #include "Cluster/Cluster.H"
-#include "Cluster/ClusterBrowser.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include <cassert>
@@ -30,7 +29,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
 //  First count total number of mesh points for all atoms.
 //
     int nmax=0;
-    for (ClusterBrowser b(cl); b; b++) nmax+=b->GetIntegrationMesh()->GetNumPoints();
+    for (auto atom:cl) nmax+=atom->GetIntegrationMesh()->GetNumPoints();
     std::cout << "Molecular mesh: total points=" << nmax;
 
     Vector<RVec3 > Points (nmax);
@@ -41,7 +40,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
     Vector<RVec3 >::iterator ip(Points.begin());
     Vector<double>::iterator iw(Weights.begin());
     int numpoints=0;
-    for (ClusterBrowser b(cl); b; b++) LoadFuzzyPoints(*b,cl,m,ip,iw,numpoints);
+    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m,ip,iw,numpoints);
 
     std::cout << ", Fuzzy points=" << numpoints << std::endl;
     Points .SetLimits(VecLimits(1,numpoints),true);
@@ -62,9 +61,13 @@ void LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m, Vector<RVec3>::ite
 //
 //  First find the index for this Atom.
 //
-    ClusterBrowser cb(cl);
-    int index=0;
-    for (int i=1; cb; cb++,i++) if (cb->itsR==n.itsR) index=i;
+    int index=0,i=1;
+    for (auto atom:cl) 
+    {
+        if (atom->itsR==n.itsR) 
+            index=i;
+        i++;        
+    }
     if (index==0)
     {
         std::cerr << "MoleculeMesh::LoadFuzzy index for Atom not found in cluster" << std::endl;
@@ -99,11 +102,9 @@ void LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m, Vector<RVec3>::ite
 //
 Vector<RVec3> GetPositions(const Cluster& cl)
 {
-    int n=cl.GetNumAtoms();
-    Vector<RVec3> ret(n);
-    Vector<RVec3>::iterator i(ret.begin());
-    ClusterBrowser          cb(cl);
-    for(; cb; cb++,i++) *i=cb->itsR;
+    Vector<RVec3> ret(cl.GetNumAtoms());
+    int i=1;
+    for (auto atom:cl) ret(i++)=atom->itsR;
     return ret;
 }
 

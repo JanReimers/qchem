@@ -18,10 +18,11 @@
 
 1296655837 /home/janr/Code/qchem/src/Misc/rc_ptr.h
 
-1727404061 /home/janr/Code/qchem/src/Cluster/Cluster.H
+1727460685 /home/janr/Code/qchem/src/Cluster/Cluster.H
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
 	"Cluster/Atom.H"
+	<vector>
 
 1332723517 /home/janr/Code/qchem/src/Misc/Persistent/Persistent.H
 	"Misc/UniqueID/UniqueID.H"
@@ -72,7 +73,8 @@
 1727403202 /home/janr/Code/qchem/src/BasisSet/BasisFunction.H
 	"Misc/Persistent/Persistent.H"
 
-1326228656 /home/janr/Code/qchem/src/Misc/ptr_vector.h
+1727467679 /home/janr/Code/qchem/src/Misc/ptr_vector.h
+	"oml/imp/index_t.h"
 	"Misc/void_types.h"
 	<vector>
 	<cassert>
@@ -317,7 +319,7 @@
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 
-1727384943 source:/home/janr/Code/qchem/UnitTests/AtomTests.C
+1727446677 source:/home/janr/Code/qchem/UnitTests/AtomTests.C
 	"DFTTester.H"
 	"HartreeFockTester.H"
 	"DFTDataBase/DFTDataBase.H"
@@ -438,9 +440,11 @@
 1727405457 /home/janr/Code/qchem/src/WaveFunction/SCFIterator.H
 	"types.H"
 
-1727404061 /home/janr/Code/qchem/src/Cluster/Molecule.H
+1727467443 /home/janr/Code/qchem/src/Cluster/Molecule.H
 	"Cluster/Cluster.H"
 	"Misc/ptr_vector.h"
+	"Misc/ptr_vector1.h"
+	<iostream>
 
 1727384943 source:/home/janr/Code/qchem/UnitTests/DFTTester.C
 	"DFTTester.H"
@@ -506,7 +510,7 @@
 	"Misc/Polarization.H"
 	<cassert>
 
-1727406049 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H
+1727445961 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
 	"Misc/Polarization.H"
@@ -595,11 +599,15 @@
 
 1331917957 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/Wigner3j.H
 
-1727384943 source:/home/janr/Code/qchem/UnitTests/stl_io.C
+1727468665 source:/home/janr/Code/qchem/UnitTests/stl_io.C
 	"gtest/gtest.h"
 	"oml/vector.h"
 	"oml/imp/stream.h"
 	"Misc/stl_io.h"
+	"Misc/ptr_vector.h"
+	"Misc/ptr_vector1.h"
+	"Misc/ptr_vector1_io.h"
+	"Cluster/Molecule.H"
 	<vector>
 	<ostream>
 	<sstream>
@@ -617,7 +625,7 @@
 1727384943 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1727384943 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1727468309 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727390914 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -625,6 +633,14 @@
 	<fstream>
 	<string>
 
-1727406101 /home/janr/Code/qchem/src/types.H
+1727406580 /home/janr/Code/qchem/src/types.H
 	"oml/imp/index_t.h"
+
+1727458346 /home/janr/Code/qchem/src/Misc/ptr_vector1.h
+	<vector>
+
+1727468711 /home/janr/Code/qchem/src/Misc/ptr_vector1_io.h
+	"oml/imp/binio.h"
+	"oml/imp/stream.h"
+	"Misc/ptr_vector.h"
 

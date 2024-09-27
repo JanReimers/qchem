@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
-		<Project filename="qchem.cbp" />
 		<Project filename="UnitTests/UnitTests.cbp">
 			<Depends filename="qchem.cbp" />
+			<Depends filename="../oml/oml.cbp" />
 		</Project>
-		<Project filename="../../oml/oml.cbp" />
+		<Project filename="qchem.cbp" />
+		<Project filename="../oml/oml.cbp" />
+		<Project filename="../oml/omlUnitTests.cbp" />
 	</Workspace>
 </CodeBlocks_workspace_file>

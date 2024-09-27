@@ -4,7 +4,6 @@
 
 #include "HamiltonianImplementation/ExactVnn.H"
 #include "Hamiltonian/TotalEnergy.H"
-#include "Cluster/ClusterBrowser.H"
 #include "BasisSet/BasisSet.H"
 #include "oml/smatrix.h"
 #include "oml/vector.h"
@@ -32,11 +31,11 @@ HamiltonianTerm::SMat ExactVnn::CalculateHamiltonianMatrix(const BasisSet* bs,co
 void ExactVnn::GetEnergy(TotalEnergy& te) const
 {
     double vnn=0.0;
-    for(ClusterBrowser b1(*theCluster); b1; b1++)
-        for(ClusterBrowser b2(*theCluster); b2; b2++)
+    for(auto atom1:*theCluster)
+        for(auto atom2:*theCluster)
         {
-            RVec3 r1=(*b1).itsR, r2=(*b2).itsR;
-            if (r1!=r2) vnn += 0.5 * (*b1).itsZ * (*b2).itsZ / !(r1-r2);
+            RVec3 r1=atom1->itsR, r2=atom2->itsR;
+            if (r1!=r2) vnn += 0.5 * atom1->itsZ * atom2->itsZ / !(r1-r2);
         }
 
     te.Enn=vnn;

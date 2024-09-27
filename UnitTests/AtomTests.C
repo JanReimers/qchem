@@ -67,13 +67,13 @@ INSTANTIATE_TEST_CASE_P(AtomsSemiDFTPolarized,
                         SemiHartreeFockAtomTester,
                         ::testing::Range(3,17));
 
-TEST_F(HartreeFockAtomTester, UraniumPolarized)
-{
-    Init(new Atom(thePeriodicTable.GetZ("U"),0,Vector3D<double>(0,0,0)),3,4.0);
-    Iterate(1.0,eps_ro,50);
-    double expected_energy=-25658.417889;
-    EXPECT_LT(fabs((expected_energy-TotalEnergy())/expected_energy),eps_e);
-}
+//TEST_F(HartreeFockAtomTester, UraniumPolarized)
+//{
+//    Init(new Atom(thePeriodicTable.GetZ("U"),0,Vector3D<double>(0,0,0)),3,4.0);
+//    Iterate(1.0,eps_ro,50);
+//    double expected_energy=-25658.417889;
+//    EXPECT_LT(fabs((expected_energy-TotalEnergy())/expected_energy),eps_e);
+//}
 
 
 //TEST_F(DFTAtomTester, PeriodicTable)

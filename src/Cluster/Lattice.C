@@ -4,7 +4,6 @@
 
 #include "Cluster/Lattice.H"
 #include "Cluster/Molecule.H"
-#include "Cluster/ClusterBrowser.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include <iostream>
@@ -202,11 +201,11 @@ std::vector<double> Lattice::GetDistances(int NumShells) const
 
     std::vector<RVec3> super_cells=GetSuperCells(maxd);
 
-    for (ClusterBrowser b1(*itsAtoms); b1; b1++)
-        for (ClusterBrowser b2(*itsAtoms); b2; b2++)
+    for (auto a1:*itsAtoms)
+        for (auto a2:*itsAtoms)
             for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
             {
-                double d=itsUnitCell.GetDistance(*c + b2->itsR - b1->itsR);
+                double d=itsUnitCell.GetDistance(*c + a2->itsR - a1->itsR);
                 if(d>0 && d<=maxd && Find(d,distances)==distances.size()) distances.push_back(d);
             }
 
@@ -223,10 +222,10 @@ std::vector<RVec3> Lattice::GetBonds(int BasisNumber, double Distance) const
     RVec3 rb=GetBasisVector(BasisNumber);
     std::vector<RVec3> super_cells=GetSuperCells(Distance);
 
-    for (ClusterBrowser b(*itsAtoms); b; b++)
+    for (auto a:*itsAtoms)
         for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
-            RVec3 bond = b->itsR + *c - rb;
+            RVec3 bond = a->itsR + *c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (fabs(mbond-Distance) < itsTolerence) ret.push_back(bond);
         }
@@ -242,10 +241,10 @@ std::vector<RVec3> Lattice::GetBondsInSphere(int BasisNumber, double Distance) c
     RVec3 rb=GetBasisVector(BasisNumber);
     std::vector<RVec3> super_cells=GetSuperCells(Distance);
 
-    for (ClusterBrowser b(*itsAtoms); b; b++)
+    for (auto a:*itsAtoms)
         for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
-            RVec3 bond = b->itsR + *c - rb;
+            RVec3 bond = a->itsR + *c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (mbond<Distance+itsTolerence) ret.push_back(bond);
         }
@@ -261,11 +260,15 @@ index_t  Lattice::Find(const RVec3& r) const //Search within the primary unit ce
 {
     index_t ret=GetNumBasisSites();
     index_t i=0;
-    for (ClusterBrowser b(*itsAtoms); b; b++,i++) if (itsUnitCell.GetDistance(r - b->itsR) < itsTolerence)
+    for (auto a:*itsAtoms)
+    {
+        i++;
+        if (itsUnitCell.GetDistance(r - a->itsR) < itsTolerence)
         {
             ret=i;
             break;
         }
+    } 
     return ret;
 }
 
@@ -297,9 +300,9 @@ RVec3 Lattice::GetBasisVector(int BasisNumber) const
     assert(BasisNumber<GetNumBasisSites());
     RVec3 ret;
     {
-        ClusterBrowser b(*itsAtoms);
+        auto b=itsAtoms->begin();
         for (int ib=0; ib<BasisNumber; ib++,b++);
-        ret=b->itsR;
+        ret=(*b)->itsR;
     }
     return ret;
 }

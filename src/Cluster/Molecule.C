@@ -3,9 +3,8 @@
 
 
 #include "Cluster/Molecule.H"
-#include "Cluster/ClusterBrowser.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <iomanip>
@@ -30,7 +29,7 @@ int Molecule::GetNumAtoms() const
 int Molecule::GetNuclearCharge() const
 {
     int chg=0;
-    for(ClusterBrowser b(*this); b; b++) chg+=b->itsZ;
+    for(auto b:*this) chg+=b->itsZ;
     return chg;
 }
 
@@ -47,7 +46,7 @@ double Molecule::GetNumElectrons() const
 ChargeDensity* Molecule::GetChargeDensity() const
 {
     CompositeCD* ret=new CompositeCD;
-    for(ClusterBrowser b(*this); b; b++) ret->Insert(b->GetChargeDensity());
+    for(auto b:*this) ret->Insert(b->GetChargeDensity());
     return ret;
 }
 
@@ -72,8 +71,8 @@ std::ostream& Molecule::Write(std::ostream& os) const
         << ", nuclear charge " << GetNuclearCharge() << "(e)"
         << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
         os << "Atom #  Element  Position vector     Mesh file    Charge density file" << std::endl;
-        ClusterBrowser b(*this);
-        for(int i=1; b; b++,i++) os << std::setw(5) << i << "   " << *b;
+        int i=1;
+        for (auto b:*this) os << std::setw(5) << i++ << "   " << *b;
         os << std::endl;
     }
 

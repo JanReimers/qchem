@@ -7,7 +7,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="Debug">
-				<Option output="../TestPersistent" prefix_auto="1" extension_auto="1" />
+				<Option output="../qchemUT" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Debug/" />
 				<Option external_deps="../../Debug/libdft.a;" />
 				<Option type="1" />
@@ -17,12 +17,12 @@
 					<Add option="-DDEBUG" />
 				</Compiler>
 				<Linker>
-					<Add directory="../../Debug" />
+					<Add directory="../Debug" />
 					<Add directory="../../oml/Debug" />
 				</Linker>
 			</Target>
 			<Target title="Release">
-				<Option output="../TestPersistent" prefix_auto="1" extension_auto="1" />
+				<Option output="../qchemUT" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Release/" />
 				<Option external_deps="../../Release/libdft.a;" />
 				<Option type="1" />
@@ -32,22 +32,8 @@
 					<Add option="-DNDEBUG" />
 				</Compiler>
 				<Linker>
-					<Add directory="../../Release" />
-					<Add directory="../../../oml/Release" />
-				</Linker>
-			</Target>
-			<Target title="Debug-Linux">
-				<Option output="../TestPersistent" prefix_auto="1" extension_auto="1" />
-				<Option object_output="obj/Debug/" />
-				<Option external_deps="../../Debug/libdft.a;" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-g" />
-					<Add option="-DDEBUG" />
-				</Compiler>
-				<Linker>
-					<Add directory="../../Debug" />
+					<Add directory="../../oml/Release" />
+					<Add directory="../Release" />
 				</Linker>
 			</Target>
 		</Build>
@@ -59,7 +45,7 @@
 		</Compiler>
 		<Linker>
 			<Add option="-fopenmp" />
-			<Add library="dft" />
+			<Add library="qchem" />
 			<Add library="oml" />
 			<Add library="gtest" />
 			<Add library="pthread" />

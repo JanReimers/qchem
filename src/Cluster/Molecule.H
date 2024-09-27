@@ -4,6 +4,8 @@
 
 #include "Cluster/Cluster.H"
 #include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
+#include <iostream>
 
 class Molecule :
     public virtual Cluster
@@ -17,15 +19,19 @@ public:
     virtual double         GetNetCharge       () const;
     virtual double         GetNumElectrons    () const;
     virtual ChargeDensity* GetChargeDensity   () const;
+    
+    virtual const_iterator begin() const {return itsAtoms.begin();}
+    virtual const_iterator end  () const {return itsAtoms.end  ();} 
+    virtual       iterator begin()       {return itsAtoms.begin();}
+    virtual       iterator end  ()       {return itsAtoms.end  ();} 
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 
 private:
-    friend class ClusterBrowser;
 
-    double      itsNumElectrons;
-    optr_vector<Atom*> itsAtoms;
+    double       itsNumElectrons;
+    optr_vector1<Atom*> itsAtoms;
 };
 
 #endif

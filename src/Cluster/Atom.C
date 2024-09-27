@@ -107,8 +107,7 @@ std::ostream& Atom::Write  (std::ostream& os) const
         os << std::setw(4) << itsZ << "    "
         << std::setw(5) << std::setprecision(2) << itsR << "     "
         << itsMeshFileName << "     "
-        << itsChargeDensityFileName
-        << "  ";
+        << itsChargeDensityFileName << "  ";
     }
     if (!Binary()) os << std::endl;
     return os;
