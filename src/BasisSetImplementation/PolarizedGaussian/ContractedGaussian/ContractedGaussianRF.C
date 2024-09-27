@@ -21,44 +21,32 @@
 
 //#######################################################################
 //
-//  Contracted gaussian implementation
+//  Contracted Gaussian implementation
 //
-typedef optr_vector<RadialFunction*>::      iterator ITER;
-typedef optr_vector<RadialFunction*>::const_iterator CITER;
-typedef Vector<double>              ::const_iterator CVITER;
-typedef Vector<double>              ::      iterator VITER;
-
 ContractedGaussianRF::ContractedGaussianRF()
     : RadialFunctionImplementation()
-    , itsCoeffs             ( )
-    , itsPrimatives         ( )
+    , cs             ( )
+    , gs         ( )
 {};
 
-ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& theCoeffs, ptr_vector<RadialFunction*>& its_rfs)
-    : RadialFunctionImplementation( its_rfs[0]->GetCenter (), its_rfs[0]->GetL())
-    , itsCoeffs    (theCoeffs)
-    , itsPrimatives(         )
+ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, ptr_vector<RadialFunction*>& rfs)
+    : RadialFunctionImplementation( rfs[0]->GetCenter (), rfs[0]->GetL())
+    , cs    (coeffs)
+    , gs(rfs   ) //Copy pointers
 {
-//
-//  Plant all the radials in the list.
-//
-    for (ptr_vector<RadialFunction*>::iterator b(its_rfs.begin()); b!=its_rfs.end(); b++) itsPrimatives.push_back(&b);
+    assert(cs.size()==gs.size());
 //
 //  Absorb normalizations into the contraction coefficients.
 //
-    CITER b(itsPrimatives.begin());
-    VITER c(itsCoeffs.begin());
-    for (; b!=itsPrimatives.end()&&c!=itsCoeffs.end(); b++,c++) *c *= b->GetNormalization(Polarization(GetL(),0,0));
-    Check(); //Make sure all L's and centers are the same.
+    for (auto i:gs.indices()) cs(i+1)*=gs[i]->GetNormalization(Polarization(GetL(),0,0));
+    Check(); //Make sure all L's and centres are the same.
 };
 
 
 Hermite1* ContractedGaussianRF::MakeH1() const
 {
     Hermite1* ret=new Hermite1;
-    CITER b(itsPrimatives.begin());
-    CVITER c(itsCoeffs.begin());
-    for (; b!=itsPrimatives.end()&&c!=itsCoeffs.end(); b++,c++) ret->Add(b->GetH1(),*c);
+    for (auto i:gs.indices()) ret->Add(gs[i]->GetH1(),cs(i+1));
     return ret;
 }
 
@@ -69,13 +57,10 @@ bool ContractedGaussianRF::operator==(const RadialFunction& rf) const
     if (cg)
     {
         bool base     = RadialFunctionImplementation::operator==(rf);
-        bool coeff    = itsCoeffs.size()==cg->itsCoeffs.size() && itsCoeffs==cg->itsCoeffs;
+        bool coeff    = cs.size()==cg->cs.size() && cs==cg->cs;
         bool index    = true;
 
-        CITER b1(    itsPrimatives.begin());
-        CITER b2(cg->itsPrimatives.begin());
-        for (; b1!=itsPrimatives.end()&&b2!=cg->itsPrimatives.end(); b1++,b2++)  index = index && b1->GetID() == b2->GetID();
-
+        for (auto i:gs.indices()) index = index && gs[i]->GetID()==cg->gs[i]->GetID();
         ret = base && coeff && index;
     }
     return ret;
@@ -95,51 +80,35 @@ double ContractedGaussianRF::GetNormalization(const Polarization& p) const
 double ContractedGaussianRF::GetCharge(const Polarization& p) const
 {
     double ret=0.0;
-    CITER b(itsPrimatives.begin());
-    CVITER c(itsCoeffs.begin());
-    for (; b!=itsPrimatives.end()&&c!=itsCoeffs.end(); b++,c++)
-    {
-        ret += *c * b->GetCharge(p);
-    }
+    for (auto i:gs.indices()) ret += cs(i+1)*gs[i]->GetCharge(p);
     return ret;
 }
 
 void ContractedGaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, SMat& ret, const Cluster* cl, double scale) const
 {
-    CITER ri(itsPrimatives.begin());
-    CVITER ci(itsCoeffs.begin());
-    for (; ri!=itsPrimatives.end()&&ci!=itsCoeffs.end(); ri++,ci++)
-        ri->Get2CenterIntegrals(type,p,ret,cl,*ci*scale);
-}
+    for (auto i:gs.indices()) gs[i]->Get2CenterIntegrals(type,p,ret,cl,cs(i+1)*scale);
+} 
+
 void ContractedGaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, Mat& ret, double scale) const
 {
-    CITER ri(itsPrimatives.begin());
-    CVITER ci(itsCoeffs.begin());
-    for (; ri!=itsPrimatives.end()&&ci!=itsCoeffs.end(); ri++,ci++)
-        ri->Get2CenterIntegrals(type,p,ret,*ci*scale);
+    for (auto i:gs.indices()) gs[i]->Get2CenterIntegrals(type,p,ret,cs(i+1)*scale);
 }
 
 void ContractedGaussianRF::Get3CenterIntegrals(Types3C type, BFBT& t, std::vector<SMat>& ret, double scale)
 {
-    CITER ri(itsPrimatives.begin());
-    CVITER ci(itsCoeffs.begin());
-    for (; ri!=itsPrimatives.end()&&ci!=itsCoeffs.end(); ri++,ci++)
-        ri->Get3CenterIntegrals(type,t,ret,*ci*scale);
+    for (auto i:gs.indices()) gs[i]->Get3CenterIntegrals(type,t,ret,cs(i+1)*scale);
 }
 
 void ContractedGaussianRF::GetRepulsion4C(BFBQ& q, ERIList& eris, double scale)
 {
-    CITER ri(itsPrimatives.begin());
-    CVITER ci(itsCoeffs.begin());
-    for (; ri!=itsPrimatives.end()&&ci!=itsCoeffs.end(); ri++,ci++)
-        ri->GetRepulsion4C(q,eris,*ci*scale);
+    for (auto i:gs.indices()) gs[i]->GetRepulsion4C(q,eris,cs(i+1)*scale);
 }
 
 
 Hermite3* ContractedGaussianRF::GetH3(const RadialFunction& r1, const RadialFunction& r2) const
 {
-    ContractedGaussianH3* ret = new ContractedGaussianH3(itsCoeffs);
-    for (CITER b(itsPrimatives.begin()); b!=itsPrimatives.end(); b++) ret->Insert( b->GetH3(r1,r2) );
+    ContractedGaussianH3* ret = new ContractedGaussianH3(cs);
+    for (auto& g:gs) ret->Insert( g.GetH3(r1,r2) );
     return ret;
 }
 
@@ -149,26 +118,21 @@ Matrix<double> ContractedGaussianRF::GetAux(const std::vector<Polarization>& N, 
     Matrix<double> ret(N.size(),Pc.size());
     Fill(ret,0.0);
 
-    CITER b(itsPrimatives.begin());
-    CVITER c(itsCoeffs.begin());
-    for (; b!=itsPrimatives.end()&&c!=itsCoeffs.end(); b++,c++)
-    {
-        ret += *c * b->GetAux(N,Pc,LP,AlphaP,P);
-    }
+    for (auto i:gs.indices()) ret += cs(i+1) * gs[i]->GetAux(N,Pc,LP,AlphaP,P);
     return ret;
 }
 
 std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
 {
-    if (Binary()) os << itsCoeffs << itsPrimatives;
-    if (Ascii ()) os << itsCoeffs << std::endl << itsPrimatives << std::endl;
+    if (Binary()) os << cs << gs;
+    if (Ascii ()) os << cs << std::endl << gs << std::endl;
     if (Pretty())
     {
         os << "Contracted {";
-        for(CITER p(itsPrimatives.begin()); p!=itsPrimatives.end(); p++)
+        for(auto& g:gs)
         {
             std::ostringstream s;
-            s << *p << std::ends;
+            s << g << std::ends;
             std::string ss(s.str());
             std::string num=ss.substr(10);
             os << num << " ";
@@ -181,7 +145,7 @@ std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
 
 std::istream& ContractedGaussianRF::Read(std::istream& is)
 {
-    is >> itsCoeffs >> itsPrimatives;
+    is >> cs >> gs;
     RadialFunctionImplementation::Read(is);
     Check(); //Make all L's and centers are the same.
     return is;
@@ -190,42 +154,37 @@ std::istream& ContractedGaussianRF::Read(std::istream& is)
 double ContractedGaussianRF::operator()(const RVec3& r) const
 {
     double ret=0;
-    CVITER c(itsCoeffs.begin());
-    CITER p(itsPrimatives.begin());
-    for (; p!=itsPrimatives.end()&&c!=itsCoeffs.end(); c++,p++) ret+=*c * p->operator()(r);
+    for (auto i:gs.indices()) ret+=cs(i+1)* gs[i]->operator()(r);
     return ret;
 }
 
 RVec3 ContractedGaussianRF::Gradient(const RVec3& r) const
 {
     RVec3 ret(0,0,0);
-    CVITER c(itsCoeffs.begin());
-    CITER p(itsPrimatives.begin());
-    for (; p!=itsPrimatives.end()&&c!=itsCoeffs.end(); c++,p++) ret+=*c * p->Gradient(r);
+    for (auto i:gs.indices()) ret+=cs(i+1)* gs[i]->Gradient(r);
     return ret;
 }
 
 void ContractedGaussianRF::Eval(const Mesh& mesh, Vector<double>& vec) const
 {
-    CVITER c(itsCoeffs.begin());
-    CITER p(itsPrimatives.begin());
-    for (; p!=itsPrimatives.end()&&c!=itsCoeffs.end(); c++,p++)
+    for (auto ig:gs.indices())
     {
         Vector<double>::iterator i(vec.begin());
-        Vector<double>::const_iterator  v((*p)(mesh).begin());
-        for (; i!=vec.end()&&v; i++,v++) *i += (*c) * (*v);
+        Vector<double>::const_iterator  v(gs[ig]->operator()(mesh).begin());
+        for (; i!=vec.end()&&v; i++,v++) *i += cs(ig+1) * (*v);
     }
 }
 
 void ContractedGaussianRF::EvalGrad(const Mesh& mesh, Vector<RVec3>& vec) const
 {
-    CVITER c(itsCoeffs.begin());
-    CITER p(itsPrimatives.begin());
-    for (; p!=itsPrimatives.end()&&c!=itsCoeffs.end(); c++,p++)
+//    CVITER c(cs.begin());
+//    CITER p(gs.begin());
+//    for (; p!=gs.end()&&c!=cs.end(); c++,p++)
+    for (auto ig:gs.indices())
     {
         Vector<RVec3>::iterator i(vec.begin());
-        Vector<RVec3>::const_iterator  v(p->Gradient(mesh).begin());
-        for (; i&&v; i++,v++) *i += (*c) * (*v);
+        Vector<RVec3>::const_iterator  v(gs[ig]->Gradient(mesh).begin());
+        for (; i&&v; i++,v++) *i += cs(ig+1)* (*v);
     }
 }
 
@@ -238,8 +197,8 @@ RadialFunction* ContractedGaussianRF::Clone() const
 RadialFunction* ContractedGaussianRF::Clone(const RVec3& newCenter) const
 {
     ptr_vector<RadialFunction*> newList;
-    for (CITER p(itsPrimatives.begin()); p!=itsPrimatives.end(); p++) newList.push_back(p->Clone(newCenter));
-    return new  ContractedGaussianRF(itsCoeffs,newList);
+    for (auto& g:gs) newList.push_back(g.Clone(newCenter));
+    return new  ContractedGaussianRF(cs,newList);
 }
 
 //
@@ -247,18 +206,18 @@ RadialFunction* ContractedGaussianRF::Clone(const RVec3& newCenter) const
 //
 void ContractedGaussianRF::Check() const
 {
-    const RVec3& center=itsPrimatives[0]->GetCenter();
-    int          L     =itsPrimatives[0]->GetL     ();
-    for(unsigned i=1; i<itsPrimatives.size(); i++)
+    const RVec3& center=gs[0]->GetCenter();
+    int          L     =gs[0]->GetL     ();
+    for(unsigned i=1; i<gs.size(); i++)
     {
-        if (center!=itsPrimatives[i]->GetCenter() || L!=itsPrimatives[i]->GetL())
+        if (center!=gs[i]->GetCenter() || L!=gs[i]->GetL())
         {
             std::cerr
                 << "ContractedGaussianRF ID=" << GetID()
                 << "Primatives have different L or Center" << std::endl
                 << "center(0)=" << center << "  L(0)=" << L << std::endl
-                << "center(" << i << ")=" << itsPrimatives[i]->GetCenter()
-                << "  L(" << i << ")=" << itsPrimatives[i]->GetL() << std::endl;
+                << "center(" << i << ")=" << gs[i]->GetCenter()
+                << "  L(" << i << ")=" << gs[i]->GetL() << std::endl;
         }
     }
 }

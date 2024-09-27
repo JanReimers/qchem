@@ -9,7 +9,6 @@
 #include "oml/vector.h"
 
 class ContractedGaussianH3;
-//template <class T> class PList;
 
 class ContractedGaussianRF
     : public virtual RadialFunction
@@ -48,8 +47,8 @@ private:
 
     void Check() const;
 
-    Vector<double>       itsCoeffs;
-    optr_vector<RadialFunction*> itsPrimatives;
+    Vector<double>               cs;
+    optr_vector<RadialFunction*> gs;
 };
 
 #endif //_ContractedGaussianRF_H_

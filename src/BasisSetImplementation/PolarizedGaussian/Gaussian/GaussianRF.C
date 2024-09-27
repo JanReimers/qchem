@@ -10,8 +10,8 @@
 #include "Misc/ERIList.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H"
+#include "Cluster/Cluster.H"
 #include "Mesh/MeshBrowser.H"
-#include "Cluster/ClusterBrowser.H"
 #include "oml/imp/binio.h"
 #include <cmath>
 #include <iostream>
@@ -352,7 +352,7 @@ void GaussianRF::GetNuclear2CInternal  (BFBP& p, SMat& ret, const Cluster* cl, d
     GaussianCD ab(*p.radials.a(),*p.radials.b());
     RNLM R; //Create and empty aux function.
     //  Loop over nuclear centers and add the RNML contribution from each nucleaus.
-    for (ClusterBrowser cb(*cl); cb; cb++) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-(*cb).itsR), -1.0*(cb->itsZ) );
+    for (auto atom:*cl) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
 
     double factor=scale*2*Pi/ab.AlphaP*ab.Eij;
     SMatrix<double>::Subscriptor s(ret);

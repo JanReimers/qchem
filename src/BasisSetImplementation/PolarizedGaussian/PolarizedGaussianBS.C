@@ -11,7 +11,6 @@
 #include "BasisSet/BasisSetBrowser.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
 #include "Cluster/Cluster.H"
-#include "Cluster/ClusterBrowser.H"
 #include "Misc/ptrvector_io.h"
 #include "oml/vector.h"
 #include <cassert>
@@ -42,11 +41,11 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
 //
     ptr_vector<RadialFunction*> radials;
     std::vector<std::vector<int> >    Ls;
-    for (ClusterBrowser cb(*cl); cb; cb++) //Loop over atoms.
+    for (auto atom:*cl) //Loop over atoms.
     {
-        bsr->FindAtom(*cb);
+        bsr->FindAtom(*atom);
         RadialFunction* rf=0;
-        while ((rf=bsr->ReadNext(*cb)))
+        while ((rf=bsr->ReadNext(*atom)))
         {
             bool duplicate=false;
             ptr_vector<RadialFunction*>::iterator b(radials.begin());
@@ -55,12 +54,10 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
                 {
                     duplicate=true;
                     std::vector<int> newLs=bsr->GetLs();
-                    std::vector<int>& Li=Ls[i];
+                    //std::vector<int>& Li=Ls[i];
                     bool UseNewRF=Max(newLs) > Max(Ls[i]);
-                    for(std::vector<int>::const_iterator bl(newLs.begin()); bl!=newLs.end(); bl++)
-                    {
-                        if (std::find(Li.begin(),Li.end(),*bl)!=Li.end()) Ls[i].push_back(*bl); //Add elements not in common.                        
-                    }
+                    for (auto l:newLs)
+                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.                        
 
                     if (UseNewRF)
                     {
@@ -84,14 +81,12 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
 //  Automatically build the basis set from a list of atoms and a basis function reader.
 //
     int nbasis=1;
-    std::vector<std::vector<int> >::const_iterator Lb(Ls.begin());
-    for (ptr_vector<RadialFunction*>::iterator rf(radials.begin()); rf!=radials.end(); rf++,Lb++)
+    for (auto i:radials.indices())
     {
-        BasisFunctionBlock* bfb=new BasisFunctionBlock(&rf,nbasis);
-        std::vector<Polarization> the_pols=MakePolarizations(*Lb);
-        for (std::vector<Polarization>::const_iterator bp(the_pols.begin()); bp!=the_pols.end(); bp++)
+        BasisFunctionBlock* bfb=new BasisFunctionBlock(radials[i],nbasis);
+        for (auto& p:MakePolarizations(Ls[i]))
         {
-            bfb->Add(*bp);
+            bfb->Add(p);
             nbasis++;
         }
         itsBlocks.push_back(bfb);
@@ -104,7 +99,7 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
 //  Make the integral engine.  Can't do this until all the basis functions and
 //  blocks are in place.
 //
-    if (theMesh)  //Compiler says these calls are ambiguous.  BUG
+    if (theMesh)  
         TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh) );
     else
         TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE);
@@ -122,6 +117,7 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
     , TBasisSetImplementation<double>(theDB)
     , itsBlocks(theBlocks)
 {
+    // No UT coverage
     MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
     TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
@@ -136,6 +132,7 @@ void PolarizedGaussianBS::MakeBasisFunctions()
 
 std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
 {
+    // No UT coverage
     if (!Pretty())
     {
         os << itsBlocks;
@@ -152,6 +149,7 @@ std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
 
 std::istream& PolarizedGaussianBS::Read (std::istream& is)
 {
+    // No UT coverage
     is >> itsBlocks;
     MakeBasisFunctions();
     BasisSetImplementation::Read(is);
@@ -166,6 +164,7 @@ BasisSet* PolarizedGaussianBS::Clone() const
 
 BasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
 {
+    // No UT coverage
     optr_vector<BasisFunctionBlock*> newBlocks;
     for (optr_vector<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
         newBlocks.push_back(b->Clone(newCenter));
