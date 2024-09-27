@@ -8,5 +8,16 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -Range based iterators for ptr_vector and optr_vector.
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
-    -Get ride of OrbitalGroupIterator OrbitalGroupBrowser MeshBrowser AngularMeshBrowser RadialMeshBrowser BasisGroupBrowser
-        BasisSetBrowser TBasisSetBrowser ClusterBrowser TwoLPlusOne
+    -Get ride of 
+        OrbitalGroupIterator 
+        OrbitalGroupBrowser 
+        MeshBrowser 
+        AngularMeshBrowser 
+        RadialMeshBrowser 
+        BasisGroupBrowser
+        BasisSetBrowser 
+        TBasisSetBrowser 
+        Done: ClusterBrowser 
+        TwoLPlusOne
+    -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
+    -Start using optr_vector1 which is vastly simpler.

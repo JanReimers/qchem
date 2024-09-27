@@ -3,9 +3,12 @@
 
 #include "gtest/gtest.h"
 #include "oml/vector.h"
-//#include "oml/array_io.h"
 #include "oml/imp/stream.h"
 #include "Misc/stl_io.h"
+#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
+#include "Misc/ptr_vector1_io.h"
+#include "Cluster/Molecule.H"
 #include <vector>
 #include <ostream>
 #include <sstream>
@@ -24,11 +27,15 @@ public:
     {
         Fill(a,3);
         for (int i=0;i<6;i++) s.insert(pow(0.5,i));
+        for (int i=0;i<6;i++) opvi.push_back(new int(i));
+        for (int i=0;i<6;i++) opvd.push_back(new double(sqrt(i)));
     }
 
     std::vector<int> v;
     std::set<double> s;
     Vector<int> a;
+    optr_vector<int*> opvi;
+    optr_vector<double*> opvd;
 };
 
 TEST_F(STLTesting,AsciiIO)
@@ -98,4 +105,30 @@ TEST_P(STLTesting,FileIO)
 
 INSTANTIATE_TEST_CASE_P(FileIO,STLTesting,
                         ::testing::Values(StreamableObject::ascii,StreamableObject::binary));
+
+TEST_F(STLTesting,RangeBasedLoops)
+{
+    for (auto p:opvi) {cout << p << " ";}
+    cout << endl;
+    for (auto i:opvi.indices()) {cout << *opvi[i] << " " << *opvd[i] << endl;}
+    
+    StreamableObject::SetToPretty();
+    optr_vector1<Atom*> pa;
+    pa.push_back(new Atom(1 ,0.0,RVec3(0,0,0)));
+    pa.push_back(new Atom(47,0.0,RVec3(2,0,0)));
+    pa.push_back(new Atom(79,0.0,RVec3(0,6,0)));
+    cout << pa << endl;
+    
+    std::vector<Atom*> v=pa;
+    cout << v << endl;
+    
+//    Cluster* c=new Molecule();
+//    c->Insert(new Atom(1 ,0.0,RVec3(0,0,0)));
+//    c->Insert(new Atom(47,0.0,RVec3(2,0,0)));
+//    c->Insert(new Atom(79,0.0,RVec3(0,6,0)));
+//    for (auto a:*c)
+//        cout << *a;
+//    cout << *c << endl;
+}
+
 
