@@ -9,8 +9,6 @@
 #include "Misc/Spin.H"
 #include "Misc/rc_ptr.H"
 
-class OrbitalGroup;
-
 class IrrepWaveFunction
     : public virtual WaveFunction
 {

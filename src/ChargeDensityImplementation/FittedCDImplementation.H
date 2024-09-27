@@ -8,8 +8,6 @@
 #include "FunctionsImp/IntegralConstrainedFF.H"
 #include "FunctionsImp/DumpScalarData.H"
 
-class BasisSet;
-
 //---------------------------------------------------------------------------------
 //
 //  A charge density implemented by fitting the real charge density to an

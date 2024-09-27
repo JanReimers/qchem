@@ -6,9 +6,6 @@
 
 #include "WaveFunction/PolarizedWF.H"
 
-template <class T> class SList;
-class BasisGroup;
-
 class MasterPolarizedWF
     : public virtual PolarizedWF
 {

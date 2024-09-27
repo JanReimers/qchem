@@ -2,10 +2,8 @@
 #ifndef _FermiThermalizer_H_
 #define _FermiThermalizer_H_
 
+#include "types.H"
 #include "Misc/ptr_vector.h"
-
-class EnergyLevel;
-template <class T> class SList;
 
 class FermiThermalizer
 {

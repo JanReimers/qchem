@@ -4,8 +4,6 @@
 
 #include "WaveFunction/SCFIteratorImplementation.H"
 
-class ChargeDensity;
-class PolarizedWF;
 
 class PolarizedSCFIterator
     : virtual public SCFIteratorImplementation

@@ -2,14 +2,9 @@
 #ifndef _MeshBrowser_H_
 #define _MeshBrowser_H_
 
-
-
+#include "types.H"
 #include "oml/vector3d.h"
 #include "oml/vector.h"
-#include "oml/vector.h"
-
-class Mesh;
-typedef Vector3D<double> RVec3;
 
 class MeshBrowser
 {

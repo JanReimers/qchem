@@ -2,8 +2,6 @@
 #ifndef _BasisGroup_H_
 #define _BasisGroup_H_
 
-
-
 #include "BasisSet/BasisSet.H"
 #include "Misc/ptr_vector.h"
 #include "Misc/ERIList.H"

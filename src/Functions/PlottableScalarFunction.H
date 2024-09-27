@@ -2,11 +2,7 @@
 #ifndef _PlottableScalarFunction_H_
 #define _PlottableScalarFunction_H_
 
-
-
 #include "Functions/ScalarFunction.H"
-
-class Mesh;
 
 class PlottableScalarFunction
     : public virtual ScalarFunction<double>

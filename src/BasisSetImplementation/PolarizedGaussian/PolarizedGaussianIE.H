@@ -8,7 +8,6 @@
 
 class PolarizedGaussianBS;
 class BasisFunctionBlock;
-template <class T> class SList;
 
 class PolarizedGaussianIE
     : public virtual IntegralEngine<double>

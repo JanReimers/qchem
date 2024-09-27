@@ -2,8 +2,7 @@
 #ifndef _FittedFunctionClient_H_
 #define _FittedFunctionClient_H_
 
-class BasisSet;
-class FittedFunction;
+#include "types.H"
 
 //-------------------------------------------------------------------
 //

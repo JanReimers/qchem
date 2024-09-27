@@ -8,7 +8,6 @@
 #include "Misc/UniqueID/UniqueID.H"
 #include "oml/imp/stream.h"
 #include "oml/vector.h"
-#include "oml/vector.h"
 
 //-------------------------------------------------------------------------
 //

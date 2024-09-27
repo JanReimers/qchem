@@ -7,8 +7,6 @@
 #include "Functions/ScalarFunction.H"
 #include "Orbital/Orbital.H"
 
-template <class T> class SMatrix;
-
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or

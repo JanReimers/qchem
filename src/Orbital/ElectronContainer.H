@@ -2,8 +2,7 @@
 #ifndef _ElectronContainer_H_
 #define _ElectronContainer_H_
 
-
-
+#include "types.H"
 #include "oml/imp/stream.h"
 
 class ElectronContainer

@@ -2,9 +2,7 @@
 #ifndef _RadialMesh_H_
 #define _RadialMesh_H_
 
-
-
-#include "oml/imp/index_t.h"
+#include "types.H"
 
 class RadialMesh
 {

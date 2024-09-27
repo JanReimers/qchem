@@ -7,7 +7,6 @@
 #include "Orbital/ElectronContainer.H"
 #include "Misc/Spin.H"
 
-class QuantumNumber;
 
 class ElectronContainerImplementation
     : public virtual ElectronContainer

@@ -2,16 +2,9 @@
 #ifndef _Hamiltonian_H_
 #define _Hamiltonian_H_
 
-
-
+#include "types.H"
 #include "Misc/pmstream.h"
 
-class HamiltonianTerm;
-class ChargeDensity;
-class BasisSet;
-class TotalEnergy;
-class Spin;
-template <class T> class SMatrix;
 
 class Hamiltonian
     : public virtual PMStreamableObject

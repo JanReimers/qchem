@@ -2,13 +2,8 @@
 #ifndef _Plotter_H_
 #define _Plotter_H_
 
+#include "types.H"
 
-
-class PlottableScalarFunction;
-class PlottableVectorFunction;
-class Mesh;
-template <class T> class Vector3D;
-typedef Vector3D<double> RVec3;
 
 class Plotter
 {

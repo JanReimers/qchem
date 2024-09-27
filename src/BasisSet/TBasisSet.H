@@ -2,14 +2,9 @@
 #ifndef _TBasisSet_H_
 #define _TBasisSet_H_
 
-
-
+#include "types.H"
 #include "BasisSet/BasisSet.H"
 #include "Functions/VectorFunction.H"
-
-template <class T> class IntegralDataBase;
-template <class T> class EigenSolver;
-
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions

@@ -2,16 +2,11 @@
 #ifndef _Lattice_H_
 #define _Lattice_H_
 
-
-
 #include "Cluster/Cluster.H"
 #include "Cluster/UnitCell.H"
 #include "oml/imp/stream.h"
 #include "oml/vector3d.h"
 #include <vector>
-
-template <class T> class Vector3D;
-typedef Vector3D<double> RVec3;
 
 //----------------------------------------------------------------------------
 //

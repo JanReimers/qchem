@@ -2,17 +2,10 @@
 #ifndef _Atom_H_
 #define _Atom_H_
 
-
-
-#include "Misc/DFTDefines.H"
+#include "types.H"
 #include "Misc/pmstream.h"
 #include "oml/vector3d.h"
 #include <string>
-
-typedef Vector3D<double> RVec3;
-
-class Mesh;
-class ChargeDensity;
 
 class Atom
     : public virtual PMStreamableObject

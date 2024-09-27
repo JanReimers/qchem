@@ -2,17 +2,8 @@
 #ifndef _OrbitalGroup_H_
 #define _OrbitalGroup_H_
 
-
-
-#include "oml/imp/index_t.h"
+#include "types.H"
 #include "oml/imp/stream.h"
-
-class ChargeDensity;
-class BasisSet;
-class WaveFunction;
-class Orbital;
-class Spin;
-template <class T> class rc_ptr;
 
 //---------------------------------------------------------------------------
 //

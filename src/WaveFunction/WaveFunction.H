@@ -2,18 +2,11 @@
 #ifndef _WaveFunction_H_
 #define _WaveFunction_H_
 
-
-
+#include "types.H"
 #include "Misc/pmstream.h"
 #include "Hamiltonian/TotalEnergy.H"
 #include "Misc/Spin.H"
 
-class BasisSet;
-class OrbitalGroup;
-class ChargeDensity;
-class ElectronDumper;
-class Hamiltonian;
-class SCFIterator;
 
 template <class T> class rc_ptr;
 

@@ -7,9 +7,6 @@
 #include "WaveFunction/WaveFunction.H"
 #include "Misc/ptr_vector.h"
 
-template <class T> class SList;
-class BasisGroup;
-
 class MasterUnPolarizedWF
     : public virtual WaveFunction
 {

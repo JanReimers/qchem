@@ -3,11 +3,10 @@
 #define _ContractedGaussianH3_H_
 
 
-
+#include "types.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.H"
 #include "Misc/ptr_vector.h"
 
-template <class T> class Vector;
 //
 // Store a list hermite3 pointers.  Contraction coefficients should be absorbed into the scale factors
 // of the uncontracted hermite3's before insertion.

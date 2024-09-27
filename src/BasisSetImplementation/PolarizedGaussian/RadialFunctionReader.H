@@ -2,10 +2,8 @@
 #ifndef _RadialFunctionReader_h_
 #define _RadialFunctionReader_h_
 
+#include "types.H"
 #include <vector>
-
-class Atom;
-class RadialFunction;
 
 //-------------------------------------------------------------------------
 //

@@ -7,8 +7,6 @@
 #include "Misc/pmstream.h"
 #include "Functions/PlottableScalarFunction.H"
 
-class ChargeDensity;
-
 class ExchangeFunctional
     : public virtual PMStreamableObject
     , public virtual PlottableScalarFunction

@@ -2,17 +2,8 @@
 #ifndef _ScalarFunction_H_
 #define _ScalarFunction_H_
 
-
-
+#include "types.H"
 #include "oml/vector3d.h"
-#include "oml/vector3d.h"
-
-template <class T> class Vector;
-template <class T> class Vector3D;
-template <class T> class Matrix;
-template <class T> class SMatrix;
-
-class Mesh;
 
 //------------------------------------------------------------------
 //

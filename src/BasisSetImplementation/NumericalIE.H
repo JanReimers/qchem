@@ -7,9 +7,6 @@
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
 #include "Mesh/MeshIntegrator.H"
 
-template <class T> class TBasisFunction;
-class Mesh;
-
 template <class T> class NumericalIE
     : public virtual IntegralEngine<T>
     , private IntegralEngineImplementation<T>

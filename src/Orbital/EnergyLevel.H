@@ -2,12 +2,9 @@
 #ifndef _EnergyLevel_H_
 #define _EnergyLevel_H_
 
-
-
 #include "Orbital/ElectronContainer.H"
 #include "Orbital/Orbital.H"
 #include "Misc/ptr_vector.h"
-#include "oml/imp/index_t.h"
 
 class EnergyLevel
     : public virtual ElectronContainer

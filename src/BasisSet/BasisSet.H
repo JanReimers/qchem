@@ -2,28 +2,9 @@
 #ifndef _BasisSet_H_
 #define _BasisSet_H_
 
-
-
+#include "types.H"
 #include "Misc/Persistent/Persistent.H"
 #include "BasisSet/BasisFunction.H"
-#include "oml/imp/index_t.h"
-#include <complex>
-
-class QuantumNumber;
-class Cluster;
-class FittedFunction;
-class OrbitalGroup;
-class Hamiltonian;
-class Spin;
-class ChargeDensity;
-
-template <class T> class Vector3D;
-template <class T> class SMatrix;
-template <class T> class TBasisSet;
-template <class T> class rc_ptr;
-template <class T> class ScalarFunction;
-
-typedef Vector3D<double> RVec3;
 
 //----------------------------------------------------------------------------
 //

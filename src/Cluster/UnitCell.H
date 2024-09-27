@@ -2,11 +2,10 @@
 #ifndef _UnitCell_H_
 #define _UnitCell_H_
 
+#include "types.H"
 #include "oml/vector3d.h"
 #include "oml/matrix3d.h"
 #include "Misc/pmstream.h"
-
-typedef Vector3D<double> RVec3;
 
 class UnitCell
     : public virtual PMStreamableObject

@@ -2,18 +2,8 @@
 #ifndef _MeshIntegrator_H_
 #define _MeshIntegrator_H_
 
+#include "types.H"
 
-
-#include "oml/imp/index_t.h"
-template <class T> class Matrix;
-template <class T> class SMatrix;
-template <class T> class Vector;
-template <class T> class Vector3D;
-
-template <class T> class ScalarFunction;
-template <class T> class VectorFunction;
-
-class Mesh;
 class MeshImplementation;
 
 template <class T> class MeshIntegrator
@@ -49,7 +39,7 @@ public:
     virtual SMat Grad       (const Vf& a            ) const; // <grad(ai)|grad(aj)>
 
 private:
-    const MeshImplementation* itsMesh;
+    const MeshImplementation* itsMesh; //TODO Can we use base class Mesh?
 };
 
 #endif //_MeshIntegrator_H_

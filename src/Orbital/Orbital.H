@@ -2,13 +2,10 @@
 #ifndef _Orbital_H_
 #define _Orbital_H_
 
-
-
 #include "Orbital/ElectronContainer.H"
 #include "Misc/pmstream.h"
 
-class BasisSet;
-class OrbitalGroup;
+
 
 //#############################################################
 //

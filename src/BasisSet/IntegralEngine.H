@@ -3,18 +3,9 @@
 #define _IntegralEngine_H_
 
 
-
+#include "types.H"
 #include "Misc/pmstream.h"
 
-template <class T> class ScalarFunction;
-template <class T> class TBasisSet;
-template <class T> class MatrixList;
-template <class T> class Matrix;
-template <class T> class SMatrix;
-template <class T> class Vector;
-class Cluster;
-class ERIList;
-class BasisGroup;
 
 //--------------------------------------------------------------------------------
 //

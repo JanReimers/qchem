@@ -8,7 +8,7 @@
 #include "Orbital/EnergyLevel.H"
 #include "Misc/ptr_vector.h"
 
-class OrbitalGroup;
+
 
 //--------------------------------------------------------------------------------
 // Takes a list of orbitals, sorts them in terms of energy,  makes a list of

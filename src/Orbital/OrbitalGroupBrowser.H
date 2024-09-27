@@ -2,12 +2,8 @@
 #ifndef _OrbitalGroupBrowser_H_
 #define _OrbitalGroupBrowser_H_
 
-
-
 #include "Misc/ptr_vector.h"
 #include "Orbital/OrbitalGroup.H"
-
-class Orbital;
 
 class OrbitalGroupBrowser
 {

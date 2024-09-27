@@ -2,14 +2,9 @@
 #ifndef _AngularMeshBrowser_H_
 #define _AngularMeshBrowser_H_
 
-
-
+#include "types.H"
 #include "oml/vector3d.h"
 #include "oml/vector.h"
-#include "oml/vector.h"
-
-class AngularMesh;
-typedef Vector3D<double> RVec3;
 
 class AngularMeshBrowser
 {

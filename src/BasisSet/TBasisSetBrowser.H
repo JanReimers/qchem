@@ -2,12 +2,7 @@
 #ifndef _TBasisSetBrowser_H_
 #define _TBasisSetBrowser_H_
 
-
-
 #include "BasisSet/BasisSetBrowser.H"
-
-template <class T> class TBasisFunction;
-
 //-----------------------------------------------------
 //
 //  This can be contructed from a BasisSet (non-template)

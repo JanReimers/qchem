@@ -2,15 +2,11 @@
 #ifndef _MeshImplementation_H_
 #define _MeshImplementation_H_
 
-
-
 #include "Mesh/Mesh.H"
 #include "oml/vector3d.h"
 #include "oml/vector.h"
-#include "oml/vector.h"
 
 template <class T> class MeshIntegrator;
-template <class T> class complex;
 
 class MeshImplementation : public virtual Mesh
 {

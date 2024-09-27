@@ -9,8 +9,6 @@
 #include "oml/vector3d.h"
 #include "oml/imp/stream.h"
 
-typedef Vector3D<double> RVec3;
-
 class RNLM
     : public virtual StreamableObject
 {

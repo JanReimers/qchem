@@ -2,13 +2,8 @@
 #ifndef _Mesh_H_
 #define _Mesh_H_
 
-
-
+#include "types.H"
 #include "Misc/Persistent/Persistent.H"
-#include "oml/imp/index_t.h"
-
-template <class T> class Vector3D;
-typedef Vector3D<double> RVec3;
 
 class Mesh
     : public virtual Persistent

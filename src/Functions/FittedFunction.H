@@ -2,12 +2,10 @@
 #ifndef _FittedFunction_H_
 #define _FittedFunction_H_
 
-
-
+#include "types.H"
 #include "Functions/PlottableScalarFunction.H"
 #include "oml/imp/stream.h"
 
-class FittedFunctionClient;
 
 //----------------------------------------------------------------------------------
 //

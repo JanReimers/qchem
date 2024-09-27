@@ -2,11 +2,7 @@
 #ifndef _PlottableVectorFunction_H_
 #define _PlottableVectorFunction_H_
 
-
-
 #include "Functions/VectorFunction.H"
-
-class Mesh;
 
 class PlottableVectorFunction
     : public virtual VectorFunction<double>

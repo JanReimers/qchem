@@ -2,17 +2,11 @@
 #ifndef _RadialFunction_H_
 #define _RadialFunction_H_
 
-
-
 #include "Misc/Persistent/Persistent.H"
 #include "Functions/ScalarFunction.H"
 #include "Misc/Polarization.H"
 #include "oml/vector3d.h"
 #include <vector>
-
-typedef Vector3D<double> RVec3;
-
-template <class T> class Matrix;
 
 class   Polarization;
 class   Hermite1;
@@ -22,8 +16,6 @@ class  BasisFunctionBlock;
 struct BasisFunctionBlockQuartet;
 struct BasisFunctionBlockTriplet;
 struct BasisFunctionBlockPair;
-class  ERIList;
-class  Cluster;
 
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and

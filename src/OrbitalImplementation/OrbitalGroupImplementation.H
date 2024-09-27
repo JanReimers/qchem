@@ -11,8 +11,6 @@
 #include "Misc/rc_ptr.H"
 #include "Misc/ptr_vector.h"
 
-class Spin;
-
 class OrbitalGroupImplementation
     : public virtual OrbitalGroup
 {

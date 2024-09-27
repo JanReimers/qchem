@@ -9,7 +9,6 @@
 #include "Functions/FittedFunction.H"
 #include "oml/vector.h"
 
-class ChargeDensity;
 template <class T> class TBasisSetImplementation;
 
 //--------------------------------------------------------------------------

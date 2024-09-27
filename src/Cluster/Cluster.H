@@ -2,14 +2,9 @@
 #ifndef _Cluster_H_
 #define _Cluster_H_
 
-
-
 #include "Misc/Persistent/Persistent.H"
 #include "Functions/ScalarFunction.H"
 #include "Cluster/Atom.H"
-#include "oml/imp/index_t.h"
-
-class ChargeDensity;
 
 class Cluster
     : public virtual Persistent

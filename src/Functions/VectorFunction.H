@@ -2,16 +2,8 @@
 #ifndef _VectorFunction_H_
 #define _VectorFunction_H_
 
-
-
+#include "types.H"
 #include "oml/vector3d.h"
-#include "oml/imp/index_t.h"
-
-class Mesh;
-template <class T> class Vector;
-template <class T> class Vector3D;
-template <class T> class Matrix;
-template <class T> class SMatrix;
 
 //--------------------------------------------------------------------------
 //

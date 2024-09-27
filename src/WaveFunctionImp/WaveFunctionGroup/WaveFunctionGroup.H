@@ -7,9 +7,6 @@
 #include "WaveFunction/WaveFunction.H"
 #include "Misc/ptr_vector.h"
 
-class BasisGroup;
-class Spin;
-
 class WaveFunctionGroup
     : public virtual WaveFunction
 {

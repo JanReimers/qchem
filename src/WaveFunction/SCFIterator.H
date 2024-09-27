@@ -1,10 +1,7 @@
 // File: SCFIterator.H  Interface for an object that manages SCF convergence.
 
 
-
-class ChargeDensity;
-class FittedCD;
-class WaveFunction;
+#include "types.H"
 
 class SCFIterator
 {

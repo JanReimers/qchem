@@ -9,7 +9,7 @@
 #include "oml/vector.h"
 
 class ContractedGaussianH3;
-template <class T> class PList;
+//template <class T> class PList;
 
 class ContractedGaussianRF
     : public virtual RadialFunction

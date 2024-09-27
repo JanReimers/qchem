@@ -1,14 +1,6 @@
 // File: SCFIteratorImplementation.H  Partial common implementation for an object that manages SCF convergence.
 
-
-
 #include "WaveFunction/SCFIterator.H"
-
-class WaveFunction;
-class Hamiltonian;
-class FittedCD;
-class ChargeDensity;
-class Plotter;
 
 class SCFIteratorImplementation
     : public virtual SCFIterator

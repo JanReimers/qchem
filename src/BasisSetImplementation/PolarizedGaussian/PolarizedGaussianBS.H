@@ -9,7 +9,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 
 class RadialFunctionReader;
-class Cluster;
 
 class PolarizedGaussianBS
     : public virtual TBasisSet<double>

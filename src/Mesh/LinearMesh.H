@@ -2,8 +2,6 @@
 #ifndef _LinearMesh_H_
 #define _LinearMesh_H_
 
-
-
 #include "Mesh/MeshImplementation.H"
 
 class LinearMesh

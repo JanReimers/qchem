@@ -7,8 +7,6 @@
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
 #include "Misc/rc_ptr.h"
 
-class FittedCD;
-
 //###############################################################################
 //
 //  Implementation of the Coulomb potential

@@ -2,16 +2,8 @@
 #ifndef _HamiltonianTerm_H_
 #define _HamiltonianTerm_H_
 
-
-
 #include "Functions/FittedFunctionClient.H"
 #include "Misc/pmstream.h"
-
-class ChargeDensity;
-class TotalEnergy;
-class Spin;
-class BasisSet;
-template <class T> class SMatrix;
 
 //
 //  Abstract base for any HamiltonianTerm term in the Hamiltonian.

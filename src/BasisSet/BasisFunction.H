@@ -2,8 +2,6 @@
 #ifndef _BasisFunction_H_
 #define _BasisFunction_H_
 
-
-
 #include "Misc/Persistent/Persistent.H"
 
 //--------------------------------------------------------------

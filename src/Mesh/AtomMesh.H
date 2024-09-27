@@ -2,12 +2,7 @@
 #ifndef _AtomMesh_H_
 #define _AtomMesh_H_
 
-
-
 #include "Mesh/MeshImplementation.H"
-
-class RadialMesh;
-class AngularMesh;
 
 class AtomMesh
     : public virtual Mesh
