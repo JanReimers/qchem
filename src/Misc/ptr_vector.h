@@ -4,6 +4,7 @@
 
 // Copyright (1994-2003), Jan N. Reimers
 
+#include "oml/imp/index_t.h"
 #include "Misc/void_types.h"
 #include <vector>
 #include <cassert>
@@ -160,6 +161,35 @@ public:
   const_reference operator[](int i) const {return *reinterpret_cast<T*const*>(&Base::operator[](i));}
   //! Non-const array indexing.
         reference operator[](int i)       {return *reinterpret_cast<T**>(&Base::operator[](i));}
+
+    //
+    //  Support (index_t i:arr) range iterators over indices
+    //
+    class index_iterator
+    {
+    public:
+        index_iterator(index_t i) : current{i} {};
+        index_iterator operator++(){current++;return (*this);}
+        const index_t operator*() const {return current;}
+              index_t operator*() {return current;}
+        bool operator!=(const index_iterator& b) {return current!=b.current;}
+    private:
+        index_t current;
+    };
+
+    class iterator_proxy
+    {
+    public:
+        iterator_proxy(index_t l, index_t h) : low(l), high(h) {};
+        index_iterator begin() const {return low;}
+        index_iterator end  () const {return high+1;}
+    private:
+        index_t low;
+        index_t high;
+    };
+
+    iterator_proxy indices() const {return iterator_proxy(0,size()-1);}
+
 };
 
 //
@@ -189,7 +219,8 @@ template <class T> class optr_vector<T*>
 
   explicit optr_vector() : Base() {};
   explicit optr_vector(int size) : Base(size) {};
-  optr_vector(const optr_vector&);
+  optr_vector(const ptr_vector<T*>&); //copy pointers
+  optr_vector(const optr_vector&); //Needs to clone all non-null pointer.
 
   ~optr_vector() {clear();}
   void clear();
@@ -206,6 +237,8 @@ template <class T> class optr_vector<T*>
   using Base::push_back;
   using Base::operator[];
   using Base::insert;
+  using Base::indices;
+  
  private:
   optr_vector& operator=(const optr_vector&);
 
@@ -213,13 +246,14 @@ template <class T> class optr_vector<T*>
 
 template <class T> void optr_vector<T*>::clear()
 {
-  for (iterator i=begin();i!=end();i++) delete &i;
+  for (iterator i=begin();i!=end();i++)
+    if (&i) delete &i;
   Base::clear();
 }
 
 template <class T> void optr_vector<T*>::erase(iterator i)
 {
-  delete &i;
+  if (&i)  delete &i;
   Base::erase(i);
 }
 
@@ -251,7 +285,18 @@ template <template <class> class vec, class T1, class T2>
 template <class T> optr_vector<T*>::optr_vector(const optr_vector& other)
 {
      for (const_iterator i=other.begin();i!=other.end();i++)
-       push_back(i->Clone());
+     {
+        if (&i)
+            push_back(i->Clone());
+        else
+            push_back(nullptr);
+     }
+
+}
+template <class T> optr_vector<T*>::optr_vector(const ptr_vector<T*>& other)
+{
+     for (const_iterator i=other.begin();i!=other.end();i++)
+            push_back(&i);
 
 }
 
