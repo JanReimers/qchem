@@ -29,7 +29,7 @@ public:
 
 private:
     bool               IsDirty        ; //true if energy dosn't reflect full orbital list.
-     ptr_vector<Orbital    *> itsOrbitals    ;
+    std::vector<Orbital    *> itsOrbitals    ;
     optr_vector1<EnergyLevel*> itsEnergyLevels;
     double             itsTolerance   ; //Roundoff tolerance for degeneracy.
     double             itskT          ; //Used for level occupation smearing.

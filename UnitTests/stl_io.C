@@ -5,7 +5,6 @@
 #include "oml/vector.h"
 #include "oml/imp/stream.h"
 #include "Misc/stl_io.h"
-#include "Misc/ptr_vector.h"
 #include "Misc/ptr_vector1.h"
 #include "Misc/ptr_vector1_io.h"
 #include "Cluster/Molecule.H"

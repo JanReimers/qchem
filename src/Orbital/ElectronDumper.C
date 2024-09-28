@@ -36,14 +36,11 @@ void ElectronDumper::Add(OrbitalGroup* og)
     IsDirty=true;
 }
 
-template <class T> void ReIndex(ptr_vector<T*>& a, std::vector<int> index)
+template <class T> void ReIndex(std::vector<T*>& a, std::vector<int> index)
 {
     assert(a.size()==index.size());
-    ptr_vector<T*> dest(a.size());
-
-    std::vector<int>::const_iterator b=index.begin();
-    typename ptr_vector<T*> ::iterator  i=dest.begin();
-    for (; b!=index.end(); b++,i++) &i=a[*b];
+    std::vector<T*> dest;
+    for (auto b:index)  dest.push_back(a[b]);
     a=dest;
 }
 
@@ -53,7 +50,8 @@ void ElectronDumper::MakeEnergyLevels()
     //  Sort orbitals by energy.
     //
     std::vector<double> Energies;
-    for(auto b=itsOrbitals.begin(); b!=itsOrbitals.end(); b++) Energies.push_back(b->GetEigenEnergy());
+    for(auto b:itsOrbitals) Energies.push_back(b->GetEigenEnergy());
+    
     std::vector<int> indexs(itsOrbitals.size());
     std::iota(indexs.begin(),indexs.end(),0); //Initialize indexs=[0,1,2,3...]
     std::sort( indexs.begin(),indexs.end(), [&](int i,int j){return Energies[i]<Energies[j];} );
@@ -65,13 +63,13 @@ void ElectronDumper::MakeEnergyLevels()
     itsEnergyLevels.clear();
     itsEnergyLevels.push_back(new EnergyLevel(itsTolerance));
     {
-        for(ptr_vector<Orbital*>::iterator i(itsOrbitals.begin()); i!=itsOrbitals.end(); i++)
+        for(auto i:itsOrbitals)
         {
-            bool OrbitalWasAdded = itsEnergyLevels.back()->Add(&i); //Try to add orbital to energy level.
+            bool OrbitalWasAdded = itsEnergyLevels.back()->Add(i); //Try to add orbital to energy level.
             if(!OrbitalWasAdded)
             {
                 itsEnergyLevels.push_back(new EnergyLevel(itsTolerance));
-                itsEnergyLevels.back()->Add(&i);
+                itsEnergyLevels.back()->Add(i);
             }
         }
     }

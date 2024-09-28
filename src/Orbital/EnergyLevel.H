@@ -4,7 +4,7 @@
 
 #include "Orbital/ElectronContainer.H"
 #include "Orbital/Orbital.H"
-#include "Misc/ptr_vector.h"
+#include <vector>
 
 class EnergyLevel
     : public virtual ElectronContainer
@@ -33,9 +33,9 @@ public:
     }
 
 private:
-    double           itsEnergy;
-    double           itsTolerance;
-    ptr_vector<Orbital*>   itsOrbitals;
+    double                itsEnergy;
+    double                itsTolerance;
+    std::vector<Orbital*> itsOrbitals;
 };
 
 

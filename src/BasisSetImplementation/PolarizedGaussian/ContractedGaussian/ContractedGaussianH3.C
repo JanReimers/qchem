@@ -16,18 +16,18 @@ ContractedGaussianH3::ContractedGaussianH3(const Vector<double>& c)
 {};
 
 ContractedGaussianH3::~ContractedGaussianH3()
-{
-    ptr_vector <Hermite3*>::iterator b(itsH3s.begin());
-    for (; b!=itsH3s.end(); b++) delete &b;
-}
+{};
 
 double ContractedGaussianH3::operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const
 {
+    //No UT coverage
     assert(itsH3s.size()==TheCoeff.size());
     double ret=0;
-    ptr_vector <Hermite3*>::const_iterator b(itsH3s.begin());
-    Vector<double>::const_iterator c(TheCoeff.begin());
-
-    for (; b!=itsH3s.end()&&c!=TheCoeff.end(); b++,c++) ret+=(*b)(Pa,Pb,Pc)*(*c);
+    int i=1;
+    for (auto b:itsH3s) 
+    {
+        ret+=(*b)(Pa,Pb,Pc)*TheCoeff(i);
+        i++;
+    }
     return ret;
 }

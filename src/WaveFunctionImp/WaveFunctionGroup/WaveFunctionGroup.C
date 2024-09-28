@@ -43,7 +43,6 @@ void WaveFunctionGroup::DoSCFIteration(Hamiltonian& ham)
 ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
 {
     CompositeCD* cd = new CompositeCD();
-   // optr_vector<WaveFunction*>::const_iterator sb(itsIrrepWFs.begin());
     for (auto w:itsIrrepWFs) cd->Insert(w->GetChargeDensity(s));
     return cd;
 }

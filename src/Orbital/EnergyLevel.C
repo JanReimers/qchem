@@ -23,30 +23,27 @@ EnergyLevel::EnergyLevel(double tol)
 bool EnergyLevel::IsOccupied() const
 {
     bool occ=false;
-    ptr_vector<Orbital*>::const_iterator b(itsOrbitals.begin());
-    for (; b!=itsOrbitals.end(); b++) occ = occ || b->IsOccupied();
+    for (auto o:itsOrbitals) occ = occ || o->IsOccupied();
     return occ;
 }
 
 double EnergyLevel::GetOccupation() const
 {
     double occ=0;
-    ptr_vector<Orbital*>::const_iterator b(itsOrbitals.begin());
-    for (; b!=itsOrbitals.end(); b++)  occ += b->GetOccupation();
+    for (auto o:itsOrbitals)  occ += o->GetOccupation();
     return occ;
 }
 
 double EnergyLevel::GetSpin() const
 {
     double spin=0;
-    ptr_vector<Orbital*>::const_iterator b(itsOrbitals.begin());
-    for (; b!=itsOrbitals.end(); b++)  spin += b->GetSpin();
+    for (auto o:itsOrbitals)  spin += o->GetSpin();
     return spin;
 }
 
 void EnergyLevel::Empty()
 {
-    for (ptr_vector<Orbital*>::iterator i(itsOrbitals.begin()); i!=itsOrbitals.end(); i++) i->Empty();
+    for (auto o:itsOrbitals) o->Empty();
 }
 
 void EnergyLevel::SetOccupation(double OccupationFactor)
@@ -54,14 +51,13 @@ void EnergyLevel::SetOccupation(double OccupationFactor)
     assert(OccupationFactor>=0);
     assert(OccupationFactor<=1);
     double NumElectronsPerOrbital=GetDegeneracy()*OccupationFactor/GetNumOrbitals();
-    for (ptr_vector<Orbital*>::iterator i(itsOrbitals.begin()); i!=itsOrbitals.end(); i++) i->SetOccupation(NumElectronsPerOrbital);
+    for (auto o:itsOrbitals) o->SetOccupation(NumElectronsPerOrbital);
 }
 
 int  EnergyLevel::GetDegeneracy() const
 {
     int  deg=0;
-    ptr_vector<Orbital*>::const_iterator b(itsOrbitals.begin());
-    for (; b!=itsOrbitals.end(); b++) deg+=b->GetDegeneracy();
+    for (auto o:itsOrbitals) deg+=o->GetDegeneracy();
     return deg;
 };
 

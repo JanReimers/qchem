@@ -5,7 +5,6 @@
 
 
 #include "WaveFunction/WaveFunction.H"
-#include "Misc/ptr_vector.h"
 
 class MasterUnPolarizedWF
     : public virtual WaveFunction

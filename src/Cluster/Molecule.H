@@ -3,7 +3,6 @@
 #define _Molecule_H_
 
 #include "Cluster/Cluster.H"
-#include "Misc/ptr_vector.h"
 #include "Misc/ptr_vector1.h"
 #include <iostream>
 

@@ -38,7 +38,7 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
 //
 //  Read in all the radial functions.
 //
-    ptr_vector<RadialFunction*> radials;
+    std::vector<RadialFunction*> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto atom:*cl) //Loop over atoms.
     {
@@ -47,9 +47,9 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
         while ((rf=bsr->ReadNext(*atom)))
         {
             bool duplicate=false;
-            ptr_vector<RadialFunction*>::iterator b(radials.begin());
+            std::vector<RadialFunction*>::iterator b(radials.begin());
             for (index_t i=0; b!=radials.end(); i++,b++)
-                if (*b==*rf) //Check for a duplicate, ingnoring Lmax.
+                if (**b==*rf) //Check for a duplicate, ingnoring Lmax.
                 {
                     duplicate=true;
                     std::vector<int> newLs=bsr->GetLs();
@@ -79,16 +79,17 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
 //
 //  Automatically build the basis set from a list of atoms and a basis function reader.
 //
-    int nbasis=1;
-    for (auto i:radials.indices())
+    int nbasis=1,i=0;
+    for (auto r:radials)
     {
-        BasisFunctionBlock* bfb=new BasisFunctionBlock(radials[i],nbasis);
+        BasisFunctionBlock* bfb=new BasisFunctionBlock(r,nbasis);
         for (auto& p:MakePolarizations(Ls[i]))
         {
             bfb->Add(p);
             nbasis++;
         }
         itsBlocks.push_back(bfb);
+        i++;
     }
 //
 //  Now insert the basis functions.

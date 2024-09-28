@@ -4,7 +4,7 @@
 
 #include "oml/imp/binio.h"
 #include "oml/imp/stream.h"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 template <class T> std::ostream& operator<<(std::ostream& os, const std::vector<T*>& v)
 {

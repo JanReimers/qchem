@@ -5,8 +5,7 @@
 
 #include "types.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.H"
-#include "Misc/ptr_vector.h"
-
+#include "Misc/ptr_vector1.h"
 //
 // Store a list hermite3 pointers.  Contraction coefficients should be absorbed into the scale factors
 // of the uncontracted hermite3's before insertion.
@@ -27,7 +26,7 @@ private:
         itsH3s.push_back(h3);
     }
 
-    ptr_vector <Hermite3*>  itsH3s;
+    optr_vector1<Hermite3*> itsH3s;
     const Vector<double>& TheCoeff; //Contraction coefficients.
 };
 #endif
