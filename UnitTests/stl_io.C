@@ -122,6 +122,7 @@ TEST_F(STLTesting,RangeBasedLoops)
     std::vector<Atom*> v=pa;
     cout << v << endl;
     
+//    optr_vector1<Atom*> pa1(pa); Atom needs a Clone function
 //    Cluster* c=new Molecule();
 //    c->Insert(new Atom(1 ,0.0,RVec3(0,0,0)));
 //    c->Insert(new Atom(47,0.0,RVec3(2,0,0)));

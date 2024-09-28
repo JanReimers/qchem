@@ -16,7 +16,10 @@ public:
     explicit optr_vector1() : Base() {};
     explicit optr_vector1(int size) : Base(size) {};
     optr_vector1(const std::vector<T*>&); //copy pointers
-    optr_vector1(const optr_vector1&); //Needs to clone all non-null pointer.
+    optr_vector1(const optr_vector1& v1) //Needs to clone all non-null pointer.
+    {
+        for (auto i:v1) push_back(i->Clone());
+    }
 
     ~optr_vector1()
     {

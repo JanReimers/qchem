@@ -4,7 +4,7 @@
 
 
 #include "BasisSet/BasisSet.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 
 class BasisFunction;
@@ -17,19 +17,19 @@ public:
     const BasisFunction* operator++(int)
     {
         current++;
-        return &current;
+        return *current;
     }
     const BasisFunction& operator* () const
     {
-        return *current;
+        return **current;
     }
     const BasisFunction* operator->() const
     {
-        return &current;
+        return *current;
     }
     const BasisFunction* operator& () const
     {
-        return &current;
+        return *current;
     }
 //  operator const BasisFunction*  () const;
     operator bool() const
@@ -37,7 +37,7 @@ public:
         return current!=end;
     }
 private:
-    typedef optr_vector<BasisFunction*>::const_iterator ITER;
+    typedef optr_vector1<BasisFunction*>::const_iterator ITER;
     ITER begin;
     ITER current;
     ITER end;

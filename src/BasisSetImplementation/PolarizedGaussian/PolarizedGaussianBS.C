@@ -8,7 +8,6 @@
 #include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
 #include "BasisSet/IntegralDataBase.H"
-#include "BasisSet/BasisSetBrowser.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
 #include "Cluster/Cluster.H"
 #include "Misc/ptrvector_io.h"

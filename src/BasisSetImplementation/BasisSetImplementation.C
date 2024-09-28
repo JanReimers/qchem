@@ -5,7 +5,7 @@
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSet/QuantumNumber.H"
 #include "BasisSet/BasisSetBrowser.H"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 
 #include <iostream>
 #include <iomanip>
@@ -80,11 +80,15 @@ index_t BasisSetImplementation::GetNumFunctions() const
 
 bool BasisSetImplementation::operator==(const BasisSet& bs) const
 {
+    // No UT coverage
     if (GetNumFunctions() != bs.GetNumFunctions()) return false;
     bool ret=true;
-    BasisSetBrowser b1(*this);
-    BasisSetBrowser b2(bs   );
-    for(; b1&&b2; b1++,b2++) ret=ret && (*b1)==(*b2);
+    auto b2=bs.begin(); 
+    for (auto b1:*this) 
+    {
+        ret=ret && (*b1)==(**b2);
+        b2++;
+    }
     return ret;
 }
 
@@ -109,8 +113,9 @@ std::ostream& BasisSetImplementation::Write(std::ostream& os) const
         os << "Type" << " with " << GetNumFunctions() << " basis functions"
         << ", Quantum number=" << "QN Type" << std::endl;
         os << "   #          Center      Pol     Radial     Exponents" << std::endl;
-        BasisSetBrowser b(*this);
-        for(int i=1; b; b++,i++) os << std::setw(4) << i << " " << *b << std::endl;
+        // No UT coverage
+        int i=1;
+        for(auto b:*this) os << std::setw(4) << i++ << " " << *b << std::endl;
     }
 
     return os;

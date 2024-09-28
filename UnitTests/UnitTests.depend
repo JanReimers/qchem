@@ -65,10 +65,11 @@
 	"Misc/ptr_vector.h"
 	"Misc/ERIList.H"
 
-1727403372 /home/janr/Code/qchem/src/BasisSet/BasisSet.H
+1727469844 /home/janr/Code/qchem/src/BasisSet/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"BasisSet/BasisFunction.H"
+	<vector>
 
 1727403202 /home/janr/Code/qchem/src/BasisSet/BasisFunction.H
 	"Misc/Persistent/Persistent.H"
@@ -197,11 +198,11 @@
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
 
-1332723517 /home/janr/Code/qchem/src/BasisSetImplementation/BasisSetImplementation.H
+1727530550 /home/janr/Code/qchem/src/BasisSetImplementation/BasisSetImplementation.H
 	"BasisSet/BasisSet.H"
-	"Misc/ptr_vector.h"
+	"Misc/ptr_vector1.h"
 
-1332723517 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
+1727530513 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
 	"BasisSet/TBasisSet.H"
 	"FunctionsImp/VectorFunctionBuffer.H"
 	"BasisSet/IntegralEngine.H"
@@ -210,7 +211,7 @@
 	"oml/matrix.h"
 	"oml/smatrix.h"
 
-1727403619 /home/janr/Code/qchem/src/BasisSet/TBasisSet.H
+1727530475 /home/janr/Code/qchem/src/BasisSet/TBasisSet.H
 	"types.H"
 	"BasisSet/BasisSet.H"
 	"Functions/VectorFunction.H"
@@ -499,10 +500,11 @@
 	"BasisSetImplementation/Gaussian94RFR.H"
 	"Mesh/MoleculeMesh.H"
 
-1727406049 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
+1727470153 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
+	"Misc/ptr_vector.h"
 
 1727381684 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H
 	"Misc/pmstream.h"
@@ -599,7 +601,7 @@
 
 1331917957 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/Wigner3j.H
 
-1727468665 source:/home/janr/Code/qchem/UnitTests/stl_io.C
+1727470498 source:/home/janr/Code/qchem/UnitTests/stl_io.C
 	"gtest/gtest.h"
 	"oml/vector.h"
 	"oml/imp/stream.h"
@@ -625,7 +627,7 @@
 1727384943 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1727468309 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1727470513 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727390914 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -636,10 +638,10 @@
 1727406580 /home/janr/Code/qchem/src/types.H
 	"oml/imp/index_t.h"
 
-1727458346 /home/janr/Code/qchem/src/Misc/ptr_vector1.h
+1727470440 /home/janr/Code/qchem/src/Misc/ptr_vector1.h
 	<vector>
 
-1727468711 /home/janr/Code/qchem/src/Misc/ptr_vector1_io.h
+1727468732 /home/janr/Code/qchem/src/Misc/ptr_vector1_io.h
 	"oml/imp/binio.h"
 	"oml/imp/stream.h"
 	"Misc/ptr_vector.h"

@@ -2,7 +2,6 @@
 
 
 #include "BasisSet/BasisSet.H"
-#include "BasisSet/BasisSetBrowser.H"
 #include "BasisSet/BasisGroup.H"
 #include "BasisSet/BasisGroupBrowser.H"
 #include "BasisSet/IntegralDataBase.H"
@@ -126,7 +125,7 @@ PolarizedGaussianIE::Vec PolarizedGaussianIE::MakeOverlap(const ScalarFunction<d
 void PolarizedGaussianIE::MakeOverlap3C(MList& ret, const TBasisSet<double>& otherBS) const
 {
     ret.Empty();
-    BasisSetBrowser c(otherBS);
+    auto c=otherBS.begin();
     const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(otherBS);
     for (CITER block(blocks.begin()); block!=blocks.end(); block++)
     {
@@ -135,7 +134,7 @@ void PolarizedGaussianIE::MakeOverlap3C(MList& ret, const TBasisSet<double>& oth
         for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
         {
             SMat& m=*blist;
-            const PolarizedGaussianBF* bfpolg= dynamic_cast<const PolarizedGaussianBF*>(&*c);
+            const PolarizedGaussianBF* bfpolg= dynamic_cast<const PolarizedGaussianBF*>(*c);
             assert(bfpolg);
             m *= bfpolg->GetNormalization();
             Normalize(m);
@@ -248,7 +247,7 @@ PolarizedGaussianIE::Vec PolarizedGaussianIE::MakeRepulsion(const ScalarFunction
 void PolarizedGaussianIE::MakeRepulsion3C(MList& ret, const TBasisSet<double>& otherBS) const
 {
     ret.Empty();
-    BasisSetBrowser c(otherBS);
+    auto c=otherBS.begin();
     const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(otherBS);
     for (CITER block(blocks.begin()); block!=blocks.end(); block++)
     {
@@ -257,7 +256,7 @@ void PolarizedGaussianIE::MakeRepulsion3C(MList& ret, const TBasisSet<double>& o
         for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
         {
             SMat& m=*blist;
-            const PolarizedGaussianBF* bfpolg= dynamic_cast<const PolarizedGaussianBF*>(&*c);
+            const PolarizedGaussianBF* bfpolg= dynamic_cast<const PolarizedGaussianBF*>(*c);
             assert(bfpolg);
             m *= bfpolg->GetNormalization();
             Normalize(m);

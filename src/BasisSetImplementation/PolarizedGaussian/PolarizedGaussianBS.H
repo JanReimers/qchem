@@ -7,6 +7,8 @@
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
+#include "Misc/ptr_vector.h"
+
 
 class RadialFunctionReader;
 

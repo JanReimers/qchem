@@ -5,6 +5,7 @@
 #include "types.H"
 #include "Misc/Persistent/Persistent.H"
 #include "BasisSet/BasisFunction.H"
+#include <vector>
 
 //----------------------------------------------------------------------------
 //
@@ -20,6 +21,9 @@ class BasisSet
     : public UniqueID
 {
 public:
+    typedef std::vector<BasisFunction*>::      iterator       iterator;
+    typedef std::vector<BasisFunction*>::const_iterator const_iterator;
+
     typedef SMatrix<double> SMat;
 
     virtual bool                 operator==      (const BasisSet&) const=0;
@@ -50,6 +54,11 @@ public:
 //
     virtual void SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>&) const=0;
     virtual void SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>&) const=0;
+    
+    virtual const_iterator begin() const=0;
+    virtual const_iterator end  () const=0;
+    virtual       iterator begin()      =0;
+    virtual       iterator end  ()      =0;
 //
 //  StreamableObject stuff.
 //

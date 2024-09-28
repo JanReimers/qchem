@@ -5,7 +5,7 @@
 
 
 #include "BasisSet/BasisSet.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 //---------------------------------------------------------------------
 //
@@ -35,11 +35,16 @@ public:
         return *itsQuantumNumber;
     }
 
+    virtual const_iterator begin() const {return itsBasisFunctions.begin();}
+    virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
+    virtual       iterator begin()       {return itsBasisFunctions.begin();}
+    virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
+
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    void  Insert(BasisFunction* );
+    virtual void  Insert(BasisFunction* );
     void  EmptyBasisFunctions();
     std::ostream& WriteBasisFunctions(std::ostream&) const;
     std::istream& ReadBasisFunctions (std::istream&)      ;
@@ -47,14 +52,9 @@ protected:
 private:
     BasisSetImplementation& operator=(const BasisSetImplementation&);
 
-    typedef optr_vector<BasisFunction*>::const_iterator ITER;
-    friend class BasisSetBrowser;
-    virtual ITER begin() const {return itsBasisFunctions.begin();}
-    virtual ITER end  () const {return itsBasisFunctions.end  ();}
-
-    QuantumNumber*              itsQuantumNumber;
-    optr_vector<BasisFunction*> itsBasisFunctions;
-    int                         itsStartIndex;
+    QuantumNumber*               itsQuantumNumber;
+    optr_vector1<BasisFunction*> itsBasisFunctions;
+    int                          itsStartIndex;
 };
 
 #endif //_BasisSetImplementation_H_

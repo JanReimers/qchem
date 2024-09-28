@@ -39,18 +39,22 @@ void SphericalGaussianIE::Insert(const TBasisSet<double>* theSet)
 
 void SphericalGaussianIE::InitializeLocalStuff()
 {
-    BasisSetBrowser b(*itsBasisSet);
-    assert(dynamic_cast<const SphericalGaussianBF*>(&*b));
-    itsL = dynamic_cast<const SphericalGaussianBF*>(&*b)->itsL;
-    Vector<double>::iterator i(itsExponents.begin());
-    for(; b&&i!=itsExponents.end(); b++,i++)
+    assert(itsExponents.size()==itsBasisSet->GetNumFunctions());
+    int i=1;
+    for (auto b:*itsBasisSet)
     {
-        if (dynamic_cast<const SphericalGaussianBF*>(&*b)->itsL != itsL)
-        {
-            std::cerr << "SphericalGaussianIE::InitializeLocalStuff basis set has more than one L quantum number" << std::endl;
-            exit(-1);
-        }
-        *i = dynamic_cast<const SphericalGaussianBF*>(&*b)->itsExponent;
+        auto bsg=dynamic_cast<const SphericalGaussianBF*>(b);
+        assert(bsg);
+        if (b==*itsBasisSet->begin()) 
+            itsL=bsg->itsL;
+        else
+            if (bsg->itsL != itsL)
+            {
+                std::cerr << "SphericalGaussianIE::InitializeLocalStuff basis set has more than one L quantum number" << std::endl;
+                exit(-1);
+            }
+        itsExponents(i++)=bsg->itsExponent;
+        
     }
 }
 

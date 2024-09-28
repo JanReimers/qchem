@@ -131,6 +131,7 @@ template <class T> typename NumericalIE<T>::Vec NumericalIE<T>::MakeOverlap(cons
 
 template <class T> void NumericalIE<T>::MakeOverlap3C(MList& mlist, const TBasisSet<T>& bs) const
 {
+    // No UT coverage
     for (TBasisSetBrowser<T> b(bs); b; b++) mlist.Add(MakeOverlap(*b));
 }
 
@@ -179,6 +180,7 @@ template <class T> void NumericalIE<T>::MakeRepulsion3C(MList& ret,const TBasisS
 {
     std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;
     assert(false);
+    // No UT coverage
     for (TBasisSetBrowser<T> b(bs); b; b++) ret.Add(MakeRepulsion(*b));
 }
 
@@ -195,11 +197,11 @@ template <class T> void NumericalIE<T>::MakeRepulsion4C(ERIList& eris,ERIList&,c
 //
 template <class T> typename NumericalIE<T>::RVec NumericalIE<T>::MakeNormalization() const
 {
+    // No UT coverage
     CheckInitialized();
     RVec ret=itsNormalizations;
-    typename RVec::iterator i(ret.begin());
-    BasisSetBrowser           b(*itsBasisSet);
-    for(; i!=ret.end()&&b; i++,b++) *i *= b->GetNormalization();
+    int i=1;
+    for (auto b:*itsBasisSet) ret(i++)=b->GetNormalization();
     return ret;
 }
 

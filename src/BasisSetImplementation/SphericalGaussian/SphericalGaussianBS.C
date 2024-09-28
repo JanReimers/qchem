@@ -8,7 +8,6 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSet/IntegralDataBase.H"
-#include "BasisSet/BasisSetBrowser.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>
@@ -67,12 +66,13 @@ std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const
         const SphericalGaussianBF* sgbf=0;
         os << "Spherical Gaussian L=" << GetQuantumNumber()
         << " with " << GetNumFunctions() << " basis functions, alpha={";
-        BasisSetBrowser bs(*this);
-        sgbf=dynamic_cast<const SphericalGaussianBF*>(&*bs);
+        // No UT coverage
+        auto bs=begin();
+        sgbf=dynamic_cast<const SphericalGaussianBF*>(*bs);
         assert(sgbf);
         os << sgbf << "... ";
         for (int i=0; i<GetNumFunctions()-1; i++) bs++;
-        sgbf=dynamic_cast<const SphericalGaussianBF*>(&*bs);
+        sgbf=dynamic_cast<const SphericalGaussianBF*>(*bs);
         assert(sgbf);
         os << sgbf << "}" << std::endl;
     }

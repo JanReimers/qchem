@@ -4,7 +4,6 @@
 
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
 #include "BasisSet/TBasisSet.H"
-#include "BasisSet/BasisSetBrowser.H"
 #include <iostream>
 #include <cassert>
 
@@ -78,12 +77,8 @@ template <class T> std::istream& IntegralEngineImplementation<T>::Read (std::ist
 template <class T> void IntegralEngineImplementation<T>::InitNormalizations()
 {
     assert(itsN==itsNormalizations.size());
-    BasisSetBrowser        bs(*itsBasisSet);
-    typename RVec::iterator n (itsNormalizations.begin());
-    for (; bs&&n!=itsNormalizations.end(); bs++,n++)
-    {
-        *n=bs->GetNormalization();
-    }
+    int i=1;
+    for (auto b:*itsBasisSet) itsNormalizations(i++)=b->GetNormalization();
     assert(!isnan(itsNormalizations));
 }
 
@@ -103,11 +98,8 @@ MakeCharge() const
 {
     CheckBasisSet();
     RVec ret(itsN);
-    typename RVec::iterator  s (ret.begin());
-    BasisSetBrowser bs(*itsBasisSet);
-
-    for (; bs&&s!=ret.end(); bs++,s++) *s=bs->GetCharge();
-
+    int i=1;
+    for (auto b:*itsBasisSet) ret(i++)=b->GetCharge();
     return DirectMultiply(ret,itsNormalizations);
 }
 
