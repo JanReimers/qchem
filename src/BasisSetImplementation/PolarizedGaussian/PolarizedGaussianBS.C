@@ -10,7 +10,7 @@
 #include "BasisSet/IntegralDataBase.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
 #include "Cluster/Cluster.H"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 #include "oml/vector.h"
 #include <cassert>
 #include <algorithm>
@@ -111,7 +111,7 @@ PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, 
 //
 PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
         IntegralDataBase<double>* theDB,
-        const optr_vector<BasisFunctionBlock*>& theBlocks)
+        const optr_vector1<BasisFunctionBlock*>& theBlocks)
     : BasisSetImplementation(*bs)
     , TBasisSetImplementation<double>(theDB)
     , itsBlocks(theBlocks)
@@ -124,9 +124,9 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
 void PolarizedGaussianBS::MakeBasisFunctions()
 {
     EmptyBasisFunctions();
-    for (optr_vector<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
-        for (std::vector<Polarization>::const_iterator p(bl->itsPols.begin()); p!=bl->itsPols.end(); p++)
-            BasisSetImplementation::Insert(new PolarizedGaussianBF(bl->itsRadial,*p));
+    for (optr_vector1<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
+        for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
+            BasisSetImplementation::Insert(new PolarizedGaussianBF((*bl)->itsRadial,*p));
 }//Compiler says these calls are ambiguous.  BUG
 
 std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
@@ -140,8 +140,8 @@ std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
     }
     else
     {
-        for (optr_vector<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
-            os << *bl;
+        for (optr_vector1<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
+            os << **bl;
     }
     return os;
 }
@@ -164,9 +164,9 @@ BasisSet* PolarizedGaussianBS::Clone() const
 BasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
-    optr_vector<BasisFunctionBlock*> newBlocks;
-    for (optr_vector<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
-        newBlocks.push_back(b->Clone(newCenter));
+    optr_vector1<BasisFunctionBlock*> newBlocks;
+    for (optr_vector1<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
+        newBlocks.push_back((*b)->Clone(newCenter));
     return new PolarizedGaussianBS(this,GetDataBase()->Clone(),newBlocks);
 }
 

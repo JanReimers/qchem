@@ -7,7 +7,7 @@
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 
 class RadialFunctionReader;
@@ -27,11 +27,11 @@ public:
     virtual BasisSet* Clone(const RVec3&) const;
 
 private:
-    PolarizedGaussianBS(const PolarizedGaussianBS* bs,IntegralDataBase<double>*, const optr_vector<BasisFunctionBlock*>&);
+    PolarizedGaussianBS(const PolarizedGaussianBS* bs,IntegralDataBase<double>*, const optr_vector1<BasisFunctionBlock*>&);
     void MakeBasisFunctions();
     friend class PolarizedGaussianIE;
 
-    optr_vector<BasisFunctionBlock*> itsBlocks;
+    optr_vector1<BasisFunctionBlock*> itsBlocks;
 };
 
 #endif //_PolarizedGaussianBS_H_

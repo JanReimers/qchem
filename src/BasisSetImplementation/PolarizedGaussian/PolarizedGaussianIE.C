@@ -10,7 +10,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "Misc/Polarization.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
-#include "Misc/ptr_vector.h"
 #include "Misc/MatrixList.H"
 #include "Misc/ERIList.H"
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
@@ -39,7 +38,7 @@ IntegralEngine<double>* PolarizedGaussianIE::Clone() const
     return new PolarizedGaussianIE(*this);
 }
 
-typedef optr_vector<BasisFunctionBlock*>::const_iterator CITER;
+typedef optr_vector1<BasisFunctionBlock*>::const_iterator CITER;
 //----------------------------------------------------------------------------------------
 //
 //  Overlap type integrals
@@ -49,12 +48,12 @@ PolarizedGaussianIE::SMat PolarizedGaussianIE::MakeOverlap() const
     CheckBasisSet();
     SMat ret(itsN,itsN);
     Fill(ret,0.0);
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    auto blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
-            BasisFunctionBlockPair p(&a,&b);
-            a->itsRadial->Get2CenterIntegrals(RadialFunction::Overlap2C,p,ret,NULL,1.0);
+            BasisFunctionBlockPair p(*a,*b);
+            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Overlap2C,p,ret,NULL,1.0);
         }
 
 
@@ -64,6 +63,7 @@ PolarizedGaussianIE::SMat PolarizedGaussianIE::MakeOverlap() const
 
 PolarizedGaussianIE::Mat PolarizedGaussianIE::MakeOverlap(const TBasisSet<double>& theBasisSet) const
 {
+    // No UT coverage
     CheckBasisSet();
     const PolarizedGaussianIE*    OtherIE;
     const IntegralEngine<double>* theOtherIE;
@@ -75,13 +75,13 @@ PolarizedGaussianIE::Mat PolarizedGaussianIE::MakeOverlap(const TBasisSet<double
 
     Mat ret(itsN,OtherIE->itsN);
     Fill(ret,0.0);
-    const optr_vector<BasisFunctionBlock*>& blocksa=GetBlocks(*itsBasisSet);
-    const optr_vector<BasisFunctionBlock*>& blocksb=GetBlocks(theBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocksa=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocksb=GetBlocks(theBasisSet);
     for (CITER a(blocksa.begin()); a!=blocksa.end(); a++)
         for (CITER b(blocksb.begin()); b!=blocksb.end(); b++)
         {
-            BasisFunctionBlockPair p(&a,&b);
-            a->itsRadial->Get2CenterIntegrals(RadialFunction::Overlap2C,p,ret,1.0);
+            BasisFunctionBlockPair p(*a,*b);
+            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Overlap2C,p,ret,1.0);
         }
 
     Mat::Subscriptor      rs(ret);
@@ -94,6 +94,7 @@ PolarizedGaussianIE::Mat PolarizedGaussianIE::MakeOverlap(const TBasisSet<double
 
 PolarizedGaussianIE::Vec PolarizedGaussianIE::MakeOverlap(const ScalarFunction<double>& f) const
 {
+    // No UT coverage
     CheckBasisSet();
     const PolarizedGaussianBF* bfpolg= dynamic_cast<const PolarizedGaussianBF*>(&f);
     assert(bfpolg);
@@ -103,11 +104,11 @@ PolarizedGaussianIE::Vec PolarizedGaussianIE::MakeOverlap(const ScalarFunction<d
     BasisFunctionBlock block(bfpolg->itsRadial->Clone(),1);
     block.Add(bfpolg->itsPol);
 
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
     {
-        BasisFunctionBlockPair p(&a,&block);
-        a->itsRadial->Get2CenterIntegrals(RadialFunction::Overlap2C,p,mat,NULL,1.0);
+        BasisFunctionBlockPair p(*a,&block);
+        (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Overlap2C,p,mat,NULL,1.0);
     }
 
     Vec ret=mat.GetRow(1);
@@ -125,11 +126,11 @@ void PolarizedGaussianIE::MakeOverlap3C(MList& ret, const TBasisSet<double>& oth
 {
     ret.Empty();
     auto c=otherBS.begin();
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(otherBS);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(otherBS);
     for (CITER block(blocks.begin()); block!=blocks.end(); block++)
     {
-        std::vector<SMat > list=MakeMatrixList(block->size());
-        MakeOverlap3C(*block,list);
+        std::vector<SMat > list=MakeMatrixList((*block)->size());
+        MakeOverlap3C(**block,list);
         for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
         {
             SMat& m=*blist;
@@ -149,12 +150,12 @@ void PolarizedGaussianIE::MakeOverlap3C(const BasisFunctionBlock& c,std::vector<
 {
     CheckBasisSet();
 
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
-            BasisFunctionBlockTriplet t(&a,&b,&c);
-            a->itsRadial->Get3CenterIntegrals(RadialFunction::Overlap3C,t,ret,1.0);
+            BasisFunctionBlockTriplet t(*a,*b,&c);
+            (*a)->itsRadial->Get3CenterIntegrals(RadialFunction::Overlap3C,t,ret,1.0);
         }
 }
 
@@ -170,12 +171,12 @@ PolarizedGaussianIE::SMat PolarizedGaussianIE::MakeRepulsion() const
     CheckBasisSet();
     SMat ret(itsN,itsN);
     Fill(ret,0.0);
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
-            BasisFunctionBlockPair p(&a,&b);
-            a->itsRadial->Get2CenterIntegrals(RadialFunction::Repulsion2C,p,ret,NULL,1.0);
+            BasisFunctionBlockPair p(*a,*b);
+            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Repulsion2C,p,ret,NULL,1.0);
         }
 
     Normalize(ret);
@@ -194,13 +195,13 @@ PolarizedGaussianIE::Mat PolarizedGaussianIE::MakeRepulsion(const TBasisSet<doub
 
     Mat ret(itsN,OtherIE->itsN);
     Fill(ret,0.0);
-    const optr_vector<BasisFunctionBlock*>& blocksa=GetBlocks(*itsBasisSet);
-    const optr_vector<BasisFunctionBlock*>& blocksb=GetBlocks(theBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocksa=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocksb=GetBlocks(theBasisSet);
     for (CITER a(blocksa.begin()); a!=blocksa.end(); a++)
         for (CITER b(blocksb.begin()); b!=blocksb.end(); b++)
         {
-            BasisFunctionBlockPair p(&a,&b);
-            a->itsRadial->Get2CenterIntegrals(RadialFunction::Repulsion2C,p,ret,1.0);
+            BasisFunctionBlockPair p(*a,*b);
+            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Repulsion2C,p,ret,1.0);
         }
 
 
@@ -223,11 +224,11 @@ PolarizedGaussianIE::Vec PolarizedGaussianIE::MakeRepulsion(const ScalarFunction
     BasisFunctionBlock block(bfpolg->itsRadial->Clone(),1);
     block.Add(bfpolg->itsPol);
 
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
     {
-        BasisFunctionBlockPair p(&a,&block);
-        a->itsRadial->Get2CenterIntegrals(RadialFunction::Repulsion2C,p,mat,NULL,1.0);
+        BasisFunctionBlockPair p(*a,&block);
+        (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Repulsion2C,p,mat,NULL,1.0);
     }
 
     Vec ret=mat.GetRow(1);
@@ -247,11 +248,11 @@ void PolarizedGaussianIE::MakeRepulsion3C(MList& ret, const TBasisSet<double>& o
 {
     ret.Empty();
     auto c=otherBS.begin();
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(otherBS);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(otherBS);
     for (CITER block(blocks.begin()); block!=blocks.end(); block++)
     {
-        std::vector<SMat > list=MakeMatrixList(block->size());
-        MakeRepulsion3C(*block,list);
+        std::vector<SMat > list=MakeMatrixList((*block)->size());
+        MakeRepulsion3C(**block,list);
         for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
         {
             SMat& m=*blist;
@@ -279,12 +280,12 @@ void PolarizedGaussianIE::MakeRepulsion3C(MList& ret, const TBasisSet<double>& o
 void PolarizedGaussianIE::MakeRepulsion3C(const BasisFunctionBlock& c,std::vector<SMat >& ret) const
 {
     CheckBasisSet();
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
-            BasisFunctionBlockTriplet t(&a,&b,&c);
-            a->itsRadial->Get3CenterIntegrals(RadialFunction::Repulsion3C,t,ret,1.0);
+            BasisFunctionBlockTriplet t(*a,*b,&c);
+            (*a)->itsRadial->Get3CenterIntegrals(RadialFunction::Repulsion3C,t,ret,1.0);
         }
 
 }
@@ -303,15 +304,15 @@ void PolarizedGaussianIE::MakeRepulsion4C(ERIList& coulomb,  ERIList& exchange, 
     coulomb.SetSize(bg->GetNumFunctions());
 
     const BasisSet* bs1=*bg->begin(); //Get the first basis set.
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*bs1);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*bs1);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
             for (CITER c(a); c!=blocks.end(); c++)
                 for (CITER d(c); d!=blocks.end(); d++)
                 {
-                    BasisFunctionBlockQuartet q(&a,&b,&c,&d);
-                    a->itsRadial->GetRepulsion4C(q,coulomb,1.0);
+                    BasisFunctionBlockQuartet q(*a,*b,*c,*d);
+                    (*a)->itsRadial->GetRepulsion4C(q,coulomb,1.0);
                 }
         }
 
@@ -419,12 +420,12 @@ PolarizedGaussianIE::SMat PolarizedGaussianIE::MakeKinetic() const
     CheckBasisSet();
     SMat ret(itsN,itsN);
     Fill(ret,0.0);
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
-            BasisFunctionBlockPair p(&a,&b);
-            a->itsRadial->Get2CenterIntegrals(RadialFunction::Kinetic,p,ret,NULL,1.0);
+            BasisFunctionBlockPair p(*a,*b);
+            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Kinetic,p,ret,NULL,1.0);
         }
 
     Normalize(ret);
@@ -436,12 +437,12 @@ PolarizedGaussianIE::SMat PolarizedGaussianIE::MakeNuclear(const Cluster& theClu
     CheckBasisSet();
     SMat ret(itsN,itsN);
     Fill(ret,0.0);
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
+    const optr_vector1<BasisFunctionBlock*>& blocks=GetBlocks(*itsBasisSet);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
-            BasisFunctionBlockPair p(&a,&b);
-            a->itsRadial->Get2CenterIntegrals(RadialFunction::Nuclear,p,ret,&theCluster,1.0);
+            BasisFunctionBlockPair p(*a,*b);
+            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Nuclear,p,ret,&theCluster,1.0);
         }
 
     Normalize(ret);
@@ -452,7 +453,7 @@ PolarizedGaussianIE::SMat PolarizedGaussianIE::MakeNuclear(const Cluster& theClu
 //
 //  Private utilities.
 //
-const optr_vector<BasisFunctionBlock*>& PolarizedGaussianIE::GetBlocks(const BasisSet& bs) const
+const optr_vector1<BasisFunctionBlock*>& PolarizedGaussianIE::GetBlocks(const BasisSet& bs) const
 {
     const PolarizedGaussianBS* bspolg= dynamic_cast<const PolarizedGaussianBS*>(&bs);
     assert(bspolg);

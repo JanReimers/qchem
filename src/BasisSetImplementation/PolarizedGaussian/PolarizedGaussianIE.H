@@ -5,7 +5,7 @@
 
 
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 class PolarizedGaussianBS;
 class BasisFunctionBlock;
@@ -37,7 +37,7 @@ public:
 private:
     void MakeOverlap3C  (const BasisFunctionBlock&,std::vector<SMat>&) const;
     void MakeRepulsion3C(const BasisFunctionBlock&,std::vector<SMat>&) const;
-    const optr_vector<BasisFunctionBlock*>& GetBlocks(const BasisSet& bs) const;
+    const optr_vector1<BasisFunctionBlock*>& GetBlocks(const BasisSet& bs) const;
 
 };
 

@@ -56,9 +56,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/BasisSet.H" />
-		<Unit filename="src/BasisSet/BasisSetBrowser.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="src/BasisSet/IntegralDataBase.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -79,10 +76,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/TBasisSet.H" />
-		<Unit filename="src/BasisSet/TBasisSetBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/TBasisSetBrowser.H" />
 		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -632,10 +625,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Orbital/OrbitalGroup.H" />
-		<Unit filename="src/Orbital/OrbitalGroupBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/OrbitalGroupBrowser.H" />
 		<Unit filename="src/Orbital/TOrbital.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -644,10 +633,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Orbital/TOrbitalGroup.H" />
-		<Unit filename="src/Orbital/TOrbitalGroupBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/TOrbitalGroupBrowser.H" />
 		<Unit filename="src/OrbitalImplementation/ElectronContainerImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>

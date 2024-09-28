@@ -83,7 +83,6 @@
 		</Unit>
 		<Unit filename="Persistance.C">
 			<Option compilerVar="CPP" />
-			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="SemiHFTester.C">
 			<Option compilerVar="CPP" />
