@@ -21,7 +21,7 @@ DFTDataBase::DFTDataBase(const char* theFileName)
     }
     else
     {
-        in >> itsIntegralDataBases;
+        //in >> itsIntegralDataBases;
         assert(in);
 //        StreamableObject::Mode m=StreamableObject::SetToAscii();
 //        std::ofstream fs("AtomAscii.db");
@@ -35,7 +35,7 @@ DFTDataBase::~DFTDataBase()
 {
     StreamableObject::Mode mode=StreamableObject::SetToBinary();
     std::ofstream out(itsFileName.c_str());
-    out << itsIntegralDataBases;
+    //out << itsIntegralDataBases;
     StreamableObject::SetOutputMode(mode);
 }
 
