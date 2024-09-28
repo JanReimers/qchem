@@ -8,7 +8,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianRF.H"
 #include "Misc/PeriodicTable.H"
 #include "Cluster/Atom.H"
-#include "Misc/ptr_vector.h"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>
@@ -137,7 +136,7 @@ RadialFunction* Gaussian94RFR::ReadContracted(int nCont, int maxL, const Atom& a
     assert(nCont>0);
     assert(maxL>=0);
     Matrix<double> coeff(nCont,itsLs.size());
-    ptr_vector<RadialFunction*> radials;
+    std::vector<RadialFunction*> radials;
 
     for (int i=1; i<=nCont; i++)
     {

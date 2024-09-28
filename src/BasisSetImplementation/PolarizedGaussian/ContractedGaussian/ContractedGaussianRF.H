@@ -5,7 +5,7 @@
 
 
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionImplementation/RadialFunctionImplementation.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 #include "oml/vector.h"
 
 class ContractedGaussianH3;
@@ -16,7 +16,7 @@ class ContractedGaussianRF
 {
 public:
     ContractedGaussianRF(                                                               );
-    ContractedGaussianRF(const Vector<double>& C,ptr_vector<RadialFunction*>& its_rfs);
+    ContractedGaussianRF(const Vector<double>& C,std::vector<RadialFunction*>& its_rfs);
 
     virtual bool            operator==      (const RadialFunction&) const;
     virtual double          GetNormalization(const Polarization&  ) const;
@@ -48,7 +48,7 @@ private:
     void Check() const;
 
     Vector<double>               cs;
-    optr_vector<RadialFunction*> gs;
+    optr_vector1<RadialFunction*> gs;
 };
 
 #endif //_ContractedGaussianRF_H_

@@ -15,7 +15,7 @@ public:
     
     explicit optr_vector1() : Base() {};
     explicit optr_vector1(int size) : Base(size) {};
-    optr_vector1(const std::vector<T*>&); //copy pointers
+    optr_vector1(const std::vector<T*>& v) : Base(v) {}; //copy pointers
     optr_vector1(const optr_vector1& v1) //Needs to clone all non-null pointer.
     {
         for (auto i:v1) push_back(i->Clone());
@@ -49,6 +49,35 @@ public:
         if (*i)  delete *i;
         Base::erase(i);
     }
+    
+    //
+    //  Support (index_t i:arr) range iterators over indices
+    //
+    class index_iterator
+    {
+    public:
+        index_iterator(index_t i) : current{i} {};
+        index_iterator operator++(){current++;return (*this);}
+        const index_t operator*() const {return current;}
+              index_t operator*() {return current;}
+        bool operator!=(const index_iterator& b) {return current!=b.current;}
+    private:
+        index_t current;
+    };
+
+    class iterator_proxy
+    {
+    public:
+        iterator_proxy(index_t l, index_t h) : low(l), high(h) {};
+        index_iterator begin() const {return low;}
+        index_iterator end  () const {return high+1;}
+    private:
+        index_t low;
+        index_t high;
+    };
+
+    iterator_proxy indices() const {return iterator_proxy(0,size()-1);}
+
 private:
     optr_vector1& operator=(const optr_vector1&);
 };

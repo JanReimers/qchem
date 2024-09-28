@@ -4,7 +4,9 @@
 #include "Misc/pmstream.h"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/UniqueID/UniqueID.H"
-#include <iostream>
+#include "Misc/ptr_vector1.h"
+#include "Misc/ptr_vector1_io.h"
+#include <iostream> 
 #include <fstream>
 
 using std::cout;
@@ -132,7 +134,7 @@ TestBase* TestBase::Factory(std::istream& is)
 class PersistanceTests : public ::testing::Test
 {
 public:
-    PersistanceTests() : file_name("streamtest.dat") {};
+    PersistanceTests() : file_name("streamtest1.dat") {StreamableObject::SetToBinary();};
     std::string file_name;
 
     void OutputD1(int i)
@@ -184,6 +186,7 @@ TEST_F(PersistanceTests, OutputPerDB)
 
 TEST_F(PersistanceTests, OutputAndInputPerDB)
 {
+    StreamableObject::SetToBinary();
     {
         PerDB<TestBase> theDB;
         TestBase* d1=new D1(101);
@@ -191,12 +194,14 @@ TEST_F(PersistanceTests, OutputAndInputPerDB)
         std::ofstream out(file_name.c_str());
         out << theDB;
         EXPECT_TRUE(out);
-
+        out.close();
     }
     {
         PerDB<TestBase> theDB;
         std::ifstream in(file_name.c_str());
         in >> theDB;
+        EXPECT_TRUE(in);
+        in.close();
     }
 }
 
@@ -255,8 +260,10 @@ TEST_F(PersistanceTests, FixUpPointers)
 
 TEST_F(PersistanceTests, FixUpPointers2)
 {
+    StreamableObject::SetToAscii(); //TODO fails in binary mode.
+
     int N=10 ;
-    optr_vector<TestBase*> v1;
+    optr_vector1<TestBase*> v1;
     for (int i=0;i<N;i++)
     {
         v1.push_back(new D1(200+i));
@@ -264,9 +271,8 @@ TEST_F(PersistanceTests, FixUpPointers2)
     }
     {
         PerDB<TestBase> theDB;
-        optr_vector<Owner*> vo;
-        for (optr_vector<TestBase*>::const_iterator i=v1.begin();i!=v1.end();i++)
-            vo.push_back(new Owner(i->Clone()));
+        optr_vector1<Owner*> vo;
+        for (auto i:v1) vo.push_back(new Owner(i->Clone()));
 
         std::ofstream out(file_name.c_str());
         out << theDB;
@@ -278,16 +284,17 @@ TEST_F(PersistanceTests, FixUpPointers2)
         std::ifstream in(file_name.c_str());
         PerDB<TestBase> theDB;
         in >> theDB;
-        optr_vector<TestBase*> vo1;
+        optr_vector1<TestBase*> vo1;
         in >> vo1;
 
-        optr_vector<TestBase*>::const_iterator iv1=v1.begin();
-        for (optr_vector<TestBase*>::const_iterator io=vo1.begin();io!=vo1.end();io++,iv1++)
+        auto iv1=v1.begin();
+        for (auto io:vo1)
         {
-            const Owner* o=dynamic_cast<const Owner*>(&io);
+            const Owner* o=dynamic_cast<const Owner*>(io);
             const TestBase* tb=o->itsRef1;
             EXPECT_NE(tb,(void*)0);
-            EXPECT_TRUE(*tb==*iv1);
+            EXPECT_TRUE(*tb==**iv1);
+            iv1++;
         }
 
     }

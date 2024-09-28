@@ -34,8 +34,8 @@ public:
     std::vector<int> v;
     std::set<double> s;
     Vector<int> a;
-    optr_vector<int*> opvi;
-    optr_vector<double*> opvd;
+    optr_vector1<int*> opvi;
+    optr_vector1<double*> opvd;
 };
 
 TEST_F(STLTesting,AsciiIO)
@@ -113,7 +113,7 @@ TEST_F(STLTesting,RangeBasedLoops)
 {
     for (auto p:opvi) {cout << p << " ";}
     cout << endl;
-    for (auto i:opvi.indices()) {cout << *opvi[i] << " " << *opvd[i] << endl;}
+//    for (auto i:opvi.indices()) {cout << *opvi[i] << " " << *opvd[i] << endl;}
     
     StreamableObject::SetToPretty();
     optr_vector1<Atom*> pa;

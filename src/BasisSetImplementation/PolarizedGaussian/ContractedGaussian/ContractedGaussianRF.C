@@ -8,8 +8,7 @@
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
 #include "Mesh/MeshBrowser.H"
-#include "Misc/ptr_vector.h"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include "oml/smatrix.h"
@@ -29,7 +28,7 @@ ContractedGaussianRF::ContractedGaussianRF()
     , gs         ( )
 {};
 
-ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, ptr_vector<RadialFunction*>& rfs)
+ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, std::vector<RadialFunction*>& rfs)
     : RadialFunctionImplementation( rfs[0]->GetCenter (), rfs[0]->GetL())
     , cs    (coeffs)
     , gs(rfs   ) //Copy pointers
@@ -108,7 +107,7 @@ void ContractedGaussianRF::GetRepulsion4C(BFBQ& q, ERIList& eris, double scale)
 Hermite3* ContractedGaussianRF::GetH3(const RadialFunction& r1, const RadialFunction& r2) const
 {
     ContractedGaussianH3* ret = new ContractedGaussianH3(cs);
-    for (auto& g:gs) ret->Insert( g.GetH3(r1,r2) );
+    for (auto& g:gs) ret->Insert( g->GetH3(r1,r2) );
     return ret;
 }
 
@@ -196,8 +195,8 @@ RadialFunction* ContractedGaussianRF::Clone() const
 
 RadialFunction* ContractedGaussianRF::Clone(const RVec3& newCenter) const
 {
-    ptr_vector<RadialFunction*> newList;
-    for (auto& g:gs) newList.push_back(g.Clone(newCenter));
+    std::vector<RadialFunction*> newList;
+    for (auto& g:gs) newList.push_back(g->Clone(newCenter));
     return new  ContractedGaussianRF(cs,newList);
 }
 
