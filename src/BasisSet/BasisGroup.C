@@ -1,11 +1,10 @@
 // File BasisGroup.C  Store a set of basis functions and manage the ERI super matrix.
 
 #include "BasisSet/BasisGroup.H"
-#include "BasisSet/BasisGroupBrowser.H"
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/IntegralDataBase.H"
 #include "BasisSet/IntegralEngine.H"
-#include "Misc/ptr_vector_io.h"
+#include "Misc/ptr_vector1_io.h"
 
 BasisGroup::BasisGroup()
 : itsBasisSets()
@@ -17,7 +16,7 @@ BasisGroup::~BasisGroup() {};
 index_t BasisGroup::GetNumFunctions() const
 {
     index_t ret=0;
-    for (BasisGroupBrowser b(*this);b;b++) ret+=b->GetNumFunctions();
+    for (auto bs:*this) ret+=bs->GetNumFunctions();
     return ret;
 }
 
@@ -39,9 +38,9 @@ void BasisGroup::Insert(BasisSet* bs)
 
 void BasisGroup::Insert(const ERIList& C, const ERIList& X) const
 {
-    for (BasisGroupBrowser bs(*this);bs;bs++)
+    for (auto bs:*this)
     {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(&bs); //TODO we need a way to avoid all the TBasisSet casts
+        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
         tbs->GetDataBase()->Insert(C,X);
     }
 }

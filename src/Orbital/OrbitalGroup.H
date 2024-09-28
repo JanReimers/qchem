@@ -4,6 +4,7 @@
 
 #include "types.H"
 #include "oml/imp/stream.h"
+#include <vector>
 
 //---------------------------------------------------------------------------
 //
@@ -16,13 +17,22 @@ class OrbitalGroup
     : public virtual StreamableObject
 {
 public:
+    typedef std::vector<Orbital*>::      iterator       iterator;
+    typedef std::vector<Orbital*>::const_iterator const_iterator;
+
     virtual ~OrbitalGroup() {};
     virtual index_t        GetNumOrbitals     (                   ) const=0;
     virtual double         GetEigenValueChange(const OrbitalGroup&) const=0;
     virtual ChargeDensity* GetChargeDensity   (Spin               ) const=0;
 
-    static  OrbitalGroup* Factory(std::istream&)        ;
+    static  OrbitalGroup* Factory(std::istream&);  
+    
+    virtual const_iterator begin() const=0;
+    virtual const_iterator end  () const=0;
+    virtual       iterator begin()      =0;
+    virtual       iterator end  ()      =0;
 
+    
 protected:
     friend class  WaveFunction;
     virtual void  FixUpPointer(const rc_ptr<const BasisSet>&);

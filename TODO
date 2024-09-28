@@ -9,15 +9,18 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
     -Get ride of 
-        OrbitalGroupIterator 
-        OrbitalGroupBrowser 
+        Done OrbitalGroupIterator 
+        Done OrbitalGroupBrowser 
+        TOrbitalGroupBrowser requires a dynamic cast iterator
         MeshBrowser 
         AngularMeshBrowser 
         RadialMeshBrowser 
-        BasisGroupBrowser
-        BasisSetBrowser 
+        Done: BasisGroupBrowser
+        Done: BasisSetBrowser
+            Do we need iterator?
         TBasisSetBrowser requires a dynamic cast iterator
         Done: ClusterBrowser 
+            Do we need iterator?
         TwoLPlusOne
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     -Start using optr_vector1 which is vastly simpler.

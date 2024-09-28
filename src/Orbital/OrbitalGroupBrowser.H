@@ -2,7 +2,7 @@
 #ifndef _OrbitalGroupBrowser_H_
 #define _OrbitalGroupBrowser_H_
 
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 #include "Orbital/OrbitalGroup.H"
 
 class OrbitalGroupBrowser
@@ -13,19 +13,19 @@ public:
     const Orbital* operator++(int)
     {
         current++;
-        return &current;
+        return *current;
     }
     const Orbital& operator* () const
     {
-        return *current;
+        return **current;
     }
     const Orbital* operator->() const
     {
-        return &current;
+        return *current;
     }
     const Orbital* operator& () const
     {
-        return &current;
+        return *current;
     }
 //  operator const BasisFunction*  () const;
     operator bool() const
@@ -33,7 +33,7 @@ public:
         return current!=end;
     }
 private:
-    typedef optr_vector<Orbital*>::const_iterator ITER;
+    typedef optr_vector1<Orbital*>::const_iterator ITER;
     ITER begin;
     ITER current;
     ITER end;
@@ -48,19 +48,19 @@ public:
     Orbital* operator++(int)
     {
         current++;
-        return &current;
+        return *current;
     }
     Orbital& operator* () const
     {
-        return *current;
+        return **current;
     }
     Orbital* operator->() const
     {
-        return &current;
+        return *current;
     }
     Orbital* operator& () const
     {
-        return &current;
+        return *current;
     }
 //  operator const BasisFunction*  () const;
     operator bool() const
@@ -68,7 +68,7 @@ public:
         return current!=end;
     }
 private:
-    typedef optr_vector<Orbital*>::iterator ITER;
+    typedef optr_vector1<Orbital*>::iterator ITER;
     ITER begin;
     ITER current;
     ITER end;

@@ -3,7 +3,6 @@
 
 #include "BasisSet/BasisSet.H"
 #include "BasisSet/BasisGroup.H"
-#include "BasisSet/BasisGroupBrowser.H"
 #include "BasisSet/IntegralDataBase.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
@@ -302,10 +301,9 @@ void PolarizedGaussianIE::MakeRepulsion4C(ERIList& coulomb,  ERIList& exchange, 
     CheckBasisSet();
     assert(bg->GetNumBasisSets()==1); //TODO Lets worry about support multiple groups later.
     coulomb.SetSize(bg->GetNumFunctions());
-    // Leave the exchange supermatrix empty, it is not used with this basis set type.
-    BasisGroupBrowser bgi(*bg);
-    const BasisSet* bs=&bgi;
-    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*bs);
+
+    const BasisSet* bs1=*bg->begin(); //Get the first basis set.
+    const optr_vector<BasisFunctionBlock*>& blocks=GetBlocks(*bs1);
     for (CITER a(blocks.begin()); a!=blocks.end(); a++)
         for (CITER b(a); b!=blocks.end(); b++)
         {
@@ -318,9 +316,9 @@ void PolarizedGaussianIE::MakeRepulsion4C(ERIList& coulomb,  ERIList& exchange, 
         }
 
     // Now normalize everything.
-    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs);
+    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs1);
     Vector<double> Norm=tbs->GetDataBase()->GetNormalization();
-    int N=bs->GetNumFunctions();
+    int N=bs1->GetNumFunctions();
     for (int ia=1; ia<=N; ia++)
         for (int ib=ia; ib<=N; ib++)
             for (int ic=ia; ic<=N; ic++)

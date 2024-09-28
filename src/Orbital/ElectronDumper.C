@@ -5,7 +5,6 @@
 #include "Orbital/ElectronDumper.H"
 #include "Orbital/Orbital.H"
 #include "Orbital/OrbitalGroup.H"
-#include "Orbital/OrbitalGroupBrowser.H"
 #include "Orbital/EnergyLevel.H"
 #include "Orbital/FermiThermalizer.H"
 #include <algorithm> //sort
@@ -33,8 +32,7 @@ void ElectronDumper::Add(Orbital* o)
 
 void ElectronDumper::Add(OrbitalGroup* og)
 {
-    OrbitalGroupIterator i(*og);
-    for(; i; i++) itsOrbitals.push_back(&*i);
+    for (auto o:*og) itsOrbitals.push_back(o);
     IsDirty=true;
 }
 

@@ -52,18 +52,13 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/BasisGroup.H" />
-		<Unit filename="src/BasisSet/BasisGroupBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/BasisGroupBrowser.H" />
 		<Unit filename="src/BasisSet/BasisSet.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/BasisSet.H" />
 		<Unit filename="src/BasisSet/BasisSetBrowser.C">
-			<Option compilerVar="CPP" />
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSet/BasisSetBrowser.H" />
 		<Unit filename="src/BasisSet/IntegralDataBase.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -262,10 +257,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Cluster/Cluster.H" />
-		<Unit filename="src/Cluster/ClusterBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Cluster/ClusterBrowser.H" />
 		<Unit filename="src/Cluster/Lattice.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -608,6 +599,9 @@
 		<Unit filename="src/Misc/pmstream.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/Misc/ptr_vector.h" />
+		<Unit filename="src/Misc/ptr_vector1.h" />
+		<Unit filename="src/Misc/ptr_vector1_io.h" />
 		<Unit filename="src/Misc/ptrvector_io.h" />
 		<Unit filename="src/Misc/rc_ptr.H" />
 		<Unit filename="src/Misc/stl_io.C">

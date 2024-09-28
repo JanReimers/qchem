@@ -6,7 +6,6 @@
 #include "ChargeDensity/ChargeDensity.H"
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/BasisGroup.H"
-#include "BasisSet/BasisGroupBrowser.H"
 #include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
 #include "Hamiltonian/TotalEnergy.H"
@@ -24,9 +23,9 @@ WaveFunctionGroup::WaveFunctionGroup(const BasisGroup* bg, const Spin& S)
 : itsBasisGroup(bg)
 {
     assert(itsBasisGroup);
-    for (BasisGroupBrowser b(*itsBasisGroup);b;b++)
+    for (auto b:*itsBasisGroup)
     {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(&b); //TODO avoid casting here?
+        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(b); //TODO avoid casting here?
         assert(tbs);
         itsIrrepWFs.push_back(new IrrepWaveFunction(tbs,S));
     }

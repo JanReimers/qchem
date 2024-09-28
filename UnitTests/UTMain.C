@@ -11,6 +11,7 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "SemiHartreeFockMoleculeTester.*";
 //    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.N2";
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
+//    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/*";
 
     
     return RUN_ALL_TESTS();

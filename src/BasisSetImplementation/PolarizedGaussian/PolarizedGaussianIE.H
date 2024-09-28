@@ -5,6 +5,7 @@
 
 
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
+#include "Misc/ptr_vector.h"
 
 class PolarizedGaussianBS;
 class BasisFunctionBlock;

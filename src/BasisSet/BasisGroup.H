@@ -3,7 +3,7 @@
 #define _BasisGroup_H_
 
 #include "BasisSet/BasisSet.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 #include "Misc/ERIList.H"
 
 //----------------------------------------------------------------------------
@@ -20,6 +20,8 @@ class BasisGroup
     : public UniqueID
 {
 public:
+    typedef optr_vector1<BasisSet*>::const_iterator const_iterator;
+
     BasisGroup();
     virtual ~BasisGroup();
     virtual index_t GetNumFunctions() const;
@@ -27,23 +29,18 @@ public:
     virtual void Insert(BasisSet*);
     // Share ERI tables with other DBs
     virtual void Insert(const ERIList& C, const ERIList& X) const;
+
+    virtual const_iterator begin() const {return itsBasisSets.begin();}
+    virtual const_iterator end  () const {return itsBasisSets.end  ();}
 //
 //  StreamableObject stuff.
 //
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
     static  BasisGroup*  Factory(std::istream&    )      ;
-private:
-    typedef optr_vector<BasisSet*>::const_iterator CITER;
-    typedef optr_vector<BasisSet*>::iterator ITER;
-    friend class BasisGroupBrowser;
-    friend class BasisGroupIterator;
-    virtual CITER begin() const {return itsBasisSets.begin();}
-    virtual CITER end  () const {return itsBasisSets.end  ();}
-    virtual ITER  begin()       {return itsBasisSets.begin();}
-    virtual ITER  end  ()       {return itsBasisSets.end  ();}
 
-    optr_vector<BasisSet*> itsBasisSets;
+private:
+    optr_vector1<BasisSet*> itsBasisSets;
 };
 
 #endif //_BasisGroup_H_

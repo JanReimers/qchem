@@ -9,7 +9,6 @@
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
 #include "BasisSet/IntegralDataBase.H"
 #include "BasisSet/TBasisSetBrowser.H"
-#include "BasisSet/BasisGroupBrowser.H"
 #include "BasisSet/BasisGroup.H"
 #include "Cluster/Cluster.H"
 #include "Misc/MatrixList.H"
@@ -227,11 +226,10 @@ void SphericalGaussianIE::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, c
     Coulomb.SetSize(bg->GetNumFunctions());
     exchange.SetSize(bg->GetNumFunctions());
     ERIList tracker_eris(Coulomb.GetSize());
-//    int start_a=1;
-    for (BasisGroupBrowser ba(*bg); ba; ba++)
+    for (auto ba=bg->begin();ba!=bg->end();ba++)
     {
-        int start_a=ba->GetStartIndex();
-        const SphericalGaussianBS* sg_a=dynamic_cast<const SphericalGaussianBS*>(&ba);
+        int start_a=(*ba)->GetStartIndex();
+        const SphericalGaussianBS* sg_a=dynamic_cast<const SphericalGaussianBS*>(*ba);
         assert(sg_a);
         const SphericalGaussianIE* ie_a=dynamic_cast<const SphericalGaussianIE*>(sg_a->GetDataBase()->GetIntegralEngine());
         assert(ie_a);
@@ -240,10 +238,10 @@ void SphericalGaussianIE::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, c
         const Vector<double>& na(ie_a->itsNormalizations);
         int Na=ie_a->itsN;
         int La=ie_a->itsL;
-        for (BasisGroupBrowser bb(ba); bb; bb++)
+        for (auto bb=ba;bb!=bg->end();bb++)
         {
-            int start_b=bb->GetStartIndex();
-            const SphericalGaussianBS* sg_b=dynamic_cast<const SphericalGaussianBS*>(&bb);
+            int start_b=(*bb)->GetStartIndex();
+            const SphericalGaussianBS* sg_b=dynamic_cast<const SphericalGaussianBS*>(*bb);
             assert(sg_b);
             const SphericalGaussianIE* ie_b=dynamic_cast<const SphericalGaussianIE*>(sg_b->GetDataBase()->GetIntegralEngine());
             assert(ie_b);
@@ -253,10 +251,10 @@ void SphericalGaussianIE::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, c
             int Nb=ie_b->itsN;
             int Lb=ie_b->itsL;
 
-            for (BasisGroupBrowser bc(ba); bc; bc++)
+            for (auto bc=ba;bc!=bg->end();bc++)
             {
-                int start_c=bc->GetStartIndex();
-                const SphericalGaussianBS* sg_c=dynamic_cast<const SphericalGaussianBS*>(&bc);
+                int start_c=(*bc)->GetStartIndex();
+                const SphericalGaussianBS* sg_c=dynamic_cast<const SphericalGaussianBS*>(*bc);
                 assert(sg_c);
                 const SphericalGaussianIE* ie_c=dynamic_cast<const SphericalGaussianIE*>(sg_c->GetDataBase()->GetIntegralEngine());
                 assert(ie_c);
@@ -265,10 +263,11 @@ void SphericalGaussianIE::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, c
                 const Vector<double>& nc(ie_c->itsNormalizations);
                 int Nc=ie_c->itsN;
                 int Lc=ie_c->itsL;
-                for (BasisGroupBrowser bd(bc); bd; bd++)
+                
+                for (auto bd=bc;bd!=bg->end();bd++)
                 {
-                    int start_d=bd->GetStartIndex();
-                    const SphericalGaussianBS* sg_d=dynamic_cast<const SphericalGaussianBS*>(&bd);
+                    int start_d=(*bd)->GetStartIndex();
+                    const SphericalGaussianBS* sg_d=dynamic_cast<const SphericalGaussianBS*>(*bd);
                     assert(sg_d);
                     const SphericalGaussianIE* ie_d=dynamic_cast<const SphericalGaussianIE*>(sg_d->GetDataBase()->GetIntegralEngine());
                     assert(ie_d);
