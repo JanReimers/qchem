@@ -6,7 +6,7 @@
 
 #include "ChargeDensity/ChargeDensity.H"
 #include "FunctionsImp/DumpScalarData.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 //--------------------------------------------------------------------------
 //
@@ -46,7 +46,7 @@ private:
     CompositeCD(const CompositeCD&);
     virtual void  Eval(const Mesh&, Vec&) const;
 
-    optr_vector<ChargeDensity*> itsCDs;
+    optr_vector1<ChargeDensity*> itsCDs;
 };
 
 #endif //_CompositeCD_H_

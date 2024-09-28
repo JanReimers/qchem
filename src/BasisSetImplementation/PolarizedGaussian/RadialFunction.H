@@ -20,7 +20,7 @@ struct BasisFunctionBlockPair;
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and
 //  2Pz all have the same radial part, just different polarizations.
-//  It is assumed that these radial functions (pointers) will stored in an optr_vector<>
+//  It is assumed that these radial functions (pointers) will stored in an optr_vector1<>
 //  and the SortingIndex is the offset into that list.
 //
 class RadialFunction

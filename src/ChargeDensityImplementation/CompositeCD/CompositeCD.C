@@ -4,7 +4,7 @@
 
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
 #include "BasisSet/BasisSet.H"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 #include "oml/smatrix.h"
 #include <cassert>
 
@@ -20,18 +20,19 @@ void CompositeCD::Insert(ChargeDensity* cd)
     itsCDs.push_back(cd);
 }
 
-typedef optr_vector<ChargeDensity*>::iterator ITER;
-typedef optr_vector<ChargeDensity*>::const_iterator CITER;
+typedef optr_vector1<ChargeDensity*>::iterator ITER;
+typedef optr_vector1<ChargeDensity*>::const_iterator CITER;
 //-----------------------------------------------------------------------------
 //
 //  Totale energy terms for a charge density.
 //
 ChargeDensity::SMat CompositeCD::GetOverlap  (const BasisSet* bs) const
 {
+    // No UT coverage
     int n=bs->GetNumFunctions();
     SMat S(n,n);
     Fill(S,0.0);
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) S+=b->GetOverlap(bs);
+    for (auto c:itsCDs) S+=c->GetOverlap(bs);
     return S;
 }
 
@@ -40,8 +41,7 @@ ChargeDensity::SMat CompositeCD::GetRepulsion(const BasisSet* bs_ab) const
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);
-    for (CITER c(itsCDs.begin()); c!=itsCDs.end(); c++)
-        J+=c->GetRepulsion(bs_ab);
+    for (auto c:itsCDs) J+=c->GetRepulsion(bs_ab);
     return J;
 }
 
@@ -50,22 +50,21 @@ ChargeDensity::SMat CompositeCD::GetExchange(const BasisSet* bs_ab) const
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
     Fill(K,0.0);
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++)
-        K+=b->GetExchange(bs_ab);
+    for (auto c:itsCDs) K+=c->GetExchange(bs_ab);
     return K;
 }
 
 double CompositeCD::GetEnergy(const HamiltonianTerm* v) const
 {
     double ret=0.0;
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) ret+=b->GetEnergy(v);
+    for (auto c:itsCDs) ret+=c->GetEnergy(v);
     return ret;
 }
 
 double CompositeCD::GetTotalCharge() const
 {
     double ret=0.0;
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) ret+=b->GetTotalCharge();
+    for (auto c:itsCDs) ret+=c->GetTotalCharge();
     return ret;
 }
 
@@ -75,12 +74,13 @@ double CompositeCD::GetTotalCharge() const
 //
 void CompositeCD::InjectOverlaps(FittedFunction* ff, const BasisSet* fbs) const
 {
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) b->InjectOverlaps(ff,fbs);
+    // No UT coverage
+    for (auto c:itsCDs) c->InjectOverlaps(ff,fbs);
 }
 
 void CompositeCD::InjectRepulsions(FittedFunction* ff, const BasisSet* fbs) const
 {
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) b->InjectRepulsions(ff,fbs);
+    for (auto c:itsCDs) c->InjectRepulsions(ff,fbs);
 }
 
 //-------------------------------------------------------------------------
@@ -89,34 +89,40 @@ void CompositeCD::InjectRepulsions(FittedFunction* ff, const BasisSet* fbs) cons
 //
 void CompositeCD::ReScale(double factor)
 {
-    for (ITER i(itsCDs.begin()); i!=itsCDs.end(); i++) i->ReScale(factor);
+    // No UT coverage
+    for (auto c:itsCDs) c->ReScale(factor);
 }
 
 void CompositeCD::ShiftOrigin(const RVec3& newCenter)
 {
-    for (ITER i(itsCDs.begin()); i!=itsCDs.end(); i++) i->ShiftOrigin(newCenter);
+    // No UT coverage
+    for (auto c:itsCDs) c->ShiftOrigin(newCenter);
 }
 
-void CompositeCD::MixIn(const ChargeDensity& cd,double c)
+void CompositeCD::MixIn(const ChargeDensity& cd,double f)
 {
     const CompositeCD* ecd = dynamic_cast<const CompositeCD*>(&cd);
     assert(ecd);
-    ITER i(itsCDs.begin());
     CITER  b(ecd->itsCDs.begin());
-    for (; i!=itsCDs.end()&&b!=ecd->itsCDs.end(); i++,b++) i->MixIn(*b,c);
+    for (auto c:itsCDs)
+    {
+        c->MixIn(**b,f);
+        b++;
+    }
 }
 
 double CompositeCD::GetChangeFrom(const ChargeDensity& cd) const
 {
     const CompositeCD* ecd = dynamic_cast<const CompositeCD*>(&cd);
     assert(ecd);
-    CITER i(itsCDs.begin());
+    assert(itsCDs.size()==ecd->itsCDs.size());
     CITER b(ecd->itsCDs.begin());
     double ret=0;
-    for (; i!=itsCDs.end()&&b!=ecd->itsCDs.end(); i++,b++)
+    for (auto c:itsCDs)
     {
-        double t = i->GetChangeFrom(*b);
+        double t = c->GetChangeFrom(**b);
         ret = t > ret ? t : ret;
+        b++;
     }
     return ret;
 }
@@ -128,19 +134,21 @@ double CompositeCD::GetChangeFrom(const ChargeDensity& cd) const
 double CompositeCD::operator()(const RVec3& r) const
 {
     double ret=0.0;
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) ret+=b->operator()(r);
+    for (auto c:itsCDs) ret+=c->operator()(r);
     return ret;
 }
 
 void  CompositeCD::Eval(const Mesh& mesh, Vec& v) const
 {
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) b->Eval(mesh,v); //Each  does v+= operation.
+    // No UT coverage
+    for (auto c:itsCDs) c->Eval(mesh,v); //Each  does v+= operation.
 }
 
 ChargeDensity::Vec3 CompositeCD::Gradient  (const RVec3& r) const
 {
+    // No UT coverage
     Vec3 ret(0,0,0);
-    for (CITER b(itsCDs.begin()); b!=itsCDs.end(); b++) ret+=b->Gradient(r);
+    for (auto c:itsCDs) ret+=c->Gradient(r);
     return ret;
 }
 
