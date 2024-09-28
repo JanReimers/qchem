@@ -1,9 +1,9 @@
 #ifndef PTR_VECTOR1_H_INCLUDED
 #define PTR_VECTOR1_H_INCLUDED
 
-//#include "oml/imp/index_t.h"
 #include <vector>
-//#include <cassert>
+#include <cassert>
+
 template <class T> class optr_vector1;
 
 template <class T> class optr_vector1<T*>
@@ -51,6 +51,34 @@ public:
     }
 private:
     optr_vector1& operator=(const optr_vector1&);
+};
+
+template <class T, class D> class dynamic_cast_iterator;
+
+template <class T, class D> class dynamic_cast_iterator<T*,D*>
+{
+public:
+    //typedef typename std::vector<T*>::iterator ITER;
+    typedef typename optr_vector1<T*>::iterator iterator;
+    typedef typename optr_vector1<T*>::const_iterator const_iterator;
+    
+    dynamic_cast_iterator(const optr_vector1<T*>& v) : current(v.begin()) {};
+    dynamic_cast_iterator(const const_iterator& i) : current(i) {};
+    T* operator++(int) {current++;return *current;}
+//    D* end       () const {return dcast(endp);}
+    D* operator* () const {return dcast(*current);}
+    D* operator->() const {return dcast(*current);}
+    friend bool operator!=(const dynamic_cast_iterator& id,const const_iterator& i)
+    {
+        return id.current!=i;
+    }
+private:
+    D* dcast(T* p) const
+    {
+        assert(dynamic_cast<D*>(p));
+        return dynamic_cast<D*>(p);
+    }
+    const_iterator current,endp;
 };
 
 

@@ -4,7 +4,6 @@
 
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSet/QuantumNumber.H"
-#include "BasisSet/BasisSetBrowser.H"
 #include "Misc/ptr_vector1_io.h"
 
 #include <iostream>

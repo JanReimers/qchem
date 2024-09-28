@@ -5,24 +5,29 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -SMAT does not support S+=Xpr
     -Support V*S without including matrix.h
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
-    Done -Range based iterators for ptr_vector and optr_vector.
+    Done: -Range based iterators for ptr_vector and optr_vector.
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
     -Get ride of 
         Done OrbitalGroupIterator 
         Done OrbitalGroupBrowser 
-        TOrbitalGroupBrowser requires a dynamic cast iterator
-        MeshBrowser 
-        AngularMeshBrowser 
-        RadialMeshBrowser 
+        
         Done: BasisGroupBrowser
         Done: BasisSetBrowser
             Do we need iterator?
-        TBasisSetBrowser requires a dynamic cast iterator
         Done: ClusterBrowser 
             Do we need iterator?
+
         TwoLPlusOne
+    -Make a dynamic_cast iterator for optr_vector1, then get rid of
+        TOrbitalGroupBrowser requires a dynamic cast iterator
+        Done: TBasisSetBrowser requires a dynamic cast iterator
+    -Mesh code re-write  use pairs of points/weights, also get rid of
+        MeshBrowser 
+        AngularMeshBrowser 
+        RadialMeshBrowser 
+    -Switch from ptr_vector to ptr_vector1.
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
-    -Start using optr_vector1 which is vastly simpler.
+    Done: -Start using optr_vector1 which is vastly simpler.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
     -Fized all signed unsigned comparisons.

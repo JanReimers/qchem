@@ -8,7 +8,7 @@
 #include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
 #include "BasisSet/IntegralDataBase.H"
-#include "BasisSet/TBasisSetBrowser.H"
+//#include "BasisSet/TBasisSetBrowser.H"
 #include "BasisSet/BasisGroup.H"
 #include "Cluster/Cluster.H"
 #include "Misc/MatrixList.H"
@@ -135,7 +135,7 @@ Vector<double> SphericalGaussianIE::MakeOverlap(const ScalarFunction<double>& f)
 void SphericalGaussianIE::MakeOverlap3C(MList& mlist, const TBasisSet<double>& bs) const
 {
     mlist.Empty();
-    for (TBasisSetBrowser<double> b(bs); b; b++) mlist.Add(MakeOverlap(*b));
+    for (auto b=bs.beginT(); b!=bs.end(); b++) mlist.Add(MakeOverlap(**b));
     mlist.Clear();
 }
 
@@ -213,7 +213,7 @@ Vector<double> SphericalGaussianIE::MakeRepulsion(const ScalarFunction<double>& 
 void SphericalGaussianIE::MakeRepulsion3C(MList& mlist, const TBasisSet<double>& bs) const
 {
     mlist.Empty();
-    for (TBasisSetBrowser<double> b(bs); b; b++) mlist.Add(MakeRepulsion(*b));
+    for (auto b=bs.beginT(); b!=bs.end(); b++) mlist.Add(MakeRepulsion(**b));
     mlist.Clear();
 }
 

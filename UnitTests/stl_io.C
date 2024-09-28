@@ -106,6 +106,9 @@ TEST_P(STLTesting,FileIO)
 INSTANTIATE_TEST_CASE_P(FileIO,STLTesting,
                         ::testing::Values(StreamableObject::ascii,StreamableObject::binary));
 
+                        
+
+                        
 TEST_F(STLTesting,RangeBasedLoops)
 {
     for (auto p:opvi) {cout << p << " ";}
@@ -129,7 +132,8 @@ TEST_F(STLTesting,RangeBasedLoops)
     for (auto i2(i1);i2!=pa.end();i2++)
         cout << *i2;
     
-    
+    for (dynamic_cast_iterator<Atom*,Molecule*> id(pa);id!=pa.end();id++)
+        cout << typeid(*id).name() << endl;
     
     
 //    optr_vector1<Atom*> pa1(pa); Atom needs a Clone function

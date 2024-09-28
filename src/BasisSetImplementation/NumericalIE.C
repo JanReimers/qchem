@@ -5,7 +5,7 @@
 #include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/TBasisFunction.H"
-#include "BasisSet/TBasisSetBrowser.H"
+//#include "BasisSet/TBasisSetBrowser.H"
 #include "Cluster/Cluster.H"
 #include "Mesh/Mesh.H"
 #include "Misc/MatrixList.H"
@@ -132,7 +132,7 @@ template <class T> typename NumericalIE<T>::Vec NumericalIE<T>::MakeOverlap(cons
 template <class T> void NumericalIE<T>::MakeOverlap3C(MList& mlist, const TBasisSet<T>& bs) const
 {
     // No UT coverage
-    for (TBasisSetBrowser<T> b(bs); b; b++) mlist.Add(MakeOverlap(*b));
+    for (auto b=bs.beginT(); b!=bs.end(); b++) mlist.Add(MakeOverlap(**b));
 }
 
 
@@ -181,7 +181,7 @@ template <class T> void NumericalIE<T>::MakeRepulsion3C(MList& ret,const TBasisS
     std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;
     assert(false);
     // No UT coverage
-    for (TBasisSetBrowser<T> b(bs); b; b++) ret.Add(MakeRepulsion(*b));
+    for (auto b=bs.beginT(); b!=bs.end(); b++) ret.Add(MakeRepulsion(**b));
 }
 
 template <class T> void NumericalIE<T>::MakeRepulsion4C(ERIList& eris,ERIList&,const BasisGroup*) const

@@ -2,7 +2,7 @@
 
 
 #include "BasisSetImplementation/TBasisSetImplementation.H"
-#include "BasisSet/TBasisSetBrowser.H"
+//#include "BasisSet/TBasisSetBrowser.H"
 #include "BasisSet/TBasisFunction.H"
 #include "BasisSet/IntegralDataBase.H"
 #include "Misc/EigenSolver.H"
@@ -295,8 +295,7 @@ operator() (const RVec3& r) const
 {
     Vec  ret(GetVectorSize());
     typename Vec::iterator i(ret.begin());
-    TBasisSetBrowser<T> b(*this);
-    for(; i!=ret.end()&&b; i++,b++) *i=(*b)(r);
+    for(auto b=this->beginT();b!=this->end();i++,b++) *i=(**b)(r);
 
     return ret;
 }
@@ -304,21 +303,22 @@ operator() (const RVec3& r) const
 template <class T> typename TBasisSetImplementation<T>::Vec3Vec TBasisSetImplementation<T>::
 Gradient(const RVec3& r) const
 {
+    // No UT coverage
     Vec3Vec  ret(GetVectorSize());
     typename Vec3Vec::iterator i(ret.begin());
-    TBasisSetBrowser<T> b(*this);
-    for(; i!=ret.end()&&b; i++,b++) *i=b->Gradient(r);
+    for(auto b=this->beginT(); b!=this->end(); i++,b++) *i=b->Gradient(r);
 
     return ret;
 }
 
 template <class T> void TBasisSetImplementation<T>::Eval(const Mesh& mesh, Mat& mat) const
 {
-    TBasisSetBrowser<T> b(*this);
+    // No UT coverage
     StreamableObject::SetToPretty();
-    for (index_t i=1; b.operator bool(); b++,i++)
+    index_t i=1;
+    for (auto b=this->beginT(); b!=this->end(); i++,b++)
     {
-        mat.GetRow(i)=(*b)(mesh);
+        mat.GetRow(i)=(**b)(mesh);
 //		cout << "TBasisSetImplementation<T>::Eval (*b)(mesh)=" << (*b)(mesh) << std::endl;
 //		cout << "TBasisSetImplementation<T>::Eval mat.GetRow(i)=" << mat.GetRow(i) << std::endl;
     }
@@ -326,8 +326,9 @@ template <class T> void TBasisSetImplementation<T>::Eval(const Mesh& mesh, Mat& 
 
 template <class T> void TBasisSetImplementation<T>::EvalGrad(const Mesh& mesh, Vec3Mat& mat) const
 {
-    TBasisSetBrowser<T> b(*this);
-    for (index_t i=1; b; b++,i++) mat.GetRow(i)=(*b).Gradient(mesh);
+    // No UT coverage
+    index_t i=1;
+    for (auto b=this->beginT(); b!=this->end(); i++,b++) mat.GetRow(i)=(**b).Gradient(mesh);
 }
 
 template <class T> EigenSolver<T>* TBasisSetImplementation<T>::GetEigenSolver() const
