@@ -85,7 +85,7 @@ void ElectronDumper::DumpInElectrons(double NumElectrons)
     itsFermiEnergy=ft.GetFermiEnergy();
 
     double Ntotal=NumElectrons;
-    for (optr_vector<EnergyLevel*>::iterator i(itsEnergyLevels.begin()); i!=itsEnergyLevels.end() && Ntotal>0.0; i++)
+    for (auto i:itsEnergyLevels)
     {
         double n=ft.GetOccupation(i->GetEnergy());
         double degen=i->GetDegeneracy();
@@ -95,6 +95,7 @@ void ElectronDumper::DumpInElectrons(double NumElectrons)
         }
         i->SetOccupation(n);
         Ntotal-=n*degen;
+        if (Ntotal<=0.0) break;
     }
 //    std::cout << "residual n=" << Ntotal << std::endl;
 
@@ -107,8 +108,8 @@ double ElectronDumper::GetFermiEnergy() const
 
 std::ostream& operator<<(std::ostream& os,const ElectronDumper& ed)
 {
-    optr_vector<EnergyLevel*>::const_iterator b(ed.itsEnergyLevels.begin());
-    for (; b!=ed.itsEnergyLevels.end() && b->GetOccupation() >0 ; b++)
+    int nLumo=2; //Show two LUMO ;eve;
+    for (auto b:ed.itsEnergyLevels)
     {
         os.setf(std::ios::fixed,std::ios::floatfield);
         os << std::setw(8) << std::setprecision(4) << b->GetEnergy();
@@ -118,19 +119,8 @@ std::ostream& operator<<(std::ostream& os,const ElectronDumper& ed)
         if (b->GetOccupation() != b->GetDegeneracy()) os << b->GetOccupation() << "/";
         os << b->GetDegeneracy() << ") ";
         os << std::endl;
+        if (b->GetOccupation() ==0 && --nLumo==0) break;
     }
-    for (int i=0; i<2 && b!=ed.itsEnergyLevels.end(); i++,b++)
-    {
-        os.setf(std::ios::fixed,std::ios::floatfield);
-        os << std::setw(8) << std::setprecision(4) << b->GetEnergy();
-        os << "(";
-//        os.setf(std::ios::scientific,std::ios::floatfield);
-        os << std::setw(4) << std::setprecision(1);
-        if (b->GetOccupation() != b->GetDegeneracy()) os << b->GetOccupation() << "/";
-        os << b->GetDegeneracy() << ") ";
-        os << std::endl;
-    }
-
     return os;
 }
 

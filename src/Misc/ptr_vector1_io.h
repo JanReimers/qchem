@@ -1,4 +1,6 @@
 // File: ptr_vector1_io  io templates for streaming.
+#ifndef _ptr_vector1_io_h
+#define _ptr_vector1_io_h
 
 #include "oml/imp/binio.h"
 #include "oml/imp/stream.h"
@@ -60,3 +62,4 @@ template <class T> std::istream& operator>>(std::istream& is, optr_vector1<T*>& 
     return is;
 }
 
+#endif // _ptr_vector1_io_h

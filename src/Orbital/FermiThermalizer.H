@@ -3,12 +3,12 @@
 #define _FermiThermalizer_H_
 
 #include "types.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 class FermiThermalizer
 {
 public:
-    FermiThermalizer(const optr_vector<EnergyLevel*>&, double kT, double NumE);
+    FermiThermalizer(const optr_vector1<EnergyLevel*>&, double kT, double NumE);
     double GetOccupation(double Energy);
     double GetFermiEnergy() const
     {

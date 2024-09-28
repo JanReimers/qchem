@@ -15,7 +15,7 @@
 #include <cmath>
 #include <cassert>
 
-optr_vector<std::vector<Polarization>* > GaussianCD::theNMLs;
+optr_vector1<std::vector<Polarization>* > GaussianCD::theNMLs;
 
 std::vector<Polarization> MakeAllPolarizations(int Lmax)
 {

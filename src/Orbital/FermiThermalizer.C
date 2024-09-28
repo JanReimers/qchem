@@ -13,7 +13,7 @@ void fermi(const Vector<double>& e, const Vector<double>& g,
 
 double Ef(const Vector<double>& e, const Vector<double>& g, double& NumE);
 
-FermiThermalizer::FermiThermalizer(const optr_vector<EnergyLevel*>& el,
+FermiThermalizer::FermiThermalizer(const optr_vector1<EnergyLevel*>& el,
                                    double kT, double NumE)
     : itskT(kT)
     , itsMu(0)  //Acts as Ef when kT=0;

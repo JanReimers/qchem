@@ -5,11 +5,10 @@
 
 
 #include "Misc/UniqueID/UniqueID.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 template <class T> class PerRef;
 template <class T> class PerList;
-template <class T> class PerDBBrowser;
 
 template <class T> class PerDB
     : public virtual PMStreamableObject
@@ -34,50 +33,11 @@ private:
 
 //  virtual PerDB*   Clone(        ) const;
 
-    friend class PerDBBrowser<T>;
     friend class PerRef <T>;
     friend class PerList<T>;
 
-    optr_vector<T*>  itsPointerList;
+    optr_vector1<T*>  itsPointerList;
     static PerDB<T>* thePerDB;
-};
-
-template <class T> class PerDBBrowser
-{
-    PerDBBrowser(const PerDB<T>& bs)
-        : begin(bs.itsPointerList.begin())
-        , current(begin)
-        , end(bs.itsPointerList.end())
-    {}
-
-    const T* operator++(int)
-    {
-        current++;
-        return &current;
-    }
-    const T& operator* () const
-    {
-        return *current;
-    }
-    const T* operator->() const
-    {
-        return &current;
-    }
-    T*const & operator& ()
-    {
-        return &current;
-    }
-//  operator const BasisFunction*  () const;
-    operator bool() const
-    {
-        return current!=end;
-    }
-private:
-    typedef typename optr_vector<T*>::const_iterator ITER;
-    ITER begin;
-    ITER current;
-    ITER end;
-
 };
 
 #endif

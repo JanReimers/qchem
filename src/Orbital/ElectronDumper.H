@@ -6,7 +6,7 @@
 
 #include "Orbital/Orbital.H"
 #include "Orbital/EnergyLevel.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 
 
@@ -30,7 +30,7 @@ public:
 private:
     bool               IsDirty        ; //true if energy dosn't reflect full orbital list.
      ptr_vector<Orbital    *> itsOrbitals    ;
-    optr_vector<EnergyLevel*> itsEnergyLevels;
+    optr_vector1<EnergyLevel*> itsEnergyLevels;
     double             itsTolerance   ; //Roundoff tolerance for degeneracy.
     double             itskT          ; //Used for level occupation smearing.
     double             itsFermiEnergy ; //Chemical potential at finite T.

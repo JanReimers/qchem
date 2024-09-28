@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cassert>
+#include "oml/imp/index_t.h"
 
 template <class T> class optr_vector1;
 

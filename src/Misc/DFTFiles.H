@@ -1,6 +1,8 @@
 // File: DFTFiles.H  Handle files for the DFT system.
+#ifndef _DFTFiles_H_
+#define _DFTFiles_H_
 
-#include "Misc/ptr_vector.h"
+//#include "Misc/ptr_vector1.h" 
 #include <string>
 
 class BasisSet;
@@ -9,7 +11,7 @@ class Mesh;
 class ChargeDensity;
 class Hamiltonian;
 class WaveFunction;
-template <class T> class SList;
+template <class T> class optr_vector1;
 
 //-------------------------------------------------------------------
 //
@@ -35,7 +37,7 @@ public:
 //
 //  Unpickle objects.
 //
-    void            UnpickleOBasisSet    (optr_vector<BasisSet*>&) const;
+    void            UnpickleOBasisSet    (optr_vector1<BasisSet*>&) const;
     BasisSet*       UnpickleCBasisSet    () const;
     BasisSet*       UnpickleXBasisSet    () const;
     Cluster*        UnpickleCluster      () const;
@@ -94,3 +96,5 @@ public:
 private:
     std::string itsStub; //File name stub associated with a given calculation.
 };
+
+#endif // _DFTFiles_H_

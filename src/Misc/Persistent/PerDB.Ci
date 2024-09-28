@@ -2,7 +2,7 @@
 
 
 #include "Misc/Persistent/PerDB.H"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 #include <iostream>
 
 
@@ -28,11 +28,10 @@ template <class T> T* PerDB<T>::GetPointerFor(UniqueID::IDtype theID)
         exit(-1);
     }
     T* ret=0;
-    typename optr_vector<T*>::iterator b(PerDB<T>::thePerDB->itsPointerList.begin());
-    for (; b!=PerDB<T>::thePerDB->itsPointerList.end(); b++)
+    for (auto b:thePerDB->itsPointerList)
         if (b->GetID() == theID)
         {
-            ret=&b;
+            ret=b;
             break;
         }
     if(!ret)
@@ -40,10 +39,11 @@ template <class T> T* PerDB<T>::GetPointerFor(UniqueID::IDtype theID)
         std::cerr << "PerDB<" TYPE_STRING "> Can't find ID " << theID << std::endl;
         std::cerr << "There are " << PerDB<T>::thePerDB->itsPointerList.size()
                   << " ID's in the list :";
-        typename optr_vector<T*>::const_iterator b1(PerDB<T>::thePerDB->itsPointerList.begin());
-        for (; b1!=PerDB<T>::thePerDB->itsPointerList.end(); b1++)
+        //typename optr_vector1<T*>::const_iterator b1(PerDB<T>::thePerDB->itsPointerList.begin());
+        //for (; b1!=PerDB<T>::thePerDB->itsPointerList.end(); b1++)
+        for (auto b:thePerDB->itsPointerList)
         {
-            std::cout << b1->GetID() << " ";
+            std::cout << b->GetID() << " ";
         }
         std::cerr << std::endl;
 
@@ -104,8 +104,7 @@ template <class T> bool PerDB<T>::StaticHas(UniqueID::IDtype id)
 template <class T> UniqueID::IDtype PerDB<T>::Find(const T& p) const
 {
     UniqueID::IDtype ret=0;
-    typename optr_vector<T*>::const_iterator b(itsPointerList.begin());
-    for (; b!=itsPointerList.end(); b++)
+    for (auto b:itsPointerList)
         if ((*b)==p)
         {
             ret=b->GetID();
@@ -117,8 +116,7 @@ template <class T> UniqueID::IDtype PerDB<T>::Find(const T& p) const
 template <class T> bool PerDB<T>::Has(UniqueID::IDtype theID) const
 {
     bool ret=false;
-    typename optr_vector<T*>::const_iterator b(itsPointerList.begin());
-    for (; b!=itsPointerList.end(); b++)
+    for (auto b:itsPointerList)
         if (b->GetID() == theID)
         {
             ret=true;
@@ -129,13 +127,16 @@ template <class T> bool PerDB<T>::Has(UniqueID::IDtype theID) const
 
 template <class T> void PerDB<T>::Delete(UniqueID::IDtype theID)
 {
-    typename optr_vector<T*>::iterator i(itsPointerList.begin());
-    for (index_t n=0; i!=itsPointerList.end(); n++,i++)
-        if (i->GetID() == theID)
+    index_t n=0;
+    for (auto i=itsPointerList.begin(); i!=itsPointerList.end(); n++,i++)
+    {
+        if ((*i)->GetID() == theID)
         {
             itsPointerList.erase(i);
             break;
         }
+        //n++;
+    }
 }
 
 
@@ -155,10 +156,11 @@ template <class T> std::istream& PerDB<T>::Read(std::istream& is)
 template <class T> void PerDB<T>::Dump(std::ostream& os) const
 {
     os << "------------DataBase-------------" << std::endl;
-    typename optr_vector<T*>::const_iterator b(itsPointerList.begin());
-    for (; b!=itsPointerList.end(); b++)
+//    typename optr_vector1<T*>::const_iterator b(itsPointerList.begin());
+//    for (; b!=itsPointerList.end(); b++)
+    for (auto b:itsPointerList)
     {
-        os << b->GetID() << " " << (void*)&b << std::endl;
+        os << b->GetID() << " " << (void*)&*b << std::endl;
     }
 
 }

@@ -5,7 +5,7 @@
 
 
 #include "WaveFunction/WaveFunction.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 class WaveFunctionGroup
     : public virtual WaveFunction
@@ -23,7 +23,7 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
 
 private:
-    optr_vector<WaveFunction*>  itsIrrepWFs;
+    optr_vector1<WaveFunction*>  itsIrrepWFs;
     const BasisGroup* itsBasisGroup; //Union of all irrep basis sets.  used for managing 4 center ERIs.
 };
 

@@ -20,12 +20,12 @@
 //  Overlap                            <i|j>
 //  Overlap  (BasisSet      &     b)   <i|bj>
 //  Overlap  (ScalarFunction&     f)   <i|f>   *** f is NOT normalized ***
-//  Overlap3C(BasisSet&           b)   <ij|b>  for all basis functions b, returns an optr_vector<SMatrix>.
+//  Overlap3C(BasisSet&           b)   <ij|b>  for all basis functions b, returns an optr_vector1<SMatrix>.
 //
 //  Repulsion                            <i(1)|1/r12|j(2)>
 //  Repulsion  (BasisSet      &     b)   <i(1)|1/r12|bj(2)>
 //  Repulsion  (ScalarFunction&     f)   <i(1)|1/r12|f(2)>      *** f is NOT normalized ***
-//  Repulsion3C(BasisSet&           b)   <i(1)j(1)|1/r12|b(2)>  for all basis functions b, returns an optr_vector<SMatrix>.
+//  Repulsion3C(BasisSet&           b)   <i(1)j(1)|1/r12|b(2)>  for all basis functions b, returns an optr_vector1<SMatrix>.
 //  Repulsion4C(                     )   <i(1)j(1)|1/r12|k(2)l(2)>  for all internal basis functions.
 //  Normalization        1/sqrt(<i|i>)
 //  Charge               <i|1>

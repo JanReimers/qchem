@@ -7,7 +7,7 @@
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H"
 #include "oml/matrix.h"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 #include "oml/vector3d.h"
 
 
@@ -41,7 +41,7 @@ private:
         return *theNMLs[LMax];
     }
     static void MakeNMLs();
-    static optr_vector<std::vector<Polarization>* > theNMLs; //A list of all NMLs for each LMax.
+    static optr_vector1<std::vector<Polarization>* > theNMLs; //A list of all NMLs for each LMax.
 };
 
 #endif //_GaussianCD_H_

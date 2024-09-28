@@ -6,8 +6,6 @@
 #include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
 #include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
 #include "Misc/Spin.H"
-#include "Misc/ptr_vector.h"
-#include "Misc/ptrvector_io.h"
 #include <cassert>
 
 MasterUnPolarizedWF::MasterUnPolarizedWF()

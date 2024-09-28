@@ -11,8 +11,7 @@
 #include "Hamiltonian/TotalEnergy.H"
 #include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
-#include "Misc/ptrvector_io.h"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1_io.h"
 #include <cassert>
 
 
@@ -38,23 +37,20 @@ WaveFunctionGroup::WaveFunctionGroup(const BasisGroup* bg, const Spin& S)
 //
 void WaveFunctionGroup::DoSCFIteration(Hamiltonian& ham)
 {
-    for (optr_vector<WaveFunction*>::iterator i(itsIrrepWFs.begin()); i!=itsIrrepWFs.end(); i++)
-        i->DoSCFIteration(ham);
+    for (auto w:itsIrrepWFs) w->DoSCFIteration(ham);
 }
 
 ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
 {
     CompositeCD* cd = new CompositeCD();
-    optr_vector<WaveFunction*>::const_iterator sb(itsIrrepWFs.begin());
-    for (; sb!=itsIrrepWFs.end(); sb++)
-        cd->Insert(sb->GetChargeDensity(s));
+   // optr_vector<WaveFunction*>::const_iterator sb(itsIrrepWFs.begin());
+    for (auto w:itsIrrepWFs) cd->Insert(w->GetChargeDensity(s));
     return cd;
 }
 
 void WaveFunctionGroup::UpdateElectronDumper(ElectronDumper& ed)
 {
-    for (optr_vector<WaveFunction*>::iterator i(itsIrrepWFs.begin()); i!=itsIrrepWFs.end(); i++)
-        i->UpdateElectronDumper(ed);
+    for (auto w:itsIrrepWFs) w->UpdateElectronDumper(ed);
 }
 
 SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double NElectrons, double kT, bool showplot)

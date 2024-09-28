@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <cassert>
 
 template <class T> bool UnPickle(T*& pointer,const char* filep, const char* name)
 {

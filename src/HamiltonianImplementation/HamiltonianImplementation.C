@@ -6,13 +6,13 @@
 #include "HamiltonianImplementation/HamiltonianImplementation.H"
 #include "ChargeDensity/ChargeDensity.H"
 #include "BasisSet/BasisSet.H"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1_io.h"
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>
 
-typedef optr_vector<HamiltonianTerm*>::iterator        ITER;
-typedef optr_vector<HamiltonianTerm*>::const_iterator CITER;
+typedef optr_vector1<HamiltonianTerm*>::iterator        ITER;
+typedef optr_vector1<HamiltonianTerm*>::const_iterator CITER;
 
 HamiltonianImplementation::HamiltonianImplementation()
     : itsExactCD(0)
@@ -27,8 +27,9 @@ void HamiltonianImplementation::UseChargeDensity(const ChargeDensity* theExactCD
 {
     itsExactCD =theExactCD;
     assert(itsExactCD);
-    for (ITER i(itsHamiltonianTerms.begin()); i!=itsHamiltonianTerms.end(); i++)
-        i->UseChargeDensity(itsExactCD);
+    for (auto t:itsHamiltonianTerms) t->UseChargeDensity(itsExactCD);
+//    for (ITER i(itsHamiltonianTerms.begin()); i!=itsHamiltonianTerms.end(); i++)
+//        i->UseChargeDensity(itsExactCD);
 }
 
 //
@@ -36,9 +37,9 @@ void HamiltonianImplementation::UseChargeDensity(const ChargeDensity* theExactCD
 //
 bool HamiltonianImplementation::IsPolarized() const
 {
+    //No UT coverage
     bool ret=false;
-    for (CITER b(itsHamiltonianTerms.begin()); b!=itsHamiltonianTerms.end(); b++)
-        ret = ret || b->IsPolarized();
+    for (auto t:itsHamiltonianTerms) ret = ret || t->IsPolarized();
     return ret;
 }
 
@@ -47,8 +48,7 @@ Hamiltonian::SMat HamiltonianImplementation::BuildHamiltonian(const BasisSet* bs
     int n=bs->GetNumFunctions();
     SMat H(n,n);
     Fill(H,0.0);
-    for(CITER b(itsHamiltonianTerms.begin()); b!=itsHamiltonianTerms.end(); b++)
-        H+=b->BuildHamiltonian(bs,S);
+    for (auto t:itsHamiltonianTerms) H+=t->BuildHamiltonian(bs,S);
     return H;
 }
 
@@ -57,7 +57,7 @@ TotalEnergy HamiltonianImplementation::GetTotalEnergy() const
 {
     assert(itsExactCD);
     TotalEnergy e;
-    for(CITER p(itsHamiltonianTerms.begin()); p!=itsHamiltonianTerms.end(); p++) p->GetEnergy(e);
+    for (auto t:itsHamiltonianTerms)  t->GetEnergy(e);
     return e;
 }
 

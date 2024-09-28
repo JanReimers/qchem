@@ -2,8 +2,8 @@
 
 #include "Misc/DFTFiles.H"
 #include "Misc/Unpickle.H"
-#include "Misc/ptr_vector.h"
-#include "Misc/ptrvector_io.h"
+#include "Misc/ptr_vector1.h"
+#include "Misc/ptr_vector1_io.h"
 
 #include "BasisSet/BasisSet.H"
 #include "Hamiltonian/Hamiltonian.H"
@@ -65,7 +65,7 @@ bool DFTFiles::WaveFunctionFile() const
 }
 
 
-void DFTFiles::UnpickleOBasisSet(optr_vector<BasisSet*>& bs) const
+void DFTFiles::UnpickleOBasisSet(optr_vector1<BasisSet*>& bs) const
 {
     std::cout << "Reading basis set from file " << GetOBasisSetFN() << std::endl;
     std::ifstream in(GetOBasisSetFN().c_str());

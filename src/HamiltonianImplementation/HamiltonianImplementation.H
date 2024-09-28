@@ -6,7 +6,7 @@
 
 #include "Hamiltonian/Hamiltonian.H"
 #include "Hamiltonian/HamiltonianTerm.H"
-#include "Misc/ptr_vector.h"
+#include "Misc/ptr_vector1.h"
 
 class HamiltonianImplementation
     : public virtual Hamiltonian
@@ -24,7 +24,7 @@ public:
     virtual std::istream&     Read (std::istream&)      ;
 
 protected:
-    optr_vector<HamiltonianTerm*> itsHamiltonianTerms;
+    optr_vector1<HamiltonianTerm*> itsHamiltonianTerms;
     const ChargeDensity*    itsExactCD;    //Exact charge density.
 };
 
