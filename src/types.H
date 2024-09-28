@@ -59,6 +59,7 @@ template <class T> class IntegralDataBase;
 template <class T> class MatrixList;
 template <class T> class TBasisFunction;
 template <class T> class TBasisSet;
+template <class T> class TOrbital;
 
 
 #endif // TYPES_H_INCLUDED

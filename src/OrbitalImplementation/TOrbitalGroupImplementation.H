@@ -8,9 +8,6 @@
 #include "OrbitalImplementation/OrbitalGroupImplementation.H"
 #include "BasisSet/TBasisSet.H"
 
-template <class T> class TOrbitalGroupBrowser;
-template <class T> class TOrbitalGroupIterator;
-
 template <class T> class TOrbitalGroupImplementation
     : public virtual TOrbitalGroup<T>
     , private OrbitalGroupImplementation
@@ -44,9 +41,6 @@ public:
 
 private:
     TOrbitalGroupImplementation(const TOrbitalGroupImplementation&);
-
-    friend class TOrbitalGroupBrowser<T>;
-    friend class TOrbitalGroupIterator<T>;
 
     virtual SMat CalculateDensityMatrix() const;
 };

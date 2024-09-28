@@ -31,9 +31,6 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected: //Why not private!!!!!??
-    friend class OrbitalGroupBrowser;
-    friend class OrbitalGroupIterator;
-
     virtual void  FixUpPointer(const rc_ptr<const BasisSet>&);
 
     optr_vector1<Orbital*> itsOrbitals;

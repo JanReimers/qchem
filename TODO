@@ -19,8 +19,8 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
             Do we need iterator?
 
         TwoLPlusOne
-    -Make a dynamic_cast iterator for optr_vector1, then get rid of
-        TOrbitalGroupBrowser requires a dynamic cast iterator
+    -Done: Make a dynamic_cast iterator for optr_vector1, then get rid of
+        Done TOrbitalGroupBrowser requires a dynamic cast iterator
         Done: TBasisSetBrowser requires a dynamic cast iterator
     -Mesh code re-write  use pairs of points/weights, also get rid of
         MeshBrowser 

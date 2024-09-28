@@ -2,7 +2,6 @@
 
 
 #include "OrbitalImplementation/OrbitalGroupImplementation.H"
-#include "Orbital/OrbitalGroupBrowser.H"
 #include "Misc/DFTDefines.H"
 #include "Misc/ptr_vector1_io.h"
 #include <cmath>
@@ -47,9 +46,6 @@ double OrbitalGroupImplementation::GetEigenValueChange(const OrbitalGroup& og) c
     // No UT coverage
     // TODO: OrbitalGroup should return a vector of energies.
     double del=0;
-//    OrbitalGroupBrowser b1(*this);
-//    OrbitalGroupBrowser b2(og);
-//    for(; b1&&b2; b1++,b2++) del+=Square((*b1).GetEigenEnergy()-(*b2).GetEigenEnergy());
     auto b2=og.begin();
     for (auto b1:*this)
     {

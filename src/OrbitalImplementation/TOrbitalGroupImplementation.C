@@ -4,7 +4,6 @@
 
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
 #include "OrbitalImplementation/TOrbitalImplementation.H"
-#include "Orbital/TOrbitalGroupBrowser.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include "oml/vector.h"
 #include "oml/vector.h"
@@ -40,18 +39,18 @@ operator()(const RVec3& r) const
 {
     Vec ret(GetNumOrbitals());
     typename Vec::iterator i(ret.begin());
-    TOrbitalGroupBrowser<T>  b(*this);
-    for(; i!=ret.end()&&b; i++,b++)*i=(*b)(r);
+    // No UT coverage
+    for (auto b=this->beginT();b!=this->end();i++,b++) *i=(**b)(r);
     return ret;
 }
 
 template <class T> typename TOrbitalGroupImplementation<T>::Vec3Vec TOrbitalGroupImplementation<T>::
 Gradient(const RVec3& r) const
 {
+    // No UT coverage
     Vec3Vec ret(GetNumOrbitals());
     typename Vec3Vec::iterator i(ret.begin());
-    TOrbitalGroupBrowser<T>  b(*this);
-    for(; i!=ret.end()&&b; i++,b++) *i=b->Gradient(r);
+    for (auto b=this->beginT();b!=this->end();i++,b++) *i=b->Gradient(r);
     return ret;
 }
 
@@ -69,12 +68,12 @@ template <class T> ChargeDensity* TOrbitalGroupImplementation<T>::GetChargeDensi
 template <class T> typename TOrbitalGroupImplementation<T>::SMat TOrbitalGroupImplementation<T>::
 CalculateDensityMatrix() const
 {
+//    std::cout.precision(4);
     index_t n=itsBasisSet->GetNumFunctions();
     SMat d(n,n);
     Fill(d,T(0.0));
-    TOrbitalGroupBrowser<T> b(*this);
-    std::cout.precision(4);
-    for(; b; b++) b->AddDensityMatrix(d);
+    for (auto b=this->beginT();b!=this->end();b++) b->AddDensityMatrix(d);
+    
 //	std::cout << "OrbitalGroup L=" << itsRCBasisSet->GetQuantumNumber() << "DensityMatrix=" << std::setw(7) << d << std::endl;
     return d;
 }

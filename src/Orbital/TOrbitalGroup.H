@@ -6,6 +6,7 @@
 
 #include "Orbital/OrbitalGroup.H"
 #include "Functions/VectorFunction.H"
+#include "Misc/ptr_vector1.h"
 
 //---------------------------------------------------------
 //
@@ -17,10 +18,12 @@ template <class T> class TOrbitalGroup
     , public virtual VectorFunction<T>
 {
 public:
+    typedef dynamic_cast_iterator<Orbital*,TOrbital<T>* > const_iterator;
     virtual index_t GetVectorSize() const
     {
         return GetNumOrbitals();
     }
+    const_iterator beginT() const {return const_iterator(begin());};
 
     static  TOrbitalGroup* Factory(std::istream&)        ;
 };
