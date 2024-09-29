@@ -1,5 +1,6 @@
 // File: BasisSetFactories.C
 
+#include "BasisSet/BasisGroup.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H"
@@ -65,6 +66,16 @@ BasisSet* BasisSet::Factory(std::istream& is)
 //    if (Name==typeid(        PlaneWaveBS).name()) return new         PlaneWaveBS;
 
     std::cout << "Unknown basis set type :" << Name << std::endl;
+    exit(-1);
+    return NULL;
+}
+
+BasisGroup* BasisGroup::Factory(std::istream& is)
+{
+    std::string Name=StreamableObject::PeekAtName(is);
+    if (Name==typeid(BasisGroup).name()) return new BasisGroup;
+
+    std::cout << "Unknown basis group type :" << Name << std::endl;
     exit(-1);
     return NULL;
 }

@@ -5,6 +5,7 @@
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include "Hamiltonian/Hamiltonian.H"
+#include "BasisSet/BasisGroup.H"
 #include "Misc/PeriodicTable.H"
 #include <iostream> 
 #include <fstream>
@@ -74,6 +75,10 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
     Hamiltonian* h2=::OutIn<Hamiltonian>(h,file_name.c_str(), StreamableObject::binary);
 
     StreamableObject::SetToPretty();
-    cout << *h << endl << *h1 << *h2 << endl;
+    cout << *h << *h1 << *h2 << endl;
     
+    BasisGroup* bg=GetBasisGroup();
+    BasisGroup* bg1=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::ascii);
+    BasisGroup* bg2=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::binary);
+    cout << *bg << *bg1 << endl;
 }

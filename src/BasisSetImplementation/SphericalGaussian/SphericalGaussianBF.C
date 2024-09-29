@@ -62,7 +62,7 @@ std::ostream& SphericalGaussianBF::Write(std::ostream& os) const
 //    if (itsL >0) os << "r"; else os << " ";
 //    if (itsL >1) os << "^" << itsL; else os << "  ";
 //    os << " exp(-" << itsExponent << " r^2)" << std::endl;
-        os << itsExponent << " " << itsL << " " << itsNormalization;
+        os << itsExponent << " ";
     }
     return os;
 }

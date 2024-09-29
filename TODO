@@ -46,3 +46,5 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         -Linear system dense
         -Do we need sparse?
     -If N_nucleus=1 (atom) leave out Vnn term.
+    -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
+    -Persistent base doesn't do anything.

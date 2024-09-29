@@ -63,18 +63,10 @@ std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const
     }
     else
     {
-        const SphericalGaussianBF* sgbf=0;
         os << "Spherical Gaussian L=" << GetQuantumNumber()
         << " with " << GetNumFunctions() << " basis functions, alpha={";
-        // No UT coverage
-        auto bs=begin();
-        sgbf=dynamic_cast<const SphericalGaussianBF*>(*bs);
-        assert(sgbf);
-        os << sgbf << "... ";
-        for (unsigned int i=0; i<GetNumFunctions()-1; i++) bs++;
-        sgbf=dynamic_cast<const SphericalGaussianBF*>(*bs);
-        assert(sgbf);
-        os << sgbf << "}" << std::endl;
+        for (auto b:*this) os << *b;
+        os << "}" << std::endl;
     }
     return os;
 }
