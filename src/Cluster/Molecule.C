@@ -21,7 +21,7 @@ void Molecule::Insert(Atom* a)
     itsNumElectrons+=a->GetNumElectrons();
 }
 
-int Molecule::GetNumAtoms() const
+size_t Molecule::GetNumAtoms() const
 {
     return itsAtoms.size();
 }

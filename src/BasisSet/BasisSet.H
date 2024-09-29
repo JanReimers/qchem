@@ -28,7 +28,7 @@ public:
 
     virtual bool                 operator==      (const BasisSet&) const=0;
     virtual int                  GetStartIndex   (               ) const=0;
-    virtual index_t              GetNumFunctions (               ) const=0;
+    virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
 //
 //  This is where the real work gets done.

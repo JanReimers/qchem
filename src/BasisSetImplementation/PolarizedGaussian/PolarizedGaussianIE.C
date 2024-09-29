@@ -85,8 +85,8 @@ PolarizedGaussianIE::Mat PolarizedGaussianIE::MakeOverlap(const TBasisSet<double
         }
 
     Mat::Subscriptor      rs(ret);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=1; j<=OtherIE->itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=1; j<=OtherIE->itsN; j++)
             rs(i,j)*=itsNormalizations(i)*OtherIE->itsNormalizations(j);
 
     return ret;
@@ -206,8 +206,8 @@ PolarizedGaussianIE::Mat PolarizedGaussianIE::MakeRepulsion(const TBasisSet<doub
 
 
     Mat            ::Subscriptor      rs(ret);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=1; j<=OtherIE->itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=1; j<=OtherIE->itsN; j++)
             rs(i,j)*=itsNormalizations(i)*OtherIE->itsNormalizations(j);
 
     return ret;

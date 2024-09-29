@@ -31,7 +31,7 @@ public:
     ~Lattice();
 
     virtual void           Insert        (Atom*)      ;
-    virtual int            GetNumAtoms        () const;
+    virtual size_t         GetNumAtoms        () const;
     virtual int            GetNuclearCharge   () const;
     virtual double         GetNetCharge       () const;
     virtual double         GetNumElectrons    () const;
@@ -46,13 +46,13 @@ public:
     {
         return GetNumSites()*itsUnitCell.GetCellVolume();
     }
-    int    GetNumSites     () const;
-    int    GetNumBasisSites() const;
-    int    GetNumUnitCells () const;
+    size_t    GetNumSites     () const;
+    size_t    GetNumBasisSites() const;
+    size_t    GetNumUnitCells () const;
 
-    int    GetSiteNumber   (const RVec3&  ) const;
-    int    GetBasisNumber  (const RVec3&  ) const;
-    int    GetBasisNumber  (int SiteNumber) const;
+    size_t    GetSiteNumber   (const RVec3&  ) const;
+    size_t    GetBasisNumber  (const RVec3&  ) const;
+    size_t    GetBasisNumber  (int SiteNumber) const;
 
     Vector3D<int> GetCellCoord   (const RVec3&  ) const;
     RVec3         GetCoordinate  (int SiteNumber) const;
@@ -71,8 +71,8 @@ public:
     std::istream& Read (std::istream&)      ;
 
 private:
-    index_t      Find(const RVec3&               ) const; //Search unit cell.
-    index_t      Find(double,const std::vector<double>&) const;
+    size_t      Find(const RVec3&               ) const; //Search unit cell.
+    size_t      Find(double,const std::vector<double>&) const;
     std::vector<RVec3>  GetSuperCells(double MaxDistance) const;
     RVec3        GetBasisVector(int BasisNumber  ) const;
 

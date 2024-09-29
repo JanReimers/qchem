@@ -71,7 +71,7 @@ std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const
         sgbf=dynamic_cast<const SphericalGaussianBF*>(*bs);
         assert(sgbf);
         os << sgbf << "... ";
-        for (int i=0; i<GetNumFunctions()-1; i++) bs++;
+        for (unsigned int i=0; i<GetNumFunctions()-1; i++) bs++;
         sgbf=dynamic_cast<const SphericalGaussianBF*>(*bs);
         assert(sgbf);
         os << sgbf << "}" << std::endl;

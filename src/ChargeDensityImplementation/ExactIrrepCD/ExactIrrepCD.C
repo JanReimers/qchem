@@ -278,8 +278,8 @@ double FastContraction(const Vector<double>& v, const SMatrix<double>& m)
     assert(m.GetNumRows()==m.GetNumCols());
     assert(v.size      ()==m.GetNumCols());
     double ret=0;
-    for (index_t i=1; i<=v.size(); i++)
-        for (index_t j=1; j<=v.size(); j++)
+    for (unsigned int i=1; i<=v.size(); i++)
+        for (unsigned int j=1; j<=v.size(); j++)
             ret+=v(i)*m(i,j)*v(j);
     return ret;
 }
@@ -289,8 +289,8 @@ double FastContraction(const Vector<std::complex<double> >& v, const SMatrix<std
     assert(m.GetNumRows()==m.GetNumCols());
     assert(v.size      ()==m.GetNumCols());
     double ret=0;
-    for (index_t i=1; i<=v.size(); i++)
-        for (index_t j=1; j<=v.size(); j++)
+    for (unsigned int i=1; i<=v.size(); i++)
+        for (unsigned int j=1; j<=v.size(); j++)
             ret+=real(v(i)*m(i,j)*conj(v(j)));
     return ret;
 }
@@ -302,8 +302,8 @@ RVec3 FastContraction(const Vector<RVec3>& g, const Vector<double>& v, const SMa
     assert(g.size      ()==m.GetNumCols());
 
     RVec3 ret(0,0,0);
-    for (index_t i=1; i<=v.size(); i++)
-        for (index_t j=1; j<=v.size(); j++)
+    for (unsigned int i=1; i<=v.size(); i++)
+        for (unsigned int j=1; j<=v.size(); j++)
             ret+=m(i,j)*(g(i)*v(j)+v(i)*g(j));
     return ret;
 }
@@ -315,8 +315,8 @@ RVec3 FastContraction(const Vector<Vec3>& g, const Vector<std::complex<double> >
     assert(g.size      ()==m.GetNumCols());
 
     Vec3 ret(0,0,0);
-    for (index_t i=1; i<=v.size(); i++)
-        for (index_t j=1; j<=v.size(); j++)
+    for (unsigned int i=1; i<=v.size(); i++)
+        for (unsigned int j=1; j<=v.size(); j++)
             ret+=m(i,j)*(g(i)*conj(v(j))+v(i)*conj(g(j)));
     return real(ret);
 }

@@ -250,7 +250,7 @@ void GaussianRF::GetRepulsion2CInternal(BFBP& p, SMat& ret, double scale) const
     for (int nNLM=1;  bNLM!=NLMs.end();  bNLM++,nNLM++)
     {
         std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-        for (int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
+        for (unsigned int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
         {
 
             if (bNLM->n <= bPa->n && bNLM->l <= bPa->l && bNLM->m <= bPa->m)
@@ -259,7 +259,7 @@ void GaussianRF::GetRepulsion2CInternal(BFBP& p, SMat& ret, double scale) const
                 if (h!=0.0)
                 {
                     h*=2*Pi52*scale;
-                    for (int nPb=p.b->itsN; nPb<=p.b->itsN+p.b->itsPols.size()-1; nPb++)
+                    for (unsigned int nPb=p.b->itsN; nPb<=p.b->itsN+p.b->itsPols.size()-1; nPb++)
                         if (nPa <= nPb) s(nPa,nPb) += h * rsub(nNLM,nPb-p.b->itsN+1);
                 }
             }
@@ -293,7 +293,7 @@ void GaussianRF::GetRepulsion2CInternal(BFBP& p, Mat& ret, double scale) const
                 if (h!=0.0)
                 {
                     h*=2*Pi52*scale;
-                    for (int nPb=p.b->itsN; nPb<=p.b->itsN+p.b->itsPols.size()-1; nPb++)
+                    for (unsigned int nPb=p.b->itsN; nPb<=p.b->itsN+p.b->itsPols.size()-1; nPb++)
                         s(nPa,nPb) += h * rsub(nNLM,nPb-p.b->itsN+1);
                 }
             }

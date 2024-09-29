@@ -72,7 +72,7 @@ int  BasisSetImplementation::GetStartIndex() const
 }
 
 
-index_t BasisSetImplementation::GetNumFunctions() const
+size_t BasisSetImplementation::GetNumFunctions() const
 {
     return itsBasisFunctions.size();
 }

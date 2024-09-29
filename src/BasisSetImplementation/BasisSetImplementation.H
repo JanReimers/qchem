@@ -27,7 +27,7 @@ public:
     virtual ~BasisSetImplementation();
 
     virtual int     GetStartIndex  (               ) const;
-    virtual index_t GetNumFunctions(               ) const;
+    virtual size_t  GetNumFunctions(               ) const;
     virtual bool    operator==     (const BasisSet&) const;
 
     virtual const QuantumNumber&  GetQuantumNumber() const

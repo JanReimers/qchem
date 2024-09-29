@@ -21,7 +21,7 @@ public:
     }
 
     virtual void           Insert    (Atom*    )      =0;
-    virtual int            GetNumAtoms        () const=0;
+    virtual size_t         GetNumAtoms        () const=0;
     virtual int            GetNuclearCharge   () const=0;
     virtual double         GetNetCharge       () const=0;
     virtual double         GetNumElectrons    () const=0;

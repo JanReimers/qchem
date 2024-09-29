@@ -50,7 +50,7 @@ protected:
     std::vector<SMat> MakeMatrixList (int n) const;
 
     IDRef<const TBasisSet<T> > itsBasisSet;       //Permenant hook into the basis set.
-    index_t                    itsN;              //Number of basis functions.
+    size_t                     itsN;              //Number of basis functions.
     RVec                       itsNormalizations; //Normalization constants.
 
 private:

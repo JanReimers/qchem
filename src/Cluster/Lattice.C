@@ -50,7 +50,7 @@ void Lattice::Insert(Atom* atom)
     itsAtoms->Insert(atom);
 }
 
-int Lattice::GetNumAtoms() const
+size_t Lattice::GetNumAtoms() const
 {
     return itsAtoms->GetNumAtoms();
 }
@@ -80,17 +80,17 @@ ChargeDensity* Lattice::GetChargeDensity() const
 //
 //  Simple lattice questions.
 //
-int Lattice::GetNumSites() const
+size_t Lattice::GetNumSites() const
 {
     return GetNumBasisSites() * GetNumUnitCells();
 }
 
-int Lattice::GetNumBasisSites() const
+size_t Lattice::GetNumBasisSites() const
 {
     return itsAtoms->GetNumAtoms();
 }
 
-int Lattice::GetNumUnitCells() const
+size_t Lattice::GetNumUnitCells() const
 {
     return itsLimits.x * itsLimits.y * itsLimits.z;
 }
@@ -99,7 +99,7 @@ int Lattice::GetNumUnitCells() const
 //
 //  Coordinate to site number translations.
 //
-int Lattice::GetSiteNumber(const RVec3& r) const
+size_t Lattice::GetSiteNumber(const RVec3& r) const
 {
     RVec3 basis;
     Vector3D<int> cell;
@@ -115,7 +115,7 @@ int Lattice::GetSiteNumber(const RVec3& r) const
     return sitenum;
 }
 
-int Lattice::GetBasisNumber(const RVec3& r) const
+size_t Lattice::GetBasisNumber(const RVec3& r) const
 {
     RVec3 basis;
     Vector3D<int> cell;
@@ -126,7 +126,7 @@ int Lattice::GetBasisNumber(const RVec3& r) const
     return ret;
 }
 
-int Lattice::GetBasisNumber(int SiteNumber) const
+size_t Lattice::GetBasisNumber(int SiteNumber) const
 {
     assert(SiteNumber>=0);
     assert(SiteNumber<GetNumSites());
@@ -256,10 +256,10 @@ std::vector<RVec3> Lattice::GetBondsInSphere(int BasisNumber, double Distance) c
 //
 //  Private unitilities.
 //
-index_t  Lattice::Find(const RVec3& r) const //Search within the primary unit cell.
+size_t  Lattice::Find(const RVec3& r) const //Search within the primary unit cell.
 {
-    index_t ret=GetNumBasisSites();
-    index_t i=0;
+    size_t ret=GetNumBasisSites();
+    size_t i=0;
     for (auto a:*itsAtoms)
     {
         i++;
@@ -272,10 +272,10 @@ index_t  Lattice::Find(const RVec3& r) const //Search within the primary unit ce
     return ret;
 }
 
-index_t  Lattice::Find(double r,const std::vector<double>& lis) const
+size_t  Lattice::Find(double r,const std::vector<double>& lis) const
 {
-    index_t ret=lis.size();
-    index_t i=0;
+    size_t ret=lis.size();
+    size_t i=0;
     for (std::vector<double>::const_iterator b(lis.begin()); b!=lis.end(); b++,i++) if (fabs(r-*b) < itsTolerence)
         {
             ret=i;

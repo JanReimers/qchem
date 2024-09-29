@@ -447,7 +447,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(const C
     assert(itsIntegralEngine);
 //    std::cout << theCluster.GetID() << std::endl;
 //    std::cout << "itsNuclearClusters.size()=" << itsNuclearClusters.size() << std::endl;
-    index_t index=itsNuclearClusters.size();
+    unsigned int index=itsNuclearClusters.size();
     if (index>0)
     {
         auto i=std::find(itsNuclearClusters.begin(),itsNuclearClusters.end(),theCluster.GetID());

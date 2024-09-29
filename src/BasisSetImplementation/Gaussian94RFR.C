@@ -127,7 +127,7 @@ RadialFunction* Gaussian94RFR::ReadPrimative(int maxL, const Atom& atom)
     assert(maxL>=0);
     double exponent,c;
     itsStream >> exponent;
-    for (int l=0; l<itsLs.size(); l++) itsStream >> c; //These coeeficients should all be 1.0, and therefore ignored.
+    for (unsigned int l=0; l<itsLs.size(); l++) itsStream >> c; //These coeeficients should all be 1.0, and therefore ignored.
     return new GaussianRF(exponent,atom.itsR,maxL);
 }
 
@@ -142,7 +142,7 @@ RadialFunction* Gaussian94RFR::ReadContracted(int nCont, int maxL, const Atom& a
     {
         double exponent=0;
         itsStream >> exponent;
-        for (int l=1; l<=itsLs.size(); l++) itsStream >> coeff(i,l);
+        for (unsigned int l=1; l<=itsLs.size(); l++) itsStream >> coeff(i,l);
         radials.push_back(new GaussianRF(exponent,atom.itsR,maxL));
     }
     if (itsLs.size()>1 && coeff.GetColumn(1) != coeff.GetColumn(2))

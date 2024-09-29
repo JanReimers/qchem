@@ -27,7 +27,7 @@ template <class T> EigenSolver<T>::EigenSolver(const TBasisSet<T>& set, double T
 //
     Vec Wc=Diagonalize(S);
     RVec W(Wc.size());
-    for (int i=1;i<=Wc.size();i++) W(i)=real(Wc(i));
+    for (unsigned int i=1;i<=Wc.size();i++) W(i)=real(Wc(i));
     const RVec& w(W);
 //  cout << "Eigen values of S :" << W << std::endl;
 //  cout << "Tolerance =" << Tolerance << std::endl;
@@ -82,7 +82,7 @@ template <class T> void EigenSolver<T>::Solve(const SMat& Ham)
 //	cout << "HPrime=" << HPrime << std::endl;
     Vec Wc  = Diagonalize(HPrime);        //Get eigen solution.
     EigenValues.SetLimits(Wc.size());
-    for (int i=1;i<=Wc.size();i++) EigenValues(i)=real(Wc(i));
+    for (unsigned int i=1;i<=Wc.size();i++) EigenValues(i)=real(Wc(i));
 //	cout << "raw EigenVectors =" << HPrime << std::endl;
     EigenVectors = V * HPrime;                   //Back transform.
 //	cout << "EigenVectors =" << EigenVectors << std::endl;

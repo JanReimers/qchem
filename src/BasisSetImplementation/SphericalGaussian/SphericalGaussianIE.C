@@ -76,8 +76,8 @@ SMatrix<double> SphericalGaussianIE::MakeOverlap() const
     SMatrix<double>::Subscriptor s(ret);
 
     double a=TwoLPlusOne(itsL);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=i; j<=itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=i; j<=itsN; j++)
             s(i,j)=a*GaussianIntegral(itsExponents(i)+itsExponents(j),2*itsL);
 
     Normalize(ret);
@@ -105,8 +105,8 @@ Matrix<double> SphericalGaussianIE::MakeOverlap(const TBasisSet<double>& theBasi
     const Vector<double>& n1(itsNormalizations);
     const Vector<double>& n2(OtherIE->itsNormalizations);
 
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=1; j<=otherN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=1; j<=otherN; j++)
             s(i,j)=GaussianIntegral(e1(i)+e2(j),itsL+otherL)*n1(i)*n2(j);
 
     return ret;
@@ -125,7 +125,7 @@ Vector<double> SphericalGaussianIE::MakeOverlap(const ScalarFunction<double>& f)
     Vector<double>::Subscriptor s(ret);
     const Vector<double>& e(itsExponents);
 
-    for (index_t i=1; i<=itsN; i++) s(i) = GaussianIntegral(e(i)+bfag->itsExponent,itsL+bfag->itsL);
+    for (unsigned int i=1; i<=itsN; i++) s(i) = GaussianIntegral(e(i)+bfag->itsExponent,itsL+bfag->itsL);
 
     Normalize(ret);
     ret *= bfag->GetNormalization();
@@ -152,8 +152,8 @@ SMatrix<double> SphericalGaussianIE::MakeRepulsion() const
     const Vector<double>& e(itsExponents);
 
     double a=TwoLPlusOne(itsL);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=i; j<=itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=i; j<=itsN; j++)
             s(i,j)=a*GaussianRepulsionIntegral(e(i),e(j),itsL,itsL);
 
     Normalize(ret);
@@ -181,8 +181,8 @@ Matrix<double> SphericalGaussianIE::MakeRepulsion(const TBasisSet<double>& theBa
     const Vector<double>& n1(itsNormalizations);
     const Vector<double>& n2(OtherIE->itsNormalizations);
 
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=1; j<=otherN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=1; j<=otherN; j++)
             s(i,j)=GaussianRepulsionIntegral(e1(i),e2(j),itsL,otherL)*n1(i)*n2(j);
 
     return ret;
@@ -202,7 +202,7 @@ Vector<double> SphericalGaussianIE::MakeRepulsion(const ScalarFunction<double>& 
     Vector<double>::Subscriptor s(ret);
     const Vector<double>& e(itsExponents);
 
-    for (index_t i=1; i<=itsN; i++) s(i) = GaussianRepulsionIntegral(e(i),bfag->itsExponent,itsL,bfag->itsL);
+    for (unsigned int i=1; i<=itsN; i++) s(i) = GaussianRepulsionIntegral(e(i),bfag->itsExponent,itsL,bfag->itsL);
 
     Normalize(ret);
     ret *= bfag->GetNormalization();
@@ -336,8 +336,8 @@ SMatrix<double> SphericalGaussianIE::MakeKinetic() const
     const Vector<double>& e(itsExponents);
 
     double a=TwoLPlusOne(itsL);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=i; j<=itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=i; j<=itsN; j++)
         {
             double t=e(i)+e(j);
             int L1=itsL+1;
@@ -364,8 +364,8 @@ SMatrix<double> SphericalGaussianIE::MakeNuclear(const Cluster& theCluster) cons
     const Vector<double>& e(itsExponents);
 
     double a=TwoLPlusOne(itsL);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=i; j<=itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=i; j<=itsN; j++)
             s(i,j)= a*GaussianIntegral(e(i)+e(j),2*itsL-1);
 
     ret *= (-(double)(theCluster.GetNuclearCharge()));
@@ -391,8 +391,8 @@ SMatrix<double> SphericalGaussianIE::MakeOverlap(const TBasisFunction<double>& b
     assert(lbf==0);
 
     double a=TwoLPlusOne(itsL);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=i; j<=itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=i; j<=itsN; j++)
             s(i,j)=a*GaussianIntegral(e(i)+e(j)+ebf,2*itsL+lbf);
 
     Normalize(ret);
@@ -415,8 +415,8 @@ SMatrix<double> SphericalGaussianIE::MakeRepulsion(const TBasisFunction<double>&
     assert(lbf==0);
 
     double a=TwoLPlusOne(itsL);
-    for (index_t i=1; i<=itsN; i++)
-        for (index_t j=i; j<=itsN; j++)
+    for (unsigned int i=1; i<=itsN; i++)
+        for (unsigned int j=i; j<=itsN; j++)
         {
             SlaterIntegrals R(e(i)+e(j),ebf);
             s(i,j)=a*FourPi2*R(0,itsL,itsL,lbf,0);

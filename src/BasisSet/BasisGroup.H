@@ -24,8 +24,8 @@ public:
 
     BasisGroup();
     virtual ~BasisGroup();
-    virtual index_t GetNumFunctions() const;
-    virtual index_t GetNumBasisSets() const;
+    virtual size_t GetNumFunctions() const;
+    virtual size_t GetNumBasisSets() const;
     virtual void Insert(BasisSet*);
     // Share ERI tables with other DBs
     virtual void Insert(const ERIList& C, const ERIList& X) const;

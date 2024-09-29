@@ -13,7 +13,7 @@ public:
     Molecule();
 
     virtual void           Insert        (Atom*)      ;
-    virtual int            GetNumAtoms        () const;
+    virtual size_t         GetNumAtoms        () const;
     virtual int            GetNuclearCharge   () const;
     virtual double         GetNetCharge       () const;
     virtual double         GetNumElectrons    () const;

@@ -13,14 +13,14 @@ BasisGroup::BasisGroup()
 
 BasisGroup::~BasisGroup() {};
 
-index_t BasisGroup::GetNumFunctions() const
+size_t BasisGroup::GetNumFunctions() const
 {
     index_t ret=0;
     for (auto bs:*this) ret+=bs->GetNumFunctions();
     return ret;
 }
 
-index_t BasisGroup::GetNumBasisSets() const
+size_t BasisGroup::GetNumBasisSets() const
 {
     return itsBasisSets.size();
 }

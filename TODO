@@ -26,7 +26,7 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         MeshBrowser 
         AngularMeshBrowser 
         RadialMeshBrowser 
-    -Switch from ptr_vector to ptr_vector1.
+    Done: -Switch from ptr_vector to ptr_vector1.
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     Done: -Start using optr_vector1 which is vastly simpler.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;

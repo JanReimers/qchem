@@ -21,6 +21,7 @@ public:
     {
         return GetNumFunctions();
     }
+    virtual SMat GetRepulsion(const FittedFunction*) const=0; //unhide
     virtual SMat GetRepulsion(const SMat& Dcd, const TBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TBasisSet* bs_cd) const=0;
 

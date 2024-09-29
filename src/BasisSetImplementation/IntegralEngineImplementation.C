@@ -107,8 +107,8 @@ template <class T> void IntegralEngineImplementation<T>::
 Normalize(const RVec& n1, Mat& m, const RVec& n2) const
 {
     typename  Mat::Subscriptor      s(m);
-    for (index_t i=1; i<=n1.size(); i++)
-        for (index_t j=1; j<=n2.size(); j++)
+    for (unsigned int i=1; i<=n1.size(); i++)
+        for (unsigned int j=1; j<=n2.size(); j++)
             s(i,j)*=n1(i)*n2(j);
 }
 

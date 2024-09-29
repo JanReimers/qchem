@@ -8,6 +8,7 @@
 class Plotter
 {
 public:
+    virtual ~Plotter() {};
     virtual void Plot   (const PlottableScalarFunction&, const Mesh*, const RVec3& direction)=0;
     virtual void Plot   (const PlottableVectorFunction&, const Mesh*, const RVec3& direction, int n=5)=0;
     virtual void AddPlot(const PlottableScalarFunction&)=0;
