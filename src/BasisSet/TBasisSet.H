@@ -17,7 +17,7 @@ template <class T> class TBasisSet
 public:
     typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
 
-    index_t GetVectorSize() const
+    size_t GetVectorSize() const
     {
         return GetNumFunctions();
     }

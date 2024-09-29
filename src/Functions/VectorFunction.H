@@ -26,7 +26,7 @@ public:
 
     virtual ~VectorFunction()  {};
 
-    virtual index_t  GetVectorSize() const=0;
+    virtual size_t  GetVectorSize() const=0;
 
     virtual Vec     operator() (const RVec3&     ) const=0;
     virtual Mat     operator() (const Mesh&      ) const  ;

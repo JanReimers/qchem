@@ -105,10 +105,10 @@ size_t Lattice::GetSiteNumber(const RVec3& r) const
     Vector3D<int> cell;
     SplitCoordinate(r,basis,cell);
 
-    int ib = Find(basis); //Find within tolerence.
+    size_t ib = Find(basis); //Find within tolerence.
     assert (ib<GetNumBasisSites());
 
-    int sitenum=ib + GetNumBasisSites()*(cell.z + itsLimits.z*(cell.y + itsLimits.y*cell.x));
+    size_t sitenum=ib + GetNumBasisSites()*(cell.z + itsLimits.z*(cell.y + itsLimits.y*cell.x));
     assert(sitenum<GetNumSites());
     assert(sitenum>=0);
     assert(itsUnitCell.GetDistance(GetCoordinate(sitenum)-RVec3(cell.x,cell.y,cell.z)-basis) < itsTolerence);
@@ -121,12 +121,12 @@ size_t Lattice::GetBasisNumber(const RVec3& r) const
     Vector3D<int> cell;
     SplitCoordinate(r,basis,cell);
 
-    int ret=Find(basis);
+    size_t ret=Find(basis);
     assert(ret<GetNumBasisSites());
     return ret;
 }
 
-size_t Lattice::GetBasisNumber(int SiteNumber) const
+size_t Lattice::GetBasisNumber(size_t SiteNumber) const
 {
     assert(SiteNumber>=0);
     assert(SiteNumber<GetNumSites());
@@ -161,11 +161,11 @@ Vector3D<int> Lattice::GetCellCoord (const RVec3& r) const
 }
 
 
-RVec3 Lattice::GetCoordinate(int SiteNumber) const
+RVec3 Lattice::GetCoordinate(size_t SiteNumber) const
 {
     assert(SiteNumber>=0);
     assert(SiteNumber<GetNumSites());
-    int ib=GetBasisNumber(SiteNumber);
+    size_t ib=GetBasisNumber(SiteNumber);
     RVec3 ret=GetBasisVector(ib);
 
     SiteNumber-=ib;
@@ -194,7 +194,7 @@ RVec3 Lattice::GetCoordinate(int SiteNumber) const
 //
 //  Advanced lattice questions.
 //
-std::vector<double> Lattice::GetDistances(int NumShells) const
+std::vector<double> Lattice::GetDistances(size_t NumShells) const
 {
     double maxd=itsUnitCell.GetMinimumCellEdge()*NumShells; //Initial guess.
     std::vector<double> distances;
@@ -213,7 +213,7 @@ std::vector<double> Lattice::GetDistances(int NumShells) const
     return std::vector<double>(distances.begin(),distances.begin()+NumShells);
 }
 
-std::vector<RVec3> Lattice::GetBonds(int BasisNumber, double Distance) const
+std::vector<RVec3> Lattice::GetBonds(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber>=0 && BasisNumber<GetNumBasisSites());
     assert(Distance>0);
@@ -232,7 +232,7 @@ std::vector<RVec3> Lattice::GetBonds(int BasisNumber, double Distance) const
     return ret;
 }
 
-std::vector<RVec3> Lattice::GetBondsInSphere(int BasisNumber, double Distance) const
+std::vector<RVec3> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber>=0 && BasisNumber<GetNumBasisSites());
     assert(Distance>0);
@@ -295,13 +295,13 @@ std::vector<RVec3> Lattice::GetSuperCells(double MaxDistance) const
     return ret;
 }
 
-RVec3 Lattice::GetBasisVector(int BasisNumber) const
+RVec3 Lattice::GetBasisVector(size_t BasisNumber) const
 {
     assert(BasisNumber<GetNumBasisSites());
     RVec3 ret;
     {
         auto b=itsAtoms->begin();
-        for (int ib=0; ib<BasisNumber; ib++,b++);
+        for (size_t ib=0; ib<BasisNumber; ib++,b++);
         ret=(*b)->itsR;
     }
     return ret;

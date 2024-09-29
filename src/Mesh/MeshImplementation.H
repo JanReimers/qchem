@@ -14,8 +14,8 @@ public:
     MeshImplementation(                 ) {};
     MeshImplementation(index_t numPoints);
 
-    virtual void     ShiftOrigin (const RVec3&);
-    virtual index_t  GetNumPoints() const
+    virtual void    ShiftOrigin (const RVec3&);
+    virtual size_t  GetNumPoints() const
     {
         return itsPoints.size();
     }

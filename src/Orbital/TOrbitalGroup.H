@@ -19,7 +19,7 @@ template <class T> class TOrbitalGroup
 {
 public:
     typedef dynamic_cast_iterator<Orbital*,TOrbital<T>* > const_iterator;
-    virtual index_t GetVectorSize() const
+    virtual size_t GetVectorSize() const
     {
         return GetNumOrbitals();
     }
