@@ -87,17 +87,17 @@ std::istream& SphericalGaussianBF::Read(std::istream& is)
 double SphericalGaussianBF::operator()(const Vec3& r) const
 {
     double a=TwoLPlusOne(itsL);
-    return itsNormalization*sqrt(a)*uintpow(!r,itsL)*exp(-itsExponent*r*r);
+    return itsNormalization*sqrt(a)*uintpow(norm(r),itsL)*exp(-itsExponent*r*r);
 }
 
 SphericalGaussianBF::Vec3 SphericalGaussianBF::Gradient(const Vec3& r) const
 {
     Vec3 ret(0,0,0);
-    double mr=!r;
+    double mr=norm(r);
     if (mr>0)
     {
-        double diff = itsL==0 ? 0 : uintpow(!r,itsL-1);
-        ret = -2.0*r*itsExponent*(*this)(r) + itsNormalization*(~r)*diff*exp(-itsExponent*r*r);
+        double diff = itsL==0 ? 0 : uintpow(norm(r),itsL-1);
+        ret = -2.0*r*itsExponent*(*this)(r) + itsNormalization*normalize(r)*diff*exp(-itsExponent*r*r);
     }
     return ret;
 }

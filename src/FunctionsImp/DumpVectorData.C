@@ -13,7 +13,7 @@
 
 const char* DumpVectorData::DumpPlotData(const Mesh& X, const RVec3& direction) const
 {
-    RVec3 nd=~direction;
+    RVec3 nd=normalize(direction);
     static char fname[256];
     char* ret=tmpnam(fname);
     (void)*ret; //Avoid unused warning.

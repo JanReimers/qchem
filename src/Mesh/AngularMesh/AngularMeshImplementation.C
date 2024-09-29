@@ -22,8 +22,8 @@ void AngularMeshImplementation::Initialize(const Vector<RVec3>& D, const Vector<
     itsWeights   =W;
     Vector<RVec3>::const_iterator b(D.begin());
     for (; b!=D.end(); b++)
-        if (!*b < 0.9999 || !*b>1.0001)
-            std::cerr << "AngularMeshImplementation::Initialize Direction " << *b << " not as unit vector, mag=" << !*b << std::endl;
+        if (norm(*b) < 0.9999 || norm(*b)>1.0001)
+            std::cerr << "AngularMeshImplementation::Initialize Direction " << *b << " not as unit vector, mag=" << norm(*b) << std::endl;
 }
 
 

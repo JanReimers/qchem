@@ -30,6 +30,8 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     Done: -Start using optr_vector1 which is vastly simpler.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-    -Fix all signed unsigned comparisons.
+    Done -Fix all signed unsigned comparisons.
     -Do we need indices support optr_vector1<> ?
     -Hunt for dynamic casts that can be removed using dynamic_cast iterator
+    -Stop using ! for vector norm.
+    -Do something about the oml/imp includes.

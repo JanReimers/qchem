@@ -29,7 +29,7 @@ AtomMesh::AtomMesh(const RadialMesh& r, const AngularMesh& a)
     {
         for (RadialMeshBrowser  rb(r); rb; rb++,ip++,iw++)
         {
-            *ip= rb.R() * ~ab.D(); //Use normalized version of the direction d.
+            *ip= rb.R() * normalize(ab.D()); //Use normalized version of the direction d.
             *iw= rb.W() *  ab.W();
         }
     }

@@ -9,7 +9,7 @@
 LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, index_t NumPoints)
     : MeshImplementation(NumPoints)
 {
-    RVec3 nd=~direction; //Make sure its normailized.
+    RVec3 nd=normalize(direction); //Make sure its normailized.
 
     Vector<double> R(NumPoints);
     Vector<double> W(NumPoints);

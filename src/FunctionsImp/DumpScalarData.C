@@ -16,7 +16,7 @@
 
 const char* DumpScalarData::DumpPlotData(const Mesh& X, const RVec3& direction) const
 {
-    RVec3 nd=~direction;
+    RVec3 nd=normalize(direction);
     static char fname[256];
     char* ret=tmpnam(fname);
     (void)*ret;
@@ -67,7 +67,7 @@ const char* DumpScalarData::Dump3DPlotData(const Mesh& X, const RVec3& n, double
 void GetNormalCoordinates(const RVec3& z, RVec3& xhat, RVec3& yhat)
 {
     assert(!z>0);
-    RVec3 zhat=~z;
+    RVec3 zhat=normalize(z);
 //
 // Deal with trivial cases where at least one component of z is 0.
 // Some of these also represent singular cases which must be avoided

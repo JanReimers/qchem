@@ -35,7 +35,7 @@ void ExactVnn::GetEnergy(TotalEnergy& te) const
         for(auto atom2:*theCluster)
         {
             RVec3 r1=atom1->itsR, r2=atom2->itsR;
-            if (r1!=r2) vnn += 0.5 * atom1->itsZ * atom2->itsZ / !(r1-r2);
+            if (r1!=r2) vnn += 0.5 * atom1->itsZ * atom2->itsZ / norm(r1-r2);
         }
 
     te.Enn=vnn;

@@ -45,7 +45,7 @@ bool RadialFunctionImplementation::operator==(const RadialFunction& other) const
     assert(rfi);
     if (rfi)
     {
-        ret = !(itsCenter-rfi->itsCenter) < 0.01; //0.01 Atom units.
+        ret = norm(itsCenter-rfi->itsCenter) < 0.01; //0.01 Atom units.
 //    ret= distance && (itsL==rfi->itsL);
     }
     return ret;

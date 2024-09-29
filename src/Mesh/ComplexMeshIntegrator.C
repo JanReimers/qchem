@@ -165,7 +165,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
     MeshBrowser m1(*itsMesh);
     for (index_t wi=1; m1; wi++,m1++)
     {
-        double oor1=m1.W()*m1.W()/!m1.R();
+        double oor1=m1.W()*m1.W()/norm(m1.R());
         for (index_t i=1; i<=n; i++)
             for (index_t j=i; j<=n; j++)
                 r(i,j)+=sf(i,wi)*conj(sf(j,wi))*oor1;
@@ -174,7 +174,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
         m2++;
         for (index_t wj=wi+1; m2; wj++,m2++)
         {
-            double oor=m1.W()*m2.W()/!(m1.R()-m2.R());
+            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
             for (index_t i=1; i<=n; i++)
                 for (index_t j=i; j<=n; j++)
                     r(i,j)+=(sf(i,wi)*conj(sf(j,wj))+sf(i,wj)*conj(sf(j,wi)))*oor;
@@ -198,7 +198,7 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Repulsion(
     MeshBrowser m1(*itsMesh);
     for (index_t wi=1; m1; wi++,m1++)
     {
-        double oor1=m1.W()*m1.W()/!m1.R();
+        double oor1=m1.W()*m1.W()/norm(m1.R());
         for (index_t i=1; i<=n; i++)
             r(i)+=sf(i,wi)*sh(wi)*oor1;
 
@@ -206,7 +206,7 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Repulsion(
         m2++;
         for (index_t wj=wi+1; m2; wj++,m2++)
         {
-            double oor=m1.W()*m2.W()/!(m1.R()-m2.R());
+            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
             for (index_t i=1; i<=n; i++)
                 r(i)+=(sf(i,wi)*sh(wj) + sf(i,wj)*sh(wi))*oor;
         }
@@ -228,7 +228,7 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(
     MeshBrowser m1(*itsMesh);
     for (index_t wi=1; m1; wi++,m1++)
     {
-        double oor1=m1.W()*m1.W()/!m1.R();
+        double oor1=m1.W()*m1.W()/norm(m1.R());
         for (index_t i=1; i<=nf; i++)
             for (index_t j=1; j<=ng; j++)
                 r(i,j)+=sf(i,wi)*conj(sg(j,wi))*oor1;
@@ -237,7 +237,7 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(
         m2++;
         for (index_t wj=wi+1; m2; wj++,m2++)
         {
-            double oor=m1.W()*m2.W()/!(m1.R()-m2.R());
+            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
             for (index_t i=1; i<=nf; i++)
                 for (index_t j=1; j<=ng; j++)
                     r(i,j)+=(sf(i,wi)*conj(sg(j,wj))+sf(i,wj)*conj(sg(j,wi)))*oor;
@@ -264,7 +264,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
     MeshBrowser m1(*itsMesh);
     for (index_t wi=1; m1; wi++,m1++)
     {
-        double oor1=m1.W()*m1.W()/!m1.R();
+        double oor1=m1.W()*m1.W()/norm(m1.R());
         for (index_t i=1; i<=n; i++)
             for (index_t j=i; j<=n; j++)
                 r(i,j)+=sf(i,wi)*conj(sf(j,wi))*sh(wi)*oor1;
@@ -273,7 +273,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
         m2++;
         for (index_t wj=wi+1; m2; wj++,m2++)
         {
-            double oor=m1.W()*m2.W()/!(m1.R()-m2.R());
+            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
             for (index_t i=1; i<=n; i++)
                 for (index_t j=i; j<=n; j++)
                     r(i,j)+=(sf(i,wi)*conj(sf(j,wi))*sh(wj) + sf(i,wj)*conj(sf(j,wj))*sh(wi))*oor;
@@ -296,7 +296,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Nuclear(c
         for (index_t j=i; j<=n; j++)
         {
             MeshBrowser m(*itsMesh);
-            for (index_t wi=1; m; wi++,m++) if (!m.R()!=0) r(i,j)+=sf(i,wi)*conj(sf(j,wi))*m.W()/!m.R();
+            for (index_t wi=1; m; wi++,m++) if (norm(m.R())!=0) r(i,j)+=sf(i,wi)*conj(sf(j,wi))*m.W()/norm(m.R());
         }
     return ret;
 }
