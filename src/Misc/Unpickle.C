@@ -27,7 +27,7 @@ template <class T> bool UnPickle(T*& pointer, const  char* filep, const char* na
         else
         {
             pointer = T::Factory(in);
-            in >> pointer;
+            in >> *pointer;
         }
     }
     return file_error;

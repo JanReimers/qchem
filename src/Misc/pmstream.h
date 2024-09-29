@@ -19,15 +19,4 @@ class PMStreamableObject : public virtual StreamableObject
 std::ostream& operator<<(std::ostream& os, const PMStreamableObject& o);
 std::istream& operator>>(std::istream& is,       PMStreamableObject& o);
 
-inline std::ostream& operator<<(std::ostream& os, const PMStreamableObject* o)
-{
-  return os << *o;
-}
-
-inline std::istream& operator>>(std::istream& is,       PMStreamableObject* o)
-{
-  return is >> *o;
-}
-
-
 #endif // PMSTREAM_H

@@ -54,7 +54,7 @@ void MasterUnPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
 std::ostream& MasterUnPolarizedWF::Write(std::ostream& os) const
 {
     assert(itsGroup);
-    os << itsGroup;
+    os << *itsGroup;
     return os;
 }
 
@@ -63,7 +63,7 @@ std::istream& MasterUnPolarizedWF::Read (std::istream& is)
     delete itsGroup;
     itsGroup=WaveFunction::Factory(is);
     assert(itsGroup);
-    is >> itsGroup;
+    is >> *itsGroup;
     return is;
 }
 
