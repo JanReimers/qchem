@@ -24,7 +24,7 @@ public:
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;
-    static  Orbital* Factory       (std::istream&)        ;
+    static  Orbital* Factory     (std::istream&)        ;
 
 private:
     friend class OrbitalGroup;

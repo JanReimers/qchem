@@ -63,25 +63,16 @@ template <class T> void TOrbitalImplementation<T>::AddDensityMatrix(SMat& d) con
 //
 template <class T> std::ostream& TOrbitalImplementation<T>::Write(std::ostream& os) const
 {
-    if (!StreamableObject::Pretty())
-    {
-        os << itsCoeff;
-    }
-    else
-    {
-        os << GetOccupation() << "   ";
-        for (typename Vector<T>::const_iterator b(itsCoeff.begin()); b!=itsCoeff.end(); b++) os << *b << " ";
-        os << std::endl;
-    }
     OrbitalImplementation::Write(os);
+    os << itsCoeff;
+    if (Pretty()) os << std::endl;
     return os;
 }
 
 template <class T> std::istream& TOrbitalImplementation<T>::Read (std::istream& is)
 {
-    is >> itsCoeff;
-//  if ((*this)(RVec3(0,0,0.01)) < 0) itsCoeff*=-1.0;
     OrbitalImplementation::Read(is);
+    is >> itsCoeff;
 
     return is;
 }

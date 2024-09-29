@@ -78,11 +78,10 @@ std::ostream& ElectronContainerImplementation::Write(std::ostream& os) const
         BinaryWrite(itsOccupation   ,os);
         BinaryWrite(itsOrbitalDegeneracy            ,os);
     }
-    else
-    {
+    if (StreamableObject::Ascii())
         os << itsOccupation << " "  << itsOrbitalDegeneracy << " ";
-    }
-    return os << itsSpin;
+    if (!StreamableObject::Pretty()) os << itsSpin;
+    return os;
 }
 
 std::istream& ElectronContainerImplementation::Read (std::istream& is)

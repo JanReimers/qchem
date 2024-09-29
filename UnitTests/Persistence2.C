@@ -6,6 +6,7 @@
 #include "Cluster/Molecule.H"
 #include "Hamiltonian/Hamiltonian.H"
 #include "BasisSet/BasisGroup.H"
+#include "WaveFunction/WaveFunction.H"
 #include "Misc/PeriodicTable.H"
 #include <iostream> 
 #include <fstream>
@@ -26,9 +27,9 @@ public:
     {
         
     }
-    void Init(Atom* atom, int Lmax, double spin)
+    void Init(Atom* atom, int NBasis, int Lmax, double spin)
     {
-        AtomTester::Init(atom,Lmax,spin);
+        AtomTester::Init(atom,NBasis,Lmax,spin);
     }
 //    void OutIn(const PMStreamableObject* pout,PMStreamableObject* pin,StreamableObject::Mode);
     
@@ -57,8 +58,8 @@ template <class T> T* OutIn(const PMStreamableObject* pout,c_str filename,Stream
 TEST_F(qchem_PersistanceTests,AtomBasisSets)
 {
     
-    int Z=51;
-    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
+    int Z=51,NBasis=6;
+    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),NBasis,thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
     StreamableObject::SetToPretty();
     
     Cluster* cl=GetCluster();
@@ -80,5 +81,10 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
     BasisGroup* bg=GetBasisGroup();
     BasisGroup* bg1=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::ascii);
     BasisGroup* bg2=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::binary);
-    cout << *bg << *bg1 << endl;
+    cout << *bg << *bg1 << *bg2 << endl;
+    
+    WaveFunction* wf=GetWaveFunction();
+    WaveFunction* wf1=::OutIn<WaveFunction>(wf,file_name.c_str(), StreamableObject::ascii);
+    WaveFunction* wf2=::OutIn<WaveFunction>(wf,file_name.c_str(), StreamableObject::binary);
+    cout << *wf << *wf1 << *wf2 << endl;
 }

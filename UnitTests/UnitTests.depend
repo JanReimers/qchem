@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1727384943 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
+1727647912 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
 	"AtomTester.H"
 	"Cluster/Cluster.H"
 	"BasisSet/BasisGroup.H"
@@ -9,7 +9,7 @@
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
 
-1727384943 /home/janr/Code/qchem/UnitTests/AtomTester.H
+1727647902 /home/janr/Code/qchem/UnitTests/AtomTester.H
 	"BaseTester.H"
 
 1727619363 /home/janr/Code/qchem/UnitTests/BaseTester.H
@@ -398,7 +398,8 @@
 	"oml/smatrix.h"
 	<map>
 
-1332530414 /home/janr/Code/qchem/src/Misc/Spin.H
+1727644968 /home/janr/Code/qchem/src/Misc/Spin.H
+	"Misc/pmstream.h"
 	<iosfwd>
 
 1332782886 /home/janr/Code/qchem/src/HamiltonianImplementation/ExactVnn.H
@@ -681,7 +682,7 @@
 	"oml/imp/stream.h"
 	"Misc/ptr_vector.h"
 
-1727637403 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
+1727649233 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
 	"AtomTester.H"
 	"HartreeFockTester.H"
 	"gtest/gtest.h"
@@ -690,6 +691,7 @@
 	"Cluster/Molecule.H"
 	"Hamiltonian/Hamiltonian.H"
 	"BasisSet/BasisGroup.H"
+	"WaveFunction/WaveFunction.H"
 	"Misc/PeriodicTable.H"
 	<iostream>
 	<fstream>

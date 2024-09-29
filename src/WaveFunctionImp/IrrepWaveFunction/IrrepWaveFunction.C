@@ -69,27 +69,36 @@ SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, 
     return new UnPolarizedSCFIterator(this, H, cd,nElectrons, kT, showplot);
 }
 
+std::string spin_strs[]={"Down","None","Up"};
 std::ostream& IrrepWaveFunction::Write(std::ostream& os) const
 {
     assert(itsOrbitals);
-    os << itsOrbitals << *itsBasisSet << itsSpin;
+    if (Pretty()) 
+        os << "    Irreducible rep. Wave finction, spin=" << spin_strs[itsSpin.itsState] << std::endl;
+    else
+        os << itsSpin;
+        
+    os << *itsOrbitals;
+    if (Pretty()) os << "        ";
+    os << *itsBasisSet; 
 
     return os;
 }
 
 std::istream& IrrepWaveFunction::Read (std::istream& is)
 {
+    is >> itsSpin;
+
     delete itsOrbitals;
     itsOrbitals = OrbitalGroup::Factory(is);
     assert(itsOrbitals);
-    is >> itsOrbitals;
+    is >> *itsOrbitals;
 
     BasisSet* temp=BasisSet::Factory(is);
     is >> *temp;
     itsBasisSet.reset(temp);
     FixUpPointer(itsOrbitals,itsBasisSet);
 
-    is >> itsSpin;
 
     return is;
 }

@@ -2,9 +2,10 @@
 #ifndef _Spin_H_
 #define _Spin_H_
 
+#include "Misc/pmstream.h"
 #include <iosfwd>
 
-class Spin
+class Spin : public virtual PMStreamableObject
 {
 public:
     enum State {Down,None,Up};
@@ -36,8 +37,8 @@ public:
         return a.itsState!=b.itsState;
     }
 
-    friend std::ostream& operator<<(std::ostream&,const Spin&);
-    friend std::istream& operator>>(std::istream&,      Spin&);
+    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::istream& Read (std::istream&);
 
     State itsState;
 };

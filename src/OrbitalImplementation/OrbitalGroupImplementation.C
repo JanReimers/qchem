@@ -2,6 +2,7 @@
 
 
 #include "OrbitalImplementation/OrbitalGroupImplementation.H"
+#include "BasisSet/QuantumNumber.H"
 #include "Misc/DFTDefines.H"
 #include "Misc/ptr_vector1_io.h"
 #include <cmath>
@@ -68,14 +69,14 @@ std::ostream& OrbitalGroupImplementation::Write(std::ostream& os) const
     }
     else
     {
-        os << "Orbital group with " << GetNumOrbitals() << " orbitals" << std::endl;
-        os << "Occupation      Energy      Eigenvector" << std::endl;
-        os << itsOrbitals << std::endl;
+        os << "        Orbital group with " << GetNumOrbitals() << " " << itsBasisSet->GetQuantumNumber() << "orbitals:" << std::endl;
+        os << "            Occupation      Energy      Eigenvector" << std::endl;
+        os << itsOrbitals;
     }
     if (!StreamableObject::Pretty())
     {
         os  << itsBasisSet;
-        if (!StreamableObject::Binary()) os << std::endl;
+        if (StreamableObject::Ascii()) os << std::endl;
     }
     return os;
 }

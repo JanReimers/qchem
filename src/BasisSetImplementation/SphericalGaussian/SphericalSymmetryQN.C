@@ -27,13 +27,17 @@ int SphericalSymmetryQN::GetDegeneracy() const
     return 2*itsL+1;
 }
 
+std::string SPDFG[]={"s","p","d","f","g"};
+
 std::ostream& SphericalSymmetryQN::Write(std::ostream& os) const
 {
     UniqueID::Write(os);
     if (StreamableObject::Binary())
         BinaryWrite(itsL,os);
-    else
+    if (StreamableObject::Ascii())
         os << itsL << " ";
+    if (StreamableObject::Pretty())
+        os << SPDFG[itsL] << " ";
     return os;
 }
 

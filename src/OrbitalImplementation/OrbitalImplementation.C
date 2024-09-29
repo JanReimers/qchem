@@ -5,6 +5,7 @@
 #include "OrbitalImplementation/OrbitalImplementation.H"
 #include "oml/imp/binio.h"
 #include <iostream>
+#include <iomanip>
 
 #define TYPE_STRING "BasisSet"
 #define TYPE BasisSet
@@ -29,10 +30,15 @@ double OrbitalImplementation::GetEigenEnergy() const
 
 std::ostream& OrbitalImplementation::Write(std::ostream& os) const
 {
-    os << itsBasisSet;
+    ElectronContainerImplementation::Write(os);
+    if (Pretty())
+        os << "              " << GetOccupation() << "/" << GetDegeneracy() << "       " << std::setw(12) << itsEigenEnergy << "      ";
+    else
+        os << itsBasisSet;
+    
     if (Binary())
         BinaryWrite(itsEigenEnergy,os);
-    else
+    if (Ascii ())
         os << itsEigenEnergy << " ";
 
     return os;
@@ -40,6 +46,7 @@ std::ostream& OrbitalImplementation::Write(std::ostream& os) const
 
 std::istream& OrbitalImplementation::Read (std::istream& is)
 {
+    ElectronContainerImplementation::Read(is);
     is >> itsBasisSet;
     if (Binary())
         BinaryRead(itsEigenEnergy,is);

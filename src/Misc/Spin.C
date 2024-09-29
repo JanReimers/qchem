@@ -3,28 +3,29 @@
 #include "Misc/Spin.H"
 #include "oml/imp/stream.h"
 #include "oml/imp/binio.h"
+#include <cassert>
 
-std::ostream& operator<<(std::ostream& os,const Spin& S)
+std::ostream& Spin::Write(std::ostream& os) const
 {
     if (StreamableObject::Binary())
     {
-        int temp=S.itsState;
+        int temp=static_cast<int>(itsState);
         BinaryWrite(temp,os);
     }
     else
-        os << S.itsState << " ";
+        os << itsState << " ";
 
     return os;
 
 }
-std::istream& operator>>(std::istream& is, Spin& S)
+std::istream& Spin::Read(std::istream& is)
 {
     int temp;
     if (StreamableObject::Binary())
         BinaryRead(temp,is);
     else
         is >> temp;
-
-    S.itsState=(Spin::State)temp;
+    assert(is);
+    itsState=static_cast<State>(temp);
     return is;
 }

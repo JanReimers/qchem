@@ -10,6 +10,7 @@ class AtomTester : public virtual BaseTester
 public:
     AtomTester();
     void Init(Atom* atom, int Lmax, double spin);
+    void Init(Atom* atom, int NBasis, int Lmax, double spin);
     virtual BasisSet*  GetXbasisSet() const;
     virtual BasisSet*  GetCbasisSet() const;
     virtual Mesh*      GetIntegrationMesh() const;

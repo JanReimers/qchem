@@ -79,12 +79,12 @@ std::ostream& MasterPolarizedWF::Write(std::ostream& os) const
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
-    os << itsSpinUpGroup << itsSpinDownGroup;
-    if (Binary())
-        BinaryWrite(itsNetSpin,os);
-    else
-        os << itsNetSpin << " ";
-
+    if (Pretty())
+        os << "Polarized wave function with net spin=" << itsNetSpin << ":" << std::endl;
+    os << *itsSpinUpGroup << *itsSpinDownGroup;
+    
+    if (Binary()) BinaryWrite(itsNetSpin,os);
+    if (Ascii ()) os << itsNetSpin << " ";
     return os;
 }
 
@@ -93,12 +93,12 @@ std::istream& MasterPolarizedWF::Read (std::istream& is)
     delete itsSpinUpGroup;
     itsSpinUpGroup=WaveFunction::Factory(is);
     assert(itsSpinUpGroup  );
-    is >> itsSpinUpGroup;
+    is >> *itsSpinUpGroup;
 
     delete itsSpinDownGroup;
     itsSpinDownGroup=WaveFunction::Factory(is);
     assert(itsSpinDownGroup  );
-    is >> itsSpinDownGroup;
+    is >> *itsSpinDownGroup;
 
     if (Binary())
         BinaryRead(itsNetSpin,is);

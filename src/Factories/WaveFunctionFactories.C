@@ -2,6 +2,8 @@
 
 #include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
 #include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
+#include "WaveFunctionImp/MasterWF/MasterPolarizedWF.H"
+#include "WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H"
 
 #include <string>
 #include <iostream>
@@ -19,6 +21,8 @@ WaveFunction* WaveFunction::Factory(std::istream& is)
     std::string Name=PeekAtName(is);
     if (Name==typeid(IrrepWaveFunction).name()) return new IrrepWaveFunction;
     if (Name==typeid(WaveFunctionGroup).name()) return new WaveFunctionGroup;
+    if (Name==typeid(MasterPolarizedWF).name()) return new MasterPolarizedWF;
+    if (Name==typeid(MasterUnPolarizedWF).name()) return new MasterUnPolarizedWF;
 
     std::cout << "Unknown WaveFunction type :" << Name << std::endl;
     exit(-1);

@@ -25,8 +25,14 @@ void AtomTester::Init(Atom* atom, int Lmax, double spin)
     itsCluster->Insert(atom);
     itsLmax=Lmax;
     BaseTester::Init(spin);
-
 }
+
+void AtomTester::Init(Atom* atom, int NBasis, int Lmax, double spin)
+{
+    itsNbasis=NBasis;
+    Init(atom,Lmax,spin);
+}
+
 void AtomTester::LoadOrbitalBasisSet()
 {
     for (int l=0; l<=itsLmax; l++)

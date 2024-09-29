@@ -6,6 +6,8 @@
 #include <vector>
 #include <iosfwd>
 
+#include "Misc/pmstream.h"
+
 //---------------------------------------------------------------------------
 //
 //  A group of orbitals is usually for one irreducable representation.
@@ -13,7 +15,7 @@
 //  templated portion is independant of whether the orbitals are real
 //  or complex valued.
 //
-class OrbitalGroup
+class OrbitalGroup : public virtual PMStreamableObject
 {
 public:
     typedef std::vector<Orbital*>::      iterator       iterator;
@@ -23,6 +25,9 @@ public:
     virtual index_t        GetNumOrbitals     (                   ) const=0;
     virtual double         GetEigenValueChange(const OrbitalGroup&) const=0;
     virtual ChargeDensity* GetChargeDensity   (Spin               ) const=0;
+
+    virtual std::ostream& Write  (std::ostream&) const=0;
+    virtual std::istream& Read   (std::istream&)      =0;
 
     static  OrbitalGroup* Factory(std::istream&);  
     
