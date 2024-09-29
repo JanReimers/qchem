@@ -4,7 +4,6 @@
 
 #include "Cluster/Cluster.H"
 #include "Cluster/UnitCell.H"
-#include "oml/imp/stream.h"
 #include "oml/vector3d.h"
 #include <vector>
 

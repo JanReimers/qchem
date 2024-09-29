@@ -6,8 +6,8 @@
 
 #include "Functions/ScalarFunction.H"
 #include "Misc/UniqueID/UniqueID.H"
-#include "oml/imp/stream.h"
 #include "oml/vector.h"
+#include <iosfwd>
 
 //-------------------------------------------------------------------------
 //
@@ -17,7 +17,6 @@
 //
 template <class T> class ScalarFunctionBuffer
     : public virtual ScalarFunction<T>
-    , public virtual StreamableObject
 {
 protected:
     typedef ScalarFunction<T> Base;

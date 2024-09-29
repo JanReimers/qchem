@@ -9,7 +9,7 @@
 //
 class PMStreamableObject : public virtual StreamableObject
 {
-    public:
+    public: 
         virtual ~PMStreamableObject();
 
         virtual std::ostream& Write(std::ostream&) const=0;

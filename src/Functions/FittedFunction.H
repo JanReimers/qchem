@@ -4,8 +4,6 @@
 
 #include "types.H"
 #include "Functions/PlottableScalarFunction.H"
-#include "oml/imp/stream.h"
-
 
 //----------------------------------------------------------------------------------
 //
@@ -17,8 +15,7 @@
 //  basis set are also supplied.
 //
 class FittedFunction
-    : public virtual StreamableObject
-    , public virtual PlottableScalarFunction
+    : public virtual PlottableScalarFunction
 {
 public:
     virtual double DoFit(const FittedFunctionClient&)=0;

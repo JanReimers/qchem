@@ -123,7 +123,7 @@ void GetCutoffProfiles(Matrix<double>& S, const Vector<RVec3>& R, const RVec3& r
 
 double CutoffProfile(const RVec3& Ra,const RVec3& Rb,const RVec3& r,int m)
 {
-    assert(!(Ra-Rb)!=0);
+    assert(norm(Ra-Rb)!=0);
     assert(m>=0);
     double u=(norm(r-Ra)-norm(r-Rb))/norm(Ra-Rb);
     return Poly(u,m);

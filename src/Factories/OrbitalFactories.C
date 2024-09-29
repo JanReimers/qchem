@@ -32,7 +32,7 @@ Orbital* Orbital::Factory(std::istream& is)
 
 OrbitalGroup* OrbitalGroup::Factory(std::istream& is)
 {
-    std::string Name=PeekAtName(is);
+    std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(OrbitalGroupImplementation).name()) return new TOrbitalGroupImplementation<double>;
 
     std::cout << "Unknown orbital group type :" << Name << std::endl;

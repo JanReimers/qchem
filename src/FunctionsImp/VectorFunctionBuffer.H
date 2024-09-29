@@ -6,8 +6,8 @@
 
 #include "Functions/VectorFunction.H"
 #include "Misc/UniqueID/UniqueID.H"
-#include "oml/imp/stream.h"
 #include "oml/matrix.h"
+#include <iosfwd>
 
 //-------------------------------------------------------------------------
 //
@@ -17,7 +17,6 @@
 //
 template <class T> class VectorFunctionBuffer
     : public virtual VectorFunction<T>
-    , public virtual StreamableObject
 {
 protected:
     typedef VectorFunction<T> Base;

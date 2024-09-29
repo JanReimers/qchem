@@ -30,11 +30,11 @@
 1544713517 /home/janr/Code/qchem/src/Misc/UniqueID/UniqueID.H
 	"Misc/pmstream.h"
 
-1727381708 /home/janr/Code/qchem/src/Misc/pmstream.h
+1727580739 /home/janr/Code/qchem/src/Misc/pmstream.h
 	"oml/imp/stream.h"
 	<iosfwd>
 
-1727359453 /home/janr/Code/oml/include/oml/imp/stream.h
+1727579151 /home/janr/Code/oml/include/oml/imp/stream.h
 	"oml/imp/index_t.h"
 	<iosfwd>
 
@@ -221,11 +221,11 @@
 	"types.H"
 	"oml/vector3d.h"
 
-1727381684 /home/janr/Code/qchem/src/FunctionsImp/VectorFunctionBuffer.H
+1727579868 /home/janr/Code/qchem/src/FunctionsImp/VectorFunctionBuffer.H
 	"Functions/VectorFunction.H"
 	"Misc/UniqueID/UniqueID.H"
-	"oml/imp/stream.h"
 	"oml/matrix.h"
+	<iosfwd>
 
 1727564549 /home/janr/Code/qchem/src/BasisSet/IntegralEngine.H
 	"types.H"
@@ -558,10 +558,9 @@
 	"Functions/FittedFunction.H"
 	"oml/vector.h"
 
-1727403768 /home/janr/Code/qchem/src/Functions/FittedFunction.H
+1727579672 /home/janr/Code/qchem/src/Functions/FittedFunction.H
 	"types.H"
 	"Functions/PlottableScalarFunction.H"
-	"oml/imp/stream.h"
 
 1332723517 /home/janr/Code/qchem/src/FunctionsImp/DumpScalarData.H
 	"Functions/PlottableScalarFunction.H"
@@ -580,11 +579,11 @@
 	"FunctionsImp/DumpScalarData.H"
 	"FunctionsImp/ScalarFunctionBuffer.H"
 
-1727405661 /home/janr/Code/qchem/src/FunctionsImp/ScalarFunctionBuffer.H
+1727579760 /home/janr/Code/qchem/src/FunctionsImp/ScalarFunctionBuffer.H
 	"Functions/ScalarFunction.H"
 	"Misc/UniqueID/UniqueID.H"
-	"oml/imp/stream.h"
 	"oml/vector.h"
+	<iosfwd>
 
 1727384943 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"

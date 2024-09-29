@@ -3,8 +3,8 @@
 #define _OrbitalGroup_H_
 
 #include "types.H"
-#include "oml/imp/stream.h"
 #include <vector>
+#include <iosfwd>
 
 //---------------------------------------------------------------------------
 //
@@ -14,7 +14,6 @@
 //  or complex valued.
 //
 class OrbitalGroup
-    : public virtual StreamableObject
 {
 public:
     typedef std::vector<Orbital*>::      iterator       iterator;

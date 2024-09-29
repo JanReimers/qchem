@@ -7,10 +7,9 @@
 #include "Misc/Polarization.H"
 #include "Misc/Triangle/Triangle.H"
 #include "oml/vector3d.h"
-#include "oml/imp/stream.h"
+#include <iosfwd>
 
 class RNLM
-    : public virtual StreamableObject
 {
 public:
     RNLM();

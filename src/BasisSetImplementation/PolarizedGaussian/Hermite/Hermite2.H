@@ -4,9 +4,9 @@
 
 
 
-#include "oml/imp/stream.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"
+#include <iosfwd>
 
 #define LMAX 3
 
@@ -26,7 +26,6 @@ typedef Vector3D<double> RVec3;
 class Polarization;
 
 class Hermite2
-    : public virtual StreamableObject
 {
 public:
     Hermite2();

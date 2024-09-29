@@ -62,8 +62,8 @@ template <class T> std::ostream& VectorFunctionBuffer<T>::Write(std::ostream& os
 {
     if (PickleBuffer)
     {
-        if (Ascii()) os << LastMeshID << " " << Buffer << " ";
-        if (Binary())
+        if (StreamableObject::Ascii()) os << LastMeshID << " " << Buffer << " ";
+        if (StreamableObject::Binary())
         {
             BinaryWrite(LastMeshID,os);
             os << Buffer;
@@ -71,14 +71,14 @@ template <class T> std::ostream& VectorFunctionBuffer<T>::Write(std::ostream& os
     }
     else
     {
-        if (Ascii()) os << -1 << " ";
-        if (Binary())BinaryWrite(-1,os);
+        if (StreamableObject::Ascii()) os << -1 << " ";
+        if (StreamableObject::Binary())BinaryWrite(-1,os);
     }
 
     if (PickleGradBuffer)
     {
-        if (Ascii()) os << LastGradMeshID << " " << GradBuffer << " ";
-        if (Binary())
+        if (StreamableObject::Ascii()) os << LastGradMeshID << " " << GradBuffer << " ";
+        if (StreamableObject::Binary())
         {
             BinaryWrite(LastGradMeshID,os);
             os << GradBuffer;
@@ -86,8 +86,8 @@ template <class T> std::ostream& VectorFunctionBuffer<T>::Write(std::ostream& os
     }
     else
     {
-        if (Ascii()) os << -1 << " ";
-        if (Binary())BinaryWrite(-1,os);
+        if (StreamableObject::Ascii()) os << -1 << " ";
+        if (StreamableObject::Binary())BinaryWrite(-1,os);
     }
     return os;
 }
@@ -96,8 +96,8 @@ template <class T> std::istream& VectorFunctionBuffer<T>::Read (std::istream& is
 {
     int tempID;
     PickleBuffer=false;
-    if (Ascii()) is >> tempID >> std::ws;
-    if (Binary()) BinaryRead(tempID,is);
+    if (StreamableObject::Ascii()) is >> tempID >> std::ws;
+    if (StreamableObject::Binary()) BinaryRead(tempID,is);
     if (tempID >= 0)
     {
         LastMeshID=tempID;
@@ -105,8 +105,8 @@ template <class T> std::istream& VectorFunctionBuffer<T>::Read (std::istream& is
         PickleBuffer=true;
     }
     PickleGradBuffer=false;
-    if (Ascii()) is >> tempID >> std::ws;
-    if (Binary()) BinaryRead(tempID,is);
+    if (StreamableObject::Ascii()) is >> tempID >> std::ws;
+    if (StreamableObject::Binary()) BinaryRead(tempID,is);
     if (tempID >= 0)
     {
         LastGradMeshID=tempID;

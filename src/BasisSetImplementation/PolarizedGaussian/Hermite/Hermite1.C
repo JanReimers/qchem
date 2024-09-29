@@ -6,6 +6,7 @@
 #include "Misc//Polarization.H"
 #include "Misc/IntPower.H"
 #include "oml/imp/binio.h"
+#include "oml/imp/stream.h"
 #include <iostream>
 #include <cassert>
 

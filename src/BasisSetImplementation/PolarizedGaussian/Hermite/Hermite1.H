@@ -2,9 +2,7 @@
 #ifndef _Hermite1_H_
 #define _Hermite1_H_
 
-
-
-#include "oml/imp/stream.h"
+#include <iosfwd>
 
 #define LMAX 3
 
@@ -25,7 +23,6 @@ typedef double Array2D[LMAX+1][LMAX+1];
 
 
 class Hermite1
-    : public virtual StreamableObject
 {
 public:
     Hermite1();

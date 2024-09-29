@@ -200,15 +200,15 @@ template <class T> typename FittedFunctionImplementation<T>::RVec3  FittedFuncti
 //
 template <class T> std::ostream& FittedFunctionImplementation<T>::Write(std::ostream& os) const
 {
-    if (Binary())
+    if (StreamableObject::Binary())
         BinaryWrite(itsCDFitFlag,os);
-    else if (Ascii())
+    else if (StreamableObject::Ascii())
         os << itsCDFitFlag << " ";
     else
         os << "Fit Function: " << std::endl << "  Fit flag = " << itsCDFitFlag << std::endl;
 
     os << *itsBasisSet;
-    if (!Pretty())
+    if (!StreamableObject::Pretty())
     os << itsFitCoeff;
     else
     {
@@ -221,7 +221,7 @@ template <class T> std::ostream& FittedFunctionImplementation<T>::Write(std::ost
 
 template <class T> std::istream& FittedFunctionImplementation<T>::Read (std::istream& is)
 {
-    if (Binary())
+    if (StreamableObject::Binary())
         BinaryRead(itsCDFitFlag,is);
     else
         is >> itsCDFitFlag;

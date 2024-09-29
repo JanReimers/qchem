@@ -35,7 +35,7 @@ void GetNormalCoordinates(const RVec3& z, RVec3& x, RVec3& y);
 
 const char* DumpScalarData::Dump3DPlotData(const Mesh& X, const RVec3& n, double z) const
 {
-    assert(!n>0);
+    assert(norm(n)>0);
 
     Vec  V(X.GetNumPoints());
     MeshBrowser m(X);
@@ -66,7 +66,7 @@ const char* DumpScalarData::Dump3DPlotData(const Mesh& X, const RVec3& n, double
 //
 void GetNormalCoordinates(const RVec3& z, RVec3& xhat, RVec3& yhat)
 {
-    assert(!z>0);
+    assert(norm(z)>0);
     RVec3 zhat=normalize(z);
 //
 // Deal with trivial cases where at least one component of z is 0.
