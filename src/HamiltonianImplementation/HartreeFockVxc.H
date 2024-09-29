@@ -18,7 +18,8 @@ public:
     HartreeFockVxc();
 
     // Required by HamiltonianTerm
-    virtual void GetEnergy       (TotalEnergy&               ) const;
+    virtual void           GetEnergy(TotalEnergy& ) const;
+    virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}

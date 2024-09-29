@@ -64,6 +64,8 @@ TotalEnergy HamiltonianImplementation::GetTotalEnergy() const
 
 std::ostream& HamiltonianImplementation::Write(std::ostream& os) const
 {
+    if (StreamableObject::Pretty())
+        os << "Hamiltonian with " << itsHamiltonianTerms.size() << " terms:" << std::endl;
     os << itsHamiltonianTerms;
     return os;
 }

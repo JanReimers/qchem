@@ -22,8 +22,9 @@ public:
     PolarizedHartreeFockVxc();
     ~PolarizedHartreeFockVxc();
     // Required by HamiltonianTerm
-    virtual void GetEnergy       (TotalEnergy&               ) const;
-    virtual bool IsPolarized     (                           ) const;
+    virtual void           GetEnergy(TotalEnergy& ) const;
+    virtual std::ostream&  Write    (std::ostream&) const;
+    virtual bool           IsPolarized(           ) const;
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}

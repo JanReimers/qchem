@@ -44,7 +44,11 @@ void ExactVen::GetEnergy(TotalEnergy& te) const
 
 std::ostream& ExactVen::Write(std::ostream& os) const
 {
-    return os << *theCluster;
+    if (StreamableObject::Pretty())
+        os << "    Nuclear-electron potential Zi/|Ri-r| with " << theCluster->GetNumAtoms() << " atoms." << std::endl;
+    else
+        os << *theCluster;
+    return os;
 }
 
 std::istream& ExactVen::Read (std::istream& is)

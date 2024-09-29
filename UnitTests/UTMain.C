@@ -15,6 +15,8 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "MoleculesHFPolarized/HartreeFockMoleculeTester.MoleculesHFPolarized/*";
 //    testing::GTEST_FLAG(filter) = "AtomsDFTPolarized/DFTAtomTester.AtomsDFTPolarized/*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
+//    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
+
 
     return RUN_ALL_TESTS();
 }

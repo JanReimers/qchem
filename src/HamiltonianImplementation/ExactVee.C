@@ -39,3 +39,13 @@ void ExactVee::GetEnergy(TotalEnergy& te) const
     te.EeeFitFit = 0.0;
 }
 
+std::ostream& ExactVee::Write(std::ostream& os) const
+{
+    if (StreamableObject::Pretty())
+        os << "    Coulomb potential ro(r_2)/r_12" << std::endl;
+    return os;
+}
+
+
+
+

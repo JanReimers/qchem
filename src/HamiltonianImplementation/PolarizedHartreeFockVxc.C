@@ -59,4 +59,11 @@ void PolarizedHartreeFockVxc::GetEnergy(TotalEnergy& te) const
     te.Exc += 0.5*CalculateEnergy(); //This should sum K^alpha and K^beta.
 }
 
+std::ostream& PolarizedHartreeFockVxc::Write(std::ostream& os) const
+{
+    if (StreamableObject::Pretty())
+        os << "    Polarized Hartee-Fock exchange potential." << std::endl;
+    return os;
+}
+
 

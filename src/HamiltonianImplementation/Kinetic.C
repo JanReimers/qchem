@@ -19,3 +19,11 @@ void Kinetic::GetEnergy(TotalEnergy& te) const
     te.Kinetic=CalculateEnergy();
 }
 
+std::ostream& Kinetic::Write(std::ostream& os) const
+{
+    if (StreamableObject::Pretty())
+        os << "    Kinetic energy Grad^2(r_i)" << std::endl;
+    return os;
+}
+
+

@@ -32,6 +32,11 @@ public:
     virtual BasisSet*  GetCbasisSet() const=0;
     virtual Mesh*      GetIntegrationMesh() const=0;
     virtual void       LoadOrbitalBasisSet()=0;
+    
+    Cluster*      GetCluster     () const {return &*itsCluster;}
+    BasisGroup*   GetBasisGroup  () const {return itsBasisGroup;}
+    Hamiltonian*  GetHamiltonian () const {return itsHamiltonian;}
+    WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
 
     void   Iterate(double relax, double epsilon, int Niter);
     double TotalEnergy() const;

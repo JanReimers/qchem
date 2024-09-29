@@ -43,7 +43,14 @@ void ExactVnn::GetEnergy(TotalEnergy& te) const
 
 std::ostream& ExactVnn::Write(std::ostream& os) const
 {
-    return os << *theCluster;
+    if (StreamableObject::Pretty())
+    {
+        size_t Na=theCluster->GetNumAtoms();
+        os << "    Nuclear-Nuclear potential ZiZj/|Ri-Rj| with " << Na*(Na-1) << " nucleus pairs." << std::endl;
+    }
+    else
+        os << *theCluster;
+    return os;
 }
 
 std::istream& ExactVnn::Read (std::istream& is)

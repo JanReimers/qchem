@@ -32,3 +32,10 @@ void HartreeFockVxc::GetEnergy(TotalEnergy& te) const
     te.Exc+=0.5*CalculateEnergy();
 }
 
+std::ostream& HartreeFockVxc::Write(std::ostream& os) const
+{
+    if (StreamableObject::Pretty())
+        os << "    Hartee-Fock exchange potential phi(r_1)*phi(r_2)/r_12" << std::endl;
+    return os;
+}
+

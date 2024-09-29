@@ -45,3 +45,4 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         -SVD dense
         -Linear system dense
         -Do we need sparse?
+    -If N_nucleus=1 (atom) leave out Vnn term.

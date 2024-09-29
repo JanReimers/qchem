@@ -7,7 +7,7 @@
 //
 // Provide IO (Pickling) with virtual dispatch.
 //
-class PMStreamableObject : public virtual StreamableObject
+class PMStreamableObject : public StreamableObject
 {
     public: 
         virtual ~PMStreamableObject();

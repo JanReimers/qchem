@@ -3,10 +3,12 @@
 #include "Hamiltonian/ExchangeFunctional.H"
 #include "BasisSet/TBasisSet.H"
 #include "Misc/rc_ptr.H"
+#include "HamiltonianImplementation/Kinetic.H"
 #include "HamiltonianImplementation/ExactVen.H"
 #include "HamiltonianImplementation/ExactVnn.H"
 #include "HamiltonianImplementation/FittedVxc.H"
 #include "HamiltonianImplementation/PolarizedFittedVxc.H"
+#include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
 #include "HamiltonianImplementation/CDFittedVee.H"
 #include "HamiltonianImplementation/ExactVee.H"
 #include "HamiltonianImplementation/LDAVxc.H"
@@ -42,6 +44,7 @@ Hamiltonian* Hamiltonian::Factory(std::istream& is)
 HamiltonianTerm* HamiltonianTerm::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
+    if (Name==typeid(Kinetic  ).name()) return new Kinetic ();
     if (Name==typeid(ExactVee ).name()) return new ExactVee();
     if (Name==typeid(ExactVen ).name()) return new ExactVen();
     if (Name==typeid(ExactVnn ).name()) return new ExactVnn();
@@ -49,6 +52,7 @@ HamiltonianTerm* HamiltonianTerm::Factory(std::istream& is)
     if (Name==typeid(CDFittedVee).name()) return new  CDFittedVee();
     if (Name==typeid(FittedVxc).name()) return new FittedVxc();
     if (Name==typeid(PolarizedFittedVxc).name()) return new PolarizedFittedVxc();
+    if (Name==typeid(PolarizedHartreeFockVxc).name()) return new PolarizedHartreeFockVxc();
 
     std::cout << "Unknown HamiltonianTerm type :" << Name << std::endl;
     exit(-1);
