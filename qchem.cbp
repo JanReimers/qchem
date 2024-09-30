@@ -592,6 +592,7 @@
 		<Unit filename="src/Misc/pmstream.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/Misc/pmstream.h" />
 		<Unit filename="src/Misc/ptr_vector1.h" />
 		<Unit filename="src/Misc/ptr_vector1_io.h" />
 		<Unit filename="src/Misc/rc_ptr.H" />

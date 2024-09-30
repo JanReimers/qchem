@@ -57,4 +57,4 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         map<{BasisID1,BasisID2,type},ERI4>
         BasisID2=0 for one BS integrals.
         Handle swaps of BS 1 and 2?
-        
+    -Use SMatrix for most integrals, and Hamiltonian matrices.
