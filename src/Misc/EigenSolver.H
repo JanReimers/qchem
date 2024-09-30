@@ -30,10 +30,8 @@ public:
     
     typedef Matrix<T>      Mat;
     typedef SMatrix<T>     SMat;
-    typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
     typedef std::tuple<Mat,RVec> UdType;
-    typedef std::tuple<Mat,Mat>  VVType;
     
     //
     //  OML code is derived from the Numerical Recipes FORTRAN code
@@ -60,72 +58,12 @@ template <class T> class EigenSolverCommon
     typedef EigenSolver<T> Base;
     typedef typename Base::RVec RVec;
     typedef typename Base::Mat Mat;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::VVType VVType;
-
+   
 protected:
     static void Rescale(Mat& V, const RVec& w);
+    static void Rescale(Mat& U, const RVec& w, Mat& Vt);
     void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
     Mat  V,Vd;  //Basis Overlap S = V*Vd
-};
-
-template <class T> class EigenSolverOMLCommon
-    : public virtual  EigenSolver<T>
-    , protected EigenSolverCommon<T>
-{
-    typedef EigenSolver<T> Base;
-    typedef typename Base::Vec Vec;
-    typedef typename Base::RVec RVec;
-    typedef typename Base::Mat Mat;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::UdType UdType;
-public:
-    virtual UdType Solve(const SMat&) const;
-    
-    using EigenSolverCommon<T>::V;
-    using EigenSolverCommon<T>::Vd;
-};
-
-template <class T> class EigenSolverOMLEigen
-    : public virtual  EigenSolver<T>
-    , private EigenSolverOMLCommon<T>
-{
-    typedef EigenSolver<T> Base;
-    typedef typename Base::Vec Vec;
-    typedef typename Base::RVec RVec;
-    typedef typename Base::Mat Mat;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::UdType UdType;
-public:
-    EigenSolverOMLEigen(const SMat& S, double tolerance);
-};
-
-template <class T> class EigenSolverOMLSVD
-    : public virtual  EigenSolver<T>
-    , private EigenSolverOMLCommon<T>
-{
-    typedef EigenSolver<T> Base;
-    typedef typename Base::Vec Vec;
-    typedef typename Base::RVec RVec;
-    typedef typename Base::Mat Mat;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::UdType UdType;
-public:
-    EigenSolverOMLSVD(const SMat& S, double tolerance);
-};
-
-template <class T> class EigenSolverOMLCholsky
-    : public virtual  EigenSolver<T>
-    , private EigenSolverOMLCommon<T>
-{
-    typedef EigenSolver<T> Base;
-    typedef typename Base::Vec Vec;
-    typedef typename Base::RVec RVec;
-    typedef typename Base::Mat Mat;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::UdType UdType;
-public:
-    EigenSolverOMLCholsky(const SMat& S, double tolerance);
 };
 
 
