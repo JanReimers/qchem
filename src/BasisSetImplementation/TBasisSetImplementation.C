@@ -81,15 +81,9 @@ CreateOrbitals(const rc_ptr<const BasisSet>& rc,const Hamiltonian* ham, const Sp
     assert(!isnan(H));
     EigenSolver<T>* es=GetEigenSolver();
     assert(es);
-    es->Solve(H);
+    auto [U,e]=es->Solve(H);
     return new
-           TOrbitalGroupImplementation<T>
-           (
-               rc,
-               GetEigenSolver()->GetEigenVectors(),
-               GetEigenSolver()->GetEigenValues (),
-               S
-           );
+           TOrbitalGroupImplementation<T>(rc,U,e,S);
 }
 
 template <class T> BasisSet::SMat TBasisSetImplementation<T>::
@@ -335,7 +329,8 @@ template <class T> EigenSolver<T>* TBasisSetImplementation<T>::GetEigenSolver() 
 {
     if (!itsEigenSolver)
     {
-        itsEigenSolver=new EigenSolver<T>(*this,0.0);
+        SMat S=GetDataBase()->GetOverlap();
+        itsEigenSolver=EigenSolver<T>::Factory(EigenSolver<T>::OML,EigenSolver<T>::Eigen,S,0.0);
     }
     assert(itsEigenSolver);
     return itsEigenSolver;

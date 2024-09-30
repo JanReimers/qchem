@@ -1,8 +1,6 @@
 // File: EigenSolver.C  General eigen solver.
 
 #include "Misc/EigenSolver.H"
-#include "BasisSet/TBasisSet.H"
-#include "BasisSet/IntegralDataBase.H"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include "oml/numeric.h"
@@ -11,25 +9,19 @@
 #include <cmath>
 #include <stdlib.h>
 
-template <class T> EigenSolver<T>::EigenSolver(const TBasisSet<T>& set, double Tolerance)
+template <class T> EigenSolverOMLEigen<T>::EigenSolverOMLEigen(const SMat& S, double tolerance)
 {
-    Tolerance=0;
-    index_t n=set.GetNumFunctions(), i;
-//
-//  Make basis set overlap matrix.
-//
-    IntegralDataBase<T>* db=set.GetDataBase();
-    Mat S=db->GetOverlap();
-//  StreamableObject::SetToPretty();
-//  cout << "Normalized basis set overlap matrix :" << S;
-//
-//  Get eigen values and eigen vectors (now in S).
-//
-    Vec Wc=Diagonalize(S);
-    RVec W(Wc.size());
-    for (unsigned int i=1;i<=Wc.size();i++) W(i)=real(Wc(i));
-    const RVec& w(W);
-    cout << "Eigen values of S :" << W << std::endl;
+    V=Orthogonalize(S,tolerance);
+}
+
+template <class T> typename EigenSolver<T>::Mat 
+EigenSolverOMLEigen<T>::Orthogonalize(const SMat& S, double tolerance) const
+{
+    auto [V,w] =Diagonalize(S);
+//    RVec W(Wc.size());
+//    for (unsigned int i=1;i<=Wc.size();i++) W(i)=real(Wc(i));
+//    const RVec& w(W);
+    cout << "Eigen values of S :" << w << std::endl;
 //  cout << "Tolerance =" << Tolerance << std::endl;
 //
 //  Find out how many orht-normal linear combinations pass
@@ -39,14 +31,15 @@ template <class T> EigenSolver<T>::EigenSolver(const TBasisSet<T>& set, double T
 //  very close eigen values are linearly dependant.
 //
 //  for (i=1;i<=n && W(i) < Tolerance; i++, NumAccepted--)
-    V.SetLimits(MatLimits(n,n));
-    V=S.SubMatrix(MatLimits(n,n));
-//
+//    V.SetLimits(MatLimits(n,n));
+//    V=S.SubMatrix(MatLimits(n,n));
+////
 //  Now rescale the columns in V V(i) = V(i)/sqrt(W(i)).
 //
+    size_t n=w.size();
     typename Mat::Subscriptor v(V);
-    for (i=1; i<=n; i++)
-        for (index_t j=1; j<=n; j++)
+    for (size_t i=1; i<=n; i++)
+        for (size_t j=1; j<=n; j++)
         {
             if (w(i)<=0.0)
             {
@@ -56,14 +49,10 @@ template <class T> EigenSolver<T>::EigenSolver(const TBasisSet<T>& set, double T
         }
 //  cout << "V=" << V << std::endl;
 
-//
-//  Now set the sizes of the eigen vectors and eigenvalues
-//
-    EigenVectors.SetLimits(MatLimits(n,n));
-    EigenValues .SetLimits(VecLimits(  n));
+    return V;
 }
 
-template <class T> void EigenSolver<T>::Solve(const SMat& Ham)
+template <class T> typename EigenSolver<T>::UdType EigenSolverOMLEigen<T>::Solve(const SMat& Ham) const
 {
     assert(!isnan(Ham));
 	StreamableObject::SetToPretty();
@@ -73,6 +62,12 @@ template <class T> void EigenSolver<T>::Solve(const SMat& Ham)
 //	cout << "H'=" << HPrime << std::endl;
 //	StreamableObject::SetToBinary();
     double del=MakeSymmetric(HPrime);
+    SMat HS(HPrime.GetLimits());
+    index_t rl=HS.GetLimits().Row.Low;
+    for (index_t j:HS.cols())
+        for (index_t i=rl;i<=j;i++)
+            HS(i,j)=HPrime(i,j);
+        
 
     if (fabs(del) > 1e-10)
     {
@@ -80,23 +75,49 @@ template <class T> void EigenSolver<T>::Solve(const SMat& Ham)
 //        exit (-1);
     }
 //	cout << "HPrime=" << HPrime << std::endl;
-    Vec Wc  = Diagonalize(HPrime);        //Get eigen solution.
-    EigenValues.SetLimits(Wc.size());
-    for (unsigned int i=1;i<=Wc.size();i++) EigenValues(i)=real(Wc(i));
+    auto [U,e]  = Diagonalize(HS);        //Get eigen solution.
+//    EigenValues.SetLimits(Wc.size());
+//    for (unsigned int i=1;i<=Wc.size();i++) EigenValues(i)=real(Wc(i));
 //	cout << "raw EigenVectors =" << HPrime << std::endl;
-    EigenVectors = V * HPrime;                   //Back transform.
+    U = V * U;                   //Back transform.
 //	cout << "EigenVectors =" << EigenVectors << std::endl;
+    return std::make_tuple(U,e);
 }
 
-template <class T> const typename EigenSolver<T>::Mat& EigenSolver<T>::GetEigenVectors() const
+template <class T> EigenSolver<T>* EigenSolver<T>::
+    Factory(EigenSolver<T>::Pkg pkg,EigenSolver<T>::Ortho ortho,const SMat& S, double tolerance)
 {
-    return EigenVectors;
-}
-
-template <class T>  const typename EigenSolver<T>::RVec& EigenSolver<T>::GetEigenValues() const
-{
-    return EigenValues;
+    EigenSolver<T>* ret=0;
+    switch (pkg)
+    {
+    case OML:
+        switch (ortho)
+        {
+        case Cholsky :
+            break;
+        case Eigen :
+            ret=new EigenSolverOMLEigen<T>(S,tolerance);
+            break;
+        case SVD :
+            break;
+        }
+        break;
+   case Lapack:
+        switch (ortho)
+        {
+        case Cholsky :
+            break;
+        case Eigen :
+            break;
+        case SVD :
+            break;
+        break;
+        }
+    }
+    return ret;
 }
 
 template class EigenSolver<double>;
+template class EigenSolverCommon<double>;
+template class EigenSolverOMLEigen<double>;
 //template class EigenSolver<std::complex<double> >;
