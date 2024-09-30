@@ -114,5 +114,19 @@ public:
     EigenSolverOMLSVD(const SMat& S, double tolerance);
 };
 
+template <class T> class EigenSolverOMLCholsky
+    : public virtual  EigenSolver<T>
+    , private EigenSolverOMLCommon<T>
+{
+    typedef EigenSolver<T> Base;
+    typedef typename Base::Vec Vec;
+    typedef typename Base::RVec RVec;
+    typedef typename Base::Mat Mat;
+    typedef typename Base::SMat SMat;
+    typedef typename Base::UdType UdType;
+public:
+    EigenSolverOMLCholsky(const SMat& S, double tolerance);
+};
+
 
 #endif //_EigenSolver_H_

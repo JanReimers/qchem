@@ -20,6 +20,7 @@ template <class T> void EigenSolverCommon<T>::Rescale(Mat& V,const RVec& w)
         
 }
 
+
 //-----------------------------------------------------------------------------
 //
 //  OML specific code
@@ -51,15 +52,26 @@ template <class T> EigenSolverOMLEigen<T>::EigenSolverOMLEigen(const SMat& S, do
 template <class T> EigenSolverOMLSVD<T>::EigenSolverOMLSVD(const SMat& S, double tolerance)
 {
     auto [U,s,V] =SVD(S);
-    Mat sM(s.GetLimits(),s.GetLimits());
-    Fill(sM,0.0);
-    sM.GetDiagonal()=s;
+//    Mat sM(s.GetLimits(),s.GetLimits());
+//    Fill(sM,0.0);
+//    sM.GetDiagonal()=s;
     //double err1=Max(fabs(U*sM*~V-S));
     EigenSolverCommon<T>::Rescale(U,s);
     EigenSolverCommon<T>::Rescale(V,s);
     //double err2=Max(fabs(U*~V-S));
     //std::cout << "SVD errors " << err1 << " " << err2 << std::endl;
     EigenSolverCommon<T>::AssignVs(U,~V);
+}
+
+template <class T> EigenSolverOMLCholsky<T>::EigenSolverOMLCholsky(const SMat& S, double tolerance)
+{
+    Mat U=S;
+    Cholsky(U); //U is noe upper triangular, S=U*U_dagger 
+    Mat Uinv=U; //Copy
+    InvertTriangular(Uinv); //
+//    double err1=Max(fabs(U*~U-S));
+//    std::cout << "Cholsky errors " << err1 << std::endl;
+    EigenSolverCommon<T>::AssignVs(~Uinv,Uinv);
 }
 
 
@@ -73,6 +85,7 @@ template <class T> EigenSolver<T>* EigenSolver<T>::
         switch (ortho)
         {
         case Cholsky :
+            ret=new EigenSolverOMLCholsky<T>(S,tolerance);
             break;
         case Eigen :
             ret=new EigenSolverOMLEigen<T>(S,tolerance);

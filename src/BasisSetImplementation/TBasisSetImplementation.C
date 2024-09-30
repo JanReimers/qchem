@@ -330,7 +330,7 @@ template <class T> EigenSolver<T>* TBasisSetImplementation<T>::GetEigenSolver() 
     if (!itsEigenSolver)
     {
         SMat S=GetDataBase()->GetOverlap();
-        itsEigenSolver=EigenSolver<T>::Factory(EigenSolver<T>::OML,EigenSolver<T>::SVD,S,0.0);
+        itsEigenSolver=EigenSolver<T>::Factory(EigenSolver<T>::OML,EigenSolver<T>::Cholsky,S,0.0);
     }
     assert(itsEigenSolver);
     return itsEigenSolver;
