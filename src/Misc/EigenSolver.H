@@ -31,6 +31,20 @@ public:
     typedef SMatrix<T>     SMat;
     typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
+    
+    //
+    //  OML code is derived from the Numerical Recipes FORTRAN code
+    //    adapted for OML Matrix and Vector containers.
+    //  Lapack is wrapped to work with OML containers.
+    //
+    enum Pkg {OML,Lapack}; //Use linear algebra code from which package
+    //
+    //  Cholsky S = L*U
+    //  Eigen   S = U*e*U_dagger
+    //  SVD     S = U*s*V_dagger with the option for truncation singular values below 
+    //                           some threshold.
+    //
+    enum Ovp {Cholsky,Eigen,SVD}; //Basis set orthogonalization techniquw
 
     EigenSolver(const TBasisSet<T>&, double Tolerance);
 

@@ -8,6 +8,7 @@
 #include "BasisSet/IntegralDataBase.H"
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/ERIList.H"
+#include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Misc/MatrixList.H"

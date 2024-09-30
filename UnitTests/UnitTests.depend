@@ -194,7 +194,7 @@
 1727568546 /home/janr/Code/oml/include/oml/imp/smatindex.h
 	"oml/imp/matindex.h"
 
-1332723517 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H
+1727661409 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
 
@@ -237,11 +237,12 @@
 
 1323123421 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1727636581 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
+1727661641 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"BasisSet/IntegralEngine.H"
 	"BasisSet/IntegralDataBase.H"
 	"Misc/Persistent/IDRef.H"
 	"Misc/ERIList.H"
+	"oml/vector.h"
 	"oml/matrix.h"
 	"oml/smatrix.h"
 	"Misc/MatrixList.H"
@@ -625,7 +626,7 @@
 1727384943 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1727636997 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1727661826 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727390914 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -695,4 +696,18 @@
 	"Misc/PeriodicTable.H"
 	<iostream>
 	<fstream>
+
+1727665478 source:/home/janr/Code/qchem/UnitTests/EigenSolverUT.C
+	"gtest/gtest.h"
+	"DFTDataBase/HeapDB/HeapDB.H"
+	"BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
+	"Misc/PeriodicTable.H"
+	"types.H"
+	"oml/numeric.h"
+	<iostream>
+	<cassert>
+
+1727665517 /home/janr/Code/oml/include/oml/numeric.h
+	"oml/imp/index_t.h"
+	"oml/vector.h"
 

@@ -14,7 +14,7 @@ class SphericalGaussianBS
 {
 public:
     SphericalGaussianBS();
-    SphericalGaussianBS(IntegralDataBase<double>*,index_t size, double minexp, double maxexp, int L, Mesh* m=0);
+    SphericalGaussianBS(IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L, Mesh* m=0);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;

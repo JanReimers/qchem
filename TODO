@@ -48,3 +48,13 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -If N_nucleus=1 (atom) leave out Vnn term.
     -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
     -Persistent base doesn't do anything.
+    -It seems we need a separate HeapDN for each basis set.  Make something more general
+        enum type={Kinetic,Nuclear,Charge,Normalization,Overlap2C,Repulsion2C,Repulsion3C,Repulsion4C,Exchange4C,InversOverlap2C,InverseOverlap2C};
+        map<{BasisID1,BasisID2,type},SMat>
+        map<{BasisID1,BasisID2,type},Mat>
+        map<{BasisID1,BasisID2,type},Vec>
+        map<{BasisID1,BasisID2,type},ERI3>
+        map<{BasisID1,BasisID2,type},ERI4>
+        BasisID2=0 for one BS integrals.
+        Handle swaps of BS 1 and 2?
+        

@@ -29,7 +29,7 @@ template <class T> EigenSolver<T>::EigenSolver(const TBasisSet<T>& set, double T
     RVec W(Wc.size());
     for (unsigned int i=1;i<=Wc.size();i++) W(i)=real(Wc(i));
     const RVec& w(W);
-//  cout << "Eigen values of S :" << W << std::endl;
+    cout << "Eigen values of S :" << W << std::endl;
 //  cout << "Tolerance =" << Tolerance << std::endl;
 //
 //  Find out how many orht-normal linear combinations pass

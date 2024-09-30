@@ -29,23 +29,21 @@ SphericalGaussianBS::SphericalGaussianBS()
 {};
 
 SphericalGaussianBS::SphericalGaussianBS(IntegralDataBase<double>* theDB,
-        index_t size,
+        size_t size,
         double minexp,
         double maxexp,
-        int theL,
+        size_t L,
         Mesh* theMesh)
-    : BasisSetImplementation(new SphericalSymmetryQN(theL))
+    : BasisSetImplementation(new SphericalSymmetryQN(L))
     , TBasisSetImplementation<double>(theDB)
 {
     Vector<double> exp(size);
     FillPower(exp,minexp,maxexp);
-
-    Vector<double>::const_iterator b(exp.begin());
-    for(; b!=exp.end(); b++) BasisSetImplementation::Insert(new SphericalGaussianBF(*b, theL) );
-
+    for (auto e:exp) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
+    
     if (theMesh)
     {
-        assert(theL==0);
+        assert(L==0); //Why???
         TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh));
     }
     else
