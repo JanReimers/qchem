@@ -12,10 +12,10 @@
 #include "Mesh/AtomMesh.H"
 
 
-AtomTester::AtomTester()
-    : itsNbasis(17)
-    , itsEmin(.01)
-    , itsEmax(200000.)
+AtomTester::AtomTester(size_t n, double emin, double emax)
+    : itsNbasis(n)
+    , itsEmin(emin)
+    , itsEmax(emax)
     , itsLmax(0)
 {
 }

@@ -24,6 +24,7 @@ private:
 class SemiHartreeFockAtomTester : public AtomTester, public SemiHartreeFockTester
 {
 public:
+    SemiHartreeFockAtomTester() : AtomTester(17,.01,200000.0) {};
     void Init(Atom* atom, double Exchange, int Lmax, double spin)
     {
         SemiHartreeFockTester::Init(Exchange);

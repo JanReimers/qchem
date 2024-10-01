@@ -18,6 +18,7 @@ class HartreeFockAtomTester
 
 {
 public:
+  HartreeFockAtomTester() : AtomTester(27,.01,200000.0) {};
   void Init(Atom* atom, int Lmax, double spin);
 };
 

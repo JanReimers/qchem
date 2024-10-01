@@ -23,7 +23,9 @@ extern PeriodicTable thePeriodicTable;
 class qchem_PersistanceTests : public AtomTester, public HartreeFockTester
 {
 public:
-    qchem_PersistanceTests() : file_name("streamtest2.dat") 
+    qchem_PersistanceTests() 
+        : AtomTester(17,.01,20000.)
+        , file_name("streamtest2.dat") 
     {
         
     }
