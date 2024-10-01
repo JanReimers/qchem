@@ -31,10 +31,10 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverLapackCommon<T>::S
 	StreamableObject::SetToPretty();
     Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
     double del=MakeSymmetric(HPrime);
-    if (fabs(del) > 1e-10)
-    {
-        std::cerr << "Warning: Hamiltonian asymmetry = " << del << " is big!" << std::endl;
-    }
+//    if (fabs(del) > 1e-10)
+//    {
+//        std::cerr << "Warning: Hamiltonian asymmetry = " << del << " is big!" << std::endl;
+//    }
     auto [U,e]  =itsLapackEigenSolver->SolveAll(HPrime,eps);  //Get eigen solution.
     U = V * U;                      //Back transform.
     return std::make_tuple(U,e);
@@ -44,6 +44,7 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverLapackCommon<T>::S
 template <class T> EigenSolverLapackEigen<T>::EigenSolverLapackEigen(const SMat& S, double tolerance)
 {
     auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),eps);
+    EigenSolverCommon<T>::Truncate(U,w,tolerance);
     EigenSolverCommon<T>::Rescale(U,w);
     EigenSolverCommon<T>::AssignVs(U,~U);
 }
@@ -51,6 +52,7 @@ template <class T> EigenSolverLapackEigen<T>::EigenSolverLapackEigen(const SMat&
 template <class T> EigenSolverLapackSVD<T>::EigenSolverLapackSVD(const SMat& S, double tolerance)
 {
     auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S,eps);
+    EigenSolverCommon<T>::Truncate(U,sM,Vt,tolerance);
     RVec s=sM.GetDiagonal();
 //    Mat sM(s.GetLimits(),s.GetLimits());
 //    Fill(sM,0.0);

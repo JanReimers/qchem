@@ -58,10 +58,15 @@ template <class T> class EigenSolverCommon
     typedef EigenSolver<T> Base;
     typedef typename Base::RVec RVec;
     typedef typename Base::Mat Mat;
+    typedef DiagonalMatrix<T>  DMat;
    
 protected:
     static void Rescale(Mat& V, const RVec& w);
     static void Rescale(Mat& U, const RVec& w, Mat& Vt);
+    static void Truncate(Mat& U, DMat&, Mat& Vt, double tol);
+    static void Truncate(Mat& U, RVec&, Mat& V , double tol);
+    static void Truncate(Mat& U, RVec& w,double tol);
+
     void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
     Mat  V,Vd;  //Basis Overlap S = V*Vd
 };

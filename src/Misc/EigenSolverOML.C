@@ -12,10 +12,10 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverOMLCommon<T>::Solv
 	StreamableObject::SetToPretty();
     Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
     double del=MakeSymmetric(HPrime);
-    if (fabs(del) > 1e-10)
-    {
-        std::cerr << "Warning: Hamiltonian asymmetry = " << del << " is big!" << std::endl;
-    }
+//    if (fabs(del) > 1e-10)
+//    {
+//        std::cerr << "Warning: Hamiltonian asymmetry = " << del << " is big!" << std::endl;
+//    }
     SMat HS(HPrime); //Make a symmetrix/Hermition version.
     auto [U,e]  = Diagonalize(HS);  //Get eigen solution.
     U = V * U;                      //Back transform.
@@ -26,6 +26,7 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverOMLCommon<T>::Solv
 template <class T> EigenSolverOMLEigen<T>::EigenSolverOMLEigen(const SMat& S, double tolerance)
 {
     auto [U,w] =Diagonalize(S);
+    EigenSolverCommon<T>::Truncate(U,w,tolerance);
     EigenSolverCommon<T>::Rescale(U,w);
     EigenSolverCommon<T>::AssignVs(U,~U);
 }
@@ -33,6 +34,8 @@ template <class T> EigenSolverOMLEigen<T>::EigenSolverOMLEigen(const SMat& S, do
 template <class T> EigenSolverOMLSVD<T>::EigenSolverOMLSVD(const SMat& S, double tolerance)
 {
     auto [U,s,V] =SVD(S);
+    EigenSolverCommon<T>::Truncate(U,s,V,tolerance);
+
 //    Mat sM(s.GetLimits(),s.GetLimits());
 //    Fill(sM,0.0);
 //    sM.GetDiagonal()=s;

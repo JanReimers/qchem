@@ -8,6 +8,7 @@
 //
 template <class T> class Matrix;
 template <class T> class SMatrix;
+template <class T> class DiagonalMatrix;
 template <class T> class Vector;
 template <class T> class Vector3D;
 
