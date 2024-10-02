@@ -4,7 +4,7 @@
 
 
 
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include "FunctionsImp/DumpScalarData.H"
 #include "Misc/ptr_vector1.h"
 

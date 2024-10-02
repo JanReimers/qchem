@@ -4,7 +4,7 @@
 
 
 
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "Misc/rc_ptr.H"
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
 

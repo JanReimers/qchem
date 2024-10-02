@@ -4,7 +4,7 @@
 
 
 
-#include "ChargeDensity/PolarizedCD.H"
+#include "PolarizedCD.H"
 #include "FunctionsImp/DumpScalarData.H"
 #include "Misc/Spin.H"
 

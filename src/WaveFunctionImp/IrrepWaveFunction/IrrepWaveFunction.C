@@ -4,8 +4,8 @@
 
 #include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
 #include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
-#include "Hamiltonian/Hamiltonian.H"
-#include "Orbital/OrbitalGroup.H"
+#include "Hamiltonian.H"
+#include "OrbitalGroup.H"
 #include "Orbital/ElectronDumper.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include "oml/imp/binio.h"

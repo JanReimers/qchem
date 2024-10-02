@@ -2,7 +2,7 @@
 
 
 
-#include "ChargeDensity/FittedPolarizedCD.H"
+#include "FittedPolarizedCD.H"
 #include "Misc/Spin.H"
 #include <cassert>
 #include <iostream>

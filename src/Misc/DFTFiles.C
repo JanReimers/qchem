@@ -5,14 +5,14 @@
 #include "Misc/ptr_vector1.h"
 #include "Misc/ptr_vector1_io.h"
 
-#include "BasisSet/BasisSet.H"
-#include "Hamiltonian/Hamiltonian.H"
-#include "ChargeDensity/ChargeDensity.H"
-#include "ChargeDensity/FittedCD.H"
-#include "Cluster/Cluster.H"
+#include "BasisSet.H"
+#include "Hamiltonian.H"
+#include "ChargeDensity.H"
+#include "FittedCD.H"
+#include "Cluster.H"
 #include "Cluster/UnitCell.H"
 #include "Mesh/Mesh.H"
-#include "WaveFunction/WaveFunction.H"
+#include "WaveFunction.H"
 
 #include <fstream>
 #include <stdlib.h>

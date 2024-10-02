@@ -4,8 +4,8 @@
 
 
 
-#include "BasisSet/IntegralEngine.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralEngine.H"
+#include "IntegralDataBase.H"
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/ERIList.H"
 #include "oml/vector.h"

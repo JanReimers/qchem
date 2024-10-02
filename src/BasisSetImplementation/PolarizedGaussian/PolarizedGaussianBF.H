@@ -4,7 +4,7 @@
 
 
 
-#include "BasisSet/TBasisFunction.H"
+#include "TBasisFunction.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
 #include "Misc/Polarization.H"
 #include "oml/vector3d.h"

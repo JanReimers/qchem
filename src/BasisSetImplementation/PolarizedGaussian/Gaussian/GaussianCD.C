@@ -8,7 +8,7 @@
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.H"
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H"
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "Misc/DFTDefines.H"
 #include "Misc/ERIList.H"
 #include "oml/matrix.h"

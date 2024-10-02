@@ -3,7 +3,7 @@
 
 
 #include "Orbital/EnergyLevel.H"
-#include "Orbital/Orbital.H"
+#include "Orbital.H"
 #include <cmath>
 #include <iostream>
 #include <cassert>

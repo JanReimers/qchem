@@ -3,7 +3,7 @@
 
 
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
-#include "BasisSet/TBasisSet.H"
+#include "TBasisSet.H"
 #include <iostream>
 #include <cassert>
 

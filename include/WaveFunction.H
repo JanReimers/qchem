@@ -4,7 +4,7 @@
 
 #include "types.H"
 #include "Misc/pmstream.h"
-#include "Hamiltonian/TotalEnergy.H"
+//#include "Hamiltonian/TotalEnergy.H"
 #include "Misc/Spin.H"
 
 

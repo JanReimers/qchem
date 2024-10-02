@@ -5,7 +5,7 @@
 
 
 #include "Misc/Persistent/PerDB.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralDataBase.H"
 #include <string>
 
 //------------------------------------------------------------------------

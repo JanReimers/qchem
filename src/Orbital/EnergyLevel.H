@@ -3,7 +3,7 @@
 #define _EnergyLevel_H_
 
 #include "Orbital/ElectronContainer.H"
-#include "Orbital/Orbital.H"
+#include "Orbital.H"
 #include <vector>
 
 class EnergyLevel

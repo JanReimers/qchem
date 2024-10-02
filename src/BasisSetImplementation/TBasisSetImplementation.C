@@ -2,11 +2,10 @@
 
 
 #include "BasisSetImplementation/TBasisSetImplementation.H"
-//#include "BasisSet/TBasisSetBrowser.H"
-#include "BasisSet/TBasisFunction.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "TBasisFunction.H"
+#include "IntegralDataBase.H"
 #include "LASolver/LASolver.H"
-#include "Hamiltonian/Hamiltonian.H"
+#include "Hamiltonian.H"
 #include "Mesh/Mesh.H"
 #include "Misc/MatrixList.H"
 #include "Misc/ERIProxy.H"

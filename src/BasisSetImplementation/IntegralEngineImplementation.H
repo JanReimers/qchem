@@ -2,7 +2,7 @@
 #ifndef _IntegralEngineImplementation_H_
 #define _IntegralEngineImplementation_H_
 
-#include "BasisSet/IntegralEngine.H"
+#include "IntegralEngine.H"
 #include "Misc/Persistent/IDRef.H"
 #include "oml/vector.h"
 #include "oml/smatrix.h"

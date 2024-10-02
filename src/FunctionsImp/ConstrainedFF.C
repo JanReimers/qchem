@@ -4,8 +4,8 @@
 
 #include "FunctionsImp/ConstrainedFF.H"
 #include "Functions/FittedFunctionClient.H"
-#include "BasisSet/TBasisSet.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "TBasisSet.H"
+#include "IntegralDataBase.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"

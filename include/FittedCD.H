@@ -4,7 +4,7 @@
 
 
 
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include "Functions/FittedFunction.H"
 
 //----------------------------------------------------------------------------------

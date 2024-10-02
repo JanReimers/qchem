@@ -2,7 +2,7 @@
 #ifndef _Lattice_H_
 #define _Lattice_H_
 
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "Cluster/UnitCell.H"
 #include "oml/vector3d.h"
 #include <vector>

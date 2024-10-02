@@ -2,6 +2,6 @@
 
 
 
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralDataBase.H"
 
 template class IntegralDataBase<double>;

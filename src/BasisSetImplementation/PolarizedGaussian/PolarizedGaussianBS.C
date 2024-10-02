@@ -7,9 +7,9 @@
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
 #include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralDataBase.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "Misc/ptr_vector1_io.h"
 #include "oml/vector.h"
 #include <cassert>

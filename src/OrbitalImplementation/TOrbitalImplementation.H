@@ -4,8 +4,8 @@
 
 
 
-#include "Orbital/TOrbital.H"
-#include "BasisSet/TBasisSet.H"
+#include "TOrbital.H"
+#include "TBasisSet.H"
 #include "OrbitalImplementation/OrbitalImplementation.H"
 #include "oml/vector.h"
 

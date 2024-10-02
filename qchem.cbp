@@ -40,10 +40,18 @@
 			<Add option="-fopenmp" />
 			<Add directory="src" />
 			<Add directory="../oml/include" />
+			<Add directory="include" />
 		</Compiler>
 		<Linker>
 			<Add option="-fopenmp" />
 		</Linker>
+		<Unit filename="include/BasisFunction.H" />
+		<Unit filename="include/BasisGroup.H" />
+		<Unit filename="include/BasisSet.H" />
+		<Unit filename="include/IntegralEngine.H" />
+		<Unit filename="include/QuantumNumber.H" />
+		<Unit filename="include/TBasisFunction.H" />
+		<Unit filename="include/TBasisSet.H" />
 		<Unit filename="src/BasisSet/BasisFunction.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -445,6 +453,23 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/HamiltonianImplementation/SlaterExchange.H" />
+		<Unit filename="src/Imp/LASolver/LASolverImp.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Imp/LASolver/LASolverImp.H" />
+		<Unit filename="src/Imp/LASolver/LASolverLapack.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Imp/LASolver/LASolverLapack.H" />
+		<Unit filename="src/Imp/LASolver/LASolverOML.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Imp/LASolver/LASolverOML.H" />
+		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.H" />
+		<Unit filename="src/LASolver/LASolver.H" />
 		<Unit filename="src/Mesh/AngularMesh/AngularMesh.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -543,17 +568,7 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/ERIProxy.H" />
-		<Unit filename="src/Misc/EigenSolver.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/Misc/EigenSolver.H" />
-		<Unit filename="src/Misc/EigenSolverLapack.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/EigenSolverLapack.H" />
-		<Unit filename="src/Misc/EigenSolverOML.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/Misc/EigenSolverOML.H" />
 		<Unit filename="src/Misc/IntPower.C">
 			<Option compilerVar="CPP" />
@@ -660,22 +675,18 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/OrbitalImplementation/TOrbitalImplementation.H" />
-		<Unit filename="src/SCFIteration/IterationParams.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/SCFIterator/IterationParams.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/SCFIteration/IterationParams.H" />
+		<Unit filename="src/SCFIterator/IterationParams.H" />
+		<Unit filename="src/SCFIterator/SCFIterator.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/SCFIterator/SCFIterator.H" />
 		<Unit filename="src/WaveFunction/PolarizedWF.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/WaveFunction/PolarizedWF.H" />
-		<Unit filename="src/WaveFunction/SCFIterator.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/WaveFunction/SCFIterator.H" />
-		<Unit filename="src/WaveFunction/SCFIteratorImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/WaveFunction/SCFIteratorImplementation.H" />
 		<Unit filename="src/WaveFunction/WaveFunction.C">
 			<Option compilerVar="CPP" />
 		</Unit>

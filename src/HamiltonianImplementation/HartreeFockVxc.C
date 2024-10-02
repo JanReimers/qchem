@@ -3,9 +3,9 @@
 
 
 #include "HamiltonianImplementation/HartreeFockVxc.H"
-#include "BasisSet/TBasisSet.H"
-#include "ChargeDensity/ChargeDensity.H"
-#include "Hamiltonian/TotalEnergy.H"
+#include "TBasisSet.H"
+#include "ChargeDensity.H"
+#include "TotalEnergy.H"
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>

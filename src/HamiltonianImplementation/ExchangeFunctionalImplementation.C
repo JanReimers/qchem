@@ -3,7 +3,7 @@
 
 
 #include "HamiltonianImplementation/ExchangeFunctionalImplementation.H"
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include <cassert>
 
 ExchangeFunctionalImplementation::ExchangeFunctionalImplementation()

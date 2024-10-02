@@ -4,7 +4,7 @@
 
 
 
-#include "WaveFunction/WaveFunction.H"
+#include "WaveFunction.H"
 
 class MasterUnPolarizedWF
     : public virtual WaveFunction

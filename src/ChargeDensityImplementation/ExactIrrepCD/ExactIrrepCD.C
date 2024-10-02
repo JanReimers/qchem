@@ -2,9 +2,9 @@
 
 
 #include "Cluster/Molecule.H"
-#include "BasisSet/IntegralDataBase.H"
-#include "BasisSet/QuantumNumber.H"
-#include "ChargeDensity/FittedCD.H"
+#include "IntegralDataBase.H"
+#include "QuantumNumber.H"
+#include "FittedCD.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"

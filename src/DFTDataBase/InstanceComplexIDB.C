@@ -1,7 +1,7 @@
 // File: InstanceIDB.C  Make template instantces for IntegralDataBase's
 
 
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralDataBase.H"
 #include "oml/matrix.h"
 #include <complex>
 

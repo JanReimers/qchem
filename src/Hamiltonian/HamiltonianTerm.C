@@ -2,7 +2,7 @@
 
 
 
-#include "Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 
 bool HamiltonianTerm::IsPolarized() const
 {

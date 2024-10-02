@@ -2,7 +2,7 @@
 #ifndef _PolarizedCD_H_
 #define _PolarizedCD_H_
 
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 
 //---------------------------------------------------------------------------------------
 //

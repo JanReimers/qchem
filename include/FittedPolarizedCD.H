@@ -4,8 +4,8 @@
 
 
 
-#include "ChargeDensity/FittedCD.H"
-#include "ChargeDensity/PolarizedCD.H"
+#include "FittedCD.H"
+#include "PolarizedCD.H"
 #include "FunctionsImp/DumpScalarData.H"
 
 //---------------------------------------------------------------------------------------

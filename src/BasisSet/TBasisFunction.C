@@ -2,7 +2,7 @@
 
 
 
-#include "BasisSet/TBasisFunction.H"
+#include "TBasisFunction.H"
 #include <complex>
 
 template class TBasisFunction<double>;

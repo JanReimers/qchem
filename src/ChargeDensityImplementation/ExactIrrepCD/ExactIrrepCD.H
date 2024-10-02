@@ -4,8 +4,8 @@
 
 
 
-#include "BasisSet/TBasisSet.H"
-#include "ChargeDensity/ChargeDensity.H"
+#include "TBasisSet.H"
+#include "ChargeDensity.H"
 #include "FunctionsImp/DumpScalarData.H"
 #include "Misc/Spin.H"
 #include "Misc/rc_ptr.H"

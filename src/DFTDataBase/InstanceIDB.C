@@ -2,7 +2,7 @@
 
 
 
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralDataBase.H"
 #include "oml/matrix.h"
 
 #define TYPE_STRING "IntegralDataBase<double>"

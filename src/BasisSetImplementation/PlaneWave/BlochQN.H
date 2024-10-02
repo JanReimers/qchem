@@ -4,7 +4,7 @@
 
 
 
-#include "BasisSet/QuantumNumber.H"
+#include "QuantumNumber.H"
 #include "oml/vector3d.h"
 
 template <class T> class Vector3D;

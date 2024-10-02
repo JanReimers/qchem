@@ -4,7 +4,7 @@
 
 
 
-#include "WaveFunction/WaveFunction.H"
+#include "WaveFunction.H"
 #include "Misc/ptr_vector1.h"
 
 class WaveFunctionGroup

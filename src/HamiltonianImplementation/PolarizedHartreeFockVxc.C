@@ -4,9 +4,9 @@
 
 #include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
 #include "HamiltonianImplementation/HartreeFockVxc.H"
-#include "Hamiltonian/TotalEnergy.H"
-#include "ChargeDensity/PolarizedCD.H"
-#include "BasisSet/BasisSet.H"
+#include "TotalEnergy.H"
+#include "PolarizedCD.H"
+#include "BasisSet.H"
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"

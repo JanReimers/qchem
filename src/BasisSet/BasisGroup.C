@@ -1,9 +1,9 @@
 // File BasisGroup.C  Store a set of basis functions and manage the ERI super matrix.
 
-#include "BasisSet/BasisGroup.H"
-#include "BasisSet/TBasisSet.H"
-#include "BasisSet/IntegralDataBase.H"
-#include "BasisSet/IntegralEngine.H"
+#include "BasisGroup.H"
+#include "TBasisSet.H"
+#include "IntegralDataBase.H"
+#include "IntegralEngine.H"
 #include "Misc/ptr_vector1_io.h"
 
 BasisGroup::BasisGroup()

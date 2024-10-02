@@ -2,7 +2,7 @@
 #ifndef _Molecule_H_
 #define _Molecule_H_
 
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "Misc/ptr_vector1.h"
 #include <iostream>
 

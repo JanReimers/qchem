@@ -3,9 +3,9 @@
 
 
 #include "HamiltonianImplementation/CDFittedVee.H"
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include "ChargeDensityImplementation/FittedCDImplementation.H"
-#include "Hamiltonian/TotalEnergy.H"
+#include "TotalEnergy.H"
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>

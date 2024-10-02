@@ -3,9 +3,9 @@
 
 
 #include "BasisSetImplementation/NumericalIE.H"
-#include "BasisSet/TBasisSet.H"
-#include "BasisSet/TBasisFunction.H"
-#include "Cluster/Cluster.H"
+#include "TBasisSet.H"
+#include "TBasisFunction.H"
+#include "Cluster.H"
 #include "Mesh/Mesh.H"
 #include "Misc/MatrixList.H"
 #include "oml/imp/binio.h"

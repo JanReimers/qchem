@@ -2,7 +2,7 @@
 
 
 
-#include "Hamiltonian/TotalEnergy.H"
+#include "TotalEnergy.H"
 #include <iostream>
 
 TotalEnergy::TotalEnergy()

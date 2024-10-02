@@ -4,8 +4,8 @@
 
 #include "HamiltonianImplementation/FittedVxc.H"
 #include "HamiltonianImplementation/LDAVxc.H"
-#include "Hamiltonian/TotalEnergy.H"
-#include "ChargeDensity/ChargeDensity.H"
+#include "TotalEnergy.H"
+#include "ChargeDensity.H"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 

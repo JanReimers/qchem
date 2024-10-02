@@ -3,7 +3,7 @@
 
 
 #include "HamiltonianImplementation/LDAVxc.H"
-#include "BasisSet/TBasisSet.H"
+#include "TBasisSet.H"
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>

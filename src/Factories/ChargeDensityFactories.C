@@ -1,9 +1,9 @@
 // File: ChargeDensityFactories.C  Interface for the charge density category.
 
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include "ChargeDensityImplementation/FittedCDImplementation.H"
 #include "ChargeDensityImplementation/PolarizedCDImplementation.H"
-#include "ChargeDensity/FittedPolarizedCD.H"
+#include "FittedPolarizedCD.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 

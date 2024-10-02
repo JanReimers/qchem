@@ -7,10 +7,9 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
-#include "BasisSet/IntegralDataBase.H"
-//#include "BasisSet/TBasisSetBrowser.H"
-#include "BasisSet/BasisGroup.H"
-#include "Cluster/Cluster.H"
+#include "IntegralDataBase.H"
+#include "BasisGroup.H"
+#include "Cluster.H"
 #include "Misc/MatrixList.H"
 #include "Misc/ERIProxy.H"
 #include <cassert>

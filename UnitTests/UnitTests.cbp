@@ -43,6 +43,7 @@
 			<Add option="-fopenmp" />
 			<Add directory="../src" />
 			<Add directory="../../oml/include" />
+			<Add directory="../include" />
 		</Compiler>
 		<Linker>
 			<Add option="-fopenmp" />

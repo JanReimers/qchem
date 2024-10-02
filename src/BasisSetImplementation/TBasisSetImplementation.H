@@ -4,9 +4,9 @@
 
 
 
-#include "BasisSet/TBasisSet.H"
+#include "TBasisSet.H"
 #include "FunctionsImp/VectorFunctionBuffer.H"
-#include "BasisSet/IntegralEngine.H"
+#include "IntegralEngine.H"
 #include "SCFIterator/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"

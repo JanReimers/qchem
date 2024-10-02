@@ -3,7 +3,7 @@
 
 
 #include "OrbitalImplementation/ElectronContainerImplementation.H"
-#include "BasisSet/QuantumNumber.H"
+#include "QuantumNumber.H"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>

@@ -10,7 +10,7 @@
 #include "Misc/ERIList.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H"
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "Mesh/MeshBrowser.H"
 #include "oml/imp/binio.h"
 #include <cmath>

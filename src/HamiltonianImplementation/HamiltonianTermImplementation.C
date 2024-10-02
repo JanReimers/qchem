@@ -2,9 +2,9 @@
 
 
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
-#include "BasisSet/BasisSet.H"
-#include "ChargeDensity/ChargeDensity.H"
-#include "BasisSet/QuantumNumber.H"
+#include "BasisSet.H"
+#include "ChargeDensity.H"
+#include "QuantumNumber.H"
 #include <iostream>
 #include <cassert>
 

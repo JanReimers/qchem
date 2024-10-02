@@ -2,6 +2,6 @@
 
 
 
-#include "ChargeDensity/FittedCD.H"
+#include "FittedCD.H"
 
 

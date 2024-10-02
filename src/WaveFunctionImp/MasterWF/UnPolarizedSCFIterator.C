@@ -3,10 +3,10 @@
 
 
 #include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
-#include "Hamiltonian/Hamiltonian.H"
-#include "WaveFunction/WaveFunction.H"
+#include "Hamiltonian.H"
+#include "WaveFunction.H"
 #include "Orbital/ElectronDumper.H"
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>

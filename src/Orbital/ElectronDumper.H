@@ -4,7 +4,7 @@
 
 
 
-#include "Orbital/Orbital.H"
+#include "Orbital.H"
 #include "Orbital/EnergyLevel.H"
 #include "Misc/ptr_vector1.h"
 

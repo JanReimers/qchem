@@ -4,7 +4,7 @@
 
 
 
-#include "Orbital/OrbitalGroup.H"
+#include "OrbitalGroup.H"
 #include "Functions/VectorFunction.H"
 #include "Misc/ptr_vector1.h"
 

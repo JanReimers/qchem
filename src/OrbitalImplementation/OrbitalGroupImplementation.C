@@ -2,7 +2,7 @@
 
 
 #include "OrbitalImplementation/OrbitalGroupImplementation.H"
-#include "BasisSet/QuantumNumber.H"
+#include "QuantumNumber.H"
 #include "Misc/DFTDefines.H"
 #include "Misc/ptr_vector1_io.h"
 #include <cmath>

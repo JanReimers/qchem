@@ -2,10 +2,10 @@
 
 
 
-#include "Hamiltonian/Hamiltonian.H"
-#include "WaveFunction/PolarizedWF.H"
+#include "Hamiltonian.H"
+#include "PolarizedWF.H"
 #include "WaveFunctionImp/MasterWF/PolarizedSCFIterator.H"
-#include "ChargeDensity/FittedPolarizedCD.H"
+#include "FittedPolarizedCD.H"
 #include "Orbital/ElectronDumper.H"
 #include "Misc/Spin.H"
 #include <iostream>

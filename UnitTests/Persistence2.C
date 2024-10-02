@@ -4,9 +4,9 @@
 #include "oml/imp/stream.h"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include "Hamiltonian/Hamiltonian.H"
-#include "BasisSet/BasisGroup.H"
-#include "WaveFunction/WaveFunction.H"
+#include "Hamiltonian.H"
+#include "BasisGroup.H"
+#include "WaveFunction.H"
 #include "Misc/PeriodicTable.H"
 #include <iostream> 
 #include <fstream>

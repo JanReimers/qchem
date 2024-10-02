@@ -1,9 +1,9 @@
 // File: PolarizedGaussianIE.C  Here is where all the integral get calculated.
 
 
-#include "BasisSet/BasisSet.H"
-#include "BasisSet/BasisGroup.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "BasisSet.H"
+#include "BasisGroup.H"
+#include "IntegralDataBase.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"

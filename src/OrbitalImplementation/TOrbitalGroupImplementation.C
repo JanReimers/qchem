@@ -63,7 +63,7 @@ template <class T> ChargeDensity* TOrbitalGroupImplementation<T>::GetChargeDensi
     return new ExactIrrepCD<T>(CalculateDensityMatrix(),itsRCBasisSet,s);
 }
 
-#include "BasisSet/QuantumNumber.H"
+#include "QuantumNumber.H"
 #include <iomanip>
 template <class T> typename TOrbitalGroupImplementation<T>::SMat TOrbitalGroupImplementation<T>::
 CalculateDensityMatrix() const

@@ -4,7 +4,7 @@
 
 
 
-#include "BasisSet/BasisSet.H"
+#include "BasisSet.H"
 #include "Misc/ptr_vector1.h"
 
 //---------------------------------------------------------------------

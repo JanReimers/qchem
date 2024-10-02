@@ -95,3 +95,17 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     Done -Reorg SCFIterator and EigenSolvers  ->Rename LASolver
     -Organize headers in the include folder.
     Does OML eigen/SVD have a hard coded eps?
+    -Remove BasisSet.C PASolver.C QuantumNumber.C  ExchangeFunctional.C
+        Hamiltonain.C
+        HamiltonianTerm.C
+        Cluster.C
+        Orbital.C
+        PolarizedWF.C 
+        FittedCD.C
+
+    -Instancing in one file: 
+        TBasisFunction.C
+        IntegralEngine.C
+        TBasisSet.C
+        TOrbital.C
+        IntegralDataBase.C

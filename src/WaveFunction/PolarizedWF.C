@@ -2,5 +2,5 @@
 
 
 
-#include "WaveFunction/PolarizedWF.H"
+#include "PolarizedWF.H"
 

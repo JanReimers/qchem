@@ -3,9 +3,9 @@
 
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
-#include "BasisSet/TBasisSet.H"
-#include "BasisSet/BasisGroup.H"
-#include "Cluster/Cluster.H"
+#include "TBasisSet.H"
+#include "BasisGroup.H"
+#include "Cluster.H"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
 #include "oml/vector.h"

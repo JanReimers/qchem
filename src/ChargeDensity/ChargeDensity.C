@@ -2,7 +2,7 @@
 
 
 
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 
 double ChargeDensity::FitGetConstraint  () const
 {

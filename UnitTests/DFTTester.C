@@ -2,8 +2,8 @@
 
 #include "DFTTester.H"
 #include "HamiltonianImplementation/CDFittedVee.H"
-#include "Cluster/Cluster.H"
-#include "BasisSet/BasisSet.H"
+#include "Cluster.H"
+#include "BasisSet.H"
 
 DFTTester::DFTTester()
     : itsCBasisSet()

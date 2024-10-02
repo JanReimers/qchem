@@ -4,7 +4,7 @@
 
 #include "Mesh/MoleculeMesh.H"
 #include "Mesh/MeshBrowser.H"
-#include "Cluster/Cluster.H"
+#include "Cluster.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include <cassert>

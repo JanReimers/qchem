@@ -3,8 +3,8 @@
 
 
 #include "FunctionsImp/IntegralConstrainedFF.H"
-#include "BasisSet/BasisSet.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "BasisSet.H"
+#include "IntegralDataBase.H"
 #include "oml/matrix.h"
 
 template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()

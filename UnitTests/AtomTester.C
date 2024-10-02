@@ -1,8 +1,8 @@
 // File AtomTester.C Member functions for the atom tester class.
 
 #include "AtomTester.H"
-#include "Cluster/Cluster.H"
-#include "BasisSet/BasisGroup.H"
+#include "Cluster.H"
+#include "BasisGroup.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
 //#include "Mesh/RadialMesh/LogRadialMesh.H"

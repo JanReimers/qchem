@@ -4,9 +4,9 @@
 
 
 
-#include "Orbital/Orbital.H"
+#include "Orbital.H"
 #include "OrbitalImplementation/ElectronContainerImplementation.H"
-#include "BasisSet/BasisSet.H"
+#include "BasisSet.H"
 #include "Misc/Persistent/IDRef.H"
 
 class OrbitalImplementation

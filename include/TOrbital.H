@@ -5,7 +5,7 @@
 
 
 #include "Functions/ScalarFunction.H"
-#include "Orbital/Orbital.H"
+#include "Orbital.H"
 
 //---------------------------------------------------------
 //

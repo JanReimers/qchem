@@ -2,6 +2,6 @@
 
 
 
-#include "BasisSet/IntegralEngine.H"
+#include "IntegralEngine.H"
 
 template class IntegralEngine<double>;

@@ -1,8 +1,8 @@
 // File: PolarizedCD.C  Interface for a spin polarized charge density.
 
 
-#include "ChargeDensity/PolarizedCD.H"
-#include "ChargeDensity/FittedPolarizedCD.H"
+#include "PolarizedCD.H"
+#include "FittedPolarizedCD.H"
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"
 #include <iostream>

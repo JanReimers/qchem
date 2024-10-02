@@ -3,8 +3,8 @@
 
 
 #include "HamiltonianImplementation/ExactVnn.H"
-#include "Hamiltonian/TotalEnergy.H"
-#include "BasisSet/BasisSet.H"
+#include "TotalEnergy.H"
+#include "BasisSet.H"
 #include "oml/smatrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"

@@ -3,7 +3,7 @@
 
 
 #include "HamiltonianImplementation/SlaterExchange.H"
-#include "ChargeDensity/ChargeDensity.H"
+#include "ChargeDensity.H"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cmath>

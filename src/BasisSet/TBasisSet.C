@@ -2,7 +2,7 @@
 
 
 
-#include "BasisSet/TBasisSet.H"
+#include "TBasisSet.H"
 #include <complex>
 
 template class TBasisSet<double>;

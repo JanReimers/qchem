@@ -4,7 +4,7 @@
 
 
 
-#include "BasisSet/BasisFunction.H"
+#include "BasisFunction.H"
 #include "Functions/ScalarFunction.H"
 
 //---------------------------------------------------------------

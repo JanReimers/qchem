@@ -7,7 +7,7 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/NumericalIE.H"
-#include "BasisSet/IntegralDataBase.H"
+#include "IntegralDataBase.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>

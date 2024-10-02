@@ -3,8 +3,8 @@
 
 
 #include "HamiltonianImplementation/ExactVee.H"
-#include "ChargeDensity/ChargeDensity.H"
-#include "Hamiltonian/TotalEnergy.H"
+#include "ChargeDensity.H"
+#include "TotalEnergy.H"
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>

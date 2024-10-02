@@ -3,7 +3,7 @@
 #define _TBasisSet_H_
 
 #include "types.H"
-#include "BasisSet/BasisSet.H"
+#include "BasisSet.H"
 #include "Functions/VectorFunction.H"
 #include "Misc/ptr_vector1.h"
 //----------------------------------------------------------------------------

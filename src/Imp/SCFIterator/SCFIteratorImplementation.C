@@ -2,10 +2,11 @@
 
 
 
-#include "WaveFunction/WaveFunction.H"
+#include "WaveFunction.H"
 #include "Imp/SCFIterator/SCFIteratorImplementation.H"
-#include "Hamiltonian/Hamiltonian.H"
-#include "ChargeDensity/FittedCD.H"
+#include "Hamiltonian.H"
+#include "TotalEnergy.H"
+#include "FittedCD.H"
 #include "Orbital/ElectronDumper.H"
 #include "FunctionsImp/PlotterImplementation.H"
 #include "Mesh/LinearMesh.H"
