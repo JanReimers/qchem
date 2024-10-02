@@ -42,7 +42,7 @@ public:
     Hamiltonian*  GetHamiltonian () const {return itsHamiltonian;}
     WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
 
-    void   Iterate(double relax, double epsilon, int Niter);
+    void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
 
 protected:

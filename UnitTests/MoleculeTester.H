@@ -16,6 +16,9 @@ public:
     virtual BasisSet*  GetCbasisSet() const;
     virtual Mesh*      GetIntegrationMesh() const;
     virtual void LoadOrbitalBasisSet();
+    
+    SCFIterationParams itsSCFIParams;
+
 };
 
 #endif // MOLECULETESTER_H

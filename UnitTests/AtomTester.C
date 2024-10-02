@@ -18,6 +18,7 @@ AtomTester::AtomTester(size_t n, double emin, double emax)
     , itsEmin(emin)
     , itsEmax(emax)
     , itsLmax(0)
+    , itsSCFIParams({40,1e-6,0.5,0.0}) //MaxITer, MinDeltaRo, StartingRelaxRo, kT
 {
 }
 

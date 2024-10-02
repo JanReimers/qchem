@@ -65,12 +65,14 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -SphericalGuassian accept different exponent ranges for each L.
     -Dynamically adjust kT ?
     
-    -0 Need SCFConverge struct store
-        -kT for thermal spreading of valance electron occupancies.
+    Done: -Set up LinearAlgebraParams and feed in BasisSetImp
         -tol for basis set orthogonalization
         -Linalg package Pkg=OML or Lapack
         -Basis set ortho method Ortho=SVD,Eigen,Cholsky
         -Eps for Eigen convergence.
+        
+    Done: -0 Need SCFConverge struct store
+        -kT for thermal spreading of valance electron occupancies.
         -relax for Ro update.
         -epsRo minimum delta Ro
         -NMax maximum SCF iterations.
@@ -95,7 +97,7 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     Done -Reorg SCFIterator and EigenSolvers  ->Rename LASolver
     -Organize headers in the include folder.
     Does OML eigen/SVD have a hard coded eps?
-    -Remove BasisSet.C PASolver.C QuantumNumber.C  ExchangeFunctional.C
+    Done: -Remove BasisSet.C PASolver.C QuantumNumber.C  ExchangeFunctional.C
         Hamiltonain.C
         HamiltonianTerm.C
         Cluster.C
@@ -104,10 +106,10 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         FittedCD.C
 
     -Instancing in one file: 
-        TBasisFunction.C
+        Done: TBasisFunction.C
+        Done: TBasisSet.C
+        Done: TOrbital.C
         IntegralEngine.C
-        TBasisSet.C
-        TOrbital.C
         IntegralDataBase.C
         
     -Design FittedPolarizedCD stores pointer, PolarizedCD does not.

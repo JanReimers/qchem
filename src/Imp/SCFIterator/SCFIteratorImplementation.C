@@ -4,6 +4,7 @@
 
 #include "WaveFunction.H"
 #include "Imp/SCFIterator/SCFIteratorImplementation.H"
+#include "SCFIterator/IterationParams.H"
 #include "Hamiltonian.H"
 #include "TotalEnergy.H"
 #include "ChargeDensity.H"
@@ -60,7 +61,7 @@ SCFIteratorImplementation::~SCFIteratorImplementation()
     delete itsPlotter;
 }
 
-bool SCFIteratorImplementation::Iterate(double relax, double epsRo, int Nmax, double Smear)
+bool SCFIteratorImplementation::Iterate(const SCFIterationParams& ipar)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
@@ -69,12 +70,13 @@ bool SCFIteratorImplementation::Iterate(double relax, double epsRo, int Nmax, do
     double ChargeDensityChange=1;
     double Eold=0;
     double Eoldold=0;
-    double relMax=relax;
+    double relax;
+    double relMax=relax=ipar.StartingRelaxRo;
 
-    for (int i=0; i<Nmax && ChargeDensityChange > epsRo; i++)
+    for (int i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian); //Just gets a set of eigen orbitals from the Hamiltonian
-        DumpElectrons(itsWaveFunction,Smear);
+        DumpElectrons(itsWaveFunction,ipar.kT);
 
         delete itsOldExactChargeDensity;
         itsOldExactChargeDensity=itsExactChargeDensity;
@@ -103,7 +105,7 @@ bool SCFIteratorImplementation::Iterate(double relax, double epsRo, int Nmax, do
         Eold=E;
     }
 
-    return ChargeDensityChange <= epsRo;
+    return ChargeDensityChange <= ipar.MinDeltaRo;
 }
 
 

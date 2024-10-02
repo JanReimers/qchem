@@ -18,7 +18,6 @@ using std::endl;
 
 //DFTDataBase  theDataBase("Atom.db");
 extern PeriodicTable thePeriodicTable;
-extern double eps_ro; //Converge criterial for delta ro (charge density)
 double m_eps_e=1e-2;
 
 
@@ -34,7 +33,7 @@ TEST_P(DFTMoleculeTester, MoleculesDFTPolarized)
     Molecule* Hm=new Molecule();
     Hm->Insert(a1);
     Init(Hm,thePeriodicTable.GetSlaterAlpha(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
-    Iterate(1.0,eps_ro,40);
+    Iterate(itsSCFIParams);
     double E_DFT=thePeriodicTable.GetEnergyDFT(Z);
     double error=fabs((E_DFT-TotalEnergy())/E_DFT);
     std::cout.precision(5);
@@ -52,7 +51,7 @@ TEST_P(HartreeFockMoleculeTester, MoleculesHFPolarized)
     Molecule* Hm=new Molecule();
     Hm->Insert(a1);
     Init(Hm,thePeriodicTable.GetNumUnpairedElectrons(Z));
-    Iterate(1.0,eps_ro,40);
+    Iterate(itsSCFIParams);
     double E_HF=thePeriodicTable.GetEnergyHF(Z);
     double error=fabs((E_HF-TotalEnergy())/E_HF);
     std::cout.precision(5);
@@ -87,7 +86,7 @@ TEST_F(DFTMoleculeTester, N2)
     N2->Insert(a1);
     N2->Insert(a2);
     Init(N2,0.75197,0.0);
-    Iterate(0.5,eps_ro,60);
+    Iterate(itsSCFIParams);
     EXPECT_LT(fabs((E_N2-TotalEnergy())/E_N2), m_eps_e);
 }
 
@@ -104,7 +103,7 @@ TEST_F(SemiHartreeFockMoleculeTester, N2)
     N2->Insert(a1);
     N2->Insert(a2);
     Init(N2,0.75197,0.0);
-    Iterate(0.5,eps_ro,60);
+    Iterate(itsSCFIParams);
     EXPECT_LT(fabs((E_N2-TotalEnergy())/E_N2), m_eps_e);
 }
 
@@ -116,6 +115,6 @@ TEST_F(HartreeFockMoleculeTester, N2)
     N2->Insert(a1);
     N2->Insert(a2);
     Init(N2,0.0);
-    Iterate(0.5,eps_ro,60);
+    Iterate(itsSCFIParams);
     EXPECT_LT(fabs((E_N2-TotalEnergy())/E_N2), m_eps_e);
 }

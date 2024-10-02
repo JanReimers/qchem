@@ -11,6 +11,7 @@
 
 MoleculeTester::MoleculeTester() 
 : BaseTester() 
+, itsSCFIParams({40,1e-6,0.5,0.0})
 {};
 
 void MoleculeTester::Init(Molecule* m,double spin)

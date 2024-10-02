@@ -50,12 +50,12 @@ void PolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)
     itsDownEf=downed.GetFermiEnergy();
 }
 
-bool PolarizedSCFIterator::Iterate(double relax, double epsRo, int Nmax, double kT)
+bool PolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
 {
     std::cout << std::endl << std::endl;
     std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up)   Ef(down) " << std::endl;
     std::cout << "----------------------------------------------------------------------------" << std::endl;
-    bool ret=SCFIteratorImplementation::Iterate(relax,epsRo,Nmax,kT);
+    bool ret=SCFIteratorImplementation::Iterate(ipar);
     std::cout << "-----------------------------------------------------------------" << std::endl;
     DisplayEigen();
     return ret;

@@ -22,13 +22,13 @@ UnPolarizedSCFIterator::UnPolarizedSCFIterator(WaveFunction* W, Hamiltonian* H,C
     assert(itsTotalCharge>0);
 }
 
-bool UnPolarizedSCFIterator::Iterate(double relax, double epsRo, int Nmax, double kT)
+bool UnPolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
 {
     std::cout << std::endl << std::endl;
     std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up) " << std::endl;
     std::cout << "-------------------------------------------------------------------------------" << std::endl;
 
-    bool ret=SCFIteratorImplementation::Iterate(relax,epsRo,Nmax,kT);
+    bool ret=SCFIteratorImplementation::Iterate(ipar);
 
     std::cout << "-------------------------------------------------------------------------------" << std::endl;
     DisplayEigen();

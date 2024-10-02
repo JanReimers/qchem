@@ -20,6 +20,7 @@ public:
     int    itsNbasis;
     double itsEmin,itsEmax;
     int    itsLmax;
+    SCFIterationParams itsSCFIParams;
 };
 
 #endif // ATOMTESTER_H

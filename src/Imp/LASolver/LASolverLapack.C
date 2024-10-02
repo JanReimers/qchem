@@ -20,7 +20,7 @@ template <class T> LASolverLapackCommon<T>::LASolverLapackCommon(const LinearAlg
     , itsLapackEigenSolver(new oml::LapackEigenSolver<T>())
     , itsLapackSVDSolver  (new oml::LapackSVDSolver  <T>())
     {
-        assert(itsLapackLASolver);
+        assert(itsLapackEigenSolver);
         assert(itsLapackSVDSolver);
     }
 

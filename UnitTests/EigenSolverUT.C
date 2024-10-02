@@ -80,8 +80,8 @@ LinearAlgebraParams laps[] = {
 
 TEST_F(HartreeFockAtomTester, AtomsHFEigenSolvers)
 {
-    double eps_ro=1e-5; //Converge criterial for delta ro (charge density)
     double eps_e=2e-4; //Since we are truncating the BS we get higher errors.
+    SCFIterationParams ipar={40,1e-6,0.5,0.0};
     int Z=25,NBasis=20; //Mn with some D valance electrons
     int L=thePeriodicTable.GetMaxL(Z);
     double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
@@ -91,7 +91,7 @@ TEST_F(HartreeFockAtomTester, AtomsHFEigenSolvers)
     {
         std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z)  << " " << lap << std::endl;
         Init(NBasis,L,spin,lap);
-        Iterate(1.0,eps_ro,40);
+        Iterate(ipar);
         double E_HF=thePeriodicTable.GetEnergyHF(Z);
         double error=fabs((E_HF-TotalEnergy())/E_HF);
         std::cout.precision(7);

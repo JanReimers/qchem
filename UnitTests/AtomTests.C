@@ -14,7 +14,6 @@ using std::endl;
 DFTDataBase  theDataBase("Atom.db");
 PeriodicTable thePeriodicTable;
 
-double eps_ro=1e-5; //Converge criterial for delta ro (charge density)
 double eps_e=1e-4;
 
 TEST_P(HartreeFockAtomTester, AtomsHFPolarized)
@@ -22,7 +21,7 @@ TEST_P(HartreeFockAtomTester, AtomsHFPolarized)
     int Z=GetParam();
     std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
     Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
-    Iterate(1.0,eps_ro,40);
+    Iterate(itsSCFIParams);
     double E_HF=thePeriodicTable.GetEnergyHF(Z);
     double error=fabs((E_HF-TotalEnergy())/E_HF);
     std::cout.precision(5);
@@ -35,7 +34,7 @@ TEST_P(DFTAtomTester, AtomsDFTPolarized)
     int Z=GetParam();
     std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
     Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetSlaterAlpha(Z),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
-    Iterate(1.0,eps_ro,40);
+    Iterate(itsSCFIParams);
     double E_DFT=thePeriodicTable.GetEnergyDFT(Z);
     double error=fabs((E_DFT-TotalEnergy())/E_DFT);
     std::cout.precision(5);
@@ -48,7 +47,7 @@ TEST_P(SemiHartreeFockAtomTester, AtomsSemiDFTPolarized)
     int Z=GetParam();
     std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
     Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetSlaterAlpha(Z),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
-    Iterate(1.0,eps_ro,20);
+    Iterate(itsSCFIParams);
     double E_DFT=thePeriodicTable.GetEnergyDFT(Z);
     double error=fabs((E_DFT-TotalEnergy())/E_DFT);
     std::cout.precision(5);
@@ -73,7 +72,7 @@ INSTANTIATE_TEST_CASE_P(AtomsSemiDFTPolarized,
 //TEST_F(HartreeFockAtomTester, UraniumPolarized)
 //{
 //    Init(new Atom(thePeriodicTable.GetZ("U"),0,Vector3D<double>(0,0,0)),3,4.0);
-//    Iterate(1.0,eps_ro,50);
+//    Iterate(itsSCFIParams);
 //    double expected_energy=-25658.417889;
 //    EXPECT_LT(fabs((expected_energy-TotalEnergy())/expected_energy),eps_e);
 //}

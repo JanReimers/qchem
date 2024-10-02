@@ -11,7 +11,7 @@ class PolarizedSCFIterator
 public:
     PolarizedSCFIterator(PolarizedWF* W, Hamiltonian*, ChargeDensity* guess, double nElectrons, double spin, double kT, bool showplot);
 
-    virtual bool   Iterate(double relax, double epsRo, int Nmax, double kT);
+    virtual bool   Iterate(const SCFIterationParams& ipar);
     virtual void   DumpElectrons  (WaveFunction*, double kT);
     virtual double DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
     virtual void   DisplayEigen   () const;

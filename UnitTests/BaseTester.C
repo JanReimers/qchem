@@ -66,9 +66,9 @@ void BaseTester::Init(double spin)
                    MakeIterator(itsHamiltonian,GuessCD,itsCluster->GetNumElectrons(),0.0,false); //show plot flag.
 }
 
-void BaseTester::Iterate(double relax, double epsilon, int Niter)
+void BaseTester::Iterate(const SCFIterationParams& ipar)
 {
-    itsSCFIterator->Iterate(relax,epsilon,Niter,0.0);
+    itsSCFIterator->Iterate(ipar);
 }
 
 double BaseTester::TotalEnergy() const
