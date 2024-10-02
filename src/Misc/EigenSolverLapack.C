@@ -15,10 +15,10 @@
 //
 //  Lapack specific code
 //
-template <class T> EigenSolverLapackCommon<T>::EigenSolverLapackCommon()
-    : itsLapackEigenSolver(new oml::LapackEigenSolver<T>())
+template <class T> EigenSolverLapackCommon<T>::EigenSolverLapackCommon(const LinearAlgebraParams& lap)
+    : EigenSolverCommon<T>(lap)
+    , itsLapackEigenSolver(new oml::LapackEigenSolver<T>())
     , itsLapackSVDSolver  (new oml::LapackSVDSolver  <T>())
-    , eps(1e-12)
     {
         assert(itsLapackEigenSolver);
         assert(itsLapackSVDSolver);
@@ -35,24 +35,24 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverLapackCommon<T>::S
 //    {
 //        std::cerr << "Warning: Hamiltonian asymmetry = " << del << " is big!" << std::endl;
 //    }
-    auto [U,e]  =itsLapackEigenSolver->SolveAll(HPrime,eps);  //Get eigen solution.
+    auto [U,e]  =itsLapackEigenSolver->SolveAll(HPrime,itsParams.abstol);  //Get eigen solution.
     U = V * U;                      //Back transform.
     return std::make_tuple(U,e);
 }
 
 
-template <class T> EigenSolverLapackEigen<T>::EigenSolverLapackEigen(const SMat& S, double tolerance)
+template <class T> void EigenSolverLapackEigen<T>::SetBasisOverlap(const SMat& S)
 {
-    auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),eps);
-    EigenSolverCommon<T>::Truncate(U,w,tolerance);
+    auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),itsParams.abstol);
+    EigenSolverCommon<T>::Truncate(U,w,itsParams.TruncationTolerance);
     EigenSolverCommon<T>::Rescale(U,w);
     EigenSolverCommon<T>::AssignVs(U,~U);
 }
 
-template <class T> EigenSolverLapackSVD<T>::EigenSolverLapackSVD(const SMat& S, double tolerance)
+template <class T> void EigenSolverLapackSVD<T>::SetBasisOverlap(const SMat& S)
 {
-    auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S,eps);
-    EigenSolverCommon<T>::Truncate(U,sM,Vt,tolerance);
+    auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S,itsParams.abstol);
+    EigenSolverCommon<T>::Truncate(U,sM,Vt,itsParams.TruncationTolerance);
     RVec s=sM.GetDiagonal();
 //    Mat sM(s.GetLimits(),s.GetLimits());
 //    Fill(sM,0.0);
@@ -64,7 +64,7 @@ template <class T> EigenSolverLapackSVD<T>::EigenSolverLapackSVD(const SMat& S, 
     EigenSolverCommon<T>::AssignVs(U,Vt);
 }
 
-template <class T> EigenSolverLapackCholsky<T>::EigenSolverLapackCholsky(const SMat& S, double tolerance)
+template <class T> void EigenSolverLapackCholsky<T>::SetBasisOverlap(const SMat& S)
 {
     std::cerr << "General Eigen solver Lapack Cholsky is not implemented yet" << std::endl;
     exit(-1);

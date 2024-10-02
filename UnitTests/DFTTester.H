@@ -21,10 +21,19 @@ class DFTAtomTester : public AtomTester, public DFTTester
 {
 public:
     DFTAtomTester() : AtomTester(17,.01,200000.0) {};
+    void Init(Atom* atom)
+    {
+        AtomTester::Init(atom);
+    }
     void Init(Atom* atom, double Exchange, int Lmax, double spin)
     {
         DFTTester::Init(Exchange);
         AtomTester::Init(atom,Lmax,spin);
+    }
+    void Init(double Exchange, int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+    {
+        DFTTester::Init(Exchange);
+        AtomTester::Init(NBasis,Lmax,spin,lap);
     }
 
 };
@@ -33,10 +42,16 @@ public:
 class DFTMoleculeTester : public MoleculeTester, public DFTTester
 {
 public:
-   void Init(Molecule* m,double Exchange, double spin)
+    DFTMoleculeTester() : MoleculeTester() {};
+    void Init(Molecule* m,double Exchange, double spin)
     {
         DFTTester::Init(Exchange);
         MoleculeTester::Init(m,spin);
+    }
+    void Init(Molecule* m,double Exchange, double spin, const LinearAlgebraParams& lap)
+    {
+        DFTTester::Init(Exchange);
+        MoleculeTester::Init(m,spin,lap);
     }
 
 };

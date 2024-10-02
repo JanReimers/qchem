@@ -48,6 +48,7 @@ TEST_P(HartreeFockMoleculeTester, MoleculesHFPolarized)
     int Z=GetParam();
     std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
     Atom* a1=new Atom(Z,0,Vector3D<double>(0,0,0));
+
     Molecule* Hm=new Molecule();
     Hm->Insert(a1);
     Init(Hm,thePeriodicTable.GetNumUnpairedElectrons(Z));

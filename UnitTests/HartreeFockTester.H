@@ -18,17 +18,24 @@ class HartreeFockAtomTester
 
 {
 public:
-  HartreeFockAtomTester() : AtomTester(27,.01,200000.0) {};
+  HartreeFockAtomTester() : AtomTester(27,.01,20000.0) {};
+  void Init(Atom* atom);
   void Init(Atom* atom, int Lmax, double spin);
+  void Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams&);
 };
 
 #include "MoleculeTester.H"
 class HartreeFockMoleculeTester : public MoleculeTester, public HartreeFockTester
 {
 public:
-   void Init(Molecule* m, double spin)
+    HartreeFockMoleculeTester() : MoleculeTester() {}
+    void Init(Molecule* m,double spin)
     {
         MoleculeTester::Init(m,spin);
+    }
+    void Init(Molecule* m,double spin, const LinearAlgebraParams& lap)
+    {
+        MoleculeTester::Init(m,spin,lap);
     }
 
 };

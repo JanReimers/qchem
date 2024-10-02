@@ -28,14 +28,16 @@ SphericalGaussianBS::SphericalGaussianBS()
     , TBasisSetImplementation<double>()
 {};
 
-SphericalGaussianBS::SphericalGaussianBS(IntegralDataBase<double>* theDB,
+SphericalGaussianBS::SphericalGaussianBS(
+        const LinearAlgebraParams& lap,
+        IntegralDataBase<double>* theDB,
         size_t size,
         double minexp,
         double maxexp,
         size_t L,
         Mesh* theMesh)
     : BasisSetImplementation(new SphericalSymmetryQN(L))
-    , TBasisSetImplementation<double>(theDB)
+    , TBasisSetImplementation<double>(lap,theDB)
 {
     Vector<double> exp(size);
     FillPower(exp,minexp,maxexp);

@@ -13,6 +13,7 @@ template <class T> class EigenSolverOMLCommon
     typedef typename Base::SMat SMat;
     typedef typename Base::UdType UdType;
 public:
+    EigenSolverOMLCommon(const LinearAlgebraParams& lap) : EigenSolverCommon<T>(lap) {};
     virtual UdType Solve(const SMat&) const;
     
     using EigenSolverCommon<T>::V;
@@ -27,7 +28,11 @@ template <class T> class EigenSolverOMLEigen
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
 public:
-    EigenSolverOMLEigen(const SMat& S, double tolerance);
+    EigenSolverOMLEigen(const LinearAlgebraParams& lap) : EigenSolverOMLCommon<T>(lap) {};
+
+    virtual void   SetBasisOverlap(const SMat& S);
+
+    using  EigenSolverOMLCommon<T>::itsParams;
 };
 
 template <class T> class EigenSolverOMLSVD
@@ -38,7 +43,11 @@ template <class T> class EigenSolverOMLSVD
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
 public:
-    EigenSolverOMLSVD(const SMat& S, double tolerance);
+    EigenSolverOMLSVD(const LinearAlgebraParams& lap) : EigenSolverOMLCommon<T>(lap) {};
+
+    virtual void   SetBasisOverlap(const SMat& S);
+
+    using  EigenSolverCommon<T>::itsParams;
 };
 
 template <class T> class EigenSolverOMLCholsky
@@ -49,7 +58,11 @@ template <class T> class EigenSolverOMLCholsky
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
 public:
-    EigenSolverOMLCholsky(const SMat& S, double tolerance);
+    EigenSolverOMLCholsky(const LinearAlgebraParams& lap) : EigenSolverOMLCommon<T>(lap) {};
+
+    virtual void   SetBasisOverlap(const SMat& S);
+
+    using  EigenSolverCommon<T>::itsParams;
 };
 
 

@@ -13,6 +13,7 @@ using std::endl;
 
 DFTDataBase  theDataBase("Atom.db");
 PeriodicTable thePeriodicTable;
+
 double eps_ro=1e-5; //Converge criterial for delta ro (charge density)
 double eps_e=1e-4;
 
@@ -66,6 +67,8 @@ INSTANTIATE_TEST_CASE_P(AtomsDFTPolarized,
 INSTANTIATE_TEST_CASE_P(AtomsSemiDFTPolarized,
                         SemiHartreeFockAtomTester,
                         ::testing::Range(3,17));
+
+
 
 //TEST_F(HartreeFockAtomTester, UraniumPolarized)
 //{

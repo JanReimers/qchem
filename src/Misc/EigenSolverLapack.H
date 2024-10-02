@@ -16,12 +16,14 @@ template <class T> class EigenSolverLapackCommon
     typedef typename Base::SMat SMat;
     typedef typename Base::UdType UdType;
 public:
-    EigenSolverLapackCommon();
-    virtual UdType Solve(const SMat&) const;
+    EigenSolverLapackCommon(const LinearAlgebraParams&);
+
+    virtual UdType Solve          (const SMat& H) const;
     
+    using  EigenSolverCommon<T>::itsParams;
+
     oml::EigenSolver<T>* itsLapackEigenSolver;
     oml::  SVDSolver<T>* itsLapackSVDSolver;
-    double eps;
     using EigenSolverCommon<T>::V;
     using EigenSolverCommon<T>::Vd;
 };
@@ -34,9 +36,12 @@ template <class T> class EigenSolverLapackEigen
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
 public:
-    EigenSolverLapackEigen(const SMat& S, double tolerance);
+    EigenSolverLapackEigen(const LinearAlgebraParams& lap) : EigenSolverLapackCommon<T>(lap) {};
+
+    virtual void   SetBasisOverlap(const SMat& S);
+
     using  EigenSolverLapackCommon<T>::itsLapackEigenSolver;
-    using  EigenSolverLapackCommon<T>::eps;
+    using  EigenSolverCommon<T>::itsParams;
 
 };
 
@@ -49,9 +54,12 @@ template <class T> class EigenSolverLapackSVD
     typedef typename Base::SMat SMat;
     typedef typename Base::RVec RVec;
 public:
-    EigenSolverLapackSVD(const SMat& S, double tolerance);
+    EigenSolverLapackSVD(const LinearAlgebraParams& lap) : EigenSolverLapackCommon<T>(lap) {};
+
+    virtual void   SetBasisOverlap(const SMat& S);
+
     using  EigenSolverLapackCommon<T>::itsLapackSVDSolver;
-    using  EigenSolverLapackCommon<T>::eps;
+    using  EigenSolverCommon<T>::itsParams;
 };
 
 template <class T> class EigenSolverLapackCholsky
@@ -62,7 +70,8 @@ template <class T> class EigenSolverLapackCholsky
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
 public:
-    EigenSolverLapackCholsky(const SMat& S, double tolerance);
+    EigenSolverLapackCholsky(const LinearAlgebraParams& lap) : EigenSolverLapackCommon<T>(lap) {};
+    virtual void   SetBasisOverlap(const SMat& S);
 };
 
 

@@ -54,6 +54,9 @@ class Spin;
 class TotalEnergy;
 class WaveFunction;
 
+struct LinearAlgebraParams;
+struct SCFIterationParams;
+
 
 template <class T> class EigenSolver;
 template <class T> class IntegralDataBase;

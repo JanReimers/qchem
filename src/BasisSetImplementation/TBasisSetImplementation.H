@@ -7,6 +7,7 @@
 #include "BasisSet/TBasisSet.H"
 #include "FunctionsImp/VectorFunctionBuffer.H"
 #include "BasisSet/IntegralEngine.H"
+#include "SCFIteration/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
 #include "oml/matrix.h"
@@ -36,7 +37,7 @@ protected:
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
     TBasisSetImplementation(                              );
-    TBasisSetImplementation(IntegralDataBase<T>*          );
+    TBasisSetImplementation(const LinearAlgebraParams& lap, IntegralDataBase<T>*);
     TBasisSetImplementation(const TBasisSetImplementation&);
     ~TBasisSetImplementation(                              );
 
@@ -88,7 +89,9 @@ protected:
 private:
     virtual void Eval    (const Mesh&,     Mat&) const;
     virtual void EvalGrad(const Mesh&, Vec3Mat&) const;
-
+protected:
+    LinearAlgebraParams          itsLAParams;
+private:
     rc_ptr<IntegralEngine  <T> > itsIntegralEngine;
     mutable PerRef<IntegralDataBase<T> > itsDataBase;
     mutable EigenSolver<T>*              itsEigenSolver;

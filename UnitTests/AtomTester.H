@@ -9,8 +9,9 @@ class AtomTester : public virtual BaseTester
 {
 public:
     AtomTester(size_t n, double emin, double emax);
-    void Init(Atom* atom, int Lmax, double spin);
-    void Init(Atom* atom, int NBasis, int Lmax, double spin);
+    void Init(Atom* atom); //Only call this once
+    void Init(Atom* atom, int Lmax,double spin);
+    void Init(int NBasis, int Lmax,double spin, const LinearAlgebraParams&);
     virtual BasisSet*  GetXbasisSet() const;
     virtual BasisSet*  GetCbasisSet() const;
     virtual Mesh*      GetIntegrationMesh() const;

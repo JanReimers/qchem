@@ -29,9 +29,18 @@ public:
     {
         
     }
-    void Init(Atom* atom, int NBasis, int Lmax, double spin)
+    
+    void Init(Atom* atom)
     {
-        AtomTester::Init(atom,NBasis,Lmax,spin);
+        AtomTester::Init(atom);
+    }
+    void Init(Atom* atom, int Lmax, double spin)
+    {
+        AtomTester::Init(atom,Lmax,spin);
+    }
+    void Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+    {
+        AtomTester::Init(NBasis,Lmax,spin,lap);
     }
 //    void OutIn(const PMStreamableObject* pout,PMStreamableObject* pin,StreamableObject::Mode);
     
@@ -60,8 +69,13 @@ template <class T> T* OutIn(const PMStreamableObject* pout,c_str filename,Stream
 TEST_F(qchem_PersistanceTests,AtomBasisSets)
 {
     
-    int Z=51,NBasis=6;
-    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),NBasis,thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
+    int Z=51;
+    int L=thePeriodicTable.GetMaxL(Z),NBasis=6;
+    double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
+    Atom* atom=new Atom(Z,0,Vector3D<double>(0,0,0));
+    Init(atom);
+    LinearAlgebraParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
+    Init(NBasis,L,spin,lap);
     StreamableObject::SetToPretty();
     
     Cluster* cl=GetCluster();

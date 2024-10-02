@@ -73,9 +73,9 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V,
             index++;
         else
             break;
-    assert(s(index)>=tol);
-    assert(s(index+1)<tol);
     size_t n=s.size();
+    assert(s(index)>=tol);
+    assert(index==n || s(index+1)<tol);
     std::cout << "EigenSolverCommon truncating " << n-index << " singular values." << 
     " Min(s)="<< s(n) << " yol=" << tol << std::endl;
     //
@@ -137,36 +137,36 @@ template class EigenSolverCommon<double>;
 
 
 template <class T> EigenSolver<T>* EigenSolver<T>::
-    Factory(EigenSolver<T>::Pkg pkg,EigenSolver<T>::Ortho ortho,const SMat& S, double tolerance)
+    Factory(const LinearAlgebraParams& lap)
 {
     EigenSolver<T>* ret=0;
-    switch (pkg)
+    switch (lap.LinearAlgebraPackage)
     {
-    case OML:
-        switch (ortho)
+    case qchem::OML:
+        switch (lap.BasisOrthoAlgorithm)
         {
-        case Cholsky :
-            ret=new EigenSolverOMLCholsky<T>(S,tolerance);
+        case qchem::Cholsky :
+            ret=new EigenSolverOMLCholsky<T>(lap);
             break;
-        case Eigen :
-            ret=new EigenSolverOMLEigen<T>(S,tolerance);
+        case qchem::Eigen :
+            ret=new EigenSolverOMLEigen<T>(lap);
             break;
-        case SVD :
-            ret=new EigenSolverOMLSVD<T>(S,tolerance);
+        case qchem::SVD :
+            ret=new EigenSolverOMLSVD<T>(lap);
             break;
         }
         break;
-   case Lapack:
-        switch (ortho)
+   case qchem::Lapack:
+        switch (lap.BasisOrthoAlgorithm)
         {
-        case Cholsky :
-            ret=new EigenSolverLapackCholsky<T>(S,tolerance);
+        case qchem::Cholsky :
+            ret=new EigenSolverLapackCholsky<T>(lap);
             break;
-        case Eigen :
-            ret=new EigenSolverLapackEigen<T>(S,tolerance);
+        case qchem::Eigen :
+            ret=new EigenSolverLapackEigen<T>(lap);
             break;
-        case SVD :
-            ret=new EigenSolverLapackSVD<T>(S,tolerance);
+        case qchem::SVD :
+            ret=new EigenSolverLapackSVD<T>(lap);
             break;
         break;
         }

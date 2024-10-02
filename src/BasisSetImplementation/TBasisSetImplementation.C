@@ -30,8 +30,9 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
     , itsEigenSolver         (0)
 {};
 
-template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(IntegralDataBase<T>* theDataBase)
+template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
+    , itsLAParams            (lap)
     , itsIntegralEngine      (0)
     , itsDataBase            (theDataBase)
     , itsEigenSolver         (0)
@@ -39,6 +40,7 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(IntegralD
 
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const TBasisSetImplementation<T>& bs)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
+    , itsLAParams            (bs.itsLAParams)
     , itsIntegralEngine      (bs.itsIntegralEngine)
     , itsDataBase            (bs.itsDataBase)
     , itsEigenSolver         (0)
@@ -327,10 +329,11 @@ template <class T> void TBasisSetImplementation<T>::EvalGrad(const Mesh& mesh, V
 
 template <class T> EigenSolver<T>* TBasisSetImplementation<T>::GetEigenSolver() const
 {
-    if (!itsEigenSolver)
+    if (!itsEigenSolver) 
     {
         SMat S=GetDataBase()->GetOverlap();
-        itsEigenSolver=EigenSolver<T>::Factory(EigenSolver<T>::Lapack,EigenSolver<T>::SVD,S,0.0);
+        itsEigenSolver=EigenSolver<T>::Factory(itsLAParams);
+        itsEigenSolver->SetBasisOverlap(S);
     }
     assert(itsEigenSolver);
     return itsEigenSolver;

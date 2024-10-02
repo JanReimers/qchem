@@ -57,4 +57,40 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         map<{BasisID1,BasisID2,type},ERI4>
         BasisID2=0 for one BS integrals.
         Handle swaps of BS 1 and 2?
-    -Use SMatrix for most integrals, and Hamiltonian matrices.
+    -Support SMatrix for Lapack solvers.
+        Lapack uses the extra space in the full matrix as working space.
+        So we end up converting to full anyway.  THis is just a convenience for the user.
+    Done -Make a trim function to weed out small SV and EV solutions.  This will reduce
+     the order of H, which may cause some problem in the qchem code.
+    -SphericalGuassian accept different exponent ranges for each L.
+    -Dynamically adjust kT ?
+    
+    -0 Need SCFConverge struct store
+        -kT for thermal spreading of valance electron occupancies.
+        -tol for basis set orthogonalization
+        -Linalg package Pkg=OML or Lapack
+        -Basis set ortho method Ortho=SVD,Eigen,Cholsky
+        -Eps for Eigen convergence.
+        -relax for Ro update.
+        -epsRo minimum delta Ro
+        -NMax maximum SCF iterations.
+        -smear?  Same as kT?
+    -0.1 remove eps from Lapack SVD code,  not used!
+    Done: 1 Need a way to feed tol, Lapack-eps, Pkg, Ortho enums into BasisSetImp or feed the solver in.
+        Done: What is Lapack-eps?  Convergence?
+    Dene: -2 use 1 to make some UTs with all supported combos
+    -3 Use 2 to Harmonize Truncate routine for OML/Lapack SVD
+    -DFT stop using InverseOverlap ... use SVD solver or something more stable.
+    -Design problem:  
+        IrrepWaveFunction creates and hold an rc_ptr<const BasisSet> which is also copied into
+        the Ortbitals object.  Updateing the orbital is done by:
+        TBasisSetImplementation<T>::CreateOrbitals.  But this function cannot just use this to create
+        new orbitals, it needs the original rc_ptr.  Options:
+        1) IrrepWaveFunction does and extra step to inject the rc_ptr.
+            This means Orbital needs and Inject(rc_ptr<>) function.
+            
+    -Way do we need default constructos for basisSet, Clusters, hamiltonians.
+    -Design question:
+        Who should own the Hamitonian ... right now SCFIterator is deleting it.
+    
+    Does OML eigen/SVD have a hard coded eps?

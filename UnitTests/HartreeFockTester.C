@@ -20,7 +20,17 @@ HamiltonianTerm* HartreeFockTester::GetVxc(double spin) const
     return ret;
 }
 
+void HartreeFockAtomTester::Init(Atom* atom)
+{
+    AtomTester::Init(atom);
+}
+
 void HartreeFockAtomTester::Init(Atom* atom, int Lmax, double spin)
 {
     AtomTester::Init(atom,Lmax,spin);
+}
+
+void HartreeFockAtomTester::Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+{
+    AtomTester::Init(NBasis,Lmax,spin,lap);
 }

@@ -81,7 +81,7 @@
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.H" />
 		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.H" />
 		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.C">
@@ -547,6 +547,14 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/EigenSolver.H" />
+		<Unit filename="src/Misc/EigenSolverLapack.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/EigenSolverLapack.H" />
+		<Unit filename="src/Misc/EigenSolverOML.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/Misc/EigenSolverOML.H" />
 		<Unit filename="src/Misc/IntPower.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -590,14 +598,14 @@
 		</Unit>
 		<Unit filename="src/Misc/Unpickle.H" />
 		<Unit filename="src/Misc/pmstream.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/pmstream.h" />
 		<Unit filename="src/Misc/ptr_vector1.h" />
 		<Unit filename="src/Misc/ptr_vector1_io.h" />
 		<Unit filename="src/Misc/rc_ptr.H" />
 		<Unit filename="src/Misc/stl_io.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/stl_io.h" />
 		<Unit filename="src/Orbital/ElectronContainer.C">
@@ -652,6 +660,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/OrbitalImplementation/TOrbitalImplementation.H" />
+		<Unit filename="src/SCFIteration/IterationParams.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="src/SCFIteration/IterationParams.H" />
 		<Unit filename="src/WaveFunction/PolarizedWF.C">
 			<Option compilerVar="CPP" />
 		</Unit>

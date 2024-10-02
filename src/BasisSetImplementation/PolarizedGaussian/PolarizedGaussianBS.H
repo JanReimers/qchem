@@ -19,7 +19,7 @@ class PolarizedGaussianBS
 {
 public:
     PolarizedGaussianBS();
-    PolarizedGaussianBS(IntegralDataBase<double>*, RadialFunctionReader*, const Cluster*, Mesh* m=0);
+    PolarizedGaussianBS(const LinearAlgebraParams&, IntegralDataBase<double>*, RadialFunctionReader*, const Cluster*, Mesh* m=0);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;

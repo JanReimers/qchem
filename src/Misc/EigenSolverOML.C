@@ -23,18 +23,18 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverOMLCommon<T>::Solv
 }
 
 
-template <class T> EigenSolverOMLEigen<T>::EigenSolverOMLEigen(const SMat& S, double tolerance)
+template <class T> void EigenSolverOMLEigen<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,w] =Diagonalize(S);
-    EigenSolverCommon<T>::Truncate(U,w,tolerance);
+    EigenSolverCommon<T>::Truncate(U,w,itsParams.TruncationTolerance);
     EigenSolverCommon<T>::Rescale(U,w);
     EigenSolverCommon<T>::AssignVs(U,~U);
 }
 
-template <class T> EigenSolverOMLSVD<T>::EigenSolverOMLSVD(const SMat& S, double tolerance)
+template <class T> void EigenSolverOMLSVD<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,s,V] =SVD(S);
-    EigenSolverCommon<T>::Truncate(U,s,V,tolerance);
+    EigenSolverCommon<T>::Truncate(U,s,V,itsParams.TruncationTolerance);
 
 //    Mat sM(s.GetLimits(),s.GetLimits());
 //    Fill(sM,0.0);
@@ -47,7 +47,7 @@ template <class T> EigenSolverOMLSVD<T>::EigenSolverOMLSVD(const SMat& S, double
     EigenSolverCommon<T>::AssignVs(U,~V);
 }
 
-template <class T> EigenSolverOMLCholsky<T>::EigenSolverOMLCholsky(const SMat& S, double tolerance)
+template <class T> void EigenSolverOMLCholsky<T>::SetBasisOverlap(const SMat& S)
 {
     Mat U=S;
     Cholsky(U); //U is noe upper triangular, S=U*U_dagger 

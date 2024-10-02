@@ -2,6 +2,7 @@
 #define BASETESTER_H
 
 #include "gtest/gtest.h"
+#include "SCFIteration/IterationParams.H"
 #include "Misc/rc_ptr.h"
 
 class HamiltonianTerm;
@@ -12,6 +13,8 @@ class WaveFunction;
 class SCFIterator;
 class Cluster;
 class BasisGroup;
+
+
 
 //----------------------------------------------------------------------------------------------
 //
@@ -25,6 +28,7 @@ public:
     BaseTester();
     virtual ~BaseTester();
     void Init(double spin);
+    void Init(double spin,const LinearAlgebraParams&);
 
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc(double spin) const=0;
@@ -42,6 +46,7 @@ public:
     double TotalEnergy() const;
 
 protected:
+    LinearAlgebraParams    itsLAParams;
     rc_ptr<Cluster>        itsCluster;
     BasisGroup*            itsBasisGroup;
 private:

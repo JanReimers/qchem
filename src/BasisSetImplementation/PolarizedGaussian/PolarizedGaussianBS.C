@@ -31,9 +31,9 @@ PolarizedGaussianBS::PolarizedGaussianBS()
 {};
 
 PolarizedGaussianBS::
-PolarizedGaussianBS(IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, const Cluster* cl, Mesh * theMesh)
+PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, const Cluster* cl, Mesh * theMesh)
     : BasisSetImplementation(new UnitSymmetryQN)
-    , TBasisSetImplementation<double>(theDB)
+    , TBasisSetImplementation<double>(lap,theDB)
 {
 //
 //  Read in all the radial functions.
@@ -114,7 +114,7 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
         IntegralDataBase<double>* theDB,
         const optr_vector1<BasisFunctionBlock*>& theBlocks)
     : BasisSetImplementation(*bs)
-    , TBasisSetImplementation<double>(theDB)
+    , TBasisSetImplementation<double>(bs->itsLAParams,theDB)
     , itsBlocks(theBlocks)
 {
     // No UT coverage
