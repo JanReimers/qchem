@@ -2,4 +2,4 @@
 
 
 
-#include "WaveFunction/SCFIterator.H"
+#include "SCFIterator/SCFIterator.H"

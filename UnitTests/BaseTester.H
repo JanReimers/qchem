@@ -2,7 +2,7 @@
 #define BASETESTER_H
 
 #include "gtest/gtest.h"
-#include "SCFIteration/IterationParams.H"
+#include "SCFIterator/IterationParams.H"
 #include "Misc/rc_ptr.h"
 
 class HamiltonianTerm;

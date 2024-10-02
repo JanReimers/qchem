@@ -8,7 +8,7 @@
 #include "HamiltonianImplementation/Kinetic.H"
 #include "WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H"
 #include "WaveFunctionImp/MasterWF/MasterPolarizedWF.H"
-#include "WaveFunction/SCFIterator.H"
+#include "SCFIterator/SCFIterator.H"
 #include "Cluster/Molecule.H"
 
 BaseTester::BaseTester()

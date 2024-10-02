@@ -1,6 +1,6 @@
 // File: SCFIteratorImplementation.H  Partial common implementation for an object that manages SCF convergence.
 
-#include "WaveFunction/SCFIterator.H"
+#include "SCFIterator/SCFIterator.H"
 
 class SCFIteratorImplementation
     : public virtual SCFIterator

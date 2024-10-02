@@ -1,12 +1,12 @@
-// File: EigenSolverOML.C  General eigen solver.
+// File: LASolverOML.C  General eigen solver.
 
-#include "Misc/EigenSolver.H"
-#include "Misc/EigenSolverOML.H"
+#include "LASolver/LASolver.H"
+#include "Imp/LASolver/LASolverOML.H"
 #include "oml/smatrix.h"
 #include "oml/numeric.h"
 #include <iostream>
 
-template <class T> typename EigenSolver<T>::UdType EigenSolverOMLCommon<T>::Solve(const SMat& Ham) const
+template <class T> typename LASolver<T>::UdType LASolverOMLCommon<T>::Solve(const SMat& Ham) const
 {
     assert(!isnan(Ham));
 	StreamableObject::SetToPretty();
@@ -23,31 +23,31 @@ template <class T> typename EigenSolver<T>::UdType EigenSolverOMLCommon<T>::Solv
 }
 
 
-template <class T> void EigenSolverOMLEigen<T>::SetBasisOverlap(const SMat& S)
+template <class T> void LASolverOMLEigen<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,w] =Diagonalize(S);
-    EigenSolverCommon<T>::Truncate(U,w,itsParams.TruncationTolerance);
-    EigenSolverCommon<T>::Rescale(U,w);
-    EigenSolverCommon<T>::AssignVs(U,~U);
+    LASolverCommon<T>::Truncate(U,w,itsParams.TruncationTolerance);
+    LASolverCommon<T>::Rescale(U,w);
+    LASolverCommon<T>::AssignVs(U,~U);
 }
 
-template <class T> void EigenSolverOMLSVD<T>::SetBasisOverlap(const SMat& S)
+template <class T> void LASolverOMLSVD<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,s,V] =SVD(S);
-    EigenSolverCommon<T>::Truncate(U,s,V,itsParams.TruncationTolerance);
+    LASolverCommon<T>::Truncate(U,s,V,itsParams.TruncationTolerance);
 
 //    Mat sM(s.GetLimits(),s.GetLimits());
 //    Fill(sM,0.0);
 //    sM.GetDiagonal()=s;
     //double err1=Max(fabs(U*sM*~V-S));
-    EigenSolverCommon<T>::Rescale(U,s);
-    EigenSolverCommon<T>::Rescale(V,s);
+    LASolverCommon<T>::Rescale(U,s);
+    LASolverCommon<T>::Rescale(V,s);
     //double err2=Max(fabs(U*~V-S));
     //std::cout << "SVD errors " << err1 << " " << err2 << std::endl;
-    EigenSolverCommon<T>::AssignVs(U,~V);
+    LASolverCommon<T>::AssignVs(U,~V);
 }
 
-template <class T> void EigenSolverOMLCholsky<T>::SetBasisOverlap(const SMat& S)
+template <class T> void LASolverOMLCholsky<T>::SetBasisOverlap(const SMat& S)
 {
     Mat U=S;
     Cholsky(U); //U is noe upper triangular, S=U*U_dagger 
@@ -55,11 +55,11 @@ template <class T> void EigenSolverOMLCholsky<T>::SetBasisOverlap(const SMat& S)
     InvertTriangular(Uinv); //
 //    double err1=Max(fabs(U*~U-S));
 //    std::cout << "Cholsky errors " << err1 << std::endl;
-    EigenSolverCommon<T>::AssignVs(~Uinv,Uinv);
+    LASolverCommon<T>::AssignVs(~Uinv,Uinv);
 }
 
 
-template class EigenSolverOMLCommon<double>;
-template class EigenSolverOMLEigen<double>;
-template class EigenSolverOMLSVD<double>;
-template class EigenSolverOMLCholsky<double>;
+template class LASolverOMLCommon<double>;
+template class LASolverOMLEigen<double>;
+template class LASolverOMLSVD<double>;
+template class LASolverOMLCholsky<double>;

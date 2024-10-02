@@ -7,7 +7,7 @@
 #include "BasisSet/TBasisSet.H"
 #include "FunctionsImp/VectorFunctionBuffer.H"
 #include "BasisSet/IntegralEngine.H"
-#include "SCFIteration/IterationParams.H"
+#include "SCFIterator/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
 #include "oml/matrix.h"
@@ -73,8 +73,8 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-    virtual IntegralDataBase<T>* GetDataBase    () const;
-    virtual EigenSolver<T>*      GetEigenSolver () const;
+    virtual IntegralDataBase<T>* GetDataBase () const;
+    virtual LASolver<T>*         GetLASolver () const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
@@ -94,7 +94,7 @@ protected:
 private:
     rc_ptr<IntegralEngine  <T> > itsIntegralEngine;
     mutable PerRef<IntegralDataBase<T> > itsDataBase;
-    mutable EigenSolver<T>*              itsEigenSolver;
+    mutable LASolver<T>*                 itsLASolver;
 };
 
 #endif //_TBasisSetImplementation_H_

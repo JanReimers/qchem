@@ -1,6 +1,6 @@
-// File: EigenSolver.C  General eigen solver.
+// File: LASolver.C  General eigen solver.
 
-#include "Misc/EigenSolver.H"
+#include "Imp/LASolver/LASolverImp.H"
 #include "oml/diagonalmatrix.h"
 #include "oml/vector.h"
 #include <cmath>
@@ -9,14 +9,14 @@
 //
 //  Common level.
 //
-template <class T> void EigenSolverCommon<T>::Rescale(Mat& V,const RVec& w)
+template <class T> void LASolverCommon<T>::Rescale(Mat& V,const RVec& w)
 {
     for (auto j:V.cols())
         V.GetColumn(j)/=sqrt(w(j));
         
 }
 
-template <class T> void EigenSolverCommon<T>::Rescale(Mat& U,const RVec& s, Mat& Vt)
+template <class T> void LASolverCommon<T>::Rescale(Mat& U,const RVec& s, Mat& Vt)
 {
     for (auto j:U.cols())
         U.GetColumn(j)/=sqrt(s(j));
@@ -28,7 +28,7 @@ template <class T> void EigenSolverCommon<T>::Rescale(Mat& U,const RVec& s, Mat&
 //
 //  UsV from Lapack SVD which returns a diag matrix for s.
 //
-template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, DMat& s, Mat& Vt, double tol)
+template <class T>  void LASolverCommon<T>::Truncate(Mat& U, DMat& s, Mat& Vt, double tol)
 {
     assert(U.GetLimits()==s.GetLimits());
     assert(U.GetLimits()==Vt.GetLimits());
@@ -42,7 +42,7 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, DMat& s, Mat& Vt
     assert(s(index,index)>=tol);
     assert(s(index+1,index+1)<tol);
     size_t n=s.GetDiagonal().size();
-    std::cout << "EigenSolverCommon truncating " << n-index << " singular values." << 
+    std::cout << "LASolverCommon truncating " << n-index << " singular values." << 
     " Min(s)="<< s(n,n) << " yol=" << tol << std::endl;
     //
     //  Two sets of vector limits
@@ -61,7 +61,7 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, DMat& s, Mat& Vt
 //
 //  UsV from OML SVD which returns a diag matrix for s.
 //
-template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V, double tol)
+template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V, double tol)
 {
     assert(U.GetRowLimits()==s.GetLimits());
     assert(U.GetColLimits()==s.GetLimits());
@@ -76,7 +76,7 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V,
     size_t n=s.size();
     assert(s(index)>=tol);
     assert(index==n || s(index+1)<tol);
-    std::cout << "EigenSolverCommon truncating " << n-index << " singular values." << 
+    std::cout << "LASolverCommon truncating " << n-index << " singular values." << 
     " Min(s)="<< s(n) << " yol=" << tol << std::endl;
     //
     //  Two sets of vector limits
@@ -95,7 +95,7 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V,
 //
 //  Version for eigen routines which conventionally return ascending eigen vales.
 //
-template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& w,double tol)
+template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& w,double tol)
 {
     assert(U.GetColLimits()==w.GetLimits());
     //  Find the index to truncate at.
@@ -110,7 +110,7 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& w,double t
     if (index>1)
     {
         assert(w(index-1)<tol);
-        std::cout << "EigenSolverCommon truncating " << index-1 << " eigen values." << 
+        std::cout << "LASolverCommon truncating " << index-1 << " eigen values." << 
             " Min(w)="<< w(1) << " yol=" << tol << std::endl;
         //
         //  Two sets of vector limits
@@ -128,31 +128,31 @@ template <class T>  void EigenSolverCommon<T>::Truncate(Mat& U, RVec& w,double t
     }
 }
 
-template class EigenSolver<double>;
-template class EigenSolverCommon<double>;
+template class LASolver<double>;
+template class LASolverCommon<double>;
 
 
-#include "Misc/EigenSolverOML.H"
-#include "Misc/EigenSolverLapack.H"
+#include "Imp/LASolver/LASolverOML.H"
+#include "Imp/LASolver/LASolverLapack.H"
 
 
-template <class T> EigenSolver<T>* EigenSolver<T>::
+template <class T> LASolver<T>* LASolver<T>::
     Factory(const LinearAlgebraParams& lap)
 {
-    EigenSolver<T>* ret=0;
+    LASolver<T>* ret=0;
     switch (lap.LinearAlgebraPackage)
     {
     case qchem::OML:
         switch (lap.BasisOrthoAlgorithm)
         {
         case qchem::Cholsky :
-            ret=new EigenSolverOMLCholsky<T>(lap);
+            ret=new LASolverOMLCholsky<T>(lap);
             break;
         case qchem::Eigen :
-            ret=new EigenSolverOMLEigen<T>(lap);
+            ret=new LASolverOMLEigen<T>(lap);
             break;
         case qchem::SVD :
-            ret=new EigenSolverOMLSVD<T>(lap);
+            ret=new LASolverOMLSVD<T>(lap);
             break;
         }
         break;
@@ -160,13 +160,13 @@ template <class T> EigenSolver<T>* EigenSolver<T>::
         switch (lap.BasisOrthoAlgorithm)
         {
         case qchem::Cholsky :
-            ret=new EigenSolverLapackCholsky<T>(lap);
+            ret=new LASolverLapackCholsky<T>(lap);
             break;
         case qchem::Eigen :
-            ret=new EigenSolverLapackEigen<T>(lap);
+            ret=new LASolverLapackEigen<T>(lap);
             break;
         case qchem::SVD :
-            ret=new EigenSolverLapackSVD<T>(lap);
+            ret=new LASolverLapackSVD<T>(lap);
             break;
         break;
         }

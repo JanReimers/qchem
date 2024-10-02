@@ -1,6 +1,6 @@
-// File: EigenSolver.H  General eigen solver.
-#ifndef _EigenSolver_H_
-#define _EigenSolver_H_
+// File: LASolver.H  General eigen solver.
+#ifndef _LASolver_H_
+#define _LASolver_H_
 
 //#################################################################################
 //
@@ -21,48 +21,23 @@
 //
 
 #include "types.H"
-#include "oml/matrix.h"
+#include <tuple>
 
-template <class T> class EigenSolver
+template <class T> class LASolver
 {
 public:
-    virtual ~EigenSolver() {};
+    virtual ~LASolver() {};
     
     typedef Matrix<T>      Mat;
     typedef SMatrix<T>     SMat;
     typedef Vector<double> RVec;
     typedef std::tuple<Mat,RVec> UdType;
 
-    static  EigenSolver* Factory(const LinearAlgebraParams&);  
+    static  LASolver* Factory(const LinearAlgebraParams&);  
       
     virtual void   SetBasisOverlap(const SMat& S)=0;
     virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.
 };
 
-#include "SCFIteration/IterationParams.H"
-template <class T> class EigenSolverCommon 
-    : public virtual  EigenSolver<T>
-{
-    typedef EigenSolver<T> Base;
-    typedef typename Base::RVec RVec;
-    typedef typename Base::Mat Mat;
-    typedef DiagonalMatrix<T>  DMat;
-protected:
-    EigenSolverCommon(const LinearAlgebraParams& lap) : itsParams(lap) {};
-    //
-    //  Helper functions used by derived classes.
-    //
-    static void Rescale (Mat& V, const RVec& w);
-    static void Rescale (Mat& U, const RVec& w, Mat& Vt);
-    static void Truncate(Mat& U, DMat&, Mat& Vt, double tol);
-    static void Truncate(Mat& U, RVec&, Mat& V , double tol);
-    static void Truncate(Mat& U, RVec& w, double tol);
 
-    void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
-
-    LinearAlgebraParams itsParams;
-    Mat  V,Vd;  //Basis Overlap S = V*Vd
-};
-
-
-#endif //_EigenSolver_H_
+#endif //_LASolver_H_

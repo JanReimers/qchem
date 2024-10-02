@@ -92,5 +92,6 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -Way do we need default constructos for basisSet, Clusters, hamiltonians.
     -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.
-    
+    Done -Reorg SCFIterator and EigenSolvers  ->Rename LASolver
+    -Organize headers in the include folder.
     Does OML eigen/SVD have a hard coded eps?

@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_EigenSolverTests.*";
 //    testing::GTEST_FLAG(filter) = "HartreeFockAtomTester.AtomsHFEigenSolvers";
-    
+//    testing::GTEST_FLAG(filter) = "AtomsSemiDFTPolarized/SemiHartreeFockAtomTester.AtomsSemiDFTPolarized/11";
     return RUN_ALL_TESTS();
 }
 

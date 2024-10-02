@@ -2,7 +2,7 @@
 
 
 
-#include "WaveFunction/SCFIteratorImplementation.H"
+#include "Imp/SCFIterator/SCFIteratorImplementation.H"
 
 
 class PolarizedSCFIterator

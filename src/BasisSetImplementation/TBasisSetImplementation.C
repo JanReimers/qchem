@@ -5,7 +5,7 @@
 //#include "BasisSet/TBasisSetBrowser.H"
 #include "BasisSet/TBasisFunction.H"
 #include "BasisSet/IntegralDataBase.H"
-#include "Misc/EigenSolver.H"
+#include "LASolver/LASolver.H"
 #include "Hamiltonian/Hamiltonian.H"
 #include "Mesh/Mesh.H"
 #include "Misc/MatrixList.H"
@@ -25,30 +25,30 @@
 //
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsIntegralEngine      (0)
-    , itsDataBase            ( )
-    , itsEigenSolver         (0)
+    , itsIntegralEngine(0)
+    , itsDataBase      ( )
+    , itsLASolver      (0)
 {};
 
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsLAParams            (lap)
-    , itsIntegralEngine      (0)
-    , itsDataBase            (theDataBase)
-    , itsEigenSolver         (0)
+    , itsLAParams      (lap)
+    , itsIntegralEngine(0)
+    , itsDataBase      (theDataBase)
+    , itsLASolver      (0)
 {};
 
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const TBasisSetImplementation<T>& bs)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsLAParams            (bs.itsLAParams)
-    , itsIntegralEngine      (bs.itsIntegralEngine)
-    , itsDataBase            (bs.itsDataBase)
-    , itsEigenSolver         (0)
+    , itsLAParams      (bs.itsLAParams)
+    , itsIntegralEngine(bs.itsIntegralEngine)
+    , itsDataBase      (bs.itsDataBase)
+    , itsLASolver      (0)
 {};
 
 template <class T> TBasisSetImplementation<T>::~TBasisSetImplementation()
 {
-    delete itsEigenSolver;
+    delete itsLASolver;
 }
 
 //-----------------------------------------------------------------------------
@@ -81,7 +81,7 @@ CreateOrbitals(const rc_ptr<const BasisSet>& rc,const Hamiltonian* ham, const Sp
 {
     SMat H=ham->BuildHamiltonian(this,S);
     assert(!isnan(H));
-    EigenSolver<T>* es=GetEigenSolver();
+    LASolver<T>* es=GetLASolver();
     assert(es);
     auto [U,e]=es->Solve(H);
     return new
@@ -327,16 +327,16 @@ template <class T> void TBasisSetImplementation<T>::EvalGrad(const Mesh& mesh, V
     for (auto b=this->beginT(); b!=this->end(); i++,b++) mat.GetRow(i)=(**b).Gradient(mesh);
 }
 
-template <class T> EigenSolver<T>* TBasisSetImplementation<T>::GetEigenSolver() const
+template <class T> LASolver<T>* TBasisSetImplementation<T>::GetLASolver() const
 {
-    if (!itsEigenSolver) 
+    if (!itsLASolver) 
     {
         SMat S=GetDataBase()->GetOverlap();
-        itsEigenSolver=EigenSolver<T>::Factory(itsLAParams);
-        itsEigenSolver->SetBasisOverlap(S);
+        itsLASolver=LASolver<T>::Factory(itsLAParams);
+        itsLASolver->SetBasisOverlap(S);
     }
-    assert(itsEigenSolver);
-    return itsEigenSolver;
+    assert(itsLASolver);
+    return itsLASolver;
 }
 
 //-----------------------------------------------------------------------------

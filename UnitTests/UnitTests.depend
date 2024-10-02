@@ -12,9 +12,9 @@
 1727891034 /home/janr/Code/qchem/UnitTests/AtomTester.H
 	"BaseTester.H"
 
-1727878027 /home/janr/Code/qchem/UnitTests/BaseTester.H
+1727896267 /home/janr/Code/qchem/UnitTests/BaseTester.H
 	"gtest/gtest.h"
-	"SCFIteration/IterationParams.H"
+	"SCFIterator/IterationParams.H"
 	"Misc/rc_ptr.h"
 
 1296655837 /home/janr/Code/qchem/src/Misc/rc_ptr.h
@@ -203,17 +203,17 @@
 	"BasisSet/BasisSet.H"
 	"Misc/ptr_vector1.h"
 
-1727828212 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
+1727897237 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
 	"BasisSet/TBasisSet.H"
 	"FunctionsImp/VectorFunctionBuffer.H"
 	"BasisSet/IntegralEngine.H"
-	"SCFIteration/IterationParams.H"
+	"SCFIterator/IterationParams.H"
 	"Misc/Persistent/PerRef.H"
 	"Misc/rc_ptr.H"
 	"oml/matrix.h"
 	"oml/smatrix.h"
 
-1727616996 /home/janr/Code/qchem/src/BasisSet/TBasisSet.H
+1727897286 /home/janr/Code/qchem/src/BasisSet/TBasisSet.H
 	"types.H"
 	"BasisSet/BasisSet.H"
 	"Functions/VectorFunction.H"
@@ -362,7 +362,7 @@
 
 1332723517 /home/janr/Code/qchem/src/Misc/PeriodicTable.H
 
-1727890418 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
+1727896275 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
 	"BaseTester.H"
 	"BasisSet/BasisGroup.H"
 	"HamiltonianImplementation/HamiltonianImplementation.H"
@@ -371,7 +371,7 @@
 	"HamiltonianImplementation/Kinetic.H"
 	"WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H"
 	"WaveFunctionImp/MasterWF/MasterPolarizedWF.H"
-	"WaveFunction/SCFIterator.H"
+	"SCFIterator/SCFIterator.H"
 	"Cluster/Molecule.H"
 
 1727560774 /home/janr/Code/qchem/src/HamiltonianImplementation/HamiltonianImplementation.H
@@ -628,7 +628,7 @@
 1727384943 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1727892882 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1727896525 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727390914 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -636,7 +636,7 @@
 	<fstream>
 	<string>
 
-1727821397 /home/janr/Code/qchem/src/types.H
+1727897256 /home/janr/Code/qchem/src/types.H
 	"oml/imp/index_t.h"
 
 1727562127 /home/janr/Code/qchem/src/Misc/ptr_vector1.h
@@ -734,4 +734,11 @@
 1727883081 /home/janr/Code/qchem/src/SCFIteration/IterationParams.H
 	"types.H"
 	<iosfwd>
+
+1727883081 /home/janr/Code/qchem/src/SCFIterator/IterationParams.H
+	"types.H"
+	<iosfwd>
+
+1727405457 /home/janr/Code/qchem/src/SCFIterator/SCFIterator.H
+	"types.H"
 

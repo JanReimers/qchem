@@ -3,7 +3,7 @@
 
 
 #include "WaveFunction/WaveFunction.H"
-#include "WaveFunction/SCFIteratorImplementation.H"
+#include "Imp/SCFIterator/SCFIteratorImplementation.H"
 #include "Hamiltonian/Hamiltonian.H"
 #include "ChargeDensity/FittedCD.H"
 #include "Orbital/ElectronDumper.H"

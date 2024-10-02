@@ -1,4 +1,4 @@
-#include "SCFIteration/IterationParams.H"
+#include "SCFIterator/IterationParams.H"
 #include <iostream>
 
 std::string PkgStrs[]={"OML","Lapack"};
