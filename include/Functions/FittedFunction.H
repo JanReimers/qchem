@@ -3,7 +3,7 @@
 #define _FittedFunction_H_
 
 #include "types.H"
-#include "Functions/PlottableScalarFunction.H"
+#include "Functions/ScalarFunction.H"
 
 //----------------------------------------------------------------------------------
 //

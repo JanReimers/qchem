@@ -7,8 +7,8 @@
 #include "HamiltonianImplementation/ExactVen.H"
 #include "HamiltonianImplementation/ExactVnn.H"
 #include "HamiltonianImplementation/Kinetic.H"
-#include "WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H"
-#include "WaveFunctionImp/MasterWF/MasterPolarizedWF.H"
+#include "Imp/WaveFunction/MasterUnPolarizedWF.H"
+#include "Imp/WaveFunction/MasterPolarizedWF.H"
 #include "SCFIterator/SCFIterator.H"
 #include "Cluster/Molecule.H"
 

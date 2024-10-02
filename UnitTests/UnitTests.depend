@@ -42,7 +42,7 @@
 1727123816 /home/janr/Code/oml/include/oml/imp/index_t.h
 	<cstdint>
 
-1727403768 /home/janr/Code/qchem/src/Functions/ScalarFunction.H
+1727908469 /home/janr/Code/qchem/src/Functions/ScalarFunction.H
 	"types.H"
 	"oml/vector3d.h"
 
@@ -219,7 +219,7 @@
 	"Functions/VectorFunction.H"
 	"Misc/ptr_vector1.h"
 
-1727616980 /home/janr/Code/qchem/src/Functions/VectorFunction.H
+1727908468 /home/janr/Code/qchem/src/Functions/VectorFunction.H
 	"types.H"
 	"oml/vector3d.h"
 
@@ -473,9 +473,9 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"Misc/rc_ptr.H"
 
-1727405242 /home/janr/Code/qchem/src/Hamiltonian/ExchangeFunctional.H
+1727908647 /home/janr/Code/qchem/src/Hamiltonian/ExchangeFunctional.H
 	"Misc/pmstream.h"
-	"Functions/PlottableScalarFunction.H"
+	"Functions/ScalarFunction.H"
 
 1727626161 /home/janr/Code/qchem/src/HamiltonianImplementation/ExactVee.H
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
@@ -561,12 +561,12 @@
 	"Functions/FittedFunction.H"
 	"oml/vector.h"
 
-1727579672 /home/janr/Code/qchem/src/Functions/FittedFunction.H
+1727908610 /home/janr/Code/qchem/src/Functions/FittedFunction.H
 	"types.H"
-	"Functions/PlottableScalarFunction.H"
+	"Functions/ScalarFunction.H"
 
-1332723517 /home/janr/Code/qchem/src/FunctionsImp/DumpScalarData.H
-	"Functions/PlottableScalarFunction.H"
+1727908632 /home/janr/Code/qchem/src/FunctionsImp/DumpScalarData.H
+	"Functions/ScalarFunction.H"
 
 1332782886 /home/janr/Code/qchem/src/HamiltonianImplementation/PolarizedFittedVxc.H
 	"Hamiltonian/ExchangeFunctional.H"
@@ -804,4 +804,22 @@
 	"Functions/PlottableScalarFunction.H"
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
+
+1727897256 /home/janr/Code/qchem/include/types.H
+	"oml/imp/index_t.h"
+
+1727908469 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
+	"types.H"
+	"oml/vector3d.h"
+
+1727908468 /home/janr/Code/qchem/include/Functions/VectorFunction.H
+	"types.H"
+	"oml/vector3d.h"
+
+1727403768 /home/janr/Code/qchem/include/Functions/FittedFunctionClient.H
+	"types.H"
+
+1727908610 /home/janr/Code/qchem/include/Functions/FittedFunction.H
+	"types.H"
+	"Functions/ScalarFunction.H"
 

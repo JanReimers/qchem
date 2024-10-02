@@ -37,4 +37,11 @@ public:
     virtual void    EvalGrad   (const Mesh&, Vec3Mat&) const  ;
 };
 
+class PlottableVectorFunction
+    : public virtual VectorFunction<double>
+{
+public:
+    virtual const char* DumpPlotData (const Mesh&, const RVec3& direction) const=0; //Returns temporary data file name.
+};
+
 #endif // _VectorFunction_H_

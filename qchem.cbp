@@ -45,45 +45,33 @@
 		<Linker>
 			<Add option="-fopenmp" />
 		</Linker>
-		<Unit filename="include/BasisFunction.H" />
-		<Unit filename="include/BasisGroup.H" />
 		<Unit filename="include/BasisSet.H" />
+		<Unit filename="include/ChargeDensity.H" />
+		<Unit filename="include/Cluster.H" />
+		<Unit filename="include/Functions/FittedFunction.H" />
+		<Unit filename="include/Functions/FittedFunctionClient.H" />
+		<Unit filename="include/Functions/Plotter.H" />
+		<Unit filename="include/Functions/ScalarFunction.H" />
+		<Unit filename="include/Functions/VectorFunction.H" />
+		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IntegralEngine.H" />
+		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
-		<Unit filename="include/TBasisFunction.H" />
-		<Unit filename="include/TBasisSet.H" />
-		<Unit filename="src/BasisSet/BasisFunction.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="include/TotalEnergy.H" />
+		<Unit filename="include/WaveFunction.H" />
+		<Unit filename="include/types.H" />
+		<Unit filename="src/BasisSet.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSet/BasisFunction.H" />
-		<Unit filename="src/BasisSet/BasisGroup.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/BasisGroup.H" />
-		<Unit filename="src/BasisSet/BasisSet.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/BasisSet.H" />
 		<Unit filename="src/BasisSet/IntegralDataBase.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/BasisSet/IntegralDataBase.H" />
 		<Unit filename="src/BasisSet/IntegralEngine.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/BasisSet/IntegralEngine.H" />
 		<Unit filename="src/BasisSet/QuantumNumber.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/BasisSet/QuantumNumber.H" />
-		<Unit filename="src/BasisSet/TBasisFunction.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/TBasisFunction.H" />
-		<Unit filename="src/BasisSet/TBasisSet.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/TBasisSet.H" />
 		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -218,22 +206,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/UnitSymmetryQN.H" />
-		<Unit filename="src/ChargeDensity/ChargeDensity.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/ChargeDensity.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/ChargeDensity/ChargeDensity.H" />
-		<Unit filename="src/ChargeDensity/FittedCD.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/ChargeDensity/FittedCD.H" />
-		<Unit filename="src/ChargeDensity/FittedPolarizedCD.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/ChargeDensity/FittedPolarizedCD.H" />
-		<Unit filename="src/ChargeDensity/PolarizedCD.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/ChargeDensity/PolarizedCD.H" />
 		<Unit filename="src/ChargeDensityImplementation/CompositeCD/CompositeCD.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -254,10 +229,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Cluster/Atom.H" />
-		<Unit filename="src/Cluster/Cluster.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Cluster/Cluster.H" />
 		<Unit filename="src/Cluster/Lattice.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -321,34 +292,12 @@
 		<Unit filename="src/Factories/WaveFunctionFactories.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Functions/FittedFunction.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Functions/FittedFunction.H" />
-		<Unit filename="src/Functions/FittedFunctionClient.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Functions/FittedFunctionClient.H" />
-		<Unit filename="src/Functions/PlottableScalarFunction.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Functions/PlottableScalarFunction.H" />
-		<Unit filename="src/Functions/PlottableVectorFunction.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Functions/PlottableVectorFunction.H" />
-		<Unit filename="src/Functions/Plotter.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Functions/Plotter.H" />
 		<Unit filename="src/Functions/ScalarFunction.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Functions/ScalarFunction.H" />
 		<Unit filename="src/Functions/VectorFunction.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Functions/VectorFunction.H" />
 		<Unit filename="src/FunctionsImp/ConstrainedFF.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -385,18 +334,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Hamiltonian/ExchangeFunctional.H" />
-		<Unit filename="src/Hamiltonian/Hamiltonian.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Hamiltonian/Hamiltonian.H" />
-		<Unit filename="src/Hamiltonian/HamiltonianTerm.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Hamiltonian/HamiltonianTerm.H" />
 		<Unit filename="src/Hamiltonian/TotalEnergy.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Hamiltonian/TotalEnergy.H" />
 		<Unit filename="src/HamiltonianImplementation/CDFittedVee.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -454,21 +394,29 @@
 		</Unit>
 		<Unit filename="src/HamiltonianImplementation/SlaterExchange.H" />
 		<Unit filename="src/Imp/LASolver/LASolverImp.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Imp/LASolver/LASolverImp.H" />
 		<Unit filename="src/Imp/LASolver/LASolverLapack.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Imp/LASolver/LASolverLapack.H" />
 		<Unit filename="src/Imp/LASolver/LASolverOML.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Imp/LASolver/LASolverOML.H" />
-		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.C">
+		<Unit filename="src/Imp/SCFIterator/PolarizedSCFIterator.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/Imp/SCFIterator/PolarizedSCFIterator.H" />
+		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.C">
+			<Option compilerVar="CPP" />
+		</Unit>
 		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.H" />
+		<Unit filename="src/Imp/SCFIterator/UnPolarizedSCFIterator.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Imp/SCFIterator/UnPolarizedSCFIterator.H" />
 		<Unit filename="src/LASolver/LASolver.H" />
 		<Unit filename="src/Mesh/AngularMesh/AngularMesh.C">
 			<Option compilerVar="CPP" />
@@ -623,6 +571,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/stl_io.h" />
+		<Unit filename="src/Orbital.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/Orbital/ElectronContainer.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -639,22 +590,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Orbital/FermiThermalizer.H" />
-		<Unit filename="src/Orbital/Orbital.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/Orbital.H" />
-		<Unit filename="src/Orbital/OrbitalGroup.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/OrbitalGroup.H" />
-		<Unit filename="src/Orbital/TOrbital.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/TOrbital.H" />
-		<Unit filename="src/Orbital/TOrbitalGroup.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/TOrbitalGroup.H" />
 		<Unit filename="src/OrbitalImplementation/ElectronContainerImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -676,46 +611,28 @@
 		</Unit>
 		<Unit filename="src/OrbitalImplementation/TOrbitalImplementation.H" />
 		<Unit filename="src/SCFIterator/IterationParams.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/SCFIterator/IterationParams.H" />
 		<Unit filename="src/SCFIterator/SCFIterator.C">
-			<Option compilerVar="CC" />
+			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/SCFIterator/SCFIterator.H" />
-		<Unit filename="src/WaveFunction/PolarizedWF.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/WaveFunction.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/WaveFunction/PolarizedWF.H" />
-		<Unit filename="src/WaveFunction/WaveFunction.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/WaveFunctionImp/IrrepWaveFunction.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/WaveFunction/WaveFunction.H" />
-		<Unit filename="src/WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/WaveFunctionImp/MasterPolarizedWF.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H" />
-		<Unit filename="src/WaveFunctionImp/MasterWF/MasterPolarizedWF.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/WaveFunctionImp/MasterUnPolarizedWF.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/WaveFunctionImp/MasterWF/MasterPolarizedWF.H" />
-		<Unit filename="src/WaveFunctionImp/MasterWF/MasterUnPolarizedWF.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/WaveFunctionImp/WaveFunctionGroup.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H" />
-		<Unit filename="src/WaveFunctionImp/MasterWF/PolarizedSCFIterator.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/WaveFunctionImp/MasterWF/PolarizedSCFIterator.H" />
-		<Unit filename="src/WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H" />
-		<Unit filename="src/WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H" />
-		<Unit filename="src/types.H" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>

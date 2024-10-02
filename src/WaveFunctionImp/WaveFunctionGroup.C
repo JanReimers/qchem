@@ -2,13 +2,12 @@
 
 
 
-#include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
 #include "ChargeDensity.H"
 #include "BasisSet.H"
-#include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
+#include "Imp/WaveFunction/WaveFunctionGroup.H"
+#include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
-//#include "Hamiltonian/TotalEnergy.H"
-#include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
+#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "Misc/ptr_vector1_io.h"
 #include <cassert>

@@ -3,8 +3,8 @@
 
 
 #include "FunctionsImp/PlotterImplementation.H"
-#include "Functions/PlottableScalarFunction.H"
-#include "Functions/PlottableVectorFunction.H"
+#include "Functions/ScalarFunction.H"
+#include "Functions/VectorFunction.H"
 #include <unistd.h>
 #include <cassert>
 

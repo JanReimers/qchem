@@ -2,9 +2,9 @@
 
 
 
-#include "WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H"
-#include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
-#include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
+#include "Imp/WaveFunction/MasterUnPolarizedWF.H"
+#include "Imp/WaveFunction/WaveFunctionGroup.H"
+#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
 #include "Misc/Spin.H"
 #include <cassert>
 

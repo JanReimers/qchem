@@ -4,7 +4,7 @@
 
 
 
-#include "Functions/PlottableVectorFunction.H"
+#include "Functions/VectorFunction.H"
 
 class DumpVectorData :
     public virtual PlottableVectorFunction

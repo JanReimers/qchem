@@ -4,7 +4,7 @@
 
 
 
-#include "Functions/PlottableScalarFunction.H"
+#include "Functions/ScalarFunction.H"
 
 class DumpScalarData :
     public virtual PlottableScalarFunction

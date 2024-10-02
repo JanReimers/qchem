@@ -1,9 +1,9 @@
 // File: WaveFunctionFactories.C  Interface for a wave function.
 
-#include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
-#include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
-#include "WaveFunctionImp/MasterWF/MasterPolarizedWF.H"
-#include "WaveFunctionImp/MasterWF/MasterUnPolarizedWF.H"
+#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/WaveFunction/WaveFunctionGroup.H"
+#include "Imp/WaveFunction/MasterPolarizedWF.H"
+#include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 
 #include <string>
 #include <iostream>

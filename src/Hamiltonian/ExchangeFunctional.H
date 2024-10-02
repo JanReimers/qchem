@@ -5,7 +5,7 @@
 
 
 #include "Misc/pmstream.h"
-#include "Functions/PlottableScalarFunction.H"
+#include "Functions/ScalarFunction.H"
 
 class ExchangeFunctional
     : public virtual PMStreamableObject

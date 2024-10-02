@@ -2,7 +2,7 @@
 
 
 
-#include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
+#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
 #include "Hamiltonian.H"
 #include "WaveFunction.H"
 #include "Orbital/ElectronDumper.H"

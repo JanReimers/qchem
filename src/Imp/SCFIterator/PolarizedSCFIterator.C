@@ -4,7 +4,7 @@
 
 #include "Hamiltonian.H"
 #include "WaveFunction.H"
-#include "WaveFunctionImp/MasterWF/PolarizedSCFIterator.H"
+#include "Imp/SCFIterator/PolarizedSCFIterator.H"
 #include "ChargeDensity.H"
 #include "Orbital/ElectronDumper.H"
 #include "Misc/Spin.H"

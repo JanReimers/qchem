@@ -2,7 +2,7 @@
 #ifndef _ChargeDensity_H_
 #define _ChargeDensity_H_
 
-#include "Functions/PlottableScalarFunction.H"
+#include "Functions/ScalarFunction.H"
 #include "Functions/FittedFunctionClient.H"
 #include "Misc/pmstream.h"
 

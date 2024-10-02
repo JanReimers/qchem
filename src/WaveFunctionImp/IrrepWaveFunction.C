@@ -2,11 +2,11 @@
 
 
 
-#include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
-#include "WaveFunctionImp/MasterWF/UnPolarizedSCFIterator.H"
 #include "Hamiltonian.H"
 #include "Orbital.H"
 #include "Orbital/ElectronDumper.H"
+#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include "oml/imp/binio.h"
 #include "oml/smatrix.h"
