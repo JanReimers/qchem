@@ -4,7 +4,7 @@
 #include "Cluster/Molecule.H"
 #include "IntegralDataBase.H"
 #include "QuantumNumber.H"
-#include "FittedCD.H"
+#include "ChargeDensity.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"

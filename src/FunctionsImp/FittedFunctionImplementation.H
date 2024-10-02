@@ -4,7 +4,7 @@
 
 
 
-#include "TBasisSet.H"
+#include "BasisSet.H"
 #include "Misc/rc_ptr.H"
 #include "Functions/FittedFunction.H"
 #include "oml/vector.h"

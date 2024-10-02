@@ -109,3 +109,6 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         TBasisSet.C
         TOrbital.C
         IntegralDataBase.C
+        
+    -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
+        BasisGroup is not an interface.

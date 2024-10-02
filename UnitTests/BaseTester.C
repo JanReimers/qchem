@@ -1,7 +1,7 @@
 // File AtomTester.C Member functions for the atom tester class.
 
 #include "BaseTester.H"
-#include "BasisGroup.H"
+#include "BasisSet.H"
 #include "TotalEnergy.H"
 #include "HamiltonianImplementation/HamiltonianImplementation.H"
 #include "HamiltonianImplementation/ExactVen.H"

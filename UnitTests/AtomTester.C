@@ -2,7 +2,7 @@
 
 #include "AtomTester.H"
 #include "Cluster.H"
-#include "BasisGroup.H"
+#include "BasisSet.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
 //#include "Mesh/RadialMesh/LogRadialMesh.H"

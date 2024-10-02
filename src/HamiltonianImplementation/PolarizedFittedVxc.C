@@ -4,7 +4,7 @@
 
 #include "HamiltonianImplementation/PolarizedFittedVxc.H"
 #include "HamiltonianImplementation/FittedVxc.H"
-#include "PolarizedCD.H"
+#include "ChargeDensity.H"
 #include "TotalEnergy.H"
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"

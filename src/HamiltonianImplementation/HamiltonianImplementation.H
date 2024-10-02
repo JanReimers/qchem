@@ -5,7 +5,6 @@
 
 
 #include "Hamiltonian.H"
-#include "HamiltonianTerm.H"
 #include "Misc/ptr_vector1.h"
 
 class HamiltonianImplementation

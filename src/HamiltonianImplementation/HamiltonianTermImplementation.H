@@ -4,7 +4,7 @@
 
 
 
-#include "HamiltonianTerm.H"
+#include "Hamiltonian.H"
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"
 #include <map>

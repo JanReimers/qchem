@@ -4,11 +4,6 @@
 
 #include "types.H"
 #include "Misc/Persistent/Persistent.H"
-#include "Functions/ScalarFunction.H"
-#include <vector>
-#include "Functions/VectorFunction.H"
-#include "Misc/ptr_vector1.h"
-#include "Misc/ERIList.H"
 
 
 
@@ -34,6 +29,7 @@ public:
     static  BasisFunction* Factory(std::istream&)        ;
 };
 
+#include "Functions/ScalarFunction.H"
 //---------------------------------------------------------------
 //
 //  Here the basis becomes a real or complex valued function
@@ -46,7 +42,7 @@ template <class T> class TBasisFunction
 };
 
 
-
+#include <vector>
 //----------------------------------------------------------------------------
 //
 //  Interface for all basis sets.  All matrices of integrals are supplied by the
@@ -113,6 +109,8 @@ private:
     virtual void SetStartIndex(int)=0;
 };
 
+#include "Functions/VectorFunction.H"
+#include "Misc/ptr_vector1.h"
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions
@@ -137,6 +135,8 @@ public:
    
     const_iterator beginT() const {return const_iterator(begin());};
 };
+
+
 
 //----------------------------------------------------------------------------
 //

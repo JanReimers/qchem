@@ -4,7 +4,7 @@
 
 
 
-#include "TBasisFunction.H"
+#include "BasisSet.H"
 
 class SphericalGaussianBF
     : public virtual TBasisFunction<double>

@@ -5,7 +5,7 @@
 
 
 #include "WaveFunction.H"
-#include "PolarizedCD.H"
+#include "ChargeDensity.H"
 
 class PolarizedWF
     : public virtual WaveFunction

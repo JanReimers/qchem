@@ -4,7 +4,7 @@
 #include "FunctionsImp/FittedFunctionImplementation.H"
 #include "IntegralDataBase.H"
 #include "ChargeDensity.H"
-#include "TBasisSet.H"
+#include "BasisSet.H"
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"

@@ -4,7 +4,7 @@
 
 
 
-#include "FittedCD.H"
+#include "ChargeDensity.H"
 #include "FunctionsImp/IntegralConstrainedFF.H"
 #include "FunctionsImp/DumpScalarData.H"
 

@@ -4,7 +4,7 @@
 
 
 
-#include "TBasisFunction.H"
+#include "BasisSet.H"
 #include "oml/vector3d.h"
 
 class PlaneWaveBF

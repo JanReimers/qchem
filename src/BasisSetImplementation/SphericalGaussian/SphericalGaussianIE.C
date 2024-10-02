@@ -8,7 +8,7 @@
 #include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
 #include "IntegralDataBase.H"
-#include "BasisGroup.H"
+#include "BasisSet.H"
 #include "Cluster.H"
 #include "Misc/MatrixList.H"
 #include "Misc/ERIProxy.H"

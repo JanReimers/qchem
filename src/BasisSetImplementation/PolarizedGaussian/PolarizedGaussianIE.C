@@ -2,7 +2,6 @@
 
 
 #include "BasisSet.H"
-#include "BasisGroup.H"
 #include "IntegralDataBase.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"

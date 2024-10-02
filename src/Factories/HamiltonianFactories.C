@@ -1,7 +1,7 @@
 // File: HamiltonainFactories.C  Interface a Hamiltonian operator.
 
 #include "Hamiltonian/ExchangeFunctional.H"
-#include "TBasisSet.H"
+#include "BasisSet.H"
 #include "Misc/rc_ptr.H"
 #include "HamiltonianImplementation/Kinetic.H"
 #include "HamiltonianImplementation/ExactVen.H"

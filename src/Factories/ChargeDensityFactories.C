@@ -3,7 +3,6 @@
 #include "ChargeDensity.H"
 #include "ChargeDensityImplementation/FittedCDImplementation.H"
 #include "ChargeDensityImplementation/PolarizedCDImplementation.H"
-#include "FittedPolarizedCD.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 

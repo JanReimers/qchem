@@ -5,7 +5,7 @@
 #include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
 #include "HamiltonianImplementation/HartreeFockVxc.H"
 #include "TotalEnergy.H"
-#include "PolarizedCD.H"
+#include "ChargeDensity.H"
 #include "BasisSet.H"
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"

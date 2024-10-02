@@ -3,8 +3,7 @@
 
 
 #include "BasisSetImplementation/NumericalIE.H"
-#include "TBasisSet.H"
-#include "TBasisFunction.H"
+#include "BasisSet.H"
 #include "Cluster.H"
 #include "Mesh/Mesh.H"
 #include "Misc/MatrixList.H"

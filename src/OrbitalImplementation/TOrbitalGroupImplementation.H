@@ -4,9 +4,9 @@
 
 
 
-#include "TOrbitalGroup.H"
+#include "Orbital.H"
 #include "OrbitalImplementation/OrbitalGroupImplementation.H"
-#include "TBasisSet.H"
+#include "BasisSet.H"
 
 template <class T> class TOrbitalGroupImplementation
     : public virtual TOrbitalGroup<T>

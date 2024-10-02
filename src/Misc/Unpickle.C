@@ -3,7 +3,6 @@
 #include "BasisSet.H"
 #include "Hamiltonian.H"
 #include "ChargeDensity.H"
-#include "FittedCD.H"
 #include "Cluster.H"
 #include "Cluster/UnitCell.H"
 #include "Mesh/Mesh.H"

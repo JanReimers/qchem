@@ -4,7 +4,6 @@
 
 #include "types.H"
 #include "Misc/pmstream.h"
-//#include "Hamiltonian/TotalEnergy.H"
 #include "Misc/Spin.H"
 
 
@@ -30,6 +29,14 @@ protected:
 
 private:
     WaveFunction& operator=(const WaveFunction&);
+};
+
+class PolarizedWF
+    : public virtual WaveFunction
+{
+public:
+    virtual WaveFunction* GetWaveFunction (const Spin&)=0;
+    static  PolarizedWF*  Factory(std::istream&);
 };
 
 #endif //_WaveFunction_H_

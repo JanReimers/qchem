@@ -2,7 +2,7 @@
 
 
 #include "BasisSetImplementation/TBasisSetImplementation.H"
-#include "TBasisFunction.H"
+#include "BasisSet.H"
 #include "IntegralDataBase.H"
 #include "LASolver/LASolver.H"
 #include "Hamiltonian.H"

@@ -4,7 +4,6 @@
 
 #include "Orbital/ElectronDumper.H"
 #include "Orbital.H"
-#include "OrbitalGroup.H"
 #include "Orbital/EnergyLevel.H"
 #include "Orbital/FermiThermalizer.H"
 #include <algorithm> //sort

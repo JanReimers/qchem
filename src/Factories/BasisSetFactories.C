@@ -1,6 +1,6 @@
 // File: BasisSetFactories.C
 
-#include "BasisGroup.H"
+#include "BasisSet.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H"

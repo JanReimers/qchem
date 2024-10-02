@@ -3,9 +3,9 @@
 
 
 #include "Hamiltonian.H"
-#include "PolarizedWF.H"
+#include "WaveFunction.H"
 #include "WaveFunctionImp/MasterWF/PolarizedSCFIterator.H"
-#include "FittedPolarizedCD.H"
+#include "ChargeDensity.H"
 #include "Orbital/ElectronDumper.H"
 #include "Misc/Spin.H"
 #include <iostream>

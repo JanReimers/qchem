@@ -4,8 +4,7 @@
 
 #include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
 #include "ChargeDensity.H"
-#include "TBasisSet.H"
-#include "BasisGroup.H"
+#include "BasisSet.H"
 #include "WaveFunctionImp/IrrepWaveFunction/IrrepWaveFunction.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
 //#include "Hamiltonian/TotalEnergy.H"

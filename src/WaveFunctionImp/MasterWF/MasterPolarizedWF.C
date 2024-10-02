@@ -5,7 +5,7 @@
 #include "WaveFunctionImp/MasterWF/MasterPolarizedWF.H"
 #include "WaveFunctionImp/MasterWF/PolarizedSCFIterator.H"
 #include "WaveFunctionImp/WaveFunctionGroup/WaveFunctionGroup.H"
-#include "PolarizedCD.H"
+#include "ChargeDensity.H"
 #include "ChargeDensityImplementation/PolarizedCDImplementation.H"
 #include "Misc/Spin.H"
 #include "oml/imp/binio.h"

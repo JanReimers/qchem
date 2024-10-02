@@ -3,8 +3,7 @@
 
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
-#include "TBasisSet.H"
-#include "BasisGroup.H"
+#include "BasisSet.H"
 #include "Cluster.H"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"

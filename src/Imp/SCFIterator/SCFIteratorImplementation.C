@@ -6,7 +6,7 @@
 #include "Imp/SCFIterator/SCFIteratorImplementation.H"
 #include "Hamiltonian.H"
 #include "TotalEnergy.H"
-#include "FittedCD.H"
+#include "ChargeDensity.H"
 #include "Orbital/ElectronDumper.H"
 #include "FunctionsImp/PlotterImplementation.H"
 #include "Mesh/LinearMesh.H"

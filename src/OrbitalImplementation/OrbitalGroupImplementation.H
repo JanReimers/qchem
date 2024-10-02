@@ -5,7 +5,6 @@
 
 
 #include "Orbital.H"
-#include "OrbitalGroup.H"
 #include "BasisSet.H"
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/rc_ptr.H"
