@@ -77,7 +77,7 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         -epsRo minimum delta Ro
         -NMax maximum SCF iterations.
         -smear?  Same as kT?
-    -0.1 remove eps from Lapack SVD code,  not used!
+    Done: -0.1 remove eps from Lapack SVD code,  not used!
     Done: 1 Need a way to feed tol, Lapack-eps, Pkg, Ortho enums into BasisSetImp or feed the solver in.
         Done: What is Lapack-eps?  Convergence?
     Dene: -2 use 1 to make some UTs with all supported combos

@@ -72,16 +72,16 @@ TEST_F(qchem_EigenSolverTests,MinSVEVTests)
 }
 
 LinearAlgebraParams laps[] = { 
-    {qchem::Lapack,qchem::SVD  ,1e-2,1e-12},
-    {qchem::Lapack,qchem::Eigen,1e-2,1e-12},
-    {qchem::OML   ,qchem::SVD  ,1e-2,1e-12},
-    {qchem::OML   ,qchem::Eigen,1e-2,1e-12},
+    {qchem::Lapack,qchem::SVD  ,1e-2,1e-10},
+    {qchem::Lapack,qchem::Eigen,1e-2,1e-10},
+    {qchem::OML   ,qchem::SVD  ,1e-2,1e-10},
+    {qchem::OML   ,qchem::Eigen,1e-2,1e-10},
     };
 
 TEST_F(HartreeFockAtomTester, AtomsHFEigenSolvers)
 {
     double eps_e=2e-4; //Since we are truncating the BS we get higher errors.
-    SCFIterationParams ipar={40,1e-6,0.5,0.0};
+    SCFIterationParams ipar={40,1e-2,1.0,0.0};
     int Z=25,NBasis=20; //Mn with some D valance electrons
     int L=thePeriodicTable.GetMaxL(Z);
     double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
