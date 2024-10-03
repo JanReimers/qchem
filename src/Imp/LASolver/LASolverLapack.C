@@ -51,7 +51,7 @@ template <class T> void LASolverLapackEigen<T>::SetBasisOverlap(const SMat& S)
 
 template <class T> void LASolverLapackSVD<T>::SetBasisOverlap(const SMat& S)
 {
-    auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S,itsParams.abstol);
+    auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S);
     LASolverCommon<T>::Truncate(U,sM,Vt,itsParams.TruncationTolerance);
     RVec s=sM.GetDiagonal();
 //    Mat sM(s.GetLimits(),s.GetLimits());
