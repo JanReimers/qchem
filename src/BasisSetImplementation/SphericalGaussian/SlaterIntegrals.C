@@ -5,7 +5,7 @@
 #include <cmath>
 #include <iostream>
 
-const int NMax=13; //Should eneable up to f orbitals.
+const int NMax=13; //Should enable up to f orbitals.
 
 double SlaterIntegrals::DFact[NMax+1]; //Double factorials 1,3,3*5,3*5*7 etc. lookup table.
 double SlaterIntegrals::Fact[NMax+1]; //factorials lookup table.

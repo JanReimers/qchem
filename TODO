@@ -1,53 +1,35 @@
-Done: -Support std::vector std:;set streaming
-Done: -Migrate from OML Array<T> to std::vector<T>
-Done: -Migrate from OML List<T> to std::vector<T>,set<T>
+Priority 1:
+    -kT Occ smearing fails miserably.
+    -DFT stop using InverseOverlap ... use SVD solver or something more stable.
+        HeapDB is doing the inversion.  It has no business doing this.  Should be 
+        moved to IE.
     
+Priority 2:
     -SMAT does not support S+=Xpr
-    -Support V*S without including matrix.h
-    -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
-    Done: -Range based iterators for ptr_vector and optr_vector.
-    -Lattice unit tests?
-    -template <class T> T Max(const std::vector<T>& v) in one place
-    -Get ride of 
-        Done OrbitalGroupIterator 
-        Done OrbitalGroupBrowser 
-        
-        Done: BasisGroupBrowser
-        Done: BasisSetBrowser
-            Do we need iterator?
-        Done: ClusterBrowser 
-            Do we need iterator?
-
-        TwoLPlusOne
-    -Done: Make a dynamic_cast iterator for optr_vector1, then get rid of
-        Done TOrbitalGroupBrowser requires a dynamic cast iterator
-        Done: TBasisSetBrowser requires a dynamic cast iterator
-    -Mesh code re-write  use pairs of points/weights, also get rid of
-        MeshBrowser 
-        AngularMeshBrowser 
-        RadialMeshBrowser 
-    Done: -Switch from ptr_vector to ptr_vector1.
-    -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
-    Done: -Start using optr_vector1 which is vastly simpler.
-    -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-    Done -Fix all signed unsigned comparisons.
-    -Do we need indices support optr_vector1<> ?
     -Hunt for dynamic casts that can be removed using dynamic_cast iterator
-    Done: -Stop using ! for vector norm.
     -Do something about the oml/imp includes.
         Done: -Stop deriving from StreamableObject  it is mostly static any way
         -Include binio in stream.h?
         -Move stream up from imp.
-    -Add some tests for IO of basis sets, waved functions, hamiltonians.
-    -Import LAPACK code into oml and add to unit tests.
-        Done: -Eigen dense symm
-        -Eigen dense non sym
-        -SVD dense
-        -Linear system dense
-        -Do we need sparse?
+    -Persistent base doesn't do anything.
+    -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
+
+    
+Priority 3:
+    -Support V*S without including matrix.h
+    -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
+    -Lattice unit tests?
+    -template <class T> T Max(const std::vector<T>& v) in one place
+    -Get rid of 
+        TwoLPlusOne
+    -Mesh code re-write  use pairs of points/weights, also get rid of
+        MeshBrowser 
+        AngularMeshBrowser 
+        RadialMeshBrowser 
+    -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
+    -Do we need indices support optr_vector1<> ?
     -If N_nucleus=1 (atom) leave out Vnn term.
     -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
-    -Persistent base doesn't do anything.
     -It seems we need a separate HeapDN for each basis set.  Make something more general
         enum type={Kinetic,Nuclear,Charge,Normalization,Overlap2C,Repulsion2C,Repulsion3C,Repulsion4C,Exchange4C,InversOverlap2C,InverseOverlap2C};
         map<{BasisID1,BasisID2,type},SMat>
@@ -60,11 +42,71 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
     -Support SMatrix for Lapack solvers.
         Lapack uses the extra space in the full matrix as working space.
         So we end up converting to full anyway.  THis is just a convenience for the user.
-    Done -Make a trim function to weed out small SV and EV solutions.  This will reduce
-     the order of H, which may cause some problem in the qchem code.
+     ??? the order of H, which may cause some problem in the qchem code.
     -SphericalGuassian accept different exponent ranges for each L.
     -Dynamically adjust kT ?
     
+    -Design problem:  
+        IrrepWaveFunction creates and hold an rc_ptr<const BasisSet> which is also copied into
+        the Ortbitals object.  Updateing the orbital is done by:
+        TBasisSetImplementation<T>::CreateOrbitals.  But this function cannot just use this to create
+        new orbitals, it needs the original rc_ptr.  Options:
+        1) IrrepWaveFunction does and extra step to inject the rc_ptr.
+            This means Orbital needs and Inject(rc_ptr<>) function.
+            
+    -Design question:
+        Who should own the Hamitonian ... right now SCFIterator is deleting it.
+    -Organize headers in the include folder.
+    -Reorg:  Do this on a branch!!!
+        -Break dependence of IntegralEngine on BasisSet.
+            -For SG, IE gets a table of {alpha,L}
+            -For PG, IE gets a table of {alpha,[l,m,n]}
+            -For PCG , IE gets a table of {[alpha],[l,m,n]}
+            -These can be prided by an IEEngineClient base interface?  Template params for
+             alpha vs [alpha] and L or [l,m,n]
+        -Create Integrals folders for headers and code.
+        -
+    
+    -QuantumNumber.C 
+    -Instancing in one file: 
+        IntegralEngine.C
+        IntegralDataBase.C
+        
+    -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
+        BasisGroup is not an interface.
+    -Set up a CMake build.  Run from vscode.
+    
+    
+    Done: -Support std::vector std:;set streaming
+    Done: -Migrate from OML Array<T> to std::vector<T>
+    Done: -Migrate from OML List<T> to std::vector<T>,set<T>
+    Done: -Range based iterators for ptr_vector and optr_vector.
+    -Get rid of 
+        Done OrbitalGroupIterator 
+        Done OrbitalGroupBrowser 
+        
+        Done: BasisGroupBrowser
+        Done: BasisSetBrowser
+            Do we need iterator?
+        Done: ClusterBrowser 
+            Do we need iterator?
+    -Done: Make a dynamic_cast iterator for optr_vector1, then get rid of
+        Done TOrbitalGroupBrowser requires a dynamic cast iterator
+        Done: TBasisSetBrowser requires a dynamic cast iterator
+
+    -Instancing in one file: 
+        Done: TBasisFunction.C
+        Done: TBasisSet.C
+        Done: TOrbital.C
+    Done -Reorg SCFIterator and EigenSolvers  ->Rename LASolver
+    Does OML eigen/SVD have a hard coded eps?
+    Done: -Remove BasisSet.C PASolver.C QuantumNumber.C  ExchangeFunctional.C
+        Hamiltonain.C
+        HamiltonianTerm.C
+        Cluster.C
+        Orbital.C
+        PolarizedWF.C 
+        FittedCD.C
     Done: -Set up LinearAlgebraParams and feed in BasisSetImp
         -tol for basis set orthogonalization
         -Linalg package Pkg=OML or Lapack
@@ -82,36 +124,18 @@ Done: -Migrate from OML List<T> to std::vector<T>,set<T>
         Done: What is Lapack-eps?  Convergence?
     Done: -2 use 1 to make some UTs with all supported combos
     Done: -3 Use 2 to Harmonize Truncate routine for OML/Lapack SVD
-    -DFT stop using InverseOverlap ... use SVD solver or something more stable.
-    -Design problem:  
-        IrrepWaveFunction creates and hold an rc_ptr<const BasisSet> which is also copied into
-        the Ortbitals object.  Updateing the orbital is done by:
-        TBasisSetImplementation<T>::CreateOrbitals.  But this function cannot just use this to create
-        new orbitals, it needs the original rc_ptr.  Options:
-        1) IrrepWaveFunction does and extra step to inject the rc_ptr.
-            This means Orbital needs and Inject(rc_ptr<>) function.
-            
-    -Way do we need default constructos for basisSet, Clusters, hamiltonians.
-    -Design question:
-        Who should own the Hamitonian ... right now SCFIterator is deleting it.
-    Done -Reorg SCFIterator and EigenSolvers  ->Rename LASolver
-    -Organize headers in the include folder.
-    Does OML eigen/SVD have a hard coded eps?
-    Done: -Remove BasisSet.C PASolver.C QuantumNumber.C  ExchangeFunctional.C
-        Hamiltonain.C
-        HamiltonianTerm.C
-        Cluster.C
-        Orbital.C
-        PolarizedWF.C 
-        FittedCD.C
+    Done -Make a trim function to weed out small SV and EV solutions.  This will reduce
+    Done: -Switch from ptr_vector to ptr_vector1.
+    Done: -Start using optr_vector1 which is vastly simpler.
+    Done -Fix all signed unsigned comparisons.
+    Done: -Stop using ! for vector norm.
 
-    -Instancing in one file: 
-        Done: TBasisFunction.C
-        Done: TBasisSet.C
-        Done: TOrbital.C
-        IntegralEngine.C
-        IntegralDataBase.C
-        
-    -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
-        BasisGroup is not an interface.
-    -kT Occ smearing fails miserably.
+    Done: Import LAPACK code into oml and add to unit tests.
+        Done: -Eigen dense symm
+        -Eigen dense non sym
+        -SVD dense
+        -Linear system dense
+        -Do we need sparse?
+    Done: -Add some tests for IO of basis sets, waved functions, hamiltonians.
+    Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
+        Unpickle;

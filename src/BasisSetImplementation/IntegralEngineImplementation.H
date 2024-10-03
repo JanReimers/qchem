@@ -11,8 +11,8 @@
 
 //--------------------------------------------------------------------------------
 //
-//  Normalization and total charge integrals are prived by the basis function
-//  Interface, and can be implementated here in an abstract way.
+//  Normalization and total charge integrals are provided by the basis function
+//  Interface, and can be implemented here in an abstract way.
 //
 template <class T> class IntegralEngineImplementation
     : virtual public IntegralEngine<T>
