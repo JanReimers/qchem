@@ -18,7 +18,7 @@ FittedVxc::FittedVxc()
 
 FittedVxc::FittedVxc(const rc_ptr<BasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda)
     : HamiltonianTermImplementation     (   )
-    , FittedFunctionImplementation<double>(bs,false)
+    , FittedFunctionImplementation<double>(bs,false) //Use regular overlap for fitting.
     , itsLDAVxc                 (new LDAVxc(lda))
 {};
 

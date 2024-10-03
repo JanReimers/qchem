@@ -20,13 +20,13 @@ template <class T> FittedCDImplementation<T>::FittedCDImplementation()
 {};
 
 template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<BasisSet>& bs)
-    : IntegralConstrainedFF<double>(bs,true)
+    : IntegralConstrainedFF<double>(bs,true) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(0)
 {};
 
 template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<BasisSet>& bs, double totalCharge)
-    : IntegralConstrainedFF<double>(bs,true)
+    : IntegralConstrainedFF<double>(bs,true) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(totalCharge)
 {
