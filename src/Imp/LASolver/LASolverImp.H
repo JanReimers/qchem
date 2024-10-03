@@ -37,9 +37,8 @@ protected:
     //
     static void Rescale (Mat& V, const RVec& w);
     static void Rescale (Mat& U, const RVec& w, Mat& Vt);
-    static void Truncate(Mat& U, DMat&, Mat& Vt, double tol);
-    static void Truncate(Mat& U, RVec&, Mat& V , double tol);
     static void Truncate(Mat& U, RVec& w, double tol);
+    static void Truncate(Mat& U, RVec&, Mat& V , double tol);
 
     void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
 

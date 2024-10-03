@@ -26,46 +26,13 @@ template <class T> void LASolverCommon<T>::Rescale(Mat& U,const RVec& s, Mat& Vt
 }
 
 //
-//  UsV from Lapack SVD which returns a diag matrix for s.
-//
-template <class T>  void LASolverCommon<T>::Truncate(Mat& U, DMat& s, Mat& Vt, double tol)
-{
-    assert(U.GetLimits()==s.GetLimits());
-    assert(U.GetLimits()==Vt.GetLimits());
-    //  Find the index to truncate at.
-    size_t index=0;
-    for (auto i:s.GetDiagonal()) 
-        if (i>=tol)
-            index++;
-        else
-            break;
-    assert(s(index,index)>=tol);
-    assert(s(index+1,index+1)<tol);
-    size_t n=s.GetDiagonal().size();
-    std::cout << "LASolverCommon truncating " << n-index << " singular values." << 
-    " Min(s)="<< s(n,n) << " yol=" << tol << std::endl;
-    //
-    //  Two sets of vector limits
-    //
-    VecLimits vl (U.GetRowLimits());
-    VecLimits vlt(vl.Low,index);
-    assert(vl.Low==1);
-    //
-    //  Truncate
-    //
-    U =U .SubMatrix(MatLimits(vl,vlt));
-    s =s .SubMatrix(MatLimits(vlt,vlt));
-    Vt=Vt.SubMatrix(MatLimits(vlt,vl));
-}
-
-//
 //  UsV from OML SVD which returns a diag matrix for s.
 //
-template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V, double tol)
+template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& Vt, double tol)
 {
     assert(U.GetRowLimits()==s.GetLimits());
     assert(U.GetColLimits()==s.GetLimits());
-    assert(U.GetLimits()==V.GetLimits());
+    assert(U.GetLimits()==Vt.GetLimits());
     //  Find the index to truncate at.
     size_t index=0;
     for (auto i:s) 
@@ -89,7 +56,7 @@ template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& V, do
     //
     U =U.SubMatrix(MatLimits(vl,vlt));
     s =s.SubVector(vlt);
-    V =V.SubMatrix(MatLimits(vl,vlt));
+    Vt=Vt.SubMatrix(MatLimits(vlt,vl));
 }
 
 //

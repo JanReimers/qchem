@@ -34,17 +34,10 @@ template <class T> void LASolverOMLEigen<T>::SetBasisOverlap(const SMat& S)
 template <class T> void LASolverOMLSVD<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,s,V] =SVD(S);
-    LASolverCommon<T>::Truncate(U,s,V,itsParams.TruncationTolerance);
-
-//    Mat sM(s.GetLimits(),s.GetLimits());
-//    Fill(sM,0.0);
-//    sM.GetDiagonal()=s;
-    //double err1=Max(fabs(U*sM*~V-S));
-    LASolverCommon<T>::Rescale(U,s);
-    LASolverCommon<T>::Rescale(V,s);
-    //double err2=Max(fabs(U*~V-S));
-    //std::cout << "SVD errors " << err1 << " " << err2 << std::endl;
-    LASolverCommon<T>::AssignVs(U,~V);
+    Mat Vt=~V;
+    LASolverCommon<T>::Truncate(U,s,Vt,itsParams.TruncationTolerance);
+    LASolverCommon<T>::Rescale(U,s,Vt);
+    LASolverCommon<T>::AssignVs(U,Vt);
 }
 
 template <class T> void LASolverOMLCholsky<T>::SetBasisOverlap(const SMat& S)
