@@ -1,9 +1,15 @@
 Priority 1:
     -kT Occ smearing fails miserably.
-    -DFT stop using InverseOverlap ... use SVD solver or something more stable.
-        HeapDB is doing the inversion.  It has no business doing this.  Should be 
-        moved to IE.
-    
+    Done: -DFT stop using InverseOverlap ... use SVD solver or something more stable.
+        Done: HeapDB is doing the inversion.  It has no business doing this.  Should be 
+        moved to IE.  But HeapDB caches the overlap.
+    -LAParams for InverseOverlap ar hard coded right now.  Need to re-org all basis set
+     constructors with 3 versions
+        1) HF orbitals needs LAPArams for secular eq.
+        2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.
+        3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
+      We will need a null Ortho type for LAParams for assertions.
+      
 Priority 2:
     -SMAT does not support S+=Xpr
     -Hunt for dynamic casts that can be removed using dynamic_cast iterator

@@ -30,11 +30,7 @@ template <class T> typename LASolver<T>::UdType LASolverLapackCommon<T>::Solve(c
     assert(!isnan(Ham));
 	StreamableObject::SetToPretty();
     Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
-    double del=MakeSymmetric(HPrime);
-//    if (fabs(del) > 1e-10)
-//    {
-//        std::cerr << "Warning: Hamiltonian asymmetry = " << del << " is big!" << std::endl;
-//    }
+    MakeSymmetric(HPrime,"Hamiltonian");
     auto [U,e]  =itsLapackEigenSolver->SolveAll(HPrime,itsParams.abstol);  //Get eigen solution.
     U = V * U;                      //Back transform.
     return std::make_tuple(U,e);
@@ -49,6 +45,15 @@ template <class T> void LASolverLapackEigen<T>::SetBasisOverlap(const SMat& S)
     LASolverCommon<T>::AssignVs(U,~U);
 }
 
+template <class T> typename LASolver<T>::RSMat LASolverLapackEigen<T>::Inverse(const RSMat& S) const
+{
+    auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),itsParams.abstol);
+    LASolverCommon<T>::Truncate(U,w,itsParams.TruncationTolerance);
+    DiagonalMatrix<T> winv(RVec(1.0/w));
+    Mat Sfull(U*winv*~U);
+    return MakeSymmetric(Sfull,"Inverse");
+}
+
 template <class T> void LASolverLapackSVD<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S);
@@ -58,7 +63,23 @@ template <class T> void LASolverLapackSVD<T>::SetBasisOverlap(const SMat& S)
     LASolverCommon<T>::AssignVs(U,Vt);
 }
 
+template <class T> typename LASolverLapackSVD<T>::RSMat LASolverLapackSVD<T>::Inverse(const RSMat& S) const
+{
+    auto [U,sM,Vt] =itsLapackSVDSolver->SolveAll(S);
+    RVec s=sM.GetDiagonal();
+    LASolverCommon<T>::Truncate(U,s,Vt,itsParams.TruncationTolerance);
+    DiagonalMatrix<T> sinv(RVec(1.0/s));
+    Mat Sfull(~Vt*sinv*~U);
+    return MakeSymmetric(Sfull,"Inverse");
+}
+
 template <class T> void LASolverLapackCholsky<T>::SetBasisOverlap(const SMat& S)
+{
+    std::cerr << "General Eigen solver Lapack Cholsky is not implemented yet" << std::endl;
+    exit(-1);
+}
+
+template <class T> typename LASolver<T>::RSMat LASolverLapackCholsky<T>::Inverse(const RSMat& S) const
 {
     std::cerr << "General Eigen solver Lapack Cholsky is not implemented yet" << std::endl;
     exit(-1);

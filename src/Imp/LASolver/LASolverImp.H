@@ -28,7 +28,8 @@ template <class T> class LASolverCommon
 {
     typedef LASolver<T> Base;
     typedef typename Base::RVec RVec;
-    typedef typename Base::Mat Mat;
+    typedef typename Base::Mat  Mat;
+    typedef typename Base::SMat SMat;
     typedef DiagonalMatrix<T>  DMat;
 protected:
     LASolverCommon(const LinearAlgebraParams& lap) : itsParams(lap) {};
@@ -39,7 +40,8 @@ protected:
     static void Rescale (Mat& U, const RVec& w, Mat& Vt);
     static void Truncate(Mat& U, RVec& w, double tol);
     static void Truncate(Mat& U, RVec&, Mat& V , double tol);
-
+    static SMat MakeSymmetric(Mat&,c_str name);
+    
     void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
 
     LinearAlgebraParams itsParams;

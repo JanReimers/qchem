@@ -28,6 +28,13 @@ SphericalGaussianBS::SphericalGaussianBS()
     , TBasisSetImplementation<double>()
 {};
 
+//
+//  We need three constructors type here.  They all need DB, size, exponents,L
+//    1) For HF orbitals also need LinearAlgebraParams for secular eq. solving
+//    2) For DFT orbitals need 1+LinearAlgebraParams for overlap inversion.
+//    3) For DFT Vxc, and ro fitting we need defulat + mesh.
+//
+
 SphericalGaussianBS::SphericalGaussianBS(
         const LinearAlgebraParams& lap,
         IntegralDataBase<double>* theDB,

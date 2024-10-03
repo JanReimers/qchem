@@ -20,7 +20,7 @@ private:
 class DFTAtomTester : public AtomTester, public DFTTester
 {
 public:
-    DFTAtomTester() : AtomTester(17,.01,200000.0) {};
+    DFTAtomTester() : AtomTester(37,.01,200000.0) {};
     void Init(Atom* atom)
     {
         AtomTester::Init(atom);

@@ -9,7 +9,6 @@
 #include "Misc/ERIProxy.H"
 #include "oml/vector.h"
 #include "oml/imp/binio.h"
-#include "oml/numeric.h"
 #include "oml/vector.h"
 #include "Misc/stl_io.h"
 #include <iostream>
@@ -468,7 +467,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(
     assert(itsIntegralEngine);
     if (!itsInvOverlapFlag)
     {
-        itsInvOverlap = InvertSymmetric(GetOverlap());
+        itsInvOverlap = itsIntegralEngine->MakeInverse(GetOverlap());
         itsInvOverlapFlag = true;
     }
     return itsInvOverlap;
@@ -481,7 +480,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsio
     {
         SMat repulsion=GetRepulsion();
 //        std::cout << "repulsion=" << repulsion << std::endl;
-        itsInvRepulsion = InvertSymmetric(repulsion);
+        itsInvRepulsion = itsIntegralEngine->MakeInverse(repulsion);
 //        std::cout << "itsInvRepulsion=" << itsInvRepulsion << std::endl;
         itsInvRepulsionFlag = true;
     }

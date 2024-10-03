@@ -1,6 +1,7 @@
 // File: LASolver.C  General eigen solver.
 
 #include "Imp/LASolver/LASolverImp.H"
+#include "oml/smatrix.h"
 #include "oml/diagonalmatrix.h"
 #include "oml/vector.h"
 #include <cmath>
@@ -94,6 +95,19 @@ template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& w,double tol)
         w.ReBase(1);
     }
 }
+
+template <class T>  typename LASolverCommon<T>::SMat LASolverCommon<T>::MakeSymmetric(Mat& A,c_str name)
+{
+    double del=::MakeSymmetric(A); // A=0.5*(A+~A)
+#ifdef DEBUG
+    if (fabs(del) > 1e-9)
+        std::cerr << "Warning: " << name << " asymmetry = " << del << " is big!" << std::endl;
+#endif
+    return A;
+}
+
+ 
+
 
 template class LASolver<double>;
 template class LASolverCommon<double>;

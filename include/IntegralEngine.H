@@ -40,7 +40,8 @@ public:
     typedef Matrix<T>      Mat;
     typedef SMatrix<T>     SMat;
     typedef Vector<T>      Vec;
-    typedef Vector<double> RVec;
+    typedef Vector <double> RVec;
+    typedef SMatrix<double> RSMat;
     typedef MatrixList<T>  MList;
 
     virtual ~IntegralEngine()  {};
@@ -64,6 +65,7 @@ public:
 
     virtual SMat MakeKinetic(              ) const=0;
     virtual SMat MakeNuclear(const Cluster&) const=0;
+    virtual RSMat MakeInverse(const RSMat& ) const=0; //Numerically stable algo required.
 
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;

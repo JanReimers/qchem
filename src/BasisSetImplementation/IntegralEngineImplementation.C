@@ -4,6 +4,9 @@
 
 #include "BasisSetImplementation/IntegralEngineImplementation.H"
 #include "BasisSet.H"
+#include "SCFIterator/IterationParams.H"
+#include "LASolver/LASolver.H"
+#include "oml/numeric.h"
 #include <iostream>
 #include <cassert>
 
@@ -102,6 +105,17 @@ MakeCharge() const
     for (auto b:*itsBasisSet) ret(i++)=b->GetCharge();
     return DirectMultiply(ret,itsNormalizations);
 }
+
+
+template <class T> typename IntegralEngineImplementation<T>::RSMat IntegralEngineImplementation<T>::
+    MakeInverse(const RSMat& S) const
+{
+    LinearAlgebraParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
+    LASolver<double>* las=LASolver<double>::Factory(lap);
+    return las->Inverse(S);
+//    return InvertSymmetric(S);
+}
+
 
 template <class T> void IntegralEngineImplementation<T>::
 Normalize(const RVec& n1, Mat& m, const RVec& n2) const

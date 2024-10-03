@@ -23,14 +23,17 @@ protected:
     typedef typename Base::Mat  Mat;
     typedef typename Base::RVec RVec;
     typedef typename Base::SMat SMat;
+    typedef typename Base::RSMat RSMat;
 public:
     IntegralEngineImplementation();
     IntegralEngineImplementation(const IntegralEngineImplementation&);
     virtual void Insert(const TBasisSet<T>*);
 
-    virtual RVec MakeNormalization() const;
-    virtual RVec MakeCharge       () const;
-
+    virtual RVec MakeNormalization  () const;
+    virtual RVec MakeCharge         () const;
+    
+    virtual RSMat MakeInverse(const RSMat&) const;
+    
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 

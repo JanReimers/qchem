@@ -19,6 +19,12 @@
 //  be selected using the enums defined below.  Also one can chose the linear algebra library
 //  to use: OML (derived from Numerical Recipes), or Lapack.
 //
+//  For fitting charge density and exchange potential profile in DFT calculation we require
+//  the inverse of wither the overlap and repulsion matrices.  This can be very unstable
+//  for a high precision basis set that is close to being linearly dependent.  SVD + Truncate
+//  can yield the so called Penrose inverse  S = U*s*Vd, Inv(S) = V * 1/s * Ud .
+//  Similarly we can do an eigen inverse S=U*w*Ud, Inv(S)=U*1/w*Ud
+//
 
 #include "types.H"
 #include <tuple>
@@ -30,13 +36,15 @@ public:
     
     typedef Matrix<T>      Mat;
     typedef SMatrix<T>     SMat;
-    typedef Vector<double> RVec;
+    typedef Vector<double>  RVec;
+    typedef SMatrix<double> RSMat;
     typedef std::tuple<Mat,RVec> UdType;
 
     static  LASolver* Factory(const LinearAlgebraParams&);  
       
     virtual void   SetBasisOverlap(const SMat& S)=0;
     virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.
+    virtual RSMat  Inverse(const RSMat& S) const=0;
 };
 
 
