@@ -5,6 +5,7 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H"
+#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/NumericalIE.H"
 #include "IntegralDataBase.H"
@@ -56,7 +57,10 @@ SphericalGaussianBS::SphericalGaussianBS(
         TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh));
     }
     else
+    {
         TBasisSetImplementation<double>::Insert(new SphericalGaussianIE );
+    }
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,exp));        
 
 };
 

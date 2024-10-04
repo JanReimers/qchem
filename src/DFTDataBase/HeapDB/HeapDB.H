@@ -37,6 +37,7 @@ public:
     HeapDB(const HeapDB&);
     HeapDB& operator=(const HeapDB&);
     virtual void  Insert(const TBasisSet<T>*,  const IntegralEngine<T>*);
+    virtual void  Insert(const IntegralEngine1<T>*);
     virtual void  Insert(const BasisGroup*);
     virtual void  Insert(const ERIList& c_eris,const ERIList& x_eris);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
@@ -77,6 +78,7 @@ private:
     typedef std::vector<UniqueID::IDtype>      IDList;
 
     const IntegralEngine<T>* itsIntegralEngine;
+    const IntegralEngine1<T>* itsIntegralEngine1;
     const BasisSet*          itsBasisSet;
     const BasisGroup*        itsBasisGroup;
 

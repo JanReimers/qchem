@@ -5,6 +5,7 @@
 #include "DFTDataBase/HeapDB/HeapDB.H"
 #include "BasisSet.H"
 #include "Cluster.H"
+#include "IntegralEngine1.H"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
 #include "oml/vector.h"
@@ -22,6 +23,7 @@
 //
 template <class T> HeapDB<T>::HeapDB()
     :itsIntegralEngine    (0)
+    ,itsIntegralEngine1   (0)
     ,itsBasisSet          (0)
     ,itsSelfOverlapFlag   (false)
     ,itsSelfRepulsionFlag (false)
@@ -46,6 +48,7 @@ template <class T> HeapDB<T>::HeapDB()
 // TODO Why do we need a copy constructor?
 template <class T> HeapDB<T>::HeapDB(const HeapDB&)
     :itsIntegralEngine    (0)
+    ,itsIntegralEngine1   (0)
     ,itsBasisSet          (0)
     ,itsSelfOverlapFlag   (false)
     ,itsSelfRepulsionFlag (false)
@@ -119,6 +122,11 @@ template <class T> void HeapDB<T>::Insert(const TBasisSet<T>* bs,const IntegralE
     assert(ie);
     itsBasisSet=bs;
     itsIntegralEngine=ie;
+}
+template <class T> void HeapDB<T>::Insert(const IntegralEngine1<T>* ie1)
+{
+    assert(ie1);
+    itsIntegralEngine1=ie1;
 }
 
 template <class T> void HeapDB<T>::Insert(const BasisGroup* bg)
@@ -297,28 +305,37 @@ template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap()
     assert(itsIntegralEngine);
     if(!itsSelfOverlapFlag)
     {
-        itsSelfOverlap=itsIntegralEngine->MakeOverlap();
+        if (itsIntegralEngine1)
+            itsSelfOverlap=itsIntegralEngine1->MakeOverlap();
+        else
+            itsSelfOverlap=itsIntegralEngine->MakeOverlap();
         itsSelfOverlapFlag=true;
     }
     return itsSelfOverlap;
 }
 
-template <class T> const typename HeapDB<T>::Vec& HeapDB<T>::GetOverlap(const ScalarFunction<double>& f)
-{
-    assert(itsIntegralEngine);
-    itsRSFOverlap=itsIntegralEngine->MakeOverlap(f);
-    return itsRSFOverlap;
-}
-
 template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(const TBasisSet<T>& theBasisSet)
 {
+    // No UT coverage.
     assert(itsIntegralEngine);
     if (itsOverlapBasisSets!=theBasisSet.GetID())
     {
-        itsBSOverlaps = itsIntegralEngine->MakeOverlap(theBasisSet);
+        if (itsIntegralEngine1)
+            itsBSOverlaps = itsIntegralEngine1->MakeOverlap(theBasisSet.GetIntegralEngine1());
+        else
+            itsBSOverlaps = itsIntegralEngine->MakeOverlap(theBasisSet);
         itsOverlapBasisSets = theBasisSet.GetID();
     }
     return itsBSOverlaps;
+}
+
+template <class T> const typename HeapDB<T>::Vec& HeapDB<T>::GetOverlap(const ScalarFunction<double>& f)
+{
+    //Only used for numerical IE.
+    assert(itsIntegralEngine);
+    itsRSFOverlap=itsIntegralEngine->MakeOverlap(f);
+
+    return itsRSFOverlap;
 }
 
 
@@ -328,7 +345,10 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion()
     assert(itsIntegralEngine);
     if(!itsSelfRepulsionFlag)
     {
-        itsSelfRepulsion=itsIntegralEngine->MakeRepulsion();
+        if (itsIntegralEngine1)
+            itsSelfRepulsion=itsIntegralEngine1->MakeRepulsion();
+        else
+            itsSelfRepulsion=itsIntegralEngine->MakeRepulsion();
         itsSelfRepulsionFlag=true;
     }
     return itsSelfRepulsion;
@@ -346,7 +366,10 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(const 
     assert(itsIntegralEngine);
     if (itsRepulsionBasisSets!=theBasisSet.GetID())
     {
-        itsBSRepulsions = itsIntegralEngine->MakeRepulsion(theBasisSet);
+        if (itsIntegralEngine1)
+            itsBSRepulsions = itsIntegralEngine1->MakeRepulsion(theBasisSet.GetIntegralEngine1());
+        else
+            itsBSRepulsions = itsIntegralEngine->MakeRepulsion(theBasisSet);
         itsRepulsionBasisSets = theBasisSet.GetID();
     }
     return itsBSRepulsions;
@@ -357,7 +380,10 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic()
     assert(itsIntegralEngine);
     if(!itsSelfKineticFlag)
     {
-        itsSelfKinetic=itsIntegralEngine->MakeKinetic();
+         if (itsIntegralEngine1)
+            itsSelfKinetic=itsIntegralEngine1->MakeKinetic();
+        else
+            itsSelfKinetic=itsIntegralEngine->MakeKinetic();
         itsSelfKineticFlag=true;
     }
     return itsSelfKinetic;
@@ -368,7 +394,10 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNormalization()
     assert(itsIntegralEngine);
     if(!itsNormalizationFlag)
     {
-        itsNormalization=itsIntegralEngine->MakeNormalization();
+        if (itsIntegralEngine1)
+            itsNormalization=itsIntegralEngine1->MakeNormalization();
+        else
+            itsNormalization=itsIntegralEngine->MakeNormalization();
         itsNormalizationFlag=true;
     }
     return itsNormalization;
@@ -379,7 +408,10 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
     assert(itsIntegralEngine);
     if(!itsChargeFlag)
     {
-        itsCharge=itsIntegralEngine->MakeCharge();
+        if (itsIntegralEngine1)
+            itsCharge=itsIntegralEngine1->MakeCharge();
+        else
+            itsCharge=itsIntegralEngine->MakeCharge();
         itsChargeFlag=true;
     }
     return itsCharge;
@@ -390,7 +422,10 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetOverlap3C(cons
     assert(itsIntegralEngine);
     if (its3CenterOverlapBS!=bs.GetID())
     {
-        itsIntegralEngine->MakeOverlap3C(*its3CenterOverlaps,bs);
+        if (itsIntegralEngine1)
+            itsIntegralEngine1->MakeOverlap3C(*its3CenterOverlaps,bs.GetIntegralEngine1());
+        else
+            itsIntegralEngine->MakeOverlap3C(*its3CenterOverlaps,bs);
         its3CenterOverlapBS=bs.GetID();
     }
     return *its3CenterOverlaps;
@@ -401,7 +436,10 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(co
     assert(itsIntegralEngine);
     if (its3CenterRepulsionBS!=bs.GetID())
     {
-        itsIntegralEngine->MakeRepulsion3C(*its3CenterRepulsions,bs);
+        if (itsIntegralEngine1)
+            itsIntegralEngine1->MakeRepulsion3C(*its3CenterRepulsions,bs.GetIntegralEngine1());
+        else
+            itsIntegralEngine->MakeRepulsion3C(*its3CenterRepulsions,bs);
         its3CenterRepulsionBS=bs.GetID();
     }
     return *its3CenterRepulsions;
@@ -414,7 +452,10 @@ template <class T> const ERIProxy HeapDB<T>::GetRepulsion4C(const TBasisSet<T>* 
     if (its4CenterRepulsions.GetSize()==0)
     {
         assert(itsBasisGroup);
-        itsIntegralEngine->MakeRepulsion4C(its4CenterRepulsions,its4CenterExchange,itsBasisGroup);
+        if (itsIntegralEngine1)
+            itsIntegralEngine1->MakeRepulsion4C(its4CenterRepulsions,its4CenterExchange,itsBasisGroup->Flatten());
+        else
+            itsIntegralEngine->MakeRepulsion4C(its4CenterRepulsions,its4CenterExchange,itsBasisGroup);
         //
         //  This is how we pass the ERI tables to all the other DBs.
         //
@@ -455,7 +496,10 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(const C
     if (index == itsNuclearClusters.size())
     {
 //        std::cout << "Creating cluster index=" << index << " ID=" << theCluster.GetID() << std::endl;
-        itsNuclears->Add(itsIntegralEngine->MakeNuclear(theCluster));
+        if (itsIntegralEngine1)
+            itsNuclears->Add(itsIntegralEngine1->MakeNuclear(theCluster));
+        else
+            itsNuclears->Add(itsIntegralEngine->MakeNuclear(theCluster));
         itsNuclearClusters.push_back(theCluster.GetID());
     }
     return (*itsNuclears)[index];

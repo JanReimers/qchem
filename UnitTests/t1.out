@@ -1,0 +1,48 @@
+Note: Google Test filter = AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/2
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from AtomsHFPolarized/HartreeFockAtomTester
+[ RUN      ] AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/2
+Testing atom B 
+1 1 1 1
+1 1 1 4
+1 1 4 4
+1 4 1 1
+1 4 1 4
+1 4 4 4
+4 4 4 4
+LASolverCommon truncating 0 singular values. Min(s)=0.9827 yol=1e-06
+LASolverCommon truncating 0 singular values. Min(s)=0.999079 yol=1e-06
+
+
+ #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up)   Ef(down) 
+----------------------------------------------------------------------------
+ 0     -14.25297566 1.498 42.494  9.792 -4.392 3.04e-04 0.00e+00  0.00e+00 
+-----------------------------------------------------------------
+Alpha spin :
+ -4.1337(   1) 
+ -0.2649(   1) 
+ -0.0748( 1.0/3) 
+ 22.1415( 0.0/3) 
+28888.5914( 0.0/1) 
+
+Beta spin :
+ -4.1337(   1) 
+ -0.2462(   1) 
+ -0.0403( 0.0/3) 
+ 22.1415( 0.0/3) 
+
+E_HF relative error=41.62111%
+/home/janr/Code/qchem/UnitTests/AtomTests.C:29: Failure
+Expected: (error) < (eps_e), actual: 0.41621114966404166 vs 0.0001
+
+[  FAILED  ] AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/2, where GetParam() = 5 (5 ms)
+[----------] 1 test from AtomsHFPolarized/HartreeFockAtomTester (5 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (5 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/2, where GetParam() = 5
+
+ 1 FAILED TEST

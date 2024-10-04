@@ -42,6 +42,17 @@ void BasisGroup::Insert(BasisSet* bs)
     tbs->GetDataBase()->Insert(this);
 }
 
+BasisGroup::iev_t BasisGroup::Flatten() const
+{
+    iev_t ies;
+    for (auto bs:*this)
+    {
+        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
+        ies.push_back(tbs->GetIntegralEngine1());
+    }
+    return ies;
+}
+
 void BasisGroup::Insert(const ERIList& C, const ERIList& X) const
 {
     for (auto bs:*this)

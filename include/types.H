@@ -59,6 +59,7 @@ struct SCFIterationParams;
 
 
 template <class T> class LASolver;
+template <class T> class IntegralEngine1;
 template <class T> class IntegralDataBase;
 template <class T> class MatrixList;
 template <class T> class TBasisFunction;

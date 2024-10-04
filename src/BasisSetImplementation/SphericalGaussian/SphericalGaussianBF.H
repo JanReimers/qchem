@@ -26,6 +26,7 @@ public:
 
 private:
     friend class SphericalGaussianIE;
+    friend class SphericalGaussianIE1;
     friend class SphericalSymmetryBS;
 
     double itsExponent;

@@ -6,18 +6,19 @@
 
 #include "Misc/Persistent/Persistent.H"
 #include "Misc/ERIProxy.H"
+#include "types.H"
 
-template <class T> class ScalarFunction;
+//template <class T> class ScalarFunction;
 template <class T> class IntegralEngine;
-template <class T> class TBasisSet;
-template <class T> class MatrixList;
-template <class T> class Matrix;
-template <class T> class SMatrix;
-template <class T> class Vector;
-class Cluster;
-//class ERIProxy;
-class ERIList;
-class BasisGroup;
+//template <class T> class TBasisSet;
+//template <class T> class MatrixList;
+//template <class T> class Matrix;
+//template <class T> class SMatrix;
+//template <class T> class Vector;
+//class Cluster;
+////class ERIProxy;
+//class ERIList;
+//class BasisGroup;
 //-----------------------------------------------------------------------------
 //
 //  Once supplied with an integral engine, this class manages storage
@@ -37,6 +38,7 @@ public:
 
     virtual ~IntegralDataBase() {};
     virtual void  Insert(const TBasisSet<T>*,  const IntegralEngine<T>*)=0;
+    virtual void  Insert(const IntegralEngine1<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
     virtual void  Insert(const ERIList& c_eris, const ERIList& x_eris)=0;
     virtual bool  operator==(const IntegralDataBase&) const=0;

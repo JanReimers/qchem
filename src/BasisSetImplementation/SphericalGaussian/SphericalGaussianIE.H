@@ -29,7 +29,7 @@ public:
 
     virtual SMatrix<double>  MakeKinetic  (              ) const;
     virtual SMatrix<double>  MakeNuclear  (const Cluster&) const;
-
+    
     virtual IntegralEngine<double>* Clone() const;
 
 private:
@@ -40,6 +40,8 @@ private:
 
     int             itsL;          //Angular momentum.
     Vector<double>  itsExponents;  //The orbital exponents.
+    
+    static double FourPi2;
 };
 
 #endif //_SphericalGaussianIE_H_

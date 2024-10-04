@@ -19,7 +19,8 @@ Priority 2:
         -Move stream up from imp.
     -Persistent base doesn't do anything.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-
+    -Integral engine needs a different interface for analytic and numerical.
+        For example MakeOverlap(const ScalarFunction&) is used for numerical.
     
 Priority 3:
     -Support V*S without including matrix.h

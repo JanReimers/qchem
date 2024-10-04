@@ -121,7 +121,6 @@ template <class T> class TBasisSet
 {
 public:
     typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
-
     size_t GetVectorSize() const
     {
         return GetNumFunctions();
@@ -131,6 +130,7 @@ public:
     virtual SMat GetExchange (const SMat& Dcd, const TBasisSet* bs_cd) const=0;
 
     virtual IntegralDataBase<T>* GetDataBase() const=0;
+    virtual IntegralEngine1 <T>* GetIntegralEngine1() const=0;
     //virtual LASolver<T>*         GetLASolver() const=0;
    
     const_iterator beginT() const {return const_iterator(begin());};
@@ -153,6 +153,7 @@ class BasisGroup
 {
 public:
     typedef optr_vector1<BasisSet*>::const_iterator const_iterator;
+    typedef std::vector<const IntegralEngine1<double>*> iev_t;
 
     BasisGroup();
     virtual ~BasisGroup();
@@ -164,6 +165,8 @@ public:
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}
+    iev_t   Flatten() const;
+    
 //
 //  StreamableObject stuff.
 //

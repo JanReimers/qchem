@@ -16,7 +16,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-double FourPi2=4*4*Pi*Pi;
+double SphericalGaussianIE::FourPi2=4*4*Pi*Pi;
 
 //-----------------------------------------------------------------
 //
@@ -276,6 +276,7 @@ void SphericalGaussianIE::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, c
                     int Nd=ie_d->itsN;
                     int Ld=ie_d->itsL;
 
+//                    std::cout << start_a << " " << start_b << " " << start_c << " " << start_d << std::endl;
                     ERIProxy cp(Coulomb     ,start_a,start_b,start_c,start_d);
                     ERIProxy ep(exchange    ,start_a,start_b,start_c,start_d);
                     ERIProxy tp(tracker_eris,start_a,start_b,start_c,start_d);
@@ -304,6 +305,7 @@ void SphericalGaussianIE::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, c
                                         tp(ia,ib,ic,id)=-1.0;
                                         cp(ia,ib,ic,id)=J;
                                         ep(ia,ib,ic,id)=K;
+//                                        std::cout << start_a+ia-1 << " " << start_b+ib-1 << " " << start_c+ic-1 << " " << start_d+id-1 << std::endl;
                                     }
                                     else if (fabs(cp(ia,ib,ic,id)-J)>1e-8)
                                     {

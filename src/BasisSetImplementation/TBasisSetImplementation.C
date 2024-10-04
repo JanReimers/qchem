@@ -62,11 +62,25 @@ template <class T> void TBasisSetImplementation<T>::Insert(IntegralEngine<T>* ie
     itsDataBase->Insert(this,ie);
 }
 
+template <class T> void TBasisSetImplementation<T>::Insert(IntegralEngine1<T>* ie1)
+{
+    assert(ie1);
+    itsIntegralEngine1.reset(ie1);
+    itsDataBase->Insert(ie1);
+}
+
 template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase() const
 {
     assert(&*itsDataBase);
     return itsDataBase;
 }
+template <class T> IntegralEngine1<T>* TBasisSetImplementation<T>::GetIntegralEngine1() const
+{
+    assert(&*itsIntegralEngine1);
+    return &*itsIntegralEngine1;
+}
+
+ 
 
 //-----------------------------------------------------------------------------
 //
