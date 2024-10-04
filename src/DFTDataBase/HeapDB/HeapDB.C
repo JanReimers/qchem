@@ -3,6 +3,7 @@
 
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
+#include "QuantumNumber.H"
 #include "BasisSet.H"
 #include "Cluster.H"
 #include "IntegralEngine1.H"
@@ -140,7 +141,11 @@ template <class T> void HeapDB<T>::Insert(const ERIList& Coulomb, const ERIList&
     its4CenterRepulsions=Coulomb;
     its4CenterExchange=exchange;
 }
-
+template <class T> void HeapDB<T>::Insert(const ERIList1& J, const ERIList1& K)
+{
+    itsJTable=J;
+    itsKTable=K;
+}
 
 template <class T> bool HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
 {
@@ -445,10 +450,15 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(co
     return *its3CenterRepulsions;
 }
 
+
 template <class T> const ERIProxy HeapDB<T>::GetRepulsion4C(const TBasisSet<T>* bs_cd)
 {
     assert(itsBasisSet);
     assert(bs_cd);
+//    std::cout << "HeapDB<T>::GetRepulsion4C" << std::endl;
+//    std::cout << "Repulsions: " << itsBasisSet->GetID() << " " << bs_cd->GetID()  << std::endl;
+//    std::cout << "Repulsions: " << itsBasisSet->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
+
     if (its4CenterRepulsions.GetSize()==0)
     {
         assert(itsBasisGroup);
@@ -459,8 +469,10 @@ template <class T> const ERIProxy HeapDB<T>::GetRepulsion4C(const TBasisSet<T>* 
         //
         //  This is how we pass the ERI tables to all the other DBs.
         //
-        itsBasisGroup->Insert(its4CenterRepulsions,its4CenterExchange);
+        itsBasisGroup->Insert(its4CenterRepulsions,its4CenterExchange); //Eeach basis set has its own HeapDB.
+     
     }
+    
     return ERIProxy(its4CenterRepulsions,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
 }
 
@@ -468,6 +480,8 @@ template <class T> const ERIProxy HeapDB<T>::GetExchange4C(const TBasisSet<T>* b
 {
     assert(itsBasisSet);
     assert(bs_cd);
+    //std::cout << "Exchange: " << itsBasisSet->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
+
     if (its4CenterExchange.GetSize()==0)
         return ERIProxy(its4CenterRepulsions,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
     else
@@ -475,6 +489,40 @@ template <class T> const ERIProxy HeapDB<T>::GetExchange4C(const TBasisSet<T>* b
 
 }
 
+template <class T> void HeapDB<T>::BuildERIs()
+{
+    assert(itsIntegralEngine1);
+    assert(itsJTable.GetSize()==0);
+    assert(itsKTable.GetSize()==0); //They should be synchronized.
+    auto [J,K]=itsIntegralEngine1->Make4C(itsBasisGroup->Flatten());
+    itsBasisGroup->Insert(J,K); //Eeach basis set has its own HeapDB.
+//    index_t N=bs_cd->GetNumFunctions();
+//    for (int ia=1;ia<=N;ia++)
+//    for (int ib=1;ib<=N;ib++)
+//    for (int ic=1;ic<=N;ic++)
+//    for (int id=1;id<=N;id++)
+//    {
+//    //                std::cout << "J(" << ia << "," << ib << "," << ic << "," << id << ")   " 
+//    //                << J.GetIndex(ia,ib,ic,id) << " " << J2.GetIndex(ia,ib,ic,id) << " " << J(ia,ib,ic,id) << " " << J2(ia,ib,ic,id) << std::endl;
+//               assert(itsJTable(ia,ib,ic,id)==its4CenterRepulsions(ia,ib,ic,id));
+//    //                std::cout << "K(" << ia << "," << ib << "," << ic << "," << id << ")   " 
+//    //                << K.GetIndex(ia,ib,ic,id) << " " << K2.GetIndex(ia,ib,ic,id) << " " << K(ia,ib,ic,id) << " " << K2(ia,ib,ic,id) << std::endl;
+//                assert(itsKTable(ia,ib,ic,id)==its4CenterExchange(ia,ib,ic,id));
+//            }
+//        }
+   
+}
+template <class T> ERIProxy1 HeapDB<T>::GetRepulsion4C_1(const TBasisSet<T>* bs_cd)
+{
+   if (itsJTable.GetSize()==0) BuildERIs(); 
+   return ERIProxy1(itsJTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+}
+
+template <class T> ERIProxy1 HeapDB<T>::GetExchange4C_1 (const TBasisSet<T>* bs_cd)
+{
+   if (itsJTable.GetSize()==0) BuildERIs(); 
+   return ERIProxy1(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+}
 //-------------------------------------------------------------------------
 //
 //  These guys have to check the ID lists to see if it integrals are

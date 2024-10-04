@@ -162,6 +162,7 @@ public:
     virtual void Insert(BasisSet*);
     // Share ERI tables with other DBs
     virtual void Insert(const ERIList& C, const ERIList& X) const;
+    virtual void Insert(const ERIList1& C, const ERIList1& X) const;
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}

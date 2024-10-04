@@ -7,9 +7,11 @@
 #include "oml/vector.h"
 #include <tuple>
 
+
 class SphericalGaussianIE1
     : public virtual IntegralEngine1<double>
 {
+
 public:
     typedef IntegralEngine1<double> IE;
     typedef ScalarFunction <double> SF;
@@ -17,8 +19,23 @@ public:
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
     typedef IE::iev_t iev_t;
+    typedef IE::jk_t jk_t;
+    typedef Vector<int> IVec;
     
+    struct SGparams
+    {
+        SGparams(const iev_t&);
+        size_t size() const {return Ls.size();}
+        IVec Ls;  //Angular momentum.
+        RVec es; //The orbital exponents.
+        RVec ns; //Normalization constants
+    };
+
+    
+        
     SphericalGaussianIE1(size_t L, const RVec& alphas);
+
+    virtual size_t size() const {return es.size();}
 
     virtual SMat MakeOverlap    (         ) const;
     virtual Mat  MakeOverlap    (const IE*) const;
@@ -30,6 +47,7 @@ public:
     virtual Vector<double>  MakeRepulsion  (const SF&  ) const;
     virtual void MakeRepulsion3C(MList&,const IE*) const;
     virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t&) const;
+    virtual jk_t Make4C(const iev_t&) const;
 //
     virtual SMat MakeKinetic  (              ) const;
     virtual SMat MakeNuclear  (const Cluster&) const;

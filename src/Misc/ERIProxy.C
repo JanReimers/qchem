@@ -1,6 +1,6 @@
 #include "ERIProxy.H"
 
-ERIProxy::ERIProxy(ERIList& eril,int start_ab, int start_cd)
+template <class T> TERIProxy<T>::TERIProxy(T& eril,int start_ab, int start_cd)
  : itsMasterERIList(eril)
  , itsStart_a(start_ab)
  , itsStart_b(start_ab)
@@ -14,7 +14,7 @@ ERIProxy::ERIProxy(ERIList& eril,int start_ab, int start_cd)
     //ctor
 }
 
-ERIProxy::ERIProxy(ERIList& eril,int sa,int sb,int sc, int sd)
+template <class T> TERIProxy<T>::TERIProxy(T& eril,int sa,int sb,int sc, int sd)
  : itsMasterERIList(eril)
  , itsStart_a(sa)
  , itsStart_b(sb)
@@ -27,3 +27,6 @@ ERIProxy::ERIProxy(ERIList& eril,int sa,int sb,int sc, int sd)
     assert(itsStart_d>0);
     //ctor
 }
+
+template class TERIProxy<ERIList>;
+template class TERIProxy<ERIList1>;

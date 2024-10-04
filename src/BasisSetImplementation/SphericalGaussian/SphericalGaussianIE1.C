@@ -187,6 +187,8 @@ void SphericalGaussianIE1::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, 
     }
     Coulomb.SetSize(N);
     exchange.SetSize(N);
+    
+    std::cout << N << " " << Coulomb.itsData.size() <<" " << exchange.itsData.size() << std::endl;
     ERIList tracker_eris(Coulomb.GetSize()); //For debug purposes.  Check for double assigns
     int La,Lb,Lc,Ld;
     double ea,eb,ec,ed,na,nb,nc,nd;
@@ -274,6 +276,84 @@ void SphericalGaussianIE1::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, 
         start_a+=Na;
     }
 }
+
+SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)
+{
+    size_t N=0;
+    for (auto ia: iev) N+=ia->size();
+    Ls.SetLimits(N);
+    es.SetLimits(N);
+    ns.SetLimits(N);
+    index_t i=1;
+    for (auto ia: iev)
+    {
+        const SphericalGaussianIE1* sg=dynamic_cast<const SphericalGaussianIE1*>(ia);
+        assert(sg);
+        for (auto i1:sg->es.indices())
+        {
+            Ls(i)=sg->L;
+            es(i)=sg->es(i1);
+            ns(i)=sg->ns(i1);
+            i++;
+        }
+    }
+}
+
+SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iev_t& iev) const
+{
+    SphericalGaussianIE1::SGparams sg(iev);
+    size_t N=sg.size();
+    ERIList1 J(N,-1.0),K(N,-1.0);
+    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
+
+    for (index_t ia:sg.es.indices())
+        for (index_t ib:sg.es.indices(ia))
+            for (index_t ic:sg.es.indices())
+                for (index_t id:sg.es.indices(ic))
+                {
+                    bool doJ = sg.Ls(ia)==sg.Ls(ib) && sg.Ls(ic)==sg.Ls(id) && J(ia,ib,ic,id)==-1.0;
+                    bool doK = sg.Ls(ia)==sg.Ls(ic) && sg.Ls(ib)==sg.Ls(id) && K(ia,ib,ic,id)==-1.0;
+                    if (doJ || doK)
+                    {
+                        double norm=sg.ns(ia)*sg.ns(ib)*sg.ns(ic)*sg.ns(id);
+                        SlaterIntegrals R(sg.es(ia)+sg.es(ib),sg.es(ic)+sg.es(id));
+                        if (doJ)
+                            J(ia,ib,ic,id)=FourPi2*R(0,sg.Ls(ia),sg.Ls(ib),sg.Ls(ic),sg.Ls(id))*norm;
+                        if (doK)
+                            K(ia,ib,ic,id)=FourPi2*R.DoExchangeSum(sg.Ls(ia),sg.Ls(ib),sg.Ls(ic),sg.Ls(id))*norm;
+                        else
+                            K(ia,ib,ic,id)=0.0;
+//                        std::cout << "L=(" << sg.Ls(ia) << "," << sg.Ls(ib) << "," << sg.Ls(ic) << "," << sg.Ls(id) 
+//                        << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J=" << J(ia,ib,ic,id) << std::endl;
+                                
+                     }
+                }
+                    
+        
+//    for (index_t ia:eab.indices())
+//        for (index_t ib:eab.indices(ia))
+//            for (index_t ic:ecd.indices(1))
+//                for (index_t id:ecd.indices(ic))
+//                {
+//                    if (J(ia,ib,ic,id)==-1.0) //unassigned marker
+//                    {
+//                        assert(K(ia,ib,ic,id)==-1.0);
+//                        double norm=nab(ia)*nab(ib)*ncd(ic)*ncd(id);
+//                        SlaterIntegrals R(eab(ia)+eab(ib),ecd(ic)+ecd(id));
+//                        J(ia,ib,ic,id)=FourPi2*R(0,Lab,Lab,Lcd,Lcd)*norm;
+//                        std::cout << Lab << " " << Lcd << " (" << ia << "," << ib << "," << ic << "," << id << ") " << J(ia,ib,ic,id) << std::endl;
+//                        if (Lab==Lcd)
+//                            K(ia,ib,ic,id)=FourPi2*R.DoExchangeSum(Lab,Lab,Lcd,Lcd)*norm;
+//                    }
+//                } //for id
+//  
+//    std::cout << "J=";
+//    for (index_t i=0;i<J.itsData.size();i++) std::cout << J.itsData[i] << " ";
+//    std::cout << std::endl;
+    
+    return std::make_pair(J,K);
+}
+
 ////
 //
 ////----------------------------------------------------------------------------------------

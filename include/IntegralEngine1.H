@@ -6,6 +6,7 @@
 #include "types.H"
 #include "Misc/pmstream.h"
 #include <vector>
+#include "Misc/ERIList1.H"
 
 
 //--------------------------------------------------------------------------------
@@ -45,9 +46,12 @@ public:
     typedef SMatrix<double> RSMat;
     typedef MatrixList<T>  MList;
     typedef std::vector<const IntegralEngine1<double>*> iev_t;
+    typedef std::pair<ERIList1,ERIList1> jk_t;
 
 
     virtual ~IntegralEngine1()  {};
+    
+    virtual size_t size() const=0;
 
     virtual SMat MakeOverlap   (                             ) const=0;
     virtual Mat  MakeOverlap   (const IntegralEngine1*       ) const=0;
@@ -59,6 +63,7 @@ public:
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
     virtual void MakeRepulsion3C(MList&,const IntegralEngine1*   ) const=0;
     virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t&) const=0;
+    virtual jk_t Make4C(const iev_t&) const=0;
 
     virtual RVec MakeNormalization() const=0;
     virtual RVec MakeCharge       () const=0;

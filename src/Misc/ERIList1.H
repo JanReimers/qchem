@@ -1,9 +1,9 @@
-#ifndef ERILIST_H
-#define ERILIST_H
+#ifndef ERILIST1_H
+#define ERILIST1_H
 
 #include "Misc/pmstream.h"
 #include "oml/smatrix.h"
-#include <vector>
+#include "oml/imp/cow.h"
 #include <iostream>
 //------------------------------------------------------------------
 //
@@ -13,24 +13,25 @@
 //          /
 //
 // where g is a basis function. There is obviously some symmetry with regard to the
-// i,j,k,l indices.  In particular, the following swaps are allowed
+// i,j,k,l indicies.  In particular, the follwing swaps are allowed
 //   i <--> j
 //   k <--> l
 //   i,j <--> k,l
 // resulting in a eightfold storage reduction.
 //
 
-class ERIList
+class ERIList1
    : public virtual PMStreamableObject
 {
 public:
-    ERIList();
-    ERIList(int n);
+    ERIList1();
+    ERIList1(int n);
+    ERIList1(int n,double _fill);
     void Empty(); //Clear out all data.
-    void SetSize(int n);
+    void SetSize(int n, double _fill=0.0);
     int GetSize() const {return itsN;}
 
-    virtual ~ERIList();
+    virtual ~ERIList1();
 
     double operator()(int i, int j, int k, int l) const
     {
@@ -56,7 +57,6 @@ public:
     {
         return SMatrix<double>::GetSymOffset(i,j,n);
     }
-    
     inline int GetIndex(int i,int j,int k,int l) const
     {
         return GetIndex(i,j,k,l,itsN);
@@ -80,7 +80,7 @@ public:
     }
 
     int itsN; //Basis set size;
-    std::vector<double> itsData; //Linear data array.  Deep copy ... ooops!
+    cow_array<double> itsData; //Linear data array.
 };
 
-#endif // ERILIST_H
+#endif // ERILIST1_H

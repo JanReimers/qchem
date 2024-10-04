@@ -8,11 +8,13 @@
 #include "IntegralDataBase.H"
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/ERIList.H"
+#include "Misc/ERIList1.H"
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Misc/MatrixList.H"
 #include "Misc/rc_ptr.H"
+#include <map>
 
 
 class BasisSet;
@@ -33,6 +35,7 @@ protected:
     typedef typename Base::SMat  SMat;
     typedef typename Base::MList MList;
 public:
+
     HeapDB();
     HeapDB(const HeapDB&);
     HeapDB& operator=(const HeapDB&);
@@ -40,6 +43,7 @@ public:
     virtual void  Insert(const IntegralEngine1<T>*);
     virtual void  Insert(const BasisGroup*);
     virtual void  Insert(const ERIList& c_eris,const ERIList& x_eris);
+    virtual void  Insert(const ERIList1& J,const ERIList1& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
     virtual const SMat&    GetOverlap    (                             );
@@ -53,6 +57,8 @@ public:
     virtual const MList&   GetRepulsion3C(const TBasisSet<T>&          );
     virtual const ERIProxy GetRepulsion4C(const TBasisSet<T>* bs_cd    );
     virtual const ERIProxy GetExchange4C (const TBasisSet<T>* bs_cd    );
+    virtual ERIProxy1 GetRepulsion4C_1(const TBasisSet<T>* bs_cd    );
+    virtual ERIProxy1 GetExchange4C_1 (const TBasisSet<T>* bs_cd    );
 
     virtual const RVec&    GetNormalization (                );
     virtual const RVec&    GetCharge        (                );
@@ -74,6 +80,7 @@ private:
     using StreamableObject::Pretty;
 
     void WipeCleanAllData   ()      ;
+    void BuildERIs();
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 
@@ -113,6 +120,10 @@ private:
     IDList           itsNuclearClusters;       //List of clusters for which nuclear attractions have been calculated.
     UniqueID::IDtype its3CenterOverlapBS;      //Basis set for which 3 center overlap has been calculated.
     UniqueID::IDtype its3CenterRepulsionBS;    //Basis set for which 3 center repulsion has been calculated.
+
+    ERIList1 itsJTable; //Coulomb integrals.
+    ERIList1 itsKTable; //Exchange integrals.
+//    std::map<
 };
 
 #endif

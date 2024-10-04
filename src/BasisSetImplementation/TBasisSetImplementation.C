@@ -3,6 +3,7 @@
 
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "BasisSet.H"
+#include "QuantumNumber.H"
 #include "IntegralDataBase.H"
 #include "LASolver/LASolver.H"
 #include "Hamiltonian.H"
@@ -158,9 +159,13 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
     assert(!isnan(Dcd));
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-    const ERIProxy& eris=GetDataBase()->GetRepulsion4C(bs_cd);
+//    const ERIProxy& eris=GetDataBase()->GetRepulsion4C(bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
+    const ERIProxy1 J=GetDataBase()->GetRepulsion4C_1(bs_cd);
+//    std::cout << "TBasisSetImplementation<T>::GetRepulsion" << std::endl;
+//    std::cout << "Repulsions: " << this->GetID() << " " << bs_cd->GetID()  << std::endl;
+//    std::cout << "Repulsions: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
 
     SMat Jab(Nab,Nab);
     for (int ia=1; ia<=Nab; ia++)
@@ -170,11 +175,16 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
             for (int ic=1; ic<=Ncd; ic++)
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-                    Jab_temp+=eris(ia,ib,ic,id)*Dcd(ic,id);
+                    //std::cout << ia << " " << ib << " " << ic << " " << id << " " << J.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) << " " << J(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
+                    assert(J(ia,ib,ic,id)==eris(ia,ib,ic,id));
+                    Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
+                    //Jab_temp+=eris(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
         }
     assert(!isnan(Jab));
+//    std::cout << "Repulsions: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber() << " " << Max(fabs(Jab)) << std::endl;
+
     return Jab;
 }
 
@@ -182,9 +192,13 @@ template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    const ERIProxy& eris=GetDataBase()->GetExchange4C(bs_cd);
+    //const ERIProxy& eris=GetDataBase()->GetExchange4C(bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
+//    std::cout << "TBasisSetImplementation<T>::GetExchange" << std::endl;
+//    std::cout << "   : " << this->GetID() << " " << bs_cd->GetID()  << std::endl;
+//    std::cout << "   : " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
+    const ERIProxy1 K=GetDataBase()->GetExchange4C_1(bs_cd);
 
     SMat Kab(Nab,Nab);
     for (int ia=1; ia<=Nab; ia++)
@@ -194,11 +208,22 @@ GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
             for (int ic=1; ic<=Ncd; ic++)
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-                    Kab_temp+=eris.Exchange(ia,id,ic,ib)*Dcd(ic,id);
+//                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
+//                    << K.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) 
+//                    << " " << K(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
+//                    assert(K(ia,ib,ic,id)==eris(ia,ib,ic,id));
+//                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
+//                    << K.GetIndex(ia,id,ic,ib) << " " << eris.GetIndex(ia,id,ic,ib) 
+//                    << " " << K.Exchange(ia,id,ic,ib) << " " << eris.Exchange(ia,id,ic,ib) << std::endl;
+                    assert(K.Exchange(ia,id,ic,ib)==eris.Exchange(ia,id,ic,ib));
+                    //Kab_temp+=eris.Exchange(ia,id,ic,ib)*Dcd(ic,id);
+                    Kab_temp+=K.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                 }
             Kab(ia,ib)=Kab_temp;
         }
     assert(!isnan(Kab));
+    //std::cout << "Exchange: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber() << " " << Max(fabs(Kab)) << std::endl;
+
     return Kab;
 }
 //

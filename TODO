@@ -72,7 +72,7 @@ Priority 3:
             -These can be prided by an IEEngineClient base interface?  Template params for
              alpha vs [alpha] and L or [l,m,n]
         -Create Integrals folders for headers and code.
-        -
+        -ERIList needs to support unequal basis sizes.
     
     -QuantumNumber.C 
     -Instancing in one file: 
@@ -82,6 +82,7 @@ Priority 3:
     -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
         BasisGroup is not an interface.
     -Set up a CMake build.  Run from vscode.
+    -BasisGroup needs a dynamic cast iterator.
     
     
     Done: -Support std::vector std:;set streaming

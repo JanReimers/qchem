@@ -61,6 +61,14 @@ void BasisGroup::Insert(const ERIList& C, const ERIList& X) const
         tbs->GetDataBase()->Insert(C,X);
     }
 }
+void BasisGroup::Insert(const ERIList1& J, const ERIList1& K) const
+{
+    for (auto bs:*this)
+    {
+        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
+        tbs->GetDataBase()->Insert(J,K);
+    }
+}
 
 //
 //  StreamableObject stuff.

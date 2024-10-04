@@ -17,7 +17,7 @@ template <class T> class IntegralEngine;
 //template <class T> class Vector;
 //class Cluster;
 ////class ERIProxy;
-//class ERIList;
+class ERIList1;
 //class BasisGroup;
 //-----------------------------------------------------------------------------
 //
@@ -41,6 +41,8 @@ public:
     virtual void  Insert(const IntegralEngine1<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
     virtual void  Insert(const ERIList& c_eris, const ERIList& x_eris)=0;
+    virtual void  Insert(const ERIList1& J,const ERIList1& K)=0;
+
     virtual bool  operator==(const IntegralDataBase&) const=0;
 
     virtual const SMat&    GetOverlap    (                             ) =0;
@@ -54,6 +56,8 @@ public:
     virtual const MList&   GetRepulsion3C(const TBasisSet<T>&          ) =0;
     virtual const ERIProxy GetRepulsion4C(const TBasisSet<T>* bs_cd    ) =0;
     virtual const ERIProxy GetExchange4C (const TBasisSet<T>* bs_cd    ) =0;
+    virtual ERIProxy1 GetRepulsion4C_1(const TBasisSet<T>* bs_cd    ) =0;
+    virtual ERIProxy1 GetExchange4C_1 (const TBasisSet<T>* bs_cd    ) =0;
 
     virtual const RVec&    GetNormalization(              )=0;
     virtual const RVec&    GetCharge       (              )=0;

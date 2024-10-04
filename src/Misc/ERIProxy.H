@@ -2,16 +2,17 @@
 #define ERIPROXY_H
 
 #include "Misc/ERIList.H"
+#include "Misc/ERIList1.H"
 
-class ERIProxy
+template <class T> class TERIProxy
 {
 public:
-    ERIProxy(ERIList&,int start_ab, int start_cd);
-    ERIProxy(ERIList&,int sa,int sb,int sc, int sd);
+    TERIProxy(T&,int start_ab, int start_cd);
+    TERIProxy(T&,int sa,int sb,int sc, int sd);
 
     double operator()(int i, int j, int k, int l) const
     {
-        const ERIList& ceris(itsMasterERIList);
+        const T& ceris(itsMasterERIList);
         return ceris(i+itsStart_a-1,j+itsStart_b-1,k+itsStart_c-1,l+itsStart_d-1);
     }
 
@@ -30,12 +31,20 @@ public:
     {
         return itsMasterERIList(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
     }
+    inline int GetIndex(int i,int j,int k,int l) const
+    {
+        return itsMasterERIList.GetIndex(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
+    }
 private:
-    ERIList& itsMasterERIList;
+    T& itsMasterERIList;
     int itsStart_a;
     int itsStart_b;
     int itsStart_c;
     int itsStart_d;
 };
+
+typedef TERIProxy<ERIList> ERIProxy;
+typedef TERIProxy<ERIList1> ERIProxy1;
+
 
 #endif // ERIPROXY_H
