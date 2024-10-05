@@ -12,7 +12,7 @@
 //-----------------------------------------------------------------------
 //
 //  This class or structure represents a group of basis functions
-//  with differeing polarizations and the same radial part.
+//  with differing polarizations and the same radial part.
 //
 class BasisFunctionBlock
     : public virtual PMStreamableObject

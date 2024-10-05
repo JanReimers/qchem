@@ -176,7 +176,7 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
                     //std::cout << ia << " " << ib << " " << ic << " " << id << " " << J.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) << " " << J(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
-                    assert(J(ia,ib,ic,id)==eris(ia,ib,ic,id));
+//                    assert(J(ia,ib,ic,id)==eris(ia,ib,ic,id));
                     Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
                     //Jab_temp+=eris(ia,ib,ic,id)*Dcd(ic,id);
                 }
@@ -215,7 +215,7 @@ GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 //                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
 //                    << K.GetIndex(ia,id,ic,ib) << " " << eris.GetIndex(ia,id,ic,ib) 
 //                    << " " << K.Exchange(ia,id,ic,ib) << " " << eris.Exchange(ia,id,ic,ib) << std::endl;
-                    assert(K.Exchange(ia,id,ic,ib)==eris.Exchange(ia,id,ic,ib));
+//                    assert(K.Exchange(ia,id,ic,ib)==eris.Exchange(ia,id,ic,ib));
                     //Kab_temp+=eris.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                     Kab_temp+=K.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                 }

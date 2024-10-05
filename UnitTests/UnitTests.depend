@@ -484,7 +484,7 @@
 1727910193 /home/janr/Code/qchem/src/HamiltonianImplementation/ExactVee.H
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 
-1727912030 source:/home/janr/Code/qchem/UnitTests/MoleculeTests.C
+1728140979 source:/home/janr/Code/qchem/UnitTests/MoleculeTests.C
 	"DFTTester.H"
 	"HartreeFockTester.H"
 	"DFTDataBase/DFTDataBase.H"
@@ -518,12 +518,14 @@
 	"Misc/Polarization.H"
 	<cassert>
 
-1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H
+1728166145 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H
+	"BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
 	"Misc/Polarization.H"
 	"oml/vector3d.h"
 	<vector>
+	<map>
 
 1727910193 /home/janr/Code/qchem/src/Misc/Polarization.H
 	"Misc/IntPower.H"
@@ -631,7 +633,7 @@
 1727910193 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1728085355 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728152671 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -845,4 +847,18 @@
 	"oml/smatrix.h"
 	"oml/imp/cow.h"
 	<iostream>
+
+1728164377 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H
+	"types.H"
+	"BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H"
+	"oml/matrix.h"
+	"oml/vector.h"
+	"Misc/ptr_vector1.h"
+	"oml/vector3d.h"
+	<map>
+
+1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H
+	"oml/vector.h"
+	"oml/vector3d.h"
+	<iosfwd>
 

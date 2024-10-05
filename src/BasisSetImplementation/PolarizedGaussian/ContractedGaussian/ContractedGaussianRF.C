@@ -83,6 +83,13 @@ double ContractedGaussianRF::GetCharge(const Polarization& p) const
     return ret;
 }
 
+double ContractedGaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl) const
+{
+    double s=0;
+    for (auto i:gs.indices()) s += cs(i+1)*rb->Integrate(type,gs[i],pb,pa,cache,cl); //swap pols
+    return s;
+}
+
 void ContractedGaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, SMat& ret, const Cluster* cl, double scale) const
 {
     for (auto i:gs.indices()) gs[i]->Get2CenterIntegrals(type,p,ret,cl,cs(i+1)*scale);

@@ -325,9 +325,9 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(const TB
     assert(itsIntegralEngine);
     if (itsOverlapBasisSets!=theBasisSet.GetID())
     {
-        if (itsIntegralEngine1)
-            itsBSOverlaps = itsIntegralEngine1->MakeOverlap(theBasisSet.GetIntegralEngine1());
-        else
+//        if (itsIntegralEngine1)
+//            itsBSOverlaps = itsIntegralEngine1->MakeOverlap(theBasisSet.GetIntegralEngine1());
+//        else
             itsBSOverlaps = itsIntegralEngine->MakeOverlap(theBasisSet);
         itsOverlapBasisSets = theBasisSet.GetID();
     }
@@ -371,9 +371,9 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(const 
     assert(itsIntegralEngine);
     if (itsRepulsionBasisSets!=theBasisSet.GetID())
     {
-        if (itsIntegralEngine1)
-            itsBSRepulsions = itsIntegralEngine1->MakeRepulsion(theBasisSet.GetIntegralEngine1());
-        else
+//        if (itsIntegralEngine1)
+//            itsBSRepulsions = itsIntegralEngine1->MakeRepulsion(theBasisSet.GetIntegralEngine1());
+//        else
             itsBSRepulsions = itsIntegralEngine->MakeRepulsion(theBasisSet);
         itsRepulsionBasisSets = theBasisSet.GetID();
     }
@@ -399,9 +399,9 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNormalization()
     assert(itsIntegralEngine);
     if(!itsNormalizationFlag)
     {
-        if (itsIntegralEngine1)
-            itsNormalization=itsIntegralEngine1->MakeNormalization();
-        else
+//        if (itsIntegralEngine1)
+//            itsNormalization=itsIntegralEngine1->MakeNormalization();
+//        else
             itsNormalization=itsIntegralEngine->MakeNormalization();
         itsNormalizationFlag=true;
     }
@@ -413,9 +413,9 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
     assert(itsIntegralEngine);
     if(!itsChargeFlag)
     {
-        if (itsIntegralEngine1)
-            itsCharge=itsIntegralEngine1->MakeCharge();
-        else
+//        if (itsIntegralEngine1)
+//            itsCharge=itsIntegralEngine1->MakeCharge();
+//        else
             itsCharge=itsIntegralEngine->MakeCharge();
         itsChargeFlag=true;
     }
@@ -427,9 +427,9 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetOverlap3C(cons
     assert(itsIntegralEngine);
     if (its3CenterOverlapBS!=bs.GetID())
     {
-        if (itsIntegralEngine1)
-            itsIntegralEngine1->MakeOverlap3C(*its3CenterOverlaps,bs.GetIntegralEngine1());
-        else
+//        if (itsIntegralEngine1)
+//            itsIntegralEngine1->MakeOverlap3C(*its3CenterOverlaps,bs.GetIntegralEngine1());
+//        else
             itsIntegralEngine->MakeOverlap3C(*its3CenterOverlaps,bs);
         its3CenterOverlapBS=bs.GetID();
     }
@@ -441,9 +441,9 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(co
     assert(itsIntegralEngine);
     if (its3CenterRepulsionBS!=bs.GetID())
     {
-        if (itsIntegralEngine1)
-            itsIntegralEngine1->MakeRepulsion3C(*its3CenterRepulsions,bs.GetIntegralEngine1());
-        else
+//        if (itsIntegralEngine1)
+//            itsIntegralEngine1->MakeRepulsion3C(*its3CenterRepulsions,bs.GetIntegralEngine1());
+//        else
             itsIntegralEngine->MakeRepulsion3C(*its3CenterRepulsions,bs);
         its3CenterRepulsionBS=bs.GetID();
     }
@@ -462,9 +462,9 @@ template <class T> const ERIProxy HeapDB<T>::GetRepulsion4C(const TBasisSet<T>* 
     if (its4CenterRepulsions.GetSize()==0)
     {
         assert(itsBasisGroup);
-        if (itsIntegralEngine1)
-            itsIntegralEngine1->MakeRepulsion4C(its4CenterRepulsions,its4CenterExchange,itsBasisGroup->Flatten());
-        else
+//        if (itsIntegralEngine1)
+//            itsIntegralEngine1->MakeRepulsion4C(its4CenterRepulsions,its4CenterExchange,itsBasisGroup->Flatten());
+//        else
             itsIntegralEngine->MakeRepulsion4C(its4CenterRepulsions,its4CenterExchange,itsBasisGroup);
         //
         //  This is how we pass the ERI tables to all the other DBs.

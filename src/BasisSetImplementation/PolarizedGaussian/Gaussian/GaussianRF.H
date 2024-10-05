@@ -25,9 +25,15 @@ public:
     virtual void Get3CenterIntegrals(Types3C, BFBT&, std::vector<SMat>&, double scale);
     virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale);
 
+    virtual double Integrate(Types2C,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl=0) const;
+
     virtual       Hermite3* GetH3 (const RadialFunction&, const RadialFunction&) const;
     virtual Matrix<double> GetAux(const std::vector<Polarization>& N,
                                   const std::vector<Polarization>& Pc,
+                                  int LP, double AlphaP,const RVec3& P         ) const;
+
+    virtual Vector<double> GetAux(const std::vector<Polarization>& N,
+                                  const Polarization& Pc,
                                   int LP, double AlphaP,const RVec3& P         ) const;
 
     virtual std::ostream&        Write(std::ostream&   ) const;
@@ -49,6 +55,8 @@ private:
     void GetRepulsion3CInternal(BFBT&, std::vector<SMat>&, double scale) const;
     void GetRepulsion4CInternal(BFBQ&, ERIList&   , double scale) const;
     double GetKinetic(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const;
+    
+    
 
     friend class  GaussianCD;
     friend class PolarizedGaussianIE;

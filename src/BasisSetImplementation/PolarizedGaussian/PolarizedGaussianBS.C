@@ -5,6 +5,7 @@
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
+#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
 #include "IntegralDataBase.H"
@@ -36,7 +37,8 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     , TBasisSetImplementation<double>(lap,theDB)
 {
 //
-//  Read in all the radial functions.
+//  Read in all the radial functions.  These are usually contracted Gaussians, but could also
+//  be single Gaussians.
 //
     std::vector<RadialFunction*> radials;
     std::vector<std::vector<int> >    Ls;
@@ -44,7 +46,7 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     {
         bsr->FindAtom(*atom);
         RadialFunction* rf=0;
-        while ((rf=bsr->ReadNext(*atom)))
+        while ((rf=bsr->ReadNext(*atom))) //Read in the radial function/
         {
             bool duplicate=false;
             std::vector<RadialFunction*>::iterator b(radials.begin());
@@ -103,6 +105,14 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
         TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh) );
     else
         TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE);
+        
+    PolarizedGaussianIE1::blocks_t bls;
+    for (auto bl:itsBlocks) bls.push_back(bl);
+    RVec ns(GetNumFunctions());
+    index_t ibf=1;
+    for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
+    
+    TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls,ns));       
 };
 
 

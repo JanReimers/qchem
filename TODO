@@ -34,7 +34,7 @@ Priority 3:
         AngularMeshBrowser 
         RadialMeshBrowser 
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
-    -Do we need indices support optr_vector1<> ?
+    Done: -Do we need indices support optr_vector1<> ?
     -If N_nucleus=1 (atom) leave out Vnn term.
     -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
     -It seems we need a separate HeapDN for each basis set.  Make something more general
@@ -66,9 +66,12 @@ Priority 3:
     -Organize headers in the include folder.
     -Reorg:  Do this on a branch!!!
         -Break dependence of IntegralEngine on BasisSet.
-            -For SG, IE gets a table of {alpha,L}
+            Done: -For SG, IE gets a table of {alpha,L}
             -For PG, IE gets a table of {alpha,[l,m,n]}
             -For PCG , IE gets a table of {[alpha],[l,m,n]}
+                -cache Charge distributions
+                -cache RNML tables
+            
             -These can be prided by an IEEngineClient base interface?  Template params for
              alpha vs [alpha] and L or [l,m,n]
         -Create Integrals folders for headers and code.
@@ -83,6 +86,9 @@ Priority 3:
         BasisGroup is not an interface.
     -Set up a CMake build.  Run from vscode.
     -BasisGroup needs a dynamic cast iterator.
+    -BasisSet should really be IrrepBasisSet, and BasisGroup should really be BasisSet.
+    -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
+    -HeapDB needs to be for whole basis set.
     
     
     Done: -Support std::vector std:;set streaming

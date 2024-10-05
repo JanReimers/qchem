@@ -61,7 +61,7 @@ TEST_P(HartreeFockMoleculeTester, MoleculesHFPolarized)
 
 INSTANTIATE_TEST_CASE_P(MoleculesDFTPolarized,
                         DFTMoleculeTester,
-                        ::testing::Values(1,4,5,7));
+                        ::testing::Values(1,4,5,7,10,12,25));
 
 INSTANTIATE_TEST_CASE_P(MoleculesHFPolarized,
                         HartreeFockMoleculeTester,

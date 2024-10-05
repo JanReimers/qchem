@@ -54,7 +54,9 @@
 		<Unit filename="include/Functions/ScalarFunction.H" />
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
+		<Unit filename="include/IntegralDataBase.H" />
 		<Unit filename="include/IntegralEngine.H" />
+		<Unit filename="include/IntegralEngine1.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
 		<Unit filename="include/TotalEnergy.H" />
@@ -158,6 +160,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H" />
 		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunction.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -174,6 +180,7 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/ShpericalGaussianPS.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -190,6 +197,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -512,6 +523,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/ERIList.H" />
+		<Unit filename="src/Misc/ERIList1.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Misc/ERIList1.H" />
 		<Unit filename="src/Misc/ERIProxy.C">
 			<Option compilerVar="CPP" />
 		</Unit>

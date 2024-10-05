@@ -27,6 +27,9 @@ public:
     virtual void Get3CenterIntegrals(Types3C, BFBT&, std::vector<SMat>&, double scale);
     virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale);
 
+    virtual double Integrate(Types2C,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl=0) const;
+
+    
     virtual Hermite3*       GetH3 (const RadialFunction&, const RadialFunction&) const;
     virtual Matrix<double> GetAux(const std::vector<Polarization>& N,
                                   const std::vector<Polarization>& Pc,

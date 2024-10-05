@@ -3,22 +3,29 @@
 #define _GaussianCD_H_
 
 
-
-#include "BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
+#include "types.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H"
 #include "oml/matrix.h"
+#include "oml/vector.h"
 #include "Misc/ptr_vector1.h"
 #include "oml/vector3d.h"
-
+#include <map>
 
 class RNLM;
 class GaussianRF;
+class RadialFunction;
+class Hermite1;
 
-class GaussianCD
+class GaussianCD 
 {
 public:
     GaussianCD(const GaussianRF&,const GaussianRF&);
-
+    ~GaussianCD();
+    
+    const RNLM& GetRNLM(const RVec3& c) const; // third Center at c.
+    Vector<double>  GetRNLMs( const Polarization& pa, const Hermite1& H1) const; // third Center at c.
+    void Report(std::ostream& os) const;
+    //typedef std::pair<Polarization,
 
 private:
     friend class GaussianRF;
@@ -42,6 +49,9 @@ private:
     }
     static void MakeNMLs();
     static optr_vector1<std::vector<Polarization>* > theNMLs; //A list of all NMLs for each LMax.
+    
+    mutable size_t lookups;
+    mutable std::map<RVec3,const RNLM*> RNLMs;
 };
 
 #endif //_GaussianCD_H_
