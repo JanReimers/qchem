@@ -203,11 +203,11 @@
 	"BasisSet.H"
 	"Misc/ptr_vector1.h"
 
-1728238312 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
+1728246902 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
 	"BasisSet.H"
 	"FunctionsImp/VectorFunctionBuffer.H"
 	"IntegralEngine.H"
-	"IntegralEngine1.H"
+	"AnalyticIE.H"
 	"SCFIterator/IterationParams.H"
 	"Misc/Persistent/PerRef.H"
 	"Misc/rc_ptr.H"
@@ -240,7 +240,7 @@
 
 1727910193 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1728238357 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
+1728246902 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralEngine.H"
 	"IntegralDataBase.H"
 	"Misc/Persistent/IDRef.H"
@@ -752,7 +752,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728084411 /home/janr/Code/qchem/include/BasisSet.H
+1728246902 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -773,7 +773,7 @@
 	"types.H"
 	"Misc/pmstream.h"
 
-1728238301 /home/janr/Code/qchem/include/IntegralDataBase.H
+1728246902 /home/janr/Code/qchem/include/IntegralDataBase.H
 	"Misc/Persistent/Persistent.H"
 	"Misc/ERIProxy.H"
 	"types.H"
@@ -812,7 +812,7 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728084436 /home/janr/Code/qchem/include/types.H
+1728246902 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1727910251 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -862,4 +862,10 @@
 	"oml/vector.h"
 	"oml/vector3d.h"
 	<iosfwd>
+
+1728248174 /home/janr/Code/qchem/include/AnalyticIE.H
+	"types.H"
+	"Misc/pmstream.h"
+	<vector>
+	"Misc/ERIList1.H"
 

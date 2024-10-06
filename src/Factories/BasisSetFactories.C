@@ -150,7 +150,7 @@ template <> IntegralEngine<double>* IntegralEngine<double>::Factory(std::istream
   return NULL;
 }
 
-template <class T> IntegralEngine1<T>* IntegralEngine1<T>::Factory(std::istream& is)
+template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
@@ -161,7 +161,7 @@ template <class T> IntegralEngine1<T>* IntegralEngine1<T>::Factory(std::istream&
     return NULL;
 }
 
-template <> IntegralEngine1<double>* IntegralEngine1<double>::Factory(std::istream& is)
+template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
 {
   std::string Name=PeekAtName(is);
   if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;

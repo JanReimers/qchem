@@ -7,7 +7,7 @@
 #include "BasisSet.H"
 #include "FunctionsImp/VectorFunctionBuffer.H"
 #include "IntegralEngine.H"
-#include "IntegralEngine1.H"
+#include "AnalyticIE.H"
 #include "SCFIterator/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
@@ -75,7 +75,7 @@ public:
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
     virtual IntegralDataBase<T>* GetDataBase () const;
-    virtual IntegralEngine1 <T>* GetIntegralEngine1() const;
+    virtual AnalyticIE <T>* GetIntegralEngine1() const;
    
     virtual LASolver<T>*         GetLASolver () const;
 
@@ -84,8 +84,8 @@ public:
 
 protected:
     void  Insert(IntegralEngine<T>*);
-    void  Insert(IntegralEngine1<T>*);
-    const IntegralEngine1<T>* GetIntegralEngine() const
+    void  Insert(AnalyticIE<T>*);
+    const AnalyticIE<T>* GetIntegralEngine() const
     {
         return &*itsIntegralEngine1;
     }
@@ -97,7 +97,7 @@ protected:
     LinearAlgebraParams          itsLAParams;
 private:
     rc_ptr<IntegralEngine  <T> > itsIntegralEngine;
-    rc_ptr<IntegralEngine1 <T> > itsIntegralEngine1;
+    rc_ptr<AnalyticIE <T> > itsIntegralEngine1;
     mutable PerRef<IntegralDataBase<T> > itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
 };

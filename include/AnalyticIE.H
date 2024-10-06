@@ -53,25 +53,20 @@ public:
     
     virtual size_t size() const=0;
 
-    virtual SMat MakeOverlap   (                             ) const=0;
-    virtual Mat  MakeOverlap   (const AnalyticIE*       ) const=0;
-    virtual Vec  MakeOverlap   (const ScalarFunction<double>&) const=0;
-    virtual void MakeOverlap3C  (MList&,const AnalyticIE*   ) const=0;
-
-    virtual SMat MakeRepulsion  (                             ) const=0;
-    virtual Mat  MakeRepulsion  (const AnalyticIE*       ) const=0;
-    virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
-    virtual void MakeRepulsion3C(MList&,const AnalyticIE*   ) const=0;
-    virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t&) const=0;
-    virtual jk_t Make4C(const iev_t&) const=0;
-
     virtual RVec MakeNormalization() const=0;
     virtual RVec MakeCharge       () const=0;
-//
-    virtual SMat MakeKinetic(              ) const=0;
-    virtual SMat MakeNuclear(const Cluster&) const=0;
-    virtual RSMat MakeInverse(const RSMat& ) const; //Numerically stable algo required.
-//
+    
+    virtual  SMat MakeOverlap  (                 ) const=0;
+    virtual  SMat MakeKinetic  (                 ) const=0;
+    virtual  SMat MakeNuclear  (const Cluster&   ) const=0;
+    virtual  SMat MakeRepulsion(                 ) const=0; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
+    virtual RSMat MakeInverse  (const RSMat&     ) const; //Numerically stable algo required.
+
+    virtual void MakeOverlap3C  (MList&,const AnalyticIE*) const=0; //Used for DFT
+    virtual void MakeRepulsion3C(MList&,const AnalyticIE*) const=0; //Used for DFT
+    virtual jk_t Make4C(const iev_t&) const=0; //Used for Hartree-Fock
+
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;
     virtual AnalyticIE* Clone  (         ) const=0;

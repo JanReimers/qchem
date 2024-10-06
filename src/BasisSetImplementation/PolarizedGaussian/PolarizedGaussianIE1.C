@@ -37,7 +37,7 @@ void PolarizedGaussianIE1::Normalize(SMat& s) const
 //
 //  Streamable Object stuff
 //
-IntegralEngine1<double>* PolarizedGaussianIE1::Clone() const
+AnalyticIE<double>* PolarizedGaussianIE1::Clone() const
 {
     return new PolarizedGaussianIE1(*this);
 }
@@ -95,20 +95,7 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(const Cluster& cl) 
 }
 
 
-PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeOverlap(const IE* ie) const
-{
-    // No UT coverage.
-    assert(false); 
-    return Mat();
-}
 
-//
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeOverlap(const ScalarFunction<double>& f) const
-{
-    // No UT coverage.  Only used for numerical integrations.
-    assert(false);
-    return RVec();
-}
 
 
 template <class M> std::vector<M> MakeMatrixList(int n, int N)
@@ -192,14 +179,6 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion3C(const RadialFun
     Normalize(s);
     return s;
 }
-//
-//
-//
-Vector<double> PolarizedGaussianIE1::MakeRepulsion(const ScalarFunction<double>& f) const
-{
-    assert(false);
-    return RVec();
-}
 
 //
 PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) const
@@ -216,16 +195,6 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) con
     return s;
 }
 
-
-
-//
-////
-////  This is where we do the big double loop over basis sets.
-////
-void PolarizedGaussianIE1::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t& iev) const
-{
-    assert(false);
-}
 
 PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
 {

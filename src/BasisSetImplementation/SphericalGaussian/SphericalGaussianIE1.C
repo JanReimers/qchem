@@ -30,7 +30,7 @@ SphericalGaussianIE1::SphericalGaussianIE1(size_t _L, const RVec& alphas)
 //
 //  Streamable Object stuff
 //
-IntegralEngine1<double>* SphericalGaussianIE1::Clone() const
+AnalyticIE<double>* SphericalGaussianIE1::Clone() const
 {
     return new SphericalGaussianIE1(*this);
 }
@@ -49,28 +49,6 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap() const
     return s;
 }
 
-SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeOverlap(const IE* ie) const
-{
-    assert(false);
-    // No UT coverage.
-    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
-    assert(other);
-    size_t N=es.size(), No=other->es.size(), Lo=other->L;
-    Mat s(N,No);
-    for (auto i:s.rows())
-        for (auto j:s.cols())
-            s(i,j)=GaussianIntegral(es(i)+other->es(j),L+Lo)*ns(i)*other->ns(j);
-
-    return s;
-}
-
-//
-SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeOverlap(const ScalarFunction<double>& f) const
-{
-    // No UT coverage.  Only used for numerical integrations.
-    assert(false);
-    return RVec();
-}
 
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(const bf_tuple& bf) const
 {    
@@ -122,14 +100,6 @@ SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(const IE* ie) cons
 
     return s;
 }
-//
-//
-//
-Vector<double> SphericalGaussianIE1::MakeRepulsion(const ScalarFunction<double>& f) const
-{
-    assert(false);
-    return RVec();
-}
 
 //
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(const bf_tuple& bf) const
@@ -159,113 +129,6 @@ void SphericalGaussianIE1::MakeRepulsion3C(MList& mlist, const IE* ie) const
     mlist.Empty();
     for (auto i:other->es.indices()) mlist.Add(MakeRepulsion((*other)(i)));
     mlist.Clear();
-}
-//
-////
-////  This is where we do the big double loop over basis sets.
-////
-void SphericalGaussianIE1::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t& iev) const
-{
-    //No UT coverage
-    assert(false);
-    // TODO count integrals and % non zero.
-    std::vector<const SphericalGaussianIE1*> ie1v;
-    size_t N=0;
-    for (auto ia: iev)
-    {
-        ie1v.push_back(dynamic_cast<const SphericalGaussianIE1*>(ia));
-        N+=ie1v.back()->es.size();
-    }
-    Coulomb.SetSize(N);
-    exchange.SetSize(N);
-    
-    std::cout << N << " " << Coulomb.itsData.size() <<" " << exchange.itsData.size() << std::endl;
-    ERIList tracker_eris(Coulomb.GetSize()); //For debug purposes.  Check for double assigns
-    int La,Lb,Lc,Ld;
-    double ea,eb,ec,ed,na,nb,nc,nd;
-
-    int start_a=1;
-    for (auto ie_a=ie1v.begin();ie_a!=ie1v.end();ie_a++)
-    {
-        assert(*ie_a);
-        int Na=(*ie_a)->es.size();
-        int start_b=start_a;
-        for (auto ie_b=ie_a;ie_b!=ie1v.end();ie_b++)
-        {
-            assert(*ie_b);
-            int Nb=(*ie_b)->es.size();
-            int start_c=start_a;
-            for (auto ie_c=ie_a;ie_c!=ie1v.end();ie_c++)
-            {
-                assert(*ie_c);
-                int Nc=(*ie_c)->es.size();
-                int start_d=start_c;
-                for (auto ie_d=ie_c;ie_d!=ie1v.end();ie_d++)
-                {
-                    assert(*ie_d);
-                    int Nd=(*ie_d)->es.size();
-//                    std::cout << start_a << " " << start_b << " " << start_c << " " << start_d << std::endl;
-
-                    ERIProxy cp(Coulomb     ,start_a,start_b,start_c,start_d);
-                    ERIProxy ep(exchange    ,start_a,start_b,start_c,start_d);
-                    ERIProxy tp(tracker_eris,start_a,start_b,start_c,start_d);
-                    for (index_t ia=1; ia<=Na; ia++)
-                    {
-                        std::tie(La,ea,na)=(**ie_a)(ia);
-                        for (index_t ib=1; ib<=Nb; ib++)
-                        {
-                            std::tie(Lb,eb,nb)=(**ie_b)(ib);
-                            for (index_t ic=1; ic<=Nc; ic++)
-                            {
-                                std::tie(Lc,ec,nc)=(**ie_c)(ic);
-                                for (index_t id=1; id<=Nd; id++)
-                                {
-                                    std::tie(Ld,ed,nd)=(**ie_d)(id);
-                                    double norm=na*nb*nc*nd;
-                                    // Coulomb case
-                                    double J=0.0,K=0.0;
-                                    if (La==Lb && Lc==Ld) //TODO these ifs can go outside the abcd loops.
-                                    {
-                                        SlaterIntegrals R(ea+eb,ec+ed);
-                                        J=FourPi2*R(0,La,Lb,Lc,Ld)*norm;
-                                    }
-                                    // Exchange case
-                                    if (La==Lc && Lb==Ld) //TODO these ifs can go outside the abcd loops.
-                                    {
-                                        SlaterIntegrals R(ea+eb,ec+ed);
-                                        K=FourPi2*R.DoExchangeSum(La,Lb,Lc,Ld)*norm;
-                                    }
-
-//                                    std::cout << start_a+ia-1 << " " << start_b+ib-1 << " " << start_c+ic-1 << " " << start_d+id-1 << std::endl;
-                                    if (tp(ia,ib,ic,id)!=-1.0)
-                                    {
-                                        tp(ia,ib,ic,id)=-1.0;
-                                        cp(ia,ib,ic,id)=J;
-                                        ep(ia,ib,ic,id)=K;
-
-                                    }
-                                    else if (fabs(cp(ia,ib,ic,id)-J)>1e-8)
-                                    {
-                                        std::cout << " Re-assign J " << ia << ","<< ib << ","<< ic << ","<< id << ", was" << ep(ia,ib,ic,id) << " new=" << J << std::endl;
-                                    }
-                                    else if (fabs(ep(ia,ib,ic,id)-K)>1e-8)
-                                    {
-                                        std::cout << " Re-assign K " << ia << ","<< ib << ","<< ic << ","<< id << ", was" << ep(ia,ib,ic,id) << " new=" << J << std::endl;
-                                    }
-
-                                } //for id
-                            } //for ic
-                        } //for ib
-                    } //for ia
-
-                    start_d+=Nd;
-                } //for ie_d
-                start_c+=Nc;
-            }
-            start_b+=Nb;
-        }
-        start_a+=Na;
-    }
 }
 
 SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)

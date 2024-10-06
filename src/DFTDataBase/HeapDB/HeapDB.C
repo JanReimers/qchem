@@ -6,7 +6,7 @@
 #include "QuantumNumber.H"
 #include "BasisSet.H"
 #include "Cluster.H"
-#include "IntegralEngine1.H"
+#include "AnalyticIE.H"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
 #include "oml/vector.h"
@@ -125,7 +125,7 @@ template <class T> void HeapDB<T>::Insert(const TBasisSet<T>* bs,const IntegralE
     itsIntegralEngine=ie;
 }
 
-template <class T> void HeapDB<T>::Insert(const TBasisSet<T>* bs,const IntegralEngine1<T>* ie)
+template <class T> void HeapDB<T>::Insert(const TBasisSet<T>* bs,const AnalyticIE<T>* ie)
 {
     assert(bs);
     assert(ie);

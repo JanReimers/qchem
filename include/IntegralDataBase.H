@@ -38,7 +38,7 @@ public:
 
     virtual ~IntegralDataBase() {};
     virtual void  Insert(const TBasisSet<T>*, const IntegralEngine<T>*)=0;
-    virtual void  Insert(const TBasisSet<T>*, const IntegralEngine1<T>*)=0;
+    virtual void  Insert(const TBasisSet<T>*, const AnalyticIE<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
     virtual void  Insert(const ERIList& c_eris, const ERIList& x_eris)=0;
     virtual void  Insert(const ERIList1& J,const ERIList1& K)=0;

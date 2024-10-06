@@ -3,7 +3,7 @@
 #define _PolarizedGaussianIE1_H_
 
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
-#include "IntegralEngine1.H"
+#include "AnalyticIE.H"
 #include "Misc/Polarization.H"
 #include "oml/vector.h"
 
@@ -11,10 +11,10 @@
 class BasisFunctionBlock;
 
 class PolarizedGaussianIE1
-    : public virtual IntegralEngine1<double>
+    : public virtual AnalyticIE<double>
 {
 public:
-    typedef IntegralEngine1<double> IE;
+    typedef AnalyticIE<double> IE;
     typedef ScalarFunction <double> SF;
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
@@ -29,23 +29,18 @@ public:
 
     virtual size_t size() const {return ns.size();}
 
-    virtual SMat MakeOverlap    (         ) const;
-    virtual Mat  MakeOverlap    (const IE*) const;
-    virtual RVec MakeOverlap    (const SF&) const;
-    virtual void MakeOverlap3C  (MList&,const IE*) const;
-//
-    virtual SMat MakeRepulsion  (          ) const;
-    virtual Mat  MakeRepulsion  (const IE* ) const;
-    virtual Vector<double>  MakeRepulsion  (const SF&  ) const;
-    virtual void MakeRepulsion3C(MList&,const IE*) const;
-    
-    virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t&) const;
-    virtual jk_t Make4C(const iev_t&) const;
-
-    virtual SMat MakeKinetic  (              ) const;
-    virtual SMat MakeNuclear  (const Cluster&) const;
     virtual RVec MakeNormalization() const;
     virtual RVec MakeCharge       () const;
+    
+    virtual  SMat MakeOverlap  (                 ) const;
+    virtual  SMat MakeKinetic  (                 ) const;
+    virtual  SMat MakeNuclear  (const Cluster&   ) const;
+    virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const AnalyticIE*) const; //Used for charge and Vxc fitting.
+
+    virtual void MakeOverlap3C  (MList&,const AnalyticIE*) const; //Used for DFT
+    virtual void MakeRepulsion3C(MList&,const AnalyticIE*) const; //Used for DFT
+    virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
     
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
