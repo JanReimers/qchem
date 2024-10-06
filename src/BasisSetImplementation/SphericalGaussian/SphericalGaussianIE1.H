@@ -33,6 +33,7 @@ public:
 
     
         
+    SphericalGaussianIE1() {};
     SphericalGaussianIE1(size_t L, const RVec& alphas);
 
     virtual size_t size() const {return es.size();}

@@ -1,25 +1,15 @@
 // File: SphericalGaussianIE1.C  Here is where all the integral get calculated.
 
 
-//#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
-//#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
-//#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
 #include "Cluster.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-//#include "IntegralDataBase.H"
-//#include "BasisSet.H"
-//#include "Cluster.H"
-//#include "Misc/MatrixList.H"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
 #include "Misc/MatrixList.H"
-//#include <cassert>
-//#include <iostream>
-//#include <stdlib.h>
 
 double SphericalGaussianIE1::FourPi2=4*4*Pi*Pi;
 
@@ -51,7 +41,7 @@ IntegralEngine1<double>* SphericalGaussianIE1::Clone() const
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap() const
 {
     size_t N=es.size();
-    SMat s(N,N);
+    SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
             s(i,j)=GaussianIntegral(es(i)+es(j),2*L)*ns(i)*ns(j);
@@ -61,6 +51,7 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap() const
 
 SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeOverlap(const IE* ie) const
 {
+    assert(false);
     // No UT coverage.
     const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
     assert(other);
@@ -83,13 +74,11 @@ SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeOverlap(const ScalarFunctio
 
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(const bf_tuple& bf) const
 {    
-    size_t N=es.size();
+    size_t N=size();
     int Lo;
     double eo,no;
     std::tie(Lo,eo,no)=bf;
-//    int Lo=std::get<1>(bf);
-//    double eo=std::get<2>(bf),no=std::get<3>(bf);
-    SMat s(N,N);
+    SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
             s(i,j)=GaussianIntegral(es(i)+es(j)+eo,2*L+Lo)*ns(i)*ns(j)*no;
@@ -112,8 +101,8 @@ void SphericalGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
 ////
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion() const
 {
-    size_t n=es.size();
-    SMat r(n,n);
+    size_t N=size();
+    SMat r(N,N);
     for (auto i:r.rows())
         for (auto j:r.cols(i))
             r(i,j)=GaussianRepulsionIntegral(es(i),es(j),L,L)*ns(i)*ns(j);
@@ -177,6 +166,8 @@ void SphericalGaussianIE1::MakeRepulsion3C(MList& mlist, const IE* ie) const
 ////
 void SphericalGaussianIE1::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t& iev) const
 {
+    //No UT coverage
+    assert(false);
     // TODO count integrals and % non zero.
     std::vector<const SphericalGaussianIE1*> ie1v;
     size_t N=0;
@@ -328,28 +319,6 @@ SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iev_t& iev) const
                                 
                      }
                 }
-                    
-        
-//    for (index_t ia:eab.indices())
-//        for (index_t ib:eab.indices(ia))
-//            for (index_t ic:ecd.indices(1))
-//                for (index_t id:ecd.indices(ic))
-//                {
-//                    if (J(ia,ib,ic,id)==-1.0) //unassigned marker
-//                    {
-//                        assert(K(ia,ib,ic,id)==-1.0);
-//                        double norm=nab(ia)*nab(ib)*ncd(ic)*ncd(id);
-//                        SlaterIntegrals R(eab(ia)+eab(ib),ecd(ic)+ecd(id));
-//                        J(ia,ib,ic,id)=FourPi2*R(0,Lab,Lab,Lcd,Lcd)*norm;
-//                        std::cout << Lab << " " << Lcd << " (" << ia << "," << ib << "," << ic << "," << id << ") " << J(ia,ib,ic,id) << std::endl;
-//                        if (Lab==Lcd)
-//                            K(ia,ib,ic,id)=FourPi2*R.DoExchangeSum(Lab,Lab,Lcd,Lcd)*norm;
-//                    }
-//                } //for id
-//  
-//    std::cout << "J=";
-//    for (index_t i=0;i<J.itsData.size();i++) std::cout << J.itsData[i] << " ";
-//    std::cout << std::endl;
     
     return std::make_pair(J,K);
 }
@@ -362,8 +331,8 @@ SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iev_t& iev) const
 ////
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeKinetic() const
 {
-    size_t N=es.size();
-    SMatrix<double> Hk(N,N);
+    size_t N=size();
+    SMatrix<double> Hk(N);
     for (auto i:Hk.rows())
         for (auto j:Hk.cols(i))
         {
@@ -382,8 +351,8 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeKinetic() const
 //
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(const Cluster& cl) const
 {
-    size_t N=es.size();
-    SMatrix<double> Hn(N,N);
+    size_t N=size();
+    SMatrix<double> Hn(N);
     double Z=-cl.GetNuclearCharge();
     for (auto i:Hn.rows())
         for (auto j:Hn.cols(i))

@@ -3,7 +3,7 @@
 
 #include "BasisSet.H"
 #include "IntegralDataBase.H"
-#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
+//#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"

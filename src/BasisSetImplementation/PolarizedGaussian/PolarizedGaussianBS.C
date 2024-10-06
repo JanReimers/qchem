@@ -4,7 +4,6 @@
 
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
-#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
@@ -103,8 +102,6 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //
     if (theMesh)  
         TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh) );
-    else
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE);
         
     PolarizedGaussianIE1::blocks_t bls;
     for (auto bl:itsBlocks) bls.push_back(bl);

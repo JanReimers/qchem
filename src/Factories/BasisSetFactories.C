@@ -3,10 +3,10 @@
 #include "BasisSet.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H"
+#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
-#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
+#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
 #include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
@@ -133,10 +133,8 @@ IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >
 template <class T> IntegralEngine<T>* IntegralEngine<T>::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussianIE).name()) return new SphericalGaussianIE;
     if (Name==typeid(NumericalIE<double>).name()) return new NumericalIE<double>;
-    if (Name==typeid(PolarizedGaussianIE).name()) return new PolarizedGaussianIE;
-
+    
     std::cout << "Unknown integral engine type :" << Name << std::endl;
     exit(-1);
     return NULL;
@@ -145,9 +143,29 @@ template <class T> IntegralEngine<T>* IntegralEngine<T>::Factory(std::istream& i
 template <> IntegralEngine<double>* IntegralEngine<double>::Factory(std::istream& is)
 {
   std::string Name=PeekAtName(is);
-  if (Name==typeid(SphericalGaussianIE).name()) return new SphericalGaussianIE;
   if (Name==typeid(NumericalIE<double>).name()) return new NumericalIE<double>;
-  if (Name==typeid(PolarizedGaussianIE).name()) return new PolarizedGaussianIE;
+  
+  std::cout << "Unknown integral engine type :" << Name << std::endl;
+  exit(-1);
+  return NULL;
+}
+
+template <class T> IntegralEngine1<T>* IntegralEngine1<T>::Factory(std::istream& is)
+{
+    std::string Name=StreamableObject::PeekAtName(is);
+    if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
+    if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
+
+    std::cout << "Unknown integral engine type :" << Name << std::endl;
+    exit(-1);
+    return NULL;
+}
+
+template <> IntegralEngine1<double>* IntegralEngine1<double>::Factory(std::istream& is)
+{
+  std::string Name=PeekAtName(is);
+  if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
+  if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
 
   std::cout << "Unknown integral engine type :" << Name << std::endl;
   exit(-1);

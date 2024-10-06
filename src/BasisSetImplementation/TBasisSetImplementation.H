@@ -85,9 +85,9 @@ public:
 protected:
     void  Insert(IntegralEngine<T>*);
     void  Insert(IntegralEngine1<T>*);
-    const IntegralEngine<T>* GetIntegralEngine() const
+    const IntegralEngine1<T>* GetIntegralEngine() const
     {
-        return &*itsIntegralEngine;
+        return &*itsIntegralEngine1;
     }
 
 private:

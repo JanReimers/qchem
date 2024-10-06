@@ -67,7 +67,7 @@ template <class T> void TBasisSetImplementation<T>::Insert(IntegralEngine1<T>* i
 {
     assert(ie1);
     itsIntegralEngine1.reset(ie1);
-    itsDataBase->Insert(ie1);
+    itsDataBase->Insert(this,ie1);
 }
 
 template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase() const
@@ -395,7 +395,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
     if(!StreamableObject::Pretty())
     {
         VectorFunctionBuffer<T>::Write(os);
-        os << *itsIntegralEngine << itsDataBase;
+        os << *itsIntegralEngine1 << itsDataBase;
     }
     return os;
 }
@@ -403,7 +403,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
 template <class T> std::istream& TBasisSetImplementation<T>::Read(std::istream& is)
 {
     VectorFunctionBuffer<T>::Read(is);
-    IntegralEngine<T>* ie=IntegralEngine<T>::Factory(is);
+    IntegralEngine1<T>* ie=IntegralEngine1<T>::Factory(is);
     is >> *ie;
     is >> itsDataBase;
     Insert(ie); //Fix up lots of pointers.

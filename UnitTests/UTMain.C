@@ -13,6 +13,7 @@ int main(int argc, char **argv)
 
 //    testing::GTEST_FLAG(filter) = "SemiHartreeFockMoleculeTester.*";
 //    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*"; 
+//    testing::GTEST_FLAG(filter) = "MoleculesDFTPolarized/DFTMoleculeTester.*/0";
 //    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*:MoleculesDFTPolarized/DFTMoleculeTester.*";
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //    testing::GTEST_FLAG(filter) = "HartreeFockMoleculeTester.*";

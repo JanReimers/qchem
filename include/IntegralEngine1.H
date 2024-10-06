@@ -70,7 +70,7 @@ public:
 //
     virtual SMat MakeKinetic(              ) const=0;
     virtual SMat MakeNuclear(const Cluster&) const=0;
-//    virtual RSMat MakeInverse(const RSMat& ) const=0; //Numerically stable algo required.
+    virtual RSMat MakeInverse(const RSMat& ) const; //Numerically stable algo required.
 //
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;

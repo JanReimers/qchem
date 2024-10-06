@@ -23,6 +23,7 @@ public:
     typedef IE::jk_t jk_t;
     typedef std::vector<const BasisFunctionBlock*> blocks_t;
     
+    PolarizedGaussianIE1() {};
     PolarizedGaussianIE1(const blocks_t&, const RVec& ns);
     virtual ~PolarizedGaussianIE1() {};
 
@@ -53,8 +54,6 @@ public:
 
 private:
     void Normalize(SMat&) const;
-    void MakeOverlap3C(const BasisFunctionBlock&,std::vector<SMat>&) const;
-    
     SMat MakeOverlap3C  (const RadialFunction* rc, const Polarization& pc) const;
     SMat MakeRepulsion3C(const RadialFunction* rc, const Polarization& pc) const;
 
