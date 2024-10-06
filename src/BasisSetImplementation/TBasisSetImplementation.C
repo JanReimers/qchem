@@ -153,16 +153,22 @@ GetRepulsion(const FittedFunction* ff) const
 #include "Misc/DFTDefines.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
+
+//#define USE_OLD_IE
+
 template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-//    const ERIProxy& eris=GetDataBase()->GetRepulsion4C(bs_cd);
+#ifdef USE_OLD_IE
+    const ERIProxy& J=GetDataBase()->GetRepulsion4C(bs_cd);
+#else
+    const ERIProxy1 J=GetDataBase()->GetRepulsion4C_1(bs_cd);
+#endif
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
-    const ERIProxy1 J=GetDataBase()->GetRepulsion4C_1(bs_cd);
 //    std::cout << "TBasisSetImplementation<T>::GetRepulsion" << std::endl;
 //    std::cout << "Repulsions: " << this->GetID() << " " << bs_cd->GetID()  << std::endl;
 //    std::cout << "Repulsions: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
@@ -192,13 +198,16 @@ template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    //const ERIProxy& eris=GetDataBase()->GetExchange4C(bs_cd);
+#ifdef USE_OLD_IE
+    const ERIProxy& K=GetDataBase()->GetExchange4C(bs_cd);
+#else
+    const ERIProxy1 K=GetDataBase()->GetExchange4C_1(bs_cd);
+#endif
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 //    std::cout << "TBasisSetImplementation<T>::GetExchange" << std::endl;
 //    std::cout << "   : " << this->GetID() << " " << bs_cd->GetID()  << std::endl;
 //    std::cout << "   : " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
-    const ERIProxy1 K=GetDataBase()->GetExchange4C_1(bs_cd);
 
     SMat Kab(Nab,Nab);
     for (int ia=1; ia<=Nab; ia++)

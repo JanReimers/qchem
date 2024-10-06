@@ -21,7 +21,7 @@
 #include <cassert>
 #include <stdlib.h>
 
-CDcache::CDcache() : lookups(0) {};
+CDcache::CDcache() : CDlookups(0), RNLMlookups(0) {};
 
 CDcache::~CDcache()
 {
@@ -31,8 +31,8 @@ CDcache::~CDcache()
 void CDcache::Report(std::ostream& os) const
 {
     for (auto c:cache) c.second->Report(os);
-    double eff=(100.0*lookups)/(size()+lookups-1);
-    os << "Charge Distributions cache N=" << size() << " lookups=" << lookups << " efficiencty=" << eff << "%" << std::endl;
+    double eff=(100.0*CDlookups)/(size()+CDlookups-1);
+    os << "Charge Distributions cache N=" << size() << " lookups=" << CDlookups << " efficiencty=" << eff << "%" << std::endl;
 }
 
 CDcache::ids_t CDcache::Sort(UniqueID::IDtype i1,UniqueID::IDtype i2)
@@ -52,10 +52,42 @@ const GaussianCD& CDcache::find(const GaussianRF* a,const GaussianRF* b)
         cache[key]=new GaussianCD(*a,*b);
         i=cache.find(key);
     }
-    lookups++;
+    CDlookups++;
     return *(i->second);
 }
 
+const RNLM& CDcache::find(const GaussianCD& ab,const GaussianRF* c)
+{
+    ids_t key=std::make_pair(ab.GetID(),c->GetID());
+//    ids_t key=Sort(a->GetID(),b->GetID());
+    auto i=RNLMcache.find(key);
+    if (i==RNLMcache.end())
+    {
+        double alpha =ab.AlphaP*c->itsExponent/(ab.AlphaP+c->itsExponent);
+        RNLMcache[key]=new RNLM(ab.Ltotal+c->GetL(),alpha,ab.P-c->GetCenter());
+        i=RNLMcache.find(key);
+    }
+    RNLMlookups++;
+    return *(i->second);
+ 
+}
+
+const RNLM& CDcache::find(const GaussianCD& ab,const GaussianCD& cd)
+{
+    ids_t key=std::make_pair(ab.GetID(),cd.GetID());
+//    ids_t key=Sort(a->GetID(),b->GetID());
+    auto i=RNLMcache.find(key);
+    if (i==RNLMcache.end())
+    {
+        double alpha=ab.AlphaP*cd.AlphaP/(ab.AlphaP+cd.AlphaP); //M&D 3.32
+        RVec3 PQ = ab.P-cd.P; //M&D 3.32
+        RNLMcache[key]=new RNLM(ab.Ltotal+cd.Ltotal,alpha,PQ);
+        i=RNLMcache.find(key);
+    }
+    RNLMlookups++;
+    return *(i->second);
+ 
+}
 //#######################################################################
 //
 //   Gaussian radial function implementation
@@ -113,11 +145,13 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
         case Repulsion2C :
             {
                 auto NLMs=GaussianCD::GetNMLs(this->GetL());
-                RVec Rs=gb->GetAux(NLMs,pb,this->GetL(),ab.a,this->GetCenter());
-                RVec Rs1=ab.GetRNLMs(pb,gb->GetH1());
+                RVec Rs=ab.GetRNLMs(pb,gb->GetH1());
+#ifdef DEBUG
+                RVec Rs1=gb->GetAux(NLMs,pb,this->GetL(),ab.a,this->GetCenter());
                 for (auto i:Rs.indices())
                     assert(fabs(Rs(i)-Rs1(i))<1e-14);
 //                        std::cout << fabs(Rs(i)-Rs1(i)) << std::endl;
+#endif
                 
                 int nNLM=1;
                 //std::cout << "NLMs=" << std::endl;
@@ -183,13 +217,32 @@ double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Radial
     const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
     if (!gb) 
         return rb->Integrate(type,ra,pa,pb,pc,cache,this);
-        
+    return Integrate3C(type,ga,gb,pa,pb,pc,cache,this);
+}
+
+//this = rb
+double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache,const RadialFunction* rc) const
+{
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(type,this,pb,pa,pc,cache,rc);
+    const GaussianRF* gc=dynamic_cast<const GaussianRF*>(rc);
+    assert(gc);
+    return Integrate3C(type,ga,this,pa,pb,pc,cache,gc);
+    
+}
+
+double GaussianRF::Integrate3C(Types3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache, grf_t* gc)
+{
+    assert(ga);
+    assert(gb);
+    assert(gc);
     double s=0.0;
     switch (type)
     {
         case Overlap3C :
             {
-            Hermite3* H3=this->GetH3(*ra,*rb);
+            Hermite3* H3=gc->GetH3(*ga,*gb);
             s=(*H3)(pa,pb,pc);
             delete H3;
                 
@@ -197,42 +250,141 @@ double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Radial
             break;
         case Repulsion3C :
             {
-                GaussianCD ab(*ga,*gb);
+                const GaussianCD& ab(cache.find(ga,gb));
+                const RNLM& R(cache.find(ab,gc));
 
                 const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(ab.Ltotal);
-
-                Vector<double> Rs=this->GetAux(NLMs,pc,ab.Ltotal,ab.AlphaP,ab.P);
-
-                std::vector<Polarization>::const_iterator bNLM(NLMs.begin());
-                for (int nNLM=1;  bNLM!=NLMs.end();  bNLM++,nNLM++)
-                {
-                    const Polarization Pab = pa+pb;
-                    if (bNLM->n <= Pab.n && bNLM->l <= Pab.l && bNLM->m <= Pab.m)
+                const Hermite1& H1=gc->GetH1();
+                assert(&H1);
+                
+                
+                const Polarization Pab = pa+pb;
+                for (auto nlm:NLMs)
+                    if (nlm.n <= Pab.n && nlm.l <= Pab.l && nlm.m <= Pab.m)
                     {
-                        double hab = ab.H2(*bNLM,pa,pb);
-                        hab*=2*Pi52 * ab.Eij;
-                        if (hab!=0)
+                        double hab = ab.H2(nlm,pa,pb);
+                        if (hab!=0.0)
                         {
-                            double r=Rs(nNLM);
-                            if(r!=0) s+=hab*r;
-                        }
-                    }
-                }
+                            double Rs=0.0;
+                            for (int n=0; n<=pc.n; n++)
+                                    for (int l=0; l<=pc.l; l++)
+                                        for (int m=0; m<=pc.m; m++)
+                                        {
+                                            Polarization NLMp(n,l,m);
+                                            double h=H1(NLMp,pc);
+                                            if (h!=0.0)
+                                                Rs+=h*R(nlm+NLMp);
+                                        } //for m
+                            if (Rs!=0) s+=hab*Rs;
+                        } //if hb
+                    } //if nlm
+                   
+                
+                double factor=1.0/(ab.AlphaP*gc->itsExponent*sqrt(ab.AlphaP+gc->itsExponent));
+                factor = (pc.GetTotalL()%2) ? -factor : factor;
+                s*=2*Pi52 * ab.Eij*factor;
             }
             
             break;
     }
     return s;
+
 }
 
 
-double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache,const RadialFunction* rc) const
+
+// this is rd
+double GaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const
+{
+    const GaussianRF* gc=dynamic_cast<const GaussianRF*>(rc);
+    if (!gc) 
+        return rc->Integrate(ra,rb,pa,pb,pc,pd,cache,this);
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb) 
+        return rb->Integrate(ra,pa,pb,pc,pd,cache,rc,this);
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(rb,pb,pa,pc,pd,cache,rc,this);
+    return Integrate4C(ga,gb,pa,pb,pc,pd,cache,gc,this);
+}
+
+// this = rc
+double GaussianRF::Integrate(rf_t* ra,rf_t* rb, po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const
+{
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb) 
+        return rb->Integrate(ra,pa,pb,pc,pd,cache,this,rd);
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(rb,pb,pa,pc,pd,cache,this,rd);
+    
+    const GaussianRF* gd=dynamic_cast<const GaussianRF*>(rd);
+    assert(gd);
+    
+    return Integrate4C(ga,gb,pa,pb,pc,pd,cache,this,gd);
+
+}
+// this = rb
+double GaussianRF::Integrate(rf_t* ra, po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const
 {
     const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
     if (!ga) 
-        return ra->Integrate(type,this,pb,pa,pc,cache,rc);
-    return rc->Integrate(type,ra,this,pa,pb,pc,cache);
+        return ra->Integrate(this,pb,pa,pc,pd,cache,rc,rd);
+
+    const GaussianRF* gc=dynamic_cast<const GaussianRF*>(rc);
+    assert(gc);
+    const GaussianRF* gd=dynamic_cast<const GaussianRF*>(rd);
+    assert(gd);
     
+    return Integrate4C(ga,this,pa,pb,pc,pd,cache,gc,gd);
+}
+
+double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, grf_t* gc, grf_t* gd)
+{
+    assert(ga);
+    assert(gb);
+    assert(gc);
+    assert(gd);
+    
+    const GaussianCD& ab(cache.find(ga,gb));
+    const GaussianCD& cd(cache.find(gc,gd));
+
+//    std::cout.precision(5);
+//    std::cout.width(8);
+
+    const std::vector<Polarization>& abNLMs=GaussianCD::GetNMLs(ab.Ltotal);
+    const std::vector<Polarization>& cdNLMs=GaussianCD::GetNMLs(cd.Ltotal);
+
+
+    double lambda=2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
+    lambda*=ab.Eij*cd.Eij; //M&D 2.25
+    const RNLM& rnlm(cache.find(ab,cd)); //M&D section 4A
+
+    double s=0.0;
+    const Polarization Pab = pa + pb;
+    const Polarization Pcd = pc + pd;
+    // NLM loop for ab
+    for (auto abNLM:abNLMs)
+    {
+        if (abNLM > Pab) continue;
+        double hab = ab.H2(abNLM,pa,pb);
+        if (hab==0.0) continue;
+        for (auto cdNLM:cdNLMs)
+        {
+            if (cdNLM > Pcd) continue;
+            double hcd = cd.H2(cdNLM,pc,pd);
+            if (hcd==0) continue;
+
+            double r=rnlm(abNLM + cdNLM);
+            if(r!=0)
+            {
+                s+=hab*hcd*r*cdNLM.GetSign();;
+            }
+        } //cdNLM
+    } //abNLM
+    s=s*lambda;
+
+    return s;
 }
 
 

@@ -521,7 +521,10 @@ template <class T> ERIProxy1 HeapDB<T>::GetRepulsion4C_1(const TBasisSet<T>* bs_
 template <class T> ERIProxy1 HeapDB<T>::GetExchange4C_1 (const TBasisSet<T>* bs_cd)
 {
    if (itsJTable.GetSize()==0) BuildERIs(); 
-   return ERIProxy1(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+   if (itsKTable.GetSize()==0)
+        return ERIProxy1(itsJTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+    else
+        return ERIProxy1(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
 }
 //-------------------------------------------------------------------------
 //

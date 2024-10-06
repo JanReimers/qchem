@@ -120,3 +120,6 @@ Vector<double>  GaussianCD::GetRNLMs(const Polarization& p, const Hermite1& H1) 
      return ret;
 }
 
+std::ostream& GaussianCD::Write(std::ostream& os) const {return os;}
+std::istream& GaussianCD::Read (std::istream& is)       {return is;}
+

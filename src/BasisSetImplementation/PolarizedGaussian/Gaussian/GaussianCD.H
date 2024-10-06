@@ -8,6 +8,7 @@
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include "Misc/ptr_vector1.h"
+#include "Misc/UniqueID/UniqueID.H"
 #include "oml/vector3d.h"
 #include <map>
 
@@ -16,7 +17,7 @@ class GaussianRF;
 class RadialFunction;
 class Hermite1;
 
-class GaussianCD 
+class GaussianCD : public UniqueID
 {
 public:
     GaussianCD(const GaussianRF&,const GaussianRF&);
@@ -25,10 +26,13 @@ public:
     const RNLM& GetRNLM(const RVec3& c) const; // third Center at c.
     Vector<double>  GetRNLMs( const Polarization& pa, const Hermite1& H1) const; // third Center at c.
     void Report(std::ostream& os) const;
-    //typedef std::pair<Polarization,
+    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::istream& Read (std::istream&)      ;
+
 
 private:
     friend class GaussianRF;
+    friend class CDcache;
 //
 //  Raw data defining the charge distribution, all pickeled.
 //

@@ -109,6 +109,37 @@ double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, co
     return s;
 }
 
+// this is rd
+double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const
+{
+    double s=0;
+    for (auto i:gs.indices()) 
+        s += cs(i+1)*rc->Integrate(ra,rb,pa,pb,pc,pd,cache,gs[i]); //swap pols
+    return s;
+}
+
+// this is rc
+double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const
+{
+    double s=0;
+    for (auto i:gs.indices()) 
+        s += cs(i+1)*rb->Integrate(ra,pa,pb,pc,pd,cache,gs[i],rd); //swap pols
+    return s;
+}
+
+// this is rb
+double ContractedGaussianRF::Integrate(rf_t* ra,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const
+{
+    double s=0;
+    for (auto i:gs.indices()) 
+        s += cs(i+1)*ra->Integrate(gs[i],pb,pa,pc,pd,cache,rc,rd); //swap pols
+    return s;
+}
+
+
+
+
+
 
 void ContractedGaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, SMat& ret, const Cluster* cl, double scale) const
 {

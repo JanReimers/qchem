@@ -25,14 +25,19 @@ public:
     CDcache();
     ~CDcache();
     const GaussianCD& find(const GaussianRF*,const GaussianRF*);
+    const RNLM&       find(const GaussianCD&,const GaussianRF*);
+    const RNLM&       find(const GaussianCD&,const GaussianCD&);
     size_t size() const {return cache.size();}
     void Report(std::ostream&) const;
 private:
     typedef std::pair<UniqueID::IDtype,UniqueID::IDtype> ids_t;
     static ids_t Sort(UniqueID::IDtype,UniqueID::IDtype);
     
-    size_t lookups;
+    size_t CDlookups;
     std::map<ids_t,const GaussianCD*> cache;
+    size_t RNLMlookups;
+    std::map<ids_t,const RNLM*> RNLMcache;
+    
 };
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and
@@ -71,6 +76,10 @@ public:
     virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDcache& cache,const Cluster* cl=0) const=0;
     virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache) const=0;
     virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDcache& cache, rf_t* rc) const=0;
+    
+    virtual double Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const=0;
+    virtual double Integrate(rf_t* ra,rf_t* rb,         po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const=0;
+    virtual double Integrate(rf_t* ra,                  po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const=0;
 
     virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale)=0;
 

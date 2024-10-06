@@ -138,25 +138,25 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic() const
 //
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(const Cluster& cl) const
 {
-    SMat s(size());
-    Fill(s,0.0);
-    for (auto a(blocks.begin()); a!=blocks.end(); a++)
-        for (auto b(a); b!=blocks.end(); b++)
-        {
-            BasisFunctionBlockPair p(*a,*b);
-            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Nuclear,p,s,&cl,1.0);
-        }
+//    SMat s(size());
+//    Fill(s,0.0);
+//    for (auto a(blocks.begin()); a!=blocks.end(); a++)
+//        for (auto b(a); b!=blocks.end(); b++)
+//        {
+//            BasisFunctionBlockPair p(*a,*b);
+//            (*a)->itsRadial->Get2CenterIntegrals(RadialFunction::Nuclear,p,s,&cl,1.0);
+//        }
     
     int N=size();
-    SMat s1(size());
+    SMat s(size());
     for (index_t ia=0;ia<N;ia++)
         for (index_t ib=ia;ib<N;ib++)
         {
             assert(&cl);
-            s1(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Nuclear,radials[ib],pols[ia],pols[ib],cache,&cl);
-            double err=fabs(s(ia+1,ib+1)-s1(ia+1,ib+1));
+            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Nuclear,radials[ib],pols[ia],pols[ib],cache,&cl);
+            //double err=fabs(s(ia+1,ib+1)-s1(ia+1,ib+1));
             //if (err>0.0) std::cout << "Nuclear error=" << log10(err) << std::endl;
-            assert(err<1e-12);
+            //assert(err<1e-12);
         }    
         
 
@@ -180,13 +180,6 @@ PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeOverlap(const ScalarFunctio
     return RVec();
 }
 
-//PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap(const BasisFunctionBlock& c) const
-//{    
-//    SMat s(size());
-//    for (auto a(bls.begin()); a!=bls.end(); a++)
-//            s(i,j)=GaussianIntegral(es(i)+es(j)+eo,2*L+Lo)*ns(i)*ns(j)*no;
-//    return s;
-//}
 
 template <class M> std::vector<M> MakeMatrixList(int n, int N)
 {
@@ -202,21 +195,6 @@ template <class M> std::vector<M> MakeMatrixList(int n, int N)
 
 void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
 {
-
-//    for (auto block:other->blocks)
-//    {
-//        std::vector<SMat > list=MakeMatrixList<SMat>(block->size(),size());
-//        MakeOverlap3C(*block,list);
-//        int i=block->itsN; //Start index for thie block
-//        for(auto m:list)
-//        {
-//            m *= other->ns(i++);
-//            Normalize(m);
-//            mlist.Add(m);
-//        }
-//    }
-//    
-
     const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
     mlist.Empty();
     int Nc=other->size();
@@ -322,9 +300,33 @@ void PolarizedGaussianIE1::MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, 
     assert(false);
 }
 
-PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t&) const
+PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
 {
-    ERIList1 J,K;
+#ifdef DEBUG
+    assert(ies.size()==1);  //Don't have multiple Irrep basis sets for Molecules yet.
+    const IE* ie=ies[0];
+    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);
+    assert(other);
+    assert(other==this);   //Again don't have multiple Irrep basis sets for Molecules yet.
+#endif
+    
+    int N=size();
+    ERIList1 J(N,-1.0),K;
+    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
+
+    for (index_t ia:ns.indices())
+        for (index_t ib:ns.indices(ia))
+            for (index_t ic:ns.indices())
+                for (index_t id:ns.indices(ic))
+                {
+                    if (J(ia,ib,ic,id)==-1.0)
+                    {
+                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
+                        double norm=ns(ia)*ns(ib)*ns(ic)*ns(id);
+                        assert(radials[id-1]);
+                        J(ia,ib,ic,id)=norm * radials[id-1]->Integrate(radials[ia-1],radials[ib-1],radials[ic-1],pols[ia-1],pols[ib-1],pols[ic-1],pols[id-1],cache);
+                    }
+                }
     return std::make_pair(J,K);
 }
 
