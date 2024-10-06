@@ -130,7 +130,7 @@ void PolarizedGaussianIE::MakeOverlap3C(MList& ret, const TBasisSet<double>& oth
     {
         std::vector<SMat > list=MakeMatrixList((*block)->size());
         MakeOverlap3C(**block,list);
-        for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
+       for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
         {
             SMat& m=*blist;
             const PolarizedGaussianBF* bfpolg= dynamic_cast<const PolarizedGaussianBF*>(*c);
@@ -252,6 +252,7 @@ void PolarizedGaussianIE::MakeRepulsion3C(MList& ret, const TBasisSet<double>& o
     {
         std::vector<SMat > list=MakeMatrixList((*block)->size());
         MakeRepulsion3C(**block,list);
+
         for(std::vector<SMat >::iterator blist(list.begin()); blist!=list.end(); blist++,c++)
         {
             SMat& m=*blist;

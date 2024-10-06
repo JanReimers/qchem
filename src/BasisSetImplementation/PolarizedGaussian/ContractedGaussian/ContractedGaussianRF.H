@@ -27,7 +27,11 @@ public:
     virtual void Get3CenterIntegrals(Types3C, BFBT&, std::vector<SMat>&, double scale);
     virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale);
 
-    virtual double Integrate(Types2C,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl=0) const;
+    typedef RadialFunction::rf_t rf_t;
+    typedef RadialFunction::po_t po_t;
+    virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDcache& cache,const Cluster* cl=0) const;
+    virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache) const;
+    virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDcache& cache, rf_t* rc) const;
 
     
     virtual Hermite3*       GetH3 (const RadialFunction&, const RadialFunction&) const;

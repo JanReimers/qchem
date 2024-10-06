@@ -52,6 +52,10 @@ public:
 
 private:
     void Normalize(SMat&) const;
+    void MakeOverlap3C(const BasisFunctionBlock&,std::vector<SMat>&) const;
+    SMat MakeOverlap3C(const RadialFunction* rc, const Polarization& pc) const;
+//    void MakeRepulsion3C(const BasisFunctionBlock&,std::vector<SMat>&) const;
+
 
     blocks_t                           blocks;  // by block one radial function for many polarizations
     std::vector<const RadialFunction*> radials; // Flattened radials

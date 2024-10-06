@@ -90,6 +90,26 @@ double ContractedGaussianRF::Integrate(Types2C type,const RadialFunction* rb, co
     return s;
 }
 
+//
+//  At his we know this is radial c.  Keep c at the end of the call
+//
+double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache) const
+{
+    double s=0;
+    for (auto i:gs.indices()) 
+        s += cs(i+1)*ra->Integrate(type,rb,pb,pa,pc,cache,gs[i]); //swap pols
+    return s;
+}
+
+double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache,const RadialFunction* rc) const
+{
+    double s=0;
+    for (auto i:gs.indices()) 
+        s += cs(i+1)*ra->Integrate(type,gs[i],pb,pa,pc,cache,rc); //swap pols
+    return s;
+}
+
+
 void ContractedGaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, SMat& ret, const Cluster* cl, double scale) const
 {
     for (auto i:gs.indices()) gs[i]->Get2CenterIntegrals(type,p,ret,cl,cs(i+1)*scale);

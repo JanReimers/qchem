@@ -427,9 +427,9 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetOverlap3C(cons
     assert(itsIntegralEngine);
     if (its3CenterOverlapBS!=bs.GetID())
     {
-//        if (itsIntegralEngine1)
-//            itsIntegralEngine1->MakeOverlap3C(*its3CenterOverlaps,bs.GetIntegralEngine1());
-//        else
+        if (itsIntegralEngine1)
+            itsIntegralEngine1->MakeOverlap3C(*its3CenterOverlaps,bs.GetIntegralEngine1());
+        else
             itsIntegralEngine->MakeOverlap3C(*its3CenterOverlaps,bs);
         its3CenterOverlapBS=bs.GetID();
     }

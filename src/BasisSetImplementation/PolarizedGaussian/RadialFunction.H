@@ -65,7 +65,12 @@ public:
     virtual void Get2CenterIntegrals(Types2C, BFBP&,  Mat&,                 double scale) const=0; //Cross overlap & repulsion.
     virtual void Get3CenterIntegrals(Types3C, BFBT&, std::vector<SMat >&, double scale)=0;
     
-    virtual double Integrate(Types2C,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl=0) const=0;
+    typedef const RadialFunction rf_t;
+    typedef const Polarization   po_t;
+    
+    virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDcache& cache,const Cluster* cl=0) const=0;
+    virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache) const=0;
+    virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDcache& cache, rf_t* rc) const=0;
 
     virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale)=0;
 

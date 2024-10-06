@@ -175,6 +175,33 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
 //
 //  Do 3 center contractions
 //
+//  this is the c center. <ab|c>
+double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache) const
+{
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(type,rb,pb,pa,pc,cache,this);
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb) 
+        return rb->Integrate(type,ra,pa,pb,pc,cache,this);
+    Hermite3* H3=this->GetH3(*ra,*rb);
+    double s=(*H3)(pa,pb,pc);
+    delete H3;
+    return s;
+}
+
+
+double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache,const RadialFunction* rc) const
+{
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(type,this,pb,pa,pc,cache,rc);
+    return rc->Integrate(type,ra,this,pa,pb,pc,cache);
+    
+}
+
+
+
 
 void GaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, SMat& ret, const Cluster* cl, double scale) const
 {
@@ -494,6 +521,7 @@ void GaussianRF::GetOverlap3CInternal(BFBT& t, std::vector<SMat>& ret, double sc
     assert(t.radials.a());
     assert(t.radials.b());
     assert(t.radials.c());
+//    std::cout << "GetOverlap3CInternal a=" << t.radials.a()->GetID() << " b=" << t.radials.b()->GetID() << " c=" << t.radials.c()->GetID() << std::endl;
     Hermite3* H3=t.radials.c()->GetH3(*t.radials.a(),*t.radials.b());
     
     std::vector<Polarization>::const_iterator bPa(t.a->itsPols.begin());

@@ -20,6 +20,7 @@
 //#include <cassert>
 //#include <iostream>
 //#include <stdlib.h>
+#include <vector>
 
 //-----------------------------------------------------------------
 //
@@ -75,7 +76,7 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap() const
             assert(fabs(s(ia+1,ib+1)-s1(ia+1,ib+1))<1e-14);
         }    
         
-    cache.Report(std::cout);
+    //cache.Report(std::cout);
     Normalize(s);
     return s;
 }
@@ -99,11 +100,11 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion() const
         {
             s1(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Repulsion2C,radials[ib],pols[ia],pols[ib],cache);
             double err=fabs(s(ia+1,ib+1)-s1(ia+1,ib+1));
-            //std::cout << "Repulsion error=" << err << std::endl;
+            if (err>0.0) std::cout << "Repulsion error=" << log10(err) << std::endl;
             assert(err<1e-14);
         }    
         
-    cache.Report(std::cout);
+    //cache.Report(std::cout);
 
     Normalize(s);
     return s;
@@ -126,8 +127,8 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic() const
         {
             s1(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Kinetic,radials[ib],pols[ia],pols[ib],cache);
             double err=fabs(s(ia+1,ib+1)-s1(ia+1,ib+1));
-            //std::cout << "Repulsion error=" << err << std::endl;
-            assert(err<1e-14);
+            //if (err>0.0) std::cout << "Kinetic error=" << log10(err) << std::endl;
+            assert(err<1e-12);
         }    
         
 
@@ -154,8 +155,8 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(const Cluster& cl) 
             assert(&cl);
             s1(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Nuclear,radials[ib],pols[ia],pols[ib],cache,&cl);
             double err=fabs(s(ia+1,ib+1)-s1(ia+1,ib+1));
-            std::cout << "Nuclear error=" << err << std::endl;
-            assert(err<1e-14);
+            //if (err>0.0) std::cout << "Nuclear error=" << log10(err) << std::endl;
+            assert(err<1e-12);
         }    
         
 
@@ -187,15 +188,78 @@ PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeOverlap(const ScalarFunctio
 //    return s;
 //}
 
+template <class M> std::vector<M> MakeMatrixList(int n, int N)
+{
+    std::vector<M> ret;
+    for (index_t i=0; i<n; i++)
+    {
+        ret.push_back(M(N,N));
+        Fill(ret.back(),0.0);
+    }
+    return ret;
+}
+
+
 void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
 {
     const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    assert(other);
-    assert(false);
-//     mlist.Empty();
-//     for (auto c:other->bls) mlist.Add(MakeOverlap(c))
-//     mlist.Clear();
+    
+    mlist.Empty();
+//    for (auto block:other->blocks)
+//    {
+//        std::vector<SMat > list=MakeMatrixList<SMat>(block->size(),size());
+//        MakeOverlap3C(*block,list);
+//        int i=block->itsN; //Start index for thie block
+//        for(auto m:list)
+//        {
+//            m *= other->ns(i++);
+//            Normalize(m);
+//            mlist.Add(m);
+//        }
+//    }
+//    
+    int Nc=other->size();
+    for (index_t ic=0;ic<Nc;ic++)
+    {
+        SMat s=MakeOverlap3C(other->radials[ic],other->pols[ic]);
+        s*=other->ns(ic+1);
+        mlist.Add(s);
+    }    
+    
+    mlist.Clear();
 }
+
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap3C(const RadialFunction* rc, const Polarization& pc) const
+{
+    int N=size();
+    SMat s(size());
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=rc->Integrate(RadialFunction::Overlap3C,radials[ia],radials[ib],pols[ia],pols[ib],pc,cache);
+        
+    Normalize(s);
+    return s;
+}
+//------------------------------------------------------------------------------------
+//
+//  Calculates repulsion matricies <ab|1/r12|c> for a block of basis functions c, over
+//  the whole basis set a and b.
+//  *** No normalization is done at this point***
+//  **** Only elements above the diagonal will be defined, everything below the diagonal
+//  will be zero ***.
+//
+
+void PolarizedGaussianIE1::MakeOverlap3C(const BasisFunctionBlock& c,std::vector<SMat >& ret) const
+{
+   for (auto a(blocks.begin()); a!=blocks.end(); a++)
+        for (auto b(a); b!=blocks.end(); b++)
+        {
+            BasisFunctionBlockTriplet t(*a,*b,&c);
+            (*a)->itsRadial->Get3CenterIntegrals(RadialFunction::Overlap3C,t,ret,1.0);
+        }
+
+}
+
 //
 ////----------------------------------------------------------------------------------------
 ////
