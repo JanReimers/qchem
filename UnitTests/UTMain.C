@@ -8,8 +8,8 @@ int main(int argc, char **argv)
 
 //    testing::GTEST_FLAG(filter) = "SlaterIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "SemiHartreeFockMoleculeTester.*";
-    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*";
-//    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*:MoleculesDFTPolarized/DFTMoleculeTester.*";
+//    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*";
+    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*:MoleculesDFTPolarized/DFTMoleculeTester.*";
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //    testing::GTEST_FLAG(filter) = "MoleculesHFPolarized/HartreeFockMoleculeTester.MoleculesHFPolarized/*";
 

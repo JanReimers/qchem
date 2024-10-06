@@ -441,9 +441,9 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(co
     assert(itsIntegralEngine);
     if (its3CenterRepulsionBS!=bs.GetID())
     {
-//        if (itsIntegralEngine1)
-//            itsIntegralEngine1->MakeRepulsion3C(*its3CenterRepulsions,bs.GetIntegralEngine1());
-//        else
+        if (itsIntegralEngine1)
+            itsIntegralEngine1->MakeRepulsion3C(*its3CenterRepulsions,bs.GetIntegralEngine1());
+        else
             itsIntegralEngine->MakeRepulsion3C(*its3CenterRepulsions,bs);
         its3CenterRepulsionBS=bs.GetID();
     }

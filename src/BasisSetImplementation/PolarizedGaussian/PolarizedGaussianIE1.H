@@ -37,6 +37,7 @@ public:
     virtual Mat  MakeRepulsion  (const IE* ) const;
     virtual Vector<double>  MakeRepulsion  (const SF&  ) const;
     virtual void MakeRepulsion3C(MList&,const IE*) const;
+    
     virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const iev_t&) const;
     virtual jk_t Make4C(const iev_t&) const;
 
@@ -53,8 +54,9 @@ public:
 private:
     void Normalize(SMat&) const;
     void MakeOverlap3C(const BasisFunctionBlock&,std::vector<SMat>&) const;
-    SMat MakeOverlap3C(const RadialFunction* rc, const Polarization& pc) const;
-//    void MakeRepulsion3C(const BasisFunctionBlock&,std::vector<SMat>&) const;
+    
+    SMat MakeOverlap3C  (const RadialFunction* rc, const Polarization& pc) const;
+    SMat MakeRepulsion3C(const RadialFunction* rc, const Polarization& pc) const;
 
 
     blocks_t                           blocks;  // by block one radial function for many polarizations

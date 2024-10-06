@@ -202,9 +202,7 @@ template <class M> std::vector<M> MakeMatrixList(int n, int N)
 
 void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
 {
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    
-    mlist.Empty();
+
 //    for (auto block:other->blocks)
 //    {
 //        std::vector<SMat > list=MakeMatrixList<SMat>(block->size(),size());
@@ -218,6 +216,9 @@ void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
 //        }
 //    }
 //    
+
+    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
+    mlist.Empty();
     int Nc=other->size();
     for (index_t ic=0;ic<Nc;ic++)
     {
@@ -267,11 +268,32 @@ void PolarizedGaussianIE1::MakeOverlap3C(const BasisFunctionBlock& c,std::vector
 ////
 
 //
-PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ie) const
+void PolarizedGaussianIE1::MakeRepulsion3C(MList& mlist,const IE* ie) const
 {
-    assert(false);
-    return SMat();
+    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
+    mlist.Empty();
+    int Nc=other->size();
+    for (index_t ic=0;ic<Nc;ic++)
+    {
+        SMat s=MakeRepulsion3C(other->radials[ic],other->pols[ic]);
+        s*=other->ns(ic+1);
+        mlist.Add(s);
+    }    
+    
+    mlist.Clear();
 
+
+}
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion3C(const RadialFunction* rc, const Polarization& pc) const
+{
+    int N=size();
+    SMat s(size());
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=rc->Integrate(RadialFunction::Repulsion3C,radials[ia],radials[ib],pols[ia],pols[ib],pc,cache);
+        
+    Normalize(s);
+    return s;
 }
 //
 //
@@ -283,19 +305,14 @@ Vector<double> PolarizedGaussianIE1::MakeRepulsion(const ScalarFunction<double>&
 }
 
 //
-//PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion(const bf_tuple& bf) const
-//{    
-//    assert(false);
-//    return SMat();
-//}
-
-
-void PolarizedGaussianIE1::MakeRepulsion3C(MList& mlist, const IE* ie) const
-{
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    assert(other);
+PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE*) const
+{    
     assert(false);
+    return SMat();
 }
+
+
+
 //
 ////
 ////  This is where we do the big double loop over basis sets.

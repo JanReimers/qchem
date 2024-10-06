@@ -100,74 +100,73 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
 {
     double s=0.0;
     const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
-    if (gb)
+    if (!gb)
+        return rb->Integrate(type,this,pb,pa,cache,cl); 
+
+    Polarization zero(0,0,0);
+    const GaussianCD& ab=cache.find(this,gb);
+    switch (type)
     {
-        Polarization zero(0,0,0);
-        const GaussianCD& ab=cache.find(this,gb);
-        switch (type)
-        {
-            case Overlap2C :
-                s=pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
-                break;
-            case Repulsion2C :
-                {
-                    auto NLMs=GaussianCD::GetNMLs(this->GetL());
-                    RVec Rs=gb->GetAux(NLMs,pb,this->GetL(),ab.a,this->GetCenter());
-                    RVec Rs1=ab.GetRNLMs(pb,gb->GetH1());
-                    for (auto i:Rs.indices())
-                        assert(fabs(Rs(i)-Rs1(i))<1e-14);
+        case Overlap2C :
+            s=pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
+            break;
+        case Repulsion2C :
+            {
+                auto NLMs=GaussianCD::GetNMLs(this->GetL());
+                RVec Rs=gb->GetAux(NLMs,pb,this->GetL(),ab.a,this->GetCenter());
+                RVec Rs1=ab.GetRNLMs(pb,gb->GetH1());
+                for (auto i:Rs.indices())
+                    assert(fabs(Rs(i)-Rs1(i))<1e-14);
 //                        std::cout << fabs(Rs(i)-Rs1(i)) << std::endl;
-                    
-                    int nNLM=1;
-                    //std::cout << "NLMs=" << std::endl;
-                    for (auto bNLM:NLMs)
-                    {
-                        //std::cout << bNLM << " ";
-                        if (bNLM.n <= pa.n && bNLM.l <= pa.l && bNLM.m <= pa.m)
-                        {
-                            //std::cout << bNLM << " " << nNLM << std::endl;
-                            double h=this->GetH1()(bNLM,pa);
-                            if (h!=0.0) s += 2*h*Pi52 * Rs(nNLM);
-                        }
-                        nNLM++;
-                    }
-                    //std::cout  << std::endl;
-                    
-                }            
-                break;
-            case Kinetic :
+                
+                int nNLM=1;
+                //std::cout << "NLMs=" << std::endl;
+                for (auto bNLM:NLMs)
                 {
-                    double factor=0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
-                    double h = GetKinetic(pa,pb,ab);
-                    if (h!=0) s=factor*h;
-                    break;
-                }
-            case Nuclear :
-                {
-                    assert(cl);
-                    RNLM R; //Create and empty aux function.
-                    //  Loop over nuclear centres and add the RNML contribution from each nucleus.
-                    for (auto atom:*cl) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
-
-                    double factor=2*Pi/ab.AlphaP*ab.Eij;
-                    const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(ab.Ltotal);
-
-                    const Polarization Pab = pa + pb;
-                    for (std::vector<Polarization>::const_iterator bNLM(NLMs.begin());  bNLM!=NLMs.end();  bNLM++)
+                    //std::cout << bNLM << " ";
+                    if (bNLM.n <= pa.n && bNLM.l <= pa.l && bNLM.m <= pa.m)
                     {
-                        if (bNLM->n <= Pab.n && bNLM->l <= Pab.l && bNLM->m <= Pab.m)
-                        {
-                            double h = ab.H2(*bNLM,pa,pb);
-                            if(h!=0) s+=h*R(*bNLM)*factor;
-                        }
-                        
+                        //std::cout << bNLM << " " << nNLM << std::endl;
+                        double h=this->GetH1()(bNLM,pa);
+                        if (h!=0.0) s += 2*h*Pi52 * Rs(nNLM);
                     }
+                    nNLM++;
                 }
+                //std::cout  << std::endl;
+                
+            }            
+            break;
+        case Kinetic :
+            {
+                double factor=0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
+                double h = GetKinetic(pa,pb,ab);
+                if (h!=0) s=factor*h;
                 break;
-        }
-    }
-    else
-        s=rb->Integrate(type,this,pb,pa,cache,cl); 
+            }
+        case Nuclear :
+            {
+                assert(cl);
+                RNLM R; //Create and empty aux function.
+                //  Loop over nuclear centres and add the RNML contribution from each nucleus.
+                for (auto atom:*cl) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
+
+                double factor=2*Pi/ab.AlphaP*ab.Eij;
+                const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(ab.Ltotal);
+
+                const Polarization Pab = pa + pb;
+                for (std::vector<Polarization>::const_iterator bNLM(NLMs.begin());  bNLM!=NLMs.end();  bNLM++)
+                {
+                    if (bNLM->n <= Pab.n && bNLM->l <= Pab.l && bNLM->m <= Pab.m)
+                    {
+                        double h = ab.H2(*bNLM,pa,pb);
+                        if(h!=0) s+=h*R(*bNLM)*factor;
+                    }
+                    
+                }
+            }
+            break;
+    } //switch
+  
     return s;
 }
 
@@ -184,9 +183,45 @@ double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Radial
     const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
     if (!gb) 
         return rb->Integrate(type,ra,pa,pb,pc,cache,this);
-    Hermite3* H3=this->GetH3(*ra,*rb);
-    double s=(*H3)(pa,pb,pc);
-    delete H3;
+        
+    double s=0.0;
+    switch (type)
+    {
+        case Overlap3C :
+            {
+            Hermite3* H3=this->GetH3(*ra,*rb);
+            s=(*H3)(pa,pb,pc);
+            delete H3;
+                
+            }
+            break;
+        case Repulsion3C :
+            {
+                GaussianCD ab(*ga,*gb);
+
+                const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(ab.Ltotal);
+
+                Vector<double> Rs=this->GetAux(NLMs,pc,ab.Ltotal,ab.AlphaP,ab.P);
+
+                std::vector<Polarization>::const_iterator bNLM(NLMs.begin());
+                for (int nNLM=1;  bNLM!=NLMs.end();  bNLM++,nNLM++)
+                {
+                    const Polarization Pab = pa+pb;
+                    if (bNLM->n <= Pab.n && bNLM->l <= Pab.l && bNLM->m <= Pab.m)
+                    {
+                        double hab = ab.H2(*bNLM,pa,pb);
+                        hab*=2*Pi52 * ab.Eij;
+                        if (hab!=0)
+                        {
+                            double r=Rs(nNLM);
+                            if(r!=0) s+=hab*r;
+                        }
+                    }
+                }
+            }
+            
+            break;
+    }
     return s;
 }
 
