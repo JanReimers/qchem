@@ -4,6 +4,7 @@
 #include "Misc/pmstream.h"
 #include "oml/smatrix.h"
 #include "oml/imp/cow.h"
+#include "oml/vector.h"
 #include <iostream>
 //------------------------------------------------------------------
 //
@@ -20,26 +21,26 @@
 // resulting in a eightfold storage reduction.
 //
 
-class ERIList1
+class ERI4
    : public virtual PMStreamableObject
 {
 public:
-    ERIList1();
-    ERIList1(int n);
-    ERIList1(int n,double _fill);
+    ERI4();
+    ERI4(int n);
+    ERI4(int n,double _fill);
     void Empty(); //Clear out all data.
     void SetSize(int n, double _fill=0.0);
     int GetSize() const {return itsN;}
 
-    virtual ~ERIList1();
+    virtual ~ERI4();
 
     double operator()(int i, int j, int k, int l) const
     {
-        return itsData[GetIndex(i,j,k,l,itsN)];
+        return itsData(GetIndex(i,j,k,l,itsN));
     }
     double& operator()(int i, int j, int k, int l)
     {
-        return itsData[GetIndex(i,j,k,l,itsN)];
+        return itsData(GetIndex(i,j,k,l,itsN));
     }
 
     void Dump        (std::ostream&) const;
@@ -80,7 +81,7 @@ public:
     }
 
     int itsN; //Basis set size;
-    cow_array<double> itsData; //Linear data array.
+    Vector<double> itsData; //Linear data array.
 };
 
 #endif // ERILIST1_H

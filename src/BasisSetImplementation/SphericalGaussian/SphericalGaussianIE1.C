@@ -7,8 +7,7 @@
 #include "Cluster.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "Misc/ERIList.H"
-#include "Misc/ERIProxy.H"
+#include "Misc/ERI4.H"
 
 double SphericalGaussianIE1::FourPi2=4*4*Pi*Pi;
 
@@ -62,7 +61,7 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(const bf_tuple& bf)
     return s;
 }
 
-void SphericalGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
+void SphericalGaussianIE1::MakeOverlap3C(ERI3& mlist, const IE* ie) const
 {
     const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
     assert(other);
@@ -120,7 +119,7 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(const bf_tuple& b
 }
 
 
-void SphericalGaussianIE1::MakeRepulsion3C(MList& mlist, const IE* ie) const
+void SphericalGaussianIE1::MakeRepulsion3C(ERI3& mlist, const IE* ie) const
 {
     const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
     assert(other);
@@ -155,7 +154,7 @@ SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iev_t& iev) const
 {
     SphericalGaussianIE1::SGparams sg(iev);
     size_t N=sg.size();
-    ERIList1 J(N,-1.0),K(N,-1.0);
+    ERI4 J(N,-1.0),K(N,-1.0);
     std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
 
     for (index_t ia:sg.es.indices())

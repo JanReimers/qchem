@@ -11,7 +11,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H"
 #include "Cluster.H"
 #include "Misc/DFTDefines.H"
-#include "Misc/ERIList.H"
 #include "oml/matrix.h"
 #include "oml/io3d.h"
 #include <cmath>

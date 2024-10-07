@@ -6,7 +6,7 @@
 #include "types.H"
 #include "Misc/pmstream.h"
 #include <vector>
-#include "Misc/ERIList1.H"
+#include "Misc/ERI4.H"
 
 
 //--------------------------------------------------------------------------------
@@ -44,9 +44,9 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
-    typedef std::vector<SMat> MList;
+    typedef std::vector<SMat> ERI3;
     typedef std::vector<const AnalyticIE<double>*> iev_t;
-    typedef std::pair<ERIList1,ERIList1> jk_t;
+    typedef std::pair<ERI4,ERI4> jk_t;
 
 
     virtual ~AnalyticIE()  {};
@@ -63,8 +63,8 @@ public:
     virtual   Mat MakeRepulsion(const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
-    virtual void MakeOverlap3C  (MList&,const AnalyticIE*) const=0; //Used for DFT
-    virtual void MakeRepulsion3C(MList&,const AnalyticIE*) const=0; //Used for DFT
+    virtual void MakeOverlap3C  (ERI3&,const AnalyticIE*) const=0; //Used for DFT
+    virtual void MakeRepulsion3C(ERI3&,const AnalyticIE*) const=0; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const=0; //Used for Hartree-Fock
 
     virtual std::ostream& Write(std::ostream&) const=0;

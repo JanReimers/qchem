@@ -38,8 +38,8 @@ public:
     virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*) const; //Used for charge and Vxc fitting.
 
-    virtual void MakeOverlap3C  (MList&,const AnalyticIE*) const; //Used for DFT
-    virtual void MakeRepulsion3C(MList&,const AnalyticIE*) const; //Used for DFT
+    virtual void MakeOverlap3C  (ERI3&,const AnalyticIE*) const; //Used for DFT
+    virtual void MakeRepulsion3C(ERI3&,const AnalyticIE*) const; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
     
     virtual std::ostream& Write(std::ostream&) const;

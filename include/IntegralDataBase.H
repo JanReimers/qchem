@@ -6,7 +6,7 @@
 
 #include "types.H"
 #include "Misc/Persistent/Persistent.H"
-#include "Misc/ERIProxy.H"
+#include "Misc/ERI4.H"
 
 //-----------------------------------------------------------------------------
 //
@@ -23,27 +23,27 @@ public:
     typedef SMatrix<T>     SMat;
     typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
-    typedef std::vector<SMat> MList;
+    typedef std::vector<SMat> ERI3;
 
     virtual ~IntegralDataBase() {};
     virtual void  Insert(const TBasisSet<T>*, const NumericalIE<T>*)=0;
     virtual void  Insert(const TBasisSet<T>*, const AnalyticIE<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
-    virtual void  Insert(const ERIList1& J,const ERIList1& K)=0;
+    virtual void  Insert(const ERI4& J,const ERI4& K)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
 
     virtual const SMat&    GetOverlap    (                             ) =0;
     virtual const Mat&     GetOverlap    (const TBasisSet<T>&          ) =0;
     virtual const Vec&     GetOverlap    (const ScalarFunction<double>&) =0;
-    virtual const MList&   GetOverlap3C  (const TBasisSet<T>&          ) =0;
+    virtual const ERI3&    GetOverlap3C  (const TBasisSet<T>&          ) =0;
 
     virtual const SMat&    GetRepulsion  (                             ) =0;
     virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          ) =0;
     virtual const Vec&     GetRepulsion  (const ScalarFunction<double>&) =0;
-    virtual const MList&   GetRepulsion3C(const TBasisSet<T>&          ) =0;
-    virtual ERIProxy1 GetRepulsion4C_1(const TBasisSet<T>* bs_cd    ) =0;
-    virtual ERIProxy1 GetExchange4C_1 (const TBasisSet<T>* bs_cd    ) =0;
+    virtual const ERI3&    GetRepulsion3C(const TBasisSet<T>&          ) =0;
+    virtual       ERI4view GetRepulsion4C(const TBasisSet<T>* bs_cd    ) =0;
+    virtual       ERI4view GetExchange4C (const TBasisSet<T>* bs_cd    ) =0;
 
     virtual const RVec&    GetNormalization(              )=0;
     virtual const RVec&    GetCharge       (              )=0;

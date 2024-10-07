@@ -122,7 +122,7 @@ template <class T> class TBasisSet
 {
 public:
     typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
-    typedef std::vector<SMat> MList;
+    typedef std::vector<SMat> ERI3;
     size_t GetVectorSize() const
     {
         return GetNumFunctions();
@@ -163,7 +163,7 @@ public:
     virtual size_t GetNumBasisSets() const;
     virtual void Insert(BasisSet*);
     // Share ERI tables with other DBs
-    virtual void Insert(const ERIList1& C, const ERIList1& X) const;
+    virtual void Insert(const ERI4& C, const ERI4& X) const;
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}

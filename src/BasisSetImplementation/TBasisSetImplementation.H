@@ -30,7 +30,7 @@ protected:
     typedef typename Base::RVec3   RVec3;  //Real space vector.
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
-    typedef typename TBasisSet<T>::MList MList;
+    typedef typename TBasisSet<T>::ERI3 ERI3;
   
 public:
     TBasisSetImplementation(                              );

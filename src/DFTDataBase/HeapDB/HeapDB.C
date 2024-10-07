@@ -36,8 +36,6 @@ template <class T> HeapDB<T>::HeapDB()
     ,itsNuclears          ()
     ,its3CenterOverlaps   ()
     ,its3CenterRepulsions ()
-    ,its4CenterRepulsions ()
-    ,its4CenterExchange   ()
     ,itsOverlapBasisSets  (0)
     ,itsRepulsionBasisSets(0)
     ,its3CenterOverlapBS  (0)
@@ -71,8 +69,6 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
     itsNuclears         .clear();
     its3CenterOverlaps  .clear();
     its3CenterRepulsions.clear();
-    its4CenterRepulsions .Empty();  //TODO We need to decide who owns the ERIList. There are many shallow copies.
-    its4CenterExchange   .Empty();  //TODO We need to decide who owns the ERIList. There are many shallow copies.
 
     itsOverlapBasisSets  =0;
     itsRepulsionBasisSets=0;
@@ -112,7 +108,7 @@ template <class T> void HeapDB<T>::Insert(const BasisGroup* bg)
 //}
 
 
-template <class T> void HeapDB<T>::Insert(const ERIList1& J, const ERIList1& K)
+template <class T> void HeapDB<T>::Insert(const ERI4& J, const ERI4& K)
 {
     itsJTable=J;
     itsKTable=K;
@@ -388,7 +384,7 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
     return itsCharge;
 }
 
-template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetOverlap3C(const TBasisSet<T>& bs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(const TBasisSet<T>& bs)
 {
     assert(itsAnalyticIE);
     if (its3CenterOverlapBS!=bs.GetID())
@@ -399,7 +395,7 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetOverlap3C(cons
     return its3CenterOverlaps;
 }
 
-template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(const TBasisSet<T>& bs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(const TBasisSet<T>& bs)
 {
     assert(itsAnalyticIE);
     if (its3CenterRepulsionBS!=bs.GetID())
@@ -419,23 +415,23 @@ template <class T> void HeapDB<T>::BuildERIs()
     itsBasisGroup->Insert(J,K); //Eeach basis set has its own HeapDB.
 }
 
-template <class T> ERIProxy1 HeapDB<T>::GetRepulsion4C_1(const TBasisSet<T>* bs_cd)
+template <class T> ERI4view HeapDB<T>::GetRepulsion4C(const TBasisSet<T>* bs_cd)
 {
     assert(itsBasisSet);
     assert(itsAnalyticIE);
    if (itsJTable.GetSize()==0) BuildERIs(); 
    assert(bs_cd);
    int ss=bs_cd->GetStartIndex();
-   return ERIProxy1(itsJTable,itsBasisSet->GetStartIndex(),ss);
+   return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),ss);
 }
 
-template <class T> ERIProxy1 HeapDB<T>::GetExchange4C_1 (const TBasisSet<T>* bs_cd)
+template <class T> ERI4view HeapDB<T>::GetExchange4C (const TBasisSet<T>* bs_cd)
 {
    if (itsJTable.GetSize()==0) BuildERIs(); 
    if (itsKTable.GetSize()==0)
-        return ERIProxy1(itsJTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+        return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
     else
-        return ERIProxy1(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+        return ERI4view(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
 }
 //-------------------------------------------------------------------------
 //

@@ -217,13 +217,13 @@ template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeRepuls
 
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
 
-template <class T> void NumericalIEImp<T>::MakeOverlap3C(MList& mlist, const TBasisSet<T>& bs) const
+template <class T> void NumericalIEImp<T>::MakeOverlap3C(ERI3& mlist, const TBasisSet<T>& bs) const
 {
     // No UT coverage
     for (auto b=bs.beginT(); b!=bs.end(); b++) mlist.Add(MakeOverlap(**b));
 }
 
-template <class T> void NumericalIEImp<T>::MakeRepulsion3C(MList& ret,const TBasisSet<T>& bs) const
+template <class T> void NumericalIEImp<T>::MakeRepulsion3C(ERI3& ret,const TBasisSet<T>& bs) const
 {
     //No UT coverage.
     std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;

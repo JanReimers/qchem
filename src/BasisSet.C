@@ -53,7 +53,7 @@ BasisGroup::iev_t BasisGroup::Flatten() const
     return ies;
 }
 
-void BasisGroup::Insert(const ERIList1& J, const ERIList1& K) const
+void BasisGroup::Insert(const ERI4& J, const ERI4& K) const
 {
     for (auto bs:*this)
     {

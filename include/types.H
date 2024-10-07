@@ -35,7 +35,7 @@ class Cluster;
 class ElectronDumper;
 class EnergyLevel;
 class ERIList;
-class ERIList1;
+class ERI4;
 class FittedCD;
 class FittedFunction;
 class FittedFunctionClient;

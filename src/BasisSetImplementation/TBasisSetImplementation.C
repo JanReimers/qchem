@@ -11,7 +11,7 @@
 #include "Hamiltonian.H"
 #include "Mesh/Mesh.H"
 
-#include "Misc/ERIProxy.H"
+#include "Misc/ERI4.H"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
@@ -129,7 +129,7 @@ GetOverlap  (const FittedFunction* ff) const
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     assert(!isnan(ffi->itsFitCoeff));
-    const MList& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++)
     {
@@ -149,7 +149,7 @@ GetRepulsion(const FittedFunction* ff) const
     Fill(J,0.0);
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const MList& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++) J+=SMat((*f) * repulsion[i]);
     assert(!isnan(J));
@@ -168,7 +168,7 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
     assert(!isnan(Dcd));
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-    const ERIProxy1 J=GetDataBase()->GetRepulsion4C_1(bs_cd);
+    const ERI4view J=GetDataBase()->GetRepulsion4C(bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -195,7 +195,7 @@ template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    const ERIProxy1 K=GetDataBase()->GetExchange4C_1(bs_cd);
+    const ERI4view K=GetDataBase()->GetExchange4C(bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -238,7 +238,7 @@ GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const MList& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,repulsion[i]));
     return ret;
@@ -256,7 +256,7 @@ GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const typename TBasisSet<T>::MList& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const typename TBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,overlap[i]));
     return ret;

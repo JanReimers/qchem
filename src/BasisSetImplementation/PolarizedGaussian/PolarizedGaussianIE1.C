@@ -5,8 +5,7 @@
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "Misc/ERIList.H"
-#include "Misc/ERIProxy.H"
+#include "Misc/ERI4.H"
 
 //-----------------------------------------------------------------
 //
@@ -108,7 +107,7 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) con
 //
 //  3 Centre integrals.
 //
-void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist,const IE* ie) const
+void PolarizedGaussianIE1::MakeOverlap3C(ERI3& mlist,const IE* ie) const
 {
     const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
     int Nc=other->size();
@@ -121,7 +120,7 @@ void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist,const IE* ie) const
     }    
 }
 
-void PolarizedGaussianIE1::MakeRepulsion3C(MList& mlist,const IE* ie) const
+void PolarizedGaussianIE1::MakeRepulsion3C(ERI3& mlist,const IE* ie) const
 {
     const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
     mlist.clear();
@@ -151,7 +150,7 @@ PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
 #endif
     
     int N=size();
-    ERIList1 J(N,-1.0),K;
+    ERI4 J(N,-1.0),K;
     std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
 
     for (index_t ia:ns.indices())

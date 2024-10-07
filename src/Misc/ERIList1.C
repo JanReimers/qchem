@@ -1,58 +1,55 @@
-#include "ERIList1.H"
+#include "ERI4.H"
 
-ERIList1::ERIList1(int n)
+ERI4::ERI4(int n)
     : itsN()
-    , itsData(0)
+    , itsData()
 {
     SetSize(n);
 };
-ERIList1::ERIList1(int n,double _fill)
+ERI4::ERI4(int n,double _fill)
     : itsN()
-    , itsData(0)
+    , itsData()
 {
     SetSize(n,_fill);
 };
 
-ERIList1::ERIList1()
+ERI4::ERI4()
     : itsN(0)
-    , itsData(0)
+    , itsData()
 {};
 
-ERIList1::~ERIList1()
+ERI4::~ERI4()
 {
     
 }
 
 //Clear out all data.
-void ERIList1::Empty()
+void ERI4::Empty()
 {
-    itsData=cow_array<double>(0);
+    itsData.SetLimits(0);
     itsN=0;
 }
 
-void ERIList1::SetSize(int n,double _fill)
+void ERI4::SetSize(int n,double _fill)
 {
     itsN=n;
-    itsData=cow_array<double>(GetIndex(n,n,n,n,n)+1);
-    for (index_t i=0;i<itsData.size();i++) itsData[i]=_fill;
-
-    // Fill?
+    itsData.SetLimits(0,GetIndex(n,n,n,n,n),false);
+    Fill(itsData,_fill);
+//    for (index_t i=0;i<itsData.size();i++) itsData[i]=_fill;
 }
 
-std::ostream&    ERIList1::Write(std::ostream& os) const
+std::ostream&    ERI4::Write(std::ostream& os) const
 {
-//    return os << itsN << " " << itsData << std::endl;
-    return os;
+    return os << itsN << " " << itsData << std::endl;
 }
 
-std::istream&    ERIList1::Read (std::istream& is)
+std::istream&    ERI4::Read (std::istream& is)
 {
-//    return is >> itsN >> itsData;
-    return is;
+    return is >> itsN >> itsData;
 }
 
 #include <iomanip>
-void ERIList1::Dump(std::ostream& os) const
+void ERI4::Dump(std::ostream& os) const
 {
     os.precision(4);
     for (int ia=1; ia<=itsN; ia++)
@@ -68,7 +65,7 @@ void ERIList1::Dump(std::ostream& os) const
         }
 }
 
-void ERIList1::DumpExchange(std::ostream& os) const
+void ERI4::DumpExchange(std::ostream& os) const
 {
     os.precision(4);
     for (int ia=1; ia<=itsN; ia++)

@@ -506,28 +506,16 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/DFTFiles.H" />
-		<Unit filename="src/Misc/ERIList.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/ERIList.H" />
-		<Unit filename="src/Misc/ERIList1.C">
+		<Unit filename="src/Misc/ERI4.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Misc/ERIList1.H" />
-		<Unit filename="src/Misc/ERIProxy.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/ERIProxy.H" />
+		<Unit filename="src/Misc/ERI4.H" />
 		<Unit filename="src/Misc/EigenSolver.H" />
 		<Unit filename="src/Misc/EigenSolverOML.H" />
 		<Unit filename="src/Misc/IntPower.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/IntPower.H" />
-		<Unit filename="src/Misc/MatrixList.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/MatrixList.H" />
 		<Unit filename="src/Misc/PeriodicTable.C">
 			<Option compilerVar="CPP" />
 		</Unit>

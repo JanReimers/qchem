@@ -64,9 +64,9 @@ public:
     virtual RVec MakeNormalization() const=0;
     virtual RVec MakeCharge       () const=0;
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
-    virtual void MakeOverlap3C  (MList&,const TBasisSet<T>&   ) const=0;
-    virtual void MakeRepulsion3C(MList&,const TBasisSet<T>&   ) const=0;
-    virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const BasisGroup*) const=0;
+    virtual void MakeOverlap3C  (ERI3&,const TBasisSet<T>&   ) const=0;
+    virtual void MakeRepulsion3C(ERI3&,const TBasisSet<T>&   ) const=0;
+    virtual void MakeRepulsion4C(ERI4& Coulomb, ERI4& exchange, const BasisGroup*) const=0;
     virtual SMat MakeKinetic(              ) const=0;
     virtual SMat MakeNuclear(const Cluster&) const=0;
 #endif

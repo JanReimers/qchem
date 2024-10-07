@@ -203,7 +203,7 @@
 	"BasisSet.H"
 	"Misc/ptr_vector1.h"
 
-1728315469 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
+1728318728 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
 	"BasisSet.H"
 	"FunctionsImp/VectorFunctionBuffer.H"
 	"SCFIterator/IterationParams.H"
@@ -236,20 +236,18 @@
 
 1727910193 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1728315095 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
+1728318728 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
 	"Misc/Persistent/IDRef.H"
-	"Misc/ERIList1.H"
-	"Misc/MatrixList.H"
+	"Misc/ERI4.H"
 	"Misc/rc_ptr.H"
 
 1727636581 /home/janr/Code/qchem/src/BasisSet/IntegralDataBase.H
 	"Misc/Persistent/Persistent.H"
 	"Misc/ERIProxy.H"
 
-1728083432 /home/janr/Code/qchem/src/Misc/ERIProxy.H
-	"Misc/ERIList.H"
-	"Misc/ERIList1.H"
+1728318216 /home/janr/Code/qchem/src/Misc/ERIProxy.H
+	"Misc/ERI4.H"
 
 1727910193 /home/janr/Code/qchem/src/Misc/Persistent/IDRef.H
 	"Misc/pmstream.h"
@@ -742,7 +740,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728315454 /home/janr/Code/qchem/include/BasisSet.H
+1728318728 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -763,10 +761,10 @@
 	"types.H"
 	"Misc/pmstream.h"
 
-1728315095 /home/janr/Code/qchem/include/IntegralDataBase.H
+1728318728 /home/janr/Code/qchem/include/IntegralDataBase.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
-	"Misc/ERIProxy.H"
+	"Misc/ERI4.H"
 
 1727910251 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
@@ -802,7 +800,7 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728266939 /home/janr/Code/qchem/include/types.H
+1728317785 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1727910251 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -832,10 +830,11 @@
 	<vector>
 	"Misc/ERIList1.H"
 
-1728072527 /home/janr/Code/qchem/src/Misc/ERIList1.H
+1728317530 /home/janr/Code/qchem/src/Misc/ERIList1.H
 	"Misc/pmstream.h"
 	"oml/smatrix.h"
 	"oml/imp/cow.h"
+	"oml/vector.h"
 	<iostream>
 
 1728227253 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H
@@ -862,4 +861,11 @@
 1728258350 /home/janr/Code/qchem/include/NumericalIE.H
 	"types.H"
 	"Misc/pmstream.h"
+
+1728318521 /home/janr/Code/qchem/src/Misc/ERI4.H
+	"Misc/pmstream.h"
+	"oml/smatrix.h"
+	"oml/imp/cow.h"
+	"oml/vector.h"
+	<iostream>
 

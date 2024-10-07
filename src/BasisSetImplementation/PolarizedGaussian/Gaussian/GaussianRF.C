@@ -7,8 +7,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianH3.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "Misc/Polarization.H"
-#include "Misc/ERIList.H"
-//#include "Misc/ptr_vector1_io.h"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H"
 #include "Cluster.H"

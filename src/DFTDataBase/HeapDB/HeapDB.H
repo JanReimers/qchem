@@ -6,7 +6,7 @@
 
 #include "IntegralDataBase.H"
 #include "Misc/Persistent/IDRef.H"
-#include "Misc/ERIList1.H"
+#include "Misc/ERI4.H"
 #include "Misc/rc_ptr.H"
 
 //-----------------------------------------------------------------------------
@@ -23,27 +23,27 @@ protected:
     typedef typename Base::Mat   Mat;
     typedef typename Base::RVec  RVec;
     typedef typename Base::SMat  SMat;
-    typedef typename Base::MList MList;
+    typedef typename Base::ERI3 ERI3;
 public:
 
     HeapDB();
     virtual void  Insert(const TBasisSet<T>*,const NumericalIE<T>*);
     virtual void  Insert(const TBasisSet<T>*,const AnalyticIE<T>*);
     virtual void  Insert(const BasisGroup*);
-    virtual void  Insert(const ERIList1& J,const ERIList1& K);
+    virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
     virtual const SMat&    GetOverlap    (                             );
     virtual const Mat&     GetOverlap    (const TBasisSet<T>&          );
     virtual const Vec&     GetOverlap    (const ScalarFunction<double>&);
-    virtual const MList&   GetOverlap3C  (const TBasisSet<T>&          );
+    virtual const ERI3&    GetOverlap3C  (const TBasisSet<T>&          );
 
     virtual const SMat&    GetRepulsion  (                             );
     virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          );
     virtual const Vec&     GetRepulsion  (const ScalarFunction<double>&);
-    virtual const MList&   GetRepulsion3C(const TBasisSet<T>&          );
-    virtual ERIProxy1 GetRepulsion4C_1(const TBasisSet<T>* bs_cd    );
-    virtual ERIProxy1 GetExchange4C_1 (const TBasisSet<T>* bs_cd    );
+    virtual const ERI3&    GetRepulsion3C(const TBasisSet<T>&          );
+    virtual       ERI4view GetRepulsion4C(const TBasisSet<T>* bs_cd    );
+    virtual       ERI4view GetExchange4C (const TBasisSet<T>* bs_cd    );
 
     virtual const RVec&    GetNormalization (                );
     virtual const RVec&    GetCharge        (                );
@@ -94,11 +94,9 @@ private:
 
     Mat     itsBSOverlaps  ;       //Cross overlap with one other basis set.
     Mat     itsBSRepulsions;       //Cross repulsion with one other basis set.
-    MList   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
-    MList   its3CenterOverlaps;    //Overlap   with a whole basis set.  Only one basis is buffered.
-    MList   its3CenterRepulsions;  //Repulsion with a whole basis set.  Only one basis is buffered.
-    ERIList   its4CenterRepulsions; //Supermatrix of 4C repulsion integrals.
-    ERIList   its4CenterExchange; //Supermatrix of 4C exchange repulsion integrals.  Only used for certain basis sets.
+    ERI3   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
+    ERI3   its3CenterOverlaps;    //Overlap   with a whole basis set.  Only one basis is buffered.
+    ERI3   its3CenterRepulsions;  //Repulsion with a whole basis set.  Only one basis is buffered.
 
     UniqueID::IDtype itsOverlapBasisSets;      //Basis set for which cross overlap has been calculated.
     UniqueID::IDtype itsRepulsionBasisSets;    //Basis set for which cross repulsion has been calculated.
@@ -106,8 +104,8 @@ private:
     UniqueID::IDtype its3CenterOverlapBS;      //Basis set for which 3 center overlap has been calculated.
     UniqueID::IDtype its3CenterRepulsionBS;    //Basis set for which 3 center repulsion has been calculated.
 
-    ERIList1 itsJTable; //Coulomb integrals.
-    ERIList1 itsKTable; //Exchange integrals.
+    ERI4 itsJTable; //Coulomb integrals.
+    ERI4 itsKTable; //Exchange integrals.
 //    std::map<
 };
 

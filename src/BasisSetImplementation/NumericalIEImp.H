@@ -39,9 +39,9 @@ public:
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual SMat MakeKinetic  (                     ) const;
     virtual SMat MakeNuclear  (const Cluster&       ) const;
-    virtual void MakeOverlap3C  (MList&,const TBasisSet<T>&   ) const;
-    virtual void MakeRepulsion3C(MList&,const TBasisSet<T>&   ) const;
-    virtual void MakeRepulsion4C(ERIList&,ERIList&,const BasisGroup*   ) const;
+    virtual void MakeOverlap3C  (ERI3&,const TBasisSet<T>&   ) const;
+    virtual void MakeRepulsion3C(ERI3&,const TBasisSet<T>&   ) const;
+    virtual void MakeRepulsion4C(ERI4&,ERIList&,const BasisGroup*   ) const;
 #endif
 
     virtual std::ostream&           Write(std::ostream&) const;
