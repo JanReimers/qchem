@@ -15,6 +15,11 @@
 #include <cassert>
 #include <cstdlib>
 
+#define TYPE_STRING "TBasisSet<double>"
+#define TYPE TBasisSet<double>
+#include "Misc/Persistent/IDRef.Ci"
+
+
 template <class T> typename NumericalIE<T>::RSMat NumericalIE<T>::
     MakeInverse(const RSMat& S) 
 {
