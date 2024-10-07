@@ -54,22 +54,12 @@ public:
     enum Types3C {Overlap3C, Repulsion3C};
     enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear};
 
-    typedef BasisFunctionBlock BFB;
-    typedef RadialFunction     RF;
-    typedef BasisFunctionBlockPair    BFBP;
-    typedef BasisFunctionBlockTriplet BFBT;
-    typedef BasisFunctionBlockQuartet BFBQ;
-
     virtual       bool      operator==      (const RadialFunction&) const=0; //Ignores L!
     virtual const RVec3&    GetCenter       (                     ) const=0;
     virtual       int       GetL            (                     ) const=0; //N+L+M?
     virtual       double    GetNormalization(const Polarization&  ) const=0;
     virtual       double    GetCharge       (const Polarization&  ) const=0;
 
-    virtual void Get2CenterIntegrals(Types2C, BFBP&, SMat&, const Cluster*, double scale) const=0;
-    virtual void Get2CenterIntegrals(Types2C, BFBP&,  Mat&,                 double scale) const=0; //Cross overlap & repulsion.
-    virtual void Get3CenterIntegrals(Types3C, BFBT&, std::vector<SMat >&, double scale)=0;
-    
     typedef const RadialFunction rf_t;
     typedef const Polarization   po_t;
     
@@ -81,13 +71,8 @@ public:
     virtual double Integrate(rf_t* ra,rf_t* rb,         po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const=0;
     virtual double Integrate(rf_t* ra,                  po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const=0;
 
-    virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale)=0;
-
     virtual       Hermite3* GetH3 (const RadialFunction&, const RadialFunction&) const=0;
     virtual const Hermite1& GetH1 (                                            ) const=0;
-    virtual Matrix<double> GetAux(const std::vector<Polarization>& N,
-                                  const std::vector<Polarization>& Pc,
-                                  int LP, double AlphaP,const RVec3& P         ) const=0;
 
     virtual RadialFunction* Clone      (const RVec3&) const=0;
     virtual RadialFunction* Clone      (            ) const=0;

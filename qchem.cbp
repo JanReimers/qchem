@@ -72,12 +72,6 @@
 		<Unit filename="src/BasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSet/IntegralDataBase.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/QuantumNumber.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -86,10 +80,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.H" />
-		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.H" />
 		<Unit filename="src/BasisSetImplementation/NumericalIEImp.C">
 			<Option compilerVar="CC" />
 		</Unit>
