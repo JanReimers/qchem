@@ -24,10 +24,10 @@ public:
     typedef std::vector<const BasisFunctionBlock*> blocks_t;
     
     PolarizedGaussianIE1() {};
-    PolarizedGaussianIE1(const blocks_t&, const RVec& ns);
+    PolarizedGaussianIE1(const blocks_t&);
     virtual ~PolarizedGaussianIE1() {};
 
-    virtual size_t size() const {return ns.size();}
+    virtual size_t size() const {return radials.size();}
 
     virtual RVec MakeNormalization() const;
     virtual RVec MakeCharge       () const;

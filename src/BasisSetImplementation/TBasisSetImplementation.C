@@ -63,11 +63,19 @@ template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
     itsDataBase->Insert(this,ie);
 }
 
-template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie1)
+template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
 {
-    assert(ie1);
-    itsAnalyticIE.reset(ie1);
-    itsDataBase->Insert(this,ie1);
+    assert(ie);
+    itsAnalyticIE.reset(ie);
+    itsDataBase->Insert(this,ie);
+    RVec ns=ie->MakeNormalization();
+    RVec cs=ie->MakeCharge();
+    int i=1;
+    for (auto bf:*this) 
+    {
+        bf->Init(ns(i),cs(i));
+        i++;
+    }
 }
 
 template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase() const

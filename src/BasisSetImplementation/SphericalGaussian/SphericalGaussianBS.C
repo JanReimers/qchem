@@ -47,14 +47,13 @@ SphericalGaussianBS::SphericalGaussianBS(
     Vector<double> exp(size);
     FillPower(exp,minexp,maxexp);
     for (auto e:exp) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,exp));  
     
     if (theMesh)
     {
         assert(L==0); //Why???
         TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh));
     }
-    //else   Numerical needs both.
-    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,exp));  
           
 
 };

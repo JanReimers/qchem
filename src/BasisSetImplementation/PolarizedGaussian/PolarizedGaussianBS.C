@@ -98,19 +98,18 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //  Make the integral engine.  Can't do this until all the basis functions and
 //  blocks are in place.
 //
-    if (theMesh)  
-        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh) );
-    //else
     {
         PolarizedGaussianIE1::blocks_t bls;
         for (auto bl:itsBlocks) bls.push_back(bl);
         RVec ns(GetNumFunctions());
-        index_t ibf=1;
-        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
+//        index_t ibf=1;
+//        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
         
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls,ns));       
-        
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));       
     }
+
+    if (theMesh)  
+        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh) );
         
 };
 

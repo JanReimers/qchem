@@ -19,6 +19,7 @@ class BasisFunction
 {
 public:
     virtual ~BasisFunction()  {};
+    virtual void Init(double norm, double charge)=0; //Use an integral engine to calculate normalization and charge constants.
 
     virtual bool   operator==(const BasisFunction&) const=0;
 

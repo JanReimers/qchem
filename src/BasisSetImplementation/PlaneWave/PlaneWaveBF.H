@@ -13,6 +13,7 @@ class PlaneWaveBF
 public:
     PlaneWaveBF(                             );
     PlaneWaveBF(const RVec3& G, double Volume);
+    virtual void Init(double norm, double charge); //Use an integral engine to calculate normalization and charge constants.
 
     virtual bool   operator==(const BasisFunction&) const;
     virtual double GetNormalization() const;
@@ -34,6 +35,7 @@ private:
 
     RVec3   itsG;             //RL vector.
     double  itsNormalization; //Born Von-Karmen lattice volume
+    double  itsCharge;
 };
 
 #endif //_PlaneWaveBF_H_

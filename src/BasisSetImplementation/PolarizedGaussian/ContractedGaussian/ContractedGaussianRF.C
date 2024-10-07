@@ -67,13 +67,16 @@ bool ContractedGaussianRF::operator==(const RadialFunction& rf) const
 
 double ContractedGaussianRF::GetNormalization(const Polarization& p) const
 {
-    BasisFunctionBlock block(Clone(),1);
-    block.Add(p);
-    SMatrix<double> ret(1,1);
-    Fill(ret,0.0);
-    BasisFunctionBlockPair bfbp(&block,&block);
-    this->Get2CenterIntegrals(RadialFunction::Overlap2C,bfbp,ret,NULL,1.0);
-    return 1.0/sqrt(ret(1,1));
+    // Code should use the integral engine for this.
+    assert(false);
+    return 0;
+//    BasisFunctionBlock block(Clone(),1);
+//    block.Add(p);
+//    SMatrix<double> ret(1,1);
+//    Fill(ret,0.0);
+//    BasisFunctionBlockPair bfbp(&block,&block);
+//    this->Get2CenterIntegrals(RadialFunction::Overlap2C,bfbp,ret,NULL,1.0);
+//    return 1.0/sqrt(ret(1,1));
 }
 
 double ContractedGaussianRF::GetCharge(const Polarization& p) const

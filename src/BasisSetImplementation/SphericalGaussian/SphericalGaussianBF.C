@@ -20,15 +20,28 @@ SphericalGaussianBF::SphericalGaussianBF()
     : itsExponent     (0)
     , itsL            (0)
     , itsNormalization(0)
+    , itsCharge       (0)
 {};
 
 SphericalGaussianBF::SphericalGaussianBF(double theExponent, int theL)
     : itsExponent     (theExponent)
     , itsL            (theL       )
-//    , itsNormalization(1.0/sqrt(GaussianIntegral(2*itsExponent,2*itsL)))
-    , itsNormalization(GaussianNorm(itsExponent,itsL))
+    , itsNormalization(0)
+    , itsCharge       (0)
 {
 };
+
+void SphericalGaussianBF::Init(double norm, double charge)
+{   
+    assert(!std::isnan(norm));
+    assert(norm>0);
+    assert(charge>0);
+    assert(fabs(norm-GaussianNorm(itsExponent,itsL))<1e-14);
+    assert(fabs(charge-norm*GaussianIntegral(itsExponent,itsL))<1e-14);
+
+    itsNormalization=norm;
+    itsCharge=charge;
+}
 
 bool SphericalGaussianBF::operator==(const BasisFunction& bf) const
 {
@@ -44,7 +57,7 @@ double SphericalGaussianBF::GetNormalization() const
 
 double SphericalGaussianBF::GetCharge() const
 {
-    return GaussianIntegral(itsExponent,itsL);
+    return itsCharge;
 }
 
 std::ostream& SphericalGaussianBF::Write(std::ostream& os) const

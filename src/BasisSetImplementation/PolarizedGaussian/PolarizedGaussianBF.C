@@ -18,18 +18,26 @@
 PolarizedGaussianBF::PolarizedGaussianBF()
     : itsRadial       (0)
     , itsNormalization(0)
+    , itsCharge       (0)
 {};
 
 PolarizedGaussianBF::PolarizedGaussianBF(const RadialFunction* theRF,const Polarization& thePol)
     : itsRadial(theRF )
     , itsPol   (thePol)
-    , itsNormalization(itsRadial->GetNormalization(itsPol))
+    , itsNormalization(0)
+    , itsCharge       (0)
 {
     assert(itsRadial);
-    assert(!std::isnan(itsNormalization));
-     StreamableObject::SetToPretty();
-//	std::cout << *this << " Norm=" << itsNormalization << std::endl;
 };
+
+void PolarizedGaussianBF::Init(double norm, double charge)
+{
+    assert(!std::isnan(norm));
+    assert(norm>0);
+
+    itsNormalization=norm;
+    itsCharge=charge;
+}
 
 bool PolarizedGaussianBF::operator==(const BasisFunction& bf) const
 {
@@ -41,14 +49,12 @@ bool PolarizedGaussianBF::operator==(const BasisFunction& bf) const
 
 double PolarizedGaussianBF::GetNormalization() const
 {
-    assert(itsRadial);
     return itsNormalization;
 }
 
 double PolarizedGaussianBF::GetCharge() const
 {
-    assert(itsRadial);
-    return itsRadial->GetCharge(itsPol);
+    return itsCharge;
 }
 
 //------------------------------------------------------------------------
@@ -80,7 +86,6 @@ void PolarizedGaussianBF::Insert(const RadialFunction* theRF,const Polarization&
 {
     itsRadial       =theRF;
     itsPol          =thePol;
-    itsNormalization=itsRadial->GetNormalization(itsPol);
     assert(itsRadial);
 }
 

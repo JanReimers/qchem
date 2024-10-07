@@ -13,10 +13,10 @@
 //
 //  Construction zone.
 //
-PolarizedGaussianIE1::PolarizedGaussianIE1(const blocks_t& _blocks, const RVec& _ns)
+PolarizedGaussianIE1::PolarizedGaussianIE1(const blocks_t& _blocks)
     : blocks(_blocks)
-    , ns(_ns)
-    , ons(OuterProduct(ns))
+    , ns()
+    , ons()
 {
     for (auto bl:blocks)
         for (auto p:bl->itsPols)
@@ -24,6 +24,13 @@ PolarizedGaussianIE1::PolarizedGaussianIE1(const blocks_t& _blocks, const RVec& 
             radials.push_back(bl->itsRadial);
             pols.push_back(p);
         }
+   
+    size_t N=size();
+    ns.SetLimits(N);
+    for (size_t i=0;i<N;i++)
+        ns(i+1)=radials[i]->Integrate(RadialFunction::Overlap2C,radials[i],pols[i],pols[i],cache);
+    ns=1.0/sqrt(ns);
+    ons=OuterProduct(ns);
 };
 
 void PolarizedGaussianIE1::Normalize(SMat& s) const
