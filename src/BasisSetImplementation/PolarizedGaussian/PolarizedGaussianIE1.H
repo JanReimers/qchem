@@ -49,9 +49,8 @@ public:
 
 private:
     void Normalize(SMat&) const;
-    SMat MakeOverlap3C  (const RadialFunction* rc, const Polarization& pc) const;
-    SMat MakeRepulsion3C(const RadialFunction* rc, const Polarization& pc) const;
-
+    SMat Integrate(RadialFunction::Types2C , const Cluster* cl=0) const;
+    SMat Integrate(RadialFunction::Types3C , const RadialFunction* rc, const Polarization& pc) const;
 
     blocks_t                           blocks;  // by block one radial function for many polarizations
     std::vector<const RadialFunction*> radials; // Flattened radials

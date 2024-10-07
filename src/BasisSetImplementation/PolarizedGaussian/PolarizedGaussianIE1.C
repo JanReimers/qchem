@@ -33,6 +33,25 @@ PolarizedGaussianIE1::PolarizedGaussianIE1(const blocks_t& _blocks)
     ons=OuterProduct(ns);
 };
 
+PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization() const
+{
+    return ns;
+}
+
+PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeCharge() const
+{
+    RVec c(size());
+    int i=0;
+    for (auto r:radials)
+    {
+        c(i+1)=r->GetCharge(pols[i])*ns(i+1); 
+        i++;       
+    }
+    assert(!isnan(c));
+    return c;
+}
+
+
 void PolarizedGaussianIE1::Normalize(SMat& s) const
 {
     s=DirectMultiply(s,ons);
@@ -46,146 +65,31 @@ AnalyticIE<double>* PolarizedGaussianIE1::Clone() const
 {
     return new PolarizedGaussianIE1(*this);
 }
+
 //----------------------------------------------------------------------------------------
 //
-//  Overlap type integrals
+//  2 Center type integrals
 //
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap() const
 {
-   int N=size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Overlap2C,radials[ib],pols[ia],pols[ib],cache);
-
-    Normalize(s);
-    return s;
+    return Integrate(RadialFunction::Overlap2C);
 }
 
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion() const
 {
-    int N=size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Repulsion2C,radials[ib],pols[ia],pols[ib],cache);
-        
-    Normalize(s);
-    return s;
+    return Integrate(RadialFunction::Repulsion2C);
 }
 
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic() const
 {
-    int N=size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Kinetic,radials[ib],pols[ia],pols[ib],cache);
-
-    Normalize(s);
-    return s;
+    return Integrate(RadialFunction::Kinetic);
 }
 //
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(const Cluster& cl) const
 {
-    assert(&cl);
-    int N=size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Nuclear,radials[ib],pols[ia],pols[ib],cache,&cl);
-
-    Normalize(s);
-    return s;
+    return Integrate(RadialFunction::Nuclear,&cl);
 }
 
-
-
-
-
-template <class M> std::vector<M> MakeMatrixList(int n, int N)
-{
-    std::vector<M> ret;
-    for (index_t i=0; i<n; i++)
-    {
-        ret.push_back(M(N,N));
-        Fill(ret.back(),0.0);
-    }
-    return ret;
-}
-
-
-void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
-{
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    mlist.Empty();
-    int Nc=other->size();
-    for (index_t ic=0;ic<Nc;ic++)
-    {
-        SMat s=MakeOverlap3C(other->radials[ic],other->pols[ic]);
-        s*=other->ns(ic+1);
-        mlist.Add(s);
-    }    
-    
-    mlist.Clear();
-}
-
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap3C(const RadialFunction* rc, const Polarization& pc) const
-{
-    int N=size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=rc->Integrate(RadialFunction::Overlap3C,radials[ia],radials[ib],pols[ia],pols[ib],pc,cache);
-        
-    Normalize(s);
-    return s;
-}
-//------------------------------------------------------------------------------------
-//
-//  Calculates repulsion matricies <ab|1/r12|c> for a block of basis functions c, over
-//  the whole basis set a and b.
-//  *** No normalization is done at this point***
-//  **** Only elements above the diagonal will be defined, everything below the diagonal
-//  will be zero ***.
-//
-
-//
-////----------------------------------------------------------------------------------------
-////
-////  Repulsion type integrals
-////
-
-//
-void PolarizedGaussianIE1::MakeRepulsion3C(MList& mlist,const IE* ie) const
-{
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    mlist.Empty();
-    int Nc=other->size();
-    for (index_t ic=0;ic<Nc;ic++)
-    {
-        SMat s=MakeRepulsion3C(other->radials[ic],other->pols[ic]);
-        s*=other->ns(ic+1);
-        mlist.Add(s);
-    }    
-    
-    mlist.Clear();
-
-
-}
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion3C(const RadialFunction* rc, const Polarization& pc) const
-{
-    int N=size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=rc->Integrate(RadialFunction::Repulsion3C,radials[ia],radials[ib],pols[ia],pols[ib],pc,cache);
-        
-    Normalize(s);
-    return s;
-}
-
-//
 PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) const
 {    
     const PolarizedGaussianIE1* pgb=dynamic_cast<const PolarizedGaussianIE1*>(ieb);
@@ -200,6 +104,43 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) con
     return s;
 }
 
+
+//------------------------------------------------------------------------------
+//
+//  3 Centre integrals.
+//
+void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist,const IE* ie) const
+{
+    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
+    mlist.Empty();
+    int Nc=other->size();
+    for (index_t ic=0;ic<Nc;ic++)
+    {
+        SMat s=Integrate(RadialFunction::Overlap3C,other->radials[ic],other->pols[ic]);
+        s*=other->ns(ic+1);
+        mlist.Add(s);
+    }    
+    mlist.Clear();
+}
+
+void PolarizedGaussianIE1::MakeRepulsion3C(MList& mlist,const IE* ie) const
+{
+    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
+    mlist.Empty();
+    int Nc=other->size();
+    for (index_t ic=0;ic<Nc;ic++)
+    {
+        SMat s=Integrate(RadialFunction::Repulsion3C,other->radials[ic],other->pols[ic]);
+        s*=other->ns(ic+1);
+        mlist.Add(s);
+    }    
+    mlist.Clear();
+}
+
+//-----------------------------------------------------------------------------------
+//
+//  4 centre integrals.
+//
 
 PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
 {
@@ -231,30 +172,36 @@ PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
     return std::make_pair(J,K);
 }
 
-////
+
+//-------------------------------------------------------------------------
 //
-////----------------------------------------------------------------------------------------
-////
-////  Special integrals
-////
-
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization() const
+//  Internal function for doing most of the double loops.
+//
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types3C type , const RadialFunction* rc, const Polarization& pc) const
 {
-    return ns;
+    int N=size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=rc->Integrate(type,radials[ia],radials[ib],pols[ia],pols[ib],pc,cache);
+        
+    Normalize(s);
+    return s;    
 }
 
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeCharge() const
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type , const Cluster* cl) const
 {
-    RVec c(size());
-    int i=0;
-    for (auto r:radials)
-    {
-        c(i+1)=r->GetCharge(pols[i])*ns(i+1); 
-        i++;       
-    }
-    assert(!isnan(c));
-    return c;
+    int N=size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=radials[ia]->Integrate(type,radials[ib],pols[ia],pols[ib],cache,cl);
+
+    Normalize(s);
+    return s;
 }
+
+
 
 std::ostream& PolarizedGaussianIE1::Write(std::ostream& os) const
 {
