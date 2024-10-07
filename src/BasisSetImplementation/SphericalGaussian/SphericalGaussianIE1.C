@@ -9,7 +9,6 @@
 #include "oml/smatrix.h"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
-#include "Misc/MatrixList.H"
 
 double SphericalGaussianIE1::FourPi2=4*4*Pi*Pi;
 
@@ -68,9 +67,9 @@ void SphericalGaussianIE1::MakeOverlap3C(MList& mlist, const IE* ie) const
     const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
     assert(other);
 
-    mlist.Empty();
-    for (auto i:other->es.indices()) mlist.Add(MakeOverlap((*other)(i)));
-    mlist.Clear();
+    mlist.clear();
+    for (auto i:other->es.indices()) mlist.push_back(MakeOverlap((*other)(i)));
+    
 }
 //
 ////----------------------------------------------------------------------------------------
@@ -126,9 +125,8 @@ void SphericalGaussianIE1::MakeRepulsion3C(MList& mlist, const IE* ie) const
     const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
     assert(other);
 
-    mlist.Empty();
-    for (auto i:other->es.indices()) mlist.Add(MakeRepulsion((*other)(i)));
-    mlist.Clear();
+    mlist.clear();
+    for (auto i:other->es.indices()) mlist.push_back(MakeRepulsion((*other)(i)));
 }
 
 SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)

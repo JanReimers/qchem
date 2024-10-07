@@ -9,7 +9,7 @@
 #include "BasisSet.H"
 #include "Cluster.H"
 #include "Mesh/Mesh.H"
-#include "Misc/MatrixList.H"
+#include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>

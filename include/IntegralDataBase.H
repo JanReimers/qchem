@@ -23,7 +23,7 @@ public:
     typedef SMatrix<T>     SMat;
     typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
-    typedef MatrixList<T>  MList;
+    typedef std::vector<SMat> MList;
 
     virtual ~IntegralDataBase() {};
     virtual void  Insert(const TBasisSet<T>*, const NumericalIE<T>*)=0;

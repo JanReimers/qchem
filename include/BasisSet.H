@@ -122,6 +122,7 @@ template <class T> class TBasisSet
 {
 public:
     typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
+    typedef std::vector<SMat> MList;
     size_t GetVectorSize() const
     {
         return GetNumFunctions();

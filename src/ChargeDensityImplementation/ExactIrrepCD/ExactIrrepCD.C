@@ -8,7 +8,6 @@
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
-#include "Misc/MatrixList.H"
 #include "oml/vector3d.h"
 #include "oml/vector.h"
 #include "oml/matrix.h"
@@ -147,7 +146,7 @@ template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, co
     assert(ffi);
     const TBasisSet<T>* tfbs=dynamic_cast<const TBasisSet<T>*>(fbs);
     VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
-    const MatrixList<T>& mlist(itsCastedBasisSet->GetDataBase()->GetOverlap3C(*tfbs));
+    auto mlist(itsCastedBasisSet->GetDataBase()->GetOverlap3C(*tfbs));
 
     for(index_t i=0; bffi!=ffi->GetFitCoeff().end(); bffi++,i++) *bffi += Dot(itsDensityMatrix,mlist[i]);
 }
@@ -159,7 +158,7 @@ template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, co
     assert(ffi);
     const TBasisSet<T>* tfbs=dynamic_cast<const TBasisSet<T>*>(fbs);
     VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
-    const MatrixList<T>& mlist(itsCastedBasisSet->GetDataBase()->GetRepulsion3C(*tfbs));
+    auto mlist(itsCastedBasisSet->GetDataBase()->GetRepulsion3C(*tfbs));
 
     for(index_t i=0; bffi!=ffi->GetFitCoeff().end(); bffi++,i++) *bffi += Dot(itsDensityMatrix,mlist[i]);
 }

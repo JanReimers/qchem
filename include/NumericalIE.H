@@ -48,7 +48,6 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
-    typedef MatrixList<T>  MList;
 
     virtual ~NumericalIE()  {};
 

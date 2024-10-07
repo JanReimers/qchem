@@ -7,7 +7,6 @@
 #include "IntegralDataBase.H"
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/ERIList1.H"
-#include "Misc/MatrixList.H"
 #include "Misc/rc_ptr.H"
 
 //-----------------------------------------------------------------------------
@@ -95,9 +94,9 @@ private:
 
     Mat     itsBSOverlaps  ;       //Cross overlap with one other basis set.
     Mat     itsBSRepulsions;       //Cross repulsion with one other basis set.
-    rc_ptr<MList>   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
-    rc_ptr<MList>   its3CenterOverlaps;    //Overlap   with a whole basis set.  Only one basis is buffered.
-    rc_ptr<MList>   its3CenterRepulsions;  //Repulsion with a whole basis set.  Only one basis is buffered.
+    MList   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
+    MList   its3CenterOverlaps;    //Overlap   with a whole basis set.  Only one basis is buffered.
+    MList   its3CenterRepulsions;  //Repulsion with a whole basis set.  Only one basis is buffered.
     ERIList   its4CenterRepulsions; //Supermatrix of 4C repulsion integrals.
     ERIList   its4CenterExchange; //Supermatrix of 4C exchange repulsion integrals.  Only used for certain basis sets.
 

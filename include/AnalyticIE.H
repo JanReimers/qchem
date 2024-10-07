@@ -44,7 +44,7 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
-    typedef MatrixList<T>  MList;
+    typedef std::vector<SMat> MList;
     typedef std::vector<const AnalyticIE<double>*> iev_t;
     typedef std::pair<ERIList1,ERIList1> jk_t;
 

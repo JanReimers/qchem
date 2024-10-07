@@ -7,7 +7,6 @@
 #include "oml/smatrix.h"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
-#include "Misc/MatrixList.H"
 
 //-----------------------------------------------------------------
 //
@@ -112,29 +111,28 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) con
 void PolarizedGaussianIE1::MakeOverlap3C(MList& mlist,const IE* ie) const
 {
     const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    mlist.Empty();
     int Nc=other->size();
+    mlist.clear();
     for (index_t ic=0;ic<Nc;ic++)
     {
         SMat s=Integrate(RadialFunction::Overlap3C,other->radials[ic],other->pols[ic]);
         s*=other->ns(ic+1);
-        mlist.Add(s);
+        mlist.push_back(s);
     }    
-    mlist.Clear();
 }
 
 void PolarizedGaussianIE1::MakeRepulsion3C(MList& mlist,const IE* ie) const
 {
     const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    mlist.Empty();
+    mlist.clear();
     int Nc=other->size();
     for (index_t ic=0;ic<Nc;ic++)
     {
         SMat s=Integrate(RadialFunction::Repulsion3C,other->radials[ic],other->pols[ic]);
         s*=other->ns(ic+1);
-        mlist.Add(s);
+        mlist.push_back(s);
     }    
-    mlist.Clear();
+    
 }
 
 //-----------------------------------------------------------------------------------

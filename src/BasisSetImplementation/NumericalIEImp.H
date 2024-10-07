@@ -17,7 +17,6 @@ template <class T> class NumericalIEImp
     typedef typename Base::Mat   Mat;
     typedef typename Base::RVec  RVec;
     typedef typename Base::SMat  SMat;
-    typedef typename Base::MList MList;
 
 public:
     NumericalIEImp(                  );

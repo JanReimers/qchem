@@ -33,9 +33,9 @@ template <class T> HeapDB<T>::HeapDB()
     ,itsInvRepulsionFlag  (false)
     ,itsBSOverlaps        ()
     ,itsBSRepulsions      ()
-    ,itsNuclears          (new MList)
-    ,its3CenterOverlaps   (new MList)
-    ,its3CenterRepulsions (new MList)
+    ,itsNuclears          ()
+    ,its3CenterOverlaps   ()
+    ,its3CenterRepulsions ()
     ,its4CenterRepulsions ()
     ,its4CenterExchange   ()
     ,itsOverlapBasisSets  (0)
@@ -68,9 +68,9 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
     itsInvOverlapFlag   =false;
     itsInvRepulsionFlag =false;
 
-    itsNuclears         ->Empty();
-    its3CenterOverlaps  ->Empty();
-    its3CenterRepulsions->Empty();
+    itsNuclears         .clear();
+    its3CenterOverlaps  .clear();
+    its3CenterRepulsions.clear();
     its4CenterRepulsions .Empty();  //TODO We need to decide who owns the ERIList. There are many shallow copies.
     its4CenterExchange   .Empty();  //TODO We need to decide who owns the ERIList. There are many shallow copies.
 
@@ -173,9 +173,9 @@ template <class T> std::ostream& HeapDB<T>::Write(std::ostream& os) const
 //
 //  Write all the big list of matricies.
 //
-    os << *itsNuclears
-    << *its3CenterOverlaps
-    << *its3CenterRepulsions
+    os << itsNuclears
+    << its3CenterOverlaps
+    << its3CenterRepulsions
     //<< its4CenterRepulsions
     ;
 
@@ -232,9 +232,9 @@ template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
 //
 //  Read all the big list of matricies.
 //
-    is >> *itsNuclears
-    >> *its3CenterOverlaps
-    >> *its3CenterRepulsions
+    is >> itsNuclears
+    >> its3CenterOverlaps
+    >> its3CenterRepulsions
     ;
 
 
@@ -393,10 +393,10 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetOverlap3C(cons
     assert(itsAnalyticIE);
     if (its3CenterOverlapBS!=bs.GetID())
     {
-        itsAnalyticIE->MakeOverlap3C(*its3CenterOverlaps,bs.GetAnalyticIE());
+        itsAnalyticIE->MakeOverlap3C(its3CenterOverlaps,bs.GetAnalyticIE());
         its3CenterOverlapBS=bs.GetID();
     }
-    return *its3CenterOverlaps;
+    return its3CenterOverlaps;
 }
 
 template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(const TBasisSet<T>& bs)
@@ -404,10 +404,10 @@ template <class T> const typename HeapDB<T>::MList& HeapDB<T>::GetRepulsion3C(co
     assert(itsAnalyticIE);
     if (its3CenterRepulsionBS!=bs.GetID())
     {
-        itsAnalyticIE->MakeRepulsion3C(*its3CenterRepulsions,bs.GetAnalyticIE());
+        itsAnalyticIE->MakeRepulsion3C(its3CenterRepulsions,bs.GetAnalyticIE());
         its3CenterRepulsionBS=bs.GetID();
     }
-    return *its3CenterRepulsions;
+    return its3CenterRepulsions;
 }
 
 template <class T> void HeapDB<T>::BuildERIs()
@@ -458,10 +458,10 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(const C
     if (index == itsNuclearClusters.size())
     {
 //        std::cout << "Creating cluster index=" << index << " ID=" << theCluster.GetID() << std::endl;
-        itsNuclears->Add(itsAnalyticIE->MakeNuclear(theCluster));
+        itsNuclears.push_back(itsAnalyticIE->MakeNuclear(theCluster));
         itsNuclearClusters.push_back(theCluster.GetID());
     }
-    return (*itsNuclears)[index];
+    return itsNuclears[index];
 }
 
 
