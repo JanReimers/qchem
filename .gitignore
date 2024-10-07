@@ -14,3 +14,5 @@ qchemUT
 *.a
 
 src/Misc/ptr_vector_old.h
+
+UnitTests/gmon.out

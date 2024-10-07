@@ -71,7 +71,7 @@ public:
 //
     virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const BasisSet>&,const Hamiltonian*, const Spin&) const=0;
 //
-//  New call backs  so Hamiltonian doesn;t see any matricies.
+//  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     virtual SMat GetKinetic  (                     ) const=0;
     virtual SMat GetNuclear  (const Cluster*       ) const=0;
@@ -130,7 +130,7 @@ public:
     virtual SMat GetExchange (const SMat& Dcd, const TBasisSet* bs_cd) const=0;
 
     virtual IntegralDataBase<T>* GetDataBase() const=0;
-    virtual AnalyticIE <T>* GetIntegralEngine1() const=0;
+    virtual AnalyticIE <T>* GetAnalyticIE() const=0;
     //virtual LASolver<T>*         GetLASolver() const=0;
    
     const_iterator beginT() const {return const_iterator(begin());};
@@ -161,7 +161,6 @@ public:
     virtual size_t GetNumBasisSets() const;
     virtual void Insert(BasisSet*);
     // Share ERI tables with other DBs
-    virtual void Insert(const ERIList& C, const ERIList& X) const;
     virtual void Insert(const ERIList1& C, const ERIList1& X) const;
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}

@@ -11,7 +11,7 @@ class PlaneWaveBS;
 template <class T> class SList;
 
 class PlaneWaveIE
-    : public virtual IntegralEngine<std::complex<double> >
+    : public virtual NumericalIE<std::complex<double> >
     , private IntegralEngineImplementation<std::complex<double> >
 {
 public:
@@ -35,7 +35,7 @@ public:
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
-    virtual IntegralEngine<std::complex<double> >* Clone() const;
+    virtual NumericalIE<std::complex<double> >* Clone() const;
 
 private:
     std::vector<RVec3> itsGs;

@@ -31,8 +31,12 @@
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-Wall" />
+					<Add option="-pg" />
 					<Add option="-DNDEBUG" />
 				</Compiler>
+				<Linker>
+					<Add option="-pg" />
+				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
@@ -45,6 +49,7 @@
 		<Linker>
 			<Add option="-fopenmp" />
 		</Linker>
+		<Unit filename="include/AnalyticIE.H" />
 		<Unit filename="include/BasisSet.H" />
 		<Unit filename="include/ChargeDensity.H" />
 		<Unit filename="include/Cluster.H" />
@@ -55,20 +60,19 @@
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IntegralDataBase.H" />
-		<Unit filename="include/IntegralEngine.H" />
-		<Unit filename="include/IntegralEngine1.H" />
+		<Unit filename="include/NumericalIE.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
 		<Unit filename="include/TotalEnergy.H" />
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
+		<Unit filename="src/AnalyticIE.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/BasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/IntegralDataBase.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSet/IntegralEngine.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSet/QuantumNumber.C">
@@ -86,10 +90,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/IntegralEngineImplementation.H" />
-		<Unit filename="src/BasisSetImplementation/NumericalIE.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/BasisSetImplementation/NumericalIEImp.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSetImplementation/NumericalIE.H" />
+		<Unit filename="src/BasisSetImplementation/NumericalIEImp.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -156,10 +160,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H" />
 		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -193,9 +193,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.C">
 			<Option compilerVar="CC" />

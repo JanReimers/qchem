@@ -9,7 +9,7 @@ template class TBasisSet<double>;
 template class TBasisSet<std::complex<double> >;
 
 #include "IntegralDataBase.H"
-#include "IntegralEngine.H"
+#include "NumericalIE.H"
 #include "Misc/ptr_vector1_io.h"
 
 BasisGroup::BasisGroup()
@@ -48,19 +48,11 @@ BasisGroup::iev_t BasisGroup::Flatten() const
     for (auto bs:*this)
     {
         const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
-        ies.push_back(tbs->GetIntegralEngine1());
+        ies.push_back(tbs->GetAnalyticIE());
     }
     return ies;
 }
 
-void BasisGroup::Insert(const ERIList& C, const ERIList& X) const
-{
-    for (auto bs:*this)
-    {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
-        tbs->GetDataBase()->Insert(C,X);
-    }
-}
 void BasisGroup::Insert(const ERIList1& J, const ERIList1& K) const
 {
     for (auto bs:*this)

@@ -2,17 +2,11 @@
 #ifndef _TBasisSetImplementation_H_
 #define _TBasisSetImplementation_H_
 
-
-
 #include "BasisSet.H"
 #include "FunctionsImp/VectorFunctionBuffer.H"
-#include "IntegralEngine.H"
-#include "AnalyticIE.H"
 #include "SCFIterator/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 
 //---------------------------------------------------------------------
 //
@@ -75,7 +69,7 @@ public:
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
     virtual IntegralDataBase<T>* GetDataBase () const;
-    virtual AnalyticIE <T>* GetIntegralEngine1() const;
+    virtual AnalyticIE <T>* GetAnalyticIE() const;
    
     virtual LASolver<T>*         GetLASolver () const;
 
@@ -83,11 +77,11 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    void  Insert(IntegralEngine<T>*);
+    void  Insert(NumericalIE<T>*);
     void  Insert(AnalyticIE<T>*);
     const AnalyticIE<T>* GetIntegralEngine() const
     {
-        return &*itsIntegralEngine1;
+        return &*itsAnalyticIE;
     }
 
 private:
@@ -96,8 +90,8 @@ private:
 protected:
     LinearAlgebraParams          itsLAParams;
 private:
-    rc_ptr<IntegralEngine  <T> > itsIntegralEngine;
-    rc_ptr<AnalyticIE <T> > itsIntegralEngine1;
+    rc_ptr<NumericalIE<T> > itsNumericalIE;
+    rc_ptr< AnalyticIE<T> > itsAnalyticIE;
     mutable PerRef<IntegralDataBase<T> > itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
 };

@@ -2,7 +2,7 @@
 #ifndef _IntegralEngineImplementation_H_
 #define _IntegralEngineImplementation_H_
 
-#include "IntegralEngine.H"
+#include "NumericalIE.H"
 #include "Misc/Persistent/IDRef.H"
 #include "oml/vector.h"
 #include "oml/smatrix.h"
@@ -15,10 +15,10 @@
 //  Interface, and can be implemented here in an abstract way.
 //
 template <class T> class IntegralEngineImplementation
-    : virtual public IntegralEngine<T>
+    : virtual public NumericalIE<T>
 {
 protected:
-    typedef IntegralEngine<T> Base;
+    typedef NumericalIE<T> Base;
     typedef typename Base::Vec  Vec;
     typedef typename Base::Mat  Mat;
     typedef typename Base::RVec RVec;

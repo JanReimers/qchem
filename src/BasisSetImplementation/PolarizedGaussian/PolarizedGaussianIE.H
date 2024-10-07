@@ -11,7 +11,7 @@ class PolarizedGaussianBS;
 class BasisFunctionBlock;
 
 class PolarizedGaussianIE
-    : public virtual IntegralEngine<double>
+    : public virtual NumericalIE<double>
     , private IntegralEngineImplementation<double>
 {
 public:
@@ -32,7 +32,7 @@ public:
     virtual SMat MakeKinetic    (                     ) const;
     virtual SMat MakeNuclear    (const Cluster&       ) const;
 
-    virtual IntegralEngine<double>* Clone() const;
+    virtual NumericalIE<double>* Clone() const;
 
 private:
     void MakeOverlap3C  (const BasisFunctionBlock&,std::vector<SMat>&) const;

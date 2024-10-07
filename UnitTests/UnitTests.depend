@@ -203,16 +203,12 @@
 	"BasisSet.H"
 	"Misc/ptr_vector1.h"
 
-1728246902 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
+1728267692 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
 	"BasisSet.H"
 	"FunctionsImp/VectorFunctionBuffer.H"
-	"IntegralEngine.H"
-	"AnalyticIE.H"
 	"SCFIterator/IterationParams.H"
 	"Misc/Persistent/PerRef.H"
 	"Misc/rc_ptr.H"
-	"oml/matrix.h"
-	"oml/smatrix.h"
 
 1727897286 /home/janr/Code/qchem/src/BasisSet/TBasisSet.H
 	"types.H"
@@ -240,18 +236,12 @@
 
 1727910193 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1728246902 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
-	"IntegralEngine.H"
+1728268215 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
 	"Misc/Persistent/IDRef.H"
-	"Misc/ERIList.H"
 	"Misc/ERIList1.H"
-	"oml/vector.h"
-	"oml/matrix.h"
-	"oml/smatrix.h"
 	"Misc/MatrixList.H"
 	"Misc/rc_ptr.H"
-	<map>
 
 1727636581 /home/janr/Code/qchem/src/BasisSet/IntegralDataBase.H
 	"Misc/Persistent/Persistent.H"
@@ -633,7 +623,7 @@
 1727910193 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1728245939 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728267182 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -752,7 +742,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728246902 /home/janr/Code/qchem/include/BasisSet.H
+1728267584 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -773,10 +763,10 @@
 	"types.H"
 	"Misc/pmstream.h"
 
-1728246902 /home/janr/Code/qchem/include/IntegralDataBase.H
+1728268215 /home/janr/Code/qchem/include/IntegralDataBase.H
+	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Misc/ERIProxy.H"
-	"types.H"
 
 1727910251 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
@@ -812,7 +802,7 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728246902 /home/janr/Code/qchem/include/types.H
+1728266939 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1727910251 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -863,9 +853,13 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1728248174 /home/janr/Code/qchem/include/AnalyticIE.H
+1728258538 /home/janr/Code/qchem/include/AnalyticIE.H
 	"types.H"
 	"Misc/pmstream.h"
 	<vector>
 	"Misc/ERIList1.H"
+
+1728258350 /home/janr/Code/qchem/include/NumericalIE.H
+	"types.H"
+	"Misc/pmstream.h"
 

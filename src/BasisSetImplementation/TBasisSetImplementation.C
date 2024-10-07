@@ -4,17 +4,17 @@
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "BasisSet.H"
 #include "QuantumNumber.H"
+#include "NumericalIE.H"
+#include "AnalyticIE.H"
 #include "IntegralDataBase.H"
 #include "LASolver/LASolver.H"
 #include "Hamiltonian.H"
 #include "Mesh/Mesh.H"
+
 #include "Misc/MatrixList.H"
 #include "Misc/ERIProxy.H"
-#include "oml/smatrix.h"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
-#include "ChargeDensityImplementation/FittedCDImplementation.H"
-#include "ChargeDensityImplementation/PolarizedCDImplementation.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include <cassert>
 #include <iostream>
@@ -25,7 +25,7 @@
 //
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsIntegralEngine(0)
+    , itsNumericalIE(0)
     , itsDataBase      ( )
     , itsLASolver      (0)
 {};
@@ -33,7 +33,7 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
     , itsLAParams      (lap)
-    , itsIntegralEngine(0)
+    , itsNumericalIE(0)
     , itsDataBase      (theDataBase)
     , itsLASolver      (0)
 {};
@@ -41,7 +41,7 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const Lin
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const TBasisSetImplementation<T>& bs)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
     , itsLAParams      (bs.itsLAParams)
-    , itsIntegralEngine(bs.itsIntegralEngine)
+    , itsNumericalIE   (bs.itsNumericalIE)
     , itsDataBase      (bs.itsDataBase)
     , itsLASolver      (0)
 {};
@@ -55,18 +55,18 @@ template <class T> TBasisSetImplementation<T>::~TBasisSetImplementation()
 //
 //  Post construction initializations called by dervied classes.
 //
-template <class T> void TBasisSetImplementation<T>::Insert(IntegralEngine<T>* ie)
+template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
 {
     assert(ie);
-    itsIntegralEngine.reset(ie);
-    itsIntegralEngine->Insert(this);
+    itsNumericalIE.reset(ie);
+    itsNumericalIE->Insert(this);
     itsDataBase->Insert(this,ie);
 }
 
 template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie1)
 {
     assert(ie1);
-    itsIntegralEngine1.reset(ie1);
+    itsAnalyticIE.reset(ie1);
     itsDataBase->Insert(this,ie1);
 }
 
@@ -75,10 +75,10 @@ template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase(
     assert(&*itsDataBase);
     return itsDataBase;
 }
-template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetIntegralEngine1() const
+template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetAnalyticIE() const
 {
-    assert(&*itsIntegralEngine1);
-    return &*itsIntegralEngine1;
+    assert(&*itsAnalyticIE);
+    return &*itsAnalyticIE;
 }
 
  
@@ -154,7 +154,6 @@ GetRepulsion(const FittedFunction* ff) const
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
 
-//#define USE_OLD_IE
 
 template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
@@ -162,16 +161,9 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
     assert(!isnan(Dcd));
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-#ifdef USE_OLD_IE
-    const ERIProxy& J=GetDataBase()->GetRepulsion4C(bs_cd);
-#else
     const ERIProxy1 J=GetDataBase()->GetRepulsion4C_1(bs_cd);
-#endif
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
-//    std::cout << "TBasisSetImplementation<T>::GetRepulsion" << std::endl;
-//    std::cout << "Repulsions: " << this->GetID() << " " << bs_cd->GetID()  << std::endl;
-//    std::cout << "Repulsions: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
 
     SMat Jab(Nab,Nab);
     for (int ia=1; ia<=Nab; ia++)
@@ -184,12 +176,10 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
                     //std::cout << ia << " " << ib << " " << ic << " " << id << " " << J.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) << " " << J(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
 //                    assert(J(ia,ib,ic,id)==eris(ia,ib,ic,id));
                     Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
-                    //Jab_temp+=eris(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
         }
     assert(!isnan(Jab));
-//    std::cout << "Repulsions: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber() << " " << Max(fabs(Jab)) << std::endl;
 
     return Jab;
 }
@@ -198,16 +188,9 @@ template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-#ifdef USE_OLD_IE
-    const ERIProxy& K=GetDataBase()->GetExchange4C(bs_cd);
-#else
     const ERIProxy1 K=GetDataBase()->GetExchange4C_1(bs_cd);
-#endif
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
-//    std::cout << "TBasisSetImplementation<T>::GetExchange" << std::endl;
-//    std::cout << "   : " << this->GetID() << " " << bs_cd->GetID()  << std::endl;
-//    std::cout << "   : " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber()  << std::endl;
 
     SMat Kab(Nab,Nab);
     for (int ia=1; ia<=Nab; ia++)
@@ -225,13 +208,11 @@ GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 //                    << K.GetIndex(ia,id,ic,ib) << " " << eris.GetIndex(ia,id,ic,ib) 
 //                    << " " << K.Exchange(ia,id,ic,ib) << " " << eris.Exchange(ia,id,ic,ib) << std::endl;
 //                    assert(K.Exchange(ia,id,ic,ib)==eris.Exchange(ia,id,ic,ib));
-                    //Kab_temp+=eris.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                     Kab_temp+=K.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                 }
             Kab(ia,ib)=Kab_temp;
         }
     assert(!isnan(Kab));
-    //std::cout << "Exchange: " << this->GetQuantumNumber() << " " << bs_cd->GetQuantumNumber() << " " << Max(fabs(Kab)) << std::endl;
 
     return Kab;
 }
@@ -395,7 +376,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
     if(!StreamableObject::Pretty())
     {
         VectorFunctionBuffer<T>::Write(os);
-        os << *itsIntegralEngine1 << itsDataBase;
+        os << *itsAnalyticIE << itsDataBase;
     }
     return os;
 }

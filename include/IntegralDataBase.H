@@ -4,21 +4,10 @@
 
 
 
+#include "types.H"
 #include "Misc/Persistent/Persistent.H"
 #include "Misc/ERIProxy.H"
-#include "types.H"
 
-//template <class T> class ScalarFunction;
-template <class T> class IntegralEngine;
-//template <class T> class TBasisSet;
-//template <class T> class MatrixList;
-//template <class T> class Matrix;
-//template <class T> class SMatrix;
-//template <class T> class Vector;
-//class Cluster;
-////class ERIProxy;
-class ERIList1;
-//class BasisGroup;
 //-----------------------------------------------------------------------------
 //
 //  Once supplied with an integral engine, this class manages storage
@@ -37,10 +26,9 @@ public:
     typedef MatrixList<T>  MList;
 
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(const TBasisSet<T>*, const IntegralEngine<T>*)=0;
+    virtual void  Insert(const TBasisSet<T>*, const NumericalIE<T>*)=0;
     virtual void  Insert(const TBasisSet<T>*, const AnalyticIE<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
-    virtual void  Insert(const ERIList& c_eris, const ERIList& x_eris)=0;
     virtual void  Insert(const ERIList1& J,const ERIList1& K)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
@@ -54,8 +42,6 @@ public:
     virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          ) =0;
     virtual const Vec&     GetRepulsion  (const ScalarFunction<double>&) =0;
     virtual const MList&   GetRepulsion3C(const TBasisSet<T>&          ) =0;
-    virtual const ERIProxy GetRepulsion4C(const TBasisSet<T>* bs_cd    ) =0;
-    virtual const ERIProxy GetExchange4C (const TBasisSet<T>* bs_cd    ) =0;
     virtual ERIProxy1 GetRepulsion4C_1(const TBasisSet<T>* bs_cd    ) =0;
     virtual ERIProxy1 GetExchange4C_1 (const TBasisSet<T>* bs_cd    ) =0;
 
@@ -67,7 +53,7 @@ public:
     virtual const SMat&    GetInverseOverlap  (              )=0;
     virtual const SMat&    GetInverseRepulsion(              )=0;
 
-    virtual const IntegralEngine<T>* GetIntegralEngine(               ) const=0;
+    virtual const NumericalIE<T>* GetIntegralEngine(               ) const=0;
 
     virtual IntegralDataBase*      Clone            (               ) const=0;
     static  IntegralDataBase*      Factory          (std::istream&       )       ;

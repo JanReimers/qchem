@@ -29,9 +29,11 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-O2" />
+					<Add option="-pg" />
 					<Add option="-DNDEBUG" />
 				</Compiler>
 				<Linker>
+					<Add option="-pg" />
 					<Add directory="../../oml/Release" />
 					<Add directory="../Release" />
 				</Linker>

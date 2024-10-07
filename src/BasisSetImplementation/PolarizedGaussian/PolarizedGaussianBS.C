@@ -5,15 +5,13 @@
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
-#include "BasisSetImplementation/NumericalIE.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
-#include "IntegralDataBase.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
+#include "BasisSetImplementation/NumericalIEImp.H"
 #include "Cluster.H"
 #include "Misc/ptr_vector1_io.h"
-#include "oml/vector.h"
 #include <cassert>
-#include <algorithm>
+#include <algorithm> //Need std::max
 
 std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls);
 template <class T> T Max(const std::vector<T>& v)
@@ -101,15 +99,19 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //  blocks are in place.
 //
     if (theMesh)  
-        TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh) );
+        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh) );
+    //else
+    {
+        PolarizedGaussianIE1::blocks_t bls;
+        for (auto bl:itsBlocks) bls.push_back(bl);
+        RVec ns(GetNumFunctions());
+        index_t ibf=1;
+        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
         
-    PolarizedGaussianIE1::blocks_t bls;
-    for (auto bl:itsBlocks) bls.push_back(bl);
-    RVec ns(GetNumFunctions());
-    index_t ibf=1;
-    for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
-    
-    TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls,ns));       
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls,ns));       
+        
+    }
+        
 };
 
 
@@ -172,10 +174,12 @@ BasisSet* PolarizedGaussianBS::Clone() const
 BasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
-    optr_vector1<BasisFunctionBlock*> newBlocks;
-    for (optr_vector1<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
-        newBlocks.push_back((*b)->Clone(newCenter));
-    return new PolarizedGaussianBS(this,GetDataBase()->Clone(),newBlocks);
+//    optr_vector1<BasisFunctionBlock*> newBlocks;
+//    for (optr_vector1<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
+//        newBlocks.push_back((*b)->Clone(newCenter));
+//    return new PolarizedGaussianBS(this,GetDataBase()->Clone(),newBlocks);
+    assert(false);
+    return 0;
 }
 
 std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls)

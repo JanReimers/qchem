@@ -4,20 +4,11 @@
 
 
 
-#include "IntegralEngine.H"
 #include "IntegralDataBase.H"
 #include "Misc/Persistent/IDRef.H"
-#include "Misc/ERIList.H"
 #include "Misc/ERIList1.H"
-#include "oml/vector.h"
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 #include "Misc/MatrixList.H"
 #include "Misc/rc_ptr.H"
-#include <map>
-
-
-class BasisSet;
 
 //-----------------------------------------------------------------------------
 //
@@ -28,7 +19,7 @@ template <class T> class HeapDB :
     virtual public IntegralDataBase<T>
 {
 protected:
-    typedef IntegralEngine<T> Base;
+    typedef IntegralDataBase<T> Base;
     typedef typename Base::Vec   Vec;
     typedef typename Base::Mat   Mat;
     typedef typename Base::RVec  RVec;
@@ -37,12 +28,9 @@ protected:
 public:
 
     HeapDB();
-    HeapDB(const HeapDB&);
-    HeapDB& operator=(const HeapDB&);
-    virtual void  Insert(const TBasisSet<T>*,const IntegralEngine<T>*);
+    virtual void  Insert(const TBasisSet<T>*,const NumericalIE<T>*);
     virtual void  Insert(const TBasisSet<T>*,const AnalyticIE<T>*);
     virtual void  Insert(const BasisGroup*);
-    virtual void  Insert(const ERIList& c_eris,const ERIList& x_eris);
     virtual void  Insert(const ERIList1& J,const ERIList1& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
@@ -55,8 +43,6 @@ public:
     virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          );
     virtual const Vec&     GetRepulsion  (const ScalarFunction<double>&);
     virtual const MList&   GetRepulsion3C(const TBasisSet<T>&          );
-    virtual const ERIProxy GetRepulsion4C(const TBasisSet<T>* bs_cd    );
-    virtual const ERIProxy GetExchange4C (const TBasisSet<T>* bs_cd    );
     virtual ERIProxy1 GetRepulsion4C_1(const TBasisSet<T>* bs_cd    );
     virtual ERIProxy1 GetExchange4C_1 (const TBasisSet<T>* bs_cd    );
 
@@ -68,7 +54,7 @@ public:
     virtual const SMat&    GetInverseOverlap  (              );
     virtual const SMat&    GetInverseRepulsion(              );
 
-    virtual const IntegralEngine<T>*  GetIntegralEngine(              ) const;
+    virtual const NumericalIE<T>*  GetIntegralEngine(              ) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
@@ -84,8 +70,8 @@ private:
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 
-    const IntegralEngine<T>* itsIntegralEngine;
-    const AnalyticIE<T>* itsIntegralEngine1;
+    const NumericalIE<T>* itsNumericalIE;
+    const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
     const BasisSet*          itsBasisSet;
     const BasisGroup*        itsBasisGroup;
 

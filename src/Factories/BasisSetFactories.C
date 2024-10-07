@@ -14,7 +14,7 @@
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
 
-#include "BasisSetImplementation/NumericalIE.H"
+#include "BasisSetImplementation/NumericalIEImp.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
 #include "BasisSetImplementation/PlaneWave/BlochQN.H"
@@ -130,20 +130,20 @@ IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >
 //  class and makes a new object using the default constructor.
 //
 
-template <class T> IntegralEngine<T>* IntegralEngine<T>::Factory(std::istream& is)
+template <class T> NumericalIE<T>* NumericalIE<T>::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(NumericalIE<double>).name()) return new NumericalIE<double>;
+    if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
     
     std::cout << "Unknown integral engine type :" << Name << std::endl;
     exit(-1);
     return NULL;
 }
 
-template <> IntegralEngine<double>* IntegralEngine<double>::Factory(std::istream& is)
+template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
 {
   std::string Name=PeekAtName(is);
-  if (Name==typeid(NumericalIE<double>).name()) return new NumericalIE<double>;
+  if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
   
   std::cout << "Unknown integral engine type :" << Name << std::endl;
   exit(-1);
@@ -172,7 +172,7 @@ template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
   return NULL;
 }
 
-template <> IntegralEngine<std::complex<double> >* IntegralEngine<std::complex<double> >::Factory(std::istream& is)
+template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
 {
   std::string Name=PeekAtName(is);
 //  if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;

@@ -1,6 +1,6 @@
-// File: IntegralEngine1.H  Abtract integral engine interface.
-#ifndef _IntegralEngine1_H_
-#define _IntegralEngine1_H_
+// File: AnalyticIE.H  Abtract integral engine interface.
+#ifndef _AnalyticIE_H_
+#define _AnalyticIE_H_
 
 
 #include "types.H"
@@ -61,7 +61,7 @@ public:
     virtual  SMat MakeNuclear  (const Cluster&   ) const=0;
     virtual  SMat MakeRepulsion(                 ) const=0; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
-    virtual RSMat MakeInverse  (const RSMat&     ) const; //Numerically stable algo required.
+    static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
     virtual void MakeOverlap3C  (MList&,const AnalyticIE*) const=0; //Used for DFT
     virtual void MakeRepulsion3C(MList&,const AnalyticIE*) const=0; //Used for DFT
@@ -74,4 +74,4 @@ public:
 };
 
 
-#endif
+#endif //_AnalyticIE_H_

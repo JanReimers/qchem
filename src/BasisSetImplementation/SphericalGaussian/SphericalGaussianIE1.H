@@ -5,8 +5,6 @@
 
 #include "AnalyticIE.H"
 #include "oml/vector.h"
-#include <tuple>
-
 
 class SphericalGaussianIE1
     : public virtual AnalyticIE<double>

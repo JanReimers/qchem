@@ -3,13 +3,11 @@
 
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-#include "Cluster.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Misc/ERIList.H"
 #include "Misc/ERIProxy.H"
 #include "Misc/MatrixList.H"
-#include <vector>
 
 //-----------------------------------------------------------------
 //

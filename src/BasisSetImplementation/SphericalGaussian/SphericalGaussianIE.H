@@ -9,7 +9,7 @@
 class SphericalGaussianBS;
 
 class SphericalGaussianIE
-    : public virtual IntegralEngine<double>
+    : public virtual NumericalIE<double>
     , private IntegralEngineImplementation<double>
 {
 public:
@@ -30,7 +30,7 @@ public:
     virtual SMatrix<double>  MakeKinetic  (              ) const;
     virtual SMatrix<double>  MakeNuclear  (const Cluster&) const;
     
-    virtual IntegralEngine<double>* Clone() const;
+    virtual NumericalIE<double>* Clone() const;
 
 private:
     SMatrix<double> MakeOverlap  (const TBasisFunction<double>& bf) const;
