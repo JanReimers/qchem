@@ -37,13 +37,15 @@ PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization() const
     return ns;
 }
 
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeCharge() const
+PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeCharge(iec_t* iea) const
 {
-    RVec c(size());
+    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);
+    assert(a);
+    RVec c(a->size());
     int i=0;
-    for (auto r:radials)
+    for (auto r:a->radials)
     {
-        c(i+1)=r->GetCharge(pols[i])*ns(i+1); 
+        c(i+1)=r->GetCharge(a->pols[i])*a->ns(i+1); 
         i++;       
     }
     assert(!isnan(c));

@@ -34,8 +34,8 @@ public:
     virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b    ) const;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const;
 
-    virtual RVec MakeNormalization(                 ) const;
-    virtual RVec MakeCharge       (                 ) const;
+    virtual RVec MakeNormalization(bs_t& a                 ) const;
+    virtual RVec MakeCharge       (bs_t& a                 ) const;
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual SMat MakeKinetic  (                     ) const;
     virtual SMat MakeNuclear  (const Cluster&       ) const;

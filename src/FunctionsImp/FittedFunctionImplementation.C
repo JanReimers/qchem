@@ -25,7 +25,7 @@ FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet, bool C
     , itsCDFitFlag(CDfit)
 {
     Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/CastBasisSet()->GetDataBase()->GetCharge()(1);
+    itsFitCoeff(1)=1.0/CastBasisSet()->GetDataBase()->GetCharge(itsBasisSet.get())(1);
 };
 
 template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation()
@@ -45,8 +45,8 @@ GetInverseOverlap() const
 {
 //    assert(!isnan(CastBasisSet()->GetDataBase()->GetInverseRepulsion()));
 //    assert(!isnan(CastBasisSet()->GetDataBase()->GetInverseOverlap()));
-    return itsCDFitFlag ? CastBasisSet()->GetDataBase()->GetInverseRepulsion()
-           : CastBasisSet()->GetDataBase()->GetInverseOverlap();
+    return itsCDFitFlag ? CastBasisSet()->GetDataBase()->GetInverseRepulsion(itsBasisSet.get())
+           : CastBasisSet()->GetDataBase()->GetInverseOverlap(itsBasisSet.get());
 }
 
 template <class T> void FittedFunctionImplementation<T>::SetFitCoeff(const Vec& fc)
@@ -141,7 +141,7 @@ FitGetRepulsion(const FittedFunctionImplementation<T>* ffi) const
 
 template <class T> double FittedFunctionImplementation<T>::FitGetCharge() const
 {
-    return itsFitCoeff * CastBasisSet()->GetDataBase()->GetCharge();
+    return itsFitCoeff * CastBasisSet()->GetDataBase()->GetCharge(itsBasisSet.get());
 }
 
 //------------------------------------------------------------------------

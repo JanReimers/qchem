@@ -224,22 +224,32 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* 
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNormalization()
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNormalization(bs_t& a)
 {
     assert(itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::Normalization,itsBasisSet->GetID());
+    id2c_t key=std::make_tuple(qchem::Normalization,a.GetID());
     if (auto i = its1C.find(key); i==its1C.end())
-        return its1C[key] =itsNumericalIE->MakeNormalization();
+        return its1C[key] =itsNumericalIE->MakeNormalization(a);
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(bs_t&  a)
 {
     assert(itsNumericalIE || itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::Charge,itsBasisSet->GetID());
+    id2c_t key=std::make_tuple(qchem::Charge,a.GetID());
     if (auto i = its1C.find(key); i==its1C.end())
-        return its1C[key] =(itsNumericalIE ? itsNumericalIE->MakeCharge() : itsAnalyticIE->MakeCharge()) ;
+        return its1C[key] =itsNumericalIE->MakeCharge(a) ;
+    else
+        return i->second;
+}
+
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(iec_t* a)
+{
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::Charge,a->GetID());
+    if (auto i = its1C.find(key); i==its1C.end())
+        return its1C[key] =itsAnalyticIE->MakeCharge(a);
     else
         return i->second;
 }
@@ -309,24 +319,24 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(iec_t* 
 
 
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(iec_t* a)
 {
      //Only used for numerical IE.
     assert(itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::InvOverlap,itsBasisSet->GetID());
+    id2c_t key=std::make_tuple(qchem::InvOverlap,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE->MakeInverse(GetOverlap(itsBasisSet));
+        return its2C[key] =itsNumericalIE->MakeInverse(GetOverlap(a));
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsion()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsion(iec_t* a)
 {
     assert(itsAnalyticIE);
     assert(!itsNumericalIE); //Do we need to support this?
-    id2c_t key=std::make_tuple(qchem::InvRepulsion,itsBasisSet->GetID());
+    id2c_t key=std::make_tuple(qchem::InvRepulsion,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion(itsBasisSet));
+        return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion(a));
     else
         return i->second;
 }
@@ -334,7 +344,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsio
 SMatrix<std::complex<double> > m; //dummy just to get the compiler to shut up.
 
 template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
-GetInverseOverlap()
+GetInverseOverlap(iec_t* a)
 {
     std::cerr << "Sorry, inverse of complex matrix is not implemented" << std::endl;
     exit(-1);
@@ -342,7 +352,7 @@ GetInverseOverlap()
 }
 
 template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
-GetInverseRepulsion()
+GetInverseRepulsion(iec_t* a)
 {
     std::cerr << "Sorry, inverse of complex matrix is not implemented" << std::endl;
     exit(-1);

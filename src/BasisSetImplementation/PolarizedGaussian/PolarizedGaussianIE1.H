@@ -32,7 +32,7 @@ public:
     virtual size_t size() const {return radials.size();}
 
     virtual RVec MakeNormalization() const;
-    virtual RVec MakeCharge       () const;
+    virtual RVec MakeCharge       (iec_t* a) const;
     
     virtual  SMat MakeOverlap  (iec_t* a           ) const;
     virtual  SMat MakeKinetic  (iec_t* a         ) const;

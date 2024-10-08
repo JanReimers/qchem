@@ -62,8 +62,8 @@ public:
     virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b     ) const=0;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
 
-    virtual RVec MakeNormalization() const=0;
-    virtual RVec MakeCharge       () const=0;
+    virtual RVec MakeNormalization(bs_t& a ) const=0;
+    virtual RVec MakeCharge       (bs_t& a ) const=0;
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual void MakeOverlap3C  (ERI3&,bs_t&   ) const=0;
     virtual void MakeRepulsion3C(ERI3&,bs_t&   ) const=0;

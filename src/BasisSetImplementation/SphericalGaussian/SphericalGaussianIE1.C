@@ -257,10 +257,12 @@ SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeNormalization() const
     return ns;
 }
 
-SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeCharge() const
+SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeCharge(iec_t* iea) const
 {
-    RVec c(es.size());
-    for (auto i:es.indices())  c(i)=GaussianIntegral(es(i),L)*ns(i);
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a);
+    RVec c(a->size());
+    for (auto i:a->es.indices())  c(i)=GaussianIntegral(a->es(i),a->Ls(i))*a->ns(i);
     return c;
 }
 

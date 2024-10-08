@@ -111,7 +111,7 @@ Normalize(const RVec& n1, Mat& m, const RVec& n2) const
             s(i,j)*=n1(i)*n2(j);
 }
 
-template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeNormalization() const
+template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeNormalization(bs_t& a) const
 {
     // No UT coverage
     CheckInitialized();
@@ -121,7 +121,7 @@ template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeNorma
     return ret;
 }
 
-template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeCharge() const
+template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeCharge(bs_t& a) const
 {
     //No UT coverage.
     CheckInitialized();

@@ -68,7 +68,7 @@ template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
     itsAnalyticIE.reset(ie);
     itsDataBase->Insert(this,ie);
     RVec ns=ie->MakeNormalization();
-    RVec cs=ie->MakeCharge();
+    RVec cs=ie->MakeCharge(this);
     int i=1;
     for (auto bf:*this) 
     {

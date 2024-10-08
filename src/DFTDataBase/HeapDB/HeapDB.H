@@ -50,13 +50,14 @@ public:
     virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    );
     virtual       ERI4view GetExchange4C (bs_t* bs_cd    );
 
-    virtual const RVec&    GetNormalization (                );
-    virtual const RVec&    GetCharge        (                );
+    virtual const RVec&    GetNormalization(bs_t& a       );
+    virtual const RVec&    GetCharge       (bs_t&  a      );
+    virtual const RVec&    GetCharge       (iec_t* a      );
 
     virtual const SMat&    GetKinetic         (iec_t* a     );
     virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&);
-    virtual const SMat&    GetInverseOverlap  (              );
-    virtual const SMat&    GetInverseRepulsion(              );
+    virtual const SMat&    GetInverseOverlap  (iec_t* a      );
+    virtual const SMat&    GetInverseRepulsion(iec_t* a     );
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
