@@ -59,9 +59,9 @@ protected:
 
 private:
     friend class TBasisSetImplementation<T>;
-    const TBasisSet<T>* CastBasisSet() const
+    const TIrrepBasisSet<T>* CastBasisSet() const
     {
-        return dynamic_cast<TBasisSet<T>*>(itsBasisSet.get());
+        return dynamic_cast<TIrrepBasisSet<T>*>(itsBasisSet.get());
     }
 
     rc_ptr<IrrepBasisSet> itsBasisSet;

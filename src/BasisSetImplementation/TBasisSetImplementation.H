@@ -17,7 +17,7 @@
 //  This class also owns the IntegralDataBase.
 //
 template <class T> class TBasisSetImplementation
-    : public virtual TBasisSet<T>
+    : public virtual TIrrepBasisSet<T>
     , private VectorFunctionBuffer<T>
 {
 protected:
@@ -30,7 +30,7 @@ protected:
     typedef typename Base::RVec3   RVec3;  //Real space vector.
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
-    typedef typename TBasisSet<T>::ERI3 ERI3;
+    typedef typename TIrrepBasisSet<T>::ERI3 ERI3;
   
 public:
     TBasisSetImplementation(                              );
@@ -38,7 +38,7 @@ public:
     TBasisSetImplementation(const TBasisSetImplementation&);
     ~TBasisSetImplementation(                              );
 
-    using TBasisSet<T>::GetVectorSize;
+    using TIrrepBasisSet<T>::GetVectorSize;
 //
 //  This is where the real work gets done.
 //
@@ -50,8 +50,8 @@ public:
     virtual SMat GetNuclear  (const Cluster*       ) const;
     virtual SMat GetOverlap  (const FittedFunction*) const;
     virtual SMat GetRepulsion(const FittedFunction*) const;
-    virtual SMat GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const;
-    virtual SMat GetExchange (const SMat& Dcd, const TBasisSet<T>* bs_cd) const;
+    virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
+    virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
 //
 //  Charge density repulsion calculations.
 //

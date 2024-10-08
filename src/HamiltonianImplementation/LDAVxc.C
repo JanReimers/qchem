@@ -46,14 +46,14 @@ void LDAVxc::GetEnergy(TotalEnergy&) const
 
 void LDAVxc::InjectOverlaps(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
-    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(theFitBasisSet);
+    const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(theFitBasisSet);
     assert(tbs);
     tbs->SetFitOverlap(ff,*itsExchangeFunctional);
 }
 
 void LDAVxc::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
-    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(theFitBasisSet);
+    const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(theFitBasisSet);
     assert(tbs);
     tbs->SetFitRepulsion(ff,*itsExchangeFunctional);
 }

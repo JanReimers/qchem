@@ -13,7 +13,7 @@
 class RadialFunctionReader;
 
 class PolarizedGaussianBS
-    : public virtual TBasisSet<double>
+    : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
 {

@@ -30,10 +30,10 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 private:
-    const TBasisSet<T>* CastBasisSet() const
+    const TIrrepBasisSet<T>* CastBasisSet() const
     {
         const IrrepBasisSet* bs=&*itsBasisSet;
-        return dynamic_cast<const TBasisSet<T>*>(bs);
+        return dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     }
 
     Vec itsCoeff;

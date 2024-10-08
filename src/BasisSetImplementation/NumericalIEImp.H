@@ -24,14 +24,14 @@ public:
     NumericalIEImp(Mesh*             );
     ~NumericalIEImp(                  );
 
-    virtual void Insert(const TBasisSet<T>*);
+    virtual void Insert(const TIrrepBasisSet<T>*);
 
     virtual SMat MakeOverlap    (                             ) const;
-    virtual Mat  MakeOverlap    (const TBasisSet<T>&          ) const;
+    virtual Mat  MakeOverlap    (const TIrrepBasisSet<T>&          ) const;
     virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const;
 
     virtual SMat MakeRepulsion  (                             ) const;
-    virtual Mat  MakeRepulsion  (const TBasisSet<T>&          ) const;
+    virtual Mat  MakeRepulsion  (const TIrrepBasisSet<T>&          ) const;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const;
 
     virtual RVec MakeNormalization(                 ) const;
@@ -39,8 +39,8 @@ public:
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual SMat MakeKinetic  (                     ) const;
     virtual SMat MakeNuclear  (const Cluster&       ) const;
-    virtual void MakeOverlap3C  (ERI3&,const TBasisSet<T>&   ) const;
-    virtual void MakeRepulsion3C(ERI3&,const TBasisSet<T>&   ) const;
+    virtual void MakeOverlap3C  (ERI3&,const TIrrepBasisSet<T>&   ) const;
+    virtual void MakeRepulsion3C(ERI3&,const TIrrepBasisSet<T>&   ) const;
     virtual void MakeRepulsion4C(ERI4&,ERIList&,const BasisGroup*   ) const;
 #endif
 
@@ -63,11 +63,11 @@ private:
 
     
     void    CheckInitialized       () const;
-    const   RVec GetNumericalNormalization(const TBasisSet<T>&) const;
+    const   RVec GetNumericalNormalization(const TIrrepBasisSet<T>&) const;
     virtual SMat MakeOverlap  (const TBasisFunction<T>& ) const;
     virtual SMat MakeRepulsion(const TBasisFunction<T>& ) const;
 
-    IDRef<const TBasisSet<T> > itsBasisSet;       //Permenant hook into the basis set.
+    IDRef<const TIrrepBasisSet<T> > itsBasisSet;       //Permenant hook into the basis set.
     RVec                       itsNormalizations; //Normalization constants.
 
     Mesh*              itsMesh;

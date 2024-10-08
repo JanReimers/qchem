@@ -65,7 +65,7 @@ template <class T> class NumericalIE;
 template <class T> class IntegralDataBase;
 template <class T> class MatrixList;
 template <class T> class TBasisFunction;
-template <class T> class TBasisSet;
+template <class T> class TIrrepBasisSet;
 template <class T> class TOrbital;
 
 

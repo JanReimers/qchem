@@ -15,8 +15,8 @@
 #include <cassert>
 #include <cstdlib>
 
-#define TYPE_STRING "TBasisSet<double>"
-#define TYPE TBasisSet<double>
+#define TYPE_STRING "TIrrepBasisSet<double>"
+#define TYPE TIrrepBasisSet<double>
 #include "Misc/Persistent/IDRef.Ci"
 
 
@@ -55,9 +55,9 @@ template <class T> NumericalIEImp<T>::~NumericalIEImp()
     delete itsMesh;
 }
 
-template <class T> void NumericalIEImp<T>::Insert(const TBasisSet<T>* theSet)
+template <class T> void NumericalIEImp<T>::Insert(const TIrrepBasisSet<T>* theSet)
 {
-    itsBasisSet=IDRef<const TBasisSet<T> >(theSet);
+    itsBasisSet=IDRef<const TIrrepBasisSet<T> >(theSet);
 //    itsNormalizations.SetLimits(VecLimits(itsN));
 //    InitNormalizations();    
     itsNormalizations = GetNumericalNormalization(*itsBasisSet);
@@ -65,7 +65,7 @@ template <class T> void NumericalIEImp<T>::Insert(const TBasisSet<T>* theSet)
     CheckInitialized();
 }
 
-template <class T> const typename NumericalIEImp<T>::RVec NumericalIEImp<T>::GetNumericalNormalization(const TBasisSet<T>& bs) const
+template <class T> const typename NumericalIEImp<T>::RVec NumericalIEImp<T>::GetNumericalNormalization(const TIrrepBasisSet<T>& bs) const
 {
     CheckInitialized();
     RVec ret=itsIntegrator->Normalize(bs);
@@ -146,7 +146,7 @@ template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeOverl
     return ret;
 }
 
-template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeOverlap(const TBasisSet<T>& theOtherBasisSet) const
+template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeOverlap(const TIrrepBasisSet<T>& theOtherBasisSet) const
 {
     //No UT coverage.
     CheckInitialized();
@@ -189,7 +189,7 @@ template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeRepul
     return ret;
 }
 
-template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepulsion(const TBasisSet<T>& theOtherBasisSet) const
+template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepulsion(const TIrrepBasisSet<T>& theOtherBasisSet) const
 {
     //No UT coverage.
     std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;
@@ -217,13 +217,13 @@ template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeRepuls
 
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
 
-template <class T> void NumericalIEImp<T>::MakeOverlap3C(ERI3& mlist, const TBasisSet<T>& bs) const
+template <class T> void NumericalIEImp<T>::MakeOverlap3C(ERI3& mlist, const TIrrepBasisSet<T>& bs) const
 {
     // No UT coverage
     for (auto b=bs.beginT(); b!=bs.end(); b++) mlist.Add(MakeOverlap(**b));
 }
 
-template <class T> void NumericalIEImp<T>::MakeRepulsion3C(ERI3& ret,const TBasisSet<T>& bs) const
+template <class T> void NumericalIEImp<T>::MakeRepulsion3C(ERI3& ret,const TIrrepBasisSet<T>& bs) const
 {
     //No UT coverage.
     std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;

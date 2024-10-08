@@ -5,8 +5,8 @@
 
 template class TBasisFunction<double>;
 template class TBasisFunction<std::complex<double> >;
-template class TBasisSet<double>;
-template class TBasisSet<std::complex<double> >;
+template class TIrrepBasisSet<double>;
+template class TIrrepBasisSet<std::complex<double> >;
 
 #include "IntegralDataBase.H"
 #include "NumericalIE.H"
@@ -37,7 +37,7 @@ void BasisGroup::Insert(IrrepBasisSet* bs)
     int N=GetNumFunctions();
     bs->SetStartIndex(N+1);
     itsBasisSets.push_back(bs);
-    TBasisSet<double>* tbs=dynamic_cast<TBasisSet<double>*>(bs);
+    TIrrepBasisSet<double>* tbs=dynamic_cast<TIrrepBasisSet<double>*>(bs);
     assert(tbs);
     tbs->GetDataBase()->Insert(this);
 }
@@ -47,7 +47,7 @@ BasisGroup::iev_t BasisGroup::Flatten() const
     iev_t ies;
     for (auto bs:*this)
     {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
+        const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
         ies.push_back(tbs->GetAnalyticIE());
     }
     return ies;
@@ -57,7 +57,7 @@ void BasisGroup::Insert(const ERI4& J, const ERI4& K) const
 {
     for (auto bs:*this)
     {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
+        const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
         tbs->GetDataBase()->Insert(J,K);
     }
 }

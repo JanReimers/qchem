@@ -99,7 +99,7 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(double,  const 
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
 FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 {
-    const TBasisSet<T>* tbs=dynamic_cast<const TBasisSet<T>*>(bs);
+    const TIrrepBasisSet<T>* tbs=dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     assert(tbs);
     return itsFitCoeff * (CastBasisSet()->GetDataBase()->GetOverlap(*tbs));
 }
@@ -107,7 +107,7 @@ FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
 FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
 {
-    const TBasisSet<T>* tbs=dynamic_cast<const TBasisSet<T>*>(bs);
+    const TIrrepBasisSet<T>* tbs=dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     assert(tbs);
     return itsFitCoeff * (CastBasisSet()->GetDataBase()->GetRepulsion(*tbs));
 }

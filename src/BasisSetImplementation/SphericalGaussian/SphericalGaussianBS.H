@@ -8,7 +8,7 @@
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 
 class SphericalGaussianBS
-    : public virtual TBasisSet<double>
+    : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
 {

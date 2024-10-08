@@ -59,7 +59,7 @@ private:
 
     DenSMat                itsDensityMatrix;
     rc_ptr<const IrrepBasisSet> itsBasisSet;
-    const TBasisSet<T>*    itsCastedBasisSet;
+    const TIrrepBasisSet<T>*    itsCastedBasisSet;
     Spin                   itsSpin;
 };
 

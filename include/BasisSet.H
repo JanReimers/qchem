@@ -118,7 +118,7 @@ private:
 //
 //  Extend basis to be a set of real or complex valued functions
 //
-template <class T> class TBasisSet
+template <class T> class TIrrepBasisSet
     : public virtual IrrepBasisSet
     , public virtual VectorFunction<T>
 {
@@ -130,8 +130,8 @@ public:
         return GetNumFunctions();
     }
     virtual SMat GetRepulsion(const FittedFunction*) const=0; //unhide
-    virtual SMat GetRepulsion(const SMat& Dcd, const TBasisSet* bs_cd) const=0;
-    virtual SMat GetExchange (const SMat& Dcd, const TBasisSet* bs_cd) const=0;
+    virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
+    virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
 
     virtual IntegralDataBase<T>* GetDataBase() const=0;
     virtual AnalyticIE <T>* GetAnalyticIE() const=0;

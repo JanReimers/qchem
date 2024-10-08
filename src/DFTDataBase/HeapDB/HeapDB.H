@@ -29,23 +29,23 @@ protected:
 public:
 
     HeapDB();
-    virtual void  Insert(const TBasisSet<T>*,const NumericalIE<T>*);
-    virtual void  Insert(const TBasisSet<T>*,const AnalyticIE<T>*);
+    virtual void  Insert(const TIrrepBasisSet<T>*,const NumericalIE<T>*);
+    virtual void  Insert(const TIrrepBasisSet<T>*,const AnalyticIE<T>*);
     virtual void  Insert(const BasisGroup*);
     virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
     virtual const SMat&    GetOverlap    (                             );
-    virtual const Mat&     GetOverlap    (const TBasisSet<T>&          );
+    virtual const Mat&     GetOverlap    (const TIrrepBasisSet<T>&          );
     virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
-    virtual const ERI3&    GetOverlap3C  (const TBasisSet<T>&          );
+    virtual const ERI3&    GetOverlap3C  (const TIrrepBasisSet<T>&          );
 
     virtual const SMat&    GetRepulsion  (                             );
-    virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          );
+    virtual const Mat&     GetRepulsion  (const TIrrepBasisSet<T>&          );
     virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
-    virtual const ERI3&    GetRepulsion3C(const TBasisSet<T>&          );
-    virtual       ERI4view GetRepulsion4C(const TBasisSet<T>* bs_cd    );
-    virtual       ERI4view GetExchange4C (const TBasisSet<T>* bs_cd    );
+    virtual const ERI3&    GetRepulsion3C(const TIrrepBasisSet<T>&          );
+    virtual       ERI4view GetRepulsion4C(const TIrrepBasisSet<T>* bs_cd    );
+    virtual       ERI4view GetExchange4C (const TIrrepBasisSet<T>* bs_cd    );
 
     virtual const RVec&    GetNormalization (                );
     virtual const RVec&    GetCharge        (                );

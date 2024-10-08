@@ -51,21 +51,21 @@ public:
 
     virtual ~NumericalIE()  {};
 
-    virtual void Insert(const TBasisSet<T>*)=0;
+    virtual void Insert(const TIrrepBasisSet<T>*)=0;
 
     virtual SMat MakeOverlap    (                             ) const=0;
-    virtual Mat  MakeOverlap    (const TBasisSet<T>&          ) const=0;
+    virtual Mat  MakeOverlap    (const TIrrepBasisSet<T>&          ) const=0;
     virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const=0;
 
     virtual SMat MakeRepulsion  (                             ) const=0;
-    virtual Mat  MakeRepulsion  (const TBasisSet<T>&          ) const=0;
+    virtual Mat  MakeRepulsion  (const TIrrepBasisSet<T>&          ) const=0;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
 
     virtual RVec MakeNormalization() const=0;
     virtual RVec MakeCharge       () const=0;
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
-    virtual void MakeOverlap3C  (ERI3&,const TBasisSet<T>&   ) const=0;
-    virtual void MakeRepulsion3C(ERI3&,const TBasisSet<T>&   ) const=0;
+    virtual void MakeOverlap3C  (ERI3&,const TIrrepBasisSet<T>&   ) const=0;
+    virtual void MakeRepulsion3C(ERI3&,const TIrrepBasisSet<T>&   ) const=0;
     virtual void MakeRepulsion4C(ERI4& Coulomb, ERI4& exchange, const BasisGroup*) const=0;
     virtual SMat MakeKinetic(              ) const=0;
     virtual SMat MakeNuclear(const Cluster&) const=0;

@@ -13,7 +13,7 @@ class Cluster;
 class Lattice;
 
 class PlaneWaveBS
-    : public virtual TBasisSet<std::complex<double> >
+    : public virtual TIrrepBasisSet<std::complex<double> >
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<std::complex<double> >
 {

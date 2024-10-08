@@ -37,7 +37,7 @@ template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
     , itsBasisSet(theBasisSet)
-    , itsCastedBasisSet(dynamic_cast<const TBasisSet<T>*>(theBasisSet.get()))
+    , itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet.get()))
     , itsSpin(s)
 {
     assert(itsCastedBasisSet);
@@ -61,8 +61,8 @@ template <> ChargeDensity::SMat ExactIrrepCD<double>::GetRepulsion(const IrrepBa
 {
 //    assert(itsBasisSet->GetID()==bs->GetID()); basis sets get cloned, so this won't work.
 //    std::cout << "   ExactIrrepCD GetRepulsion Lab=" << bs_ab->GetQuantumNumber() << ", Lcd=" << itsBasisSet->GetQuantumNumber() << std::endl;
-    const TBasisSet<double>* tbs_cd=dynamic_cast<const TBasisSet<double>*>(itsBasisSet.get());
-    const TBasisSet<double>* tbs_ab=dynamic_cast<const TBasisSet<double>*>(bs_ab);
+    const TIrrepBasisSet<double>* tbs_cd=dynamic_cast<const TIrrepBasisSet<double>*>(itsBasisSet.get());
+    const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
     SMat Jab= tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
 //    const SphericalSymmetryQN* qn_ab=dynamic_cast<const SphericalSymmetryQN*>(&bs_ab->GetQuantumNumber());
 //    const SphericalSymmetryQN* qn_cd=dynamic_cast<const SphericalSymmetryQN*>(&itsBasisSet->GetQuantumNumber());
@@ -82,7 +82,7 @@ template <> ChargeDensity::SMat ExactIrrepCD<double>::GetRepulsion(const IrrepBa
 template <> ChargeDensity::SMat ExactIrrepCD<double>::GetExchange(const IrrepBasisSet* bs_ab) const
 {
 //    assert(itsBasisSet->GetID()==bs->GetID());
-    const TBasisSet<double>* tbs_ab=dynamic_cast<const TBasisSet<double>*>(bs_ab);
+    const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
     SMat Kab= tbs_ab->GetExchange(itsDensityMatrix,itsCastedBasisSet);
 //    const SphericalSymmetryQN* qn_ab=dynamic_cast<const SphericalSymmetryQN*>(&bs_ab->GetQuantumNumber());
 //    const SphericalSymmetryQN* qn_cd=dynamic_cast<const SphericalSymmetryQN*>(&itsBasisSet->GetQuantumNumber());
@@ -144,7 +144,7 @@ template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, co
     typedef typename Vector<T>::iterator VITER;
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const TBasisSet<T>* tfbs=dynamic_cast<const TBasisSet<T>*>(fbs);
+    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
     VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
     auto mlist(itsCastedBasisSet->GetDataBase()->GetOverlap3C(*tfbs));
 
@@ -156,7 +156,7 @@ template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, co
     typedef typename Vector<T>::iterator VITER;
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const TBasisSet<T>* tfbs=dynamic_cast<const TBasisSet<T>*>(fbs);
+    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
     VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
     auto mlist(itsCastedBasisSet->GetDataBase()->GetRepulsion3C(*tfbs));
 
@@ -244,7 +244,7 @@ template <class T> std::istream& ExactIrrepCD<T>::Read(std::istream& is)
 {
     is >> itsDensityMatrix;
 
-    TBasisSet<T>* tbs = dynamic_cast<TBasisSet<T>*>(IrrepBasisSet::Factory(is));
+    TIrrepBasisSet<T>* tbs = dynamic_cast<TIrrepBasisSet<T>*>(IrrepBasisSet::Factory(is));
     assert(tbs);
     is >> *tbs;
     itsBasisSet.reset(tbs);

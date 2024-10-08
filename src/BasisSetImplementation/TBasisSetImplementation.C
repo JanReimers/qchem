@@ -163,7 +163,7 @@ GetRepulsion(const FittedFunction* ff) const
 
 
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
-GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
+GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
@@ -192,7 +192,7 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 }
 
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
-GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
+GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
     const ERI4view K=GetDataBase()->GetExchange4C(bs_cd);
@@ -256,7 +256,7 @@ GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const typename TBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const typename TIrrepBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,overlap[i]));
     return ret;

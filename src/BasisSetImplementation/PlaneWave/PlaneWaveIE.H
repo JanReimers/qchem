@@ -22,7 +22,7 @@ class PlaneWaveIE
 public:
     PlaneWaveIE(                  );
     PlaneWaveIE(const PlaneWaveIE&);
-    virtual void Insert(TBasisSet<std::complex<double> >*);
+    virtual void Insert(TIrrepBasisSet<std::complex<double> >*);
 
     virtual size_t size() const {return 0;}
     
