@@ -20,7 +20,6 @@
 template <class T> HeapDB<T>::HeapDB()
     :itsNumericalIE    (0)
     ,itsAnalyticIE   (0)
-    ,itsBasisSet          (0)
     
 {}
 
@@ -30,19 +29,15 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
 {
 }
 
-template <class T> void HeapDB<T>::Insert(bs_t* bs,const NumericalIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(const NumericalIE<T>* ie)
 {
-    assert(bs);
     assert(ie);
-    itsBasisSet=bs;
     itsNumericalIE=ie;
 }
 
-template <class T> void HeapDB<T>::Insert(bs_t* bs,const AnalyticIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(const AnalyticIE<T>* ie)
 {
-    assert(bs);
     assert(ie);
-    itsBasisSet=bs;
     itsAnalyticIE=ie;
 }
 

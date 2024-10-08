@@ -59,14 +59,14 @@ template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
     assert(ie);
     itsNumericalIE.reset(ie);
     itsNumericalIE->Insert(this);
-    itsDataBase->Insert(this,ie);
+    itsDataBase->Insert(ie);
 }
 
 template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
 {
     assert(ie);
     itsAnalyticIE.reset(ie);
-    itsDataBase->Insert(this,ie);
+    itsDataBase->Insert(ie);
     RVec ns=ie->MakeNormalization();
     RVec cs=ie->MakeCharge(this);
     int i=1;

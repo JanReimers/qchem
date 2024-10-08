@@ -35,8 +35,8 @@ public:
     typedef std::vector<iec_t*> iecv_t;
 
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(bs_t*, const NumericalIE<T>*)=0;
-    virtual void  Insert(bs_t*, const AnalyticIE<T>*)=0;
+    virtual void  Insert(const NumericalIE<T>*)=0;
+    virtual void  Insert(const AnalyticIE<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
     virtual void  Insert(const ERI4& J,const ERI4& K)=0;
 
