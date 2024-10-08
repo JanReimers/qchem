@@ -165,12 +165,12 @@ std::istream& PolarizedGaussianBS::Read (std::istream& is)
     return is;
 }
 
-BasisSet* PolarizedGaussianBS::Clone() const
+IrrepBasisSet* PolarizedGaussianBS::Clone() const
 {
     return new PolarizedGaussianBS(*this);
 }
 
-BasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
+IrrepBasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
 //    optr_vector1<BasisFunctionBlock*> newBlocks;

@@ -18,7 +18,7 @@ IrrepWaveFunction::IrrepWaveFunction()
     , itsSpin    ( )
 {};
 
-IrrepWaveFunction::IrrepWaveFunction(const BasisSet* bs, const Spin& S)
+IrrepWaveFunction::IrrepWaveFunction(const IrrepBasisSet* bs, const Spin& S)
     : itsOrbitals(0 )
     , itsBasisSet(bs)
     , itsSpin    (S )
@@ -94,7 +94,7 @@ std::istream& IrrepWaveFunction::Read (std::istream& is)
     assert(itsOrbitals);
     is >> *itsOrbitals;
 
-    BasisSet* temp=BasisSet::Factory(is);
+    IrrepBasisSet* temp=IrrepBasisSet::Factory(is);
     is >> *temp;
     itsBasisSet.reset(temp);
     FixUpPointer(itsOrbitals,itsBasisSet);

@@ -47,17 +47,17 @@ void AtomTester::LoadOrbitalBasisSet()
     assert(itsBasisGroup);
     for (int l=0; l<=itsLmax; l++)
     {
-        BasisSet* bs=new SphericalGaussianBS(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin,itsEmax,l);
+        IrrepBasisSet* bs=new SphericalGaussianBS(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin,itsEmax,l);
         itsBasisGroup->Insert(bs);
     }
 }
 
-BasisSet* AtomTester::GetCbasisSet() const
+IrrepBasisSet* AtomTester::GetCbasisSet() const
 {
     return new SphericalGaussianBS(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin*2.0,itsEmax*2.0,0);
 }
 
-BasisSet* AtomTester::GetXbasisSet() const
+IrrepBasisSet* AtomTester::GetXbasisSet() const
 {
     Mesh* mesh=GetIntegrationMesh();
     assert(mesh);

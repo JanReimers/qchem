@@ -16,7 +16,7 @@ FittedVxc::FittedVxc()
 {};
 
 
-FittedVxc::FittedVxc(const rc_ptr<BasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda)
+FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda)
     : HamiltonianTermImplementation     (   )
     , FittedFunctionImplementation<double>(bs,false) //Use regular overlap for fitting.
     , itsLDAVxc                 (new LDAVxc(lda))
@@ -49,7 +49,7 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
 
     SMat Kab=bs->GetOverlap(this);

@@ -20,7 +20,7 @@ HartreeFockVxc::HartreeFockVxc()
 //  Let the charge density do the work.
 //
 
-HamiltonianTerm::SMat HartreeFockVxc::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat HartreeFockVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     assert(itsExactCD);
     SMat Kab=itsExactCD->GetExchange(bs);

@@ -26,7 +26,7 @@ typedef optr_vector1<ChargeDensity*>::const_iterator CITER;
 //
 //  Totale energy terms for a charge density.
 //
-ChargeDensity::SMat CompositeCD::GetOverlap  (const BasisSet* bs) const
+ChargeDensity::SMat CompositeCD::GetOverlap  (const IrrepBasisSet* bs) const
 {
     // No UT coverage
     int n=bs->GetNumFunctions();
@@ -36,7 +36,7 @@ ChargeDensity::SMat CompositeCD::GetOverlap  (const BasisSet* bs) const
     return S;
 }
 
-ChargeDensity::SMat CompositeCD::GetRepulsion(const BasisSet* bs_ab) const
+ChargeDensity::SMat CompositeCD::GetRepulsion(const IrrepBasisSet* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -45,7 +45,7 @@ ChargeDensity::SMat CompositeCD::GetRepulsion(const BasisSet* bs_ab) const
     return J;
 }
 
-ChargeDensity::SMat CompositeCD::GetExchange(const BasisSet* bs_ab) const
+ChargeDensity::SMat CompositeCD::GetExchange(const IrrepBasisSet* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
@@ -72,13 +72,13 @@ double CompositeCD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-void CompositeCD::InjectOverlaps(FittedFunction* ff, const BasisSet* fbs) const
+void CompositeCD::InjectOverlaps(FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
     // No UT coverage
     for (auto c:itsCDs) c->InjectOverlaps(ff,fbs);
 }
 
-void CompositeCD::InjectRepulsions(FittedFunction* ff, const BasisSet* fbs) const
+void CompositeCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
     for (auto c:itsCDs) c->InjectRepulsions(ff,fbs);
 }

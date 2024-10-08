@@ -9,7 +9,7 @@ Kinetic::Kinetic()
 {};
 
 
-HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     return bs->GetKinetic();
 }

@@ -19,7 +19,7 @@ template <class T> TOrbitalGroupImplementation<T>::TOrbitalGroupImplementation()
 {};
 
 template <class T> TOrbitalGroupImplementation<T>::
-TOrbitalGroupImplementation(const rc_ptr<const BasisSet>& bs,
+TOrbitalGroupImplementation(const rc_ptr<const IrrepBasisSet>& bs,
                             const Mat & evec,
                             const RVec& eval,
                             const Spin& S)

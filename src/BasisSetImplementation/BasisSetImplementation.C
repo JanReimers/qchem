@@ -77,7 +77,7 @@ size_t BasisSetImplementation::GetNumFunctions() const
     return itsBasisFunctions.size();
 }
 
-bool BasisSetImplementation::operator==(const BasisSet& bs) const
+bool BasisSetImplementation::operator==(const IrrepBasisSet& bs) const
 {
     // No UT coverage
     if (GetNumFunctions() != bs.GetNumFunctions()) return false;

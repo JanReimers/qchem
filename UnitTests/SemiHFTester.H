@@ -15,8 +15,8 @@ public:
     virtual HamiltonianTerm* GetVxc(double spin) const;
 
 private:
-    mutable rc_ptr<BasisSet>  itsXBasisSet; //Exchange HamiltonianTerm fitting basis set.
-    double                    itsExchange;
+    mutable rc_ptr<IrrepBasisSet>  itsXBasisSet; //Exchange HamiltonianTerm fitting basis set.
+    double                         itsExchange;
 };
 
 #include "AtomTester.H"

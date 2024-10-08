@@ -32,8 +32,8 @@ public:
 
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc(double spin) const=0;
-    virtual BasisSet*  GetXbasisSet() const=0;
-    virtual BasisSet*  GetCbasisSet() const=0;
+    virtual IrrepBasisSet*  GetXbasisSet() const=0;
+    virtual IrrepBasisSet*  GetCbasisSet() const=0;
     virtual Mesh*      GetIntegrationMesh() const=0;
     virtual void       LoadOrbitalBasisSet()=0;
     

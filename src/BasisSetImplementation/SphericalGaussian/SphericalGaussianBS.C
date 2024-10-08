@@ -84,12 +84,12 @@ std::istream&  SphericalGaussianBS::Read (std::istream& is)
     return is;
 }
 
-BasisSet* SphericalGaussianBS::Clone() const
+IrrepBasisSet* SphericalGaussianBS::Clone() const
 {
     return new SphericalGaussianBS(*this);
 }
 
-BasisSet* SphericalGaussianBS::Clone(const RVec3&) const
+IrrepBasisSet* SphericalGaussianBS::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a spherical Gaussian basis set?!" << std::endl;
     return Clone();

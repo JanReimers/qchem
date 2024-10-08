@@ -21,7 +21,7 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 {}
 
 template <class T> ConstrainedFF<T>::
-ConstrainedFF(const rc_ptr<BasisSet>& theFitBasisSet, const Vec& theg, bool CDfit)
+ConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const Vec& theg, bool CDfit)
     : FittedFunctionImplementation<T>(theFitBasisSet,CDfit)
     , g  (theg)
     , gS (g*GetInverseOverlap())

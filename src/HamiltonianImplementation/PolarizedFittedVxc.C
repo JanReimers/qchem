@@ -19,7 +19,7 @@ PolarizedFittedVxc::PolarizedFittedVxc()
     , itsDownVxc                  (0)
 {};
 
-PolarizedFittedVxc::PolarizedFittedVxc(const rc_ptr<BasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda)
+PolarizedFittedVxc::PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda)
     : HamiltonianTermImplementation(   )
     , itsUpVxc               (new FittedVxc(bs,lda))
     , itsDownVxc             (new FittedVxc(bs,lda))
@@ -68,7 +68,7 @@ bool PolarizedFittedVxc::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat PolarizedFittedVxc::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat PolarizedFittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

@@ -23,7 +23,7 @@ template <class T> class TBasisSetImplementation
 protected:
     typedef VectorFunctionBuffer<T> Base;
     typedef typename Base::Mat     Mat;  //Matrix.
-    typedef typename BasisSet::SMat    SMat; //Symmetrix matrix.
+    typedef typename IrrepBasisSet::SMat    SMat; //Symmetrix matrix.
     typedef typename Base::Vec     Vec;  //Vector of scalars.
     typedef typename Base::Vec3    Vec3;   //3 vector (possibly complex).
     typedef typename Base::Vec3Vec Vec3Vec;//vector of 3 space vectors.
@@ -42,7 +42,7 @@ public:
 //
 //  This is where the real work gets done.
 //
-    virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const BasisSet>&,const Hamiltonian*, const Spin&) const;
+    virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const IrrepBasisSet>&,const Hamiltonian*, const Spin&) const;
 //
 //  New call backs  so Hamiltonian doesn;t see any natricies.
 //

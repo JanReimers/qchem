@@ -23,7 +23,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return false;}
-    virtual SMat CalculateHamiltonianMatrix(const BasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
     rc_ptr<Cluster> theCluster;
 };
 

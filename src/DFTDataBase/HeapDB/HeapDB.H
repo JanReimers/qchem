@@ -73,7 +73,7 @@ private:
 
     const NumericalIE<T>* itsNumericalIE;
     const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
-    const BasisSet*          itsBasisSet;
+    const IrrepBasisSet*          itsBasisSet;
     const BasisGroup*        itsBasisGroup;
  
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;

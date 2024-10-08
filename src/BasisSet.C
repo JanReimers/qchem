@@ -31,7 +31,7 @@ size_t BasisGroup::GetNumBasisSets() const
     return itsBasisSets.size();
 }
 
-void BasisGroup::Insert(BasisSet* bs)
+void BasisGroup::Insert(IrrepBasisSet* bs)
 {
     assert(bs);
     int N=GetNumFunctions();

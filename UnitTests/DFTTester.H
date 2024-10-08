@@ -13,7 +13,7 @@ public:
     virtual HamiltonianTerm* GetVee() const;
 
 private:
-    mutable rc_ptr<BasisSet>       itsCBasisSet; //Charge density fitting basis set.
+    mutable rc_ptr<IrrepBasisSet> itsCBasisSet; //Charge density fitting basis set.
 };
 
 #include "AtomTester.H"

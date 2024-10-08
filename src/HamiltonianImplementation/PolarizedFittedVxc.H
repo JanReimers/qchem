@@ -20,7 +20,7 @@ class PolarizedFittedVxc
 {
 public:
     PolarizedFittedVxc();
-    PolarizedFittedVxc(const rc_ptr<BasisSet>&, const rc_ptr<ExchangeFunctional>&);
+    PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>&, const rc_ptr<ExchangeFunctional>&);
    ~PolarizedFittedVxc();
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* exact);
@@ -32,7 +32,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const BasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 
     HamiltonianTerm* itsUpVxc  ; //Spin up.
     HamiltonianTerm* itsDownVxc; //Spin down.

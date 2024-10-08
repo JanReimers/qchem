@@ -17,7 +17,7 @@ OrbitalGroupImplementation::OrbitalGroupImplementation()
     , itsRCBasisSet(0)
 {};
 
-OrbitalGroupImplementation::OrbitalGroupImplementation(const rc_ptr<const BasisSet>& bs)
+OrbitalGroupImplementation::OrbitalGroupImplementation(const rc_ptr<const IrrepBasisSet>& bs)
     : itsBasisSet(&*bs)
     , itsRCBasisSet(bs)
 {};
@@ -26,7 +26,7 @@ OrbitalGroupImplementation::OrbitalGroupImplementation(const rc_ptr<const BasisS
 //
 //  BasisSet reference injection for unpickling.
 //
-void OrbitalGroupImplementation::FixUpPointer(const rc_ptr<const BasisSet>& bs)
+void OrbitalGroupImplementation::FixUpPointer(const rc_ptr<const IrrepBasisSet>& bs)
 {
     itsBasisSet.FixUpPointer(&*bs);
     itsRCBasisSet=bs;

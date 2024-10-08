@@ -14,7 +14,7 @@ class IrrepWaveFunction
 {
 public:
     IrrepWaveFunction();
-    IrrepWaveFunction(const BasisSet*, const Spin&);
+    IrrepWaveFunction(const IrrepBasisSet*, const Spin&);
     virtual ~IrrepWaveFunction();
 
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;
@@ -28,9 +28,9 @@ public:
 private:
     IrrepWaveFunction(const IrrepWaveFunction&);
 
-    OrbitalGroup*          itsOrbitals;
-    rc_ptr<const BasisSet> itsBasisSet;
-    Spin                   itsSpin;
-};
+    OrbitalGroup*               itsOrbitals;
+    rc_ptr<const IrrepBasisSet> itsBasisSet;
+    Spin                        itsSpin;
+}; 
 
 #endif //IrrepWaveFunction

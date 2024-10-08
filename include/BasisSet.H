@@ -46,7 +46,9 @@ template <class T> class TBasisFunction
 #include <vector>
 //----------------------------------------------------------------------------
 //
-//  Interface for all basis sets.  All matrices of integrals are supplied by the
+//  Interface for an irreducible representation basis sets.  H is block diagonal with one
+//  block for  IrrepBasisSet,  For atoms each L get.s an IrrepBasisSet and an H  block. 
+//  All matrices of integrals are supplied by the
 //  IntegralDataBase, which only calculates the integrals once and buffers them.
 //  The Factory allows one to read basis sets from a stream polymorphically.
 //  Clone(RVec&) creates a similar set with a new center.
@@ -54,7 +56,7 @@ template <class T> class TBasisFunction
 //  the wave vector k for solids.
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
-class BasisSet
+class IrrepBasisSet
     : public UniqueID
 {
 public:
@@ -63,14 +65,14 @@ public:
 
     typedef SMatrix<double> SMat;
 
-    virtual bool                 operator==      (const BasisSet&) const=0;
+    virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual int                  GetStartIndex   (               ) const=0;
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
 //
 //  This is where the real work gets done.
 //
-    virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const BasisSet>&,const Hamiltonian*, const Spin&) const=0;
+    virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const IrrepBasisSet>&,const Hamiltonian*, const Spin&) const=0;
 //
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
@@ -101,9 +103,9 @@ public:
 //
     virtual std::ostream&  Write(std::ostream&    ) const=0;
     virtual std::istream&  Read (std::istream&    )      =0;
-    virtual BasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
-    virtual BasisSet* Clone  (const RVec3&) const=0;
-    static  BasisSet* Factory(std::istream&    )        ;
+    virtual IrrepBasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
+    virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
+    static  IrrepBasisSet* Factory(std::istream&    )        ;
 
 private:
     friend class BasisGroup;
@@ -117,7 +119,7 @@ private:
 //  Extend basis to be a set of real or complex valued functions
 //
 template <class T> class TBasisSet
-    : public virtual BasisSet
+    : public virtual IrrepBasisSet
     , public virtual VectorFunction<T>
 {
 public:
@@ -153,14 +155,14 @@ class BasisGroup
     : public UniqueID
 {
 public:
-    typedef optr_vector1<BasisSet*>::const_iterator const_iterator;
+    typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;
     typedef std::vector<const AnalyticIE<double>*> iev_t;
 
     BasisGroup();
     virtual ~BasisGroup();
     virtual size_t GetNumFunctions() const;
     virtual size_t GetNumBasisSets() const;
-    virtual void Insert(BasisSet*);
+    virtual void Insert(IrrepBasisSet*);
     // Share ERI tables with other DBs
     virtual void Insert(const ERI4& C, const ERI4& X) const;
 
@@ -176,7 +178,7 @@ public:
     static  BasisGroup*  Factory(std::istream&    )      ;
 
 private:
-    optr_vector1<BasisSet*> itsBasisSets;
+    optr_vector1<IrrepBasisSet*> itsBasisSets;
 };
 
 

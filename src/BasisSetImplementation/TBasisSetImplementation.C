@@ -98,7 +98,7 @@ template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetAnalyticIE() co
 // TODO: Why do we need to pass in const rc_ptr<const BasisSet>& rc ????
 //
 template <class T> OrbitalGroup* TBasisSetImplementation<T>::
-CreateOrbitals(const rc_ptr<const BasisSet>& rc,const Hamiltonian* ham, const Spin&S) const
+CreateOrbitals(const rc_ptr<const IrrepBasisSet>& rc,const Hamiltonian* ham, const Spin&S) const
 {
     SMat H=ham->BuildHamiltonian(this,S);
     assert(!isnan(H));
@@ -109,18 +109,18 @@ CreateOrbitals(const rc_ptr<const BasisSet>& rc,const Hamiltonian* ham, const Sp
            TOrbitalGroupImplementation<T>(rc,U,e,S);
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetKinetic() const
 {
     return GetDataBase()->GetKinetic();
 }
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetNuclear(const Cluster* cl) const
 {
     return itsDataBase->GetNuclear(*cl);
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetOverlap  (const FittedFunction* ff) const
 {
     int n=this->GetNumFunctions();
@@ -141,7 +141,7 @@ GetOverlap  (const FittedFunction* ff) const
     return J;
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const FittedFunction* ff) const
 {
     int n=this->GetNumFunctions();
@@ -162,7 +162,7 @@ GetRepulsion(const FittedFunction* ff) const
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
 
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
@@ -191,7 +191,7 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
     return Jab;
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
@@ -233,7 +233,7 @@ GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ff);
     const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
     assert(icd);
-    assert(&*icd->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     double ret=0;
@@ -251,7 +251,7 @@ GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ff);
     const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
     assert(icd);
-    assert(&*icd->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     double ret=0;
@@ -296,7 +296,7 @@ SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ff);
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    assert(&*ffi->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
     assert(!isnan(GetDataBase()->GetOverlap(sf)));
     ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(sf);
@@ -309,7 +309,7 @@ SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ff);
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    assert(&*ffi->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
     assert(!isnan(GetDataBase()->GetRepulsion(sf)));
     ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(sf);

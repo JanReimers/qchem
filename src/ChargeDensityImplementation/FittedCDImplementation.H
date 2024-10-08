@@ -20,12 +20,12 @@ template <class T> class FittedCDImplementation
 {
 public:
     FittedCDImplementation();
-    FittedCDImplementation(const rc_ptr<BasisSet>&);
-    FittedCDImplementation(const rc_ptr<BasisSet>&, double totalCharge);
+    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&);
+    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, double totalCharge);
 
-    virtual SMat   GetOverlap  (const BasisSet*) const;
-    virtual SMat   GetRepulsion(const BasisSet*) const;
-    virtual SMat   GetExchange (const BasisSet*) const; //makes no sense
+    virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
+    virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
+    virtual SMat   GetExchange (const IrrepBasisSet*) const; //makes no sense
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
@@ -34,8 +34,8 @@ public:
     virtual double GetOverlap          (const FittedFunction*) const;  // <ro(1) | f(1)>
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual void   InjectOverlaps  (FittedFunction*, const BasisSet* theFitBasisSet) const;
-    virtual void   InjectRepulsions(FittedFunction*, const BasisSet* theFitBasisSet) const;
+    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;

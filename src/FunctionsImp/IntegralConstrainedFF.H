@@ -11,7 +11,7 @@ template <class T> class IntegralConstrainedFF
 {
 public:
     IntegralConstrainedFF(                                        );
-    IntegralConstrainedFF(const rc_ptr<BasisSet>&,bool CDfit=false);
+    IntegralConstrainedFF(const rc_ptr<IrrepBasisSet>&,bool CDfit=false);
 };
 
 #endif //_IntegralConstraintFF_H_

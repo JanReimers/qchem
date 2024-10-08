@@ -17,14 +17,14 @@ bool ChargeDensity::IsPolarized() const
 //
 //  Various integrals.
 //
-ChargeDensity::SMat PolarizedCD::GetOverlap  (const BasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetOverlap  (const IrrepBasisSet* bs) const
 {
     return
         GetChargeDensity(Spin::Up  )->GetOverlap(bs) +
         GetChargeDensity(Spin::Down)->GetOverlap(bs);
 }
 
-ChargeDensity::SMat PolarizedCD::GetRepulsion(const BasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetRepulsion(const IrrepBasisSet* bs) const
 {
 //    std::cout.precision(4);
 //    std::cout.width(7);
@@ -41,7 +41,7 @@ ChargeDensity::SMat PolarizedCD::GetRepulsion(const BasisSet* bs) const
     return Jab_up + Jab_down;
 }
 
-ChargeDensity::SMat PolarizedCD::GetExchange(const BasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetExchange(const IrrepBasisSet* bs) const
 {
 //    std::cout << "------------------------------------------------------------------------------------------" << std::endl;
 //    std::cout << "Spin up:" << std::endl;
@@ -74,7 +74,7 @@ double PolarizedCD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-void PolarizedCD::InjectOverlaps(FittedFunction* ff, const BasisSet* theFitBasisSet) const
+void PolarizedCD::InjectOverlaps(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedPolarizedCD* fpcd=dynamic_cast<FittedPolarizedCD*>(ff);
     if (fpcd)
@@ -93,7 +93,7 @@ void PolarizedCD::InjectOverlaps(FittedFunction* ff, const BasisSet* theFitBasis
     }
 }
 
-void PolarizedCD::InjectRepulsions(FittedFunction* ff, const BasisSet* theFitBasisSet) const
+void PolarizedCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedPolarizedCD* fpcd=dynamic_cast<FittedPolarizedCD*>(ff);
     if (fpcd)
@@ -294,7 +294,7 @@ double FittedPolarizedCD::DoFit(const FittedFunctionClient& ffc)
     return lam_bar/2.0;
 }
 
-void FittedPolarizedCD::InjectOverlaps  (FittedFunction* ff, const BasisSet* theFitBasisSet) const
+void FittedPolarizedCD::InjectOverlaps  (FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedPolarizedCD* fpcd=dynamic_cast<FittedPolarizedCD*>(ff);
     if (fpcd)
@@ -313,7 +313,7 @@ void FittedPolarizedCD::InjectOverlaps  (FittedFunction* ff, const BasisSet* the
     }
 }
 
-void FittedPolarizedCD::InjectRepulsions(FittedFunction* ff, const BasisSet* theFitBasisSet) const
+void FittedPolarizedCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedPolarizedCD* fpcd=dynamic_cast<FittedPolarizedCD*>(ff);
     if (fpcd)

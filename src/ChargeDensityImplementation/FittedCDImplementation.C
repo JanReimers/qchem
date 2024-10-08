@@ -19,13 +19,13 @@ template <class T> FittedCDImplementation<T>::FittedCDImplementation()
     , itsTotalCharge(0)
 {};
 
-template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<BasisSet>& bs)
+template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs)
     : IntegralConstrainedFF<double>(bs,true) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(0)
 {};
 
-template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<BasisSet>& bs, double totalCharge)
+template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, double totalCharge)
     : IntegralConstrainedFF<double>(bs,true) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(totalCharge)
@@ -51,18 +51,18 @@ template <class T> double FittedCDImplementation<T>::DoFit(const FittedFunctionC
 //
 //  Totale energy terms for a charge density.
 //
-template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetOverlap  (const BasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetOverlap  (const IrrepBasisSet* bs) const
 {
     return bs->GetOverlap(this);
 }
 
-template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetRepulsion(const BasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetRepulsion(const IrrepBasisSet* bs) const
 {
     const FittedFunction* ff=this;
     return bs->GetRepulsion(ff);
 }
 
-template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetExchange(const BasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetExchange(const IrrepBasisSet* bs) const
 {
     std::cerr << "FittedCDImplementation<T>::AddExchange: Warning using four center ERIs from a fitted charge density !?!" << std::endl;
     return SMat();
@@ -104,7 +104,7 @@ template <class T> double FittedCDImplementation<T>::GetTotalCharge() const
 //  Required by fitting routines.
 //
 template <class T> void FittedCDImplementation<T>::
-InjectOverlaps  (FittedFunction* ff, const BasisSet* theFitBasisSet) const
+InjectOverlaps  (FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
@@ -112,7 +112,7 @@ InjectOverlaps  (FittedFunction* ff, const BasisSet* theFitBasisSet) const
 }
 
 template <class T> void FittedCDImplementation<T>::
-InjectRepulsions(FittedFunction* ff, const BasisSet* theFitBasisSet) const
+InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);

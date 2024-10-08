@@ -58,7 +58,7 @@ BasisFunctionBlock* BasisFunctionBlock::Factory(std::istream& is)
 //  class and make a new object using the default constructor.
 //
 
-BasisSet* BasisSet::Factory(std::istream& is)
+IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussianBS).name()) return new SphericalGaussianBS;

@@ -64,7 +64,7 @@ bool DFTFiles::WaveFunctionFile() const
 }
 
 
-void DFTFiles::UnpickleOBasisSet(optr_vector1<BasisSet*>& bs) const
+void DFTFiles::UnpickleOBasisSet(optr_vector1<IrrepBasisSet*>& bs) const
 {
     std::cout << "Reading basis set from file " << GetOBasisSetFN() << std::endl;
     std::ifstream in(GetOBasisSetFN().c_str());
@@ -76,16 +76,16 @@ void DFTFiles::UnpickleOBasisSet(optr_vector1<BasisSet*>& bs) const
     in >> bs;
 }
 
-BasisSet* DFTFiles::UnpickleCBasisSet() const
+IrrepBasisSet* DFTFiles::UnpickleCBasisSet() const
 {
-    BasisSet* ret=0;
+    IrrepBasisSet* ret=0;
     UnPickle(ret,GetCBasisSetFN().c_str(),"Charge density fitting basis set");
     return ret;
 }
 
-BasisSet* DFTFiles::UnpickleXBasisSet() const
+IrrepBasisSet* DFTFiles::UnpickleXBasisSet() const
 {
-    BasisSet* ret=0;
+    IrrepBasisSet* ret=0;
     UnPickle(ret,GetXBasisSetFN().c_str(),"Exchange fitting basis set");
     return ret;
 }

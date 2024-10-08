@@ -15,19 +15,19 @@ class HamiltonianTermImplementation
 public:
     HamiltonianTermImplementation();
 
-    virtual SMat BuildHamiltonian(const BasisSet* bs,const Spin&) const;
+    virtual SMat BuildHamiltonian(const IrrepBasisSet* bs,const Spin&) const;
 
     virtual void UseChargeDensity(const ChargeDensity* exact);
 
     virtual std::ostream&   Write(std::ostream&) const;
     virtual std::istream&   Read (std::istream&)      ;
 
-    const SMat& GetCachedMatrix(const BasisSet* bs, const Spin& s) const;
+    const SMat& GetCachedMatrix(const IrrepBasisSet* bs, const Spin& s) const;
 protected:
     class CacheIndex
     {
     public:
-        CacheIndex(const BasisSet* bs, const Spin& s)
+        CacheIndex(const IrrepBasisSet* bs, const Spin& s)
         : itsBasisSet(bs)
         , itsSpin(s)
         {};
@@ -45,12 +45,12 @@ protected:
             }
         }
 
-        const BasisSet* itsBasisSet;
+        const IrrepBasisSet* itsBasisSet;
         Spin            itsSpin;
     };
     virtual bool DependsOnChargeDensity() const=0;
     // Unconditional calculation, does no use cache.
-    virtual SMat CalculateHamiltonianMatrix(const BasisSet*,const Spin&) const=0;
+    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const=0;
     // Calculation assumes that the cache is up to date. And E=Sum(Dab*Hab);
     double CalculateEnergy() const;
     void MarkAllDirty();

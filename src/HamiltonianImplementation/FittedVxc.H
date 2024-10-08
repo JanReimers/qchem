@@ -26,7 +26,7 @@ class FittedVxc
     typedef HamiltonianTerm::SMat SMat;
 public:
     FittedVxc();
-    FittedVxc(const rc_ptr<BasisSet>& VxcFitBasisSet, const rc_ptr<ExchangeFunctional>&);
+    FittedVxc(const rc_ptr<IrrepBasisSet>& VxcFitBasisSet, const rc_ptr<ExchangeFunctional>&);
     ~FittedVxc();
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;
@@ -38,7 +38,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const BasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
 };

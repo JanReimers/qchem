@@ -15,7 +15,7 @@ class OrbitalGroupImplementation
 {
 public:
     OrbitalGroupImplementation();
-    OrbitalGroupImplementation(const rc_ptr<const BasisSet>&);
+    OrbitalGroupImplementation(const rc_ptr<const IrrepBasisSet>&);
     virtual ~OrbitalGroupImplementation() {};
 
     virtual index_t  GetNumOrbitals     (                   ) const;
@@ -30,12 +30,12 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected: //Why not private!!!!!??
-    virtual void  FixUpPointer(const rc_ptr<const BasisSet>&);
+    virtual void  FixUpPointer(const rc_ptr<const IrrepBasisSet>&);
 
     optr_vector1<Orbital*> itsOrbitals;
 
-    IDRef <const BasisSet> itsBasisSet;
-    rc_ptr<const BasisSet> itsRCBasisSet; //A reference counted basis set for making charge densities.
+    IDRef <const IrrepBasisSet> itsBasisSet;
+    rc_ptr<const IrrepBasisSet> itsRCBasisSet; //A reference counted basis set for making charge densities.
 };
 
 #endif //_OrbitalGroupImplementation_H_

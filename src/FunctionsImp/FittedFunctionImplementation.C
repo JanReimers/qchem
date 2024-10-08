@@ -19,7 +19,7 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImplementation<T>::
-FittedFunctionImplementation(const rc_ptr<BasisSet>& theFitBasisSet, bool CDfit)
+FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet, bool CDfit)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsCDFitFlag(CDfit)
@@ -97,7 +97,7 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(double,  const 
 //  Provide Overlap and Repulsion matricies for derived classes.
 //
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
-FitGet2CenterOverlap(const BasisSet* bs) const
+FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 {
     const TBasisSet<T>* tbs=dynamic_cast<const TBasisSet<T>*>(bs);
     assert(tbs);
@@ -105,7 +105,7 @@ FitGet2CenterOverlap(const BasisSet* bs) const
 }
 
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
-FitGet2CenterRepulsion(const BasisSet* bs) const
+FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
 {
     const TBasisSet<T>* tbs=dynamic_cast<const TBasisSet<T>*>(bs);
     assert(tbs);
@@ -226,7 +226,7 @@ template <class T> std::istream& FittedFunctionImplementation<T>::Read (std::ist
     else
         is >> itsCDFitFlag;
 
-    itsBasisSet.reset(BasisSet::Factory(is));
+    itsBasisSet.reset(IrrepBasisSet::Factory(is));
     is >> *itsBasisSet >> itsFitCoeff;
     return is;
 }

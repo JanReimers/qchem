@@ -28,7 +28,7 @@ template <class T> class VectorFunction;
 //
 class Atom;
 class AngularMesh;
-class BasisSet;
+class IrrepBasisSet;
 class BasisGroup;
 class ChargeDensity;
 class Cluster;
