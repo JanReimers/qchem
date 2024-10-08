@@ -195,7 +195,8 @@
 1727568546 /home/janr/Code/oml/include/oml/imp/smatindex.h
 	"oml/imp/matindex.h"
 
-1728399188 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H
+1728405986 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H
+	"BasisSetImplementation/SphericalGaussian/IEClient.H"
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
 	"oml/vector.h"
@@ -496,9 +497,10 @@
 	"BasisSetImplementation/Gaussian94RFR.H"
 	"Mesh/MoleculeMesh.H"
 
-1728398097 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
+1728407416 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
+	"BasisSetImplementation/PolarizedGaussian/IEClient.H"
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 	"Misc/ptr_vector1.h"
 
@@ -623,7 +625,7 @@
 1727910193 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1728402027 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728405481 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -742,11 +744,12 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728399999 /home/janr/Code/qchem/include/BasisSet.H
+1728405986 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
 	<vector>
+	"IEClient.H"
 	"Functions/VectorFunction.H"
 	"Misc/ptr_vector1.h"
 
@@ -870,4 +873,17 @@
 	"oml/imp/cow.h"
 	"oml/vector.h"
 	<iostream>
+
+1728405986 /home/janr/Code/qchem/include/IEClient.H
+	"Misc/UniqueID/UniqueID.H"
+
+1728406945 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/IEClient.H
+	<IEClient.H>
+	"oml/vector.h"
+
+1728407428 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/IEClient.H
+	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
+	<IEClient.H>
+	"oml/vector.h"
+	<vector>
 

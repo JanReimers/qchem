@@ -112,15 +112,7 @@ private:
     virtual void SetStartIndex(int)=0;
 };
 
-//
-//  Integral DB and engines only sees this
-//
-class IrrepIEClient
-{
-public:
-    virtual ~IrrepIEClient() {};
-    virtual UniqueID::IDtype GetID() const=0;
-};
+#include "IEClient.H"
 #include "Functions/VectorFunction.H"
 #include "Misc/ptr_vector1.h"
 //----------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 // File: PolarizedGaussianIE1.C  Here is where all the integral get calculated.
 
 
+#include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "oml/matrix.h"
@@ -104,18 +105,18 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* iea,cons
 
 PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 {    
-    assert(false);
-//    const PolarizedGaussianIE1* b=dynamic_cast<const PolarizedGaussianIE1*>(ieb);
-//    assert(b);
-//    int Na=size(),Nb=b->size();
-//    Mat s(Na,Nb);
-//    for (index_t ia=0;ia<Na;ia++)
-//        for (index_t ib=0;ib<Nb;ib++)
-//            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Repulsion2C,
-//                b->radials[ib],pols[ia],b->pols[ib],cache)*ns(ia+1)*b->ns(ib+1);
-//    assert(!isnan(s));
-//    return s;
-    return Mat();
+    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);;
+    assert(a);
+    const PolarizedGaussianIEClient* b=dynamic_cast<const PolarizedGaussianIEClient*>(ieb);;
+    assert(b);
+    int Na=a->size(),Nb=b->size();
+    Mat s(Na,Nb);
+    for (index_t ia=0;ia<Na;ia++)
+        for (index_t ib=0;ib<Nb;ib++)
+            s(ia+1,ib+1)=a->radials[ia]->Integrate(RadialFunction::Repulsion2C,
+                b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
+    assert(!isnan(s));
+    return s;
 }
 
 

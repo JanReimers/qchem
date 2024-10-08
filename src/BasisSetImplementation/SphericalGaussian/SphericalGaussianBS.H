@@ -4,20 +4,11 @@
 
 
 
+#include "BasisSetImplementation/SphericalGaussian/IEClient.H"
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "oml/vector.h"
 
-struct SphericalGaussianIEClient
-    : public virtual IrrepIEClient
-{
-    SphericalGaussianIEClient() {};
-    SphericalGaussianIEClient(size_t N, double minexp,double maxexp,size_t L);
-    Vector<size_t> Ls;  //Angular momentum.
-    Vector<double> es; //The orbital exponents.
-    Vector<double> ns; //Normalization constants
-};
-    
 
 class SphericalGaussianBS
     : public virtual TIrrepBasisSet<double>

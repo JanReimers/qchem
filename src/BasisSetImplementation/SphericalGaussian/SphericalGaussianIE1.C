@@ -2,7 +2,7 @@
 
 
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" //Just to get IEClient
+#include "BasisSetImplementation/SphericalGaussian/IEClient.H" 
 #include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
 #include "Cluster.H"

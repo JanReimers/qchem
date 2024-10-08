@@ -6,6 +6,7 @@
 
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSetImplementation/TBasisSetImplementation.H"
+#include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "Misc/ptr_vector1.h"
 
@@ -16,6 +17,7 @@ class PolarizedGaussianBS
     : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
+    , public         PolarizedGaussianIEClient
 {
 public:
     PolarizedGaussianBS();

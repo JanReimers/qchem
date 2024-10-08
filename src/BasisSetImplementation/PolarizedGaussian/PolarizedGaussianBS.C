@@ -19,6 +19,8 @@ template <class T> T Max(const std::vector<T>& v)
     return *std::max_element(v.begin(), v.end());
 }
 
+
+
 //#######################################################################
 //
 //  Concrete  gaussian basis set.
@@ -105,7 +107,8 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //        index_t ibf=1;
 //        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
         
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));       
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));    
+        PolarizedGaussianIEClient::Init(bls);   
     }
 
     if (theMesh)  
