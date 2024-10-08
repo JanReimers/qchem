@@ -74,9 +74,9 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap(iec_t* a) const
     return Integrate(RadialFunction::Overlap2C,a);
 }
 
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion() const
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea ) const
 {
-    return Integrate(RadialFunction::Repulsion2C);
+    return Integrate(RadialFunction::Repulsion2C,iea);
 }
 
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic() const

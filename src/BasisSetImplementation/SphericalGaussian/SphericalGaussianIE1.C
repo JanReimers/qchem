@@ -78,13 +78,15 @@ SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(const IE* ie) con
 //
 //  Repulsion type integrals
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion() const
+SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* iea ) const
 {
-    size_t N=size();
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a);
+    size_t N=a->size();
     SMat r(N,N);
     for (auto i:r.rows())
         for (auto j:r.cols(i))
-            r(i,j)=GaussianRepulsionIntegral(es(i),es(j),L,L)*ns(i)*ns(j);
+            r(i,j)=GaussianRepulsionIntegral(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
 
     return r;
 }

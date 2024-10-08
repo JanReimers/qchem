@@ -176,12 +176,12 @@ template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(const Sca
 
 
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion(iec_t* a )
 {
-    assert(itsAnalyticIE || itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID());
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::Repulsion2C,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE ? itsNumericalIE->MakeRepulsion() : itsAnalyticIE->MakeRepulsion();
+        return its2C[key] =itsAnalyticIE->MakeRepulsion(a);
     else
         return i->second;
 }
@@ -326,7 +326,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsio
     assert(!itsNumericalIE); //Do we need to support this?
     id2c_t key=std::make_tuple(qchem::InvRepulsion,itsBasisSet->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion());
+        return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion(itsBasisSet));
     else
         return i->second;
 }

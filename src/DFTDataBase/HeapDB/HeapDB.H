@@ -44,7 +44,9 @@ public:
     virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
     virtual const ERI3&    GetOverlap3C  (bs_t&          );
 
-    virtual const SMat&    GetRepulsion  (                             );
+    //virtual const SMat&    GetRepulsion  (bs_t&  a   ) =0; //Numerical
+    virtual const SMat&    GetRepulsion  (iec_t* a   ) ; //Analytic
+
     virtual const Mat&     GetRepulsion  (bs_t& ,bs_t& b);
     virtual const Mat&     GetRepulsion  (iec_t* a,iec_t* b);
     virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
