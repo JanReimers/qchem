@@ -71,20 +71,10 @@ SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(const IE* ie) con
     return s3;
 }
 
-void SphericalGaussianIE1::MakeOverlap3C(ERI3& mlist, const IE* ie) const
-{
-    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
-    assert(other);
-
-    mlist.clear();
-    for (auto i:other->es.indices()) mlist.push_back(MakeOverlap((*other)(i)));
-    
-}
+//----------------------------------------------------------------------------------------
 //
-////----------------------------------------------------------------------------------------
-////
-////  Repulsion type integrals
-////
+//  Repulsion type integrals
+//
 SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion() const
 {
     size_t N=size();
@@ -139,14 +129,6 @@ SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeRepulsion3C(const IE* ie) c
     return s3;
 }
 
-void SphericalGaussianIE1::MakeRepulsion3C(ERI3& mlist, const IE* ie) const
-{
-    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
-    assert(other);
-
-    mlist.clear();
-    for (auto i:other->es.indices()) mlist.push_back(MakeRepulsion((*other)(i)));
-}
 
 SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)
 {

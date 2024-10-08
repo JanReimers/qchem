@@ -107,18 +107,6 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) con
 //
 //  3 Centre integrals.
 //
-void PolarizedGaussianIE1::MakeOverlap3C(ERI3& mlist,const IE* ie) const
-{
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    int Nc=other->size();
-    mlist.clear();
-    for (index_t ic=0;ic<Nc;ic++)
-    {
-        SMat s=Integrate(RadialFunction::Overlap3C,other->radials[ic],other->pols[ic]);
-        s*=other->ns(ic+1);
-        mlist.push_back(s);
-    }    
-}
 
 PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(const IE* ie) const
 {
@@ -134,19 +122,6 @@ PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(const IE* ie) con
     return s3;   
 }
 
-void PolarizedGaussianIE1::MakeRepulsion3C(ERI3& mlist,const IE* ie) const
-{
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    mlist.clear();
-    int Nc=other->size();
-    for (index_t ic=0;ic<Nc;ic++)
-    {
-        SMat s=Integrate(RadialFunction::Repulsion3C,other->radials[ic],other->pols[ic]);
-        s*=other->ns(ic+1);
-        mlist.push_back(s);
-    }    
-    
-}
 
 PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeRepulsion3C(const IE* ie) const
 {

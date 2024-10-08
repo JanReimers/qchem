@@ -37,12 +37,12 @@ public:
 
     virtual const SMat&    GetOverlap    (                             );
     virtual const Mat&     GetOverlap    (const TBasisSet<T>&          );
-    virtual const Vec&     GetOverlap    (const ScalarFunction<double>&);
+    virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
     virtual const ERI3&    GetOverlap3C  (const TBasisSet<T>&          );
 
     virtual const SMat&    GetRepulsion  (                             );
     virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          );
-    virtual const Vec&     GetRepulsion  (const ScalarFunction<double>&);
+    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
     virtual const ERI3&    GetRepulsion3C(const TBasisSet<T>&          );
     virtual       ERI4view GetRepulsion4C(const TBasisSet<T>* bs_cd    );
     virtual       ERI4view GetExchange4C (const TBasisSet<T>* bs_cd    );
@@ -75,43 +75,12 @@ private:
     const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
     const BasisSet*          itsBasisSet;
     const BasisGroup*        itsBasisGroup;
-
-    SMat itsSelfOverlap  ; //Overlap with its self.
-    Vec  itsRSFOverlap   ; //Overlap with ScalarFunction.
-    SMat itsSelfRepulsion; //Repulsion with its self.
-    Vec  itsRSFRepulsion ; //Repulsion with ScalarFunction.
-    SMat itsSelfKinetic  ; //Self kinetic energy matrix.
-    RVec itsNormalization; //Normalization constants.
-    RVec itsCharge       ; //Integrated charge.
-    SMat itsInvOverlap   ; //Inverse of the overlap matrix.
-    SMat itsInvRepulsion ; //Inverse of the Repulsion matrix.
-
-    bool itsSelfOverlapFlag     ; //These are set to true if they have been calculated.
-    bool itsSelfRepulsionFlag   ;
-    bool itsSelfKineticFlag     ;
-    bool itsNormalizationFlag   ;
-    bool itsChargeFlag          ;
-    bool itsInvOverlapFlag      ;
-    bool itsInvRepulsionFlag    ;
-
-    Mat     itsBSOverlaps  ;       //Cross overlap with one other basis set.
-    Mat     itsBSRepulsions;       //Cross repulsion with one other basis set.
-    //ERI3   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
-    ERI3   its3CenterOverlaps;    //Overlap   with a whole basis set.  Only one basis is buffered.
-    ERI3   its3CenterRepulsions;  //Repulsion with a whole basis set.  Only one basis is buffered.
-
-    UniqueID::IDtype itsOverlapBasisSets;      //Basis set for which cross overlap has been calculated.
-    UniqueID::IDtype itsRepulsionBasisSets;    //Basis set for which cross repulsion has been calculated.
-//    IDList           itsNuclearClusters;       //List of clusters for which nuclear attractions have been calculated.
-    UniqueID::IDtype its3CenterOverlapBS;      //Basis set for which 3 center overlap has been calculated.
-    UniqueID::IDtype its3CenterRepulsionBS;    //Basis set for which 3 center repulsion has been calculated.
-
-    
+ 
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.
     typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t; //Cross basis set integrals.
-    std::map<id2c_t ,Vec> itsV; //Norm, Charge Overlap(function)
-    std::map<id2cx_t ,Vec> itsVx; //Norm, Charge Overlap(function)
+    std::map<id2c_t ,RVec> its1C; //Norm, Charge 
+    std::map<id2c_t ,Vec> its1Cx; //Norm, Charge Overlap(function)
     std::map<id2c_t ,SMat> its2C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     std::map<id2cx_t,SMat> its2CNuc; //Nuclear IDed by cluster
     std::map<id2cx_t, Mat> its2Cx; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion

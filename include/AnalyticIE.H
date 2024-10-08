@@ -65,8 +65,6 @@ public:
 
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const=0; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const=0; //Used for DFT
-    virtual void MakeOverlap3C  (ERI3&,const AnalyticIE*) const=0; //Used for DFT
-    virtual void MakeRepulsion3C(ERI3&,const AnalyticIE*) const=0; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const=0; //Used for Hartree-Fock
 
     virtual std::ostream& Write(std::ostream&) const=0;

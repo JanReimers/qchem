@@ -36,7 +36,7 @@ public:
 
     virtual size_t size() const {return es.size();}
 
-   virtual RVec MakeNormalization() const;
+    virtual RVec MakeNormalization() const;
     virtual RVec MakeCharge       () const;
     
     virtual  SMat MakeOverlap  (                 ) const;
@@ -48,8 +48,6 @@ public:
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
 
-    virtual void MakeOverlap3C  (ERI3&,const AnalyticIE*) const; //Used for DFT
-    virtual void MakeRepulsion3C(ERI3&,const AnalyticIE*) const; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
     
     virtual std::ostream& Write(std::ostream&) const;
