@@ -36,21 +36,22 @@ void BasisGroup::Insert(IrrepBasisSet* bs)
     assert(bs);
     int N=GetNumFunctions();
     bs->SetStartIndex(N+1);
+    bs->Insert(this);
     itsBasisSets.push_back(bs);
     TIrrepBasisSet<double>* tbs=dynamic_cast<TIrrepBasisSet<double>*>(bs);
     assert(tbs);
     tbs->GetDataBase()->Insert(this);
 }
 
-BasisGroup::iev_t BasisGroup::Flatten() const
+BasisGroup::iecv_t BasisGroup::Flatten() const
 {
-    iev_t ies;
+    iecv_t iecs;
     for (auto bs:*this)
     {
-        const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
-        ies.push_back(tbs->GetAnalyticIE());
+        //const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
+        iecs.push_back(bs);
     }
-    return ies;
+    return iecs;
 }
 
 void BasisGroup::Insert(const ERI4& J, const ERI4& K) const

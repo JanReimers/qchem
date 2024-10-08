@@ -32,6 +32,7 @@ public:
     typedef std::vector<SMat> ERI3;
     typedef const TIrrepBasisSet<T> bs_t;
     typedef const IrrepIEClient iec_t;
+    typedef std::vector<iec_t*> iecv_t;
 
     virtual ~IntegralDataBase() {};
     virtual void  Insert(bs_t*, const NumericalIE<T>*)=0;
@@ -53,8 +54,8 @@ public:
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c   ) =0; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c  ) =0; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    ) =0;
-    virtual       ERI4view GetExchange4C (bs_t* bs_cd    ) =0;
+    virtual       ERI4&    GetRepulsion4C(iecv_t&) =0;
+    virtual       ERI4&    GetExchange4C (iecv_t&) =0;
 
     virtual const RVec&    GetNormalization(bs_t& a         )=0;
     virtual const RVec&    GetCharge       (bs_t&  a      )=0;

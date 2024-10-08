@@ -163,14 +163,14 @@ PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec
 //  4 centre integrals.
 //
 
-PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
+PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iecv_t& ies) const
 {
 #ifdef DEBUG
     assert(ies.size()==1);  //Don't have multiple Irrep basis sets for Molecules yet.
-    const IE* ie=ies[0];
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);
-    assert(other);
-    assert(other==this);   //Again don't have multiple Irrep basis sets for Molecules yet.
+    iec_t* ie=ies[0];
+    const PolarizedGaussianIEClient* other=dynamic_cast<const PolarizedGaussianIEClient*>(ie);
+//    assert(other);
+//    assert(other==this);   //Again don't have multiple Irrep basis sets for Molecules yet.
 #endif
     
     int N=size();

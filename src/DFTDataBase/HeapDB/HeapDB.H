@@ -28,6 +28,7 @@ protected:
     typedef UniqueID::IDtype IDType;
     typedef typename Base::bs_t bs_t;
     typedef typename Base::iec_t iec_t;
+    typedef typename Base::iecv_t iecv_t;
 public:
 
     HeapDB();
@@ -47,8 +48,8 @@ public:
     
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c     );
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c);
-    virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    );
-    virtual       ERI4view GetExchange4C (bs_t* bs_cd    );
+    virtual       ERI4&    GetRepulsion4C(iecv_t&);
+    virtual       ERI4&    GetExchange4C (iecv_t&);
 
     virtual const RVec&    GetNormalization(bs_t& a       );
     virtual const RVec&    GetCharge       (bs_t&  a      );
@@ -78,7 +79,7 @@ private:
     using StreamableObject::Pretty;
 
     void WipeCleanAllData   ()      ;
-    void BuildERIs();
+    void BuildERIs(iecv_t& abcd);
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 

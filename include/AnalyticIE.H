@@ -45,9 +45,9 @@ public:
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
-    typedef std::vector<const AnalyticIE<double>*> iev_t;
     typedef std::pair<ERI4,ERI4> jk_t;
     typedef const IrrepIEClient iec_t;
+    typedef std::vector<iec_t*> iecv_t;
 
 
     virtual ~AnalyticIE()  {};
@@ -67,7 +67,7 @@ public:
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const=0; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const=0; //Used for DFT
-    virtual jk_t Make4C(const iev_t&) const=0; //Used for Hartree-Fock
+    virtual jk_t Make4C(const iecv_t&) const=0; //Used for Hartree-Fock
 
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;

@@ -81,6 +81,7 @@ public:
 protected:
     void  Insert(NumericalIE<T>*);
     void  Insert(AnalyticIE<T>*);
+    virtual void  Insert(const BasisGroup* bg) {itsBasisGroup=bg;}
     const AnalyticIE<T>* GetIntegralEngine() const
     {
         return &*itsAnalyticIE;
@@ -94,6 +95,7 @@ protected:
 private:
     rc_ptr<NumericalIE<T> > itsNumericalIE;
     rc_ptr< AnalyticIE<T> > itsAnalyticIE;
+    const BasisGroup* itsBasisGroup;
     mutable IntegralDataBase<T>*  itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
 };

@@ -19,7 +19,7 @@ public:
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
-    typedef IE::iev_t iev_t;
+    typedef IE::iecv_t iecv_t;
     typedef IE::jk_t jk_t;
     typedef const IrrepIEClient iec_t;
 
@@ -43,7 +43,7 @@ public:
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
+    virtual jk_t Make4C(const iecv_t&) const; //Used for Hartree-Fock
     
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;

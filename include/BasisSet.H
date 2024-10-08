@@ -115,6 +115,7 @@ public:
 
 private:
     friend class BasisGroup;
+    virtual void Insert(const BasisGroup*)=0;
     virtual void SetStartIndex(int)=0;
 };
 
@@ -162,7 +163,7 @@ class BasisGroup
 {
 public:
     typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;
-    typedef std::vector<const AnalyticIE<double>*> iev_t;
+    typedef std::vector<const IrrepIEClient*> iecv_t;
 
     BasisGroup();
     virtual ~BasisGroup();
@@ -174,7 +175,7 @@ public:
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}
-    iev_t   Flatten() const;
+    iecv_t   Flatten() const;
     
 //
 //  StreamableObject stuff.

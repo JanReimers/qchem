@@ -154,7 +154,7 @@ SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec
 }
 
 
-SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)
+SphericalGaussianIE1::SGparams::SGparams(const iecv_t& iev)
 {
     size_t N=0;
     for (auto ia: iev) N+=ia->size();
@@ -164,11 +164,11 @@ SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)
     index_t i=1;
     for (auto ia: iev)
     {
-        const SphericalGaussianIE1* sg=dynamic_cast<const SphericalGaussianIE1*>(ia);
+        const SphericalGaussianIEClient* sg=dynamic_cast<const SphericalGaussianIEClient*>(ia);
         assert(sg);
         for (auto i1:sg->es.indices())
         {
-            Ls(i)=sg->L;
+            Ls(i)=sg->Ls(i1);
             es(i)=sg->es(i1);
             ns(i)=sg->ns(i1);
             i++;
@@ -176,7 +176,7 @@ SphericalGaussianIE1::SGparams::SGparams(const iev_t& iev)
     }
 }
 
-SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iev_t& iev) const
+SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iecv_t& iev) const
 {
     SphericalGaussianIE1::SGparams sg(iev);
     size_t N=sg.size();

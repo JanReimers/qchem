@@ -61,11 +61,9 @@ template <class T> void HeapDB<T>::Insert(const ERI4& J, const ERI4& K)
 
 template <class T> bool HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
 {
-    if (!itsBasisSet || itsBasisSet->GetID()==0) return false;
     const HeapDB* hdb=dynamic_cast<const HeapDB*>(&idb);
-    if (!hdb) return false;
-    if (!hdb->itsBasisSet || hdb->itsBasisSet->GetID()==0) return false;
-    return itsBasisSet->GetID()==hdb->itsBasisSet->GetID();
+    return hdb;
+    
 }
 //-------------------------------------------------------------------------
 //
@@ -274,32 +272,28 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec
         return i->second;
 }
 
-template <class T> void HeapDB<T>::BuildERIs()
+template <class T> void HeapDB<T>::BuildERIs(iecv_t& abcd)
 {
     assert(itsAnalyticIE);
     assert(itsJTable.GetSize()==0);
     assert(itsKTable.GetSize()==0); //They should be synchronized.
-    auto [J,K]=itsAnalyticIE->Make4C(itsBasisGroup->Flatten());
+    auto [J,K]=itsAnalyticIE->Make4C(abcd);
     itsBasisGroup->Insert(J,K); //Eeach basis set has its own HeapDB.
 }
 
-template <class T> ERI4view HeapDB<T>::GetRepulsion4C(bs_t* bs_cd)
+template <class T> ERI4&  HeapDB<T>::GetRepulsion4C(iecv_t& abcd)
 {
-    assert(itsBasisSet);
-    assert(itsAnalyticIE);
-   if (itsJTable.GetSize()==0) BuildERIs(); 
-   assert(bs_cd);
-   int ss=bs_cd->GetStartIndex();
-   return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),ss);
+   if (itsJTable.GetSize()==0) BuildERIs(abcd); 
+   return itsJTable;
 }
 
-template <class T> ERI4view HeapDB<T>::GetExchange4C (bs_t* bs_cd)
+template <class T> ERI4&  HeapDB<T>::GetExchange4C (iecv_t& abcd)
 {
-   if (itsJTable.GetSize()==0) BuildERIs(); 
+   if (itsJTable.GetSize()==0) BuildERIs(abcd); 
    if (itsKTable.GetSize()==0)
-        return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+        return itsJTable;
     else
-        return ERI4view(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+        return itsKTable;
 }
 //-------------------------------------------------------------------------
 //

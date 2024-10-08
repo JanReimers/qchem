@@ -107,8 +107,8 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //        index_t ibf=1;
 //        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
         
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));    
         PolarizedGaussianIEClient::Init(bls);   
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));    
     }
 
     if (theMesh)  

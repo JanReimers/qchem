@@ -190,7 +190,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.C">
 			<Option compilerVar="CC" />
 		</Unit>
