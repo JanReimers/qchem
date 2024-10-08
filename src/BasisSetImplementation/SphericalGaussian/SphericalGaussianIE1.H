@@ -34,9 +34,8 @@ public:
     
         
     SphericalGaussianIE1() {};
-    SphericalGaussianIE1(size_t L, const RVec& alphas);
-
-    virtual size_t size() const {return es.size();}
+    
+    virtual size_t size() const {return -1;}
 
     virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
@@ -62,10 +61,7 @@ private:
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
 
-    int  L;  //Angular momentum.
-    RVec es; //The orbital exponents.
-    RVec ns; //Normalization constants
-   
+    
     static double FourPi2;
 };
 

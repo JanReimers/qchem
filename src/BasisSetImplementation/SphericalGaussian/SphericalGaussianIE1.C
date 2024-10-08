@@ -12,18 +12,6 @@
 
 double SphericalGaussianIE1::FourPi2=4*4*Pi*Pi;
 
-//-----------------------------------------------------------------
-//
-//  Construction zone.
-//
-SphericalGaussianIE1::SphericalGaussianIE1(size_t _L, const RVec& alphas)
-    : L(_L)
-    , es(alphas) //exponents
-    , ns(es.size())
-{
-    for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
-};
-
 
 //-----------------------------------------------------------------
 //
@@ -239,13 +227,12 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(iec_t* iea,const Cl
 
 SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeNormalization(iec_t* iea) const
 {
-    return ns;
-//    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-//    assert(a); 
-//    RVec n(a->size());
-//    for (auto i:a->es.indices())  n(i)=GaussianNorm(a->es(i),a->Ls(i))*a->ns(i);
-//    n=1.0/sqrt(n);
-//    return n;
+
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a); 
+    RVec n(a->size());
+    for (auto i:a->es.indices())  n(i)=GaussianNorm(a->es(i),a->Ls(i));
+    return n;
 }
 
 SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeCharge(iec_t* iea) const

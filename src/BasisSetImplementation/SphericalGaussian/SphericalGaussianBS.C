@@ -52,7 +52,7 @@ SphericalGaussianBS::SphericalGaussianBS(
 //    FillPower(exp,minexp,maxexp);
     for (auto e:es) 
         BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
-    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,es));  
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1());  
     if (theMesh)
     {
         assert(L==0); //Why???
