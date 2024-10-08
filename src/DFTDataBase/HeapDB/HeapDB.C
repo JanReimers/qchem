@@ -30,7 +30,7 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
 {
 }
 
-template <class T> void HeapDB<T>::Insert(const TIrrepBasisSet<T>* bs,const NumericalIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(bs_t* bs,const NumericalIE<T>* ie)
 {
     assert(bs);
     assert(ie);
@@ -38,7 +38,7 @@ template <class T> void HeapDB<T>::Insert(const TIrrepBasisSet<T>* bs,const Nume
     itsNumericalIE=ie;
 }
 
-template <class T> void HeapDB<T>::Insert(const TIrrepBasisSet<T>* bs,const AnalyticIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(bs_t* bs,const AnalyticIE<T>* ie)
 {
     assert(bs);
     assert(ie);
@@ -142,14 +142,14 @@ template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap()
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(const TIrrepBasisSet<T>& obs)
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(bs_t& a,bs_t& b)
 {
     // No UT coverage.
     assert(false);
     assert(itsNumericalIE);
-    id2cx_t key=std::make_tuple(qchem::Overlap2C,itsBasisSet->GetID(),obs.GetID());
+    id2cx_t key=std::make_tuple(qchem::Overlap2C,a.GetID(),b.GetID());
     if (auto i = its2Cx.find(key); i==its2Cx.end())
-        return its2Cx[key] = itsNumericalIE->MakeOverlap(obs);
+        return its2Cx[key] = itsNumericalIE->MakeOverlap(a,b);
     else
         return i->second;
         
@@ -188,7 +188,7 @@ template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const S
     return itsNumericalIE->MakeRepulsion(f);
 }
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(const TIrrepBasisSet<T>& obs)
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(bs_t& obs)
 {
     assert(itsAnalyticIE || itsNumericalIE);
     id2cx_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID(),obs.GetID());
@@ -230,7 +230,7 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(const TIrrepBasisSet<T>& obs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(bs_t& obs)
 {
     assert(itsAnalyticIE);
     id3c_t key=std::make_tuple(qchem::Overlap3C,itsBasisSet->GetID(),obs.GetID());
@@ -240,7 +240,7 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(const
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(const TIrrepBasisSet<T>& obs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(bs_t& obs)
 {
     assert(itsAnalyticIE);
     id3c_t key=std::make_tuple(qchem::Repulsion3C,itsBasisSet->GetID(),obs.GetID());
@@ -259,7 +259,7 @@ template <class T> void HeapDB<T>::BuildERIs()
     itsBasisGroup->Insert(J,K); //Eeach basis set has its own HeapDB.
 }
 
-template <class T> ERI4view HeapDB<T>::GetRepulsion4C(const TIrrepBasisSet<T>* bs_cd)
+template <class T> ERI4view HeapDB<T>::GetRepulsion4C(bs_t* bs_cd)
 {
     assert(itsBasisSet);
     assert(itsAnalyticIE);
@@ -269,7 +269,7 @@ template <class T> ERI4view HeapDB<T>::GetRepulsion4C(const TIrrepBasisSet<T>* b
    return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),ss);
 }
 
-template <class T> ERI4view HeapDB<T>::GetExchange4C (const TIrrepBasisSet<T>* bs_cd)
+template <class T> ERI4view HeapDB<T>::GetExchange4C (bs_t* bs_cd)
 {
    if (itsJTable.GetSize()==0) BuildERIs(); 
    if (itsKTable.GetSize()==0)

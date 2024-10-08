@@ -26,26 +26,27 @@ protected:
     typedef typename Base::SMat  SMat;
     typedef typename Base::ERI3 ERI3;
     typedef UniqueID::IDtype IDType;
+    typedef typename Base::bs_t bs_t;
 public:
 
     HeapDB();
-    virtual void  Insert(const TIrrepBasisSet<T>*,const NumericalIE<T>*);
-    virtual void  Insert(const TIrrepBasisSet<T>*,const AnalyticIE<T>*);
+    virtual void  Insert(bs_t*,const NumericalIE<T>*);
+    virtual void  Insert(bs_t*,const AnalyticIE<T>*);
     virtual void  Insert(const BasisGroup*);
     virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
     virtual const SMat&    GetOverlap    (                             );
-    virtual const Mat&     GetOverlap    (const TIrrepBasisSet<T>&          );
+    virtual const Mat&     GetOverlap    (bs_t&, bs_t&          );
     virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
-    virtual const ERI3&    GetOverlap3C  (const TIrrepBasisSet<T>&          );
+    virtual const ERI3&    GetOverlap3C  (bs_t&          );
 
     virtual const SMat&    GetRepulsion  (                             );
-    virtual const Mat&     GetRepulsion  (const TIrrepBasisSet<T>&          );
+    virtual const Mat&     GetRepulsion  (bs_t&          );
     virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
-    virtual const ERI3&    GetRepulsion3C(const TIrrepBasisSet<T>&          );
-    virtual       ERI4view GetRepulsion4C(const TIrrepBasisSet<T>* bs_cd    );
-    virtual       ERI4view GetExchange4C (const TIrrepBasisSet<T>* bs_cd    );
+    virtual const ERI3&    GetRepulsion3C(bs_t&          );
+    virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    );
+    virtual       ERI4view GetExchange4C (bs_t* bs_cd    );
 
     virtual const RVec&    GetNormalization (                );
     virtual const RVec&    GetCharge        (                );

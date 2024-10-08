@@ -17,21 +17,21 @@ template <class T> class NumericalIEImp
     typedef typename Base::Mat   Mat;
     typedef typename Base::RVec  RVec;
     typedef typename Base::SMat  SMat;
-
+    typedef typename Base::bs_t bs_t;
 public:
     NumericalIEImp(                  );
     NumericalIEImp(const NumericalIEImp&);
     NumericalIEImp(Mesh*             );
     ~NumericalIEImp(                  );
 
-    virtual void Insert(const TIrrepBasisSet<T>*);
+    virtual void Insert(bs_t*);
 
     virtual SMat MakeOverlap    (                             ) const;
-    virtual Mat  MakeOverlap    (const TIrrepBasisSet<T>&          ) const;
+    virtual Mat  MakeOverlap    (bs_t& a,bs_t& b          ) const;
     virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const;
 
     virtual SMat MakeRepulsion  (                             ) const;
-    virtual Mat  MakeRepulsion  (const TIrrepBasisSet<T>&          ) const;
+    virtual Mat  MakeRepulsion  (bs_t&          ) const;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const;
 
     virtual RVec MakeNormalization(                 ) const;
@@ -39,8 +39,8 @@ public:
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual SMat MakeKinetic  (                     ) const;
     virtual SMat MakeNuclear  (const Cluster&       ) const;
-    virtual void MakeOverlap3C  (ERI3&,const TIrrepBasisSet<T>&   ) const;
-    virtual void MakeRepulsion3C(ERI3&,const TIrrepBasisSet<T>&   ) const;
+    virtual void MakeOverlap3C  (ERI3&,bs_t&   ) const;
+    virtual void MakeRepulsion3C(ERI3&,bs_t&   ) const;
     virtual void MakeRepulsion4C(ERI4&,ERIList&,const BasisGroup*   ) const;
 #endif
 
@@ -63,11 +63,11 @@ private:
 
     
     void    CheckInitialized       () const;
-    const   RVec GetNumericalNormalization(const TIrrepBasisSet<T>&) const;
+    const   RVec GetNumericalNormalization(bs_t&) const;
     virtual SMat MakeOverlap  (const TBasisFunction<T>& ) const;
     virtual SMat MakeRepulsion(const TBasisFunction<T>& ) const;
 
-    IDRef<const TIrrepBasisSet<T> > itsBasisSet;       //Permenant hook into the basis set.
+    IDRef<bs_t > itsBasisSet;       //Permenant hook into the basis set.
     RVec                       itsNormalizations; //Normalization constants.
 
     Mesh*              itsMesh;

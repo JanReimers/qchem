@@ -30,10 +30,11 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
     typedef std::vector<SMat> ERI3;
+    typedef const TIrrepBasisSet<T> bs_t;
 
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(const TIrrepBasisSet<T>*, const NumericalIE<T>*)=0;
-    virtual void  Insert(const TIrrepBasisSet<T>*, const AnalyticIE<T>*)=0;
+    virtual void  Insert(bs_t*, const NumericalIE<T>*)=0;
+    virtual void  Insert(bs_t*, const AnalyticIE<T>*)=0;
     virtual void  Insert(const BasisGroup*)=0;
     virtual void  Insert(const ERI4& J,const ERI4& K)=0;
 
@@ -41,15 +42,15 @@ public:
 //
 //  Integrals that get calculated once and then cached.
 //
-    virtual const SMat&    GetOverlap    (                             ) =0;
-    virtual const Mat&     GetOverlap    (const TIrrepBasisSet<T>&          ) =0;
-    virtual const ERI3&    GetOverlap3C  (const TIrrepBasisSet<T>&          ) =0;
+    virtual const SMat&    GetOverlap    (              ) =0;
+    virtual const Mat&     GetOverlap    (bs_t&,bs_t&) =0;
+    virtual const ERI3&    GetOverlap3C  (bs_t&          ) =0;
 
     virtual const SMat&    GetRepulsion  (                             ) =0;
-    virtual const Mat&     GetRepulsion  (const TIrrepBasisSet<T>&          ) =0;
-    virtual const ERI3&    GetRepulsion3C(const TIrrepBasisSet<T>&          ) =0;
-    virtual       ERI4view GetRepulsion4C(const TIrrepBasisSet<T>* bs_cd    ) =0;
-    virtual       ERI4view GetExchange4C (const TIrrepBasisSet<T>* bs_cd    ) =0;
+    virtual const Mat&     GetRepulsion  (bs_t&          ) =0;
+    virtual const ERI3&    GetRepulsion3C(bs_t&          ) =0;
+    virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    ) =0;
+    virtual       ERI4view GetExchange4C (bs_t* bs_cd    ) =0;
 
     virtual const RVec&    GetNormalization(              )=0;
     virtual const RVec&    GetCharge       (              )=0;
