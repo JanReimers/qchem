@@ -126,15 +126,16 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* 
 //  3 Centre integrals.
 //
 
-PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(const IE* ie) const
+PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
 {
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    int Nc=other->size();
+    const PolarizedGaussianIEClient* c=dynamic_cast<const PolarizedGaussianIEClient*>(iec);
+    assert(c);
+    int Nc=c->size();
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
     {
-        SMat s=Integrate(RadialFunction::Overlap3C,other->radials[ic],other->pols[ic]);
-        s*=other->ns(ic+1);
+        SMat s=Integrate(RadialFunction::Overlap3C,ieab,c->radials[ic],c->pols[ic]);
+        s*=c->ns(ic+1);
         s3.push_back(s);
     } 
     return s3;   
@@ -195,6 +196,20 @@ PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iev_t& ies) const
 //
 //  Internal function for doing most of the double loops.
 //
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types3C type ,iec_t* ieab, const RadialFunction* rc, const Polarization& pc) const
+{
+    const PolarizedGaussianIEClient* ab=dynamic_cast<const PolarizedGaussianIEClient*>(ieab);;
+    assert(ab);
+    int N=ab->size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache);
+        
+    Normalize(s);
+    return s;    
+}
+
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types3C type , const RadialFunction* rc, const Polarization& pc) const
 {
     int N=size();
@@ -208,15 +223,15 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types
 }
 
 
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type ,iec_t* iea,  const Cluster* cl) const
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type ,iec_t* ieab,  const Cluster* cl) const
 {
-    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);;
-    assert(a);
-    int N=a->size();
+    const PolarizedGaussianIEClient* ab=dynamic_cast<const PolarizedGaussianIEClient*>(ieab);;
+    assert(ab);
+    int N=ab->size();
     SMat s(N);
     for (index_t ia=0;ia<N;ia++)
         for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=a->radials[ia]->Integrate(type,a->radials[ib],a->pols[ia],a->pols[ib],cache,cl);
+            s(ia+1,ib+1)=ab->radials[ia]->Integrate(type,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl);
 
     Normalize(s);
     return s;

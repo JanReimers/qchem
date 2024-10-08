@@ -47,7 +47,7 @@ public:
     virtual const SMat&    GetOverlap    (iec_t* a)=0; //Analytic
     virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b) =0; //Numerical only.
     
-    virtual const ERI3&    GetOverlap3C  (bs_t&          ) =0;
+    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c   ) =0; //<ab|c>
 
     //virtual const SMat&    GetRepulsion  (bs_t&  a   ) =0;
     virtual const SMat&    GetRepulsion  (iec_t* a   ) =0;

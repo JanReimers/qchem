@@ -129,7 +129,7 @@ GetOverlap  (const FittedFunction* ff) const
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     assert(!isnan(ffi->itsFitCoeff));
-    const ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const ERI3& overlap=GetDataBase()->GetOverlap3C(this,ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++)
     {
@@ -256,7 +256,7 @@ GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const typename TIrrepBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const typename TIrrepBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(this,ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,overlap[i]));
     return ret;

@@ -244,12 +244,12 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(bs_t& obs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(iec_t* ab,iec_t* c )
 {
     assert(itsAnalyticIE);
-    id3c_t key=std::make_tuple(qchem::Overlap3C,itsBasisSet->GetID(),obs.GetID());
+    id3c_t key=std::make_tuple(qchem::Overlap3C,ab->GetID(),c->GetID());
     if (auto i = its3C.find(key); i==its3C.end())
-        return its3C[key] = itsAnalyticIE->MakeOverlap3C(obs.GetAnalyticIE());
+        return its3C[key] = itsAnalyticIE->MakeOverlap3C(ab,c);
     else
         return i->second;
 }

@@ -146,7 +146,7 @@ template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, co
     assert(ffi);
     const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
     VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
-    auto mlist(itsCastedBasisSet->GetDataBase()->GetOverlap3C(*tfbs));
+    auto mlist(itsCastedBasisSet->GetDataBase()->GetOverlap3C(itsCastedBasisSet,tfbs));
 
     for(index_t i=0; bffi!=ffi->GetFitCoeff().end(); bffi++,i++) *bffi += Dot(itsDensityMatrix,mlist[i]);
 }

@@ -49,7 +49,7 @@ public:
     virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
 
-    virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
+    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
 
     virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
@@ -62,6 +62,8 @@ public:
     typedef std::tuple<int,double,double> bf_tuple;
     bf_tuple operator()(index_t i) const {return std::make_tuple(L,es(i),ns(i));}
 private:
+    SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
+
     SMat MakeOverlap  (const bf_tuple&) const;
     SMat MakeRepulsion(const bf_tuple&) const;
 

@@ -41,7 +41,7 @@ public:
     virtual   Mat MakeRepulsion(const IE*a,const IE*b) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const; //Used for charge and Vxc fitting.
 
-    virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
+    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
     
@@ -53,6 +53,8 @@ public:
 private:
     void Normalize(SMat&) const;
     SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
+    SMat Integrate(RadialFunction::Types3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
+
     SMat Integrate(RadialFunction::Types2C , const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types3C , const RadialFunction* rc, const Polarization& pc) const;
 

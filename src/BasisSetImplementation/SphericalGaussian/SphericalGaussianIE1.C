@@ -51,26 +51,28 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* iea ) const
 }
 
 
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(const bf_tuple& bf) const
+SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
 {    
-    size_t N=size();
-    int Lo;
-    double eo,no;
-    std::tie(Lo,eo,no)=bf;
+    const SphericalGaussianIEClient* ab=dynamic_cast<const SphericalGaussianIEClient*>(ieab);;
+    assert(ab);
+    size_t N=ab->size();
+    int Lc;
+    double ec,nc;
+    std::tie(Lc,ec,nc)=c;
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=GaussianIntegral(es(i)+es(j)+eo,2*L+Lo)*ns(i)*ns(j)*no;
+            s(i,j)=GaussianIntegral(ab->es(i)+ab->es(j)+ec,ab->Ls(i)+ab->Ls(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
     return s;
 }
 
-SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(const IE* ie) const
+SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
 {
-    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
-    assert(other);
+    const SphericalGaussianIEClient* c=dynamic_cast<const SphericalGaussianIEClient*>(iec);;
+    assert(c);
 
     ERI3 s3;
-    for (auto i:other->es.indices()) s3.push_back(MakeOverlap((*other)(i)));
+    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
     return s3;
 }
 
