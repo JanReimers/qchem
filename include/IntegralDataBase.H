@@ -8,6 +8,12 @@
 #include "Misc/Persistent/Persistent.H"
 #include "Misc/ERI4.H"
 
+namespace qchem
+{
+    // Integral types.
+    enum IType3C {Overlap3C, Repulsion3C}; // <ab|c> and <ar|1/r12|c>
+    enum IType2C {Overlap2C, Repulsion2C,Kinetic,Nuclear, InvOverlap, InvRepulsion};
+}
 //-----------------------------------------------------------------------------
 //
 //  Once supplied with an integral engine, this class manages storage

@@ -3,13 +3,10 @@
 
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
-//#include "QuantumNumber.H"
 #include "BasisSet.H"
 #include "Cluster.H"
 #include "NumericalIE.H"
 #include "AnalyticIE.H"
-//#include "Misc/ERIList.H"
-//#include "Misc/ERIProxy.H"
 #include "oml/vector.h"
 #include "Misc/stl_io.h"
 #include <iostream>
@@ -33,7 +30,7 @@ template <class T> HeapDB<T>::HeapDB()
     ,itsInvRepulsionFlag  (false)
     ,itsBSOverlaps        ()
     ,itsBSRepulsions      ()
-    ,itsNuclears          ()
+//    ,itsNuclears          ()
     ,its3CenterOverlaps   ()
     ,its3CenterRepulsions ()
     ,itsOverlapBasisSets  (0)
@@ -66,13 +63,13 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
     itsInvOverlapFlag   =false;
     itsInvRepulsionFlag =false;
 
-    itsNuclears         .clear();
+//    itsNuclears         .clear();
     its3CenterOverlaps  .clear();
     its3CenterRepulsions.clear();
 
     itsOverlapBasisSets  =0;
     itsRepulsionBasisSets=0;
-    itsNuclearClusters   .clear();
+//    itsNuclearClusters   .clear();
 
     its3CenterOverlapBS  =0;
     its3CenterRepulsionBS=0;
@@ -100,12 +97,6 @@ template <class T> void HeapDB<T>::Insert(const BasisGroup* bg)
     assert(bg);
     itsBasisGroup=bg;
 }
-
-//template <class T> void HeapDB<T>::Insert(const ERIList& Coulomb, const ERIList& exchange)
-//{
-//    its4CenterRepulsions=Coulomb;
-//    its4CenterExchange=exchange;
-//}
 
 
 template <class T> void HeapDB<T>::Insert(const ERI4& J, const ERI4& K)
@@ -169,13 +160,12 @@ template <class T> std::ostream& HeapDB<T>::Write(std::ostream& os) const
 //
 //  Write all the big list of matricies.
 //
-    os << itsNuclears
-    << its3CenterOverlaps
+    os << its3CenterOverlaps
     << its3CenterRepulsions
     //<< its4CenterRepulsions
     ;
 
-    os << itsNuclearClusters;
+//    os << itsNuclearClusters;
 
     if (Binary())
     {
@@ -228,13 +218,12 @@ template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
 //
 //  Read all the big list of matricies.
 //
-    is >> itsNuclears
-    >> its3CenterOverlaps
+    is >> its3CenterOverlaps
     >> its3CenterRepulsions
     ;
 
 
-    is >> itsNuclearClusters         ;
+   
 
     if (Binary())
     {
@@ -270,20 +259,17 @@ template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
 
 //---------------------------------------------------------------------------------
 //
-//  Calculate some matricies for which no lists need to be maintained.
+//  If possible return cached integral tables.  Calculate using integral engine only if required.
+//  In some cases the numerical IE takes priority.
 //
 template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap()
 {
     assert(itsAnalyticIE || itsNumericalIE);
-    if(!itsSelfOverlapFlag)
-    {
-        if (itsNumericalIE)
-            itsSelfOverlap=itsNumericalIE->MakeOverlap();
-        else
-            itsSelfOverlap=itsAnalyticIE->MakeOverlap();
-        itsSelfOverlapFlag=true;
-    }
-    return itsSelfOverlap;
+    id2c_t key=std::make_tuple(qchem::Overlap2C,itsBasisSet->GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsNumericalIE ? itsNumericalIE->MakeOverlap() : itsAnalyticIE->MakeOverlap();
+    else
+        return i->second;
 }
 
 template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(const TBasisSet<T>& theBasisSet)
@@ -313,15 +299,11 @@ template <class T> const typename HeapDB<T>::Vec& HeapDB<T>::GetOverlap(const Sc
 template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion()
 {
     assert(itsAnalyticIE || itsNumericalIE);
-    if(!itsSelfRepulsionFlag)
-    {
-        if (itsNumericalIE)
-            itsSelfRepulsion=itsNumericalIE->MakeRepulsion();
-        else
-            itsSelfRepulsion=itsAnalyticIE->MakeRepulsion();
-        itsSelfRepulsionFlag=true;
-    }
-    return itsSelfRepulsion;
+    id2c_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsNumericalIE ? itsNumericalIE->MakeRepulsion() : itsAnalyticIE->MakeRepulsion();
+    else
+        return i->second;
 }
 
 template <class T> const typename HeapDB<T>::Vec& HeapDB<T>::GetRepulsion(const ScalarFunction<double>& f)
@@ -332,30 +314,26 @@ template <class T> const typename HeapDB<T>::Vec& HeapDB<T>::GetRepulsion(const 
     return itsRSFRepulsion;
 }
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(const TBasisSet<T>& theBasisSet)
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(const TBasisSet<T>& obs)
 {
     assert(itsAnalyticIE || itsNumericalIE);
-    if (itsRepulsionBasisSets!=theBasisSet.GetID())
-    {
-        if (itsNumericalIE)
-            itsBSRepulsions = itsNumericalIE->MakeRepulsion(theBasisSet);
-        else
-            itsBSRepulsions = itsAnalyticIE->MakeRepulsion(theBasisSet.GetAnalyticIE());
-        
-        itsRepulsionBasisSets = theBasisSet.GetID();
-    }
-    return itsBSRepulsions;
+    id2cx_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID(),obs.GetID());
+    if (auto i = its2Cx.find(key); i==its2Cx.end())
+        return its2Cx[key] = (itsNumericalIE 
+            ? itsNumericalIE->MakeRepulsion(obs) 
+            :  itsAnalyticIE->MakeRepulsion(obs.GetAnalyticIE()));
+    else
+        return i->second;
 }
 
 template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic()
 {
     assert(itsAnalyticIE);
-    if(!itsSelfKineticFlag)
-    {
-        itsSelfKinetic=itsAnalyticIE->MakeKinetic();
-        itsSelfKineticFlag=true;
-    }
-    return itsSelfKinetic;
+    id2c_t key=std::make_tuple(qchem::Kinetic,itsBasisSet->GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsAnalyticIE->MakeKinetic();
+    else
+        return i->second;
 }
 
 template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNormalization()
@@ -384,26 +362,24 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
     return itsCharge;
 }
 
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(const TBasisSet<T>& bs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(const TBasisSet<T>& obs)
 {
     assert(itsAnalyticIE);
-    if (its3CenterOverlapBS!=bs.GetID())
-    {
-        itsAnalyticIE->MakeOverlap3C(its3CenterOverlaps,bs.GetAnalyticIE());
-        its3CenterOverlapBS=bs.GetID();
-    }
-    return its3CenterOverlaps;
+    id3c_t key=std::make_tuple(qchem::Overlap3C,itsBasisSet->GetID(),obs.GetID());
+    if (auto i = its3C.find(key); i==its3C.end())
+        return its3C[key] = itsAnalyticIE->MakeOverlap3C(obs.GetAnalyticIE());
+    else
+        return i->second;
 }
 
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(const TBasisSet<T>& bs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(const TBasisSet<T>& obs)
 {
     assert(itsAnalyticIE);
-    if (its3CenterRepulsionBS!=bs.GetID())
-    {
-        itsAnalyticIE->MakeRepulsion3C(its3CenterRepulsions,bs.GetAnalyticIE());
-        its3CenterRepulsionBS=bs.GetID();
-    }
-    return its3CenterRepulsions;
+    id3c_t key=std::make_tuple(qchem::Repulsion3C,itsBasisSet->GetID(),obs.GetID());
+    if (auto i = its3C.find(key); i==its3C.end())
+        return its3C[key] = itsAnalyticIE->MakeRepulsion3C(obs.GetAnalyticIE());
+    else
+        return i->second;
 }
 
 template <class T> void HeapDB<T>::BuildERIs()
@@ -439,26 +415,35 @@ template <class T> ERI4view HeapDB<T>::GetExchange4C (const TBasisSet<T>* bs_cd)
 //  already known.
 //
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(const Cluster& theCluster)
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(const Cluster& cl)
 {
     assert(itsAnalyticIE);
-//    std::cout << theCluster.GetID() << std::endl;
-//    std::cout << "itsNuclearClusters.size()=" << itsNuclearClusters.size() << std::endl;
-    unsigned int index=itsNuclearClusters.size();
-    if (index>0)
-    {
-        auto i=std::find(itsNuclearClusters.begin(),itsNuclearClusters.end(),theCluster.GetID());
-        if (i!=itsNuclearClusters.end()) index=i-itsNuclearClusters.begin();
-    }
-//    std::cout << "HeapDB<T>::GetNuclear index=" << index <<  std::endl;
-    if (index == itsNuclearClusters.size())
-    {
-//        std::cout << "Creating cluster index=" << index << " ID=" << theCluster.GetID() << std::endl;
-        itsNuclears.push_back(itsAnalyticIE->MakeNuclear(theCluster));
-        itsNuclearClusters.push_back(theCluster.GetID());
-    }
-    return itsNuclears[index];
-}
+    id2cx_t key=std::make_tuple(qchem::Nuclear,itsBasisSet->GetID(),cl.GetID());
+    if (auto i = its2CNuc.find(key); i==its2CNuc.end())
+        return its2CNuc[key] =itsAnalyticIE->MakeNuclear(cl);
+    else
+        return i->second;
+}   
+//        
+//    assert(itsAnalyticIE);
+////    std::cout << theCluster.GetID() << std::endl;
+////    std::cout << "itsNuclearClusters.size()=" << itsNuclearClusters.size() << std::endl;
+//    unsigned int index=itsNuclearClusters.size();
+//    if (index>0)
+//    {
+//        auto i=std::find(itsNuclearClusters.begin(),itsNuclearClusters.end(),theCluster.GetID());
+//        if (i!=itsNuclearClusters.end()) index=i-itsNuclearClusters.begin();
+//    }
+////    std::cout << "HeapDB<T>::GetNuclear index=" << index <<  std::endl;
+//    if (index == itsNuclearClusters.size())
+//    {
+////        std::cout << "Creating cluster index=" << index << " ID=" << theCluster.GetID() << std::endl;
+//        itsNuclears.push_back(itsAnalyticIE->MakeNuclear(theCluster));
+//        itsNuclearClusters.push_back(theCluster.GetID());
+//    }
+//    return itsNuclears[index];
+//}
+
 
 
 template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap()

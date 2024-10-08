@@ -8,6 +8,7 @@
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/ERI4.H"
 #include "Misc/rc_ptr.H"
+#include <map>
 
 //-----------------------------------------------------------------------------
 //
@@ -24,6 +25,7 @@ protected:
     typedef typename Base::RVec  RVec;
     typedef typename Base::SMat  SMat;
     typedef typename Base::ERI3 ERI3;
+    typedef UniqueID::IDtype IDType;
 public:
 
     HeapDB();
@@ -94,19 +96,29 @@ private:
 
     Mat     itsBSOverlaps  ;       //Cross overlap with one other basis set.
     Mat     itsBSRepulsions;       //Cross repulsion with one other basis set.
-    ERI3   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
+    //ERI3   itsNuclears    ;       //Nuclear attraction with a cluster of atoms.
     ERI3   its3CenterOverlaps;    //Overlap   with a whole basis set.  Only one basis is buffered.
     ERI3   its3CenterRepulsions;  //Repulsion with a whole basis set.  Only one basis is buffered.
 
     UniqueID::IDtype itsOverlapBasisSets;      //Basis set for which cross overlap has been calculated.
     UniqueID::IDtype itsRepulsionBasisSets;    //Basis set for which cross repulsion has been calculated.
-    IDList           itsNuclearClusters;       //List of clusters for which nuclear attractions have been calculated.
+//    IDList           itsNuclearClusters;       //List of clusters for which nuclear attractions have been calculated.
     UniqueID::IDtype its3CenterOverlapBS;      //Basis set for which 3 center overlap has been calculated.
     UniqueID::IDtype its3CenterRepulsionBS;    //Basis set for which 3 center repulsion has been calculated.
 
+    
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.
+    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t; //Cross basis set integrals.
+    std::map<id2c_t ,Vec> itsV; //Norm, Charge Overlap(function)
+    std::map<id2cx_t ,Vec> itsVx; //Norm, Charge Overlap(function)
+    std::map<id2c_t ,SMat> its2C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
+    std::map<id2cx_t,SMat> its2CNuc; //Nuclear IDed by cluster
+    std::map<id2cx_t, Mat> its2Cx; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
+    std::map<id3c_t ,ERI3> its3C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     ERI4 itsJTable; //Coulomb integrals.
     ERI4 itsKTable; //Exchange integrals.
-//    std::map<
+    
 };
 
 #endif

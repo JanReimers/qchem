@@ -133,8 +133,7 @@ public:
 
     virtual IntegralDataBase<T>* GetDataBase() const=0;
     virtual AnalyticIE <T>* GetAnalyticIE() const=0;
-    //virtual LASolver<T>*         GetLASolver() const=0;
-   
+    
     const_iterator beginT() const {return const_iterator(begin());};
 };
 

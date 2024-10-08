@@ -61,6 +61,16 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(const bf_tuple& bf)
     return s;
 }
 
+SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(const IE* ie) const
+{
+    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
+    assert(other);
+
+    ERI3 s3;
+    for (auto i:other->es.indices()) s3.push_back(MakeOverlap((*other)(i)));
+    return s3;
+}
+
 void SphericalGaussianIE1::MakeOverlap3C(ERI3& mlist, const IE* ie) const
 {
     const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
@@ -118,6 +128,16 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(const bf_tuple& b
     return s;
 }
 
+
+SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeRepulsion3C(const IE* ie) const
+{
+    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
+    assert(other);
+
+    ERI3 s3;
+    for (auto i:other->es.indices()) s3.push_back(MakeRepulsion((*other)(i)));
+    return s3;
+}
 
 void SphericalGaussianIE1::MakeRepulsion3C(ERI3& mlist, const IE* ie) const
 {

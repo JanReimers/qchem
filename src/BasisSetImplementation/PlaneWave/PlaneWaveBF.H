@@ -19,6 +19,7 @@ public:
     virtual double GetNormalization() const;
     virtual double GetCharge       () const; //Zero, unless G=0.
 
+    
     virtual std::ostream&       Write(std::ostream&   ) const;
     virtual std::istream&       Read (std::istream&   )      ;
     virtual BasisFunction* Clone(           ) const;
