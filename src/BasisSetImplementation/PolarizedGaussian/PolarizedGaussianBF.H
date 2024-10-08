@@ -15,6 +15,7 @@ class PolarizedGaussianBF
 public:
     PolarizedGaussianBF(                                          );
     PolarizedGaussianBF(const RadialFunction*, const Polarization&);
+    virtual void Init(double norm, double charge); //Use an integral engine to calculate normalization and charge constants.
 
     virtual bool   operator==(const BasisFunction&) const;
     virtual double GetNormalization() const;
@@ -38,6 +39,7 @@ private:
     const RadialFunction*  itsRadial;
     Polarization           itsPol;
     double                 itsNormalization;
+    double                 itsCharge;
 };
 
 #endif //_PolarizedGaussianBF_H_

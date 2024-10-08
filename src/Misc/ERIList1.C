@@ -1,47 +1,55 @@
-#include "ERIList.H"
-#include "Misc/stl_io.h"
+#include "ERI4.H"
 
-ERIList::ERIList(int n)
+ERI4::ERI4(int n)
     : itsN()
     , itsData()
 {
     SetSize(n);
 };
+ERI4::ERI4(int n,double _fill)
+    : itsN()
+    , itsData()
+{
+    SetSize(n,_fill);
+};
 
-ERIList::ERIList()
+ERI4::ERI4()
     : itsN(0)
     , itsData()
 {};
 
-ERIList::~ERIList()
+ERI4::~ERI4()
 {
+    
 }
 
 //Clear out all data.
-void ERIList::Empty()
+void ERI4::Empty()
 {
-    itsData.clear();
+    itsData.SetLimits(0);
     itsN=0;
 }
 
-void ERIList::SetSize(int n)
+void ERI4::SetSize(int n,double _fill)
 {
     itsN=n;
-    itsData.resize(GetIndex(n,n,n,n,n)+1,0);
+    itsData.SetLimits(0,GetIndex(n,n,n,n,n),false);
+    Fill(itsData,_fill);
+//    for (index_t i=0;i<itsData.size();i++) itsData[i]=_fill;
 }
 
-std::ostream&    ERIList::Write(std::ostream& os) const
+std::ostream&    ERI4::Write(std::ostream& os) const
 {
     return os << itsN << " " << itsData << std::endl;
 }
 
-std::istream&    ERIList::Read (std::istream& is)
+std::istream&    ERI4::Read (std::istream& is)
 {
     return is >> itsN >> itsData;
 }
 
 #include <iomanip>
-void ERIList::Dump(std::ostream& os) const
+void ERI4::Dump(std::ostream& os) const
 {
     os.precision(4);
     for (int ia=1; ia<=itsN; ia++)
@@ -57,7 +65,7 @@ void ERIList::Dump(std::ostream& os) const
         }
 }
 
-void ERIList::DumpExchange(std::ostream& os) const
+void ERI4::DumpExchange(std::ostream& os) const
 {
     os.precision(4);
     for (int ia=1; ia<=itsN; ia++)

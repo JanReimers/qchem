@@ -28,6 +28,16 @@ PlaneWaveBF::PlaneWaveBF(const RVec3& G, double Volume)
     , itsNormalization(1/sqrt(Volume))
 {};
 
+void PlaneWaveBF::Init(double norm, double charge)
+{
+    assert(!std::isnan(norm));
+    assert(norm>0);
+    assert(charge>0);
+
+    itsNormalization=norm;
+    itsCharge=charge;
+}
+
 bool PlaneWaveBF::operator==(const BasisFunction& bf) const
 {
     const PlaneWaveBF* pgbf = dynamic_cast<const PlaneWaveBF*>(&bf);

@@ -14,7 +14,8 @@
 RNLM::RNLM() : itsData() {};
 
 RNLM::RNLM(int Max, double Alpha, const RVec3& dR)
-    : itsData()
+    : itsLMax(Max)
+    , itsData()
 {
     static Triangle theRjs[MAX+1];
     static bool     theRjsInitialized = false;

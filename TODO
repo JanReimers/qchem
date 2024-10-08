@@ -1,9 +1,23 @@
 Priority 1:
+    -BasisGroup is not an interface.
+    -BasisGroup needs a dynamic cast iterator.
+    -BasisSet should really be IrrepBasisSet, and BasisGroup should really be BasisSet.
+    -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
+    -HeapDB needs to be for whole basis set not just one irep.
+    -Make sure BasisSet->DB->IE is enforced
+        This means it takes a BasisSet argument for every call.
+    -Clean up all the insert nonsense for DB, IE and BS
+    -Cache reports
+    -Stop caching RNLM inside GaussianCD
+    -CDcache into its own source files.
+    -Do we need to store both J and K,  PolG just stores one ERI4.
+    -Fix valgrind errors
+    -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
+
+
+
     -kT Occ smearing fails miserably.
-    Done: -DFT stop using InverseOverlap ... use SVD solver or something more stable.
-        Done: HeapDB is doing the inversion.  It has no business doing this.  Should be 
-        moved to IE.  But HeapDB caches the overlap.
-    -LAParams for InverseOverlap ar hard coded right now.  Need to re-org all basis set
+    -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
      constructors with 3 versions
         1) HF orbitals needs LAPArams for secular eq.
         2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.
@@ -19,7 +33,7 @@ Priority 2:
         -Move stream up from imp.
     -Persistent base doesn't do anything.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-
+        
     
 Priority 3:
     -Support V*S without including matrix.h
@@ -33,18 +47,8 @@ Priority 3:
         AngularMeshBrowser 
         RadialMeshBrowser 
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
-    -Do we need indices support optr_vector1<> ?
     -If N_nucleus=1 (atom) leave out Vnn term.
     -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
-    -It seems we need a separate HeapDN for each basis set.  Make something more general
-        enum type={Kinetic,Nuclear,Charge,Normalization,Overlap2C,Repulsion2C,Repulsion3C,Repulsion4C,Exchange4C,InversOverlap2C,InverseOverlap2C};
-        map<{BasisID1,BasisID2,type},SMat>
-        map<{BasisID1,BasisID2,type},Mat>
-        map<{BasisID1,BasisID2,type},Vec>
-        map<{BasisID1,BasisID2,type},ERI3>
-        map<{BasisID1,BasisID2,type},ERI4>
-        BasisID2=0 for one BS integrals.
-        Handle swaps of BS 1 and 2?
     -Support SMatrix for Lapack solvers.
         Lapack uses the extra space in the full matrix as working space.
         So we end up converting to full anyway.  THis is just a convenience for the user.
@@ -63,26 +67,40 @@ Priority 3:
     -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.
     -Organize headers in the include folder.
-    -Reorg:  Do this on a branch!!!
-        -Break dependence of IntegralEngine on BasisSet.
-            -For SG, IE gets a table of {alpha,L}
-            -For PG, IE gets a table of {alpha,[l,m,n]}
-            -For PCG , IE gets a table of {[alpha],[l,m,n]}
-            -These can be prided by an IEEngineClient base interface?  Template params for
-             alpha vs [alpha] and L or [l,m,n]
-        -Create Integrals folders for headers and code.
-        -
     
+            
+            -These can be prided by an IEEngineClient base interface?  
+        -Create Integrals folders for headers and code.
+        
     -QuantumNumber.C 
-    -Instancing in one file: 
-        IntegralEngine.C
-        IntegralDataBase.C
         
     -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
-        BasisGroup is not an interface.
     -Set up a CMake build.  Run from vscode.
     
-    
+    Done: -Integral engine needs a different interface for analytic and numerical.
+    Done: -Do we need indices support optr_vector1<> ?
+    Done: -It seems we need a separate HeapDN for each basis set.  Make something more general
+        enum type={Kinetic,Nuclear,Charge,Normalization,Overlap2C,Repulsion2C,Repulsion3C,Repulsion4C,Exchange4C,InversOverlap2C,InverseOverlap2C};
+        map<{BasisID1,BasisID2,type},SMat>
+        map<{BasisID1,BasisID2,type},Mat>
+        map<{BasisID1,BasisID2,type},Vec>
+        map<{BasisID1,BasisID2,type},ERI3>
+        map<{BasisID1,BasisID2,type},ERI4>
+        BasisID2=0 for one BS integrals.
+        Handle swaps of BS 1 and 2?
+    Done: -Reorg:  Do this on a branch!!!
+        -Break dependence of IntegralEngine on BasisSet.
+            Done: -For SG, IE gets a table of {alpha,L}
+            -For PG, IE gets a table of {alpha,[l,m,n]}
+            -For PCG , IE gets a table of {[alpha],[l,m,n]}
+                -cache Charge distributions
+                -cache RNML tables
+    Done: -Instancing in one file: 
+        IntegralEngine.C
+        IntegralDataBase.C
+    Done: -DFT stop using InverseOverlap ... use SVD solver or something more stable.
+        Done: HeapDB is doing the inversion.  It has no business doing this.  Should be 
+        moved to IE.  But HeapDB caches the overlap.
     Done: -Support std::vector std:;set streaming
     Done: -Migrate from OML Array<T> to std::vector<T>
     Done: -Migrate from OML List<T> to std::vector<T>,set<T>

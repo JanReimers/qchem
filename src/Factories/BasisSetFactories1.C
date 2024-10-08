@@ -13,7 +13,7 @@
 //  class and makes a new object using the default constructor.
 //
 
-template <class T> IntegralEngine<T>* IntegralEngine<T>::Factory(std::istream& is)
+template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;
@@ -23,5 +23,5 @@ template <class T> IntegralEngine<T>* IntegralEngine<T>::Factory(std::istream& i
     return NULL;
 }
 
-template IntegralEngine<std::complex<double> >* IntegralEngine<std::complex<double> >::Factory(std::istream& is);
+template AnalyticIE<std::complex<double> >* AnalyticIE<std::complex<double> >::Factory(std::istream& is);
 

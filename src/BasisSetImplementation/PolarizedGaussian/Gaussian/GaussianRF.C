@@ -7,18 +7,85 @@
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianH3.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "Misc/Polarization.H"
-#include "Misc/ERIList.H"
 #include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
 #include "BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H"
 #include "Cluster.H"
 #include "Mesh/MeshBrowser.H"
 #include "oml/imp/binio.h"
+#include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 #include <stdlib.h>
 
+CDcache::CDcache() : CDlookups(0), RNLMlookups(0) {};
+
+CDcache::~CDcache()
+{
+    for (auto c:cache) delete c.second;
+}
+
+void CDcache::Report(std::ostream& os) const
+{
+    for (auto c:cache) c.second->Report(os);
+    double eff=(100.0*CDlookups)/(size()+CDlookups-1);
+    os << "Charge Distributions cache N=" << size() << " lookups=" << CDlookups << " efficiencty=" << eff << "%" << std::endl;
+}
+
+CDcache::ids_t CDcache::Sort(UniqueID::IDtype i1,UniqueID::IDtype i2)
+{
+    return i1<=i2 ? std::make_pair(i1,i2) : std::make_pair(i2,i1);
+}
+
+const GaussianCD& CDcache::find(const GaussianRF* a,const GaussianRF* b)
+{
+    assert(a);
+    assert(b);
+    ids_t key=std::make_pair(a->GetID(),b->GetID());
+//    ids_t key=Sort(a->GetID(),b->GetID());
+    auto i=cache.find(key);
+    if (i==cache.end())
+    {
+        cache[key]=new GaussianCD(*a,*b);
+        i=cache.find(key);
+    }
+    CDlookups++;
+    return *(i->second);
+}
+
+const RNLM& CDcache::find(const GaussianCD& ab,const GaussianRF* c)
+{
+    ids_t key=std::make_pair(ab.GetID(),c->GetID());
+//    ids_t key=Sort(a->GetID(),b->GetID());
+    auto i=RNLMcache.find(key);
+    if (i==RNLMcache.end())
+    {
+        double alpha =ab.AlphaP*c->itsExponent/(ab.AlphaP+c->itsExponent);
+        RNLMcache[key]=new RNLM(ab.Ltotal+c->GetL(),alpha,ab.P-c->GetCenter());
+        i=RNLMcache.find(key);
+    }
+    RNLMlookups++;
+    return *(i->second);
+ 
+}
+
+const RNLM& CDcache::find(const GaussianCD& ab,const GaussianCD& cd)
+{
+    ids_t key=std::make_pair(ab.GetID(),cd.GetID());
+//    ids_t key=Sort(a->GetID(),b->GetID());
+    auto i=RNLMcache.find(key);
+    if (i==RNLMcache.end())
+    {
+        double alpha=ab.AlphaP*cd.AlphaP/(ab.AlphaP+cd.AlphaP); //M&D 3.32
+        RVec3 PQ = ab.P-cd.P; //M&D 3.32
+        RNLMcache[key]=new RNLM(ab.Ltotal+cd.Ltotal,alpha,PQ);
+        i=RNLMcache.find(key);
+    }
+    RNLMlookups++;
+    return *(i->second);
+ 
+}
 //#######################################################################
 //
 //   Gaussian radial function implementation
@@ -59,266 +126,249 @@ bool GaussianRF::operator==(const RadialFunction& rf) const
     return ret;
 }
 
-//---------------------------------------------------------------------------------------
-//
-//  Do 3 center contractions
-//
-
-void GaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, SMat& ret, const Cluster* cl, double scale) const
+double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl) const
 {
-    p.radials.push_back(this);
-    switch (p.radials.itsIndex)
-    {
-    case 0:
-        p.b->itsRadial->Get2CenterIntegrals(type,p,ret,cl,scale);
-        break;
-    case 1:
-        switch (type)
-        {
-        case Overlap2C:
-            GetOverlap2CInternal(p,ret,scale);
-            break;
-        case Repulsion2C:
-            GetRepulsion2CInternal(p,ret,scale);
-            break;
-        case Kinetic:
-            GetKinetic2CInternal(p,ret,scale);
-            break;
-        case Nuclear:
-            GetNuclear2CInternal(p,ret,cl,scale);
-            break;
-        }
-        break;
-    default:
-        std::cerr << "GaussianRF::Get2CenterIntegrals Unhandeled index: " << p.radials.itsIndex << std::endl;
-        assert(false);
-        exit(-1);
-    }
-    p.radials.pop_back();
-}
+    double s=0.0;
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb)
+        return rb->Integrate(type,this,pb,pa,cache,cl); 
 
-void GaussianRF::Get2CenterIntegrals(Types2C type, BFBP& p, Mat& ret, double scale) const
-{
-    p.radials.push_back(this);
-    switch (p.radials.itsIndex)
+    Polarization zero(0,0,0);
+    const GaussianCD& ab=cache.find(this,gb);
+    switch (type)
     {
-    case 0:
-        p.b->itsRadial->Get2CenterIntegrals(type,p,ret,scale);
-        break;
-    case 1:
-        switch (type)
-        {
-        case Overlap2C:
-            GetOverlap2CInternal(p,ret,scale);
+        case Overlap2C :
+            s=pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
             break;
-        case Repulsion2C:
-            GetRepulsion2CInternal(p,ret,scale);
+        case Repulsion2C :
+            {
+                auto NLMs=GaussianCD::GetNMLs(this->GetL());
+                RVec Rs=ab.GetRNLMs(pb,gb->GetH1());
+                int nNLM=1;
+                for (auto bNLM:NLMs)
+                {
+                    if (bNLM.n <= pa.n && bNLM.l <= pa.l && bNLM.m <= pa.m)
+                    {
+                        double h=this->GetH1()(bNLM,pa);
+                        if (h!=0.0) s += 2*h*Pi52 * Rs(nNLM);
+                    }
+                    nNLM++;
+                }
+            }            
             break;
-        default:
-            assert(false);
+        case Kinetic :
+            {
+                double factor=0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
+                double h = GetKinetic(pa,pb,ab);
+                if (h!=0) s=factor*h;
+                break;
+            }
+        case Nuclear :
+            {
+                assert(cl);
+                RNLM R; //Create and empty aux function.
+                //  Loop over nuclear centres and add the RNML contribution from each nucleus.
+                for (auto atom:*cl) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
+
+                auto NLMs=GaussianCD::GetNMLs(ab.Ltotal);
+                const Polarization Pab = pa + pb;
+                for (auto bNLM:NLMs)
+                    if (!(bNLM > Pab))
+                    {
+                        double h = ab.H2(bNLM,pa,pb);
+                        if(h!=0) s+=h*R(bNLM);
+                    }
+                s*=2*Pi/ab.AlphaP*ab.Eij;
+            }
             break;
-        }
-        break;
-    default:
-        std::cerr << "GaussianRF::Get2CenterIntegrals Unhandeled index: " << p.radials.itsIndex << std::endl;
-        assert(false);
-        exit(-1);
-    }
-    p.radials.pop_back();
+    } //switch
+  
+    return s;
 }
 
 //---------------------------------------------------------------------------------------
 //
 //  Do 3 center contractions
 //
-
-void GaussianRF::Get3CenterIntegrals(Types3C type, BFBT& t, std::vector<SMat >& ret, double scale)
+//  this is the c center. <ab|c>
+double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache) const
 {
-    t.radials.push_back(this);
-    switch (t.radials.itsIndex)
-    {
-    case 0:
-        t.b->itsRadial->Get3CenterIntegrals(type,t,ret,scale);
-        break;
-    case 1:
-        t.c->itsRadial->Get3CenterIntegrals(type,t,ret,scale);
-        break;
-    case 2:
-        switch (type)
-        {
-        case Overlap3C:
-            GetOverlap3CInternal(t,ret,scale);
-            break;
-        case Repulsion3C:
-            GetRepulsion3CInternal(t,ret,scale);
-            break;
-        }
-        break;
-    default:
-        std::cerr << "GaussianRF::GetRepulsion3C Unhandeled index: " << t.radials.itsIndex << std::endl;
-        assert(false);
-        exit(-1);
-    }
-    t.radials.pop_back();
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(type,rb,pb,pa,pc,cache,this);
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb) 
+        return rb->Integrate(type,ra,pa,pb,pc,cache,this);
+    return Integrate3C(type,ga,gb,pa,pb,pc,cache,this);
 }
 
-void GaussianRF::GetRepulsion4C(BFBQ& q, ERIList& eris, double scale)
+//this = rb
+double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache,const RadialFunction* rc) const
 {
-    q.radials.push_back(this);
-    switch (q.radials.itsIndex)
-    {
-    case 0:
-        q.b->itsRadial->GetRepulsion4C(q,eris,scale);
-        break;
-    case 1:
-        q.c->itsRadial->GetRepulsion4C(q,eris,scale);
-        break;
-    case 2:
-        q.d->itsRadial->GetRepulsion4C(q,eris,scale);
-        break;
-    case 3:
-        GetRepulsion4CInternal(q,eris,scale);
-        break;
-    default:
-        std::cerr << "GaussianRF::GetRepulsion4C Unhandeled index: " << q.radials.itsIndex << std::endl;
-        assert(false);
-        exit(-1);
-    }
-    q.radials.pop_back();
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(type,this,pb,pa,pc,cache,rc);
+    const GaussianRF* gc=dynamic_cast<const GaussianRF*>(rc);
+    assert(gc);
+    return Integrate3C(type,ga,this,pa,pb,pc,cache,gc);
+    
 }
 
-
-void GaussianRF::GetOverlap2CInternal  (BFBP& p, SMat& ret, double scale) const
+double GaussianRF::Integrate3C(Types3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache, grf_t* gc)
 {
-    assert(p.radials.a());
-    assert(p.radials.b());
-
-    Polarization zero(0,0,0);
-    GaussianCD ab(*p.radials.a(),*p.radials.b());
-    double factor=scale*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
-    SMatrix<double>::Subscriptor s(ret);
-
-    std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-    for (int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
+    assert(ga);
+    assert(gb);
+    assert(gc);
+    double s=0.0;
+    switch (type)
     {
-        std::vector<Polarization>::const_iterator bPb(p.b->itsPols.begin());
-        for (int nPb=p.b->itsN;  bPb!=p.b->itsPols.end();  bPb++,nPb++)
-        {
-            double h = ab.H2(zero,*bPa,*bPb);
-            if (h!=0 && nPa <= nPb) s(nPa,nPb)+=factor*h;
-        }
-    }
-
-}
-
-void GaussianRF::GetOverlap2CInternal  (BFBP& p, Mat& ret, double scale) const
-{
-    assert(p.radials.a());
-    assert(p.radials.b());
-
-    Polarization zero(0,0,0);
-    GaussianCD ab(*p.radials.a(),*p.radials.b());
-    double factor=scale*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
-    Matrix<double>::Subscriptor s(ret);
-
-    std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-    for (int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
-    {
-        std::vector<Polarization>::const_iterator bPb(p.b->itsPols.begin());
-        for (int nPb=p.b->itsN;  bPb!=p.b->itsPols.end();  bPb++,nPb++)
-        {
-            double h = ab.H2(zero,*bPa,*bPb);
-            if (h!=0) s(nPa,nPb)+=factor*h;
-        }
-    }
-
-}
-
-void GaussianRF::GetRepulsion2CInternal(BFBP& p, SMat& ret, double scale) const
-{
-    assert(p.radials.a());
-    assert(p.radials.b());
-    GaussianCD ab(*p.radials.a(),*p.radials.b());
-    int La=p.radials.a()->GetL();
-    const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(La);
-    double Alpha = ab.a;
-    Matrix<double> Rs=p.radials.b()->GetAux(NLMs,p.b->itsPols,La,Alpha,p.radials.a()->GetCenter());
-    const Matrix<double>&         rsub(Rs);
-    SMatrix<double>::Subscriptor s(ret);
-
-    std::vector<Polarization>::const_iterator bNLM(NLMs.begin());
-    for (int nNLM=1;  bNLM!=NLMs.end();  bNLM++,nNLM++)
-    {
-        std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-        for (unsigned int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
-        {
-
-            if (bNLM->n <= bPa->n && bNLM->l <= bPa->l && bNLM->m <= bPa->m)
+        case Overlap3C :
             {
-                double h=p.radials.a()->GetH1()(*bNLM,*bPa);
-                if (h!=0.0)
-                {
-                    h*=2*Pi52*scale;
-                    for (unsigned int nPb=p.b->itsN; nPb<=p.b->itsN+p.b->itsPols.size()-1; nPb++)
-                        if (nPa <= nPb) s(nPa,nPb) += h * rsub(nNLM,nPb-p.b->itsN+1);
-                }
+            Hermite3* H3=gc->GetH3(*ga,*gb);
+            s=(*H3)(pa,pb,pc);
+            delete H3;
+                
             }
-        }
-    }
-
-}
-
-void GaussianRF::GetRepulsion2CInternal(BFBP& p, Mat& ret, double scale) const
-{
-    assert(p.radials.a());
-    assert(p.radials.b());
-    GaussianCD ab(*p.radials.a(),*p.radials.b());
-    int La=p.radials.a()->GetL();
-    const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(La);
-    double Alpha = ab.a;
-    Matrix<double> Rs=p.radials.b()->GetAux(NLMs,p.b->itsPols,La,Alpha,p.radials.a()->GetCenter());
-    const Matrix<double>&         rsub(Rs);
-    Matrix<double>::Subscriptor s(ret);
-
-    std::vector<Polarization>::const_iterator bNLM(NLMs.begin());
-    for (int nNLM=1;  bNLM!=NLMs.end();  bNLM++,nNLM++)
-    {
-        std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-        for (int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
-        {
-
-            if (bNLM->n <= bPa->n && bNLM->l <= bPa->l && bNLM->m <= bPa->m)
+            break;
+        case Repulsion3C :
             {
-                double h=p.radials.a()->GetH1()(*bNLM,*bPa);
-                if (h!=0.0)
-                {
-                    h*=2*Pi52*scale;
-                    for (unsigned int nPb=p.b->itsN; nPb<=p.b->itsN+p.b->itsPols.size()-1; nPb++)
-                        s(nPa,nPb) += h * rsub(nNLM,nPb-p.b->itsN+1);
-                }
+                const GaussianCD& ab(cache.find(ga,gb));
+                const RNLM&        R(cache.find(ab,gc));
+
+                auto  NLMs=GaussianCD::GetNMLs(ab.Ltotal);
+                const Hermite1& H1=gc->GetH1();
+                assert(&H1);
+                
+                
+                const Polarization Pab = pa+pb;
+                for (auto nlm:NLMs)
+                    if (!(nlm>Pab))
+                    {
+                        double hab = ab.H2(nlm,pa,pb);
+                        if (hab!=0.0)
+                        {
+                            double Rs=0.0;
+                            for (int n=0; n<=pc.n; n++)
+                                    for (int l=0; l<=pc.l; l++)
+                                        for (int m=0; m<=pc.m; m++)
+                                        {
+                                            Polarization NLMp(n,l,m);
+                                            double h=H1(NLMp,pc);
+                                            if (h!=0.0)
+                                                Rs+=h*R(nlm+NLMp);
+                                        } //for m
+                            if (Rs!=0) s+=hab*Rs;
+                        } //if hb
+                    } //if nlm
+                   
+                
+                double factor=1.0/(ab.AlphaP*gc->itsExponent*sqrt(ab.AlphaP+gc->itsExponent));
+                factor = (pc.GetTotalL()%2) ? -factor : factor;
+                s*=2*Pi52 * ab.Eij*factor;
             }
-        }
+            
+            break;
     }
+    return s;
 
 }
-void GaussianRF::GetKinetic2CInternal  (BFBP& p, SMat& ret, double scale) const
+
+
+
+// this is rd
+double GaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const
 {
-    assert(p.radials.a());
-    assert(p.radials.b());
-    GaussianCD ab(*p.radials.a(),*p.radials.b());
-    double factor=scale*0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
-    SMatrix<double>::Subscriptor s(ret);
-    std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-    for (int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
-    {
-        std::vector<Polarization>::const_iterator bPb(p.b->itsPols.begin());
-        for (int nPb=p.b->itsN;  bPb!=p.b->itsPols.end();  bPb++,nPb++)
-        {
-            double h = GetKinetic(*bPa,*bPb,ab);
-            if (h!=0 && nPa <= nPb) s(nPa,nPb)+=factor*h;
-        }
-    }
+    const GaussianRF* gc=dynamic_cast<const GaussianRF*>(rc);
+    if (!gc) 
+        return rc->Integrate(ra,rb,pa,pb,pc,pd,cache,this);
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb) 
+        return rb->Integrate(ra,pa,pb,pc,pd,cache,rc,this);
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(rb,pb,pa,pc,pd,cache,rc,this);
+    return Integrate4C(ga,gb,pa,pb,pc,pd,cache,gc,this);
 }
+
+// this = rc
+double GaussianRF::Integrate(rf_t* ra,rf_t* rb, po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const
+{
+    const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
+    if (!gb) 
+        return rb->Integrate(ra,pa,pb,pc,pd,cache,this,rd);
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(rb,pb,pa,pc,pd,cache,this,rd);
+    
+    const GaussianRF* gd=dynamic_cast<const GaussianRF*>(rd);
+    assert(gd);
+    
+    return Integrate4C(ga,gb,pa,pb,pc,pd,cache,this,gd);
+
+}
+// this = rb
+double GaussianRF::Integrate(rf_t* ra, po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const
+{
+    const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
+    if (!ga) 
+        return ra->Integrate(this,pb,pa,pc,pd,cache,rc,rd);
+
+    const GaussianRF* gc=dynamic_cast<const GaussianRF*>(rc);
+    assert(gc);
+    const GaussianRF* gd=dynamic_cast<const GaussianRF*>(rd);
+    assert(gd);
+    
+    return Integrate4C(ga,this,pa,pb,pc,pd,cache,gc,gd);
+}
+
+double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, grf_t* gc, grf_t* gd)
+{
+    assert(ga);
+    assert(gb);
+    assert(gc);
+    assert(gd);
+    
+    const GaussianCD& ab(cache.find(ga,gb));
+    const GaussianCD& cd(cache.find(gc,gd));
+
+//    std::cout.precision(5);
+//    std::cout.width(8);
+
+    const std::vector<Polarization>& abNLMs=GaussianCD::GetNMLs(ab.Ltotal);
+    const std::vector<Polarization>& cdNLMs=GaussianCD::GetNMLs(cd.Ltotal);
+
+
+    double lambda=2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
+    lambda*=ab.Eij*cd.Eij; //M&D 2.25
+    const RNLM& rnlm(cache.find(ab,cd)); //M&D section 4A
+
+    double s=0.0;
+    const Polarization Pab = pa + pb;
+    const Polarization Pcd = pc + pd;
+    // NLM loop for ab
+    for (auto abNLM:abNLMs)
+    {
+        if (abNLM > Pab) continue;
+        double hab = ab.H2(abNLM,pa,pb);
+        if (hab==0.0) continue;
+        for (auto cdNLM:cdNLMs)
+        {
+            if (cdNLM > Pcd) continue;
+            double hcd = cd.H2(cdNLM,pc,pd);
+            if (hcd==0) continue;
+
+            double r=rnlm(abNLM + cdNLM);
+            if(r!=0)
+                s+=hab*hcd*r*cdNLM.GetSign();;
+        } //cdNLM
+    } //abNLM
+    s=s*lambda;
+
+    return s;
+}
+
+
+
 
 double GaussianRF::GetKinetic(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const
 {
@@ -343,278 +393,6 @@ double GaussianRF::GetKinetic(const Polarization& p1,const Polarization& p2,cons
 
     return txx+tyy+tzz;
 }
-
-
-void GaussianRF::GetNuclear2CInternal  (BFBP& p, SMat& ret, const Cluster* cl, double scale) const
-{
-    assert(p.radials.a());
-    assert(p.radials.b());
-    GaussianCD ab(*p.radials.a(),*p.radials.b());
-    RNLM R; //Create and empty aux function.
-    //  Loop over nuclear centers and add the RNML contribution from each nucleaus.
-    for (auto atom:*cl) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
-
-    double factor=scale*2*Pi/ab.AlphaP*ab.Eij;
-    SMatrix<double>::Subscriptor s(ret);
-    const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(ab.Ltotal);
-
-    for (std::vector<Polarization>::const_iterator bNLM(NLMs.begin());  bNLM!=NLMs.end();  bNLM++)
-    {
-        std::vector<Polarization>::const_iterator bPa(p.a->itsPols.begin());
-        for (int nPa=p.a->itsN;  bPa!=p.a->itsPols.end();  bPa++,nPa++)
-        {
-            std::vector<Polarization>::const_iterator bPb(p.b->itsPols.begin());
-            for (int nPb=p.b->itsN;  bPb!=p.b->itsPols.end();  bPb++,nPb++)
-            {
-                const Polarization Pab = *bPa + *bPb;
-                if (bNLM->n <= Pab.n && bNLM->l <= Pab.l && bNLM->m <= Pab.m   && nPa <= nPb)
-                {
-                    double h = ab.H2(*bNLM,*bPa,*bPb);
-                    if(h!=0) s(nPa,nPb)+=h*R(*bNLM)*factor;
-                }
-            }
-        }
-    }
-}
-
-void GaussianRF::GetOverlap3CInternal(BFBT& t, std::vector<SMat>& ret, double scale) const
-{
-    assert(t.radials.a());
-    assert(t.radials.b());
-    assert(t.radials.c());
-    Hermite3* H3=t.radials.c()->GetH3(*t.radials.a(),*t.radials.b());
-    
-    std::vector<Polarization>::const_iterator bPa(t.a->itsPols.begin());
-    for (int nPa=t.a->itsN;  bPa!=t.a->itsPols.end();  bPa++,nPa++)
-    {
-        std::vector<Polarization>::const_iterator bPb(t.b->itsPols.begin());
-        for (int nPb=t.b->itsN;  bPb!=t.b->itsPols.end();  bPb++,nPb++)
-        {
-            if (nPa <= nPb)
-            {
-                std::vector<Polarization>::const_iterator bPc(t.c->itsPols.begin());
-                for (int nPc=0;  bPc!=t.c->itsPols.end();  bPc++,nPc++)
-                {
-                    ret[nPc](nPa,nPb)+=scale*(*H3)(*bPa,*bPb,*bPc);
-                }
-            }
-        }
-    }
-    delete H3;
-}
-
-//
-// The t variable contains info on polarizations and the contracted radial functions.
-// The radials argument contains all four primative radial functions.
-// The scale argument should be a product of all contraction coefficients.
-// The output gets stored in the ret matrix list.
-//
-void GaussianRF::GetRepulsion3CInternal(BFBT& t, std::vector<SMat>& ret, double scale) const
-{
-    assert(t.radials.a());
-    assert(t.radials.b());
-    assert(t.radials.c());
-
-    GaussianCD ab(*t.radials.a(),*t.radials.b());
-
-    const std::vector<Polarization>& NLMs=GaussianCD::GetNMLs(ab.Ltotal);
-
-    Matrix<double> Rs=t.radials.c()->GetAux(NLMs,t.c->itsPols,ab.Ltotal,ab.AlphaP,ab.P);
-    const Matrix<double>& rsub(Rs);
-
-    std::vector<Polarization>::const_iterator bNLM(NLMs.begin());
-    for (int nNLM=1;  bNLM!=NLMs.end();  bNLM++,nNLM++)
-    {
-        std::vector<Polarization>::const_iterator bPa(t.a->itsPols.begin());
-        for (int nPa=t.a->itsN;  bPa!=t.a->itsPols.end();  bPa++,nPa++)
-        {
-            std::vector<Polarization>::const_iterator bPb(t.b->itsPols.begin());
-            for (int nPb=t.b->itsN;  bPb!=t.b->itsPols.end();  bPb++,nPb++)
-            {
-                const Polarization Pab = *bPa + *bPb;
-                if (bNLM->n <= Pab.n && bNLM->l <= Pab.l && bNLM->m <= Pab.m   &&   nPa <= nPb)
-                {
-//                    double hab = AmIFlipped() ? H2(*bNLM,*bPb,*bPa) : H2(*bNLM,*bPa,*bPb);
-                    double hab = ab.H2(*bNLM,*bPa,*bPb);
-                    hab*=2*Pi52 * ab.Eij * scale;
-                    if (hab!=0)
-                    {
-                        std::vector<Polarization>::const_iterator bPc(t.c->itsPols.begin());
-                        for (int nPc=1;  bPc!=t.c->itsPols.end();  bPc++,nPc++)
-                        {
-                            double r=rsub(nNLM,nPc);
-                            if(r!=0)
-                            {
-                                ret[nPc-1](nPa,nPb)+=hab*r;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-//
-// The q variable contains info on polarizations and the contracted radial functions.
-// The radials argument contains all four primative radial functions.
-// The scale argument should be a product of all contraction coefficients.
-// The output gets stored in the eris super matrix.
-//
-#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
-
-void GaussianRF::GetRepulsion4CInternal( BFBQ& q, ERIList& eris, double scale) const
-{
-    assert(q.radials.a());
-    assert(q.radials.b());
-    assert(q.radials.c());
-    assert(q.radials.d());
-
-    GaussianCD ab(*q.radials.a(),*q.radials.b());
-    GaussianCD cd(*q.radials.c(),*q.radials.d());
-
-//    std::cout.precision(5);
-//    std::cout.width(8);
-
-    const std::vector<Polarization>& abNLMs=GaussianCD::GetNMLs(ab.Ltotal);
-    const std::vector<Polarization>& cdNLMs=GaussianCD::GetNMLs(cd.Ltotal);
-
-    typedef std::vector<Polarization>::const_iterator PolITER;
-
-    double lambda=2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
-    lambda*=ab.Eij*cd.Eij*scale; //M&D 2.25
-    double alpha=ab.AlphaP*cd.AlphaP/(ab.AlphaP+cd.AlphaP); //M&D 3.32
-    RVec3 PQ = ab.P-cd.P; //M&D 3.32
-    RNLM rnlm(ab.Ltotal+cd.Ltotal,alpha,PQ); //M&D section 4A
-
-    // nlm loop for a
-    int nPa=q.a->itsN;
-    for (PolITER bPa=q.a->itsPols.begin();  bPa!=q.a->itsPols.end();  bPa++,nPa++)
-    {
-        // nlm loop for b
-        int nPb=q.b->itsN;
-        PolITER bPb=q.b->itsPols.begin();
-        // Don't go below the diagonal if the a and b radials are the same.
-        if (q.a->itsRadial->GetID()==q.b->itsRadial->GetID())
-        {
-            bPb=bPa;
-            nPb=nPa;
-        }
-        for (;  bPb!=q.b->itsPols.end();  bPb++,nPb++)
-        {
-            int nPc=q.c->itsN;
-            PolITER bPc=q.c->itsPols.begin();
-            // Don't go below the diagonal if the a and c radials are the same.
-            if (q.a->itsRadial->GetID()==q.c->itsRadial->GetID())
-            {
-                bPc=bPa;
-                nPc=nPa;
-            }
-            for (;  bPc!=q.c->itsPols.end();  bPc++,nPc++)
-            {
-                // nlm loop for d
-                int nPd=q.d->itsN;
-                PolITER bPd=q.d->itsPols.begin();
-                PolITER bPd_end=q.d->itsPols.end();
-                if (nPa==nPc && q.b->itsRadial->GetID()==q.d->itsRadial->GetID())
-                {
-                    bPd=bPb;
-                    nPd=nPb;
-                }
-                else if (nPa==nPc && nPd<nPb && q.b->itsRadial->GetID()!=q.d->itsRadial->GetID())
-                {
-//                    std::cout << "Skipping a,b,c,d=" << nPa << ", " <<  nPb << ", " <<  nPc << ", " <<  nPd << std::endl;
-                    continue;
-
-                }
-                // Don't go below the diagonal if the d and c radials are the same.
-                else if (q.c->itsRadial->GetID()==q.d->itsRadial->GetID())
-                {
-                    bPd=bPc;
-                    nPd=nPc;
-                }
-
-
-                for (;  bPd!=bPd_end;  bPd++,nPd++)
-                {
-//                    if (tracker_eris(nPa,nPb,nPc,nPd)==-1.0)
-//                    {
-//                        std::cout << "Allready assigned a,b,c,d=" << nPa << ", " <<  nPb << ", " <<  nPc << ", " <<  nPd << std::endl;
-//                        assert(false);
-//                    }
-//                    tracker_eris(nPa,nPb,nPc,nPd)=-1.0;
-                    assert(nPa<=nPb);
-                    assert(nPa<=nPc);
-                    if (nPa==nPc)
-                        assert(nPb<=nPd);
-                    else
-                        assert(nPc<=nPd);
-
-                    double ERItemp=0.0;
-                    const Polarization Pab = *bPa + *bPb;
-                    const Polarization Pcd = *bPc + *bPd;
-                    // NLM loop for ab
-                    for (PolITER abNLM=abNLMs.begin();  abNLM!=abNLMs.end();  abNLM++)
-                    {
-                        if (!(abNLM->n <= Pab.n && abNLM->l <= Pab.l && abNLM->m <= Pab.m   &&   nPa <= nPb)) continue;
-                        double hab = ab.H2(*abNLM,*bPa,*bPb);
-                        if (hab==0.0) continue;
-                        //hab*=lambda;
-                        // NLM loop for cd
-                        for (PolITER cdNLM=cdNLMs.begin();  cdNLM!=cdNLMs.end();  cdNLM++)
-                        {
-                            double sign=cdNLM->GetSign();
-                            if (!(cdNLM->n <= Pcd.n && cdNLM->l <= Pcd.l && cdNLM->m <= Pcd.m   &&   nPc <= nPd)) continue;
-
-                            double hcd = cd.H2(*cdNLM,*bPc,*bPd);
-                            if (hcd==0) continue;
-
-                            double r=rnlm(*abNLM + *cdNLM);
-                            if(r!=0)
-                            {
-                                ERItemp+=hab*hcd*r*sign;
-                            }
-                        } //cdNLM
-                    } //abNLM
-                    eris(nPa,nPb,nPc,nPd)+=ERItemp*lambda;
-
-                } //d
-
-            } //c
-
-        } //b
-    } //a
-
-
-
-//
-//  Make sure we got all the trackers
-//
-//    {
-//        int nPa=q.a->itsN;
-//        for (PolITER bPa=q.a->itsPols.begin();  bPa!=q.a->itsPols.end();  bPa++,nPa++)
-//        {
-//            int nPb=q.b->itsN;
-//            for (PolITER bPb=q.b->itsPols.begin();  bPb!=q.b->itsPols.end();  bPb++,nPb++)
-//            {
-//                int nPc=q.c->itsN;
-//                for (PolITER bPc=q.c->itsPols.begin();  bPc!=q.c->itsPols.end();  bPc++,nPc++)
-//                {
-//                    int nPd=q.d->itsN;
-//                    for (PolITER bPd=q.d->itsPols.begin();  bPd!=q.d->itsPols.end();  bPd++,nPd++)
-//                    {
-//                        if (tracker_eris(nPa,nPb,nPc,nPd)!=-1.0)
-//                        {
-//                            std::cout << "Never assigned a,b,c,d=" << nPa << ", " <<  nPb << ", " <<  nPc << ", " <<  nPd << std::endl;
-//                            assert(false);
-//                        }
-//                    }
-//
-//                }
-//            }
-//        }
-//    }
-}
-
 //---------------------------------------------------------------------------------------
 //
 //  Calculate 3 center hermite functions.
@@ -642,47 +420,6 @@ Hermite3* GaussianRF::GetH3(const RadialFunction& r1, const RadialFunction& r2) 
 
     return new GaussianH3(alphaQ,Q-A,Q-B,Q-C,La,Lb,Lc,Eabc);
 }
-
-
-//---------------------------------------------------------------------------------------
-//
-//  Calculate 3 center Auxillar  functions.
-//
-Matrix<double> GaussianRF::GetAux(const std::vector<Polarization>& NLM, const std::vector<Polarization>& Pc,
-                                  int LP, double AlphaP, const RVec3& P) const
-{
-    double alpha =AlphaP*itsExponent/(AlphaP+itsExponent);
-    RNLM R(LP+GetL(),alpha,P-GetCenter());
-
-    Matrix<double> ret(NLM.size(),Pc.size());
-    Fill(ret,0.0);
-    Matrix<double>::Subscriptor s(ret);
-
-    const Hermite1& H1=GetH1();
-    assert(&H1);
-    double factor=1.0/(AlphaP*itsExponent*sqrt(AlphaP+itsExponent));
-    std::vector<Polarization>::const_iterator bPc(Pc.begin());
-    for (int nPc=1; bPc!=Pc.end(); bPc++,nPc++)
-    {
-        double sign = (bPc->GetTotalL()%2) ? -factor : factor;
-
-        for (int n=0; n<=(*bPc).n; n++)
-            for (int l=0; l<=(*bPc).l; l++)
-                for (int m=0; m<=(*bPc).m; m++)
-                {
-                    Polarization NLMp(n,l,m);
-                    double h=H1(NLMp,*bPc);
-                    if (h!=0.0)
-                    {
-                        h*=sign;
-                        std::vector<Polarization>::const_iterator bNLM(NLM.begin());
-                        for (int nNLM=1; bNLM!=NLM.end(); bNLM++,nNLM++) s(nNLM,nPc)+=h*R(*bNLM+NLMp);
-                    }
-                }
-    }
-    return ret;
-}
-
 
 //----------------------------------------------------------------------------
 //

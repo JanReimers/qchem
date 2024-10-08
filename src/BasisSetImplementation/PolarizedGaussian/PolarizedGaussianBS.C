@@ -4,16 +4,14 @@
 
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
-#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE.H"
-#include "BasisSetImplementation/NumericalIE.H"
+#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
-#include "IntegralDataBase.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
+#include "BasisSetImplementation/NumericalIEImp.H"
 #include "Cluster.H"
 #include "Misc/ptr_vector1_io.h"
-#include "oml/vector.h"
 #include <cassert>
-#include <algorithm>
+#include <algorithm> //Need std::max
 
 std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls);
 template <class T> T Max(const std::vector<T>& v)
@@ -36,7 +34,8 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     , TBasisSetImplementation<double>(lap,theDB)
 {
 //
-//  Read in all the radial functions.
+//  Read in all the radial functions.  These are usually contracted Gaussians, but could also
+//  be single Gaussians.
 //
     std::vector<RadialFunction*> radials;
     std::vector<std::vector<int> >    Ls;
@@ -44,7 +43,7 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     {
         bsr->FindAtom(*atom);
         RadialFunction* rf=0;
-        while ((rf=bsr->ReadNext(*atom)))
+        while ((rf=bsr->ReadNext(*atom))) //Read in the radial function/
         {
             bool duplicate=false;
             std::vector<RadialFunction*>::iterator b(radials.begin());
@@ -99,10 +98,19 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //  Make the integral engine.  Can't do this until all the basis functions and
 //  blocks are in place.
 //
+    {
+        PolarizedGaussianIE1::blocks_t bls;
+        for (auto bl:itsBlocks) bls.push_back(bl);
+        RVec ns(GetNumFunctions());
+//        index_t ibf=1;
+//        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
+        
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));       
+    }
+
     if (theMesh)  
-        TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh) );
-    else
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE);
+        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh) );
+        
 };
 
 
@@ -165,10 +173,12 @@ BasisSet* PolarizedGaussianBS::Clone() const
 BasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
-    optr_vector1<BasisFunctionBlock*> newBlocks;
-    for (optr_vector1<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
-        newBlocks.push_back((*b)->Clone(newCenter));
-    return new PolarizedGaussianBS(this,GetDataBase()->Clone(),newBlocks);
+//    optr_vector1<BasisFunctionBlock*> newBlocks;
+//    for (optr_vector1<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
+//        newBlocks.push_back((*b)->Clone(newCenter));
+//    return new PolarizedGaussianBS(this,GetDataBase()->Clone(),newBlocks);
+    assert(false);
+    return 0;
 }
 
 std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls)

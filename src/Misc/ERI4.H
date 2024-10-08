@@ -1,9 +1,10 @@
-#ifndef ERILIST_H
-#define ERILIST_H
+#ifndef ERI4_H
+#define ERI4_H
 
 #include "Misc/pmstream.h"
 #include "oml/smatrix.h"
-#include <vector>
+#include "oml/imp/cow.h"
+#include "oml/vector.h"
 #include <iostream>
 //------------------------------------------------------------------
 //
@@ -20,25 +21,26 @@
 // resulting in a eightfold storage reduction.
 //
 
-class ERIList
+class ERI4
    : public virtual PMStreamableObject
 {
 public:
-    ERIList();
-    ERIList(int n);
+    ERI4();
+    ERI4(int n);
+    ERI4(int n,double _fill);
     void Empty(); //Clear out all data.
-    void SetSize(int n);
+    void SetSize(int n, double _fill=0.0);
     int GetSize() const {return itsN;}
 
-    virtual ~ERIList();
+    virtual ~ERI4();
 
     double operator()(int i, int j, int k, int l) const
     {
-        return itsData[GetIndex(i,j,k,l,itsN)];
+        return itsData(GetIndex(i,j,k,l,itsN));
     }
     double& operator()(int i, int j, int k, int l)
     {
-        return itsData[GetIndex(i,j,k,l,itsN)];
+        return itsData(GetIndex(i,j,k,l,itsN));
     }
 
     void Dump        (std::ostream&) const;
@@ -48,7 +50,7 @@ public:
     virtual std::istream&    Read (std::istream&)      ;
 
 
-private:
+//private:
 
 
     // Zero based indexing into a symmetric matrix.
@@ -56,7 +58,10 @@ private:
     {
         return SMatrix<double>::GetSymOffset(i,j,n);
     }
-
+    inline int GetIndex(int i,int j,int k,int l) const
+    {
+        return GetIndex(i,j,k,l,itsN);
+    }
 
     inline static int GetIndex(int i,int j,int k,int l,int n)
     {
@@ -76,7 +81,48 @@ private:
     }
 
     int itsN; //Basis set size;
-    std::vector<double> itsData; //Linear data array.
+    Vector<double> itsData; //Linear data array.
 };
 
-#endif // ERILIST_H
+class ERI4view
+{
+public:
+    ERI4view(ERI4&,int start_ab, int start_cd);
+    ERI4view(ERI4&,int sa,int sb,int sc, int sd);
+
+    double operator()(int i, int j, int k, int l) const
+    {
+        return itsERI4(i+itsStart_a-1,j+itsStart_b-1,k+itsStart_c-1,l+itsStart_d-1);
+    }
+
+
+    double& operator()(int i, int j, int k, int l)
+    {
+        return itsERI4(i+itsStart_a-1,j+itsStart_b-1,k+itsStart_c-1,l+itsStart_d-1);
+    }
+    // Swpas limits for j and l.
+    double Exchange(int i, int j, int k, int l) const
+    {
+        return itsERI4(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
+    }
+    // Swpas limits for j and l.
+    double& Exchange(int i, int j, int k, int l)
+    {
+        return itsERI4(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
+    }
+    inline int GetIndex(int i,int j,int k,int l) const
+    {
+        return itsERI4.GetIndex(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
+    }
+private:
+    ERI4& itsERI4; 
+    int itsStart_a;
+    int itsStart_b;
+    int itsStart_c;
+    int itsStart_d;
+};
+
+
+
+
+#endif // ERI4_H

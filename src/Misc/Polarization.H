@@ -40,6 +40,10 @@ public:
     {
         return !(*this==p);
     }
+    bool          operator>(const Polarization& p) const
+    {
+        return n>p.n|| l>p.l || m>p.m;
+    }
 
     double operator   ()(const RVec3& r) const
     {

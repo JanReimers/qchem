@@ -22,15 +22,18 @@ public:
     virtual double          GetNormalization(const Polarization&  ) const;
     virtual double          GetCharge       (const Polarization&  ) const;
 
-    virtual void Get2CenterIntegrals(Types2C, BFBP&, SMat&, const Cluster*, double scale) const;
-    virtual void Get2CenterIntegrals(Types2C, BFBP&,  Mat&,                 double scale) const; //Cross overlap & repulsion.
-    virtual void Get3CenterIntegrals(Types3C, BFBT&, std::vector<SMat>&, double scale);
-    virtual void GetRepulsion4C(BFBQ&, ERIList&, double scale);
+    typedef RadialFunction::rf_t rf_t;
+    typedef RadialFunction::po_t po_t;
+    virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDcache& cache,const Cluster* cl=0) const;
+    virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache) const;
+    virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDcache& cache, rf_t* rc) const;
 
+    virtual double Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const;
+    virtual double Integrate(rf_t* ra,rf_t* rb,         po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const;
+    virtual double Integrate(rf_t* ra,                  po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const;
+
+    
     virtual Hermite3*       GetH3 (const RadialFunction&, const RadialFunction&) const;
-    virtual Matrix<double> GetAux(const std::vector<Polarization>& N,
-                                  const std::vector<Polarization>& Pc,
-                                  int LP, double AlphaP,const RVec3& P         ) const;
 
     virtual std::ostream&        Write(std::ostream&    ) const;
     virtual std::istream&        Read (std::istream&    )      ;

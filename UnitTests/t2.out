@@ -1,0 +1,489 @@
+Note: Google Test filter = DFTMoleculeTester.*
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from DFTMoleculeTester
+[ RUN      ] DFTMoleculeTester.N2
+PolarizedGaussian n(1)=1
+PolarizedGaussian n(2)=1.85552
+PolarizedGaussian n(3)=0.216369
+PolarizedGaussian n(4)=1.27994
+PolarizedGaussian n(5)=1.27994
+PolarizedGaussian n(6)=1.27994
+PolarizedGaussian n(7)=0.14281
+PolarizedGaussian n(8)=0.14281
+PolarizedGaussian n(9)=0.14281
+PolarizedGaussian n(10)=0.881721
+PolarizedGaussian n(11)=1.52719
+PolarizedGaussian n(12)=0.881721
+PolarizedGaussian n(13)=1.52719
+PolarizedGaussian n(14)=1.52719
+PolarizedGaussian n(15)=0.881721
+PolarizedGaussian n(16)=1
+PolarizedGaussian n(17)=1.85552
+PolarizedGaussian n(18)=0.216369
+PolarizedGaussian n(19)=1.27994
+PolarizedGaussian n(20)=1.27994
+PolarizedGaussian n(21)=1.27994
+PolarizedGaussian n(22)=0.14281
+PolarizedGaussian n(23)=0.14281
+PolarizedGaussian n(24)=0.14281
+PolarizedGaussian n(25)=0.881721
+PolarizedGaussian n(26)=1.52719
+PolarizedGaussian n(27)=0.881721
+PolarizedGaussian n(28)=1.52719
+PolarizedGaussian n(29)=1.52719
+PolarizedGaussian n(30)=0.881721
+PolarizedGaussian n(1)=218.403
+PolarizedGaussian n(2)=70.6756
+PolarizedGaussian n(3)=27.5971
+PolarizedGaussian n(4)=10.8002
+PolarizedGaussian n(5)=5.10293
+PolarizedGaussian n(6)=37.9131
+PolarizedGaussian n(7)=37.9131
+PolarizedGaussian n(8)=37.9131
+PolarizedGaussian n(9)=162.629
+PolarizedGaussian n(10)=281.682
+PolarizedGaussian n(11)=162.629
+PolarizedGaussian n(12)=281.682
+PolarizedGaussian n(13)=281.682
+PolarizedGaussian n(14)=162.629
+PolarizedGaussian n(15)=1.64893
+PolarizedGaussian n(16)=5.76888
+PolarizedGaussian n(17)=5.76888
+PolarizedGaussian n(18)=5.76888
+PolarizedGaussian n(19)=11.6526
+PolarizedGaussian n(20)=20.1829
+PolarizedGaussian n(21)=11.6526
+PolarizedGaussian n(22)=20.1829
+PolarizedGaussian n(23)=20.1829
+PolarizedGaussian n(24)=11.6526
+PolarizedGaussian n(25)=0.647548
+PolarizedGaussian n(26)=1.21491
+PolarizedGaussian n(27)=1.21491
+PolarizedGaussian n(28)=1.21491
+PolarizedGaussian n(29)=1.31599
+PolarizedGaussian n(30)=2.27937
+PolarizedGaussian n(31)=1.31599
+PolarizedGaussian n(32)=2.27937
+PolarizedGaussian n(33)=2.27937
+PolarizedGaussian n(34)=1.31599
+PolarizedGaussian n(35)=0.251979
+PolarizedGaussian n(36)=0.251979
+PolarizedGaussian n(37)=0.251979
+PolarizedGaussian n(38)=0.251979
+PolarizedGaussian n(39)=0.14548
+PolarizedGaussian n(40)=0.251979
+PolarizedGaussian n(41)=0.14548
+PolarizedGaussian n(42)=0.251979
+PolarizedGaussian n(43)=0.251979
+PolarizedGaussian n(44)=0.14548
+PolarizedGaussian n(45)=218.403
+PolarizedGaussian n(46)=70.6756
+PolarizedGaussian n(47)=27.5971
+PolarizedGaussian n(48)=10.8002
+PolarizedGaussian n(49)=5.10293
+PolarizedGaussian n(50)=37.9131
+PolarizedGaussian n(51)=37.9131
+PolarizedGaussian n(52)=37.9131
+PolarizedGaussian n(53)=162.629
+PolarizedGaussian n(54)=281.682
+PolarizedGaussian n(55)=162.629
+PolarizedGaussian n(56)=281.682
+PolarizedGaussian n(57)=281.682
+PolarizedGaussian n(58)=162.629
+PolarizedGaussian n(59)=1.64893
+PolarizedGaussian n(60)=5.76888
+PolarizedGaussian n(61)=5.76888
+PolarizedGaussian n(62)=5.76888
+PolarizedGaussian n(63)=11.6526
+PolarizedGaussian n(64)=20.1829
+PolarizedGaussian n(65)=11.6526
+PolarizedGaussian n(66)=20.1829
+PolarizedGaussian n(67)=20.1829
+PolarizedGaussian n(68)=11.6526
+PolarizedGaussian n(69)=0.647548
+PolarizedGaussian n(70)=1.21491
+PolarizedGaussian n(71)=1.21491
+PolarizedGaussian n(72)=1.21491
+PolarizedGaussian n(73)=1.31599
+PolarizedGaussian n(74)=2.27937
+PolarizedGaussian n(75)=1.31599
+PolarizedGaussian n(76)=2.27937
+PolarizedGaussian n(77)=2.27937
+PolarizedGaussian n(78)=1.31599
+PolarizedGaussian n(79)=0.251979
+PolarizedGaussian n(80)=0.251979
+PolarizedGaussian n(81)=0.251979
+PolarizedGaussian n(82)=0.251979
+PolarizedGaussian n(83)=0.14548
+PolarizedGaussian n(84)=0.251979
+PolarizedGaussian n(85)=0.14548
+PolarizedGaussian n(86)=0.251979
+PolarizedGaussian n(87)=0.251979
+PolarizedGaussian n(88)=0.14548
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=1 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=10 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+   RNLMs cache N=1 lookups=100 efficiencty=100%
+   RNLMs cache N=1 lookups=55 efficiencty=100%
+Charge Distributions cache N=136 lookups=3916 efficiencty=96.6675%
+LASolverCommon truncating 0 singular values. Min(s)=9.92269e-05 yol=1e-06
+Molecular mesh: total points=2400, Fuzzy points=2400
+VectorFunctionBuffer:: Allocating 32X2400 matrix, 614400 bytes
+PolarizedGaussian n(1)=80.9435
+PolarizedGaussian n(2)=24.2078
+PolarizedGaussian n(3)=8.44176
+PolarizedGaussian n(4)=16.9327
+PolarizedGaussian n(5)=1.2433
+PolarizedGaussian n(6)=3.60341
+PolarizedGaussian n(7)=3.60341
+PolarizedGaussian n(8)=3.60341
+PolarizedGaussian n(9)=0.378453
+PolarizedGaussian n(10)=0.496336
+PolarizedGaussian n(11)=0.496336
+PolarizedGaussian n(12)=0.496336
+PolarizedGaussian n(13)=0.13613
+PolarizedGaussian n(14)=0.0902986
+PolarizedGaussian n(15)=0.0902986
+PolarizedGaussian n(16)=0.0902986
+PolarizedGaussian n(17)=80.9435
+PolarizedGaussian n(18)=24.2078
+PolarizedGaussian n(19)=8.44176
+PolarizedGaussian n(20)=16.9327
+PolarizedGaussian n(21)=1.2433
+PolarizedGaussian n(22)=3.60341
+PolarizedGaussian n(23)=3.60341
+PolarizedGaussian n(24)=3.60341
+PolarizedGaussian n(25)=0.378453
+PolarizedGaussian n(26)=0.496336
+PolarizedGaussian n(27)=0.496336
+PolarizedGaussian n(28)=0.496336
+PolarizedGaussian n(29)=0.13613
+PolarizedGaussian n(30)=0.0902986
+PolarizedGaussian n(31)=0.0902986
+PolarizedGaussian n(32)=0.0902986
+LASolverCommon truncating 0 singular values. Min(s)=0.00127168 yol=1e-06
+Kinetic error=-15.6536
+Kinetic error=-16.2556
+Kinetic error=-16.8577
+Kinetic error=-18.3628
+Kinetic error=-16.5566
+Kinetic error=-18.0618
+Kinetic error=-15.6536
+Kinetic error=-17.1587
+Kinetic error=-17.1587
+Kinetic error=-15.6536
+Kinetic error=-31.3071
+Kinetic error=-17.7608
+Kinetic error=-15.9546
+Kinetic error=-17.1587
+Kinetic error=-17.1587
+Kinetic error=-15.6536
+Kinetic error=-31.6081
+Kinetic error=-16.8577
+Kinetic error=-16.5566
+Kinetic error=-16.8577
+Kinetic error=-16.5566
+Kinetic error=-15.6536
+Kinetic error=-16.5566
+Kinetic error=-17.1587
+Kinetic error=-17.1587
+Kinetic error=-16.5566
+Kinetic error=-17.1587
+Kinetic error=-17.1587
+Kinetic error=-15.6536
+Kinetic error=-16.2556
+Kinetic error=-16.5566
+Kinetic error=-15.6536
+Kinetic error=-15.6536
+Nuclear error=-14.1484
+Nuclear error=-14.4494
+Nuclear error=-16.8577
+Nuclear error=-16.5566
+Nuclear error=-15.9546
+Nuclear error=-19.2659
+Nuclear error=-15.6536
+Nuclear error=-14.1484
+Nuclear error=-15.0515
+Nuclear error=-15.3525
+Nuclear error=-16.2556
+Nuclear error=-15.6536
+Nuclear error=-15.6536
+Nuclear error=-14.7505
+Nuclear error=-14.4494
+Nuclear error=-15.0515
+Nuclear error=-15.6536
+Nuclear error=-15.6536
+Nuclear error=-15.3525
+Nuclear error=-14.7505
+Nuclear error=-15.0515
+Nuclear error=-16.2556
+Nuclear error=-16.2556
+Nuclear error=-15.6536
+Nuclear error=-14.7505
+Nuclear error=-15.6536
+Nuclear error=-15.6536
+Nuclear error=-16.2556
+Nuclear error=-15.3525
+Nuclear error=-16.2556
+Nuclear error=-15.3525
+Nuclear error=-14.4494
+Nuclear error=-14.4494
+Nuclear error=-15.0515
+Nuclear error=-15.0515
+Nuclear error=-15.3525
+Nuclear error=-17.1587
+Nuclear error=-15.6536
+Nuclear error=-15.6536
+Nuclear error=-15.3525
+Nuclear error=-17.1587
+Nuclear error=-15.6536
+Nuclear error=-15.6536
+Nuclear error=-14.1484
+Nuclear error=-14.4494
+Nuclear error=-16.5566
+Nuclear error=-15.9546
+Nuclear error=-15.3525
+Nuclear error=-15.6536
+Nuclear error=-15.0515
+Nuclear error=-15.6536
+Nuclear error=-14.4494
+Nuclear error=-14.4494
+before norm 0.0222821
+m before norm 0.0222821
+norm=80.9435
+m after norm 1.8036
+before norm 0.126588
+m before norm 0.126588
+norm=80.9435
+m after norm 10.2465
+before norm 0.374884
+m before norm 0.374884
+norm=80.9435
+m after norm 30.3445
+before norm 0.192612
+m before norm 0.192612
+norm=80.9435
+m after norm 15.5907
+before norm 0.873391
+m before norm 0.873391
+norm=80.9435
+m after norm 70.6954
+norm=24.2078
+norm=8.44176
+norm=16.9327
+before norm 0.970429
+m before norm 0.970429
+norm=80.9435
+m after norm 78.55
+norm=24.2078
+norm=8.44176
+norm=16.9327
+before norm 0.992219
+m before norm 0.992219
+norm=80.9435
+m after norm 80.3137
+norm=24.2078
+norm=8.44176
+norm=16.9327
+before norm 1.2765e-18
+m before norm 1.2765e-18
+norm=80.9435
+m after norm 1.03325e-16
+before norm 7.25384e-17
+m before norm 7.25384e-17
+norm=80.9435
+m after norm 5.87152e-15
+before norm 7.99096e-14
+m before norm 7.99096e-14
+norm=80.9435
+m after norm 6.46816e-12
+before norm 4.58008e-16
+m before norm 4.58008e-16
+norm=80.9435
+m after norm 3.70728e-14
+before norm 0.000259173
+m before norm 0.000259173
+norm=80.9435
+m after norm 0.0209784
+norm=24.2078
+norm=8.44176
+norm=16.9327
+before norm 0.15943
+m before norm 0.15943
+norm=80.9435
+m after norm 12.9048
+norm=24.2078
+norm=8.44176
+norm=16.9327
+before norm 0.620823
+m before norm 0.620823
+norm=80.9435
+m after norm 50.2516
+norm=24.2078
+norm=8.44176
+norm=16.9327
+LASolverCommon truncating 0 singular values. Min(s)=0.00475541 yol=1e-06
+
+
+ #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up) 
+-------------------------------------------------------------------------------
+ 0   -2589.92074826 0.110 151.084 99.965 -2512.424 2.98e+00 0.00e+00  0.00e+00 
+ 1   -2602.25823514 0.110 151.564 100.000 -2524.887 3.26e-01 0.00e+00  0.00e+00 
+ 2   -2602.61283276 0.110 151.600 100.001 -2525.252 1.67e-02 0.00e+00  0.00e+00 
+ 3   -2602.64441751 0.110 151.603 100.001 -2525.284 1.26e-03 0.00e+00  0.00e+00 
+ 4   -2602.64627709 0.110 151.603 100.001 -2525.286 7.85e-05 0.00e+00  0.00e+00 
+-------------------------------------------------------------------------------
+-308.8606(   2) 
+-308.4321(   2) 
+-237.6653(   2) 
+-225.5902(   2) 
+-206.4004(   2) 
+-198.5493(   4) 
+-193.4400( 0.0/2) 
+-188.5496( 0.0/4) 
+
+/home/janr/Code/qchem/UnitTests/MoleculeTests.C:90: Failure
+Expected: (fabs((E_N2-TotalEnergy())/E_N2)) < (m_eps_e), actual: 22.822631162084015 vs 0.01
+
+[  FAILED  ] DFTMoleculeTester.N2 (2763 ms)
+[----------] 1 test from DFTMoleculeTester (2763 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (2763 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] DFTMoleculeTester.N2
+
+ 1 FAILED TEST

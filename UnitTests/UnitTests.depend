@@ -28,7 +28,7 @@
 1727910193 /home/janr/Code/qchem/src/Misc/Persistent/Persistent.H
 	"Misc/UniqueID/UniqueID.H"
 
-1727910193 /home/janr/Code/qchem/src/Misc/UniqueID/UniqueID.H
+1728357060 /home/janr/Code/qchem/src/Misc/UniqueID/UniqueID.H
 	"Misc/pmstream.h"
 
 1727910193 /home/janr/Code/qchem/src/Misc/pmstream.h
@@ -83,7 +83,7 @@
 
 1296655837 /home/janr/Code/qchem/src/Misc/void_types.h
 
-1727910193 /home/janr/Code/qchem/src/Misc/ERIList.H
+1728069834 /home/janr/Code/qchem/src/Misc/ERIList.H
 	"Misc/pmstream.h"
 	"oml/smatrix.h"
 	<vector>
@@ -173,7 +173,7 @@
 	"oml/imp/matlimit.h"
 	<cmath>
 
-1727109941 /home/janr/Code/oml/include/oml/fakedouble.h
+1728045724 /home/janr/Code/oml/include/oml/fakedouble.h
 
 1727109941 /home/janr/Code/oml/include/oml/imp/tstream.h
 	"oml/imp/stream.h"
@@ -187,7 +187,7 @@
 1727709855 /home/janr/Code/oml/include/oml/imp/rowcol.h
 	"oml/imp/vecindex.h"
 
-1727124475 /home/janr/Code/oml/include/oml/imp/vecindex.h
+1728052973 /home/janr/Code/oml/include/oml/imp/vecindex.h
 	"oml/imp/indexable.h"
 
 1727109941 /home/janr/Code/oml/include/oml/imp/minmax.h
@@ -203,15 +203,12 @@
 	"BasisSet.H"
 	"Misc/ptr_vector1.h"
 
-1727910251 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
+1728318728 /home/janr/Code/qchem/src/BasisSetImplementation/TBasisSetImplementation.H
 	"BasisSet.H"
 	"FunctionsImp/VectorFunctionBuffer.H"
-	"IntegralEngine.H"
 	"SCFIterator/IterationParams.H"
 	"Misc/Persistent/PerRef.H"
 	"Misc/rc_ptr.H"
-	"oml/matrix.h"
-	"oml/smatrix.h"
 
 1727897286 /home/janr/Code/qchem/src/BasisSet/TBasisSet.H
 	"types.H"
@@ -239,23 +236,19 @@
 
 1727910193 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1727910251 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
-	"IntegralEngine.H"
+1728356911 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
 	"Misc/Persistent/IDRef.H"
-	"Misc/ERIList.H"
-	"oml/vector.h"
-	"oml/matrix.h"
-	"oml/smatrix.h"
-	"Misc/MatrixList.H"
+	"Misc/ERI4.H"
 	"Misc/rc_ptr.H"
+	<map>
 
 1727636581 /home/janr/Code/qchem/src/BasisSet/IntegralDataBase.H
 	"Misc/Persistent/Persistent.H"
 	"Misc/ERIProxy.H"
 
-1727910193 /home/janr/Code/qchem/src/Misc/ERIProxy.H
-	"Misc/ERIList.H"
+1728318216 /home/janr/Code/qchem/src/Misc/ERIProxy.H
+	"Misc/ERI4.H"
 
 1727910193 /home/janr/Code/qchem/src/Misc/Persistent/IDRef.H
 	"Misc/pmstream.h"
@@ -346,7 +339,7 @@
 1727911897 /home/janr/Code/qchem/UnitTests/MoleculeTester.H
 	"BaseTester.H"
 
-1727910193 /home/janr/Code/qchem/UnitTests/HartreeFockTester.H
+1728084798 /home/janr/Code/qchem/UnitTests/HartreeFockTester.H
 	"BaseTester.H"
 	"AtomTester.H"
 	"MoleculeTester.H"
@@ -473,14 +466,14 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"Misc/rc_ptr.H"
 
-1727910251 /home/janr/Code/qchem/src/Hamiltonian/ExchangeFunctional.H
+1728341636 /home/janr/Code/qchem/src/Hamiltonian/ExchangeFunctional.H
 	"Misc/pmstream.h"
 	"Functions/ScalarFunction.H"
 
 1727910193 /home/janr/Code/qchem/src/HamiltonianImplementation/ExactVee.H
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 
-1727912030 source:/home/janr/Code/qchem/UnitTests/MoleculeTests.C
+1728268659 source:/home/janr/Code/qchem/UnitTests/MoleculeTests.C
 	"DFTTester.H"
 	"HartreeFockTester.H"
 	"DFTDataBase/DFTDataBase.H"
@@ -508,20 +501,22 @@
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 	"Misc/ptr_vector1.h"
 
-1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H
+1728309920 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H
 	"Misc/pmstream.h"
 	"BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
 	"Misc/Polarization.H"
 	<cassert>
 
-1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H
+1728343559 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H
+	"BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
 	"Misc/Polarization.H"
 	"oml/vector3d.h"
 	<vector>
+	<map>
 
-1727910193 /home/janr/Code/qchem/src/Misc/Polarization.H
+1728235058 /home/janr/Code/qchem/src/Misc/Polarization.H
 	"Misc/IntPower.H"
 	"oml/vector3d.h"
 	<iosfwd>
@@ -548,7 +543,7 @@
 	"HamiltonianImplementation/SlaterExchange.H"
 	"HamiltonianImplementation/ExactVee.H"
 
-1727910193 /home/janr/Code/qchem/src/HamiltonianImplementation/FittedVxc.H
+1728343539 /home/janr/Code/qchem/src/HamiltonianImplementation/FittedVxc.H
 	"Hamiltonian/ExchangeFunctional.H"
 	"Misc/rc_ptr.H"
 	"FunctionsImp/FittedFunctionImplementation.H"
@@ -573,7 +568,7 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"Misc/rc_ptr.H"
 
-1727910193 /home/janr/Code/qchem/src/HamiltonianImplementation/SlaterExchange.H
+1728343536 /home/janr/Code/qchem/src/HamiltonianImplementation/SlaterExchange.H
 	"HamiltonianImplementation/ExchangeFunctionalImplementation.H"
 	"Misc/Spin.H"
 
@@ -627,7 +622,7 @@
 1727910193 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1727975288 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728356511 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -698,7 +693,7 @@
 	<iostream>
 	<fstream>
 
-1727914332 source:/home/janr/Code/qchem/UnitTests/EigenSolverUT.C
+1728344096 source:/home/janr/Code/qchem/UnitTests/EigenSolverUT.C
 	"gtest/gtest.h"
 	"HartreeFockTester.H"
 	"Cluster/Atom.H"
@@ -746,7 +741,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1727910251 /home/janr/Code/qchem/include/BasisSet.H
+1728343622 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -767,9 +762,10 @@
 	"types.H"
 	"Misc/pmstream.h"
 
-1727910251 /home/janr/Code/qchem/include/IntegralDataBase.H
+1728356411 /home/janr/Code/qchem/include/IntegralDataBase.H
+	"types.H"
 	"Misc/Persistent/Persistent.H"
-	"Misc/ERIProxy.H"
+	"Misc/ERI4.H"
 
 1727910251 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
@@ -805,10 +801,10 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1727910251 /home/janr/Code/qchem/include/types.H
+1728317785 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
-1727910251 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
+1728343596 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
 	"types.H"
 	"oml/vector3d.h"
 
@@ -828,4 +824,49 @@
 
 1727910251 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
 	"WaveFunction.H"
+
+1728239691 /home/janr/Code/qchem/include/IntegralEngine1.H
+	"types.H"
+	"Misc/pmstream.h"
+	<vector>
+	"Misc/ERIList1.H"
+
+1728317530 /home/janr/Code/qchem/src/Misc/ERIList1.H
+	"Misc/pmstream.h"
+	"oml/smatrix.h"
+	"oml/imp/cow.h"
+	"oml/vector.h"
+	<iostream>
+
+1728227253 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H
+	"types.H"
+	"BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H"
+	"oml/matrix.h"
+	"oml/vector.h"
+	"Misc/ptr_vector1.h"
+	"Misc/UniqueID/UniqueID.H"
+	"oml/vector3d.h"
+	<map>
+
+1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H
+	"oml/vector.h"
+	"oml/vector3d.h"
+	<iosfwd>
+
+1728258538 /home/janr/Code/qchem/include/AnalyticIE.H
+	"types.H"
+	"Misc/pmstream.h"
+	<vector>
+	"Misc/ERIList1.H"
+
+1728258350 /home/janr/Code/qchem/include/NumericalIE.H
+	"types.H"
+	"Misc/pmstream.h"
+
+1728318521 /home/janr/Code/qchem/src/Misc/ERI4.H
+	"Misc/pmstream.h"
+	"oml/smatrix.h"
+	"oml/imp/cow.h"
+	"oml/vector.h"
+	<iostream>
 

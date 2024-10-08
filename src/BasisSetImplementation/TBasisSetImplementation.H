@@ -2,16 +2,11 @@
 #ifndef _TBasisSetImplementation_H_
 #define _TBasisSetImplementation_H_
 
-
-
 #include "BasisSet.H"
 #include "FunctionsImp/VectorFunctionBuffer.H"
-#include "IntegralEngine.H"
 #include "SCFIterator/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 
 //---------------------------------------------------------------------
 //
@@ -35,6 +30,8 @@ protected:
     typedef typename Base::RVec3   RVec3;  //Real space vector.
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
+    typedef typename TBasisSet<T>::ERI3 ERI3;
+  
 public:
     TBasisSetImplementation(                              );
     TBasisSetImplementation(const LinearAlgebraParams& lap, IntegralDataBase<T>*);
@@ -74,16 +71,19 @@ public:
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
     virtual IntegralDataBase<T>* GetDataBase () const;
+    virtual AnalyticIE <T>* GetAnalyticIE() const;
+   
     virtual LASolver<T>*         GetLASolver () const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    void  Insert(IntegralEngine<T>*);
-    const IntegralEngine<T>* GetIntegralEngine() const
+    void  Insert(NumericalIE<T>*);
+    void  Insert(AnalyticIE<T>*);
+    const AnalyticIE<T>* GetIntegralEngine() const
     {
-        return &*itsIntegralEngine;
+        return &*itsAnalyticIE;
     }
 
 private:
@@ -92,7 +92,8 @@ private:
 protected:
     LinearAlgebraParams          itsLAParams;
 private:
-    rc_ptr<IntegralEngine  <T> > itsIntegralEngine;
+    rc_ptr<NumericalIE<T> > itsNumericalIE;
+    rc_ptr< AnalyticIE<T> > itsAnalyticIE;
     mutable PerRef<IntegralDataBase<T> > itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
 };

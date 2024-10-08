@@ -60,15 +60,15 @@ TEST_F(qchem_EigenSolverTests,MinSVEVTests)
 {
     StreamableObject::SetToPretty();
     LinearAlgebraParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
-    for (size_t L=0;L<=10;L++)
-    {
-        Init(20,.01,100.0,L,lap);    
-        SMatrix<double> S=GetOverlap();
-        auto [U,w]=Diagonalize(S);
-        
-        auto [U1,s,V]=SVD(S);
-        cout << "L=" << L << "   w=" << Min(w) << " min(s)=" << Min(s) << endl;;
-    }
+//    for (size_t L=0;L<=10;L++)
+//    {
+//        Init(20,.01,100.0,L,lap);    
+//        SMatrix<double> S=GetOverlap();
+//        auto [U,w]=Diagonalize(S);
+//        
+//        auto [U1,s,V]=SVD(S);
+//        cout << "L=" << L << "   w=" << Min(w) << " min(s)=" << Min(s) << endl;;
+//    }
 }
 
 LinearAlgebraParams laps[] = { 

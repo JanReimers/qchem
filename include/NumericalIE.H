@@ -33,7 +33,13 @@
 //  Kinetic              <i|-1/2grad^2|j>
 //  Nuclear(Cluster& cl) sum over atoms c {<i|1/(r-Rc)|j>}
 //
-template <class T> class IntegralEngine
+
+//
+//  Set this define if you want use this engine for debugging analytic integrals.
+//
+//#define USE_FOR_DEBUGGING_ANALYTIC
+
+template <class T> class NumericalIE
     : public virtual PMStreamableObject
 {
 public:
@@ -42,35 +48,34 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
-    typedef MatrixList<T>  MList;
 
-    virtual ~IntegralEngine()  {};
+    virtual ~NumericalIE()  {};
 
     virtual void Insert(const TBasisSet<T>*)=0;
 
     virtual SMat MakeOverlap    (                             ) const=0;
     virtual Mat  MakeOverlap    (const TBasisSet<T>&          ) const=0;
     virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const=0;
-    virtual void MakeOverlap3C  (MList&,const TBasisSet<T>&   ) const=0;
 
     virtual SMat MakeRepulsion  (                             ) const=0;
     virtual Mat  MakeRepulsion  (const TBasisSet<T>&          ) const=0;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
-    virtual void MakeRepulsion3C(MList&,const TBasisSet<T>&   ) const=0;
-
-    virtual void MakeRepulsion4C(ERIList& Coulomb, ERIList& exchange, const BasisGroup*) const=0;
 
     virtual RVec MakeNormalization() const=0;
     virtual RVec MakeCharge       () const=0;
-
+#ifdef USE_FOR_DEBUGGING_ANALYTIC
+    virtual void MakeOverlap3C  (ERI3&,const TBasisSet<T>&   ) const=0;
+    virtual void MakeRepulsion3C(ERI3&,const TBasisSet<T>&   ) const=0;
+    virtual void MakeRepulsion4C(ERI4& Coulomb, ERI4& exchange, const BasisGroup*) const=0;
     virtual SMat MakeKinetic(              ) const=0;
     virtual SMat MakeNuclear(const Cluster&) const=0;
-    virtual RSMat MakeInverse(const RSMat& ) const=0; //Numerically stable algo required.
+#endif
+    static  RSMat MakeInverse(const RSMat& ); //Numerically stable algo required.
 
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;
-    virtual IntegralEngine* Clone  (         ) const=0;
-    static  IntegralEngine* Factory(std::istream&);
+    virtual NumericalIE* Clone  (         ) const=0;
+    static  NumericalIE* Factory(std::istream&);
 };
 
 

@@ -3,39 +3,48 @@
 #define _PlaneWaveIE_H_
 
 
-
-#include "BasisSetImplementation/IntegralEngineImplementation.H"
+#include "AnalyticIE.H"
 #include "Cluster/UnitCell.H"
 
 class PlaneWaveBS;
 template <class T> class SList;
 
 class PlaneWaveIE
-    : public virtual IntegralEngine<std::complex<double> >
-    , private IntegralEngineImplementation<std::complex<double> >
+    : public virtual AnalyticIE<std::complex<double> >
 {
+    typedef AnalyticIE<std::complex<double>> IE;
+    typedef ScalarFunction <double> SF;
+    typedef IE::Mat Mat;
+    typedef IE::SMat SMat;
+    typedef IE::RVec RVec;
+    typedef IE::iev_t iev_t;
+    typedef IE::jk_t jk_t;
 public:
     PlaneWaveIE(                  );
     PlaneWaveIE(const PlaneWaveIE&);
     virtual void Insert(TBasisSet<std::complex<double> >*);
 
-    virtual SMat MakeOverlap    (                                         ) const;
-    virtual Mat  MakeOverlap    (const TBasisSet<std::complex<double> >&       ) const;
-    virtual Vec  MakeOverlap    (const ScalarFunction<double>&            ) const;
-    virtual void MakeOverlap3C  (MList&,const TBasisSet<std::complex<double> >&) const;
+    virtual size_t size() const {return 0;}
+    
+    virtual RVec MakeNormalization() const;
+    virtual RVec MakeCharge       () const;
+    
+    virtual  SMat MakeOverlap  (                 ) const;
+    virtual  SMat MakeKinetic  (                 ) const;
+    virtual  SMat MakeNuclear  (const Cluster&   ) const;
+    virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const AnalyticIE*) const; //Used for charge and Vxc fitting.
 
-    virtual SMat MakeRepulsion  (                                         ) const;
-    virtual Mat  MakeRepulsion  (const TBasisSet<std::complex<double> >&       ) const;
-    virtual Vec  MakeRepulsion  (const ScalarFunction<double>&            ) const;
-    virtual void MakeRepulsion3C(MList&,const TBasisSet<std::complex<double> >&) const;
-    virtual void MakeRepulsion4C(ERIList& , ERIList&,const BasisGroup* ) const;
-
-    virtual SMat MakeKinetic    (              ) const;
-    virtual SMat MakeNuclear    (const Cluster&) const;
+    virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
+    virtual void MakeOverlap3C  (ERI3&,const AnalyticIE*) const; //Used for DFT
+    virtual void MakeRepulsion3C(ERI3&,const AnalyticIE*) const; //Used for DFT
+    virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
+    
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
-    virtual IntegralEngine<std::complex<double> >* Clone() const;
+    virtual AnalyticIE<std::complex<double> >* Clone() const;
 
 private:
     std::vector<RVec3> itsGs;

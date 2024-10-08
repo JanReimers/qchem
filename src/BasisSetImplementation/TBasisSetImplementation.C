@@ -3,17 +3,17 @@
 
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "BasisSet.H"
+#include "QuantumNumber.H"
+#include "NumericalIE.H"
+#include "AnalyticIE.H"
 #include "IntegralDataBase.H"
 #include "LASolver/LASolver.H"
 #include "Hamiltonian.H"
 #include "Mesh/Mesh.H"
-#include "Misc/MatrixList.H"
-#include "Misc/ERIProxy.H"
-#include "oml/smatrix.h"
+
+#include "Misc/ERI4.H"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
-#include "ChargeDensityImplementation/FittedCDImplementation.H"
-#include "ChargeDensityImplementation/PolarizedCDImplementation.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include <cassert>
 #include <iostream>
@@ -24,7 +24,7 @@
 //
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsIntegralEngine(0)
+    , itsNumericalIE(0)
     , itsDataBase      ( )
     , itsLASolver      (0)
 {};
@@ -32,7 +32,7 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
     , itsLAParams      (lap)
-    , itsIntegralEngine(0)
+    , itsNumericalIE(0)
     , itsDataBase      (theDataBase)
     , itsLASolver      (0)
 {};
@@ -40,7 +40,7 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const Lin
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const TBasisSetImplementation<T>& bs)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
     , itsLAParams      (bs.itsLAParams)
-    , itsIntegralEngine(bs.itsIntegralEngine)
+    , itsNumericalIE   (bs.itsNumericalIE)
     , itsDataBase      (bs.itsDataBase)
     , itsLASolver      (0)
 {};
@@ -54,12 +54,27 @@ template <class T> TBasisSetImplementation<T>::~TBasisSetImplementation()
 //
 //  Post construction initializations called by dervied classes.
 //
-template <class T> void TBasisSetImplementation<T>::Insert(IntegralEngine<T>* ie)
+template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
 {
     assert(ie);
-    itsIntegralEngine.reset(ie);
-    itsIntegralEngine->Insert(this);
+    itsNumericalIE.reset(ie);
+    itsNumericalIE->Insert(this);
     itsDataBase->Insert(this,ie);
+}
+
+template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
+{
+    assert(ie);
+    itsAnalyticIE.reset(ie);
+    itsDataBase->Insert(this,ie);
+    RVec ns=ie->MakeNormalization();
+    RVec cs=ie->MakeCharge();
+    int i=1;
+    for (auto bf:*this) 
+    {
+        bf->Init(ns(i),cs(i));
+        i++;
+    }
 }
 
 template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase() const
@@ -67,6 +82,13 @@ template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase(
     assert(&*itsDataBase);
     return itsDataBase;
 }
+template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetAnalyticIE() const
+{
+    assert(&*itsAnalyticIE);
+    return &*itsAnalyticIE;
+}
+
+ 
 
 //-----------------------------------------------------------------------------
 //
@@ -107,7 +129,7 @@ GetOverlap  (const FittedFunction* ff) const
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     assert(!isnan(ffi->itsFitCoeff));
-    const MatrixList<T>& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++)
     {
@@ -127,7 +149,7 @@ GetRepulsion(const FittedFunction* ff) const
     Fill(J,0.0);
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const MatrixList<T>& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++) J+=SMat((*f) * repulsion[i]);
     assert(!isnan(J));
@@ -138,13 +160,15 @@ GetRepulsion(const FittedFunction* ff) const
 #include "Misc/DFTDefines.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
+
+
 template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-    const ERIProxy& eris=GetDataBase()->GetRepulsion4C(bs_cd);
+    const ERI4view J=GetDataBase()->GetRepulsion4C(bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -156,11 +180,14 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
             for (int ic=1; ic<=Ncd; ic++)
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-                    Jab_temp+=eris(ia,ib,ic,id)*Dcd(ic,id);
+                    //std::cout << ia << " " << ib << " " << ic << " " << id << " " << J.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) << " " << J(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
+//                    assert(J(ia,ib,ic,id)==eris(ia,ib,ic,id));
+                    Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
         }
     assert(!isnan(Jab));
+
     return Jab;
 }
 
@@ -168,7 +195,7 @@ template <class T> BasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    const ERIProxy& eris=GetDataBase()->GetExchange4C(bs_cd);
+    const ERI4view K=GetDataBase()->GetExchange4C(bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -180,11 +207,20 @@ GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
             for (int ic=1; ic<=Ncd; ic++)
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-                    Kab_temp+=eris.Exchange(ia,id,ic,ib)*Dcd(ic,id);
+//                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
+//                    << K.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) 
+//                    << " " << K(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
+//                    assert(K(ia,ib,ic,id)==eris(ia,ib,ic,id));
+//                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
+//                    << K.GetIndex(ia,id,ic,ib) << " " << eris.GetIndex(ia,id,ic,ib) 
+//                    << " " << K.Exchange(ia,id,ic,ib) << " " << eris.Exchange(ia,id,ic,ib) << std::endl;
+//                    assert(K.Exchange(ia,id,ic,ib)==eris.Exchange(ia,id,ic,ib));
+                    Kab_temp+=K.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                 }
             Kab(ia,ib)=Kab_temp;
         }
     assert(!isnan(Kab));
+
     return Kab;
 }
 //
@@ -202,7 +238,7 @@ GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const MatrixList<T>& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,repulsion[i]));
     return ret;
@@ -220,7 +256,7 @@ GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const MatrixList<T>& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const typename TBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,overlap[i]));
     return ret;
@@ -347,7 +383,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
     if(!StreamableObject::Pretty())
     {
         VectorFunctionBuffer<T>::Write(os);
-        os << *itsIntegralEngine << itsDataBase;
+        os << *itsAnalyticIE << itsDataBase;
     }
     return os;
 }
@@ -355,7 +391,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
 template <class T> std::istream& TBasisSetImplementation<T>::Read(std::istream& is)
 {
     VectorFunctionBuffer<T>::Read(is);
-    IntegralEngine<T>* ie=IntegralEngine<T>::Factory(is);
+    AnalyticIE<T>* ie=AnalyticIE<T>::Factory(is);
     is >> *ie;
     is >> itsDataBase;
     Insert(ie); //Fix up lots of pointers.

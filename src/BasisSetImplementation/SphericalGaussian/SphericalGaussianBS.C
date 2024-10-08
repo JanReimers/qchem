@@ -4,11 +4,9 @@
 
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H"
+#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
-#include "BasisSetImplementation/NumericalIE.H"
-#include "IntegralDataBase.H"
-#include "oml/vector.h"
+#include "BasisSetImplementation/NumericalIEImp.H"
 #include <iostream>
 #include <cassert>
 
@@ -49,14 +47,14 @@ SphericalGaussianBS::SphericalGaussianBS(
     Vector<double> exp(size);
     FillPower(exp,minexp,maxexp);
     for (auto e:exp) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,exp));  
     
     if (theMesh)
     {
         assert(L==0); //Why???
-        TBasisSetImplementation<double>::Insert(new NumericalIE<double>(theMesh));
+        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh));
     }
-    else
-        TBasisSetImplementation<double>::Insert(new SphericalGaussianIE );
+          
 
 };
 
