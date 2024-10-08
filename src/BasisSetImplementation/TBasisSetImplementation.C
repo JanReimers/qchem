@@ -366,7 +366,7 @@ template <class T> LASolver<T>* TBasisSetImplementation<T>::GetLASolver() const
 {
     if (!itsLASolver) 
     {
-        SMat S=GetDataBase()->GetOverlap();
+        SMat S=GetDataBase()->GetOverlap(this);
         itsLASolver=LASolver<T>::Factory(itsLAParams);
         itsLASolver->SetBasisOverlap(S);
     }

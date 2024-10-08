@@ -14,6 +14,8 @@ Priority 1:
             
         -Clean up all the insert nonsense for DB, IE and BS
         -Client code should not see DB, just ask BS for integrals.
+        -Broke BasisGroup persistence tests. Need to put back 
+            PerRef<IntegralDatabase> int BSImp<T>
     -Cache reports
     -Stop caching RNLM inside GaussianCD
     -CDcache into its own source files.

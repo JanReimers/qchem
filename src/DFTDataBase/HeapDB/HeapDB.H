@@ -37,7 +37,9 @@ public:
     virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
-    virtual const SMat&    GetOverlap    (                             );
+    virtual const SMat&    GetOverlap    (bs_t&   ); //Numerical
+    virtual const SMat&    GetOverlap    (iec_t* a); //Analytic
+
     virtual const Mat&     GetOverlap    (bs_t&, bs_t&          );
     virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
     virtual const ERI3&    GetOverlap3C  (bs_t&          );

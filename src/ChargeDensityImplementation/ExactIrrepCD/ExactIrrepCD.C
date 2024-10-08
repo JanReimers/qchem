@@ -132,7 +132,7 @@ template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) c
 
 template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 {
-    return real(Dot(itsDensityMatrix,itsCastedBasisSet->GetDataBase()->GetOverlap()));
+    return real(Dot(itsDensityMatrix,itsCastedBasisSet->GetDataBase()->GetOverlap(itsCastedBasisSet)));
 }
 //------------------------------------------------------------------------------
 //

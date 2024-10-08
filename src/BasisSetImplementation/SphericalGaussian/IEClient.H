@@ -9,7 +9,8 @@ struct SphericalGaussianIEClient
     : public virtual IrrepIEClient
 {
     SphericalGaussianIEClient() {};
-    SphericalGaussianIEClient(size_t N, double minexp,double maxexp,size_t L);
+    SphericalGaussianIEClient(size_t N) : Ls(N), es(N), ns(N) {};
+    void Init(double minexp,double maxexp,size_t L);
     
     virtual size_t size() const {return es.size();}
 

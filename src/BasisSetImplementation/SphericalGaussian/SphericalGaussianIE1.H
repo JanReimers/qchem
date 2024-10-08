@@ -42,7 +42,7 @@ public:
     virtual RVec MakeNormalization() const;
     virtual RVec MakeCharge       () const;
     
-    virtual  SMat MakeOverlap  (                 ) const;
+    virtual  SMat MakeOverlap  (iec_t* a         ) const;
     virtual  SMat MakeKinetic  (                 ) const;
     virtual  SMat MakeNuclear  (const Cluster&   ) const;
     virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.

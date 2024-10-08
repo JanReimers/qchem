@@ -94,7 +94,7 @@ protected:
 private:
     rc_ptr<NumericalIE<T> > itsNumericalIE;
     rc_ptr< AnalyticIE<T> > itsAnalyticIE;
-    mutable PerRef<IntegralDataBase<T> > itsDataBase;
+    mutable IntegralDataBase<T>*  itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
 };
 

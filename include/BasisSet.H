@@ -56,8 +56,11 @@ template <class T> class TBasisFunction
 //  the wave vector k for solids.
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
+#include "IEClient.H"
+
 class IrrepBasisSet
-    : public UniqueID
+    : public virtual IrrepIEClient
+    , public UniqueID
 {
 public:
     typedef std::vector<BasisFunction*>::      iterator       iterator;
@@ -98,6 +101,9 @@ public:
     virtual const_iterator end  () const=0;
     virtual       iterator begin()      =0;
     virtual       iterator end  ()      =0;
+    
+    
+    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
 //
 //  StreamableObject stuff.
 //
@@ -112,7 +118,6 @@ private:
     virtual void SetStartIndex(int)=0;
 };
 
-#include "IEClient.H"
 #include "Functions/VectorFunction.H"
 #include "Misc/ptr_vector1.h"
 //----------------------------------------------------------------------------
@@ -121,7 +126,6 @@ private:
 //
 template <class T> class TIrrepBasisSet
     : public virtual IrrepBasisSet
-    , public virtual IrrepIEClient
     , public virtual VectorFunction<T>
 {
 public:
@@ -139,7 +143,6 @@ public:
     virtual AnalyticIE <T>* GetAnalyticIE() const=0;
     
     const_iterator beginT() const {return const_iterator(begin());};
-    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
 };
 
 

@@ -37,13 +37,15 @@ AnalyticIE<double>* SphericalGaussianIE1::Clone() const
 //
 //  Overlap type integrals
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap() const
+SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* iea ) const
 {
-    size_t N=es.size();
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a);
+    size_t N=a->size();
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=GaussianIntegral(es(i)+es(j),2*L)*ns(i)*ns(j);
+            s(i,j)=GaussianIntegral(a->es(i)+a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
 
     return s;
 }

@@ -132,12 +132,22 @@ template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
 //  If possible return cached integral tables.  Calculate using integral engine only if required.
 //  In some cases the numerical IE takes priority.
 //
-template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap()
+template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(bs_t& a)
 {
-    assert(itsAnalyticIE || itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::Overlap2C,itsBasisSet->GetID());
+    assert(itsNumericalIE);
+    id2c_t key=std::make_tuple(qchem::Overlap2C,a.GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE ? itsNumericalIE->MakeOverlap() : itsAnalyticIE->MakeOverlap();
+        return its2C[key] =itsNumericalIE->MakeOverlap(a);
+    else
+        return i->second;
+}
+
+template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(iec_t* a)
+{
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::Overlap2C,a->GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsAnalyticIE->MakeOverlap(a);
     else
         return i->second;
 }
@@ -305,7 +315,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(
     assert(itsNumericalIE);
     id2c_t key=std::make_tuple(qchem::InvOverlap,itsBasisSet->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE->MakeInverse(GetOverlap());
+        return its2C[key] =itsNumericalIE->MakeInverse(GetOverlap(itsBasisSet));
     else
         return i->second;
 }

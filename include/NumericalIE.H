@@ -54,7 +54,7 @@ public:
 
     virtual void Insert(bs_t*)=0;
 
-    virtual SMat MakeOverlap    (                             ) const=0;
+    virtual SMat MakeOverlap    (bs_t& a                          ) const=0;
     virtual Mat  MakeOverlap    (bs_t& a,bs_t& b        ) const=0;
     virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const=0;
 

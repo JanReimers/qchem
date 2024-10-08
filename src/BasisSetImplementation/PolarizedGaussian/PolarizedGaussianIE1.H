@@ -34,7 +34,7 @@ public:
     virtual RVec MakeNormalization() const;
     virtual RVec MakeCharge       () const;
     
-    virtual  SMat MakeOverlap  (                 ) const;
+    virtual  SMat MakeOverlap  (iec_t* a           ) const;
     virtual  SMat MakeKinetic  (                 ) const;
     virtual  SMat MakeNuclear  (const Cluster&   ) const;
     virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
@@ -52,6 +52,7 @@ public:
 
 private:
     void Normalize(SMat&) const;
+    SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types2C , const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types3C , const RadialFunction* rc, const Polarization& pc) const;
 

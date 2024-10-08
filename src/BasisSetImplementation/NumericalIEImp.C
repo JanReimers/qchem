@@ -134,13 +134,13 @@ template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeCharg
 //
 //  Overlap type integrals.
 //
-template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeOverlap() const
+template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeOverlap(bs_t& a) const
 {
     //No UT coverage.
     CheckInitialized();
     std::cout << "Doing numerical overlap ...";
     std::cout.flush();
-    SMat ret=itsIntegrator->Overlap(*itsBasisSet);
+    SMat ret=itsIntegrator->Overlap(a);
     Normalize(ret);
     std::cout << " done" << std::endl;
     return ret;

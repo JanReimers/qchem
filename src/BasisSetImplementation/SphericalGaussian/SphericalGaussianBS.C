@@ -45,13 +45,13 @@ SphericalGaussianBS::SphericalGaussianBS(
         Mesh* theMesh)
     : BasisSetImplementation(new SphericalSymmetryQN(L))
     , TBasisSetImplementation<double>(lap,theDB)
-    , SphericalGaussianIEClient(size,minexp,maxexp,L)
+    , SphericalGaussianIEClient(size)
 {
+    SphericalGaussianIEClient::Init(minexp,maxexp,L);
 //    Vector<double> exp(size);
 //    FillPower(exp,minexp,maxexp);
     for (auto e:es) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
     TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,es));  
-    
     if (theMesh)
     {
         assert(L==0); //Why???

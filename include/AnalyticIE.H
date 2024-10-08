@@ -57,12 +57,12 @@ public:
     virtual RVec MakeNormalization() const=0;
     virtual RVec MakeCharge       () const=0;
     
-    virtual  SMat MakeOverlap  (                 ) const=0;
+    virtual  SMat MakeOverlap  (iec_t* a        ) const=0;
     virtual  SMat MakeKinetic  (                 ) const=0;
     virtual  SMat MakeNuclear  (const Cluster&   ) const=0;
     virtual  SMat MakeRepulsion(                 ) const=0; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(iec_t*,iec_t*) const=0; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const=0; //Used for charge and Vxc fitting.
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const=0; //Used for DFT

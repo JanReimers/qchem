@@ -69,9 +69,9 @@ AnalyticIE<double>* PolarizedGaussianIE1::Clone() const
 //
 //  2 Center type integrals
 //
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap() const
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap(iec_t* a) const
 {
-    return Integrate(RadialFunction::Overlap2C);
+    return Integrate(RadialFunction::Overlap2C,a);
 }
 
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion() const
@@ -205,6 +205,21 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types
         
     Normalize(s);
     return s;    
+}
+
+
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type ,iec_t* iea,  const Cluster* cl) const
+{
+    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);;
+    assert(a);
+    int N=a->size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=a->radials[ia]->Integrate(type,a->radials[ib],a->pols[ia],a->pols[ib],cache,cl);
+
+    Normalize(s);
+    return s;
 }
 
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type , const Cluster* cl) const

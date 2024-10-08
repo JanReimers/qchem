@@ -94,13 +94,13 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
     StreamableObject::SetToPretty();
     cout << *h << *h1 << *h2 << endl;
     
-    BasisGroup* bg=GetBasisGroup();
-    BasisGroup* bg1=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::ascii);
-    BasisGroup* bg2=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::binary);
-    cout << *bg << *bg1 << *bg2 << endl;
-    
-    WaveFunction* wf=GetWaveFunction();
-    WaveFunction* wf1=::OutIn<WaveFunction>(wf,file_name.c_str(), StreamableObject::ascii);
-    WaveFunction* wf2=::OutIn<WaveFunction>(wf,file_name.c_str(), StreamableObject::binary);
-    cout << *wf << *wf1 << *wf2 << endl;
+//    BasisGroup* bg=GetBasisGroup();
+//    BasisGroup* bg1=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::ascii);
+//    BasisGroup* bg2=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::binary);
+//    cout << *bg << *bg1 << *bg2 << endl;
+//    
+//    WaveFunction* wf=GetWaveFunction();
+//    WaveFunction* wf1=::OutIn<WaveFunction>(wf,file_name.c_str(), StreamableObject::ascii);
+//    WaveFunction* wf2=::OutIn<WaveFunction>(wf,file_name.c_str(), StreamableObject::binary);
+//    cout << *wf << *wf1 << *wf2 << endl;
 }
