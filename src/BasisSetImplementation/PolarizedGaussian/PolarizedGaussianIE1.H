@@ -21,6 +21,8 @@ public:
     typedef IE::RVec RVec;
     typedef IE::iev_t iev_t;
     typedef IE::jk_t jk_t;
+    typedef const IrrepIEClient iec_t;
+
     typedef std::vector<const BasisFunctionBlock*> blocks_t;
     
     PolarizedGaussianIE1() {};
@@ -36,7 +38,8 @@ public:
     virtual  SMat MakeKinetic  (                 ) const;
     virtual  SMat MakeNuclear  (const Cluster&   ) const;
     virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const IE*a,const IE*b) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT

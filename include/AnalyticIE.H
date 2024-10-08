@@ -47,6 +47,7 @@ public:
     typedef std::vector<SMat> ERI3;
     typedef std::vector<const AnalyticIE<double>*> iev_t;
     typedef std::pair<ERI4,ERI4> jk_t;
+    typedef const IrrepIEClient iec_t;
 
 
     virtual ~AnalyticIE()  {};
@@ -60,7 +61,8 @@ public:
     virtual  SMat MakeKinetic  (                 ) const=0;
     virtual  SMat MakeNuclear  (const Cluster&   ) const=0;
     virtual  SMat MakeRepulsion(                 ) const=0; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(iec_t*,iec_t*) const=0; //Used for charge and Vxc fitting.
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const=0; //Used for DFT

@@ -189,7 +189,7 @@ template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeRepul
     return ret;
 }
 
-template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepulsion(bs_t& theOtherBasisSet) const
+template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepulsion(bs_t& a,bs_t& b    ) const
 {
     //No UT coverage.
     std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;
@@ -199,8 +199,8 @@ template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepuls
 //  Can't assume other basis set is numerical, so we must explicitly evaluate
 //  the normalization constants over this mesh.
 //
-    RVec otherNormalizations = GetNumericalNormalization(theOtherBasisSet);
-    Mat ret=itsIntegrator->Repulsion(*itsBasisSet,theOtherBasisSet);
+    RVec otherNormalizations = GetNumericalNormalization(b);
+    Mat ret=itsIntegrator->Repulsion(*itsBasisSet,b);
     Normalize(itsNormalizations,ret,otherNormalizations);
     return ret;
 }

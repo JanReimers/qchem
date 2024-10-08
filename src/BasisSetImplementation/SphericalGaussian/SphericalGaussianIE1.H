@@ -6,6 +6,8 @@
 #include "AnalyticIE.H"
 #include "oml/vector.h"
 
+
+
 class SphericalGaussianIE1
     : public virtual AnalyticIE<double>
 {
@@ -18,6 +20,7 @@ public:
     typedef IE::RVec RVec;
     typedef IE::iev_t iev_t;
     typedef IE::jk_t jk_t;
+    typedef IE::iec_t iec_t;
     typedef Vector<int> IVec;
     
     struct SGparams
@@ -43,7 +46,8 @@ public:
     virtual  SMat MakeKinetic  (                 ) const;
     virtual  SMat MakeNuclear  (const Cluster&   ) const;
     virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT

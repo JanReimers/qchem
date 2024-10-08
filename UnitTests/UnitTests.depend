@@ -195,9 +195,10 @@
 1727568546 /home/janr/Code/oml/include/oml/imp/smatindex.h
 	"oml/imp/matindex.h"
 
-1728393733 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H
+1728399188 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
+	"oml/vector.h"
 
 1728391941 /home/janr/Code/qchem/src/BasisSetImplementation/BasisSetImplementation.H
 	"BasisSet.H"
@@ -236,7 +237,7 @@
 
 1727910193 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1728394607 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
+1728401367 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
 	"Misc/Persistent/IDRef.H"
 	"Misc/ERI4.H"
@@ -495,7 +496,7 @@
 	"BasisSetImplementation/Gaussian94RFR.H"
 	"Mesh/MoleculeMesh.H"
 
-1728393733 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
+1728398097 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
 	"BasisSetImplementation/BasisSetImplementation.H"
 	"BasisSetImplementation/TBasisSetImplementation.H"
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
@@ -622,7 +623,7 @@
 1727910193 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1728391325 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728402027 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -741,7 +742,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728393733 /home/janr/Code/qchem/include/BasisSet.H
+1728399999 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -762,7 +763,7 @@
 	"types.H"
 	"Misc/pmstream.h"
 
-1728394548 /home/janr/Code/qchem/include/IntegralDataBase.H
+1728401670 /home/janr/Code/qchem/include/IntegralDataBase.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Misc/ERI4.H"
@@ -801,7 +802,7 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728393733 /home/janr/Code/qchem/include/types.H
+1728399683 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728343596 /home/janr/Code/qchem/include/Functions/ScalarFunction.H

@@ -2,6 +2,7 @@
 
 
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
+#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" //Just to get IEClient
 #include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
 #include "Cluster.H"
@@ -86,15 +87,32 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion() const
     return r;
 }
 //
-SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(const IE* ie) const
+SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(const IE* iea,const IE* ieb) const
 {
-    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
-    assert(other);
-    size_t N=es.size(), No=other->es.size(), Lo=other->L;
-    Mat s(N,No);
+    const SphericalGaussianIE1* a=dynamic_cast<const SphericalGaussianIE1*>(iea);;
+    assert(a);
+    const SphericalGaussianIE1* b=dynamic_cast<const SphericalGaussianIE1*>(ieb);;
+    assert(b);
+    size_t Na=a->es.size(), Nb=b->es.size();
+    Mat s(Na,Nb);
     for (auto i:s.rows())
         for (auto j:s.cols())
-            s(i,j)=GaussianRepulsionIntegral(es(i),other->es(j),L,Lo)*ns(i)*other->ns(j);
+            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->L,b->L)*a->ns(i)*b->ns(j);
+
+    return s;
+}
+
+SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* ieb) const
+{
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a);
+    const SphericalGaussianIEClient* b=dynamic_cast<const SphericalGaussianIEClient*>(ieb);;
+    assert(b);
+    size_t Na=a->es.size(), Nb=b->es.size();
+    Mat s(Na,Nb);
+    for (auto i:s.rows())
+        for (auto j:s.cols())
+            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
 
     return s;
 }

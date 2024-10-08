@@ -5,8 +5,15 @@ Priority 1:
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
     -HeapDB needs to be for whole basis set not just one irep.
     -Make sure BasisSet->DB->IE is enforced
-        This means it takes a BasisSet argument for every call.
-    -Clean up all the insert nonsense for DB, IE and BS
+        -This means it takes a BasisSet argument for every call.
+            Break DB--->BasisSet dependence 
+            We will need some reoerg to IE
+                IEClient can access BS data
+                DB holds some sort of group IE
+            What should numerical IE see, just ScalarFunction ?
+            
+        -Clean up all the insert nonsense for DB, IE and BS
+        -Client code should not see DB, just ask BS for integrals.
     -Cache reports
     -Stop caching RNLM inside GaussianCD
     -CDcache into its own source files.

@@ -152,14 +152,8 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(bs_t& a,
         return its2Cx[key] = itsNumericalIE->MakeOverlap(a,b);
     else
         return i->second;
-        
-//    if (itsOverlapBasisSets!=theBasisSet.GetID())
-//    {
-//        itsBSOverlaps = itsNumericalIE->MakeOverlap(theBasisSet);
-//        itsOverlapBasisSets = theBasisSet.GetID();
-//    }
-//    return itsBSOverlaps;
 }
+
 
 //
 //  DO not try and cache these because the ScalarFunction f changes with iterations.
@@ -188,14 +182,24 @@ template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const S
     return itsNumericalIE->MakeRepulsion(f);
 }
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(bs_t& obs)
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(bs_t& a,bs_t& b)
 {
     assert(itsAnalyticIE || itsNumericalIE);
-    id2cx_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID(),obs.GetID());
+    id2cx_t key=std::make_tuple(qchem::Repulsion2C,a.GetID(),b.GetID());
     if (auto i = its2Cx.find(key); i==its2Cx.end())
         return its2Cx[key] = (itsNumericalIE 
-            ? itsNumericalIE->MakeRepulsion(obs) 
-            :  itsAnalyticIE->MakeRepulsion(obs.GetAnalyticIE()));
+            ? itsNumericalIE->MakeRepulsion(a,b) 
+            :  itsAnalyticIE->MakeRepulsion(a.GetAnalyticIE(),b.GetAnalyticIE()));
+    else
+        return i->second;
+}
+
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(iec_t* a,iec_t* b)
+{
+        assert(itsAnalyticIE);
+    id2cx_t key=std::make_tuple(qchem::Repulsion2C,a->GetID(),b->GetID());
+    if (auto i = its2Cx.find(key); i==its2Cx.end())
+        return its2Cx[key] = itsAnalyticIE->MakeRepulsion(a,b);
     else
         return i->second;
 }

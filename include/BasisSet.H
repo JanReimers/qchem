@@ -112,6 +112,15 @@ private:
     virtual void SetStartIndex(int)=0;
 };
 
+//
+//  Integral DB and engines only sees this
+//
+class IrrepIEClient
+{
+public:
+    virtual ~IrrepIEClient() {};
+    virtual UniqueID::IDtype GetID() const=0;
+};
 #include "Functions/VectorFunction.H"
 #include "Misc/ptr_vector1.h"
 //----------------------------------------------------------------------------
@@ -120,6 +129,7 @@ private:
 //
 template <class T> class TIrrepBasisSet
     : public virtual IrrepBasisSet
+    , public virtual IrrepIEClient
     , public virtual VectorFunction<T>
 {
 public:
@@ -137,6 +147,7 @@ public:
     virtual AnalyticIE <T>* GetAnalyticIE() const=0;
     
     const_iterator beginT() const {return const_iterator(begin());};
+    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
 };
 
 

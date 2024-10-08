@@ -6,6 +6,7 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/NumericalIEImp.H"
 #include <iostream>
 #include <cassert>
@@ -15,6 +16,14 @@ template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
   double del=(std::log(stop/start))/(double)(arr.size()-1);
   typename Vector<T>::iterator i=arr.begin();
   for (int n=0;i!=arr.end();i++,n++) *i=T(start*std::exp(n*del));
+}
+
+SphericalGaussianIEClient::SphericalGaussianIEClient(size_t N, double minexp,double maxexp,size_t L)
+    : Ls(N), es(N),ns(N)
+{
+      FillPower(es,minexp,maxexp);
+      Fill(Ls,L);
+      for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
 }
 
 //#######################################################################
@@ -43,11 +52,12 @@ SphericalGaussianBS::SphericalGaussianBS(
         Mesh* theMesh)
     : BasisSetImplementation(new SphericalSymmetryQN(L))
     , TBasisSetImplementation<double>(lap,theDB)
+    , SphericalGaussianIEClient(size,minexp,maxexp,L)
 {
-    Vector<double> exp(size);
-    FillPower(exp,minexp,maxexp);
-    for (auto e:exp) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
-    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,exp));  
+//    Vector<double> exp(size);
+//    FillPower(exp,minexp,maxexp);
+    for (auto e:es) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,es));  
     
     if (theMesh)
     {

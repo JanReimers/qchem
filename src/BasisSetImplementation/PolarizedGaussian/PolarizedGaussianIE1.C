@@ -88,19 +88,36 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(const Cluster& cl) 
     return Integrate(RadialFunction::Nuclear,&cl);
 }
 
-PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* ieb) const
+PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* iea,const IE* ieb) const
 {    
-    const PolarizedGaussianIE1* pgb=dynamic_cast<const PolarizedGaussianIE1*>(ieb);
-    assert(pgb);
-    int Na=size(),Nb=pgb->size();
+    const PolarizedGaussianIE1* b=dynamic_cast<const PolarizedGaussianIE1*>(ieb);
+    assert(b);
+    int Na=size(),Nb=b->size();
     Mat s(Na,Nb);
     for (index_t ia=0;ia<Na;ia++)
         for (index_t ib=0;ib<Nb;ib++)
             s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Repulsion2C,
-                pgb->radials[ib],pols[ia],pgb->pols[ib],cache)*ns(ia+1)*pgb->ns(ib+1);
+                b->radials[ib],pols[ia],b->pols[ib],cache)*ns(ia+1)*b->ns(ib+1);
     assert(!isnan(s));
     return s;
 }
+
+PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* ieb) const
+{    
+    assert(false);
+//    const PolarizedGaussianIE1* b=dynamic_cast<const PolarizedGaussianIE1*>(ieb);
+//    assert(b);
+//    int Na=size(),Nb=b->size();
+//    Mat s(Na,Nb);
+//    for (index_t ia=0;ia<Na;ia++)
+//        for (index_t ib=0;ib<Nb;ib++)
+//            s(ia+1,ib+1)=radials[ia]->Integrate(RadialFunction::Repulsion2C,
+//                b->radials[ib],pols[ia],b->pols[ib],cache)*ns(ia+1)*b->ns(ib+1);
+//    assert(!isnan(s));
+//    return s;
+    return Mat();
+}
+
 
 
 //------------------------------------------------------------------------------

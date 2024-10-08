@@ -8,16 +8,16 @@
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
-#include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
-#include "BasisSetImplementation/PlaneWave/PlaneWaveIE.H"
+//#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
+//#include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
+//#include "BasisSetImplementation/PlaneWave/PlaneWaveIE.H"
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
 
 #include "BasisSetImplementation/NumericalIEImp.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
-#include "BasisSetImplementation/PlaneWave/BlochQN.H"
+//#include "BasisSetImplementation/PlaneWave/BlochQN.H"
 
 #include <string>
 #include <iostream>
@@ -35,7 +35,7 @@ BasisFunction* BasisFunction::Factory(std::istream& is)
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussianBF).name()) return new SphericalGaussianBF;
     if (Name==typeid(PolarizedGaussianBF).name()) return new PolarizedGaussianBF;
-    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
+//    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
 
     std::cout << "Unknown basis function type :" << Name << std::endl;
     exit(-1);
@@ -194,7 +194,7 @@ QuantumNumber* QuantumNumber::Factory(std::istream& is)
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalSymmetryQN).name()) return new SphericalSymmetryQN;
     if (Name==typeid(     UnitSymmetryQN).name()) return new      UnitSymmetryQN;
-    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
+//    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
 
     std::cout << "Unknown Quantum Number type :" << Name << std::endl;
     exit(-1);

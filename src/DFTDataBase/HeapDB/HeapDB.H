@@ -27,6 +27,7 @@ protected:
     typedef typename Base::ERI3 ERI3;
     typedef UniqueID::IDtype IDType;
     typedef typename Base::bs_t bs_t;
+    typedef typename Base::iec_t iec_t;
 public:
 
     HeapDB();
@@ -42,7 +43,8 @@ public:
     virtual const ERI3&    GetOverlap3C  (bs_t&          );
 
     virtual const SMat&    GetRepulsion  (                             );
-    virtual const Mat&     GetRepulsion  (bs_t&          );
+    virtual const Mat&     GetRepulsion  (bs_t& ,bs_t& b);
+    virtual const Mat&     GetRepulsion  (iec_t* a,iec_t* b);
     virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
     virtual const ERI3&    GetRepulsion3C(bs_t&          );
     virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    );

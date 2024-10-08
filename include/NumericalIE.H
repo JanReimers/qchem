@@ -59,7 +59,7 @@ public:
     virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const=0;
 
     virtual SMat MakeRepulsion  (                             ) const=0;
-    virtual Mat  MakeRepulsion  (bs_t&          ) const=0;
+    virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b     ) const=0;
     virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
 
     virtual RVec MakeNormalization() const=0;
