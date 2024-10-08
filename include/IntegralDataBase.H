@@ -44,6 +44,8 @@ public:
 //
 //  Integrals that get calculated once and then cached.
 //
+    virtual const RVec&    GetNormalization(bs_t& a         )=0;
+    virtual const RVec&    GetCharge       (bs_t&  a      )=0;
     virtual const SMat&    GetOverlap    (bs_t& a  )=0; //Numerical
     virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b) =0; //Numerical only.
 
@@ -57,8 +59,6 @@ public:
     virtual       ERI4&    GetRepulsion4C(iecv_t&) =0;
     virtual       ERI4&    GetExchange4C (iecv_t&) =0;
 
-    virtual const RVec&    GetNormalization(bs_t& a         )=0;
-    virtual const RVec&    GetCharge       (bs_t&  a      )=0;
     virtual const RVec&    GetCharge       (iec_t* a      )=0;
     
     virtual const SMat&    GetKinetic         (iec_t* a      )=0;

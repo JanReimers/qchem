@@ -61,13 +61,14 @@ public:
     virtual  SMat MakeKinetic  (iec_t* a        ) const=0;
     virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const=0;
     virtual  SMat MakeRepulsion(iec_t* a         ) const=0; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const=0; //Used for charge and Vxc fitting.
-    static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
+
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const=0; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const=0; //Used for DFT
     virtual jk_t Make4C(const iecv_t&) const=0; //Used for Hartree-Fock
+
+    static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;

@@ -38,6 +38,8 @@ public:
     virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
+    virtual const RVec&    GetNormalization(bs_t& a       );
+    virtual const RVec&    GetCharge       (bs_t&  a      );
     virtual const Mat&     GetOverlap    (bs_t&, bs_t&          );
     virtual const SMat&    GetOverlap    (bs_t&   ); //Numerical
     virtual const Mat&     GetRepulsion  (bs_t& ,bs_t& b);
@@ -51,8 +53,6 @@ public:
     virtual       ERI4&    GetRepulsion4C(iecv_t&);
     virtual       ERI4&    GetExchange4C (iecv_t&);
 
-    virtual const RVec&    GetNormalization(bs_t& a       );
-    virtual const RVec&    GetCharge       (bs_t&  a      );
     virtual const RVec&    GetCharge       (iec_t* a      );
 
     virtual const SMat&    GetKinetic         (iec_t* a     );

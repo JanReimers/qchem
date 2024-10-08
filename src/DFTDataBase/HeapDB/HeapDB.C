@@ -192,12 +192,10 @@ template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const S
 
 template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(bs_t& a,bs_t& b)
 {
-    assert(itsAnalyticIE || itsNumericalIE);
+    assert(itsNumericalIE);
     id2cx_t key=std::make_tuple(qchem::Repulsion2C,a.GetID(),b.GetID());
     if (auto i = its2Cx.find(key); i==its2Cx.end())
-        return its2Cx[key] = (itsNumericalIE 
-            ? itsNumericalIE->MakeRepulsion(a,b) 
-            :  itsAnalyticIE->MakeRepulsion(a.GetAnalyticIE(),b.GetAnalyticIE()));
+        return its2Cx[key] = itsNumericalIE->MakeRepulsion(a,b);
     else
         return i->second;
 }
