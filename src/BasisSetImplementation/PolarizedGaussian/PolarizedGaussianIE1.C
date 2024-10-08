@@ -142,15 +142,15 @@ PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t
 }
 
 
-PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeRepulsion3C(const IE* ie) const
+PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
 {
-    const PolarizedGaussianIE1* other=dynamic_cast<const PolarizedGaussianIE1*>(ie);;
-    int Nc=other->size();
+    const PolarizedGaussianIEClient* c=dynamic_cast<const PolarizedGaussianIEClient*>(iec);;
+    int Nc=c->size();
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
     {
-        SMat s=Integrate(RadialFunction::Repulsion3C,other->radials[ic],other->pols[ic]);
-        s*=other->ns(ic+1);
+        SMat s=Integrate(RadialFunction::Repulsion3C,ieab,c->radials[ic],c->pols[ic]);
+        s*=c->ns(ic+1);
         s3.push_back(s);
     }    
     return s3;

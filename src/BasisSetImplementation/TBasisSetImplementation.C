@@ -149,7 +149,7 @@ GetRepulsion(const FittedFunction* ff) const
     Fill(J,0.0);
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++) J+=SMat((*f) * repulsion[i]);
     assert(!isnan(J));
@@ -238,7 +238,7 @@ GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,repulsion[i]));
     return ret;

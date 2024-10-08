@@ -44,16 +44,15 @@ public:
 //  Integrals that get calculated once and then cached.
 //
     virtual const SMat&    GetOverlap    (bs_t& a  )=0; //Numerical
-    virtual const SMat&    GetOverlap    (iec_t* a)=0; //Analytic
     virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b) =0; //Numerical only.
+
+    virtual const SMat&    GetOverlap    (iec_t* a)=0; //Analytic
+    virtual const SMat&    GetRepulsion  (iec_t* a   ) =0;
+    virtual const Mat&     GetRepulsion  (iec_t* a,iec_t* b) =0; //Analytic only.
     
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c   ) =0; //<ab|c>
+    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c  ) =0; //<a(1)b(1)|1/r12|c(2)>
 
-    //virtual const SMat&    GetRepulsion  (bs_t&  a   ) =0;
-    virtual const SMat&    GetRepulsion  (iec_t* a   ) =0;
-    //virtual const Mat&     GetRepulsion  (bs_t& ,bs_t& b ) =0;
-    virtual const Mat&     GetRepulsion  (iec_t* a,iec_t* b) =0; //Analytic only.
-    virtual const ERI3&    GetRepulsion3C(bs_t&          ) =0;
     virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    ) =0;
     virtual       ERI4view GetExchange4C (bs_t* bs_cd    ) =0;
 

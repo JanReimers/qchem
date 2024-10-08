@@ -42,7 +42,7 @@ public:
     virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
     
     virtual std::ostream& Write(std::ostream&) const;

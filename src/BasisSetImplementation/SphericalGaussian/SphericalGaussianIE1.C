@@ -124,32 +124,32 @@ SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* 
 }
 
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(const bf_tuple& bf) const
+SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
 {    
-    size_t N=es.size();
-    int Lo;
-    double eo,no;
-    std::tie(Lo,eo,no)=bf;
-//    int Lo=std::get<1>(bf);
-//    double eo=std::get<2>(bf),no=std::get<3>(bf);
+    const SphericalGaussianIEClient* ab=dynamic_cast<const SphericalGaussianIEClient*>(ieab);;
+    assert(ab);
+    size_t N=ab->size();
+    int Lc;
+    double ec,nc;
+    std::tie(Lc,ec,nc)=c;
     SMat s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
         {
-            SlaterIntegrals R(es(i)+es(j),eo);
-            s(i,j)=FourPi2*R(0,L,L,Lo,0)*ns(i)*ns(j)*no;
+            SlaterIntegrals R(ab->es(i)+ab->es(j),ec);
+            s(i,j)=FourPi2*R(0,ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
         }
     return s;
 }
 
 
-SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeRepulsion3C(const IE* ie) const
+SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
 {
-    const SphericalGaussianIE1* other=dynamic_cast<const SphericalGaussianIE1*>(ie);;
-    assert(other);
+    const SphericalGaussianIEClient* c=dynamic_cast<const SphericalGaussianIEClient*>(iec);;
+    assert(c);
 
     ERI3 s3;
-    for (auto i:other->es.indices()) s3.push_back(MakeRepulsion((*other)(i)));
+    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
     return s3;
 }
 

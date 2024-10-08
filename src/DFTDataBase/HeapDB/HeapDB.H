@@ -37,20 +37,16 @@ public:
     virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
-    virtual const SMat&    GetOverlap    (bs_t&   ); //Numerical
-    virtual const SMat&    GetOverlap    (iec_t* a); //Analytic
-
     virtual const Mat&     GetOverlap    (bs_t&, bs_t&          );
-    virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
-    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c     );
-
-    //virtual const SMat&    GetRepulsion  (bs_t&  a   ) =0; //Numerical
-    virtual const SMat&    GetRepulsion  (iec_t* a   ) ; //Analytic
-
+    virtual const SMat&    GetOverlap    (bs_t&   ); //Numerical
     virtual const Mat&     GetRepulsion  (bs_t& ,bs_t& b);
+    
+    virtual const SMat&    GetOverlap    (iec_t* a); //Analytic
+    virtual const SMat&    GetRepulsion  (iec_t* a   ) ; //Analytic
     virtual const Mat&     GetRepulsion  (iec_t* a,iec_t* b);
-    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
-    virtual const ERI3&    GetRepulsion3C(bs_t&          );
+    
+    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c     );
+    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c);
     virtual       ERI4view GetRepulsion4C(bs_t* bs_cd    );
     virtual       ERI4view GetExchange4C (bs_t* bs_cd    );
 
@@ -61,6 +57,13 @@ public:
     virtual const SMat&    GetNuclear         (const Cluster&);
     virtual const SMat&    GetInverseOverlap  (              );
     virtual const SMat&    GetInverseRepulsion(              );
+//
+//  These are used for charge and Vxc fitting.  They change with iterations
+//  So they MUST not be cached.
+//
+    virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
+    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
+
 
     virtual const NumericalIE<T>*  GetIntegralEngine(              ) const;
 

@@ -50,7 +50,7 @@ public:
     virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
 
     virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
     
@@ -63,9 +63,10 @@ public:
     bf_tuple operator()(index_t i) const {return std::make_tuple(L,es(i),ns(i));}
 private:
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
+    SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
 
-    SMat MakeOverlap  (const bf_tuple&) const;
-    SMat MakeRepulsion(const bf_tuple&) const;
+//    SMat MakeOverlap  (const bf_tuple&) const;
+//    SMat MakeRepulsion(const bf_tuple&) const;
 
     int  L;  //Angular momentum.
     RVec es; //The orbital exponents.

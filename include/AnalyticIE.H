@@ -66,7 +66,7 @@ public:
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const=0; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const=0; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const=0; //Used for DFT
     virtual jk_t Make4C(const iev_t&) const=0; //Used for Hartree-Fock
 
     virtual std::ostream& Write(std::ostream&) const=0;
