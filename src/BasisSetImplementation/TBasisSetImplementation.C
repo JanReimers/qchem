@@ -112,12 +112,12 @@ CreateOrbitals(const rc_ptr<const IrrepBasisSet>& rc,const Hamiltonian* ham, con
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetKinetic() const
 {
-    return GetDataBase()->GetKinetic();
+    return GetDataBase()->GetKinetic(this);
 }
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetNuclear(const Cluster* cl) const
 {
-    return itsDataBase->GetNuclear(*cl);
+    return itsDataBase->GetNuclear(this,*cl);
 }
 
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::

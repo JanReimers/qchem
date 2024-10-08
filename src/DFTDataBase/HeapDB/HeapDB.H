@@ -53,8 +53,8 @@ public:
     virtual const RVec&    GetNormalization (                );
     virtual const RVec&    GetCharge        (                );
 
-    virtual const SMat&    GetKinetic         (              );
-    virtual const SMat&    GetNuclear         (const Cluster&);
+    virtual const SMat&    GetKinetic         (iec_t* a     );
+    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&);
     virtual const SMat&    GetInverseOverlap  (              );
     virtual const SMat&    GetInverseRepulsion(              );
 //

@@ -58,8 +58,8 @@ public:
     virtual RVec MakeCharge       () const=0;
     
     virtual  SMat MakeOverlap  (iec_t* a        ) const=0;
-    virtual  SMat MakeKinetic  (                 ) const=0;
-    virtual  SMat MakeNuclear  (const Cluster&   ) const=0;
+    virtual  SMat MakeKinetic  (iec_t* a        ) const=0;
+    virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const=0;
     virtual  SMat MakeRepulsion(iec_t* a         ) const=0; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const=0; //Used for charge and Vxc fitting.

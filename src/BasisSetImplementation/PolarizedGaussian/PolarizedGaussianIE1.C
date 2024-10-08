@@ -79,14 +79,14 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea ) cons
     return Integrate(RadialFunction::Repulsion2C,iea);
 }
 
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic() const
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic(iec_t* a) const
 {
-    return Integrate(RadialFunction::Kinetic);
+    return Integrate(RadialFunction::Kinetic,a);
 }
 //
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(const Cluster& cl) const
+PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(iec_t* a,const Cluster& cl) const
 {
-    return Integrate(RadialFunction::Nuclear,&cl);
+    return Integrate(RadialFunction::Nuclear,a,&cl);
 }
 
 PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* iea,const IE* ieb) const

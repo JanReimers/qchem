@@ -215,34 +215,39 @@ SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iev_t& iev) const
 ////
 ////  Special integrals
 ////
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeKinetic() const
+SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeKinetic(iec_t* iea) const
 {
-    size_t N=size();
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a);
+    size_t N=a->size();
     SMatrix<double> Hk(N);
     for (auto i:Hk.rows())
         for (auto j:Hk.cols(i))
         {
-            double t=es(i)+es(j);
-            int L1=L+1;
-            Hk(i,j)=0.5*ns(i)*ns(j)*
+            assert(a->Ls(i)==a->Ls(j));
+            double t=a->es(i)+a->es(j);
+            int L=a->Ls(i),L1=L+1;
+            Hk(i,j)=0.5*a->ns(i)*a->ns(j)*
                    (
                        (L1*L1 + L*L1) * GaussianIntegral(t,2*L-2)
                        -2*L1 * t      * GaussianIntegral(t,2*L  )
-                       +4*es(i)*es(j) * GaussianIntegral(t,2*L+2)
+                       +4*a->es(i)*a->es(j) * GaussianIntegral(t,2*L+2)
                    );
         }
 
     return Hk;
 }
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(const Cluster& cl) const
+SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(iec_t* iea,const Cluster& cl) const
 {
-    size_t N=size();
+    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    assert(a);
+    size_t N=a->size(),L=a->Ls(1);
     SMatrix<double> Hn(N);
     double Z=-cl.GetNuclearCharge();
     for (auto i:Hn.rows())
         for (auto j:Hn.cols(i))
-            Hn(i,j)= Z*GaussianIntegral(es(i)+es(j),2*L-1)*ns(i)*ns(j);
+            Hn(i,j)= Z*GaussianIntegral(a->es(i)+a->es(j),2*L-1)*a->ns(i)*a->ns(j);
 
     return Hn;
 }
