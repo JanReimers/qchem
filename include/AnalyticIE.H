@@ -54,7 +54,7 @@ public:
     
     virtual size_t size() const=0;
 
-    virtual RVec MakeNormalization() const=0;
+    virtual RVec MakeNormalization(iec_t* a) const=0;
     virtual RVec MakeCharge       (iec_t* a) const=0;
     
     virtual  SMat MakeOverlap  (iec_t* a        ) const=0;

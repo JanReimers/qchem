@@ -32,7 +32,7 @@ PolarizedGaussianIE1::PolarizedGaussianIE1(const blocks_t& _blocks)
     ons=OuterProduct(ns);
 };
 
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization() const
+PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization(iec_t* a) const
 {
     return ns;
 }

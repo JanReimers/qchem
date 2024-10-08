@@ -92,21 +92,6 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* iea ) cons
 
     return r;
 }
-//
-SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(const IE* iea,const IE* ieb) const
-{
-    const SphericalGaussianIE1* a=dynamic_cast<const SphericalGaussianIE1*>(iea);;
-    assert(a);
-    const SphericalGaussianIE1* b=dynamic_cast<const SphericalGaussianIE1*>(ieb);;
-    assert(b);
-    size_t Na=a->es.size(), Nb=b->es.size();
-    Mat s(Na,Nb);
-    for (auto i:s.rows())
-        for (auto j:s.cols())
-            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->L,b->L)*a->ns(i)*b->ns(j);
-
-    return s;
-}
 
 SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 {
@@ -252,9 +237,15 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(iec_t* iea,const Cl
     return Hn;
 }
 
-SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeNormalization() const
+SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeNormalization(iec_t* iea) const
 {
     return ns;
+//    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+//    assert(a); 
+//    RVec n(a->size());
+//    for (auto i:a->es.indices())  n(i)=GaussianNorm(a->es(i),a->Ls(i))*a->ns(i);
+//    n=1.0/sqrt(n);
+//    return n;
 }
 
 SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeCharge(iec_t* iea) const
@@ -268,11 +259,11 @@ SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeCharge(iec_t* iea) const
 
 std::ostream& SphericalGaussianIE1::Write(std::ostream& os) const
 {
-    return os << L << " " << es << ns;
+    return os ;
 }
 std::istream& SphericalGaussianIE1::Read (std::istream& is)
 {
-    return is >> L >> es >> ns;
+    return is ;
 }
 
 

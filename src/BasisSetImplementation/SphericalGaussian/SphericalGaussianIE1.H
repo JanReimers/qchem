@@ -38,14 +38,13 @@ public:
 
     virtual size_t size() const {return es.size();}
 
-    virtual RVec MakeNormalization() const;
+    virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
     
     virtual  SMat MakeOverlap  (iec_t* a         ) const;
     virtual  SMat MakeKinetic  (iec_t* a         ) const;
     virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const;
     virtual  SMat MakeRepulsion(iec_t* a         ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
@@ -59,13 +58,9 @@ public:
     virtual IE* Clone() const;
 
     typedef std::tuple<int,double,double> bf_tuple;
-    bf_tuple operator()(index_t i) const {return std::make_tuple(L,es(i),ns(i));}
 private:
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
-
-//    SMat MakeOverlap  (const bf_tuple&) const;
-//    SMat MakeRepulsion(const bf_tuple&) const;
 
     int  L;  //Angular momentum.
     RVec es; //The orbital exponents.
