@@ -181,12 +181,13 @@ PolarizedGaussianIE1::PGparams::PGparams(const iecv_t& iecs)
 }
 
 
-PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iecv_t& iecv) const
+
+void PolarizedGaussianIE1::Make4C(ERI4& J, ERI4& K,const iecv_t& iecv) const
 {
     PGparams abcd(iecv);
     
     int N=abcd.size();
-    ERI4 J(N,-1.0),K;
+    J.SetSize(N,-1);
     std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
 
     for (index_t ia:abcd.ns.indices())
@@ -202,7 +203,6 @@ PolarizedGaussianIE1::jk_t PolarizedGaussianIE1::Make4C(const iecv_t& iecv) cons
                         J(ia,ib,ic,id)=norm * abcd.radials[id-1]->Integrate(abcd.radials[ia-1],abcd.radials[ib-1],abcd.radials[ic-1],abcd.pols[ia-1],abcd.pols[ib-1],abcd.pols[ic-1],abcd.pols[id-1],cache);
                     }
                 }
-    return std::make_pair(J,K);
 }
 
 

@@ -149,11 +149,13 @@ SphericalGaussianIE1::SGparams::SGparams(const iecv_t& iev)
     }
 }
 
-SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iecv_t& iev) const
+
+void SphericalGaussianIE1::Make4C(ERI4& J, ERI4& K,const iecv_t& iev) const
 {
     SphericalGaussianIE1::SGparams sg(iev);
     size_t N=sg.size();
-    ERI4 J(N,-1.0),K(N,-1.0);
+    J.SetSize(N,-1.0);
+    K.SetSize(N,-1.0);
     std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
 
     for (index_t ia:sg.es.indices())
@@ -179,7 +181,6 @@ SphericalGaussianIE1::jk_t SphericalGaussianIE1::Make4C(const iecv_t& iev) const
                      }
                 }
     
-    return std::make_pair(J,K);
 }
 
 ////

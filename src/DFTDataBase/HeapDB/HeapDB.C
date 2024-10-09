@@ -262,8 +262,8 @@ template <class T> void HeapDB<T>::BuildERIs(iecv_t& abcd)
     assert(itsAnalyticIE);
     assert(itsJTable.GetSize()==0);
     assert(itsKTable.GetSize()==0); //They should be synchronized.
-    auto [J,K]=itsAnalyticIE->Make4C(abcd);
-    itsBasisGroup->Insert(J,K); //Eeach basis set has its own HeapDB.
+    itsAnalyticIE->Make4C(itsJTable,itsKTable,abcd);
+    itsBasisGroup->Insert(itsJTable,itsKTable); //Eeach basis set has its own HeapDB.
 }
 
 template <class T> ERI4&  HeapDB<T>::GetRepulsion4C(iecv_t& abcd)
