@@ -47,8 +47,6 @@ public:
     virtual ~IntegralDataBase() {};
     virtual void  Insert(const NumericalIE<T>*)=0;
     virtual void  Insert(const AnalyticIE<T>*)=0;
-    virtual void  Insert(const BasisGroup*)=0;
-    virtual void  Insert(const ERI4& J,const ERI4& K)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
 //

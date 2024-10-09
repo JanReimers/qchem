@@ -41,18 +41,6 @@ template <class T> void HeapDB<T>::Insert(const AnalyticIE<T>* ie)
     itsAnalyticIE=ie;
 }
 
-template <class T> void HeapDB<T>::Insert(const BasisGroup* bg)
-{
-    assert(bg);
-    itsBasisGroup=bg;
-}
-
-
-template <class T> void HeapDB<T>::Insert(const ERI4& J, const ERI4& K)
-{
-    itsJTable=J;
-    itsKTable=K;
-}
 
 template <class T> bool HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
 {
@@ -263,7 +251,6 @@ template <class T> void HeapDB<T>::BuildERIs(iecv_t& abcd)
     assert(itsJTable.GetSize()==0);
     assert(itsKTable.GetSize()==0); //They should be synchronized.
     itsAnalyticIE->Make4C(itsJTable,itsKTable,abcd);
-    itsBasisGroup->Insert(itsJTable,itsKTable); //Eeach basis set has its own HeapDB.
 }
 
 template <class T> ERI4&  HeapDB<T>::GetRepulsion4C(iecv_t& abcd)

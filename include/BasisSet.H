@@ -166,12 +166,11 @@ public:
     virtual size_t GetNumFunctions() const;
     virtual size_t GetNumBasisSets() const;
     virtual void Insert(IrrepBasisSet*);
-    // Share ERI tables with other DBs
-    virtual void Insert(const ERI4& C, const ERI4& X) const;
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}
     iecv_t   Flatten() const;
+    virtual IntegralDataBase<double>* GetDataBase() const {return itsDB;}
     
 //
 //  StreamableObject stuff.
@@ -181,6 +180,7 @@ public:
     static  BasisGroup*  Factory(std::istream&    )      ;
 
 private:
+    mutable IntegralDataBase<double>* itsDB;
     optr_vector1<IrrepBasisSet*> itsBasisSets;
 };
 

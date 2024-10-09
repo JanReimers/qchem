@@ -29,7 +29,7 @@ void MoleculeTester::Init(Molecule* m,double spin,const LinearAlgebraParams& lap
 void MoleculeTester::LoadOrbitalBasisSet()
 {
     Gaussian94RFR reader("../BasisSetData/dzvp.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussianBS(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
+    IrrepBasisSet* bs = new PolarizedGaussianBS(itsLAParams,GetDatabase(), &reader,itsCluster.get());
     itsBasisGroup->Insert(bs);
 }
 

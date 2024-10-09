@@ -36,8 +36,6 @@ public:
     HeapDB();
     virtual void  Insert(const NumericalIE<T>*);
     virtual void  Insert(const AnalyticIE<T>*);
-    virtual void  Insert(const BasisGroup*);
-    virtual void  Insert(const ERI4& J,const ERI4& K);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
 #ifndef UT_COVERAGE_ONLY
@@ -89,7 +87,6 @@ private:
 
     const NumericalIE<T>* itsNumericalIE;
     const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
-    const BasisGroup*        itsBasisGroup;
  
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.

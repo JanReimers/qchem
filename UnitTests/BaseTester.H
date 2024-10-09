@@ -41,6 +41,7 @@ public:
     BasisGroup*   GetBasisGroup  () const {return itsBasisGroup;}
     Hamiltonian*  GetHamiltonian () const {return itsHamiltonian;}
     WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
+    IntegralDataBase<double>* GetDatabase() const;
 
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;

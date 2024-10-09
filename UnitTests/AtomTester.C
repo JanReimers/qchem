@@ -47,7 +47,7 @@ void AtomTester::LoadOrbitalBasisSet()
     assert(itsBasisGroup);
     for (int l=0; l<=itsLmax; l++)
     {
-        IrrepBasisSet* bs=new SphericalGaussianBS(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin,itsEmax,l);
+        IrrepBasisSet* bs=new SphericalGaussianBS(itsLAParams,GetDatabase(),itsNbasis,itsEmin,itsEmax,l);
         itsBasisGroup->Insert(bs);
     }
 }
