@@ -19,11 +19,13 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImplementation<T>::
-FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet, bool CDfit)
+FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,Mesh* m, bool CDfit)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
+    , itsMesh    (m)
     , itsCDFitFlag(CDfit)
 {
+    assert(itsMesh);
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/CastBasisSet()->GetDataBase()->GetCharge(itsBasisSet.get())(1);
 };
@@ -31,11 +33,16 @@ FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet, bool C
 template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation()
     : itsBasisSet (    )
     , itsFitCoeff (    )
+    , itsMesh     (0   )
     , itsCDFitFlag(true)
 {
     Fill(itsFitCoeff,0.0);
 };
 
+template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementation()
+{
+    delete itsMesh;
+}
 //---------------------------------------------------------------------
 //
 //  Implementation stuff for derived constrained fit classes.

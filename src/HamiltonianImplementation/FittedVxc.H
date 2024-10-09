@@ -26,7 +26,7 @@ class FittedVxc
     typedef HamiltonianTerm::SMat SMat;
 public:
     FittedVxc();
-    FittedVxc(const rc_ptr<IrrepBasisSet>& VxcFitBasisSet, const rc_ptr<ExchangeFunctional>&);
+    FittedVxc(const rc_ptr<IrrepBasisSet>& VxcFitBasisSet, const rc_ptr<ExchangeFunctional>&, Mesh*);
     ~FittedVxc();
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;

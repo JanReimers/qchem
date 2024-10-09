@@ -20,5 +20,7 @@ void DFTTester::Init(double Exchange)
 HamiltonianTerm* DFTTester::GetVee() const
 {
     if(!itsCBasisSet.get()) itsCBasisSet.reset(GetCbasisSet());
-    return new CDFittedVee(itsCBasisSet,itsCluster->GetNumElectrons());
+    Mesh* mesh=GetIntegrationMesh();
+    assert(mesh);
+    return new CDFittedVee(itsCBasisSet,mesh,itsCluster->GetNumElectrons());
 }

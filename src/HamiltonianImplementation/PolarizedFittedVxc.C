@@ -19,10 +19,10 @@ PolarizedFittedVxc::PolarizedFittedVxc()
     , itsDownVxc                  (0)
 {};
 
-PolarizedFittedVxc::PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda)
+PolarizedFittedVxc::PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda, Mesh* m)
     : HamiltonianTermImplementation(   )
-    , itsUpVxc               (new FittedVxc(bs,lda))
-    , itsDownVxc             (new FittedVxc(bs,lda))
+    , itsUpVxc               (new FittedVxc(bs,lda,m))
+    , itsDownVxc             (new FittedVxc(bs,lda,m))
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

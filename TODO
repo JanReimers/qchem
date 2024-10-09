@@ -1,30 +1,35 @@
 Priority 1:
     -BasisGroup is not an interface.
     -BasisGroup needs a dynamic cast iterator.
-    -BasisSet should really be IrrepBasisSet, and BasisGroup should really be BasisSet.
+    Done: -BasisSet should really be IrrepBasisSet, 
+    -and BasisGroup should really be BasisSet.
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
-    -HeapDB needs to be for whole basis set not just one irep.
+    Done: -HeapDB needs to be for whole basis set not just one irep.
     -Make sure BasisSet->DB->IE is enforced
-        -This means it takes a BasisSet argument for every call.
-            Break DB--->BasisSet dependence 
-            We will need some reoerg to IE
+        Done: -This means it takes a BasisSet argument for every call.
+            Done: Break DB--->BasisSet dependence 
+            Done: We will need some reoerg to IE
                 IEClient can access BS data
                 DB holds some sort of group IE
-            What should numerical IE see, just ScalarFunction ?
             
-        -Clean up all the insert nonsense for DB, IE and BS
+            
+        Done: -Clean up all the insert nonsense for DB, IE and BS
         -Client code should not see DB, just ask BS for integrals.
         -Broke BasisGroup persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
-    -Cache reports
+    -Client code should provide a Mesh* when requesting integrals form the DB.
+    -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
+   -Cache reports
     -Stop caching RNLM inside GaussianCD
     -CDcache into its own source files.
     -Do we need to store both J and K,  PolG just stores one ERI4.
+        With separate Vee and Vxc it seems we need to store J and K separatly.
+        We could just store JK=J-0.5*K to save space, but then we need a combined Ham term.
+        How doe PolG do it with just J?
     -Fix valgrind errors
     -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
     -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
-    -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
-
+ 
 
     -kT Occ smearing fails miserably.
     -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set

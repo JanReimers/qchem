@@ -27,11 +27,11 @@ HamiltonianTerm* SemiHartreeFockTester::GetVee() const
 HamiltonianTerm* SemiHartreeFockTester::GetVxc(double spin) const
 {
     if(!itsXBasisSet.get()) itsXBasisSet.reset(GetXbasisSet());
-
+    
     HamiltonianTerm* ret=0;
     if (spin==0.0)
-        ret=new FittedVxc(itsXBasisSet, new SlaterExchange(itsExchange));
+        ret=new FittedVxc(itsXBasisSet, new SlaterExchange(itsExchange),GetIntegrationMesh());
     else
-        ret=new PolarizedFittedVxc(itsXBasisSet, new SlaterExchange(itsExchange,Spin(Spin::Up)));
+        ret=new PolarizedFittedVxc(itsXBasisSet, new SlaterExchange(itsExchange,Spin(Spin::Up)),GetIntegrationMesh());
     return ret;
 }

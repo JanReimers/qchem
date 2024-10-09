@@ -26,7 +26,7 @@ class CDFittedVee
 {
 public:
     CDFittedVee();
-    CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, double numElectrons);
+    CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, Mesh* m, double numElectrons);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* cd    )       ;
     virtual void GetEnergy       (TotalEnergy&               ) const;

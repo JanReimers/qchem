@@ -23,8 +23,9 @@ public:
     typedef Vector<T> Vec;
 
     FittedFunctionImplementation(                                         );
-    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, bool CDfit=false);
-
+    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m,bool CDfit=false);
+    ~FittedFunctionImplementation();
+    
     virtual double DoFit           (const FittedFunctionClient& )      ;
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   ShiftOrigin     (const RVec3& newCenter      )      ;
@@ -65,8 +66,9 @@ private:
     }
 
     rc_ptr<IrrepBasisSet> itsBasisSet;
-    Vec              itsFitCoeff;
-    bool             itsCDFitFlag;
+    Vec   itsFitCoeff;
+    Mesh* itsMesh;
+    bool  itsCDFitFlag;
 };
 
 #endif //_FittedFunctionImplementation_H_
