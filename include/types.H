@@ -28,7 +28,7 @@ template <class T> class VectorFunction;
 //
 class Atom;
 class AngularMesh;
-class BasisSet;
+class IrrepBasisSet;
 class BasisGroup;
 class ChargeDensity;
 class Cluster;
@@ -41,6 +41,7 @@ class FittedFunction;
 class FittedFunctionClient;
 class Hamiltonian;
 class HamiltonianTerm;
+class IrrepIEClient;
 class Mesh;
 class Orbital;
 class OrbitalGroup;
@@ -65,7 +66,7 @@ template <class T> class NumericalIE;
 template <class T> class IntegralDataBase;
 template <class T> class MatrixList;
 template <class T> class TBasisFunction;
-template <class T> class TBasisSet;
+template <class T> class TIrrepBasisSet;
 template <class T> class TOrbital;
 
 

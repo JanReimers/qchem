@@ -13,7 +13,7 @@ class Cluster;
 class Lattice;
 
 class PlaneWaveBS
-    : public virtual TBasisSet<std::complex<double> >
+    : public virtual TIrrepBasisSet<std::complex<double> >
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<std::complex<double> >
 {
@@ -23,8 +23,8 @@ public:
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
-    virtual BasisSet* Clone(            ) const;
-    virtual BasisSet* Clone(const RVec3&) const;
+    virtual IrrepBasisSet* Clone(            ) const;
+    virtual IrrepBasisSet* Clone(const RVec3&) const;
 
 private:
     void MakeBasisFunctions();

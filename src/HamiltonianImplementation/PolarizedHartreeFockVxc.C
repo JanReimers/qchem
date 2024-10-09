@@ -41,7 +41,7 @@ bool PolarizedHartreeFockVxc::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat PolarizedHartreeFockVxc::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat PolarizedHartreeFockVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
 {
     if  (s.itsState==Spin::None)
     {

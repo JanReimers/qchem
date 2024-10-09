@@ -5,7 +5,7 @@
 //#include "Misc/ptr_vector1.h" 
 #include <string>
 
-class BasisSet;
+class IrrepBasisSet;
 class Cluster;
 class Mesh;
 class ChargeDensity;
@@ -37,9 +37,9 @@ public:
 //
 //  Unpickle objects.
 //
-    void            UnpickleOBasisSet    (optr_vector1<BasisSet*>&) const;
-    BasisSet*       UnpickleCBasisSet    () const;
-    BasisSet*       UnpickleXBasisSet    () const;
+    void            UnpickleOBasisSet    (optr_vector1<IrrepBasisSet*>&) const;
+    IrrepBasisSet*       UnpickleCBasisSet    () const;
+    IrrepBasisSet*       UnpickleXBasisSet    () const;
     Cluster*        UnpickleCluster      () const;
     Mesh*           UnpickleMesh         () const;
     ChargeDensity*  UnpickleChargeDensity() const;

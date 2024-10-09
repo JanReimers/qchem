@@ -23,7 +23,7 @@ public:
     typedef Vector<T> Vec;
 
     FittedFunctionImplementation(                                         );
-    FittedFunctionImplementation(const rc_ptr<BasisSet>&, bool CDfit=false);
+    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, bool CDfit=false);
 
     virtual double DoFit           (const FittedFunctionClient& )      ;
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
@@ -46,8 +46,8 @@ protected:
     virtual double DoFit(double, const FittedFunctionClient&);
     virtual double DoFit(double, const Vec&);
 
-    virtual Vec    FitGet2CenterOverlap  (const BasisSet*) const;
-    virtual Vec    FitGet2CenterRepulsion(const BasisSet*) const;
+    virtual Vec    FitGet2CenterOverlap  (const IrrepBasisSet*) const;
+    virtual Vec    FitGet2CenterRepulsion(const IrrepBasisSet*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImplementation*) const;
     virtual double FitGetOverlap  (const FittedFunctionImplementation*) const;
@@ -59,12 +59,12 @@ protected:
 
 private:
     friend class TBasisSetImplementation<T>;
-    const TBasisSet<T>* CastBasisSet() const
+    const TIrrepBasisSet<T>* CastBasisSet() const
     {
-        return dynamic_cast<TBasisSet<T>*>(itsBasisSet.get());
+        return dynamic_cast<TIrrepBasisSet<T>*>(itsBasisSet.get());
     }
 
-    rc_ptr<BasisSet> itsBasisSet;
+    rc_ptr<IrrepBasisSet> itsBasisSet;
     Vec              itsFitCoeff;
     bool             itsCDFitFlag;
 };

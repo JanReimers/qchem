@@ -12,8 +12,8 @@ public:
     void Init(Molecule*, double spin);
     void Init(Molecule*, double spin, const LinearAlgebraParams& lap);
     
-    virtual BasisSet*  GetXbasisSet() const;
-    virtual BasisSet*  GetCbasisSet() const;
+    virtual IrrepBasisSet*  GetXbasisSet() const;
+    virtual IrrepBasisSet*  GetCbasisSet() const;
     virtual Mesh*      GetIntegrationMesh() const;
     virtual void LoadOrbitalBasisSet();
     

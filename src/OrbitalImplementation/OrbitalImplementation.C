@@ -7,13 +7,13 @@
 #include <iostream>
 #include <iomanip>
 
-#define TYPE_STRING "BasisSet"
-#define TYPE BasisSet
+#define TYPE_STRING "IrrepBasisSet"
+#define TYPE IrrepBasisSet
 #include "Misc/Persistent/IDRef.Ci"
 
-template class IDRef<const BasisSet>;
+template class IDRef<const IrrepBasisSet>;
 
-OrbitalImplementation::OrbitalImplementation(const IDRef<const BasisSet>& bs,double e, const Spin& S)
+OrbitalImplementation::OrbitalImplementation(const IDRef<const IrrepBasisSet>& bs,double e, const Spin& S)
     : ElectronContainerImplementation(S,bs->GetQuantumNumber())
     , itsBasisSet   (bs)
     , itsEigenEnergy(e)

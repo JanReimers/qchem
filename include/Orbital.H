@@ -26,7 +26,7 @@ public:
 
 private:
     friend class OrbitalGroup;
-    virtual void FixUpPointer(const BasisSet*)=0;
+    virtual void FixUpPointer(const IrrepBasisSet*)=0;
 };
 
 #include "Functions/ScalarFunction.H"
@@ -76,7 +76,7 @@ public:
     
 protected:
     friend class  WaveFunction;
-    virtual void  FixUpPointer(const rc_ptr<const BasisSet>&);
+    virtual void  FixUpPointer(const rc_ptr<const IrrepBasisSet>&);
 };
 
 #include "Functions/VectorFunction.H"

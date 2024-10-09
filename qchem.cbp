@@ -42,9 +42,9 @@
 		<Compiler>
 			<Add option="-std=c++17" />
 			<Add option="-fopenmp" />
-			<Add directory="src" />
 			<Add directory="../oml/include" />
 			<Add directory="include" />
+			<Add directory="src" />
 		</Compiler>
 		<Linker>
 			<Add option="-fopenmp" />
@@ -59,6 +59,11 @@
 		<Unit filename="include/Functions/ScalarFunction.H" />
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
+		<Unit filename="include/IEClient.H" />
+		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
+		<Unit filename="include/Imp/WaveFunction/MasterPolarizedWF.H" />
+		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
+		<Unit filename="include/Imp/WaveFunction/WaveFunctionGroup.H" />
 		<Unit filename="include/IntegralDataBase.H" />
 		<Unit filename="include/NumericalIE.H" />
 		<Unit filename="include/Orbital.H" />
@@ -84,13 +89,7 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/NumericalIEImp.H" />
-		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.H" />
-		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBS.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveIE.H" />
@@ -142,6 +141,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.H" />
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/IEClient.H" />
 		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -170,6 +173,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H" />
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSetImplementation/SphericalGaussian/IEClient.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/ShpericalGaussianPS.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.C">
 			<Option compilerVar="CPP" />
@@ -183,7 +190,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE.H" />
 		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.C">
 			<Option compilerVar="CC" />
 		</Unit>

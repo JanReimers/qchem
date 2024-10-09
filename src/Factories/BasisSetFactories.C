@@ -8,16 +8,16 @@
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
-#include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
-#include "BasisSetImplementation/PlaneWave/PlaneWaveIE.H"
+//#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
+//#include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
+//#include "BasisSetImplementation/PlaneWave/PlaneWaveIE.H"
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
 
 #include "BasisSetImplementation/NumericalIEImp.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
-#include "BasisSetImplementation/PlaneWave/BlochQN.H"
+//#include "BasisSetImplementation/PlaneWave/BlochQN.H"
 
 #include <string>
 #include <iostream>
@@ -35,7 +35,7 @@ BasisFunction* BasisFunction::Factory(std::istream& is)
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussianBF).name()) return new SphericalGaussianBF;
     if (Name==typeid(PolarizedGaussianBF).name()) return new PolarizedGaussianBF;
-    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
+//    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
 
     std::cout << "Unknown basis function type :" << Name << std::endl;
     exit(-1);
@@ -58,7 +58,7 @@ BasisFunctionBlock* BasisFunctionBlock::Factory(std::istream& is)
 //  class and make a new object using the default constructor.
 //
 
-BasisSet* BasisSet::Factory(std::istream& is)
+IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussianBS).name()) return new SphericalGaussianBS;
@@ -130,57 +130,57 @@ IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >
 //  class and makes a new object using the default constructor.
 //
 
-template <class T> NumericalIE<T>* NumericalIE<T>::Factory(std::istream& is)
-{
-    std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
-    
-    std::cout << "Unknown integral engine type :" << Name << std::endl;
-    exit(-1);
-    return NULL;
-}
+//template <class T> NumericalIE<T>* NumericalIE<T>::Factory(std::istream& is)
+//{
+//    std::string Name=StreamableObject::PeekAtName(is);
+//    if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
+//    
+//    std::cout << "Unknown integral engine type :" << Name << std::endl;
+//    exit(-1);
+//    return NULL;
+//}
 
-template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
-{
-  std::string Name=PeekAtName(is);
-  if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
-  
-  std::cout << "Unknown integral engine type :" << Name << std::endl;
-  exit(-1);
-  return NULL;
-}
+//template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
+//{
+//  std::string Name=PeekAtName(is);
+//  if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
+//  
+//  std::cout << "Unknown integral engine type :" << Name << std::endl;
+//  exit(-1);
+//  return NULL;
+//}
 
-template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
-{
-    std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
-    if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
+//template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
+//{
+//    std::string Name=StreamableObject::PeekAtName(is);
+//    if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
+//    if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
+//
+//    std::cout << "Unknown integral engine type :" << Name << std::endl;
+//    exit(-1);
+//    return NULL;
+//}
+//
+//template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
+//{
+//  std::string Name=PeekAtName(is);
+//  if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
+//  if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
+//
+//  std::cout << "Unknown integral engine type :" << Name << std::endl;
+//  exit(-1);
+//  return NULL;
+//}
 
-    std::cout << "Unknown integral engine type :" << Name << std::endl;
-    exit(-1);
-    return NULL;
-}
-
-template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
-{
-  std::string Name=PeekAtName(is);
-  if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
-  if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
-
-  std::cout << "Unknown integral engine type :" << Name << std::endl;
-  exit(-1);
-  return NULL;
-}
-
-template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
-{
-  std::string Name=PeekAtName(is);
-//  if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;
-
-  std::cout << "Unknown complex integral engine type :" << Name << std::endl;
-  exit(-1);
-  return NULL;
-}
+//template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
+//{
+//  std::string Name=PeekAtName(is);
+////  if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;
+//
+//  std::cout << "Unknown complex integral engine type :" << Name << std::endl;
+//  exit(-1);
+//  return NULL;
+//}
 
 
 
@@ -194,7 +194,7 @@ QuantumNumber* QuantumNumber::Factory(std::istream& is)
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalSymmetryQN).name()) return new SphericalSymmetryQN;
     if (Name==typeid(     UnitSymmetryQN).name()) return new      UnitSymmetryQN;
-    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
+//    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
 
     std::cout << "Unknown Quantum Number type :" << Name << std::endl;
     exit(-1);

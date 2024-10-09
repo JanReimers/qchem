@@ -15,7 +15,7 @@ CDFittedVee::CDFittedVee()
     : HamiltonianTermImplementation()
 {};
 
-CDFittedVee::CDFittedVee(const rc_ptr<BasisSet>& chargeDensityFitBasisSet, double numElectrons)
+CDFittedVee::CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, double numElectrons)
     : HamiltonianTermImplementation()
     , itsFittedChargeDensity(new FittedCDImplementation<double>(chargeDensityFitBasisSet,numElectrons))
 {
@@ -37,7 +37,7 @@ void CDFittedVee::UseChargeDensity(const ChargeDensity* cd)
 //  Where ro is the fitted charge density.
 //
 
-HamiltonianTerm::SMat CDFittedVee::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat CDFittedVee::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     const ChargeDensity* cd=itsFittedChargeDensity;
     return cd->GetRepulsion(bs);

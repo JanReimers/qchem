@@ -6,6 +6,7 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
 #include "BasisSetImplementation/NumericalIEImp.H"
 #include <iostream>
 #include <cassert>
@@ -16,6 +17,7 @@ template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
   typename Vector<T>::iterator i=arr.begin();
   for (int n=0;i!=arr.end();i++,n++) *i=T(start*std::exp(n*del));
 }
+
 
 //#######################################################################
 //
@@ -43,12 +45,14 @@ SphericalGaussianBS::SphericalGaussianBS(
         Mesh* theMesh)
     : BasisSetImplementation(new SphericalSymmetryQN(L))
     , TBasisSetImplementation<double>(lap,theDB)
+    , SphericalGaussianIEClient(size)
 {
-    Vector<double> exp(size);
-    FillPower(exp,minexp,maxexp);
-    for (auto e:exp) BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
-    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1(L,exp));  
-    
+    SphericalGaussianIEClient::Init(minexp,maxexp,L);
+//    Vector<double> exp(size);
+//    FillPower(exp,minexp,maxexp);
+    for (auto e:es) 
+        BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1());  
     if (theMesh)
     {
         assert(L==0); //Why???
@@ -84,12 +88,12 @@ std::istream&  SphericalGaussianBS::Read (std::istream& is)
     return is;
 }
 
-BasisSet* SphericalGaussianBS::Clone() const
+IrrepBasisSet* SphericalGaussianBS::Clone() const
 {
     return new SphericalGaussianBS(*this);
 }
 
-BasisSet* SphericalGaussianBS::Clone(const RVec3&) const
+IrrepBasisSet* SphericalGaussianBS::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a spherical Gaussian basis set?!" << std::endl;
     return Clone();

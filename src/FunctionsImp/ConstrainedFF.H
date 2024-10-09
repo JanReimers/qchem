@@ -13,7 +13,7 @@ template <class T> class ConstrainedFF
     typedef typename Base::Vec Vec;
 public:
     ConstrainedFF();
-    ConstrainedFF(const rc_ptr<BasisSet>&, const Vec&, bool CDfit=false);
+    ConstrainedFF(const rc_ptr<IrrepBasisSet>&, const Vec&, bool CDfit=false);
 
     virtual double DoFit(const FittedFunctionClient&);
     virtual double DoFit(double, const Vec&);

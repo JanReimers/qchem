@@ -26,36 +26,49 @@ protected:
     typedef typename Base::SMat  SMat;
     typedef typename Base::ERI3 ERI3;
     typedef UniqueID::IDtype IDType;
+    typedef typename Base::bs_t bs_t;
+    typedef typename Base::iec_t iec_t;
+    typedef typename Base::iecv_t iecv_t;
+    typedef typename Base::Rf Rf;
+    typedef typename Base::Vf Vf;
 public:
 
     HeapDB();
-    virtual void  Insert(const TBasisSet<T>*,const NumericalIE<T>*);
-    virtual void  Insert(const TBasisSet<T>*,const AnalyticIE<T>*);
-    virtual void  Insert(const BasisGroup*);
-    virtual void  Insert(const ERI4& J,const ERI4& K);
+    virtual void  Insert(const NumericalIE<T>*);
+    virtual void  Insert(const AnalyticIE<T>*);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
-    virtual const SMat&    GetOverlap    (                             );
-    virtual const Mat&     GetOverlap    (const TBasisSet<T>&          );
-    virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
-    virtual const ERI3&    GetOverlap3C  (const TBasisSet<T>&          );
+#ifndef UT_COVERAGE_ONLY
+    virtual const RVec&    GetNormalization(bs_t& a);
+    virtual const SMat&    GetOverlap      (bs_t& a);
+    virtual const Mat&     GetRepulsion    (bs_t& ,bs_t& b);
+#endif
 
-    virtual const SMat&    GetRepulsion  (                             );
-    virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          );
-    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
-    virtual const ERI3&    GetRepulsion3C(const TBasisSet<T>&          );
-    virtual       ERI4view GetRepulsion4C(const TBasisSet<T>* bs_cd    );
-    virtual       ERI4view GetExchange4C (const TBasisSet<T>* bs_cd    );
+  //
+//  These are used for charge and Vxc fitting.  They change with iterations
+//  So they MUST not be cached.
+//
+    virtual const Vec      GetOverlap    (bs_t&,Rf&   f); //Numerical .
+    virtual const Vec      GetRepulsion  (bs_t&,Rf&   f); //Numerical .
+    virtual const RVec&    GetCharge     (bs_t&        ); //Numerical .
+    virtual const Mat&     GetOverlap    (bs_t&,bs_t& b); //Numerical .
+//
+//  These are all done analytically.
+//
+    virtual const RVec&    GetCharge          (iec_t* a);
+    virtual const SMat&    GetOverlap         (iec_t* a); 
+    virtual const SMat&    GetRepulsion       (iec_t* a);
+    virtual const SMat&    GetInverseOverlap  (iec_t* a); //uses analytic overlap
+    virtual const SMat&    GetInverseRepulsion(iec_t* a); //Uses analytic overlap
+    virtual const SMat&    GetKinetic         (iec_t* a);
+    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&);
 
-    virtual const RVec&    GetNormalization (                );
-    virtual const RVec&    GetCharge        (                );
+    virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) ; //<a(1)|1/r12|b(2)>
+    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) ; //<ab|c>
+    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) ; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual const SMat&    GetKinetic         (              );
-    virtual const SMat&    GetNuclear         (const Cluster&);
-    virtual const SMat&    GetInverseOverlap  (              );
-    virtual const SMat&    GetInverseRepulsion(              );
-
-    virtual const NumericalIE<T>*  GetIntegralEngine(              ) const;
+    virtual       ERI4&    GetRepulsion4C(iecv_t&) ;
+    virtual       ERI4&    GetExchange4C (iecv_t&)  ;
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
@@ -67,14 +80,13 @@ private:
     using StreamableObject::Pretty;
 
     void WipeCleanAllData   ()      ;
-    void BuildERIs();
+    void BuildERIs(iecv_t& abcd);
+    const RVec& GetNumericalNormalization(bs_t& a);
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 
     const NumericalIE<T>* itsNumericalIE;
     const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
-    const BasisSet*          itsBasisSet;
-    const BasisGroup*        itsBasisGroup;
  
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.

@@ -19,13 +19,13 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImplementation<T>::
-FittedFunctionImplementation(const rc_ptr<BasisSet>& theFitBasisSet, bool CDfit)
+FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet, bool CDfit)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsCDFitFlag(CDfit)
 {
     Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/CastBasisSet()->GetDataBase()->GetCharge()(1);
+    itsFitCoeff(1)=1.0/CastBasisSet()->GetDataBase()->GetCharge(itsBasisSet.get())(1);
 };
 
 template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation()
@@ -45,8 +45,8 @@ GetInverseOverlap() const
 {
 //    assert(!isnan(CastBasisSet()->GetDataBase()->GetInverseRepulsion()));
 //    assert(!isnan(CastBasisSet()->GetDataBase()->GetInverseOverlap()));
-    return itsCDFitFlag ? CastBasisSet()->GetDataBase()->GetInverseRepulsion()
-           : CastBasisSet()->GetDataBase()->GetInverseOverlap();
+    return itsCDFitFlag ? CastBasisSet()->GetDataBase()->GetInverseRepulsion(itsBasisSet.get())
+           : CastBasisSet()->GetDataBase()->GetInverseOverlap(itsBasisSet.get());
 }
 
 template <class T> void FittedFunctionImplementation<T>::SetFitCoeff(const Vec& fc)
@@ -97,19 +97,21 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(double,  const 
 //  Provide Overlap and Repulsion matricies for derived classes.
 //
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
-FitGet2CenterOverlap(const BasisSet* bs) const
+FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 {
-    const TBasisSet<T>* tbs=dynamic_cast<const TBasisSet<T>*>(bs);
+    const TIrrepBasisSet<T>* tbs=dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     assert(tbs);
-    return itsFitCoeff * (CastBasisSet()->GetDataBase()->GetOverlap(*tbs));
+    const TIrrepBasisSet<T>* this_bs=CastBasisSet();
+    return itsFitCoeff * (this_bs->GetDataBase()->GetOverlap(*this_bs,*tbs));
 }
 
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
-FitGet2CenterRepulsion(const BasisSet* bs) const
+FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
 {
-    const TBasisSet<T>* tbs=dynamic_cast<const TBasisSet<T>*>(bs);
+    const TIrrepBasisSet<T>* tbs=dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     assert(tbs);
-    return itsFitCoeff * (CastBasisSet()->GetDataBase()->GetRepulsion(*tbs));
+    const TIrrepBasisSet<T>* this_bs=CastBasisSet();
+    return itsFitCoeff * (this_bs->GetDataBase()->GetRepulsion(this_bs,tbs));
 }
 
 //-------------------------------------------------------------------------------------
@@ -120,24 +122,26 @@ FitGet2CenterRepulsion(const BasisSet* bs) const
 template <class T> double FittedFunctionImplementation<T>::
 FitGetOverlap(const FittedFunctionImplementation<T>* ffi) const
 {
+    const TIrrepBasisSet<T>* this_bs=CastBasisSet();
     return
         itsFitCoeff *
-        CastBasisSet()->GetDataBase()->GetOverlap(*ffi->CastBasisSet()) *
+        this_bs->GetDataBase()->GetOverlap(*this_bs,*ffi->CastBasisSet()) *
         ffi->itsFitCoeff;
 }
 
 template <class T> double FittedFunctionImplementation<T>::
 FitGetRepulsion(const FittedFunctionImplementation<T>* ffi) const
 {
+    const TIrrepBasisSet<T>* this_bs=CastBasisSet();
     return
         itsFitCoeff *
-        CastBasisSet()->GetDataBase()->GetRepulsion(*ffi->CastBasisSet()) *
+        this_bs->GetDataBase()->GetRepulsion(this_bs, ffi->CastBasisSet()) *
         ffi->itsFitCoeff;
 }
 
 template <class T> double FittedFunctionImplementation<T>::FitGetCharge() const
 {
-    return itsFitCoeff * CastBasisSet()->GetDataBase()->GetCharge();
+    return itsFitCoeff * CastBasisSet()->GetDataBase()->GetCharge(itsBasisSet.get());
 }
 
 //------------------------------------------------------------------------
@@ -226,7 +230,7 @@ template <class T> std::istream& FittedFunctionImplementation<T>::Read (std::ist
     else
         is >> itsCDFitFlag;
 
-    itsBasisSet.reset(BasisSet::Factory(is));
+    itsBasisSet.reset(IrrepBasisSet::Factory(is));
     is >> *itsBasisSet >> itsFitCoeff;
     return is;
 }

@@ -19,6 +19,8 @@ template <class T> T Max(const std::vector<T>& v)
     return *std::max_element(v.begin(), v.end());
 }
 
+
+
 //#######################################################################
 //
 //  Concrete  gaussian basis set.
@@ -101,11 +103,8 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     {
         PolarizedGaussianIE1::blocks_t bls;
         for (auto bl:itsBlocks) bls.push_back(bl);
-        RVec ns(GetNumFunctions());
-//        index_t ibf=1;
-//        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
-        
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));       
+        PolarizedGaussianIEClient::Init(bls);   
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(this));    
     }
 
     if (theMesh)  
@@ -127,7 +126,7 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
 {
     // No UT coverage
     MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
-    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
+//    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
 void PolarizedGaussianBS::MakeBasisFunctions()
@@ -165,12 +164,12 @@ std::istream& PolarizedGaussianBS::Read (std::istream& is)
     return is;
 }
 
-BasisSet* PolarizedGaussianBS::Clone() const
+IrrepBasisSet* PolarizedGaussianBS::Clone() const
 {
     return new PolarizedGaussianBS(*this);
 }
 
-BasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
+IrrepBasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
 //    optr_vector1<BasisFunctionBlock*> newBlocks;

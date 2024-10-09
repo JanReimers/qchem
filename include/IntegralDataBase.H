@@ -21,6 +21,11 @@ namespace qchem
 //  engine.  A smart implementation will request a calculation of the
 //  data does not yet exist in the data base.
 //
+//
+//  only build functions the have UT coverage.
+//
+#define UT_COVERAGE_ONLY
+
 template <class T> class IntegralDataBase
     : public virtual Persistent
 {
@@ -30,44 +35,54 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
     typedef std::vector<SMat> ERI3;
+    
+    typedef const ScalarFunction<double> Rf;
+    typedef const ScalarFunction<T>      Sf;
+    typedef const VectorFunction<T>      Vf;
+    
+    typedef const TIrrepBasisSet<T> bs_t;
+    typedef const IrrepIEClient iec_t;
+    typedef std::vector<iec_t*> iecv_t;
 
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(const TBasisSet<T>*, const NumericalIE<T>*)=0;
-    virtual void  Insert(const TBasisSet<T>*, const AnalyticIE<T>*)=0;
-    virtual void  Insert(const BasisGroup*)=0;
-    virtual void  Insert(const ERI4& J,const ERI4& K)=0;
+    virtual void  Insert(const NumericalIE<T>*)=0;
+    virtual void  Insert(const AnalyticIE<T>*)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
 //
 //  Integrals that get calculated once and then cached.
 //
-    virtual const SMat&    GetOverlap    (                             ) =0;
-    virtual const Mat&     GetOverlap    (const TBasisSet<T>&          ) =0;
-    virtual const ERI3&    GetOverlap3C  (const TBasisSet<T>&          ) =0;
-
-    virtual const SMat&    GetRepulsion  (                             ) =0;
-    virtual const Mat&     GetRepulsion  (const TBasisSet<T>&          ) =0;
-    virtual const ERI3&    GetRepulsion3C(const TBasisSet<T>&          ) =0;
-    virtual       ERI4view GetRepulsion4C(const TBasisSet<T>* bs_cd    ) =0;
-    virtual       ERI4view GetExchange4C (const TBasisSet<T>* bs_cd    ) =0;
-
-    virtual const RVec&    GetNormalization(              )=0;
-    virtual const RVec&    GetCharge       (              )=0;
-
-    virtual const SMat&    GetKinetic         (              )=0;
-    virtual const SMat&    GetNuclear         (const Cluster&)=0;
-    virtual const SMat&    GetInverseOverlap  (              )=0;
-    virtual const SMat&    GetInverseRepulsion(              )=0;
+#ifndef UT_COVERAGE_ONLY
+    virtual const RVec&    GetNormalization(bs_t& a);
+    virtual const RVec&    GetNormalization(bs_t& a         )=0;
+    virtual const SMat&    GetOverlap    (bs_t& a  )=0; //Numerical
+#endif
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (const ScalarFunction<double>&) =0;
-    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&) =0;
+    virtual const Vec      GetOverlap    (bs_t& a,Rf&  f )=0; //Numerical 
+    virtual const Vec      GetRepulsion  (bs_t& a,Rf&  f )=0; //Numerical 
+    virtual const RVec&    GetCharge     (bs_t& a        )=0; //Numerical .
+    virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b)=0; //Numerical .
+//
+//  These are all done analytically.
+//
+    virtual const RVec&    GetCharge          (iec_t* a)=0;
+    virtual const SMat&    GetOverlap         (iec_t* a)=0; 
+    virtual const SMat&    GetRepulsion       (iec_t* a)=0;
+    virtual const SMat&    GetInverseOverlap  (iec_t* a)=0; //uses analytic overlap
+    virtual const SMat&    GetInverseRepulsion(iec_t* a)=0; //Uses analytic overlap
+    virtual const SMat&    GetKinetic         (iec_t* a)=0;
+    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&)=0;
 
+    virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) =0; //<a(1)|1/r12|b(2)>
+    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
+    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
+
+    virtual       ERI4&    GetRepulsion4C(iecv_t&) =0;
+    virtual       ERI4&    GetExchange4C (iecv_t&) =0;
     
-    virtual const NumericalIE<T>* GetIntegralEngine(               ) const=0;
-
     virtual IntegralDataBase*      Clone            (               ) const=0;
     static  IntegralDataBase*      Factory          (std::istream&       )       ;
 };

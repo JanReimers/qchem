@@ -25,7 +25,7 @@ ExactVee::ExactVee()
 //  Where ro is the charge density.
 //
 
-HamiltonianTerm::SMat ExactVee::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat ExactVee::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     assert(itsExactCD);
     return itsExactCD->GetRepulsion(bs);

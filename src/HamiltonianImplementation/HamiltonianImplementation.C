@@ -43,7 +43,7 @@ bool HamiltonianImplementation::IsPolarized() const
     return ret;
 }
 
-Hamiltonian::SMat HamiltonianImplementation::BuildHamiltonian(const BasisSet* bs,const Spin& S) const
+Hamiltonian::SMat HamiltonianImplementation::BuildHamiltonian(const IrrepBasisSet* bs,const Spin& S) const
 {
     int n=bs->GetNumFunctions();
     SMat H(n,n);

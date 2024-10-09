@@ -15,7 +15,7 @@ class OrbitalImplementation
 {
 public:
     OrbitalImplementation();
-    OrbitalImplementation(const IDRef<const BasisSet>&,double energy, const Spin&);
+    OrbitalImplementation(const IDRef<const IrrepBasisSet>&,double energy, const Spin&);
 
     virtual double GetEigenEnergy() const;
 
@@ -23,10 +23,10 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    IDRef<const BasisSet> itsBasisSet;
+    IDRef<const IrrepBasisSet> itsBasisSet;
 
 private:
-    virtual void FixUpPointer(const BasisSet* bs)
+    virtual void FixUpPointer(const IrrepBasisSet* bs)
     {
         itsBasisSet.FixUpPointer(bs);
     }

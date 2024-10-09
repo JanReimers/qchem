@@ -22,7 +22,7 @@ WaveFunctionGroup::WaveFunctionGroup(const BasisGroup* bg, const Spin& S)
     assert(itsBasisGroup);
     for (auto b:*itsBasisGroup)
     {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(b); //TODO avoid casting here?
+        const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(b); //TODO avoid casting here?
         assert(tbs);
         itsIrrepWFs.push_back(new IrrepWaveFunction(tbs,S));
     }

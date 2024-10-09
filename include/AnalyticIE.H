@@ -4,7 +4,6 @@
 
 
 #include "types.H"
-#include "Misc/pmstream.h"
 #include <vector>
 #include "Misc/ERI4.H"
 
@@ -36,7 +35,6 @@
 //  Nuclear(Cluster& cl) sum over atoms c {<i|1/(r-Rc)|j>}
 //
 template <class T> class AnalyticIE
-    : public virtual PMStreamableObject
 {
 public:
     typedef Matrix<T>      Mat;
@@ -45,30 +43,28 @@ public:
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
-    typedef std::vector<const AnalyticIE<double>*> iev_t;
-    typedef std::pair<ERI4,ERI4> jk_t;
+    typedef const IrrepIEClient iec_t;
+    typedef std::vector<iec_t*> iecv_t;
 
 
     virtual ~AnalyticIE()  {};
     
-    virtual size_t size() const=0;
-
-    virtual RVec MakeNormalization() const=0;
-    virtual RVec MakeCharge       () const=0;
+    virtual RVec MakeNormalization(iec_t* a) const=0;
+    virtual RVec MakeCharge       (iec_t* a) const=0;
     
-    virtual  SMat MakeOverlap  (                 ) const=0;
-    virtual  SMat MakeKinetic  (                 ) const=0;
-    virtual  SMat MakeNuclear  (const Cluster&   ) const=0;
-    virtual  SMat MakeRepulsion(                 ) const=0; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*) const=0; //Used for charge and Vxc fitting.
+    virtual  SMat MakeOverlap  (iec_t* a        ) const=0;
+    virtual  SMat MakeKinetic  (iec_t* a        ) const=0;
+    virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const=0;
+    virtual  SMat MakeRepulsion(iec_t* a         ) const=0; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const=0; //Used for charge and Vxc fitting.
+
+
+    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const=0; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const=0; //Used for DFT
+    virtual void Make4C(ERI4& J, ERI4& K, const iecv_t&) const=0; //Used for Hartree-Fock
+
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
-    virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const=0; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const=0; //Used for DFT
-    virtual jk_t Make4C(const iev_t&) const=0; //Used for Hartree-Fock
-
-    virtual std::ostream& Write(std::ostream&) const=0;
-    virtual std::istream& Read (std::istream&)      =0;
     virtual AnalyticIE* Clone  (         ) const=0;
     static  AnalyticIE* Factory(std::istream&);
 };

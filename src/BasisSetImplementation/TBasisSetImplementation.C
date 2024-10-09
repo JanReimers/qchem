@@ -58,17 +58,15 @@ template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
 {
     assert(ie);
     itsNumericalIE.reset(ie);
-    itsNumericalIE->Insert(this);
-    itsDataBase->Insert(this,ie);
+    itsDataBase->Insert(ie);
 }
 
 template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
 {
     assert(ie);
-    itsAnalyticIE.reset(ie);
-    itsDataBase->Insert(this,ie);
-    RVec ns=ie->MakeNormalization();
-    RVec cs=ie->MakeCharge();
+    itsDataBase->Insert(ie);
+    RVec ns=ie->MakeNormalization(this);
+    RVec cs=ie->MakeCharge(this);
     int i=1;
     for (auto bf:*this) 
     {
@@ -82,11 +80,6 @@ template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase(
     assert(&*itsDataBase);
     return itsDataBase;
 }
-template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetAnalyticIE() const
-{
-    assert(&*itsAnalyticIE);
-    return &*itsAnalyticIE;
-}
 
  
 
@@ -98,7 +91,7 @@ template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetAnalyticIE() co
 // TODO: Why do we need to pass in const rc_ptr<const BasisSet>& rc ????
 //
 template <class T> OrbitalGroup* TBasisSetImplementation<T>::
-CreateOrbitals(const rc_ptr<const BasisSet>& rc,const Hamiltonian* ham, const Spin&S) const
+CreateOrbitals(const rc_ptr<const IrrepBasisSet>& rc,const Hamiltonian* ham, const Spin&S) const
 {
     SMat H=ham->BuildHamiltonian(this,S);
     assert(!isnan(H));
@@ -109,18 +102,18 @@ CreateOrbitals(const rc_ptr<const BasisSet>& rc,const Hamiltonian* ham, const Sp
            TOrbitalGroupImplementation<T>(rc,U,e,S);
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetKinetic() const
 {
-    return GetDataBase()->GetKinetic();
+    return GetDataBase()->GetKinetic(this);
 }
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetNuclear(const Cluster* cl) const
 {
-    return itsDataBase->GetNuclear(*cl);
+    return itsDataBase->GetNuclear(this,*cl);
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetOverlap  (const FittedFunction* ff) const
 {
     int n=this->GetNumFunctions();
@@ -129,7 +122,7 @@ GetOverlap  (const FittedFunction* ff) const
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     assert(!isnan(ffi->itsFitCoeff));
-    const ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const ERI3& overlap=GetDataBase()->GetOverlap3C(this,ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++)
     {
@@ -141,7 +134,7 @@ GetOverlap  (const FittedFunction* ff) const
     return J;
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const FittedFunction* ff) const
 {
     int n=this->GetNumFunctions();
@@ -149,7 +142,7 @@ GetRepulsion(const FittedFunction* ff) const
     Fill(J,0.0);
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
     typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
     for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++) J+=SMat((*f) * repulsion[i]);
     assert(!isnan(J));
@@ -162,13 +155,16 @@ GetRepulsion(const FittedFunction* ff) const
 #include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
 
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
-GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
+GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
+    assert(itsBasisGroup);
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-    const ERI4view J=GetDataBase()->GetRepulsion4C(bs_cd);
+    BasisGroup::iecv_t iecs=itsBasisGroup->Flatten();
+    const ERI4& Jfull=GetDataBase()->GetRepulsion4C(iecs);
+    ERI4view J(Jfull,this->GetStartIndex(),bs_cd->GetStartIndex());
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -191,11 +187,13 @@ GetRepulsion(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
     return Jab;
 }
 
-template <class T> BasisSet::SMat TBasisSetImplementation<T>::
-GetExchange(const SMat& Dcd, const TBasisSet<T>* bs_cd) const
+template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
+GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    const ERI4view K=GetDataBase()->GetExchange4C(bs_cd);
+    BasisGroup::iecv_t iecs=itsBasisGroup->Flatten();
+    const ERI4& Kfull=GetDataBase()->GetExchange4C(iecs);
+    ERI4view K(Kfull,this->GetStartIndex(),bs_cd->GetStartIndex());
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -233,12 +231,12 @@ GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ff);
     const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
     assert(icd);
-    assert(&*icd->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(*ffi->CastBasisSet());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,repulsion[i]));
     return ret;
@@ -251,12 +249,12 @@ GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
     assert(ff);
     const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
     assert(icd);
-    assert(&*icd->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     double ret=0;
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const typename TBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(*ffi->CastBasisSet());
+    const typename TIrrepBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(this,ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
         ret+=real((*c) * Dot(icd->itsDensityMatrix,overlap[i]));
     return ret;
@@ -296,10 +294,10 @@ SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ff);
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    assert(&*ffi->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetOverlap(sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(sf);
+    assert(!isnan(GetDataBase()->GetOverlap(*this,sf)));
+    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(*this,sf);
 }
 
 
@@ -309,10 +307,10 @@ SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ff);
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    assert(&*ffi->itsBasisSet==static_cast<const BasisSet*>(this));
+    assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetRepulsion(sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(sf);
+    assert(!isnan(GetDataBase()->GetRepulsion(*this,sf)));
+    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(*this,sf);
 }
 
 
@@ -366,7 +364,7 @@ template <class T> LASolver<T>* TBasisSetImplementation<T>::GetLASolver() const
 {
     if (!itsLASolver) 
     {
-        SMat S=GetDataBase()->GetOverlap();
+        SMat S=GetDataBase()->GetOverlap(this);
         itsLASolver=LASolver<T>::Factory(itsLAParams);
         itsLASolver->SetBasisOverlap(S);
     }
@@ -383,7 +381,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
     if(!StreamableObject::Pretty())
     {
         VectorFunctionBuffer<T>::Write(os);
-        os << *itsAnalyticIE << itsDataBase;
+        os <<  itsDataBase;
     }
     return os;
 }
@@ -391,10 +389,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
 template <class T> std::istream& TBasisSetImplementation<T>::Read(std::istream& is)
 {
     VectorFunctionBuffer<T>::Read(is);
-    AnalyticIE<T>* ie=AnalyticIE<T>::Factory(is);
-    is >> *ie;
     is >> itsDataBase;
-    Insert(ie); //Fix up lots of pointers.
 
     return is;
 };

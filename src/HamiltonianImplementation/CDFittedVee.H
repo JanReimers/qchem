@@ -26,14 +26,14 @@ class CDFittedVee
 {
 public:
     CDFittedVee();
-    CDFittedVee(const rc_ptr<BasisSet>& chargeDensityFitBasisSet, double numElectrons);
+    CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, double numElectrons);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* cd    )       ;
     virtual void GetEnergy       (TotalEnergy&               ) const;
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const BasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 
     FittedCD* itsFittedChargeDensity;
 };

@@ -27,9 +27,9 @@ class ChargeDensity
 {
 public:
     typedef SMatrix<double> SMat;
-    virtual SMat   GetOverlap  (const BasisSet*) const=0;
-    virtual SMat   GetRepulsion(const BasisSet*) const=0;
-    virtual SMat   GetExchange (const BasisSet*) const=0;
+    virtual SMat   GetOverlap  (const IrrepBasisSet*) const=0;
+    virtual SMat   GetRepulsion(const IrrepBasisSet*) const=0;
+    virtual SMat   GetExchange (const IrrepBasisSet*) const=0;
 
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
 
@@ -59,17 +59,17 @@ public:
     virtual       ChargeDensity* GetChargeDensity(const Spin&)      =0;
     virtual const ChargeDensity* GetChargeDensity(const Spin&) const=0;
 
-    virtual SMat   GetOverlap  (const BasisSet*) const;
-    virtual SMat   GetRepulsion(const BasisSet*) const;
-    virtual SMat   GetExchange (const BasisSet*) const;
+    virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
+    virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
+    virtual SMat   GetExchange (const IrrepBasisSet*) const;
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
     virtual double GetTotalCharge      (                     ) const;  // <ro>
     virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
 
-    virtual void   InjectOverlaps  (FittedFunction*, const BasisSet* theFitBasisSet) const;
-    virtual void   InjectRepulsions(FittedFunction*, const BasisSet* theFitBasisSet) const;
+    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
 
     virtual bool   IsPolarized  (                           ) const;
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
@@ -133,8 +133,8 @@ public:
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
-    virtual void   InjectOverlaps  (FittedFunction*, const BasisSet* theFitBasisSet) const;
-    virtual void   InjectRepulsions(FittedFunction*, const BasisSet* theFitBasisSet) const;
+    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;

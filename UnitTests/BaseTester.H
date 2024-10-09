@@ -32,8 +32,8 @@ public:
 
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc(double spin) const=0;
-    virtual BasisSet*  GetXbasisSet() const=0;
-    virtual BasisSet*  GetCbasisSet() const=0;
+    virtual IrrepBasisSet*  GetXbasisSet() const=0;
+    virtual IrrepBasisSet*  GetCbasisSet() const=0;
     virtual Mesh*      GetIntegrationMesh() const=0;
     virtual void       LoadOrbitalBasisSet()=0;
     
@@ -41,6 +41,7 @@ public:
     BasisGroup*   GetBasisGroup  () const {return itsBasisGroup;}
     Hamiltonian*  GetHamiltonian () const {return itsHamiltonian;}
     WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
+    IntegralDataBase<double>* GetDatabase() const;
 
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;

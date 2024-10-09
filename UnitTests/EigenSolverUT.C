@@ -49,11 +49,11 @@ public:
     
     SMatrix<double> GetOverlap() const
     {
-        return itsDB->GetOverlap();
+        return itsDB->GetOverlap(itsBasisSet);
     }
 //    void OutIn(const PMStreamableObject* pout,PMStreamableObject* pin,StreamableObject::Mode);
     IntegralDataBase<double>* itsDB;
-    BasisSet* itsBasisSet;
+    IrrepBasisSet* itsBasisSet;
 };
 
 TEST_F(qchem_EigenSolverTests,MinSVEVTests)

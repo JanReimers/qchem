@@ -10,7 +10,7 @@ template class TOrbitalGroup<std::complex<double> >;
 #include "Misc/rc_ptr.H"
 #include <cassert>
 
-void OrbitalGroup::FixUpPointer(const rc_ptr<const BasisSet>& bs)
+void OrbitalGroup::FixUpPointer(const rc_ptr<const IrrepBasisSet>& bs)
 {
     // No UT coverage
     assert(&*bs);

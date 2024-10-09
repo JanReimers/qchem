@@ -16,7 +16,7 @@
 //  This class also owns the IntegralDataBase.
 //
 class BasisSetImplementation
-    : public virtual BasisSet
+    : public virtual IrrepBasisSet
 {
 public:
     BasisSetImplementation(              );
@@ -28,7 +28,7 @@ public:
 
     virtual int     GetStartIndex  (               ) const;
     virtual size_t  GetNumFunctions(               ) const;
-    virtual bool    operator==     (const BasisSet&) const;
+    virtual bool    operator==     (const IrrepBasisSet&) const;
 
     virtual const QuantumNumber&  GetQuantumNumber() const
     {

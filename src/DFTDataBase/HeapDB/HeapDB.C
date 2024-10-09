@@ -20,7 +20,6 @@
 template <class T> HeapDB<T>::HeapDB()
     :itsNumericalIE    (0)
     ,itsAnalyticIE   (0)
-    ,itsBasisSet          (0)
     
 {}
 
@@ -30,52 +29,29 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
 {
 }
 
-template <class T> void HeapDB<T>::Insert(const TBasisSet<T>* bs,const NumericalIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(const NumericalIE<T>* ie)
 {
-    assert(bs);
     assert(ie);
-    itsBasisSet=bs;
     itsNumericalIE=ie;
 }
 
-template <class T> void HeapDB<T>::Insert(const TBasisSet<T>* bs,const AnalyticIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(const AnalyticIE<T>* ie)
 {
-    assert(bs);
     assert(ie);
-    itsBasisSet=bs;
     itsAnalyticIE=ie;
 }
 
-template <class T> void HeapDB<T>::Insert(const BasisGroup* bg)
-{
-    assert(bg);
-    itsBasisGroup=bg;
-}
-
-
-template <class T> void HeapDB<T>::Insert(const ERI4& J, const ERI4& K)
-{
-    itsJTable=J;
-    itsKTable=K;
-}
 
 template <class T> bool HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
 {
-    if (!itsBasisSet || itsBasisSet->GetID()==0) return false;
     const HeapDB* hdb=dynamic_cast<const HeapDB*>(&idb);
-    if (!hdb) return false;
-    if (!hdb->itsBasisSet || hdb->itsBasisSet->GetID()==0) return false;
-    return itsBasisSet->GetID()==hdb->itsBasisSet->GetID();
+    return hdb;
+    
 }
 //-------------------------------------------------------------------------
 //
 //  Assorted fluff.
 //
-template <class T> const NumericalIE<T>* HeapDB<T>::GetIntegralEngine() const
-{
-    assert(itsNumericalIE);
-    return itsNumericalIE;
-}
 
 template <class T> IntegralDataBase<T>* HeapDB<T>::Clone() const
 {
@@ -132,150 +108,164 @@ template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
 //  If possible return cached integral tables.  Calculate using integral engine only if required.
 //  In some cases the numerical IE takes priority.
 //
-template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap()
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNumericalNormalization(bs_t& a)
 {
-    assert(itsAnalyticIE || itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::Overlap2C,itsBasisSet->GetID());
-    if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE ? itsNumericalIE->MakeOverlap() : itsAnalyticIE->MakeOverlap();
+    assert(itsNumericalIE);
+    id2c_t key=std::make_tuple(qchem::Normalization,a.GetID());
+    if (auto i = its1C.find(key); i==its1C.end())
+        return its1C[key] =itsNumericalIE->MakeNormalization(a);
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(const TBasisSet<T>& obs)
+
+template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(iec_t* a)
+{
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::Overlap2C,a->GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsAnalyticIE->MakeOverlap(a);
+    else
+        return i->second;
+}
+
+
+//
+//  THis get called in code by FittedFunctionImplementation<T>::FitGet2CenterOverlap(const IrrepBasisSet* bs) const
+//  But does not get used at run time.  The fit uses the repulsion version instead.
+//
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(bs_t& a,bs_t& b)
 {
     // No UT coverage.
     assert(false);
-    assert(itsNumericalIE);
-    id2cx_t key=std::make_tuple(qchem::Overlap2C,itsBasisSet->GetID(),obs.GetID());
-    if (auto i = its2Cx.find(key); i==its2Cx.end())
-        return its2Cx[key] = itsNumericalIE->MakeOverlap(obs);
-    else
-        return i->second;
-        
-//    if (itsOverlapBasisSets!=theBasisSet.GetID())
-//    {
-//        itsBSOverlaps = itsNumericalIE->MakeOverlap(theBasisSet);
-//        itsOverlapBasisSets = theBasisSet.GetID();
-//    }
-//    return itsBSOverlaps;
+    return *new Mat();
+//    assert(itsNumericalIE);
+//    id2cx_t key=std::make_tuple(qchem::Overlap2C,a.GetID(),b.GetID());
+//    if (auto i = its2Cx.find(key); i==its2Cx.end())
+//        return its2Cx[key] = itsNumericalIE->MakeOverlap(a,b);
+//    else
+//        return i->second;
 }
+
 
 //
 //  DO not try and cache these because the ScalarFunction f changes with iterations.
 //
-template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(const ScalarFunction<double>& f)
+template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(bs_t& bs,Rf& f)
 {
     assert(itsNumericalIE);    
-    return itsNumericalIE->MakeOverlap(f);;
+    const RVec& n=GetNumericalNormalization(bs);
+    return DirectMultiply(itsNumericalIE->MakeOverlap(bs,f),n);
 }
 
 
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion(iec_t* a )
 {
-    assert(itsAnalyticIE || itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID());
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::Repulsion2C,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE ? itsNumericalIE->MakeRepulsion() : itsAnalyticIE->MakeRepulsion();
+        return its2C[key] =itsAnalyticIE->MakeRepulsion(a);
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const ScalarFunction<double>& f)
+template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(bs_t& bs,Rf& f)
 {
     assert(itsNumericalIE);
-    return itsNumericalIE->MakeRepulsion(f);
+    const RVec& n=GetNumericalNormalization(bs);
+    return DirectMultiply(itsNumericalIE->MakeRepulsion(bs,f),n);
 }
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(const TBasisSet<T>& obs)
+
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(iec_t* a,iec_t* b)
 {
-    assert(itsAnalyticIE || itsNumericalIE);
-    id2cx_t key=std::make_tuple(qchem::Repulsion2C,itsBasisSet->GetID(),obs.GetID());
+    assert(itsAnalyticIE);
+    id2cx_t key=std::make_tuple(qchem::Repulsion2C,a->GetID(),b->GetID());
     if (auto i = its2Cx.find(key); i==its2Cx.end())
-        return its2Cx[key] = (itsNumericalIE 
-            ? itsNumericalIE->MakeRepulsion(obs) 
-            :  itsAnalyticIE->MakeRepulsion(obs.GetAnalyticIE()));
+        return its2Cx[key] = itsAnalyticIE->MakeRepulsion(a,b);
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* a)
 {
     assert(itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::Kinetic,itsBasisSet->GetID());
+    id2c_t key=std::make_tuple(qchem::Kinetic,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeKinetic();
+        return its2C[key] =itsAnalyticIE->MakeKinetic(a);
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNormalization()
+
+//
+//  THis get called in code by FittedFunctionImplementation<T>::FitGet2CenterOverlap(const IrrepBasisSet* bs) const
+//  But does not get used at run time.  The fit uses the repulsion version instead.
+//
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(bs_t&  a)
 {
-    assert(itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::Normalization,itsBasisSet->GetID());
-    if (auto i = its1C.find(key); i==its1C.end())
-        return its1C[key] =itsNumericalIE->MakeNormalization();
-    else
-        return i->second;
+    assert(false);
+    return *new RVec();
+//    assert(itsNumericalIE);
+//    id2c_t key=std::make_tuple(qchem::Charge,a.GetID());
+//    if (auto i = its1C.find(key); i==its1C.end())
+//        return its1C[key] =itsNumericalIE->MakeCharge(a) ;
+//    else
+//        return i->second;
 }
 
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge()
-{
-    assert(itsNumericalIE || itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::Charge,itsBasisSet->GetID());
-    if (auto i = its1C.find(key); i==its1C.end())
-        return its1C[key] =(itsNumericalIE ? itsNumericalIE->MakeCharge() : itsAnalyticIE->MakeCharge()) ;
-    else
-        return i->second;
-}
-
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(const TBasisSet<T>& obs)
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(iec_t* a)
 {
     assert(itsAnalyticIE);
-    id3c_t key=std::make_tuple(qchem::Overlap3C,itsBasisSet->GetID(),obs.GetID());
-    if (auto i = its3C.find(key); i==its3C.end())
-        return its3C[key] = itsAnalyticIE->MakeOverlap3C(obs.GetAnalyticIE());
+    id2c_t key=std::make_tuple(qchem::Charge,a->GetID());
+    if (auto i = its1C.find(key); i==its1C.end())
+        return its1C[key] =itsAnalyticIE->MakeCharge(a);
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(const TBasisSet<T>& obs)
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(iec_t* ab,iec_t* c )
 {
     assert(itsAnalyticIE);
-    id3c_t key=std::make_tuple(qchem::Repulsion3C,itsBasisSet->GetID(),obs.GetID());
+    id3c_t key=std::make_tuple(qchem::Overlap3C,ab->GetID(),c->GetID());
     if (auto i = its3C.find(key); i==its3C.end())
-        return its3C[key] = itsAnalyticIE->MakeRepulsion3C(obs.GetAnalyticIE());
+        return its3C[key] = itsAnalyticIE->MakeOverlap3C(ab,c);
     else
         return i->second;
 }
 
-template <class T> void HeapDB<T>::BuildERIs()
+template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec_t* ab,iec_t* c)
+{
+    assert(itsAnalyticIE);
+    id3c_t key=std::make_tuple(qchem::Repulsion3C,ab->GetID(),c->GetID());
+    if (auto i = its3C.find(key); i==its3C.end())
+        return its3C[key] = itsAnalyticIE->MakeRepulsion3C(ab,c);
+    else
+        return i->second;
+}
+
+template <class T> void HeapDB<T>::BuildERIs(iecv_t& abcd)
 {
     assert(itsAnalyticIE);
     assert(itsJTable.GetSize()==0);
     assert(itsKTable.GetSize()==0); //They should be synchronized.
-    auto [J,K]=itsAnalyticIE->Make4C(itsBasisGroup->Flatten());
-    itsBasisGroup->Insert(J,K); //Eeach basis set has its own HeapDB.
+    itsAnalyticIE->Make4C(itsJTable,itsKTable,abcd);
 }
 
-template <class T> ERI4view HeapDB<T>::GetRepulsion4C(const TBasisSet<T>* bs_cd)
+template <class T> ERI4&  HeapDB<T>::GetRepulsion4C(iecv_t& abcd)
 {
-    assert(itsBasisSet);
-    assert(itsAnalyticIE);
-   if (itsJTable.GetSize()==0) BuildERIs(); 
-   assert(bs_cd);
-   int ss=bs_cd->GetStartIndex();
-   return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),ss);
+   if (itsJTable.GetSize()==0) BuildERIs(abcd); 
+   return itsJTable;
 }
 
-template <class T> ERI4view HeapDB<T>::GetExchange4C (const TBasisSet<T>* bs_cd)
+template <class T> ERI4&  HeapDB<T>::GetExchange4C (iecv_t& abcd)
 {
-   if (itsJTable.GetSize()==0) BuildERIs(); 
+   if (itsJTable.GetSize()==0) BuildERIs(abcd); 
    if (itsKTable.GetSize()==0)
-        return ERI4view(itsJTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+        return itsJTable;
     else
-        return ERI4view(itsKTable,itsBasisSet->GetStartIndex(),bs_cd->GetStartIndex());
+        return itsKTable;
 }
 //-------------------------------------------------------------------------
 //
@@ -283,44 +273,69 @@ template <class T> ERI4view HeapDB<T>::GetExchange4C (const TBasisSet<T>* bs_cd)
 //  already known.
 //
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(const Cluster& cl)
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(iec_t* a,const Cluster& cl)
 {
     assert(itsAnalyticIE);
-    id2cx_t key=std::make_tuple(qchem::Nuclear,itsBasisSet->GetID(),cl.GetID());
+    id2cx_t key=std::make_tuple(qchem::Nuclear,a->GetID(),cl.GetID());
     if (auto i = its2CNuc.find(key); i==its2CNuc.end())
-        return its2CNuc[key] =itsAnalyticIE->MakeNuclear(cl);
+        return its2CNuc[key] =itsAnalyticIE->MakeNuclear(a,cl);
     else
         return i->second;
 }   
 
 
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(iec_t* a)
 {
      //Only used for numerical IE.
-    assert(itsNumericalIE);
-    id2c_t key=std::make_tuple(qchem::InvOverlap,itsBasisSet->GetID());
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::InvOverlap,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsNumericalIE->MakeInverse(GetOverlap());
+        return its2C[key] =itsAnalyticIE->MakeInverse(GetOverlap(a));
     else
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsion()
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsion(iec_t* a)
 {
+//     std::cout << GetOverlap(a) << std::endl;
     assert(itsAnalyticIE);
-    assert(!itsNumericalIE); //Do we need to support this?
-    id2c_t key=std::make_tuple(qchem::InvRepulsion,itsBasisSet->GetID());
+    id2c_t key=std::make_tuple(qchem::InvRepulsion,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion());
+        return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion(a));
     else
         return i->second;
 }
+
+#ifndef UT_COVERAGE_ONLY
+
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(bs_t& a,bs_t& b)
+{
+    assert(itsNumericalIE);
+    id2cx_t key=std::make_tuple(qchem::Repulsion2C,a.GetID(),b.GetID());
+    if (auto i = its2Cx.find(key); i==its2Cx.end())
+        return its2Cx[key] = itsNumericalIE->MakeRepulsion(a,b);
+    else
+        return i->second;
+}
+
+template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(bs_t& a)
+{
+    assert(itsNumericalIE);
+    id2c_t key=std::make_tuple(qchem::Overlap2C,a.GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsNumericalIE->MakeOverlap(a);
+    else
+        return i->second;
+}
+#endif // UT_COVERAGE_ONLY
+
+
 
 SMatrix<std::complex<double> > m; //dummy just to get the compiler to shut up.
 
 template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
-GetInverseOverlap()
+GetInverseOverlap(iec_t* a)
 {
     std::cerr << "Sorry, inverse of complex matrix is not implemented" << std::endl;
     exit(-1);
@@ -328,7 +343,7 @@ GetInverseOverlap()
 }
 
 template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
-GetInverseRepulsion()
+GetInverseRepulsion(iec_t* a)
 {
     std::cerr << "Sorry, inverse of complex matrix is not implemented" << std::endl;
     exit(-1);

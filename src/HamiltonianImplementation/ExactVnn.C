@@ -20,7 +20,7 @@ ExactVnn::ExactVnn(const rc_ptr<Cluster>& cl)
     , theCluster(cl)
 {};
 
-HamiltonianTerm::SMat ExactVnn::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat ExactVnn::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMat ret(n,n);

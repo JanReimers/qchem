@@ -32,7 +32,7 @@ void LDAVxc::UseChargeDensity(const ChargeDensity* exact)
 //  Here Vxc is not fit to the exchange functional, so the Matrix and energy.
 //  cannot be calculated analytically.
 //
-HamiltonianTerm::SMat LDAVxc::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat LDAVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     std::cerr << "LDAVxc::CalculateHamiltonianMatrix not implementated yet" << std::endl;
     exit(-1);
@@ -44,16 +44,16 @@ void LDAVxc::GetEnergy(TotalEnergy&) const
     exit(-1);
 }
 
-void LDAVxc::InjectOverlaps(FittedFunction* ff, const BasisSet* theFitBasisSet) const
+void LDAVxc::InjectOverlaps(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
-    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(theFitBasisSet);
+    const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(theFitBasisSet);
     assert(tbs);
     tbs->SetFitOverlap(ff,*itsExchangeFunctional);
 }
 
-void LDAVxc::InjectRepulsions(FittedFunction* ff, const BasisSet* theFitBasisSet) const
+void LDAVxc::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
-    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(theFitBasisSet);
+    const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(theFitBasisSet);
     assert(tbs);
     tbs->SetFitRepulsion(ff,*itsExchangeFunctional);
 }

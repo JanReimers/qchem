@@ -32,7 +32,7 @@ ExactVen::ExactVen(const rc_ptr<Cluster>& cl)
 //    return -r/!r;
 //}
 
-HamiltonianTerm::SMat ExactVen::CalculateHamiltonianMatrix(const BasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat ExactVen::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     return bs->GetNuclear(&*theCluster);
 }

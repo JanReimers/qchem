@@ -25,7 +25,7 @@ public:
     static  WaveFunction* Factory(std::istream&)        ;
 
 protected:
-    void FixUpPointer(OrbitalGroup* og, const rc_ptr<const BasisSet>& bs);
+    void FixUpPointer(OrbitalGroup* og, const rc_ptr<const IrrepBasisSet>& bs);
 
 private:
     WaveFunction& operator=(const WaveFunction&);

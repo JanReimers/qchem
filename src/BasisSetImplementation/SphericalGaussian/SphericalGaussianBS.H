@@ -4,13 +4,17 @@
 
 
 
+#include "BasisSetImplementation/SphericalGaussian/IEClient.H"
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSetImplementation/TBasisSetImplementation.H"
+#include "oml/vector.h"
+
 
 class SphericalGaussianBS
-    : public virtual TBasisSet<double>
+    : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
+    , public SphericalGaussianIEClient
 {
 public:
     SphericalGaussianBS();
@@ -18,8 +22,8 @@ public:
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
-    virtual BasisSet* Clone(            ) const;
-    virtual BasisSet* Clone(const RVec3&) const;
+    virtual IrrepBasisSet* Clone(            ) const;
+    virtual IrrepBasisSet* Clone(const RVec3&) const;
 };
 
 #endif //_SphericalGaussianBS_H_

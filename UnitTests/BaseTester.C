@@ -65,6 +65,10 @@ void BaseTester::Init(double spin)
     itsSCFIterator=itsWaveFunction->
                    MakeIterator(itsHamiltonian,GuessCD,itsCluster->GetNumElectrons(),0.0,false); //show plot flag.
 }
+IntegralDataBase<double>*   BaseTester::GetDatabase() const 
+{
+    return itsBasisGroup->GetDataBase();
+}
 
 void BaseTester::Iterate(const SCFIterationParams& ipar)
 {

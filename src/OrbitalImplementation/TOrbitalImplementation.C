@@ -15,7 +15,7 @@
 //  Construction zone
 //
 template <class T> TOrbitalImplementation<T>::
-TOrbitalImplementation(const IDRef<const BasisSet>& bs,
+TOrbitalImplementation(const IDRef<const IrrepBasisSet>& bs,
                        const Vec& c,
                        double e, const Spin& S)
     : OrbitalImplementation(bs,e,S)

@@ -84,7 +84,7 @@ void ERI4::DumpExchange(std::ostream& os) const
 
 #include "ERI4.H"
 
-ERI4view::ERI4view(ERI4& eril,int start_ab, int start_cd)
+ERI4view::ERI4view(const ERI4& eril,int start_ab, int start_cd)
  : itsERI4(eril)
  , itsStart_a(start_ab)
  , itsStart_b(start_ab)
@@ -98,7 +98,7 @@ ERI4view::ERI4view(ERI4& eril,int start_ab, int start_cd)
     //ctor
 }
 
-ERI4view::ERI4view(ERI4& eril,int sa,int sb,int sc, int sd)
+ERI4view::ERI4view(const ERI4& eril,int sa,int sb,int sc, int sd)
  : itsERI4(eril)
  , itsStart_a(sa)
  , itsStart_b(sb)

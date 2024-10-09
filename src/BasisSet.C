@@ -5,19 +5,23 @@
 
 template class TBasisFunction<double>;
 template class TBasisFunction<std::complex<double> >;
-template class TBasisSet<double>;
-template class TBasisSet<std::complex<double> >;
+template class TIrrepBasisSet<double>;
+template class TIrrepBasisSet<std::complex<double> >;
 
-#include "IntegralDataBase.H"
+#include "DFTDataBase/HeapDB/HeapDB.H"
 #include "NumericalIE.H"
 #include "Misc/ptr_vector1_io.h"
 
 BasisGroup::BasisGroup()
-: itsBasisSets()
+: itsDB(new HeapDB<double>())
+, itsBasisSets()
 {
 }
 
-BasisGroup::~BasisGroup() {};
+BasisGroup::~BasisGroup() 
+{
+    delete itsDB;
+};
 
 size_t BasisGroup::GetNumFunctions() const
 {
@@ -31,35 +35,23 @@ size_t BasisGroup::GetNumBasisSets() const
     return itsBasisSets.size();
 }
 
-void BasisGroup::Insert(BasisSet* bs)
+void BasisGroup::Insert(IrrepBasisSet* bs)
 {
     assert(bs);
-    int N=GetNumFunctions();
-    bs->SetStartIndex(N+1);
+    bs->SetStartIndex(GetNumFunctions()+1);
+    bs->Insert(this);
     itsBasisSets.push_back(bs);
-    TBasisSet<double>* tbs=dynamic_cast<TBasisSet<double>*>(bs);
-    assert(tbs);
-    tbs->GetDataBase()->Insert(this);
 }
 
-BasisGroup::iev_t BasisGroup::Flatten() const
+BasisGroup::iecv_t BasisGroup::Flatten() const
 {
-    iev_t ies;
+    iecv_t iecs;
     for (auto bs:*this)
     {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
-        ies.push_back(tbs->GetAnalyticIE());
+        //const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
+        iecs.push_back(bs);
     }
-    return ies;
-}
-
-void BasisGroup::Insert(const ERI4& J, const ERI4& K) const
-{
-    for (auto bs:*this)
-    {
-        const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(bs); //TODO we need a way to avoid all the TBasisSet casts
-        tbs->GetDataBase()->Insert(J,K);
-    }
+    return iecs;
 }
 
 //

@@ -6,6 +6,7 @@
 
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "BasisSetImplementation/TBasisSetImplementation.H"
+#include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "Misc/ptr_vector1.h"
 
@@ -13,9 +14,10 @@
 class RadialFunctionReader;
 
 class PolarizedGaussianBS
-    : public virtual TBasisSet<double>
+    : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
+    , public         PolarizedGaussianIEClient
 {
 public:
     PolarizedGaussianBS();
@@ -23,8 +25,8 @@ public:
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
-    virtual BasisSet* Clone(            ) const;
-    virtual BasisSet* Clone(const RVec3&) const;
+    virtual IrrepBasisSet* Clone(            ) const;
+    virtual IrrepBasisSet* Clone(const RVec3&) const;
 
 private:
     PolarizedGaussianBS(const PolarizedGaussianBS* bs,IntegralDataBase<double>*, const optr_vector1<BasisFunctionBlock*>&);

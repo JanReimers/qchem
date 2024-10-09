@@ -8,7 +8,7 @@
 #include "oml/vector.h"
 
 
-class BasisFunctionBlock;
+class PolarizedGaussianIEClient;
 
 class PolarizedGaussianIE1
     : public virtual AnalyticIE<double>
@@ -19,42 +19,45 @@ public:
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
-    typedef IE::iev_t iev_t;
-    typedef IE::jk_t jk_t;
+    typedef IE::iecv_t iecv_t;
+    typedef const IrrepIEClient iec_t;
+
     typedef std::vector<const BasisFunctionBlock*> blocks_t;
     
     PolarizedGaussianIE1() {};
-    PolarizedGaussianIE1(const blocks_t&);
+    PolarizedGaussianIE1(const PolarizedGaussianIEClient*);
     virtual ~PolarizedGaussianIE1() {};
-
-    virtual size_t size() const {return radials.size();}
-
-    virtual RVec MakeNormalization() const;
-    virtual RVec MakeCharge       () const;
     
-    virtual  SMat MakeOverlap  (                 ) const;
-    virtual  SMat MakeKinetic  (                 ) const;
-    virtual  SMat MakeNuclear  (const Cluster&   ) const;
-    virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const AnalyticIE*) const; //Used for charge and Vxc fitting.
+     struct PGparams
+    {
+        PGparams(const iecv_t&);
+        size_t size() const {return ns.size();}
+        std::vector<const RadialFunction*> radials; // Flattened radials
+        std::vector<Polarization>          pols;    // Flattened polarizations
+        Vector<double>                     ns;      //Norm constants
+    };
 
-    virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const AnalyticIE*) const; //Used for DFT
-    virtual jk_t Make4C(const iev_t&) const; //Used for Hartree-Fock
+    virtual RVec MakeNormalization(iec_t* a) const;
+    virtual RVec MakeCharge       (iec_t* a) const;
     
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
+    virtual  SMat MakeOverlap  (iec_t* a           ) const;
+    virtual  SMat MakeKinetic  (iec_t* a         ) const;
+    virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const;
+    virtual  SMat MakeRepulsion(iec_t* a          ) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(const IE*a,const IE*b) const; //Used for charge and Vxc fitting.
+    virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const; //Used for charge and Vxc fitting.
 
+    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
+    virtual void Make4C(ERI4& J, ERI4& K, const iecv_t&) const; //Used for Hartree-Fock
+    
     virtual IE* Clone() const;
 
 private:
     void Normalize(SMat&) const;
-    SMat Integrate(RadialFunction::Types2C , const Cluster* cl=0) const;
-    SMat Integrate(RadialFunction::Types3C , const RadialFunction* rc, const Polarization& pc) const;
+    SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
+    SMat Integrate(RadialFunction::Types3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
-    blocks_t                           blocks;  // by block one radial function for many polarizations
-    std::vector<const RadialFunction*> radials; // Flattened radials
-    std::vector<Polarization>          pols;    // Flattened polarizations
     RVec                               ns;      //Norm constants
     SMat                               ons;     //Outer product of ns.
     mutable CDcache                    cache; //Cache of all Gaussian pair charge distributions.

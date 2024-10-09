@@ -20,7 +20,7 @@ template <class T> class TOrbitalImplementation
     typedef typename Base::Vec3Vec Vec3Vec;
 public:
     TOrbitalImplementation();
-    TOrbitalImplementation(const IDRef<const BasisSet>&,const Vec&, double, const Spin&);
+    TOrbitalImplementation(const IDRef<const IrrepBasisSet>&,const Vec&, double, const Spin&);
 
     virtual T      operator()      (const RVec3&) const;
     virtual Vec3   Gradient        (const RVec3&) const;
@@ -30,10 +30,10 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 private:
-    const TBasisSet<T>* CastBasisSet() const
+    const TIrrepBasisSet<T>* CastBasisSet() const
     {
-        const BasisSet* bs=&*itsBasisSet;
-        return dynamic_cast<const TBasisSet<T>*>(bs);
+        const IrrepBasisSet* bs=&*itsBasisSet;
+        return dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     }
 
     Vec itsCoeff;
