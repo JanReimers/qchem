@@ -130,25 +130,25 @@ IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >
 //  class and makes a new object using the default constructor.
 //
 
-template <class T> NumericalIE<T>* NumericalIE<T>::Factory(std::istream& is)
-{
-    std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
-    
-    std::cout << "Unknown integral engine type :" << Name << std::endl;
-    exit(-1);
-    return NULL;
-}
+//template <class T> NumericalIE<T>* NumericalIE<T>::Factory(std::istream& is)
+//{
+//    std::string Name=StreamableObject::PeekAtName(is);
+//    if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
+//    
+//    std::cout << "Unknown integral engine type :" << Name << std::endl;
+//    exit(-1);
+//    return NULL;
+//}
 
-template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
-{
-  std::string Name=PeekAtName(is);
-  if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
-  
-  std::cout << "Unknown integral engine type :" << Name << std::endl;
-  exit(-1);
-  return NULL;
-}
+//template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
+//{
+//  std::string Name=PeekAtName(is);
+//  if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
+//  
+//  std::cout << "Unknown integral engine type :" << Name << std::endl;
+//  exit(-1);
+//  return NULL;
+//}
 
 //template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
 //{
@@ -172,15 +172,15 @@ template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
 //  return NULL;
 //}
 
-template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
-{
-  std::string Name=PeekAtName(is);
-//  if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;
-
-  std::cout << "Unknown complex integral engine type :" << Name << std::endl;
-  exit(-1);
-  return NULL;
-}
+//template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
+//{
+//  std::string Name=PeekAtName(is);
+////  if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;
+//
+//  std::cout << "Unknown complex integral engine type :" << Name << std::endl;
+//  exit(-1);
+//  return NULL;
+//}
 
 
 

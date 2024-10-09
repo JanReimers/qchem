@@ -3,21 +3,11 @@
 
 
 #include "BasisSetImplementation/NumericalIEImp.H"
-#include "LASolver/LASolver.H"
-#include "SCFIterator/IterationParams.H"
-
+#include "Mesh/MeshIntegrator.H"
 #include "BasisSet.H"
-#include "Cluster.H"
 #include "Mesh/Mesh.H"
-#include "oml/smatrix.h"
-#include "oml/imp/binio.h"
-#include <iostream>
+#include "oml/vector.h"
 #include <cassert>
-#include <cstdlib>
-
-#define TYPE_STRING "TIrrepBasisSet<double>"
-#define TYPE TIrrepBasisSet<double>
-#include "Misc/Persistent/IDRef.Ci"
 
 //-----------------------------------------------------------------
 //
@@ -45,45 +35,9 @@ template <class T> NumericalIEImp<T>::~NumericalIEImp()
     delete itsMesh;
 }
 
-template <class T> void NumericalIEImp<T>::Insert(bs_t* theSet)
-{
-//      itsNormalizations.SetLimits(VecLimits(itsN));
-//    InitNormalizations();    
-    itsNormalizations = GetNumericalNormalization(*theSet);
-    assert(!isnan(itsNormalizations));
-    CheckInitialized();
-}
-
 template <class T> const typename NumericalIEImp<T>::RVec NumericalIEImp<T>::GetNumericalNormalization(bs_t& bs) const
 {
-    CheckInitialized();
-    RVec ret=itsIntegrator->Normalize(bs);
-    return ret;
-}
-
-template <class T> void NumericalIEImp<T>::CheckInitialized() const
-{
-}
-
-//-----------------------------------------------------------------
-//
-//  Streamable Object stuff
-//
-template <class T> std::ostream& NumericalIEImp<T>::Write(std::ostream& os) const
-{
-    os << itsNormalizations;
-    return os << itsMesh;
-}
-
-template <class T> std::istream& NumericalIEImp<T>::Read (std::istream& is)
-{
-    is >> itsNormalizations;
-    delete itsMesh;
-    itsMesh=Mesh::Factory(is);
-    is >> itsMesh;
-    delete itsIntegrator;
-    itsIntegrator=new MeshIntegrator<T>(itsMesh);
-    return is;
+    return itsIntegrator->Normalize(bs);
 }
 
 template <class T> NumericalIE<T>* NumericalIEImp<T>::Clone() const
@@ -91,47 +45,24 @@ template <class T> NumericalIE<T>* NumericalIEImp<T>::Clone() const
     return new NumericalIEImp(*this);
 }
 
-template <class T> void NumericalIEImp<T>::
-Normalize(const RVec& n1, Mat& m, const RVec& n2) const
-{
-    typename  Mat::Subscriptor      s(m);
-    for (unsigned int i=1; i<=n1.size(); i++)
-        for (unsigned int j=1; j<=n2.size(); j++)
-            s(i,j)*=n1(i)*n2(j);
-}
-
 template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeOverlap(Vf& bs, Rf& f) const
 {
-    CheckInitialized();
-    Vec ret=itsIntegrator->Overlap(f,bs);
-    assert(!isnan(ret));
-    Normalize(ret);
-    assert(!isnan(ret));
-    return ret;
+     return itsIntegrator->Overlap(f,bs);
 }
 
 template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeRepulsion(Vf& bs, Rf& f) const
 {
-    //No UT coverage.
-    CheckInitialized();
-    Vec ret=itsIntegrator->Repulsion(f,bs);
-    Normalize(ret);
-    return ret;
+    return itsIntegrator->Repulsion(f,bs);
 }
 
+template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeNormalization(bs_t& a) const
+{
+    return itsIntegrator->Normalize(a);;
+}
 
 
 #ifndef UT_COVERAGE_ONLY
 
-template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeNormalization(bs_t& a) const
-{
-    // No UT coverage
-    CheckInitialized();
-    RVec ret=GetNumericalNormalization(a);
-//    int i=1;
-//    for (auto b:*itsBasisSet) ret(i++)=b->GetNormalization();
-    return ret;
-}
 
 template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeCharge(bs_t& a) const
 {

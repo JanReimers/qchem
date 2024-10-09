@@ -23,7 +23,7 @@ Priority 1:
     -Fix valgrind errors
     -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
     -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
-
+    -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
 
 
     -kT Occ smearing fails miserably.

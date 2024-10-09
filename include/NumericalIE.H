@@ -4,7 +4,6 @@
 
 
 #include "types.H"
-#include "Misc/pmstream.h"
 
 
 //--------------------------------------------------------------------------------
@@ -44,7 +43,6 @@
 #define UT_COVERAGE_ONLY
 
 template <class T> class NumericalIE
-    : public virtual PMStreamableObject
 {
 public:
     typedef Matrix<T>      Mat;
@@ -60,8 +58,7 @@ public:
 
     virtual ~NumericalIE()  {};
 
-    virtual void Insert(bs_t*)=0;
-
+    virtual RVec MakeNormalization(bs_t& a) const=0;
     virtual Vec  MakeOverlap    (Vf&    , Rf&) const=0;
     virtual Vec  MakeRepulsion  (Vf&    , Rf&) const=0;
     //
@@ -70,7 +67,6 @@ public:
 #ifndef UT_COVERAGE_ONLY
     virtual RVec MakeCharge       (bs_t& a) const=0;
     virtual SMat MakeOverlap      (bs_t& a) const=0;
-    virtual RVec MakeNormalization(bs_t& a) const=0;
     virtual Mat  MakeOverlap      (bs_t& a,bs_t& b) const=0;
     virtual Mat  MakeRepulsion    (bs_t& a,bs_t& b) const=0;
     virtual SMat MakeRepulsion    (bs_t& a) const=0;
@@ -86,10 +82,8 @@ public:
     virtual SMat MakeNuclear(const Cluster&) const=0;
 #endif
 
-    virtual std::ostream& Write(std::ostream&) const=0;
-    virtual std::istream& Read (std::istream&)      =0;
     virtual NumericalIE* Clone  (         ) const=0;
-    static  NumericalIE* Factory(std::istream&);
+//    static  NumericalIE* Factory(std::istream&);
 };
 
 

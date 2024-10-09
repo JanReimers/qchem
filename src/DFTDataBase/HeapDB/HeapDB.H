@@ -50,10 +50,10 @@ public:
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (Vf&,Rf&);
-    virtual const Vec      GetRepulsion  (Vf&,Rf&);
-    virtual const RVec&    GetCharge     (bs_t&  a       ); //Numerical .
-    virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b); //Numerical .
+    virtual const Vec      GetOverlap    (bs_t&,Rf&   f); //Numerical .
+    virtual const Vec      GetRepulsion  (bs_t&,Rf&   f); //Numerical .
+    virtual const RVec&    GetCharge     (bs_t&        ); //Numerical .
+    virtual const Mat&     GetOverlap    (bs_t&,bs_t& b); //Numerical .
 //
 //  These are all done analytically.
 //
@@ -72,8 +72,6 @@ public:
     virtual       ERI4&    GetRepulsion4C(iecv_t&) ;
     virtual       ERI4&    GetExchange4C (iecv_t&)  ;
 
-    virtual const NumericalIE<T>*  GetIntegralEngine(              ) const;
-
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
     virtual IntegralDataBase<T>* Clone() const;
@@ -85,6 +83,7 @@ private:
 
     void WipeCleanAllData   ()      ;
     void BuildERIs(iecv_t& abcd);
+    const RVec& GetNumericalNormalization(bs_t& a);
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 

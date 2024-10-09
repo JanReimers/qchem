@@ -58,7 +58,6 @@ template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
 {
     assert(ie);
     itsNumericalIE.reset(ie);
-    itsNumericalIE->Insert(this);
     itsDataBase->Insert(ie);
 }
 
