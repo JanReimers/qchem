@@ -4,7 +4,6 @@
 
 
 #include "types.H"
-#include "Misc/pmstream.h"
 #include <vector>
 #include "Misc/ERI4.H"
 
@@ -36,7 +35,6 @@
 //  Nuclear(Cluster& cl) sum over atoms c {<i|1/(r-Rc)|j>}
 //
 template <class T> class AnalyticIE
-    : public virtual PMStreamableObject
 {
 public:
     typedef Matrix<T>      Mat;
@@ -52,8 +50,6 @@ public:
 
     virtual ~AnalyticIE()  {};
     
-    virtual size_t size() const=0;
-
     virtual RVec MakeNormalization(iec_t* a) const=0;
     virtual RVec MakeCharge       (iec_t* a) const=0;
     
@@ -70,8 +66,6 @@ public:
 
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
-    virtual std::ostream& Write(std::ostream&) const=0;
-    virtual std::istream& Read (std::istream&)      =0;
     virtual AnalyticIE* Clone  (         ) const=0;
     static  AnalyticIE* Factory(std::istream&);
 };

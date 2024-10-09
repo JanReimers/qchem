@@ -132,16 +132,12 @@ template <class T> class TIrrepBasisSet
 public:
     typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
     typedef std::vector<SMat> ERI3;
-    size_t GetVectorSize() const
-    {
-        return GetNumFunctions();
-    }
+    size_t GetVectorSize() const {return GetNumFunctions();}
     virtual SMat GetRepulsion(const FittedFunction*) const=0; //unhide
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
 
     virtual IntegralDataBase<T>* GetDataBase() const=0;
-    virtual AnalyticIE <T>* GetAnalyticIE() const=0;
     
     const_iterator beginT() const {return const_iterator(begin());};
 };

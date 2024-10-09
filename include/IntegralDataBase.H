@@ -30,6 +30,11 @@ public:
     typedef Vector<T>      Vec;
     typedef Vector<double> RVec;
     typedef std::vector<SMat> ERI3;
+    
+    typedef const ScalarFunction<double> Rf;
+    typedef const ScalarFunction<T>      Sf;
+    typedef const VectorFunction<T>      Vf;
+    
     typedef const TIrrepBasisSet<T> bs_t;
     typedef const IrrepIEClient iec_t;
     typedef std::vector<iec_t*> iecv_t;
@@ -69,8 +74,8 @@ public:
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (const ScalarFunction<double>&) =0;
-    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&) =0;
+    virtual const Vec      GetOverlap    (Vf&,Rf&) =0;
+    virtual const Vec      GetRepulsion  (Vf&,Rf&) =0;
 
     
     virtual const NumericalIE<T>* GetIntegralEngine(               ) const=0;

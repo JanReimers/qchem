@@ -18,6 +18,8 @@ template <class T> class NumericalIEImp
     typedef typename Base::RVec  RVec;
     typedef typename Base::SMat  SMat;
     typedef typename Base::bs_t bs_t;
+    typedef typename Base::Rf Rf;
+    typedef typename Base::Vf Vf;
 public:
     NumericalIEImp(                  );
     NumericalIEImp(const NumericalIEImp&);
@@ -28,11 +30,11 @@ public:
 
     virtual SMat MakeOverlap    (bs_t& a                   ) const;
     virtual Mat  MakeOverlap    (bs_t& a,bs_t& b          ) const;
-    virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const;
+    virtual Vec  MakeOverlap    (Vf&, Rf&) const;
 
-    virtual SMat MakeRepulsion  (                             ) const;
+    virtual SMat MakeRepulsion  (bs_t& a                              ) const;
     virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b    ) const;
-    virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const;
+    virtual Vec  MakeRepulsion  (Vf&, Rf&) const;
 
     virtual RVec MakeNormalization(bs_t& a                 ) const;
     virtual RVec MakeCharge       (bs_t& a                 ) const;
@@ -64,11 +66,8 @@ private:
     
     void    CheckInitialized       () const;
     const   RVec GetNumericalNormalization(bs_t&) const;
-    virtual SMat MakeOverlap  (const TBasisFunction<T>& ) const;
-    virtual SMat MakeRepulsion(const TBasisFunction<T>& ) const;
-
-    IDRef<bs_t > itsBasisSet;       //Permenant hook into the basis set.
-    RVec                       itsNormalizations; //Normalization constants.
+    
+    RVec         itsNormalizations; //Normalization constants.
 
     Mesh*              itsMesh;
     MeshIntegrator<T>* itsIntegrator;

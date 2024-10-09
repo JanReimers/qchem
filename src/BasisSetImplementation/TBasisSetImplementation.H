@@ -71,7 +71,6 @@ public:
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
     virtual IntegralDataBase<T>* GetDataBase () const;
-    virtual AnalyticIE <T>* GetAnalyticIE() const;
    
     virtual LASolver<T>*         GetLASolver () const;
 
@@ -82,10 +81,7 @@ protected:
     void  Insert(NumericalIE<T>*);
     void  Insert(AnalyticIE<T>*);
     virtual void  Insert(const BasisGroup* bg) {itsBasisGroup=bg;}
-    const AnalyticIE<T>* GetIntegralEngine() const
-    {
-        return &*itsAnalyticIE;
-    }
+    
 
 private:
     virtual void Eval    (const Mesh&,     Mat&) const;
@@ -94,7 +90,6 @@ protected:
     LinearAlgebraParams          itsLAParams;
 private:
     rc_ptr<NumericalIE<T> > itsNumericalIE;
-    rc_ptr< AnalyticIE<T> > itsAnalyticIE;
     const BasisGroup* itsBasisGroup;
     mutable IntegralDataBase<T>*  itsDataBase;
     mutable LASolver<T>*                 itsLASolver;

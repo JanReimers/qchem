@@ -8,7 +8,7 @@
 #include "oml/vector.h"
 
 
-class BasisFunctionBlock;
+class PolarizedGaussianIEClient;
 
 class PolarizedGaussianIE1
     : public virtual AnalyticIE<double>
@@ -26,7 +26,7 @@ public:
     typedef std::vector<const BasisFunctionBlock*> blocks_t;
     
     PolarizedGaussianIE1() {};
-    PolarizedGaussianIE1(const blocks_t&);
+    PolarizedGaussianIE1(const PolarizedGaussianIEClient*);
     virtual ~PolarizedGaussianIE1() {};
     
      struct PGparams
@@ -37,8 +37,6 @@ public:
         std::vector<Polarization>          pols;    // Flattened polarizations
         Vector<double>                     ns;      //Norm constants
     };
-
-    virtual size_t size() const {return ns.size();}
 
     virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
@@ -54,9 +52,6 @@ public:
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     virtual jk_t Make4C(const iecv_t&) const; //Used for Hartree-Fock
     
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
     virtual IE* Clone() const;
 
 private:
@@ -64,12 +59,6 @@ private:
     SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
-    SMat Integrate(RadialFunction::Types2C , const Cluster* cl=0) const;
-    SMat Integrate(RadialFunction::Types3C , const RadialFunction* rc, const Polarization& pc) const;
-
-   // blocks_t                           blocks;  // by block one radial function for many polarizations
-  //  std::vector<const RadialFunction*> radials; // Flattened radials
-  //  std::vector<Polarization>          pols;    // Flattened polarizations
     RVec                               ns;      //Norm constants
     SMat                               ons;     //Outer product of ns.
     mutable CDcache                    cache; //Cache of all Gaussian pair charge distributions.

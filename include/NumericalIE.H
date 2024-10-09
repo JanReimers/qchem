@@ -49,6 +49,10 @@ public:
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
     typedef const TIrrepBasisSet<T> bs_t;
+    
+    typedef const ScalarFunction<double> Rf;
+    typedef const ScalarFunction<T>      Sf;
+    typedef const VectorFunction<T>      Vf;
 
     virtual ~NumericalIE()  {};
 
@@ -56,11 +60,11 @@ public:
 
     virtual SMat MakeOverlap    (bs_t& a                          ) const=0;
     virtual Mat  MakeOverlap    (bs_t& a,bs_t& b        ) const=0;
-    virtual Vec  MakeOverlap    (const ScalarFunction<double>&) const=0;
+    virtual Vec  MakeOverlap    (Vf&, Rf&) const=0;
 
-    virtual SMat MakeRepulsion  (                             ) const=0;
+    virtual SMat MakeRepulsion  (bs_t& a                              ) const=0;
     virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b     ) const=0;
-    virtual Vec  MakeRepulsion  (const ScalarFunction<double>&) const=0;
+    virtual Vec  MakeRepulsion  (Vf&, Rf&) const=0;
 
     virtual RVec MakeNormalization(bs_t& a ) const=0;
     virtual RVec MakeCharge       (bs_t& a ) const=0;

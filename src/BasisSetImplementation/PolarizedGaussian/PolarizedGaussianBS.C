@@ -103,12 +103,8 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     {
         PolarizedGaussianIE1::blocks_t bls;
         for (auto bl:itsBlocks) bls.push_back(bl);
-        RVec ns(GetNumFunctions());
-//        index_t ibf=1;
-//        for (auto bf:*this) ns(ibf++)=bf->GetNormalization(); 
-        
         PolarizedGaussianIEClient::Init(bls);   
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(bls));    
+        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(this));    
     }
 
     if (theMesh)  
@@ -130,7 +126,7 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
 {
     // No UT coverage
     MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
-    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
+//    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
 void PolarizedGaussianBS::MakeBasisFunctions()

@@ -161,10 +161,10 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(bs_t& a,
 //
 //  DO not try and cache these because the ScalarFunction f changes with iterations.
 //
-template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(const ScalarFunction<double>& f)
+template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(Vf& bs,Rf& f)
 {
     assert(itsNumericalIE);    
-    return itsNumericalIE->MakeOverlap(f);;
+    return itsNumericalIE->MakeOverlap(bs,f);;
 }
 
 
@@ -179,10 +179,10 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion(iec_t
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const ScalarFunction<double>& f)
+template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(Vf& bs,Rf& f)
 {
     assert(itsNumericalIE);
-    return itsNumericalIE->MakeRepulsion(f);
+    return itsNumericalIE->MakeRepulsion(bs,f);
 }
 
 template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(bs_t& a,bs_t& b)

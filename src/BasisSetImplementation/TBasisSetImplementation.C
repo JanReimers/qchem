@@ -65,7 +65,6 @@ template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
 template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
 {
     assert(ie);
-    itsAnalyticIE.reset(ie);
     itsDataBase->Insert(ie);
     RVec ns=ie->MakeNormalization(this);
     RVec cs=ie->MakeCharge(this);
@@ -81,11 +80,6 @@ template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase(
 {
     assert(&*itsDataBase);
     return itsDataBase;
-}
-template <class T> AnalyticIE<T>* TBasisSetImplementation<T>::GetAnalyticIE() const
-{
-    assert(&*itsAnalyticIE);
-    return &*itsAnalyticIE;
 }
 
  
@@ -303,8 +297,8 @@ SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ffi);
     assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetOverlap(sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(sf);
+    assert(!isnan(GetDataBase()->GetOverlap(*this,sf)));
+    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(*this,sf);
 }
 
 
@@ -316,8 +310,8 @@ SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ffi);
     assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetRepulsion(sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(sf);
+    assert(!isnan(GetDataBase()->GetRepulsion(*this,sf)));
+    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(*this,sf);
 }
 
 
@@ -388,7 +382,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
     if(!StreamableObject::Pretty())
     {
         VectorFunctionBuffer<T>::Write(os);
-        os << *itsAnalyticIE << itsDataBase;
+        os <<  itsDataBase;
     }
     return os;
 }
@@ -396,10 +390,7 @@ template <class T> std::ostream& TBasisSetImplementation<T>::Write(std::ostream&
 template <class T> std::istream& TBasisSetImplementation<T>::Read(std::istream& is)
 {
     VectorFunctionBuffer<T>::Read(is);
-    AnalyticIE<T>* ie=AnalyticIE<T>::Factory(is);
-    is >> *ie;
     is >> itsDataBase;
-    Insert(ie); //Fix up lots of pointers.
 
     return is;
 };

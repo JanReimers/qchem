@@ -150,27 +150,27 @@ template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
   return NULL;
 }
 
-template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
-{
-    std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
-    if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
-
-    std::cout << "Unknown integral engine type :" << Name << std::endl;
-    exit(-1);
-    return NULL;
-}
-
-template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
-{
-  std::string Name=PeekAtName(is);
-  if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
-  if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
-
-  std::cout << "Unknown integral engine type :" << Name << std::endl;
-  exit(-1);
-  return NULL;
-}
+//template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
+//{
+//    std::string Name=StreamableObject::PeekAtName(is);
+//    if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
+//    if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
+//
+//    std::cout << "Unknown integral engine type :" << Name << std::endl;
+//    exit(-1);
+//    return NULL;
+//}
+//
+//template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
+//{
+//  std::string Name=PeekAtName(is);
+//  if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
+//  if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
+//
+//  std::cout << "Unknown integral engine type :" << Name << std::endl;
+//  exit(-1);
+//  return NULL;
+//}
 
 template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
 {

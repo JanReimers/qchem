@@ -3,7 +3,6 @@
 
 #include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
-#include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Misc/ERI4.H"
@@ -12,27 +11,10 @@
 //
 //  Construction zone.
 //
-PolarizedGaussianIE1::PolarizedGaussianIE1(const blocks_t& blocks)
-    :  ns()
-    , ons()
-{
-    std::vector<const RadialFunction*> radials; // Flattened radials
-    std::vector<Polarization>          pols; 
-    for (auto bl:blocks)
-        for (auto p:bl->itsPols)
-        {
-            radials.push_back(bl->itsRadial);
-            pols.push_back(p);
-        }
-   
-    size_t N=pols.size();
-    ns.SetLimits(N);
-    for (size_t i=0;i<N;i++)
-        ns(i+1)=radials[i]->Integrate(RadialFunction::Overlap2C,radials[i],pols[i],pols[i],cache);
-    ns=1.0/sqrt(ns);
-    std::cout << "Constructor" << ns << std::endl;
-    ons=OuterProduct(ns);
-};
+PolarizedGaussianIE1::PolarizedGaussianIE1(const PolarizedGaussianIEClient* iec)
+: ns(iec->ns)
+, ons(OuterProduct(ns))
+{}
 
 PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization(iec_t* iea) const
 {
@@ -242,22 +224,9 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types
     return s;    
 }
 
-//PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types3C type , const RadialFunction* rc, const Polarization& pc) const
-//{
-//    int N=size();
-//    SMat s(N);
-//    for (index_t ia=0;ia<N;ia++)
-//        for (index_t ib=ia;ib<N;ib++)
-//            s(ia+1,ib+1)=rc->Integrate(type,radials[ia],radials[ib],pols[ia],pols[ib],pc,cache);
-//        
-//    Normalize(s);
-//    return s;    
-//}
-
 
 PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type ,iec_t* ieab,  const Cluster* cl) const
 {
-    std::cout << "Integrate" << ns << std::endl;
     const PolarizedGaussianIEClient* ab=dynamic_cast<const PolarizedGaussianIEClient*>(ieab);;
     assert(ab);
     int N=ab->size();
@@ -268,29 +237,6 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types
 
     Normalize(s);
     return s;
-}
-
-//PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type , const Cluster* cl) const
-//{
-//    int N=size();
-//    SMat s(N);
-//    for (index_t ia=0;ia<N;ia++)
-//        for (index_t ib=ia;ib<N;ib++)
-//            s(ia+1,ib+1)=radials[ia]->Integrate(type,radials[ib],pols[ia],pols[ib],cache,cl);
-//
-//    Normalize(s);
-//    return s;
-//}
-
-
-
-std::ostream& PolarizedGaussianIE1::Write(std::ostream& os) const
-{
-    return os;
-}
-std::istream& PolarizedGaussianIE1::Read (std::istream& is)
-{
-    return is;
 }
 
 

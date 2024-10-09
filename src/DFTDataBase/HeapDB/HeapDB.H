@@ -29,6 +29,8 @@ protected:
     typedef typename Base::bs_t bs_t;
     typedef typename Base::iec_t iec_t;
     typedef typename Base::iecv_t iecv_t;
+    typedef typename Base::Rf Rf;
+    typedef typename Base::Vf Vf;
 public:
 
     HeapDB();
@@ -63,8 +65,8 @@ public:
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (const ScalarFunction<double>&);
-    virtual const Vec      GetRepulsion  (const ScalarFunction<double>&);
+    virtual const Vec      GetOverlap    (Vf&,Rf&);
+    virtual const Vec      GetRepulsion  (Vf&,Rf&);
 
 
     virtual const NumericalIE<T>*  GetIntegralEngine(              ) const;
