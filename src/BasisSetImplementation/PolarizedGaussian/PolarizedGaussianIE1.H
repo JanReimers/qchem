@@ -2,9 +2,10 @@
 #ifndef _PolarizedGaussianIE1_H_
 #define _PolarizedGaussianIE1_H_
 
-#include "BasisSetImplementation/PolarizedGaussian/RadialFunction.H"
-#include "AnalyticIE.H"
+#include "RadialFunction.H"
+#include "CDCache.H"
 #include "Misc/Polarization.H"
+#include <AnalyticIE.H>
 #include "oml/vector.h"
 
 
@@ -60,7 +61,7 @@ private:
 
     RVec                               ns;      //Norm constants
     SMat                               ons;     //Outer product of ns.
-    mutable CDcache                    cache; //Cache of all Gaussian pair charge distributions.
+    mutable CDCache                    cache; //Cache of all Gaussian pair charge distributions.
 };
 
 #endif //_PolarizedGaussianIE1_H_

@@ -1,22 +1,15 @@
 // File: ContractedGaussianRF.C  Contracted Gaussian in 3D space.
 
 
+#include "ContractedGaussianRF.H"
+#include "ContractedGaussianH3.H"
 #include "Misc/Polarization.H"
-#include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
-#include "BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianRF.H"
-#include "BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianH3.H"
-#include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-#include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H"
-#include "Mesh/MeshBrowser.H"
+#include "../Gaussian/GaussianRF.H"
+#include "../BasisFunctionBlock.H"
+#include "../Hermite/Hermite1.H"
 #include "Misc/ptr_vector1_io.h"
-#include "oml/imp/binio.h"
 #include "oml/io3d.h"
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
-#include <cmath>
 #include <iostream>
-#include <sstream>
-#include <string>
 
 //#######################################################################
 //
@@ -79,7 +72,7 @@ double ContractedGaussianRF::GetCharge(const Polarization& p) const
     return ret;
 }
 
-double ContractedGaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDcache& cache,const Cluster* cl) const
+double ContractedGaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0;
     for (auto i:gs.indices()) s += cs(i+1)*rb->Integrate(type,gs[i],pb,pa,cache,cl); //swap pols
@@ -89,7 +82,7 @@ double ContractedGaussianRF::Integrate(Types2C type,const RadialFunction* rb, co
 //
 //  At his we know this is radial c.  Keep c at the end of the call
 //
-double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache) const
+double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache) const
 {
     double s=0;
     for (auto i:gs.indices()) 
@@ -97,7 +90,7 @@ double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, co
     return s;
 }
 
-double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDcache& cache,const RadialFunction* rc) const
+double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache,const RadialFunction* rc) const
 {
     double s=0;
     for (auto i:gs.indices()) 
@@ -106,7 +99,7 @@ double ContractedGaussianRF::Integrate(Types3C type,const RadialFunction* ra, co
 }
 
 // this is rd
-double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const
+double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache) const
 {
     double s=0;
     for (auto i:gs.indices()) 
@@ -115,7 +108,7 @@ double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t
 }
 
 // this is rc
-double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const
+double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache, rf_t* rd) const
 {
     double s=0;
     for (auto i:gs.indices()) 
@@ -124,7 +117,7 @@ double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,po_t& pa, po_t& pb, po_
 }
 
 // this is rb
-double ContractedGaussianRF::Integrate(rf_t* ra,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const
+double ContractedGaussianRF::Integrate(rf_t* ra,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache, rf_t* rc, rf_t* rd) const
 {
     double s=0;
     for (auto i:gs.indices()) 

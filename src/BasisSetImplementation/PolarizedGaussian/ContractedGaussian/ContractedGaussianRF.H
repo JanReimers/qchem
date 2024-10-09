@@ -4,7 +4,7 @@
 
 
 
-#include "BasisSetImplementation/PolarizedGaussian/RadialFunctionImplementation/RadialFunctionImplementation.H"
+#include "../RadialFunctionImplementation/RadialFunctionImplementation.H"
 #include "Misc/ptr_vector1.h"
 #include "oml/vector.h"
 
@@ -24,13 +24,13 @@ public:
 
     typedef RadialFunction::rf_t rf_t;
     typedef RadialFunction::po_t po_t;
-    virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDcache& cache,const Cluster* cl=0) const;
-    virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDcache& cache) const;
-    virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDcache& cache, rf_t* rc) const;
+    virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache&,const Cluster* cl=0) const;
+    virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDCache&) const;
+    virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDCache&, rf_t* rc) const;
 
-    virtual double Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache) const;
-    virtual double Integrate(rf_t* ra,rf_t* rb,         po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rd) const;
-    virtual double Integrate(rf_t* ra,                  po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDcache& cache, rf_t* rc, rf_t* rd) const;
+    virtual double Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache&) const;
+    virtual double Integrate(rf_t* ra,rf_t* rb,         po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache&, rf_t* rd) const;
+    virtual double Integrate(rf_t* ra,                  po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache&, rf_t* rc, rf_t* rd) const;
 
     
     virtual Hermite3*       GetH3 (const RadialFunction&, const RadialFunction&) const;

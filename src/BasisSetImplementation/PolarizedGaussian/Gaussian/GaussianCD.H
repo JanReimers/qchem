@@ -3,12 +3,12 @@
 #define _GaussianCD_H_
 
 
+#include "../Hermite/Hermite2.H"
 #include "types.H"
-#include "BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H"
-#include "oml/matrix.h"
-#include "oml/vector.h"
 #include "Misc/ptr_vector1.h"
 #include "Misc/UniqueID/UniqueID.H"
+#include "oml/matrix.h"
+#include "oml/vector.h"
 #include "oml/vector3d.h"
 #include <map>
 
@@ -32,7 +32,7 @@ public:
 
 private:
     friend class GaussianRF;
-    friend class CDcache;
+    friend class CDCache;
 //
 //  Raw data defining the charge distribution, all pickeled.
 //

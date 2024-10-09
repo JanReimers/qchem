@@ -1,6 +1,7 @@
 // File: PolarizedGaussian/IEClient.C
 
-#include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
+#include "IEClient.H"
+#include "CDCache.H"
 
 
 void PolarizedGaussianIEClient::Init(std::vector<const BasisFunctionBlock*>& blocks)
@@ -14,7 +15,7 @@ void PolarizedGaussianIEClient::Init(std::vector<const BasisFunctionBlock*>& blo
    
     size_t N=size();
     ns.SetLimits(N);
-    CDcache cache;
+    CDCache cache;
     for (size_t i=0;i<N;i++)
         ns(i+1)=radials[i]->Integrate(RadialFunction::Overlap2C,radials[i],pols[i],pols[i],cache);
     ns=1.0/sqrt(ns);

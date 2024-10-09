@@ -249,8 +249,6 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
 GetOverlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
 {
-    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
-    assert(tff);
     RVec ret(ff->size());
     const ERI3& S=GetDataBase()->GetOverlap3C(this,ff);
     for(auto i:ret.indices())
@@ -261,8 +259,6 @@ GetOverlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
 template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
 GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
 {
-    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
-    assert(tff);
     RVec ret(ff->size());
     const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ff);
     for(auto i:ret.indices())

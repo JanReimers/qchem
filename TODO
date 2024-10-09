@@ -3,36 +3,25 @@ Priority 1:
     -BasisGroup needs a dynamic cast iterator.
     -and BasisGroup should really be BasisSet.
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
-    -Client code should not see DB, just ask BS for integrals.
-
-
-    Done: -BasisSet should really be IrrepBasisSet, 
-    Done: -HeapDB needs to be for whole basis set not just one irep.
-    Done: -Make sure BasisSet->DB->IE is enforced
-        Done: -This means it takes a BasisSet argument for every call.
-            Done: Break DB--->BasisSet dependence 
-            Done: We will need some reoerg to IE
-                IEClient can access BS data
-                DB holds some sort of group IE
-            
-            
-        Done: -Clean up all the insert nonsense for DB, IE and BS
         -Broke BasisGroup persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
-    Done: -Client code should provide a Mesh* when requesting integrals form the DB.
-    Done: -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
    -Cache reports
     -Stop caching RNLM inside GaussianCD
     -CDcache into its own source files.
+
+    -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
+    -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
+
+
+    -Invert dependency BasisSet--->Fitted function
+    -TBasisSetImplementation<T>::SetFitOverlap should not be call DoFit,
+        Should do ff->Update(sf);
+
     -Do we need to store both J and K,  PolG just stores one ERI4.
         With separate Vee and Vxc it seems we need to store J and K separatly.
         We could just store JK=J-0.5*K to save space, but then we need a combined Ham term.
         How doe PolG do it with just J?
     -Fix valgrind errors
-    -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
-    -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
-    -TBasisSetImplementation<T>::SetFitOverlap should not be call DoFit,
-        Should do ff->Update(sf);
     -kT Occ smearing fails miserably.
     -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
      constructors with 3 versions
@@ -40,8 +29,7 @@ Priority 1:
         2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.
         3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
       We will need a null Ortho type for LAParams for assertions.
-    -Clean up PolGaussian construction.
-    -Invert dependency BasisSet--->FittedFunction
+    -Clean up PolGaussian construction.edFunction
       
 Priority 2:
     -SMAT does not support S+=Xpr
@@ -96,6 +84,22 @@ Priority 3:
     -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
     -Set up a CMake build.  Run from vscode.
     
+--------------------------------------------------------------------------------------
+
+    Done: -Client code should provide a Mesh* when requesting integrals form the DB.
+    Done: -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
+    Done: -Client code should not see DB, just ask BS for integrals.
+    Done: -BasisSet should really be IrrepBasisSet, 
+    Done: -HeapDB needs to be for whole basis set not just one irep.
+    Done: -Make sure BasisSet->DB->IE is enforced
+        Done: -This means it takes a BasisSet argument for every call.
+            Done: Break DB--->BasisSet dependence 
+            Done: We will need some reoerg to IE
+                IEClient can access BS data
+                DB holds some sort of group IE
+            
+            
+        Done: -Clean up all the insert nonsense for DB, IE and BS
     Done: -Integral engine needs a different interface for analytic and numerical.
     Done: -Do we need indices support optr_vector1<> ?
     Done: -It seems we need a separate HeapDN for each basis set.  Make something more general
