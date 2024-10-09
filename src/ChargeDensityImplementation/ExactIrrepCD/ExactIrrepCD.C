@@ -132,7 +132,7 @@ template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) c
 
 template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 {
-    return real(Dot(itsDensityMatrix,itsCastedBasisSet->GetDataBase()->GetOverlap(itsCastedBasisSet)));
+    return real(Dot(itsDensityMatrix,itsBasisSet->GetOverlap()));
 }
 //------------------------------------------------------------------------------
 //
@@ -141,14 +141,13 @@ template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 
 template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
-    typedef typename Vector<T>::iterator VITER;
+    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
+    assert(tfbs);
+    RVec delta_ff=itsBasisSet->GetOverlap3C(itsDensityMatrix,fbs);
+
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
-    VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
-    auto mlist(itsCastedBasisSet->GetDataBase()->GetOverlap3C(itsCastedBasisSet,tfbs));
-
-    for(index_t i=0; bffi!=ffi->GetFitCoeff().end(); bffi++,i++) *bffi += Dot(itsDensityMatrix,mlist[i]);
+    ffi->GetFitCoeff()+=delta_ff;
 }
 
 template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const

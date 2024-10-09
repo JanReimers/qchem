@@ -41,6 +41,7 @@ Priority 1:
         3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
       We will need a null Ortho type for LAParams for assertions.
     -Clean up PolGaussian construction.
+    -Invert dependency BasisSet--->FittedFunction
       
 Priority 2:
     -SMAT does not support S+=Xpr

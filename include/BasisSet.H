@@ -80,23 +80,20 @@ public:
     virtual RVec GetCharge          () const=0;
     virtual SMat GetInverseRepulsion() const=0;
     virtual SMat GetInverseOverlap  () const=0;
-//
+    virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const=0;
+    virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
+    virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+    virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+///
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
+    virtual SMat GetOverlap  (                     ) const=0;
     virtual SMat GetKinetic  (                     ) const=0;
     virtual SMat GetNuclear  (const Cluster*       ) const=0;
     virtual SMat GetOverlap  (const FittedFunction*) const=0;
     virtual SMat GetRepulsion(const FittedFunction*) const=0;
-    virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0;
-//
-//  Charge density repulsion calculations.
-//
-    virtual RVec   GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-    virtual RVec   GetCDRepulsion     (const ChargeDensity*, const FittedFunction*) const=0;
-    virtual double GetCDOverlap       (const ChargeDensity*, const FittedFunction*) const=0;
-//    virtual double GetCDRepulsion     (const ChargeDensity*) const=0;
-//    virtual double GetCDExchangeEnergy(const ChargeDensity*) const=0;
-//
+ 
+
 //  Load overlap (or repulsion) of this basis set with a scalar
 //  funciton into a fitted function.
 //

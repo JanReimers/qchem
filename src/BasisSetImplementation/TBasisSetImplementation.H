@@ -49,27 +49,20 @@ public:
     virtual RVec GetCharge          () const;
     virtual SMat GetInverseRepulsion() const;
     virtual SMat GetInverseOverlap  () const;
+    virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const;
+    virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
+    virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
+    virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
 //
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
+    virtual SMat GetOverlap         () const;
     virtual SMat GetKinetic  (                     ) const;
     virtual SMat GetNuclear  (const Cluster*       ) const;
     virtual SMat GetOverlap  (const FittedFunction*) const;
     virtual SMat GetRepulsion(const FittedFunction*) const;
-    virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const;
-    
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
-//
-//  Charge density repulsion calculations.
-//
-    //virtual ERI3&  GetRepulsion3C(rgeDensity*, const FittedFunction*) const;
-    virtual RVec   GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
-    virtual RVec   GetCDRepulsion     (const ChargeDensity*, const FittedFunction*) const;
-    virtual double GetCDOverlap       (const ChargeDensity*, const FittedFunction*) const;
-//    virtual double GetCDRepulsion     (const ChargeDensity*) const;
-//    virtual double GetCDExchangeEnergy(const ChargeDensity*) const;
-//
 //  Load overlap (or repulsion) of this basis set with a scalar
 //  funciton into a fitted function.
 //
@@ -80,8 +73,7 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-    virtual IntegralDataBase<T>* GetDataBase () const;
-   
+
     virtual LASolver<T>*         GetLASolver () const;
 
     virtual std::ostream& Write(std::ostream&) const;
@@ -93,6 +85,8 @@ protected:
     
 
 private:
+    IntegralDataBase<T>* GetDataBase () const;
+   
     virtual void Eval    (const Mesh&,     Mat&) const;
     virtual void EvalGrad(const Mesh&, Vec3Mat&) const;
 protected:

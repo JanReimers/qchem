@@ -89,6 +89,12 @@ GetCharge() const
 }
 
 template <class T> typename TBasisSetImplementation<T>::SMat TBasisSetImplementation<T>::
+GetOverlap() const
+{
+    return GetDataBase()->GetOverlap(this);
+}
+
+template <class T> typename TBasisSetImplementation<T>::SMat TBasisSetImplementation<T>::
 GetInverseRepulsion() const
 {
     return GetDataBase()->GetInverseRepulsion(this);
@@ -153,6 +159,14 @@ GetRepulsion(const FittedFunction* ff) const
     const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
     assert(tff);
     return GetDataBase()->GetRepulsion(this,tff);
+ }
+ 
+ template <class T> typename TBasisSetImplementation<T>::Mat TBasisSetImplementation<T>::
+ GetOverlap(const Mesh* m,const IrrepBasisSet* ff) const
+ {
+    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
+    assert(tff);
+    return GetDataBase()->GetOverlap(m,*this,*tff);
  }
  
  
@@ -233,6 +247,18 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //  Charge density repulsion calculations.
 //
 template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
+GetOverlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+{
+    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
+    assert(tff);
+    RVec ret(ff->size());
+    const ERI3& S=GetDataBase()->GetOverlap3C(this,ff);
+    for(auto i:ret.indices())
+        ret(i)=Dot(Dcd,S[i-1]);
+    return ret;
+}
+
+template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
 GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
 {
     const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
@@ -244,66 +270,7 @@ GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
     return ret;
 }
 
-template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
-GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
-{
-    assert(cd);
-    assert(ff);
-    const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
-    assert(icd);
-    assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
-    const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    RVec ret(ffi->itsFitCoeff.size());
-    typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
-    for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
-        ret(i+1)=Dot(icd->itsDensityMatrix,repulsion[i]);
-    return ret;
-}
 
-
-template <class T> double TBasisSetImplementation<T>::
-GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const
-{
-    assert(cd);
-    assert(ff);
-    const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
-    assert(icd);
-    assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
-    const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    double ret=0;
-    typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
-    const typename TIrrepBasisSet<T>::ERI3& overlap=GetDataBase()->GetOverlap3C(this,ffi->CastBasisSet());
-    for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
-        ret+=real((*c) * Dot(icd->itsDensityMatrix,overlap[i]));
-    return ret;
-}
-
-//template <class T> double TBasisSetImplementation<T>::
-//GetCDRepulsion(const ChargeDensity* cd) const
-//{
-//    assert(cd);
-//    const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
-//    assert(icd);
-//    const TBasisSet<double>* tbs=dynamic_cast<const TBasisSet<double>*>(icd->itsBasisSet.get());
-//    assert(tbs);
-////    assert(&*icd->itsBasisSet==static_cast<const BasisSet*>(this));
-//    SMatrix<T> Jab=GetRepulsion(icd->itsDensityMatrix,tbs);
-//    return real(Dot(Jab,icd->itsDensityMatrix));
-//}
-//
-//template <class T> double TBasisSetImplementation<T>::
-//GetCDExchangeEnergy(const ChargeDensity* cd) const
-//{
-//    assert(cd);
-//    const ExactIrrepCD<T>* icd=dynamic_cast<const ExactIrrepCD<T>*>(cd);
-//    assert(icd);
-//    assert(&*icd->itsBasisSet==static_cast<const BasisSet*>(this));
-//    SMatrix<T> Kab=GetExchange(icd->itsDensityMatrix);
-//    return real(Dot(Kab,icd->itsDensityMatrix));
-//}
 
 //
 //  Load overlap (or repulsion) of this basis set with a scalar
