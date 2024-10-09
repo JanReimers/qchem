@@ -153,14 +153,13 @@ template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, co
 
 template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
-    typedef typename Vector<T>::iterator VITER;
+    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
+    assert(tfbs);
+    RVec delta_ff=itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
+
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
-    VITER bffi(ffi->GetFitCoeff().begin()); //These must accumulate.
-    auto mlist(itsCastedBasisSet->GetDataBase()->GetRepulsion3C(itsCastedBasisSet,tfbs));
-
-    for(index_t i=0; bffi!=ffi->GetFitCoeff().end(); bffi++,i++) *bffi += Dot(itsDensityMatrix,mlist[i]);
+    ffi->GetFitCoeff()+=delta_ff;
 }
 
 //-------------------------------------------------------------------------
@@ -254,7 +253,7 @@ template <class T> std::istream& ExactIrrepCD<T>::Read(std::istream& is)
 }
 
 template class ExactIrrepCD<double>;
-template class ExactIrrepCD<std::complex<double> >;
+//template class ExactIrrepCD<std::complex<double> >;
 
 
 

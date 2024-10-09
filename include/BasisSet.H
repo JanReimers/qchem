@@ -62,6 +62,7 @@ public:
     typedef std::vector<BasisFunction*>::      iterator       iterator;
     typedef std::vector<BasisFunction*>::const_iterator const_iterator;
 
+    typedef Vector <double> RVec;
     typedef SMatrix<double> SMat;
 
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
@@ -73,6 +74,12 @@ public:
 //
     virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const IrrepBasisSet>&,const Hamiltonian*, const Spin&) const=0;
 //
+//  Used by fitting routines.
+//
+    virtual RVec GetCharge          () const=0;
+    virtual SMat GetInverseRepulsion() const=0;
+    virtual SMat GetInverseOverlap  () const=0;
+//
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     virtual SMat GetKinetic  (                     ) const=0;
@@ -82,7 +89,8 @@ public:
 //
 //  Charge density repulsion calculations.
 //
-    virtual double GetCDRepulsion     (const ChargeDensity*, const FittedFunction*) const=0;
+    virtual RVec   GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+    virtual RVec   GetCDRepulsion     (const ChargeDensity*, const FittedFunction*) const=0;
     virtual double GetCDOverlap       (const ChargeDensity*, const FittedFunction*) const=0;
 //    virtual double GetCDRepulsion     (const ChargeDensity*) const=0;
 //    virtual double GetCDExchangeEnergy(const ChargeDensity*) const=0;

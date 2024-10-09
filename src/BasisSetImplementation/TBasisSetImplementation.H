@@ -44,7 +44,13 @@ public:
 //
     virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const IrrepBasisSet>&,const Hamiltonian*, const Spin&) const;
 //
-//  New call backs  so Hamiltonian doesn;t see any natricies.
+//  Used by fitting routines.
+// 
+    virtual RVec GetCharge          () const;
+    virtual SMat GetInverseRepulsion() const;
+    virtual SMat GetInverseOverlap  () const;
+//
+//  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     virtual SMat GetKinetic  (                     ) const;
     virtual SMat GetNuclear  (const Cluster*       ) const;
@@ -55,7 +61,9 @@ public:
 //
 //  Charge density repulsion calculations.
 //
-    virtual double GetCDRepulsion     (const ChargeDensity*, const FittedFunction*) const;
+    //virtual ERI3&  GetRepulsion3C(rgeDensity*, const FittedFunction*) const;
+    virtual RVec   GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
+    virtual RVec   GetCDRepulsion     (const ChargeDensity*, const FittedFunction*) const;
     virtual double GetCDOverlap       (const ChargeDensity*, const FittedFunction*) const;
 //    virtual double GetCDRepulsion     (const ChargeDensity*) const;
 //    virtual double GetCDExchangeEnergy(const ChargeDensity*) const;

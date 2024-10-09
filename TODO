@@ -1,9 +1,12 @@
 Priority 1:
     -BasisGroup is not an interface.
     -BasisGroup needs a dynamic cast iterator.
-    Done: -BasisSet should really be IrrepBasisSet, 
     -and BasisGroup should really be BasisSet.
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
+    -Client code should not see DB, just ask BS for integrals.
+
+
+    Done: -BasisSet should really be IrrepBasisSet, 
     Done: -HeapDB needs to be for whole basis set not just one irep.
     Done: -Make sure BasisSet->DB->IE is enforced
         Done: -This means it takes a BasisSet argument for every call.
@@ -14,7 +17,6 @@ Priority 1:
             
             
         Done: -Clean up all the insert nonsense for DB, IE and BS
-        -Client code should not see DB, just ask BS for integrals.
         -Broke BasisGroup persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
     Done: -Client code should provide a Mesh* when requesting integrals form the DB.
@@ -38,6 +40,7 @@ Priority 1:
         2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.
         3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
       We will need a null Ortho type for LAParams for assertions.
+    -Clean up PolGaussian construction.
       
 Priority 2:
     -SMAT does not support S+=Xpr

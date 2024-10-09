@@ -96,4 +96,4 @@ template <class T> std::istream& TOrbitalGroupImplementation<T>::Read(std::istre
 
 
 template class TOrbitalGroupImplementation<double>;
-template class TOrbitalGroupImplementation<std::complex<double> >;
+//template class TOrbitalGroupImplementation<std::complex<double> >;

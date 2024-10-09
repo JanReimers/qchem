@@ -82,6 +82,24 @@ CreateOrbitals(const rc_ptr<const IrrepBasisSet>& rc,const Hamiltonian* ham, con
            TOrbitalGroupImplementation<T>(rc,U,e,S);
 }
 
+template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
+GetCharge() const
+{
+    return GetDataBase()->GetCharge(this);
+}
+
+template <class T> typename TBasisSetImplementation<T>::SMat TBasisSetImplementation<T>::
+GetInverseRepulsion() const
+{
+    return GetDataBase()->GetInverseRepulsion(this);
+}
+
+template <class T> typename TBasisSetImplementation<T>::SMat TBasisSetImplementation<T>::
+GetInverseOverlap() const
+{
+    return GetDataBase()->GetInverseOverlap(this);
+}
+
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetKinetic() const
 {
@@ -204,7 +222,19 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //
 //  Charge density repulsion calculations.
 //
-template <class T> double TBasisSetImplementation<T>::
+template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
+GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+{
+    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
+    assert(tff);
+    RVec ret(ff->size());
+    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ff);
+    for(auto i:ret.indices())
+        ret(i)=Dot(Dcd,repulsion[i-1]);
+    return ret;
+}
+
+template <class T> typename TBasisSetImplementation<T>::RVec TBasisSetImplementation<T>::
 GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
 {
     assert(cd);
@@ -214,13 +244,14 @@ GetCDRepulsion(const ChargeDensity* cd, const FittedFunction* ff) const
     assert(&*icd->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
-    double ret=0;
+    RVec ret(ffi->itsFitCoeff.size());
     typename Vector<T>::const_iterator c(ffi->itsFitCoeff.begin());
     const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
     for(index_t i=0; c!=ffi->itsFitCoeff.end(); c++,i++)
-        ret+=real((*c) * Dot(icd->itsDensityMatrix,repulsion[i]));
+        ret(i+1)=Dot(icd->itsDensityMatrix,repulsion[i]);
     return ret;
 }
+
 
 template <class T> double TBasisSetImplementation<T>::
 GetCDOverlap  (const ChargeDensity* cd, const FittedFunction* ff) const

@@ -20,6 +20,7 @@ class PolarizedGaussianBS
     , public         PolarizedGaussianIEClient
 {
 public:
+    typedef typename IrrepBasisSet::RVec RVec;
     PolarizedGaussianBS();
     PolarizedGaussianBS(const LinearAlgebraParams&, IntegralDataBase<double>*, RadialFunctionReader*, const Cluster*);
 
