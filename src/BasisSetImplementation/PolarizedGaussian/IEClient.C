@@ -2,6 +2,7 @@
 
 #include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
 
+
 void PolarizedGaussianIEClient::Init(std::vector<const BasisFunctionBlock*>& blocks)
 {
      for (auto bl:blocks)

@@ -319,8 +319,8 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(
 
 template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsion(iec_t* a)
 {
+//     std::cout << GetOverlap(a) << std::endl;
     assert(itsAnalyticIE);
-    assert(!itsNumericalIE); //Do we need to support this?
     id2c_t key=std::make_tuple(qchem::InvRepulsion,a->GetID());
     if (auto i = its2C.find(key); i==its2C.end())
         return its2C[key] =itsAnalyticIE->MakeInverse(GetRepulsion(a));

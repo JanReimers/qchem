@@ -159,7 +159,7 @@ public:
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
 class BasisGroup
-    : public UniqueID
+    :  public UniqueID
 {
 public:
     typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;

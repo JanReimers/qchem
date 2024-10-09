@@ -28,8 +28,17 @@ public:
     PolarizedGaussianIE1() {};
     PolarizedGaussianIE1(const blocks_t&);
     virtual ~PolarizedGaussianIE1() {};
+    
+     struct PGparams
+    {
+        PGparams(const iecv_t&);
+        size_t size() const {return ns.size();}
+        std::vector<const RadialFunction*> radials; // Flattened radials
+        std::vector<Polarization>          pols;    // Flattened polarizations
+        Vector<double>                     ns;      //Norm constants
+    };
 
-    virtual size_t size() const {return radials.size();}
+    virtual size_t size() const {return ns.size();}
 
     virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
@@ -58,9 +67,9 @@ private:
     SMat Integrate(RadialFunction::Types2C , const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types3C , const RadialFunction* rc, const Polarization& pc) const;
 
-    blocks_t                           blocks;  // by block one radial function for many polarizations
-    std::vector<const RadialFunction*> radials; // Flattened radials
-    std::vector<Polarization>          pols;    // Flattened polarizations
+   // blocks_t                           blocks;  // by block one radial function for many polarizations
+  //  std::vector<const RadialFunction*> radials; // Flattened radials
+  //  std::vector<Polarization>          pols;    // Flattened polarizations
     RVec                               ns;      //Norm constants
     SMat                               ons;     //Outer product of ns.
     mutable CDcache                    cache; //Cache of all Gaussian pair charge distributions.

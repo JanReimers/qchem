@@ -10,6 +10,7 @@
 struct PolarizedGaussianIEClient
     : public virtual IrrepIEClient
 {
+    
     PolarizedGaussianIEClient() {};
     void Init(std::vector<const BasisFunctionBlock*>&);
     
