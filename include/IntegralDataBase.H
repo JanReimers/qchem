@@ -21,6 +21,11 @@ namespace qchem
 //  engine.  A smart implementation will request a calculation of the
 //  data does not yet exist in the data base.
 //
+//
+//  only build functions the have UT coverage.
+//
+#define UT_COVERAGE_ONLY
+
 template <class T> class IntegralDataBase
     : public virtual Persistent
 {
@@ -49,34 +54,36 @@ public:
 //
 //  Integrals that get calculated once and then cached.
 //
+#ifndef UT_COVERAGE_ONLY
+    virtual const RVec&    GetNormalization(bs_t& a);
     virtual const RVec&    GetNormalization(bs_t& a         )=0;
-    virtual const RVec&    GetCharge       (bs_t&  a      )=0;
     virtual const SMat&    GetOverlap    (bs_t& a  )=0; //Numerical
-    virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b) =0; //Numerical only.
-
-    virtual const SMat&    GetOverlap    (iec_t* a)=0; //Analytic
-    virtual const SMat&    GetRepulsion  (iec_t* a   ) =0;
-    virtual const Mat&     GetRepulsion  (iec_t* a,iec_t* b) =0; //Analytic only.
-    
-    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c   ) =0; //<ab|c>
-    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c  ) =0; //<a(1)b(1)|1/r12|c(2)>
-
-    virtual       ERI4&    GetRepulsion4C(iecv_t&) =0;
-    virtual       ERI4&    GetExchange4C (iecv_t&) =0;
-
-    virtual const RVec&    GetCharge       (iec_t* a      )=0;
-    
-    virtual const SMat&    GetKinetic         (iec_t* a      )=0;
-    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&)=0;
-    virtual const SMat&    GetInverseOverlap  (iec_t* a     )=0;
-    virtual const SMat&    GetInverseRepulsion(iec_t* a      )=0;
+#endif
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
     virtual const Vec      GetOverlap    (Vf&,Rf&) =0;
     virtual const Vec      GetRepulsion  (Vf&,Rf&) =0;
+    virtual const RVec&    GetCharge     (bs_t&  a       )=0; //Numerical .
+    virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b)=0; //Numerical .
+//
+//  These are all done analytically.
+//
+    virtual const RVec&    GetCharge          (iec_t* a)=0;
+    virtual const SMat&    GetOverlap         (iec_t* a)=0; 
+    virtual const SMat&    GetRepulsion       (iec_t* a)=0;
+    virtual const SMat&    GetInverseOverlap  (iec_t* a)=0; //uses analytic overlap
+    virtual const SMat&    GetInverseRepulsion(iec_t* a)=0; //Uses analytic overlap
+    virtual const SMat&    GetKinetic         (iec_t* a)=0;
+    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&)=0;
 
+    virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) =0; //<a(1)|1/r12|b(2)>
+    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
+    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
+
+    virtual       ERI4&    GetRepulsion4C(iecv_t&) =0;
+    virtual       ERI4&    GetExchange4C (iecv_t&) =0;
     
     virtual const NumericalIE<T>* GetIntegralEngine(               ) const=0;
 

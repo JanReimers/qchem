@@ -28,16 +28,23 @@ public:
 
     virtual void Insert(bs_t*);
 
-    virtual SMat MakeOverlap    (bs_t& a                   ) const;
-    virtual Mat  MakeOverlap    (bs_t& a,bs_t& b          ) const;
-    virtual Vec  MakeOverlap    (Vf&, Rf&) const;
 
-    virtual SMat MakeRepulsion  (bs_t& a                              ) const;
-    virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b    ) const;
-    virtual Vec  MakeRepulsion  (Vf&, Rf&) const;
+    virtual Vec  MakeOverlap    (Vf&    , Rf&) const;
+    virtual Vec  MakeRepulsion  (Vf&    , Rf&) const;
+    //
+    //  These currently have no UT coverage.
+    //
+#ifndef UT_COVERAGE_ONLY
+    virtual RVec MakeNormalization(bs_t& a) const;
+    virtual RVec MakeCharge       (bs_t& a) const;
+    virtual SMat MakeOverlap      (bs_t& a) const;
+    virtual SMat MakeRepulsion    (bs_t& a) const;
+    virtual Mat  MakeOverlap      (bs_t& a,bs_t& b) const;
+    virtual Mat  MakeRepulsion    (bs_t& a,bs_t& b) const;
+#endif
 
-    virtual RVec MakeNormalization(bs_t& a                 ) const;
-    virtual RVec MakeCharge       (bs_t& a                 ) const;
+
+
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual SMat MakeKinetic  (                     ) const;
     virtual SMat MakeNuclear  (const Cluster&       ) const;

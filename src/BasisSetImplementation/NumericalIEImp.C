@@ -19,16 +19,6 @@
 #define TYPE TIrrepBasisSet<double>
 #include "Misc/Persistent/IDRef.Ci"
 
-
-template <class T> typename NumericalIE<T>::RSMat NumericalIE<T>::
-    MakeInverse(const RSMat& S) 
-{
-    LinearAlgebraParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
-    LASolver<double>* las=LASolver<double>::Factory(lap);
-    return las->Inverse(S);
-}
-
-template typename NumericalIE<double>::RSMat NumericalIE<double>::MakeInverse(const RSMat& S) ;
 //-----------------------------------------------------------------
 //
 //  Construction zone.
@@ -110,6 +100,29 @@ Normalize(const RVec& n1, Mat& m, const RVec& n2) const
             s(i,j)*=n1(i)*n2(j);
 }
 
+template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeOverlap(Vf& bs, Rf& f) const
+{
+    CheckInitialized();
+    Vec ret=itsIntegrator->Overlap(f,bs);
+    assert(!isnan(ret));
+    Normalize(ret);
+    assert(!isnan(ret));
+    return ret;
+}
+
+template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeRepulsion(Vf& bs, Rf& f) const
+{
+    //No UT coverage.
+    CheckInitialized();
+    Vec ret=itsIntegrator->Repulsion(f,bs);
+    Normalize(ret);
+    return ret;
+}
+
+
+
+#ifndef UT_COVERAGE_ONLY
+
 template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeNormalization(bs_t& a) const
 {
     // No UT coverage
@@ -129,10 +142,6 @@ template <class T> typename NumericalIEImp<T>::RVec NumericalIEImp<T>::MakeCharg
     return ret;
 }
 
-//--------------------------------------------------------------------------------------------
-//
-//  Overlap type integrals.
-//
 template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeOverlap(bs_t& a) const
 {
     //No UT coverage.
@@ -160,34 +169,6 @@ template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeOverla
 }
 
 
-
-template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeOverlap(Vf& bs, Rf& f) const
-{
-    CheckInitialized();
-    Vec ret=itsIntegrator->Overlap(f,bs);
-    assert(!isnan(ret));
-    Normalize(ret);
-    assert(!isnan(ret));
-    return ret;
-}
-
-//--------------------------------------------------------------------------------------------
-//
-//  Repulsion type integrals are not implementated, they are 6 dimensional!
-//
-template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeRepulsion(bs_t& a ) const
-{
-    //No UT coverage.
-    std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;
-    assert(false);
-    CheckInitialized();
-    SMat ret=itsIntegrator->Repulsion(a);
-    assert(!isnan(ret));
-    Normalize(ret);
-    assert(!isnan(ret));
-    return ret;
-}
-
 template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepulsion(bs_t& a,bs_t& b    ) const
 {
     //No UT coverage.
@@ -204,15 +185,20 @@ template <class T> typename NumericalIEImp<T>::Mat NumericalIEImp<T>::MakeRepuls
     return ret;
 }
 
-template <class T> typename NumericalIEImp<T>::Vec NumericalIEImp<T>::MakeRepulsion(Vf& bs, Rf& f) const
+
+template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeRepulsion(bs_t& a ) const
 {
     //No UT coverage.
+    std::cerr << "Error: NumericalIE<T>::MakeRepulsion Do not do repulsion integrals numerically" << std::endl;
+    assert(false);
     CheckInitialized();
-    Vec ret=itsIntegrator->Repulsion(f,bs);
+    SMat ret=itsIntegrator->Repulsion(a);
+    assert(!isnan(ret));
     Normalize(ret);
+    assert(!isnan(ret));
     return ret;
 }
-
+#endif
 
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
 

@@ -38,6 +38,10 @@
 //  Set this define if you want use this engine for debugging analytic integrals.
 //
 //#define USE_FOR_DEBUGGING_ANALYTIC
+//
+//  only build functions the have UT coverage.
+//
+#define UT_COVERAGE_ONLY
 
 template <class T> class NumericalIE
     : public virtual PMStreamableObject
@@ -58,16 +62,22 @@ public:
 
     virtual void Insert(bs_t*)=0;
 
-    virtual SMat MakeOverlap    (bs_t& a                          ) const=0;
-    virtual Mat  MakeOverlap    (bs_t& a,bs_t& b        ) const=0;
-    virtual Vec  MakeOverlap    (Vf&, Rf&) const=0;
+    virtual Vec  MakeOverlap    (Vf&    , Rf&) const=0;
+    virtual Vec  MakeRepulsion  (Vf&    , Rf&) const=0;
+    //
+    //  These currently have no UT coverage.
+    //
+#ifndef UT_COVERAGE_ONLY
+    virtual RVec MakeCharge       (bs_t& a) const=0;
+    virtual SMat MakeOverlap      (bs_t& a) const=0;
+    virtual RVec MakeNormalization(bs_t& a) const=0;
+    virtual Mat  MakeOverlap      (bs_t& a,bs_t& b) const=0;
+    virtual Mat  MakeRepulsion    (bs_t& a,bs_t& b) const=0;
+    virtual SMat MakeRepulsion    (bs_t& a) const=0;
+#endif
 
-    virtual SMat MakeRepulsion  (bs_t& a                              ) const=0;
-    virtual Mat  MakeRepulsion  (bs_t& a,bs_t& b     ) const=0;
-    virtual Vec  MakeRepulsion  (Vf&, Rf&) const=0;
-
-    virtual RVec MakeNormalization(bs_t& a ) const=0;
-    virtual RVec MakeCharge       (bs_t& a ) const=0;
+    
+    
 #ifdef USE_FOR_DEBUGGING_ANALYTIC
     virtual void MakeOverlap3C  (ERI3&,bs_t&   ) const=0;
     virtual void MakeRepulsion3C(ERI3&,bs_t&   ) const=0;
@@ -75,7 +85,6 @@ public:
     virtual SMat MakeKinetic(              ) const=0;
     virtual SMat MakeNuclear(const Cluster&) const=0;
 #endif
-    static  RSMat MakeInverse(const RSMat& ); //Numerically stable algo required.
 
     virtual std::ostream& Write(std::ostream&) const=0;
     virtual std::istream& Read (std::istream&)      =0;
