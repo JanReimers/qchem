@@ -45,7 +45,6 @@ public:
     typedef std::vector<iec_t*> iecv_t;
 
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(const NumericalIE<T>*)=0;
     virtual void  Insert(const AnalyticIE<T>*)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
@@ -61,10 +60,10 @@ public:
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (bs_t& a,Rf&  f )=0; //Numerical 
-    virtual const Vec      GetRepulsion  (bs_t& a,Rf&  f )=0; //Numerical 
-    virtual const RVec&    GetCharge     (bs_t& a        )=0; //Numerical .
-    virtual const Mat&     GetOverlap    (bs_t& a,bs_t& b)=0; //Numerical .
+    virtual const Vec      GetOverlap    (const Mesh*,bs_t& a,Rf&  f )=0; //Numerical 
+    virtual const Vec      GetRepulsion  (const Mesh*,bs_t& a,Rf&  f )=0; //Numerical 
+    virtual const RVec&    GetCharge     (const Mesh*,bs_t& a        )=0; //Numerical .
+    virtual const Mat&     GetOverlap    (const Mesh*,bs_t& a,bs_t& b)=0; //Numerical .
 //
 //  These are all done analytically.
 //

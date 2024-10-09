@@ -59,9 +59,7 @@ IrrepBasisSet* AtomTester::GetCbasisSet() const
 
 IrrepBasisSet* AtomTester::GetXbasisSet() const
 {
-    Mesh* mesh=GetIntegrationMesh();
-    assert(mesh);
-    return new SphericalGaussianBS(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin*2.0/3.0,itsEmax*2.0/3.0,0,mesh);
+    return new SphericalGaussianBS(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin*2.0/3.0,itsEmax*2.0/3.0,0);
 }
 
 Mesh* AtomTester::GetIntegrationMesh() const

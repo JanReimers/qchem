@@ -42,6 +42,7 @@ public:
     {
         return itsFitCoeff;
     }
+    const Mesh* GetMesh() const {return itsMesh;}
 
 protected:
     virtual double DoFit(double, const FittedFunctionClient&);

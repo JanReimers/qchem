@@ -34,7 +34,6 @@ protected:
 public:
 
     HeapDB();
-    virtual void  Insert(const NumericalIE<T>*);
     virtual void  Insert(const AnalyticIE<T>*);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
@@ -48,10 +47,10 @@ public:
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (bs_t&,Rf&   f); //Numerical .
-    virtual const Vec      GetRepulsion  (bs_t&,Rf&   f); //Numerical .
-    virtual const RVec&    GetCharge     (bs_t&        ); //Numerical .
-    virtual const Mat&     GetOverlap    (bs_t&,bs_t& b); //Numerical .
+    virtual const Vec      GetOverlap    (const Mesh*,bs_t&,Rf&   f); //Numerical .
+    virtual const Vec      GetRepulsion  (const Mesh*,bs_t&,Rf&   f); //Numerical .
+    virtual const RVec&    GetCharge     (const Mesh*,bs_t&        ); //Numerical .
+    virtual const Mat&     GetOverlap    (const Mesh*,bs_t&,bs_t& b); //Numerical .
 //
 //  These are all done analytically.
 //
@@ -81,11 +80,10 @@ private:
 
     void WipeCleanAllData   ()      ;
     void BuildERIs(iecv_t& abcd);
-    const RVec& GetNumericalNormalization(bs_t& a);
+    const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 
-    const NumericalIE<T>* itsNumericalIE;
     const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
  
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;

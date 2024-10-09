@@ -4,12 +4,10 @@
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "BasisSet.H"
 #include "QuantumNumber.H"
-#include "NumericalIE.H"
 #include "AnalyticIE.H"
 #include "IntegralDataBase.H"
 #include "LASolver/LASolver.H"
 #include "Hamiltonian.H"
-#include "Mesh/Mesh.H"
 
 #include "Misc/ERI4.H"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
@@ -24,7 +22,6 @@
 //
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsNumericalIE(0)
     , itsDataBase      ( )
     , itsLASolver      (0)
 {};
@@ -32,7 +29,6 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation()
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
     , itsLAParams      (lap)
-    , itsNumericalIE(0)
     , itsDataBase      (theDataBase)
     , itsLASolver      (0)
 {};
@@ -40,7 +36,6 @@ template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const Lin
 template <class T> TBasisSetImplementation<T>::TBasisSetImplementation(const TBasisSetImplementation<T>& bs)
     : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
     , itsLAParams      (bs.itsLAParams)
-    , itsNumericalIE   (bs.itsNumericalIE)
     , itsDataBase      (bs.itsDataBase)
     , itsLASolver      (0)
 {};
@@ -54,13 +49,6 @@ template <class T> TBasisSetImplementation<T>::~TBasisSetImplementation()
 //
 //  Post construction initializations called by dervied classes.
 //
-template <class T> void TBasisSetImplementation<T>::Insert(NumericalIE<T>* ie)
-{
-    assert(ie);
-    itsNumericalIE.reset(ie);
-    itsDataBase->Insert(ie);
-}
-
 template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
 {
     assert(ie);
@@ -296,8 +284,8 @@ SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ffi);
     assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetOverlap(*this,sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(*this,sf);
+    assert(!isnan(GetDataBase()->GetOverlap(ffi->GetMesh(),*this,sf)));
+    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(ffi->GetMesh(),*this,sf);
 }
 
 
@@ -309,8 +297,8 @@ SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>& sf) const
     assert(ffi);
     assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
     assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetRepulsion(*this,sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(*this,sf);
+    assert(!isnan(GetDataBase()->GetRepulsion(ffi->GetMesh(),*this,sf)));
+    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(ffi->GetMesh(),*this,sf);
 }
 
 

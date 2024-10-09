@@ -5,7 +5,7 @@ Priority 1:
     -and BasisGroup should really be BasisSet.
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
     Done: -HeapDB needs to be for whole basis set not just one irep.
-    -Make sure BasisSet->DB->IE is enforced
+    Done: -Make sure BasisSet->DB->IE is enforced
         Done: -This means it takes a BasisSet argument for every call.
             Done: Break DB--->BasisSet dependence 
             Done: We will need some reoerg to IE
@@ -17,8 +17,8 @@ Priority 1:
         -Client code should not see DB, just ask BS for integrals.
         -Broke BasisGroup persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
-    -Client code should provide a Mesh* when requesting integrals form the DB.
-    -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
+    Done: -Client code should provide a Mesh* when requesting integrals form the DB.
+    Done: -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
    -Cache reports
     -Stop caching RNLM inside GaussianCD
     -CDcache into its own source files.
@@ -29,8 +29,8 @@ Priority 1:
     -Fix valgrind errors
     -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
     -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
- 
-
+    -TBasisSetImplementation<T>::SetFitOverlap should not be call DoFit,
+        Should do ff->Update(sf);
     -kT Occ smearing fails miserably.
     -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
      constructors with 3 versions

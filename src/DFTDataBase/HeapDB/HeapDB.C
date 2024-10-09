@@ -3,9 +3,9 @@
 
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
+#include "Mesh/MeshIntegrator.H"
 #include "BasisSet.H"
 #include "Cluster.H"
-#include "NumericalIE.H"
 #include "AnalyticIE.H"
 #include "oml/vector.h"
 #include "Misc/stl_io.h"
@@ -18,8 +18,7 @@
 //  Construction zone.
 //
 template <class T> HeapDB<T>::HeapDB()
-    :itsNumericalIE    (0)
-    ,itsAnalyticIE   (0)
+    :itsAnalyticIE   (0)
     
 {}
 
@@ -29,11 +28,6 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
 {
 }
 
-template <class T> void HeapDB<T>::Insert(const NumericalIE<T>* ie)
-{
-    assert(ie);
-    itsNumericalIE=ie;
-}
 
 template <class T> void HeapDB<T>::Insert(const AnalyticIE<T>* ie)
 {
@@ -108,12 +102,12 @@ template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
 //  If possible return cached integral tables.  Calculate using integral engine only if required.
 //  In some cases the numerical IE takes priority.
 //
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNumericalNormalization(bs_t& a)
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNumericalNormalization(const Mesh* m,bs_t& a)
 {
-    assert(itsNumericalIE);
+    MeshIntegrator<T> mintegrator(m);
     id2c_t key=std::make_tuple(qchem::Normalization,a.GetID());
     if (auto i = its1C.find(key); i==its1C.end())
-        return its1C[key] =itsNumericalIE->MakeNormalization(a);
+        return its1C[key] =mintegrator.Normalize(a);
     else
         return i->second;
 }
@@ -134,7 +128,7 @@ template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(iec_t*
 //  THis get called in code by FittedFunctionImplementation<T>::FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 //  But does not get used at run time.  The fit uses the repulsion version instead.
 //
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(bs_t& a,bs_t& b)
+template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(const Mesh* m,bs_t& a,bs_t& b)
 {
     // No UT coverage.
     assert(false);
@@ -151,11 +145,11 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetOverlap(bs_t& a,
 //
 //  DO not try and cache these because the ScalarFunction f changes with iterations.
 //
-template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(bs_t& bs,Rf& f)
+template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetOverlap(const Mesh* m,bs_t& bs,Rf& f)
 {
-    assert(itsNumericalIE);    
-    const RVec& n=GetNumericalNormalization(bs);
-    return DirectMultiply(itsNumericalIE->MakeOverlap(bs,f),n);
+    const RVec& n=GetNumericalNormalization(m,bs);
+    MeshIntegrator<T> mintegrator(m);
+    return DirectMultiply(mintegrator.Overlap(f,bs),n);
 }
 
 
@@ -170,11 +164,11 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRepulsion(iec_t
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(bs_t& bs,Rf& f)
+template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const Mesh* m,bs_t& bs,Rf& f)
 {
-    assert(itsNumericalIE);
-    const RVec& n=GetNumericalNormalization(bs);
-    return DirectMultiply(itsNumericalIE->MakeRepulsion(bs,f),n);
+    const RVec& n=GetNumericalNormalization(m,bs);
+    MeshIntegrator<T> mintegrator(m);
+    return DirectMultiply(mintegrator.Repulsion(f,bs),n);
 }
 
 
@@ -203,7 +197,7 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* 
 //  THis get called in code by FittedFunctionImplementation<T>::FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 //  But does not get used at run time.  The fit uses the repulsion version instead.
 //
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(bs_t&  a)
+template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(const Mesh*,bs_t&  a)
 {
     assert(false);
     return *new RVec();

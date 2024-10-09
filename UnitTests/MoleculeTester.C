@@ -42,10 +42,8 @@ IrrepBasisSet* MoleculeTester::GetCbasisSet() const
 
 IrrepBasisSet* MoleculeTester::GetXbasisSet() const
 {
-    Mesh* mesh=GetIntegrationMesh();
-    assert(mesh);
     Gaussian94RFR reader("../BasisSetData/A1_exch.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussianBS(itsLAParams,new HeapDB<double>, &reader,itsCluster.get(),mesh);
+    IrrepBasisSet* bs = new PolarizedGaussianBS(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
     return bs;
 }
 

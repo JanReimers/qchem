@@ -5,6 +5,7 @@
 #include "IntegralDataBase.H"
 #include "ChargeDensity.H"
 #include "BasisSet.H"
+#include "Mesh/Mesh.H"
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
@@ -109,7 +110,7 @@ FitGet2CenterOverlap(const IrrepBasisSet* bs) const
     const TIrrepBasisSet<T>* tbs=dynamic_cast<const TIrrepBasisSet<T>*>(bs);
     assert(tbs);
     const TIrrepBasisSet<T>* this_bs=CastBasisSet();
-    return itsFitCoeff * (this_bs->GetDataBase()->GetOverlap(*this_bs,*tbs));
+    return itsFitCoeff * (this_bs->GetDataBase()->GetOverlap(itsMesh,*this_bs,*tbs));
 }
 
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
@@ -132,7 +133,7 @@ FitGetOverlap(const FittedFunctionImplementation<T>* ffi) const
     const TIrrepBasisSet<T>* this_bs=CastBasisSet();
     return
         itsFitCoeff *
-        this_bs->GetDataBase()->GetOverlap(*this_bs,*ffi->CastBasisSet()) *
+        this_bs->GetDataBase()->GetOverlap(itsMesh,*this_bs,*ffi->CastBasisSet()) *
         ffi->itsFitCoeff;
 }
 

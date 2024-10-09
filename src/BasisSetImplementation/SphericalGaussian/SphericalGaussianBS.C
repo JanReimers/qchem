@@ -6,8 +6,6 @@
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
-#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
-#include "BasisSetImplementation/NumericalIEImp.H"
 #include <iostream>
 #include <cassert>
 
@@ -41,8 +39,7 @@ SphericalGaussianBS::SphericalGaussianBS(
         size_t size,
         double minexp,
         double maxexp,
-        size_t L,
-        Mesh* theMesh)
+        size_t L)
     : BasisSetImplementation(new SphericalSymmetryQN(L))
     , TBasisSetImplementation<double>(lap,theDB)
     , SphericalGaussianIEClient(size)
@@ -52,14 +49,8 @@ SphericalGaussianBS::SphericalGaussianBS(
 //    FillPower(exp,minexp,maxexp);
     for (auto e:es) 
         BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
-    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1());  
-    if (theMesh)
-    {
-        assert(L==0); //Why???
-        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh));
-    }
-          
 
+    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1());  
 };
 
 std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const

@@ -7,7 +7,6 @@
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
 #include "BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
-#include "BasisSetImplementation/NumericalIEImp.H"
 #include "Cluster.H"
 #include "Misc/ptr_vector1_io.h"
 #include <cassert>
@@ -31,7 +30,7 @@ PolarizedGaussianBS::PolarizedGaussianBS()
 {};
 
 PolarizedGaussianBS::
-PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, const Cluster* cl, Mesh * theMesh)
+PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, const Cluster* cl)
     : BasisSetImplementation(new UnitSymmetryQN)
     , TBasisSetImplementation<double>(lap,theDB)
 {
@@ -107,9 +106,6 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
         TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(this));    
     }
 
-    if (theMesh)  
-        TBasisSetImplementation<double>::Insert(new NumericalIEImp<double>(theMesh) );
-        
 };
 
 

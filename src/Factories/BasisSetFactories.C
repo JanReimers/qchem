@@ -14,7 +14,6 @@
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
 
-#include "BasisSetImplementation/NumericalIEImp.H"
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
 //#include "BasisSetImplementation/PlaneWave/BlochQN.H"

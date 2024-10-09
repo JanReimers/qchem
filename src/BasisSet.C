@@ -9,7 +9,6 @@ template class TIrrepBasisSet<double>;
 template class TIrrepBasisSet<std::complex<double> >;
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
-#include "NumericalIE.H"
 #include "Misc/ptr_vector1_io.h"
 
 BasisGroup::BasisGroup()

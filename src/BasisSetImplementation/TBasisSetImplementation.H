@@ -78,7 +78,6 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    void  Insert(NumericalIE<T>*);
     void  Insert(AnalyticIE<T>*);
     virtual void  Insert(const BasisGroup* bg) {itsBasisGroup=bg;}
     
@@ -89,7 +88,6 @@ private:
 protected:
     LinearAlgebraParams          itsLAParams;
 private:
-    rc_ptr<NumericalIE<T> > itsNumericalIE;
     const BasisGroup* itsBasisGroup;
     mutable IntegralDataBase<T>*  itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
