@@ -11,12 +11,9 @@ class SphericalGaussianBF
 {
 public:
     SphericalGaussianBF(                             );
-    SphericalGaussianBF(double theExponent, int theL);
-    virtual void Init(double norm, double charge); //Use an integral engine to calculate normalization and charge constants.
+    SphericalGaussianBF(double theExponent, int theL, double norm);
     
     virtual bool   operator==(const BasisFunction&) const;
-    virtual double GetNormalization() const;
-    virtual double GetCharge       () const;
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;
@@ -33,7 +30,6 @@ private:
     double itsExponent;
     int    itsL;
     double itsNormalization;
-    double itsCharge;
 };
 
 #endif //_SphericalGaussianBF_H_

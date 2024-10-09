@@ -53,14 +53,6 @@ template <class T> void TBasisSetImplementation<T>::Insert(AnalyticIE<T>* ie)
 {
     assert(ie);
     itsDataBase->Insert(ie);
-    RVec ns=ie->MakeNormalization(this);
-    RVec cs=ie->MakeCharge(this);
-    int i=1;
-    for (auto bf:*this) 
-    {
-        bf->Init(ns(i),cs(i));
-        i++;
-    }
 }
 
 template <class T> IntegralDataBase<T>* TBasisSetImplementation<T>::GetDataBase() const

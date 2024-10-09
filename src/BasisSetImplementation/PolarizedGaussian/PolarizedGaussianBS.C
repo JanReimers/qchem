@@ -91,21 +91,15 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
         itsBlocks.push_back(bfb);
         i++;
     }
+    
+    PolarizedGaussianIE1::blocks_t bls;
+    for (auto bl:itsBlocks) bls.push_back(bl);
+    PolarizedGaussianIEClient::Init(bls);
+    TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(this));    
 //
 //  Now insert the basis functions.
 //
-    MakeBasisFunctions();
-//
-//  Make the integral engine.  Can't do this until all the basis functions and
-//  blocks are in place.
-//
-    {
-        PolarizedGaussianIE1::blocks_t bls;
-        for (auto bl:itsBlocks) bls.push_back(bl);
-        PolarizedGaussianIEClient::Init(bls);   
-        TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(this));    
-    }
-
+    MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 };
 
 
@@ -121,16 +115,17 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
     , itsBlocks(theBlocks)
 {
     // No UT coverage
-    MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
+    //MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
 //    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
-void PolarizedGaussianBS::MakeBasisFunctions()
+void PolarizedGaussianBS::MakeBasisFunctions(const RVec& norms)
 {
     EmptyBasisFunctions();
+    size_t i=1;
     for (optr_vector1<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
         for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
-            BasisSetImplementation::Insert(new PolarizedGaussianBF((*bl)->itsRadial,*p));
+            BasisSetImplementation::Insert(new PolarizedGaussianBF((*bl)->itsRadial,*p,norms(i++)));
 }//Compiler says these calls are ambiguous.  BUG
 
 std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
@@ -154,7 +149,7 @@ std::istream& PolarizedGaussianBS::Read (std::istream& is)
 {
     // No UT coverage
     is >> itsBlocks;
-    MakeBasisFunctions();
+//    MakeBasisFunctions();
     BasisSetImplementation::Read(is);
     TBasisSetImplementation<double>::Read(is);
     return is;

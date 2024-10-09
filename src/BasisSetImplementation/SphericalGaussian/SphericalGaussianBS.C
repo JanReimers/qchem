@@ -9,14 +9,6 @@
 #include <iostream>
 #include <cassert>
 
-template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
-{
-  double del=(std::log(stop/start))/(double)(arr.size()-1);
-  typename Vector<T>::iterator i=arr.begin();
-  for (int n=0;i!=arr.end();i++,n++) *i=T(start*std::exp(n*del));
-}
-
-
 //#######################################################################
 //
 //  Concrete  gaussian basis set.
@@ -45,12 +37,11 @@ SphericalGaussianBS::SphericalGaussianBS(
     , SphericalGaussianIEClient(size)
 {
     SphericalGaussianIEClient::Init(minexp,maxexp,L);
-//    Vector<double> exp(size);
-//    FillPower(exp,minexp,maxexp);
-    for (auto e:es) 
-        BasisSetImplementation::Insert(new SphericalGaussianBF(e,L));
-
     TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1());  
+    size_t i=1;
+    for (auto e:es) 
+        BasisSetImplementation::Insert(new SphericalGaussianBF(e,L,ns(i++))); //ns from SphericalGaussianIEClient
+
 };
 
 std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const

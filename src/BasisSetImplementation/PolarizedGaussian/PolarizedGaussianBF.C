@@ -18,26 +18,15 @@
 PolarizedGaussianBF::PolarizedGaussianBF()
     : itsRadial       (0)
     , itsNormalization(0)
-    , itsCharge       (0)
 {};
 
-PolarizedGaussianBF::PolarizedGaussianBF(const RadialFunction* theRF,const Polarization& thePol)
+PolarizedGaussianBF::PolarizedGaussianBF(const RadialFunction* theRF,const Polarization& thePol, double norm)
     : itsRadial(theRF )
     , itsPol   (thePol)
-    , itsNormalization(0)
-    , itsCharge       (0)
+    , itsNormalization(norm)
 {
     assert(itsRadial);
 };
-
-void PolarizedGaussianBF::Init(double norm, double charge)
-{
-    assert(!std::isnan(norm));
-    assert(norm>0);
-
-    itsNormalization=norm;
-    itsCharge=charge;
-}
 
 bool PolarizedGaussianBF::operator==(const BasisFunction& bf) const
 {
@@ -45,16 +34,6 @@ bool PolarizedGaussianBF::operator==(const BasisFunction& bf) const
     const PolarizedGaussianBF& pgbf = dynamic_cast<const PolarizedGaussianBF&>(bf);
     assert(&pgbf);
     return (*itsRadial)==(*pgbf.itsRadial) && (itsPol==pgbf.itsPol);
-}
-
-double PolarizedGaussianBF::GetNormalization() const
-{
-    return itsNormalization;
-}
-
-double PolarizedGaussianBF::GetCharge() const
-{
-    return itsCharge;
 }
 
 //------------------------------------------------------------------------

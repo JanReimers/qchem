@@ -19,12 +19,8 @@ class BasisFunction
 {
 public:
     virtual ~BasisFunction()  {};
-    virtual void Init(double norm, double charge)=0; //Use an integral engine to calculate normalization and charge constants.
 
     virtual bool   operator==(const BasisFunction&) const=0;
-
-    virtual double GetNormalization() const=0;
-    virtual double GetCharge       () const=0;
 
     virtual BasisFunction* Clone  (             ) const=0;
     static  BasisFunction* Factory(std::istream&)        ;

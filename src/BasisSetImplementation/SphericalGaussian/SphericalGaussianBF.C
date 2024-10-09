@@ -20,47 +20,20 @@ SphericalGaussianBF::SphericalGaussianBF()
     : itsExponent     (0)
     , itsL            (0)
     , itsNormalization(0)
-    , itsCharge       (0)
 {};
 
-SphericalGaussianBF::SphericalGaussianBF(double theExponent, int theL)
+SphericalGaussianBF::SphericalGaussianBF(double theExponent, int theL, double norm)
     : itsExponent     (theExponent)
     , itsL            (theL       )
-    , itsNormalization(0)
-    , itsCharge       (0)
+    , itsNormalization(norm)
 {
 };
-
-void SphericalGaussianBF::Init(double norm, double charge)
-{   
-    assert(!std::isnan(norm));
-    assert(norm>0);
-    assert(charge>0);
-//  Ascii IO messes this up.
-//    std::cout << norm << " " << GaussianNorm(itsExponent,itsL) << std::endl;
-//    std::cout << log10(fabs(norm-GaussianNorm(itsExponent,itsL))) << std::endl;
-//    assert(fabs(norm-GaussianNorm(itsExponent,itsL))<1e-13);
-//    assert(fabs(charge-norm*GaussianIntegral(itsExponent,itsL))<1e-14);
-
-    itsNormalization=norm;
-    itsCharge=charge;
-}
 
 bool SphericalGaussianBF::operator==(const BasisFunction& bf) const
 {
     const SphericalGaussianBF& sgbf = dynamic_cast<const SphericalGaussianBF&>(bf);
     assert(&sgbf);
     return itsExponent==(sgbf.itsExponent) && (itsL==sgbf.itsL);
-}
-
-double SphericalGaussianBF::GetNormalization() const
-{
-    return itsNormalization;
-}
-
-double SphericalGaussianBF::GetCharge() const
-{
-    return itsCharge;
 }
 
 std::ostream& SphericalGaussianBF::Write(std::ostream& os) const

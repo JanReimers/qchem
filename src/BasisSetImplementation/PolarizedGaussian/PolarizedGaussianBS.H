@@ -30,7 +30,7 @@ public:
 
 private:
     PolarizedGaussianBS(const PolarizedGaussianBS* bs,IntegralDataBase<double>*, const optr_vector1<BasisFunctionBlock*>&);
-    void MakeBasisFunctions();
+    void MakeBasisFunctions(const RVec& norms);
     friend class PolarizedGaussianIE;
 
     optr_vector1<BasisFunctionBlock*> itsBlocks;
