@@ -64,6 +64,7 @@ public:
 
     typedef Vector <double> RVec;
     typedef SMatrix<double> SMat;
+    typedef  Matrix<double>  Mat;
 
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual int                  GetStartIndex   (               ) const=0;
@@ -86,6 +87,7 @@ public:
     virtual SMat GetNuclear  (const Cluster*       ) const=0;
     virtual SMat GetOverlap  (const FittedFunction*) const=0;
     virtual SMat GetRepulsion(const FittedFunction*) const=0;
+    virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0;
 //
 //  Charge density repulsion calculations.
 //
@@ -138,6 +140,7 @@ public:
     typedef std::vector<SMat> ERI3;
     size_t GetVectorSize() const {return GetNumFunctions();}
     virtual SMat GetRepulsion(const FittedFunction*) const=0; //unhide
+    virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0; //unhide
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
 

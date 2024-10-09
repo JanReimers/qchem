@@ -56,6 +56,8 @@ public:
     virtual SMat GetNuclear  (const Cluster*       ) const;
     virtual SMat GetOverlap  (const FittedFunction*) const;
     virtual SMat GetRepulsion(const FittedFunction*) const;
+    virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const;
+    
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
 //

@@ -146,6 +146,16 @@ GetRepulsion(const FittedFunction* ff) const
     assert(!isnan(J));
     return J;
 }
+
+ template <class T> typename TBasisSetImplementation<T>::Mat TBasisSetImplementation<T>::
+ GetRepulsion(const IrrepBasisSet* ff) const
+ {
+    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
+    assert(tff);
+    return GetDataBase()->GetRepulsion(this,tff);
+ }
+ 
+ 
 #include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
 #include "BasisSetImplementation/BasisSetImplementation.H"
 #include "Misc/DFTDefines.H"

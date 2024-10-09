@@ -140,16 +140,14 @@ FitGetOverlap(const FittedFunctionImplementation<T>* ffi) const
 template <class T> double FittedFunctionImplementation<T>::
 FitGetRepulsion(const FittedFunctionImplementation<T>* ffi) const
 {
-    const TIrrepBasisSet<T>* this_bs=CastBasisSet();
     return
-        itsFitCoeff *
-        this_bs->GetDataBase()->GetRepulsion(this_bs, ffi->CastBasisSet()) *
+        itsFitCoeff * itsBasisSet->GetRepulsion(ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
 }
 
 template <class T> double FittedFunctionImplementation<T>::FitGetCharge() const
 {
-    return itsFitCoeff * CastBasisSet()->GetCharge();
+    return itsFitCoeff * itsBasisSet->GetCharge();
 }
 
 //------------------------------------------------------------------------
