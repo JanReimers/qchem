@@ -1,4 +1,4 @@
-#include "ERI4.H"
+#include "Imp/Containers/ERI4.H"
 
 ERI4::ERI4(int n)
     : itsN()
@@ -82,7 +82,6 @@ void ERI4::DumpExchange(std::ostream& os) const
 }
 
 
-#include "ERI4.H"
 
 ERI4view::ERI4view(const ERI4& eril,int start_ab, int start_cd)
  : itsERI4(eril)

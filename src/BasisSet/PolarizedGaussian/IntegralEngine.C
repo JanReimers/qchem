@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "Misc/ERI4.H"
+#include "Imp/Containers/ERI4.H"
 
 //-----------------------------------------------------------------
 //

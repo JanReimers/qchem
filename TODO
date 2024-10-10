@@ -6,8 +6,8 @@ Priority 1:
         -Broke BasisGroup persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
    -Cache reports
-    -Stop caching RNLM inside GaussianCD
-    -CDCache into its own source files.
+    Done: -Stop caching RNLM inside GaussianCD
+    Done: -CDCache into its own source files.
 
     -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
     -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}

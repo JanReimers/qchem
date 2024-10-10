@@ -6,7 +6,7 @@
 
 #include "ChargeDensity.H"
 #include "FunctionsImp/DumpScalarData.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 
 //--------------------------------------------------------------------------
 //

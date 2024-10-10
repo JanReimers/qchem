@@ -2,11 +2,9 @@
 #ifndef _BasisFunctionBlock_H_
 #define _BasisFunctionBlock_H_
 
-
-
-#include "Misc/pmstream.h"
 #include "RadialFunction.H"
-#include "Misc/Polarization.H"
+#include "Polarization.H"
+#include "Misc/pmstream.h"
 #include <cassert>
 
 //-----------------------------------------------------------------------

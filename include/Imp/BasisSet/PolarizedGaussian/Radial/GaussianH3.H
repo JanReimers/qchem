@@ -3,8 +3,8 @@
 #define _GaussianH3_H_
 
 
-
 #include "../MnD/Hermite3.H"
+#include "../Polarization.H"
 #include "oml/vector3d.h"
 #include <iosfwd>
 

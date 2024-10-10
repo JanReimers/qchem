@@ -3,7 +3,6 @@
 
 
 #include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite1.H"
-#include "Misc//Polarization.H"
 #include "Misc/IntPower.H"
 #include "oml/imp/binio.h"
 #include "oml/imp/stream.h"

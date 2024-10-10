@@ -5,7 +5,7 @@
 
 #include "types.H"
 #include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 //
 // Store a list hermite3 pointers.  Contraction coefficients should be absorbed into the scale factors
 // of the uncontracted hermite3's before insertion.

@@ -4,7 +4,7 @@
 
 #include "RadialFunction.H"
 #include "CDCache.H"
-#include "Misc/Polarization.H"
+#include "Polarization.H"
 #include <AnalyticIE.H>
 #include "oml/vector.h"
 

@@ -123,7 +123,7 @@ private:
 };
 
 #include "Functions/VectorFunction.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions

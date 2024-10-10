@@ -2,6 +2,7 @@
 #ifndef _Hermite1_H_
 #define _Hermite1_H_
 
+#include "../Polarization.H"
 #include <iosfwd>
 
 #define LMAX 3

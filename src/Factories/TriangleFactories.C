@@ -1,6 +1,6 @@
 // File: TriangleFactories.C
 
-#include "Misc/Triangle/Triangle.H"
+#include "Imp/Containers/Triangle.H"
 #include <string>
 #include <iostream>
 #include <typeinfo>

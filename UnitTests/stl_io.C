@@ -4,9 +4,9 @@
 #include "gtest/gtest.h"
 #include "oml/vector.h"
 #include "oml/imp/stream.h"
-#include "Misc/stl_io.h"
-#include "Misc/ptr_vector1.h"
-#include "Misc/ptr_vector1_io.h"
+#include "Imp/Containers/stl_io.h"
+#include "Imp/Containers/ptr_vector.h"
+#include "Imp/Containers/ptr_vector_io.h"
 #include "Cluster/Molecule.H"
 #include <vector>
 #include <ostream>

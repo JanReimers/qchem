@@ -3,7 +3,7 @@
 #define _Molecule_H_
 
 #include "Cluster.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 #include <iostream>
 
 class Molecule :

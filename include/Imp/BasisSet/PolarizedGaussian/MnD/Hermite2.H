@@ -2,8 +2,7 @@
 #ifndef _Hermite2_H_
 #define _Hermite2_H_
 
-
-
+#include "../Polarization.H"
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include <iosfwd>

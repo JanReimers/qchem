@@ -3,7 +3,7 @@
 #define _FermiThermalizer_H_
 
 #include "types.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 
 class FermiThermalizer
 {

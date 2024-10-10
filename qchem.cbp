@@ -49,6 +49,7 @@
 		<Linker>
 			<Add option="-fopenmp" />
 		</Linker>
+		<Unit filename="TODO" />
 		<Unit filename="include/AnalyticIE.H" />
 		<Unit filename="include/BasisSet.H" />
 		<Unit filename="include/ChargeDensity.H" />
@@ -70,6 +71,7 @@
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/RNLM.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Polarization.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/Common.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianRF.H" />
@@ -84,6 +86,11 @@
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H" />
+		<Unit filename="include/Imp/Containers/ERI4.H" />
+		<Unit filename="include/Imp/Containers/Triangle.H" />
+		<Unit filename="include/Imp/Containers/ptr_vector.h" />
+		<Unit filename="include/Imp/Containers/ptr_vector_io.h" />
+		<Unit filename="include/Imp/Containers/stl_io.h" />
 		<Unit filename="include/Imp/Integrals/AuxillaryFJ.H" />
 		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
@@ -94,6 +101,7 @@
 		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/WaveFunctionGroup.H" />
 		<Unit filename="include/IntegralDataBase.H" />
+		<Unit filename="include/IntegralEngine.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
 		<Unit filename="include/TotalEnergy.H" />
@@ -136,6 +144,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/RNLM.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Polarization.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.C">
@@ -226,6 +237,15 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Cluster/UnitCell.H" />
+		<Unit filename="src/Containers/ERI4.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Containers/Triangle.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Containers/stl_io.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/DFTDataBase/DFTDataBase.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -508,12 +528,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/DFTFiles.H" />
-		<Unit filename="src/Misc/ERI4.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/Misc/ERI4.H" />
-		<Unit filename="src/Misc/EigenSolver.H" />
-		<Unit filename="src/Misc/EigenSolverOML.H" />
 		<Unit filename="src/Misc/IntPower.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -532,18 +546,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/Persistent/Persistent.H" />
-		<Unit filename="src/Misc/Polarization.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/Polarization.H" />
 		<Unit filename="src/Misc/Spin.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/Spin.H" />
-		<Unit filename="src/Misc/Triangle/Triangle.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/Triangle/Triangle.H" />
 		<Unit filename="src/Misc/UniqueID/UniqueID.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -556,13 +562,7 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/pmstream.h" />
-		<Unit filename="src/Misc/ptr_vector1.h" />
-		<Unit filename="src/Misc/ptr_vector1_io.h" />
 		<Unit filename="src/Misc/rc_ptr.H" />
-		<Unit filename="src/Misc/stl_io.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/stl_io.h" />
 		<Unit filename="src/Orbital.C">
 			<Option compilerVar="CC" />
 		</Unit>

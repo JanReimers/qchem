@@ -4,8 +4,8 @@
 
 
 
-#include "Misc/Polarization.H"
-#include "Misc/Triangle/Triangle.H"
+#include "../Polarization.H"
+#include "Imp/Containers/Triangle.H"
 #include "oml/vector3d.h"
 #include <iosfwd>
 

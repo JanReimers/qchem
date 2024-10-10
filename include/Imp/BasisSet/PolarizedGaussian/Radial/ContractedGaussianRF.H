@@ -5,7 +5,8 @@
 
 
 #include "Common.H"
-#include "Misc/ptr_vector1.h"
+#include "../Polarization.H"
+#include "Imp/Containers/ptr_vector.h"
 #include "oml/vector.h"
 
 class ContractedGaussianH3;

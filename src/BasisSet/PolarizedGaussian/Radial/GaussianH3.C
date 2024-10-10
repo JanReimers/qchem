@@ -3,7 +3,6 @@
 
 
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianH3.H"
-#include "Misc/Polarization.H"
 #include <iostream>
 #include <cassert>
 

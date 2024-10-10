@@ -8,7 +8,7 @@
 #include "BasisSet.H"
 #include "Misc/Persistent/IDRef.H"
 #include "Misc/rc_ptr.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 
 class OrbitalGroupImplementation
     : public virtual OrbitalGroup
