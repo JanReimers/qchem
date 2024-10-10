@@ -7,7 +7,7 @@
 namespace PolarizedGaussian
 {
     
-void IrrepIEClient::Init(std::vector<const Block*>& blocks)
+void IEData::Init(std::vector<const Block*>& blocks)
 {
      for (auto bl:blocks)
         for (auto p:bl->itsPols)
@@ -16,7 +16,8 @@ void IrrepIEClient::Init(std::vector<const Block*>& blocks)
             pols.push_back(p);
         }
    
-    size_t N=size();
+    
+    size_t N=radials.size();
     ns.SetLimits(N);
     CDCache cache;
     for (size_t i=0;i<N;i++)

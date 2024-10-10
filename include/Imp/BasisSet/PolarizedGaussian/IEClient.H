@@ -13,20 +13,32 @@ namespace PolarizedGaussian
 class Block;
 class RadialFunction;
 
-struct IrrepIEClient
-    : public virtual ::IrrepIEClient
-{
-    
-    IrrepIEClient() {};
-    void Init(std::vector<const Block*>&);
-    
-    virtual size_t size() const {return radials.size();}
 
-    
+struct IEData
+{
+    void Init(std::vector<const Block*>&);
     std::vector<const RadialFunction*> radials; // Flattened radials
     std::vector<Polarization>          pols;    // Flattened polarizations
     Vector<double>                     ns;      //Norm constants
 
+};
+
+struct IrrepIEClient
+    : public virtual ::IrrepIEClient
+    , public IEData
+{
+    IrrepIEClient() {};
+    
+    virtual size_t size() const {return radials.size();}
+};
+
+struct IEClient
+    : public virtual ::IEClient
+    , public IEData
+{
+    IEClient() {};
+    
+    virtual size_t size() const {return radials.size();}
 };
     
 } //namespace PolarizedGaussian

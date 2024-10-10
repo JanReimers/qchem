@@ -159,7 +159,8 @@ public:
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
 class BasisGroup
-    :  public UniqueID
+    : public virtual IEClient
+    , public UniqueID
 {
 public:
     typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;
@@ -175,6 +176,8 @@ public:
     virtual const_iterator end  () const {return itsBasisSets.end  ();}
     iecv_t   Flatten() const;
     virtual IntegralDataBase<double>* GetDataBase() const {return itsDB;}
+
+    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     
 //
 //  StreamableObject stuff.

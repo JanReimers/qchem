@@ -2,6 +2,7 @@
 #ifndef _PolarizedGaussian_BasisSet_H_
 #define _PolarizedGaussian_BasisSet_H_
 
+#include "IEClient.H"
 #include <BasisSet.H>
 
 namespace PolarizedGaussian
@@ -9,9 +10,12 @@ namespace PolarizedGaussian
 
 class Reader;
 
-class BasisSet : public BasisGroup
+class BasisSet 
+    : public virtual IEClient
+    , public BasisGroup
 {
 public:
+    BasisSet() {};
     BasisSet(const LinearAlgebraParams&, Reader*, const Cluster*);
     
 };

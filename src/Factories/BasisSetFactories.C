@@ -3,9 +3,11 @@
 #include "BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
 //#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
@@ -69,7 +71,7 @@ IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
     if (Name==typeid(PolarizedGaussian::IrrepBasisSet).name()) return new PolarizedGaussian::IrrepBasisSet;
 //    if (Name==typeid(        PlaneWaveBS).name()) return new         PlaneWaveBS;
 
-    std::cout << "Unknown basis set type :" << Name << std::endl;
+    std::cout << "Unknown irrep basis set type :" << Name << std::endl;
     exit(-1);
     return NULL;
 }
@@ -77,7 +79,8 @@ IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 BasisGroup* BasisGroup::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(BasisGroup).name()) return new BasisGroup;
+    if (Name==typeid(SphericalGaussian::BasisSet).name()) return new SphericalGaussian::BasisSet;
+    if (Name==typeid(PolarizedGaussian::BasisSet).name()) return new PolarizedGaussian::BasisSet;
 
     std::cout << "Unknown basis group type :" << Name << std::endl;
     exit(-1);

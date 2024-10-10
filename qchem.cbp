@@ -61,12 +61,14 @@
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/Common.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Block.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/CDCache.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite1.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H" />
@@ -82,10 +84,12 @@
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H" />
+		<Unit filename="include/Imp/BasisSet/TCommon.H" />
 		<Unit filename="include/Imp/Containers/ERI4.H" />
 		<Unit filename="include/Imp/Containers/Triangle.H" />
 		<Unit filename="include/Imp/Containers/ptr_vector.h" />
@@ -134,6 +138,9 @@
 		<Unit filename="src/BasisSet/PolarizedGaussian/IntegralEngine.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/IrrepBasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/Hermite1.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -171,6 +178,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian/BasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/IEClient.C">
