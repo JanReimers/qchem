@@ -5,7 +5,7 @@
 #include "Cluster/Atom.H"
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
+#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 
 #include "Misc/PeriodicTable.H"
 #include "types.H"

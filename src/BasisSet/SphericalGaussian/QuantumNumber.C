@@ -2,7 +2,7 @@
 
 
 
-#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>

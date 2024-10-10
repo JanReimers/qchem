@@ -2,9 +2,7 @@
 #ifndef _SphericalGaussianBF_H_
 #define _SphericalGaussianBF_H_
 
-
-
-#include "BasisSet.H"
+#include <BasisSet.H>
 
 class SphericalGaussianBF
     : public virtual TBasisFunction<double>

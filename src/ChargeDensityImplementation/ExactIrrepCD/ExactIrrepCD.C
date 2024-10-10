@@ -54,7 +54,7 @@ template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetOverlap  (const Irrep
     return SMat();
 }
 
-#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 
 //template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetRepulsion(const BasisSet* bs) const
 template <> ChargeDensity::SMat ExactIrrepCD<double>::GetRepulsion(const IrrepBasisSet* bs_ab) const
@@ -141,8 +141,6 @@ template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 
 template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
-    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
-    assert(tfbs);
     RVec delta_ff=itsBasisSet->GetOverlap3C(itsDensityMatrix,fbs);
 
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
@@ -152,8 +150,6 @@ template <class T> void ExactIrrepCD<T>::InjectOverlaps  (FittedFunction* ff, co
 
 template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
-    const TIrrepBasisSet<T>* tfbs=dynamic_cast<const TIrrepBasisSet<T>*>(fbs);
-    assert(tfbs);
     RVec delta_ff=itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
 
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);

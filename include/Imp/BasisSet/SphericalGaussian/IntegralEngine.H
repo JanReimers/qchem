@@ -3,7 +3,7 @@
 #define _SphericalGaussianIE1_H_
 
 
-#include "AnalyticIE.H"
+#include <AnalyticIE.H>
 #include "oml/vector.h"
 
 

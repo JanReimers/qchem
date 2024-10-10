@@ -1,9 +1,9 @@
 // File: BasisSetFactories.C
 
 #include "BasisSet.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
+#include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
+#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
 #include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H"
@@ -14,7 +14,7 @@
 
 #include "DFTDataBase/HeapDB/HeapDB.H"
 
-#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "BasisSetImplementation/UnitSymmetryQN.H"
 //#include "BasisSetImplementation/PlaneWave/BlochQN.H"
 

@@ -1,9 +1,9 @@
 # depslib dependency file v1.0
-1728499287 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
+1728531793 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
 	"AtomTester.H"
 	"Cluster.H"
 	"BasisSet.H"
-	"BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
+	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
 	"Mesh/RadialMesh/MHLRadialMesh.H"
 	"Mesh/AngularMesh/GaussAngularMesh.H"
@@ -497,9 +497,9 @@
 	"BasisSetImplementation/Gaussian94RFR.H"
 	"Mesh/MoleculeMesh.H"
 
-1728504260 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
-	"BasisSetImplementation/BasisSetImplementation.H"
-	"BasisSetImplementation/TBasisSetImplementation.H"
+1728532191 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
+	"Imp/BasisSet/Common.H"
+	"Imp/BasisSet/TCommon.H"
 	"BasisSetImplementation/PolarizedGaussian/IEClient.H"
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 	"Misc/ptr_vector1.h"
@@ -625,7 +625,7 @@
 1727910193 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Misc/stl_io.h"
 
-1728529002 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728530230 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -696,12 +696,12 @@
 	<iostream>
 	<fstream>
 
-1728492922 source:/home/janr/Code/qchem/UnitTests/EigenSolverUT.C
+1728531793 source:/home/janr/Code/qchem/UnitTests/EigenSolverUT.C
 	"gtest/gtest.h"
 	"HartreeFockTester.H"
 	"Cluster/Atom.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
-	"BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
+	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"Misc/PeriodicTable.H"
 	"types.H"
 	"oml/numeric/LapackSVDSolver.H"
@@ -886,4 +886,25 @@
 	<IEClient.H>
 	"oml/vector.h"
 	<vector>
+
+1728532513 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H
+	"IEClient.H"
+	"../Common.H"
+	"../TCommon.H"
+	"oml/vector.h"
+
+1728492922 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
+	<IEClient.H>
+	"oml/vector.h"
+
+1728492922 /home/janr/Code/qchem/include/Imp/BasisSet/Common.H
+	"BasisSet.H"
+	"Misc/ptr_vector1.h"
+
+1728510636 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
+	"BasisSet.H"
+	"FunctionsImp/VectorFunctionBuffer.H"
+	"SCFIterator/IterationParams.H"
+	"Misc/Persistent/PerRef.H"
+	"Misc/rc_ptr.H"
 

@@ -3,7 +3,7 @@
 #include "AtomTester.H"
 #include "Cluster.H"
 #include "BasisSet.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
+#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
 //#include "Mesh/RadialMesh/LogRadialMesh.H"
 //#include "Mesh/AngularMesh/GaussLegendreAngularMesh.H"

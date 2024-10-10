@@ -1,6 +1,6 @@
 
-#include "BasisSetImplementation/SphericalGaussian/IEClient.H"
-#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
+#include "Imp/BasisSet/SphericalGaussian/IEClient.H"
+#include "Imp/Integrals/GaussianIntegrals.H"
 
 template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
 {

@@ -1,4 +1,4 @@
-#include "BasisSetImplementation/SphericalGaussian/Wigner3j.H"
+#include "Imp/Integrals/Wigner3j.H"
 #include <cassert>
 #include <iostream>
 

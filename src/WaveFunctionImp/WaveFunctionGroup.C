@@ -8,7 +8,7 @@
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
 #include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "Misc/ptr_vector1_io.h"
 #include <cassert>
 

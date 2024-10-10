@@ -2,8 +2,8 @@
 
 
 
-#include "BasisSetImplementation/BasisSetImplementation.H"
-#include "QuantumNumber.H"
+#include "Imp/BasisSet/Common.H"
+#include <QuantumNumber.H>
 #include "Misc/ptr_vector1_io.h"
 
 #include <iostream>

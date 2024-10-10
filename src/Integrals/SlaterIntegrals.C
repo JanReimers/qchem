@@ -1,5 +1,5 @@
-#include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
-#include "BasisSetImplementation/SphericalGaussian/Wigner3j.H"
+#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/Integrals/Wigner3j.H"
 #include "Misc/DFTDefines.H"
 #include <cassert>
 #include <cmath>

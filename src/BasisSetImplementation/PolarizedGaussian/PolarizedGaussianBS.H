@@ -4,8 +4,8 @@
 
 
 
-#include "BasisSetImplementation/BasisSetImplementation.H"
-#include "BasisSetImplementation/TBasisSetImplementation.H"
+#include "Imp/BasisSet/Common.H"
+#include "Imp/BasisSet/TCommon.H"
 #include "BasisSetImplementation/PolarizedGaussian/IEClient.H"
 #include "BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
 #include "Misc/ptr_vector1.h"

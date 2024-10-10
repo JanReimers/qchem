@@ -1,7 +1,7 @@
 // File: guass.cpp  General gaussian integral.
 
 
-#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
+#include "Imp/Integrals/GaussianIntegrals.H"
 #include <iostream>
 #include <cassert>
 

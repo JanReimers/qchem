@@ -1,13 +1,13 @@
 // File: TBasisSetImplementation.C
 
 
-#include "BasisSetImplementation/TBasisSetImplementation.H"
-#include "BasisSet.H"
-#include "QuantumNumber.H"
-#include "AnalyticIE.H"
-#include "IntegralDataBase.H"
-#include "LASolver/LASolver.H"
-#include "Hamiltonian.H"
+#include "Imp/BasisSet/TCommon.H"
+#include <BasisSet.H>
+#include <QuantumNumber.H>
+#include <AnalyticIE.H>
+#include <IntegralDataBase.H>
+#include <LASolver/LASolver.H>
+#include <Hamiltonian.H>
 
 #include "Misc/ERI4.H"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
@@ -168,14 +168,6 @@ GetRepulsion(const FittedFunction* ff) const
     assert(tff);
     return GetDataBase()->GetOverlap(m,*this,*tff);
  }
- 
- 
-#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
-#include "BasisSetImplementation/BasisSetImplementation.H"
-#include "Misc/DFTDefines.H"
-#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H"
-#include "BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H"
-
 
 template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const

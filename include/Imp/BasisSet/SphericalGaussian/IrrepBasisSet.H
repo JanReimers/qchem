@@ -4,9 +4,9 @@
 
 
 
-#include "BasisSetImplementation/SphericalGaussian/IEClient.H"
-#include "BasisSetImplementation/BasisSetImplementation.H"
-#include "BasisSetImplementation/TBasisSetImplementation.H"
+#include "IEClient.H"
+#include "../Common.H"
+#include "../TCommon.H"
 #include "oml/vector.h"
 
 

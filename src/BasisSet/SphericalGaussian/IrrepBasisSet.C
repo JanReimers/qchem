@@ -2,10 +2,10 @@
 
 
 
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
-#include "BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H"
+#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
+#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include <iostream>
 #include <cassert>
 

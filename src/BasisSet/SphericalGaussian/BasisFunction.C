@@ -2,8 +2,8 @@
 
 
 
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H"
-#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
+#include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
+#include "Imp/Integrals/GaussianIntegrals.H"
 #include "Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"

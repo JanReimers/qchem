@@ -1,11 +1,11 @@
 // File: SphericalGaussianIE1.C  Here is where all the integral get calculated.
 
 
-#include "BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H"
-#include "BasisSetImplementation/SphericalGaussian/IEClient.H" 
-#include "BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H"
-#include "BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
-#include "Cluster.H"
+#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/SphericalGaussian/IEClient.H" 
+#include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/Integrals/SlaterIntegrals.H"
+#include <Cluster.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Misc/ERI4.H"
