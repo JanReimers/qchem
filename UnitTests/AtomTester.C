@@ -3,6 +3,7 @@
 #include "AtomTester.H"
 #include "Cluster.H"
 #include "BasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
 //#include "Mesh/RadialMesh/LogRadialMesh.H"
@@ -32,24 +33,16 @@ void AtomTester::Init(Atom* atom, int Lmax,double spin)
 {
     Init(atom);
     itsLmax=Lmax;
-    BaseTester::Init(spin);
+    auto bg=new SphericalGaussian::BasisSet(itsLAParams,itsNbasis,itsEmin,itsEmax,itsLmax);
+    BaseTester::Init(bg,spin);
 }
 
 void AtomTester::Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
 {
     itsLmax=Lmax;
     itsNbasis=NBasis;
-    BaseTester::Init(spin,lap);
-}
-
-void AtomTester::LoadOrbitalBasisSet()
-{
-    assert(itsBasisGroup);
-    for (int l=0; l<=itsLmax; l++)
-    {
-        IrrepBasisSet* bs=new SphericalGaussian::IrrepBasisSet(itsLAParams,GetDatabase(),itsNbasis,itsEmin,itsEmax,l);
-        itsBasisGroup->Insert(bs);
-    }
+    auto bg=new SphericalGaussian::BasisSet(itsLAParams,itsNbasis,itsEmin,itsEmax,itsLmax);
+    BaseTester::Init(bg,spin,lap);
 }
 
 IrrepBasisSet* AtomTester::GetCbasisSet() const

@@ -17,20 +17,28 @@ MoleculeTester::MoleculeTester()
 void MoleculeTester::Init(Molecule* m,double spin)
 {
     itsCluster.reset(m);
-    BaseTester::Init(spin);
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+    auto bg=new BasisGroup();
+    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,bg->GetDataBase(), &reader,itsCluster.get());
+    bg->Insert(bs); 
+    BaseTester::Init(bg,spin);
 }
 
 void MoleculeTester::Init(Molecule* m,double spin,const LinearAlgebraParams& lap)
 {
     itsCluster.reset(m);
-    BaseTester::Init(spin,lap);
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+    auto bg=new BasisGroup();
+    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,bg->GetDataBase(), &reader,itsCluster.get());
+    bg->Insert(bs); 
+    BaseTester::Init(bg,spin,lap);
 }
 
 void MoleculeTester::LoadOrbitalBasisSet()
 {
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,GetDatabase(), &reader,itsCluster.get());
-    itsBasisGroup->Insert(bs);
+//    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+//    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,GetDatabase(), &reader,itsCluster.get());
+//    itsBasisGroup->Insert(bs);
 }
 
 IrrepBasisSet* MoleculeTester::GetCbasisSet() const

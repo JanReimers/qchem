@@ -28,21 +28,22 @@ BaseTester::~BaseTester()
     delete itsBasisGroup;
 }
 
-void BaseTester::Init(double spin,const LinearAlgebraParams& lap)
+void BaseTester::Init(BasisGroup* bg,double spin,const LinearAlgebraParams& lap)
 {
     itsLAParams=lap;
-    Init(spin);
+    Init(bg,spin);
 }
 
-void BaseTester::Init(double spin)
+void BaseTester::Init(BasisGroup* bg,double spin)
 {
+    assert(bg); //Derived should already have created this.
     assert(itsCluster->GetNumAtoms()>0);
     //if(itsHamiltonian) delete itsHamiltonian; SCFIterator owns the Hamiltonian
     if(itsBasisGroup) delete itsBasisGroup;
     if (itsWaveFunction) delete itsWaveFunction;
     if (itsSCFIterator) delete itsSCFIterator;
 //    itsFittedChargeDensity=new FittedCDImplementation<double>(itsCBasisSet,itsCluster->GetNumElectrons ());
-    itsBasisGroup=new BasisGroup();
+    itsBasisGroup=bg;
     LoadOrbitalBasisSet();
 
     itsHamiltonian=new HamiltonianImplementation();

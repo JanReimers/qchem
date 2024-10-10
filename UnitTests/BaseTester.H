@@ -27,8 +27,8 @@ class BaseTester
 public:
     BaseTester();
     virtual ~BaseTester();
-    void Init(double spin);
-    void Init(double spin,const LinearAlgebraParams&);
+    void Init(BasisGroup*, double spin);
+    void Init(BasisGroup*, double spin,const LinearAlgebraParams&);
 
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc(double spin) const=0;

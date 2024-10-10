@@ -1,18 +1,19 @@
 # depslib dependency file v1.0
-1728569799 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
+1728578257 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
 	"AtomTester.H"
 	"Cluster.H"
 	"BasisSet.H"
+	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
 	"Mesh/RadialMesh/MHLRadialMesh.H"
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
 
-1728492922 /home/janr/Code/qchem/UnitTests/AtomTester.H
+1728578144 /home/janr/Code/qchem/UnitTests/AtomTester.H
 	"BaseTester.H"
 
-1728492922 /home/janr/Code/qchem/UnitTests/BaseTester.H
+1728578144 /home/janr/Code/qchem/UnitTests/BaseTester.H
 	"gtest/gtest.h"
 	"SCFIterator/IterationParams.H"
 	"Misc/rc_ptr.h"
@@ -357,7 +358,7 @@
 
 1727910193 /home/janr/Code/qchem/src/Misc/PeriodicTable.H
 
-1728492922 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
+1728578144 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
 	"BaseTester.H"
 	"BasisSet.H"
 	"TotalEnergy.H"
@@ -488,7 +489,7 @@
 	<iostream>
 	<fstream>
 
-1728575443 source:/home/janr/Code/qchem/UnitTests/MoleculeTester.C
+1728578469 source:/home/janr/Code/qchem/UnitTests/MoleculeTester.C
 	"MoleculeTester.H"
 	"Cluster/Molecule.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
@@ -625,7 +626,7 @@
 1728566814 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1728530230 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728578346 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -955,7 +956,7 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1728575743 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H
+1728575785 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H
 	"RadialFunction.H"
 	<fstream>
 	<string>
@@ -994,4 +995,7 @@
 	<cassert>
 	<vector>
 	<set>
+
+1728577439 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/BasisSet.H
+	<BasisSet.H>
 

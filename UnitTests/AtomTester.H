@@ -15,7 +15,7 @@ public:
     virtual IrrepBasisSet*  GetXbasisSet() const;
     virtual IrrepBasisSet*  GetCbasisSet() const;
     virtual Mesh*      GetIntegrationMesh() const;
-    virtual void LoadOrbitalBasisSet();
+    virtual void LoadOrbitalBasisSet() {};
 
     int    itsNbasis;
     double itsEmin,itsEmax;
