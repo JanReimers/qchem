@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
-#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
+#include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
 //#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
@@ -66,7 +66,7 @@ IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussian::IrrepBasisSet).name()) return new SphericalGaussian::IrrepBasisSet;
-    if (Name==typeid(PolarizedGaussian::BasisSet).name()) return new PolarizedGaussian::BasisSet;
+    if (Name==typeid(PolarizedGaussian::IrrepBasisSet).name()) return new PolarizedGaussian::IrrepBasisSet;
 //    if (Name==typeid(        PlaneWaveBS).name()) return new         PlaneWaveBS;
 
     std::cout << "Unknown basis set type :" << Name << std::endl;

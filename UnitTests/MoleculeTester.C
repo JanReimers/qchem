@@ -4,6 +4,7 @@
 #include "Cluster/Molecule.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
+#include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Mesh/MoleculeMesh.H"
@@ -18,9 +19,7 @@ void MoleculeTester::Init(Molecule* m,double spin)
 {
     itsCluster.reset(m);
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    auto bg=new BasisGroup();
-    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,bg->GetDataBase(), &reader,itsCluster.get());
-    bg->Insert(bs); 
+    auto bg=new PolarizedGaussian::BasisSet(itsLAParams, &reader,itsCluster.get());
     BaseTester::Init(bg,spin);
 }
 
@@ -28,9 +27,7 @@ void MoleculeTester::Init(Molecule* m,double spin,const LinearAlgebraParams& lap
 {
     itsCluster.reset(m);
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    auto bg=new BasisGroup();
-    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,bg->GetDataBase(), &reader,itsCluster.get());
-    bg->Insert(bs); 
+    auto bg=new PolarizedGaussian::BasisSet(itsLAParams, &reader,itsCluster.get());
     BaseTester::Init(bg,spin,lap);
 }
 
@@ -44,14 +41,14 @@ void MoleculeTester::LoadOrbitalBasisSet()
 IrrepBasisSet* MoleculeTester::GetCbasisSet() const
 {
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A2_coul.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
+    IrrepBasisSet* bs = new PolarizedGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
     return bs;
 }
 
 IrrepBasisSet* MoleculeTester::GetXbasisSet() const
 {
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussian::BasisSet(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
+    IrrepBasisSet* bs = new PolarizedGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
     return bs;
 }
 

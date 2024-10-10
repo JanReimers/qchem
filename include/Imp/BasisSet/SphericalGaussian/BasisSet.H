@@ -1,4 +1,6 @@
 // File SphericalGaussian/BasisSet.H
+#ifndef _SphericalGaussian_BasisSet_H_
+#define _SphericalGaussian_BasisSet_H_
 
 #include <BasisSet.H>
 
@@ -13,3 +15,5 @@ public:
 };
 
 } //namespace
+
+#endif // _SphericalGaussian_BasisSet_H_

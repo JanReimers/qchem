@@ -2,7 +2,6 @@
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-#include "DFTDataBase/HeapDB/HeapDB.H"
 
 namespace SphericalGaussian
 {
