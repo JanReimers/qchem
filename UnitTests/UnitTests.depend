@@ -488,13 +488,13 @@
 	<iostream>
 	<fstream>
 
-1728499451 source:/home/janr/Code/qchem/UnitTests/MoleculeTester.C
+1728564959 source:/home/janr/Code/qchem/UnitTests/MoleculeTester.C
 	"MoleculeTester.H"
 	"Cluster/Molecule.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
-	"BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
+	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"BasisSet.H"
-	"BasisSetImplementation/Gaussian94RFR.H"
+	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 	"Mesh/MoleculeMesh.H"
 
 1728532191 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H
@@ -586,10 +586,10 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1727910193 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1728531793 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
-	"BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H"
-	"BasisSetImplementation/SphericalGaussian/Wigner3j.H"
+	"Imp/Integrals/SlaterIntegrals.H"
+	"Imp/Integrals/Wigner3j.H"
 	"Misc/DFTDefines.H"
 	"oml/imp/ran250.h"
 	<iostream>
@@ -907,4 +907,59 @@
 	"SCFIterator/IterationParams.H"
 	"Misc/Persistent/PerRef.H"
 	"Misc/rc_ptr.H"
+
+1727910193 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+
+1727910193 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
+
+1728565170 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/BasisSet.H
+	"../Common.H"
+	"../TCommon.H"
+	"IEClient.H"
+	"Block.H"
+	"Misc/ptr_vector1.h"
+
+1728565450 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
+	"Misc/Polarization.H"
+	<IEClient.H>
+	"oml/vector.h"
+	<vector>
+
+1728565199 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Block.H
+	"Misc/pmstream.h"
+	"RadialFunction.H"
+	"Misc/Polarization.H"
+	<cassert>
+
+1728565450 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
+	"Misc/Persistent/Persistent.H"
+	"Functions/ScalarFunction.H"
+	"Misc/Polarization.H"
+	"oml/vector3d.h"
+	<vector>
+	<map>
+
+1728563664 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Radial/GaussianCD.H
+	"Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H"
+	"types.H"
+	"Misc/ptr_vector1.h"
+	"Misc/UniqueID/UniqueID.H"
+	"oml/matrix.h"
+	"oml/vector.h"
+	"oml/vector3d.h"
+	<map>
+
+1727910193 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H
+	"oml/vector.h"
+	"oml/vector3d.h"
+	<iosfwd>
+
+1728564795 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H
+	"RadialFunction.H"
+	<fstream>
+	<string>
+
+1727910193 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H
+	"types.H"
+	<vector>
 

@@ -3,9 +3,9 @@
 #include "MoleculeTester.H"
 #include "Cluster/Molecule.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
-#include "BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H"
+#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "BasisSet.H"
-#include "BasisSetImplementation/Gaussian94RFR.H"
+#include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Mesh/MoleculeMesh.H"
 
 

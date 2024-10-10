@@ -60,12 +60,40 @@
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Block.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/CDCache.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite1.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/RNLM.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/Common.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianRF.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/GaussianCD.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/GaussianH3.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H" />
+		<Unit filename="include/Imp/Integrals/AuxillaryFJ.H" />
+		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
+		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
+		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
+		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/WaveFunctionGroup.H" />
 		<Unit filename="include/IntegralDataBase.H" />
-		<Unit filename="include/NumericalIE.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
 		<Unit filename="include/TotalEnergy.H" />
@@ -77,135 +105,88 @@
 		<Unit filename="src/BasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/BasisSetImplementation.H" />
-		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/Gaussian94RFR.H" />
-		<Unit filename="src/BasisSetImplementation/NumericalIEImp.C">
+		<Unit filename="src/BasisSet/Common.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSetImplementation/NumericalIEImp.H" />
+		<Unit filename="src/BasisSet/PolarizedGaussian/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/BasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Block.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/CDCache.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/IntegralEngine.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/Hermite1.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/Hermite2.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/Hermite3.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/RNLM.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/ContractedGaussianRF.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/GaussianCD.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/GaussianH3.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/GaussianRF.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/RadialFunctionImplementation.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/RadialFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Readers/Gaussian94.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Readers/RadialFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian/IntegralEngine.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian/IrrepBasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian/QuantumNumber.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/TCommon.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBS.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveIE.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryData.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryFJ.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/AuxillaryFJ.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/FJLookUp.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Auxillary/RNLM.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianH3.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianH3.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianRF.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/ContractedGaussian/ContractedGaussianRF.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianCD.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianH3.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianH3.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Gaussian/GaussianRF.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite1.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite2.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/Hermite/Hermite3.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/IEClient.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/IEClient.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBF.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianBS.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/PolarizedGaussianIE1.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunction.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunction.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionImplementation/RadialFunctionImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionImplementation/RadialFunctionImplementation.H" />
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/PolarizedGaussian/RadialFunctionReader.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/GaussianIntegrals.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/GaussianIntegrals.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/IEClient.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/IEClient.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/ShpericalGaussianPS.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBF.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianBS.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalGaussianIE1.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/SphericalSymmetryQN.H" />
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/Wigner3j.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/SphericalGaussian/Wigner3j.H" />
-		<Unit filename="src/BasisSetImplementation/TBasisSetImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/TBasisSetImplementation.H" />
 		<Unit filename="src/BasisSetImplementation/UnitSymmetryQN.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -421,6 +402,21 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Imp/SCFIterator/UnPolarizedSCFIterator.H" />
+		<Unit filename="src/Integrals/AuxillaryData.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/AuxillaryFJ.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/GaussianIntegrals.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/SlaterIntegrals.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/Wigner3j.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/LASolver/LASolver.H" />
 		<Unit filename="src/Mesh/AngularMesh/AngularMesh.C">
 			<Option compilerVar="CPP" />
