@@ -5,6 +5,7 @@
 
 
 #include "IntegralDataBase.H"
+#include <IEClient.H>
 #include "Misc/Persistent/IDRef.H"
 #include "Imp/Containers/ERI4.H"
 #include "Misc/rc_ptr.H"
@@ -34,7 +35,7 @@ protected:
 public:
 
     HeapDB();
-    HeapDB(AnalyticIE<T>* ie);
+    HeapDB(AnalyticIE<T>* ie, const IEClient*);
     virtual void  Insert(AnalyticIE<T>*);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
@@ -86,7 +87,8 @@ private:
     typedef std::vector<UniqueID::IDtype>      IDList;
 
     AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
- 
+    const IEClient*    istIEClient; //Used for 4 center integrals.
+    
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.
     typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t; //Cross basis set integrals.

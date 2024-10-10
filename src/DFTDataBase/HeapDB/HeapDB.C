@@ -21,10 +21,12 @@ template <class T> HeapDB<T>::HeapDB()
     :itsAnalyticIE   (0)
 {}
 
-template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
-    :itsAnalyticIE   (ie)   
+template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie, const IEClient* iec)
+    :itsAnalyticIE(ie)   
+    ,istIEClient  (iec)
 {
-    assert(ie);
+    assert(itsAnalyticIE);
+    assert(istIEClient);
 }
 
 
