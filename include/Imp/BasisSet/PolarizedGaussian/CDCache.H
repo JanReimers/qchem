@@ -7,6 +7,9 @@
 #include <tuple>
 #include <map>
 
+namespace PolarizedGaussian
+{
+    
 class GaussianCD;
 class GaussianRF;
 class RNLM;
@@ -35,4 +38,7 @@ private:
     std::map<ids_t,const RNLM*> RNLMcache; // For 3 centres.
     
 };
+
+} //namespace PolarizedGaussian
+
 #endif // _CDCache_H_

@@ -10,18 +10,20 @@
 #include "Imp/Containers/ptr_vector.h"
 
 
-class RadialFunctionReader;
+namespace PolarizedGaussian
+{
+class Reader;
 
-class PolarizedGaussianBS
+class BasisSet
     : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
-    , public         PolarizedGaussianIEClient
+    , public         IrrepIEClient
 {
 public:
     typedef typename IrrepBasisSet::RVec RVec;
-    PolarizedGaussianBS();
-    PolarizedGaussianBS(const LinearAlgebraParams&, IntegralDataBase<double>*, RadialFunctionReader*, const Cluster*);
+    BasisSet();
+    BasisSet(const LinearAlgebraParams&, IntegralDataBase<double>*, Reader*, const Cluster*);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
@@ -29,11 +31,12 @@ public:
     virtual IrrepBasisSet* Clone(const RVec3&) const;
 
 private:
-    PolarizedGaussianBS(const PolarizedGaussianBS* bs,IntegralDataBase<double>*, const optr_vector1<BasisFunctionBlock*>&);
+    BasisSet(const BasisSet* bs,IntegralDataBase<double>*, const optr_vector1<Block*>&);
     void MakeBasisFunctions(const RVec& norms);
-    friend class PolarizedGaussianIE;
-
-    optr_vector1<BasisFunctionBlock*> itsBlocks;
+   
+    optr_vector1<Block*> itsBlocks;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_PolarizedGaussianBS_H_

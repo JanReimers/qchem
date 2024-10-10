@@ -9,14 +9,17 @@
 #include <BasisSet.H>
 #include "oml/vector3d.h"
 
-class PolarizedGaussianBF
+namespace PolarizedGaussian
+{
+
+class BasisFunction
     : public TBasisFunction<double>
 {
 public:
-    PolarizedGaussianBF(                                          );
-    PolarizedGaussianBF(const RadialFunction*, const Polarization&, double norm);
+    BasisFunction(                                          );
+    BasisFunction(const RadialFunction*, const Polarization&, double norm);
 
-    virtual bool   operator==(const BasisFunction&) const;
+    virtual bool   operator==(const ::BasisFunction&) const;
  
     virtual std::ostream&       Write(std::ostream&   ) const;
     virtual std::istream&       Read (std::istream&   )      ;
@@ -26,9 +29,6 @@ public:
     virtual RVec3  Gradient  (const RVec3&) const;
 
 private:
-    friend class PolarizedGaussianIE;
-    friend class PolarizedGaussianBS;
-
     virtual void Eval    (const Mesh&,     Vec&) const;
     virtual void EvalGrad(const Mesh&, Vec3Vec&) const;
     void Insert  (const RadialFunction* theRF,const Polarization& thePol);
@@ -37,5 +37,7 @@ private:
     Polarization           itsPol;
     double                 itsNormalization;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_PolarizedGaussianBF_H_

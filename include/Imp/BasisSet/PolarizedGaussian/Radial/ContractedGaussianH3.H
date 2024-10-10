@@ -6,11 +6,14 @@
 #include "types.H"
 #include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H"
 #include "Imp/Containers/ptr_vector.h"
+
+namespace PolarizedGaussian
+{
+
 //
 // Store a list hermite3 pointers.  Contraction coefficients should be absorbed into the scale factors
 // of the uncontracted hermite3's before insertion.
 //
-
 class ContractedGaussianH3 : public Hermite3
 {
 public:
@@ -29,4 +32,7 @@ private:
     optr_vector1<Hermite3*> itsH3s;
     const Vector<double>& TheCoeff; //Contraction coefficients.
 };
+
+} //namespace PolarizedGaussian
+
 #endif

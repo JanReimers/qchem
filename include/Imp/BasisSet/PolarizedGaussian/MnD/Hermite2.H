@@ -23,6 +23,8 @@
 
 typedef Vector3D<double> RVec3;
 class Polarization;
+namespace PolarizedGaussian
+{
 
 class Hermite2
 {
@@ -57,5 +59,7 @@ private:
     int             itsLA, itsLB;
     Vector<double>  d,e,f;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_Hermite2_H_

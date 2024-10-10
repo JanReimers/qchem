@@ -1,4 +1,4 @@
-// File: RadialFunctionImplementation.C  Partial implementation for the radial part of a basis function.
+// File: RadialCommon.C  Partial implementation for the radial part of a basis function.
 
 
 
@@ -9,39 +9,40 @@
 #include <cmath>
 #include <iostream>
 #include <cassert>
-
+namespace PolarizedGaussian
+{
 //#######################################################################
 //
 //   gaussian implementation
 //
 
-RadialFunctionImplementation::RadialFunctionImplementation()
+RadialCommon::RadialCommon()
     : itsCenter(0,0,0)
     , itsL     (0)
     , itsH1    (0)
 {};
 
-RadialFunctionImplementation::RadialFunctionImplementation(const RVec3& theCenter, int theL)
+RadialCommon::RadialCommon(const RVec3& theCenter, int theL)
     : itsCenter(theCenter)
     , itsL     (theL     )
     , itsH1    (0)
 {};
 
-RadialFunctionImplementation::RadialFunctionImplementation(const RadialFunctionImplementation& rfi)
+RadialCommon::RadialCommon(const RadialCommon& rfi)
     : itsCenter(rfi.itsCenter)
     , itsL     (rfi.itsL)
     , itsH1    (0)
 {};
 
-RadialFunctionImplementation::~RadialFunctionImplementation()
+RadialCommon::~RadialCommon()
 {
     delete itsH1;
 }
 
-bool RadialFunctionImplementation::operator==(const RadialFunction& other) const
+bool RadialCommon::operator==(const RadialFunction& other) const
 {
     bool ret=false;
-    const RadialFunctionImplementation* rfi = dynamic_cast<const RadialFunctionImplementation*>(&other);
+    const RadialCommon* rfi = dynamic_cast<const RadialCommon*>(&other);
     assert(rfi);
     if (rfi)
     {
@@ -51,14 +52,14 @@ bool RadialFunctionImplementation::operator==(const RadialFunction& other) const
     return ret;
 }
 
-const Hermite1& RadialFunctionImplementation::GetH1() const
+const Hermite1& RadialCommon::GetH1() const
 {
 //    Hermite1* temp=itsH1; //This convoluted due to gcc-2.7.2 optimization BUG for mutables.
     if(itsH1==0) itsH1=MakeH1();
     return *itsH1;
 }
 
-std::ostream& RadialFunctionImplementation::Write(std::ostream& os) const
+std::ostream& RadialCommon::Write(std::ostream& os) const
 {
     UniqueID::Write(os);
 //  ScalarFunctionBuffer::Write(os);
@@ -74,7 +75,7 @@ std::ostream& RadialFunctionImplementation::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& RadialFunctionImplementation::Read(std::istream& is)
+std::istream& RadialCommon::Read(std::istream& is)
 {
     UniqueID::Read(is);
 //  ScalarFunctionBuffer::Read(is);
@@ -91,3 +92,4 @@ std::istream& RadialFunctionImplementation::Read(std::istream& is)
     return is;
 }
 
+} //namespace PolarizedGaussian

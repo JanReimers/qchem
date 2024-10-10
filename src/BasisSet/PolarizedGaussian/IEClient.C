@@ -4,8 +4,10 @@
 #include "Imp/BasisSet/PolarizedGaussian/CDCache.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
 
-
-void PolarizedGaussianIEClient::Init(std::vector<const BasisFunctionBlock*>& blocks)
+namespace PolarizedGaussian
+{
+    
+void IrrepIEClient::Init(std::vector<const Block*>& blocks)
 {
      for (auto bl:blocks)
         for (auto p:bl->itsPols)
@@ -21,3 +23,4 @@ void PolarizedGaussianIEClient::Init(std::vector<const BasisFunctionBlock*>& blo
         ns(i+1)=radials[i]->Integrate(RadialFunction::Overlap2C,radials[i],pols[i],pols[i],cache);
     ns=1.0/sqrt(ns);
 }
+} //namespace PolarizedGaussian

@@ -1,4 +1,4 @@
-// File: RadialFunctionReader.C  Abstract interface for a basis set reader.
+// File: Reader.C  Abstract interface for a basis set reader.
 
 
 

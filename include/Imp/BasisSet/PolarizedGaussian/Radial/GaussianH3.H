@@ -9,7 +9,8 @@
 #include <iosfwd>
 
 #define LMAX 3
-
+namespace PolarizedGaussian
+{
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients
 //    _=
@@ -57,5 +58,7 @@ private:
     int      itsLA, itsLB, itsLC;
     double   itsScale;
 };
+
+} //namespace PolarizedGaussian
 
 #endif

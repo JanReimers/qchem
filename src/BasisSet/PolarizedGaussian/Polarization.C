@@ -6,7 +6,8 @@
 #include "oml/imp/stream.h"
 #include "oml/imp/binio.h"
 
-
+namespace PolarizedGaussian
+{
 
 int Polarization::GetMaximumL() const
 {
@@ -65,3 +66,5 @@ std::istream& operator>>(std::istream& is,       Polarization& p)
 
     return is;
 }
+
+} //namespace PolarizedGaussian

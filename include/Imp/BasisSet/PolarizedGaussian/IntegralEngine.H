@@ -8,10 +8,12 @@
 #include <AnalyticIE.H>
 #include "oml/vector.h"
 
+namespace PolarizedGaussian
+{
 
-class PolarizedGaussianIEClient;
+class IrrepIEClient;
 
-class PolarizedGaussianIE1
+class IntegralEngine
     : public virtual AnalyticIE<double>
 {
 public:
@@ -21,13 +23,13 @@ public:
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
     typedef IE::iecv_t iecv_t;
-    typedef const IrrepIEClient iec_t;
+    typedef const ::IrrepIEClient iec_t;
 
-    typedef std::vector<const BasisFunctionBlock*> blocks_t;
+    typedef std::vector<const Block*> blocks_t;
     
-    PolarizedGaussianIE1() {};
-    PolarizedGaussianIE1(const PolarizedGaussianIEClient*);
-    virtual ~PolarizedGaussianIE1() {};
+    IntegralEngine() {};
+    IntegralEngine(const IrrepIEClient*);
+    virtual ~IntegralEngine() {};
     
      struct PGparams
     {
@@ -45,7 +47,6 @@ public:
     virtual  SMat MakeKinetic  (iec_t* a         ) const;
     virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const;
     virtual  SMat MakeRepulsion(iec_t* a          ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(const IE*a,const IE*b) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
@@ -55,6 +56,7 @@ public:
     virtual IE* Clone() const;
 
 private:
+    static const IrrepIEClient* dcast(iec_t*);
     void Normalize(SMat&) const;
     SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
@@ -63,5 +65,6 @@ private:
     SMat                               ons;     //Outer product of ns.
     mutable CDCache                    cache; //Cache of all Gaussian pair charge distributions.
 };
+} //namespace PolarizedGaussian
 
 #endif //_PolarizedGaussianIE_H_

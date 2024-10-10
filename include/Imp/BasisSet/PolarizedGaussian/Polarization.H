@@ -2,14 +2,14 @@
 #ifndef _Polarization_H_
 #define _Polarization_H_
 
-
-
 #include "Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include <iosfwd>
 
 typedef Vector3D<double> RVec3;
-
+namespace PolarizedGaussian
+{
+    
 class Polarization
 {
 public:
@@ -70,5 +70,7 @@ inline int   Polarization::GetSign    () const
 {
     return GetTotalL()%2==0 ? 1 : -1;
 }
+
+} //namespace PolarizedGaussian
 
 #endif // _Polarization_H_

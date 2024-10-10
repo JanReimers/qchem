@@ -1,4 +1,4 @@
-// File: PolarizedGaussianBS.C  Polarized Gaussian basis set, for MO calculations.
+// File: BasisSet.C  Polarized Gaussian basis set, for MO calculations.
 
 
 
@@ -12,6 +12,9 @@
 #include <cassert>
 #include <algorithm> //Need std::max
 
+namespace PolarizedGaussian
+{
+
 std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls);
 template <class T> T Max(const std::vector<T>& v)
 {
@@ -24,13 +27,13 @@ template <class T> T Max(const std::vector<T>& v)
 //
 //  Concrete  gaussian basis set.
 //
-PolarizedGaussianBS::PolarizedGaussianBS()
+BasisSet::BasisSet()
     : BasisSetImplementation()
     , TBasisSetImplementation<double>()
 {};
 
-PolarizedGaussianBS::
-PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, RadialFunctionReader* bsr, const Cluster* cl)
+BasisSet::
+BasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
     : BasisSetImplementation(new UnitSymmetryQN)
     , TBasisSetImplementation<double>(lap,theDB)
 {
@@ -82,7 +85,7 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
     int nbasis=1,i=0;
     for (auto r:radials)
     {
-        BasisFunctionBlock* bfb=new BasisFunctionBlock(r,nbasis);
+        Block* bfb=new Block(r,nbasis);
         for (auto& p:MakePolarizations(Ls[i]))
         {
             bfb->Add(p);
@@ -92,10 +95,10 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
         i++;
     }
     
-    PolarizedGaussianIE1::blocks_t bls;
+    IntegralEngine::blocks_t bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
-    PolarizedGaussianIEClient::Init(bls);
-    TBasisSetImplementation<double>::Insert(new PolarizedGaussianIE1(this));    
+    IrrepIEClient::Init(bls);
+    TBasisSetImplementation<double>::Insert(new IntegralEngine(this));    
 //
 //  Now insert the basis functions.
 //
@@ -107,9 +110,9 @@ PolarizedGaussianBS(const LinearAlgebraParams& lap,IntegralDataBase<double>* the
 //
 //  This contructor is used by Clone(RVec); only.
 //
-PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
+BasisSet::BasisSet(const BasisSet* bs,
         IntegralDataBase<double>* theDB,
-        const optr_vector1<BasisFunctionBlock*>& theBlocks)
+        const optr_vector1<Block*>& theBlocks)
     : BasisSetImplementation(*bs)
     , TBasisSetImplementation<double>(bs->itsLAParams,theDB)
     , itsBlocks(theBlocks)
@@ -119,16 +122,16 @@ PolarizedGaussianBS::PolarizedGaussianBS(const PolarizedGaussianBS* bs,
 //    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
-void PolarizedGaussianBS::MakeBasisFunctions(const RVec& norms)
+void BasisSet::MakeBasisFunctions(const RVec& norms)
 {
     EmptyBasisFunctions();
     size_t i=1;
-    for (optr_vector1<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
+    for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
         for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
-            BasisSetImplementation::Insert(new PolarizedGaussianBF((*bl)->itsRadial,*p,norms(i++)));
+            BasisSetImplementation::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
 }//Compiler says these calls are ambiguous.  BUG
 
-std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
+std::ostream& BasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
     if (!Pretty())
@@ -139,13 +142,13 @@ std::ostream& PolarizedGaussianBS::Write(std::ostream& os) const
     }
     else
     {
-        for (optr_vector1<BasisFunctionBlock*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
+        for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
             os << **bl;
     }
     return os;
 }
 
-std::istream& PolarizedGaussianBS::Read (std::istream& is)
+std::istream& BasisSet::Read (std::istream& is)
 {
     // No UT coverage
     is >> itsBlocks;
@@ -155,18 +158,18 @@ std::istream& PolarizedGaussianBS::Read (std::istream& is)
     return is;
 }
 
-IrrepBasisSet* PolarizedGaussianBS::Clone() const
+IrrepBasisSet* BasisSet::Clone() const
 {
-    return new PolarizedGaussianBS(*this);
+    return new BasisSet(*this);
 }
 
-IrrepBasisSet* PolarizedGaussianBS::Clone(const RVec3& newCenter) const
+IrrepBasisSet* BasisSet::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
-//    optr_vector1<BasisFunctionBlock*> newBlocks;
-//    for (optr_vector1<BasisFunctionBlock*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
+//    optr_vector1<Block*> newBlocks;
+//    for (optr_vector1<Block*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
 //        newBlocks.push_back((*b)->Clone(newCenter));
-//    return new PolarizedGaussianBS(this,GetDataBase()->Clone(),newBlocks);
+//    return new BasisSet(this,GetDataBase()->Clone(),newBlocks);
     assert(false);
     return 0;
 }
@@ -182,3 +185,4 @@ std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls)
     return ret;
 }
 
+} //namespace PolarizedGaussian

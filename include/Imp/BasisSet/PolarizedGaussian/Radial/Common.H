@@ -1,24 +1,27 @@
-// File: RadialFunctionImplementation.H  Partial implementation for the radial part of a basis function.
-#ifndef _RadialFunctionImplementation_H_
-#define _RadialFunctionImplementation_H_
+// File: RadialCommon.H  Partial implementation for the radial part of a basis function.
+#ifndef _RadialCommon_H_
+#define _RadialCommon_H_
 
 
 
 #include "../RadialFunction.H"
+
+namespace PolarizedGaussian
+{
 
 //
 //  All radial function must store a list pairwise charge distributions.
 //  They also all have a center and maximum orbital angular momentum L.
 //  This commonality is implementated here.
 //
-class RadialFunctionImplementation
+class RadialCommon
     : public virtual RadialFunction
 {
 public:
-    RadialFunctionImplementation(                         );
-    RadialFunctionImplementation(const RVec3& Center,int L);
-    RadialFunctionImplementation(const RadialFunctionImplementation&);
-    ~RadialFunctionImplementation(                        );
+    RadialCommon(                         );
+    RadialCommon(const RVec3& Center,int L);
+    RadialCommon(const RadialCommon&);
+    ~RadialCommon(                        );
 
     virtual       bool      operator==(const RadialFunction&) const;
     virtual const RVec3&    GetCenter (                     ) const
@@ -42,4 +45,6 @@ private:
     mutable Hermite1* itsH1;
 };
 
-#endif //_RadialFunctionImplementation_H_
+} //namespace PolarizedGaussian
+
+#endif //_RadialCommon_H_

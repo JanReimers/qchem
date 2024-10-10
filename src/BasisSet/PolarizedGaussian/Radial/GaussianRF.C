@@ -18,18 +18,20 @@
 #include <cassert>
 #include <stdlib.h>
 
+namespace PolarizedGaussian
+{
 //#######################################################################
 //
 //   Gaussian radial function implementation
 //
 
 GaussianRF::GaussianRF()
-    : RadialFunctionImplementation()
+    : RadialCommon()
     , itsExponent(0)
 {};
 
 GaussianRF::GaussianRF(double theExponent, const RVec3& theCenter, int theL)
-    : RadialFunctionImplementation(theCenter,theL)
+    : RadialCommon(theCenter,theL)
     , itsExponent(theExponent)
 {
     if(itsExponent < 0)
@@ -51,7 +53,7 @@ bool GaussianRF::operator==(const RadialFunction& rf) const
     const GaussianRF* g = dynamic_cast<const GaussianRF*>(&rf);
     if (g)
     {
-        bool base     = RadialFunctionImplementation::operator==(rf);
+        bool base     = RadialCommon::operator==(rf);
         bool exponent = fabs((itsExponent-g->itsExponent)/(itsExponent+g->itsExponent)*2.0) < 0.001; // 0.1%.
         ret= exponent && base;
     }
@@ -418,7 +420,7 @@ std::ostream& GaussianRF::Write(std::ostream& os) const
         os << "Primative  " << std::setw(8) << itsExponent;
     }
 
-    if (!Pretty()) RadialFunctionImplementation::Write(os);
+    if (!Pretty()) RadialCommon::Write(os);
 
     return os;
 }
@@ -433,7 +435,7 @@ std::istream& GaussianRF::Read(std::istream& is)
     {
         is >> itsExponent;
     }
-    RadialFunctionImplementation::Read(is);
+    RadialCommon::Read(is);
     return is;
 }
 
@@ -463,8 +465,4 @@ RVec3 GaussianRF::Gradient(const RVec3& r) const
     return -2*itsExponent* (*this)(r) * dr;
 }
 
-
-
-
-
-
+} //namespace PolarizedGaussian

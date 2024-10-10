@@ -33,7 +33,7 @@ BasisFunction* BasisFunction::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussian::BasisFunction).name()) return new SphericalGaussian::BasisFunction;
-    if (Name==typeid(PolarizedGaussianBF).name()) return new PolarizedGaussianBF;
+    if (Name==typeid(PolarizedGaussian::BasisFunction).name()) return new PolarizedGaussian::BasisFunction;
 //    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
 
     std::cout << "Unknown basis function type :" << Name << std::endl;
@@ -41,15 +41,20 @@ BasisFunction* BasisFunction::Factory(std::istream& is)
     return NULL;
 }
 
-BasisFunctionBlock* BasisFunctionBlock::Factory(std::istream& is)
+namespace PolarizedGaussian
+{
+
+Block* Block::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(BasisFunctionBlock).name()) return new BasisFunctionBlock;
+    if (Name==typeid(Block).name()) return new Block;
 
     std::cout << "Unknown basis function block type :" << Name << std::endl;
     exit(-1);
     return NULL;
 }
+
+} //namespace PolarizedGaussian
 
 //##################################################################
 //
@@ -61,7 +66,7 @@ IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussian::IrrepBasisSet).name()) return new SphericalGaussian::IrrepBasisSet;
-    if (Name==typeid(PolarizedGaussianBS).name()) return new PolarizedGaussianBS;
+    if (Name==typeid(PolarizedGaussian::BasisSet).name()) return new PolarizedGaussian::BasisSet;
 //    if (Name==typeid(        PlaneWaveBS).name()) return new         PlaneWaveBS;
 
     std::cout << "Unknown basis set type :" << Name << std::endl;

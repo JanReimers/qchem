@@ -5,7 +5,8 @@
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianH3.H"
 #include <iostream>
 #include <cassert>
-
+namespace PolarizedGaussian
+{
 //----------------------------------------------------------------------------------------
 //
 //  None of this will make any sense unless you read McMurchie and Davidson,
@@ -310,3 +311,5 @@ std::ostream& operator<<(std::ostream& os,const GaussianH3& h3)
     */
     return os;
 }
+
+} //namespace PolarizedGaussian

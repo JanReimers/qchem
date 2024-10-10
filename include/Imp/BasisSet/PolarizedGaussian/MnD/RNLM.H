@@ -9,6 +9,9 @@
 #include "oml/vector3d.h"
 #include <iosfwd>
 
+namespace PolarizedGaussian
+{
+
 class RNLM
 {
 public:
@@ -40,5 +43,7 @@ private:
     int          itsLMax;
     Triangle     itsData;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_RNLM_H_

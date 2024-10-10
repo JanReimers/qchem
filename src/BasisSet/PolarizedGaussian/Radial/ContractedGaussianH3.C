@@ -5,7 +5,8 @@
 #include "Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.H"
 #include "oml/vector.h"
 #include <cassert>
-
+namespace PolarizedGaussian
+{
 //----------------------------------------------------------------------------------------
 //
 //  Construction zone.
@@ -31,3 +32,5 @@ double ContractedGaussianH3::operator()(const Polarization& Pa,const Polarizatio
     }
     return ret;
 }
+
+} //namespace PolarizedGaussian

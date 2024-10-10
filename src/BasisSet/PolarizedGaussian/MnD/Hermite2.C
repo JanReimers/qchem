@@ -8,6 +8,8 @@
 #include <iostream>
 #include <cassert>
 
+namespace PolarizedGaussian
+{
 //----------------------------------------------------------------------------------------
 //
 //  None of this will make any sense unless you read McMurchie and Davidson,
@@ -367,3 +369,4 @@ Hermite2* Hermite2::Clone() const
 }
 
 
+} //namespace PolarizedGaussian

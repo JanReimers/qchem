@@ -1,4 +1,4 @@
-// File: PolarizedGaussianBF.C  Polarized Gaussian in 3D space.
+// File: BasisFunction.C  Polarized Gaussian in 3D space.
 
 
 
@@ -10,17 +10,20 @@
 #include <iomanip>
 #include <cassert>
 
+namespace PolarizedGaussian
+{
+
 //#######################################################################
 //
 //  Polarized gaussian implementation
 //
 
-PolarizedGaussianBF::PolarizedGaussianBF()
+BasisFunction::BasisFunction()
     : itsRadial       (0)
     , itsNormalization(0)
 {};
 
-PolarizedGaussianBF::PolarizedGaussianBF(const RadialFunction* theRF,const Polarization& thePol, double norm)
+BasisFunction::BasisFunction(const RadialFunction* theRF,const Polarization& thePol, double norm)
     : itsRadial(theRF )
     , itsPol   (thePol)
     , itsNormalization(norm)
@@ -28,10 +31,10 @@ PolarizedGaussianBF::PolarizedGaussianBF(const RadialFunction* theRF,const Polar
     assert(itsRadial);
 };
 
-bool PolarizedGaussianBF::operator==(const BasisFunction& bf) const
+bool BasisFunction::operator==(const ::BasisFunction& bf) const
 {
     assert(itsRadial);
-    const PolarizedGaussianBF& pgbf = dynamic_cast<const PolarizedGaussianBF&>(bf);
+    const BasisFunction& pgbf = dynamic_cast<const BasisFunction&>(bf);
     assert(&pgbf);
     return (*itsRadial)==(*pgbf.itsRadial) && (itsPol==pgbf.itsPol);
 }
@@ -41,7 +44,7 @@ bool PolarizedGaussianBF::operator==(const BasisFunction& bf) const
 //  These basis functions are really just proxys, they dont own the radial.
 //  So no information needs be pickled.
 //
-std::ostream& PolarizedGaussianBF::Write(std::ostream& os) const
+std::ostream& BasisFunction::Write(std::ostream& os) const
 {
     assert(itsRadial);
     UniqueID::Write(os);
@@ -55,20 +58,20 @@ std::ostream& PolarizedGaussianBF::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& PolarizedGaussianBF::Read(std::istream& is)
+std::istream& BasisFunction::Read(std::istream& is)
 {
     UniqueID::Read(is);
     return is;
 }
 
-void PolarizedGaussianBF::Insert(const RadialFunction* theRF,const Polarization& thePol)
+void BasisFunction::Insert(const RadialFunction* theRF,const Polarization& thePol)
 {
     itsRadial       =theRF;
     itsPol          =thePol;
     assert(itsRadial);
 }
 
-double PolarizedGaussianBF::operator()(const RVec3& r) const
+double BasisFunction::operator()(const RVec3& r) const
 {
     assert(itsRadial);
     const RadialFunction& rf=*itsRadial;
@@ -76,7 +79,7 @@ double PolarizedGaussianBF::operator()(const RVec3& r) const
     return itsNormalization*itsPol(dr) * rf(r);
 }
 
-PolarizedGaussianBF::RVec3 PolarizedGaussianBF::Gradient(const RVec3& r) const
+BasisFunction::RVec3 BasisFunction::Gradient(const RVec3& r) const
 {
     assert(itsRadial);
     const RadialFunction& rf=*itsRadial;
@@ -84,7 +87,7 @@ PolarizedGaussianBF::RVec3 PolarizedGaussianBF::Gradient(const RVec3& r) const
     return itsNormalization*(itsPol.Gradient(dr) * rf(r) + itsPol(dr) * rf.Gradient(r));
 }
 
-void PolarizedGaussianBF::Eval(const Mesh& mesh, Vec& vec) const
+void BasisFunction::Eval(const Mesh& mesh, Vec& vec) const
 {
     assert(itsRadial);
     Vector<double> radial((*itsRadial)(mesh));
@@ -98,7 +101,7 @@ void PolarizedGaussianBF::Eval(const Mesh& mesh, Vec& vec) const
     }
 }
 
-void PolarizedGaussianBF::EvalGrad(const Mesh& mesh, Vec3Vec& vec) const
+void BasisFunction::EvalGrad(const Mesh& mesh, Vec3Vec& vec) const
 {
     assert(itsRadial);
     Vector<double> radial((*itsRadial)(mesh));
@@ -115,9 +118,10 @@ void PolarizedGaussianBF::EvalGrad(const Mesh& mesh, Vec3Vec& vec) const
     }
 }
 
-BasisFunction* PolarizedGaussianBF::Clone() const
+BasisFunction* BasisFunction::Clone() const
 {
     assert(itsRadial);
-    return new  PolarizedGaussianBF(*this);
+    return new  BasisFunction(*this);
 }
 
+} //namespace PolarizedGaussian

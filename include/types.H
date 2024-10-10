@@ -49,7 +49,7 @@ class PlottableScalarFunction;
 class PlottableVectorFunction;
 class Plotter;
 class QuantumNumber;
-class RadialFunction;
+//class RadialFunction;
 class RadialMesh;
 class SCFIterator;
 class Spin;

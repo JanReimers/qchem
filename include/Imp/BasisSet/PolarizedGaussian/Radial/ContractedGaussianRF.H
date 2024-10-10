@@ -9,11 +9,14 @@
 #include "Imp/Containers/ptr_vector.h"
 #include "oml/vector.h"
 
+namespace PolarizedGaussian
+{
+    
 class ContractedGaussianH3;
 
 class ContractedGaussianRF
     : public virtual RadialFunction
-    , public RadialFunctionImplementation
+    , public RadialCommon
 {
 public:
     ContractedGaussianRF(                                                               );
@@ -54,5 +57,7 @@ private:
     Vector<double>               cs;
     optr_vector1<RadialFunction*> gs;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_ContractedGaussianRF_H_

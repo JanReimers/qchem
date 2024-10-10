@@ -1,4 +1,4 @@
-// File: BasisFunctionBlock.C  A block of basis functions with the same radial function.
+// File: Block.C  A block of basis functions with the same radial function.
 
 
 
@@ -7,29 +7,31 @@
 #include "oml/io3d.h"
 #include "Imp/Containers/stl_io.h"
 #include <iomanip>
+namespace PolarizedGaussian
+{
 
-BasisFunctionBlock::BasisFunctionBlock()
+Block::Block()
     : itsRadial(0)
     , itsN     (0)
 {};
 
-BasisFunctionBlock::BasisFunctionBlock(RadialFunction* rf, index_t N)
+Block::Block(RadialFunction* rf, index_t N)
     : itsRadial(rf)
     , itsN     (N)
 {};
 
-BasisFunctionBlock::BasisFunctionBlock(const BasisFunctionBlock& bfb)
+Block::Block(const Block& bfb)
     : itsRadial(bfb.itsRadial->Clone())
     , itsPols  (bfb.itsPols)
     , itsN     (bfb.itsN)
 {};
 
-BasisFunctionBlock::~BasisFunctionBlock()
+Block::~Block()
 {
     delete itsRadial;
 };
 
-std::ostream& BasisFunctionBlock::Write(std::ostream& os) const
+std::ostream& Block::Write(std::ostream& os) const
 {
     if (!Pretty())
     {
@@ -48,7 +50,7 @@ std::ostream& BasisFunctionBlock::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& BasisFunctionBlock::Read(std::istream& is)
+std::istream& Block::Read(std::istream& is)
 {
     delete itsRadial;
     itsRadial=RadialFunction::Factory(is);
@@ -58,16 +60,17 @@ std::istream& BasisFunctionBlock::Read(std::istream& is)
     return is;
 }
 
-BasisFunctionBlock* BasisFunctionBlock::Clone() const
+Block* Block::Clone() const
 {
-    return new BasisFunctionBlock(*this);
+    return new Block(*this);
 }
 
-BasisFunctionBlock* BasisFunctionBlock::Clone(const RVec3& newCenter) const
+Block* Block::Clone(const RVec3& newCenter) const
 {
     RadialFunction* newRF=itsRadial->Clone(newCenter);
-    BasisFunctionBlock* ret= new BasisFunctionBlock(newRF,itsN);
+    Block* ret= new Block(newRF,itsN);
     for (std::vector<Polarization>::const_iterator b(itsPols.begin()); b!=itsPols.end(); b++) ret->Add(*b);
     return ret;
 }
 
+} //namespace PolarizedGaussian

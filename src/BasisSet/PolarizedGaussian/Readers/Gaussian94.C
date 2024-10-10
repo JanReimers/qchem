@@ -1,4 +1,4 @@
-// File: Gaussian94RFR.C  Class for reading basis sets from a Gaussian 94 formatted file.
+// File: Gaussian94Reader.C  Class for reading basis sets from a Gaussian 94 formatted file.
 
 
 
@@ -15,14 +15,16 @@
 #include <algorithm>
 
 using std::ws;
-
+namespace PolarizedGaussian
+{
+    
 int ToNumber(char c);
 template <class T> T Max(const std::vector<T>& v)
 {
     return *std::max_element(v.begin(), v.end());
 }
 
-Gaussian94RFR::Gaussian94RFR(std::string filename)
+Gaussian94Reader::Gaussian94Reader(std::string filename)
     : itsStream(filename.c_str())
 {
     if(!itsStream)
@@ -32,7 +34,7 @@ Gaussian94RFR::Gaussian94RFR(std::string filename)
     }
 };
 
-Gaussian94RFR::~Gaussian94RFR()
+Gaussian94Reader::~Gaussian94Reader()
 {
     itsStream.close();
 };
@@ -40,7 +42,7 @@ Gaussian94RFR::~Gaussian94RFR()
 //
 //  Move to the start of the first atom in the file.
 //
-void Gaussian94RFR::TopOfFile()
+void Gaussian94Reader::TopOfFile()
 {
     itsStream.seekg(0,std::ios::beg);   //Goto top of file.
     std::string s;
@@ -59,7 +61,7 @@ void Gaussian94RFR::TopOfFile()
 //
 //  Search for an atom
 //
-bool Gaussian94RFR::FindAtom(const Atom& theAtom)
+bool Gaussian94Reader::FindAtom(const Atom& theAtom)
 {
     char atom[3];
     atom[2]=0;
@@ -99,7 +101,7 @@ bool Gaussian94RFR::FindAtom(const Atom& theAtom)
 //  Returns a 0 pointer if there is nothing more to read.
 //  Assumes coefficients for all L's are the same.
 //
-RadialFunction* Gaussian94RFR::ReadNext(const Atom& atom)
+RadialFunction* Gaussian94Reader::ReadNext(const Atom& atom)
 {
     int    nCont=0, MaxL;
     RadialFunction* ret=0;
@@ -111,7 +113,7 @@ RadialFunction* Gaussian94RFR::ReadNext(const Atom& atom)
         itsStream >> dummy;
         if (nCont<=0)
         {
-            std::cerr << "Gaussian94RFR::ReadNext number of primatives in contraction <=0" << std::endl;
+            std::cerr << "Gaussian94Reader::ReadNext number of primatives in contraction <=0" << std::endl;
             exit(-1);
         }
         if (nCont == 1)                //Read in a primative.
@@ -122,7 +124,7 @@ RadialFunction* Gaussian94RFR::ReadNext(const Atom& atom)
     return ret;
 }
 
-RadialFunction* Gaussian94RFR::ReadPrimative(int maxL, const Atom& atom)
+RadialFunction* Gaussian94Reader::ReadPrimative(int maxL, const Atom& atom)
 {
     assert(maxL>=0);
     double exponent,c;
@@ -131,7 +133,7 @@ RadialFunction* Gaussian94RFR::ReadPrimative(int maxL, const Atom& atom)
     return new GaussianRF(exponent,atom.itsR,maxL);
 }
 
-RadialFunction* Gaussian94RFR::ReadContracted(int nCont, int maxL, const Atom& atom)
+RadialFunction* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& atom)
 {
     assert(nCont>0);
     assert(maxL>=0);
@@ -147,7 +149,7 @@ RadialFunction* Gaussian94RFR::ReadContracted(int nCont, int maxL, const Atom& a
     }
     if (itsLs.size()>1 && coeff.GetColumn(1) != coeff.GetColumn(2))
     {
-        std::cerr << "Gaussian94RFR::ReadContracted contraction coeffs vary with L, not handeled yet" << std::endl;
+        std::cerr << "Gaussian94Reader::ReadContracted contraction coeffs vary with L, not handeled yet" << std::endl;
         exit(-1);
     }
     return new ContractedGaussianRF(coeff.GetColumn(1),radials);
@@ -158,7 +160,7 @@ RadialFunction* Gaussian94RFR::ReadContracted(int nCont, int maxL, const Atom& a
 //  Finding nothing is a fatal error.
 //  If we find an * then return -1 indicating end of atom.
 //
-int Gaussian94RFR::ReadLs()
+int Gaussian94Reader::ReadLs()
 {
     itsLs.clear();
     itsStream >> ws;
@@ -167,7 +169,7 @@ int Gaussian94RFR::ReadLs()
 
     if (itsLs.size()==0 && l!=-1)
     {
-        std::cerr << "Gaussian94RFR::ReadLs didn't find any Ls" << std::endl;
+        std::cerr << "Gaussian94Reader::ReadLs didn't find any Ls" << std::endl;
         exit(-1);
     }
     if (l!=-1)
@@ -226,3 +228,5 @@ int ToNumber(char c)
     }
     return ret;
 }
+
+} //namespace PolarizedGaussian

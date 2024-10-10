@@ -140,9 +140,6 @@
 		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/Hermite2.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/Hermite3.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/RNLM.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -165,9 +162,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/RadialFunctionImplementation.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSet/PolarizedGaussian/RadialFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/Readers/Gaussian94.C">

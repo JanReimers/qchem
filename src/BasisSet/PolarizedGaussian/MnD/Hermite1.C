@@ -17,6 +17,8 @@
 
 
 //----------------------------------------------------------------------------------------
+namespace PolarizedGaussian
+{
 
 
 Hermite1::Hermite1()
@@ -176,3 +178,4 @@ Hermite1* Hermite1::Clone() const
 }
 
 
+} //namespace PolarizedGaussian

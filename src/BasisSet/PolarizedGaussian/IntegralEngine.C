@@ -1,4 +1,4 @@
-// File: PolarizedGaussianIE1.C  Here is where all the integral get calculated.
+// File: IntegralEngine.C  Here is where all the integral get calculated.
 
 
 #include "Imp/BasisSet/PolarizedGaussian/IEClient.H"
@@ -7,19 +7,27 @@
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
 
+namespace PolarizedGaussian
+{
+
+const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
+{
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
+    assert(a);
+    return a;
+}
 //-----------------------------------------------------------------
 //
 //  Construction zone.
 //
-PolarizedGaussianIE1::PolarizedGaussianIE1(const PolarizedGaussianIEClient* iec)
+IntegralEngine::IntegralEngine(const IrrepIEClient* iec)
 : ns(iec->ns)
 , ons(OuterProduct(ns))
 {}
 
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization(iec_t* iea) const
+IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
 {
-    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);
-    assert(a);
+    auto a=dcast(iea);
     RVec n(a->size());
     int i=0;
     for (auto r:a->radials)
@@ -33,10 +41,9 @@ PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeNormalization(iec_t* iea) c
     
 }
 
-PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeCharge(iec_t* iea) const
+IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
 {
-    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);
-    assert(a);
+    auto a=dcast(iea);
     RVec c(a->size());
     int i=0;
     for (auto r:a->radials)
@@ -49,7 +56,7 @@ PolarizedGaussianIE1::RVec PolarizedGaussianIE1::MakeCharge(iec_t* iea) const
 }
 
 
-void PolarizedGaussianIE1::Normalize(SMat& s) const
+void IntegralEngine::Normalize(SMat& s) const
 {
     s=DirectMultiply(s,ons);
 }
@@ -58,57 +65,39 @@ void PolarizedGaussianIE1::Normalize(SMat& s) const
 //
 //  Streamable Object stuff
 //
-AnalyticIE<double>* PolarizedGaussianIE1::Clone() const
+AnalyticIE<double>* IntegralEngine::Clone() const
 {
-    return new PolarizedGaussianIE1(*this);
+    return new IntegralEngine(*this);
 }
 
 //----------------------------------------------------------------------------------------
 //
 //  2 Center type integrals
 //
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeOverlap(iec_t* a) const
+IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* a) const
 {
     return Integrate(RadialFunction::Overlap2C,a);
 }
 
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea ) const
+IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
 {
     return Integrate(RadialFunction::Repulsion2C,iea);
 }
 
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeKinetic(iec_t* a) const
+IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* a) const
 {
     return Integrate(RadialFunction::Kinetic,a);
 }
 //
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::MakeNuclear(iec_t* a,const Cluster& cl) const
+IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* a,const Cluster& cl) const
 {
     return Integrate(RadialFunction::Nuclear,a,&cl);
 }
 
-PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(const IE* iea,const IE* ieb) const
+IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 {    
-    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);
-    assert(a);
-    const PolarizedGaussianIEClient* b=dynamic_cast<const PolarizedGaussianIEClient*>(ieb);
-    assert(b);
-    int Na=a->size(),Nb=b->size();
-    Mat s(Na,Nb);
-    for (index_t ia=0;ia<Na;ia++)
-        for (index_t ib=0;ib<Nb;ib++)
-            s(ia+1,ib+1)=a->radials[ia]->Integrate(RadialFunction::Repulsion2C,
-                b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
-    assert(!isnan(s));
-    return s;
-}
-
-PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* ieb) const
-{    
-    const PolarizedGaussianIEClient* a=dynamic_cast<const PolarizedGaussianIEClient*>(iea);;
-    assert(a);
-    const PolarizedGaussianIEClient* b=dynamic_cast<const PolarizedGaussianIEClient*>(ieb);;
-    assert(b);
+    auto a=dcast(iea);
+    auto b=dcast(ieb);
     int Na=a->size(),Nb=b->size();
     Mat s(Na,Nb);
     for (index_t ia=0;ia<Na;ia++)
@@ -126,10 +115,9 @@ PolarizedGaussianIE1::Mat PolarizedGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* 
 //  3 Centre integrals.
 //
 
-PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
+IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
 {
-    const PolarizedGaussianIEClient* c=dynamic_cast<const PolarizedGaussianIEClient*>(iec);
-    assert(c);
+    auto c=dcast(iec);
     int Nc=c->size();
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
@@ -142,9 +130,9 @@ PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t
 }
 
 
-PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
 {
-    const PolarizedGaussianIEClient* c=dynamic_cast<const PolarizedGaussianIEClient*>(iec);;
+    auto c=dcast(iec);
     int Nc=c->size();
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
@@ -160,7 +148,7 @@ PolarizedGaussianIE1::ERI3 PolarizedGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec
 //
 //  4 centre integrals.
 //
-PolarizedGaussianIE1::PGparams::PGparams(const iecv_t& iecs)
+IntegralEngine::PGparams::PGparams(const iecv_t& iecs)
 {
     size_t N=0;
     for (auto iec:iecs) N+=iec->size();
@@ -168,8 +156,7 @@ PolarizedGaussianIE1::PGparams::PGparams(const iecv_t& iecs)
     for (auto iec:iecs)
     {
         int j=1;
-        const PolarizedGaussianIEClient* pg=dynamic_cast<const PolarizedGaussianIEClient*>(iec);
-        assert(pg);
+        auto pg=dcast(iec);
         for (size_t i=0;i<pg->size();i++)
         {
             radials.push_back(pg->radials[i]);
@@ -182,7 +169,7 @@ PolarizedGaussianIE1::PGparams::PGparams(const iecv_t& iecs)
 
 
 
-void PolarizedGaussianIE1::Make4C(ERI4& J, ERI4& K,const iecv_t& iecv) const
+void IntegralEngine::Make4C(ERI4& J, ERI4& K,const iecv_t& iecv) const
 {
     PGparams abcd(iecv);
     
@@ -210,10 +197,9 @@ void PolarizedGaussianIE1::Make4C(ERI4& J, ERI4& K,const iecv_t& iecv) const
 //
 //  Internal function for doing most of the double loops.
 //
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types3C type ,iec_t* ieab, const RadialFunction* rc, const Polarization& pc) const
+IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types3C type ,iec_t* ieab, const RadialFunction* rc, const Polarization& pc) const
 {
-    const PolarizedGaussianIEClient* ab=dynamic_cast<const PolarizedGaussianIEClient*>(ieab);;
-    assert(ab);
+    auto ab=dcast(ieab);
     int N=ab->size();
     SMat s(N);
     for (index_t ia=0;ia<N;ia++)
@@ -225,10 +211,9 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types
 }
 
 
-PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types2C type ,iec_t* ieab,  const Cluster* cl) const
+IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types2C type ,iec_t* ieab,  const Cluster* cl) const
 {
-    const PolarizedGaussianIEClient* ab=dynamic_cast<const PolarizedGaussianIEClient*>(ieab);;
-    assert(ab);
+    auto ab=dcast(ieab);
     int N=ab->size();
     SMat s(N);
     for (index_t ia=0;ia<N;ia++)
@@ -239,5 +224,4 @@ PolarizedGaussianIE1::SMat PolarizedGaussianIE1::Integrate(RadialFunction::Types
     return s;
 }
 
-
-
+} //namespace PolarizedGaussian

@@ -22,6 +22,8 @@
 class Polarization;
 typedef double Array2D[LMAX+1][LMAX+1];
 
+namespace PolarizedGaussian
+{
 
 class Hermite1
 {
@@ -44,5 +46,7 @@ private:
     int     itsL;
     Array2D def;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //Hermite1.H

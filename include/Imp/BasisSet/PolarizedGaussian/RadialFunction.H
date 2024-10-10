@@ -10,12 +10,15 @@
 #include <map>
 
 class  Polarization;
+
+namespace PolarizedGaussian
+{
+
 class  Hermite1;
 class  Hermite3;
 class  RNLM;
 class  CDCache;
-class  BasisFunctionBlock;
-
+class  Block;
 
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and
@@ -56,5 +59,7 @@ public:
     virtual RadialFunction* Clone      (            ) const=0;
     static  RadialFunction* Factory    (std::istream&    )        ;
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_RadialFunction_H_

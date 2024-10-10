@@ -8,6 +8,8 @@
 #include <typeinfo>
 #include <stdlib.h>
 
+namespace PolarizedGaussian
+{
 //##################################################################
 //
 //  Radial function factory, reads in name or RadialFunction derived
@@ -24,4 +26,4 @@ RadialFunction* RadialFunction::Factory(std::istream& is)
     return NULL;
 }
 
-
+} //namespace PolarizedGaussian

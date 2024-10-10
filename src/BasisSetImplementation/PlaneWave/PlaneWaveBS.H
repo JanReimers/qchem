@@ -8,7 +8,7 @@
 #include "BasisSetImplementation/TBasisSetImplementation.H"
 #include "Cluster/UnitCell.H"
 
-class RadialFunctionReader;
+class Reader;
 class Cluster;
 class Lattice;
 

@@ -12,6 +12,9 @@
 #include "oml/vector3d.h"
 #include <map>
 
+namespace PolarizedGaussian
+{
+
 class RNLM;
 class GaussianRF;
 class RadialFunction;
@@ -51,5 +54,7 @@ private:
     static void MakeNMLs();
     static optr_vector1<std::vector<Polarization>* > theNMLs; //A list of all NMLs for each LMax.
 };
+
+} //namespace PolarizedGaussian
 
 #endif //_GaussianCD_H_

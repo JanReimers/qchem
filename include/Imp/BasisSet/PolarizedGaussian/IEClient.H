@@ -7,15 +7,18 @@
 #include "oml/vector.h"
 #include <vector>
 
-class BasisFunctionBlock;
+namespace PolarizedGaussian
+{
+
+class Block;
 class RadialFunction;
 
-struct PolarizedGaussianIEClient
-    : public virtual IrrepIEClient
+struct IrrepIEClient
+    : public virtual ::IrrepIEClient
 {
     
-    PolarizedGaussianIEClient() {};
-    void Init(std::vector<const BasisFunctionBlock*>&);
+    IrrepIEClient() {};
+    void Init(std::vector<const Block*>&);
     
     virtual size_t size() const {return radials.size();}
 
@@ -26,6 +29,7 @@ struct PolarizedGaussianIEClient
 
 };
     
+} //namespace PolarizedGaussian
 
 
 #endif // _PolarizedGaussianIEClient_H_

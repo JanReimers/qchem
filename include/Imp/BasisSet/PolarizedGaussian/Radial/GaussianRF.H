@@ -7,12 +7,14 @@
 #include "Common.H"
 #include "../Polarization.H"
 
+namespace PolarizedGaussian
+{
 
 class GaussianCD;
 
 class GaussianRF
     : public virtual RadialFunction
-    , public RadialFunctionImplementation
+    , public RadialCommon
 {
 public:
     GaussianRF(                                   );
@@ -57,5 +59,8 @@ private:
 
     double        itsExponent;
 };
+
+} //namespace PolarizedGaussian
+
 
 #endif //_GaussianRF_H_

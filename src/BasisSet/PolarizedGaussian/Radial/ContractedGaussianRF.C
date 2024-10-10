@@ -9,19 +9,20 @@
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/io3d.h"
 #include <iostream>
-
+namespace PolarizedGaussian
+{
 //#######################################################################
 //
 //  Contracted Gaussian implementation
 //
 ContractedGaussianRF::ContractedGaussianRF()
-    : RadialFunctionImplementation()
+    : RadialCommon()
     , cs             ( )
     , gs         ( )
 {};
 
 ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, std::vector<RadialFunction*>& rfs)
-    : RadialFunctionImplementation( rfs[0]->GetCenter (), rfs[0]->GetL())
+    : RadialCommon( rfs[0]->GetCenter (), rfs[0]->GetL())
     , cs    (coeffs)
     , gs(rfs   ) //Copy pointers
 {
@@ -47,7 +48,7 @@ bool ContractedGaussianRF::operator==(const RadialFunction& rf) const
     const ContractedGaussianRF* cg = dynamic_cast<const ContractedGaussianRF*>(&rf);
     if (cg)
     {
-        bool base     = RadialFunctionImplementation::operator==(rf);
+        bool base     = RadialCommon::operator==(rf);
         bool coeff    = cs.size()==cg->cs.size() && cs==cg->cs;
         bool index    = true;
 
@@ -151,14 +152,14 @@ std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
         }
         os << "}";
     }
-    if (!Pretty()) RadialFunctionImplementation::Write(os);
+    if (!Pretty()) RadialCommon::Write(os);
     return os;
 }
 
 std::istream& ContractedGaussianRF::Read(std::istream& is)
 {
     is >> cs >> gs;
-    RadialFunctionImplementation::Read(is);
+    RadialCommon::Read(is);
     Check(); //Make all L's and centers are the same.
     return is;
 }
@@ -234,6 +235,4 @@ void ContractedGaussianRF::Check() const
     }
 }
 
-
-
-
+} //namespace PolarizedGaussian

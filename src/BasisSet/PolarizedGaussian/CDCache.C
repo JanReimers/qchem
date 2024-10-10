@@ -5,6 +5,8 @@
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/PolarizedGaussian/MnD/RNLM.H"
 
+namespace PolarizedGaussian
+{
 
 CDCache::CDCache() : CDlookups(0), RNLMlookups(0) {};
 
@@ -74,3 +76,5 @@ const RNLM& CDCache::find(const GaussianCD& ab)
     else
         return *(i->second);
 }
+
+} //namespace PolarizedGaussian
