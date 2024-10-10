@@ -42,7 +42,7 @@ public:
             delete itsBasisSet;
         }
         itsDB=new HeapDB<double>();
-        itsBasisSet=new SphericalGaussianBS(lap,itsDB, NBasis, minexp, maxexp,L);
+        itsBasisSet=new SphericalGaussian::IrrepBasisSet(lap,itsDB, NBasis, minexp, maxexp,L);
         
     }
 

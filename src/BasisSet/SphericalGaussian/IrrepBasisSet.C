@@ -9,11 +9,14 @@
 #include <iostream>
 #include <cassert>
 
+namespace SphericalGaussian
+{
+  
 //#######################################################################
 //
 //  Concrete  gaussian basis set.
 //
-SphericalGaussianBS::SphericalGaussianBS()
+IrrepBasisSet::IrrepBasisSet()
     :  BasisSetImplementation        ()
     , TBasisSetImplementation<double>()
 {};
@@ -25,7 +28,7 @@ SphericalGaussianBS::SphericalGaussianBS()
 //    3) For DFT Vxc, and ro fitting we need defulat + mesh.
 //
 
-SphericalGaussianBS::SphericalGaussianBS(
+IrrepBasisSet::IrrepBasisSet(
         const LinearAlgebraParams& lap,
         IntegralDataBase<double>* theDB,
         size_t size,
@@ -34,17 +37,17 @@ SphericalGaussianBS::SphericalGaussianBS(
         size_t L)
     : BasisSetImplementation(new SphericalSymmetryQN(L))
     , TBasisSetImplementation<double>(lap,theDB)
-    , SphericalGaussianIEClient(size)
+    , IrrepIEClient(size)
 {
-    SphericalGaussianIEClient::Init(minexp,maxexp,L);
-    TBasisSetImplementation<double>::Insert(new SphericalGaussianIE1());  
+    IrrepIEClient::Init(minexp,maxexp,L);
+    TBasisSetImplementation<double>::Insert(new IntegralEngine());  
     size_t i=1;
     for (auto e:es) 
-        BasisSetImplementation::Insert(new SphericalGaussianBF(e,L,ns(i++))); //ns from SphericalGaussianIEClient
+        BasisSetImplementation::Insert(new BasisFunction(e,L,ns(i++))); //ns from SphericalGaussianIEClient
 
 };
 
-std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const
+std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
     if (!Pretty())
     {
@@ -62,7 +65,7 @@ std::ostream&  SphericalGaussianBS::Write(std::ostream& os) const
     return os;
 }
 
-std::istream&  SphericalGaussianBS::Read (std::istream& is)
+std::istream&  IrrepBasisSet::Read (std::istream& is)
 {
     ReadBasisFunctions(is);
     BasisSetImplementation::Read(is);
@@ -70,15 +73,16 @@ std::istream&  SphericalGaussianBS::Read (std::istream& is)
     return is;
 }
 
-IrrepBasisSet* SphericalGaussianBS::Clone() const
+::IrrepBasisSet* IrrepBasisSet::Clone() const
 {
-    return new SphericalGaussianBS(*this);
+    return new IrrepBasisSet(*this);
 }
 
-IrrepBasisSet* SphericalGaussianBS::Clone(const RVec3&) const
+::IrrepBasisSet* IrrepBasisSet::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a spherical Gaussian basis set?!" << std::endl;
     return Clone();
 }
 
 
+} //namespace

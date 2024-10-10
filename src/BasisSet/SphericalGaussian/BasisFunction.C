@@ -11,32 +11,34 @@
 #include <iostream>
 #include <cassert>
 
+namespace SphericalGaussian
+{
 //#######################################################################
 //
 //  Spherical gaussian implementation, adds orbital AM Q#.
 //
 
-SphericalGaussianBF::SphericalGaussianBF()
+BasisFunction::BasisFunction()
     : itsExponent     (0)
     , itsL            (0)
     , itsNormalization(0)
 {};
 
-SphericalGaussianBF::SphericalGaussianBF(double theExponent, int theL, double norm)
+BasisFunction::BasisFunction(double theExponent, int theL, double norm)
     : itsExponent     (theExponent)
     , itsL            (theL       )
     , itsNormalization(norm)
 {
 };
 
-bool SphericalGaussianBF::operator==(const BasisFunction& bf) const
+bool BasisFunction::operator==(const ::BasisFunction& bf) const
 {
-    const SphericalGaussianBF& sgbf = dynamic_cast<const SphericalGaussianBF&>(bf);
+    const BasisFunction& sgbf = dynamic_cast<const BasisFunction&>(bf);
     assert(&sgbf);
     return itsExponent==(sgbf.itsExponent) && (itsL==sgbf.itsL);
 }
 
-std::ostream& SphericalGaussianBF::Write(std::ostream& os) const
+std::ostream& BasisFunction::Write(std::ostream& os) const
 {
     UniqueID::Write(os);
     if ( StreamableObject::Binary())
@@ -56,7 +58,7 @@ std::ostream& SphericalGaussianBF::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& SphericalGaussianBF::Read(std::istream& is)
+std::istream& BasisFunction::Read(std::istream& is)
 {
     UniqueID::Read(is);
     if (StreamableObject::Binary())
@@ -73,13 +75,13 @@ std::istream& SphericalGaussianBF::Read(std::istream& is)
     return is;
 }
 
-double SphericalGaussianBF::operator()(const Vec3& r) const
+double BasisFunction::operator()(const Vec3& r) const
 {
     double a=TwoLPlusOne(itsL);
     return itsNormalization*sqrt(a)*uintpow(norm(r),itsL)*exp(-itsExponent*r*r);
 }
 
-SphericalGaussianBF::Vec3 SphericalGaussianBF::Gradient(const Vec3& r) const
+BasisFunction::Vec3 BasisFunction::Gradient(const Vec3& r) const
 {
     Vec3 ret(0,0,0);
     double mr=norm(r);
@@ -91,8 +93,9 @@ SphericalGaussianBF::Vec3 SphericalGaussianBF::Gradient(const Vec3& r) const
     return ret;
 }
 
-BasisFunction* SphericalGaussianBF::Clone() const
+BasisFunction* BasisFunction::Clone() const
 {
-    return new  SphericalGaussianBF(*this);
+    return new  BasisFunction(*this);
 }
 
+} //namespace

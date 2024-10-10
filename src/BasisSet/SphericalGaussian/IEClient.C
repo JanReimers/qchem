@@ -9,10 +9,15 @@ template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
   for (int n=0;i!=arr.end();i++,n++) *i=T(start*std::exp(n*del));
 }
 
-void SphericalGaussianIEClient::Init(double minexp,double maxexp,size_t L)
+namespace SphericalGaussian
+{
+    
+void IrrepIEClient::Init(double minexp,double maxexp,size_t L)
 {
     
       FillPower(es,minexp,maxexp);
       Fill(Ls,L);
       for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
 }
+
+} //namespace

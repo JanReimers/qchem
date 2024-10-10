@@ -10,25 +10,33 @@
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
 
-double SphericalGaussianIE1::FourPi2=4*4*Pi*Pi;
+namespace SphericalGaussian
+{
 
+double IntegralEngine::FourPi2=4*4*Pi*Pi;
 
 //-----------------------------------------------------------------
 //
 //  Streamable Object stuff
 //
-AnalyticIE<double>* SphericalGaussianIE1::Clone() const
+AnalyticIE<double>* IntegralEngine::Clone() const
 {
-    return new SphericalGaussianIE1(*this);
+    return new IntegralEngine(*this);
+}
+
+const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
+{
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
+    assert(a);
+    return a;
 }
 //----------------------------------------------------------------------------------------
 //
 //  Overlap type integrals
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* iea ) const
+IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
 {
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-    assert(a);
+    auto  a=dcast(iea);
     size_t N=a->size();
     SMat s(N);
     for (auto i:s.rows())
@@ -39,10 +47,9 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* iea ) const
 }
 
 
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
+IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
 {    
-    const SphericalGaussianIEClient* ab=dynamic_cast<const SphericalGaussianIEClient*>(ieab);;
-    assert(ab);
+    auto ab=dcast(ieab);;
     size_t N=ab->size();
     int Lc;
     double ec,nc;
@@ -54,11 +61,10 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeOverlap(iec_t* ieab, const 
     return s;
 }
 
-SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
+IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
 {
-    const SphericalGaussianIEClient* c=dynamic_cast<const SphericalGaussianIEClient*>(iec);;
-    assert(c);
-
+    auto c=dcast(iec);;
+   
     ERI3 s3;
     for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
     return s3;
@@ -68,9 +74,9 @@ SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeOverlap3C(iec_t* ieab,iec_t
 //
 //  Repulsion type integrals
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* iea ) const
+IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
 {
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
+    auto a=dcast(iea);;
     assert(a);
     size_t N=a->size();
     SMat r(N,N);
@@ -81,12 +87,10 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* iea ) cons
     return r;
 }
 
-SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* ieb) const
+IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 {
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-    assert(a);
-    const SphericalGaussianIEClient* b=dynamic_cast<const SphericalGaussianIEClient*>(ieb);;
-    assert(b);
+    auto a=dcast(iea);;
+    auto b=dcast(ieb);;
     size_t Na=a->es.size(), Nb=b->es.size();
     Mat s(Na,Nb);
     for (auto i:s.rows())
@@ -97,10 +101,9 @@ SphericalGaussianIE1::Mat SphericalGaussianIE1::MakeRepulsion(iec_t* iea,iec_t* 
 }
 
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
+IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
 {    
-    const SphericalGaussianIEClient* ab=dynamic_cast<const SphericalGaussianIEClient*>(ieab);;
-    assert(ab);
+    auto ab=dcast(ieab);;
     size_t N=ab->size();
     int Lc;
     double ec,nc;
@@ -116,18 +119,17 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeRepulsion(iec_t* ieab,const
 }
 
 
-SphericalGaussianIE1::ERI3 SphericalGaussianIE1::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
 {
-    const SphericalGaussianIEClient* c=dynamic_cast<const SphericalGaussianIEClient*>(iec);;
-    assert(c);
-
+    auto c=dcast(iec);;
+    
     ERI3 s3;
     for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
     return s3;
 }
 
 
-SphericalGaussianIE1::SGparams::SGparams(const iecv_t& iev)
+IntegralEngine::SGparams::SGparams(const iecv_t& iev)
 {
     size_t N=0;
     for (auto ia: iev) N+=ia->size();
@@ -137,7 +139,7 @@ SphericalGaussianIE1::SGparams::SGparams(const iecv_t& iev)
     index_t i=1;
     for (auto ia: iev)
     {
-        const SphericalGaussianIEClient* sg=dynamic_cast<const SphericalGaussianIEClient*>(ia);
+        auto sg=dcast(ia);
         assert(sg);
         for (auto i1:sg->es.indices())
         {
@@ -150,9 +152,9 @@ SphericalGaussianIE1::SGparams::SGparams(const iecv_t& iev)
 }
 
 
-void SphericalGaussianIE1::Make4C(ERI4& J, ERI4& K,const iecv_t& iev) const
+void IntegralEngine::Make4C(ERI4& J, ERI4& K,const iecv_t& iev) const
 {
-    SphericalGaussianIE1::SGparams sg(iev);
+    IntegralEngine::SGparams sg(iev);
     size_t N=sg.size();
     J.SetSize(N,-1.0);
     K.SetSize(N,-1.0);
@@ -189,10 +191,9 @@ void SphericalGaussianIE1::Make4C(ERI4& J, ERI4& K,const iecv_t& iev) const
 ////
 ////  Special integrals
 ////
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeKinetic(iec_t* iea) const
+IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
 {
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-    assert(a);
+    auto a=dcast(iea);;
     size_t N=a->size();
     SMatrix<double> Hk(N);
     for (auto i:Hk.rows())
@@ -212,10 +213,9 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeKinetic(iec_t* iea) const
     return Hk;
 }
 //
-SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(iec_t* iea,const Cluster& cl) const
+IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* iea,const Cluster& cl) const
 {
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-    assert(a);
+    auto a=dcast(iea);;
     size_t N=a->size(),L=a->Ls(1);
     SMatrix<double> Hn(N);
     double Z=-cl.GetNuclearCharge();
@@ -226,33 +226,32 @@ SphericalGaussianIE1::SMat SphericalGaussianIE1::MakeNuclear(iec_t* iea,const Cl
     return Hn;
 }
 
-SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeNormalization(iec_t* iea) const
+IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
 {
 
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-    assert(a); 
+    auto a=dcast(iea);;
     RVec n(a->size());
     for (auto i:a->es.indices())  n(i)=GaussianNorm(a->es(i),a->Ls(i));
     return n;
 }
 
-SphericalGaussianIE1::RVec SphericalGaussianIE1::MakeCharge(iec_t* iea) const
+IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
 {
-    const SphericalGaussianIEClient* a=dynamic_cast<const SphericalGaussianIEClient*>(iea);;
-    assert(a);
+    auto a=dcast(iea);;
     RVec c(a->size());
     for (auto i:a->es.indices())  c(i)=GaussianIntegral(a->es(i),a->Ls(i))*a->ns(i);
     return c;
 }
 
-std::ostream& SphericalGaussianIE1::Write(std::ostream& os) const
+std::ostream& IntegralEngine::Write(std::ostream& os) const
 {
     return os ;
 }
-std::istream& SphericalGaussianIE1::Read (std::istream& is)
+std::istream& IntegralEngine::Read (std::istream& is)
 {
     return is ;
 }
 
 
 
+} //namespace

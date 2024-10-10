@@ -7,8 +7,12 @@
 #include "oml/vector.h"
 
 
-
-class SphericalGaussianIE1
+namespace SphericalGaussian
+{
+    
+class IrrepIEClient;
+    
+class IntegralEngine
     : public virtual AnalyticIE<double>
 {
 
@@ -32,7 +36,7 @@ public:
 
     
         
-    SphericalGaussianIE1() {};
+    IntegralEngine() {};
     
     virtual size_t size() const {return -1;}
 
@@ -57,11 +61,14 @@ public:
 
     typedef std::tuple<int,double,double> bf_tuple;
 private:
+    static const IrrepIEClient* dcast(iec_t*);
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
 
     
     static double FourPi2;
 };
+
+} //namespace
 
 #endif //_SphericalGaussianIE1_H_

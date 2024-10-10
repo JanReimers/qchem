@@ -9,21 +9,25 @@
 #include "../TCommon.H"
 #include "oml/vector.h"
 
-
-class SphericalGaussianBS
+namespace SphericalGaussian
+{
+   
+class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         BasisSetImplementation
     , public         TBasisSetImplementation<double>
-    , public SphericalGaussianIEClient
+    , public         IrrepIEClient
 {
 public:
-    SphericalGaussianBS();
-    SphericalGaussianBS(const LinearAlgebraParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L);
+    IrrepBasisSet();
+    IrrepBasisSet(const LinearAlgebraParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
-    virtual IrrepBasisSet* Clone(            ) const;
-    virtual IrrepBasisSet* Clone(const RVec3&) const;
+    virtual ::IrrepBasisSet* Clone(            ) const;
+    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
+
+} //namespace
 
 #endif //_SphericalGaussianBS_H_

@@ -32,7 +32,7 @@
 BasisFunction* BasisFunction::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussianBF).name()) return new SphericalGaussianBF;
+    if (Name==typeid(SphericalGaussian::BasisFunction).name()) return new SphericalGaussian::BasisFunction;
     if (Name==typeid(PolarizedGaussianBF).name()) return new PolarizedGaussianBF;
 //    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
 
@@ -60,7 +60,7 @@ BasisFunctionBlock* BasisFunctionBlock::Factory(std::istream& is)
 IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussianBS).name()) return new SphericalGaussianBS;
+    if (Name==typeid(SphericalGaussian::IrrepBasisSet).name()) return new SphericalGaussian::IrrepBasisSet;
     if (Name==typeid(PolarizedGaussianBS).name()) return new PolarizedGaussianBS;
 //    if (Name==typeid(        PlaneWaveBS).name()) return new         PlaneWaveBS;
 

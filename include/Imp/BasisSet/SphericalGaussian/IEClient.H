@@ -5,11 +5,14 @@
 #include <IEClient.H> // <> prevents file search on this SphericalGaussian folder.
 #include "oml/vector.h"
 
-struct SphericalGaussianIEClient
-    : public virtual IrrepIEClient
+namespace SphericalGaussian
 {
-    SphericalGaussianIEClient() {};
-    SphericalGaussianIEClient(size_t N) : Ls(N), es(N), ns(N) {};
+    
+struct IrrepIEClient
+    : public virtual ::IrrepIEClient
+{
+    IrrepIEClient() {};
+    IrrepIEClient(size_t N) : Ls(N), es(N), ns(N) {};
     void Init(double minexp,double maxexp,size_t L);
     
     virtual size_t size() const {return es.size();}
@@ -20,6 +23,7 @@ struct SphericalGaussianIEClient
     Vector<double> es; //The orbital exponents.
     Vector<double> ns; //Normalization constants
 };
-   
+
+} //namespace
 
 #endif // _SphericalGaussianIEClient_H_

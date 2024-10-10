@@ -4,14 +4,17 @@
 
 #include <BasisSet.H>
 
-class SphericalGaussianBF
-    : public virtual TBasisFunction<double>
+namespace SphericalGaussian
+{
+    
+class BasisFunction
+    : public virtual ::TBasisFunction<double>
 {
 public:
-    SphericalGaussianBF(                             );
-    SphericalGaussianBF(double theExponent, int theL, double norm);
+    BasisFunction(                             );
+    BasisFunction(double theExponent, int theL, double norm);
     
-    virtual bool   operator==(const BasisFunction&) const;
+    virtual bool   operator==(const ::BasisFunction&) const;
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;
@@ -21,13 +24,12 @@ public:
     virtual Vec3   Gradient  (const Vec3&) const;
 
 private:
-    friend class SphericalGaussianIE;
-    friend class SphericalGaussianIE1;
-    friend class SphericalSymmetryBS;
-
     double itsExponent;
     int    itsL;
     double itsNormalization;
 };
+
+
+} //namespace
 
 #endif //_SphericalGaussianBF_H_
