@@ -16,14 +16,6 @@ const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
     assert(a);
     return a;
 }
-//-----------------------------------------------------------------
-//
-//  Construction zone.
-//
-IntegralEngine::IntegralEngine(const IrrepIEClient* iec)
-: ns(iec->ns)
-, ons(OuterProduct(ns))
-{}
 
 IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
 {
@@ -56,10 +48,6 @@ IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
 }
 
 
-void IntegralEngine::Normalize(SMat& s) const
-{
-    s=DirectMultiply(s,ons);
-}
 
 //-----------------------------------------------------------------
 //
@@ -204,9 +192,8 @@ IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types3C type ,iec
     SMat s(N);
     for (index_t ia=0;ia<N;ia++)
         for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache);
+            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns(ia+1)*ab->ns(ib+1);
         
-    Normalize(s);
     return s;    
 }
 
@@ -218,9 +205,8 @@ IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types2C type ,iec
     SMat s(N);
     for (index_t ia=0;ia<N;ia++)
         for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=ab->radials[ia]->Integrate(type,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl);
+            s(ia+1,ib+1)=ab->radials[ia]->Integrate(type,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns(ia+1)*ab->ns(ib+1);
 
-    Normalize(s);
     return s;
 }
 

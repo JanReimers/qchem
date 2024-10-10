@@ -28,7 +28,6 @@ public:
     typedef std::vector<const Block*> blocks_t;
     
     IntegralEngine() {};
-    IntegralEngine(const IrrepIEClient*);
     virtual ~IntegralEngine() {};
     
      struct PGparams
@@ -57,12 +56,9 @@ public:
 
 private:
     static const IrrepIEClient* dcast(iec_t*);
-    void Normalize(SMat&) const;
     SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(RadialFunction::Types3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
-    RVec                               ns;      //Norm constants
-    SMat                               ons;     //Outer product of ns.
     mutable CDCache                    cache; //Cache of all Gaussian pair charge distributions.
 };
 } //namespace PolarizedGaussian

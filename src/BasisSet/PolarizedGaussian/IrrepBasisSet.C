@@ -98,7 +98,7 @@ IrrepBasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Re
     IntegralEngine::blocks_t bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
     IrrepIEClient::Init(bls);
-    TBasisSetImplementation<double>::Insert(new IntegralEngine(this));    
+    TBasisSetImplementation<double>::Insert(new IntegralEngine());    
 //
 //  Now insert the basis functions.
 //
