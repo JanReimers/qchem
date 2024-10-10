@@ -8,7 +8,7 @@
 #include <Cluster.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "Misc/ERI4.H"
+#include "Imp/Containers/ERI4.H"
 
 double SphericalGaussianIE1::FourPi2=4*4*Pi*Pi;
 

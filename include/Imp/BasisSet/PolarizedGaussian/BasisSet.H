@@ -4,9 +4,10 @@
 
 #include "../Common.H"
 #include "../TCommon.H"
+#include "Polarization.H"
 #include "IEClient.H"
 #include "Block.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 
 
 class RadialFunctionReader;

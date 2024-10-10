@@ -70,6 +70,7 @@
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/MnD/RNLM.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Polarization.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/Common.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianRF.H" />
@@ -136,6 +137,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/MnD/RNLM.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/PolarizedGaussian/Polarization.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/Radial/ContractedGaussianH3.C">
@@ -532,10 +536,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/Persistent/Persistent.H" />
-		<Unit filename="src/Misc/Polarization.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/Polarization.H" />
 		<Unit filename="src/Misc/Spin.C">
 			<Option compilerVar="CPP" />
 		</Unit>

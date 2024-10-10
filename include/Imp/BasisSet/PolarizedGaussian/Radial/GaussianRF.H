@@ -5,6 +5,8 @@
 
 
 #include "Common.H"
+#include "../Polarization.H"
+
 
 class GaussianCD;
 

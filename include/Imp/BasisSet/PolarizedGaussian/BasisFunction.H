@@ -5,8 +5,8 @@
 
 
 #include "RadialFunction.H"
+#include "Polarization.H"
 #include <BasisSet.H>
-#include "Misc/Polarization.H"
 #include "oml/vector3d.h"
 
 class PolarizedGaussianBF

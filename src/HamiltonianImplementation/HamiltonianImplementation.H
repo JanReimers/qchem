@@ -5,7 +5,7 @@
 
 
 #include "Hamiltonian.H"
-#include "Misc/ptr_vector1.h"
+#include "Imp/Containers/ptr_vector.h"
 
 class HamiltonianImplementation
     : public virtual Hamiltonian

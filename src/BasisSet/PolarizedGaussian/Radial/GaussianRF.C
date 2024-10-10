@@ -8,9 +8,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianH3.H"
 #include "Imp/BasisSet/PolarizedGaussian/CDCache.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
-#include "Misc/Polarization.H"
 #include <Cluster.H>
-//#include "Mesh/MeshBrowser.H"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"

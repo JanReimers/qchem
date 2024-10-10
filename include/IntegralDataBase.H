@@ -6,7 +6,7 @@
 
 #include "types.H"
 #include "Misc/Persistent/Persistent.H"
-#include "Misc/ERI4.H"
+#include "Imp/Containers/ERI4.H"
 
 namespace qchem
 {
