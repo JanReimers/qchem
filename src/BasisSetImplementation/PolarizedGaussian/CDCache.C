@@ -30,61 +30,47 @@ const GaussianCD& CDCache::find(const GaussianRF* a,const GaussianRF* b)
 {
     assert(a);
     assert(b);
-    ids_t key=std::make_pair(a->GetID(),b->GetID());
-//    ids_t key=Sort(a->GetID(),b->GetID());
-    auto i=cache.find(key);
-    if (i==cache.end())
-    {
-        cache[key]=new GaussianCD(*a,*b);
-        i=cache.find(key);
-    }
     CDlookups++;
-    return *(i->second);
+    ids_t key=std::make_pair(a->GetID(),b->GetID());
+    if (auto i=cache.find(key);i==cache.end())
+        return *(cache[key]=new GaussianCD(*a,*b));
+    else
+        return *(i->second);
 }
 
 const RNLM& CDCache::find(const GaussianCD& ab,const GaussianRF* c)
 {
+    RNLMlookups++;
     ids_t key=std::make_pair(ab.GetID(),c->GetID());
-//    ids_t key=Sort(a->GetID(),b->GetID());
-    auto i=RNLMcache.find(key);
-    if (i==RNLMcache.end())
+    if (auto i=RNLMcache.find(key);i==RNLMcache.end())
     {
         double alpha =ab.AlphaP*c->itsExponent/(ab.AlphaP+c->itsExponent);
-        RNLMcache[key]=new RNLM(ab.Ltotal+c->GetL(),alpha,ab.P-c->GetCenter());
-        i=RNLMcache.find(key);
+        return *(RNLMcache[key]=new RNLM(ab.Ltotal+c->GetL(),alpha,ab.P-c->GetCenter()));
     }
-    RNLMlookups++;
-    return *(i->second);
- 
+    else
+        return *(i->second);
 }
 
 const RNLM& CDCache::find(const GaussianCD& ab,const GaussianCD& cd)
 {
+    RNLMlookups++;
     ids_t key=std::make_pair(ab.GetID(),cd.GetID());
-//    ids_t key=Sort(a->GetID(),b->GetID());
-    auto i=RNLMcache.find(key);
-    if (i==RNLMcache.end())
+    if (auto i=RNLMcache.find(key);i==RNLMcache.end())
     {
         double alpha=ab.AlphaP*cd.AlphaP/(ab.AlphaP+cd.AlphaP); //M&D 3.32
         RVec3 PQ = ab.P-cd.P; //M&D 3.32
-        RNLMcache[key]=new RNLM(ab.Ltotal+cd.Ltotal,alpha,PQ);
-        i=RNLMcache.find(key);
+        return *(RNLMcache[key]=new RNLM(ab.Ltotal+cd.Ltotal,alpha,PQ)) ;
     }
-    RNLMlookups++;
-    return *(i->second);
- 
+    else
+        return *(i->second);
 }
 
 const RNLM& CDCache::find(const GaussianCD& ab)
 {
-    id_t key=ab.GetID();
-    auto i=RNLMcache1.find(key);
-    if (i==RNLMcache1.end())
-    {
-        RNLMcache1[key]=new RNLM(ab.Ltotal,ab.ab/ab.AlphaP,ab.AB);
-        i=RNLMcache1.find(key);
-    }
     RNLMlookups++;
-    return *(i->second);
- 
+    id_t key=ab.GetID();
+    if (auto i=RNLMcache1.find(key);i==RNLMcache1.end())
+        return *(RNLMcache1[key]=new RNLM(ab.Ltotal,ab.ab/ab.AlphaP,ab.AB));
+    else
+        return *(i->second);
 }

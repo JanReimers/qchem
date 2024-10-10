@@ -86,21 +86,21 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
 
                 for (auto bNLM:NLMs)
                 {
+                    if (bNLM> pa) continue;
                     double ha=H1a(bNLM,pa);
-                    if (!(bNLM> pa) && ha!=0.0)
-                    { 
-                        double RR=0.0;
-                        for (int n=0; n<=pb.n; n++)
-                            for (int l=0; l<=pb.l; l++)
-                                for (int m=0; m<=pb.m; m++)
-                                {
-                                    Polarization NLMp(n,l,m);
-                                    if (double hb=H1b(NLMp,pb);hb!=0.0)
-                                        RR+=hb*R(bNLM+NLMp);
-                                } //for nlm
-                        
-                        s += ha*RR;
-                    } //if (!(bNLM> pa))
+                    if (ha==0.0) continue;
+                    double RR=0.0;
+                    for (int n=0; n<=pb.n; n++)
+                        for (int l=0; l<=pb.l; l++)
+                            for (int m=0; m<=pb.m; m++)
+                            {
+                                Polarization NLMp(n,l,m);
+                                double hb=H1b(NLMp,pb);
+                                if (hb!=0.0)
+                                    RR+=hb*R(bNLM+NLMp);
+                            } //for nlm
+                    
+                    s += ha*RR;
                 }//for (auto bNLM:NLMs)
                 s*=2*Pi52*factor;
             }  // case          
@@ -117,16 +117,18 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
                 assert(cl);
                 RNLM R; //Create and empty aux function.
                 //  Loop over nuclear centres and add the RNML contribution from each nucleus.
-                for (auto atom:*cl) R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
+                for (auto atom:*cl) 
+                    R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
 
                 auto NLMs=GaussianCD::GetNMLs(ab.Ltotal);
                 const Polarization Pab = pa + pb;
                 for (auto bNLM:NLMs)
-                    if (!(bNLM > Pab))
-                    {
-                        double h = ab.H2(bNLM,pa,pb);
-                        if(h!=0) s+=h*R(bNLM);
-                    }
+                {
+                    if (bNLM > Pab) continue;
+                    if(double h = ab.H2(bNLM,pa,pb);h!=0) 
+                        s+=h*R(bNLM);
+                }
+                        
                 s*=2*Pi/ab.AlphaP*ab.Eij;
             }
             break;
@@ -173,10 +175,9 @@ double GaussianRF::Integrate3C(Types3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t&
     {
         case Overlap3C :
             {
-            Hermite3* H3=gc->GetH3(*ga,*gb);
-            s=(*H3)(pa,pb,pc);
-            delete H3;
-                
+                Hermite3* H3=gc->GetH3(*ga,*gb);
+                s=(*H3)(pa,pb,pc);
+                delete H3;
             }
             break;
         case Repulsion3C :
@@ -185,31 +186,27 @@ double GaussianRF::Integrate3C(Types3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t&
                 const RNLM&        R(cache.find(ab,gc));
 
                 auto  NLMs=GaussianCD::GetNMLs(ab.Ltotal);
-                const Hermite1& H1=gc->GetH1();
+                const Hermite1& Hc=gc->GetH1();
                 assert(&H1);
-                
-                
                 const Polarization Pab = pa+pb;
                 for (auto nlm:NLMs)
-                    if (!(nlm>Pab))
-                    {
-                        double hab = ab.H2(nlm,pa,pb);
-                        if (hab!=0.0)
-                        {
-                            double Rs=0.0;
-                            for (int n=0; n<=pc.n; n++)
-                                    for (int l=0; l<=pc.l; l++)
-                                        for (int m=0; m<=pc.m; m++)
-                                        {
-                                            Polarization NLMp(n,l,m);
-                                            double h=H1(NLMp,pc);
-                                            if (h!=0.0)
-                                                Rs+=h*R(nlm+NLMp);
-                                        } //for m
-                            if (Rs!=0) s+=hab*Rs;
-                        } //if hb
-                    } //if nlm
+                {
+                    
+                    if (nlm>Pab) continue;
+                    double hab = ab.H2(nlm,pa,pb);
+                    if (hab==0.0) continue;
+                    double Rs=0.0;
+                    for (int n=0; n<=pc.n; n++)
+                            for (int l=0; l<=pc.l; l++)
+                                for (int m=0; m<=pc.m; m++)
+                                {
+                                    Polarization NLMp(n,l,m);
+                                    if (double h=Hc(NLMp,pc);h!=0.0)
+                                        Rs+=h*R(nlm+NLMp);
+                                } //for m
+                    if (Rs!=0) s+=hab*Rs;
                    
+                } //for (auto nlm:NLMs)
                 
                 double factor=1.0/(ab.AlphaP*gc->itsExponent*sqrt(ab.AlphaP+gc->itsExponent));
                 factor = (pc.GetTotalL()%2) ? -factor : factor;
