@@ -77,18 +77,33 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
         case Repulsion2C :
             {
                 auto NLMs=GaussianCD::GetNMLs(this->GetL());
-                RVec Rs=ab.GetRNLMs(pb,gb->GetH1());
-                int nNLM=1;
+                const Hermite1& H1a=this->GetH1();
+                const Hermite1& H1b=gb->GetH1();
+                const RNLM& R=cache.find(ab);
+                 
+                double factor=1.0/(ab.ab*sqrt(ab.AlphaP));
+                factor = (pb.GetTotalL()%2) ? -factor : factor;
+
                 for (auto bNLM:NLMs)
                 {
-                    if (bNLM.n <= pa.n && bNLM.l <= pa.l && bNLM.m <= pa.m)
-                    {
-                        double h=this->GetH1()(bNLM,pa);
-                        if (h!=0.0) s += 2*h*Pi52 * Rs(nNLM);
-                    }
-                    nNLM++;
-                }
-            }            
+                    double ha=H1a(bNLM,pa);
+                    if (!(bNLM> pa) && ha!=0.0)
+                    { 
+                        double RR=0.0;
+                        for (int n=0; n<=pb.n; n++)
+                            for (int l=0; l<=pb.l; l++)
+                                for (int m=0; m<=pb.m; m++)
+                                {
+                                    Polarization NLMp(n,l,m);
+                                    if (double hb=H1b(NLMp,pb);hb!=0.0)
+                                        RR+=hb*R(bNLM+NLMp);
+                                } //for nlm
+                        
+                        s += ha*RR;
+                    } //if (!(bNLM> pa))
+                }//for (auto bNLM:NLMs)
+                s*=2*Pi52*factor;
+            }  // case          
             break;
         case Kinetic :
             {

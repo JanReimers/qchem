@@ -7,7 +7,7 @@ Priority 1:
             PerRef<IntegralDatabase> int BSImp<T>
    -Cache reports
     -Stop caching RNLM inside GaussianCD
-    -CDcache into its own source files.
+    -CDCache into its own source files.
 
     -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
     -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
@@ -30,6 +30,7 @@ Priority 1:
         3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
       We will need a null Ortho type for LAParams for assertions.
     -Clean up PolGaussian construction.edFunction
+    -Does UniqueID really need to enforce Read/Write?
       
 Priority 2:
     -SMAT does not support S+=Xpr

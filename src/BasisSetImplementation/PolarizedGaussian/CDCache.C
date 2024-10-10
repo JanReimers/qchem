@@ -11,11 +11,12 @@ CDCache::CDCache() : CDlookups(0), RNLMlookups(0) {};
 CDCache::~CDCache()
 {
     for (auto c:cache) delete c.second;
+    for (auto r:RNLMcache1) delete r.second;
+    for (auto r:RNLMcache) delete r.second;
 }
 
 void CDCache::Report(std::ostream& os) const
 {
-    for (auto c:cache) c.second->Report(os);
     double eff=(100.0*CDlookups)/(size()+CDlookups-1);
     os << "Charge Distributions cache N=" << size() << " lookups=" << CDlookups << " efficiencty=" << eff << "%" << std::endl;
 }
@@ -68,6 +69,20 @@ const RNLM& CDCache::find(const GaussianCD& ab,const GaussianCD& cd)
         RVec3 PQ = ab.P-cd.P; //M&D 3.32
         RNLMcache[key]=new RNLM(ab.Ltotal+cd.Ltotal,alpha,PQ);
         i=RNLMcache.find(key);
+    }
+    RNLMlookups++;
+    return *(i->second);
+ 
+}
+
+const RNLM& CDCache::find(const GaussianCD& ab)
+{
+    id_t key=ab.GetID();
+    auto i=RNLMcache1.find(key);
+    if (i==RNLMcache1.end())
+    {
+        RNLMcache1[key]=new RNLM(ab.Ltotal,ab.ab/ab.AlphaP,ab.AB);
+        i=RNLMcache1.find(key);
     }
     RNLMlookups++;
     return *(i->second);

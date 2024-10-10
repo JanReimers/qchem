@@ -23,9 +23,6 @@ public:
     GaussianCD(const GaussianRF&,const GaussianRF&);
     ~GaussianCD();
     
-    const RNLM& GetRNLM(const RVec3& c) const; // third Center at c.
-    Vector<double>  GetRNLMs( const Polarization& pa, const Hermite1& H1) const; // third Center at c.
-    void Report(std::ostream& os) const;
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 
@@ -53,9 +50,6 @@ private:
     }
     static void MakeNMLs();
     static optr_vector1<std::vector<Polarization>* > theNMLs; //A list of all NMLs for each LMax.
-    
-    mutable size_t lookups;
-    mutable std::map<RVec3,const RNLM*> RNLMs;
 };
 
 #endif //_GaussianCD_H_
