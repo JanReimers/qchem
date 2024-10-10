@@ -34,7 +34,8 @@ protected:
 public:
 
     HeapDB();
-    virtual void  Insert(const AnalyticIE<T>*);
+    HeapDB(AnalyticIE<T>* ie);
+    virtual void  Insert(AnalyticIE<T>*);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
 #ifndef UT_COVERAGE_ONLY
@@ -84,7 +85,7 @@ private:
 
     typedef std::vector<UniqueID::IDtype>      IDList;
 
-    const AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
+    AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
  
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.

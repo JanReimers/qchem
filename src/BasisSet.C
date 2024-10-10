@@ -17,6 +17,12 @@ BasisGroup::BasisGroup()
 {
 }
 
+BasisGroup::BasisGroup(AnalyticIE<double>* ie)
+: itsDB(new HeapDB<double>())
+, itsBasisSets()
+{
+}
+
 BasisGroup::~BasisGroup() 
 {
     delete itsDB;

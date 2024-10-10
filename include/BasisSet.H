@@ -167,6 +167,8 @@ public:
     typedef std::vector<const IrrepIEClient*> iecv_t;
 
     BasisGroup();
+    BasisGroup(AnalyticIE<double>*);
+    
     virtual ~BasisGroup();
     virtual size_t GetNumFunctions() const;
     virtual size_t GetNumBasisSets() const;

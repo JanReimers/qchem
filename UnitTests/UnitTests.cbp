@@ -75,9 +75,6 @@
 			<Option compilerVar="CPP" />
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
-		<Unit filename="EigenSolverUT.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="HartreeFockTester.C">
 			<Option compilerVar="CPP" />
 		</Unit>

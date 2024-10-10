@@ -19,8 +19,13 @@
 //
 template <class T> HeapDB<T>::HeapDB()
     :itsAnalyticIE   (0)
-    
 {}
+
+template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
+    :itsAnalyticIE   (ie)   
+{
+    assert(ie);
+}
 
 
 
@@ -29,10 +34,13 @@ template <class T> void HeapDB<T>::WipeCleanAllData()
 }
 
 
-template <class T> void HeapDB<T>::Insert(const AnalyticIE<T>* ie)
+template <class T> void HeapDB<T>::Insert(AnalyticIE<T>* ie)
 {
     assert(ie);
-    itsAnalyticIE=ie;
+    if (!itsAnalyticIE) 
+        itsAnalyticIE=ie;
+    else
+        delete ie;
 }
 
 

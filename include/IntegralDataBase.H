@@ -45,7 +45,7 @@ public:
     typedef std::vector<iec_t*> iecv_t;
 
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(const AnalyticIE<T>*)=0;
+    virtual void  Insert(AnalyticIE<T>*)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
 //
