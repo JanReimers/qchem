@@ -22,8 +22,8 @@ public:
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
-//    typedef Vector<int> IVec;
-        
+
+            
     IntegralEngine() {};
     
     virtual size_t size() const {return -1;}
@@ -42,14 +42,12 @@ public:
 
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
 
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
+    virtual void Report(std::ostream&) const;
     virtual IE* Clone() const;
 
-    typedef std::tuple<int,double,double> bf_tuple;
 private:
     static const IrrepIEClient* dcast(iec_t*);
+    typedef std::tuple<int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
 

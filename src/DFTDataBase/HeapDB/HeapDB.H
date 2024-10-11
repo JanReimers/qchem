@@ -34,6 +34,7 @@ protected:
 public:
 
     HeapDB();
+    virtual ~HeapDB();
     HeapDB(AnalyticIE<T>* ie, const IEClient*);
     virtual void  Insert(AnalyticIE<T>*);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
@@ -70,6 +71,7 @@ public:
     virtual    ERI4view    GetRepulsion4C(bs_t& a,bs_t& b);
     virtual    ERI4view    GetExchange4C (bs_t& a,bs_t& b);
 
+    virtual void Report(std::ostream&) const;
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
     virtual IntegralDataBase<T>* Clone() const;

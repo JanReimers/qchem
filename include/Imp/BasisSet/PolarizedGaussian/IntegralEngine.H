@@ -40,13 +40,13 @@ public:
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
     
     virtual AnalyticIE<double>* Clone() const;
-
+    virtual void Report(std::ostream&) const;
 private:
     static const IrrepIEClient* dcast(iec_t*);
     SMat Integrate(qchem::IType2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(qchem::IType3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
-    mutable CDCache                    cache; //Cache of all Gaussian pair charge distributions.
+    mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
 } //namespace PolarizedGaussian
 

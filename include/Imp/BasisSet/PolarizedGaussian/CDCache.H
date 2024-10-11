@@ -24,16 +24,19 @@ public:
     const RNLM&       find(const GaussianCD&,const GaussianCD&);
     const RNLM&       find(const GaussianCD&);
     
-    size_t size() const {return cache.size();}
     void Report(std::ostream&) const;
 private:
+    static inline double Efficiency(size_t N, size_t Nl)
+    {
+        return 100*(1.0-N/(double)Nl);
+    } 
     typedef UniqueID::IDtype id_t;
     typedef std::pair<id_t,id_t> ids_t;
     static ids_t Sort(id_t,id_t);
     
-    size_t CDlookups;
-    std::map<ids_t,const GaussianCD*> cache;
-    size_t RNLMlookups;
+    size_t CDlookups,CDinserts;
+    std::map<ids_t,const GaussianCD*> GCDcache;
+    size_t RNLMlookups,RNLMinserts;
     std::map<id_t ,const RNLM*> RNLMcache1; // For 2 centres, or CD. 
     std::map<ids_t,const RNLM*> RNLMcache; // For 3 centres.
     

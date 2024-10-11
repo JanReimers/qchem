@@ -189,4 +189,10 @@ IntegralEngine::SMat IntegralEngine::Integrate(qchem::IType2C type ,iec_t* ieab,
     return s;
 }
 
+void IntegralEngine::Report(std::ostream& os) const
+{
+    os << "Polarized Gaussian integral engine cache:" << std::endl;
+    cache.Report(os);
+}
+
 } //namespace PolarizedGaussian

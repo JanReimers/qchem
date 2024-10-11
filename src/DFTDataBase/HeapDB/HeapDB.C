@@ -12,6 +12,7 @@
 #include <iostream>
 //#include <cassert>
 #include <algorithm> //find
+#include <iomanip>
 
 //------------------------------------------------------------------------
 //
@@ -29,10 +30,17 @@ template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie, const IEClient* iec)
     assert(istIEClient);
 }
 
+template <class T> HeapDB<T>::~HeapDB()
+{
+    Report(std::cout);
+    delete itsAnalyticIE;
+}
 
 
 template <class T> void HeapDB<T>::WipeCleanAllData()
 {
+    
+   
 }
 
 
@@ -62,7 +70,31 @@ template <class T> IntegralDataBase<T>* HeapDB<T>::Clone() const
     return new HeapDB(*this);
 }
 
+template <class K, class M> size_t size(std::map<K,M> m)
+{
+    size_t N=0;
+    for (auto i:m) 
+        N+=i.second.size();
+    return N;
+}
 
+using std::setw;
+
+template <class T> void HeapDB<T>::Report(std::ostream& os) const
+{
+    size_t N1=size(its1C)+size(its1Cx);
+    size_t N2=size(its2C)+size(its2Cx)+size(its2CNuc);
+    size_t N3=size(its3C);
+    size_t N4=itsJTable.itsData.size()+itsKTable.itsData.size();
+    
+    itsAnalyticIE->Report(os);
+    os << "Heap DB storage report:" << std::endl;
+    os << "    " << setw(10) << N1 << " 1 centre integrals." << std::endl;
+    os << "    " << setw(10) << N2 << " 2 centre integrals." << std::endl;
+    os << "    " << setw(10) << N3 << " 3 centre integrals." << std::endl;
+    os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
+    
+}
 //------------------------------------------------------------------
 //
 //  Pickle and un pickle the integral engine, all matricies, and
@@ -253,21 +285,21 @@ template <class T> void HeapDB<T>::BuildERIs()
 {
     assert(itsAnalyticIE);
     assert(istIEClient);
-    assert(itsJTable.GetSize()==0);
-    assert(itsKTable.GetSize()==0); //They should be synchronized.
+    assert(itsJTable.size()==0);
+    assert(itsKTable.size()==0); //They should be synchronized.
     itsAnalyticIE->Make4C(itsJTable,itsKTable,istIEClient);
 }
 
 template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
 {
-   if (itsJTable.GetSize()==0) BuildERIs(); 
+   if (itsJTable.size()==0) BuildERIs(); 
    return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
 }
 
 template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
 {
-   if (itsJTable.GetSize()==0) BuildERIs(); 
-   if (itsKTable.GetSize()==0)
+   if (itsJTable.size()==0) BuildERIs(); 
+   if (itsKTable.size()==0)
         return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
     else
         return ERI4view(itsKTable,a.GetStartIndex(),b.GetStartIndex());

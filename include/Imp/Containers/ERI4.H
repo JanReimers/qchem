@@ -30,7 +30,7 @@ public:
     ERI4(int n,double _fill);
     void Empty(); //Clear out all data.
     void SetSize(int n, double _fill=0.0);
-    int GetSize() const {return itsN;}
+    int size() const {return itsN;}
 
     virtual ~ERI4();
 

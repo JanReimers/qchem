@@ -1,6 +1,6 @@
 Priority 1:
-    -Cache reports
-    -Experiment with Latex markup for doxygen.  
+    Done: -Cache reports
+    Done: -Experiment with Latex markup for doxygen.  Works great!
     -DumpScalarData keeps showing up everywhere, do we need it?
     =IE::MakeInverse should take LAParams as argument.
     -Fix valgrind errors

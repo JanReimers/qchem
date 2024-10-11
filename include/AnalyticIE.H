@@ -24,9 +24,9 @@ class IrrepIEClient;
 template <class T> class AnalyticIE
 {
 public:
-    typedef Matrix<T>      Mat;
-    typedef SMatrix<T>     SMat;
-    typedef Vector<T>      Vec;
+    typedef Matrix <T>      Mat;
+    typedef SMatrix<T>      SMat;
+    typedef Vector <T>      Vec;
     typedef Vector <double> RVec;
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
@@ -64,6 +64,7 @@ public:
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
+    virtual void Report(std::ostream&) const=0;
     virtual AnalyticIE* Clone  (         ) const=0;
     static  AnalyticIE* Factory(std::istream&);
 };

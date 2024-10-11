@@ -219,15 +219,11 @@ IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
     return c;
 }
 
-std::ostream& IntegralEngine::Write(std::ostream& os) const
+void IntegralEngine::Report(std::ostream& os) const
 {
-    return os ;
+    os << "Spherical Gaussian integral engine cache:" << std::endl;
+    os << "    No cache." << std::endl;
 }
-std::istream& IntegralEngine::Read (std::istream& is)
-{
-    return is ;
-}
-
 
 
 } //namespace
