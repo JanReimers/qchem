@@ -55,12 +55,6 @@ GetInverseOverlap() const
            : CastBasisSet()->GetInverseOverlap();
 }
 
-//template <class T> void FittedFunctionImplementation<T>::SetFitCoeff(const Vec& fc)
-//{
-//    assert(!isnan(fc));
-//    itsFitCoeff=fc;
-//}
-
 //--------------------------------------------------------------------------
 //
 //  Implement all DoFit functions.  The overlaps will be accumulated in
@@ -161,13 +155,6 @@ template <class T> void FittedFunctionImplementation<T>::FitMixIn(const FittedFu
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
     itsFitCoeff = itsFitCoeff*(1-c) + ffi->itsFitCoeff*c;
 }
-
-template <class T> void FittedFunctionImplementation<T>::
-Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf)
-{
-    itsFitCoeff+=fitbs->GetOverlap(itsMesh,sf);
-}
-
 
 template <class T> double FittedFunctionImplementation<T>::FitGetChangeFrom(const FittedFunction& ff) const
 {

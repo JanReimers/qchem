@@ -137,11 +137,6 @@ template <class T> void FittedCDImplementation<T>::MixIn(const ChargeDensity& cd
     FitMixIn(*fcd,c);
 }
 
-template <class T> void FittedCDImplementation<T>::Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf)
-{
-    FittedFunctionImplementation<T>::Add(fitbs,sf);
-}
-
 template <class T> double FittedCDImplementation<T>::GetChangeFrom(const ChargeDensity& cd) const
 {
     const FittedCDImplementation<T>* fcd = dynamic_cast<const FittedCDImplementation<T>*>(&cd);

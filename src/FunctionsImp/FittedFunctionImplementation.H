@@ -31,7 +31,6 @@ public:
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   ShiftOrigin     (const RVec3& newCenter      )      ;
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
-    virtual void   Add             (const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf);
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
     virtual double operator()(const RVec3&) const;
@@ -39,12 +38,6 @@ public:
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
-
-    Vec&    GetFitCoeff()
-    {
-        return itsFitCoeff;
-    }
-    const Mesh* GetMesh() const {return itsMesh;}
 
 protected:
     virtual double DoFitInternal(const FittedFunctionClient&,double constraint=0);
