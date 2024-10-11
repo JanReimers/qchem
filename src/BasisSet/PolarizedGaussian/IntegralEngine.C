@@ -136,50 +136,6 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 //
 //  4 centre integrals.
 //
-IntegralEngine::PGparams::PGparams(const iecv_t& iecs)
-{
-    size_t N=0;
-    for (auto iec:iecs) N+=iec->size();
-    ns.SetLimits(N);
-    for (auto iec:iecs)
-    {
-        int j=1;
-        auto pg=dcast(iec);
-        for (size_t i=0;i<pg->size();i++)
-        {
-            radials.push_back(pg->radials[i]);
-            pols.push_back(pg->pols[i]);
-            ns(j)=pg->ns(i+1);
-            j++;
-        }
-    }
-}
-
-
-
-void IntegralEngine::Make4C(ERI4& J, ERI4& K,const iecv_t& iecv) const
-{
-    PGparams abcd(iecv);
-    
-    int N=abcd.size();
-    J.SetSize(N,-1);
-    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
-
-    for (index_t ia:abcd.ns.indices())
-        for (index_t ib:abcd.ns.indices(ia))
-            for (index_t ic:abcd.ns.indices())
-                for (index_t id:abcd.ns.indices(ic))
-                {
-                    if (J(ia,ib,ic,id)==-1.0)
-                    {
-                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=abcd.ns(ia)*abcd.ns(ib)*abcd.ns(ic)*abcd.ns(id);
-                        assert(abcd.radials[id-1]);
-                        J(ia,ib,ic,id)=norm * abcd.radials[id-1]->Integrate(abcd.radials[ia-1],abcd.radials[ib-1],abcd.radials[ic-1],abcd.pols[ia-1],abcd.pols[ib-1],abcd.pols[ic-1],abcd.pols[id-1],cache);
-                    }
-                }
-}
-
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* pg=dynamic_cast<const IEClient*>(iec);

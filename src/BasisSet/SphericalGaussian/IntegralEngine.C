@@ -128,63 +128,6 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
     return s3;
 }
 
-
-IntegralEngine::SGparams::SGparams(const iecv_t& iev)
-{
-    size_t N=0;
-    for (auto ia: iev) N+=ia->size();
-    Ls.SetLimits(N);
-    es.SetLimits(N);
-    ns.SetLimits(N);
-    index_t i=1;
-    for (auto ia: iev)
-    {
-        auto sg=dcast(ia);
-        assert(sg);
-        for (auto i1:sg->es.indices())
-        {
-            Ls(i)=sg->Ls(i1);
-            es(i)=sg->es(i1);
-            ns(i)=sg->ns(i1);
-            i++;
-        }
-    }
-}
-
-
-void IntegralEngine::Make4C(ERI4& J, ERI4& K,const iecv_t& iev) const
-{
-    IntegralEngine::SGparams sg(iev);
-    size_t N=sg.size();
-    J.SetSize(N,-1.0);
-    K.SetSize(N,-1.0);
-    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
-
-    for (index_t ia:sg.es.indices())
-        for (index_t ib:sg.es.indices(ia))
-            for (index_t ic:sg.es.indices())
-                for (index_t id:sg.es.indices(ic))
-                {
-                    bool doJ = sg.Ls(ia)==sg.Ls(ib) && sg.Ls(ic)==sg.Ls(id) && J(ia,ib,ic,id)==-1.0;
-                    bool doK = sg.Ls(ia)==sg.Ls(ic) && sg.Ls(ib)==sg.Ls(id) && K(ia,ib,ic,id)==-1.0;
-                    if (doJ || doK)
-                    {
-                        double norm=sg.ns(ia)*sg.ns(ib)*sg.ns(ic)*sg.ns(id);
-                        SlaterIntegrals R(sg.es(ia)+sg.es(ib),sg.es(ic)+sg.es(id));
-                        if (doJ)
-                            J(ia,ib,ic,id)=FourPi2*R(0,sg.Ls(ia),sg.Ls(ib),sg.Ls(ic),sg.Ls(id))*norm;
-                        if (doK)
-                            K(ia,ib,ic,id)=FourPi2*R.DoExchangeSum(sg.Ls(ia),sg.Ls(ib),sg.Ls(ic),sg.Ls(id))*norm;
-                        else
-                            K(ia,ib,ic,id)=0.0;
-//                        std::cout << "L=(" << sg.Ls(ia) << "," << sg.Ls(ib) << "," << sg.Ls(ic) << "," << sg.Ls(id) 
-//                        << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J=" << J(ia,ib,ic,id) << std::endl;
-                                
-                     }
-                }
-    
-}
-
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);

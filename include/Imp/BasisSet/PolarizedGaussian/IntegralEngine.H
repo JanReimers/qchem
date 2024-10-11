@@ -17,16 +17,12 @@ class IntegralEngine
     : public virtual AnalyticIE<double>
 {
 public:
-    typedef AnalyticIE<double> IE;
     typedef ScalarFunction <double> SF;
-    typedef IE::Mat Mat;
-    typedef IE::SMat SMat;
-    typedef IE::RVec RVec;
-    typedef IE::iecv_t iecv_t;
+    typedef AnalyticIE<double>::Mat Mat;
+    typedef AnalyticIE<double>::SMat SMat;
+    typedef AnalyticIE<double>::RVec RVec;
     typedef const ::IrrepIEClient iec_t;
 
-    typedef std::vector<const Block*> blocks_t;
-    
     IntegralEngine() {};
     virtual ~IntegralEngine() {};
     
@@ -50,10 +46,9 @@ public:
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual void Make4C(ERI4& J, ERI4& K, const iecv_t&) const; //Used for Hartree-Fock
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
     
-    virtual IE* Clone() const;
+    virtual AnalyticIE<double>* Clone() const;
 
 private:
     static const IrrepIEClient* dcast(iec_t*);

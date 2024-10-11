@@ -95,7 +95,7 @@ IrrepBasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Re
         i++;
     }
     
-    IntegralEngine::blocks_t bls;
+    std::vector<const Block*> bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
     IrrepIEClient::Init(bls);
     TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());    

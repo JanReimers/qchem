@@ -22,19 +22,7 @@ public:
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
-    typedef IE::iecv_t iecv_t;
-    typedef Vector<int> IVec;
-    
-    struct SGparams
-    {
-        SGparams(const iecv_t&);
-        size_t size() const {return Ls.size();}
-        IVec Ls;  //Angular momentum.
-        RVec es; //The orbital exponents.
-        RVec ns; //Normalization constants
-    };
-
-    
+//    typedef Vector<int> IVec;
         
     IntegralEngine() {};
     
@@ -52,7 +40,6 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
 
-    virtual void Make4C(ERI4& J, ERI4& K, const iecv_t&) const; //Used for Hartree-Fock
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
 
     virtual std::ostream& Write(std::ostream&) const;
