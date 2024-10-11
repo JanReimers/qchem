@@ -10,6 +10,7 @@
 #include "oml/vector.h"
 
 template <class T> class TIrrepBasisSetCommon;
+template <class T> class FittedCDImplementation;
 
 //--------------------------------------------------------------------------
 //
@@ -61,6 +62,8 @@ protected:
 
 private:
     friend class TIrrepBasisSetCommon<T>;
+    friend class FittedCDImplementation<T>;
+    friend class FittedVxc;
     const TIrrepBasisSet<T>* CastBasisSet() const
     {
         return dynamic_cast<TIrrepBasisSet<T>*>(itsBasisSet.get());

@@ -65,7 +65,8 @@ public:
     typedef Vector <double> RVec;
     typedef SMatrix<double> SMat;
     typedef  Matrix<double>  Mat;
-
+    typedef std::vector<SMat> ERI3;
+    
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual int                  GetStartIndex   (               ) const=0;
     virtual size_t               GetNumFunctions (               ) const=0;
@@ -86,14 +87,14 @@ public:
     virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const=0;
     virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
     virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-///
+    virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const=0;
+    virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const=0;
+//
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     virtual SMat GetOverlap  (                     ) const=0;
     virtual SMat GetKinetic  (                     ) const=0;
     virtual SMat GetNuclear  (const Cluster*       ) const=0;
-    virtual SMat GetOverlap  (const FittedFunction*) const=0;
-    virtual SMat GetRepulsion(const FittedFunction*) const=0;
      
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
@@ -129,7 +130,6 @@ public:
     typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
     typedef std::vector<SMat> ERI3;
     size_t GetVectorSize() const {return GetNumFunctions();}
-    virtual SMat GetRepulsion(const FittedFunction*) const=0; //unhide
     virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0; //unhide
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;

@@ -51,8 +51,17 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 
 HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
-
-    SMat Kab=bs->GetOverlap(this);
+    const FittedFunctionImplementation<double>* ffi=dynamic_cast<const FittedFunctionImplementation<double>*>(this);
+    assert(ffi);
+    const std::vector<SMat>& overlap=bs->GetOverlap3C(ffi->itsBasisSet.get());
+    int n=bs->GetNumFunctions();
+    SMat Kab(n,n);
+    Fill(Kab,0.0);
+    size_t i=0;
+    for (auto c:ffi->itsFitCoeff) Kab+=SMat(c*overlap[i++]);
+    assert(!isnan(Kab));
+    
+    //SMat Kab=bs->GetOverlap(this);
 //    std::cout.precision(4);
 //    std::cout.width(7);
 //    std::cout.setf(std::ios::fixed,std::ios::floatfield);

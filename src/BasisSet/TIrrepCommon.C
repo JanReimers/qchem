@@ -11,8 +11,6 @@
 
 #include "Imp/Containers/ERI4.H"
 #include "OrbitalImplementation/TOrbitalGroupImplementation.H"
-#include "FunctionsImp/FittedFunctionImplementation.H"
-#include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
 #include <cassert>
 #include <iostream>
 
@@ -115,42 +113,6 @@ template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetNuclear(const Cluster* cl) const
 {
     return itsDataBase->GetNuclear(this,*cl);
-}
-
-template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetOverlap  (const FittedFunction* ff) const
-{
-    int n=this->GetNumFunctions();
-    SMat J(n,n);
-    Fill(J,0.0);
-    const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    assert(!isnan(ffi->itsFitCoeff));
-    const ERI3& overlap=GetDataBase()->GetOverlap3C(this,ffi->CastBasisSet());
-    typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
-    for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++)
-    {
-        assert(!isnan(overlap[i]));
-        SMat fo=(*f) * overlap[i];
-        J+=fo;
-    }
-    assert(!isnan(J));
-    return J;
-}
-
-template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetRepulsion(const FittedFunction* ff) const
-{
-    int n=this->GetNumFunctions();
-    SMat J(n,n);
-    Fill(J,0.0);
-    const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ffi->CastBasisSet());
-    typename Vector<T>::const_iterator f(ffi->itsFitCoeff.begin());
-    for(index_t i=0; f!=ffi->itsFitCoeff.end(); f++,i++) J+=SMat((*f) * repulsion[i]);
-    assert(!isnan(J));
-    return J;
 }
 
  template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
@@ -260,6 +222,18 @@ GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,repulsion[i-1]);
     return ret;
+}
+
+template <class T> const typename TIrrepBasisSetCommon<T>::ERI3& TIrrepBasisSetCommon<T>::
+GetOverlap3C(const IrrepBasisSet* ff) const
+{
+    return GetDataBase()->GetOverlap3C(this,ff);
+}
+
+template <class T> const typename TIrrepBasisSetCommon<T>::ERI3& TIrrepBasisSetCommon<T>::
+GetRepulsion3C(const IrrepBasisSet* ff) const
+{
+    return GetDataBase()->GetRepulsion3C(this,ff);
 }
 
 //-----------------------------------------------------------------------------

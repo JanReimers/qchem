@@ -55,14 +55,14 @@ public:
     virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const;
     virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
     virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
+    virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const;
+    virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const;
 //
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     virtual SMat GetOverlap         () const;
     virtual SMat GetKinetic  (                     ) const;
     virtual SMat GetNuclear  (const Cluster*       ) const;
-    virtual SMat GetOverlap  (const FittedFunction*) const;
-    virtual SMat GetRepulsion(const FittedFunction*) const;
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
 
