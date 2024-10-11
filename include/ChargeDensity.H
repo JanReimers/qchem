@@ -68,7 +68,6 @@ public:
     virtual double GetTotalCharge      (                     ) const;  // <ro>
     virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
 
-    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
 
     virtual bool   IsPolarized  (                           ) const;
@@ -132,11 +131,9 @@ public:
     virtual void   ShiftOrigin     (const RVec3&       );  //Usefull for single atom charge densities.
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
-    //virtual void   Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf);
 
-    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
-    virtual const ScalarFunction<double>* Get() const {return this;};
+    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;};
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;

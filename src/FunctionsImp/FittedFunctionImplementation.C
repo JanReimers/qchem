@@ -75,8 +75,7 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(const FittedFun
     if (itsCDFitFlag)
         ffc.InjectRepulsions(this,&*itsBasisSet); //itsFitCoeff gets repulsion vector.
     else
-        itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.Get());
-//        ffc.InjectOverlaps  (this,&*itsBasisSet); //itsFitCoeff gets overlap vector.
+        itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
 //	cout << "DoFit " <<  typeid(*this).name() << " " << typeid(ffc).name() << " " << itsFitCoeff << std::endl;
     return DoFit(0,itsFitCoeff);
 }
@@ -87,8 +86,7 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(double constrai
     if (itsCDFitFlag)
         ffc.InjectRepulsions(this,&*itsBasisSet); //itsFitCoeff gets repulsion vector.
     else
-        itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.Get());
-//        ffc.InjectOverlaps  (this,&*itsBasisSet); //itsFitCoeff gets overlap vector.
+        itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
 //	cout << "DoFit constrained" << constraint << " " << itsFitCoeff << std::endl;
     return DoFit(constraint,itsFitCoeff);
 }

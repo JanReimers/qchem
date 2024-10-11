@@ -23,8 +23,6 @@ public:
     virtual void   ShiftOrigin     (const RVec3& newCenter      )      =0;
     virtual void   FitMixIn        (const FittedFunction&,double)      =0; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const=0;
-//    virtual void   Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf)=0;
-
 };
 
 #endif //_FittedFunction_H_

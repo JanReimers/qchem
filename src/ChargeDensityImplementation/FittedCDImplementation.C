@@ -121,14 +121,6 @@ template <class T> double FittedCDImplementation<T>::GetTotalCharge() const
 //  Required by fitting routines.
 //
 template <class T> void FittedCDImplementation<T>::
-InjectOverlaps  (FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
-{
-    FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    ffi->GetFitCoeff()+=FitGet2CenterOverlap(theFitBasisSet);
-}
-
-template <class T> void FittedCDImplementation<T>::
 InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
     FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);

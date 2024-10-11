@@ -37,9 +37,8 @@ public:
     virtual double GetEnergy     (const HamiltonianTerm*) const;
     virtual double GetTotalCharge(                ) const;
 
-    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
-    virtual const ScalarFunction<double>* Get() const {return this;}
+    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 
     virtual void   ReScale      (double factor              )      ;
     virtual void   ShiftOrigin  (const RVec3&               )      ;

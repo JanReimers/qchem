@@ -72,12 +72,6 @@ double CompositeCD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-void CompositeCD::InjectOverlaps(FittedFunction* ff, const IrrepBasisSet* fbs) const
-{
-    // No UT coverage
-    for (auto c:itsCDs) c->InjectOverlaps(ff,fbs);
-}
-
 void CompositeCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
     for (auto c:itsCDs) c->InjectRepulsions(ff,fbs);

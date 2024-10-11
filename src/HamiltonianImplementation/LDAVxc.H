@@ -24,10 +24,9 @@ public:
     virtual void UseChargeDensity(const ChargeDensity* exact);
     virtual void GetEnergy       (TotalEnergy&               ) const;
     // Required by FittablePotential.
-    virtual void   InjectOverlaps    (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual void   InjectRepulsions  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual double FitGetConstraint(                                               ) const;
-    virtual ScalarFunction<double>* Get() const {return itsExchangeFunctional.get();}
+    virtual ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
     
     virtual std::ostream&           Write(std::ostream&) const;
     virtual std::istream&           Read (std::istream&)      ;

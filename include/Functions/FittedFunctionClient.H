@@ -16,9 +16,8 @@ class FittedFunctionClient
 {
 public:
     virtual double FitGetConstraint() const=0;
-    virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const=0;
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const=0;
-    virtual const ScalarFunction<double>* Get() const=0;
+    virtual const ScalarFunction<double>* GetScalarFunction() const=0;
 
 };
 
