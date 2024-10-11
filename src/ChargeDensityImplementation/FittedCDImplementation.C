@@ -120,14 +120,6 @@ template <class T> double FittedCDImplementation<T>::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-template <class T> void FittedCDImplementation<T>::
-InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
-{
-    FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    ffi->GetFitCoeff()+=FitGet2CenterRepulsion(theFitBasisSet);
-}
-
 template <class T> Vector<double> FittedCDImplementation<T>::
 GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
 {

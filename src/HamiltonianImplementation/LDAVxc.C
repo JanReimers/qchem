@@ -45,13 +45,6 @@ void LDAVxc::GetEnergy(TotalEnergy&) const
     exit(-1);
 }
 
-void LDAVxc::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
-{
-    FittedFunctionImplementation<double>* ffi=dynamic_cast<FittedFunctionImplementation<double>*>(ff);
-    assert(ffi);
-    ffi->GetFitCoeff()+=theFitBasisSet->GetRepulsion(ffi->GetMesh(),itsExchangeFunctional.get());;
-}
-
 Vector<double> LDAVxc::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
 {
     assert(false);

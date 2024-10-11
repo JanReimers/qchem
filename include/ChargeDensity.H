@@ -68,7 +68,6 @@ public:
     virtual double GetTotalCharge      (                     ) const;  // <ro>
     virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
 
-    virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual bool   IsPolarized  (                           ) const;
@@ -133,7 +132,6 @@ public:
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
-    virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
     virtual const ScalarFunction<double>* GetScalarFunction() const {return this;};
 

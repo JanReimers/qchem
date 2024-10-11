@@ -75,25 +75,6 @@ double PolarizedCD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-void PolarizedCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
-{
-    FittedPolarizedCD* fpcd=dynamic_cast<FittedPolarizedCD*>(ff);
-    if (fpcd)
-    {
-        FittedCD* up  =dynamic_cast<FittedCD*>(fpcd->GetChargeDensity(Spin::Up  ));
-        assert(up);
-        FittedCD* down=dynamic_cast<FittedCD*>(fpcd->GetChargeDensity(Spin::Down));
-        assert(down);
-        GetChargeDensity(Spin::Up  )->InjectRepulsions(up  ,theFitBasisSet);
-        GetChargeDensity(Spin::Down)->InjectRepulsions(down,theFitBasisSet);
-    }
-    else
-    {
-        GetChargeDensity(Spin::Up  )->InjectRepulsions(ff,theFitBasisSet);
-        GetChargeDensity(Spin::Down)->InjectRepulsions(ff,theFitBasisSet);
-    }
-}
-
 Vector<double> PolarizedCD::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
 {
     return GetChargeDensity(Spin::Up  )->GetRepulsions(theFitBasisSet)
@@ -280,25 +261,6 @@ double FittedPolarizedCD::DoFit(const FittedFunctionClient& ffc)
     lam_bar += itsSpinUpCD  ->DoFit(*polcd->GetChargeDensity(Spin::Up  ));
     lam_bar += itsSpinDownCD->DoFit(*polcd->GetChargeDensity(Spin::Down));
     return lam_bar/2.0;
-}
-
-void FittedPolarizedCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
-{
-    FittedPolarizedCD* fpcd=dynamic_cast<FittedPolarizedCD*>(ff);
-    if (fpcd)
-    {
-        FittedCD* up  =dynamic_cast<FittedCD*>(fpcd->GetChargeDensity(Spin::Up  ));
-        assert(up);
-        FittedCD* down=dynamic_cast<FittedCD*>(fpcd->GetChargeDensity(Spin::Down));
-        assert(down);
-        GetChargeDensity(Spin::Up  )->InjectRepulsions(up  ,theFitBasisSet);
-        GetChargeDensity(Spin::Down)->InjectRepulsions(down,theFitBasisSet);
-    }
-    else
-    {
-        GetChargeDensity(Spin::Up  )->InjectRepulsions(ff,theFitBasisSet);
-        GetChargeDensity(Spin::Down)->InjectRepulsions(ff,theFitBasisSet);
-    }
 }
 
 Vector<double> FittedPolarizedCD::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const

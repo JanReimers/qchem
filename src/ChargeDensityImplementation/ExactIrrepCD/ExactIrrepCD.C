@@ -138,16 +138,6 @@ template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-
-template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const
-{
-    RVec delta_ff=itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
-
-    FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    ffi->GetFitCoeff()+=delta_ff;
-}
-
 template <class T> Vector<double> ExactIrrepCD<T>::GetRepulsions(const IrrepBasisSet* fbs) const
 {
     return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
