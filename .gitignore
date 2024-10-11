@@ -20,3 +20,5 @@ UnitTests/gmon.out
 doc/html/
 
 doc/latex/
+
+*.lyx~

@@ -1,6 +1,7 @@
 #include "AnalyticIE.H"
 #include "LASolver/LASolver.H"
 #include "SCFIterator/IterationParams.H"
+#include "oml/smatrix.h"
 
 template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
     MakeInverse(const RSMat& S) 

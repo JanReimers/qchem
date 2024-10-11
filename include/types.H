@@ -41,7 +41,6 @@ class FittedFunction;
 class FittedFunctionClient;
 class Hamiltonian;
 class HamiltonianTerm;
-class IrrepIEClient;
 class Mesh;
 class Orbital;
 class OrbitalGroup;

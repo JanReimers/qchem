@@ -5,35 +5,22 @@
 
 #include "types.H"
 #include <vector>
-#include "Imp/Containers/ERI4.H"
+#include <iosfwd>
 
 class IEClient;
+class IrrepIEClient;
 //--------------------------------------------------------------------------------
 //
-//  This class is responsible for calculating all integrals over basis functions.
-//  The method of integral evaluation is of course strongly dependant on the
-//  precise details of basis function or basis set.  Hence for each concrete type
-//  of basis function there is a corresponding basis set and integral engine.
-//  These classes are nessecarily tightly coupled.
-//
-//  Integrals supprted are:
-//
-//  Overlap                            <i|j>
-//  Overlap  (BasisSet      &     b)   <i|bj>
-//  Overlap  (ScalarFunction&     f)   <i|f>   *** f is NOT normalized ***
-//  Overlap3C(BasisSet&           b)   <ij|b>  for all basis functions b, returns an optr_vector1<SMatrix>.
-//
-//  Repulsion                            <i(1)|1/r12|j(2)>
-//  Repulsion  (BasisSet      &     b)   <i(1)|1/r12|bj(2)>
-//  Repulsion  (ScalarFunction&     f)   <i(1)|1/r12|f(2)>      *** f is NOT normalized ***
-//  Repulsion3C(BasisSet&           b)   <i(1)j(1)|1/r12|b(2)>  for all basis functions b, returns an optr_vector1<SMatrix>.
-//  Repulsion4C(                     )   <i(1)j(1)|1/r12|k(2)l(2)>  for all internal basis functions.
-//  Normalization        1/sqrt(<i|i>)
-//  Charge               <i|1>
-//
-//  Kinetic              <i|-1/2grad^2|j>
-//  Nuclear(Cluster& cl) sum over atoms c {<i|1/(r-Rc)|j>}
-//
+//!  \brief This class is abstract interface used for calculating integrals over the basis functions.
+//!
+//!  The method of integral evaluation is of course strongly dependant on the
+//!  precise details of basis function or basis set.  Hence for each concrete type
+//!  of basis function there is a corresponding basis set and integral engine.
+//!  The integral engine does not see the basis function/set objects directly. Instead it
+//!  works with IrrepIEClient and IEClient interfaces which simply supply list of
+//!  exponents, polarizations and normalization constants for the particular basis set.
+//!  All functions except MakeNormalization return normalized integrals.
+//!
 template <class T> class AnalyticIE
 {
 public:
@@ -44,25 +31,37 @@ public:
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
     typedef const IrrepIEClient iec_t;
-    typedef std::vector<iec_t*> iecv_t;
 
 
     virtual ~AnalyticIE()  {};
-    
-    virtual RVec MakeNormalization(iec_t* a) const=0;
-    virtual RVec MakeCharge       (iec_t* a) const=0;
-    
-    virtual  SMat MakeOverlap  (iec_t* a        ) const=0;
-    virtual  SMat MakeKinetic  (iec_t* a        ) const=0;
-    virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const=0;
-    virtual  SMat MakeRepulsion(iec_t* a         ) const=0; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const=0; //Used for charge and Vxc fitting.
+    //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
+    virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
+    //! Total charge \f$ \left\langle a\left|\right|1\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right) \f$
+    virtual RVec MakeCharge       (const IrrepIEClient* a) const=0;
+    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+    virtual  SMat MakeOverlap  (const IrrepIEClient* g) const=0;
+    //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    virtual  SMat MakeKinetic  (const IrrepIEClient* g) const=0;
+    //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
+    virtual  SMat MakeNuclear  (const IrrepIEClient* g,const Cluster&   ) const=0;
+    //! Single basis set repulsion \f$ \left\langle a\left(\vec{r}_{1}\right)\left|\frac{1}{r_{12}}\right|b\left(\vec{r}_{2}\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{b}\left(\vec{r}_{2}\right)\f$
+    virtual  SMat MakeRepulsion(const IrrepIEClient* g) const=0; //Used for charge and Vxc fitting.
+    //! Cross basis set repulsion \f$ \left\langle a\left(\vec{r}_{1}\right)\left|\frac{1}{r_{12}}\right|b\left(\vec{r}_{2}\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{b}\left(\vec{r}_{2}\right) \f$
+    virtual   Mat MakeRepulsion(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for charge and Vxc fitting.
 
-
-    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const=0; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const=0; //Used for DFT
+    //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$
+    virtual ERI3 MakeOverlap3C  (const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
+    //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
+    virtual ERI3 MakeRepulsion3C(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
+    //! \brief 4 center Coulomb and exchange used for Hartree-Fock.
+    //! \f$ J_{ab,cd}=\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)d\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{d}\left(\vec{r}_{2}\right) \f$.
+    //! \f$ K_{ab,cd}=\left\langle a\left(1\right)d\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)b\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{d}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{b}\left(\vec{r}_{2}\right) \f$. \n
+    //! These integrals are not block diagonal for each irreducible representation. Therefore they
+    //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
     virtual void Make4C(ERI4& J, ERI4& K, const IEClient*) const=0; //Used for Hartree-Fock
-
+    
+    //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
+    //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 
     virtual AnalyticIE* Clone  (         ) const=0;

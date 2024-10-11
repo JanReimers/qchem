@@ -26,15 +26,6 @@ public:
     IntegralEngine() {};
     virtual ~IntegralEngine() {};
     
-     struct PGparams
-    {
-        PGparams(const iecv_t&);
-        size_t size() const {return ns.size();}
-        std::vector<const RadialFunction*> radials; // Flattened radials
-        std::vector<Polarization>          pols;    // Flattened polarizations
-        Vector<double>                     ns;      //Norm constants
-    };
-
     virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
     
