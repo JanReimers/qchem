@@ -82,6 +82,8 @@ public:
     virtual SMat GetInverseOverlap  () const=0;
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const=0;
     virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
+    virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const=0;
+    virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const=0;
     virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
     virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
 ///
@@ -92,14 +94,7 @@ public:
     virtual SMat GetNuclear  (const Cluster*       ) const=0;
     virtual SMat GetOverlap  (const FittedFunction*) const=0;
     virtual SMat GetRepulsion(const FittedFunction*) const=0;
- 
-
-//  Load overlap (or repulsion) of this basis set with a scalar
-//  funciton into a fitted function.
-//
-    virtual void SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>&) const=0;
-    virtual void SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>&) const=0;
-    
+     
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
     virtual       iterator begin()      =0;

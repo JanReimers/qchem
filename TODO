@@ -1,18 +1,8 @@
 Priority 1:
-    Done: -BasisSet is not an interface.
-    -BasisSet needs a dynamic cast iterator.
-    Done: -and BasisGroup should really be BasisSet.
-    Done: -Get BasisSet out of BasisSet.
-    Done: -DB GetRepulsion4C(bs_t ab,bs_t cd) return a view
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
         -Broke BasisSet persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
    -Cache reports
-    Done: -Stop caching RNLM inside GaussianCD
-    Done: -CDCache into its own source files.
-
-    Done: -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
-    Done: -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
 
 
     -Invert dependency BasisSet--->Fitted function
@@ -88,6 +78,16 @@ Priority 3:
     -Set up a CMake build.  Run from vscode.
     
 --------------------------------------------------------------------------------------
+    Done: -BasisSet is not an interface.
+    Boring: -BasisSet needs a dynamic cast iterator.
+    Done: -and BasisGroup should really be BasisSet.
+    Done: -Get BasisSet out of BasisSet.
+    Done: -DB GetRepulsion4C(bs_t ab,bs_t cd) return a view
+    Done: -Stop caching RNLM inside GaussianCD
+    Done: -CDCache into its own source files.
+
+    Done: -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
+    Done: -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
 
     Done: -Client code should provide a Mesh* when requesting integrals form the DB.
     Done: -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.

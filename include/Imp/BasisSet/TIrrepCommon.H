@@ -51,6 +51,8 @@ public:
     virtual SMat GetInverseOverlap  () const;
     virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const;
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
+    virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const;
+    virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const;
     virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
     virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
 //
@@ -63,12 +65,6 @@ public:
     virtual SMat GetRepulsion(const FittedFunction*) const;
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
-//  Load overlap (or repulsion) of this basis set with a scalar
-//  funciton into a fitted function.
-//
-    virtual void SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>&) const;
-    virtual void SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>&) const;
-
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;

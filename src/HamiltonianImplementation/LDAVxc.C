@@ -3,6 +3,7 @@
 
 
 #include "HamiltonianImplementation/LDAVxc.H"
+#include "FunctionsImp/FittedFunctionImplementation.H"
 #include "BasisSet.H"
 #include "oml/smatrix.h"
 #include <iostream>
@@ -46,16 +47,16 @@ void LDAVxc::GetEnergy(TotalEnergy&) const
 
 void LDAVxc::InjectOverlaps(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
-    const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(theFitBasisSet);
-    assert(tbs);
-    tbs->SetFitOverlap(ff,*itsExchangeFunctional);
+    FittedFunctionImplementation<double>* ffi=dynamic_cast<FittedFunctionImplementation<double>*>(ff);
+    assert(ffi);
+    ffi->GetFitCoeff()+=theFitBasisSet->GetOverlap(ffi->GetMesh(),itsExchangeFunctional.get());
 }
 
 void LDAVxc::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
 {
-    const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(theFitBasisSet);
-    assert(tbs);
-    tbs->SetFitRepulsion(ff,*itsExchangeFunctional);
+    FittedFunctionImplementation<double>* ffi=dynamic_cast<FittedFunctionImplementation<double>*>(ff);
+    assert(ffi);
+    ffi->GetFitCoeff()+=theFitBasisSet->GetRepulsion(ffi->GetMesh(),itsExchangeFunctional.get());;
 }
 
 double LDAVxc::FitGetConstraint() const

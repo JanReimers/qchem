@@ -169,6 +169,17 @@ GetRepulsion(const FittedFunction* ff) const
     return GetDataBase()->GetOverlap(m,*this,*tff);
  }
 
+ template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+ GetOverlap(const Mesh* m,const ScalarFunction<double>* sf) const
+ {
+    return GetDataBase()->GetOverlap(m,*this,*sf);
+ }
+ template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+ GetRepulsion(const Mesh* m,const ScalarFunction<double>* sf) const
+ {
+    return GetDataBase()->GetRepulsion(m,*this,*sf);
+ }
+ 
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
@@ -250,39 +261,6 @@ GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
         ret(i)=Dot(Dcd,repulsion[i-1]);
     return ret;
 }
-
-
-
-//
-//  Load overlap (or repulsion) of this basis set with a scalar
-//  funciton into a fitted function.
-//
-template <class T> void TIrrepBasisSetCommon<T>::
-SetFitOverlap  (FittedFunction* ff,const ScalarFunction<double>& sf) const
-{
-    assert(ff);
-    FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
-    assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetOverlap(ffi->GetMesh(),*this,sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetOverlap(ffi->GetMesh(),*this,sf);
-}
-
-
-template <class T> void TIrrepBasisSetCommon<T>::
-SetFitRepulsion(FittedFunction* ff,const ScalarFunction<double>& sf) const
-{
-    assert(ff);
-    FittedFunctionImplementation<T>* ffi=dynamic_cast<FittedFunctionImplementation<T>*>(ff);
-    assert(ffi);
-    assert(&*ffi->itsBasisSet==static_cast<const IrrepBasisSet*>(this));
-    assert(!isnan(ffi->GetFitCoeff()));
-    assert(!isnan(GetDataBase()->GetRepulsion(ffi->GetMesh(),*this,sf)));
-    ffi->GetFitCoeff()+=GetDataBase()->GetRepulsion(ffi->GetMesh(),*this,sf);
-}
-
-
 
 //-----------------------------------------------------------------------------
 //
