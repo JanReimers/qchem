@@ -14,7 +14,7 @@
 //
 class LDAVxc
     : public virtual FittablePotential
-    , public virtual FittedFunctionClient
+    , public virtual ScalarFFClient
     , private        HamiltonianTermImplementation
 {
 public:

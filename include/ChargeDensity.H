@@ -23,7 +23,7 @@
 class ChargeDensity
     : public virtual PMStreamableObject
     , public virtual PlottableScalarFunction
-    , public virtual FittedFunctionClient
+    , public virtual DensityFFClient
 {
 public:
     typedef SMatrix<double> SMat;
@@ -126,7 +126,8 @@ public:
     virtual double GetSelfRepulsion    (                     ) const;  // 1/2 <ro(1) | 1/r12 | ro(2)>
     virtual double GetRepulsion        (const FittedFunction*) const;  // 1/2 <ro(1) | 1/r12 | ff(2)>
 
-    virtual double DoFit           (const FittedFunctionClient&);
+    virtual double DoFit           (const ScalarFFClient&);
+    virtual double DoFit           (const DensityFFClient&);
     virtual void   ReScale         (double factor      );  //Ro *= factor
     virtual void   ShiftOrigin     (const RVec3&       );  //Usefull for single atom charge densities.
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.

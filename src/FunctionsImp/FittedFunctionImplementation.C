@@ -60,16 +60,25 @@ GetInverseOverlap() const
 //  Implement all DoFit functions.  The overlaps will be accumulated in
 //  itsFitCoeff by the call to GetRepulsions or GetOverlap.
 //
-template <class T> double FittedFunctionImplementation<T>::DoFit(const FittedFunctionClient& ffc)
+template <class T> double FittedFunctionImplementation<T>::DoFit(const ScalarFFClient& ffc)
+{
+    return DoFitInternal(ffc,0); //No contraint.
+}
+template <class T> double FittedFunctionImplementation<T>::DoFit(const DensityFFClient& ffc)
 {
     return DoFitInternal(ffc,0); //No contraint.
 }
 
-template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const FittedFunctionClient& ffc,double constraint)
+template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    Vec overlap= itsCDFitFlag 
-        ? ffc.GetRepulsions(&*itsBasisSet)
-        : itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
+    Vec overlap= itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
+    itsFitCoeff=GetInverseOverlap()*overlap;
+    return 0;
+}
+
+template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
+{
+    Vec overlap= ffc.GetRepulsions(&*itsBasisSet);
     itsFitCoeff=GetInverseOverlap()*overlap;
     return 0;
 }

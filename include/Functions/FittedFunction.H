@@ -5,6 +5,8 @@
 #include "types.H"
 #include "Functions/ScalarFunction.H"
 
+class ScalarFFClient;
+class DensityFFClient;
 //----------------------------------------------------------------------------------
 //
 //  Interface for a real space function that can be fit with a basis set.
@@ -18,7 +20,8 @@ class FittedFunction
     : public virtual PlottableScalarFunction
 {
 public:
-    virtual double DoFit(const FittedFunctionClient&)=0;
+    virtual double DoFit(const ScalarFFClient&)=0;
+    virtual double DoFit(const DensityFFClient&)=0;
     virtual void   ReScale         (double factor               )      =0; //Fit *= factor
     virtual void   ShiftOrigin     (const RVec3& newCenter      )      =0;
     virtual void   FitMixIn        (const FittedFunction&,double)      =0; // this = this*(1-c) + that*c.

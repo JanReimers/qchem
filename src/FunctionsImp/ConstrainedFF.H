@@ -15,8 +15,9 @@ public:
     ConstrainedFF();
     ConstrainedFF(const rc_ptr<IrrepBasisSet>&, const Vec&, Mesh* m, bool CDfit=false);
 
-    virtual double DoFit(const FittedFunctionClient&);
-    virtual double DoFit(double, const Vec&);
+    virtual double DoFit(const ScalarFFClient&);
+    virtual double DoFit(const DensityFFClient&);
+//    virtual double DoFit(double, const Vec&);
 
     virtual std::ostream& Write    (std::ostream&) const;
     virtual std::istream& Read     (std::istream&)      ;

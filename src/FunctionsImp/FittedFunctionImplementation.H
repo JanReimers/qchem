@@ -27,7 +27,8 @@ public:
     FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m,bool CDfit=false);
     ~FittedFunctionImplementation();
     
-    virtual double DoFit           (const FittedFunctionClient& )      ;
+    virtual double DoFit           (const ScalarFFClient& )      ;
+    virtual double DoFit           (const DensityFFClient& )      ;
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   ShiftOrigin     (const RVec3& newCenter      )      ;
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
@@ -40,7 +41,8 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    virtual double DoFitInternal(const FittedFunctionClient&,double constraint=0);
+    virtual double DoFitInternal(const ScalarFFClient&,double constraint=0);
+    virtual double DoFitInternal(const DensityFFClient&,double constraint=0);
 
 
     virtual Vec    FitGet2CenterOverlap  (const IrrepBasisSet*) const;

@@ -41,7 +41,8 @@ public:
     virtual void   ShiftOrigin  (const RVec3&               )      ;
     virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const;  //MaxAbs(delta Fit coeff).
-    virtual double DoFit        (const FittedFunctionClient&)      ;
+    virtual double DoFit        (const ScalarFFClient&)      ;
+    virtual double DoFit        (const DensityFFClient&)      ;
 
     virtual double operator()(const RVec3&) const;
     virtual Vec3   Gradient  (const RVec3&) const;

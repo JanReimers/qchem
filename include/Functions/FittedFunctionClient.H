@@ -7,18 +7,28 @@
 
 //-------------------------------------------------------------------
 //
-//  Abstract interface used by the FittedFunction class.  Non-template
-//  So that the FIttedFunction interface is independant of the
-//  fit basis type (real or complex).  Therefore we need casting at the
-//  implementation level.
+//  Abstract interfaces used by the FittedFunction class.
 //
-class FittedFunctionClient
+
+//
+//  Fit so a simple scalar function.  Requires numerical integration.
+// 
+class ScalarFFClient
+{
+public:
+    virtual double FitGetConstraint() const=0;
+    virtual const ScalarFunction<double>* GetScalarFunction() const=0;
+
+};
+
+//
+//  Fit to a density matrix function ro(r)=a(r)*b(r)*Dab 
+//
+class DensityFFClient
 {
 public:
     virtual double FitGetConstraint() const=0;
     virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const=0;
-    virtual const ScalarFunction<double>* GetScalarFunction() const=0;
-
 };
 
 #endif //_FittedFunctionClient_H_

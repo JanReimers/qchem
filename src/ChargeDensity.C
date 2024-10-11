@@ -251,7 +251,7 @@ double FittedPolarizedCD::GetRepulsion(const FittedFunction* ff) const
 //
 //  Fitted function stuff.
 //
-double FittedPolarizedCD::DoFit(const FittedFunctionClient& ffc)
+double FittedPolarizedCD::DoFit(const DensityFFClient& ffc)
 {
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
@@ -260,6 +260,16 @@ double FittedPolarizedCD::DoFit(const FittedFunctionClient& ffc)
     double lam_bar=0;
     lam_bar += itsSpinUpCD  ->DoFit(*polcd->GetChargeDensity(Spin::Up  ));
     lam_bar += itsSpinDownCD->DoFit(*polcd->GetChargeDensity(Spin::Down));
+    return lam_bar/2.0;
+}
+
+double FittedPolarizedCD::DoFit(const ScalarFFClient& ffc)
+{
+    assert(itsSpinUpCD);
+    assert(itsSpinDownCD);
+    double lam_bar=0;
+    lam_bar += itsSpinUpCD  ->DoFit(ffc);
+    lam_bar += itsSpinDownCD->DoFit(ffc);
     return lam_bar/2.0;
 }
 

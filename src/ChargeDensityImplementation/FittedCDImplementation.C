@@ -35,7 +35,20 @@ template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_pt
     assert(abs(itsTotalCharge-FitGetCharge())<1e-10);
 };
 
-template <class T> double FittedCDImplementation<T>::DoFit(const FittedFunctionClient& ffc)
+template <class T> double FittedCDImplementation<T>::DoFit(const ScalarFFClient& ffc)
+{
+    const FittedCD* cd=dynamic_cast<const FittedCD*>(&ffc);
+    if (!cd)
+    {
+        std::cerr << "FittedCDImplementation<T>::DoFit could not cast to charge density" << std::endl;
+        exit(-1);
+    }
+    itsExactRep=cd;
+    if  (itsTotalCharge==0) itsTotalCharge=itsExactRep->GetTotalCharge();
+    return ConstrainedFF<double>::DoFit(ffc);
+}
+
+template <class T> double FittedCDImplementation<T>::DoFit(const DensityFFClient& ffc)
 {
     const ChargeDensity* cd=dynamic_cast<const ChargeDensity*>(&ffc);
     if (!cd)

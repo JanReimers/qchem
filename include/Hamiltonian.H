@@ -33,7 +33,7 @@ private:
 
 class FittablePotential
     : public virtual HamiltonianTerm
-    , public virtual FittedFunctionClient
+    , public virtual ScalarFFClient
 {
 public:
     static  FittablePotential* Factory(std::istream&);
