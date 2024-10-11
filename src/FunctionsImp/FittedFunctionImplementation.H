@@ -31,6 +31,7 @@ public:
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   ShiftOrigin     (const RVec3& newCenter      )      ;
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
+    virtual void   Add             (const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf);
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
     virtual double operator()(const RVec3&) const;
@@ -51,7 +52,7 @@ protected:
 
     virtual Vec    FitGet2CenterOverlap  (const IrrepBasisSet*) const;
     virtual Vec    FitGet2CenterRepulsion(const IrrepBasisSet*) const;
-    virtual SMat    FitGet3CenterOverlap  (const IrrepBasisSet*) const;
+    virtual SMat   FitGet3CenterOverlap  (const IrrepBasisSet*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImplementation*) const;
     virtual double FitGetOverlap  (const FittedFunctionImplementation*) const;

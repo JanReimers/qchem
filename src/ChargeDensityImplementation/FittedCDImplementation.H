@@ -36,12 +36,14 @@ public:
 
     virtual void   InjectOverlaps  (FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual const ScalarFunction<double>* Get() const {return this;}
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;
     virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const;  //MaxAbs(delta Fit coeff).
     virtual double DoFit        (const FittedFunctionClient&)      ;
+    virtual void   Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf);
 
     virtual double operator()(const RVec3&) const;
     virtual Vec3   Gradient  (const RVec3&) const;

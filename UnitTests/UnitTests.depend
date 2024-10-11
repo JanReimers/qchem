@@ -556,7 +556,7 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"FunctionsImp/DumpScalarData.H"
 
-1728649541 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
+1728650632 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
 	"BasisSet.H"
 	"Misc/rc_ptr.H"
 	"Functions/FittedFunction.H"
@@ -819,10 +819,11 @@
 	"types.H"
 	"oml/vector3d.h"
 
-1728599453 /home/janr/Code/qchem/include/Functions/FittedFunctionClient.H
+1728653326 /home/janr/Code/qchem/include/Functions/FittedFunctionClient.H
 	"types.H"
+	"Functions/ScalarFunction.H"
 
-1728618028 /home/janr/Code/qchem/include/Functions/FittedFunction.H
+1728653214 /home/janr/Code/qchem/include/Functions/FittedFunction.H
 	"types.H"
 	"Functions/ScalarFunction.H"
 

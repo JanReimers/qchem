@@ -358,6 +358,12 @@ double FittedPolarizedCD::FitGetChangeFrom(const FittedFunction& ff) const
            + itsSpinDownCD -> FitGetChangeFrom(ff);
 }
 
+//void Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf)
+//{
+//    itsSpinUpCD->Add(fitbs,sf);
+//}
+//
+
 //--------------------------------------------------------------------------
 //
 //  Streamable stuff.
