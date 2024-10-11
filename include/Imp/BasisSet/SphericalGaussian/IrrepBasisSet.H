@@ -5,8 +5,8 @@
 
 
 #include "IEClient.H"
-#include "../Common.H"
-#include "../TCommon.H"
+#include "../IrrepCommon.H"
+#include "../TIrrepCommon.H"
 #include "oml/vector.h"
 
 namespace SphericalGaussian
@@ -14,8 +14,8 @@ namespace SphericalGaussian
    
 class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
-    , public         BasisSetImplementation
-    , public         TBasisSetImplementation<double>
+    , public         IrrepBasisSetCommon
+    , public         TIrrepBasisSetCommon<double>
     , public         IrrepIEClient
 {
 public:

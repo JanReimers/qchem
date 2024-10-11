@@ -3,14 +3,14 @@
 #define _SphericalGaussian_BasisSet_H_
 
 #include "IEClient.H"
-#include <BasisSet.H>
+#include "../TCommon.H"
 
 namespace SphericalGaussian
 {
 
 class BasisSet 
     : public SphericalGaussian::IEClient
-    , public ::BasisGroup
+    , public ::BasisSetImp
 {
 public:
     BasisSet() {};

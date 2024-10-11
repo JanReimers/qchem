@@ -15,16 +15,16 @@
 //  the destructor.  Hence copy operations are not allowed.
 //  This class also owns the IntegralDataBase.
 //
-class BasisSetImplementation
+class IrrepBasisSetCommon
     : public virtual IrrepBasisSet
 {
 public:
-    BasisSetImplementation(              );
-    BasisSetImplementation(QuantumNumber*);
-    BasisSetImplementation(const BasisSetImplementation&);
+    IrrepBasisSetCommon(              );
+    IrrepBasisSetCommon(QuantumNumber*);
+    IrrepBasisSetCommon(const IrrepBasisSetCommon&);
     virtual void SetStartIndex(int);
 
-    virtual ~BasisSetImplementation();
+    virtual ~IrrepBasisSetCommon();
 
     virtual int     GetStartIndex  (               ) const;
     virtual size_t  GetNumFunctions(               ) const;
@@ -50,7 +50,7 @@ protected:
     std::istream& ReadBasisFunctions (std::istream&)      ;
 
 private:
-    BasisSetImplementation& operator=(const BasisSetImplementation&);
+    IrrepBasisSetCommon& operator=(const IrrepBasisSetCommon&);
 
     QuantumNumber*               itsQuantumNumber;
     optr_vector1<BasisFunction*> itsBasisFunctions;

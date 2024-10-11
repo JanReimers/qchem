@@ -9,7 +9,7 @@
 #include "Functions/FittedFunction.H"
 #include "oml/vector.h"
 
-template <class T> class TBasisSetImplementation;
+template <class T> class TIrrepBasisSetCommon;
 
 //--------------------------------------------------------------------------
 //
@@ -60,7 +60,7 @@ protected:
     SMat    GetInverseOverlap() const; //Inverse of the normalized fit basis overlap or repulsion.
 
 private:
-    friend class TBasisSetImplementation<T>;
+    friend class TIrrepBasisSetCommon<T>;
     const TIrrepBasisSet<T>* CastBasisSet() const
     {
         return dynamic_cast<TIrrepBasisSet<T>*>(itsBasisSet.get());

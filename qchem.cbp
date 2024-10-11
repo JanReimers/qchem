@@ -105,10 +105,10 @@
 		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/WaveFunctionGroup.H" />
 		<Unit filename="include/IntegralDataBase.H" />
-		<Unit filename="include/IntegralEngine.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
 		<Unit filename="include/TotalEnergy.H" />
+		<Unit filename="include/UnitSymmetryQN.H" />
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
 		<Unit filename="src/AnalyticIE.C">
@@ -117,7 +117,7 @@
 		<Unit filename="src/BasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSet/Common.C">
+		<Unit filename="src/BasisSet/IrrepCommon.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/BasisFunction.C">
@@ -198,14 +198,13 @@
 		<Unit filename="src/BasisSet/TCommon.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/BasisSet/TIrrepCommon.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBS.H" />
 		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveIE.H" />
-		<Unit filename="src/BasisSetImplementation/UnitSymmetryQN.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/BasisSetImplementation/UnitSymmetryQN.H" />
 		<Unit filename="src/ChargeDensity.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -614,6 +613,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/SCFIterator/SCFIterator.H" />
+		<Unit filename="src/UnitSymmetryQN.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/WaveFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>

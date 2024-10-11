@@ -9,7 +9,7 @@ namespace PolarizedGaussian
 
 
 BasisSet::BasisSet(const LinearAlgebraParams& lap, Reader* reader, const Cluster* cl)
-: BasisGroup(new IntegralEngine) // this makes a integral DB
+: BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
     IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),reader,cl);
     Append(ibs);

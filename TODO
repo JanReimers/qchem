@@ -1,11 +1,11 @@
 Priority 1:
-    -BasisGroup is not an interface.
-    -BasisGroup needs a dynamic cast iterator.
-    -and BasisGroup should really be BasisSet.
-    Done: -Get BasisGroup out of BasisSet.
+    Done: -BasisSet is not an interface.
+    -BasisSet needs a dynamic cast iterator.
+    Done: -and BasisGroup should really be BasisSet.
+    Done: -Get BasisSet out of BasisSet.
     Done: -DB GetRepulsion4C(bs_t ab,bs_t cd) return a view
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
-        -Broke BasisGroup persistence tests. Need to put back 
+        -Broke BasisSet persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
    -Cache reports
     Done: -Stop caching RNLM inside GaussianCD
@@ -16,7 +16,7 @@ Priority 1:
 
 
     -Invert dependency BasisSet--->Fitted function
-    -TBasisSetImplementation<T>::SetFitOverlap should not be call DoFit,
+    -TIrrepBasisSetCommon<T>::SetFitOverlap should not be call DoFit,
         Should do ff->Update(sf);
 
     -Do we need to store both J and K,  PolG just stores one ERI4.
@@ -69,7 +69,7 @@ Priority 3:
     -Design problem:  
         IrrepWaveFunction creates and hold an rc_ptr<const BasisSet> which is also copied into
         the Ortbitals object.  Updateing the orbital is done by:
-        TBasisSetImplementation<T>::CreateOrbitals.  But this function cannot just use this to create
+        TIrrepBasisSetCommon<T>::CreateOrbitals.  But this function cannot just use this to create
         new orbitals, it needs the original rc_ptr.  Options:
         1) IrrepWaveFunction does and extra step to inject the rc_ptr.
             This means Orbital needs and Inject(rc_ptr<>) function.

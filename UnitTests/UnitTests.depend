@@ -13,7 +13,7 @@
 1728599453 /home/janr/Code/qchem/UnitTests/AtomTester.H
 	"BaseTester.H"
 
-1728599453 /home/janr/Code/qchem/UnitTests/BaseTester.H
+1728614881 /home/janr/Code/qchem/UnitTests/BaseTester.H
 	"gtest/gtest.h"
 	"SCFIterator/IterationParams.H"
 	"Misc/rc_ptr.h"
@@ -359,7 +359,7 @@
 
 1728599453 /home/janr/Code/qchem/src/Misc/PeriodicTable.H
 
-1728599453 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
+1728614977 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
 	"BaseTester.H"
 	"BasisSet.H"
 	"TotalEnergy.H"
@@ -556,7 +556,7 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"FunctionsImp/DumpScalarData.H"
 
-1728599453 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
+1728612887 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
 	"BasisSet.H"
 	"Misc/rc_ptr.H"
 	"Functions/FittedFunction.H"
@@ -747,7 +747,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728605222 /home/janr/Code/qchem/include/BasisSet.H
+1728615043 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -808,7 +808,7 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728600021 /home/janr/Code/qchem/include/types.H
+1728613889 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728599453 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -826,10 +826,10 @@
 	"types.H"
 	"Functions/ScalarFunction.H"
 
-1728599453 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
+1728613889 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
 	"WaveFunction.H"
 
-1728599453 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
+1728613889 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
 	"WaveFunction.H"
 
 1728239691 /home/janr/Code/qchem/include/IntegralEngine1.H
@@ -890,34 +890,30 @@
 	"oml/vector.h"
 	<vector>
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H
+1728613342 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H
 	"IEClient.H"
-	"../Common.H"
-	"../TCommon.H"
+	"../IrrepCommon.H"
+	"../TIrrepCommon.H"
 	"oml/vector.h"
 
 1728604255 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
 	<IEClient.H>
 	"oml/vector.h"
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/Common.H
+1728612887 /home/janr/Code/qchem/include/Imp/BasisSet/Common.H
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1728605196 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
-	"BasisSet.H"
-	"FunctionsImp/VectorFunctionBuffer.H"
-	"SCFIterator/IterationParams.H"
-	"Misc/Persistent/PerRef.H"
-	"Misc/rc_ptr.H"
+1728614540 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
+	<BasisSet.H>
 
 1727910193 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 
 1727910193 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/BasisSet.H
+1728614540 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/BasisSet.H
 	"IEClient.H"
-	<BasisSet.H>
+	"../TCommon.H"
 
 1728604680 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
 	"Polarization.H"
@@ -994,15 +990,26 @@
 	<vector>
 	<set>
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/BasisSet.H
+1728614562 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/BasisSet.H
 	"IEClient.H"
-	<BasisSet.H>
-
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H
-	"../Common.H"
 	"../TCommon.H"
+
+1728613326 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H
+	"../IrrepCommon.H"
+	"../TIrrepCommon.H"
 	"Polarization.H"
 	"IEClient.H"
 	"Block.H"
 	"Imp/Containers/ptr_vector.h"
+
+1728612887 /home/janr/Code/qchem/include/Imp/BasisSet/IrrepCommon.H
+	"BasisSet.H"
+	"Imp/Containers/ptr_vector.h"
+
+1728612887 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
+	"BasisSet.H"
+	"FunctionsImp/VectorFunctionBuffer.H"
+	"SCFIterator/IterationParams.H"
+	"Misc/Persistent/PerRef.H"
+	"Misc/rc_ptr.H"
 

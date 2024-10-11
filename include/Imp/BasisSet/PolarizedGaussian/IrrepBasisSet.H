@@ -2,8 +2,8 @@
 #ifndef _PolarizedGaussian_IrrepBasisSet_H_
 #define _PolarizedGaussian_IrrepBasisSet_H_
 
-#include "../Common.H"
-#include "../TCommon.H"
+#include "../IrrepCommon.H"
+#include "../TIrrepCommon.H"
 #include "Polarization.H"
 #include "IEClient.H"
 #include "Block.H"
@@ -16,8 +16,8 @@ class Reader;
 
 class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
-    , public         BasisSetImplementation
-    , public         TBasisSetImplementation<double>
+    , public         IrrepBasisSetCommon
+    , public         TIrrepBasisSetCommon<double>
     , public         IrrepIEClient
 {
 public:

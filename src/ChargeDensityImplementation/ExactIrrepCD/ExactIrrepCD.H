@@ -11,7 +11,7 @@
 #include "Misc/rc_ptr.H"
 #include "oml/smatrix.h"
 
-template <class T> class TBasisSetImplementation;
+template <class T> class TIrrepBasisSetCommon;
 
 //------------------------------------------------------------------------------------
 //
@@ -53,7 +53,7 @@ public:
 
 private:
 
-    friend class TBasisSetImplementation<T>;
+    friend class TIrrepBasisSetCommon<T>;
 
     virtual void  Eval(const Mesh&, Vec&) const;
 

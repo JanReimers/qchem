@@ -15,7 +15,7 @@
 BaseTester::BaseTester()
     : itsLAParams({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , itsCluster(new Molecule())
-    , itsBasisGroup(0)
+    , itsBasisSet(0)
     , itsHamiltonian(0)
     , itsWaveFunction(0)
     , itsSCFIterator(0)
@@ -25,25 +25,25 @@ BaseTester::BaseTester()
 BaseTester::~BaseTester()
 {
     //delete itsHamiltonian;
-    delete itsBasisGroup;
+    delete itsBasisSet;
 }
 
-void BaseTester::Init(BasisGroup* bg,double spin,const LinearAlgebraParams& lap)
+void BaseTester::Init(BasisSet* bs,double spin,const LinearAlgebraParams& lap)
 {
     itsLAParams=lap;
-    Init(bg,spin);
+    Init(bs,spin);
 }
 
-void BaseTester::Init(BasisGroup* bg,double spin)
+void BaseTester::Init(BasisSet* bs,double spin)
 {
     assert(bg); //Derived should already have created this.
     assert(itsCluster->GetNumAtoms()>0);
     //if(itsHamiltonian) delete itsHamiltonian; SCFIterator owns the Hamiltonian
-    if(itsBasisGroup) delete itsBasisGroup;
+    if(itsBasisSet) delete itsBasisSet;
     if (itsWaveFunction) delete itsWaveFunction;
     if (itsSCFIterator) delete itsSCFIterator;
 //    itsFittedChargeDensity=new FittedCDImplementation<double>(itsCBasisSet,itsCluster->GetNumElectrons ());
-    itsBasisGroup=bg;
+    itsBasisSet=bs;
     LoadOrbitalBasisSet();
 
     itsHamiltonian=new HamiltonianImplementation();
@@ -55,11 +55,11 @@ void BaseTester::Init(BasisGroup* bg,double spin)
     itsHamiltonian->Add(GetVxc(spin));
     if (spin==0.0)
     {
-        itsWaveFunction=new MasterUnPolarizedWF(itsBasisGroup);
+        itsWaveFunction=new MasterUnPolarizedWF(itsBasisSet);
     }
     else
     {
-        itsWaveFunction=new MasterPolarizedWF(itsBasisGroup,spin);
+        itsWaveFunction=new MasterPolarizedWF(itsBasisSet,spin);
     }
 
     ChargeDensity* GuessCD=itsWaveFunction->GetChargeDensity();
@@ -68,7 +68,7 @@ void BaseTester::Init(BasisGroup* bg,double spin)
 }
 IntegralDataBase<double>*   BaseTester::GetDatabase() const 
 {
-    return itsBasisGroup->GetDataBase();
+    return itsBasisSet->GetDataBase();
 }
 
 void BaseTester::Iterate(const SCFIterationParams& ipar)

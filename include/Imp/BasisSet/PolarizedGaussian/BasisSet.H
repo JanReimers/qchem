@@ -3,7 +3,7 @@
 #define _PolarizedGaussian_BasisSet_H_
 
 #include "IEClient.H"
-#include <BasisSet.H>
+#include "../TCommon.H"
 
 namespace PolarizedGaussian
 {
@@ -12,7 +12,7 @@ class Reader;
 
 class BasisSet 
     : public virtual IEClient
-    , public BasisGroup
+    , public BasisSetImp
 {
 public:
     BasisSet() {};

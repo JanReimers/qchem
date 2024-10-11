@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/BasisSet/Common.H"
+#include "Imp/BasisSet/IrrepCommon.H"
 #include <QuantumNumber.H>
 #include "Imp/Containers/ptr_vector_io.h"
 
@@ -14,19 +14,19 @@
 //
 //  Construction zone
 //
-BasisSetImplementation::BasisSetImplementation()
+IrrepBasisSetCommon::IrrepBasisSetCommon()
     : itsQuantumNumber(0)
     , itsStartIndex(0)
 {
 };
 
-BasisSetImplementation::BasisSetImplementation(QuantumNumber* theQN)
+IrrepBasisSetCommon::IrrepBasisSetCommon(QuantumNumber* theQN)
     : itsQuantumNumber(theQN)
     , itsStartIndex(0)
 {
 };
 
-BasisSetImplementation::BasisSetImplementation(const BasisSetImplementation& bs)
+IrrepBasisSetCommon::IrrepBasisSetCommon(const IrrepBasisSetCommon& bs)
   : itsQuantumNumber (bs.itsQuantumNumber->Clone())
   , itsBasisFunctions(bs.itsBasisFunctions)
   , itsStartIndex(bs.itsStartIndex)
@@ -34,7 +34,7 @@ BasisSetImplementation::BasisSetImplementation(const BasisSetImplementation& bs)
     assert(itsQuantumNumber);
   };
 
-BasisSetImplementation::~BasisSetImplementation()
+IrrepBasisSetCommon::~IrrepBasisSetCommon()
 {
     delete itsQuantumNumber;
 }
@@ -43,13 +43,13 @@ BasisSetImplementation::~BasisSetImplementation()
 //
 //  Post construction initializations called by dervied classes.
 //
-void BasisSetImplementation::Insert(BasisFunction* bf)
+void IrrepBasisSetCommon::Insert(BasisFunction* bf)
 {
     assert(bf);
     itsBasisFunctions.push_back(bf);
 }
 
-void BasisSetImplementation::EmptyBasisFunctions()
+void IrrepBasisSetCommon::EmptyBasisFunctions()
 {
     itsBasisFunctions.clear();
 }
@@ -59,25 +59,25 @@ void BasisSetImplementation::EmptyBasisFunctions()
 //
 //  Basis Set Stuff.
 //
-void BasisSetImplementation::SetStartIndex(int si)
+void IrrepBasisSetCommon::SetStartIndex(int si)
 {
     assert(si>0);
     itsStartIndex=si;
 }
 
-int  BasisSetImplementation::GetStartIndex() const
+int  IrrepBasisSetCommon::GetStartIndex() const
 {
     assert(itsStartIndex>0);
     return itsStartIndex;
 }
 
 
-size_t BasisSetImplementation::GetNumFunctions() const
+size_t IrrepBasisSetCommon::GetNumFunctions() const
 {
     return itsBasisFunctions.size();
 }
 
-bool BasisSetImplementation::operator==(const IrrepBasisSet& bs) const
+bool IrrepBasisSetCommon::operator==(const IrrepBasisSet& bs) const
 {
     // No UT coverage
     if (GetNumFunctions() != bs.GetNumFunctions()) return false;
@@ -97,7 +97,7 @@ bool BasisSetImplementation::operator==(const IrrepBasisSet& bs) const
 //
 //  Streamable stuff.
 //
-std::ostream& BasisSetImplementation::Write(std::ostream& os) const
+std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
 {
     assert(itsQuantumNumber);
     if(!Pretty())
@@ -120,7 +120,7 @@ std::ostream& BasisSetImplementation::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& BasisSetImplementation::Read(std::istream& is)
+std::istream& IrrepBasisSetCommon::Read(std::istream& is)
 {
     UniqueID::Read(is);
 
@@ -135,13 +135,13 @@ std::istream& BasisSetImplementation::Read(std::istream& is)
 //
 //  Controlled by derived class for IO.
 //
-std::ostream& BasisSetImplementation::WriteBasisFunctions(std::ostream& os) const
+std::ostream& IrrepBasisSetCommon::WriteBasisFunctions(std::ostream& os) const
 {
     os << itsBasisFunctions;
     return os;
 }
 
-std::istream& BasisSetImplementation::ReadBasisFunctions(std::istream& is)
+std::istream& IrrepBasisSetCommon::ReadBasisFunctions(std::istream& is)
 {
     is >> itsBasisFunctions;
     return is;

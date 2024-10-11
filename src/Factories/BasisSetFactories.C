@@ -17,7 +17,7 @@
 #include "DFTDataBase/HeapDB/HeapDB.H"
 
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
-#include "BasisSetImplementation/UnitSymmetryQN.H"
+#include <UnitSymmetryQN.H>
 //#include "BasisSetImplementation/PlaneWave/BlochQN.H"
 
 #include <string>
@@ -76,7 +76,7 @@ IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
     return NULL;
 }
 
-BasisGroup* BasisGroup::Factory(std::istream& is)
+BasisSet* BasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SphericalGaussian::BasisSet).name()) return new SphericalGaussian::BasisSet;

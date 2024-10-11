@@ -12,7 +12,7 @@ MasterUnPolarizedWF::MasterUnPolarizedWF()
     : itsGroup(0)
 {};
 
-MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisGroup* bg)
+MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bg)
     :itsGroup(new WaveFunctionGroup(bg,Spin(Spin::None)))
 {
     assert(itsGroup);

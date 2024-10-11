@@ -2,7 +2,7 @@
 
 
 
-#include "BasisSetImplementation/UnitSymmetryQN.H"
+#include <UnitSymmetryQN.H>
 
 UnitSymmetryQN::UnitSymmetryQN()
 {};

@@ -6,7 +6,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H"
-#include "BasisSetImplementation/UnitSymmetryQN.H"
+#include <UnitSymmetryQN.H>
 #include <Cluster.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include <cassert>
@@ -28,14 +28,14 @@ template <class T> T Max(const std::vector<T>& v)
 //  Concrete  gaussian basis set.
 //
 IrrepBasisSet::IrrepBasisSet()
-    : BasisSetImplementation()
-    , TBasisSetImplementation<double>()
+    : IrrepBasisSetCommon()
+    , TIrrepBasisSetCommon<double>()
 {};
 
 IrrepBasisSet::
 IrrepBasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
-    : BasisSetImplementation(new UnitSymmetryQN)
-    , TBasisSetImplementation<double>(lap,theDB)
+    : IrrepBasisSetCommon(new UnitSymmetryQN)
+    , TIrrepBasisSetCommon<double>(lap,theDB)
 {
 //
 //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
@@ -98,7 +98,7 @@ IrrepBasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Re
     IntegralEngine::blocks_t bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
     IrrepIEClient::Init(bls);
-    TBasisSetImplementation<double>::Insert(new IntegralEngine());    
+    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());    
 //
 //  Now insert the basis functions.
 //
@@ -113,8 +113,8 @@ IrrepBasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Re
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs,
         IntegralDataBase<double>* theDB,
         const optr_vector1<Block*>& theBlocks)
-    : BasisSetImplementation(*bs)
-    , TBasisSetImplementation<double>(bs->itsLAParams,theDB)
+    : IrrepBasisSetCommon(*bs)
+    , TIrrepBasisSetCommon<double>(bs->itsLAParams,theDB)
     , itsBlocks(theBlocks)
 {
     // No UT coverage
@@ -128,7 +128,7 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
     size_t i=1;
     for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
         for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
-            BasisSetImplementation::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
+            IrrepBasisSetCommon::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
 }//Compiler says these calls are ambiguous.  BUG
 
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
@@ -137,8 +137,8 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
     if (!Pretty())
     {
         os << itsBlocks;
-        BasisSetImplementation::Write(os);
-        TBasisSetImplementation<double>::Write(os);
+        IrrepBasisSetCommon::Write(os);
+        TIrrepBasisSetCommon<double>::Write(os);
     }
     else
     {
@@ -153,8 +153,8 @@ std::istream& IrrepBasisSet::Read (std::istream& is)
     // No UT coverage
     is >> itsBlocks;
 //    MakeBasisFunctions();
-    BasisSetImplementation::Read(is);
-    TBasisSetImplementation<double>::Read(is);
+    IrrepBasisSetCommon::Read(is);
+    TIrrepBasisSetCommon<double>::Read(is);
     return is;
 }
 

@@ -16,7 +16,7 @@
 WaveFunctionGroup::WaveFunctionGroup()
 {};
 
-WaveFunctionGroup::WaveFunctionGroup(const BasisGroup* bg, const Spin& S)
+WaveFunctionGroup::WaveFunctionGroup(const BasisSet* bg, const Spin& S)
 : itsBasisGroup(bg)
 {
     assert(itsBasisGroup);

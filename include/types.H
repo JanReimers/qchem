@@ -29,7 +29,7 @@ template <class T> class VectorFunction;
 class Atom;
 class AngularMesh;
 class IrrepBasisSet;
-class BasisGroup;
+class BasisSet;
 class ChargeDensity;
 class Cluster;
 class ElectronDumper;

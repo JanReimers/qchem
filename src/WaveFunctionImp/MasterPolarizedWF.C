@@ -17,7 +17,7 @@ MasterPolarizedWF::MasterPolarizedWF()
     , itsNetSpin      (0)
 {};
 
-MasterPolarizedWF::MasterPolarizedWF(const BasisGroup* bg,double spin)
+MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bg,double spin)
     : itsSpinUpGroup  (new WaveFunctionGroup(bg,Spin(Spin::Up  )))
     , itsSpinDownGroup(new WaveFunctionGroup(bg,Spin(Spin::Down)))
     , itsNetSpin      (spin)

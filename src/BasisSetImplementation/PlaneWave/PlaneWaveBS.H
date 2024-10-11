@@ -4,8 +4,8 @@
 
 
 
-#include "BasisSetImplementation/BasisSetImplementation.H"
-#include "BasisSetImplementation/TBasisSetImplementation.H"
+#include "Imp/BasisSet/IrrepBasisSetCommon.H"
+#include "Imp/BasisSet/TIrrepBasisSetCommon.H"
 #include "Cluster/UnitCell.H"
 
 class Reader;
@@ -14,8 +14,8 @@ class Lattice;
 
 class PlaneWaveBS
     : public virtual TIrrepBasisSet<std::complex<double> >
-    , public         BasisSetImplementation
-    , public         TBasisSetImplementation<std::complex<double> >
+    , public         IrrepBasisSetCommon
+    , public         TIrrepBasisSetCommon<std::complex<double> >
 {
 public:
     PlaneWaveBS();

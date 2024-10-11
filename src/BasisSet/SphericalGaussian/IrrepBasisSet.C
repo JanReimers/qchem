@@ -17,8 +17,8 @@ namespace SphericalGaussian
 //  Concrete  gaussian basis set.
 //
 IrrepBasisSet::IrrepBasisSet()
-    :  BasisSetImplementation        ()
-    , TBasisSetImplementation<double>()
+    :  IrrepBasisSetCommon        ()
+    , TIrrepBasisSetCommon<double>()
 {};
 
 //
@@ -35,15 +35,15 @@ IrrepBasisSet::IrrepBasisSet(
         double minexp,
         double maxexp,
         size_t L)
-    : BasisSetImplementation(new SphericalSymmetryQN(L))
-    , TBasisSetImplementation<double>(lap,theDB)
+    : IrrepBasisSetCommon(new SphericalSymmetryQN(L))
+    , TIrrepBasisSetCommon<double>(lap,theDB)
     , IrrepIEClient(size)
 {
     IrrepIEClient::Init(minexp,maxexp,L);
-    TBasisSetImplementation<double>::Insert(new IntegralEngine());  
+    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());  
     size_t i=1;
     for (auto e:es) 
-        BasisSetImplementation::Insert(new BasisFunction(e,L,ns(i++))); //ns from SphericalGaussianIEClient
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,L,ns(i++))); //ns from SphericalGaussianIEClient
 
 };
 
@@ -52,8 +52,8 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
     if (!Pretty())
     {
         WriteBasisFunctions(os);
-        BasisSetImplementation::Write(os);
-        TBasisSetImplementation<double>::Write(os);
+        IrrepBasisSetCommon::Write(os);
+        TIrrepBasisSetCommon<double>::Write(os);
     }
     else
     {
@@ -68,8 +68,8 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 std::istream&  IrrepBasisSet::Read (std::istream& is)
 {
     ReadBasisFunctions(is);
-    BasisSetImplementation::Read(is);
-    TBasisSetImplementation<double>::Read(is);
+    IrrepBasisSetCommon::Read(is);
+    TIrrepBasisSetCommon<double>::Read(is);
     return is;
 }
 

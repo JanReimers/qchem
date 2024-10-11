@@ -11,7 +11,7 @@ class MasterUnPolarizedWF
 {
 public:
     MasterUnPolarizedWF();
-    MasterUnPolarizedWF(const BasisGroup*);
+    MasterUnPolarizedWF(const BasisSet*);
     virtual ~MasterUnPolarizedWF();
 
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;

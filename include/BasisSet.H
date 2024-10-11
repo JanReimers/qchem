@@ -115,9 +115,8 @@ public:
     virtual IrrepBasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
     static  IrrepBasisSet* Factory(std::istream&    )        ;
-
 private:
-    friend class BasisGroup;
+    friend class BasisSetImp;
     virtual void SetStartIndex(int)=0;
 };
 
@@ -157,39 +156,26 @@ public:
 //  the wave vector k for solids.
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
-class BasisGroup
+class BasisSet
     : public virtual IEClient
     , public UniqueID
 {
 public:
     typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;
-    typedef std::vector<const IrrepIEClient*> iecv_t;
 
-    BasisGroup();
-    BasisGroup(AnalyticIE<double>*);
-    
-    virtual ~BasisGroup();
-    virtual size_t GetNumFunctions() const;
-    virtual size_t GetNumBasisSets() const;
-    virtual void Insert(IrrepBasisSet*);
+    BasisSet() {};
 
-    virtual const_iterator begin() const {return itsBasisSets.begin();}
-    virtual const_iterator end  () const {return itsBasisSets.end  ();}
-    iecv_t   Flatten() const;
-    virtual IntegralDataBase<double>* GetDataBase() const {return itsDB;}
+    virtual ~BasisSet();
+    virtual size_t GetNumFunctions() const=0;
+    virtual size_t GetNumBasisSets() const=0;
+
+    virtual const_iterator begin() const=0;
+    virtual const_iterator end  () const=0;
+    virtual IntegralDataBase<double>* GetDataBase() const =0;
 
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     
-//
-//  StreamableObject stuff.
-//
-    virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    static  BasisGroup*  Factory(std::istream&    )      ;
-
-private:
-    mutable IntegralDataBase<double>* itsDB;
-    optr_vector1<IrrepBasisSet*> itsBasisSets;
+    static  BasisSet*  Factory(std::istream&    )      ;
 };
 
 

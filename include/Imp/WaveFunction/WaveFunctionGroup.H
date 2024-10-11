@@ -12,7 +12,7 @@ class WaveFunctionGroup
 {
 public:
     WaveFunctionGroup(                                   );
-    WaveFunctionGroup(const BasisGroup* bg, const Spin&);
+    WaveFunctionGroup(const BasisSet* bg, const Spin&);
 
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;
     virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
@@ -24,7 +24,7 @@ public:
 
 private:
     optr_vector1<WaveFunction*>  itsIrrepWFs;
-    const BasisGroup* itsBasisGroup; //Union of all irrep basis sets.  used for managing 4 center ERIs.
+    const BasisSet* itsBasisGroup; //Union of all irrep basis sets.  used for managing 4 center ERIs.
 };
 
 #endif //_WaveFunctionGroup_H_

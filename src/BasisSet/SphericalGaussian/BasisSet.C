@@ -9,7 +9,7 @@ namespace SphericalGaussian
 
 
 BasisSet::BasisSet(const LinearAlgebraParams& lap,size_t N, double minexp, double maxexp, size_t Lmax)
-: BasisGroup(new IntegralEngine) // this makes a integral DB
+: BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
     for (size_t L=0;L<=Lmax;L++)
     {

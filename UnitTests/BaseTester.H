@@ -27,8 +27,8 @@ class BaseTester
 public:
     BaseTester();
     virtual ~BaseTester();
-    void Init(BasisGroup*, double spin);
-    void Init(BasisGroup*, double spin,const LinearAlgebraParams&);
+    void Init(BasisSet*, double spin);
+    void Init(BasisSet*, double spin,const LinearAlgebraParams&);
 
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc(double spin) const=0;
@@ -38,7 +38,7 @@ public:
     virtual void       LoadOrbitalBasisSet()=0;
     
     Cluster*      GetCluster     () const {return &*itsCluster;}
-    BasisGroup*   GetBasisGroup  () const {return itsBasisGroup;}
+    BasisSet*   GetBasisSet  () const {return itsBasisSet;}
     Hamiltonian*  GetHamiltonian () const {return itsHamiltonian;}
     WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
     IntegralDataBase<double>* GetDatabase() const;
@@ -49,7 +49,7 @@ public:
 protected:
     LinearAlgebraParams    itsLAParams;
     rc_ptr<Cluster>        itsCluster;
-    BasisGroup*            itsBasisGroup;
+    BasisSet*              itsBasisSet;
 private:
     Hamiltonian*           itsHamiltonian;
     WaveFunction*          itsWaveFunction;
