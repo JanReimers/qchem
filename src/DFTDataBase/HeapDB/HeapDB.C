@@ -258,19 +258,19 @@ template <class T> void HeapDB<T>::BuildERIs()
     itsAnalyticIE->Make4C(itsJTable,itsKTable,istIEClient);
 }
 
-template <class T> ERI4&  HeapDB<T>::GetRepulsion4C()
+template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
 {
    if (itsJTable.GetSize()==0) BuildERIs(); 
-   return itsJTable;
+   return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
 }
 
-template <class T> ERI4&  HeapDB<T>::GetExchange4C ()
+template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
 {
    if (itsJTable.GetSize()==0) BuildERIs(); 
    if (itsKTable.GetSize()==0)
-        return itsJTable;
+        return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
     else
-        return itsKTable;
+        return ERI4view(itsKTable,a.GetStartIndex(),b.GetStartIndex());
 }
 //-------------------------------------------------------------------------
 //

@@ -2,6 +2,8 @@ Priority 1:
     -BasisGroup is not an interface.
     -BasisGroup needs a dynamic cast iterator.
     -and BasisGroup should really be BasisSet.
+    Done: -Get BasisGroup out of BasisSet.
+    Done: -DB GetRepulsion4C(bs_t ab,bs_t cd) return a view
     -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
         -Broke BasisGroup persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
