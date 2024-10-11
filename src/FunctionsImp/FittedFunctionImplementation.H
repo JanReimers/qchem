@@ -9,8 +9,8 @@
 #include "Functions/FittedFunction.H"
 #include "oml/vector.h"
 
-template <class T> class TIrrepBasisSetCommon;
 template <class T> class FittedCDImplementation;
+template <class T> class ConstrainedFF;
 
 //--------------------------------------------------------------------------
 //
@@ -47,8 +47,6 @@ public:
     const Mesh* GetMesh() const {return itsMesh;}
 
 protected:
-//    virtual double DoFit(const FittedFunctionClient&);
-    virtual double DoFit(const Vec&,double constraint);
     virtual double DoFitInternal(const FittedFunctionClient&,double constraint=0);
 
 
@@ -61,13 +59,11 @@ protected:
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
-    void    SetFitCoeff(const Vec& fc);
     SMat    GetInverseOverlap() const; //Inverse of the normalized fit basis overlap or repulsion.
 
 private:
-    friend class TIrrepBasisSetCommon<T>;
     friend class FittedCDImplementation<T>;
-    friend class FittedVxc;
+    friend class ConstrainedFF<T>;
     const TIrrepBasisSet<T>* CastBasisSet() const
     {
         return dynamic_cast<TIrrepBasisSet<T>*>(itsBasisSet.get());

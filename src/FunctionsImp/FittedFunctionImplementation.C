@@ -51,17 +51,15 @@ template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementatio
 template <class T> typename FittedFunctionImplementation<T>::SMat FittedFunctionImplementation<T>::
 GetInverseOverlap() const
 {
-//    assert(!isnan(CastBasisSet()->GetDataBase()->GetInverseRepulsion()));
-//    assert(!isnan(CastBasisSet()->GetDataBase()->GetInverseOverlap()));
     return itsCDFitFlag ? CastBasisSet()->GetInverseRepulsion()
            : CastBasisSet()->GetInverseOverlap();
 }
 
-template <class T> void FittedFunctionImplementation<T>::SetFitCoeff(const Vec& fc)
-{
-    assert(!isnan(fc));
-    itsFitCoeff=fc;
-}
+//template <class T> void FittedFunctionImplementation<T>::SetFitCoeff(const Vec& fc)
+//{
+//    assert(!isnan(fc));
+//    itsFitCoeff=fc;
+//}
 
 //--------------------------------------------------------------------------
 //
@@ -75,23 +73,21 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(const FittedFun
 
 template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const FittedFunctionClient& ffc,double constraint)
 {
-    Fill(itsFitCoeff,0.0);
-    if (itsCDFitFlag)
-        itsFitCoeff+=ffc.GetRepulsions(&*itsBasisSet);
-    else
-        itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
-//	cout << "DoFit constrained" << constraint << " " << itsFitCoeff << std::endl;
-    return DoFit(itsFitCoeff,constraint);
-}
-
-template <class T> double FittedFunctionImplementation<T>::DoFit(const Vec& overlap,double constraint)
-{
-//	cout << "fit overlap" << overlap << std::endl;
-    assert(!isnan(overlap));
-    SetFitCoeff(GetInverseOverlap()*overlap);
-//	cout << "Fit " << itsFitCoeff << std::endl;
+    Vec overlap= itsCDFitFlag 
+        ? ffc.GetRepulsions(&*itsBasisSet)
+        : itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
+    itsFitCoeff=GetInverseOverlap()*overlap;
     return 0;
 }
+
+//template <class T> double FittedFunctionImplementation<T>::DoFit(const Vec& overlap,double constraint)
+//{
+////	cout << "fit overlap" << overlap << std::endl;
+//    assert(!isnan(overlap));
+//    SetFitCoeff(GetInverseOverlap()*overlap);
+////	cout << "Fit " << itsFitCoeff << std::endl;
+//    return 0;
+//}
 
 //---------------------------------------------------------------------------
 //
