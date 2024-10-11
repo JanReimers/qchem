@@ -31,10 +31,6 @@ class RadialFunction
     , public virtual ScalarFunction<double>
 {
 public:
-
-    enum Types3C {Overlap3C, Repulsion3C};
-    enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear};
-
     virtual       bool      operator==      (const RadialFunction&) const=0; //Ignores L!
     virtual const RVec3&    GetCenter       (                     ) const=0;
     virtual       int       GetL            (                     ) const=0; //N+L+M?
@@ -44,9 +40,9 @@ public:
     typedef const RadialFunction rf_t;
     typedef const Polarization   po_t;
     
-    virtual double Integrate(Types2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache& cache,const Cluster* cl=0) const=0;
-    virtual double Integrate(Types3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDCache& cache) const=0;
-    virtual double Integrate(Types3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDCache& cache, rf_t* rc) const=0;
+    virtual double Integrate(qchem::IType2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache& cache,const Cluster* cl=0) const=0;
+    virtual double Integrate(qchem::IType3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDCache& cache) const=0;
+    virtual double Integrate(qchem::IType3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDCache& cache, rf_t* rc) const=0;
     
     virtual double Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache) const=0;
     virtual double Integrate(rf_t* ra,rf_t* rb,         po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache, rf_t* rd) const=0;

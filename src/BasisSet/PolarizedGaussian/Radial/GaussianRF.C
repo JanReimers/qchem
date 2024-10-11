@@ -60,7 +60,7 @@ bool GaussianRF::operator==(const RadialFunction& rf) const
     return ret;
 }
 
-double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
+double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0.0;
     const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
@@ -71,10 +71,10 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
     const GaussianCD& ab=cache.find(this,gb);
     switch (type)
     {
-        case Overlap2C :
+        case qchem::Overlap2C :
             s=pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
             break;
-        case Repulsion2C :
+        case qchem::Repulsion2C :
             {
                 auto NLMs=GaussianCD::GetNMLs(this->GetL());
                 const Hermite1& H1a=this->GetH1();
@@ -105,14 +105,14 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
                 s*=2*Pi52*factor;
             }  // case          
             break;
-        case Kinetic :
+        case qchem::Kinetic :
             {
                 double factor=0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
                 double h = GetKinetic(pa,pb,ab);
                 if (h!=0) s=factor*h;
                 break;
             }
-        case Nuclear :
+        case qchem::Nuclear :
             {
                 assert(cl);
                 RNLM R; //Create and empty aux function.
@@ -142,7 +142,7 @@ double GaussianRF::Integrate(Types2C type,const RadialFunction* rb, const Polari
 //  Do 3 center contractions
 //
 //  this is the c center. <ab|c>
-double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache) const
+double GaussianRF::Integrate(qchem::IType3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache) const
 {
     const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
     if (!ga) 
@@ -154,7 +154,7 @@ double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Radial
 }
 
 //this = rb
-double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache,const RadialFunction* rc) const
+double GaussianRF::Integrate(qchem::IType3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache,const RadialFunction* rc) const
 {
     const GaussianRF* ga=dynamic_cast<const GaussianRF*>(ra);
     if (!ga) 
@@ -165,7 +165,7 @@ double GaussianRF::Integrate(Types3C type,const RadialFunction* ra, const Polari
     
 }
 
-double GaussianRF::Integrate3C(Types3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc,CDCache& cache, grf_t* gc)
+double GaussianRF::Integrate3C(qchem::IType3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc,CDCache& cache, grf_t* gc)
 {
     assert(ga);
     assert(gb);
@@ -173,14 +173,14 @@ double GaussianRF::Integrate3C(Types3C type,grf_t* ga,grf_t* gb, po_t& pa, po_t&
     double s=0.0;
     switch (type)
     {
-        case Overlap3C :
+        case qchem::Overlap3C :
             {
                 Hermite3* H3=gc->GetH3(*ga,*gb);
                 s=(*H3)(pa,pb,pc);
                 delete H3;
             }
             break;
-        case Repulsion3C :
+        case qchem::Repulsion3C :
             {
                 const GaussianCD& ab(cache.find(ga,gb));
                 const RNLM&        R(cache.find(ab,gc));

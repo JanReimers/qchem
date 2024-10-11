@@ -36,7 +36,7 @@ void BaseTester::Init(BasisSet* bs,double spin,const LinearAlgebraParams& lap)
 
 void BaseTester::Init(BasisSet* bs,double spin)
 {
-    assert(bg); //Derived should already have created this.
+    assert(bs); //Derived should already have created this.
     assert(itsCluster->GetNumAtoms()>0);
     //if(itsHamiltonian) delete itsHamiltonian; SCFIterator owns the Hamiltonian
     if(itsBasisSet) delete itsBasisSet;

@@ -61,7 +61,7 @@
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
-		<Unit filename="include/Imp/BasisSet/Common.H" />
+		<Unit filename="include/Imp/BasisSet/IrrepCommon.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Block.H" />
@@ -90,6 +90,7 @@
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H" />
 		<Unit filename="include/Imp/BasisSet/TCommon.H" />
+		<Unit filename="include/Imp/BasisSet/TIrrepCommon.H" />
 		<Unit filename="include/Imp/Containers/ERI4.H" />
 		<Unit filename="include/Imp/Containers/Triangle.H" />
 		<Unit filename="include/Imp/Containers/ptr_vector.h" />

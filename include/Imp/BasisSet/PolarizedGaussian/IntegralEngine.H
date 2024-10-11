@@ -52,8 +52,8 @@ public:
 
 private:
     static const IrrepIEClient* dcast(iec_t*);
-    SMat Integrate(RadialFunction::Types2C , iec_t* a, const Cluster* cl=0) const;
-    SMat Integrate(RadialFunction::Types3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
+    SMat Integrate(qchem::IType2C , iec_t* a, const Cluster* cl=0) const;
+    SMat Integrate(qchem::IType3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
     mutable CDCache                    cache; //Cache of all Gaussian pair charge distributions.
 };

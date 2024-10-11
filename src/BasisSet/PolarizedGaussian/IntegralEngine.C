@@ -24,7 +24,7 @@ IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
     int i=0;
     for (auto r:a->radials)
     {
-        n(i+1)=r->Integrate(RadialFunction::Overlap2C,r,a->pols[i],a->pols[i],cache);
+        n(i+1)=r->Integrate(qchem::Overlap2C,r,a->pols[i],a->pols[i],cache);
         i++;       
     }
     n=1.0/sqrt(n);
@@ -64,22 +64,22 @@ AnalyticIE<double>* IntegralEngine::Clone() const
 //
 IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* a) const
 {
-    return Integrate(RadialFunction::Overlap2C,a);
+    return Integrate(qchem::Overlap2C,a);
 }
 
 IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
 {
-    return Integrate(RadialFunction::Repulsion2C,iea);
+    return Integrate(qchem::Repulsion2C,iea);
 }
 
 IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* a) const
 {
-    return Integrate(RadialFunction::Kinetic,a);
+    return Integrate(qchem::Kinetic,a);
 }
 //
 IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* a,const Cluster& cl) const
 {
-    return Integrate(RadialFunction::Nuclear,a,&cl);
+    return Integrate(qchem::Nuclear,a,&cl);
 }
 
 IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
@@ -90,7 +90,7 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
     Mat s(Na,Nb);
     for (index_t ia=0;ia<Na;ia++)
         for (index_t ib=0;ib<Nb;ib++)
-            s(ia+1,ib+1)=a->radials[ia]->Integrate(RadialFunction::Repulsion2C,
+            s(ia+1,ib+1)=a->radials[ia]->Integrate(qchem::Repulsion2C,
                 b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
     assert(!isnan(s));
     return s;
@@ -110,7 +110,7 @@ IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
     {
-        SMat s=Integrate(RadialFunction::Overlap3C,ieab,c->radials[ic],c->pols[ic]);
+        SMat s=Integrate(qchem::Overlap3C,ieab,c->radials[ic],c->pols[ic]);
         s*=c->ns(ic+1);
         s3.push_back(s);
     } 
@@ -125,7 +125,7 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
     {
-        SMat s=Integrate(RadialFunction::Repulsion3C,ieab,c->radials[ic],c->pols[ic]);
+        SMat s=Integrate(qchem::Repulsion3C,ieab,c->radials[ic],c->pols[ic]);
         s*=c->ns(ic+1);
         s3.push_back(s);
     }    
@@ -164,7 +164,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 //
 //  Internal function for doing most of the double loops.
 //
-IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types3C type ,iec_t* ieab, const RadialFunction* rc, const Polarization& pc) const
+IntegralEngine::SMat IntegralEngine::Integrate(qchem::IType3C type ,iec_t* ieab, const RadialFunction* rc, const Polarization& pc) const
 {
     auto ab=dcast(ieab);
     int N=ab->size();
@@ -177,7 +177,7 @@ IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types3C type ,iec
 }
 
 
-IntegralEngine::SMat IntegralEngine::Integrate(RadialFunction::Types2C type ,iec_t* ieab,  const Cluster* cl) const
+IntegralEngine::SMat IntegralEngine::Integrate(qchem::IType2C type ,iec_t* ieab,  const Cluster* cl) const
 {
     auto ab=dcast(ieab);
     int N=ab->size();
