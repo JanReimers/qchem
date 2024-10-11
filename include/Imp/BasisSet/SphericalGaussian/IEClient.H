@@ -38,6 +38,8 @@ struct IEClient
 {
     IEClient() {};
     IEClient(size_t N) : IEData(N) {};
+    void Append(const IrrepIEClient*);
+    
     virtual size_t size() const {return es.size();}
 }; 
 

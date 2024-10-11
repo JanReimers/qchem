@@ -29,7 +29,6 @@ protected:
     typedef UniqueID::IDtype IDType;
     typedef typename Base::bs_t bs_t;
     typedef typename Base::iec_t iec_t;
-    typedef typename Base::iecv_t iecv_t;
     typedef typename Base::Rf Rf;
     typedef typename Base::Vf Vf;
 public:
@@ -68,8 +67,8 @@ public:
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) ; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) ; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual       ERI4&    GetRepulsion4C(iecv_t&) ;
-    virtual       ERI4&    GetExchange4C (iecv_t&)  ;
+    virtual       ERI4&    GetRepulsion4C() ;
+    virtual       ERI4&    GetExchange4C ()  ;
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
@@ -81,7 +80,7 @@ private:
     using StreamableObject::Pretty;
 
     void WipeCleanAllData   ()      ;
-    void BuildERIs(iecv_t& abcd);
+    void BuildERIs();
     const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
 
     typedef std::vector<UniqueID::IDtype>      IDList;

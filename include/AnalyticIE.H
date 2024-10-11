@@ -7,7 +7,7 @@
 #include <vector>
 #include "Imp/Containers/ERI4.H"
 
-
+class IEClient;
 //--------------------------------------------------------------------------------
 //
 //  This class is responsible for calculating all integrals over basis functions.
@@ -62,6 +62,7 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const=0; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const=0; //Used for DFT
     virtual void Make4C(ERI4& J, ERI4& K, const iecv_t&) const=0; //Used for Hartree-Fock
+    virtual void Make4C(ERI4& J, ERI4& K, const IEClient*) const=0; //Used for Hartree-Fock
 
     static  RSMat MakeInverse  (const RSMat&     ); //Numerically stable algo required.
 

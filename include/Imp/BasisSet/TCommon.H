@@ -81,9 +81,6 @@ public:
 
 protected:
     void  Insert(AnalyticIE<T>*);
-    virtual void  Insert(const BasisGroup* bg) {itsBasisGroup=bg;}
-    
-
 private:
     IntegralDataBase<T>* GetDataBase () const;
    
@@ -92,7 +89,6 @@ private:
 protected:
     LinearAlgebraParams          itsLAParams;
 private:
-    const BasisGroup* itsBasisGroup;
     mutable IntegralDataBase<T>*  itsDataBase;
     mutable LASolver<T>*                 itsLASolver;
 };

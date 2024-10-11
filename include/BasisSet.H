@@ -118,7 +118,6 @@ public:
 
 private:
     friend class BasisGroup;
-    virtual void Insert(const BasisGroup*)=0;
     virtual void SetStartIndex(int)=0;
 };
 

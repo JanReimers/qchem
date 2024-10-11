@@ -44,7 +44,6 @@ void BasisGroup::Insert(IrrepBasisSet* bs)
 {
     assert(bs);
     bs->SetStartIndex(GetNumFunctions()+1);
-    bs->Insert(this);
     itsBasisSets.push_back(bs);
 }
 

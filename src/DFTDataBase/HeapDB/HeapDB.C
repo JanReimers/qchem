@@ -249,23 +249,24 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec
         return i->second;
 }
 
-template <class T> void HeapDB<T>::BuildERIs(iecv_t& abcd)
+template <class T> void HeapDB<T>::BuildERIs()
 {
     assert(itsAnalyticIE);
+    assert(istIEClient);
     assert(itsJTable.GetSize()==0);
     assert(itsKTable.GetSize()==0); //They should be synchronized.
-    itsAnalyticIE->Make4C(itsJTable,itsKTable,abcd);
+    itsAnalyticIE->Make4C(itsJTable,itsKTable,istIEClient);
 }
 
-template <class T> ERI4&  HeapDB<T>::GetRepulsion4C(iecv_t& abcd)
+template <class T> ERI4&  HeapDB<T>::GetRepulsion4C()
 {
-   if (itsJTable.GetSize()==0) BuildERIs(abcd); 
+   if (itsJTable.GetSize()==0) BuildERIs(); 
    return itsJTable;
 }
 
-template <class T> ERI4&  HeapDB<T>::GetExchange4C (iecv_t& abcd)
+template <class T> ERI4&  HeapDB<T>::GetExchange4C ()
 {
-   if (itsJTable.GetSize()==0) BuildERIs(abcd); 
+   if (itsJTable.GetSize()==0) BuildERIs(); 
    if (itsKTable.GetSize()==0)
         return itsJTable;
     else

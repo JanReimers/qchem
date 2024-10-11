@@ -12,7 +12,14 @@ BasisSet::BasisSet(const LinearAlgebraParams& lap,size_t N, double minexp, doubl
 : BasisGroup(new IntegralEngine) // this makes a integral DB
 {
     for (size_t L=0;L<=Lmax;L++)
-        Insert(new IrrepBasisSet(lap,GetDataBase(),N,minexp,maxexp,L));
+    {
+        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),N,minexp,maxexp,L);
+        Append(ibs);
+        Insert(ibs);
+        
+    }
+        
+    
         
 }
 

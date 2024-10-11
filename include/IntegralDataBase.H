@@ -42,8 +42,7 @@ public:
     
     typedef const TIrrepBasisSet<T> bs_t;
     typedef const IrrepIEClient iec_t;
-    typedef std::vector<iec_t*> iecv_t;
-
+    
     virtual ~IntegralDataBase() {};
     virtual void  Insert(AnalyticIE<T>*)=0;
 
@@ -79,8 +78,8 @@ public:
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual       ERI4&    GetRepulsion4C(iecv_t&) =0;
-    virtual       ERI4&    GetExchange4C (iecv_t&) =0;
+    virtual       ERI4&    GetRepulsion4C() =0;
+    virtual       ERI4&    GetExchange4C () =0;
     
     virtual IntegralDataBase*      Clone            (               ) const=0;
     static  IntegralDataBase*      Factory          (std::istream&       )       ;

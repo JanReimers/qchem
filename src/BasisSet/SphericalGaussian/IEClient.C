@@ -20,4 +20,20 @@ void IrrepIEClient::Init(double minexp,double maxexp,size_t L)
       for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
 }
 
+void IEClient::Append(const IrrepIEClient* ic)
+{
+    size_t j=size()+1;
+    size_t N=size()+ic->size();
+    Ls.SetLimits(N,true);
+    es.SetLimits(N,true);
+    ns.SetLimits(N,true);
+    for (size_t i=1;i<=ic->size();i++,j++)
+    {
+        Ls(j)=ic->Ls(i);
+        es(j)=ic->es(i);
+        ns(j)=ic->ns(i);
+    }
+
+}
+
 } //namespace

@@ -37,6 +37,7 @@ struct IEClient
     , public IEData
 {
     IEClient() {};
+    void Append(const IrrepIEClient*);
     
     virtual size_t size() const {return radials.size();}
 };

@@ -176,8 +176,7 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
     assert(itsBasisGroup);
 //    std::cout << "    TBasisSetImplementation::GetRep Dcd=" << Dcd << std::endl;
 //    const BasisSetImplementation* bsi=dynamic_cast<const BasisSetImplementation*>(this);
-    BasisGroup::iecv_t iecs=itsBasisGroup->Flatten();
-    const ERI4& Jfull=GetDataBase()->GetRepulsion4C(iecs);
+    const ERI4& Jfull=GetDataBase()->GetRepulsion4C();
     ERI4view J(Jfull,this->GetStartIndex(),bs_cd->GetStartIndex());
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
@@ -205,8 +204,7 @@ template <class T> IrrepBasisSet::SMat TBasisSetImplementation<T>::
 GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    BasisGroup::iecv_t iecs=itsBasisGroup->Flatten();
-    const ERI4& Kfull=GetDataBase()->GetExchange4C(iecs);
+    const ERI4& Kfull=GetDataBase()->GetExchange4C();
     ERI4view K(Kfull,this->GetStartIndex(),bs_cd->GetStartIndex());
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();

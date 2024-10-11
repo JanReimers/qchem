@@ -19,7 +19,7 @@ class IEClient //Client for a full basis set.
 public:
     virtual ~IEClient() {};
     virtual UniqueID::IDtype GetID() const=0;
-    virtual size_t size() const=0;    
+    virtual size_t size() const=0;  
 };
 
 #endif //_IEClient_H_

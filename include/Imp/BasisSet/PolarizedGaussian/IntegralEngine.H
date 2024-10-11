@@ -51,6 +51,7 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     virtual void Make4C(ERI4& J, ERI4& K, const iecv_t&) const; //Used for Hartree-Fock
+    virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
     
     virtual IE* Clone() const;
 

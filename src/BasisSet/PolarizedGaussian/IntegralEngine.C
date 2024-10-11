@@ -180,6 +180,29 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const iecv_t& iecv) const
                 }
 }
 
+void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
+{
+    const IEClient* pg=dynamic_cast<const IEClient*>(iec);
+    
+    int N=pg->size();
+    J.SetSize(N,-1);
+    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
+
+    for (index_t ia:pg->ns.indices())
+        for (index_t ib:pg->ns.indices(ia))
+            for (index_t ic:pg->ns.indices())
+                for (index_t id:pg->ns.indices(ic))
+                {
+                    if (J(ia,ib,ic,id)==-1.0)
+                    {
+                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
+                        double norm=pg->ns(ia)*pg->ns(ib)*pg->ns(ic)*pg->ns(id);
+                        assert(pg->radials[id-1]);
+                        J(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
+                    }
+                }
+}
+
 
 //-------------------------------------------------------------------------
 //
