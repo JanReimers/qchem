@@ -52,6 +52,15 @@ void LDAVxc::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBas
     ffi->GetFitCoeff()+=theFitBasisSet->GetRepulsion(ffi->GetMesh(),itsExchangeFunctional.get());;
 }
 
+Vector<double> LDAVxc::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
+{
+    assert(false);
+    return Vector<double>();
+//    FittedFunctionImplementation<double>* ffi=dynamic_cast<FittedFunctionImplementation<double>*>(ff);
+//    assert(ffi);
+//    return theFitBasisSet->GetRepulsion(ffi->GetMesh(),itsExchangeFunctional.get());;
+}
+
 double LDAVxc::FitGetConstraint() const
 {
     std::cerr << "There should be no constraint when fitting Vxc" << std::endl;

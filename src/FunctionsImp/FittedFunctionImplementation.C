@@ -73,7 +73,8 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(const FittedFun
 {
     Fill(itsFitCoeff,0.0);
     if (itsCDFitFlag)
-        ffc.InjectRepulsions(this,&*itsBasisSet); //itsFitCoeff gets repulsion vector.
+//        ffc.InjectRepulsions(this,&*itsBasisSet); //itsFitCoeff gets repulsion vector.
+        itsFitCoeff+=ffc.GetRepulsions(&*itsBasisSet);
     else
         itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
 //	cout << "DoFit " <<  typeid(*this).name() << " " << typeid(ffc).name() << " " << itsFitCoeff << std::endl;

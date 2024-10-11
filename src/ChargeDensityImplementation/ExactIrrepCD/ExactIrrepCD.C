@@ -148,6 +148,12 @@ template <class T> void ExactIrrepCD<T>::InjectRepulsions(FittedFunction* ff, co
     ffi->GetFitCoeff()+=delta_ff;
 }
 
+template <class T> Vector<double> ExactIrrepCD<T>::GetRepulsions(const IrrepBasisSet* fbs) const
+{
+    return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
+}
+
+
 //-------------------------------------------------------------------------
 //
 //  SCF convergence stuff.

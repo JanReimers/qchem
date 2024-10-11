@@ -13,6 +13,7 @@ bool ChargeDensity::IsPolarized() const
 
 #include "oml/smatrix.h"
 #include "Misc/Spin.H"
+#include "oml/vector.h"
 //----------------------------------------------------------------------------
 //
 //  Various integrals.
@@ -91,6 +92,12 @@ void PolarizedCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theF
         GetChargeDensity(Spin::Up  )->InjectRepulsions(ff,theFitBasisSet);
         GetChargeDensity(Spin::Down)->InjectRepulsions(ff,theFitBasisSet);
     }
+}
+
+Vector<double> PolarizedCD::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
+{
+    return GetChargeDensity(Spin::Up  )->GetRepulsions(theFitBasisSet)
+        +  GetChargeDensity(Spin::Down)->GetRepulsions(theFitBasisSet);
 }
 
 //-----------------------------------------------------------------------
@@ -294,6 +301,14 @@ void FittedPolarizedCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet
     }
 }
 
+Vector<double> FittedPolarizedCD::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
+{
+    return GetChargeDensity(Spin::Up  )->GetRepulsions(theFitBasisSet)
+        +  GetChargeDensity(Spin::Down)->GetRepulsions(theFitBasisSet);
+    
+}
+
+
 void FittedPolarizedCD::ReScale(double factor) //Fit *= factor
 {
     itsSpinUpCD   -> ReScale(factor);
@@ -319,12 +334,6 @@ double FittedPolarizedCD::FitGetChangeFrom(const FittedFunction& ff) const
     return itsSpinUpCD   -> FitGetChangeFrom(ff)
            + itsSpinDownCD -> FitGetChangeFrom(ff);
 }
-
-//void Add(const IrrepBasisSet* fitbs,const ScalarFunction<double>* sf)
-//{
-//    itsSpinUpCD->Add(fitbs,sf);
-//}
-//
 
 //--------------------------------------------------------------------------
 //

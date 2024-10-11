@@ -128,6 +128,12 @@ InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* theFitBasisSet) const
     ffi->GetFitCoeff()+=FitGet2CenterRepulsion(theFitBasisSet);
 }
 
+template <class T> Vector<double> FittedCDImplementation<T>::
+GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
+{
+    return FitGet2CenterRepulsion(theFitBasisSet);
+}
+
 //-------------------------------------------------------------------------
 //
 //  SCF convergence stuff.

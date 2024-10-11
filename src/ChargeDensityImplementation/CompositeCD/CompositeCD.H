@@ -29,6 +29,7 @@ public:
     virtual double GetTotalCharge      (                     ) const;
 
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
     virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor

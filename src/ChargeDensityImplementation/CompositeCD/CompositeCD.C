@@ -6,6 +6,7 @@
 #include "BasisSet.H"
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
+#include "oml/vector.h"
 #include <cassert>
 
 //------------------------------------------------------------------------------------
@@ -75,6 +76,14 @@ double CompositeCD::GetTotalCharge() const
 void CompositeCD::InjectRepulsions(FittedFunction* ff, const IrrepBasisSet* fbs) const
 {
     for (auto c:itsCDs) c->InjectRepulsions(ff,fbs);
+}
+
+Vector<double> CompositeCD::GetRepulsions(const IrrepBasisSet* fbs) const
+{
+    Vector<double> ret;
+    Fill(ret,0.0);
+    for (auto c:itsCDs) ret+=c->GetRepulsions(fbs);
+    return ret;
 }
 
 //-------------------------------------------------------------------------

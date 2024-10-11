@@ -17,6 +17,7 @@ class FittedFunctionClient
 public:
     virtual double FitGetConstraint() const=0;
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const=0;
+    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const=0;
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;
 
 };

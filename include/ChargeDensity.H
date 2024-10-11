@@ -69,6 +69,7 @@ public:
     virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
 
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual bool   IsPolarized  (                           ) const;
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
@@ -133,6 +134,7 @@ public:
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
     virtual void   InjectRepulsions(FittedFunction*, const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
     virtual const ScalarFunction<double>* GetScalarFunction() const {return this;};
 
     virtual std::ostream&  Write(std::ostream&) const;
