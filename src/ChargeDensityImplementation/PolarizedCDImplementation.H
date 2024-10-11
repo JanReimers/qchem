@@ -25,7 +25,6 @@ public:
 
     ChargeDensity* GetChargeDensity(const Spin&)      ;
     const ChargeDensity* GetChargeDensity(const Spin&) const;
-    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 
     virtual std::ostream&        Write(std::ostream&) const;
     virtual std::istream&        Read (std::istream&)      ;

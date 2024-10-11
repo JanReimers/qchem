@@ -5,9 +5,9 @@ Priority 1:
    -Cache reports
 
     -DumpScalarData keeps showing up everywhere, do we need it?
-    -Clean up fitting code, it is unreadable right now.
-    -We need a different interface for a scaler fit client like Vxc and the charge density
-     which uses D_ij rather than a fit basis.
+    -Done: Clean up fitting code, it is unreadable right now.
+    -Done: -We need a different interface for a scaler fit client like Vxc and the charge density
+            which uses D_ij rather than a fit basis.
 
     -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
         -This would require separate derived classes like FitSGIrrepBasis derived from both SGIrrepBasis

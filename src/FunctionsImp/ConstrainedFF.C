@@ -31,23 +31,12 @@ ConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const Vec& theg, Mesh
 
 template <class T> double ConstrainedFF<T>::DoFit(const ScalarFFClient& ffc)
 {
-    return FittedFunctionImplementation<T>::DoFitInternal(ffc,ffc.FitGetConstraint());
+    return FittedFunctionImplementation<T>::DoFitInternal(ffc);
 }
 template <class T> double ConstrainedFF<T>::DoFit(const DensityFFClient& ffc)
 {
     return FittedFunctionImplementation<T>::DoFitInternal(ffc,ffc.FitGetConstraint());
 }
-
-//template <class T> double ConstrainedFF<T>::
-//DoFit(double constraint, const Vec& overlap)
-//{
-//    double lam= gSg>0 ? (constraint-gS*overlap)/gSg : 0;
-//    /*	cout << "ConstrainedFF<T>::DoFit" << lam << " " << gSg << " " << constraint << endl
-//    		<< gS << endl << overlap << endl << g << std::endl;*/
-//    FittedFunctionImplementation<T>::itsFitCoeff=GetInverseOverlap()*(overlap+lam*g);
-////    FittedFunctionImplementation<T>::SetFitCoeff(GetInverseOverlap()*(overlap+lam*g));
-//    return lam;
-//}
 
 template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const
 {

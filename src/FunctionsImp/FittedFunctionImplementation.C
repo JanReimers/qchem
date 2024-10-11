@@ -83,15 +83,6 @@ template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const D
     return 0;
 }
 
-//template <class T> double FittedFunctionImplementation<T>::DoFit(const Vec& overlap,double constraint)
-//{
-////	cout << "fit overlap" << overlap << std::endl;
-//    assert(!isnan(overlap));
-//    SetFitCoeff(GetInverseOverlap()*overlap);
-////	cout << "Fit " << itsFitCoeff << std::endl;
-//    return 0;
-//}
-
 //---------------------------------------------------------------------------
 //
 //  Provide Overlap and Repulsion matricies for derived classes.

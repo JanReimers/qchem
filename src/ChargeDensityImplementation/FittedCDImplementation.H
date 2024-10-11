@@ -35,7 +35,6 @@ public:
     virtual double GetTotalCharge      (                     ) const;
 
     virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
-    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;
@@ -55,6 +54,9 @@ private:
     using FittedFunctionImplementation<T>::FitGetCharge;
     using FittedFunctionImplementation<T>::FitGet2CenterOverlap;
     using FittedFunctionImplementation<T>::FitGet2CenterRepulsion;
+    using FittedFunctionImplementation<T>::itsFitCoeff;
+    using FittedFunctionImplementation<T>::itsBasisSet;
+    
     virtual void Eval(const Mesh&, Vector<double>&) const;
 
     const ChargeDensity* itsExactRep;

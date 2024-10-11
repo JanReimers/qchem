@@ -29,7 +29,6 @@ public:
     virtual double GetTotalCharge      (                     ) const;
 
     virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
-    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;

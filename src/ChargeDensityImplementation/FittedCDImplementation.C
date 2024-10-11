@@ -66,28 +66,24 @@ template <class T> double FittedCDImplementation<T>::DoFit(const DensityFFClient
 //
 template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetOverlap  (const IrrepBasisSet* bs) const
 {
-    const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(this);
-    assert(ffi);
-    const std::vector<SMat>& overlap=bs->GetOverlap3C(ffi->itsBasisSet.get());
+    const std::vector<SMat>& overlap=bs->GetOverlap3C(itsBasisSet.get());
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);
     size_t i=0;
-    for (auto c:ffi->itsFitCoeff) J+=SMat(c*overlap[i++]);
+    for (auto c:itsFitCoeff) J+=SMat(c*overlap[i++]);
     assert(!isnan(J));
     return J;
 }
 
 template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetRepulsion(const IrrepBasisSet* bs) const
 {
-    const FittedFunctionImplementation<T>* ffi=dynamic_cast<const FittedFunctionImplementation<T>*>(this);
-    assert(ffi);
-    const std::vector<SMat>& repulsions=bs->GetRepulsion3C(ffi->itsBasisSet.get());
+    const std::vector<SMat>& repulsions=bs->GetRepulsion3C(itsBasisSet.get());
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);
     size_t i=0;
-    for (auto c:ffi->itsFitCoeff) J+=SMat(c*repulsions[i++]);
+    for (auto c:itsFitCoeff) J+=SMat(c*repulsions[i++]);
     assert(!isnan(J));
     return J;
 }

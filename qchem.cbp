@@ -319,10 +319,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/FunctionsImp/DumpVectorData.H" />
-		<Unit filename="src/FunctionsImp/FitBasisSet.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/FitBasisSet.H" />
 		<Unit filename="src/FunctionsImp/FittedFunctionImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>

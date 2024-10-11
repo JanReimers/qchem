@@ -16,7 +16,6 @@
 class ScalarFFClient
 {
 public:
-    virtual double FitGetConstraint() const=0;
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;
 
 };

@@ -45,22 +45,6 @@ void LDAVxc::GetEnergy(TotalEnergy&) const
     exit(-1);
 }
 
-Vector<double> LDAVxc::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
-{
-    assert(false);
-    return Vector<double>();
-//    FittedFunctionImplementation<double>* ffi=dynamic_cast<FittedFunctionImplementation<double>*>(ff);
-//    assert(ffi);
-//    return theFitBasisSet->GetRepulsion(ffi->GetMesh(),itsExchangeFunctional.get());;
-}
-
-double LDAVxc::FitGetConstraint() const
-{
-    std::cerr << "There should be no constraint when fitting Vxc" << std::endl;
-    exit(-1);
-    return 0;
-}
-
 
 std::ostream& LDAVxc::Write(std::ostream& os) const
 {

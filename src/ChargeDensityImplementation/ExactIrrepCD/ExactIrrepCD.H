@@ -38,7 +38,6 @@ public:
     virtual double GetTotalCharge(                ) const;
 
     virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
-    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 
     virtual void   ReScale      (double factor              )      ;
     virtual void   ShiftOrigin  (const RVec3&               )      ;
@@ -52,8 +51,6 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
 
 private:
-
-    friend class TIrrepBasisSetCommon<T>;
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
