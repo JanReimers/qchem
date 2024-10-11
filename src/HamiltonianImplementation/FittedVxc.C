@@ -51,27 +51,7 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 
 HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
-    const FittedFunctionImplementation<double>* ffi=dynamic_cast<const FittedFunctionImplementation<double>*>(this);
-    assert(ffi);
-    const std::vector<SMat>& overlap=bs->GetOverlap3C(ffi->itsBasisSet.get());
-    int n=bs->GetNumFunctions();
-    SMat Kab(n,n);
-    Fill(Kab,0.0);
-    size_t i=0;
-    for (auto c:ffi->itsFitCoeff) Kab+=SMat(c*overlap[i++]);
-    assert(!isnan(Kab));
-    
-    //SMat Kab=bs->GetOverlap(this);
-//    std::cout.precision(4);
-//    std::cout.width(7);
-//    std::cout.setf(std::ios::fixed,std::ios::floatfield);
-//    std::cout << "  Basis Set QN=" << bs->GetQuantumNumber() << std::endl;
-//    std::cout << "  Fitted Kab=:" << Kab << std::endl;
-//    SMat Kabhf=itsExactCD->GetExchange(bs)*-0.5;
-//    std::cout << "  HF Kab=:" << Kabhf << std::endl;
-//    SMat delta=DirectDivide((Kabhf-Kab),Kab)*100;
-//    std::cout << "  % Delta Kab=:" << delta << std::endl;
-    return Kab;
+    return FitGet3CenterOverlap(bs);
 }
 
 void FittedVxc::GetEnergy(TotalEnergy& te) const

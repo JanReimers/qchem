@@ -116,6 +116,19 @@ FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
     return itsFitCoeff * (itsBasisSet->GetRepulsion(    bs));
 }
 
+template <class T> typename FittedFunctionImplementation<T>::SMat FittedFunctionImplementation<T>::
+FitGet3CenterOverlap(const IrrepBasisSet* bs) const
+{
+    const std::vector<SMat>& O3=bs->GetOverlap3C(itsBasisSet.get());
+    int n=bs->GetNumFunctions();
+    SMat J(n,n);
+    Fill(J,0.0);
+    size_t i=0;
+    for (auto c:itsFitCoeff) J+=SMat(c*O3[i++]);
+    assert(!isnan(J));
+    return J;
+}
+
 //-------------------------------------------------------------------------------------
 //
 //  Get overlap and repulsion with a charge density.  And total charge.

@@ -5,7 +5,9 @@ Priority 1:
    -Cache reports
 
 
-    -Invert dependency BasisSet--->Fitted function
+    -Clean up fitting code, it is unreadable right now.
+    -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
+    Done: -Invert dependency BasisSet--->Fitted function
     Done: -TIrrepBasisSetCommon<T>::SetFitOverlap should not be call DoFit,
         Should do ff->Update(sf);
 

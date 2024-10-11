@@ -51,6 +51,7 @@ protected:
 
     virtual Vec    FitGet2CenterOverlap  (const IrrepBasisSet*) const;
     virtual Vec    FitGet2CenterRepulsion(const IrrepBasisSet*) const;
+    virtual SMat    FitGet3CenterOverlap  (const IrrepBasisSet*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImplementation*) const;
     virtual double FitGetOverlap  (const FittedFunctionImplementation*) const;
