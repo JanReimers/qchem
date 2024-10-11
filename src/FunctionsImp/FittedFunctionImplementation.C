@@ -68,19 +68,12 @@ template <class T> void FittedFunctionImplementation<T>::SetFitCoeff(const Vec& 
 //  Implement all DoFit functions.  The overlaps will be accumulated in
 //  itsFitCoeff by the call to GetRepulsions or GetOverlap.
 //
-#include <typeinfo>
 template <class T> double FittedFunctionImplementation<T>::DoFit(const FittedFunctionClient& ffc)
 {
-    Fill(itsFitCoeff,0.0);
-    if (itsCDFitFlag)
-        itsFitCoeff+=ffc.GetRepulsions(&*itsBasisSet);
-    else
-        itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
-//	cout << "DoFit " <<  typeid(*this).name() << " " << typeid(ffc).name() << " " << itsFitCoeff << std::endl;
-    return DoFit(0,itsFitCoeff);
+    return DoFitInternal(ffc,0); //No contraint.
 }
 
-template <class T> double FittedFunctionImplementation<T>::DoFit(double constraint, const FittedFunctionClient& ffc)
+template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const FittedFunctionClient& ffc,double constraint)
 {
     Fill(itsFitCoeff,0.0);
     if (itsCDFitFlag)
@@ -88,10 +81,10 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(double constrai
     else
         itsFitCoeff+=itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
 //	cout << "DoFit constrained" << constraint << " " << itsFitCoeff << std::endl;
-    return DoFit(constraint,itsFitCoeff);
+    return DoFit(itsFitCoeff,constraint);
 }
 
-template <class T> double FittedFunctionImplementation<T>::DoFit(double,  const Vec& overlap)
+template <class T> double FittedFunctionImplementation<T>::DoFit(const Vec& overlap,double constraint)
 {
 //	cout << "fit overlap" << overlap << std::endl;
     assert(!isnan(overlap));

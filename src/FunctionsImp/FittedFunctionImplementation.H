@@ -47,8 +47,10 @@ public:
     const Mesh* GetMesh() const {return itsMesh;}
 
 protected:
-    virtual double DoFit(double, const FittedFunctionClient&);
-    virtual double DoFit(double, const Vec&);
+//    virtual double DoFit(const FittedFunctionClient&);
+    virtual double DoFit(const Vec&,double constraint);
+    virtual double DoFitInternal(const FittedFunctionClient&,double constraint=0);
+
 
     virtual Vec    FitGet2CenterOverlap  (const IrrepBasisSet*) const;
     virtual Vec    FitGet2CenterRepulsion(const IrrepBasisSet*) const;

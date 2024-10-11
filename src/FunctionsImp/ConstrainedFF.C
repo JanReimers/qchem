@@ -31,7 +31,7 @@ ConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const Vec& theg, Mesh
 
 template <class T> double ConstrainedFF<T>::DoFit(const FittedFunctionClient& ffc)
 {
-    return FittedFunctionImplementation<T>::DoFit(ffc.FitGetConstraint(),ffc);
+    return FittedFunctionImplementation<T>::DoFitInternal(ffc,ffc.FitGetConstraint());
 }
 
 template <class T> double ConstrainedFF<T>::
