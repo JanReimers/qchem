@@ -20,13 +20,13 @@ template <class T> FittedCDImplementation<T>::FittedCDImplementation()
 {};
 
 template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, Mesh* m)
-    : IntegralConstrainedFF<double>(bs,m,true) //Use repulsion overlap for fitting
+    : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(0)
 {};
 
 template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, Mesh* m, double totalCharge)
-    : IntegralConstrainedFF<double>(bs,m,true) //Use repulsion overlap for fitting
+    : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(totalCharge)
 {

@@ -9,6 +9,7 @@
 #include "Functions/FittedFunction.H"
 #include "Imp/LAParams.H"
 #include "oml/vector.h"
+#include "oml/smatrix.h"
 
 template <class T> class FittedCDImplementation;
 template <class T> class ConstrainedFF;
@@ -25,7 +26,7 @@ public:
     typedef Vector<T> Vec;
 
     FittedFunctionImplementation(                                         );
-    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m,bool CDfit=false);
+    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m);
     ~FittedFunctionImplementation();
     
     virtual double DoFit           (const ScalarFFClient& )      ;
@@ -55,7 +56,7 @@ protected:
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
-    SMat    GetInverseOverlap() const; //Inverse of the normalized fit basis overlap or repulsion.
+    //SMat    GetInverseOverlap() const; //Inverse of the normalized fit basis overlap or repulsion.
 
 private:
     friend class FittedCDImplementation<T>;
@@ -67,8 +68,9 @@ private:
 
     rc_ptr<IrrepBasisSet> itsBasisSet;
     Vec   itsFitCoeff;
+    SMat  itsInvOvlp;
+    SMat  itsInvRepl;
     Mesh* itsMesh;
-    bool  itsCDFitFlag;
     LAParams itsLAParams; //Decides about matrix inversion.
 };
 

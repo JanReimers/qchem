@@ -20,23 +20,23 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImplementation<T>::
-FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,Mesh* m, bool CDfit)
+FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,Mesh* m)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsMesh    (m)
-    , itsCDFitFlag(CDfit)
     , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
+    itsInvOvlp=itsBasisSet->GetInverseOverlap(itsLAParams);
+    itsInvRepl=itsBasisSet->GetInverseRepulsion(itsLAParams);
 };
 
 template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation()
     : itsBasisSet (    )
     , itsFitCoeff (    )
     , itsMesh     (0   )
-    , itsCDFitFlag(true)
 {
     Fill(itsFitCoeff,0.0);
 };
@@ -45,16 +45,7 @@ template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementatio
 {
     delete itsMesh;
 }
-//---------------------------------------------------------------------
-//
-//  Implementation stuff for derived constrained fit classes.
-//
-template <class T> typename FittedFunctionImplementation<T>::SMat FittedFunctionImplementation<T>::
-GetInverseOverlap() const
-{
-    return itsCDFitFlag ? itsBasisSet->GetInverseRepulsion(itsLAParams)
-           : itsBasisSet->GetInverseOverlap(itsLAParams);
-}
+
 
 //--------------------------------------------------------------------------
 //
@@ -72,15 +63,13 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(const DensityFF
 
 template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    Vec overlap= itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());
-    itsFitCoeff=GetInverseOverlap()*overlap;
+    itsFitCoeff=itsInvOvlp*itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());;
     return 0;
 }
 
 template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    Vec overlap= ffc.GetRepulsions(&*itsBasisSet);
-    itsFitCoeff=GetInverseOverlap()*overlap;
+    itsFitCoeff=itsInvRepl*ffc.GetRepulsions(&*itsBasisSet);
     return 0;
 }
 
@@ -200,12 +189,12 @@ template <class T> typename FittedFunctionImplementation<T>::RVec3  FittedFuncti
 //
 template <class T> std::ostream& FittedFunctionImplementation<T>::Write(std::ostream& os) const
 {
-    if (StreamableObject::Binary())
-        BinaryWrite(itsCDFitFlag,os);
-    else if (StreamableObject::Ascii())
-        os << itsCDFitFlag << " ";
-    else
-        os << "Fit Function: " << std::endl << "  Fit flag = " << itsCDFitFlag << std::endl;
+//    if (StreamableObject::Binary())
+//       
+//    else if (StreamableObject::Ascii())
+//        
+//    else
+        os << "Fit Function: " << std::endl;
 
     os << *itsBasisSet;
     if (!StreamableObject::Pretty())
@@ -221,10 +210,10 @@ template <class T> std::ostream& FittedFunctionImplementation<T>::Write(std::ost
 
 template <class T> std::istream& FittedFunctionImplementation<T>::Read (std::istream& is)
 {
-    if (StreamableObject::Binary())
-        BinaryRead(itsCDFitFlag,is);
-    else
-        is >> itsCDFitFlag;
+//    if (StreamableObject::Binary())
+//        BinaryRead(itsCDFitFlag,is);
+//    else
+//        is >> itsCDFitFlag;
 
     itsBasisSet.reset(IrrepBasisSet::Factory(is));
     is >> *itsBasisSet >> itsFitCoeff;

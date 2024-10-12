@@ -556,12 +556,13 @@
 	"FunctionsImp/FittedFunctionImplementation.H"
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 
-1728702114 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
+1728703730 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
 	"BasisSet.H"
 	"Misc/rc_ptr.H"
 	"Functions/FittedFunction.H"
 	"Imp/LAParams.H"
 	"oml/vector.h"
+	"oml/smatrix.h"
 
 1727908610 /home/janr/Code/qchem/src/Functions/FittedFunction.H
 	"types.H"

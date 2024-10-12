@@ -10,8 +10,8 @@ template <class T> class IntegralConstrainedFF
     : public ConstrainedFF<T>
 {
 public:
-    IntegralConstrainedFF(                                        );
-    IntegralConstrainedFF(const rc_ptr<IrrepBasisSet>&, Mesh*,bool CDfit=false);
+    IntegralConstrainedFF(                                   );
+    IntegralConstrainedFF(const rc_ptr<IrrepBasisSet>&, Mesh*);
 };
 
 #endif //_IntegralConstraintFF_H_
