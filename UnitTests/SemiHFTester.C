@@ -13,7 +13,9 @@ SemiHartreeFockTester::SemiHartreeFockTester()
 {
 };
 
-SemiHartreeFockTester::~SemiHartreeFockTester() {};
+SemiHartreeFockTester::~SemiHartreeFockTester() 
+{
+};
 
 void SemiHartreeFockTester::Init(double Exchange)
 {
@@ -27,12 +29,17 @@ HamiltonianTerm* SemiHartreeFockTester::GetVee() const
 
 HamiltonianTerm* SemiHartreeFockTester::GetVxc(double spin) const
 {
-    if(!itsXBasisSet.get()) itsXBasisSet.reset(GetXbasisSet());
-    
     HamiltonianTerm* ret=0;
+    rc_ptr<IrrepBasisSet> xbs(GetXbasisSet());
     if (spin==0.0)
-        ret=new FittedVxc(itsXBasisSet, new SlaterExchange(itsExchange),GetIntegrationMesh());
+    {
+        rc_ptr<ExchangeFunctional> ex(new SlaterExchange(itsExchange));
+        ret=new FittedVxc(xbs, ex,GetIntegrationMesh());
+    }
     else
-        ret=new PolarizedFittedVxc(itsXBasisSet, new SlaterExchange(itsExchange,Spin(Spin::Up)),GetIntegrationMesh());
+    {
+        rc_ptr<ExchangeFunctional> ex(new SlaterExchange(itsExchange,Spin(Spin::Up)));
+        ret=new PolarizedFittedVxc(xbs,ex ,GetIntegrationMesh());        
+    }
     return ret;
 }

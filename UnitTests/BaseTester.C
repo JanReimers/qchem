@@ -28,6 +28,7 @@ BaseTester::~BaseTester()
     delete itsWaveFunction;
     delete itsBasisSet;
     delete itsSCFIterator;
+    
 }
 
 void BaseTester::Init(BasisSet* bs,double spin,const LAParams& lap)

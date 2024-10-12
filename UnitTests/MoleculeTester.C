@@ -41,14 +41,14 @@ void MoleculeTester::LoadOrbitalBasisSet()
 IrrepBasisSet* MoleculeTester::GetCbasisSet() const
 {
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A2_coul.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
+    IrrepBasisSet* bs = new PolarizedGaussian::IrrepBasisSet(itsLAParams,GetDatabase(), &reader,itsCluster.get());
     return bs;
 }
 
 IrrepBasisSet* MoleculeTester::GetXbasisSet() const
 {
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
-    IrrepBasisSet* bs = new PolarizedGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>, &reader,itsCluster.get());
+    IrrepBasisSet* bs = new PolarizedGaussian::IrrepBasisSet(itsLAParams,GetDatabase(), &reader,itsCluster.get());
     return bs;
 }
 

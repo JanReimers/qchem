@@ -1,6 +1,8 @@
 Priority 1:
+    -Fix all warnings.
     -Fix valgrind errors
-        Seeing 3-4 errors, not easy to fix.
+        Seeing 1 errors related open MP
+        Atom mesh leaks.  Should own radial and angular meshes?
     -kT Occ smearing fails miserably.
     -Clean up PolGaussian construction
     -Does UniqueID really need to enforce Read/Write?

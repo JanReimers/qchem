@@ -47,18 +47,18 @@ void AtomTester::Init(int NBasis, int Lmax, double spin, const LAParams& lap)
 
 IrrepBasisSet* AtomTester::GetCbasisSet() const
 {
-    return new SphericalGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin*2.0,itsEmax*2.0,0);
+    return new SphericalGaussian::IrrepBasisSet(itsLAParams,GetDatabase(),itsNbasis,itsEmin*2.0,itsEmax*2.0,0);
 }
 
 IrrepBasisSet* AtomTester::GetXbasisSet() const
 {
-    return new SphericalGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin*2.0/3.0,itsEmax*2.0/3.0,0);
+    return new SphericalGaussian::IrrepBasisSet(itsLAParams,GetDatabase(),itsNbasis,itsEmin*2.0/3.0,itsEmax*2.0/3.0,0);
 }
 
 rc_ptr<Mesh> AtomTester::GetIntegrationMesh() const
 {
-    RadialMesh*            rm=new MHLRadialMesh(50,2U,2.0);
-    AngularMesh*           am=new GaussAngularMesh(1);
-    return new AtomMesh(*rm,*am);
+    RadialMesh*            rm=new MHLRadialMesh(50,2U,2.0); //mem leak
+    AngularMesh*           am=new GaussAngularMesh(1);      //mem leak
+    return new AtomMesh(*rm,*am); //why not own?
 }
 

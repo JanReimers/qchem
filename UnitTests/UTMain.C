@@ -8,7 +8,7 @@ int main(int argc, char **argv)
 
 //    testing::GTEST_FLAG(filter) = "SlaterIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
-    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
+//    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_EigenSolverTests.*";
 
 //    testing::GTEST_FLAG(filter) = "SemiHartreeFockMoleculeTester.*";
@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "HartreeFockMoleculeTester.*";
 
 //    testing::GTEST_FLAG(filter) = "HartreeFockAtomTester.AtomsHFEigenSolvers";
-//    testing::GTEST_FLAG(filter) = "AtomsSemiDFTPolarized/SemiHartreeFockAtomTester.AtomsSemiDFTPolarized/*";
+//    testing::GTEST_FLAG(filter) = "AtomsSemiDFTPolarized/SemiHartreeFockAtomTester.AtomsSemiDFTPolarized/1";
 //    testing::GTEST_FLAG(filter) = "AtomsDFTPolarized/DFTAtomTester.*";
 //    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/1";
     return RUN_ALL_TESTS();
