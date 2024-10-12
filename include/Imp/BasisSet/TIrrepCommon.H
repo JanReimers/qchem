@@ -5,7 +5,6 @@
 #include "BasisSet.H"
 #include "Imp/LAParams.H"
 #include "Misc/Persistent/PerRef.H"
-#include "Misc/rc_ptr.H"
 
 //---------------------------------------------------------------------
 //

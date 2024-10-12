@@ -3,7 +3,10 @@ Priority 1:
     Done: -Experiment with Latex markup for doxygen.  Works great!
     Done: -DumpScalarData keeps showing up everywhere, do we need it?
     Done: -IE::MakeInverse should take LAParams as argument.
-    -FittedFunctionImplementation delete itsMesh crashed.  Who owns the mesh?
+    -All templated classes should hold TIrrepBasisSet<T> pointers.
+        Construct only accepts TIrrepBasisSet<T>* ?
+    Done: -FittedFunctionImplementation delete itsMesh crashed.  Who owns the mesh?
+        Good use for rc_ptr.
     -Break dependency BasisSet-->Orbitals in Build Orbitals.
     -Fix valgrind errors
     -kT Occ smearing fails miserably.

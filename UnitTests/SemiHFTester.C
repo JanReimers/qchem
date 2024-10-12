@@ -6,6 +6,7 @@
 #include "HamiltonianImplementation/PolarizedFittedVxc.H"
 #include "HamiltonianImplementation/SlaterExchange.H"
 #include "HamiltonianImplementation/ExactVee.H"
+#include "Mesh/Mesh.H"
 
 SemiHartreeFockTester::SemiHartreeFockTester()
     : itsExchange(0.0)

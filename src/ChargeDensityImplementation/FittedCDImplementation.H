@@ -18,8 +18,8 @@ template <class T> class FittedCDImplementation
 {
 public:
     FittedCDImplementation();
-    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m);
-    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m, double totalCharge);
+    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& );
+    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& , double totalCharge);
 
     virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;

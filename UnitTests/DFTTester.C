@@ -2,6 +2,7 @@
 
 #include "DFTTester.H"
 #include "HamiltonianImplementation/CDFittedVee.H"
+#include "Mesh/Mesh.H"
 #include "Cluster.H"
 #include "BasisSet.H"
 
@@ -20,7 +21,6 @@ void DFTTester::Init(double Exchange)
 HamiltonianTerm* DFTTester::GetVee() const
 {
     if(!itsCBasisSet.get()) itsCBasisSet.reset(GetCbasisSet());
-    Mesh* mesh=GetIntegrationMesh();
-    assert(mesh);
+    rc_ptr<Mesh>   mesh=GetIntegrationMesh();
     return new CDFittedVee(itsCBasisSet,mesh,itsCluster->GetNumElectrons());
 }

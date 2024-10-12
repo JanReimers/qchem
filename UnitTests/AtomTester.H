@@ -14,7 +14,7 @@ public:
     void Init(int NBasis, int Lmax,double spin, const LAParams&);
     virtual IrrepBasisSet*  GetXbasisSet() const;
     virtual IrrepBasisSet*  GetCbasisSet() const;
-    virtual Mesh*      GetIntegrationMesh() const;
+    virtual rc_ptr<Mesh>    GetIntegrationMesh() const;
     virtual void LoadOrbitalBasisSet() {};
 
     int    itsNbasis;

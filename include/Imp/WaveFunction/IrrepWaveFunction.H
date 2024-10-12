@@ -7,7 +7,6 @@
 #include "WaveFunction.H"
 #include "BasisSet.H"
 #include "Misc/Spin.H"
-#include "Misc/rc_ptr.H"
 
 class IrrepWaveFunction
     : public virtual WaveFunction

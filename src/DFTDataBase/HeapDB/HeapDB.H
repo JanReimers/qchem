@@ -6,9 +6,7 @@
 
 #include "IntegralDataBase.H"
 #include <IEClient.H>
-#include "Misc/Persistent/IDRef.H"
 #include "Imp/Containers/ERI4.H"
-#include "Misc/rc_ptr.H"
 #include <map>
 
 //-----------------------------------------------------------------------------

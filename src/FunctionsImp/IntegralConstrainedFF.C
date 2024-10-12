@@ -12,7 +12,7 @@ template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
 {};
 
 template <class T> IntegralConstrainedFF<T>::
-IntegralConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, Mesh* m)
+IntegralConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const rc_ptr<Mesh>&  m)
     : ConstrainedFF<T>(theFitBasisSet,dynamic_cast<const TIrrepBasisSet<T>*>(theFitBasisSet.get())->GetDataBase()->GetCharge(theFitBasisSet.get()),m)
 {};
 

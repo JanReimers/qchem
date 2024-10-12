@@ -14,7 +14,7 @@ public:
     
     virtual IrrepBasisSet*  GetXbasisSet() const;
     virtual IrrepBasisSet*  GetCbasisSet() const;
-    virtual Mesh*      GetIntegrationMesh() const;
+    virtual rc_ptr<Mesh>      GetIntegrationMesh() const;
     virtual void LoadOrbitalBasisSet();
     
     SCFIterationParams itsSCFIParams;

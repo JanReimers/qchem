@@ -52,7 +52,7 @@ IrrepBasisSet* MoleculeTester::GetXbasisSet() const
     return bs;
 }
 
-Mesh* MoleculeTester::GetIntegrationMesh() const
+rc_ptr<Mesh>  MoleculeTester::GetIntegrationMesh() const
 {
    	Mesh*	me = new MoleculeMesh(*itsCluster,3);
     return me;

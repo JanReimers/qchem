@@ -7,6 +7,7 @@
 #include "BasisSet.H"
 #include "Misc/rc_ptr.H"
 #include "Functions/FittedFunction.H"
+#include "Mesh/Mesh.H"
 #include "Imp/LAParams.H"
 #include "oml/vector.h"
 #include "oml/smatrix.h"
@@ -26,7 +27,7 @@ public:
     typedef Vector<T> Vec;
 
     FittedFunctionImplementation(                                         );
-    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, Mesh* m);
+    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>&);
     ~FittedFunctionImplementation();
     
     virtual double DoFit           (const ScalarFFClient& )      ;
@@ -70,7 +71,7 @@ private:
     Vec   itsFitCoeff;
     SMat  itsInvOvlp;
     SMat  itsInvRepl;
-    Mesh* itsMesh;
+    rc_ptr<Mesh> itsMesh;
     LAParams itsLAParams; //Decides about matrix inversion.
 };
 

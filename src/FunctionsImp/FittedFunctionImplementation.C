@@ -20,13 +20,13 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImplementation<T>::
-FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,Mesh* m)
+FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,const rc_ptr<Mesh>& m)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsMesh    (m)
     , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
 {
-    assert(itsMesh);
+    assert(&*itsMesh);
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
     itsInvOvlp=itsBasisSet->GetInverseOverlap(itsLAParams);
@@ -63,7 +63,7 @@ template <class T> double FittedFunctionImplementation<T>::DoFit(const DensityFF
 
 template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvOvlp*itsBasisSet->GetOverlap(itsMesh,ffc.GetScalarFunction());;
+    itsFitCoeff=itsInvOvlp*itsBasisSet->GetOverlap(&*itsMesh,ffc.GetScalarFunction());;
     return 0;
 }
 
@@ -80,7 +80,7 @@ template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const D
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
 FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 {
-    return itsFitCoeff * (itsBasisSet->GetOverlap(itsMesh,bs));
+    return itsFitCoeff * (itsBasisSet->GetOverlap(&*itsMesh,bs));
 }
 
 template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
@@ -112,7 +112,7 @@ FitGetOverlap(const FittedFunctionImplementation<T>* ffi) const
 {
     return
         itsFitCoeff *
-        itsBasisSet->GetOverlap(itsMesh,ffi->itsBasisSet.get()) *
+        itsBasisSet->GetOverlap(&*itsMesh,ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
 }
 

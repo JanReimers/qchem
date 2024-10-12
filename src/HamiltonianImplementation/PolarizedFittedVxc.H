@@ -20,7 +20,7 @@ class PolarizedFittedVxc
 {
 public:
     PolarizedFittedVxc();
-    PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>&, const rc_ptr<ExchangeFunctional>&, Mesh*);
+    PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>&, const rc_ptr<ExchangeFunctional>&, const rc_ptr<Mesh>& );
    ~PolarizedFittedVxc();
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* exact);

@@ -2,7 +2,6 @@
 
 #include "Hamiltonian/ExchangeFunctional.H"
 #include "BasisSet.H"
-#include "Misc/rc_ptr.H"
 #include "HamiltonianImplementation/Kinetic.H"
 #include "HamiltonianImplementation/ExactVen.H"
 #include "HamiltonianImplementation/ExactVnn.H"

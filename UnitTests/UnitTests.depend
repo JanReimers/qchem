@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1728702130 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
+1728747103 source:/home/janr/Code/qchem/UnitTests/AtomTester.C
 	"AtomTester.H"
 	"Cluster.H"
 	"BasisSet.H"
@@ -10,14 +10,14 @@
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
 
-1728702130 /home/janr/Code/qchem/UnitTests/AtomTester.H
+1728746881 /home/janr/Code/qchem/UnitTests/AtomTester.H
 	"BaseTester.H"
 
-1728702163 /home/janr/Code/qchem/UnitTests/BaseTester.H
+1728746898 /home/janr/Code/qchem/UnitTests/BaseTester.H
 	"gtest/gtest.h"
 	"SCFIterator/IterationParams.H"
 	"Imp/LAParams.H"
-	"Misc/rc_ptr.h"
+	"Misc/rc_ptr.H"
 
 1728599453 /home/janr/Code/qchem/src/Misc/rc_ptr.h
 
@@ -240,12 +240,10 @@
 
 1728599453 /home/janr/Code/qchem/src/Misc/rc_ptr.H
 
-1728702349 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
+1728746622 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
 	<IEClient.H>
-	"Misc/Persistent/IDRef.H"
 	"Imp/Containers/ERI4.H"
-	"Misc/rc_ptr.H"
 	<map>
 
 1727636581 /home/janr/Code/qchem/src/BasisSet/IntegralDataBase.H
@@ -341,7 +339,7 @@
 	"AtomTester.H"
 	"MoleculeTester.H"
 
-1728702130 /home/janr/Code/qchem/UnitTests/MoleculeTester.H
+1728746937 /home/janr/Code/qchem/UnitTests/MoleculeTester.H
 	"BaseTester.H"
 
 1728702130 /home/janr/Code/qchem/UnitTests/HartreeFockTester.H
@@ -360,7 +358,7 @@
 
 1728599453 /home/janr/Code/qchem/src/Misc/PeriodicTable.H
 
-1728702130 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
+1728741865 source:/home/janr/Code/qchem/UnitTests/BaseTester.C
 	"BaseTester.H"
 	"BasisSet.H"
 	"TotalEnergy.H"
@@ -447,15 +445,15 @@
 	"Imp/Containers/ptr_vector.h"
 	<iostream>
 
-1728599453 source:/home/janr/Code/qchem/UnitTests/DFTTester.C
+1728746937 source:/home/janr/Code/qchem/UnitTests/DFTTester.C
 	"DFTTester.H"
 	"HamiltonianImplementation/CDFittedVee.H"
 	"Cluster.H"
 	"BasisSet.H"
 
-1728599453 /home/janr/Code/qchem/src/HamiltonianImplementation/CDFittedVee.H
+1728747062 /home/janr/Code/qchem/src/HamiltonianImplementation/CDFittedVee.H
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
-	"Misc/rc_ptr.h"
+	"Misc/rc_ptr.H"
 
 1728702130 source:/home/janr/Code/qchem/UnitTests/HartreeFockTester.C
 	"HartreeFockTester.H"
@@ -491,7 +489,7 @@
 	<iostream>
 	<fstream>
 
-1728702130 source:/home/janr/Code/qchem/UnitTests/MoleculeTester.C
+1728747131 source:/home/janr/Code/qchem/UnitTests/MoleculeTester.C
 	"MoleculeTester.H"
 	"Cluster/Molecule.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
@@ -543,23 +541,25 @@
 1728599453 /home/janr/Code/qchem/src/Mesh/MoleculeMesh.H
 	"Mesh/MeshImplementation.H"
 
-1728599453 source:/home/janr/Code/qchem/UnitTests/SemiHFTester.C
+1728747196 source:/home/janr/Code/qchem/UnitTests/SemiHFTester.C
 	"SemiHFTester.H"
 	"HamiltonianImplementation/FittedVxc.H"
 	"HamiltonianImplementation/PolarizedFittedVxc.H"
 	"HamiltonianImplementation/SlaterExchange.H"
 	"HamiltonianImplementation/ExactVee.H"
+	"Mesh/Mesh.H"
 
-1728694112 /home/janr/Code/qchem/src/HamiltonianImplementation/FittedVxc.H
+1728746744 /home/janr/Code/qchem/src/HamiltonianImplementation/FittedVxc.H
 	"Hamiltonian/ExchangeFunctional.H"
 	"Misc/rc_ptr.H"
 	"FunctionsImp/FittedFunctionImplementation.H"
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 
-1728703730 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
+1728747423 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
 	"BasisSet.H"
 	"Misc/rc_ptr.H"
 	"Functions/FittedFunction.H"
+	"Mesh/Mesh.H"
 	"Imp/LAParams.H"
 	"oml/vector.h"
 	"oml/smatrix.h"
@@ -571,7 +571,7 @@
 1728599453 /home/janr/Code/qchem/src/FunctionsImp/DumpScalarData.H
 	"Functions/ScalarFunction.H"
 
-1728599453 /home/janr/Code/qchem/src/HamiltonianImplementation/PolarizedFittedVxc.H
+1728747157 /home/janr/Code/qchem/src/HamiltonianImplementation/PolarizedFittedVxc.H
 	"Hamiltonian/ExchangeFunctional.H"
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"Misc/rc_ptr.H"
@@ -628,7 +628,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1728599453 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728747276 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -685,7 +685,7 @@
 	"oml/imp/stream.h"
 	"Misc/ptr_vector.h"
 
-1728702130 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
+1728739518 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
 	"AtomTester.H"
 	"HartreeFockTester.H"
 	"gtest/gtest.h"
@@ -746,7 +746,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728702463 /home/janr/Code/qchem/include/BasisSet.H
+1728738066 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -790,7 +790,7 @@
 	"Cluster/Atom.H"
 	<vector>
 
-1728599453 /home/janr/Code/qchem/include/WaveFunction.H
+1728740636 /home/janr/Code/qchem/include/WaveFunction.H
 	"types.H"
 	"Misc/pmstream.h"
 	"Misc/Spin.H"
@@ -802,10 +802,11 @@
 1727901282 /home/janr/Code/qchem/include/PolarizedCD.H
 	"ChargeDensity.H"
 
-1727405153 /home/janr/Code/qchem/include/ChargeDensity.H
-	"Functions/PlottableScalarFunction.H"
+1728694112 /home/janr/Code/qchem/include/ChargeDensity.H
+	"Functions/ScalarFunction.H"
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
+	"Functions/FittedFunction.H"
 
 1728702044 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
@@ -1006,11 +1007,10 @@
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1728702446 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
+1728746452 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
 	"BasisSet.H"
 	"Imp/LAParams.H"
 	"Misc/Persistent/PerRef.H"
-	"Misc/rc_ptr.H"
 
 1728702044 /home/janr/Code/qchem/include/Imp/LAParams.H
 	<iosfwd>

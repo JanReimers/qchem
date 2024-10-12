@@ -55,7 +55,7 @@ IrrepBasisSet* AtomTester::GetXbasisSet() const
     return new SphericalGaussian::IrrepBasisSet(itsLAParams,new HeapDB<double>,itsNbasis,itsEmin*2.0/3.0,itsEmax*2.0/3.0,0);
 }
 
-Mesh* AtomTester::GetIntegrationMesh() const
+rc_ptr<Mesh> AtomTester::GetIntegrationMesh() const
 {
     RadialMesh*            rm=new MHLRadialMesh(50,2U,2.0);
     AngularMesh*           am=new GaussAngularMesh(1);

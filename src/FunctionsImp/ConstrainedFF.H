@@ -11,7 +11,7 @@ template <class T> class ConstrainedFF
     typedef typename Base::Vec Vec;
 public:
     ConstrainedFF();
-    ConstrainedFF(const rc_ptr<IrrepBasisSet>&, const Vec&, Mesh* m);
+    ConstrainedFF(const rc_ptr<IrrepBasisSet>&, const Vec&, const rc_ptr<Mesh>&  m);
 
     virtual double DoFit(const ScalarFFClient&);
     virtual double DoFit(const DensityFFClient&);

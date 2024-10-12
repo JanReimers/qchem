@@ -5,7 +5,7 @@
 
 
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
-#include "Misc/rc_ptr.h"
+#include "Misc/rc_ptr.H"
 
 //###############################################################################
 //
@@ -26,7 +26,7 @@ class CDFittedVee
 {
 public:
     CDFittedVee();
-    CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, Mesh* m, double numElectrons);
+    CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>& m, double numElectrons);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* cd    )       ;
     virtual void GetEnergy       (TotalEnergy&               ) const;

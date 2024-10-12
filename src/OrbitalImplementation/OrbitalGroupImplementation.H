@@ -6,8 +6,6 @@
 
 #include "Orbital.H"
 #include "BasisSet.H"
-#include "Misc/Persistent/IDRef.H"
-#include "Misc/rc_ptr.H"
 #include "Imp/Containers/ptr_vector.h"
 
 class OrbitalGroupImplementation

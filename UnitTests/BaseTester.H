@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "SCFIterator/IterationParams.H"
 #include "Imp/LAParams.H"
-#include "Misc/rc_ptr.h"
+#include "Misc/rc_ptr.H"
 
 class HamiltonianTerm;
 class BasisSet;
@@ -35,7 +35,7 @@ public:
     virtual HamiltonianTerm* GetVxc(double spin) const=0;
     virtual IrrepBasisSet*  GetXbasisSet() const=0;
     virtual IrrepBasisSet*  GetCbasisSet() const=0;
-    virtual Mesh*      GetIntegrationMesh() const=0;
+    virtual rc_ptr<Mesh>  GetIntegrationMesh() const=0;
     virtual void       LoadOrbitalBasisSet()=0;
     
     Cluster*      GetCluster     () const {return &*itsCluster;}

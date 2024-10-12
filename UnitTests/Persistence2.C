@@ -69,7 +69,7 @@ template <class T> T* OutIn(const PMStreamableObject* pout,c_str filename,Stream
 TEST_F(qchem_PersistanceTests,AtomBasisSets)
 {
     
-    int Z=51;
+    int Z=2;
     int L=thePeriodicTable.GetMaxL(Z),NBasis=6;
     double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
     Atom* atom=new Atom(Z,0,Vector3D<double>(0,0,0));

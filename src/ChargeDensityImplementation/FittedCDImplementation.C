@@ -3,6 +3,7 @@
 
 
 #include "ChargeDensityImplementation/FittedCDImplementation.H"
+#include "Mesh/Mesh.H"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include <cmath>
@@ -19,13 +20,13 @@ template <class T> FittedCDImplementation<T>::FittedCDImplementation()
     , itsTotalCharge(0)
 {};
 
-template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, Mesh* m)
+template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<Mesh>& m)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(0)
 {};
 
-template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, Mesh* m, double totalCharge)
+template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<Mesh>& m, double totalCharge)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(totalCharge)

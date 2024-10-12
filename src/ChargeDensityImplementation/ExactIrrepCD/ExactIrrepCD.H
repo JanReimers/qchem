@@ -7,7 +7,6 @@
 #include "BasisSet.H"
 #include "ChargeDensity.H"
 #include "Misc/Spin.H"
-#include "Misc/rc_ptr.H"
 #include "oml/smatrix.h"
 
 template <class T> class TIrrepBasisSetCommon;

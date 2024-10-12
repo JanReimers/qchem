@@ -22,3 +22,5 @@ doc/html/
 doc/latex/
 
 *.lyx~
+
+UnitTests/ValgrindOut.xml

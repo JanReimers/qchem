@@ -16,7 +16,7 @@ FittedVxc::FittedVxc()
 {};
 
 
-FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda, Mesh* m)
+FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda,const rc_ptr<Mesh>& m)
     : HamiltonianTermImplementation     (   )
     , FittedFunctionImplementation<double>(bs,m) //Use regular overlap for fitting.
     , itsLDAVxc                 (new LDAVxc(lda))
