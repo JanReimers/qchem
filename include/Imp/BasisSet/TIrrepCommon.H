@@ -38,7 +38,7 @@ public:
 //
 //  This is where the real work gets done.
 //
-    virtual OrbitalGroup* CreateOrbitals(const rc_ptr<const IrrepBasisSet>&,const Hamiltonian*, const Spin&) const;
+    virtual OrbitalGroup* CreateOrbitals(const Hamiltonian*, const Spin&) const;
 //
 //  Used by fitting routines.
 // 
@@ -82,7 +82,7 @@ protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 private:
     mutable IntegralDataBase<T>*  itsDataBase;
-    mutable LASolver<T>*                 itsLASolver;
+    mutable LASolver<T>*          itsLASolver;
 };
 
 #endif //_TBasisSetImplementation_H_

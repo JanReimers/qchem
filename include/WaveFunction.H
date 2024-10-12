@@ -7,8 +7,6 @@
 #include "Misc/Spin.H"
 
 
-template <class T> class rc_ptr;
-
 class WaveFunction
     : public virtual PMStreamableObject
 {
@@ -24,8 +22,8 @@ public:
     virtual std::istream&   Read (std::istream&)      =0;
     static  WaveFunction* Factory(std::istream&)        ;
 
-protected:
-    void FixUpPointer(OrbitalGroup* og, const rc_ptr<const IrrepBasisSet>& bs);
+//protected:
+//    void FixUpPointer(OrbitalGroup* og, const rc_ptr<const IrrepBasisSet>& bs);
 
 private:
     WaveFunction& operator=(const WaveFunction&);

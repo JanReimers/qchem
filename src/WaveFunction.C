@@ -6,9 +6,9 @@
 #include "Orbital.H"
 #include <cassert>
 
-void WaveFunction::FixUpPointer(OrbitalGroup* og, const rc_ptr<const IrrepBasisSet>& bs)
-{
-    assert(og);
-    og->FixUpPointer(bs);
-}
+//void WaveFunction::FixUpPointer(OrbitalGroup* og, const rc_ptr<const IrrepBasisSet>& bs)
+//{
+//    assert(og);
+//    og->FixUpPointer(bs);
+//}
 

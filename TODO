@@ -3,6 +3,8 @@ Priority 1:
     Done: -Experiment with Latex markup for doxygen.  Works great!
     Done: -DumpScalarData keeps showing up everywhere, do we need it?
     Done: -IE::MakeInverse should take LAParams as argument.
+    -FittedFunctionImplementation delete itsMesh crashed.  Who owns the mesh?
+    -Break dependency BasisSet-->Orbitals in Build Orbitals.
     -Fix valgrind errors
     -kT Occ smearing fails miserably.
     -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
@@ -26,6 +28,7 @@ Priority 2:
         
     
 Priority 3:
+    
     -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
         -This would require separate derived classes like FitSGIrrepBasis derived from both SGIrrepBasis
         and FitBasisSet.
@@ -38,7 +41,7 @@ Priority 3:
    -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
         -Broke BasisSet persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
- 
+    -Do we still nee fast contraction functions?
     -Support V*S without including matrix.h
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?

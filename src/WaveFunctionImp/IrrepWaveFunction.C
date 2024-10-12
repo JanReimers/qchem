@@ -37,7 +37,7 @@ IrrepWaveFunction::~IrrepWaveFunction()
 void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
 {
     if (itsOrbitals) delete itsOrbitals;
-    itsOrbitals = itsBasisSet->CreateOrbitals(itsBasisSet,&ham,itsSpin);
+    itsOrbitals = itsBasisSet->CreateOrbitals(&ham,itsSpin);
 }
 
 ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
@@ -94,10 +94,10 @@ std::istream& IrrepWaveFunction::Read (std::istream& is)
     assert(itsOrbitals);
     is >> *itsOrbitals;
 
-    IrrepBasisSet* temp=IrrepBasisSet::Factory(is);
-    is >> *temp;
-    itsBasisSet.reset(temp);
-    FixUpPointer(itsOrbitals,itsBasisSet);
+//    IrrepBasisSet* temp=IrrepBasisSet::Factory(is);
+//    is >> *temp;
+//    itsBasisSet.reset(temp);
+//    FixUpPointer(itsOrbitals,itsBasisSet);
 
 
     return is;

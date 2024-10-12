@@ -33,11 +33,11 @@ template <class T> ExactIrrepCD<T>::ExactIrrepCD()
 {};
 
 template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix,
-                                                 const rc_ptr<const IrrepBasisSet>& theBasisSet,
+                                                 const IrrepBasisSet* theBasisSet,
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
     , itsBasisSet(theBasisSet)
-    , itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet.get()))
+    , itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet))
     , itsSpin(s)
 {
     assert(itsCastedBasisSet);
@@ -61,7 +61,7 @@ template <> ChargeDensity::SMat ExactIrrepCD<double>::GetRepulsion(const IrrepBa
 {
 //    assert(itsBasisSet->GetID()==bs->GetID()); basis sets get cloned, so this won't work.
 //    std::cout << "   ExactIrrepCD GetRepulsion Lab=" << bs_ab->GetQuantumNumber() << ", Lcd=" << itsBasisSet->GetQuantumNumber() << std::endl;
-    const TIrrepBasisSet<double>* tbs_cd=dynamic_cast<const TIrrepBasisSet<double>*>(itsBasisSet.get());
+    const TIrrepBasisSet<double>* tbs_cd=dynamic_cast<const TIrrepBasisSet<double>*>(itsBasisSet);
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
     SMat Jab= tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
 //    const SphericalSymmetryQN* qn_ab=dynamic_cast<const SphericalSymmetryQN*>(&bs_ab->GetQuantumNumber());
@@ -118,7 +118,7 @@ template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) c
 {
     const HamiltonianTermImplementation* vi=dynamic_cast<const HamiltonianTermImplementation*>(v);
     assert(vi);
-    T ComplexE=Sum(DirectMultiply(itsDensityMatrix,vi->GetCachedMatrix(itsBasisSet.get(),itsSpin)));
+    T ComplexE=Sum(DirectMultiply(itsDensityMatrix,vi->GetCachedMatrix(itsBasisSet,itsSpin)));
     assert(fabs(imag(ComplexE))<1e-8);
     return real(ComplexE);
 }
@@ -176,7 +176,7 @@ template <class T> double ExactIrrepCD<T>::GetChangeFrom(const ChargeDensity& cd
 template <class T> void ExactIrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
 {
     std::cerr << "ExactIrrepCD::ShiftOrigin this is an odd thing to do for an exact charge density" << std::endl;
-    itsBasisSet.reset(itsBasisSet->Clone(newCenter));
+    itsBasisSet=itsBasisSet->Clone(newCenter);
 }
 
 template <class T> double ExactIrrepCD<T>::operator()(const RVec3& r) const
@@ -218,18 +218,18 @@ template <class T> void ExactIrrepCD<T>::Eval(const Mesh& m, Vec& v) const
 //
 template <class T> std::ostream& ExactIrrepCD<T>::Write(std::ostream& os) const
 {
-    return os << itsDensityMatrix << *itsBasisSet;
+    return os << itsDensityMatrix;
 }
 
 template <class T> std::istream& ExactIrrepCD<T>::Read(std::istream& is)
 {
     is >> itsDensityMatrix;
 
-    TIrrepBasisSet<T>* tbs = dynamic_cast<TIrrepBasisSet<T>*>(IrrepBasisSet::Factory(is));
-    assert(tbs);
-    is >> *tbs;
-    itsBasisSet.reset(tbs);
-    itsCastedBasisSet=tbs;
+//    TIrrepBasisSet<T>* tbs = dynamic_cast<TIrrepBasisSet<T>*>(IrrepBasisSet::Factory(is));
+//    assert(tbs);
+//    is >> *tbs;
+//    itsBasisSet.reset(tbs);
+//    itsCastedBasisSet=tbs;
 
     return is;
 }

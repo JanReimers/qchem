@@ -28,9 +28,9 @@ public:
 private:
     IrrepWaveFunction(const IrrepWaveFunction&);
 
-    OrbitalGroup*               itsOrbitals;
-    rc_ptr<const IrrepBasisSet> itsBasisSet;
-    Spin                        itsSpin;
+    OrbitalGroup*        itsOrbitals;
+    const IrrepBasisSet* itsBasisSet;
+    Spin                 itsSpin;
 }; 
 
 #endif //IrrepWaveFunction

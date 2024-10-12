@@ -66,15 +66,16 @@ template <class T> IntegralDataBase<T>* TIrrepBasisSetCommon<T>::GetDataBase() c
 // TODO: Why do we need to pass in const rc_ptr<const BasisSet>& rc ????
 //
 template <class T> OrbitalGroup* TIrrepBasisSetCommon<T>::
-CreateOrbitals(const rc_ptr<const IrrepBasisSet>& rc,const Hamiltonian* ham, const Spin&S) const
+CreateOrbitals(const Hamiltonian* ham, const Spin&S) const
 {
     SMat H=ham->BuildHamiltonian(this,S);
     assert(!isnan(H));
     LASolver<T>* es=GetLASolver();
     assert(es);
+    assert(es==itsLASolver);
     auto [U,e]=es->Solve(H);
     return new
-           TOrbitalGroupImplementation<T>(rc,U,e,S);
+           TOrbitalGroupImplementation<T>(this,U,e,S);
 }
 
 template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::

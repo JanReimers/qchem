@@ -76,7 +76,7 @@ public:
     
 protected:
     friend class  WaveFunction;
-    virtual void  FixUpPointer(const rc_ptr<const IrrepBasisSet>&);
+//    virtual void  FixUpPointer(const rc_ptr<const IrrepBasisSet>&);
 };
 
 #include "Functions/VectorFunction.H"

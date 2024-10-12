@@ -19,7 +19,7 @@ template <class T> TOrbitalGroupImplementation<T>::TOrbitalGroupImplementation()
 {};
 
 template <class T> TOrbitalGroupImplementation<T>::
-TOrbitalGroupImplementation(const rc_ptr<const IrrepBasisSet>& bs,
+TOrbitalGroupImplementation(const IrrepBasisSet* bs,
                             const Mat & evec,
                             const RVec& eval,
                             const Spin& S)
@@ -60,7 +60,7 @@ Gradient(const RVec3& r) const
 //
 template <class T> ChargeDensity* TOrbitalGroupImplementation<T>::GetChargeDensity(Spin s) const
 {
-    return new ExactIrrepCD<T>(CalculateDensityMatrix(),itsRCBasisSet,s);
+    return new ExactIrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,s);
 }
 
 #include "QuantumNumber.H"

@@ -26,7 +26,7 @@ public:
     typedef SMatrix<T> DenSMat; //Type for the density matrix.
 
     ExactIrrepCD();
-    ExactIrrepCD(const DenSMat&,const rc_ptr<const IrrepBasisSet>&, const Spin&);
+    ExactIrrepCD(const DenSMat&,const IrrepBasisSet*, const Spin&);
 
     virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
@@ -52,10 +52,10 @@ private:
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
-    DenSMat                itsDensityMatrix;
-    rc_ptr<const IrrepBasisSet> itsBasisSet;
-    const TIrrepBasisSet<T>*    itsCastedBasisSet;
-    Spin                   itsSpin;
+    DenSMat                  itsDensityMatrix;
+    const IrrepBasisSet*     itsBasisSet;
+    const TIrrepBasisSet<T>* itsCastedBasisSet;
+    Spin                     itsSpin;
 };
 
 #endif //_ExactIrrepCD_H_

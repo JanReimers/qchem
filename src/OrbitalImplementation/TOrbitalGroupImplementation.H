@@ -23,7 +23,7 @@ template <class T> class TOrbitalGroupImplementation
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
     TOrbitalGroupImplementation();
-    TOrbitalGroupImplementation(const rc_ptr<const IrrepBasisSet>&,
+    TOrbitalGroupImplementation(const IrrepBasisSet*,
                                 const Mat&,
                                 const RVec&,
                                 const Spin&);

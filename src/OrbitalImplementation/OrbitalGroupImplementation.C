@@ -14,24 +14,22 @@
 //
 OrbitalGroupImplementation::OrbitalGroupImplementation()
     : itsBasisSet( )
-    , itsRCBasisSet(0)
 {};
 
-OrbitalGroupImplementation::OrbitalGroupImplementation(const rc_ptr<const IrrepBasisSet>& bs)
-    : itsBasisSet(&*bs)
-    , itsRCBasisSet(bs)
+OrbitalGroupImplementation::OrbitalGroupImplementation(const IrrepBasisSet* bs)
+    : itsBasisSet(bs)
 {};
 
 //-----------------------------------------------------------------
 //
 //  BasisSet reference injection for unpickling.
 //
-void OrbitalGroupImplementation::FixUpPointer(const rc_ptr<const IrrepBasisSet>& bs)
-{
-    itsBasisSet.FixUpPointer(&*bs);
-    itsRCBasisSet=bs;
-    OrbitalGroup::FixUpPointer(itsRCBasisSet);
-}
+//void OrbitalGroupImplementation::FixUpPointer(const rc_ptr<const IrrepBasisSet>&)
+//{
+//    itsBasisSet.FixUpPointer(&*bs);
+//    itsRCBasisSet=bs;
+//    OrbitalGroup::FixUpPointer(itsRCBasisSet);
+//}
 
 //-----------------------------------------------------------------
 //
@@ -85,8 +83,8 @@ std::istream& OrbitalGroupImplementation::Read(std::istream& is)
 {
     is >> itsOrbitals;
     if (!StreamableObject::Binary()) is >> std::ws;
-    is  >> itsBasisSet;
-    if (!StreamableObject::Binary()) is >> std::ws;
+//    is  >> itsBasisSet;
+//    if (!StreamableObject::Binary()) is >> std::ws;
     return is;
 }
 
