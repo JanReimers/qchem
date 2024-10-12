@@ -61,7 +61,6 @@ template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetOverlap  (const Irrep
     return SMat();
 }
 
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 
 //template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetRepulsion(const BasisSet* bs) const
 template <> ChargeDensity::SMat ExactIrrepCD<double>::GetRepulsion(const IrrepBasisSet* bs_ab) const
