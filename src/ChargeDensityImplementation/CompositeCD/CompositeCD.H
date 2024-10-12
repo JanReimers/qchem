@@ -5,7 +5,6 @@
 
 
 #include "ChargeDensity.H"
-#include "FunctionsImp/DumpScalarData.H"
 #include "Imp/Containers/ptr_vector.h"
 
 //--------------------------------------------------------------------------
@@ -14,7 +13,6 @@
 //
 class CompositeCD
     : public virtual ChargeDensity
-    , private DumpScalarData
 {
 public:
     CompositeCD();

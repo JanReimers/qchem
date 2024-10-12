@@ -28,7 +28,6 @@ public:
     typedef Vector<Vec3>     Vec3Vec;//vector of 3 space vectors.
     typedef Vector3D<double> RVec3;  //Real space vector.
     typedef Vector<double>   RVec;
-//	typedef          Vector<RVec3>    RVec3Vec;//vector of 3 space vectors.
 
     virtual ~ScalarFunction()  {};
 
@@ -39,14 +38,6 @@ public:
     virtual Vec3    Gradient   (const RVec3&         ) const=0;
     virtual Vec3Vec Gradient   (const Mesh&          ) const  ;
     virtual void    EvalGrad   (const Mesh&, Vec3Vec&) const  ;
-};
-
-class PlottableScalarFunction
-    : public virtual ScalarFunction<double>
-{
-public:
-    virtual const char* DumpPlotData  (const Mesh&, const RVec3& direction  ) const=0; //Returns temporary file name.
-    virtual const char* Dump3DPlotData(const Mesh&, const RVec3& n, double z) const=0; //Returns temporary file name.
 };
 
 

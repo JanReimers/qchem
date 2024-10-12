@@ -5,13 +5,9 @@
 
 
 #include "Hamiltonian/ExchangeFunctional.H"
-#include "FunctionsImp/DumpScalarData.H"
-#include "FunctionsImp/ScalarFunctionBuffer.H"
 
 class ExchangeFunctionalImplementation
     : public  virtual ExchangeFunctional
-    , private DumpScalarData
-    , private ScalarFunctionBuffer<double>
 {
 public:
     ExchangeFunctionalImplementation(               );

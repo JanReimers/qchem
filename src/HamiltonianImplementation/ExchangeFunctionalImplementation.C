@@ -4,11 +4,11 @@
 
 #include "HamiltonianImplementation/ExchangeFunctionalImplementation.H"
 #include "ChargeDensity.H"
+#include "oml/vector.h"
 #include <cassert>
 
 ExchangeFunctionalImplementation::ExchangeFunctionalImplementation()
-    : ScalarFunctionBuffer<double>(false,false)
-    , itsChargeDensity(0)
+    : itsChargeDensity(0)
     , isPolarized(true)
 {};
 
@@ -17,7 +17,6 @@ void ExchangeFunctionalImplementation::InsertChargeDensity(const ChargeDensity* 
 {
     assert(theChargeDensity);
     itsChargeDensity=theChargeDensity;
-    MakeBufferDirty();
 }
 
 void ExchangeFunctionalImplementation::Eval(const Mesh& m, Vector<double>& v) const

@@ -9,7 +9,7 @@
 
 class ExchangeFunctional
     : public virtual PMStreamableObject
-    , public virtual PlottableScalarFunction
+    , public virtual ScalarFunction<double>
 {
 public:
     virtual void            InsertChargeDensity      (const ChargeDensity*)      =0;

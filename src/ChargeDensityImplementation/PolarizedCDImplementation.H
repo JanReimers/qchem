@@ -5,7 +5,6 @@
 
 
 #include "ChargeDensity.H"
-#include "FunctionsImp/DumpScalarData.H"
 #include "Misc/Spin.H"
 
 //---------------------------------------------------------------------------------------
@@ -15,7 +14,6 @@
 //
 class PolarizedCDImplementation
     : public virtual PolarizedCD
-    , private DumpScalarData
 {
 public:
 

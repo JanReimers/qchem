@@ -3,7 +3,6 @@
 #define _TBasisSetImplementation_H_
 
 #include "BasisSet.H"
-#include "FunctionsImp/VectorFunctionBuffer.H"
 #include "SCFIterator/IterationParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
@@ -18,19 +17,16 @@
 //
 template <class T> class TIrrepBasisSetCommon
     : public virtual TIrrepBasisSet<T>
-    , private VectorFunctionBuffer<T>
 {
 protected:
-    typedef VectorFunctionBuffer<T> Base;
-    typedef typename Base::Mat     Mat;  //Matrix.
-    typedef typename IrrepBasisSet::SMat    SMat; //Symmetrix matrix.
-    typedef typename Base::Vec     Vec;  //Vector of scalars.
-    typedef typename Base::Vec3    Vec3;   //3 vector (possibly complex).
-    typedef typename Base::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    typedef typename Base::RVec3   RVec3;  //Real space vector.
+    typedef IrrepBasisSet Base;
     typedef typename Base::RVec    RVec;
-    typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
-    typedef typename TIrrepBasisSet<T>::ERI3 ERI3;
+    typedef typename Base::Mat     Mat;  //Matrix.
+    typedef typename Base::SMat    SMat; //Symmetrix matrix.
+    typedef typename Base::ERI3 ERI3;
+    typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
+    typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
+    typedef typename VectorFunction<T>::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
   
 public:
     TIrrepBasisSetCommon(                              );

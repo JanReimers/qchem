@@ -8,7 +8,6 @@
 #include "Misc/rc_ptr.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
 #include "HamiltonianImplementation/HamiltonianTermImplementation.H"
-#include "FunctionsImp/DumpScalarData.H"
 
 //###############################################################################
 //
@@ -20,7 +19,6 @@ class FittedVxc
     : public virtual FittedFunction
     , public virtual HamiltonianTerm
     , private        HamiltonianTermImplementation
-    , private        DumpScalarData
     , public         FittedFunctionImplementation<double>
 {
     typedef HamiltonianTerm::SMat SMat;

@@ -22,7 +22,5 @@ private:
 
     ChargeDensity*       itsExactChargeDensity;
     ChargeDensity*       itsOldExactChargeDensity;
-
-    Plotter*            itsPlotter;
 };
 

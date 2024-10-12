@@ -470,7 +470,7 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"Misc/rc_ptr.H"
 
-1728599453 /home/janr/Code/qchem/src/Hamiltonian/ExchangeFunctional.H
+1728693900 /home/janr/Code/qchem/src/Hamiltonian/ExchangeFunctional.H
 	"Misc/pmstream.h"
 	"Functions/ScalarFunction.H"
 
@@ -549,12 +549,11 @@
 	"HamiltonianImplementation/SlaterExchange.H"
 	"HamiltonianImplementation/ExactVee.H"
 
-1728599453 /home/janr/Code/qchem/src/HamiltonianImplementation/FittedVxc.H
+1728694112 /home/janr/Code/qchem/src/HamiltonianImplementation/FittedVxc.H
 	"Hamiltonian/ExchangeFunctional.H"
 	"Misc/rc_ptr.H"
 	"FunctionsImp/FittedFunctionImplementation.H"
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
-	"FunctionsImp/DumpScalarData.H"
 
 1728665159 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
 	"BasisSet.H"
@@ -578,10 +577,8 @@
 	"HamiltonianImplementation/ExchangeFunctionalImplementation.H"
 	"Misc/Spin.H"
 
-1728599453 /home/janr/Code/qchem/src/HamiltonianImplementation/ExchangeFunctionalImplementation.H
+1728694484 /home/janr/Code/qchem/src/HamiltonianImplementation/ExchangeFunctionalImplementation.H
 	"Hamiltonian/ExchangeFunctional.H"
-	"FunctionsImp/DumpScalarData.H"
-	"FunctionsImp/ScalarFunctionBuffer.H"
 
 1728599453 /home/janr/Code/qchem/src/FunctionsImp/ScalarFunctionBuffer.H
 	"Functions/ScalarFunction.H"
@@ -808,14 +805,14 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728678357 /home/janr/Code/qchem/include/types.H
+1728700573 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
-1728599453 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
+1728695540 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
 	"types.H"
 	"oml/vector3d.h"
 
-1728599453 /home/janr/Code/qchem/include/Functions/VectorFunction.H
+1728694484 /home/janr/Code/qchem/include/Functions/VectorFunction.H
 	"types.H"
 	"oml/vector3d.h"
 
@@ -823,7 +820,7 @@
 	"types.H"
 	"Functions/ScalarFunction.H"
 
-1728664798 /home/janr/Code/qchem/include/Functions/FittedFunction.H
+1728693407 /home/janr/Code/qchem/include/Functions/FittedFunction.H
 	"types.H"
 	"Functions/ScalarFunction.H"
 
@@ -1007,9 +1004,8 @@
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1728621237 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
+1728695014 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
 	"BasisSet.H"
-	"FunctionsImp/VectorFunctionBuffer.H"
 	"SCFIterator/IterationParams.H"
 	"Misc/Persistent/PerRef.H"
 	"Misc/rc_ptr.H"

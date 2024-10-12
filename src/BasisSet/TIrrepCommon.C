@@ -19,21 +19,18 @@
 //  Construction zone
 //
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon()
-    : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsDataBase      ( )
+    : itsDataBase      ( )
     , itsLASolver      (0)
 {};
 
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
-    : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsLAParams      (lap)
+    : itsLAParams      (lap)
     , itsDataBase      (theDataBase)
     , itsLASolver      (0)
 {};
 
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const TIrrepBasisSetCommon<T>& bs)
-    : VectorFunctionBuffer<T>(false,false) //don't pickle scalar or gradient.
-    , itsLAParams      (bs.itsLAParams)
+    : itsLAParams      (bs.itsLAParams)
     , itsDataBase      (bs.itsDataBase)
     , itsLASolver      (0)
 {};
@@ -301,7 +298,6 @@ template <class T> std::ostream& TIrrepBasisSetCommon<T>::Write(std::ostream& os
 {
     if(!StreamableObject::Pretty())
     {
-        VectorFunctionBuffer<T>::Write(os);
         os <<  itsDataBase;
     }
     return os;
@@ -309,7 +305,6 @@ template <class T> std::ostream& TIrrepBasisSetCommon<T>::Write(std::ostream& os
 
 template <class T> std::istream& TIrrepBasisSetCommon<T>::Read(std::istream& is)
 {
-    VectorFunctionBuffer<T>::Read(is);
     is >> itsDataBase;
 
     return is;

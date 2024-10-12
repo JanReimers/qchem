@@ -17,7 +17,7 @@ class DensityFFClient;
 //  basis set are also supplied.
 //
 class FittedFunction
-    : public virtual PlottableScalarFunction
+    : public virtual ScalarFunction<double>
 {
 public:
     virtual double DoFit(const ScalarFFClient&)=0;

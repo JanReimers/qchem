@@ -9,24 +9,21 @@
 #include "TotalEnergy.H"
 #include "ChargeDensity.H"
 #include "Orbital/ElectronDumper.H"
-#include "FunctionsImp/PlotterImplementation.H"
 #include "Mesh/LinearMesh.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 
-LinearMesh mesh(-6,6,RVec(1,0,0),241);
+LinearMesh mesh(-6,6,RVec3(1,0,0),241);
 
 SCFIteratorImplementation::SCFIteratorImplementation(WaveFunction* W,Hamiltonian* H,bool showplot)
     : itsWaveFunction         (W )
     , itsHamiltonian          (H )
     , itsExactChargeDensity   (0)
     , itsOldExactChargeDensity(0)
-    , itsPlotter              (0)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
-    if (showplot) itsPlotter=new PlotterImplementation;
 }
 
 
@@ -40,14 +37,7 @@ void SCFIteratorImplementation::Initialize(ChargeDensity* cd, double kT)
 
     itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
     assert(itsExactChargeDensity);
-    if(itsPlotter)
-    {
-        itsPlotter->Lines();
-        itsPlotter->Plot(*itsExactChargeDensity,&mesh,RVec(1,0,0));
-    }
-
     itsHamiltonian->UseChargeDensity(itsExactChargeDensity);
-//	itsHamiltonian->GetTotalEnergy();
 }
 //
 //  Recall that the wavefunction is not owned buy this.
@@ -58,7 +48,6 @@ SCFIteratorImplementation::~SCFIteratorImplementation()
     delete itsHamiltonian;
     delete itsExactChargeDensity;
     delete itsOldExactChargeDensity;
-    delete itsPlotter;
 }
 
 bool SCFIteratorImplementation::Iterate(const SCFIterationParams& ipar)
@@ -83,14 +72,6 @@ bool SCFIteratorImplementation::Iterate(const SCFIterationParams& ipar)
         itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
         ChargeDensityChange = itsExactChargeDensity->GetChangeFrom(*itsOldExactChargeDensity); //Get MaxAbs of change.
         itsExactChargeDensity->MixIn(*itsOldExactChargeDensity,1.0-relax);                           //relaxation.
-
-        if(itsPlotter)
-        {
-            itsPlotter->Lines();
-            itsPlotter->Plot(*itsExactChargeDensity,&mesh,RVec(1,0,0));
-            int n;
-            std::cin >> n;
-        }
 
         itsHamiltonian->UseChargeDensity(itsExactChargeDensity);      //Set all the potentials for this charge denisty distribution.
 

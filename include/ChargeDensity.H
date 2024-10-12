@@ -18,11 +18,10 @@
 //    6) Calculate the orbital repulsion integrals  < i(1) | ro(2)/r12 | j(1) > for orbitals i,j.
 //    7) calculate the self repulsion = 1/2 <ro(1)|1/r12|ro(2)>
 //
-//Derives from ScalarFunction<double> via PlottableScalarFunction, i.e. it's real.//
 //
 class ChargeDensity
     : public virtual PMStreamableObject
-    , public virtual PlottableScalarFunction
+    , public virtual ScalarFunction<double>
     , public virtual DensityFFClient
 {
 public:
@@ -102,8 +101,6 @@ public:
     static  FittedCD*  Factory(std::istream&)        ;
 };
 
-#include "FunctionsImp/DumpScalarData.H"
-
 //---------------------------------------------------------------------------------------
 //
 //  Store spin and spin down a ChargeDensity*'s to allow polymorphism.
@@ -111,7 +108,7 @@ public:
 class FittedPolarizedCD
     : public virtual FittedCD
     , public virtual PolarizedCD
-    , private        DumpScalarData
+    
 {
 public:
     FittedPolarizedCD();

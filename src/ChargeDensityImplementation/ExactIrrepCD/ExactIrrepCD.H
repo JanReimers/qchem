@@ -6,7 +6,6 @@
 
 #include "BasisSet.H"
 #include "ChargeDensity.H"
-#include "FunctionsImp/DumpScalarData.H"
 #include "Misc/Spin.H"
 #include "Misc/rc_ptr.H"
 #include "oml/smatrix.h"
@@ -21,7 +20,6 @@ template <class T> class TIrrepBasisSetCommon;
 //
 template <class T> class ExactIrrepCD
     : public virtual ChargeDensity
-    , private DumpScalarData
 {
 public:
     typedef Matrix<T>  DenMat;

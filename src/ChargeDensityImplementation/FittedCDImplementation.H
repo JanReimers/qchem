@@ -6,7 +6,6 @@
 
 #include "ChargeDensity.H"
 #include "FunctionsImp/IntegralConstrainedFF.H"
-#include "FunctionsImp/DumpScalarData.H"
 
 //---------------------------------------------------------------------------------
 //
@@ -16,7 +15,6 @@
 template <class T> class FittedCDImplementation
     : public virtual FittedCD
     , public         IntegralConstrainedFF<T>
-    , private        DumpScalarData
 {
 public:
     FittedCDImplementation();
