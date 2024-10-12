@@ -12,6 +12,7 @@
 #include "HamiltonianImplementation/CDFittedVee.H"
 #include "HamiltonianImplementation/ExactVee.H"
 #include "HamiltonianImplementation/LDAVxc.H"
+#include "HamiltonianImplementation/HartreeFockVxc.H"
 #include "HamiltonianImplementation/HamiltonianImplementation.H"
 
 #include <string>
@@ -49,6 +50,7 @@ HamiltonianTerm* HamiltonianTerm::Factory(std::istream& is)
     if (Name==typeid(ExactVen ).name()) return new ExactVen();
     if (Name==typeid(ExactVnn ).name()) return new ExactVnn();
     if (Name==typeid(LDAVxc   ).name()) return new LDAVxc();
+    if (Name==typeid(HartreeFockVxc).name()) return new HartreeFockVxc();
     if (Name==typeid(CDFittedVee).name()) return new  CDFittedVee();
     if (Name==typeid(FittedVxc).name()) return new FittedVxc();
     if (Name==typeid(PolarizedFittedVxc).name()) return new PolarizedFittedVxc();
