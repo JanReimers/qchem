@@ -18,6 +18,7 @@ template <class T> class LASolverLapackCommon
     typedef typename Base::UdType UdType;
 public:
     LASolverLapackCommon(const LAParams&);
+    ~LASolverLapackCommon();
 
     virtual UdType Solve          (const SMat& H) const;
     

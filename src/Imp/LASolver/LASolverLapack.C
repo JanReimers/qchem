@@ -23,7 +23,11 @@ template <class T> LASolverLapackCommon<T>::LASolverLapackCommon(const LAParams&
         assert(itsLapackEigenSolver);
         assert(itsLapackSVDSolver);
     }
-
+template <class T> LASolverLapackCommon<T>::~LASolverLapackCommon()
+{
+    delete itsLapackEigenSolver;
+    delete itsLapackSVDSolver;
+}
 
 template <class T> typename LASolver<T>::UdType LASolverLapackCommon<T>::Solve(const SMat& Ham) const
 {
