@@ -6,9 +6,10 @@
 template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
     MakeInverse(const RSMat& S,const LAParams& lap) 
 {
-    //LAParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
     LASolver<double>* las=LASolver<double>::Factory(lap);
-    return las->Inverse(S);
+    RSMat Sinv=las->Inverse(S);
+    delete las;
+    return Sinv;
 }
 
 template class AnalyticIE<double>;
