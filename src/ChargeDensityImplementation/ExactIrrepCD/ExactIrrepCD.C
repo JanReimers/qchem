@@ -19,11 +19,9 @@
 
 typedef Vector3D<std::complex<double> > Vec3;
 
-double FastContraction(const Vector<double>&, const SMatrix<double>&);
-RVec3  FastContraction(const Vector<RVec3 >&, const Vector<double>&, const SMatrix<double>&);
 
-double FastContraction(const Vector<std::complex<double> >&, const SMatrix<std::complex<double> >&);
-RVec3  FastContraction(const Vector<Vec3 >&, const Vector<std::complex<double> >&, const SMatrix<std::complex<double> >&);
+RVec3  GradientContraction(const Vector<RVec3 >&, const Vector<double>&, const SMatrix<double>&);
+RVec3  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<double> >&, const SMatrix<std::complex<double> >&);
 
 //------------------------------------------------------------------------------------
 //
@@ -48,7 +46,6 @@ template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
     , itsBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(bs))
-    //, itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet))
     , itsSpin(s)
 {
     assert(itsBasisSet);
@@ -134,12 +131,6 @@ template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) c
     return real(ComplexE);
 }
 
-//template <class T> double ExactIrrepCD<T>::GetCoulombAtOrigin() const
-//{
-//    Molecule cl;
-//    cl.Insert(new Atom(1,0,RVec3(0,0,0)));
-//    return -real(Dot(itsDensityMatrix,itsCastedBasisSet->GetDataBase()->GetNuclear(cl)));
-//}
 
 template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 {
@@ -192,12 +183,15 @@ template <class T> void ExactIrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
 
 template <class T> double ExactIrrepCD<T>::operator()(const RVec3& r) const
 {
-    return FastContraction((*itsBasisSet)(r),itsDensityMatrix);
+    Vector<T> phir=(*itsBasisSet)(r);
+    return real(phir*itsDensityMatrix*conj(phir));
 }
 
 template <class T> RVec3 ExactIrrepCD<T>::Gradient(const RVec3& r) const
 {
-    return FastContraction(itsBasisSet->Gradient(r),(*itsBasisSet)(r),itsDensityMatrix);
+    Vector<T> phir=(*itsBasisSet)(r);
+    Vector<RVec3 > gphir=itsBasisSet->Gradient(r);
+    return GradientContraction(gphir,phir,itsDensityMatrix);
 }
 
 template <class T> void ExactIrrepCD<T>::Eval(const Mesh& m, Vec& v) const
@@ -251,42 +245,7 @@ template class ExactIrrepCD<double>;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-double FastContraction(const Vector<double>& v, const SMatrix<double>& m)
-{
-    assert(m.GetNumRows()==m.GetNumCols());
-    assert(v.size      ()==m.GetNumCols());
-    double ret=0;
-    for (unsigned int i=1; i<=v.size(); i++)
-        for (unsigned int j=1; j<=v.size(); j++)
-            ret+=v(i)*m(i,j)*v(j);
-    return ret;
-}
-
-double FastContraction(const Vector<std::complex<double> >& v, const SMatrix<std::complex<double> >& m)
-{
-    assert(m.GetNumRows()==m.GetNumCols());
-    assert(v.size      ()==m.GetNumCols());
-    double ret=0;
-    for (unsigned int i=1; i<=v.size(); i++)
-        for (unsigned int j=1; j<=v.size(); j++)
-            ret+=real(v(i)*m(i,j)*conj(v(j)));
-    return ret;
-}
-
-RVec3 FastContraction(const Vector<RVec3>& g, const Vector<double>& v, const SMatrix<double>& m)
+RVec3 GradientContraction(const Vector<RVec3>& g, const Vector<double>& v, const SMatrix<double>& m)
 {
     assert(m.GetNumRows()==m.GetNumCols());
     assert(v.size      ()==m.GetNumCols());
@@ -299,7 +258,7 @@ RVec3 FastContraction(const Vector<RVec3>& g, const Vector<double>& v, const SMa
     return ret;
 }
 
-RVec3 FastContraction(const Vector<Vec3>& g, const Vector<std::complex<double> >& v, const SMatrix<std::complex<double> >& m)
+RVec3 GradientContraction(const Vector<Vec3>& g, const Vector<std::complex<double> >& v, const SMatrix<std::complex<double> >& m)
 {
     assert(m.GetNumRows()==m.GetNumCols());
     assert(v.size      ()==m.GetNumCols());

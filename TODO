@@ -45,7 +45,8 @@ Priority 3:
    -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
         -Broke BasisSet persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
-    -Do we still nee fast contraction functions?
+    Done -Do we still nee fast contraction functions?
+        Yes but only for the gradient, renamed accordingly.
     -Support V*S without including matrix.h
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?
