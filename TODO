@@ -10,8 +10,9 @@ Priority 1:
         Good use for rc_ptr.
     -Break dependency BasisSet-->Orbitals in Build Orbitals.
     -Fix valgrind errors
+        Seeing 3-4 errors, not easy to fix.
     -kT Occ smearing fails miserably.
-    -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
+    Done -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
      constructors with 3 versions
         1) HF orbitals needs LAPArams for secular eq.
         2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.

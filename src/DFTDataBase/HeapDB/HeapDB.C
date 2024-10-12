@@ -70,11 +70,22 @@ template <class T> IntegralDataBase<T>* HeapDB<T>::Clone() const
     return new HeapDB(*this);
 }
 
-template <class K, class M> size_t size(std::map<K,M> m)
+template <class T> size_t Size(const Vector<T> & m) {return m.size();}
+template <class T> size_t Size(const Matrix<T> & m) {return m.size();}
+template <class T> size_t Size(const SMatrix<T> & m) {return m.size();}
+template <class M> size_t Size(const std::vector<M> & v) 
+{
+    size_t N=0;
+    for (auto i:v) 
+        N+=Size(i);
+    return N;
+}
+
+template <class K, class M> size_t Size(const std::map<K,M>& m)
 {
     size_t N=0;
     for (auto i:m) 
-        N+=i.second.size();
+        N+=Size(i.second);
     return N;
 }
 
@@ -82,9 +93,9 @@ using std::setw;
 
 template <class T> void HeapDB<T>::Report(std::ostream& os) const
 {
-    size_t N1=size(its1C)+size(its1Cx);
-    size_t N2=size(its2C)+size(its2Cx)+size(its2CNuc);
-    size_t N3=size(its3C);
+    size_t N1=Size(its1C)+Size(its1Cx);
+    size_t N2=Size(its2C)+Size(its2Cx)+Size(its2CNuc);
+    size_t N3=Size(its3C);
     size_t N4=itsJTable.itsData.size()+itsKTable.itsData.size();
     
     itsAnalyticIE->Report(os);
