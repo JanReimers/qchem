@@ -43,7 +43,7 @@ template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation
 
 template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementation()
 {
-    delete itsMesh;
+//    delete itsMesh;
 }
 
 

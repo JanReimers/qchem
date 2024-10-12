@@ -24,8 +24,10 @@ BaseTester::BaseTester()
 
 BaseTester::~BaseTester()
 {
-    //delete itsHamiltonian;
+    //delete itsHamiltonian; //SCFIterator owns the Hamiltonian
+    delete itsWaveFunction;
     delete itsBasisSet;
+    delete itsSCFIterator;
 }
 
 void BaseTester::Init(BasisSet* bs,double spin,const LAParams& lap)
@@ -39,7 +41,7 @@ void BaseTester::Init(BasisSet* bs,double spin)
     assert(bs); //Derived should already have created this.
     assert(itsCluster->GetNumAtoms()>0);
     //if(itsHamiltonian) delete itsHamiltonian; SCFIterator owns the Hamiltonian
-    if(itsBasisSet) delete itsBasisSet;
+    if (itsBasisSet) delete itsBasisSet;
     if (itsWaveFunction) delete itsWaveFunction;
     if (itsSCFIterator) delete itsSCFIterator;
 //    itsFittedChargeDensity=new FittedCDImplementation<double>(itsCBasisSet,itsCluster->GetNumElectrons ());

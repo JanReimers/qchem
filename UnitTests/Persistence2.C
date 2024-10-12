@@ -93,6 +93,8 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
 
     StreamableObject::SetToPretty();
     cout << *h << *h1 << *h2 << endl;
+    delete h1;
+    delete h2;
     
 //    BasisGroup* bg=GetBasisGroup();
 //    BasisGroup* bg1=::OutIn<BasisGroup>(bg,file_name.c_str(), StreamableObject::ascii);

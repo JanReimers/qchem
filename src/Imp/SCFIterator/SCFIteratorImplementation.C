@@ -38,6 +38,7 @@ void SCFIteratorImplementation::Initialize(ChargeDensity* cd, double kT)
     itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
     assert(itsExactChargeDensity);
     itsHamiltonian->UseChargeDensity(itsExactChargeDensity);
+    itsOldExactChargeDensity=cd;
 }
 //
 //  Recall that the wavefunction is not owned buy this.

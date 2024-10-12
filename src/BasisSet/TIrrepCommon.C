@@ -37,7 +37,7 @@ template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const TIrrepBas
 
 template <class T> TIrrepBasisSetCommon<T>::~TIrrepBasisSetCommon()
 {
-    delete itsLASolver;
+    if (itsLASolver) delete itsLASolver;
 }
 
 //-----------------------------------------------------------------------------
