@@ -35,7 +35,6 @@ template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
     , itsBasisSet(theBasisSet)
-    //, itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet))
     , itsSpin(s)
 {
     assert(itsBasisSet);
@@ -91,20 +90,7 @@ template <> ChargeDensity::SMat ExactIrrepCD<double>::GetExchange(const IrrepBas
 {
 //    assert(itsBasisSet->GetID()==bs->GetID());
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
-    SMat Kab= tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
-//    const SphericalSymmetryQN* qn_ab=dynamic_cast<const SphericalSymmetryQN*>(&bs_ab->GetQuantumNumber());
-//    const SphericalSymmetryQN* qn_cd=dynamic_cast<const SphericalSymmetryQN*>(&itsBasisSet->GetQuantumNumber());
-//    if (qn_ab->GetL() != qn_cd->GetL())
-//    {
-//        std::cout.precision(3);
-//        std::cout.width(5);
-//        std::cout << "     Lab=" << qn_ab->GetL() << " Lab=" << qn_cd->GetL() << std::endl;
-//        std::cout << "     Dcd=" << itsDensityMatrix << std::endl;
-//        std::cout << "     Kab=" << Kab << std::endl;
-//
-//    }
-    return Kab;
-//    return tbs_ab->GetExchange(itsDensityMatrix,itsCastedBasisSet);
+    return tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
 }
 
 //TODO: fix all complex fudges
@@ -112,6 +98,7 @@ template <> ChargeDensity::SMat ExactIrrepCD<double>::GetExchange(const IrrepBas
 template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetRepulsion(const IrrepBasisSet* bs) const
 {
     assert(itsBasisSet->GetID()==bs->GetID());
+    assert(false);
     return SMat();
 }
 
@@ -119,7 +106,8 @@ template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetRepulsio
 template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetExchange(const IrrepBasisSet* bs) const
 {
     assert(itsBasisSet->GetID()==bs->GetID());
-    return SMat();
+ assert(false);
+      return SMat();
 }
 
 template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
@@ -234,7 +222,6 @@ template <class T> std::istream& ExactIrrepCD<T>::Read(std::istream& is)
 //    assert(tbs);
 //    is >> *tbs;
 //    itsBasisSet.reset(tbs);
-//    itsCastedBasisSet=tbs;
 
     return is;
 }
