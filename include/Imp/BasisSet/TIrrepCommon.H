@@ -4,7 +4,6 @@
 
 #include "BasisSet.H"
 #include "Imp/LAParams.H"
-#include "Misc/Persistent/PerRef.H"
 
 //---------------------------------------------------------------------
 //
@@ -35,9 +34,9 @@ public:
 
     using TIrrepBasisSet<T>::GetVectorSize;
 //
-//  This is where the real work gets done.
+//  Make a gen/ EV solver that already has the overlap S factorized.
 //
-    virtual OrbitalGroup* CreateOrbitals(const Hamiltonian*, const Spin&) const;
+    virtual LASolver<double>* CreateSolver() const;
 //
 //  Used by fitting routines.
 // 
@@ -64,9 +63,6 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-
-    virtual LASolver<T>*         GetLASolver () const;
-
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 
@@ -81,7 +77,6 @@ protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 private:
     mutable IntegralDataBase<T>*  itsDataBase;
-    mutable LASolver<T>*          itsLASolver;
 };
 
 #endif //_TBasisSetImplementation_H_

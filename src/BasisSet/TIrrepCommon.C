@@ -8,9 +8,7 @@
 #include <IntegralDataBase.H>
 #include <LASolver/LASolver.H>
 #include <Hamiltonian.H>
-
 #include "Imp/Containers/ERI4.H"
-#include "OrbitalImplementation/TOrbitalGroupImplementation.H"
 #include <cassert>
 #include <iostream>
 
@@ -20,24 +18,20 @@
 //
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon()
     : itsDataBase      ( )
-    , itsLASolver      (0)
 {};
 
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const LAParams& lap,IntegralDataBase<T>* theDataBase)
     : itsLAParams      (lap)
     , itsDataBase      (theDataBase)
-    , itsLASolver      (0)
 {};
 
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const TIrrepBasisSetCommon<T>& bs)
     : itsLAParams      (bs.itsLAParams)
     , itsDataBase      (bs.itsDataBase)
-    , itsLASolver      (0)
 {};
 
 template <class T> TIrrepBasisSetCommon<T>::~TIrrepBasisSetCommon()
 {
-    if (itsLASolver) delete itsLASolver;
 }
 
 //-----------------------------------------------------------------------------
@@ -58,24 +52,11 @@ template <class T> IntegralDataBase<T>* TIrrepBasisSetCommon<T>::GetDataBase() c
 
  
 
-//-----------------------------------------------------------------------------
-//
-//  Build up the hamiltonian matrix, and generate new orbitals from the eigen
-//  vectors.  The hamiltonian controls which terms are included in H.
-//
-// TODO: Why do we need to pass in const rc_ptr<const BasisSet>& rc ????
-//
-template <class T> OrbitalGroup* TIrrepBasisSetCommon<T>::
-CreateOrbitals(const Hamiltonian* ham, const Spin&S) const
+template <class T>  LASolver<double>* TIrrepBasisSetCommon<T>::CreateSolver() const
 {
-    SMat H=ham->BuildHamiltonian(this,S);
-    assert(!isnan(H));
-    LASolver<T>* es=GetLASolver();
-    assert(es);
-    assert(es==itsLASolver);
-    auto [U,e]=es->Solve(H);
-    return new
-           TOrbitalGroupImplementation<T>(this,U,e,S);
+    LASolver<double>* las=LASolver<double>::Factory(itsLAParams);
+    las->SetBasisOverlap(GetDataBase()->GetOverlap(this));
+    return las;
 }
 
 template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
@@ -277,18 +258,6 @@ template <class T> void TIrrepBasisSetCommon<T>::EvalGrad(const Mesh& mesh, Vec3
     // No UT coverage
     index_t i=1;
     for (auto b=this->beginT(); b!=this->end(); i++,b++) mat.GetRow(i)=(**b).Gradient(mesh);
-}
-
-template <class T> LASolver<T>* TIrrepBasisSetCommon<T>::GetLASolver() const
-{
-    if (!itsLASolver) 
-    {
-        SMat S=GetDataBase()->GetOverlap(this);
-        itsLASolver=LASolver<T>::Factory(itsLAParams);
-        itsLASolver->SetBasisOverlap(S);
-    }
-    assert(itsLASolver);
-    return itsLASolver;
 }
 
 //-----------------------------------------------------------------------------

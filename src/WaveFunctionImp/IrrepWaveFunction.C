@@ -8,25 +8,33 @@
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
+#include "OrbitalImplementation/TOrbitalGroupImplementation.H"
+#include <LASolver/LASolver.H>
 #include "oml/imp/binio.h"
 #include "oml/smatrix.h"
+#include "oml/vector.h"
 #include <cassert>
 
 IrrepWaveFunction::IrrepWaveFunction()
     : itsOrbitals(0)
     , itsBasisSet(0)
     , itsSpin    ( )
+    , itsLASolver(0)
 {};
 
 IrrepWaveFunction::IrrepWaveFunction(const IrrepBasisSet* bs, const Spin& S)
     : itsOrbitals(0 )
-    , itsBasisSet(bs)
+    , itsBasisSet(dynamic_cast<const TIrrepBasisSet<double>*>(bs))
     , itsSpin    (S )
-{};
+    , itsLASolver(bs->CreateSolver())
+{
+    assert(itsBasisSet);
+};
 
 IrrepWaveFunction::~IrrepWaveFunction()
 {
     delete itsOrbitals;
+    delete itsLASolver;
 }
 
 //----------------------------------------------------------------------------
@@ -37,7 +45,10 @@ IrrepWaveFunction::~IrrepWaveFunction()
 void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
 {
     if (itsOrbitals) delete itsOrbitals;
-    itsOrbitals = itsBasisSet->CreateOrbitals(&ham,itsSpin);
+    SMatrix<double> H=ham.BuildHamiltonian(itsBasisSet,itsSpin);
+    assert(!isnan(H));
+    auto [U,e]=itsLASolver->Solve(H);
+    itsOrbitals =new TOrbitalGroupImplementation<double>(itsBasisSet,U,e,itsSpin);
 }
 
 ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const

@@ -3,12 +3,12 @@ Priority 1:
     Done: -Experiment with Latex markup for doxygen.  Works great!
     Done: -DumpScalarData keeps showing up everywhere, do we need it?
     Done: -IE::MakeInverse should take LAParams as argument.
-    -All templated classes should hold TIrrepBasisSet<T> pointers.
+    Done: -All templated classes should hold TIrrepBasisSet<T> pointers.
         Construct only accepts TIrrepBasisSet<T>* ?
         Test out with ExactIrrepCD and TOrbitalGroupImplementation
     Done: -FittedFunctionImplementation delete itsMesh crashed.  Who owns the mesh?
         Good use for rc_ptr.
-    -Break dependency BasisSet-->Orbitals in Build Orbitals.
+    Done: -Break dependency BasisSet-->Orbitals in Build Orbitals.
     -Fix valgrind errors
         Seeing 3-4 errors, not easy to fix.
     -kT Occ smearing fails miserably.
@@ -18,7 +18,7 @@ Priority 1:
         2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.
         3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
       We will need a null Ortho type for LAParams for assertions.
-    -Clean up PolGaussian construction.edFunction
+    -Clean up PolGaussian construction
     -Does UniqueID really need to enforce Read/Write?
       
 Priority 2:

@@ -747,7 +747,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728738066 /home/janr/Code/qchem/include/BasisSet.H
+1728753434 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -961,7 +961,7 @@
 	"types.H"
 	<vector>
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Polarization.H
+1728751839 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Polarization.H
 	"Misc/IntPower.H"
 	"oml/vector3d.h"
 	<iosfwd>
@@ -1008,10 +1008,9 @@
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1728746452 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
+1728753679 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
 	"BasisSet.H"
 	"Imp/LAParams.H"
-	"Misc/Persistent/PerRef.H"
 
 1728702044 /home/janr/Code/qchem/include/Imp/LAParams.H
 	<iosfwd>

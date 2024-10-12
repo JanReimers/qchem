@@ -74,7 +74,7 @@ public:
 //
 //  This is where the real work gets done.
 //
-    virtual OrbitalGroup* CreateOrbitals(const Hamiltonian*, const Spin&) const=0;
+    virtual LASolver<double>* CreateSolver() const=0;
 //
 //  Used by fitting routines.
 //
