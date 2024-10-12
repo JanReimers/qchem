@@ -19,12 +19,14 @@ template <class T> TOrbitalGroupImplementation<T>::TOrbitalGroupImplementation()
 {};
 
 template <class T> TOrbitalGroupImplementation<T>::
-TOrbitalGroupImplementation(const IrrepBasisSet* bs,
+TOrbitalGroupImplementation(const TIrrepBasisSet<T>* bs,
                             const Mat & evec,
                             const RVec& eval,
                             const Spin& S)
     : OrbitalGroupImplementation(bs)
+    , itsBasisSet(bs)
 {
+    assert(itsBasisSet);
     index_t n=eval.size();
     for (index_t i=1; i<=n; i++)
         itsOrbitals.push_back(new TOrbitalImplementation<T>(itsBasisSet,evec.GetColumn(i), eval(i),S));

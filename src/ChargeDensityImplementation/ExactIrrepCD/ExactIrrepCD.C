@@ -33,14 +33,25 @@ template <class T> ExactIrrepCD<T>::ExactIrrepCD()
 {};
 
 template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix,
-                                                 const IrrepBasisSet* theBasisSet,
+                                                 const TIrrepBasisSet<T>* theBasisSet,
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
     , itsBasisSet(theBasisSet)
-    , itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet))
+    //, itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet))
     , itsSpin(s)
 {
-    assert(itsCastedBasisSet);
+    assert(itsBasisSet);
+};
+
+template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix,
+                                                 const IrrepBasisSet* bs,
+                                                 const Spin& s)
+    : itsDensityMatrix(theDensityMatrix)
+    , itsBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(bs))
+    //, itsCastedBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(theBasisSet))
+    , itsSpin(s)
+{
+    assert(itsBasisSet);
 };
 
 //-----------------------------------------------------------------------------
@@ -83,7 +94,7 @@ template <> ChargeDensity::SMat ExactIrrepCD<double>::GetExchange(const IrrepBas
 {
 //    assert(itsBasisSet->GetID()==bs->GetID());
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
-    SMat Kab= tbs_ab->GetExchange(itsDensityMatrix,itsCastedBasisSet);
+    SMat Kab= tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
 //    const SphericalSymmetryQN* qn_ab=dynamic_cast<const SphericalSymmetryQN*>(&bs_ab->GetQuantumNumber());
 //    const SphericalSymmetryQN* qn_cd=dynamic_cast<const SphericalSymmetryQN*>(&itsBasisSet->GetQuantumNumber());
 //    if (qn_ab->GetL() != qn_cd->GetL())
@@ -176,23 +187,23 @@ template <class T> double ExactIrrepCD<T>::GetChangeFrom(const ChargeDensity& cd
 template <class T> void ExactIrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
 {
     std::cerr << "ExactIrrepCD::ShiftOrigin this is an odd thing to do for an exact charge density" << std::endl;
-    itsBasisSet=itsBasisSet->Clone(newCenter);
+    itsBasisSet=dynamic_cast<const TIrrepBasisSet<T>*>(itsBasisSet->Clone(newCenter));
 }
 
 template <class T> double ExactIrrepCD<T>::operator()(const RVec3& r) const
 {
-    return FastContraction((*itsCastedBasisSet)(r),itsDensityMatrix);
+    return FastContraction((*itsBasisSet)(r),itsDensityMatrix);
 }
 
 template <class T> RVec3 ExactIrrepCD<T>::Gradient(const RVec3& r) const
 {
-    return FastContraction(itsCastedBasisSet->Gradient(r),(*itsCastedBasisSet)(r),itsDensityMatrix);
+    return FastContraction(itsBasisSet->Gradient(r),(*itsBasisSet)(r),itsDensityMatrix);
 }
 
 template <class T> void ExactIrrepCD<T>::Eval(const Mesh& m, Vec& v) const
 {
     index_t nm=v.size(), nb=itsBasisSet->GetNumFunctions();
-    const Matrix<T>& ms((*itsCastedBasisSet)(m));
+    const Matrix<T>& ms((*itsBasisSet)(m));
     Vec::Subscriptor      vs(v);
 
     DenMat temp(nb,nm);

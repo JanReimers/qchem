@@ -26,6 +26,7 @@ public:
 
     ExactIrrepCD();
     ExactIrrepCD(const DenSMat&,const IrrepBasisSet*, const Spin&);
+    ExactIrrepCD(const DenSMat&,const TIrrepBasisSet<T>*, const Spin&);
 
     virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
@@ -52,8 +53,7 @@ private:
     virtual void  Eval(const Mesh&, Vec&) const;
 
     DenSMat                  itsDensityMatrix;
-    const IrrepBasisSet*     itsBasisSet;
-    const TIrrepBasisSet<T>* itsCastedBasisSet;
+    const TIrrepBasisSet<T>* itsBasisSet;
     Spin                     itsSpin;
 };
 

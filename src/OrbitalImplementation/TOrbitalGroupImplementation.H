@@ -23,7 +23,7 @@ template <class T> class TOrbitalGroupImplementation
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
     TOrbitalGroupImplementation();
-    TOrbitalGroupImplementation(const IrrepBasisSet*,
+    TOrbitalGroupImplementation(const TIrrepBasisSet<T>*,
                                 const Mat&,
                                 const RVec&,
                                 const Spin&);
@@ -43,6 +43,7 @@ private:
     TOrbitalGroupImplementation(const TOrbitalGroupImplementation&);
 
     virtual SMat CalculateDensityMatrix() const;
+    const TIrrepBasisSet<T>* itsBasisSet;
 };
 
 
