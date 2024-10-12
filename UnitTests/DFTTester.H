@@ -30,7 +30,7 @@ public:
         DFTTester::Init(Exchange);
         AtomTester::Init(atom,Lmax,spin);
     }
-    void Init(double Exchange, int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+    void Init(double Exchange, int NBasis, int Lmax, double spin, const LAParams& lap)
     {
         DFTTester::Init(Exchange);
         AtomTester::Init(NBasis,Lmax,spin,lap);
@@ -48,7 +48,7 @@ public:
         DFTTester::Init(Exchange);
         MoleculeTester::Init(m,spin);
     }
-    void Init(Molecule* m,double Exchange, double spin, const LinearAlgebraParams& lap)
+    void Init(Molecule* m,double Exchange, double spin, const LAParams& lap)
     {
         DFTTester::Init(Exchange);
         MoleculeTester::Init(m,spin,lap);

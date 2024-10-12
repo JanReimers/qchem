@@ -53,7 +53,7 @@ class Spin;
 class TotalEnergy;
 class WaveFunction;
 
-struct LinearAlgebraParams;
+struct LAParams;
 struct SCFIterationParams;
 
 

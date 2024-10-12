@@ -16,7 +16,7 @@ class BasisSet
 {
 public:
     BasisSet() {};
-    BasisSet(const LinearAlgebraParams&, Reader*, const Cluster*);
+    BasisSet(const LAParams&, Reader*, const Cluster*);
     
 };
 

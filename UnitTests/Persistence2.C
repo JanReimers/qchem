@@ -38,7 +38,7 @@ public:
     {
         AtomTester::Init(atom,Lmax,spin);
     }
-    void Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+    void Init(int NBasis, int Lmax, double spin, const LAParams& lap)
     {
         AtomTester::Init(NBasis,Lmax,spin,lap);
     }
@@ -74,7 +74,7 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
     double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
     Atom* atom=new Atom(Z,0,Vector3D<double>(0,0,0));
     Init(atom);
-    LinearAlgebraParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
+    LAParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
     Init(NBasis,L,spin,lap);
     StreamableObject::SetToPretty();
     

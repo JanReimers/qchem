@@ -56,7 +56,6 @@
 		<Unit filename="include/Cluster.H" />
 		<Unit filename="include/Functions/FittedFunction.H" />
 		<Unit filename="include/Functions/FittedFunctionClient.H" />
-		<Unit filename="include/Functions/Plotter.H" />
 		<Unit filename="include/Functions/ScalarFunction.H" />
 		<Unit filename="include/Functions/VectorFunction.H" />
 		<Unit filename="include/Hamiltonian.H" />
@@ -101,6 +100,7 @@
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
+		<Unit filename="include/Imp/LAParams.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
@@ -311,14 +311,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/FunctionsImp/ConstrainedFF.H" />
-		<Unit filename="src/FunctionsImp/DumpScalarData.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/DumpScalarData.H" />
-		<Unit filename="src/FunctionsImp/DumpVectorData.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/DumpVectorData.H" />
 		<Unit filename="src/FunctionsImp/FittedFunctionImplementation.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -327,18 +319,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/FunctionsImp/IntegralConstrainedFF.H" />
-		<Unit filename="src/FunctionsImp/PlotterImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/PlotterImplementation.H" />
-		<Unit filename="src/FunctionsImp/ScalarFunctionBuffer.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/ScalarFunctionBuffer.H" />
-		<Unit filename="src/FunctionsImp/VectorFunctionBuffer.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/VectorFunctionBuffer.H" />
 		<Unit filename="src/Hamiltonian/ExchangeFunctional.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -402,6 +382,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/HamiltonianImplementation/SlaterExchange.H" />
+		<Unit filename="src/Imp/LAParams.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/Imp/LASolver/LASolverImp.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -606,9 +589,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/OrbitalImplementation/TOrbitalImplementation.H" />
-		<Unit filename="src/SCFIterator/IterationParams.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/SCFIterator/IterationParams.H" />
 		<Unit filename="src/SCFIterator/SCFIterator.C">
 			<Option compilerVar="CPP" />

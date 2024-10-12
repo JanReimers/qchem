@@ -21,7 +21,7 @@ public:
   HartreeFockAtomTester() : AtomTester(27,.01,20000.0) {};
   void Init(Atom* atom);
   void Init(Atom* atom, int Lmax, double spin);
-  void Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams&);
+  void Init(int NBasis, int Lmax, double spin, const LAParams&);
 };
 
 #include "MoleculeTester.H"
@@ -33,7 +33,7 @@ public:
     {
         MoleculeTester::Init(m,spin);
     }
-    void Init(Molecule* m,double spin, const LinearAlgebraParams& lap)
+    void Init(Molecule* m,double spin, const LAParams& lap)
     {
         MoleculeTester::Init(m,spin,lap);
     }

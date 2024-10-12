@@ -118,7 +118,7 @@ template class LASolverCommon<double>;
 
 
 template <class T> LASolver<T>* LASolver<T>::
-    Factory(const LinearAlgebraParams& lap)
+    Factory(const LAParams& lap)
 {
     LASolver<T>* ret=0;
     switch (lap.LinearAlgebraPackage)

@@ -23,7 +23,7 @@ template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon()
     , itsLASolver      (0)
 {};
 
-template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const LinearAlgebraParams& lap,IntegralDataBase<T>* theDataBase)
+template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const LAParams& lap,IntegralDataBase<T>* theDataBase)
     : itsLAParams      (lap)
     , itsDataBase      (theDataBase)
     , itsLASolver      (0)
@@ -90,15 +90,15 @@ GetOverlap() const
 }
 
 template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
-GetInverseRepulsion() const
+GetInverseRepulsion(const LAParams& lap) const
 {
-    return GetDataBase()->GetInverseRepulsion(this);
+    return GetDataBase()->GetInverseRepulsion(this,lap);
 }
 
 template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
-GetInverseOverlap() const
+GetInverseOverlap(const LAParams& lap) const
 {
-    return GetDataBase()->GetInverseOverlap(this);
+    return GetDataBase()->GetInverseOverlap(this,lap);
 }
 
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::

@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "SCFIterator/IterationParams.H"
+#include "Imp/LAParams.H"
 #include "Misc/rc_ptr.h"
 
 class HamiltonianTerm;
@@ -28,7 +29,7 @@ public:
     BaseTester();
     virtual ~BaseTester();
     void Init(BasisSet*, double spin);
-    void Init(BasisSet*, double spin,const LinearAlgebraParams&);
+    void Init(BasisSet*, double spin,const LAParams&);
 
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc(double spin) const=0;
@@ -47,7 +48,7 @@ public:
     double TotalEnergy() const;
 
 protected:
-    LinearAlgebraParams    itsLAParams;
+    LAParams               itsLAParams;
     rc_ptr<Cluster>        itsCluster;
     BasisSet*              itsBasisSet;
 private:

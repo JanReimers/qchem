@@ -23,13 +23,13 @@ IrrepBasisSet::IrrepBasisSet()
 
 //
 //  We need three constructors type here.  They all need DB, size, exponents,L
-//    1) For HF orbitals also need LinearAlgebraParams for secular eq. solving
-//    2) For DFT orbitals need 1+LinearAlgebraParams for overlap inversion.
+//    1) For HF orbitals also need LAParams for secular eq. solving
+//    2) For DFT orbitals need 1+LAParams for overlap inversion.
 //    3) For DFT Vxc, and ro fitting we need defulat + mesh.
 //
 
 IrrepBasisSet::IrrepBasisSet(
-        const LinearAlgebraParams& lap,
+        const LAParams& lap,
         IntegralDataBase<double>* theDB,
         size_t size,
         double minexp,

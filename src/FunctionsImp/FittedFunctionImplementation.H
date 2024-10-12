@@ -7,6 +7,7 @@
 #include "BasisSet.H"
 #include "Misc/rc_ptr.H"
 #include "Functions/FittedFunction.H"
+#include "Imp/LAParams.H"
 #include "oml/vector.h"
 
 template <class T> class FittedCDImplementation;
@@ -68,6 +69,7 @@ private:
     Vec   itsFitCoeff;
     Mesh* itsMesh;
     bool  itsCDFitFlag;
+    LAParams itsLAParams; //Decides about matrix inversion.
 };
 
 #endif //_FittedFunctionImplementation_H_

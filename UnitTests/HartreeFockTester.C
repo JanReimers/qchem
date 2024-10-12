@@ -30,7 +30,7 @@ void HartreeFockAtomTester::Init(Atom* atom, int Lmax, double spin)
     AtomTester::Init(atom,Lmax,spin);
 }
 
-void HartreeFockAtomTester::Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+void HartreeFockAtomTester::Init(int NBasis, int Lmax, double spin, const LAParams& lap)
 {
     AtomTester::Init(NBasis,Lmax,spin,lap);
 }

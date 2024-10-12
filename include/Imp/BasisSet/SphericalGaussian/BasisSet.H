@@ -14,7 +14,7 @@ class BasisSet
 {
 public:
     BasisSet() {};
-    BasisSet(const LinearAlgebraParams&,size_t N, double minexp, double maxexp, size_t Lmax);
+    BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
     
 };
 

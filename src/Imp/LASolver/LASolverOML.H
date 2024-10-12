@@ -13,7 +13,7 @@ template <class T> class LASolverOMLCommon
     typedef typename Base::SMat SMat;
     typedef typename Base::UdType UdType;
 public:
-    LASolverOMLCommon(const LinearAlgebraParams& lap) : LASolverCommon<T>(lap) {};
+    LASolverOMLCommon(const LAParams& lap) : LASolverCommon<T>(lap) {};
 
     virtual UdType Solve(const SMat&) const;
     
@@ -32,7 +32,7 @@ template <class T> class LASolverOMLEigen
     typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
-    LASolverOMLEigen(const LinearAlgebraParams& lap) : LASolverOMLCommon<T>(lap) {};
+    LASolverOMLEigen(const LAParams& lap) : LASolverOMLCommon<T>(lap) {};
 
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;
@@ -51,7 +51,7 @@ template <class T> class LASolverOMLSVD
     typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
-    LASolverOMLSVD(const LinearAlgebraParams& lap) : LASolverOMLCommon<T>(lap) {};
+    LASolverOMLSVD(const LAParams& lap) : LASolverOMLCommon<T>(lap) {};
 
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;
@@ -69,7 +69,7 @@ template <class T> class LASolverOMLCholsky
     typedef typename Base::SMat SMat;
     typedef typename Base::RSMat RSMat;
 public:
-    LASolverOMLCholsky(const LinearAlgebraParams& lap) : LASolverOMLCommon<T>(lap) {};
+    LASolverOMLCholsky(const LAParams& lap) : LASolverOMLCommon<T>(lap) {};
 
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;

@@ -20,7 +20,7 @@ class IrrepBasisSet
 {
 public:
     IrrepBasisSet();
-    IrrepBasisSet(const LinearAlgebraParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L);
+    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;

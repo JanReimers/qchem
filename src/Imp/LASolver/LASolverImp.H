@@ -22,7 +22,8 @@
 
 #include "LASolver/LASolver.H"
 #include "oml/matrix.h"
-#include "SCFIterator/IterationParams.H"
+#include "Imp/LAParams.H"
+
 template <class T> class LASolverCommon 
     : public virtual  LASolver<T>
 {
@@ -32,7 +33,7 @@ template <class T> class LASolverCommon
     typedef typename Base::SMat SMat;
     typedef DiagonalMatrix<T>  DMat;
 protected:
-    LASolverCommon(const LinearAlgebraParams& lap) : itsParams(lap) {};
+    LASolverCommon(const LAParams& lap) : itsParams(lap) {};
     //
     //  Helper functions used by derived classes.
     //
@@ -44,7 +45,7 @@ protected:
     
     void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
 
-    LinearAlgebraParams itsParams;
+    LAParams itsParams;
     Mat  V,Vd;  //Basis Overlap S = V*Vd
 };
 

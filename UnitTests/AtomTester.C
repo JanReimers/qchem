@@ -37,7 +37,7 @@ void AtomTester::Init(Atom* atom, int Lmax,double spin)
     BaseTester::Init(bg,spin);
 }
 
-void AtomTester::Init(int NBasis, int Lmax, double spin, const LinearAlgebraParams& lap)
+void AtomTester::Init(int NBasis, int Lmax, double spin, const LAParams& lap)
 {
     itsLmax=Lmax;
     itsNbasis=NBasis;

@@ -15,7 +15,7 @@
 //
 //  Lapack specific code
 //
-template <class T> LASolverLapackCommon<T>::LASolverLapackCommon(const LinearAlgebraParams& lap)
+template <class T> LASolverLapackCommon<T>::LASolverLapackCommon(const LAParams& lap)
     : LASolverCommon<T>(lap)
     , itsLapackEigenSolver(new oml::LapackEigenSolver<T>())
     , itsLapackSVDSolver  (new oml::LapackSVDSolver  <T>())

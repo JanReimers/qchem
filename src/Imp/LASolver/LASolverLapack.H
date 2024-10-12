@@ -17,7 +17,7 @@ template <class T> class LASolverLapackCommon
     typedef typename Base::SMat SMat;
     typedef typename Base::UdType UdType;
 public:
-    LASolverLapackCommon(const LinearAlgebraParams&);
+    LASolverLapackCommon(const LAParams&);
 
     virtual UdType Solve          (const SMat& H) const;
     
@@ -40,7 +40,7 @@ template <class T> class LASolverLapackEigen
     typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
-    LASolverLapackEigen(const LinearAlgebraParams& lap) : LASolverLapackCommon<T>(lap) {};
+    LASolverLapackEigen(const LAParams& lap) : LASolverLapackCommon<T>(lap) {};
 
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;
@@ -61,7 +61,7 @@ template <class T> class LASolverLapackSVD
     typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
-    LASolverLapackSVD(const LinearAlgebraParams& lap) : LASolverLapackCommon<T>(lap) {};
+    LASolverLapackSVD(const LAParams& lap) : LASolverLapackCommon<T>(lap) {};
 
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;
@@ -80,7 +80,7 @@ template <class T> class LASolverLapackCholsky
     typedef typename Base::SMat SMat;
     typedef typename Base::RSMat RSMat;
 public:
-    LASolverLapackCholsky(const LinearAlgebraParams& lap) : LASolverLapackCommon<T>(lap) {};
+    LASolverLapackCholsky(const LAParams& lap) : LASolverLapackCommon<T>(lap) {};
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;
 };

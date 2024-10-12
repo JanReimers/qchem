@@ -23,7 +23,7 @@ void MoleculeTester::Init(Molecule* m,double spin)
     BaseTester::Init(bg,spin);
 }
 
-void MoleculeTester::Init(Molecule* m,double spin,const LinearAlgebraParams& lap)
+void MoleculeTester::Init(Molecule* m,double spin,const LAParams& lap)
 {
     itsCluster.reset(m);
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");

@@ -35,7 +35,7 @@ public:
         SemiHartreeFockTester::Init(Exchange);
         AtomTester::Init(atom,Lmax,spin);
     }
-    void Init(double Exchange,int nb, int Lmax,double spin, const LinearAlgebraParams& lap)
+    void Init(double Exchange,int nb, int Lmax,double spin, const LAParams& lap)
     {
         SemiHartreeFockTester::Init(Exchange);
         AtomTester::Init(nb,Lmax,spin,lap);
@@ -46,7 +46,7 @@ public:
 class SemiHartreeFockMoleculeTester : public MoleculeTester, public SemiHartreeFockTester
 {
 public:
-   void Init(Molecule* m,double Exchange, double spin, const LinearAlgebraParams& lap)
+   void Init(Molecule* m,double Exchange, double spin, const LAParams& lap)
     {
         SemiHartreeFockTester::Init(Exchange);
         MoleculeTester::Init(m,spin,lap);

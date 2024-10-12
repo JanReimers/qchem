@@ -40,7 +40,7 @@ public:
     typedef SMatrix<double> RSMat;
     typedef std::tuple<Mat,RVec> UdType;
 
-    static  LASolver* Factory(const LinearAlgebraParams&);  
+    static  LASolver* Factory(const LAParams&);  
       
     virtual void   SetBasisOverlap(const SMat& S)=0;
     virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.

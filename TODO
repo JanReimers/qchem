@@ -1,8 +1,8 @@
 Priority 1:
     Done: -Cache reports
     Done: -Experiment with Latex markup for doxygen.  Works great!
-    -DumpScalarData keeps showing up everywhere, do we need it?
-    =IE::MakeInverse should take LAParams as argument.
+    Done: -DumpScalarData keeps showing up everywhere, do we need it?
+    Done: -IE::MakeInverse should take LAParams as argument.
     -Fix valgrind errors
     -kT Occ smearing fails miserably.
     -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
@@ -166,7 +166,7 @@ Priority 3:
         Orbital.C
         PolarizedWF.C 
         FittedCD.C
-    Done: -Set up LinearAlgebraParams and feed in BasisSetImp
+    Done: -Set up LAParams and feed in BasisSetImp
         -tol for basis set orthogonalization
         -Linalg package Pkg=OML or Lapack
         -Basis set ortho method Ortho=SVD,Eigen,Cholsky

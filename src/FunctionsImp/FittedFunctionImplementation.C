@@ -25,6 +25,7 @@ FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,Mesh* m
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsMesh    (m)
     , itsCDFitFlag(CDfit)
+    , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
@@ -51,8 +52,8 @@ template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementatio
 template <class T> typename FittedFunctionImplementation<T>::SMat FittedFunctionImplementation<T>::
 GetInverseOverlap() const
 {
-    return itsCDFitFlag ? CastBasisSet()->GetInverseRepulsion()
-           : CastBasisSet()->GetInverseOverlap();
+    return itsCDFitFlag ? itsBasisSet->GetInverseRepulsion(itsLAParams)
+           : itsBasisSet->GetInverseOverlap(itsLAParams);
 }
 
 //--------------------------------------------------------------------------

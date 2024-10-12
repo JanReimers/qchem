@@ -28,7 +28,7 @@ BaseTester::~BaseTester()
     delete itsBasisSet;
 }
 
-void BaseTester::Init(BasisSet* bs,double spin,const LinearAlgebraParams& lap)
+void BaseTester::Init(BasisSet* bs,double spin,const LAParams& lap)
 {
     itsLAParams=lap;
     Init(bs,spin);

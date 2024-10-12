@@ -3,7 +3,7 @@
 #define _TBasisSetImplementation_H_
 
 #include "BasisSet.H"
-#include "SCFIterator/IterationParams.H"
+#include "Imp/LAParams.H"
 #include "Misc/Persistent/PerRef.H"
 #include "Misc/rc_ptr.H"
 
@@ -30,7 +30,7 @@ protected:
   
 public:
     TIrrepBasisSetCommon(                              );
-    TIrrepBasisSetCommon(const LinearAlgebraParams& lap, IntegralDataBase<T>*);
+    TIrrepBasisSetCommon(const LAParams& lap, IntegralDataBase<T>*);
     TIrrepBasisSetCommon(const TIrrepBasisSetCommon&);
     ~TIrrepBasisSetCommon(                              );
 
@@ -43,8 +43,8 @@ public:
 //  Used by fitting routines.
 // 
     virtual RVec GetCharge          () const;
-    virtual SMat GetInverseRepulsion() const;
-    virtual SMat GetInverseOverlap  () const;
+    virtual SMat GetInverseRepulsion(const LAParams&) const;
+    virtual SMat GetInverseOverlap  (const LAParams&) const;
     virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const;
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
     virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const;
@@ -79,7 +79,7 @@ private:
     virtual void Eval    (const Mesh&,     Mat&) const;
     virtual void EvalGrad(const Mesh&, Vec3Mat&) const;
 protected:
-    LinearAlgebraParams          itsLAParams;
+    LAParams          itsLAParams; //Numerical control of general eigen solution.
 private:
     mutable IntegralDataBase<T>*  itsDataBase;
     mutable LASolver<T>*                 itsLASolver;

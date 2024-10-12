@@ -23,7 +23,7 @@ class IrrepBasisSet
 public:
     typedef typename ::IrrepBasisSet::RVec RVec;
     IrrepBasisSet();
-    IrrepBasisSet(const LinearAlgebraParams&, IntegralDataBase<double>*, Reader*, const Cluster*);
+    IrrepBasisSet(const LAParams&, IntegralDataBase<double>*, Reader*, const Cluster*);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;

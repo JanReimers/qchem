@@ -33,7 +33,7 @@ IrrepBasisSet::IrrepBasisSet()
 {};
 
 IrrepBasisSet::
-IrrepBasisSet(const LinearAlgebraParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
+IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
     : IrrepBasisSetCommon(new UnitSymmetryQN)
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {

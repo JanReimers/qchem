@@ -11,7 +11,7 @@ public:
     AtomTester(size_t n, double emin, double emax);
     void Init(Atom* atom); //Only call this once
     void Init(Atom* atom, int Lmax,double spin);
-    void Init(int NBasis, int Lmax,double spin, const LinearAlgebraParams&);
+    void Init(int NBasis, int Lmax,double spin, const LAParams&);
     virtual IrrepBasisSet*  GetXbasisSet() const;
     virtual IrrepBasisSet*  GetCbasisSet() const;
     virtual Mesh*      GetIntegrationMesh() const;

@@ -10,7 +10,7 @@ class MoleculeTester : public virtual BaseTester
 public:
     MoleculeTester();
     void Init(Molecule*, double spin);
-    void Init(Molecule*, double spin, const LinearAlgebraParams& lap);
+    void Init(Molecule*, double spin, const LAParams& lap);
     
     virtual IrrepBasisSet*  GetXbasisSet() const;
     virtual IrrepBasisSet*  GetCbasisSet() const;
