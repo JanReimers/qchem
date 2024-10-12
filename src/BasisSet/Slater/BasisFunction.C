@@ -1,8 +1,6 @@
-// File: SphericalGaussian.C  r^l exp(-ar^2) type basis function for an atom.
+// File: Slater.C  r^(n-1) exp(-ar) type basis function for an atom.
 
-
-
-#include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
+#include "Imp/BasisSet/Slater/BasisFunction.H"
 #include "Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"
@@ -10,31 +8,29 @@
 #include <iostream>
 #include <cassert>
 
-namespace SphericalGaussian
+namespace Slater
 {
-//#######################################################################
-//
-//  Spherical gaussian implementation, adds orbital AM Q#.
-//
 
 BasisFunction::BasisFunction()
     : itsExponent     (0)
+    , itsN            (0)
     , itsL            (0)
     , itsNormalization(0)
 {};
 
-BasisFunction::BasisFunction(double theExponent, int theL, double norm)
-    : itsExponent     (theExponent)
-    , itsL            (theL       )
+BasisFunction::BasisFunction(double ex, int n, int l, double norm)
+    : itsExponent     (ex)
+    , itsN            (n)
+    , itsL            (l)
     , itsNormalization(norm)
 {
 };
 
 bool BasisFunction::operator==(const ::BasisFunction& bf) const
 {
-    const BasisFunction& sgbf = dynamic_cast<const BasisFunction&>(bf);
-    assert(&sgbf);
-    return itsExponent==(sgbf.itsExponent) && (itsL==sgbf.itsL);
+    const BasisFunction& sbf = dynamic_cast<const BasisFunction&>(bf);
+    assert(&sbf);
+    return itsExponent==(sbf.itsExponent) && (itsN==sbf.itsN) && (itsL==sbf.itsL);
 }
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
@@ -43,15 +39,16 @@ std::ostream& BasisFunction::Write(std::ostream& os) const
     if ( StreamableObject::Binary())
     {
         BinaryWrite(itsExponent     ,os);
+        BinaryWrite(itsN            ,os);
         BinaryWrite(itsL            ,os);
         BinaryWrite(itsNormalization,os);
     }
-    if (StreamableObject::Ascii ()) os << itsExponent << " " << itsL << " " << itsNormalization << " ";
+    if (StreamableObject::Ascii ()) os << itsExponent << " " << itsN << " " << itsL << " " << itsNormalization << " ";
     if (StreamableObject::Pretty())
     {
 //    if (itsL >0) os << "r"; else os << " ";
 //    if (itsL >1) os << "^" << itsL; else os << "  ";
-//    os << " exp(-" << itsExponent << " r^2)" << std::endl;
+//    os << " exp(-" << itsExponent << "*r)" << std::endl;
         os << itsExponent << " ";
     }
     return os;
@@ -63,12 +60,13 @@ std::istream& BasisFunction::Read(std::istream& is)
     if (StreamableObject::Binary())
     {
         BinaryRead(itsExponent     ,is);
+        BinaryRead(itsN            ,is);
         BinaryRead(itsL            ,is);
         BinaryRead(itsNormalization,is);
     }
     else
     {
-        is >> itsExponent >> itsL >> itsNormalization ;
+        is >> itsExponent >> itsN >> itsL >> itsNormalization ;
         is.get();
     }
     return is;
@@ -76,19 +74,18 @@ std::istream& BasisFunction::Read(std::istream& is)
 
 double BasisFunction::operator()(const Vec3& r) const
 {
-    return itsNormalization*uintpow(norm(r),itsL)*exp(-itsExponent*r*r);
+    double mr=norm(r);
+    return itsNormalization*uintpow(mr,itsN-1)*exp(-itsExponent*mr);
 }
 
 BasisFunction::Vec3 BasisFunction::Gradient(const Vec3& r) const
 {
-    Vec3 ret(0,0,0);
+    assert(r!=Vec3(0,0,0)); //cusp at the origin.
     double mr=norm(r);
-    if (mr>0)
-    {
-        double diff = itsL==0 ? 0 : uintpow(norm(r),itsL-1);
-        ret = -2.0*r*itsExponent*(*this)(r) + itsNormalization*normalize(r)*diff*exp(-itsExponent*r*r);
-    }
-    return ret;
+    assert(mr>0);
+    Vec3 r_hat=r/mr;
+    double g=(*this)(r);
+    return r_hat*g*((itsN-1)/mr-itsExponent);
 }
 
 BasisFunction* BasisFunction::Clone() const

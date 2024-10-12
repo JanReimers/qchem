@@ -1,0 +1,78 @@
+// File: SlaterBS.C  Spherical Slater basis set.
+
+#include "Imp/BasisSet/Slater/IrrepBasisSet.H"
+#include "Imp/BasisSet/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Slater/IntegralEngine.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include <iostream>
+#include <cassert>
+
+namespace Slater
+{
+//
+//  Concrete  Slater basis set.
+//
+IrrepBasisSet::IrrepBasisSet()
+    :  IrrepBasisSetCommon        ()
+    , TIrrepBasisSetCommon<double>()
+{};
+
+
+IrrepBasisSet::IrrepBasisSet(
+        const LAParams& lap,
+        IntegralDataBase<double>* theDB,
+        size_t size,
+        double minexp,
+        double maxexp,
+        size_t L)
+    : IrrepBasisSetCommon(new SphericalSymmetryQN(L))
+    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , IrrepIEClient(size)
+{
+    IrrepIEClient::Init(minexp,maxexp,L);
+    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());  
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
+
+};
+
+std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
+{
+    if (!Pretty())
+    {
+        WriteBasisFunctions(os);
+        IrrepBasisSetCommon::Write(os);
+        TIrrepBasisSetCommon<double>::Write(os);
+    }
+    else
+    {
+        os << "Slater functions L=" << GetQuantumNumber()
+        << " with " << GetNumFunctions() << " basis functions, alpha={";
+        for (auto b:*this) os << *b;
+        os << "}" << std::endl;
+    }
+    return os;
+}
+
+std::istream&  IrrepBasisSet::Read (std::istream& is)
+{
+    ReadBasisFunctions(is);
+    IrrepBasisSetCommon::Read(is);
+    TIrrepBasisSetCommon<double>::Read(is);
+    return is;
+}
+
+::IrrepBasisSet* IrrepBasisSet::Clone() const
+{
+    return new IrrepBasisSet(*this);
+}
+
+::IrrepBasisSet* IrrepBasisSet::Clone(const RVec3&) const
+{
+    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
+    return Clone();
+}
+
+
+} //namespace

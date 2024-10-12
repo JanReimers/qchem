@@ -82,6 +82,11 @@
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H" />
+		<Unit filename="include/Imp/BasisSet/Slater/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/Slater/BasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/Slater/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/Slater/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/Slater/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IEClient.H" />
@@ -176,6 +181,21 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/PolarizedGaussian/Readers/RadialFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater/BasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater/IntegralEngine.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater/IrrepBasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/BasisFunction.C">

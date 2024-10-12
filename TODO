@@ -6,6 +6,11 @@ Priority 1:
     -kT Occ smearing fails miserably.
     -Clean up PolGaussian construction
     -Does UniqueID really need to enforce Read/Write?
+    -Get all headers into include.
+    -STO basis set for atoms.
+        -Type out the integral formulas
+        -Start coding the BF/BS/IE classes.
+        -Test the integrals with numerical integrations.
       
 Priority 2:
  **   -SMAT does not support S+=Xpr

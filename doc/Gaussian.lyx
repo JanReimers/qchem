@@ -88,11 +88,11 @@
 
 \begin_body
 
-\begin_layout Subsubsection*
+\begin_layout Section
 HF Theory
 \end_layout
 
-\begin_layout Subsubsection*
+\begin_layout Subsection
 Notation:
 \end_layout
 
@@ -150,23 +150,19 @@ Notation:
  and the second term is the electron-nuclear attraction.
 \end_layout
 
-\begin_layout Subsubsection*
+\begin_layout Subsection
 Total Energy
 \end_layout
 
 \begin_layout Standard
-We can define the one electron part of the energy as
+We can define the one electron part operator for spin 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ as
 \begin_inset Formula 
 \[
 h_{i}^{\alpha}=\left\langle \phi_{i}^{\alpha}\left|-\frac{1}{2}\nabla_{i}^{2}+\sum_{C}\frac{1}{\left|\overrightarrow{R}_{C}-\overrightarrow{r_{i}}\right|}\right|\phi_{i}^{\alpha}\right\rangle 
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-h=\sum_{i=1}^{n^{\alpha}}h_{i}^{\alpha}+\sum_{i=1}^{n^{\beta}}h_{i}^{\beta}
 \]
 
 \end_inset
@@ -176,7 +172,15 @@ and similarly for
 \end_inset
 
  spin.
- Defining Coulomb,
+ Adding the two spins gives the total one electron operator.
+\begin_inset Formula 
+\[
+h=\sum_{i=1}^{n^{\alpha}}h_{i}^{\alpha}+\sum_{i=1}^{n^{\beta}}h_{i}^{\beta}
+\]
+
+\end_inset
+
+Defining Coulomb,
  
 \begin_inset Formula $J$
 \end_inset
@@ -229,7 +233,7 @@ The energy is minimized if
 \end_inset
 
 these are known as the unpolarized Hartree-Fock equations.
- Notice that the factors of half disapeared for the coloumb and exchange terms.
+ Notice that the factors of half disappeared for the Coulomb and exchange terms.
  This is simply because those terms depend on the square of the orbitals.
  The Coulomb and exchange operator are defined as follows
 \begin_inset Formula 
@@ -265,13 +269,17 @@ Notice that
 .
 \end_layout
 
-\begin_layout Subsection*
-Unpolarized Roothan Hall Equations,
+\begin_layout Section
+Introducing a set of basis functions
+\end_layout
+
+\begin_layout Subsection
+Unpolarized Roothaan Hall Equations,
  Derivation
 \end_layout
 
 \begin_layout Standard
-In order to faculitate a so called analytic solution,
+In order to facilitate a so called analytic solution,
  the orbitals are now expanded in terms of some basis set 
 \begin_inset Formula $g_{a}(\overrightarrow{r_{i}})$
 \end_inset
@@ -329,7 +337,7 @@ S_{ab}=\left\langle g_{a}(\overrightarrow{r_{1}})|g_{b}(\overrightarrow{r_{1}})\
 
 \end_inset
 
-and Fock matricies
+and Fock matrices
 \begin_inset Formula 
 \[
 F_{ab}^{\alpha}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{h^{\alpha}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\alpha}}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
@@ -354,7 +362,7 @@ h_{ab}=\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}}\right|g_{b}(\
 
 \end_inset
 
- And neither is the total coloumb repulsion matrix
+ And neither is the total Coulomb repulsion matrix
 \begin_inset Formula 
 \[
 J_{ab}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{J^{\alpha}}\hat{+J^{\beta}}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle =\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{J}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle .
@@ -371,7 +379,7 @@ K_{ab}^{\alpha}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{K^{\alpha}}
 \end_inset
 
 is spin dependent.
- We can expand both of the matricies as follows
+ We can expand both of the matrices as follows
 \begin_inset Formula 
 \[
 J_{ab}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{J}\right|g_{b}(\overrightarrow{r_{1}})\right\rangle 
@@ -455,13 +463,13 @@ K_{ab}^{\beta}=\sum_{cd}D_{cd}^{\beta}\left\langle ac||bd\right\rangle
 
 \end_layout
 
-\begin_layout Subsection*
-Unpolarized Roothan Hall Equations,
+\begin_layout Subsection
+Unpolarized Roothaan Hall Equations,
  Summary
 \end_layout
 
 \begin_layout Standard
-Build the Fock matricies
+Build the Fock matrices
 \begin_inset Formula 
 \[
 F_{ab}^{\alpha}=H_{ab}+J_{ab}-K_{ab}^{\alpha}
@@ -540,8 +548,8 @@ E=E_{NN}+\sum_{ab}D_{ab}H_{ab}+\frac{1}{2}\sum_{ab}D_{ab}J_{ab}-\frac{1}{2}\sum_
 
 \end_layout
 
-\begin_layout Subsection*
-Restricted Roothan Hall Equations
+\begin_layout Subsection
+Restricted Roothaan Hall Equations
 \end_layout
 
 \begin_layout Standard
@@ -585,11 +593,11 @@ FC=\varepsilon SC
 
 \end_inset
 
-Some authors don not put the factor of 
+Some authors do not put the factor of 
 \begin_inset Formula $2$
 \end_inset
 
- into the density matric definition,
+ into the density matrix definition,
  in which case it gets moved into the Fock matrix definition.
 \end_layout
 
@@ -605,8 +613,12 @@ E=E_{NN}+\sum_{ab}D_{ab}H_{ab}+\frac{1}{2}\sum_{ab}D_{ab}J_{ab}-\frac{1}{2}\sum_
 
 \end_layout
 
-\begin_layout Section*
-One Center Guassian Repulsion Integrals
+\begin_layout Section
+Spherical Gaussian Basis Functions
+\end_layout
+
+\begin_layout Subsection
+One Center (Atom) Gaussian Repulsion Integrals
 \end_layout
 
 \begin_layout Standard
@@ -963,7 +975,7 @@ for the exchange term.
  
 \end_layout
 
-\begin_layout Section*
+\begin_layout Subsection
 Magnetic summation
 \end_layout
 
@@ -973,7 +985,7 @@ Johnson (W.R.
 \end_layout
 
 \begin_layout Subsubsection*
-Coloumb Case
+Coulomb Case
 \end_layout
 
 \begin_layout Standard
@@ -2088,8 +2100,8 @@ Exchange
 
 \end_layout
 
-\begin_layout Section*
-McMurchie ans Davidson Scheme
+\begin_layout Subsection
+Multicenter (Molecuale) Polarized Gaussians
 \end_layout
 
 \begin_layout Subsection*
@@ -2097,7 +2109,7 @@ Molecular case
 \end_layout
 
 \begin_layout Standard
-M&D express the repulsion integral as
+McMurchie and Davidson Scheme M&D express the repulsion integral as
 \begin_inset Formula 
 \[
 <g_{a}g_{b}\Vert g_{c}g_{d}>=\lambda E_{ab}E_{cd}\:\sum_{N_{ab}=0}^{n_{a}+n_{b}}\sum_{N_{cd}=0}^{n_{c}+n_{d}}d_{N_{ab}}^{n_{a}n_{b}}d_{N_{cd}}^{n_{c}n_{d}}\:\sum_{L_{ab}=0}^{l_{a}+l_{b}}\sum_{L_{cd}=0}^{l_{c}+l_{d}}e_{L_{ab}}^{l_{a}l_{b}}e_{L_{cd}}^{l_{c}l_{d}}\:\sum_{M_{ab}=0}^{m_{a}+m_{b}}\sum_{M_{cd}=0}^{m_{c}+m_{d}}f_{M_{ab}}^{m_{a}m_{b}}f_{M_{cd}}^{m_{c}m_{d}}
@@ -4712,7 +4724,7 @@ Formula
 \end_layout
 
 \begin_layout Section*
-The Gaussian basis function
+The Polarized Gaussian basis function
 \end_layout
 
 \begin_layout Standard
@@ -4804,6 +4816,166 @@ S_{ab}(\vec{k})=\sum_{\vec{R}}e^{-i\vec{k}\cdot\vec{R}}\:\int d^{3}\vec{r}\:g_{a
 \begin{equation}
 =\frac{1}{\Omega}\:\sum_{\vec{G}}\:g_{a}(\vec{k}-\vec{G})g_{b}(\vec{G}-\vec{k})\label{RLsumforBlochOverlap}
 \end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Slater Functions for Atoms
+\end_layout
+
+\begin_layout Standard
+Slater function look like
+\begin_inset Formula 
+\[
+g(l_{a},m_{a},\alpha_{a};r,\theta,\phi)=g_{a}(\overrightarrow{r})=r^{n_{a}-1}e^{-\alpha_{a}r}\sqrt{4\pi}Y_{l_{a}m_{a}}(\theta,\phi)
+\]
+
+\end_inset
+
+The factor of 
+\begin_inset Formula $\sqrt{4\pi}$
+\end_inset
+
+ is there to compensate for the fact that the spherical harmonic are normalized,
+ and to get an overlap value of 
+\begin_inset Formula $\left(\frac{\pi}{\alpha}\right)^{3/2}$
+\end_inset
+
+ as found in the literature.
+ For one electron integrals the angular part does nothing other than enforce some orthogonality between between basis functions with differing 
+\begin_inset Formula $l$
+\end_inset
+
+ values,
+ and degeneracy between between basis functions with differing 
+\begin_inset Formula $m$
+\end_inset
+
+ values.
+ As a result we end up with a symmetry adapted basis set with separated secular equations for each 
+\begin_inset Formula $l$
+\end_inset
+
+ value.
+ Levels with quantum number 
+\begin_inset Formula $l$
+\end_inset
+
+ have degeneracy of 
+\begin_inset Formula $2l+1$
+\end_inset
+
+ for a spin polarized calculation.
+\end_layout
+
+\begin_layout Standard
+The relation
+\begin_inset Formula 
+\[
+\int dr\:r^{n}e^{-\alpha r}=\frac{n!}{\alpha^{n+1}}is
+\]
+
+\end_inset
+
+used throughout.
+ The overlap looks like
+\begin_inset Formula 
+\[
+\int d^{3}r\:g_{a}(\overrightarrow{r})g_{b}(\overrightarrow{r})=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}\int r^{2}dr\:r^{n_{a}+n_{b}+2}e^{-\left(\alpha_{a}+\alpha_{b}\right)r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\left(n_{a}+n_{b}\right)!}{\left(\alpha_{a}+\alpha_{b}\right)^{n_{a}+n_{b}+1}}=\frac{n_{ab}!}{\alpha_{ab}^{n_{ab}+1}}
+\]
+
+\end_inset
+
+which immediately defines the normalization constant.
+ The kinetic energy is
+\begin_inset Formula 
+\[
+-\frac{1}{2}\int d^{3}r\:g_{a}(\overrightarrow{r})\nabla^{2}g_{b}(\overrightarrow{r})=
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-\frac{1}{2}\left[\frac{\alpha_{a}\alpha_{b}n!}{\alpha^{n+1}}-\frac{\left(\alpha_{a}n_{b}+\alpha_{b}n_{a}\right)\left(n-1\right)!}{\alpha^{n}}+\frac{\left[\left(n_{a}-1\right)\left(n_{b}-1\right)-l(l+1)\right]\left(n-2\right)!}{\alpha^{n-1}}\right]
+\]
+
+\end_inset
+
+and the nuclear attraction is
+\begin_inset Formula 
+\[
+\int d^{3}r\:g_{a}(\overrightarrow{r})\frac{-Z}{r}g_{b}(\overrightarrow{r})=-Z\frac{\left(n-1\right)!}{\alpha^{n}}
+\]
+
+\end_inset
+
+The two electron integral can be factored into a sum over angular (
+\begin_inset Formula $r_{k}$
+\end_inset
+
+) and radial (
+\begin_inset Formula $R^{k}$
+\end_inset
+
+) parts.
+\begin_inset Formula 
+\[
+\int d^{3}r\:g_{a}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\frac{1}{r_{12}}g_{c}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})=\sum_{k}r_{k}\left(l_{a},l_{b},l_{c},l_{d}\right)R^{k}\left(a,b,c,d\right)
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+r_{k}\left(l_{a},l_{b},l_{c},l_{d}\right)=\left(-1\right)^{l_{a}+l_{b}+L}\sqrt{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2l_{c}+1\right)\left(2l_{d}+1\right)}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\times\left(\begin{array}{ccc}
+l_{a} & k & l_{c}\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{b} & k & l_{d}\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & L\\
+l_{d} & l_{c} & k
+\end{array}\right)
+\]
+
+\end_inset
+
+and the radial part is
+\begin_inset Formula 
+\[
+R^{k}\left(a,b,c,d\right)=\frac{\left(n_{ac}-k-1\right)!}{\alpha_{ac}^{n_{ac}-k}}H_{abcd}^{k}+\frac{\left(n_{bd}-k-1\right)!}{\alpha_{bd}^{n_{bd}-k}}H_{badc}^{k}
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+H_{abcd}^{k}=\sum_{\nu=0}^{n_{ac}-k-1}\frac{\left(n_{bd}+k+\nu\right)!\alpha_{ac}^{\nu}}{\alpha_{abcd}^{n_{bd}+k+\nu+1}\nu!}
+\]
 
 \end_inset
 
