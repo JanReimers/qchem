@@ -7,12 +7,6 @@
 #include <cmath>
 #include "Misc/DFTDefines.H"
 
-inline double TwoLPlusOne(int L)
-{
-    return 1.0;
-//    return 1.0/(2*L+1);
-}
-
 //###################################################################
 //
 //  Hand coded Gaussian integrals.

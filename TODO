@@ -52,8 +52,7 @@ Priority 3:
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
-    -Get rid of 
-        TwoLPlusOne
+    Done: -Get rid of TwoLPlusOne
     -Mesh code re-write  use pairs of points/weights, also get rid of
         MeshBrowser 
         AngularMeshBrowser 
@@ -68,7 +67,7 @@ Priority 3:
     -SphericalGuassian accept different exponent ranges for each L.
     -Dynamically adjust kT ?
     
-    -Design problem:  
+    Done: -Design problem:  
         IrrepWaveFunction creates and hold an rc_ptr<const BasisSet> which is also copied into
         the Ortbitals object.  Updateing the orbital is done by:
         TIrrepBasisSetCommon<T>::CreateOrbitals.  But this function cannot just use this to create

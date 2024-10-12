@@ -77,8 +77,7 @@ std::istream& BasisFunction::Read(std::istream& is)
 
 double BasisFunction::operator()(const Vec3& r) const
 {
-    double a=TwoLPlusOne(itsL);
-    return itsNormalization*sqrt(a)*uintpow(norm(r),itsL)*exp(-itsExponent*r*r);
+    return itsNormalization*uintpow(norm(r),itsL)*exp(-itsExponent*r*r);
 }
 
 BasisFunction::Vec3 BasisFunction::Gradient(const Vec3& r) const

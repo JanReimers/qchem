@@ -32,9 +32,7 @@ double Evenl(double exp, int n)
 
 double GaussianNorm(double e, int l)
 {
-    double overlap=TwoLPlusOne(l)*GaussianIntegral(2*e,2*l);
-//    double overlap=GaussianIntegral(2*e,2*l);
-    return 1.0/sqrt(overlap);
+    return 1.0/sqrt(GaussianIntegral(2*e,2*l));
 }
 
 inline void Swap(double& a, double& b, int& la, int& lb)
