@@ -110,8 +110,8 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
                 Knum(i,j)+=0.5*((l)*(l+1))*GaussianIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
-            
-        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-8);
+        cout << K << Knum << endl;    
+        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
 
     }
 }

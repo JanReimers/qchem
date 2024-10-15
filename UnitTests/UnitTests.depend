@@ -590,13 +590,21 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1728956614 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1729032668 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
+	"Imp/BasisSet/Slater/BasisSet.H"
+	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
+	"Mesh/RadialMesh/MHLRadialMesh.H"
+	"Mesh/AngularMesh/GaussAngularMesh.H"
+	"Mesh/AtomMesh.H"
+	"Mesh/MeshIntegrator.H"
 	"Misc/DFTDefines.H"
+	"Cluster/Molecule.H"
+	"Cluster.H"
 	"oml/imp/ran250.h"
 	<iostream>
 	<fstream>
@@ -631,7 +639,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1728956511 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1729031492 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -910,11 +918,12 @@
 1728614540 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1728957346 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+1728997392 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Integrals/Wigner3j.H"
 	"Misc/IntPower.H"
 	"Imp/Integrals/Factorials.H"
 	<cmath>
+	<cassert>
 
 1728789664 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
 
@@ -1028,11 +1037,21 @@
 	"Misc/IntPower.H"
 	<cmath>
 
-1728944574 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
+1729031389 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
 	"gtest/gtest.h"
-	"Imp/Integrals/GaussianRadialIntegrals.H"
-	"Imp/Integrals/Wigner3j.H"
+	"Imp/Integrals/GaussianIntegrals.H"
+	"Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
+	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
+	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+	"DFTDataBase/HeapDB/HeapDB.H"
+	"Mesh/RadialMesh/MHLRadialMesh.H"
+	"Mesh/AngularMesh/GaussAngularMesh.H"
+	"Mesh/AtomMesh.H"
+	"Mesh/MeshIntegrator.H"
 	"Misc/DFTDefines.H"
+	"Cluster/Molecule.H"
+	"Cluster.H"
 	"oml/imp/ran250.h"
 	<iostream>
 	<fstream>
@@ -1051,4 +1070,25 @@
 1728773186 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IEClient.H
 	<IEClient.H>
 	"oml/vector.h"
+
+1728773186 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/BasisSet.H
+	"IEClient.H"
+	"../TCommon.H"
+
+1728599453 /home/janr/Code/qchem/src/Mesh/MeshIntegrator.H
+	"types.H"
+
+1728686165 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
+	<AnalyticIE.H>
+	"oml/vector.h"
+
+1728751665 /home/janr/Code/qchem/include/Imp/Integrals/GaussianIntegrals.H
+	<cmath>
+	"Misc/DFTDefines.H"
+
+1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
+	<QuantumNumber.H>
+
+1728599453 /home/janr/Code/qchem/include/QuantumNumber.H
+	"Misc/Persistent/Persistent.H"
 

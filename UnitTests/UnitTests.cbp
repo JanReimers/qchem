@@ -75,6 +75,9 @@
 			<Option compilerVar="CPP" />
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="GaussianIntegral.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="HartreeFockTester.C">
 			<Option compilerVar="CPP" />
 		</Unit>

@@ -192,15 +192,18 @@ IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
         for (auto j:Hk.cols(i))
         {
             assert(a->Ls(i)==a->Ls(j));
-            double ab=a->es(i)+a->es(j);
+            double ea=a->es(i), eb=a->es(j);
+            double ab=ea+eb;
+            int la=a->Ls(i),lb=a->Ls(j);
+            int na=la+1,nb=lb+1;
             int n=a->Ns(i)+a->Ns(j);
             int l=a->Ls(i);
-            Hk(i,j)=0.5*a->ns(i)*a->ns(j)*
-                   (
-                       ((a->Ns(i)-1)*(a->Ns(j))-1)-l*(l+1) * SlaterIntegral(ab,n-2)
-                    -(a->Ns(i)*a->es(j)+a->Ns(j)*a->es(i))  * SlaterIntegral(ab,n-1 )
-                       +a->es(i)*a->es(j) * SlaterIntegral(ab,n)
-                   );
+            assert(la==lb);
+            double Term1=0.5*a->ns(i)*a->ns(j)*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2);
+            double Term2=-0.5*a->ns(i)*a->ns(j)*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+            double Term3=0.5*a->ns(i)*a->ns(j)*ea*eb*SlaterIntegral(ab,n);
+            Hk(i,j)=Term1+Term2+Term3;
+            
         }
 
     return Hk;

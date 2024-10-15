@@ -6,8 +6,8 @@ int main(int argc, char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
 
-    //testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
-    testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
+//    testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
+      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_EigenSolverTests.*";

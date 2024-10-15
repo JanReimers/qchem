@@ -6,6 +6,7 @@
 #include "Imp/Integrals/Factorials.H"
 
 #include <cmath>
+#include <cassert>
 
 
 
@@ -35,7 +36,8 @@
 //     /
 inline double SlaterIntegral(double a, int n)
 {
-    return 4*Pi* qchem::Fact[n]/intpow(a,n+1);
+    assert(n>=0);
+    return 4*Pi* qchem::Fact[n]/pow(a,n+1);
 }
 
 //--------------------------------------------------------------------

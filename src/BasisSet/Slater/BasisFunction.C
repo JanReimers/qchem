@@ -80,12 +80,14 @@ double BasisFunction::operator()(const Vec3& r) const
 
 BasisFunction::Vec3 BasisFunction::Gradient(const Vec3& r) const
 {
-    assert(r!=Vec3(0,0,0)); //cusp at the origin.
+    Vec3 ret(0,0,0);
+    if (r==ret) return ret; //Cusp at the origin so grad is undefined.
     double mr=norm(r);
     assert(mr>0);
+    assert(itsL==itsN-1);
+    double gr=operator()(r);
     Vec3 r_hat=r/mr;
-    double g=(*this)(r);
-    return r_hat*g*((itsN-1)/mr-itsExponent);
+    return r_hat*gr*(itsL/mr-itsExponent);
 }
 
 BasisFunction* BasisFunction::Clone() const

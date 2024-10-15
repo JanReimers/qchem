@@ -5,6 +5,8 @@
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/BasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+
 //#include "Imp/BasisSet/Slater/IEClient.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "DFTDataBase/HeapDB/HeapDB.H"
@@ -15,6 +17,9 @@
 #include "Mesh/AtomMesh.H"
 #include "Mesh/MeshIntegrator.H"
 #include "Misc/DFTDefines.H"
+//#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster.H"
 #include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
@@ -32,37 +37,81 @@ class SlaterRadialIntegralTests : public ::testing::Test
 {
 public:
     SlaterRadialIntegralTests()
-    : lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
+    : Lmax(2    )
+    , Z(1)
+    , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new Slater::IntegralEngine())
     , db(new HeapDB<double>())
     , ibs(new Slater::IrrepBasisSet(lap,db,5,.01,100.0,0))
-    , bs(new Slater::BasisSet(lap,5,.01,100.0,4))
+    , bs(new Slater::BasisSet(lap,5,.01,100.0,Lmax))
     , mesh(0)
+    , cl(new Molecule())
+    , mintegrator()
     {
         StreamableObject::SetToPretty();
         RadialMesh*  rm=new MHLRadialMesh(200,3U,2.0); //mem leak
         AngularMesh* am=new GaussAngularMesh(1);      //mem leak
         mesh=new AtomMesh(*rm,*am); 
+        mintegrator=new MeshIntegrator<double>(mesh);
+        cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
     }
     
+    int Lmax, Z;
     LAParams lap;
     AnalyticIE<double>* ie;
     IntegralDataBase<double>* db;
     Slater::IrrepBasisSet* ibs;
     Slater::BasisSet* bs;
     Mesh* mesh;
+    Cluster* cl;
+    MeshIntegrator<double>* mintegrator;
 };
 
 TEST_F(SlaterRadialIntegralTests, Overlap)
 {
-    MeshIntegrator<double> mintegrator(mesh);
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        cout << S << endl;
-        SMatrix<double> Snum = mintegrator.Overlap(**i);
+        //cout << S << endl;
+        SMatrix<double> Snum = mintegrator->Overlap(**i);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Nuclear)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
+        //cout << S << endl;
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
+
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Kinetic)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        SMatrix<double> K=ie->MakeKinetic(*i);
+        //cout << S << endl;
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
+            // We need to add the l*(l+1) term that comes from the angular integrals.
+        // Lost of dynamic cast just to get at L!
+        const QuantumNumber& qn=i->GetQuantumNumber();
+        const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN& >(qn);
+        int l=sqn.GetL();
+        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
+        assert(sg);
+        int n=2*l+2;
+        for (auto i:Knum.rows())
+            for (auto j:Knum.cols(i))
+                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
+            
+        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);
 
     }
 }

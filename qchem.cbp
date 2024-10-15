@@ -102,7 +102,9 @@
 		<Unit filename="include/Imp/Containers/stl_io.h" />
 		<Unit filename="include/Imp/Integrals/AuxillaryFJ.H" />
 		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
+		<Unit filename="include/Imp/Integrals/Factorials.H" />
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
+		<Unit filename="include/Imp/Integrals/GaussianRadialIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
 		<Unit filename="include/Imp/LAParams.H" />
@@ -433,6 +435,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/AuxillaryFJ.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/Factorials.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/GaussianIntegrals.C">
