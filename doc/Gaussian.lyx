@@ -7,7 +7,7 @@
 \textclass article
 \use_default_options false
 \maintain_unincluded_children no
-\language english
+\language canadian
 \language_package default
 \inputencoding auto-legacy-plain
 \fontencoding auto
@@ -30,6 +30,8 @@
 \output_sync 0
 \bibtex_command default
 \index_command default
+\float_placement class
+\float_alignment class
 \paperfontsize 12
 \spacing single
 \use_hyperref false
@@ -625,12 +627,21 @@ One Center (Atom) Gaussian Repulsion Integrals
 For atom calculations we us the following basis set
 \begin_inset Formula 
 \[
-g(l_{a},m_{a},\alpha_{a};r,\theta,\phi)=g_{a}(\overrightarrow{r})=r^{l_{a}}e^{-\alpha_{a}r^{2}}\sqrt{4\pi}Y_{l_{a}m_{a}}(\theta,\phi)
+g(l_{a},m_{a},\alpha_{a};r,\theta,\phi)=g_{a}(\overrightarrow{r})=r^{n_{a}-1}e^{-\alpha_{a}r^{2}}\sqrt{4\pi}Y_{l_{a}m_{a}}(\theta,\phi)
 \]
 
 \end_inset
 
-The factor of 
+Where 
+\begin_inset Formula $\left\{ nlm\right\} $
+\end_inset
+
+ are the standard quantum numbers with 
+\begin_inset Formula $n=1,2,3\cdots,\:0\leq l<n,\:-l\leq m\leq l$
+\end_inset
+
+.
+ The factor of 
 \begin_inset Formula $\sqrt{4\pi}$
 \end_inset
 
@@ -769,7 +780,7 @@ where the solid angle
  In order to attack this we need to do a multi-pole expansion of this term (See Levine 9.64)
 \begin_inset Formula 
 \[
-\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{l=0}^{\infty}\frac{4\pi}{2l+1}\left(\frac{r_{<}}{r_{>}}\right)^{l}\sum_{m=-l}^{l}Y_{lm}^{*}(\Omega_{1})Y_{lm}(\Omega_{2})
+\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2l+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})
 \]
 
 \end_inset
@@ -786,7 +797,7 @@ where
  Plugging this in we get angular integrals 
 \begin_inset Formula 
 \[
-A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{km}^{*}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
 \]
 
 \end_inset
@@ -794,7 +805,7 @@ A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{
 
 \begin_inset Formula 
 \[
-=\left(-1\right)^{m}\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{l-m}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+=\left(-1\right)^{m}\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{k,-m}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
 \]
 
 \end_inset
@@ -802,7 +813,7 @@ A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{
 
 \begin_inset Formula 
 \[
-=\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}\int d\Omega_{1}Y_{l_{a},m_{a}}^{*}(\Omega_{1})Y_{l,m_{a}-m_{b}}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+=\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}\int d\Omega_{1}Y_{l_{a},m_{a}}^{*}(\Omega_{1})Y_{k,m_{a}-m_{b}}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
 \]
 
 \end_inset
@@ -810,7 +821,7 @@ A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{
 
 \begin_inset Formula 
 \[
-\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}c^{l}\left(l_{a},m_{a},l_{b},m_{b}\right)
+\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}c^{k}\left(l_{a},m_{a},l_{b},m_{b}\right)
 \]
 
 \end_inset
@@ -818,7 +829,7 @@ A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{
 
 \begin_inset Formula 
 \[
-=\left(-1\right)^{m+m_{a}}\int d\Omega_{1}Y_{l_{a},-m_{a}}(\Omega_{1})Y_{l,-m}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
+=\left(-1\right)^{m+m_{a}}\int d\Omega_{1}Y_{l_{a},-m_{a}}(\Omega_{1})Y_{k,-m}(\Omega_{1})Y_{l_{b}m_{b}}(\Omega_{1})
 \]
 
 \end_inset
@@ -826,11 +837,11 @@ A_{1}=\int d\Omega_{1}Y_{l_{a}m_{a}}^{*}(\Omega_{1})Y_{lm}^{*}(\Omega_{1})Y_{l_{
 
 \begin_inset Formula 
 \[
-=\left(-1\right)^{m+m_{a}}\frac{\sqrt{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2l+1\right)}}{\sqrt{4\pi}}\left(\begin{array}{ccc}
-l_{a} & l_{b} & l\\
+=\left(-1\right)^{m+m_{a}}\frac{\sqrt{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}}{\sqrt{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
 0 & 0 & 0
 \end{array}\right)\left(\begin{array}{ccc}
-l_{a} & l_{b} & l\\
+l_{a} & l_{b} & k\\
 -m_{a} & m_{b} & -m
 \end{array}\right)
 \]
@@ -840,7 +851,7 @@ l_{a} & l_{b} & l\\
 
 \begin_inset Formula 
 \[
-A_{2}=\int d\Omega_{2}Y_{l_{c}m_{c}}^{*}(\Omega_{2})Y_{lm}(\Omega_{2})Y_{l_{d}m_{d}}(\Omega_{2})
+A_{2}=\int d\Omega_{2}Y_{l_{c}m_{c}}^{*}(\Omega_{2})Y_{km}(\Omega_{2})Y_{l_{d}m_{d}}(\Omega_{2})
 \]
 
 \end_inset
@@ -848,7 +859,7 @@ A_{2}=\int d\Omega_{2}Y_{l_{c}m_{c}}^{*}(\Omega_{2})Y_{lm}(\Omega_{2})Y_{l_{d}m_
 
 \begin_inset Formula 
 \[
-=\delta_{m,m_{c}-m_{d}}\:c^{l}(l_{c},m_{c},l_{d},m_{d})
+=\delta_{m,m_{c}-m_{d}}\:c^{k}(l_{c},m_{c},l_{d},m_{d})
 \]
 
 \end_inset
@@ -856,11 +867,11 @@ A_{2}=\int d\Omega_{2}Y_{l_{c}m_{c}}^{*}(\Omega_{2})Y_{lm}(\Omega_{2})Y_{l_{d}m_
 
 \begin_inset Formula 
 \[
-=\left(-1\right)^{m_{c}}\frac{\sqrt{\left(2l_{c}+1\right)\left(2l_{d}+1\right)\left(2l+1\right)}}{\sqrt{4\pi}}\left(\begin{array}{ccc}
-l_{c} & l_{d} & l\\
+=\left(-1\right)^{m_{c}}\frac{\sqrt{\left(2l_{c}+1\right)\left(2l_{d}+1\right)\left(2k+1\right)}}{\sqrt{4\pi}}\left(\begin{array}{ccc}
+l_{c} & l_{d} & k\\
 0 & 0 & 0
 \end{array}\right)\left(\begin{array}{ccc}
-l_{c} & l_{d} & l\\
+l_{c} & l_{d} & k\\
 m_{c} & m_{d} & ,m
 \end{array}\right)
 \]
@@ -870,7 +881,7 @@ m_{c} & m_{d} & ,m
 
 \begin_inset Formula 
 \[
-A_{1}A_{2}=\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}\delta_{m,m_{c}-m_{d}}c^{l}\left(l_{a},m_{a},l_{b},m_{b}\right)\:c^{l}(l_{c},m_{c},l_{d},m_{d})
+A_{1}A_{2}=\left(-1\right)^{m}\delta_{m,m_{b}-m_{a}}\delta_{m,m_{c}-m_{d}}c^{k}\left(l_{a},m_{a},l_{b},m_{b}\right)\:c^{k}(l_{c},m_{c},l_{d},m_{d})
 \]
 
 \end_inset
@@ -929,7 +940,7 @@ m=m_{b}-m_{a}=m_{c}-m_{d}
 
 \begin_inset Formula 
 \[
-\left|l_{a}-l_{b}\right|\leq l\leq l_{a}+l_{b}
+\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}
 \]
 
 \end_inset
@@ -937,7 +948,7 @@ m=m_{b}-m_{a}=m_{c}-m_{d}
 
 \begin_inset Formula 
 \[
-\left|l_{c}-l_{d}\right|\leq l\leq l_{c}+l_{d}
+\left|l_{c}-l_{d}\right|\leq k\leq l_{c}+l_{d}
 \]
 
 \end_inset
@@ -945,7 +956,7 @@ m=m_{b}-m_{a}=m_{c}-m_{d}
 
 \begin_inset Formula 
 \[
-l\;even
+k\;even
 \]
 
 \end_inset
@@ -1006,15 +1017,15 @@ Exchange Case
 \begin_layout Standard
 \begin_inset Formula 
 \begin{equation}
-<ab\Vert cd>=(4\pi)^{2}\frac{1}{2}\delta_{l_{a},l_{c}}\delta_{l_{b},l_{d}}\sum_{l}\left(\begin{array}{ccc}
-l_{a} & l & l_{b}\\
+<ab\Vert cd>=(4\pi)^{2}\frac{1}{2}\delta_{l_{a},l_{c}}\delta_{l_{b},l_{d}}\sum_{k}\left(\begin{array}{ccc}
+l_{a} & k & l_{b}\\
 0 & 0 & 0
-\end{array}\right)^{2}R_{l}(l_{a},l_{b},l_{a},l_{b})\label{eq:Exchange l sum}
+\end{array}\right)^{2}R_{k}(l_{a},l_{b},l_{a},l_{b})\label{eq:Exchange l sum}
 \end{equation}
 
 \end_inset
 
-where the slater integral can be calculated by differentiating two generating functions (See 
+where the Slater integral can be calculated by differentiating two generating functions (See 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sec:Appendix-B:-Slater"
@@ -1025,7 +1036,7 @@ nolink "false"
 ):
 \begin_inset Formula 
 \[
-R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+R_{k}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
 \]
 
 \end_inset
@@ -1033,7 +1044,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+
 
 \begin_inset Formula 
 \[
-=\frac{\sqrt{\pi}}{8}\left[\frac{\left[l_{c}+l_{d}+l+1\right]!!}{2^{\frac{1}{2}\left(l_{c}+l_{d}+l\right)}}D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-l\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3+l_{c}+l_{d}+l}}}+\frac{\left[l_{a}+l_{b}+l+1\right]!!}{2^{\frac{1}{2}\left(l_{a}+l_{b}+l\right)}}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-l\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3+l_{a}+l_{b}+l}}}\right].
+=\frac{\sqrt{\pi}}{8}\left[\frac{\left[l_{c}+l_{d}+k+1\right]!!}{2^{\frac{1}{2}\left(l_{c}+l_{d}+k\right)}}D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-k\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3+l_{c}+l_{d}+k}}}+\frac{\left[l_{a}+l_{b}+k+1\right]!!}{2^{\frac{1}{2}\left(l_{a}+l_{b}+k\right)}}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-k\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3+l_{a}+l_{b}+k}}}\right].
 \]
 
 \end_inset
@@ -1051,7 +1062,11 @@ Table of
 \begin_inset Formula $R_{l}\left(l_{a},l_{b},l_{c},l_{d}\right)/R_{0}(0,0,0,0)$
 \end_inset
 
- Even l:
+ Even 
+\begin_inset Formula $k$
+\end_inset
+
+:
 \end_layout
 
 \begin_layout Standard
@@ -1079,7 +1094,7 @@ Table of
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $l=0$
+\begin_inset Formula $k=0$
 \end_inset
 
 
@@ -1091,7 +1106,7 @@ Table of
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $l=2$
+\begin_inset Formula $k=2$
 \end_inset
 
 
@@ -1103,7 +1118,7 @@ Table of
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $l=4$
+\begin_inset Formula $k=4$
 \end_inset
 
 
@@ -1173,7 +1188,7 @@ Table of
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $(1,1,0,0)$
+\begin_inset Formula $(1,0,1,0)$
 \end_inset
 
 
@@ -1397,14 +1412,17 @@ Table of
 \end_layout
 
 \begin_layout Standard
-Odd l:
+Odd 
+\begin_inset Formula $k$
+\end_inset
+
+:
 \end_layout
 
 \begin_layout Standard
 \begin_inset Tabular
-<lyxtabular version="3" rows="3" columns="4">
+<lyxtabular version="3" rows="3" columns="3">
 <features tabularvalignment="middle">
-<column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
@@ -1425,19 +1443,7 @@ Odd l:
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $l=0$
-\end_inset
-
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-\begin_inset Formula $l=1$
+\begin_inset Formula $k=1$
 \end_inset
 
 
@@ -1449,7 +1455,7 @@ Odd l:
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $l=3$
+\begin_inset Formula $k=3$
 \end_inset
 
 
@@ -1466,15 +1472,6 @@ Odd l:
 \begin_inset Formula $(1,0,1,0)$
 \end_inset
 
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
 
 \end_layout
 
@@ -1522,15 +1519,6 @@ Odd l:
 \begin_inset Formula $\left(1,2,1,2\right)$
 \end_inset
 
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
 
 \end_layout
 
@@ -4875,16 +4863,16 @@ The factor of
 The relation
 \begin_inset Formula 
 \[
-\int dr\:r^{n}e^{-\alpha r}=\frac{n!}{\alpha^{n+1}}is
+S(n,\alpha)=\int dr\:r^{n}e^{-\alpha r}=\frac{n!}{\alpha^{n+1}}
 \]
 
 \end_inset
 
-used throughout.
+is used throughout.
  The overlap looks like
 \begin_inset Formula 
 \[
-\int d^{3}r\:g_{a}(\overrightarrow{r})g_{b}(\overrightarrow{r})=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}\int r^{2}dr\:r^{n_{a}+n_{b}+2}e^{-\left(\alpha_{a}+\alpha_{b}\right)r}
+\int d^{3}r\:g_{a}(\overrightarrow{r})g_{b}(\overrightarrow{r})=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}\int dr\:r^{n_{a}+n_{b}}e^{-\left(\alpha_{a}+\alpha_{b}\right)r}
 \]
 
 \end_inset
@@ -4892,7 +4880,7 @@ used throughout.
 
 \begin_inset Formula 
 \[
-=\frac{\left(n_{a}+n_{b}\right)!}{\left(\alpha_{a}+\alpha_{b}\right)^{n_{a}+n_{b}+1}}=\frac{n_{ab}!}{\alpha_{ab}^{n_{ab}+1}}
+S(n_{a}+n_{b},\alpha_{a}+\alpha_{b})=\frac{\left(n_{a}+n_{b}\right)!}{\left(\alpha_{a}+\alpha_{b}\right)^{n_{a}+n_{b}+1}}=\frac{n_{ab}!}{\alpha_{ab}^{n_{ab}+1}}
 \]
 
 \end_inset
@@ -4901,7 +4889,16 @@ which immediately defines the normalization constant.
  The kinetic energy is
 \begin_inset Formula 
 \[
--\frac{1}{2}\int d^{3}r\:g_{a}(\overrightarrow{r})\nabla^{2}g_{b}(\overrightarrow{r})=
+-\frac{1}{2}\int d^{3}r\:g_{a}(\overrightarrow{r})\nabla^{2}g_{b}(\overrightarrow{r})
+\]
+
+\end_inset
+
+which often get reports in asymmetric form.
+ To get a symmetric form with split the radial part of into two factors
+\begin_inset Formula 
+\[
+=-\frac{1}{2}\int d^{3}r\:\left[\frac{\partial}{\partial r}rg_{a}(\overrightarrow{r})\right]\left[\frac{\partial}{\partial r}rg_{b}(\overrightarrow{r})\right]
 \]
 
 \end_inset
@@ -4909,7 +4906,47 @@ which immediately defines the normalization constant.
 
 \begin_inset Formula 
 \[
--\frac{1}{2}\left[\frac{\alpha_{a}\alpha_{b}n!}{\alpha^{n+1}}-\frac{\left(\alpha_{a}n_{b}+\alpha_{b}n_{a}\right)\left(n-1\right)!}{\alpha^{n}}+\frac{\left[\left(n_{a}-1\right)\left(n_{b}-1\right)-l(l+1)\right]\left(n-2\right)!}{\alpha^{n-1}}\right]
+=-\frac{1}{2}\int d^{3}r\:\left[\frac{\partial}{\partial r}r^{n_{a}}e^{-\alpha_{a}r}\right]\left[\frac{\partial}{\partial r}r^{n_{b}}e^{-\alpha_{b}r}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-\frac{1}{2}\int d^{3}r\:\left[n_{a}r^{n_{a}-1}e^{-\alpha_{a}r}-r^{n_{a}}\alpha_{a}e^{-\alpha_{a}r}\right]\left[n_{b}r^{n_{b}-1}e^{-\alpha_{b}r}-r^{n_{b}}\alpha_{b}e^{-\alpha_{b}r}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-\frac{1}{2}\int d^{3}r\:\left[n_{a}r^{n_{a}-1}-r^{n_{a}}\alpha_{a}\right]\left[n_{b}r^{n_{b}-1}-r^{n_{b}}\alpha_{b}\right]e^{-\alpha_{ab}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-\frac{1}{2}\int d^{3}r\:\left[n_{a}n_{b}r^{n_{ab}-2}-\left(n_{a}\alpha_{b}+n_{b}\alpha_{a}\right)r^{n_{ab}-1}+r^{n_{ab}}\alpha_{a}\alpha_{b}\right]e^{-\alpha_{ab}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-\frac{1}{2}\left[n_{a}n_{b}S\left(n-2,\alpha\right)-\left(n_{a}\alpha_{b}+n_{b}\alpha_{a}\right)S\left(n-1,\alpha\right)+\alpha_{a}\alpha_{b}S\left(n,\alpha\right)\right]
+\]
+
+\end_inset
+
+Adding the angular contribution we get:
+\begin_inset Formula 
+\[
+-\frac{1}{2}\left[\left[\left(n_{a}-1\right)\left(n_{b}-1\right)-l(l+1)\right]S\left(n-2,\alpha\right)-\left(\alpha_{a}n_{b}+\alpha_{b}n_{a}\right)S\left(n-1,\alpha\right)+\alpha_{a}\alpha_{b}S\left(n,\alpha\right)\right]
 \]
 
 \end_inset
@@ -4975,6 +5012,344 @@ where
 \begin_inset Formula 
 \[
 H_{abcd}^{k}=\sum_{\nu=0}^{n_{ac}-k-1}\frac{\left(n_{bd}+k+\nu\right)!\alpha_{ac}^{\nu}}{\alpha_{abcd}^{n_{bd}+k+\nu+1}\nu!}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{badc}^{k}=\sum_{\nu=0}^{n_{ac}-k-1}\frac{\left(n_{ac}+k+\nu\right)!\alpha_{bd}^{\nu}}{\alpha_{abcd}^{n_{ac}+k+\nu+1}\nu!}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However these are a little to general,
+ because for Coulomb repulsion integrals we have 
+\begin_inset Formula $l_{a}=l_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{c}=l_{d}.$
+\end_inset
+
+ For the exchange case 
+\begin_inset Formula $l_{a}=l_{c}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{b}=l_{d}.$
+\end_inset
+
+ Also the angular integrals enforce:
+\begin_inset Formula 
+\[
+\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{c}-l_{d}\right|\leq k\leq l_{c}+l_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+k\;even
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Repulsion expressions
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $l_{a}=l_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{c}=l_{d},$
+\end_inset
+
+ so that 
+\begin_inset Formula $n_{ac}=n_{bd}=n$
+\end_inset
+
+.
+ Also the Wigner 3j symbol is zero unless 
+\begin_inset Formula $k=0;$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+r_{o}\left(l_{a},l_{c}\right)=\left(-1\right)^{2l_{a}+1+L}\left(2l_{a}+1\right)\left(2l_{c}+1\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{abcd}^{0}=\sum_{\nu=0}^{n-1}\frac{\left(n+\nu\right)!\alpha_{ac}^{\nu}}{\alpha_{abcd}^{n+\nu+1}\nu!}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{badc}^{0}=\sum_{\nu=0}^{n-1}\frac{\left(n+\nu\right)!\alpha_{bd}^{\nu}}{\alpha_{abcd}^{n+\nu+1}\nu!}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R^{0}\left(a,b,c,d\right)=\frac{\left(n-1\right)!}{\alpha_{ac}^{n}}H_{abcd}^{0}+\frac{\left(n-1\right)!}{\alpha_{bd}^{n}}H_{badc}^{0}
+\]
+
+\end_inset
+
+Let's see what 
+\begin_inset Formula $R^{0}\left(0,0,0,0\right)$
+\end_inset
+
+ looks like.
+ 
+\begin_inset Formula $n_{a}=n_{b}=n_{c}=n_{d}=1,$
+\end_inset
+
+so 
+\begin_inset Formula $n_{ac}=n_{bd}=n=2.$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{abcd}^{0}=\sum_{\nu=0}^{1}\frac{\left(2+\nu\right)!\alpha_{ac}^{\nu}}{\alpha_{abcd}^{3+\nu}\nu!}=\frac{\left(2\right)!}{\alpha_{abcd}^{3}}+\frac{\left(3\right)!\alpha_{ac}}{\alpha_{abcd}^{4}}=\frac{2}{\alpha_{abcd}^{3}}\left(1+\frac{3\alpha_{ac}}{\alpha_{abcd}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{badc}^{0}=\frac{2}{\alpha_{abcd}^{3}}\left(1+\frac{3\alpha_{bd}}{\alpha_{abcd}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R^{0}\left(0,0,0,0\right)=\frac{1}{\alpha_{ac}^{2}}\left[\frac{2}{\alpha_{abcd}^{3}}\left(1+\frac{3\alpha_{ac}}{\alpha_{abcd}}\right)\right]+\frac{1}{\alpha_{bd}^{2}}\left[\frac{2}{\alpha_{abcd}^{3}}\left(1+\frac{3\alpha_{bd}}{\alpha_{abcd}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{abcd}^{3}}\left[\frac{1}{\alpha_{ac}^{2}}+\frac{3}{\alpha_{ac}\alpha_{abcd}}+\frac{1}{\alpha_{bd}^{2}}+\frac{3}{\alpha_{bd}\alpha_{abcd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{abcd}^{3}}\left[\frac{1}{\alpha_{ac}^{2}}+\frac{1}{\alpha_{bd}^{2}}+\frac{3}{\alpha_{abcd}}\left(\frac{1}{\alpha_{ac}}+\frac{1}{\alpha_{bd}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{abcd}^{3}}\left[\frac{1}{\alpha_{ac}^{2}}+\frac{1}{\alpha_{bd}^{2}}+\frac{3}{\alpha_{abcd}}\left(\frac{\alpha_{abcd}}{\alpha_{ac}\alpha_{bd}}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{abcd}^{3}}\left[\frac{1}{\alpha_{ac}^{2}}+\frac{1}{\alpha_{bd}^{2}}+\frac{3}{\alpha_{ac}\alpha_{bd}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{ac}^{2}\alpha_{bd}^{2}\alpha_{abcd}^{3}}\left[\alpha_{bd}^{2}+\alpha_{ac}^{2}+3\alpha_{ac}\alpha_{bd}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{ac}^{2}\alpha_{bd}^{2}\alpha_{abcd}^{3}}\left[\alpha_{abcd}^{2}+\alpha_{ac}\alpha_{bd}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha_{ac}\alpha_{bd}\alpha_{abcd}}\left[\frac{1}{\alpha_{ac}\alpha_{bd}}+\frac{1}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+Recognizing that 
+\begin_inset Formula $\alpha_{ac}\alpha_{bd}=\alpha_{ab}\alpha_{cd}$
+\end_inset
+
+ we finally get
+\begin_inset Formula 
+\[
+R^{0}\left(0,0,0,0\right)=\frac{2}{\alpha_{ab}\alpha_{cd}\alpha_{abcd}}\left[\frac{1}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+which is the correct result.
+\end_layout
+
+\begin_layout Subsection
+Exchange expressions
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $l_{a}=l_{c}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{b}=l_{d}$
+\end_inset
+
+,
+ 
+\begin_inset Formula $\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+r_{k}\left(l_{a},l_{b},l_{a},l_{b}\right)=\left(-1\right)^{l_{a}+l_{b}+L}\left(2l_{a}+1\right)\left(2l_{b}+1\right)\times\left(\begin{array}{ccc}
+l_{a} & k & l_{b}\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b} & L\\
+l_{b} & l_{a} & k
+\end{array}\right)
+\]
+
+\end_inset
+
+and R,H remain.
+\end_layout
+
+\begin_layout Subsection
+Johnson approach
+\end_layout
+
+\begin_layout Standard
+Johnson (W.R.
+ Johnson Lectures on atomic physics) writes down the following expression after summation over the magnetic quantum numbers:
+\end_layout
+
+\begin_layout Subsubsection*
+Coulomb Case
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+<ab\Vert cd>=(4\pi)^{2}\delta_{l_{a},l_{b}}\delta_{l_{c},l_{d}}R_{0}(l_{a},l_{a},l_{c},l_{c})\label{eq:Coulomb-1}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Exchange Case
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+<ab\Vert cd>=(4\pi)^{2}\frac{1}{2}\delta_{l_{a},l_{c}}\delta_{l_{b},l_{d}}\sum_{k}\left(\begin{array}{ccc}
+l_{a} & k & l_{b}\\
+0 & 0 & 0
+\end{array}\right)^{2}R_{k}(l_{a},l_{b},l_{a},l_{b})\label{eq:Exchange l sum-1}
+\end{equation}
+
+\end_inset
+
+where the Slater integral can be calculated by differentiating two generating functions (See 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Appendix-B:-Slater"
+nolink "false"
+
+\end_inset
+
+):
+\begin_inset Formula 
+\[
+R_{k}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+Let's evaluate some of these.
+ Defining
+\begin_inset Formula 
+\[
+R_{0}(0,0,0,0)=\iint\frac{1_{<}}{r_{>}}\:r_{1}^{2}e^{-\alpha_{ab}r_{1}}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\alpha_{ab}\alpha_{cd}\alpha_{abcd}}\left[\frac{1}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+We can generate higher order results for 
+\begin_inset Formula $k=0$
+\end_inset
+
+ by differentiating
+\begin_inset Formula 
+\[
+R_{0}(l_{a},l_{b},l_{c},l_{d})=\left(-\frac{\partial}{\partial\alpha_{a}}\right)^{l_{a}}\left(-\frac{\partial}{\partial\alpha_{b}}\right)^{l_{b}}\left(-\frac{\partial}{\partial\alpha_{c}}\right)^{l_{c}}\left(-\frac{\partial}{\partial\alpha_{c}}\right)^{l_{c}}R_{0}(0,0,0,0)
 \]
 
 \end_inset
@@ -5061,7 +5436,7 @@ The general Slater integral is
 \begin_layout Standard
 \begin_inset Formula 
 \[
-R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
+R_{k}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{1}dr_{2}
 \]
 
 \end_inset
@@ -5069,7 +5444,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+
 
 \begin_inset Formula 
 \[
-=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\left(\intop_{0}^{r1}\frac{r_{2}^{l}}{r_{1}^{l+1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{r_{1}^{l}}{r_{2}^{l+1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\left(\intop_{0}^{r1}\frac{r_{2}^{k}}{r_{1}^{k+1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{r_{1}^{k}}{r_{2}^{k+1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
 \]
 
 \end_inset
@@ -5077,7 +5452,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+
 
 \begin_inset Formula 
 \[
-=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\left(\frac{1}{r_{1}^{l+1}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+l+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+r_{1}^{l}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-l+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
+=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+2}e^{-\alpha_{ab}r_{1}^{2}}\left(\frac{1}{r_{1}^{k+1}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+k+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+r_{1}^{k}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-k+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}\right)
 \]
 
 \end_inset
@@ -5085,25 +5460,25 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{l}}{r_{>}^{l+1}}\:r_{1}^{l_{a}+
 
 \begin_inset Formula 
 \[
-=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}-l+1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+l+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+l+2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-l+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}.
+=\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}-k+1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+k+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+k+2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-k+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}.
 \]
 
 \end_inset
 
 We know from the angular rules that 
-\begin_inset Formula $l_{a}+l_{b}+l$
+\begin_inset Formula $l_{a}+l_{b}+k$
 \end_inset
 
  is even,
  in which case 
-\begin_inset Formula $l_{a}+l_{b}-l$
+\begin_inset Formula $l_{a}+l_{b}-k$
 \end_inset
 
  must also be even.
  Defining 
 \begin_inset Formula 
 \[
-L_{+}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}+l\right)
+L_{+}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}+k+2\right)
 \]
 
 \end_inset
@@ -5111,7 +5486,7 @@ L_{+}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}+l\right)
 
 \begin_inset Formula 
 \[
-L_{-}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}-l\right)
+L_{-}^{ab}=\frac{1}{2}\left(l_{a}+l_{b}-k\right)
 \]
 
 \end_inset
@@ -5130,7 +5505,7 @@ D_{ab}^{n}=\left(-\frac{\partial}{\partial\alpha_{ab}}\right)^{n}
 \begin_layout Standard
 \begin_inset Formula 
 \[
-R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{L_{+}^{cd}+2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{L_{+}^{ab}+2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{L_{-}^{cd}+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+R_{k}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{L_{+}^{cd}}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{L_{+}^{ab}}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{L_{-}^{cd}+1}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
 \]
 
 \end_inset
@@ -5138,7 +5513,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-
 
 \begin_inset Formula 
 \[
-=D_{ab}^{L_{-}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}D_{cd}^{L_{+}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}D_{cd}^{L_{-}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+=D_{ab}^{L_{-}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}D_{cd}^{L_{+}}\intop_{0}^{r1}\:e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}\intop_{0}^{\infty}dr_{1}e^{-\alpha_{ab}r_{1}^{2}}D_{cd}^{L_{-}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
 \]
 
 \end_inset
@@ -5146,7 +5521,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-
 
 \begin_inset Formula 
 \[
-=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\intop_{0}^{\infty}dr_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}
 \]
 
 \end_inset
@@ -5154,7 +5529,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-
 
 \begin_inset Formula 
 \[
-=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{ab}r_{1}^{2}}\left[-e^{-\alpha_{cd}r_{2}^{2}}\right]_{r_{1}}^{\infty}
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}e^{-\alpha_{ab}r_{1}^{2}}\left[-e^{-\alpha_{cd}r_{2}^{2}}\right]_{r_{1}}^{\infty}
 \]
 
 \end_inset
@@ -5162,7 +5537,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-
 
 \begin_inset Formula 
 \[
-=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha_{abcd}r_{1}^{2}}
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha_{ab}r_{1}^{2}}\intop_{0}^{r1}\:e^{-\alpha_{cd}r_{2}^{2}}dr_{2}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\intop_{0}^{\infty}dr_{1}e^{-\alpha_{abcd}r_{1}^{2}}
 \]
 
 \end_inset
@@ -5170,7 +5545,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-
 
 \begin_inset Formula 
 \[
-=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\frac{1}{2\alpha_{ab}}\frac{1}{4}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{2\alpha_{cd}}\frac{1}{4}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}
+=D_{ab}^{L_{-}}D_{cd}^{L_{+}}\frac{1}{2\alpha_{ab}}\frac{1}{4}\frac{\sqrt{\pi}}{\sqrt{\alpha_{abcd}^{3}}}+D_{ab}^{L_{+}}D_{cd}^{L_{-}}\frac{1}{4\alpha_{cd}}\sqrt{\frac{\pi}{\alpha_{abcd}}}
 \]
 
 \end_inset
@@ -5178,7 +5553,7 @@ R_{l}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}+1}e^{-
 
 \begin_inset Formula 
 \[
-=\frac{\sqrt{\pi}}{8}\left[D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-l\right)}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}+l\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}^{3}}}+D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}+l\right)}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-l\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}^{3}}}\right]
+=\frac{\sqrt{\pi}}{4}\left[D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}-l\right)}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}+l+2\right)}\frac{1}{\alpha_{ab}\sqrt{\alpha_{abcd}}}+D_{ab}^{\frac{1}{2}\left(l_{a}+l_{b}+l+2\right)}D_{cd}^{\frac{1}{2}\left(l_{c}+l_{d}-l\right)}\frac{1}{\alpha_{cd}\sqrt{\alpha_{abcd}}}\right]
 \]
 
 \end_inset
@@ -5264,7 +5639,7 @@ I_{ab}^{(m+1)}(n)=D_{ab}^{m}\left(\frac{n}{2\alpha_{abcd}}+\frac{1}{\alpha_{ab}}
 
 \begin_layout Subsection*
 Appendix C:
- Some slater integrals
+ Some Gaussian radial integrals
 \end_layout
 
 \begin_layout Subsubsection*
@@ -5770,6 +6145,392 @@ R_{4}\left(0,2,0,2\right)=\frac{945\sqrt{\pi}}{128}\left[\frac{1}{\alpha_{ab}\sq
 \begin_inset Formula 
 \[
 =\frac{945\sqrt{\pi}}{128\alpha_{ab}\alpha_{cd}\sqrt{\alpha_{abcd}^{9}}}=R_{0}(0,0,0,0)\frac{945}{16\alpha_{abcd}^{4}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Some Slater Radial Integrals
+\end_layout
+
+\begin_layout Standard
+We will need:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\intop dr\:re^{-\alpha r}=\frac{-1}{\alpha}re^{-\alpha r}+\frac{1}{\alpha}\intop dr\:e^{-\alpha r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-\left[\frac{1}{\alpha}r+\frac{1}{\alpha^{2}}\right]\:e^{-\alpha r}
+\]
+
+\end_inset
+
+and
+\begin_inset Formula 
+\[
+\intop dr\:r^{2}e^{-\alpha r}=\frac{-1}{\alpha}r^{2}e^{-\alpha r}+\frac{2}{\alpha}\intop dr\:re^{-\alpha r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-\left[\frac{1}{\alpha}r^{2}+\frac{2}{\alpha^{2}}r+\frac{2}{\alpha^{3}}\right]e^{-\alpha r}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Method 1:
+ Integration by parts:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R^{0}\left(0,0,0,0\right)=\iint\frac{1}{r_{>}}r_{1}^{2}e^{-\alpha r_{1}}\:r_{2}^{2}e^{-\beta r_{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha r_{1}}\left(\frac{1}{r_{1}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\beta r_{2}}dr_{2}+\intop_{r_{1}}^{\infty}\frac{1}{r_{2}}\:r_{2}^{2}e^{-\beta r_{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha r_{1}}\left(\frac{1}{r_{1}}\intop_{0}^{r1}\:r_{2}^{2}e^{-\beta r_{2}}dr_{2}+\intop_{r_{1}}^{\infty}r_{2}e^{-\beta r_{2}}dr_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha r_{1}}\left(\frac{1}{r_{1}}\left[-\left(\frac{1}{\beta}r^{2}+\frac{2}{\beta^{2}}r+\frac{2}{\beta^{3}}\right)e^{-\beta r}\right]_{o}^{r_{1}}+\left[-\left(\frac{1}{\beta}r+\frac{1}{\beta^{2}}\right)\:e^{-\beta r}\right]_{r_{1}}^{\infty}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{2}e^{-\alpha r_{1}}\left(\frac{1}{r_{1}}\left[\frac{2}{\beta^{3}}-\left(\frac{1}{\beta}r_{1}^{2}+\frac{2}{\beta^{2}}r_{1}+\frac{2}{\beta^{3}}\right)e^{-\beta r_{1}}\right]+\left[\left(\frac{1}{\beta}r_{1}+\frac{1}{\beta^{2}}\right)\:e^{-\beta r_{1}}\right]\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{3}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha r_{1}}+\intop_{0}^{\infty}dr_{1}e^{-\left(\alpha+\beta\right)r_{1}}\left(-r_{1}\left(\frac{1}{\beta}r_{1}^{2}+\frac{2}{\beta^{2}}r_{1}+\frac{2}{\beta^{3}}\right)+r_{1}^{2}\left(\frac{1}{\beta}r_{1}+\frac{1}{\beta^{2}}\right)\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{3}\alpha^{2}}+\intop_{0}^{\infty}dr_{1}e^{-\left(\alpha+\beta\right)r_{1}}\left(\frac{1}{\beta}r_{1}^{3}+\frac{r_{1}^{2}}{\beta^{2}}-\left(\frac{1}{\beta}r_{1}^{3}+\frac{2}{\beta^{2}}r_{1}^{2}+\frac{2}{\beta^{3}}r_{1}\right)\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{3}\alpha^{2}}-\intop_{0}^{\infty}dr_{1}e^{-\left(\alpha+\beta\right)r_{1}}\left(\frac{1}{\beta^{2}}r_{1}^{2}+\frac{2}{\beta^{3}}r_{1}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{3}\alpha^{2}}-\frac{2}{\beta^{2}\left(\alpha+\beta\right)^{3}}-\frac{2}{\beta^{3}\left(\alpha+\beta\right)^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{3}\alpha^{2}\left(\alpha+\beta\right)^{3}}\left(\left(\alpha+\beta\right)^{3}-\alpha^{2}\beta-\alpha^{2}\left(\alpha+\beta\right)\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{3}\alpha^{2}\left(\alpha+\beta\right)^{3}}\left(\left(\alpha+\beta\right)\left(\alpha^{2}+2\alpha\beta+\beta^{2}-\alpha^{2}\right)-\alpha^{2}\beta\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{2}\alpha^{2}\left(\alpha+\beta\right)^{3}}\left(\left(\alpha+\beta\right)\left(2\alpha+\beta\right)-\alpha^{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{2}\alpha^{2}\left(\alpha+\beta\right)^{3}}\left(2\alpha^{2}+3\alpha\beta+\beta^{2}-\alpha^{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{2}\alpha^{2}\left(\alpha+\beta\right)^{3}}\left(\alpha^{2}+3\alpha\beta+\beta^{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\beta^{2}\alpha^{2}\left(\alpha+\beta\right)^{3}}\left(\left(\alpha+\beta\right)^{2}+\alpha\beta\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2}{\alpha\beta\left(\alpha+\beta\right)}\left[\frac{1}{\alpha\beta}+\frac{1}{\left(\alpha+\beta\right)^{2}}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For 
+\begin_inset Formula $k>0$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{k}(l_{a},l_{b},l_{c},l_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{l_{a}+l_{b}+2}e^{-\alpha r_{1}}\:r_{2}^{l_{c}+l_{d}+2}e^{-\beta r_{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}-k+1}e^{-\alpha r_{1}}\intop_{0}^{r1}\:r_{2}^{l_{c}+l_{d}+k+2}e^{-\beta r_{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{l_{a}+l_{b}+k+2}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{l_{c}+l_{d}-k+1}e^{-\beta r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+Defining 
+\begin_inset Formula 
+\[
+L_{+}^{ab}=l_{a}+l_{b}+k+2
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{ab}=l_{a}+l_{b}-k+1
+\]
+
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+R_{k}(l_{a},l_{b},l_{c},l_{d})=\intop_{0}^{\infty}dr_{1}r_{1}^{L_{-}^{ab}}e^{-\alpha r_{1}}\intop_{0}^{r1}\:r_{2}^{L_{+}^{cd}}e^{-\beta r_{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{L_{+}^{ab}}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{L_{-}^{cd}}e^{-\beta r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+and the differential operators
+\begin_inset Formula 
+\[
+D_{\alpha}^{n}=\left(-\frac{\partial}{\partial\alpha}\right)^{n}
+\]
+
+\end_inset
+
+we have
+\begin_inset Formula 
+\[
+R_{k}(l_{a},l_{b},l_{c},l_{d})=D_{\alpha}^{L_{-}^{ab}}D_{\beta}^{L_{+}^{cd}}\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}}\intop_{0}^{r1}\:e^{-\beta r_{2}}dr_{2}+D_{\alpha}^{L_{+}^{ab}}D_{\beta}^{L_{-}^{cd}}\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}}\intop_{r_{1}}^{\infty}\:e^{-\beta r_{2}}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}}\intop_{0}^{r1}\:e^{-\beta r_{2}}dr_{2}=\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}}\frac{1}{\beta}\left[1-e^{-\beta r_{1}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{\beta}\left[\frac{1}{\alpha}-\frac{1}{\alpha+\beta}\right]=\frac{1}{\beta}\left[\frac{\alpha+\beta}{\alpha\left(\alpha+\beta\right)}-\frac{\alpha}{\alpha\left(\alpha+\beta\right)}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{\alpha\left(\alpha+\beta\right)}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}}\intop_{r_{1}}^{\infty}\:e^{-\beta r_{2}}=\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}}\frac{1}{\beta}e^{-\beta r_{1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{1}{\beta\left(\alpha+\beta\right)}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+So now
+\begin_inset Formula 
+\[
+R_{k}(l_{a},l_{b},l_{c},l_{d})=D_{\alpha}^{L_{-}^{ab}}D_{\beta}^{L_{+}^{cd}}\frac{1}{\alpha\left(\alpha+\beta\right)}+D_{\alpha}^{L_{+}^{ab}}D_{\beta}^{L_{-}^{cd}}\frac{1}{\beta\left(\alpha+\beta\right)}
+\]
+
+\end_inset
+
+Let's check 
+\begin_inset Formula 
+\[
+R_{0}(0,0,0,0)=\left(-\frac{\partial}{\partial\alpha}\right)\left(-\frac{\partial}{\partial\beta}\right)^{2}\frac{1}{\alpha\left(\alpha+\beta\right)}+\left(-\frac{\partial}{\partial\alpha}\right)^{2}\left(-\frac{\partial}{\partial\beta}\right)\frac{1}{\beta\left(\alpha+\beta\right)}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-\frac{\partial}{\partial\alpha}\right)\frac{2}{\alpha\left(\alpha+\beta\right)^{3}}+\left(-\frac{\partial}{\partial\beta}\right)\frac{2}{\beta\left(\alpha+\beta\right)^{3}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha^{2}\left(\alpha+\beta\right)^{3}}+\frac{6}{\alpha\left(\alpha+\beta\right)^{4}}+\frac{6}{\beta\left(\alpha+\beta\right)^{4}}+\frac{2}{\beta^{2}\left(\alpha+\beta\right)^{3}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\left(\alpha+\beta\right)^{3}}\left[\frac{1}{\alpha^{2}}+\frac{3}{\alpha\left(\alpha+\beta\right)}+\frac{3}{\beta\left(\alpha+\beta\right)}+\frac{1}{\beta^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\left(\alpha+\beta\right)^{3}}\left[\frac{1}{\alpha^{2}}+\frac{3\beta}{\alpha\beta\left(\alpha+\beta\right)}+\frac{3\alpha}{\alpha\beta\left(\alpha+\beta\right)}+\frac{1}{\beta^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\left(\alpha+\beta\right)^{3}}\left[\frac{1}{\alpha^{2}}+\frac{3}{\alpha\beta}+\frac{1}{\beta^{2}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha^{2}\beta^{2}\left(\alpha+\beta\right)^{3}}\left[\beta^{2}+3\alpha\beta+\alpha^{2}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha^{2}\beta^{2}\left(\alpha+\beta\right)^{3}}\left[\left(\alpha+\beta\right)^{2}+\alpha\beta\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha\beta\left(\alpha+\beta\right)}\left[\frac{1}{\alpha\beta}+\frac{1}{\left(\alpha+\beta\right)^{2}}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+2\left(\frac{1}{\alpha^{2}\left(\alpha+\beta\right)^{3}}+\frac{3}{\alpha\left(\alpha+\beta\right)^{4}}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{2\left(4\alpha+\beta\right)}{\alpha^{2}\left(\alpha+\beta\right)^{4}}
 \]
 
 \end_inset

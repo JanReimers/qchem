@@ -1,0 +1,2328 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children no
+\language canadian
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content true
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Technical notes for qchem Integrals
+\end_layout
+
+\begin_layout Author
+Jan Reimers
+\end_layout
+
+\begin_layout Date
+Oct/2021
+\end_layout
+
+\begin_layout Section
+Background
+\end_layout
+
+\begin_layout Section
+Atomic Basis Functions
+\end_layout
+
+\begin_layout Standard
+Atoms have spherical symmetry so one electron integrals the angular part does nothing other than enforce some orthogonality conditions between basis functions from different angular momentum eigen states As a result we end up with a symmetry adapted basis set with separated secular equations for each angular momentum eigen states.
+ Basis function considered here have to form
+\begin_inset Formula 
+\[
+g(l_{a},m_{a},\alpha_{a};r,\theta,\phi)=g_{a}(\overrightarrow{r})=R_{n_{a},\alpha_{a}}\left(r\right)\sqrt{4\pi}Y_{l_{a}m_{a}}(\theta,\phi)
+\]
+
+\end_inset
+
+ where 
+\begin_inset Formula $R_{n_{a},\alpha_{a}}$
+\end_inset
+
+ is a radial function,
+ and 
+\begin_inset Formula $Y_{l_{a}m_{a}}(\theta,\phi)$
+\end_inset
+
+ are spherical harmonics.
+ The factor of 
+\begin_inset Formula $\sqrt{4\pi}$
+\end_inset
+
+ is there to compensate for the fact that the spherical harmonics are conventionally normalized,
+ but we want a factor of 
+\begin_inset Formula $4\pi$
+\end_inset
+
+ when integrating over the angles.
+ 
+\begin_inset Formula $\left\{ nlm\right\} $
+\end_inset
+
+ are the standard quantum numbers with 
+\begin_inset Formula $n=1,2,3\cdots,\:0\leq l<n,\:-l\leq m\leq l$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Radial Functions
+\end_layout
+
+\begin_layout Standard
+Slater and Gaussian radial functions are respectively:
+\begin_inset Formula 
+\[
+R_{n_{a},\alpha_{a}}\left(r\right)=r^{n_{a}-1}e^{-\alpha_{a}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{n_{a},\alpha_{a}}\left(r\right)=r^{n_{a}-1}e^{-\alpha_{a}r^{2}}.
+\]
+
+\end_inset
+
+,
+ 
+\end_layout
+
+\begin_layout Section
+One Electron Atomic Integrals
+\end_layout
+
+\begin_layout Standard
+For one electron integrals and angular part decouples and enforces orthogonality,
+ and we get 
+\begin_inset Formula 
+\[
+4\pi\left\langle Y_{l_{a}m_{a}}(\theta,\phi)Y_{l_{b}m_{b}}(\theta,\phi)\right\rangle =\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Slater Functions
+\end_layout
+
+\begin_layout Standard
+The overlap is
+\begin_inset Formula 
+\[
+\int d^{3}r\:g_{a}(\overrightarrow{r})g_{b}(\overrightarrow{r})=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}\int r^{2}dr\:R_{n_{a},\alpha_{a}}\left(r\right)\:R_{n_{b},\alpha_{b}}\left(r\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}\int dr\:r^{n_{a}+n_{b}}e^{-\left(\alpha_{a}+\alpha_{b}\right)r}=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}S_{n_{a}+n_{b}}(\alpha_{a}+\alpha_{b})
+\]
+
+\end_inset
+
+Using 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Snalphas"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+S_{n_{a}+n_{b}}(\alpha_{a}+\alpha_{b})=\frac{\left(n_{a}+n_{b}\right)!}{\left(\alpha_{a}+\alpha_{b}\right)^{n_{a}+n_{b}+1}}=\frac{n_{ab}!}{\alpha_{ab}^{n_{ab}+1}}
+\]
+
+\end_inset
+
+The shorthand notation for 
+\begin_inset Formula $n_{a}+n_{b}=n_{ab}$
+\end_inset
+
+ and 
+\begin_inset Formula $\alpha_{a}+\alpha_{b}=\alpha_{ab}$
+\end_inset
+
+ will become useful below when this get more complicated.
+ This immediately defines the normalization constant.
+ The kinetic energy is
+\begin_inset Formula 
+\[
+-\frac{1}{2}\int d^{3}r\:g_{a}(\overrightarrow{r})\nabla^{2}g_{b}(\overrightarrow{r})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-\frac{1}{2}\left[\left[\left(n_{a}-1\right)\left(n_{b}-1\right)-l(l+1)\right]S_{n-2}\left(\alpha\right)-\left(\alpha_{a}n_{b}+\alpha_{b}n_{a}\right)S_{n-1}\left(\alpha\right)+\alpha_{a}\alpha_{b}S_{n}\left(\alpha\right)\right]
+\]
+
+\end_inset
+
+and the nuclear attraction is
+\begin_inset Formula 
+\[
+\int d^{3}r\:g_{a}(\overrightarrow{r})\frac{-Z}{r}g_{b}(\overrightarrow{r})=-Z\frac{\left(n-1\right)!}{\alpha^{n}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Gaussian Functions
+\end_layout
+
+\begin_layout Standard
+The overlap is 
+\begin_inset Formula 
+\[
+\int r^{2}dr\:R_{n_{a},\alpha_{a}}\left(r\right)\:R_{n_{b},\alpha_{b}}\left(r\right)=\intop_{0}^{\infty}r^{2\left(l+1\right)}e^{-\alpha_{ab}r^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=G_{2\left(l+1\right)}\left(\alpha_{ab}\right)=\sqrt{\frac{\pi}{2\alpha}}\frac{\left(2\left(l+1\right)\right)!}{\left(l+1\right)!}\left(\frac{1}{2a}\right)^{l+1}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Two electron Atomic Integrals
+\end_layout
+
+\begin_layout Standard
+Repulsion integrals are less trivial.
+ The general ERI,
+ before averaging over 
+\begin_inset Formula $m_{i}'s$
+\end_inset
+
+ looks like
+\begin_inset Formula 
+\[
+<ab\left|\frac{1}{r_{12}}\right|cd>=\left(4\pi\right)^{2}\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+which cannot be directly factored into angular and radial parts.
+ In order to proceed we need to do a multi-pole expansion of this term (See )
+\begin_inset Formula 
+\[
+\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2l+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $r_{>}=r_{1}$
+\end_inset
+
+ when 
+\begin_inset Formula $r_{1}>r_{2}$
+\end_inset
+
+ and versa visa.
+ 
+\end_layout
+
+\begin_layout Subsection
+Angular Integration
+\end_layout
+
+\begin_layout Standard
+We end up with these constraints
+\begin_inset Formula 
+\[
+m=m_{b}-m_{a}=m_{c}-m_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{c}-l_{d}\right|\leq k\leq l_{c}+l_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+k\;even
+\]
+
+\end_inset
+
+two cases that give a nonzero result for the angular integration's:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $l_{a}=l_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{c}=l_{d}$
+\end_inset
+
+ for the Coulomb term.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $l_{a}=l_{c}$
+\end_inset
+
+and 
+\begin_inset Formula $l_{b}=l_{d}$
+\end_inset
+
+ for the exchange term.
+\end_layout
+
+\begin_layout Subsection
+Radial Integrals
+\end_layout
+
+\begin_layout Standard
+These look like
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{2}r_{2}^{2}\:R_{n_{a},\alpha_{a}}\left(r_{1}\right)\:R_{n_{b},\alpha_{b}}\left(r_{1}\right)R_{n_{c},\alpha_{c}}\left(r_{2}\right)\:R_{n_{d},\alpha_{d}}\left(r_{2}\right)dr_{1}dr_{2}.
+\]
+
+\end_inset
+
+Fortunately our needs are not this general,
+ again two cases:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $k=0,\quad l_{a}=l_{b},\quad l_{c}=l_{d}$
+\end_inset
+
+ for the Coulomb term.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b},\quad l_{a}=l_{c},\quad l_{b}=l_{d}$
+\end_inset
+
+ for the exchange term.
+\end_layout
+
+\begin_layout Subsection
+Slater Functions,
+ using a generating function
+\end_layout
+
+\begin_layout Standard
+For the Slater function case and using more shorthand 
+\begin_inset Formula $\beta=\alpha_{ab}$
+\end_inset
+
+,
+ 
+\begin_inset Formula $\beta=\alpha_{cd}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{n_{a}+n_{b}}e^{-\alpha r_{1}}\:r_{2}^{n_{c}+n_{d}}e^{-\beta r_{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}r_{1}^{n_{a}+n_{b}-k-1}e^{-\alpha r_{1}}\intop_{0}^{r1}\:r_{2}^{n_{c}+n_{d}+k}e^{-\beta r_{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{n_{a}+n_{b}+k}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{n_{c}+n_{d}-k-1}e^{-\beta r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+Defining 
+\begin_inset Formula 
+\[
+L_{+}^{ab}=n_{a}+n_{b}+k
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{ab}=n_{a}+n_{b}-k-1,
+\]
+
+\end_inset
+
+ similarly for 
+\begin_inset Formula $cd$
+\end_inset
+
+,
+ and the differential operators
+\begin_inset Formula 
+\[
+D_{\alpha}^{n}=\left(-\frac{\partial}{\partial\alpha}\right)^{n}.\quad D_{\beta}^{n}=\left(-\frac{\partial}{\partial\beta}\right)^{n}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=D_{\alpha}^{L_{-}}D_{\beta}^{L_{+}}\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{0}^{r1}\:e^{-\beta r_{2}^{2}}dr_{2}+D_{\alpha}^{L_{+}}D_{\beta}^{L_{-}}\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:e^{-\beta r_{2}^{2}}dr_{2}.
+\]
+
+\end_inset
+
+ These integrals are now easy to evaluate,
+ giving two generating functions.
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=D_{\alpha}^{L_{-}}D_{\beta}^{L_{+}}\frac{1}{\alpha\left(\alpha+\beta\right)}+D_{\alpha}^{L_{+}}D_{\beta}^{L_{-}}\frac{1}{\beta\left(\alpha+\beta\right)}.
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=D_{\alpha}^{n_{a}+n_{b}-k-1}D_{\beta}^{n_{c}+n_{d}+k}\frac{1}{\alpha\left(\alpha+\beta\right)}+D_{\alpha}^{n_{a}+n_{b}+k}D_{\beta}^{n_{c}+n_{d}-k-1}\frac{1}{\beta\left(\alpha+\beta\right)}.
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(-\frac{\partial}{\partial\alpha}\right)^{n}\frac{1}{\left(\alpha+\beta\right)}=\frac{n!}{\left(\alpha+\beta\right)^{n+1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=L_{+}^{cb}D_{\alpha}^{L_{-}^{ab}}\frac{1}{\alpha\left(\alpha+\beta\right)^{L_{+}^{cd}+1}}+L_{+}^{ab}D_{\beta}^{L_{-}^{cd}}\frac{1}{\alpha\left(\alpha+\beta\right)^{L_{+}^{ab}+1}}
+\]
+
+\end_inset
+
+If we define
+\begin_inset Formula 
+\[
+I_{\alpha}(n)=\frac{1}{\alpha\left(\alpha+\beta\right)^{n}}
+\]
+
+\end_inset
+
+We can now use this relation recursively to generate the final derivatives
+\begin_inset Formula 
+\[
+D_{\alpha}I_{\alpha}(n)=I_{\alpha}(n)\left(\frac{n}{\left(\alpha+\beta\right)}+\frac{1}{\alpha}\right)=I_{\alpha}(n)I_{\alpha}^{(1)}(n)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{\alpha}^{2}I_{\alpha}(n)=I_{\alpha}(n)\left[\left(I_{\alpha}^{(1)}(n)\right)^{2}+I_{\alpha}^{(2)}(n)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{\alpha}^{3}I_{\alpha}(n)=I_{\alpha}(n)I_{\alpha}^{(1)}(n)\left[\left(I_{\alpha}^{(1)}(n)\right)^{2}+I_{\alpha}^{(2)}(n)\right]+I_{\alpha}(n)\left[2I_{\alpha}^{(1)}(n)I_{\alpha}^{(2)}(n)+I_{\alpha}^{(3)}(n)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=I_{\alpha}(n)\left[\left(I_{\alpha}^{(1)}(n)\right)^{3}+3I_{\alpha}^{(1)}(n)I_{\alpha}^{(2)}(n)+I_{\alpha}^{(3)}(n)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+I_{\alpha}^{(k)}(n)=\frac{n}{\left(\alpha+\beta\right)^{k}}+\frac{1}{\alpha^{k}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Coulomb case:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $n_{a}=n_{b}=n_{c}=n_{d}=1,k=0,\quad l_{a}=l_{b},\quad l_{c}=l_{d}$
+\end_inset
+
+ and we have 
+\begin_inset Formula 
+\[
+L_{+}^{aa}=L_{+}^{cc}=2
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{aa}=L_{-}^{cc}=1,
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{0}(1,1,1,1)=\left(-\frac{\partial}{\partial\alpha}\right)\left(-\frac{\partial}{\partial\beta}\right)^{2}\frac{1}{\alpha\left(\alpha+\beta\right)}+\left(-\frac{\partial}{\partial\alpha}\right)^{2}\left(-\frac{\partial}{\partial\beta}\right)\frac{1}{\beta\left(\alpha+\beta\right)}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{2}{\alpha\beta\left(\alpha+\beta\right)}\left[\frac{1}{\alpha\beta}+\frac{1}{\left(\alpha+\beta\right)^{2}}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Exchange case:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b},\quad l_{a}=l_{c},\quad l_{b}=l_{d}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{+}^{ab}=L_{+}^{cd}=n_{a}+n_{b}+k
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{ab}=L_{-}^{cd}=n_{a}+n_{b}-k-1
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+These will need to be tabulated.
+\end_layout
+
+\begin_layout Subsubsection
+Slater Functions,
+ full expressions
+\end_layout
+
+\begin_layout Standard
+These expressions come from 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Mitroy_1999"
+literal "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R^{k}\left(n_{a},n_{b},n_{c},n_{d}\right)=\frac{\left(n_{ac}-k-1\right)!}{\alpha_{ac}^{n_{ac}-k}}H_{abcd}^{k}+\frac{\left(n_{bd}-k-1\right)!}{\alpha_{bd}^{n_{bd}-k}}H_{badc}^{k}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{abcd}^{k}=\sum_{\nu=0}^{n_{ac}-k-1}\frac{\left(n_{bd}+k+\nu\right)!\alpha_{ac}^{\nu}}{\alpha_{abcd}^{n_{bd}+k+\nu+1}\nu!}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{badc}^{k}=\sum_{\nu=0}^{n_{ac}-k-1}\frac{\left(n_{ac}+k+\nu\right)!\alpha_{bd}^{\nu}}{\alpha_{abcd}^{n_{ac}+k+\nu+1}\nu!}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However these are a little to general,
+ because for Coulomb repulsion integrals we have 
+\begin_inset Formula $l_{a}=l_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{c}=l_{d}.$
+\end_inset
+
+ For the exchange case 
+\begin_inset Formula $l_{a}=l_{c}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{b}=l_{d}.$
+\end_inset
+
+ Also the angular integrals enforce:
+\begin_inset Formula 
+\[
+\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{c}-l_{d}\right|\leq k\leq l_{c}+l_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+k\;even
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Coulomb case:
+\end_layout
+
+\begin_layout Standard
+Using 
+\begin_inset Formula $n=n_{a}+n_{b}=n_{c}+n_{d}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R^{0}\left(n_{a},n_{b},n_{c},n_{d}\right)=\frac{\left(n-1\right)!}{\alpha_{ac}^{n}}H_{abcd}^{0}+\frac{\left(n-1\right)!}{\alpha_{bd}^{n}}H_{badc}^{0}
+\]
+
+\end_inset
+
+and the 
+\begin_inset Formula $H$
+\end_inset
+
+ expression do not simplify.
+ With some work we can reduce 
+\begin_inset Formula $R^{0}\left(0,0,0,0\right)$
+\end_inset
+
+ as
+\begin_inset Formula 
+\[
+R^{0}\left(1,1,1,1\right)=\frac{2}{\alpha_{ac}\alpha_{bd}\alpha_{abcd}}\left[\frac{1}{\alpha_{ac}\alpha_{bd}}+\frac{1}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+Recognizing that 
+\begin_inset Formula $\alpha_{ac}\alpha_{bd}=\alpha_{ab}\alpha_{cd}$
+\end_inset
+
+ we finally get
+\begin_inset Formula 
+\[
+R^{0}\left(1,1,1,1\right)=\frac{2}{\alpha_{ab}\alpha_{cd}\alpha_{abcd}}\left[\frac{1}{\alpha_{ab}\alpha_{cd}}+\frac{1}{\alpha_{abcd}^{2}}\right]
+\]
+
+\end_inset
+
+which agrees with the generating function result above.
+\end_layout
+
+\begin_layout Subsubsection
+Look up tables for Slater radials
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+L_{+}^{ab}=n_{a}+n_{b}+k
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{ab}=n_{a}+n_{b}-k-1,
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Table of 
+\begin_inset Formula $R_{l}\left(n_{a},n_{b},n_{c},n_{d}\right)/R_{0}(0,0,0,0)$
+\end_inset
+
+ Even 
+\begin_inset Formula $k$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="8">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(n_{a},n_{b},n_{c},n_{d}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $L_{-}^{ab}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $L_{+}^{cd}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $L_{+}^{ab}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $L_{-}^{cd}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,1,1,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1-k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2+k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2+k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\begin_inset Formula $1-k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(2,1,2,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2-k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3+k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3+k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\begin_inset Formula $2-k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{12}{\alpha\beta\left(\alpha+\beta\right)}\left(\frac{1}{\alpha^{2}\beta^{2}}+\frac{1}{\alpha\beta\left(\alpha+\beta\right)^{2}}+\frac{1}{\left(\alpha+\beta\right)^{4}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,1,1,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{4}\left(\frac{2}{\alpha\beta}+\frac{1}{\left(\alpha+\beta\right)^{2}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(0,2,0,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(2,2,2,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{4}}\left[\frac{63}{4}+2\left(\alpha+\beta\right)\left(\frac{\beta}{\alpha^{2}}+\frac{\alpha}{\beta^{2}}\right)+7\left(\frac{\beta}{\alpha}+\frac{\alpha}{\beta}\right)\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{105}{8\left(\alpha+\beta\right)^{4}}\left[\frac{\beta}{\alpha}+\frac{\alpha}{\beta}+\frac{9}{2}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{945}{16\left(\alpha+\beta\right)^{4}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Odd 
+\begin_inset Formula $k$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(l_{a},l_{b},l_{c},l_{d}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,0,1,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{3}{2\left(\alpha+\beta\right)}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(1,2,1,2\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{3}}\left[\frac{\beta}{\alpha}+\frac{\alpha}{\beta}+\frac{7}{2}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{105}{8\left(\alpha+\beta\right)^{3}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Gaussian Radial Functions
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{n_{a}+n_{b}}e^{-\alpha r_{1}^{2}}\:r_{2}^{n_{c}+n_{d}}e^{-\beta r_{2}^{2}}dr_{1}dr_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}dr_{1}r_{1}^{n_{a}+n_{b}-k-1}e^{-\alpha r_{1}^{2}}\intop_{0}^{r1}\:r_{2}^{n_{c}+n_{d}+k}e^{-\beta r_{2}^{2}}dr_{2}+\intop_{0}^{\infty}dr_{1}r_{1}^{n_{a}+n_{b}+k}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}^{n_{c}+n_{d}-k-1}e^{-\beta r_{2}^{2}}dr_{2}.
+\]
+
+\end_inset
+
+For Gaussians we use
+\begin_inset Formula 
+\[
+L_{+}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}+k\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+L_{-}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}-k-2\right)
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $n_{a}+n_{b}+k$
+\end_inset
+
+ is guaranteed to be even for the Coulomb and Exchange cases.
+ The generating functions are:
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{0}^{r1}\:e^{-\beta r_{2}^{2}}dr_{2}=\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:e^{-\alpha_{cd}r_{2}^{2}}dr_{2}=\frac{\sqrt{\pi}}{4\beta\sqrt{\alpha+\beta}}
+\]
+
+\end_inset
+
+And now 
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=D_{\alpha}^{L_{-}}D_{\beta}^{L_{+}}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}^{L_{+}}D_{\beta}^{L_{-}}\frac{\sqrt{\pi}}{4\beta\sqrt{\alpha+\beta}}
+\]
+
+\end_inset
+
+It is probably best to make look tables for these expressions.
+ As an example
+\begin_inset Formula 
+\[
+R_{k}(0,0,0,0)=D_{\beta}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}\frac{\sqrt{\pi}}{24\sqrt{\alpha+\beta}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{\sqrt{\pi}}{8}\left(\frac{1}{\alpha\sqrt{\left(\alpha+\beta\right)^{3}}}+\frac{1}{\beta\sqrt{\left(\alpha+\beta\right)^{3}}}\right)=\frac{\sqrt{\pi}}{8}\frac{1}{\alpha\beta\sqrt{\alpha+\beta}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Look up tables for Gaussians
+\end_layout
+
+\begin_layout Standard
+Table of 
+\begin_inset Formula $R_{l}\left(l_{a},l_{b},l_{c},l_{d}\right)/R_{0}(0,0,0,0)$
+\end_inset
+
+ Even 
+\begin_inset Formula $k$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(l_{a},l_{b},l_{c},l_{d}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(0,0,0,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,1,0,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{1}{\alpha}+\frac{1}{2\left(\alpha+\beta\right)}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,1,1,1)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{4}\left(\frac{2}{\alpha\beta}+\frac{1}{\left(\alpha+\beta\right)^{2}}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(0,2,0,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(2,2,2,2)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{4}}\left[\frac{63}{4}+2\left(\alpha+\beta\right)\left(\frac{\beta}{\alpha^{2}}+\frac{\alpha}{\beta^{2}}\right)+7\left(\frac{\beta}{\alpha}+\frac{\alpha}{\beta}\right)\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{105}{8\left(\alpha+\beta\right)^{4}}\left[\frac{\beta}{\alpha}+\frac{\alpha}{\beta}+\frac{9}{2}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{945}{16\left(\alpha+\beta\right)^{4}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Odd 
+\begin_inset Formula $k$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(l_{a},l_{b},l_{c},l_{d}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k=3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $(1,0,1,0)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{3}{2\left(\alpha+\beta\right)}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left(1,2,1,2\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{15}{4\left(\alpha+\beta\right)^{3}}\left[\frac{\beta}{\alpha}+\frac{\alpha}{\beta}+\frac{7}{2}\right]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\frac{105}{8\left(\alpha+\beta\right)^{3}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Molecular Basis Functions
+\end_layout
+
+\begin_layout Subsection
+Polarized Gaussians
+\end_layout
+
+\begin_layout Subsection
+Contracted Gaussians
+\end_layout
+
+\begin_layout Section
+Multi Centre Molecular Integrals
+\end_layout
+
+\begin_layout Subsection
+McMurchie and Davidson Scheme
+\end_layout
+
+\begin_layout Subsubsection
+One Electron Integrals
+\end_layout
+
+\begin_layout Subsubsection
+Two Electron Integrals
+\end_layout
+
+\begin_layout Subsection
+libcint
+\end_layout
+
+\begin_layout Section
+Bibliography
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintCited"
+bibfiles "qchem"
+options "plain"
+encoding "default"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Appendices
+\end_layout
+
+\begin_layout Subsection
+Useful Integrals
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+S_{n}(\alpha)=\int dr\:r^{n}e^{-\alpha r}=\frac{n!}{\alpha^{n+1}}\label{eq:Snalphas}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left\{ S_{0}(\alpha),S_{1}(\alpha),S_{2}(\alpha),S_{3}(\alpha),\ldots\right\} =\left\{ \frac{1}{\alpha},\frac{1}{\alpha^{2}},\frac{2}{\alpha^{3}},\frac{6}{\alpha^{4}},\ldots\right\} 
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+G_{n}\left(\alpha\right)=\intop_{0}^{\infty}r^{n}e^{-\alpha r^{2}}dr\label{eq:Gnalpha}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left\{ G_{0}(\alpha),G_{2}(\alpha),G_{4}(\alpha),\ldots\right\} =\sqrt{\frac{\pi}{\alpha}}\left\{ \frac{1}{2},\frac{1}{4a},\frac{3}{8a^{2}}\ldots\right\} 
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\left\{ G_{1}(\alpha),G_{3}(\alpha),G_{5}(\alpha),\ldots\right\} =\left\{ \frac{1}{2\alpha},\frac{1}{\alpha^{2}},\frac{2}{\alpha^{3}}\right\} 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}r^{2n}e^{-\alpha r^{2}}dr=\sqrt{\pi}\frac{\left(2n\right)!}{n!}\left(\frac{1}{2\sqrt{\alpha}}\right)^{2n+1}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
