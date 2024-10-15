@@ -4,7 +4,7 @@
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/SphericalGaussian/IEClient.H" 
 #include "Imp/Integrals/GaussianIntegrals.H"
-#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include <Cluster.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
@@ -112,7 +112,7 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
     for (auto i:s.rows())
         for (auto j:s.cols(i))
         {
-            SlaterIntegrals R(ab->es(i)+ab->es(j),ec);
+            GaussianRadialIntegrals R(ab->es(i)+ab->es(j),ec);
             s(i,j)=FourPi2*R(0,ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
         }
     return s;
@@ -146,7 +146,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     if (doJ || doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        SlaterIntegrals R(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
+                        GaussianRadialIntegrals R(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                         if (doJ)
                             J(ia,ib,ic,id)=FourPi2*R(0,sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
                         if (doK)

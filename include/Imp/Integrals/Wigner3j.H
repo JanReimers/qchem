@@ -11,7 +11,7 @@ class Wigner3j
 {
     public:
         Wigner3j();
-        double operator()(int la, int l, int lb);
+        double operator()(int la, int l, int lb) const;
     private:
     static const int LMax=8;
     double Data[LMax+1][LMax+1][LMax+1];

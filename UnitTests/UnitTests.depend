@@ -590,10 +590,12 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1728599453 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1728956614 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
-	"Imp/Integrals/Wigner3j.H"
+	"Imp/BasisSet/Slater/IntegralEngine.H"
+	"Imp/BasisSet/Slater/IrrepBasisSet.H"
+	"DFTDataBase/HeapDB/HeapDB.H"
 	"Misc/DFTDefines.H"
 	"oml/imp/ran250.h"
 	<iostream>
@@ -629,7 +631,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1728760205 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1728956511 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -747,7 +749,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728753434 /home/janr/Code/qchem/include/BasisSet.H
+1728959289 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
 	"Functions/ScalarFunction.H"
@@ -862,11 +864,10 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1728258538 /home/janr/Code/qchem/include/AnalyticIE.H
+1728702273 /home/janr/Code/qchem/include/AnalyticIE.H
 	"types.H"
-	"Misc/pmstream.h"
 	<vector>
-	"Misc/ERIList1.H"
+	<iosfwd>
 
 1728258350 /home/janr/Code/qchem/include/NumericalIE.H
 	"types.H"
@@ -909,9 +910,13 @@
 1728614540 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1728599453 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+1728957346 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+	"Imp/Integrals/Wigner3j.H"
+	"Misc/IntPower.H"
+	"Imp/Integrals/Factorials.H"
+	<cmath>
 
-1728599453 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
+1728789664 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
 
 1728702044 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/BasisSet.H
 	"IEClient.H"
@@ -1014,4 +1019,36 @@
 
 1728702044 /home/janr/Code/qchem/include/Imp/LAParams.H
 	<iosfwd>
+
+1728944785 /home/janr/Code/qchem/include/Imp/Integrals/Factorials.H
+
+1728946050 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
+	"Imp/Integrals/Wigner3j.H"
+	"Imp/Integrals/Factorials.H"
+	"Misc/IntPower.H"
+	<cmath>
+
+1728944574 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
+	"gtest/gtest.h"
+	"Imp/Integrals/GaussianRadialIntegrals.H"
+	"Imp/Integrals/Wigner3j.H"
+	"Misc/DFTDefines.H"
+	"oml/imp/ran250.h"
+	<iostream>
+	<fstream>
+	<cmath>
+
+1728956941 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
+	<AnalyticIE.H>
+	"oml/vector.h"
+
+1728772986 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IrrepBasisSet.H
+	"IEClient.H"
+	"../IrrepCommon.H"
+	"../TIrrepCommon.H"
+	"oml/vector.h"
+
+1728773186 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IEClient.H
+	<IEClient.H>
+	"oml/vector.h"
 

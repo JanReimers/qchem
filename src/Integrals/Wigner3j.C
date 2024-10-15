@@ -54,7 +54,7 @@ Wigner3j::Wigner3j()
 
 }
 
-double Wigner3j::operator()(int la, int l, int lb)
+double Wigner3j::operator()(int la, int l, int lb) const 
 {
     assert(la>=0);
     assert(la<=LMax);

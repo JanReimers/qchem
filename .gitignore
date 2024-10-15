@@ -24,3 +24,5 @@ doc/latex/
 *.lyx~
 
 UnitTests/ValgrindOut.xml
+
+*.lyx#

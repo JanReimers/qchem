@@ -1,6 +1,7 @@
 
 #include "Imp/BasisSet/Slater/IEClient.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/Integrals/GaussianRadialIntegrals.H"
 
 template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
 {
@@ -18,7 +19,7 @@ void IrrepIEClient::Init(double minexp,double maxexp,size_t L)
       FillPower(es,minexp,maxexp);
       Fill(Ns,L+1);
       Fill(Ls,L);
-      for (auto i:es.indices())  ns(i)=SlaterNorm(es(i),L);
+      for (auto i:es.indices())  ns(i)=SlaterNorm(es(i),Ns(i));
 }
 
 void IEClient::Append(const IrrepIEClient* ic)

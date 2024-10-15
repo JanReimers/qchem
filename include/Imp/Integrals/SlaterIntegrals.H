@@ -1,40 +1,41 @@
 #ifndef SLATERINTEGRALS_H
 #define SLATERINTEGRALS_H
 
+#include "Imp/Integrals/Wigner3j.H"
 #include "Misc/IntPower.H"
+#include "Imp/Integrals/Factorials.H"
+
 #include <cmath>
 
 
 
-class SlaterIntegrals
-{
-public:
-    SlaterIntegrals(double e_ab, double e_cd);
+//class GaussianRadialIntegrals
+//{
+//public:
+//    GaussianRadialIntegrals(double e_ab, double e_cd);
+//
+//    double operator()   (int l,int la, int lb, int lc, int ld) const;
+//    double DoExchangeSum(      int la, int lb, int lc, int ld) const; //Sum over l
+//   
+//private:
+//    double Dab(int m, int n) const;
+//    double Dcd(int m, int n) const;
+//    double D(double _a, int m, int n) const;
+//    double I(double _a, int m, int n) const;
+//
+//
+//
+//    double a,c; //Compact notation for exponents a+b and c+d.
+//};
 
-    double operator()   (int l,int la, int lb, int lc, int ld) const;
-    double DoExchangeSum(      int la, int lb, int lc, int ld) const; //Sum over l
-    static double DFact[]; //Double factorials 1,3,3*5,3*5*7 etc. lookup table.
-    static double Fact[]; //Factorials 1,2,2*3,2*3*4 etc. lookup table.
-    static double Twon[];  //2^n lookup table.
-private:
-    double Dab(int m, int n) const;
-    double Dcd(int m, int n) const;
-    double D(double _a, int m, int n) const;
-    double I(double _a, int m, int n) const;
-
-
-
-    double a,c; //Compact notation for exponents a+b and c+d.
-};
 
 //--------------------------------------------------------------------
 //      /
-//  4Pi |  r^n exp(-a*r) r^2 dr
+//  4Pi |  r^n exp(-a*r) dr
 //     /
 inline double SlaterIntegral(double a, int n)
 {
-//    return 4*Pi*( l%2 ? Oddl(exp,(l+1)/2) : Evenl(exp,l/2+1) );
-    return 4*Pi* SlaterIntegrals::Fact[n+2]/intpow(a,n+1);
+    return 4*Pi* qchem::Fact[n]/intpow(a,n+1);
 }
 
 //--------------------------------------------------------------------
@@ -46,6 +47,25 @@ inline double SlaterNorm(double a, int n)
     return 1.0/std::sqrt(SlaterIntegral(2*a,2*n));
 }
 
+class SlaterRadialIntegrals
+{
+public:
+    SlaterRadialIntegrals(double _eab, double _ecd);
+                   
+    double operator()   (int k,int la, int lb, int lc, int ld) const;
+    double DoExchangeSum(      int la, int lb, int lc, int ld) const; //Sum over l
+private:
+    double Dab(int m, int n) const;
+    double Dcd(int m, int n) const;
+    double D(double _a, int m, int n) const;
+    double I(double _a, int m, int n) const;
+//    double R(int k) const;
+//    double Habcd(int k) const;
+//    double Hbadc(int k) const;
+    
+    double eab,ecd;
+    Wigner3j itsW3j;
+};
 
 
 #endif // SLATERINTEGRALS_H

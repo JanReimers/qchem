@@ -24,7 +24,7 @@ public:
     typedef IE::RVec RVec;
 
             
-    IntegralEngine() {};
+    IntegralEngine();
     
     virtual size_t size() const {return -1;}
 

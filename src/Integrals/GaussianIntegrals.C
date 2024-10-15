@@ -2,6 +2,7 @@
 
 
 #include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include <iostream>
 #include <cassert>
 
@@ -179,4 +180,123 @@ double GaussianExchangeIntegral(double a, double b, double c, double d, int la, 
     return 0;
 
 }
+
+GaussianRadialIntegrals::GaussianRadialIntegrals(double e_ab, double e_cd)
+    : a(e_ab)
+    , c(e_cd)
+{
+    if (qchem::DFact[0]!=1.0) qchem::InitFactorials();
+ 
+}
+
+double GaussianRadialIntegrals::operator()(int l,int la, int lb, int lc, int ld) const
+{
+    int Lab_p=la+lb+l;
+    int Lab_m=la+lb-l;
+    int Lcd_p=lc+ld+l;
+    int Lcd_m=lc+ld-l;
+    //Check that everything is even.
+    assert(Lab_p%2==0);
+    assert(Lab_m%2==0);
+    assert(Lcd_p%2==0);
+    assert(Lcd_m%2==0);
+    assert(Lab_m>=0);
+    assert(Lcd_m>=0);
+
+    assert(Lab_p+1<=qchem::NMax);
+    assert(Lcd_p+1<=qchem::NMax);
+    double afact=qchem::DFact[Lcd_p+1]/qchem::Twon[Lcd_p/2]; //These ab and cd are reversed on purpose.
+    double cfact=qchem::DFact[Lab_p+1]/qchem::Twon[Lab_p/2];
+    double Iab=Dab(Lab_m/2,Lcd_p+3);
+    double Icd=Dcd(Lcd_m/2,Lab_p+3);
+//    if(Lab_p>0 || Lcd_p>0 )
+//    {
+//        std::cout <<  "L+=" << Lab_p << ", " << Lcd_p << ", L-=" << Lab_m << ", " << Lcd_m << std::endl;
+//        std::cout <<  afact << "*" << Iab << " + " << cfact << "*" << Icd << std::endl;
+//    }
+    return Pi12/8*(afact*Iab+cfact*Icd);
+}
+
+double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) const
+{
+    static Wigner3j w; //Returns the **square** of the 3j symbol.
+    assert(la==lc);
+    assert(lb==ld);
+    assert(la>=0);
+    assert(lb>=0);
+    int lmin=std::abs(la-lb);
+    int lmax=la+lb;
+    double ret=0.0;
+    for (int l=lmin;l<=lmax;l+=2)
+    {
+        ret+=(*this)(l,la,lb,la,lb)*w(la,l,lb);
+    }
+    return 2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+}
+
+
+double GaussianRadialIntegrals::D(double _a, int m,int n) const
+{
+    double ret=0.0;
+    switch (m)
+    {
+    case 0:
+    {
+        ret=I(_a,0,n);
+        break;
+    }
+    case 1:
+    {
+        ret=I(_a,0,n)*I(_a,1,n);
+        break;
+    }
+    case 2:
+    {
+        double I1=I(_a,1,n);
+        ret=I(_a,0,n)*(I1*I1+I(_a,2,n));
+        break;
+    }
+    case 3:
+    {
+        double I1=I(_a,1,n);
+        double I2=I(_a,2,n);
+        ret=I(_a,0,n)*(I1*I1*I1+3*I1*I2+I(_a,3,n));
+        break;
+    }
+    default :
+    {
+        assert(false);
+    }
+    }
+    return ret;
+}
+
+double GaussianRadialIntegrals::I(double _a, int m,int n) const
+{
+    assert(n>0);
+    assert(m>=0);
+    assert(m<=qchem::NMax);
+    assert(_a==a || _a==c);
+    if (m==0)
+    {
+        return 1.0/(_a*sqrt(pow(a+c,n)));
+    }
+//    else if (m==1)
+//        return n/(2*(a+c))+1/_a;
+//    else if (m==2)
+//        return n/(2*(a+c)*(a+c))+1/(_a*_a);
+    else
+        return qchem::Fact[m-1]*(n/(2*pow((a+c),m))+1/pow(_a,m));
+}
+
+double GaussianRadialIntegrals::Dab(int m,int n) const
+{
+    return D(a,m,n);
+}
+
+double GaussianRadialIntegrals::Dcd(int m,int n) const
+{
+    return D(c,m,n);
+}
+
 
