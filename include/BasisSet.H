@@ -151,12 +151,15 @@ public:
 //  the wave vector k for solids.
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
+//could not convert ‘dynamic_cast_iterator<IrrepBasisSet*, TIrrepBasisSet<double>*>(((const BasisSet*)this)->BasisSet::begin())’ 
+//from ‘BasisSet::const_Titerator’ {aka ‘dynamic_cast_iterator<IrrepBasisSet*, TIrrepBasisSet<double>*>’} to ‘BasisSet::const_iterator’ {aka ‘std::vector<IrrepBasisSet*, std::allocator<IrrepBasisSet*> >::const_iterator’}|
 class BasisSet
     : public virtual IEClient
     , public UniqueID
 {
 public:
     typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;
+    typedef dynamic_cast_iterator<IrrepBasisSet*,TIrrepBasisSet<double>* > const_Titerator;
 
     BasisSet() {};
 
@@ -169,6 +172,7 @@ public:
     virtual IntegralDataBase<double>* GetDataBase() const =0;
 
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
+    const_Titerator beginT() const {return const_Titerator(begin());};
     
     static  BasisSet*  Factory(std::istream&    )      ;
 };
