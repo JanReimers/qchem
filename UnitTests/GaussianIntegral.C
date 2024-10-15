@@ -2,10 +2,23 @@
 
 
 #include "gtest/gtest.h"
-//#include "Imp/Integrals/SlaterIntegrals.H"
-#include "Imp/Integrals/GaussianRadialIntegrals.H"
-#include "Imp/Integrals/Wigner3j.H"
+#include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+//#include "Imp/BasisSet/Slater/IEClient.H"
+#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "DFTDataBase/HeapDB/HeapDB.H"
+//#include "Imp/Integrals/SlaterRadialIntegrals.H"
+//#include "Imp/Integrals/Wigner3j.H"
+#include "Mesh/RadialMesh/MHLRadialMesh.H"
+#include "Mesh/AngularMesh/GaussAngularMesh.H"
+#include "Mesh/AtomMesh.H"
+#include "Mesh/MeshIntegrator.H"
 #include "Misc/DFTDefines.H"
+//#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster.H"
 #include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
@@ -22,177 +35,84 @@ using std::endl;
 class GaussianRadialIntegralTests : public ::testing::Test
 {
 public:
-    GaussianRadialIntegralTests() :ab(1.5), cd(0.1) {};
-    void Randomize()
+    GaussianRadialIntegralTests()
+    : Lmax(4    )
+    , Z(1)
+    , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
+    , ie(new SphericalGaussian::IntegralEngine())
+    , db(new HeapDB<double>())
+    , ibs(new SphericalGaussian::IrrepBasisSet(lap,db,5,.01,100.0,0))
+    , bs(new SphericalGaussian::BasisSet(lap,5,.01,100.0,Lmax))
+    , mesh(0)
+    , cl(new Molecule())
+    , mintegrator()
     {
-        ab=1000.*exp(-OMLRandPos<double>()*10.0);
-        cd=1000.*exp(-OMLRandPos<double>()*10.0);
+        StreamableObject::SetToPretty();
+        RadialMesh*  rm=new MHLRadialMesh(200,3U,2.0); //mem leak
+        AngularMesh* am=new GaussAngularMesh(1);      //mem leak
+        mesh=new AtomMesh(*rm,*am); 
+        mintegrator=new MeshIntegrator<double>(mesh);
+        cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
     }
-
-    double ab,cd;
+    
+    int Lmax, Z;
+    LAParams lap;
+    AnalyticIE<double>* ie;
+    IntegralDataBase<double>* db;
+    SphericalGaussian::IrrepBasisSet* ibs;
+    SphericalGaussian::BasisSet* bs;
+    Mesh* mesh;
+    Cluster* cl;
+    MeshIntegrator<double>* mintegrator;
 };
 
-TEST_F(GaussianRadialIntegralTests, R0_0000)
+TEST_F(GaussianRadialIntegralTests, Overlap)
 {
-    GaussianRadialIntegrals R(ab,cd);
-    double expected=Pi12/8*(1/(ab*cd*sqrt(ab+cd)));
-    EXPECT_DOUBLE_EQ(expected,R(0,0,0,0,0));
-}
-
-TEST_F(GaussianRadialIntegralTests, R0_0000_Random)
-{
-    for (int i=0; i<1000; i++)
+    for (auto i=bs->beginT();i!=bs->end();i++)
     {
-        Randomize();
-        GaussianRadialIntegrals R(ab,cd);
-        double expected=Pi12/8*(1/(ab*cd*sqrt(ab+cd)));
-        EXPECT_DOUBLE_EQ(expected,R(0,0,0,0,0));
+        SMatrix<double> S=ie->MakeOverlap(*i);
+        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
+        //cout << S << endl;
+        SMatrix<double> Snum = mintegrator->Overlap(**i);
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+
     }
 }
 
-TEST_F(GaussianRadialIntegralTests, R0_1100)
+TEST_F(GaussianRadialIntegralTests, Nuclear)
 {
-    GaussianRadialIntegrals R(ab,cd);
-    double expected=1/ab+1/(2*(ab+cd));
-    EXPECT_DOUBLE_EQ(expected,R(0,1,1,0,0)/R(0,0,0,0,0));
-}
-
-TEST_F(GaussianRadialIntegralTests, R0_1100_Random)
-{
-    for (int i=0; i<1000; i++)
+    for (auto i=bs->beginT();i!=bs->end();i++)
     {
-        Randomize();
-        GaussianRadialIntegrals R(ab,cd);
-        double expected=R(0,0,0,0,0)*(1/ab+1/(2*(ab+cd)));
-        EXPECT_DOUBLE_EQ(expected,R(0,1,1,0,0));
+        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
+        //cout << S << endl;
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
+
     }
 }
 
-TEST_F(GaussianRadialIntegralTests, R0_0011)
+TEST_F(GaussianRadialIntegralTests, Kinetic)
 {
-    GaussianRadialIntegrals R(ab,cd);
-    double expected=R(0,0,0,0,0)*(1/cd+1/(2*(ab+cd)));
-    EXPECT_DOUBLE_EQ(expected,R(0,0,0,1,1));
-}
-
-TEST_F(GaussianRadialIntegralTests, R0_0011_Random)
-{
-    for (int i=0; i<1000; i++)
+    
+    for (auto i=bs->beginT();i!=bs->end();i++)
     {
-        Randomize();
-        GaussianRadialIntegrals R(ab,cd);
-        double expected=R(0,0,0,0,0)*(1/cd+1/(2*(ab+cd)));
-        EXPECT_DOUBLE_EQ(expected,R(0,0,0,1,1));
+        SMatrix<double> K=ie->MakeKinetic(*i);
+        //cout << S << endl;
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i); //This give the wrong answer for l>0
+
+        // We need to add the l*(l+1) term that comes from the angular integrals.
+        // Lost of dynamic cast just to get at L!
+        const QuantumNumber& qn=i->GetQuantumNumber();
+        const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN& >(qn);
+        int l=sqn.GetL();
+        const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(*i);
+        assert(sg);
+        for (auto i:Knum.rows())
+            for (auto j:Knum.cols(i))
+                Knum(i,j)+=0.5*((l)*(l+1))*GaussianIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
+            
+        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-8);
+
     }
 }
-//
-TEST_F(GaussianRadialIntegralTests, R1_1010)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double expected=R(0,0,0,0,0)*(3/(2*(ab+cd)));
-    EXPECT_DOUBLE_EQ(expected,R(1,1,0,1,0));
-}
 
-TEST_F(GaussianRadialIntegralTests, R0_1111)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double expected=R(0,0,0,0,0)*3/4*(2/(ab*cd)+1/((ab+cd)*(ab+cd)));
-    EXPECT_DOUBLE_EQ(expected,R(0,1,1,1,1));
-}
-TEST_F(GaussianRadialIntegralTests, R2_1111)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd2=abcd*abcd;
-    double expected=R(0,0,0,0,0)*15/4*(1/abcd2);
-    EXPECT_DOUBLE_EQ(expected,R(2,1,1,1,1));
-}
-
-TEST_F(GaussianRadialIntegralTests, R2_0202)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd2=abcd*abcd;
-    double expected=R(0,0,0,0,0)*15/4*(1/abcd2);
-    EXPECT_DOUBLE_EQ(expected,R(2,0,2,0,2));
-}
-
-TEST_F(GaussianRadialIntegralTests, R1_1212)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd3=abcd*abcd*abcd;
-    double expected=15/(4*abcd3)*(cd/ab+ab/cd+7./2.);
-    EXPECT_DOUBLE_EQ(expected,R(1,1,2,1,2)/R(0,0,0,0,0));
-}
-
-TEST_F(GaussianRadialIntegralTests, R3_1212)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd3=abcd*abcd*abcd;
-    double expected=R(0,0,0,0,0)*105/(8*abcd3);
-    EXPECT_DOUBLE_EQ(expected,R(3,1,2,1,2));
-}
-//
-TEST_F(GaussianRadialIntegralTests, R4_2222)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd4=abcd*abcd*abcd*abcd;
-    double expected=R(0,0,0,0,0)*945/(16*abcd4);
-    EXPECT_DOUBLE_EQ(expected,R(4,2,2,2,2));
-}
-//
-TEST_F(GaussianRadialIntegralTests, R2_2222)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd4=abcd*abcd*abcd*abcd;
-    double expected=R(0,0,0,0,0)*105/(8*abcd4)*(cd/ab+ab/cd+9./2.);
-    EXPECT_DOUBLE_EQ(expected,R(2,2,2,2,2));
-}
-//
-//// This one will be fun!!!
-TEST_F(GaussianRadialIntegralTests, R0_2222)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd4=abcd*abcd*abcd*abcd;
-    double expected=15/(4*abcd4)*(2*abcd*(cd/(ab*ab)+ab/(cd*cd)) + 7*(cd/ab+ab/cd)+63./4.);
-    EXPECT_DOUBLE_EQ(expected,R(0,2,2,2,2)/R(0,0,0,0,0));
-}
-
-//// This one will be more fun!!!
-TEST_F(GaussianRadialIntegralTests, R0_1122)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double abcd3=abcd*abcd*abcd;
-    double Iab=7/(2*abcd)+1/ab;
-    double Icd=5/(2*abcd)+1/cd;
-    double Icd2=5/(2*abcd*abcd)+1/(cd*cd);
-    double expected=3/(2*abcd3)*(5*cd/2*Iab+ab*abcd*(Icd*Icd+Icd2));
-    EXPECT_DOUBLE_EQ(expected,R(0,1,1,2,2)/R(0,0,0,0,0));
-}
-
-//// This one should be easier
-TEST_F(GaussianRadialIntegralTests, R0_0022)
-{
-    GaussianRadialIntegrals R(ab,cd);
-    double abcd=ab+cd;
-    double expected=1/(abcd)*((2*ab+3*cd)/(cd*cd)+3/(4*abcd));
-    EXPECT_DOUBLE_EQ(expected,R(0,0,0,2,2)/R(0,0,0,0,0));
-}
-
-TEST_F(GaussianRadialIntegralTests, Wigner1)
-{
-    Wigner3j w;
-    double expected=3./70.;
-    EXPECT_DOUBLE_EQ(w(1,2,3),expected);
-    EXPECT_DOUBLE_EQ(w(1,3,2),expected);
-    EXPECT_DOUBLE_EQ(w(2,1,3),expected);
-    EXPECT_DOUBLE_EQ(w(2,3,1),expected);
-    EXPECT_DOUBLE_EQ(w(3,2,1),expected);
-    EXPECT_DOUBLE_EQ(w(3,1,2),expected);
-}
