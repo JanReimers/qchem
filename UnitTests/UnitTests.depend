@@ -590,11 +590,12 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1729032668 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1729096999 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
+	"Imp/BasisSet/Slater/BasisFunction.H"
 	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
 	"DFTDataBase/HeapDB/HeapDB.H"
@@ -605,7 +606,10 @@
 	"Misc/DFTDefines.H"
 	"Cluster/Molecule.H"
 	"Cluster.H"
+	"BasisSet.H"
+	"Imp/Containers/ERI4.H"
 	"oml/imp/ran250.h"
+	"Imp/Containers/ptr_vector.h"
 	<iostream>
 	<fstream>
 	<cmath>
@@ -918,7 +922,7 @@
 1728614540 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1728997392 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+1729086378 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Integrals/Wigner3j.H"
 	"Misc/IntPower.H"
 	"Imp/Integrals/Factorials.H"
@@ -1091,4 +1095,7 @@
 
 1728599453 /home/janr/Code/qchem/include/QuantumNumber.H
 	"Misc/Persistent/Persistent.H"
+
+1728772650 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/BasisFunction.H
+	<BasisSet.H>
 

@@ -6520,21 +6520,6 @@ R_{0}(0,0,0,0)=\left(-\frac{\partial}{\partial\alpha}\right)\left(-\frac{\partia
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
-\[
-2\left(\frac{1}{\alpha^{2}\left(\alpha+\beta\right)^{3}}+\frac{3}{\alpha\left(\alpha+\beta\right)^{4}}\right)
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\frac{2\left(4\alpha+\beta\right)}{\alpha^{2}\left(\alpha+\beta\right)^{4}}
-\]
-
-\end_inset
-
 
 \end_layout
 

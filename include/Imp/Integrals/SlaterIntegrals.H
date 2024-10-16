@@ -60,7 +60,7 @@ private:
     double Dab(int m, int n) const;
     double Dcd(int m, int n) const;
     double D(double _a, int m, int n) const;
-    double I(double _a, int m, int n) const;
+    double f(double _a, int m, int n) const;
 //    double R(int k) const;
 //    double Habcd(int k) const;
 //    double Hbadc(int k) const;

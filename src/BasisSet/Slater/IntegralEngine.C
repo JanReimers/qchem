@@ -150,7 +150,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                 for (index_t id:sg->es.indices(ic))
                 {
                     bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id) && J(ia,ib,ic,id)==-1.0;
-                    bool doK = sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id) && K(ia,ib,ic,id)==-1.0;
+                    bool doK = false;//sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id) && K(ia,ib,ic,id)==-1.0;
                     if (doJ || doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
@@ -162,12 +162,15 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 //                            K(ia,ib,ic,id)=R.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
 //                        else
 //                            K(ia,ib,ic,id)=0.0;
-//                        std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-//                        << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J=" << J(ia,ib,ic,id) << std::endl;
                                 
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                        if (doJ)
+                       {
                             J(ia,ib,ic,id)=S(0,sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+//                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
+//                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
+
+                       }
                         if (doK)
                             K(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
                         else

@@ -9,6 +9,7 @@
 #include "Functions/VectorFunction.H"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
+#include "oml/io3d.h"
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -225,6 +226,9 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Repulsion(
     return ret;
 }
 
+using std::cout;
+using std::endl;
+
 template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(const Vf& f,const Vf& g) const
 {
     index_t nf=f.GetVectorSize();
@@ -239,7 +243,9 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(
     MeshBrowser m1(*itsMesh);
     for (index_t wi=1; m1; wi++,m1++)
     {
+        if (m1.R()==RVec3(0,0,0)) continue;
         double oor1=m1.W()*m1.W()/norm(m1.R());
+        //cout << m1.R() << " " << oor1 << endl;
         for (index_t i=1; i<=nf; i++)
             for (index_t j=1; j<=ng; j++)
                 r(i,j)+=sf(i,wi)*sg(j,wi)*oor1;
@@ -248,7 +254,10 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(
         m2++;
         for (index_t wj=wi+1; m2; wj++,m2++)
         {
+            if (m1.R()==m2.R()) continue;
             double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
+            //cout << m2.R() << " " << oor << endl;
+
             for (index_t i=1; i<=nf; i++)
                 for (index_t j=1; j<=ng; j++)
                     r(i,j)+=(sf(i,wi)*sg(j,wj)+sf(i,wj)*sg(j,wi))*oor;
