@@ -334,9 +334,10 @@
 	"AtomTester.H"
 	"MoleculeTester.H"
 
-1728756157 /home/janr/Code/qchem/UnitTests/SemiHFTester.H
+1729117303 /home/janr/Code/qchem/UnitTests/SemiHFTester.H
 	"BaseTester.H"
 	"AtomTester.H"
+	"AtomTesterSlater.H"
 	"MoleculeTester.H"
 
 1728746937 /home/janr/Code/qchem/UnitTests/MoleculeTester.H
@@ -643,7 +644,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1729031492 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1729117747 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -1098,4 +1099,37 @@
 
 1728772650 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/BasisFunction.H
 	<BasisSet.H>
+
+1729116829 /home/janr/Code/qchem/UnitTests/AtomTesterSlater.H
+	"BaseTester.H"
+
+1729117137 source:/home/janr/Code/qchem/UnitTests/AtomTestsSlater.C
+	"DFTTesterSlater.H"
+	"DFTDataBase/DFTDataBase.H"
+	"Cluster/Atom.H"
+	"Misc/PeriodicTable.H"
+	<iostream>
+	<fstream>
+
+1729116896 source:/home/janr/Code/qchem/UnitTests/AtomTesterSlater.C
+	"AtomTesterSlater.H"
+	"Cluster.H"
+	"BasisSet.H"
+	"Imp/BasisSet/Slater/BasisSet.H"
+	"Imp/BasisSet/Slater/IrrepBasisSet.H"
+	"DFTDataBase/HeapDB/HeapDB.H"
+	"Mesh/RadialMesh/MHLRadialMesh.H"
+	"Mesh/AngularMesh/GaussAngularMesh.H"
+	"Mesh/AtomMesh.H"
+
+1729116977 source:/home/janr/Code/qchem/UnitTests/DFTTesterSlater.C
+	"DFTTesterSlater.H"
+	"HamiltonianImplementation/CDFittedVee.H"
+	"Mesh/Mesh.H"
+	"Cluster.H"
+	"BasisSet.H"
+
+1729117879 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
+	"SemiHFTester.H"
+	"AtomTesterSlater.H"
 

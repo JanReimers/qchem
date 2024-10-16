@@ -60,8 +60,15 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="AtomTester.H" />
+		<Unit filename="AtomTesterSlater.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="AtomTesterSlater.H" />
 		<Unit filename="AtomTests.C">
 			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="AtomTestsSlater.C">
+			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="BaseTester.C">
 			<Option compilerVar="CPP" />
@@ -71,6 +78,10 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="DFTTester.H" />
+		<Unit filename="DFTTesterSlater.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="DFTTesterSlater.H" />
 		<Unit filename="ERIList.C">
 			<Option compilerVar="CPP" />
 			<Option target="&lt;{~None~}&gt;" />

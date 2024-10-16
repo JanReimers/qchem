@@ -40,6 +40,28 @@ public:
         AtomTester::Init(nb,Lmax,spin,lap);
     }
 };
+#include "AtomTesterSlater.H"
+// Use HF for coulomb potential and DFT for exchange potential
+class SemiHartreeFockAtomTesterSlater : public AtomTesterSlater, public SemiHartreeFockTester
+{
+public:
+    SemiHartreeFockAtomTesterSlater() : AtomTesterSlater(5,.01,20.0) {};
+    
+    void Init(Atom* atom)
+    {
+        AtomTesterSlater::Init(atom);
+    }
+    void Init(Atom* atom, double Exchange, int Lmax,double spin)
+    {
+        SemiHartreeFockTester::Init(Exchange);
+        AtomTesterSlater::Init(atom,Lmax,spin);
+    }
+    void Init(double Exchange,int nb, int Lmax,double spin, const LAParams& lap)
+    {
+        SemiHartreeFockTester::Init(Exchange);
+        AtomTesterSlater::Init(nb,Lmax,spin,lap);
+    }
+};
 
 #include "MoleculeTester.H"
 class SemiHartreeFockMoleculeTester : public MoleculeTester, public SemiHartreeFockTester
