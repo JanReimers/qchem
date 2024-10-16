@@ -42,18 +42,18 @@ TEST_P(DFTAtomTesterSlater, AtomsDFTPolarized)
     EXPECT_LT(error,eps_e);
 };
 
-//TEST_P(SemiHartreeFockAtomTester, AtomsSemiDFTPolarized)
-//{
-//    int Z=GetParam();
-//    std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
-//    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetSlaterAlpha(Z),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
-//    Iterate(itsSCFIParams);
-//    double E_DFT=thePeriodicTable.GetEnergyDFT(Z);
-//    double error=fabs((E_DFT-TotalEnergy())/E_DFT);
-//    std::cout.precision(5);
-//    std::cout << "E_DFT relative error=" << error*100.0 << "%" << std::endl;
-//    EXPECT_LT(error,eps_e);
-//};
+TEST_P(SemiHartreeFockAtomTesterSlater, AtomsSemiDFTPolarized)
+{
+    int Z=GetParam();
+    std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
+    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetSlaterAlpha(Z),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
+    Iterate(itsSCFIParams);
+    double E_DFT=thePeriodicTable.GetEnergyDFT(Z);
+    double error=fabs((E_DFT-TotalEnergy())/E_DFT);
+    std::cout.precision(5);
+    std::cout << "E_DFT relative error=" << error*100.0 << "%" << std::endl;
+    EXPECT_LT(error,eps_e);
+};
 
 //INSTANTIATE_TEST_CASE_P(AtomsHFPolarized,
 //                        HartreeFockAtomTester,
@@ -63,9 +63,9 @@ INSTANTIATE_TEST_CASE_P(AtomsDFTPolarized,
                         DFTAtomTesterSlater,
                         ::testing::Values(1,4,5,7,10,12,25));
 
-//INSTANTIATE_TEST_CASE_P(AtomsSemiDFTPolarized,
-//                        SemiHartreeFockAtomTester,
-//                        ::testing::Range(3,17));
+INSTANTIATE_TEST_CASE_P(AtomsSemiDFTPolarized,
+                        SemiHartreeFockAtomTesterSlater,
+                        ::testing::Range(3,17));
 
 
 

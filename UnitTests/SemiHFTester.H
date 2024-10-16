@@ -45,7 +45,7 @@ public:
 class SemiHartreeFockAtomTesterSlater : public AtomTesterSlater, public SemiHartreeFockTester
 {
 public:
-    SemiHartreeFockAtomTesterSlater() : AtomTesterSlater(5,.01,20.0) {};
+    SemiHartreeFockAtomTesterSlater() : AtomTesterSlater(10,.6,30.0) {};
     
     void Init(Atom* atom)
     {
