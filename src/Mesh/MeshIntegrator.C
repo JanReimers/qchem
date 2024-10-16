@@ -14,6 +14,8 @@
 #include <iomanip>
 #include <cmath>
 #include <cassert>
+using std::cout;
+using std::endl;
 
 //-------------------------------------------------------------------------
 //
@@ -183,6 +185,8 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
         MeshBrowser m2(m1);
         m2++;
         double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
+        if (norm(m1.R()-m2.R()) <1e-4)
+            cout << oor << " " << norm(m1.R()-m2.R()) << endl;
         assert(!std::isnan(oor));
         for (index_t wj=wi+1; m2; wj++,m2++)
         {
@@ -226,8 +230,6 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Repulsion(
     return ret;
 }
 
-using std::cout;
-using std::endl;
 
 template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(const Vf& f,const Vf& g) const
 {

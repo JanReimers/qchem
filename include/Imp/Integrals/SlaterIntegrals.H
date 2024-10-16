@@ -55,6 +55,7 @@ public:
     SlaterRadialIntegrals(double _eab, double _ecd);
                    
     double operator()   (int k,int la, int lb, int lc, int ld) const;
+    double operator()   (int lab, int lcd) const;
     double DoExchangeSum(      int la, int lb, int lc, int ld) const; //Sum over l
 private:
     double Dab(int m, int n) const;

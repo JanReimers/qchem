@@ -50,6 +50,9 @@ private:
     typedef std::tuple<int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
+    
+    static double FourPi2;
+
 };
 
 } //namespace

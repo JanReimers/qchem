@@ -15,6 +15,8 @@
 namespace Slater
 {
 
+double IntegralEngine::FourPi2=4*4*Pi*Pi;
+
 IntegralEngine::IntegralEngine()
 {
     qchem::InitFactorials();
@@ -57,7 +59,7 @@ IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
 // <ab|c>
 IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
 {    
-    auto ab=dcast(ieab);;
+    auto ab=dcast(ieab);
     size_t N=ab->size();
     int Nc,Lc;
     double ec,nc;
@@ -90,7 +92,10 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
     SMat r(N,N);
     for (auto i:r.rows())
         for (auto j:r.cols(i))
-            r(i,j)=0;//GaussianRepulsionIntegral(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+        {
+            SlaterRadialIntegrals R(a->es(i),a->es(j));
+            r(i,j)=FourPi2*R(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+        }
 
     return r;
 }
@@ -103,7 +108,10 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
     Mat s(Na,Nb);
     for (auto i:s.rows())
         for (auto j:s.cols())
-            s(i,j)=0.0;//GaussianRepulsionIntegral(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+        {
+            SlaterRadialIntegrals R(a->es(i),b->es(j));
+            s(i,j)=FourPi2*R(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+        }
 
     return s;
 }
@@ -121,7 +129,7 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
         for (auto j:s.cols(i))
         {
             SlaterRadialIntegrals R(ab->es(i)+ab->es(j),ec);
-            s(i,j)=R(0,ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
+            s(i,j)=FourPi2*R(0,ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
         }
     return s;
 }
@@ -154,28 +162,19 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     if (doJ || doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        
-//                        SlaterIntegrals R(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-//                        if (doJ)
-//                            J(ia,ib,ic,id)=R(0,sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
-//                        if (doK)
-//                            K(ia,ib,ic,id)=R.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
-//                        else
-//                            K(ia,ib,ic,id)=0.0;
-                                
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                        if (doJ)
                        {
-                            J(ia,ib,ic,id)=S(0,sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                            J(ia,ib,ic,id)=FourPi2*S(0,sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
 
                        }
                         if (doK)
                         {
-                            K(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
-                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
+                            K(ia,ib,ic,id)=FourPi2*S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+//                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
+//                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
                             
                         }
                         else

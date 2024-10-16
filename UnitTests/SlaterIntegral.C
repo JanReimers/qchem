@@ -46,17 +46,25 @@ public:
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new Slater::IntegralEngine())
     , db(new HeapDB<double>())
-    , ibs(new Slater::IrrepBasisSet(lap,db,2,0.5,1,Lmax))
-    , bs(new Slater::BasisSet(lap,2,0.5,1,Lmax))
+    , ibs(new Slater::IrrepBasisSet(lap,db,6,0.1,10,Lmax))
+    , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
     , mesh(0)
     , cl(new Molecule())
     , mintegrator()
     {
         StreamableObject::SetToPretty();
-        RadialMesh*  rm=new MHLRadialMesh(50,2U,1.0); //mem leak
-        AngularMesh* am=new GaussAngularMesh(8);      //mem leak
-        mesh=new AtomMesh(*rm,*am); 
-        mintegrator=new MeshIntegrator<double>(mesh);
+        {
+            RadialMesh*  rm=new MHLRadialMesh(200,2U,1.0); //mem leak
+            AngularMesh* am=new GaussAngularMesh(1);      //mem leak
+            mesh=new AtomMesh(*rm,*am); 
+            mintegrator=new MeshIntegrator<double>(mesh);
+        }
+        {
+            RadialMesh*  rm=new MHLRadialMesh(50,1U,1.0); //mem leak
+            AngularMesh* am=new GaussAngularMesh(1);      //mem leak
+            rmesh=new AtomMesh(*rm,*am); 
+            rmintegrator=new MeshIntegrator<double>(rmesh);
+       }
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
     }
     
@@ -71,8 +79,10 @@ public:
     Slater::IrrepBasisSet* ibs;
     Slater::BasisSet* bs;
     Mesh* mesh;
+    Mesh* rmesh;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
+    MeshIntegrator<double>* rmintegrator;
 };
 
 
@@ -86,7 +96,7 @@ double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slat
     double b=cd.es(ic)+cd.es(id);
     int nab=ab.Ns(ia)+ab.Ns(ib);
     int ncd=cd.Ns(ic)+cd.Ns(id);
-    double f=1.0/(a*b*(a+b));
+    double f=4*4*Pi*Pi/(a*b*(a+b));
     if (nab==2 && ncd==2)
         return 2*f*( 
                     1/(pow(a,1)*pow(b,1)*pow(a+b,0))
@@ -169,92 +179,92 @@ double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slat
     return 0;
 
 }
-//  double R02222=144/(a*b*(a+b))
-//                    *(
-//                           1/(pow(a,2)*pow(b,2)*pow(a+b,2))
-//                         + 2/(pow(a,1)*pow(b,1)*pow(a+b,4))
-//                         + 5/(pow(a,0)*pow(b,0)*pow(a+b,6))
-//                         + 1/(pow(a,3)*pow(b,3)*pow(a+b,0))
-//                      );
-//                    double R01122=12/(a*b*(a+b))
-//                    *(
-//                           2/(pow(a,1)*pow(b,3)*pow(a+b,0))
-//                         + 2/(pow(a,0)*pow(b,0)*pow(a+b,4))
-//                         + 1/(pow(a,0)*pow(b,1)*pow(a+b,3))
-//                         - 1/(pow(a,0)*pow(b,3)*pow(a+b,1))
-//                      );
-//                    double R02211=12/(a*b*(a+b))
-//                    *(
-//                           2/(pow(a,3)*pow(b,1)*pow(a+b,0))
-//                         + 2/(pow(a,0)*pow(b,0)*pow(a+b,4))
-//                         + 1/(pow(a,1)*pow(b,0)*pow(a+b,3))
-//                         - 1/(pow(a,3)*pow(b,0)*pow(a+b,1))
-//                      );
-//
-//TEST_F(SlaterRadialIntegralTests, Overlap)
-//{
-//    for (auto i=bs->beginT();i!=bs->end();i++)
-//    {
-//        SMatrix<double> S=ie->MakeOverlap(*i);
-//        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-//        //cout << S << endl;
-//        SMatrix<double> Snum = mintegrator->Overlap(**i);
-//        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
-//
-//    }
-//}
-//
-//TEST_F(SlaterRadialIntegralTests, Nuclear)
-//{
-//    for (auto i=bs->beginT();i!=bs->end();i++)
-//    {
-//        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
-//        //cout << S << endl;
-//        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
-//        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
-//
-//    }
-//}
-//
-//TEST_F(SlaterRadialIntegralTests, Kinetic)
-//{
-//    for (auto i=bs->beginT();i!=bs->end();i++)
-//    {
-//        SMatrix<double> K=ie->MakeKinetic(*i);
-//        //cout << S << endl;
-//        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
-//            // We need to add the l*(l+1) term that comes from the angular integrals.
-//        // Lost of dynamic cast just to get at L!
-//        const QuantumNumber& qn=i->GetQuantumNumber();
-//        const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN& >(qn);
-//        int l=sqn.GetL();
-//        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
-//        assert(sg);
-//        int n=2*l+2;
-//        for (auto i:Knum.rows())
-//            for (auto j:Knum.cols(i))
-//                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
-//            
-//        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);
-//
-//    }
-//}
-//
-//TEST_F(SlaterRadialIntegralTests, Overlap3C)
-//{
-//    for (auto i=bs->beginT();i!=bs->end();i++)
-//    {
-//        ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
-//        
-//        auto c=i->beginT();
-//        for (auto sab:Sabc)
-//        {
-//            SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
-//            EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
-//            c++;
-//        }
-//    }
-//}
+
+TEST_F(SlaterRadialIntegralTests, Overlap)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        SMatrix<double> S=ie->MakeOverlap(*i);
+        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
+        //cout << S << endl;
+        SMatrix<double> Snum = mintegrator->Overlap(**i);
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Nuclear)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
+        //cout << S << endl;
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
+
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Kinetic)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        SMatrix<double> K=ie->MakeKinetic(*i);
+        //cout << S << endl;
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
+            // We need to add the l*(l+1) term that comes from the angular integrals.
+        // Lost of dynamic cast just to get at L!
+        const QuantumNumber& qn=i->GetQuantumNumber();
+        const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN& >(qn);
+        int l=sqn.GetL();
+        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
+        assert(sg);
+        int n=2*l+2;
+        for (auto i:Knum.rows())
+            for (auto j:Knum.cols(i))
+                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
+            
+        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
+
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Overlap3C)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
+        
+        auto c=i->beginT();
+        for (auto sab:Sabc)
+        {
+            SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
+            EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
+            c++;
+        }
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Repulsion)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        SMatrix<double> S=ie->MakeRepulsion(*i);
+        for (auto j=i;j!=bs->end();j++)
+        {
+            Matrix<double> Sx=ie->MakeRepulsion(*i,*j);
+            
+        }
+    }
+}
+
+TEST_F(SlaterRadialIntegralTests, Repulsion3C)
+{
+    for (auto i=bs->beginT();i!=bs->end();i++)
+    {
+        ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
+    }
+}
 
 struct Vf : public VectorFunction<double>
 {
@@ -315,7 +325,8 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
                     assert(false);                 
                 }
                // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;
-                EXPECT_NEAR(Jview(ia,ib,ic,id)/norm,R0(*iab,*icd,ia,ib,ic,id),1e-11);
+               double rerr=fabs(jv-r0)/jv;
+                EXPECT_NEAR(rerr,0.0,1e-13);
             }
         }
     }

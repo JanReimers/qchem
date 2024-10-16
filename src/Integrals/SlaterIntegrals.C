@@ -45,6 +45,32 @@ double SlaterRadialIntegrals::operator()   (int k,int la, int lb, int lc, int ld
 //    cout << "afact*Iab+cfact*Icd=" << afact*Iab+cfact*Icd << endl;
     return afact*Iab+cfact*Icd;
 }
+
+double SlaterRadialIntegrals::operator()   (int lab, int lcd) const
+{
+    int Lab_p=lab+2; // first term r_1^2
+    int Lcd_m=lcd+1; // first term r_2
+    int Lab_m=lab+1; // second term r_1
+    int Lcd_p=lcd+2; // second term r_2^2
+    assert(Lab_m>=0);
+    assert(Lcd_m>=0);
+
+    assert(Lab_p+1<=qchem::NMax);
+    assert(Lcd_p+1<=qchem::NMax);
+//    cout << "Lab_m, Lcd_m, Lab_p, Lcd_p =" << Lab_m << " " << Lcd_m << " " << Lab_p << " " << Lcd_p << endl; 
+    double afact=qchem::Fact[Lcd_p]; //These ab and cd are reversed on purpose.
+    double cfact=qchem::Fact[Lab_p];
+    double Iab=Dab(Lab_m,Lcd_p+1);
+    double Icd=Dcd(Lcd_m,Lab_p+1);
+//    if(Lab_p>0 || Lcd_p>0 )
+//    {
+//        std::cout <<  "L+=" << Lab_p << ", " << Lcd_p << ", L-=" << Lab_m << ", " << Lcd_m << std::endl;
+//        std::cout <<  afact << "*" << Iab << " + " << cfact << "*" << Icd << std::endl;
+//    }
+//    cout << "afact*Iab+cfact*Icd=" << afact*Iab+cfact*Icd << endl;
+    return afact*Iab+cfact*Icd;
+}
+
 double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld) const
 {
 //    if (la==1 && lb==1 && lc==1 && ld==1)
