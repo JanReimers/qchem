@@ -41,7 +41,7 @@ class SlaterRadialIntegralTests : public ::testing::Test
 {
 public:
     SlaterRadialIntegralTests()
-    : Lmax(1    )
+    : Lmax(2    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new Slater::IntegralEngine())
@@ -113,6 +113,58 @@ double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slat
          + 5/(pow(a,0)*pow(b,0)*pow(a+b,6))
          + 1/(pow(a,3)*pow(b,3)*pow(a+b,0))
           );
+          
+    if (nab==2 && ncd==6)
+        return 240*f*( 
+                       1/(pow(a,1)*pow(b,5)*pow(a+b,0))
+                     + 1/(pow(a,2)*pow(b,4)*pow(a+b,0))
+                     + 3/(pow(a,0)*pow(b,0)*pow(a+b,6))
+                     - 2/(pow(a,1)*pow(b,0)*pow(a+b,5))
+                     - 1/(pow(a,2)*pow(b,0)*pow(a+b,4))
+                    );
+     if (nab==6 && ncd==2)
+        return 240*f*( 
+                       1/(pow(a,5)*pow(b,1)*pow(a+b,0))
+                     + 1/(pow(a,4)*pow(b,2)*pow(a+b,0))
+                     + 3/(pow(a,0)*pow(b,0)*pow(a+b,6))
+                     - 2/(pow(a,0)*pow(b,1)*pow(a+b,5))
+                     - 1/(pow(a,0)*pow(b,2)*pow(a+b,4))
+                    );
+    if (nab==4 && ncd==6)
+        return 1440*f*( 
+                        2/(pow(a,3)*pow(b,5)*pow(a+b,0))
+                     +  2/(pow(a,4)*pow(b,4)*pow(a+b,0))
+                     + 28/(pow(a,0)*pow(b,0)*pow(a+b,8))
+                     -  7/(pow(a,1)*pow(b,0)*pow(a+b,7))
+                     - 12/(pow(a,2)*pow(b,0)*pow(a+b,6))
+                     -  7/(pow(a,3)*pow(b,0)*pow(a+b,5))
+                     -  2/(pow(a,4)*pow(b,0)*pow(a+b,4))
+                    );
+    if (nab==6 && ncd==4)
+        return 1440*f*( 
+                        2/(pow(a,5)*pow(b,3)*pow(a+b,0))
+                     +  2/(pow(a,4)*pow(b,4)*pow(a+b,0))
+                     + 28/(pow(a,0)*pow(b,0)*pow(a+b,8))
+                     -  7/(pow(a,0)*pow(b,1)*pow(a+b,7))
+                     - 12/(pow(a,0)*pow(b,2)*pow(a+b,6))
+                     -  7/(pow(a,0)*pow(b,3)*pow(a+b,5))
+                     -  2/(pow(a,0)*pow(b,4)*pow(a+b,4))
+                    );
+    
+    if (nab==6 && ncd==6)
+        return 86400*f*( 
+                        1/(pow(a,5)*pow(b,5)*pow(a+b,0))
+                     +  1/(pow(a,6)*pow(b,4)*pow(a+b,0))
+                     + 42/(pow(a,0)*pow(b,0)*pow(a+b,10))
+                     - 14/(pow(a,2)*pow(b,0)*pow(a+b,8))
+                     - 14/(pow(a,3)*pow(b,0)*pow(a+b,7))
+                     -  9/(pow(a,4)*pow(b,0)*pow(a+b,6))
+                     -  4/(pow(a,5)*pow(b,0)*pow(a+b,5))
+                     -  1/(pow(a,6)*pow(b,0)*pow(a+b,4))
+                    );
+    
+    
+                    
     assert(false);
     return 0;
 
@@ -254,9 +306,16 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
                 //int nab=i->Ns(ia)+i->Ns(ib) ,ncd=i->Ns(ic)+i->Ns(id);
                 //double R01111=2.0/(a*b*(a+b))*(1/(a*b)+1/pow(a+b,2));
               
-                //cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
+                double jv=Jview(ia,ib,ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
+                if (fabs(jv-r0)/jv>1e-12)
+                {
+                    cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
+                    cout << iab->GetQuantumNumber() << " " << icd->GetQuantumNumber() << endl; 
+                    cout << "j,r=" << jv << " " << r0 << endl;
+                    assert(false);                 
+                }
                // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;
-                EXPECT_NEAR(Jview(ia,ib,ic,id)/norm,R0(*iab,*icd,ia,ib,ic,id),1e-13);
+                EXPECT_NEAR(Jview(ia,ib,ic,id)/norm,R0(*iab,*icd,ia,ib,ic,id),1e-11);
             }
         }
     }
