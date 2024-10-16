@@ -47,6 +47,9 @@ double SlaterRadialIntegrals::operator()   (int k,int la, int lb, int lc, int ld
 }
 double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld) const
 {
+//    if (la==1 && lb==1 && lc==1 && ld==1)
+//        cout << "DoExchangeSum (" << la << "," << lb << "," << lc << "," << ld << ")" << endl;
+//                    
     static Wigner3j w; //Returns the **square** of the 3j symbol.
     assert(la==lc);
     assert(lb==ld);
@@ -55,7 +58,7 @@ double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
     double ret=0.0;
-    for (int k=kmin;k<=kmax;k++)
+    for (int k=kmin;k<=kmax;k+=2)
     {
         ret+=(*this)(k,la,lb,la,lb)*w(la,k,lb);
     }

@@ -150,7 +150,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                 for (index_t id:sg->es.indices(ic))
                 {
                     bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id) && J(ia,ib,ic,id)==-1.0;
-                    bool doK = false;//sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id) && K(ia,ib,ic,id)==-1.0;
+                    bool doK = sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id) && K(ia,ib,ic,id)==-1.0;
                     if (doJ || doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
@@ -172,7 +172,12 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 
                        }
                         if (doK)
+                        {
                             K(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
+                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
+                            
+                        }
                         else
                             K(ia,ib,ic,id)=0.0;
                      }

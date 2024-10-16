@@ -1,7 +1,8 @@
 #include "Imp/Integrals/Wigner3j.H"
 #include <cassert>
 #include <iostream>
-
+using std::cout;
+using std::endl;
 Wigner3j::Wigner3j()
 {
     // Load up data array with markers.
@@ -44,25 +45,34 @@ Wigner3j::Wigner3j()
             if ((la+l+lb)%2==0) //Check that summ is even
             {
                 double wigner=Data[la][l][lb];
-//                assert(wigner!=-1.0);
-                Data[la][lb][l ]=wigner;
-                Data[lb][l ][la]=wigner;
-                Data[lb][la][l ]=wigner;
-                Data[l ][la][lb]=wigner;
-                Data[l ][lb][la]=wigner;
+                if (wigner!=-1.0)
+                {
+                    Data[la][lb][l ]=wigner;
+                    Data[lb][l ][la]=wigner;
+                    Data[lb][la][l ]=wigner;
+                    Data[l ][la][lb]=wigner;
+                    Data[l ][lb][la]=wigner;                    
+                }
             }
 
 }
 
-double Wigner3j::operator()(int la, int l, int lb) const 
+using std::cout;
+using std::endl;
+
+double Wigner3j::operator()(int la, int k, int lb) const 
 {
     assert(la>=0);
     assert(la<=LMax);
-    assert(l >=0);
-    assert(l <=LMax);
+    assert(k >=0);
+    assert(k <=LMax);
     assert(lb>=0);
     assert(lb<=LMax);
-    double ret=Data[la][l][lb];
+    double ret=Data[la][k][lb];
+    if (ret==-1.0)
+    {
+        cout << "Wigner3j no data for la,k,lb = " << LMax << " " << la  << " " << k << " " << lb << endl;
+    }
     assert(ret!=-1.0);
     assert(ret>0.0);
     return ret;
