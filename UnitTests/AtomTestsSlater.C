@@ -1,7 +1,7 @@
 // File: AtomTests.C  Test the DFT calculation for a hydrogen atom
 
 #include "DFTTesterSlater.H"
-//#include "HartreeFockTester.H"
+#include "HartreeFockTester.H"
 #include "DFTDataBase/DFTDataBase.H"
 #include "Cluster/Atom.H"
 #include "Misc/PeriodicTable.H"
@@ -16,18 +16,18 @@ extern PeriodicTable thePeriodicTable;
 
 extern double eps_e;
 
-//TEST_P(HartreeFockAtomTester, AtomsHFPolarized)
-//{
-//    int Z=GetParam();
-//    std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
-//    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
-//    Iterate(itsSCFIParams);
-//    double E_HF=thePeriodicTable.GetEnergyHF(Z);
-//    double error=fabs((E_HF-TotalEnergy())/E_HF);
-//    std::cout.precision(5);
-//    std::cout << "E_HF relative error=" << error*100.0 << "%" << std::endl;
-//    EXPECT_LT(error,eps_e);
-//};
+TEST_P(HartreeFockAtomTesterSlater, AtomsHFPolarized)
+{
+    int Z=GetParam();
+    std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z) << std::endl;
+    Init(new Atom(Z,0,Vector3D<double>(0,0,0)),thePeriodicTable.GetMaxL(Z),thePeriodicTable.GetNumUnpairedElectrons(Z));
+    Iterate(itsSCFIParams);
+    double E_HF=thePeriodicTable.GetEnergyHF(Z);
+    double error=fabs((E_HF-TotalEnergy())/E_HF);
+    std::cout.precision(5);
+    std::cout << "E_HF relative error=" << error*100.0 << "%" << std::endl;
+    EXPECT_LT(error,eps_e);
+};
 
 TEST_P(DFTAtomTesterSlater, AtomsDFTPolarized)
 {
@@ -55,9 +55,9 @@ TEST_P(SemiHartreeFockAtomTesterSlater, AtomsSemiDFTPolarized)
     EXPECT_LT(error,eps_e);
 };
 
-//INSTANTIATE_TEST_CASE_P(AtomsHFPolarized,
-//                        HartreeFockAtomTester,
-//                        ::testing::Values(1,4,5,7,10,12,25));
+INSTANTIATE_TEST_CASE_P(AtomsHFPolarized,
+                        HartreeFockAtomTesterSlater,
+                        ::testing::Values(1,4,5,7,10,12,25));
 
 INSTANTIATE_TEST_CASE_P(AtomsDFTPolarized,
                         DFTAtomTesterSlater,

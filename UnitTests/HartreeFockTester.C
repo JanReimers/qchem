@@ -34,3 +34,18 @@ void HartreeFockAtomTester::Init(int NBasis, int Lmax, double spin, const LAPara
 {
     AtomTester::Init(NBasis,Lmax,spin,lap);
 }
+
+void HartreeFockAtomTesterSlater::Init(Atom* atom)
+{
+    AtomTesterSlater::Init(atom);
+}
+
+void HartreeFockAtomTesterSlater::Init(Atom* atom, int Lmax, double spin)
+{
+    AtomTesterSlater::Init(atom,Lmax,spin);
+}
+
+void HartreeFockAtomTesterSlater::Init(int NBasis, int Lmax, double spin, const LAParams& lap)
+{
+    AtomTesterSlater::Init(NBasis,Lmax,spin,lap);
+}

@@ -24,6 +24,20 @@ public:
   void Init(int NBasis, int Lmax, double spin, const LAParams&);
 };
 
+#include "AtomTesterSlater.H"
+class HartreeFockAtomTesterSlater
+    : public HartreeFockTester
+    , public AtomTesterSlater
+
+{
+public:
+  HartreeFockAtomTesterSlater() : AtomTesterSlater(10,.5,30.0) {};
+  void Init(Atom* atom);
+  void Init(Atom* atom, int Lmax, double spin);
+  void Init(int NBasis, int Lmax, double spin, const LAParams&);
+};
+
+
 #include "MoleculeTester.H"
 class HartreeFockMoleculeTester : public MoleculeTester, public HartreeFockTester
 {

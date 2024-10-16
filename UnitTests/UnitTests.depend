@@ -343,9 +343,10 @@
 1728746937 /home/janr/Code/qchem/UnitTests/MoleculeTester.H
 	"BaseTester.H"
 
-1728702130 /home/janr/Code/qchem/UnitTests/HartreeFockTester.H
+1729118622 /home/janr/Code/qchem/UnitTests/HartreeFockTester.H
 	"BaseTester.H"
 	"AtomTester.H"
+	"AtomTesterSlater.H"
 	"MoleculeTester.H"
 
 1728599453 /home/janr/Code/qchem/src/DFTDataBase/DFTDataBase.H
@@ -457,7 +458,7 @@
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 	"Misc/rc_ptr.H"
 
-1728702130 source:/home/janr/Code/qchem/UnitTests/HartreeFockTester.C
+1729118722 source:/home/janr/Code/qchem/UnitTests/HartreeFockTester.C
 	"HartreeFockTester.H"
 	"HamiltonianImplementation/HartreeFockVxc.H"
 	"HamiltonianImplementation/PolarizedHartreeFockVxc.H"
@@ -644,7 +645,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1729118332 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1729118821 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -1103,8 +1104,9 @@
 1729116829 /home/janr/Code/qchem/UnitTests/AtomTesterSlater.H
 	"BaseTester.H"
 
-1729118211 source:/home/janr/Code/qchem/UnitTests/AtomTestsSlater.C
+1729118658 source:/home/janr/Code/qchem/UnitTests/AtomTestsSlater.C
 	"DFTTesterSlater.H"
+	"HartreeFockTester.H"
 	"DFTDataBase/DFTDataBase.H"
 	"Cluster/Atom.H"
 	"Misc/PeriodicTable.H"
