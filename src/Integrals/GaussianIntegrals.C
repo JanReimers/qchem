@@ -185,8 +185,6 @@ GaussianRadialIntegrals::GaussianRadialIntegrals(double e_ab, double e_cd)
     : a(e_ab)
     , c(e_cd)
 {
-    if (qchem::DFact[0]!=1.0) qchem::InitFactorials();
- 
 }
 
 double GaussianRadialIntegrals::operator()(int l,int la, int lb, int lc, int ld) const
@@ -219,7 +217,6 @@ double GaussianRadialIntegrals::operator()(int l,int la, int lb, int lc, int ld)
 
 double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) const
 {
-    static Wigner3j w; //Returns the **square** of the 3j symbol.
     assert(la==lc);
     assert(lb==ld);
     assert(la>=0);
@@ -229,7 +226,7 @@ double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) co
     double ret=0.0;
     for (int l=lmin;l<=lmax;l+=2)
     {
-        ret+=(*this)(l,la,lb,la,lb)*w(la,l,lb);
+        ret+=(*this)(l,la,lb,la,lb)*Wigner3j::theW3j(la,l,lb);
     }
     return 2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }

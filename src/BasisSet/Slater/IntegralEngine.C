@@ -19,8 +19,6 @@ double IntegralEngine::FourPi2=4*4*Pi*Pi;
 
 IntegralEngine::IntegralEngine()
 {
-    qchem::InitFactorials();
-    
 }
 
 AnalyticIE<double>* IntegralEngine::Clone() const

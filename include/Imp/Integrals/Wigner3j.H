@@ -1,6 +1,7 @@
 #ifndef WIGNER3J_H
 #define WIGNER3J_H
 
+
 //
 //  Server up special Wigner3j symbols resulting from exchange integral angular integrations:
 //
@@ -9,10 +10,11 @@
 // 2
 class Wigner3j
 {
-    public:
-        Wigner3j();
-        double operator()(int la, int l, int lb) const;
-    private:
+public:
+    static Wigner3j theW3j;
+    double operator()(int la, int l, int lb) const;
+private:
+    Wigner3j();
     static const int LMax=8;
     double Data[LMax+1][LMax+1][LMax+1];
 };

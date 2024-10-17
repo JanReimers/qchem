@@ -9,8 +9,9 @@ Priority 1:
     -Get all headers into include.
     -STO basis set for atoms.
         -Type out the integral formulas
-        -Get maxL=4 working (f g functions)
-            Need to automate the I_k expressions using binomial sum. 
+        -Use a static pascal triangle for I_k calculations.
+        Done: -Get maxL=4 working (f g functions)
+            Done: Need to automate the I_k expressions using binomial sum. 
         -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
         -One alpha=Z/n basis function, to satisfy the cusp condition.
         Done: -Start coding the BF/BS/IE classes.
@@ -28,7 +29,8 @@ Priority 1:
             cluster type
                 Some basis sets only work with atoms
         Templates?
-    -Clean up factorial wigner 3j table init.  Too many calls.
+    -Done: Clean up factorial wigner 3j table init.  Too many calls.
+    -G-orbs for gaussians?
     
 oml:
     **-SMAT does not support S+=Xpr

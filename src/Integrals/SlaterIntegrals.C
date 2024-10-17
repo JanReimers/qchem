@@ -13,7 +13,6 @@ using std::endl;
  SlaterRadialIntegrals::SlaterRadialIntegrals(double _eab, double _ecd)
     : eab(_eab), ecd(_ecd)
 {
-    if (qchem::DFact[0]!=1.0) qchem::InitFactorials();
 };
     
 
@@ -89,7 +88,6 @@ double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld
 //    if (la==1 && lb==1 && lc==1 && ld==1)
 //        cout << "DoExchangeSum (" << la << "," << lb << "," << lc << "," << ld << ")" << endl;
 //                    
-    static Wigner3j w; //Returns the **square** of the 3j symbol.
     assert(la==lc);
     assert(lb==ld);
     assert(la>=0);
@@ -99,7 +97,7 @@ double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld
     double ret=0.0;
     for (int k=kmin;k<=kmax;k+=2)
     {
-        ret+=(*this)(k,la,lb,la,lb)*w(la,k,lb);
+        ret+=(*this)(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb);
     }
     return 2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
@@ -118,7 +116,6 @@ double SlaterRadialIntegrals::Dcd(int m,int n) const
 double SlaterRadialIntegrals::D(double _a, int k,int n) const
 {
     //cout << "D(a,k,n) a=" << _a << " k=" << k << " n=" << n << endl; 
-    double ret=0.0;
     double I0=1/(_a*pow(eab+ecd,n));
     //cout << "I0=" << I0 << endl;
     double I1,I2,I3,I4,I5,I6,I7,I8,I9,I10,f0,f1,f2,f3,f4,f5,f6,f7,f8,f9;

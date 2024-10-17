@@ -68,7 +68,6 @@ private:
 //    double Hbadc(int k) const;
     
     double eab,ecd;
-    Wigner3j itsW3j;
 };
 
 
