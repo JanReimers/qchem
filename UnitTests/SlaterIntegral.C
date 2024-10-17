@@ -41,7 +41,7 @@ class SlaterRadialIntegralTests : public ::testing::Test
 {
 public:
     SlaterRadialIntegralTests()
-    : Lmax(2    )
+    : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new Slater::IntegralEngine())
@@ -68,6 +68,7 @@ public:
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
     }
     
+    bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     double R0(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     
     typedef AnalyticIE<double>::ERI3 ERI3;
@@ -85,11 +86,14 @@ public:
     MeshIntegrator<double>* rmintegrator;
 };
 
+bool SlaterRadialIntegralTests::supported(const Slater::IrrepIEClient& ab, const Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
+{
+    int nab=ab.Ns(ia)+ab.Ns(ib);
+    int ncd=cd.Ns(ic)+cd.Ns(id);
+    return nab<=6 && ncd<=6;
+}
 
-//inline double r(double a, double b, double apb,int )
-//{
-//    
-//}
+
 double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
     double a=ab.es(ia)+ab.es(ib);
@@ -312,21 +316,21 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
             for (int id=ic;id<=Ncd;id++)
             {
                 double norm=iab->ns(ia)*iab->ns(ib)*icd->ns(ic)*icd->ns(id);
-                //double a=iab->es(ia)+iab->es(ib) ,b=icd->es(ic)+icd->es(id);
-                //int nab=i->Ns(ia)+i->Ns(ib) ,ncd=i->Ns(ic)+i->Ns(id);
-                //double R01111=2.0/(a*b*(a+b))*(1/(a*b)+1/pow(a+b,2));
-              
-                double jv=Jview(ia,ib,ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
-                if (fabs(jv-r0)/jv>1e-12)
+                if (supported(*iab,*icd,ia,ib,ic,id))
                 {
-                    cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
-                    cout << iab->GetQuantumNumber() << " " << icd->GetQuantumNumber() << endl; 
-                    cout << "j,r=" << jv << " " << r0 << endl;
-                    assert(false);                 
+                        
+                    double jv=Jview(ia,ib,ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
+                    if (fabs(jv-r0)/jv>1e-12)
+                    {
+                        cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
+                        cout << iab->GetQuantumNumber() << " " << icd->GetQuantumNumber() << endl; 
+                        cout << "j,r=" << jv << " " << r0 << endl;
+                        assert(false);                 
+                    }
+                    // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;
+                    double rerr=fabs(jv-r0)/jv;
+                    EXPECT_NEAR(rerr,0.0,1e-13);
                 }
-               // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;
-               double rerr=fabs(jv-r0)/jv;
-                EXPECT_NEAR(rerr,0.0,1e-13);
             }
         }
     }

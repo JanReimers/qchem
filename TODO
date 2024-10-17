@@ -9,12 +9,34 @@ Priority 1:
     -Get all headers into include.
     -STO basis set for atoms.
         -Type out the integral formulas
-        -Start coding the BF/BS/IE classes.
-        -Test the integrals with numerical integrations.
+        -Get maxL=4 working (f g functions)
+            Need to automate the I_k expressions using binomial sum. 
+        -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
+        -One alpha=Z/n basis function, to satisfy the cusp condition.
+        Done: -Start coding the BF/BS/IE classes.
+        Done: -Test the integrals with numerical integrations.
+            Repulsions integrals don't give the right numbers.
+    -Make a new PolG::IntegralEngine using libcint
+    -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
+        is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
+    -Automate exponents for slater orbitals.  0.5->1.5*Z ?
+    -Re-org UT class network.  too many classes.
+        Decoutple
+            Basis set type
+            H type
+                Some H types need fit basis sets.
+            cluster type
+                Some basis sets only work with atoms
+        Templates?
+    -Clean up factorial wigner 3j table init.  Too many calls.
     
+oml:
+    **-SMAT does not support S+=Xpr
+    -Support V*SymMat without including matrix.h
+    -Vector constructors with fill arguments was a really bad idea.
+
       
 Priority 2:
- **   -SMAT does not support S+=Xpr
     -Hunt for dynamic casts that can be removed using dynamic_cast iterator
     -Do something about the oml/imp includes.
         Done: -Stop deriving from StreamableObject  it is mostly static any way
@@ -39,7 +61,6 @@ Priority 3:
         -Broke BasisSet persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>
         Yes but only for the gradient, renamed accordingly.
-    -Support V*S without including matrix.h
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place

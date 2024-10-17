@@ -5,6 +5,7 @@ using std::cout;
 using std::endl;
 Wigner3j::Wigner3j()
 {
+//    std::cout << "Initializing Wigner 3j tables LMax=" << LMax << std::endl;
     // Load up data array with markers.
     for (int la=0; la<=LMax; la++)
         for (int l=0; l<=LMax; l++)

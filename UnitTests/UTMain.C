@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "AtomsDFTPolarized/DFTAtomTesterSlater.AtomsDFTPolarized/*";
 //    testing::GTEST_FLAG(filter) = "AtomsSemiDFTPolarized/SemiHartreeFockAtomTesterSlater.AtomsSemiDFTPolarized/*";
 //    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/1";
-    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTesterSlater.AtomsHFPolarized/*";
+//    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTesterSlater.AtomsHFPolarized/*";
     return RUN_ALL_TESTS();
 }
 

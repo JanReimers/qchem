@@ -1,7 +1,7 @@
 // File: Factorials.C
 
 #include "Imp/Integrals/Factorials.H"
-
+#include <iostream>
 namespace qchem
 {
     double DFact[NMax+1]; //Double factorials 1,3,3*5,3*5*7 etc. lookup table.
@@ -10,6 +10,7 @@ namespace qchem
 
     void InitFactorials()    
     {
+        std::cout << "Initializing factorial tables NMax=" << NMax << std::endl;
         DFact[0]=1.0;
         DFact[1]=1.0;
         Fact[0]=1.0;
