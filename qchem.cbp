@@ -106,6 +106,7 @@
 		<Unit filename="include/Imp/Integrals/Factorials.H" />
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/GaussianRadialIntegrals.H" />
+		<Unit filename="include/Imp/Integrals/PascalTriangle.H" />
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
 		<Unit filename="include/Imp/LAParams.H" />
@@ -445,6 +446,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/GaussianIntegrals.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/PascalTriangle.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/SlaterIntegrals.C">

@@ -6,6 +6,8 @@ int main(int argc, char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
 
+          testing::GTEST_FLAG(filter) = "A_SG_HF_U.He";
+//
 //      testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
 //      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
