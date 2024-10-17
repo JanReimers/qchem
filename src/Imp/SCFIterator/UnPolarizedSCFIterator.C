@@ -3,6 +3,7 @@
 
 
 #include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
+#include "SCFIterator/IterationParams.H"
 #include "Hamiltonian.H"
 #include "WaveFunction.H"
 #include "Orbital/ElectronDumper.H"
@@ -24,24 +25,28 @@ UnPolarizedSCFIterator::UnPolarizedSCFIterator(WaveFunction* W, Hamiltonian* H,C
 
 bool UnPolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
 {
-    std::cout << std::endl << std::endl;
-    std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up) " << std::endl;
-    std::cout << "-------------------------------------------------------------------------------" << std::endl;
-
+    if (ipar.Verbose)
+    {
+        std::cout << std::endl << std::endl;
+        std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up) " << std::endl;
+        std::cout << "-------------------------------------------------------------------------------" << std::endl;
+    }
     bool ret=SCFIteratorImplementation::Iterate(ipar);
 
-    std::cout << "-------------------------------------------------------------------------------" << std::endl;
-    DisplayEigen();
+    if (ipar.Verbose)
+    {
+        std::cout << "-------------------------------------------------------------------------------" << std::endl;
+        DisplayEigen();
+    }
     return ret;
 }
 
-double UnPolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
+void UnPolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
 {
-    double ret=SCFIteratorImplementation::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
+    SCFIteratorImplementation::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
 //    std::cout.setf(std::ios::fixed,std::ios::floatfield);
 //    std::cout << std::setw(9) << std::setprecision(6) << itsEf << std::endl;
     std::cout << std::endl;
-    return ret;
 }
 
 void UnPolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)

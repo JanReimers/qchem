@@ -8,8 +8,8 @@ class SCFIteratorImplementation
 public:
     SCFIteratorImplementation(WaveFunction*, Hamiltonian*,bool showplot);
     virtual ~SCFIteratorImplementation();
-    virtual bool   Iterate(const SCFIterationParams& ipar);
-    virtual double DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
+    virtual bool Iterate(const SCFIterationParams& ipar);
+    virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
 
     virtual ChargeDensity* GetExactChargeDensity () const;
 

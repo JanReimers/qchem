@@ -10,10 +10,10 @@ class UnPolarizedSCFIterator
 public:
     UnPolarizedSCFIterator(WaveFunction*, Hamiltonian* ,ChargeDensity* guess, double nElectrons, double kT, bool showplot);
 
-    virtual bool   Iterate(const SCFIterationParams& ipar);
-    virtual void   DumpElectrons  (WaveFunction*, double kT);
-    virtual double DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
-    virtual void   DisplayEigen   () const;
+    virtual bool Iterate(const SCFIterationParams& ipar);
+    virtual void DumpElectrons  (WaveFunction*, double kT);
+    virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
+    virtual void DisplayEigen   () const;
 
 private:
     double itsTotalCharge;

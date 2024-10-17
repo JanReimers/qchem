@@ -5,6 +5,7 @@
 #include "Hamiltonian.H"
 #include "WaveFunction.H"
 #include "Imp/SCFIterator/PolarizedSCFIterator.H"
+#include "SCFIterator/IterationParams.H"
 #include "ChargeDensity.H"
 #include "Orbital/ElectronDumper.H"
 #include "Misc/Spin.H"
@@ -52,27 +53,32 @@ void PolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)
 
 bool PolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
 {
-    std::cout << std::endl << std::endl;
-    std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up)   Ef(down) " << std::endl;
-    std::cout << "----------------------------------------------------------------------------" << std::endl;
+    if (ipar.Verbose)
+    {
+        std::cout << std::endl << std::endl;
+        std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up)   Ef(down) " << std::endl;
+        std::cout << "----------------------------------------------------------------------------" << std::endl;
+    }
     bool ret=SCFIteratorImplementation::Iterate(ipar);
-    std::cout << "-----------------------------------------------------------------" << std::endl;
-    DisplayEigen();
+    if (ipar.Verbose)
+    {
+        std::cout << "-----------------------------------------------------------------" << std::endl;
+        DisplayEigen();
+    }
     return ret;
 }
 
 
 
 
-double PolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
+void PolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
 {
-    double ret=SCFIteratorImplementation::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
+    SCFIteratorImplementation::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
 //    std::cout.setf(std::ios::fixed,std::ios::floatfield);
 //    std::cout
 //        << std::setw(9) << std::setprecision(6) << itsUpEf << " "
 //        << std::setw(9) << std::setprecision(6) << itsDownEf << std::endl;
     std::cout << std::endl;
-    return ret;
 }
 
 void PolarizedSCFIterator::DisplayEigen() const
