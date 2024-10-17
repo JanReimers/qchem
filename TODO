@@ -9,14 +9,14 @@ Priority 1:
     -Get all headers into include.
     -STO basis set for atoms.
         -Type out the integral formulas
-        -Use a static pascal triangle for I_k calculations.
+        Done: -Use a static pascal triangle for I_k calculations.
         Done: -Get maxL=4 working (f g functions)
             Done: Need to automate the I_k expressions using binomial sum. 
         -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
         -One alpha=Z/n basis function, to satisfy the cusp condition.
         Done: -Start coding the BF/BS/IE classes.
         Done: -Test the integrals with numerical integrations.
-            Repulsions integrals don't give the right numbers.
+            Numerical repulsion integrals don't give the right numbers.
     -Make a new PolG::IntegralEngine using libcint
     -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
         is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>

@@ -5,7 +5,7 @@
 
 
 #include "../Polarization.H"
-#include "Imp/Containers/Triangle.H"
+#include "Imp/Containers/Triangle3D.H"
 #include "oml/vector3d.h"
 #include <iosfwd>
 
@@ -41,7 +41,7 @@ public:
 
 private:
     int          itsLMax;
-    Triangle     itsData;
+    Triangle3D     itsData;
 };
 
 } //namespace PolarizedGaussian

@@ -96,7 +96,8 @@
 		<Unit filename="include/Imp/BasisSet/TCommon.H" />
 		<Unit filename="include/Imp/BasisSet/TIrrepCommon.H" />
 		<Unit filename="include/Imp/Containers/ERI4.H" />
-		<Unit filename="include/Imp/Containers/Triangle.H" />
+		<Unit filename="include/Imp/Containers/Triangle2D.H" />
+		<Unit filename="include/Imp/Containers/Triangle3D.H" />
 		<Unit filename="include/Imp/Containers/ptr_vector.h" />
 		<Unit filename="include/Imp/Containers/ptr_vector_io.h" />
 		<Unit filename="include/Imp/Containers/stl_io.h" />
@@ -266,7 +267,10 @@
 		<Unit filename="src/Containers/ERI4.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Containers/Triangle.C">
+		<Unit filename="src/Containers/Triangle2D.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Containers/Triangle3D.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Containers/stl_io.C">

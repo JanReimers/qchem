@@ -112,7 +112,6 @@
 		<Unit filename="SemiHFTester.H" />
 		<Unit filename="SlaterIntegral.C">
 			<Option compilerVar="CPP" />
-			<Option target="Debug" />
 		</Unit>
 		<Unit filename="UTMain.C">
 			<Option compilerVar="CPP" />

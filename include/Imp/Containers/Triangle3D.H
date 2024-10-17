@@ -13,13 +13,13 @@
 //
 //  Implements an triangle data structure, where N+L+M is always < MaxSum.
 //
-class Triangle
+class Triangle3D
     : public virtual PMStreamableObject
 {
 public:
-    Triangle(   );
-    Triangle(int);
-    Triangle& operator=(const Triangle&);
+    Triangle3D(   );
+    Triangle3D(int);
+    Triangle3D& operator=(const Triangle3D&);
 
     double operator()(int i,int j, int k) const
     {
@@ -32,7 +32,7 @@ public:
         return itsData[(N-i)*(N-i+1)*(N-i+2)/6+(N-i-j)*(N-i-j+1)/2+N-i-j-k];
     }
     // Element by element addition of another triangle.
-    void   Add  (const Triangle&, double Scale);
+    void   Add  (const Triangle3D&, double Scale);
     void   Clear(                             )
     {
         itsData.clear();
@@ -41,7 +41,7 @@ public:
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
-    static  Triangle* Factory(std::istream&)      ;
+    static  Triangle3D* Factory(std::istream&)      ;
 
 private:
     void    Check(int,int,int) const;

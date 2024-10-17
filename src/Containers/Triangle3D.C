@@ -1,18 +1,18 @@
 // File: Triangle.C  A triangular data structure.
-#include "Imp/Containers/Triangle.H"
+#include "Imp/Containers/Triangle3D.H"
 #include "Imp/Containers/stl_io.h"
 #include <cassert>
 
-Triangle::Triangle()
+Triangle3D::Triangle3D()
     : N(-1)
 {};
 
-Triangle::Triangle(int theMaxSum)
+Triangle3D::Triangle3D(int theMaxSum)
     : N(theMaxSum)
     , itsData  ((N+1)*(N+2)*(N+3)/6)
 {};
 
-Triangle& Triangle::operator=(const Triangle& other)
+Triangle3D& Triangle3D::operator=(const Triangle3D& other)
 {
     if(&other!=this)
     {
@@ -22,7 +22,7 @@ Triangle& Triangle::operator=(const Triangle& other)
     return *this;
 }
 
-void Triangle::Add(const Triangle& theT, double theScale)
+void Triangle3D::Add(const Triangle3D& theT, double theScale)
 {
     assert(N<0 || N==theT.N);
     if (N<0)
@@ -36,7 +36,7 @@ void Triangle::Add(const Triangle& theT, double theScale)
 }
 
 
-void Triangle::Check(int i,int j,int k) const
+void Triangle3D::Check(int i,int j,int k) const
 {
     if(i+j+k > N)
     {
@@ -56,7 +56,7 @@ void Triangle::Check(int i,int j,int k) const
     }
 }
 
-std::ostream&  Triangle::Write(std::ostream& os) const
+std::ostream&  Triangle3D::Write(std::ostream& os) const
 {
     if (!StreamableObject::Pretty())
         os << N << " " << itsData << std::endl;
@@ -77,7 +77,7 @@ std::ostream&  Triangle::Write(std::ostream& os) const
     return os;
 }
 
-std::istream&  Triangle::Read (std::istream& is)
+std::istream&  Triangle3D::Read (std::istream& is)
 {
     return is >> N >> itsData;
 }

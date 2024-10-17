@@ -21,13 +21,13 @@ RNLM::RNLM(int Max, double Alpha, const RVec3& dR)
     : itsLMax(Max)
     , itsData()
 {
-    static Triangle theRjs[MAX+1];
+    static Triangle3D theRjs[MAX+1];
     static bool     theRjsInitialized = false;
     if(!theRjsInitialized)
     {
         assert(MAX==AuxillaryFJ::thejMax);
         int GlobalMax=AuxillaryFJ::thejMax;
-        for (int j=0; j<=GlobalMax; j++) theRjs[j] = Triangle(GlobalMax-j);
+        for (int j=0; j<=GlobalMax; j++) theRjs[j] = Triangle3D(GlobalMax-j);
         theRjsInitialized=true;
     }
 
@@ -40,14 +40,14 @@ RNLM::RNLM(int Max, double Alpha, const RVec3& dR)
     }
 
 //  cout << "T=" << T << " Max = " << Max << "  Fj=" << Fj << std::endl;
-    Triangle* Rjs=&theRjs[AuxillaryFJ::thejMax-Max];
+    Triangle3D* Rjs=&theRjs[AuxillaryFJ::thejMax-Max];
 //  for (int j=0;j<=Max;j++) Rjs.push_back(new Triangle(Max-j));
 
     Rjs[Max](0,0,0)=uintpow(-2.0*Alpha,Max)*Fj(Max);
     for (int j=Max-1; j>=0; j--)
     {
-        Triangle& Rj  =Rjs[j  ];
-        const Triangle& Rjp1=Rjs[j+1];
+        Triangle3D& Rj  =Rjs[j  ];
+        const Triangle3D& Rjp1=Rjs[j+1];
 
         Rj(0,0,0)=intpow(-2.0*Alpha,j)*Fj(j);
         int n=Max-j;
