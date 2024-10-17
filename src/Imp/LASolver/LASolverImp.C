@@ -44,8 +44,9 @@ template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& s, Mat& Vt, d
     size_t n=s.size();
     assert(s(index)>=tol);
     assert(index==n || s(index+1)<tol);
-    std::cout << "LASolverCommon truncating " << n-index << " singular values." << 
-    " Min(s)="<< s(n) << " yol=" << tol << std::endl;
+    if (n-index >0)
+        std::cout << "LASolverCommon truncating " << n-index << " singular values." << 
+        " Min(s)="<< s(n) << " tol=" << tol << std::endl;
     //
     //  Two sets of vector limits
     //

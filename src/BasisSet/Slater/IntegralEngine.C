@@ -148,8 +148,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     size_t N=sg->size();
     J.SetSize(N,-1.0);
     K.SetSize(N,-1.0);
-    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
-
+    
     for (index_t ia:sg->es.indices())
         for (index_t ib:sg->es.indices(ia))
             for (index_t ic:sg->es.indices())
