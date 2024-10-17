@@ -21,7 +21,7 @@ QchemTester::QchemTester()
 void QchemTester::Init()
 {
     itsCluster=GetCluster(); //Atom or Molecule
-    assert(itsCluster);
+    assert(&*itsCluster);
     itsBasisSet=GetBasisSet(&*itsCluster); //SG, PG, Slater
     assert(itsBasisSet);
     itsHamiltonian=GetHamiltonian(itsCluster); //HF,semi HF, DFT all Pol or un-polarized.
@@ -49,7 +49,7 @@ double QchemTester::TotalEnergy() const
 #include <cmath> //fabs
 double QchemTester::RelativeHFError(bool quiet) const
 {
-    double E_HF=itsPT.GetEnergyHF(2);
+    double E_HF=itsPT.GetEnergyHF(itsCluster->GetNuclearCharge());
     double error=fabs((E_HF-TotalEnergy())/E_HF);
     if (!quiet)
     {
@@ -102,10 +102,15 @@ HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
 }
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
-
 BasisSet* SG_OBasis::GetBasisSet (const Cluster*) const
 {
     return new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax); 
+}
+
+#include "Imp/BasisSet/Slater/BasisSet.H"
+BasisSet* SL_OBasis::GetBasisSet (const Cluster*) const
+{
+    return new Slater::BasisSet(lap,N,emin,emax,Lmax); 
 }
 
 #include "Cluster/Molecule.H"

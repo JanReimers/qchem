@@ -81,6 +81,26 @@ private:
     LAParams lap;
 };
 
+class SL_OBasis : public virtual QchemTester
+{
+public:
+    void Init(int _N, double _emin, double _emax, int _Lmax, const LAParams& _lap)
+    {
+        N=_N;Lmax=_Lmax;emin=_emin;emax=_emax;
+        lap=_lap;
+    }
+    void Init(int _N, double _emin, double _emax, int _Lmax) 
+    {
+        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-6,1e-12}));
+    }
+    
+private:
+    virtual BasisSet* GetBasisSet (const Cluster*) const;
+    int N,Lmax;
+    double emin,emax;
+    LAParams lap;
+};
+
 class TestAtom : public virtual QchemTester
 {
 public:
@@ -119,10 +139,29 @@ public:
     }
 };
 
+class A_SL_HF_U 
+: public ::testing::Test, public TestAtom, public SL_OBasis, HFHamiltonian, TestUnPolarized
+{
+public:
+    void Init(int Z,int N, double emin, double emax, int LMax)
+    {
+        TestAtom::Init(Z);
+        SL_OBasis::Init(N,emin,emax,LMax);
+        QchemTester::Init();
+    }
+};
+
 TEST_F(A_SG_HF_U,He)
 {
-    Init(2,25,.1,10000,0);
-    Iterate({40,1e-3,1.0,0.0});
+    Init(2,20,.1,10000,0);
+    Iterate({40,1e-3,1.0,0.0,false});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+
+TEST_F(A_SL_HF_U,He)
+{
+    Init(2,8,.31,10.9,0);
+    Iterate({40,1e-4,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 

@@ -645,7 +645,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1729196406 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1729200199 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -752,10 +752,10 @@
 	"types.H"
 	<iosfwd>
 
-1728701489 /home/janr/Code/qchem/src/SCFIterator/IterationParams.H
+1729199452 /home/janr/Code/qchem/src/SCFIterator/IterationParams.H
 	"types.H"
 
-1728599453 /home/janr/Code/qchem/src/SCFIterator/SCFIterator.H
+1729199689 /home/janr/Code/qchem/src/SCFIterator/SCFIterator.H
 	"types.H"
 
 1727898305 /home/janr/Code/qchem/include/BasisGroup.H
@@ -1135,13 +1135,14 @@
 	"SemiHFTester.H"
 	"AtomTesterSlater.H"
 
-1729196764 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729200165 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	"SCFIterator/SCFIterator.H"
 	<WaveFunction.H>
 	<Hamiltonian.H>
 	<Cluster.H>
 	<TotalEnergy.H>
+	<cmath>
 	"HamiltonianImplementation/HamiltonianImplementation.H"
 	"HamiltonianImplementation/Kinetic.H"
 	"HamiltonianImplementation/HartreeFockVxc.H"
@@ -1151,16 +1152,16 @@
 	"HamiltonianImplementation/HartreeFockVxc.H"
 	"HamiltonianImplementation/PolarizedHartreeFockVxc.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
+	"Imp/BasisSet/Slater/BasisSet.H"
 	"Cluster/Molecule.H"
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729197104 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729200685 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	"types.H"
 	"Misc/rc_ptr.H"
 	"SCFIterator/IterationParams.H"
 	"Imp/LAParams.H"
 	"Misc/PeriodicTable.H"
-	<cmath>
 
