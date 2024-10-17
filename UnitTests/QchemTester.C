@@ -131,6 +131,7 @@ WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
 {
+    assert(spin>=0);
     return new MasterPolarizedWF(bs,spin);
 }
 
