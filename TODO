@@ -22,7 +22,8 @@ Priority 1:
         is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
         FitFuncImp had shared_ptr for basis set and mesh.
     -Automate exponents for slater orbitals.  0.5->1.5*Z ?
-    -Re-org UT class network.  too many classes.
+        Done: for testing.
+    Done: -Re-org UT class network.  too many classes.
         Decouple
             Basis set type
             H type

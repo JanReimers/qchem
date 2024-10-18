@@ -187,12 +187,11 @@ TEST_F(GaussianRadialERITests, R0_0022)
 
 TEST_F(GaussianRadialERITests, Wigner1)
 {
-    Wigner3j w;
     double expected=3./70.;
-    EXPECT_DOUBLE_EQ(w(1,2,3),expected);
-    EXPECT_DOUBLE_EQ(w(1,3,2),expected);
-    EXPECT_DOUBLE_EQ(w(2,1,3),expected);
-    EXPECT_DOUBLE_EQ(w(2,3,1),expected);
-    EXPECT_DOUBLE_EQ(w(3,2,1),expected);
-    EXPECT_DOUBLE_EQ(w(3,1,2),expected);
+    EXPECT_DOUBLE_EQ(Wigner3j::theW3j(1,2,3),expected);
+    EXPECT_DOUBLE_EQ(Wigner3j::theW3j(1,3,2),expected);
+    EXPECT_DOUBLE_EQ(Wigner3j::theW3j(2,1,3),expected);
+    EXPECT_DOUBLE_EQ(Wigner3j::theW3j(2,3,1),expected);
+    EXPECT_DOUBLE_EQ(Wigner3j::theW3j(3,2,1),expected);
+    EXPECT_DOUBLE_EQ(Wigner3j::theW3j(3,1,2),expected);
 }

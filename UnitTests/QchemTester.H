@@ -34,7 +34,7 @@ protected:
     virtual Hamiltonian* GetHamiltonian(const rc_ptr<Cluster>& cl) const=0;
     // Polarized or un-polarized
     virtual WaveFunction* GetWaveFunction(const BasisSet*) const=0;
-private:
+protected:
     rc_ptr<Cluster> itsCluster;
     BasisSet*     itsBasisSet;
     Hamiltonian*  itsHamiltonian;

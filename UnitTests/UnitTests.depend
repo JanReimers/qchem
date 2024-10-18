@@ -640,7 +640,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1729267851 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1729268417 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -697,17 +697,10 @@
 	"oml/imp/stream.h"
 	"Misc/ptr_vector.h"
 
-1728739518 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
-	"AtomTester.H"
-	"HartreeFockTester.H"
-	"gtest/gtest.h"
-	"oml/imp/stream.h"
-	"Cluster/Atom.H"
-	"Cluster/Molecule.H"
-	"Hamiltonian.H"
-	"BasisSet.H"
-	"WaveFunction.H"
-	"Misc/PeriodicTable.H"
+1729269268 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
+	"QchemTester.H"
+	<Cluster.H>
+	<Hamiltonian.H>
 	<iostream>
 	<fstream>
 
@@ -1166,7 +1159,7 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729268167 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729269141 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	"types.H"
 	"Misc/rc_ptr.H"
@@ -1191,4 +1184,21 @@
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
 	"Cluster/Molecule.H"
+
+1729268252 source:/home/janr/Code/qchem/UnitTests/M_PG_U.C
+	"QchemTester.H"
+	"Mesh/RadialMesh/MHLRadialMesh.H"
+	"Mesh/AngularMesh/GaussAngularMesh.H"
+	"Mesh/AtomMesh.H"
+	"Cluster/Molecule.H"
+
+1729269680 source:/home/janr/Code/qchem/UnitTests/GaussianERIIntegral.C
+	"gtest/gtest.h"
+	"Imp/Integrals/GaussianRadialIntegrals.H"
+	"Imp/Integrals/Wigner3j.H"
+	"Misc/DFTDefines.H"
+	"oml/imp/ran250.h"
+	<iostream>
+	<fstream>
+	<cmath>
 

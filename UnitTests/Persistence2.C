@@ -1,48 +1,32 @@
-#include "AtomTester.H"
-#include "HartreeFockTester.H"
-#include "gtest/gtest.h"
-#include "oml/imp/stream.h"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
-#include "Hamiltonian.H"
-#include "BasisSet.H"
-#include "WaveFunction.H"
-#include "Misc/PeriodicTable.H"
+#include "QchemTester.H"
+
+#include <Cluster.H>
+#include <Hamiltonian.H>
 #include <iostream> 
 #include <fstream>
 
 using std::cout;
 using std::endl;
 
-extern PeriodicTable thePeriodicTable;
-
+int Z=2;
 //----------------------------------------------------------------------------------------------
 //
 //  Testing class
 //
-class qchem_PersistanceTests : public AtomTester, public HartreeFockTester
+class qchem_PersistanceTests : public ::testing::Test
+, public TestAtom, public SG_OBasis, HFHamiltonian, TestUnPolarized
 {
 public:
     qchem_PersistanceTests() 
-        : AtomTester(17,.01,20000.)
+        : TestAtom(::Z)
         , file_name("streamtest2.dat") 
-    {
-        
-    }
+    {}
     
-    void Init(Atom* atom)
+    void Init(int N, double emin, double emax, int LMax)
     {
-        AtomTester::Init(atom);
+        SG_OBasis::Init(N,emin,emax,LMax);
+        QchemTester::Init(1e-3);
     }
-    void Init(Atom* atom, int Lmax, double spin)
-    {
-        AtomTester::Init(atom,Lmax,spin);
-    }
-    void Init(int NBasis, int Lmax, double spin, const LAParams& lap)
-    {
-        AtomTester::Init(NBasis,Lmax,spin,lap);
-    }
-//    void OutIn(const PMStreamableObject* pout,PMStreamableObject* pin,StreamableObject::Mode);
     
     std::string file_name;
 };
@@ -68,14 +52,8 @@ template <class T> T* OutIn(const PMStreamableObject* pout,c_str filename,Stream
     
 TEST_F(qchem_PersistanceTests,AtomBasisSets)
 {
-    
-    int Z=2;
-    int L=thePeriodicTable.GetMaxL(Z),NBasis=6;
-    double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
-    Atom* atom=new Atom(Z,0,Vector3D<double>(0,0,0));
-    Init(atom);
-    LAParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
-    Init(NBasis,L,spin,lap);
+    int L=itsPT.GetMaxL(::Z);
+    Init(6,.01,10000.0,L);
     StreamableObject::SetToPretty();
     
     Cluster* cl=GetCluster();
@@ -87,7 +65,7 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
     delete cl2;
     
     
-    Hamiltonian* h=GetHamiltonian();
+    Hamiltonian* h=itsHamiltonian;
     Hamiltonian* h1=::OutIn<Hamiltonian>(h,file_name.c_str(), StreamableObject::ascii);
     Hamiltonian* h2=::OutIn<Hamiltonian>(h,file_name.c_str(), StreamableObject::binary);
 

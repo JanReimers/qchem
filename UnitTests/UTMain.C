@@ -4,32 +4,19 @@
 
 int main(int argc, char **argv)
 {
-    testing::InitGoogleTest(&argc, argv);
+     testing::InitGoogleTest(&argc, argv);
 
-//    testing::GTEST_FLAG(filter) = "*.He:Multiple/*";
-    testing::GTEST_FLAG(filter) = "M_*:Multiple/A_*";
+//    testing::GTEST_FLAG(filter) = "M_*:Multiple/A_*";
 //    testing::GTEST_FLAG(filter) = "M_*";
 //
+//    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
+//      testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
 //      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_EigenSolverTests.*";
 
-//    testing::GTEST_FLAG(filter) = "SemiHartreeFockMoleculeTester.*";
-//    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*"; 
-//    testing::GTEST_FLAG(filter) = "MoleculesDFTPolarized/DFTMoleculeTester.*/0";
-//    testing::GTEST_FLAG(filter) = "DFTMoleculeTester.*:MoleculesDFTPolarized/DFTMoleculeTester.*";
-//    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
-//    testing::GTEST_FLAG(filter) = "HartreeFockMoleculeTester.*";
-
-//    testing::GTEST_FLAG(filter) = "HartreeFockAtomTester.AtomsHFEigenSolvers";
-//    testing::GTEST_FLAG(filter) = "AtomsSemiDFTPolarized/SemiHartreeFockAtomTester.AtomsSemiDFTPolarized/1";
-//    testing::GTEST_FLAG(filter) = "AtomsDFTPolarized/DFTAtomTester.*";
-//    testing::GTEST_FLAG(filter) = "AtomsDFTPolarized/DFTAtomTesterSlater.AtomsDFTPolarized/*";
-//    testing::GTEST_FLAG(filter) = "AtomsSemiDFTPolarized/SemiHartreeFockAtomTesterSlater.AtomsSemiDFTPolarized/*";
-//    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTester.AtomsHFPolarized/1";
-//    testing::GTEST_FLAG(filter) = "AtomsHFPolarized/HartreeFockAtomTesterSlater.AtomsHFPolarized/*";
     return RUN_ALL_TESTS();
 }
 
