@@ -33,7 +33,8 @@ Priority 1:
     -SCFSupervisor class:
         Owns BS, H, WaveF, SCFIterator
     -Electron loading problem/buf for Z=55 and up
-        
+    -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
+                                    ^^^^^^^^^^^^^^
         
         
     -Done: Clean up factorial wigner 3j table init.  Too many calls.

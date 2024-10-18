@@ -4,6 +4,7 @@
 #include <WaveFunction.H>
 #include <Hamiltonian.H>
 #include <Cluster.H>
+#include <BasisSet.H>
 #include <TotalEnergy.H>
 
 
@@ -16,6 +17,13 @@ QchemTester::QchemTester()
 , MaxRelErrE(1e-3)
 {
     //Cannot call virtual functions from here.
+}
+
+QchemTester::~QchemTester()
+{
+    delete itsBasisSet;
+    delete itsWaveFunction;
+    delete itsSCFIterator;
 }
 
 void QchemTester::Init()
@@ -61,6 +69,20 @@ double QchemTester::RelativeHFError(bool quiet) const
     return error;
 }
 
+double QchemTester::RelativeDFTError(bool quiet) const
+{
+    double E_DFT=itsPT.GetEnergyDFT(itsCluster->GetNuclearCharge());
+    double error=fabs((E_DFT-TotalEnergy())/E_DFT);
+    if (!quiet)
+    {
+        std::cout.precision(6);
+        std::cout << "E_DFT relative error=" << error*100.0 << "%, ";
+        std::cout.precision(2);
+        std::cout << error*1e6 << "(ppm)" << std::endl;            
+    }
+    return error;
+}
+
     
 
 
@@ -95,6 +117,37 @@ HamiltonianTerm* HFHamiltonian:: GetVxc() const
     return new HartreeFockVxc;
 }
 
+#include "HamiltonianImplementation/SlaterExchange.H"
+#include "HamiltonianImplementation/FittedVxc.H"
+#include "HamiltonianImplementation/PolarizedFittedVxc.H"
+#include "Hamiltonian/ExchangeFunctional.H" 
+
+SHFHamiltonian::~SHFHamiltonian()
+{}
+
+void SHFHamiltonian::Init(double exparam)
+{
+    XcFunct=new SlaterExchange(exparam);
+}
+
+HamiltonianTerm* SHFHamiltonian:: GetVxc() const
+{
+    rc_ptr<IrrepBasisSet> XFitBasis=GetXBasisSet();    
+    return new FittedVxc(XFitBasis, XcFunct,GetIntegrationMesh());
+}
+
+void PolSHFHamiltonian::Init(double exparam)
+{
+     XcFunct=new SlaterExchange(exparam,Spin(Spin::Up));
+}
+
+HamiltonianTerm* PolSHFHamiltonian:: GetVxc() const
+{
+    rc_ptr<IrrepBasisSet> XFitBasis=GetXBasisSet();    
+    return new PolarizedFittedVxc(XFitBasis,XcFunct ,GetIntegrationMesh());
+}
+
+
 #include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
 HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
 {
@@ -102,16 +155,33 @@ HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
 }
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
+#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 BasisSet* SG_OBasis::GetBasisSet (const Cluster*) const
 {
-    return new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax); 
+    BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
+    idb=bs->GetDataBase();
+    return  bs;
+}
+
+IrrepBasisSet* SG_OBasis::GetXBasisSet () const
+{
+    return new SphericalGaussian::IrrepBasisSet(lap,idb,N,emin*2.0/3.0,emax*2.0/3.0,0);
 }
 
 #include "Imp/BasisSet/Slater/BasisSet.H"
+#include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 BasisSet* SL_OBasis::GetBasisSet (const Cluster*) const
 {
-    return new Slater::BasisSet(lap,N,emin,emax,Lmax); 
+    BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
+    idb=bs->GetDataBase();
+    return  bs;
 }
+
+IrrepBasisSet* SL_OBasis::GetXBasisSet () const
+{
+    return new Slater::IrrepBasisSet(lap,idb,N,emin*2.0/3.0,emax*2.0/3.0,0);
+}
+
 
 #include "Cluster/Molecule.H"
 
@@ -121,6 +191,18 @@ Cluster* TestAtom::GetCluster() const
     cl->Insert(new Atom(Z,q,Vector3D<double>(0,0,0)));
     return cl;
 }
+
+#include "Mesh/RadialMesh/MHLRadialMesh.H"
+#include "Mesh/AngularMesh/GaussAngularMesh.H"
+#include "Mesh/AtomMesh.H"
+
+Mesh* TestAtom::GetIntegrationMesh() const
+{
+    RadialMesh*            rm=new MHLRadialMesh(50,2U,2.0); //mem leak
+    AngularMesh*           am=new GaussAngularMesh(1);      //mem leak
+    return new AtomMesh(*rm,*am); //why not own?
+}
+
 
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const

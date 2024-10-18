@@ -19,6 +19,7 @@ SemiHartreeFockTester::~SemiHartreeFockTester()
 
 void SemiHartreeFockTester::Init(double Exchange)
 {
+    assert(Exchange>0.7);
     itsExchange=Exchange;
 }
 

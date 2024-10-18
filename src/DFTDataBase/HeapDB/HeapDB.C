@@ -32,7 +32,7 @@ template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie, const IEClient* iec)
 
 template <class T> HeapDB<T>::~HeapDB()
 {
-    Report(std::cout);
+    //Report(std::cout);
     delete itsAnalyticIE;
 }
 

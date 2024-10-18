@@ -13,20 +13,23 @@ class QchemTester
 {
 public:
     QchemTester();
-    virtual ~QchemTester() {};
+    virtual ~QchemTester();
     void   Init();
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
     double RelativeHFError(bool quiet=false) const;
-    int GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
+    double RelativeDFTError(bool quiet=false) const;
+    int    GetLMax                (int Z) const {return itsPT.GetMaxL(Z);}
     double GetNumUnpairedElectrons(int Z) const {return itsPT.GetNumUnpairedElectrons(Z);} 
-
+    double GetExParam             (int Z) const {return itsPT.GetSlaterAlpha(Z);}
     
 protected:
     // Atom of Molecule functions
-    virtual Cluster*     GetCluster    () const=0;
+    virtual Cluster*     GetCluster        () const=0;
+    virtual Mesh*        GetIntegrationMesh() const=0;
     // Orbital Basis Set functions SG, PG, Slater
-    virtual BasisSet*    GetBasisSet   (const Cluster*) const=0;
+    virtual BasisSet*      GetBasisSet   (const Cluster*) const=0;
+    virtual IrrepBasisSet* GetXBasisSet  () const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(const rc_ptr<Cluster>& cl) const=0;
     // Polarized or un-polarized
@@ -63,6 +66,32 @@ public:
     virtual HamiltonianTerm* GetVxc() const;
 };
 
+//Why??
+#include "Hamiltonian/ExchangeFunctional.H" 
+#include "BasisSet.H" 
+
+class SHFHamiltonian : public HFHamiltonian
+{
+public:
+    virtual ~SHFHamiltonian();
+    void Init(double exparam);
+    virtual HamiltonianTerm* GetVxc() const;
+protected:
+    rc_ptr<ExchangeFunctional> XcFunct;
+};
+
+class PolSHFHamiltonian : public SHFHamiltonian
+{
+public:
+    void Init(double exparam);
+    virtual HamiltonianTerm* GetVxc() const;
+private:
+    rc_ptr<ExchangeFunctional> XcFunct;
+};
+
+//
+//  Basis sets
+//
 class SG_OBasis : public virtual QchemTester
 {
 public:
@@ -77,10 +106,12 @@ public:
     }
     
 private:
-    virtual BasisSet* GetBasisSet (const Cluster*) const;
+    virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
     double emin,emax;
     LAParams lap;
+    mutable IntegralDataBase<double>* idb;
 };
 
 class SL_OBasis : public virtual QchemTester
@@ -97,10 +128,12 @@ public:
     }
     
 private:
-    virtual BasisSet* GetBasisSet (const Cluster*) const;
+    virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
     double emin,emax;
     LAParams lap;
+    mutable IntegralDataBase<double>* idb;
 };
 
 class TestAtom : public virtual QchemTester
@@ -108,6 +141,8 @@ class TestAtom : public virtual QchemTester
 public:
     void Init(int _Z, int _q=0) {Z=_Z; q=_q;}
     virtual Cluster* GetCluster() const;
+    virtual Mesh*    GetIntegrationMesh() const;
+
     
 private:
     int Z,q; //Atomic # and charge.
@@ -130,117 +165,6 @@ private:
     double spin;
 };
 
-//
-//  Un-polarized tests.
-//
-class A_SG_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, public SG_OBasis, HFHamiltonian, TestUnPolarized
-{
-public:
-    void Init(int Z,int N, double emin, double emax, int LMax)
-    {
-        TestAtom::Init(Z);
-        SG_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init();
-    }
-};
-
-class A_SL_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, public SL_OBasis, HFHamiltonian, TestUnPolarized
-{
-public:
-    void Init(int Z,int N, double emin, double emax, int LMax)
-    {
-        TestAtom::Init(Z);
-        SL_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init();
-    }
-};
-
-//
-//  High precision HE using optimized exponent ranges.
-//
-TEST_F(A_SG_HF_U,He)
-{
-    Init(2,20,.1,10000,0);
-    Iterate({40,1e-3,1.0,0.0,false});
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-}
-
-TEST_F(A_SL_HF_U,He)
-{
-    Init(2,8,.31,10.9,0);
-    Iterate({40,1e-4,1.0,0.0,false});
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-}
-
-TEST_P(A_SG_HF_U,Multiple)
-{
-    int Z=GetParam();
-    Init(Z,20,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,0.0,false});
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-}
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,18,36,54)); 
-
-TEST_P(A_SL_HF_U,Multiple)
-{
-    int Z=GetParam();
-    Init(Z,10,1.0,1.5*Z,GetLMax(Z));
-    Iterate({40,1e-1,1.0,0.0,false});
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-}
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,18,36,54));
-
-
-//
-//  Polarized tests.
-//
-class A_SG_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, public SG_OBasis, PolHFHamiltonian, TestPolarized
-{
-public:
-    void Init(int Z,int N, double emin, double emax, int LMax)
-    {
-        TestAtom::Init(Z);
-        SG_OBasis::Init(N,emin,emax,LMax);
-        TestPolarized::Init(GetNumUnpairedElectrons(Z));
-        QchemTester::Init();
-    }
-};
-
-TEST_P(A_SG_HF_P,Multiple)
-{
-    int Z=GetParam();
-    Init(Z,20,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,0.0,false});
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-}
-
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,5,7,37,53)); 
-
-class A_SL_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, public SL_OBasis, PolHFHamiltonian, TestPolarized
-{
-public:
-    void Init(int Z,int N, double emin, double emax, int LMax)
-    {
-        TestAtom::Init(Z);
-        SL_OBasis::Init(N,emin,emax,LMax);
-        TestPolarized::Init(GetNumUnpairedElectrons(Z));
-        QchemTester::Init();
-    }
-};
-
-TEST_P(A_SL_HF_P,Multiple)
-{
-    int Z=GetParam();
-    Init(Z,10,0.7,1.5*Z,GetLMax(Z));
-    Iterate({40,Z*1e-2,1.0,0.0,false});
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-}
-
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,5,7,37,53)); 
 
 
 #endif //QchemTester_H
