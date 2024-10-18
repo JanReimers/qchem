@@ -5,8 +5,11 @@
 #include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/Orbitals/TOrbital.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
+#include "Misc/DFTDefines.H"
 #include <Hamiltonian.H>
+#include <QuantumNumber.H>
 #include <LASolver/LASolver.H>
+#include "Imp/Containers/ptr_vector_io.h"
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
@@ -21,16 +24,34 @@ template <class T> TOrbitalsImp<T>::TOrbitalsImp()
 
 template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const TIrrepBasisSet<T>* bs)
-    : OrbitalsImp(bs)
-    , itsBasisSet(bs)
+    : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
 {};
 
 
 //-----------------------------------------------------------------
 //
-//  Orbital stuff.
+//  Orbitals stuff.
 //
+template <class T> index_t TOrbitalsImp<T>::GetNumOrbitals() const
+{
+    return itsOrbitals.size();
+}
+
+template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& og) const
+{
+    // No UT coverage
+    // TODO: OrbitalGroup should return a vector of energies.
+    double del=0;
+    auto b2=og.begin();
+    for (auto b1:*this)
+    {
+        del+=Square(b1->GetEigenEnergy()-(*b2)->GetEigenEnergy());
+        b2++;
+    }
+    return sqrt(del);
+}
+
 //
 //  This is where the real SCF work gets done.
 //
@@ -92,13 +113,29 @@ Gradient(const RVec3& r) const
 //
 template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
 {
-    OrbitalsImp::Write(os);
+     if (!StreamableObject::Pretty())
+    {
+        os  << itsOrbitals;
+        if (!StreamableObject::Binary()) os << std::endl;
+    }
+    else
+    {
+        os << "        Orbital group with " << GetNumOrbitals() << " " << itsBasisSet->GetQuantumNumber() << "orbitals:" << std::endl;
+        os << "            Occupation      Energy      Eigenvector" << std::endl;
+        os << itsOrbitals;
+    }
+    if (!StreamableObject::Pretty())
+    {
+        os  << itsBasisSet;
+        if (StreamableObject::Ascii()) os << std::endl;
+    }
     return os;
 }
 
 template <class T> std::istream& TOrbitalsImp<T>::Read(std::istream& is)
 {
-    OrbitalsImp::Read(is);
+    is >> itsOrbitals;
+    if (!StreamableObject::Binary()) is >> std::ws;
     return is;
 }
 

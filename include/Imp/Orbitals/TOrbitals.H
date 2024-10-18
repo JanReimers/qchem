@@ -3,14 +3,16 @@
 #define _TOrbitalGroupImplementation_H_
 
 
+#include "Imp/Containers/ptr_vector.h"
 
 #include "Orbital.H"
-#include "Imp/Orbitals/Orbitals.H"
+//#include "Imp/Orbitals/Orbitals.H"
 #include "BasisSet.H"
 
 template <class T> class TOrbitalsImp
-    : public virtual TOrbitals<T>
-    , private OrbitalsImp
+    : public virtual Orbitals
+    , public virtual TOrbitals<T>
+   // , private OrbitalsImp
 {
     typedef VectorFunction<T> Base;
     typedef typename Base::Mat     Mat;  //Matrix.
@@ -31,17 +33,26 @@ public:
     virtual Vec     operator()(const RVec3&) const;
     virtual Vec3Vec Gradient  (const RVec3&) const;
 
-    virtual ChargeDensity* GetChargeDensity (Spin) const;
-    virtual void           UpdateOrbitals(const Hamiltonian&, const Spin&);
+    virtual index_t        GetNumOrbitals     (               ) const;
+    virtual double         GetEigenValueChange(const Orbitals&) const;
+    virtual ChargeDensity* GetChargeDensity   (Spin) const;
+    virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&);
+
+    virtual const_iterator begin() const {return itsOrbitals.begin();}
+    virtual const_iterator end  () const {return itsOrbitals.end  ();} 
+    virtual       iterator begin()       {return itsOrbitals.begin();}
+    virtual       iterator end  ()       {return itsOrbitals.end  ();} 
+
 
     virtual std::ostream&          Write(std::ostream&) const;
     virtual std::istream&          Read (std::istream&)      ;
 
 private:
     TOrbitalsImp(const TOrbitalsImp&);
-
     virtual SMat CalculateDensityMatrix() const;
+
     const TIrrepBasisSet<T>* itsBasisSet;
+    optr_vector1<Orbital*>   itsOrbitals;
     LASolver<double>*        itsLASolver; //General eigen solver
 
 };
