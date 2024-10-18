@@ -19,7 +19,7 @@ public:
     double TotalEnergy() const;
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
-    int    GetLMax                (int Z) const {return itsPT.GetMaxL(Z);}
+    int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
     
 protected:
     // Atom of Molecule functions
@@ -28,6 +28,7 @@ protected:
     virtual int          GetZ              () const=0;
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet*      GetBasisSet   (const Cluster*) const=0;
+    virtual IrrepBasisSet* GetCBasisSet  () const=0;
     virtual IrrepBasisSet* GetXBasisSet  () const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(const rc_ptr<Cluster>& cl) const=0;
@@ -88,6 +89,20 @@ private:
     rc_ptr<ExchangeFunctional> XcFunct;
 };
 
+class DFTHamiltonian : public SHFHamiltonian
+{
+public:
+    DFTHamiltonian(int Z) : SHFHamiltonian(Z) {};
+    virtual HamiltonianTerm* GetVee() const;
+};
+
+class PolDFTHamiltonian : public PolSHFHamiltonian
+{
+public:
+    PolDFTHamiltonian(int Z) : PolSHFHamiltonian(Z) {};
+    virtual HamiltonianTerm* GetVee() const;
+};
+
 //
 //  Basis sets
 //
@@ -101,11 +116,12 @@ public:
     }
     void Init(int _N, double _emin, double _emax, int _Lmax) 
     {
-        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-6,1e-12}));
+        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-4,1e-12}));
     }
     
 private:
     virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual IrrepBasisSet* GetCBasisSet() const;
     virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
     double emin,emax;
@@ -123,11 +139,12 @@ public:
     }
     void Init(int _N, double _emin, double _emax, int _Lmax) 
     {
-        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-6,1e-12}));
+        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-4,1e-12}));
     }
     
 private:
     virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual IrrepBasisSet* GetCBasisSet() const;
     virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
     double emin,emax;

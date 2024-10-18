@@ -156,6 +156,19 @@ HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
     return new PolarizedHartreeFockVxc;
 }
 
+#include "HamiltonianImplementation/CDFittedVee.H"
+
+HamiltonianTerm* DFTHamiltonian::GetVee() const
+{
+    rc_ptr<IrrepBasisSet> CFitBasis=GetCBasisSet(); 
+    return new CDFittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
+}
+HamiltonianTerm* PolDFTHamiltonian::GetVee() const
+{
+    rc_ptr<IrrepBasisSet> CFitBasis=GetCBasisSet(); 
+    return new CDFittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
+}
+
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 BasisSet* SG_OBasis::GetBasisSet (const Cluster*) const
@@ -163,6 +176,11 @@ BasisSet* SG_OBasis::GetBasisSet (const Cluster*) const
     BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
     idb=bs->GetDataBase();
     return  bs;
+}
+
+IrrepBasisSet* SG_OBasis::GetCBasisSet () const
+{
+    return new SphericalGaussian::IrrepBasisSet(lap,idb,N,emin*2.0,emax*2.0,0);
 }
 
 IrrepBasisSet* SG_OBasis::GetXBasisSet () const
@@ -177,6 +195,11 @@ BasisSet* SL_OBasis::GetBasisSet (const Cluster*) const
     BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
     idb=bs->GetDataBase();
     return  bs;
+}
+
+IrrepBasisSet* SL_OBasis::GetCBasisSet () const
+{
+    return new Slater::IrrepBasisSet(lap,idb,N,emin*2.0,emax*2.0,0);
 }
 
 IrrepBasisSet* SL_OBasis::GetXBasisSet () const
