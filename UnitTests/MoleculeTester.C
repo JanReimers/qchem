@@ -5,8 +5,8 @@
 #include "DFTDataBase/HeapDB/HeapDB.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
-#include "BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
+#include "BasisSet.H"
 #include "Mesh/MoleculeMesh.H"
 
 

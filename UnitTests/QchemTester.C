@@ -15,7 +15,7 @@ QchemTester::QchemTester()
 , itsHamiltonian(0)
 , itsWaveFunction(0)
 , itsSCFIterator(0)
-, MaxRelErrE(1e-3)
+, MaxRelErrE(0)
 {
     //Cannot call virtual functions from here.
 }
@@ -27,8 +27,11 @@ QchemTester::~QchemTester()
     delete itsSCFIterator;
 }
 
-void QchemTester::Init()
+void QchemTester::Init(double eps)
 {
+    assert(eps>0.0);
+    MaxRelErrE=eps;
+    
     itsCluster=GetCluster(); //Atom or Molecule
     assert(&*itsCluster);
     itsBasisSet=GetBasisSet(&*itsCluster); //SG, PG, Slater
@@ -84,6 +87,10 @@ double QchemTester::RelativeDFTError(bool quiet) const
     return error;
 }
 
+int QchemTester::GetZ() const
+{
+    return GetCluster()->GetNuclearCharge();
+}
     
 
 
@@ -208,6 +215,31 @@ IrrepBasisSet* SL_OBasis::GetXBasisSet () const
 }
 
 
+#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
+#include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
+
+BasisSet* PG_OBasis::GetBasisSet (const Cluster* cl) const
+{
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+    auto bs=new PolarizedGaussian::BasisSet(lap, &reader,cl);
+    idb=bs->GetDataBase();
+    return  bs;
+}
+
+IrrepBasisSet* PG_OBasis::GetCBasisSet () const
+{
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A2_coul.bsd");
+    return new PolarizedGaussian::IrrepBasisSet(lap,idb, &reader,GetCluster());
+}
+
+IrrepBasisSet* PG_OBasis::GetXBasisSet () const
+{
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
+    return new PolarizedGaussian::IrrepBasisSet(lap,idb, &reader,GetCluster());
+}
+
+
 #include "Cluster/Molecule.H"
 
 Cluster* TestAtom::GetCluster() const
@@ -228,6 +260,21 @@ Mesh* TestAtom::GetIntegrationMesh() const
     return new AtomMesh(*rm,*am); //why not own?
 }
 
+void TestMolecule::Init(Molecule* p)
+{
+    assert(p);
+    itsCluster=p;
+}
+
+Cluster* TestMolecule::GetCluster() const {return itsCluster;}
+
+#include "Mesh/MoleculeMesh.H"
+Mesh*    TestMolecule::GetIntegrationMesh() const
+{
+    return  new MoleculeMesh(*itsCluster,3);
+}
+
+    
 
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const

@@ -13,7 +13,7 @@ public:
     void Init(int N, double emin, double emax, int LMax)
     {
         SG_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init();
+        QchemTester::Init(1e-3);
     }
 };
 
@@ -25,7 +25,7 @@ public:
     void Init(int N, double emin, double emax, int LMax)
     {
         SL_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init();
+        QchemTester::Init(1e-3);
     }
 };
 
@@ -60,7 +60,7 @@ public:
     void Init(int N, double emin, double emax, int LMax)
     {
         SG_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init();
+        QchemTester::Init(1e-3);
     }
 };
 
@@ -82,7 +82,7 @@ public:
     void Init(int N, double emin, double emax, int LMax)
     {
         SL_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init();
+        QchemTester::Init(1e-3);
     }
 };
 

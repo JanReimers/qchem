@@ -26,7 +26,7 @@ class BaseTester
     : public ::testing::TestWithParam<int>
 {
 public:
-    BaseTester();
+    BaseTester(); 
     virtual ~BaseTester();
     void Init(BasisSet*, double spin);
     void Init(BasisSet*, double spin,const LAParams&);

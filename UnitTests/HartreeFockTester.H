@@ -11,31 +11,31 @@ public:
     virtual HamiltonianTerm* GetVxc(double spin) const;
 };
 
-#include "AtomTester.H"
-class HartreeFockAtomTester
-    : public HartreeFockTester
-    , public AtomTester
-
-{
-public:
-  HartreeFockAtomTester() : AtomTester(27,.01,20000.0) {};
-  void Init(Atom* atom);
-  void Init(Atom* atom, int Lmax, double spin);
-  void Init(int NBasis, int Lmax, double spin, const LAParams&);
-};
-
-#include "AtomTesterSlater.H"
-class HartreeFockAtomTesterSlater
-    : public HartreeFockTester
-    , public AtomTesterSlater
-
-{
-public:
-  HartreeFockAtomTesterSlater() : AtomTesterSlater(10,.5,30.0) {};
-  void Init(Atom* atom);
-  void Init(Atom* atom, int Lmax, double spin);
-  void Init(int NBasis, int Lmax, double spin, const LAParams&);
-};
+//#include "AtomTester.H"
+//class HartreeFockAtomTester
+//    : public HartreeFockTester
+//    , public AtomTester
+//
+//{
+//public:
+//  HartreeFockAtomTester() : AtomTester(27,.01,20000.0) {};
+//  void Init(Atom* atom);
+//  void Init(Atom* atom, int Lmax, double spin);
+//  void Init(int NBasis, int Lmax, double spin, const LAParams&);
+//};
+//
+//#include "AtomTesterSlater.H"
+//class HartreeFockAtomTesterSlater
+//    : public HartreeFockTester
+//    , public AtomTesterSlater
+//
+//{
+//public:
+//  HartreeFockAtomTesterSlater() : AtomTesterSlater(10,.5,30.0) {};
+//  void Init(Atom* atom);
+//  void Init(Atom* atom, int Lmax, double spin);
+//  void Init(int NBasis, int Lmax, double spin, const LAParams&);
+//};
 
 
 #include "MoleculeTester.H"

@@ -14,7 +14,7 @@ class QchemTester
 public:
     QchemTester();
     virtual ~QchemTester();
-    void   Init();
+    void   Init(double eps);
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
     double RelativeHFError(bool quiet=false) const;
@@ -25,7 +25,7 @@ protected:
     // Atom of Molecule functions
     virtual Cluster*     GetCluster        () const=0;
     virtual Mesh*        GetIntegrationMesh() const=0;
-    virtual int          GetZ              () const=0;
+    virtual int          GetZ              () const;
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet*      GetBasisSet   (const Cluster*) const=0;
     virtual IrrepBasisSet* GetCBasisSet  () const=0;
@@ -103,6 +103,7 @@ public:
     virtual HamiltonianTerm* GetVee() const;
 };
 
+//------------------------------------------------------------------------------------
 //
 //  Basis sets
 //
@@ -118,7 +119,7 @@ public:
     {
         Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-4,1e-12}));
     }
-    
+     
 private:
     virtual BasisSet*      GetBasisSet (const Cluster*) const;
     virtual IrrepBasisSet* GetCBasisSet() const;
@@ -152,6 +153,22 @@ private:
     mutable IntegralDataBase<double>* idb;
 };
 
+class PG_OBasis : public virtual QchemTester
+{
+public:
+    PG_OBasis() : lap({qchem::Lapack,qchem::SVD,1e-4,1e-12}) {};     
+private:
+    virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual IrrepBasisSet* GetCBasisSet() const;
+    virtual IrrepBasisSet* GetXBasisSet() const;
+    LAParams lap;
+    mutable IntegralDataBase<double>* idb;
+};
+
+//----------------------------------------------------------------------------------
+//
+//  Atoms and Molecules
+//
 class TestAtom : public virtual QchemTester
 {
 public:
@@ -159,14 +176,28 @@ public:
     virtual Cluster* GetCluster() const;
     virtual Mesh*    GetIntegrationMesh() const;
     virtual int      GetZ              () const {return Z;}
-
-
-    
 private:
     int Z,q; //Atomic # and charge.
 
 };
 
+class TestMolecule : public virtual QchemTester
+{
+public:
+    TestMolecule() : itsCluster(0) {};
+    void Init(Molecule*);
+    
+    virtual Cluster* GetCluster() const;
+    virtual Mesh*    GetIntegrationMesh() const;
+private:
+    Molecule* itsCluster;
+};
+
+
+//--------------------------------------------------------------------------------
+//
+//  Wave functions
+//
 class TestUnPolarized  : public virtual QchemTester
 {
 public:

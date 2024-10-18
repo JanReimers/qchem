@@ -16,27 +16,27 @@ private:
     mutable rc_ptr<IrrepBasisSet> itsCBasisSet; //Charge density fitting basis set.
 };
 
-#include "AtomTester.H"
-class DFTAtomTester : public AtomTester, public DFTTester
-{
-public:
-    DFTAtomTester() : AtomTester(37,.01,200000.0) {};
-    void Init(Atom* atom)
-    {
-        AtomTester::Init(atom);
-    }
-    void Init(Atom* atom, double Exchange, int Lmax, double spin)
-    {
-        DFTTester::Init(Exchange);
-        AtomTester::Init(atom,Lmax,spin);
-    }
-    void Init(double Exchange, int NBasis, int Lmax, double spin, const LAParams& lap)
-    {
-        DFTTester::Init(Exchange);
-        AtomTester::Init(NBasis,Lmax,spin,lap);
-    }
-
-};
+//#include "AtomTester.H"
+//class DFTAtomTester : public AtomTester, public DFTTester
+//{
+//public:
+//    DFTAtomTester() : AtomTester(37,.01,200000.0) {};
+//    void Init(Atom* atom)
+//    {
+//        AtomTester::Init(atom);
+//    }
+//    void Init(Atom* atom, double Exchange, int Lmax, double spin)
+//    {
+//        DFTTester::Init(Exchange);
+//        AtomTester::Init(atom,Lmax,spin);
+//    }
+//    void Init(double Exchange, int NBasis, int Lmax, double spin, const LAParams& lap)
+//    {
+//        DFTTester::Init(Exchange);
+//        AtomTester::Init(NBasis,Lmax,spin,lap);
+//    }
+//
+//};
 
 #include "MoleculeTester.H"
 class DFTMoleculeTester : public MoleculeTester, public DFTTester

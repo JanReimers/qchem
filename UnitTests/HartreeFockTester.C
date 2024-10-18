@@ -19,7 +19,7 @@ HamiltonianTerm* HartreeFockTester::GetVxc(double spin) const
         ret=new PolarizedHartreeFockVxc();
     return ret;
 }
-
+/*
 void HartreeFockAtomTester::Init(Atom* atom)
 {
     AtomTester::Init(atom);
@@ -49,3 +49,5 @@ void HartreeFockAtomTesterSlater::Init(int NBasis, int Lmax, double spin, const 
 {
     AtomTesterSlater::Init(NBasis,Lmax,spin,lap);
 }
+
+*/
