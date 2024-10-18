@@ -2,16 +2,14 @@
 #ifndef _TOrbitalImplementation_H_
 #define _TOrbitalImplementation_H_
 
-
-
-#include "Orbital.H"
-#include "BasisSet.H"
-#include "Imp/Orbitals/Orbital.H"
+#include "Imp/Orbitals/ElectronContainer.H"
+#include <Orbital.H>
+#include <BasisSet.H>
 #include "oml/vector.h"
 
 template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
-    , private        OrbitalImp
+    , protected      ElectronContainerImp  //BUG should be private
 {
     typedef ScalarFunction<T> Base;
     typedef typename Base::SMat SMat;
@@ -20,23 +18,21 @@ template <class T> class TOrbitalImp
     typedef typename Base::Vec3Vec Vec3Vec;
 public:
     TOrbitalImp();
-    TOrbitalImp(const IDRef<const IrrepBasisSet>&,const Vec&, double, const Spin&);
+    TOrbitalImp(const TIrrepBasisSet<T>*,const Vec&, double, const Spin&);
+
+    virtual double GetEigenEnergy() const;
+    virtual void   AddDensityMatrix(SMat&) const;
 
     virtual T      operator()      (const RVec3&) const;
     virtual Vec3   Gradient        (const RVec3&) const;
-    virtual void   AddDensityMatrix(SMat&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 
 private:
-    const TIrrepBasisSet<T>* CastBasisSet() const
-    {
-        const IrrepBasisSet* bs=&*itsBasisSet;
-        return dynamic_cast<const TIrrepBasisSet<T>*>(bs);
-    }
-
-    Vec itsCoeff;
+    double                   itsEigenEnergy;
+    Vec                      itsCoeff;
+    const TIrrepBasisSet<T>* itsBasisSet;
 };
 
 #endif  //_TOrbitalImplementation_H_

@@ -15,41 +15,21 @@
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const IDRef<const IrrepBasisSet>& bs,
-                       const Vec& c,
-                       double e, const Spin& S)
-    : OrbitalImp(bs,e,S)
+TOrbitalImp(const TIrrepBasisSet<T>* bs,const Vec& c,double e, const Spin& S)
+    : ElectronContainerImp(S,bs->GetQuantumNumber())
+    , itsEigenEnergy(e)
     , itsCoeff      (c)
+    , itsBasisSet   (bs)
 {
-    if (!CastBasisSet())
-    {
-        std::cerr << "TOrbitalImplementation could not cast basis set." << std::endl;
-        exit(-1);
-    }
 };
 
 template <class T> TOrbitalImp<T>::TOrbitalImp()
     : itsCoeff      ( )
 {};
 
-//----------------------------------------------------------------------------
-//
-//  Real space function stuff.
-//
-template <class T> T TOrbitalImp<T>::operator()(const RVec3& r) const
+template <class T> double TOrbitalImp<T>::GetEigenEnergy() const
 {
-    return itsCoeff * (*CastBasisSet())(r);
-}
-
-//BUG
-template <class T> typename TOrbitalImp<T>::Vec3 TOrbitalImp<T>::Gradient(const RVec3& r) const
-{
-    Vec3 ret(0,0,0);
-    Vec3Vec grads=CastBasisSet()->Gradient(r);
-    typename Vec3Vec::const_iterator b(grads.begin());
-    typename Vec    ::const_iterator c(itsCoeff.begin());
-    for (; b!=grads.end(); b++,c++) ret+=(*c) * (*b);
-    return ret;
+    return itsEigenEnergy;
 }
 
 template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
@@ -57,21 +37,57 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     if (IsOccupied()) d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
 }
 
+
+//----------------------------------------------------------------------------
+//
+//  Real space function stuff.
+//
+template <class T> T TOrbitalImp<T>::operator()(const RVec3& r) const
+{
+    return itsCoeff * (*itsBasisSet)(r);
+}
+
+//BUG
+template <class T> typename TOrbitalImp<T>::Vec3 TOrbitalImp<T>::Gradient(const RVec3& r) const
+{
+    Vec3 ret(0,0,0);
+    Vec3Vec grads=itsBasisSet->Gradient(r);
+    auto c(itsCoeff.begin());
+    for (auto b:grads) ret+=(*c++) * b;
+    return ret;
+}
+
+
 //-----------------------------------------------------------------------
 //
 //  Streamabel stuff.
 //
 template <class T> std::ostream& TOrbitalImp<T>::Write(std::ostream& os) const
 {
-    OrbitalImp::Write(os);
+    ElectronContainerImp::Write(os);
+    if (StreamableObject::Pretty())
+        os << "              " << GetOccupation() << "/" << GetDegeneracy() << "       " << std::setw(12) << itsEigenEnergy << "      ";
+    else
+        os << itsBasisSet;
+    
+    if (StreamableObject::Binary())
+        BinaryWrite(itsEigenEnergy,os);
+    if (StreamableObject::Ascii ())
+        os << itsEigenEnergy << " ";
+        
     os << itsCoeff;
-    if (Pretty()) os << std::endl;
+    if (StreamableObject::Pretty()) os << std::endl;
     return os;
 }
 
 template <class T> std::istream& TOrbitalImp<T>::Read (std::istream& is)
 {
-    OrbitalImp::Read(is);
+    ElectronContainerImp::Read(is);
+    if (StreamableObject::Binary())
+        BinaryRead(itsEigenEnergy,is);
+    else
+        is >> itsEigenEnergy >> std::ws;
+        
     is >> itsCoeff;
 
     return is;
