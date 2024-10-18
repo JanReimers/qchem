@@ -5,12 +5,12 @@
 
 
 #include "Orbital.H"
-#include "OrbitalImplementation/OrbitalGroupImplementation.H"
+#include "Imp/Orbitals/Orbitals.H"
 #include "BasisSet.H"
 
-template <class T> class TOrbitalGroupImplementation
-    : public virtual TOrbitalGroup<T>
-    , private OrbitalGroupImplementation
+template <class T> class TOrbitalsImp
+    : public virtual TOrbitals<T>
+    , private OrbitalsImp
 {
     typedef VectorFunction<T> Base;
     typedef typename Base::Mat     Mat;  //Matrix.
@@ -22,28 +22,28 @@ template <class T> class TOrbitalGroupImplementation
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
-    TOrbitalGroupImplementation();
-    TOrbitalGroupImplementation(const TIrrepBasisSet<T>*,
-                                const Mat&,
-                                const RVec&,
-                                const Spin&);
-    virtual ~TOrbitalGroupImplementation() {};
+    TOrbitalsImp();
+    TOrbitalsImp(const TIrrepBasisSet<T>*);
+    virtual ~TOrbitalsImp() {};
 
     typedef Vector3D<T> TVec;
 
     virtual Vec     operator()(const RVec3&) const;
     virtual Vec3Vec Gradient  (const RVec3&) const;
 
-    virtual ChargeDensity* GetChargeDensity(Spin) const;
+    virtual ChargeDensity* GetChargeDensity (Spin) const;
+    virtual void           UpdateOrbitals(const Hamiltonian&, const Spin&);
 
     virtual std::ostream&          Write(std::ostream&) const;
     virtual std::istream&          Read (std::istream&)      ;
 
 private:
-    TOrbitalGroupImplementation(const TOrbitalGroupImplementation&);
+    TOrbitalsImp(const TOrbitalsImp&);
 
     virtual SMat CalculateDensityMatrix() const;
     const TIrrepBasisSet<T>* itsBasisSet;
+    LASolver<double>*        itsLASolver; //General eigen solver
+
 };
 
 

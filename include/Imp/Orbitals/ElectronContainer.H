@@ -4,16 +4,16 @@
 
 
 
-#include "Orbital/ElectronContainer.H"
+#include <Orbital.H>
 #include "Misc/Spin.H"
 
 
-class ElectronContainerImplementation
+class ElectronContainerImp
     : public virtual ElectronContainer
 {
 public:
-    ElectronContainerImplementation();
-    ElectronContainerImplementation(const Spin&,const QuantumNumber&);
+    ElectronContainerImp();
+    ElectronContainerImp(const Spin&,const QuantumNumber&);
 
     virtual double GetSpin      (       ) const;
     virtual int    GetDegeneracy(       ) const;

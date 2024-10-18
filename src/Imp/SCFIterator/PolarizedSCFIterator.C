@@ -2,12 +2,12 @@
 
 
 
-#include "Hamiltonian.H"
-#include "WaveFunction.H"
+#include <Hamiltonian.H>
+#include <WaveFunction.H>
 #include "Imp/SCFIterator/PolarizedSCFIterator.H"
 #include "SCFIterator/IterationParams.H"
-#include "ChargeDensity.H"
-#include "Orbital/ElectronDumper.H"
+#include <ChargeDensity.H>
+#include "Imp/WaveFunction/ElectronDumper.H"
 #include "Misc/Spin.H"
 #include <iostream>
 #include <iomanip>

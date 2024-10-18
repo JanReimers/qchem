@@ -4,8 +4,8 @@
 
 
 
-#include "Orbital.H"
-#include "Orbital/EnergyLevel.H"
+#include <Orbital.H>
+#include <EnergyLevel.H>
 #include "Imp/Containers/ptr_vector.h"
 
 
@@ -19,7 +19,7 @@ class ElectronDumper
 public:
     ElectronDumper(double tolerance, double kT=0);
     void Add(Orbital*);
-    void Add(OrbitalGroup*);
+    void Add(Orbitals*);
     void MakeEnergyLevels();
     void DumpInElectrons(double);
 

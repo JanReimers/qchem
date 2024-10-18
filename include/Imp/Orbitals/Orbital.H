@@ -5,17 +5,17 @@
 
 
 #include "Orbital.H"
-#include "OrbitalImplementation/ElectronContainerImplementation.H"
+#include "Imp/Orbitals/ElectronContainer.H"
 #include "BasisSet.H"
 #include "Misc/Persistent/IDRef.H"
 
-class OrbitalImplementation
+class OrbitalImp
     : public virtual Orbital
-    , protected      ElectronContainerImplementation  //BUG should be private
+    , protected      ElectronContainerImp  //BUG should be private
 {
 public:
-    OrbitalImplementation();
-    OrbitalImplementation(const IDRef<const IrrepBasisSet>&,double energy, const Spin&);
+    OrbitalImp();
+    OrbitalImp(const IDRef<const IrrepBasisSet>&,double energy, const Spin&);
 
     virtual double GetEigenEnergy() const;
 

@@ -2,26 +2,26 @@
 
 
 
-#include "OrbitalImplementation/ElectronContainerImplementation.H"
-#include "QuantumNumber.H"
+#include "Imp/Orbitals/ElectronContainer.H"
+#include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>
 
-ElectronContainerImplementation::ElectronContainerImplementation(const Spin& S,const QuantumNumber& qn)
+ElectronContainerImp::ElectronContainerImp(const Spin& S,const QuantumNumber& qn)
     : itsOccupation       (0)
     , itsSpin             (S)
     , itsOrbitalDegeneracy(qn.GetDegeneracy())
 {};
 
-ElectronContainerImplementation::ElectronContainerImplementation()
+ElectronContainerImp::ElectronContainerImp()
     : itsOccupation       (0)
     , itsSpin             ( )
     , itsOrbitalDegeneracy(1)
 {};
 
-double ElectronContainerImplementation::GetSpin() const
+double ElectronContainerImp::GetSpin() const
 {
     double ret=0;
     switch (itsSpin.itsState)
@@ -39,27 +39,27 @@ double ElectronContainerImplementation::GetSpin() const
     return ret;
 }
 
-int ElectronContainerImplementation::GetDegeneracy() const
+int ElectronContainerImp::GetDegeneracy() const
 {
     return itsSpin.GetDegeneracy() * itsOrbitalDegeneracy;
 }
 
-double ElectronContainerImplementation::GetOccupation() const
+double ElectronContainerImp::GetOccupation() const
 {
     return itsOccupation;
 }
 
-bool ElectronContainerImplementation::IsOccupied() const
+bool ElectronContainerImp::IsOccupied() const
 {
     return itsOccupation>0;
 }
 
-void ElectronContainerImplementation::Empty()
+void ElectronContainerImp::Empty()
 {
     itsOccupation=0;
 }
 
-void  ElectronContainerImplementation::SetOccupation(double n)
+void  ElectronContainerImp::SetOccupation(double n)
 {
     assert(n>=0);
     if (n>GetDegeneracy())
@@ -71,7 +71,7 @@ void  ElectronContainerImplementation::SetOccupation(double n)
     itsOccupation=n;
 }
 
-std::ostream& ElectronContainerImplementation::Write(std::ostream& os) const
+std::ostream& ElectronContainerImp::Write(std::ostream& os) const
 {
     if (StreamableObject::Binary())
     {
@@ -84,7 +84,7 @@ std::ostream& ElectronContainerImplementation::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& ElectronContainerImplementation::Read (std::istream& is)
+std::istream& ElectronContainerImp::Read (std::istream& is)
 {
     if (StreamableObject::Binary())
     {

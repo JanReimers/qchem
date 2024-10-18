@@ -1,8 +1,8 @@
 // File: OrbitalGroupImplementation.C  general orbital group implementation.
 
 
-#include "OrbitalImplementation/OrbitalGroupImplementation.H"
-#include "QuantumNumber.H"
+#include "Imp/Orbitals//Orbitals.H"
+#include <QuantumNumber.H>
 #include "Misc/DFTDefines.H"
 #include "Imp/Containers/ptr_vector_io.h"
 #include <cmath>
@@ -12,11 +12,11 @@
 //
 //  Construction zone
 //
-OrbitalGroupImplementation::OrbitalGroupImplementation()
+OrbitalsImp::OrbitalsImp()
     : itsBasisSet( )
 {};
 
-OrbitalGroupImplementation::OrbitalGroupImplementation(const IrrepBasisSet* bs)
+OrbitalsImp::OrbitalsImp(const IrrepBasisSet* bs)
     : itsBasisSet(bs)
 {};
 
@@ -35,12 +35,12 @@ OrbitalGroupImplementation::OrbitalGroupImplementation(const IrrepBasisSet* bs)
 //
 //  Orbital group stuff.
 //
-index_t  OrbitalGroupImplementation::GetNumOrbitals() const
+index_t  OrbitalsImp::GetNumOrbitals() const
 {
     return itsOrbitals.size();
 }
 
-double OrbitalGroupImplementation::GetEigenValueChange(const OrbitalGroup& og) const
+double OrbitalsImp::GetEigenValueChange(const Orbitals& og) const
 {
     // No UT coverage
     // TODO: OrbitalGroup should return a vector of energies.
@@ -58,7 +58,7 @@ double OrbitalGroupImplementation::GetEigenValueChange(const OrbitalGroup& og) c
 //
 //  Streamable stuff.
 //
-std::ostream& OrbitalGroupImplementation::Write(std::ostream& os) const
+std::ostream& OrbitalsImp::Write(std::ostream& os) const
 {
     if (!StreamableObject::Pretty())
     {
@@ -79,7 +79,7 @@ std::ostream& OrbitalGroupImplementation::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& OrbitalGroupImplementation::Read(std::istream& is)
+std::istream& OrbitalsImp::Read(std::istream& is)
 {
     is >> itsOrbitals;
     if (!StreamableObject::Binary()) is >> std::ws;

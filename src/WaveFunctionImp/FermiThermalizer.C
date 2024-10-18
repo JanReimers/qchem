@@ -1,7 +1,7 @@
 // File: FermiThermalizer.C  Calculate level occupation factors at finit temperature.
 
-#include "Orbital/FermiThermalizer.H"
-#include "Orbital/ElectronDumper.H"
+#include "Imp/WaveFunction/FermiThermalizer.H"
+#include "Imp/WaveFunction/ElectronDumper.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>

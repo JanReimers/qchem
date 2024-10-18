@@ -56,50 +56,28 @@
 			<Add library="pthread" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
+		<Unit filename="A_DFT.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="A_HF.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="A_SHF.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="AtomTester.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="AtomTester.H" />
-		<Unit filename="AtomTesterSlater.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="AtomTesterSlater.H" />
-		<Unit filename="AtomTests.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="BaseTester.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="BaseTester.H" />
-		<Unit filename="DFTTester.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="DFTTester.H" />
-		<Unit filename="DFTTesterSlater.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="DFTTesterSlater.H" />
 		<Unit filename="ERIList.C">
 			<Option compilerVar="CPP" />
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="GaussianERIIntegral.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="GaussianIntegral.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="HartreeFockTester.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="M_PG_U.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="HartreeFockTester.H" />
-		<Unit filename="MoleculeTester.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="MoleculeTester.H" />
 		<Unit filename="Persistance.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -110,10 +88,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="QchemTester.H" />
-		<Unit filename="SemiHFTester.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="SemiHFTester.H" />
 		<Unit filename="SlaterIntegral.C">
 			<Option compilerVar="CPP" />
 		</Unit>

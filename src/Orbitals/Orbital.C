@@ -2,7 +2,7 @@
 
 
 
-#include "OrbitalImplementation/OrbitalImplementation.H"
+#include "Imp/Orbitals//Orbital.H"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <iomanip>
@@ -13,24 +13,24 @@
 
 template class IDRef<const IrrepBasisSet>;
 
-OrbitalImplementation::OrbitalImplementation(const IDRef<const IrrepBasisSet>& bs,double e, const Spin& S)
-    : ElectronContainerImplementation(S,bs->GetQuantumNumber())
+OrbitalImp::OrbitalImp(const IDRef<const IrrepBasisSet>& bs,double e, const Spin& S)
+    : ElectronContainerImp(S,bs->GetQuantumNumber())
     , itsBasisSet   (bs)
     , itsEigenEnergy(e)
 {};
 
-OrbitalImplementation::OrbitalImplementation()
+OrbitalImp::OrbitalImp()
     : itsEigenEnergy(0)
 {};
 
-double OrbitalImplementation::GetEigenEnergy() const
+double OrbitalImp::GetEigenEnergy() const
 {
     return itsEigenEnergy;
 }
 
-std::ostream& OrbitalImplementation::Write(std::ostream& os) const
+std::ostream& OrbitalImp::Write(std::ostream& os) const
 {
-    ElectronContainerImplementation::Write(os);
+    ElectronContainerImp::Write(os);
     if (Pretty())
         os << "              " << GetOccupation() << "/" << GetDegeneracy() << "       " << std::setw(12) << itsEigenEnergy << "      ";
     else
@@ -44,9 +44,9 @@ std::ostream& OrbitalImplementation::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& OrbitalImplementation::Read (std::istream& is)
+std::istream& OrbitalImp::Read (std::istream& is)
 {
-    ElectronContainerImplementation::Read(is);
+    ElectronContainerImp::Read(is);
     is >> itsBasisSet;
     if (Binary())
         BinaryRead(itsEigenEnergy,is);

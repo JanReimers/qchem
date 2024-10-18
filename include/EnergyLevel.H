@@ -2,7 +2,6 @@
 #ifndef _EnergyLevel_H_
 #define _EnergyLevel_H_
 
-#include "Orbital/ElectronContainer.H"
 #include "Orbital.H"
 #include <vector>
 
@@ -12,7 +11,8 @@ class EnergyLevel
 public:
     EnergyLevel(                );
     EnergyLevel(double Tolerance);
-
+    ~EnergyLevel() {};
+    
     virtual bool   IsOccupied   (       ) const;
     virtual double GetOccupation(       ) const;
     virtual double GetSpin      (       ) const;

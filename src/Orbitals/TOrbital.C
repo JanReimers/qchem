@@ -2,7 +2,7 @@
 
 
 
-#include "OrbitalImplementation/TOrbitalImplementation.H"
+#include "Imp/Orbitals/TOrbital.H"
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
@@ -14,11 +14,11 @@
 //
 //  Construction zone
 //
-template <class T> TOrbitalImplementation<T>::
-TOrbitalImplementation(const IDRef<const IrrepBasisSet>& bs,
+template <class T> TOrbitalImp<T>::
+TOrbitalImp(const IDRef<const IrrepBasisSet>& bs,
                        const Vec& c,
                        double e, const Spin& S)
-    : OrbitalImplementation(bs,e,S)
+    : OrbitalImp(bs,e,S)
     , itsCoeff      (c)
 {
     if (!CastBasisSet())
@@ -28,7 +28,7 @@ TOrbitalImplementation(const IDRef<const IrrepBasisSet>& bs,
     }
 };
 
-template <class T> TOrbitalImplementation<T>::TOrbitalImplementation()
+template <class T> TOrbitalImp<T>::TOrbitalImp()
     : itsCoeff      ( )
 {};
 
@@ -36,13 +36,13 @@ template <class T> TOrbitalImplementation<T>::TOrbitalImplementation()
 //
 //  Real space function stuff.
 //
-template <class T> T TOrbitalImplementation<T>::operator()(const RVec3& r) const
+template <class T> T TOrbitalImp<T>::operator()(const RVec3& r) const
 {
     return itsCoeff * (*CastBasisSet())(r);
 }
 
 //BUG
-template <class T> typename TOrbitalImplementation<T>::Vec3 TOrbitalImplementation<T>::Gradient(const RVec3& r) const
+template <class T> typename TOrbitalImp<T>::Vec3 TOrbitalImp<T>::Gradient(const RVec3& r) const
 {
     Vec3 ret(0,0,0);
     Vec3Vec grads=CastBasisSet()->Gradient(r);
@@ -52,7 +52,7 @@ template <class T> typename TOrbitalImplementation<T>::Vec3 TOrbitalImplementati
     return ret;
 }
 
-template <class T> void TOrbitalImplementation<T>::AddDensityMatrix(SMat& d) const
+template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
 {
     if (IsOccupied()) d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
 }
@@ -61,22 +61,22 @@ template <class T> void TOrbitalImplementation<T>::AddDensityMatrix(SMat& d) con
 //
 //  Streamabel stuff.
 //
-template <class T> std::ostream& TOrbitalImplementation<T>::Write(std::ostream& os) const
+template <class T> std::ostream& TOrbitalImp<T>::Write(std::ostream& os) const
 {
-    OrbitalImplementation::Write(os);
+    OrbitalImp::Write(os);
     os << itsCoeff;
     if (Pretty()) os << std::endl;
     return os;
 }
 
-template <class T> std::istream& TOrbitalImplementation<T>::Read (std::istream& is)
+template <class T> std::istream& TOrbitalImp<T>::Read (std::istream& is)
 {
-    OrbitalImplementation::Read(is);
+    OrbitalImp::Read(is);
     is >> itsCoeff;
 
     return is;
 }
 
 
-template class TOrbitalImplementation<double>;
-template class TOrbitalImplementation<std::complex<double> >;
+template class TOrbitalImp<double>;
+template class TOrbitalImp<std::complex<double> >;

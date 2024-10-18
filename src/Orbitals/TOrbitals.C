@@ -2,10 +2,11 @@
 
 
 
-#include "OrbitalImplementation/TOrbitalGroupImplementation.H"
-#include "OrbitalImplementation/TOrbitalImplementation.H"
+#include "Imp/Orbitals/TOrbitals.H"
+#include "Imp/Orbitals/TOrbital.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
-#include "oml/vector.h"
+#include <Hamiltonian.H>
+#include <LASolver/LASolver.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
@@ -15,28 +16,57 @@
 //
 //  Construction zone
 //
-template <class T> TOrbitalGroupImplementation<T>::TOrbitalGroupImplementation()
+template <class T> TOrbitalsImp<T>::TOrbitalsImp()
 {};
 
-template <class T> TOrbitalGroupImplementation<T>::
-TOrbitalGroupImplementation(const TIrrepBasisSet<T>* bs,
-                            const Mat & evec,
-                            const RVec& eval,
-                            const Spin& S)
-    : OrbitalGroupImplementation(bs)
+template <class T> TOrbitalsImp<T>::
+TOrbitalsImp(const TIrrepBasisSet<T>* bs)
+    : OrbitalsImp(bs)
     , itsBasisSet(bs)
+    , itsLASolver(bs->CreateSolver())
+{};
+
+
+//-----------------------------------------------------------------
+//
+//  Orbital stuff.
+//
+//
+//  This is where the real SCF work gets done.
+//
+template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,const Spin& spin)
 {
     assert(itsBasisSet);
-    index_t n=eval.size();
+    SMatrix<T> H=ham.BuildHamiltonian(itsBasisSet,spin);
+    assert(!isnan(H));
+    auto [U,e]=itsLASolver->Solve(H);
+    itsOrbitals.clear();
+    index_t n=e.size();
     for (index_t i=1; i<=n; i++)
-        itsOrbitals.push_back(new TOrbitalImplementation<T>(itsBasisSet,evec.GetColumn(i), eval(i),S));
-};
+        itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),spin));
+}
+
+
+template <class T> ChargeDensity* TOrbitalsImp<T>::GetChargeDensity(Spin s) const
+{
+    return new ExactIrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,s);
+}
+
+
+template <class T> typename TOrbitalsImp<T>::SMat TOrbitalsImp<T>::
+CalculateDensityMatrix() const
+{
+    SMat d(itsBasisSet->GetNumFunctions());
+    Fill(d,T(0.0));
+    for (auto b=this->beginT();b!=this->end();b++) b->AddDensityMatrix(d);
+    return d;
+}
 
 //-----------------------------------------------------------------
 //
 //  VectorFunction stuff.
 //
-template <class T> typename TOrbitalGroupImplementation<T>::Vec TOrbitalGroupImplementation<T>::
+template <class T> typename TOrbitalsImp<T>::Vec TOrbitalsImp<T>::
 operator()(const RVec3& r) const
 {
     Vec ret(GetNumOrbitals());
@@ -46,7 +76,7 @@ operator()(const RVec3& r) const
     return ret;
 }
 
-template <class T> typename TOrbitalGroupImplementation<T>::Vec3Vec TOrbitalGroupImplementation<T>::
+template <class T> typename TOrbitalsImp<T>::Vec3Vec TOrbitalsImp<T>::
 Gradient(const RVec3& r) const
 {
     // No UT coverage
@@ -58,44 +88,20 @@ Gradient(const RVec3& r) const
 
 //-----------------------------------------------------------------
 //
-//  Orbital stuff.
-//
-template <class T> ChargeDensity* TOrbitalGroupImplementation<T>::GetChargeDensity(Spin s) const
-{
-    return new ExactIrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,s);
-}
-
-#include "QuantumNumber.H"
-#include <iomanip>
-template <class T> typename TOrbitalGroupImplementation<T>::SMat TOrbitalGroupImplementation<T>::
-CalculateDensityMatrix() const
-{
-//    std::cout.precision(4);
-    index_t n=itsBasisSet->GetNumFunctions();
-    SMat d(n,n);
-    Fill(d,T(0.0));
-    for (auto b=this->beginT();b!=this->end();b++) b->AddDensityMatrix(d);
-    
-//	std::cout << "OrbitalGroup L=" << itsRCBasisSet->GetQuantumNumber() << "DensityMatrix=" << std::setw(7) << d << std::endl;
-    return d;
-}
-
-//-----------------------------------------------------------------
-//
 //  Streamable stuff.
 //
-template <class T> std::ostream& TOrbitalGroupImplementation<T>::Write(std::ostream& os) const
+template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
 {
-    OrbitalGroupImplementation::Write(os);
+    OrbitalsImp::Write(os);
     return os;
 }
 
-template <class T> std::istream& TOrbitalGroupImplementation<T>::Read(std::istream& is)
+template <class T> std::istream& TOrbitalsImp<T>::Read(std::istream& is)
 {
-    OrbitalGroupImplementation::Read(is);
+    OrbitalsImp::Read(is);
     return is;
 }
 
 
-template class TOrbitalGroupImplementation<double>;
+template class TOrbitalsImp<double>;
 //template class TOrbitalGroupImplementation<std::complex<double> >;

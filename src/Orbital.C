@@ -3,8 +3,8 @@
 
 template class TOrbital<double>;
 template class TOrbital<std::complex<double> >;
-template class TOrbitalGroup<double>;
-template class TOrbitalGroup<std::complex<double> >;
+template class TOrbitals<double>;
+template class TOrbitals<std::complex<double> >;
 
 //#include "BasisSet.H"
 //#include "Misc/rc_ptr.H"

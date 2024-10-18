@@ -1,7 +1,7 @@
 // File: OrbitalFactories.C
 
-#include "OrbitalImplementation/TOrbitalImplementation.H"
-#include "OrbitalImplementation/TOrbitalGroupImplementation.H"
+#include "Imp/Orbitals/TOrbital.H"
+#include "Imp/Orbitals/TOrbitals.H"
 
 #include <string>
 #include <iostream>
@@ -17,7 +17,7 @@
 Orbital* Orbital::Factory(std::istream& is)
 {
     std::string Name=PeekAtName(is);
-    if (Name==typeid(TOrbitalImplementation<double>).name()) return new TOrbitalImplementation<double>;
+    if (Name==typeid(TOrbitalImp<double>).name()) return new TOrbitalImp<double>;
 
     std::cerr << "Unknown orbital type :" << Name << std::endl;
     exit(-1);
@@ -30,10 +30,10 @@ Orbital* Orbital::Factory(std::istream& is)
 //  class and makes a new object using the default constructor.
 //
 
-OrbitalGroup* OrbitalGroup::Factory(std::istream& is)
+Orbitals* Orbitals::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(TOrbitalGroupImplementation<double>).name()) return new TOrbitalGroupImplementation<double>;
+    if (Name==typeid(TOrbitalsImp<double>).name()) return new TOrbitalsImp<double>;
 
     std::cout << "Unknown orbital group type :" << Name << std::endl;
     exit(-1);

@@ -2,10 +2,10 @@
 //                      makes a list of energy levels, and finally fills the
 //                      levels with electrons.
 
-#include "Orbital/ElectronDumper.H"
-#include "Orbital.H"
-#include "Orbital/EnergyLevel.H"
-#include "Orbital/FermiThermalizer.H"
+#include "Imp/WaveFunction/ElectronDumper.H"
+#include <Orbital.H>
+#include <EnergyLevel.H>
+#include "Imp/WaveFunction/FermiThermalizer.H"
 #include <algorithm> //sort
 #include <numeric> //iota
 #include <vector>
@@ -29,7 +29,7 @@ void ElectronDumper::Add(Orbital* o)
     IsDirty=true;
 }
 
-void ElectronDumper::Add(OrbitalGroup* og)
+void ElectronDumper::Add(Orbitals* og)
 {
     for (auto o:*og) itsOrbitals.push_back(o);
     IsDirty=true;

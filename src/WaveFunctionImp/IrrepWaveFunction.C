@@ -2,39 +2,29 @@
 
 
 
-#include "Hamiltonian.H"
-#include "Orbital.H"
-#include "Orbital/ElectronDumper.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/WaveFunction/ElectronDumper.H"
 #include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
-#include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
-#include "OrbitalImplementation/TOrbitalGroupImplementation.H"
-#include <LASolver/LASolver.H>
+#include "Imp/Orbitals/TOrbitals.H"
+#include <Hamiltonian.H>
 #include "oml/imp/binio.h"
-#include "oml/smatrix.h"
-#include "oml/vector.h"
 #include <cassert>
 
 IrrepWaveFunction::IrrepWaveFunction()
     : itsOrbitals(0)
-    , itsBasisSet(0)
     , itsSpin    ( )
-    , itsLASolver(0)
 {};
 
 IrrepWaveFunction::IrrepWaveFunction(const IrrepBasisSet* bs, const Spin& S)
-    : itsOrbitals(0 )
-    , itsBasisSet(dynamic_cast<const TIrrepBasisSet<double>*>(bs))
+    : itsOrbitals(new  TOrbitalsImp<double>(dynamic_cast<const TIrrepBasisSet<double>*>(bs)))
     , itsSpin    (S )
-    , itsLASolver(bs->CreateSolver())
 {
-    assert(itsBasisSet);
+    assert(itsOrbitals);
 };
 
 IrrepWaveFunction::~IrrepWaveFunction()
 {
     delete itsOrbitals;
-    delete itsLASolver;
 }
 
 //----------------------------------------------------------------------------
@@ -44,29 +34,14 @@ IrrepWaveFunction::~IrrepWaveFunction()
 //
 void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
 {
-    if (itsOrbitals) delete itsOrbitals;
-    SMatrix<double> H=ham.BuildHamiltonian(itsBasisSet,itsSpin);
-    assert(!isnan(H));
-    auto [U,e]=itsLASolver->Solve(H);
-    itsOrbitals =new TOrbitalGroupImplementation<double>(itsBasisSet,U,e,itsSpin);
+    assert(itsOrbitals);
+    itsOrbitals->UpdateOrbitals(ham,itsSpin);
 }
 
 ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
 {
-    ChargeDensity* cd=0;
-    if (itsOrbitals)
-    {
-        cd=itsOrbitals->GetChargeDensity(s);
-    }
-    else
-    {
-        int n=itsBasisSet->GetNumFunctions();
-        SMatrix<double> D(n,n);
-        Fill(D,0.0);
-        cd=new ExactIrrepCD<double>(D,itsBasisSet,s);
-    }
-    assert(cd);
-    return cd;
+    assert(itsOrbitals);
+    return itsOrbitals->GetChargeDensity(s);
 }
 
 void IrrepWaveFunction::UpdateElectronDumper(ElectronDumper& ed)
@@ -91,7 +66,6 @@ std::ostream& IrrepWaveFunction::Write(std::ostream& os) const
         
     os << *itsOrbitals;
     if (Pretty()) os << "        ";
-    os << *itsBasisSet; 
 
     return os;
 }
@@ -101,15 +75,9 @@ std::istream& IrrepWaveFunction::Read (std::istream& is)
     is >> itsSpin;
 
     delete itsOrbitals;
-    itsOrbitals = OrbitalGroup::Factory(is);
+    itsOrbitals = Orbitals::Factory(is);
     assert(itsOrbitals);
     is >> *itsOrbitals;
-
-//    IrrepBasisSet* temp=IrrepBasisSet::Factory(is);
-//    is >> *temp;
-//    itsBasisSet.reset(temp);
-//    FixUpPointer(itsOrbitals,itsBasisSet);
-
 
     return is;
 }

@@ -8,16 +8,16 @@
 #include "BasisSet.H"
 #include "Imp/Containers/ptr_vector.h"
 
-class OrbitalGroupImplementation
-    : public virtual OrbitalGroup
+class OrbitalsImp
+    : public virtual Orbitals
 {
 public:
-    OrbitalGroupImplementation();
-    OrbitalGroupImplementation(const IrrepBasisSet*);
-    virtual ~OrbitalGroupImplementation() {};
+    OrbitalsImp();
+    OrbitalsImp(const IrrepBasisSet*);
+    virtual ~OrbitalsImp() {};
 
     virtual index_t  GetNumOrbitals     (                   ) const;
-    virtual double   GetEigenValueChange(const OrbitalGroup&) const;
+    virtual double   GetEigenValueChange(const Orbitals&) const;
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}
     virtual const_iterator end  () const {return itsOrbitals.end  ();} 

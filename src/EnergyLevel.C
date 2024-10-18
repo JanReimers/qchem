@@ -2,8 +2,8 @@
 
 
 
-#include "Orbital/EnergyLevel.H"
-#include "Orbital.H"
+#include <EnergyLevel.H>
+#include <Orbital.H>
 #include <cmath>
 #include <iostream>
 #include <cassert>

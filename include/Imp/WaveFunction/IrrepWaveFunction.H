@@ -27,10 +27,8 @@ public:
 private:
     IrrepWaveFunction(const IrrepWaveFunction&);
 
-    OrbitalGroup*        itsOrbitals;
-    const TIrrepBasisSet<double>* itsBasisSet;
+    Orbitals*            itsOrbitals;
     Spin                 itsSpin;
-    LASolver<double>*    itsLASolver; //General eigen solver
 }; 
 
 #endif //IrrepWaveFunction

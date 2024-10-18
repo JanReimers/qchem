@@ -36,6 +36,10 @@ Priority 1:
     -Electron loading problem/buf for Z=55 and up
     -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
                                     ^^^^^^^^^^^^^^
+    -Vosco LDA
+    -Sort out Orbital category.  WF should not see OrbImp stuff.
+    -Sort out Ham category.  WF should not see OrbImp stuff.
+    -Sort out CD category.  WF should not see OrbImp stuff.
         
         
     -Done: Clean up factorial wigner 3j table init.  Too many calls.
@@ -125,7 +129,7 @@ Priority 3:
     Done: -IE::MakeInverse should take LAParams as argument.
     Done: -All templated classes should hold TIrrepBasisSet<T> pointers.
         Construct only accepts TIrrepBasisSet<T>* ?
-        Test out with ExactIrrepCD and TOrbitalGroupImplementation
+        Test out with ExactIrrepCD and TOrbitals
     Done: -FittedFunctionImplementation delete itsMesh crashed.  Who owns the mesh?
         Good use for rc_ptr.
     Done: -Break dependency BasisSet-->Orbitals in Build Orbitals.

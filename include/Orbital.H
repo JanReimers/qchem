@@ -2,8 +2,20 @@
 #ifndef _Orbital_H_
 #define _Orbital_H_
 
-#include "Orbital/ElectronContainer.H"
 #include "Misc/pmstream.h"
+
+class ElectronContainer
+{
+public:
+    virtual ~ElectronContainer() {};
+    virtual bool   IsOccupied   (       ) const=0;
+    virtual double GetOccupation(       ) const=0;
+    virtual double GetSpin      (       ) const=0;
+    virtual void   Empty        (       )      =0;
+    virtual void   SetOccupation(double )      =0;
+    virtual int    GetDegeneracy(       ) const=0;
+};
+
 
 //#############################################################
 //
@@ -25,8 +37,8 @@ public:
     static  Orbital* Factory     (std::istream&)        ;
 
 private:
-    friend class OrbitalGroup;
-    virtual void FixUpPointer(const IrrepBasisSet*)=0;
+    friend class Orbitals;
+//    virtual void FixUpPointer(const IrrepBasisSet*)=0;
 };
 
 #include "Functions/ScalarFunction.H"
@@ -52,21 +64,22 @@ public:
 //  templated portion is independant of whether the orbitals are real
 //  or complex valued.
 //
-class OrbitalGroup : public virtual PMStreamableObject
+class Orbitals : public virtual PMStreamableObject
 {
 public:
     typedef std::vector<Orbital*>::      iterator       iterator;
     typedef std::vector<Orbital*>::const_iterator const_iterator;
 
-    virtual ~OrbitalGroup() {};
+    virtual ~Orbitals() {};
     virtual index_t        GetNumOrbitals     (                   ) const=0;
-    virtual double         GetEigenValueChange(const OrbitalGroup&) const=0;
+    virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual ChargeDensity* GetChargeDensity   (Spin               ) const=0;
+    virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&)=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;
 
-    static  OrbitalGroup* Factory(std::istream&);  
+    static  Orbitals* Factory(std::istream&);  
     
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
@@ -86,8 +99,8 @@ protected:
 //  Templated depending or whether it is a real or
 //  complex valued orbital.
 //
-template <class T> class TOrbitalGroup
-    : public virtual OrbitalGroup
+template <class T> class TOrbitals
+    : public virtual Orbitals
     , public virtual VectorFunction<T>
 {
 public:
@@ -98,7 +111,7 @@ public:
     }
     const_iterator beginT() const {return const_iterator(begin());};
 
-    static  TOrbitalGroup* Factory(std::istream&)        ;
+    static  TOrbitals* Factory(std::istream&)        ;
 };
 
 

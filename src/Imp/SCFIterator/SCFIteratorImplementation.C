@@ -2,13 +2,13 @@
 
 
 
-#include "WaveFunction.H"
+#include <WaveFunction.H>
 #include "Imp/SCFIterator/SCFIteratorImplementation.H"
 #include "SCFIterator/IterationParams.H"
-#include "Hamiltonian.H"
-#include "TotalEnergy.H"
-#include "ChargeDensity.H"
-#include "Orbital/ElectronDumper.H"
+#include <Hamiltonian.H>
+#include <TotalEnergy.H>
+#include <ChargeDensity.H>
+#include "Imp/WaveFunction/ElectronDumper.H"
 #include "Mesh/LinearMesh.H"
 #include <iostream>
 #include <iomanip>

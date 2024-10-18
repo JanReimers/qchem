@@ -586,10 +586,6 @@
 		<Unit filename="src/Orbital.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Orbital/ElectronContainer.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Orbital/ElectronContainer.H" />
 		<Unit filename="src/Orbital/ElectronDumper.C">
 			<Option compilerVar="CPP" />
 		</Unit>

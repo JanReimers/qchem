@@ -6,12 +6,12 @@
 
 #include "Orbital.H"
 #include "BasisSet.H"
-#include "OrbitalImplementation/OrbitalImplementation.H"
+#include "Imp/Orbitals/Orbital.H"
 #include "oml/vector.h"
 
-template <class T> class TOrbitalImplementation
+template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
-    , private        OrbitalImplementation
+    , private        OrbitalImp
 {
     typedef ScalarFunction<T> Base;
     typedef typename Base::SMat SMat;
@@ -19,8 +19,8 @@ template <class T> class TOrbitalImplementation
     typedef typename Base::Vec3 Vec3;
     typedef typename Base::Vec3Vec Vec3Vec;
 public:
-    TOrbitalImplementation();
-    TOrbitalImplementation(const IDRef<const IrrepBasisSet>&,const Vec&, double, const Spin&);
+    TOrbitalImp();
+    TOrbitalImp(const IDRef<const IrrepBasisSet>&,const Vec&, double, const Spin&);
 
     virtual T      operator()      (const RVec3&) const;
     virtual Vec3   Gradient        (const RVec3&) const;

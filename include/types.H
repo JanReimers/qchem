@@ -44,7 +44,7 @@ class HamiltonianTerm;
 class Molecule;
 class Mesh;
 class Orbital;
-class OrbitalGroup;
+class Orbitals;
 class QuantumNumber;
 class RadialMesh;
 class SCFIterator;

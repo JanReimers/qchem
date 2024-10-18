@@ -6,7 +6,7 @@
 #include "SCFIterator/IterationParams.H"
 #include "Hamiltonian.H"
 #include "WaveFunction.H"
-#include "Orbital/ElectronDumper.H"
+#include "Imp/WaveFunction/ElectronDumper.H"
 #include "ChargeDensity.H"
 #include <iostream>
 #include <iomanip>
