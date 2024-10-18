@@ -2,11 +2,11 @@
 
 
 
-#include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
-#include "HamiltonianImplementation/HartreeFockVxc.H"
-#include "TotalEnergy.H"
-#include "ChargeDensity.H"
-#include "BasisSet.H"
+#include "Imp/Hamiltonian/VxcPol.H"
+#include "Imp/Hamiltonian/Vxc.H"
+#include <TotalEnergy.H>
+#include <ChargeDensity.H>
+#include <BasisSet.H>
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"

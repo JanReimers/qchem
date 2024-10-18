@@ -2,9 +2,9 @@
 
 
 
-#include "HamiltonianImplementation/ExactVee.H"
-#include "ChargeDensity.H"
-#include "TotalEnergy.H"
+#include "Imp/Hamiltonian/Vee.H"
+#include <ChargeDensity.H>
+#include <TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>

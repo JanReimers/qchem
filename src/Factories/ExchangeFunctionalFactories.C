@@ -1,6 +1,6 @@
 // File: ExchangeFunctionalFactories.C  Interface for all ExchangeFunctional exchange functions.
 
-#include "HamiltonianImplementation/SlaterExchange.H"
+#include "Imp/Hamiltonian/SlaterExchange.H"
 
 #include <string>
 #include <iostream>

@@ -1122,7 +1122,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729268167 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729292189 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	"SCFIterator/SCFIterator.H"
 	<WaveFunction.H>
@@ -1131,19 +1131,18 @@
 	<BasisSet.H>
 	<TotalEnergy.H>
 	<cmath>
-	"HamiltonianImplementation/HamiltonianImplementation.H"
-	"HamiltonianImplementation/Kinetic.H"
-	"HamiltonianImplementation/HartreeFockVxc.H"
-	"HamiltonianImplementation/ExactVnn.H"
-	"HamiltonianImplementation/ExactVen.H"
-	"HamiltonianImplementation/ExactVee.H"
-	"HamiltonianImplementation/HartreeFockVxc.H"
-	"HamiltonianImplementation/SlaterExchange.H"
-	"HamiltonianImplementation/FittedVxc.H"
-	"HamiltonianImplementation/PolarizedFittedVxc.H"
+	"Imp/Hamiltonian/Hamiltonian.H"
+	"Imp/Hamiltonian/Kinetic.H"
+	"Imp/Hamiltonian/Vxc.H"
+	"Imp/Hamiltonian/Ven.H"
+	"Imp/Hamiltonian/Vnn.H"
+	"Imp/Hamiltonian/Vee.H"
+	"Imp/Hamiltonian/SlaterExchange.H"
+	"Imp/Hamiltonian/FittedVxc.H"
+	"Imp/Hamiltonian/FittedVxcPol.H"
 	"Hamiltonian/ExchangeFunctional.H"
-	"HamiltonianImplementation/PolarizedHartreeFockVxc.H"
-	"HamiltonianImplementation/CDFittedVee.H"
+	"Imp/Hamiltonian/VxcPol.H"
+	"Imp/Hamiltonian/FittedVeeCD.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
@@ -1201,4 +1200,60 @@
 	<iostream>
 	<fstream>
 	<cmath>
+
+1729290820 /home/janr/Code/qchem/include/Imp/Hamiltonian/Hamiltonian.H
+	<Hamiltonian.H>
+	"Imp/Containers/ptr_vector.h"
+
+1729291596 /home/janr/Code/qchem/include/Imp/Hamiltonian/Kinetic.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+
+1728599453 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
+	"Hamiltonian.H"
+	"Misc/Spin.H"
+	"oml/smatrix.h"
+	<map>
+
+1729292447 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vxc.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+
+1729291858 /home/janr/Code/qchem/include/Imp/Hamiltonian/Ven.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	<Cluster.H>
+	"Misc/rc_ptr.H"
+
+1729291869 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vnn.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	<Cluster.H>
+	"Misc/rc_ptr.H"
+
+1729291838 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vee.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+
+1729290862 /home/janr/Code/qchem/include/Imp/Hamiltonian/SlaterExchange.H
+	"Imp/Hamiltonian/ExchangeFunctional.H"
+	"Misc/Spin.H"
+
+1728694484 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
+	"Hamiltonian/ExchangeFunctional.H"
+
+1729291944 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	"Hamiltonian/ExchangeFunctional.H"
+	"Misc/rc_ptr.H"
+	"FunctionsImp/FittedFunctionImplementation.H"
+
+1729291496 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
+	"Hamiltonian/ExchangeFunctional.H"
+	"Imp/Hamiltonian/Hamiltonian.H"
+	"Misc/rc_ptr.H"
+
+1729291932 /home/janr/Code/qchem/include/Imp/Hamiltonian/VxcPol.H
+	"Hamiltonian/ExchangeFunctional.H"
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	"Misc/rc_ptr.H"
+
+1729292439 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVeeCD.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	"Misc/rc_ptr.H"
 

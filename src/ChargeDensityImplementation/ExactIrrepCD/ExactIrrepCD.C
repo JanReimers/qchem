@@ -6,7 +6,7 @@
 #include "QuantumNumber.H"
 #include "ChargeDensity.H"
 #include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
-#include "HamiltonianImplementation/HamiltonianTermImplementation.H"
+#include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
 #include "oml/vector3d.h"
 #include "oml/vector.h"

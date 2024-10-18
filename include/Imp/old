@@ -5,7 +5,7 @@
 #pragma interface
 
 #include "FunctionsImp/FittedFunctionImplementation.H"
-#include "HamiltonianImplementation/FittablePotentialImplementation.H"
+#include "Imp/Hamiltonian/Hamiltonian.H"
 
 
 //###############################################################################

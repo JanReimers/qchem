@@ -2,7 +2,7 @@
 
 
 
-#include "HamiltonianImplementation/CDFittedVee.H"
+#include "Imp/Hamiltonian/FittedVeeCD.H"
 #include "ChargeDensity.H"
 #include "ChargeDensityImplementation/FittedCDImplementation.H"
 #include "TotalEnergy.H"

@@ -1,10 +1,10 @@
 // File: HamiltonianTermImplementation  General implementation of a HamiltonianTerm term in the Hamiltonian.
 
 
-#include "HamiltonianImplementation/HamiltonianTermImplementation.H"
-#include "BasisSet.H"
-#include "ChargeDensity.H"
-#include "QuantumNumber.H"
+#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include <BasisSet.H>
+#include <ChargeDensity.H>
+#include <QuantumNumber.H>
 #include <iostream>
 #include <cassert>
 

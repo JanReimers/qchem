@@ -2,10 +2,10 @@
 
 
 
-#include "HamiltonianImplementation/FittedVxc.H"
-#include "HamiltonianImplementation/LDAVxc.H"
-#include "TotalEnergy.H"
-#include "ChargeDensity.H"
+#include "Imp/Hamiltonian/FittedVxc.H"
+#include "Imp/Hamiltonian/LDAVxc.H"
+#include <TotalEnergy.H>
+#include <ChargeDensity.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 

@@ -4,7 +4,7 @@
 
 
 
-#include "Hamiltonian.H"
+#include <Hamiltonian.H>
 #include "Imp/Containers/ptr_vector.h"
 
 class HamiltonianImplementation

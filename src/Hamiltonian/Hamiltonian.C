@@ -2,10 +2,10 @@
 
 
 
-#include "TotalEnergy.H"
-#include "HamiltonianImplementation/HamiltonianImplementation.H"
-#include "ChargeDensity.H"
-#include "BasisSet.H"
+#include "Imp/Hamiltonian/Hamiltonian.H"
+#include <TotalEnergy.H>
+#include <ChargeDensity.H>
+#include <BasisSet.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
 #include <cassert>

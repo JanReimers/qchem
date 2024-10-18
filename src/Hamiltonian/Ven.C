@@ -2,10 +2,10 @@
 
 
 
-#include "HamiltonianImplementation/ExactVen.H"
-#include "BasisSet.H"
-#include "TotalEnergy.H"
-#include "ChargeDensity.H"
+#include "Imp/Hamiltonian/Ven.H"
+#include <BasisSet.H>
+#include <TotalEnergy.H>
+#include <ChargeDensity.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"

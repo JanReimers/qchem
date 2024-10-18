@@ -2,7 +2,7 @@
 
 
 
-#include "HamiltonianImplementation/LDAVxc.H"
+#include "Imp/Hamiltonian/LDAVxc.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
 #include "BasisSet.H"
 #include "oml/smatrix.h"

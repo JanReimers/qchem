@@ -1,18 +1,18 @@
 // File: HamiltonainFactories.C  Interface a Hamiltonian operator.
 
-#include "Hamiltonian/ExchangeFunctional.H"
-#include "BasisSet.H"
-#include "HamiltonianImplementation/Kinetic.H"
-#include "HamiltonianImplementation/ExactVen.H"
-#include "HamiltonianImplementation/ExactVnn.H"
-#include "HamiltonianImplementation/FittedVxc.H"
-#include "HamiltonianImplementation/PolarizedFittedVxc.H"
-#include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
-#include "HamiltonianImplementation/CDFittedVee.H"
-#include "HamiltonianImplementation/ExactVee.H"
-#include "HamiltonianImplementation/LDAVxc.H"
-#include "HamiltonianImplementation/HartreeFockVxc.H"
-#include "HamiltonianImplementation/HamiltonianImplementation.H"
+#include "Imp/Hamiltonian/ExchangeFunctional.H"
+#include "Imp/Hamiltonian/Kinetic.H"
+#include "Imp/Hamiltonian/Vee.H"
+#include "Imp/Hamiltonian/Ven.H"
+#include "Imp/Hamiltonian/Vnn.H"
+#include "Imp/Hamiltonian/Vxc.H"
+#include "Imp/Hamiltonian/VxcPol.H"
+#include "Imp/Hamiltonian/FittedVeeCD.H"
+#include "Imp/Hamiltonian/FittedVxc.H"
+#include "Imp/Hamiltonian/FittedVxcPol.H"
+#include "Imp/Hamiltonian/LDAVxc.H"
+#include "Imp/Hamiltonian/Hamiltonian.H"
+#include <BasisSet.H>
 
 #include <string>
 #include <iostream>

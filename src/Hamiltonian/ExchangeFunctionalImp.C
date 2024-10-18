@@ -2,7 +2,7 @@
 
 
 
-#include "HamiltonianImplementation/ExchangeFunctionalImplementation.H"
+#include "Imp/Hamiltonian/ExchangeFunctional.H"
 #include "ChargeDensity.H"
 #include "oml/vector.h"
 #include <cassert>

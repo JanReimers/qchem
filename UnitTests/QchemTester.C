@@ -95,11 +95,11 @@ int QchemTester::GetZ() const
 
 
 
-#include "HamiltonianImplementation/HamiltonianImplementation.H"
-#include "HamiltonianImplementation/Kinetic.H"
-#include "HamiltonianImplementation/HartreeFockVxc.H"
-#include "HamiltonianImplementation/ExactVnn.H"
-#include "HamiltonianImplementation/ExactVen.H"
+#include "Imp/Hamiltonian/Hamiltonian.H"
+#include "Imp/Hamiltonian/Kinetic.H"
+#include "Imp/Hamiltonian/Vxc.H"
+#include "Imp/Hamiltonian/Ven.H"
+#include "Imp/Hamiltonian/Vnn.H"
 Hamiltonian* TestHamiltonian::GetHamiltonian(const rc_ptr<Cluster>& cl) const
 {
     Hamiltonian* H=new HamiltonianImplementation();
@@ -112,8 +112,7 @@ Hamiltonian* TestHamiltonian::GetHamiltonian(const rc_ptr<Cluster>& cl) const
     return H;
 }
 
-#include "HamiltonianImplementation/ExactVee.H"
-#include "HamiltonianImplementation/HartreeFockVxc.H"
+#include "Imp/Hamiltonian/Vee.H"
 
 HamiltonianTerm* HFHamiltonian:: GetVee() const
 {
@@ -125,9 +124,9 @@ HamiltonianTerm* HFHamiltonian:: GetVxc() const
     return new HartreeFockVxc;
 }
 
-#include "HamiltonianImplementation/SlaterExchange.H"
-#include "HamiltonianImplementation/FittedVxc.H"
-#include "HamiltonianImplementation/PolarizedFittedVxc.H"
+#include "Imp/Hamiltonian/SlaterExchange.H"
+#include "Imp/Hamiltonian/FittedVxc.H"
+#include "Imp/Hamiltonian/FittedVxcPol.H"
 #include "Hamiltonian/ExchangeFunctional.H" 
 
 SHFHamiltonian::SHFHamiltonian(int Z)
@@ -165,13 +164,13 @@ HamiltonianTerm* PolSHFHamiltonian:: GetVxc() const
 }
 
 
-#include "HamiltonianImplementation/PolarizedHartreeFockVxc.H"
+#include "Imp/Hamiltonian/VxcPol.H"
 HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
 {
     return new PolarizedHartreeFockVxc;
 }
 
-#include "HamiltonianImplementation/CDFittedVee.H"
+#include "Imp/Hamiltonian/FittedVeeCD.H"
 
 HamiltonianTerm* DFTHamiltonian::GetVee() const
 {

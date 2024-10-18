@@ -1,8 +1,8 @@
 // File: Kinetic.C  Kinetic energy term for the hamiltonian.
 
-#include "HamiltonianImplementation/Kinetic.H"
-#include "BasisSet.H"
-#include "TotalEnergy.H"
+#include "Imp/Hamiltonian/Kinetic.H"
+#include <BasisSet.H>
+#include <TotalEnergy.H>
 
 Kinetic::Kinetic()
     : HamiltonianTermImplementation()

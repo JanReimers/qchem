@@ -4,9 +4,9 @@
 
 
 
-#include "Cluster.H"
+#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include <Cluster.H>
 #include "Misc/rc_ptr.H"
-#include "HamiltonianImplementation/HamiltonianTermImplementation.H"
 
 class ExactVnn
     : public virtual HamiltonianTerm

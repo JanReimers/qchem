@@ -2,10 +2,9 @@
 
 #pragma implementation
 
-#include "HamiltonianImplementation/FittedVee.H"
-#include "ChargeDensity/ChargeDensity.H"
-#include "Hamiltonian/TotalEnergy.H"
-#include "HamiltonianImplementation/CDFittedVee.H"
+#include "Imp/Hamiltonian/FittedVee.H"
+#include "Imp/Hamiltonian/FittedVeeCD.H"
+#include <TotalEnergy.H>
 #include "oml/vector.h"
 #include <cassert>
 

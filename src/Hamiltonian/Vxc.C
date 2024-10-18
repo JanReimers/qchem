@@ -2,10 +2,10 @@
 
 
 
-#include "HamiltonianImplementation/HartreeFockVxc.H"
-#include "BasisSet.H"
-#include "ChargeDensity.H"
-#include "TotalEnergy.H"
+#include "Imp/Hamiltonian/Vxc.H"
+#include <BasisSet.H>
+#include <ChargeDensity.H>
+#include <TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>

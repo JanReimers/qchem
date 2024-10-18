@@ -4,7 +4,7 @@
 
 
 
-#include "HamiltonianImplementation/HamiltonianTermImplementation.H"
+#include "Imp/Hamiltonian/HamiltonianTerm.H"
 
 //###############################################################################
 //

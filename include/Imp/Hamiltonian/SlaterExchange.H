@@ -4,7 +4,7 @@
 
 
 
-#include "HamiltonianImplementation/ExchangeFunctionalImplementation.H"
+#include "Imp/Hamiltonian/ExchangeFunctional.H"
 #include "Misc/Spin.H"
 
 class SlaterExchange
