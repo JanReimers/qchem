@@ -74,6 +74,7 @@ class SHFHamiltonian : public HFHamiltonian
 {
 public:
     SHFHamiltonian(int Z);
+    SHFHamiltonian(double ex);
     virtual ~SHFHamiltonian();
     virtual HamiltonianTerm* GetVxc() const;
 protected:
@@ -84,6 +85,7 @@ class PolSHFHamiltonian : public HFHamiltonian
 {
 public:
     PolSHFHamiltonian(int Z);
+    PolSHFHamiltonian(double ex);
     virtual HamiltonianTerm* GetVxc() const;
 private:
     rc_ptr<ExchangeFunctional> XcFunct;
@@ -93,6 +95,7 @@ class DFTHamiltonian : public SHFHamiltonian
 {
 public:
     DFTHamiltonian(int Z) : SHFHamiltonian(Z) {};
+    DFTHamiltonian(double ex) : SHFHamiltonian(ex) {};
     virtual HamiltonianTerm* GetVee() const;
 };
 
@@ -100,6 +103,7 @@ class PolDFTHamiltonian : public PolSHFHamiltonian
 {
 public:
     PolDFTHamiltonian(int Z) : PolSHFHamiltonian(Z) {};
+    PolDFTHamiltonian(double ex) : PolSHFHamiltonian(ex) {};
     virtual HamiltonianTerm* GetVee() const;
 };
 

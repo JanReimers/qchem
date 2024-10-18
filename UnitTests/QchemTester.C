@@ -134,6 +134,10 @@ SHFHamiltonian::SHFHamiltonian(int Z)
 {
     XcFunct=new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z));
 }
+SHFHamiltonian::SHFHamiltonian(double ex)
+{
+    XcFunct=new SlaterExchange(ex);
+}
 
 SHFHamiltonian::~SHFHamiltonian()
 {}
@@ -148,6 +152,10 @@ HamiltonianTerm* SHFHamiltonian:: GetVxc() const
 PolSHFHamiltonian::PolSHFHamiltonian(int Z)
 {
     XcFunct=new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z),Spin(Spin::Up));
+}
+PolSHFHamiltonian::PolSHFHamiltonian(double ex)
+{
+    XcFunct=new SlaterExchange(ex);
 }
 
 HamiltonianTerm* PolSHFHamiltonian:: GetVxc() const

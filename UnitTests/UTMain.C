@@ -8,6 +8,7 @@ int main(int argc, char **argv)
 
 //    testing::GTEST_FLAG(filter) = "*.He:Multiple/*";
     testing::GTEST_FLAG(filter) = "M_*:Multiple/A_*";
+//    testing::GTEST_FLAG(filter) = "M_*";
 //
 //      testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
 //      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
