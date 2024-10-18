@@ -20,13 +20,12 @@ public:
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax                (int Z) const {return itsPT.GetMaxL(Z);}
-    double GetNumUnpairedElectrons(int Z) const {return itsPT.GetNumUnpairedElectrons(Z);} 
-    double GetExParam             (int Z) const {return itsPT.GetSlaterAlpha(Z);}
     
 protected:
     // Atom of Molecule functions
     virtual Cluster*     GetCluster        () const=0;
     virtual Mesh*        GetIntegrationMesh() const=0;
+    virtual int          GetZ              () const=0;
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet*      GetBasisSet   (const Cluster*) const=0;
     virtual IrrepBasisSet* GetXBasisSet  () const=0;
@@ -41,7 +40,7 @@ private:
     WaveFunction* itsWaveFunction;
     SCFIterator*  itsSCFIterator;
 public:
-    PeriodicTable itsPT;
+    static PeriodicTable itsPT;
     double MaxRelErrE;
 };
 
@@ -73,17 +72,17 @@ public:
 class SHFHamiltonian : public HFHamiltonian
 {
 public:
+    SHFHamiltonian(int Z);
     virtual ~SHFHamiltonian();
-    void Init(double exparam);
     virtual HamiltonianTerm* GetVxc() const;
 protected:
     rc_ptr<ExchangeFunctional> XcFunct;
 };
 
-class PolSHFHamiltonian : public SHFHamiltonian
+class PolSHFHamiltonian : public HFHamiltonian
 {
 public:
-    void Init(double exparam);
+    PolSHFHamiltonian(int Z);
     virtual HamiltonianTerm* GetVxc() const;
 private:
     rc_ptr<ExchangeFunctional> XcFunct;
@@ -139,9 +138,11 @@ private:
 class TestAtom : public virtual QchemTester
 {
 public:
-    void Init(int _Z, int _q=0) {Z=_Z; q=_q;}
+    TestAtom(int _Z, int _q=0) : Z(_Z), q(_q) {};
     virtual Cluster* GetCluster() const;
     virtual Mesh*    GetIntegrationMesh() const;
+    virtual int      GetZ              () const {return Z;}
+
 
     
 private:
@@ -158,8 +159,7 @@ public:
 class TestPolarized  : public virtual QchemTester
 {
 public:
-    TestPolarized() : spin(-1.0) {};
-    void Init(double _spin) {spin=_spin;}
+    TestPolarized(int Z);
     virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
 private:
     double spin;

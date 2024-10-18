@@ -7,6 +7,7 @@
 #include <BasisSet.H>
 #include <TotalEnergy.H>
 
+PeriodicTable QchemTester::itsPT;
 
 QchemTester::QchemTester()
 : itsCluster(0)
@@ -122,13 +123,14 @@ HamiltonianTerm* HFHamiltonian:: GetVxc() const
 #include "HamiltonianImplementation/PolarizedFittedVxc.H"
 #include "Hamiltonian/ExchangeFunctional.H" 
 
+SHFHamiltonian::SHFHamiltonian(int Z)
+{
+    XcFunct=new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z));
+}
+
 SHFHamiltonian::~SHFHamiltonian()
 {}
 
-void SHFHamiltonian::Init(double exparam)
-{
-    XcFunct=new SlaterExchange(exparam);
-}
 
 HamiltonianTerm* SHFHamiltonian:: GetVxc() const
 {
@@ -136,9 +138,9 @@ HamiltonianTerm* SHFHamiltonian:: GetVxc() const
     return new FittedVxc(XFitBasis, XcFunct,GetIntegrationMesh());
 }
 
-void PolSHFHamiltonian::Init(double exparam)
+PolSHFHamiltonian::PolSHFHamiltonian(int Z)
 {
-     XcFunct=new SlaterExchange(exparam,Spin(Spin::Up));
+    XcFunct=new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z),Spin(Spin::Up));
 }
 
 HamiltonianTerm* PolSHFHamiltonian:: GetVxc() const
@@ -211,6 +213,9 @@ WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const
 }
 
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
+
+TestPolarized::TestPolarized(int Z) : spin(QchemTester::itsPT.GetNumUnpairedElectrons(Z)) {};
+
 WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
 {
     assert(spin>=0);
