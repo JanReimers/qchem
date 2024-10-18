@@ -35,10 +35,6 @@ public:
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;
     static  Orbital* Factory     (std::istream&)        ;
-
-private:
-    friend class Orbitals;
-//    virtual void FixUpPointer(const IrrepBasisSet*)=0;
 };
 
 #include "Functions/ScalarFunction.H"
@@ -85,11 +81,6 @@ public:
     virtual const_iterator end  () const=0;
     virtual       iterator begin()      =0;
     virtual       iterator end  ()      =0;
-
-    
-protected:
-    friend class  WaveFunction;
-//    virtual void  FixUpPointer(const rc_ptr<const IrrepBasisSet>&);
 };
 
 #include "Functions/VectorFunction.H"
