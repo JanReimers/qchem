@@ -335,6 +335,9 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
     }
 }
 
+
+
+#include "oml/io3d.h"
 TEST_F(SlaterRadialIntegralTests, Numerical)
 {
     TIrrepBasisSet<double>* vf=*bs->beginT();
@@ -366,7 +369,20 @@ TEST_F(SlaterRadialIntegralTests, Numerical)
         SMatrix<double> r=ie->MakeRepulsion(vf);
         EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
     }
-    
-    
+    {
+        Vector<double> rnum=rmintegrator->Repulsion(*sf,*vf);
+        Vector<double> r=ie->MakeRepulsion(vf).GetRow(1);
+        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
+    }
+    {
+        SMatrix<double> rnum=rmintegrator->Repulsion(*vf,*vf);
+        SMatrix<double> r=ie->MakeRepulsion(vf,vf);
+        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
+    }
+    {
+        SMatrix<double> rnum=rmintegrator->Repulsion3C(*vf,*sf);
+        ERI3 r=ie->MakeRepulsion3C(vf,vf);
+        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r[0],r[0]))),0.0,0.1); 
+    }
 }
  

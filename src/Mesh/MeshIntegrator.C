@@ -4,7 +4,6 @@
 #include "Mesh/MeshIntegrator.H"
 #include "Mesh/Mesh.H"
 #include "Mesh/MeshImplementation.H"
-#include "Mesh/MeshBrowser.H"
 #include <ScalarFunction.H>
 #include <VectorFunction.H>
 #include "oml/matrix.h"
@@ -113,8 +112,6 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Overlap(co
     }
     assert(!isnan(ret));
     return ret;
-
-//  return v(*itsMesh) * conj(DirectMultiply(f(*itsMesh),itsMesh->itsWeights));
 }
 
 template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Overlap(const Vf& f,const Vf& g) const
@@ -175,7 +172,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap3C
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion(const Vf& f) const
 {
     index_t n=f.GetVectorSize();
-    SMat ret(n,n);
+    SMat ret(n);
     Fill(ret,0.0);
 
     const Mat& sf(f(*itsMesh));
@@ -204,24 +201,20 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Repulsion(
     Vec ret(n);
     Fill(ret,0.0);
 
-    typename Vec ::Subscriptor      r (ret);
     const Mat & sf(f(*itsMesh));
     const RVec& sh(h(*itsMesh));
-
-    MeshBrowser m1(*itsMesh);
-    for (index_t wi=1; m1; wi++,m1++)
+    
+    int iw=1;
+    for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
-        double oor1=m1.W()*m1.W()/norm(m1.R());
-        for (index_t i=1; i<=n; i++)
-            r(i)+=sf(i,wi)*sh(wi)*oor1;
-
-        MeshBrowser m2(m1);
-        m2++;
-        for (index_t wj=wi+1; m2; wj++,m2++)
+        int jw=iw+1;
+        for (auto rw2=rw1+1; rw2!=itsMesh->end(); jw++,rw2++)
         {
-            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
+            if (r(*rw1)==r(*rw2)) continue;
+            double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
+            assert(!std::isnan(oor));
             for (index_t i=1; i<=n; i++)
-                r(i)+=(sf(i,wi)*sh(wj) + sf(i,wj)*sh(wi))*oor;
+                ret(i)+=(sf(i,iw)*sh(jw)+sf(i,jw)*sh(iw))*oor;
         }
     }
     assert(!isnan(ret));
@@ -236,31 +229,22 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(
     Mat ret(nf,ng);
     Fill(ret,0.0);
 
-    typename Mat::Subscriptor      r (ret);
     const Mat& sf(f(*itsMesh));
     const Mat& sg(g(*itsMesh));
 
-    MeshBrowser m1(*itsMesh);
-    for (index_t wi=1; m1; wi++,m1++)
+    int iw=1;
+    for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
-        if (m1.R()==RVec3(0,0,0)) continue;
-        double oor1=m1.W()*m1.W()/norm(m1.R());
-        //cout << m1.R() << " " << oor1 << endl;
-        for (index_t i=1; i<=nf; i++)
-            for (index_t j=1; j<=ng; j++)
-                r(i,j)+=sf(i,wi)*sg(j,wi)*oor1;
-
-        MeshBrowser m2(m1);
-        m2++;
-        for (index_t wj=wi+1; m2; wj++,m2++)
+        int jw=iw+1;
+        for (auto rw2=rw1+1; rw2!=itsMesh->end(); jw++,rw2++)
         {
-            if (m1.R()==m2.R()) continue;
-            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
-            //cout << m2.R() << " " << oor << endl;
+            if (r(*rw1)==r(*rw2)) continue;
+            double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
+            assert(!std::isnan(oor));
 
             for (index_t i=1; i<=nf; i++)
                 for (index_t j=1; j<=ng; j++)
-                    r(i,j)+=(sf(i,wi)*sg(j,wj)+sf(i,wj)*sg(j,wi))*oor;
+                    ret(i,j)+=(sf(i,iw)*sg(j,jw)+sf(i,jw)*sg(j,iw))*oor;
         }
     }
     assert(!isnan(ret));
@@ -278,26 +262,21 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
     SMat ret(n,n);
     Fill(ret,0.0);
 
-    typename SMat::Subscriptor      r (ret);
     const Mat& sf(f(*itsMesh));
     const Vec& sh(h(*itsMesh));
 
-    MeshBrowser m1(*itsMesh);
-    for (index_t wi=1; m1; wi++,m1++)
+    int iw=1;
+    for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
-        double oor1=m1.W()*m1.W()/norm(m1.R());
-        for (index_t i=1; i<=n; i++)
-            for (index_t j=i; j<=n; j++)
-                r(i,j)+=sf(i,wi)*sf(j,wi)*sh(wi)*oor1;
-
-        MeshBrowser m2(m1);
-        m2++;
-        for (index_t wj=wi+1; m2; wj++,m2++)
+        int jw=iw+1;
+        for (auto rw2=rw1+1; rw2!=itsMesh->end(); jw++,rw2++)
         {
-            double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
+            if (r(*rw1)==r(*rw2)) continue;
+            double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
+            assert(!std::isnan(oor));
             for (index_t i=1; i<=n; i++)
                 for (index_t j=i; j<=n; j++)
-                    r(i,j)+=(sf(i,wi)*sf(j,wi)*sh(wj) + sf(i,wj)*sf(j,wj)*sh(wi))*oor;
+                    ret(i,j)+=(sf(i,iw)*sf(j,iw)*sh(jw) + sf(i,jw)*sf(j,jw)*sh(iw))*oor;
         }
     }
     return ret;

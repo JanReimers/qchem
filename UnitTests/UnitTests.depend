@@ -592,7 +592,7 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1729358076 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1729362219 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
@@ -615,6 +615,7 @@
 	<iostream>
 	<fstream>
 	<cmath>
+	"oml/io3d.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/SlaterIntegrals.H
 
@@ -1324,4 +1325,17 @@
 
 1729199689 /home/janr/Code/qchem/include/SCFIterator.H
 	"types.H"
+
+1727308708 /home/janr/Code/oml/include/oml/io3d.h
+	"oml/vector3d.h"
+	"oml/matrix3d.h"
+	"oml/imp/stream.h"
+	"oml/imp/binio.h"
+	"oml/imp/mixtypes.h"
+	<iomanip>
+	<cassert>
+	<iosfwd>
+
+1727308662 /home/janr/Code/oml/include/oml/matrix3d.h
+	"oml/vector3d.h"
 
