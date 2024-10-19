@@ -1,29 +1,25 @@
-// File: ExchangeFunctionalImplementation.H   Common implementation details for an exchange potential.
-#ifndef _ExchangeFunctionalImplementation_H_
-#define _ExchangeFunctionalImplementation_H_
+// File: ExchangeFunctional.h  Interface for all ExchangeFunctional exchange functions.
+#ifndef _ExchangeFunctional_H_
+#define _ExchangeFunctional_H_
 
 
 
-#include "Hamiltonian/ExchangeFunctional.H"
+#include "Misc/pmstream.h"
+#include "Functions/ScalarFunction.H"
 
-class ExchangeFunctionalImplementation
-    : public  virtual ExchangeFunctional
+class ExchangeFunctional
+    : public virtual PMStreamableObject
+    , public virtual ScalarFunction<double>
 {
 public:
-    ExchangeFunctionalImplementation(               );
+    virtual void            InsertChargeDensity      (const ChargeDensity*)      =0;
+    virtual Vector<double>  GetVxcs(const Vector<double>& ChargeDensities) const=0;
+    virtual double          GetVxc(                   double ChargeDensity) const=0;
+    virtual void            SetPolarized(bool)=0;
 
-    virtual void    InsertChargeDensity(const ChargeDensity*);
-    virtual Vector<double> GetVxcs(const Vector<double>& ChargeDensities) const;
-    virtual void            SetPolarized(bool p)
-    {
-        isPolarized=p;
-    }
-
-protected:
-    virtual void  Eval    (const Mesh&, Vector<double>&) const;
-
-    const ChargeDensity* itsChargeDensity;
-    bool                 isPolarized;
+    virtual std::ostream&       Write(std::ostream&) const=0;
+    virtual std::istream&       Read (std::istream&)      =0;
+    static  ExchangeFunctional* Factory(std::istream&);
 };
 
-#endif //_ExchangeFunctionalImplementation_H_
+#endif //_ExchangeFunctional_H_

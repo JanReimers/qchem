@@ -5,7 +5,7 @@
 
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include "Hamiltonian/ExchangeFunctional.H"
+#include "Imp/Hamiltonian/ExchangeFunctional.H"
 #include "Misc/rc_ptr.H"
 #include "FunctionsImp/FittedFunctionImplementation.H"
 

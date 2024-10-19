@@ -1158,14 +1158,14 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729269141 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729296568 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	"types.H"
 	"Misc/rc_ptr.H"
 	"SCFIterator/IterationParams.H"
 	"Imp/LAParams.H"
 	"Misc/PeriodicTable.H"
-	"Hamiltonian/ExchangeFunctional.H"
+	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"BasisSet.H"
 
 1729266686 source:/home/janr/Code/qchem/UnitTests/A_HF.C
@@ -1234,8 +1234,9 @@
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Misc/Spin.H"
 
-1728694484 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
-	"Hamiltonian/ExchangeFunctional.H"
+1729296352 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
+	"Misc/pmstream.h"
+	"Functions/ScalarFunction.H"
 
 1729291944 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"

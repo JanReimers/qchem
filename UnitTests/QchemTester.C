@@ -127,7 +127,7 @@ HamiltonianTerm* HFHamiltonian:: GetVxc() const
 #include "Imp/Hamiltonian/SlaterExchange.H"
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/FittedVxcPol.H"
-#include "Hamiltonian/ExchangeFunctional.H" 
+#include "Imp/Hamiltonian/ExchangeFunctional.H" 
 
 SHFHamiltonian::SHFHamiltonian(int Z)
 {

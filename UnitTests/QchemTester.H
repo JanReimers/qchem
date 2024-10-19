@@ -67,7 +67,7 @@ public:
 };
 
 //Why??
-#include "Hamiltonian/ExchangeFunctional.H" 
+#include "Imp/Hamiltonian/ExchangeFunctional.H" 
 #include "BasisSet.H" 
 
 class SHFHamiltonian : public HFHamiltonian
