@@ -7,7 +7,7 @@
 #include "Misc/pmstream.h"
 
 
-class WaveFunction
+class WaveFunction 
     : public virtual PMStreamableObject
 {
 public:

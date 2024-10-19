@@ -163,7 +163,7 @@ public:
 
     BasisSet() {};
 
-    virtual ~BasisSet();
+    virtual ~BasisSet() {}; 
     virtual size_t GetNumFunctions() const=0;
     virtual size_t GetNumBasisSets() const=0;
 
