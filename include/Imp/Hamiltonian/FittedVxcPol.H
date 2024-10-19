@@ -1,6 +1,6 @@
-// File: PolarizedFittedVxc.H  Fitted exchange potential.
-#ifndef _PolarizedFittedVxc_H_
-#define _PolarizedFittedVxc_H_
+// File: FittedVxcPol.H  Fitted polarized exchange potential.
+#ifndef _FittedVxcPol_H_
+#define _FittedVxcPol_H_
 
 
 
@@ -39,4 +39,4 @@ private:
 
 };
 
-#endif //_PolarizedFittedVxc_H_
+#endif //_FittedVxcPol_H_

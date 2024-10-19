@@ -1122,7 +1122,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729297660 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729298463 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	"SCFIterator/SCFIterator.H"
 	<WaveFunction.H>
@@ -1142,7 +1142,7 @@
 	"Imp/Hamiltonian/FittedVxcPol.H"
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/VxcPol.H"
-	"Imp/Hamiltonian/FittedVeeCD.H"
+	"Imp/Hamiltonian/FittedVee.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
@@ -1244,7 +1244,7 @@
 	"Misc/rc_ptr.H"
 	"FunctionsImp/FittedFunctionImplementation.H"
 
-1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
+1729298076 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/Hamiltonian.H"
 	"Misc/rc_ptr.H"
@@ -1254,10 +1254,14 @@
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Misc/rc_ptr.H"
 
-1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVeeCD.H
+1729298198 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVeeCD.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Misc/rc_ptr.H"
 
 1729296858 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctionalImp.H
 	"Imp/Hamiltonian/ExchangeFunctional.H"
+
+1729298198 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVee.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	"Misc/rc_ptr.H"
 

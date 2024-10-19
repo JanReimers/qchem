@@ -170,17 +170,17 @@ HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
     return new VxcPol;
 }
 
-#include "Imp/Hamiltonian/FittedVeeCD.H"
+#include "Imp/Hamiltonian/FittedVee.H"
 
 HamiltonianTerm* DFTHamiltonian::GetVee() const
 {
     rc_ptr<IrrepBasisSet> CFitBasis=GetCBasisSet(); 
-    return new CDFittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
+    return new FittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
 }
 HamiltonianTerm* PolDFTHamiltonian::GetVee() const
 {
     rc_ptr<IrrepBasisSet> CFitBasis=GetCBasisSet(); 
-    return new CDFittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
+    return new FittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
 }
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"

@@ -7,7 +7,7 @@
 #include "Imp/Hamiltonian/Vnn.H"
 #include "Imp/Hamiltonian/Vxc.H"
 #include "Imp/Hamiltonian/VxcPol.H"
-#include "Imp/Hamiltonian/FittedVeeCD.H"
+#include "Imp/Hamiltonian/FittedVee.H"
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/FittedVxcPol.H"
 #include "Imp/Hamiltonian/LDAVxc.H"
@@ -50,7 +50,7 @@ HamiltonianTerm* HamiltonianTerm::Factory(std::istream& is)
     if (Name==typeid(Vnn ).name()) return new Vnn();
     if (Name==typeid(LDAVxc   ).name()) return new LDAVxc();
     if (Name==typeid(Vxc).name()) return new Vxc();
-    if (Name==typeid(CDFittedVee).name()) return new  CDFittedVee();
+    if (Name==typeid(FittedVee).name()) return new  FittedVee();
     if (Name==typeid(FittedVxc).name()) return new FittedVxc();
     if (Name==typeid(FittedVxcPol).name()) return new FittedVxcPol();
     if (Name==typeid(VxcPol).name()) return new VxcPol();

@@ -1,6 +1,6 @@
-// File: CDFittedVee.H  Coulomb potential using a fitted charge density.
-#ifndef _CDFittedVee_H_
-#define _CDFittedVeee_H_
+// File: FittedVee.H  Coulomb potential using a fitted charge density.
+#ifndef _FittedVee_H_
+#define _FittedVee_H_
 
 
 
@@ -20,13 +20,13 @@
 // involve three center integrals hence avoiding the four center integrals encountered in
 // a Hartree-Fock calculation.
 //
-class CDFittedVee
+class FittedVee
     : public virtual HamiltonianTerm
     , private        HamiltonianTermImp
 {
 public:
-    CDFittedVee();
-    CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>& m, double numElectrons);
+    FittedVee();
+    FittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>& m, double numElectrons);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* cd    )       ;
     virtual void GetEnergy       (TotalEnergy&               ) const;
@@ -38,4 +38,4 @@ private:
     FittedCD* itsFittedChargeDensity;
 };
 
-#endif //_CDFittedVee_H_
+#endif //_FittedVee_H_

@@ -1,6 +1,6 @@
 // File: FittedVxc.C  Fitted exchange potential.
 
- 
+  
 
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/LDAVxc.H"

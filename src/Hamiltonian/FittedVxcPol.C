@@ -1,4 +1,4 @@
-// File: PolarizedFittedVxc.C  Fitted exchange potential.
+// File: Fitted.C  Fitted polarized exchange potential.
 
 
 
