@@ -2,7 +2,7 @@
 #ifndef _ConstrainedFF_H_
 #define _ConstrainedFF_H_
 
-#include "FunctionsImp/FittedFunctionImplementation.H"
+#include "Imp/Fitting/FittedFunction.H"
 
 template <class T> class ConstrainedFF
     : public FittedFunctionImplementation<T>

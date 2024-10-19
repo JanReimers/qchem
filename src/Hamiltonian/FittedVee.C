@@ -3,9 +3,9 @@
 
 
 #include "Imp/Hamiltonian/FittedVee.H"
-#include "ChargeDensity.H"
-#include "ChargeDensityImplementation/FittedCDImplementation.H"
-#include "TotalEnergy.H"
+#include <ChargeDensity.H>
+#include "Imp/ChargeDensity/FittedCD.H"
+#include <TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>
@@ -17,7 +17,7 @@ FittedVee::FittedVee()
 
 FittedVee::FittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>&  m, double numElectrons)
     : HamiltonianTermImp()
-    , itsFittedChargeDensity(new FittedCDImplementation<double>(chargeDensityFitBasisSet,m,numElectrons))
+    , itsFittedChargeDensity(new FittedCDImp<double>(chargeDensityFitBasisSet,m,numElectrons))
 {
     assert(itsFittedChargeDensity);
 };

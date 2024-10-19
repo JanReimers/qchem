@@ -4,7 +4,7 @@
 
 
 
-#include "ChargeDensity.H"
+#include <ChargeDensity.H>
 #include "Imp/Containers/ptr_vector.h"
 
 //--------------------------------------------------------------------------
@@ -18,7 +18,6 @@ public:
     CompositeCD();
     void Insert(ChargeDensity*);
 
-    virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
     virtual SMat   GetExchange (const IrrepBasisSet*) const;
 

@@ -1,25 +1,25 @@
-// File: FittedCDImplementation.H  Fitted charge density.
-#ifndef _FittedCDImplementation_H_
-#define _FittedCDImplementation_H_
+// File: FittedCDImp.H  Fitted charge density.
+#ifndef _FittedCDImp_H_
+#define _FittedCDImp_H_
 
 
 
-#include "ChargeDensity.H"
-#include "FunctionsImp/IntegralConstrainedFF.H"
+#include <ChargeDensity.H>
+#include "Imp/Fitting/IntegralConstrainedFF.H"
 
 //---------------------------------------------------------------------------------
 //
 //  A charge density implemented by fitting the real charge density to an
 //  auxillary basis set.
 //
-template <class T> class FittedCDImplementation
+template <class T> class FittedCDImp
     : public virtual FittedCD
     , public         IntegralConstrainedFF<T>
 {
 public:
-    FittedCDImplementation();
-    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& );
-    FittedCDImplementation(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& , double totalCharge);
+    FittedCDImp();
+    FittedCDImp(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& );
+    FittedCDImp(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& , double totalCharge);
 
     virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
@@ -61,4 +61,4 @@ private:
     mutable double       itsTotalCharge;
 };
 
-#endif //_FittedCDImplementation_H_
+#endif //_FittedCDImp_H_

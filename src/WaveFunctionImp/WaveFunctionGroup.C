@@ -6,7 +6,7 @@
 #include "BasisSet.H"
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
-#include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
+#include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
 #include "Imp/Containers/ptr_vector_io.h"
 #include <cassert>

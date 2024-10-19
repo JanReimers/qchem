@@ -4,12 +4,10 @@
 
 
 
-#include "BasisSet.H"
-#include "ChargeDensity.H"
+#include <BasisSet.H>
+#include <ChargeDensity.H>
 #include "Misc/Spin.H"
 #include "oml/smatrix.h"
-
-template <class T> class TIrrepBasisSetCommon;
 
 //------------------------------------------------------------------------------------
 //
@@ -17,18 +15,16 @@ template <class T> class TIrrepBasisSetCommon;
 //  of one irreducable representation.  The full charge density will in general
 //  be a summation of these guys.
 //
-template <class T> class ExactIrrepCD
+template <class T> class IrrepCD
     : public virtual ChargeDensity
 {
 public:
     typedef Matrix<T>  DenMat;
     typedef SMatrix<T> DenSMat; //Type for the density matrix.
 
-    ExactIrrepCD();
-    ExactIrrepCD(const DenSMat&,const IrrepBasisSet*, const Spin&);
-    ExactIrrepCD(const DenSMat&,const TIrrepBasisSet<T>*, const Spin&);
+    IrrepCD();
+    IrrepCD(const DenSMat&,const TIrrepBasisSet<T>*, const Spin&);
 
-    virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
     virtual SMat   GetExchange (const IrrepBasisSet*) const;
 

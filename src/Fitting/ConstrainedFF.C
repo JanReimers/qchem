@@ -2,10 +2,10 @@
 
 
 
-#include "FunctionsImp/ConstrainedFF.H"
-#include "Functions/FittedFunctionClient.H"
-#include "BasisSet.H"
-#include "IntegralDataBase.H"
+#include "Imp/Fitting/ConstrainedFF.H"
+#include <FittedFunctionClient.H>
+#include <BasisSet.H>
+#include <IntegralDataBase.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"

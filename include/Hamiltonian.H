@@ -29,7 +29,7 @@ private:
     HamiltonianTerm& operator=(const HamiltonianTerm&);
 };
 
-#include "Functions/FittedFunctionClient.H"
+#include <FittedFunctionClient.H>
 
 class FittablePotential
     : public virtual HamiltonianTerm

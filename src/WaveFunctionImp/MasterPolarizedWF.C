@@ -6,7 +6,7 @@
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/PolarizedSCFIterator.H"
-#include "ChargeDensityImplementation/PolarizedCDImplementation.H"
+#include "Imp/ChargeDensity/PolarizedCD.H"
 #include "Misc/Spin.H"
 #include "oml/imp/binio.h"
 #include <cassert>
@@ -49,7 +49,7 @@ ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
     assert(s==Spin::None);
-    return new PolarizedCDImplementation(itsSpinUpGroup->GetChargeDensity(Spin::Up),itsSpinDownGroup->GetChargeDensity(Spin::Down));
+    return new PolarizedCDImp(itsSpinUpGroup->GetChargeDensity(Spin::Up),itsSpinDownGroup->GetChargeDensity(Spin::Down));
 }
 
 void MasterPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)

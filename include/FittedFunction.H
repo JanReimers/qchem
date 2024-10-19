@@ -2,8 +2,8 @@
 #ifndef _FittedFunction_H_
 #define _FittedFunction_H_
 
-#include "types.H"
-#include "Functions/ScalarFunction.H"
+#include <types.H>
+#include <ScalarFunction.H>
 
 class ScalarFFClient;
 class DensityFFClient;

@@ -18,46 +18,18 @@ bool ChargeDensity::IsPolarized() const
 //
 //  Various integrals.
 //
-ChargeDensity::SMat PolarizedCD::GetOverlap  (const IrrepBasisSet* bs) const
-{
-    return
-        GetChargeDensity(Spin::Up  )->GetOverlap(bs) +
-        GetChargeDensity(Spin::Down)->GetOverlap(bs);
-}
-
 ChargeDensity::SMat PolarizedCD::GetRepulsion(const IrrepBasisSet* bs) const
 {
-//    std::cout.precision(4);
-//    std::cout.width(7);
-//    std::cout.setf(std::ios::fixed,std::ios::floatfield);
-//    std::cout << "------------------------------------------------------------------------------------------" << std::endl;
-//    std::cout << "Spin up:" << std::endl;
     SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
-//    std::cout << "  Jab_up=:" << Jab_up << std::endl;
-
-//    std::cout << "Spin down:" << std::endl;
     SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
-//    std::cout << "  Jab_down=:" << Jab_down << std::endl;
-//    std::cout << "Jab=:" << Jab_up + Jab_down << std::endl;
     return Jab_up + Jab_down;
 }
 
 ChargeDensity::SMat PolarizedCD::GetExchange(const IrrepBasisSet* bs) const
 {
-//    std::cout << "------------------------------------------------------------------------------------------" << std::endl;
-//    std::cout << "Spin up:" << std::endl;
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
-//    std::cout << "  Kab_up=:" << Kab_up << std::endl;
-//
-//    std::cout << "------------------------------------------------------------------------------------------" << std::endl;
-//    std::cout << "Spin down:" << std::endl;
     SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
-//    std::cout << "  Kab_down=:" << Kab_up << std::endl;
     return Kab_up + Kab_down;
-
-//    return
-//        GetChargeDensity(Spin::Up  )->GetExchange(bs) +
-//        GetChargeDensity(Spin::Down)->GetExchange(bs);
 }
 
 double PolarizedCD::GetEnergy(const HamiltonianTerm* v) const

@@ -1,11 +1,11 @@
 // File: FittedFunctionImplementation.C  General Fitted Function.
 
 
-#include "FunctionsImp/FittedFunctionImplementation.H"
-#include "IntegralDataBase.H"
-#include "ChargeDensity.H"
-#include "BasisSet.H"
-#include "Mesh/Mesh.H"
+#include "Imp/Fitting/FittedFunction.H"
+#include <IntegralDataBase.H>
+#include <ChargeDensity.H>
+#include <BasisSet.H>
+#include <Mesh/Mesh.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"

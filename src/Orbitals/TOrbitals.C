@@ -4,7 +4,7 @@
 
 #include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/Orbitals/TOrbital.H"
-#include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
+#include "Imp/ChargeDensity/IrrepCD.H"
 #include "Misc/DFTDefines.H"
 #include <Hamiltonian.H>
 #include <QuantumNumber.H>
@@ -70,7 +70,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 
 template <class T> ChargeDensity* TOrbitalsImp<T>::GetChargeDensity(Spin s) const
 {
-    return new ExactIrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,s);
+    return new IrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,s);
 }
 
 

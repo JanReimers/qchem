@@ -2,7 +2,7 @@
 
 
 
-#include "Functions/ScalarFunction.H"
+#include <ScalarFunction.H>
 #include "Mesh/Mesh.H"
 #include "Mesh/MeshBrowser.H"
 #include "oml/vector.h"

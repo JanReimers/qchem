@@ -3,7 +3,7 @@
 #define _Cluster_H_
 
 #include "Misc/Persistent/Persistent.H"
-#include "Functions/ScalarFunction.H"
+#include <ScalarFunction.H>
 #include "Cluster/Atom.H"
 #include <vector>
 

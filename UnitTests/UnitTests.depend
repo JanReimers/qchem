@@ -553,7 +553,7 @@
 	"FunctionsImp/FittedFunctionImplementation.H"
 	"HamiltonianImplementation/HamiltonianTermImplementation.H"
 
-1728747423 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
+1729299717 /home/janr/Code/qchem/src/FunctionsImp/FittedFunctionImplementation.H
 	"BasisSet.H"
 	"Misc/rc_ptr.H"
 	"Functions/FittedFunction.H"
@@ -751,13 +751,13 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1728959289 /home/janr/Code/qchem/include/BasisSet.H
+1729305672 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Misc/Persistent/Persistent.H"
-	"Functions/ScalarFunction.H"
+	<ScalarFunction.H>
 	<vector>
 	"IEClient.H"
-	"Functions/VectorFunction.H"
+	<VectorFunction.H>
 	"Imp/Containers/ptr_vector.h"
 
 1727636581 /home/janr/Code/qchem/include/BasisFunction.H
@@ -778,10 +778,10 @@
 	"Misc/Persistent/Persistent.H"
 	"Imp/Containers/ERI4.H"
 
-1728664547 /home/janr/Code/qchem/include/Hamiltonian.H
+1729305787 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
 	"Misc/pmstream.h"
-	"Functions/FittedFunctionClient.H"
+	<FittedFunctionClient.H>
 
 1727405242 /home/janr/Code/qchem/include/HamiltonianTerm.H
 	"Functions/FittedFunctionClient.H"
@@ -789,9 +789,9 @@
 
 1728599453 /home/janr/Code/qchem/include/TotalEnergy.H
 
-1728599453 /home/janr/Code/qchem/include/Cluster.H
+1729305701 /home/janr/Code/qchem/include/Cluster.H
 	"Misc/Persistent/Persistent.H"
-	"Functions/ScalarFunction.H"
+	<ScalarFunction.H>
 	"Cluster/Atom.H"
 	<vector>
 
@@ -937,10 +937,10 @@
 	"Misc/pmstream.h"
 	<cassert>
 
-1728616147 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
+1729305686 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
 	"Polarization.H"
 	"Misc/Persistent/Persistent.H"
-	"Functions/ScalarFunction.H"
+	<ScalarFunction.H>
 	"oml/vector3d.h"
 	<vector>
 	<map>
@@ -1234,15 +1234,15 @@
 	"Imp/Hamiltonian/ExchangeFunctionalImp.H"
 	"Misc/Spin.H"
 
-1729296831 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
+1729305871 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
 	"Misc/pmstream.h"
-	"Functions/ScalarFunction.H"
+	<ScalarFunction.H>
 
-1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
+1729305919 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Imp/Hamiltonian/ExchangeFunctional.H"
+	"Imp/Fitting/FittedFunction.H"
 	"Misc/rc_ptr.H"
-	"FunctionsImp/FittedFunctionImplementation.H"
 
 1729298076 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
 	"Imp/Hamiltonian/ExchangeFunctional.H"
@@ -1264,4 +1264,29 @@
 1729298198 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVee.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Misc/rc_ptr.H"
+
+1728695540 /home/janr/Code/qchem/include/ScalarFunction.H
+	"types.H"
+	"oml/vector3d.h"
+
+1728694484 /home/janr/Code/qchem/include/VectorFunction.H
+	"types.H"
+	"oml/vector3d.h"
+
+1729305743 /home/janr/Code/qchem/include/FittedFunctionClient.H
+	<types.H>
+	<ScalarFunction.H>
+
+1729305841 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
+	<BasisSet.H>
+	"Misc/rc_ptr.H"
+	<FittedFunction.H>
+	"Mesh/Mesh.H"
+	"Imp/LAParams.H"
+	"oml/vector.h"
+	"oml/smatrix.h"
+
+1729305772 /home/janr/Code/qchem/include/FittedFunction.H
+	<types.H>
+	<ScalarFunction.H>
 

@@ -37,7 +37,7 @@ public:
     static  Orbital* Factory     (std::istream&)        ;
 };
 
-#include "Functions/ScalarFunction.H"
+#include <ScalarFunction.H>
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or
@@ -83,7 +83,7 @@ public:
     virtual       iterator end  ()      =0;
 };
 
-#include "Functions/VectorFunction.H"
+#include <VectorFunction.H>
 #include "Imp/Containers/ptr_vector.h"
 //---------------------------------------------------------
 //

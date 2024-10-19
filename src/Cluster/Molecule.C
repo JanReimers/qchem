@@ -3,7 +3,7 @@
 
 
 #include "Cluster/Molecule.H"
-#include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
+#include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/imp/binio.h"
 #include <iostream>

@@ -129,7 +129,7 @@ Priority 3:
     Done: -IE::MakeInverse should take LAParams as argument.
     Done: -All templated classes should hold TIrrepBasisSet<T> pointers.
         Construct only accepts TIrrepBasisSet<T>* ?
-        Test out with ExactIrrepCD and TOrbitals
+        Test out with IrrepCD and TOrbitals
     Done: -FittedFunctionImplementation delete itsMesh crashed.  Who owns the mesh?
         Good use for rc_ptr.
     Done: -Break dependency BasisSet-->Orbitals in Build Orbitals.

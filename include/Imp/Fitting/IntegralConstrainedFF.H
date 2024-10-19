@@ -4,7 +4,7 @@
 
 
 
-#include "FunctionsImp/ConstrainedFF.H"
+#include "Imp/Fitting/ConstrainedFF.H"
 
 template <class T> class IntegralConstrainedFF
     : public ConstrainedFF<T>

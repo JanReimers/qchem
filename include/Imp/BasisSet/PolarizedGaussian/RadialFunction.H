@@ -4,7 +4,7 @@
 
 #include "Polarization.H"
 #include "Misc/Persistent/Persistent.H"
-#include "Functions/ScalarFunction.H"
+#include <ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>
 #include <map>

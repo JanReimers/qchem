@@ -5,7 +5,7 @@
 
 
 #include "Misc/pmstream.h"
-#include "Functions/ScalarFunction.H"
+#include <ScalarFunction.H>
 
 class ExFunctional
     : public virtual PMStreamableObject

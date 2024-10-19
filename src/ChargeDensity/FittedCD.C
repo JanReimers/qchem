@@ -2,7 +2,7 @@
 
 
 
-#include "ChargeDensityImplementation/FittedCDImplementation.H"
+#include "Imp/ChargeDensity//FittedCD.H"
 #include "Mesh/Mesh.H"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
@@ -14,19 +14,19 @@
 //
 //  Construction zone.
 //
-template <class T> FittedCDImplementation<T>::FittedCDImplementation()
+template <class T> FittedCDImp<T>::FittedCDImp()
     : IntegralConstrainedFF<double>()
     , itsExactRep(0)
     , itsTotalCharge(0)
 {};
 
-template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<Mesh>& m)
+template <class T> FittedCDImp<T>::FittedCDImp(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<Mesh>& m)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(0)
 {};
 
-template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<Mesh>& m, double totalCharge)
+template <class T> FittedCDImp<T>::FittedCDImp(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<Mesh>& m, double totalCharge)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(totalCharge)
@@ -36,7 +36,7 @@ template <class T> FittedCDImplementation<T>::FittedCDImplementation(const rc_pt
     assert(abs(itsTotalCharge-FitGetCharge())<1e-10);
 };
 
-template <class T> double FittedCDImplementation<T>::DoFit(const ScalarFFClient& ffc)
+template <class T> double FittedCDImp<T>::DoFit(const ScalarFFClient& ffc)
 {
     const FittedCD* cd=dynamic_cast<const FittedCD*>(&ffc);
     if (!cd)
@@ -49,7 +49,7 @@ template <class T> double FittedCDImplementation<T>::DoFit(const ScalarFFClient&
     return ConstrainedFF<double>::DoFit(ffc);
 }
 
-template <class T> double FittedCDImplementation<T>::DoFit(const DensityFFClient& ffc)
+template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
 {
     const ChargeDensity* cd=dynamic_cast<const ChargeDensity*>(&ffc);
     if (!cd)
@@ -65,7 +65,7 @@ template <class T> double FittedCDImplementation<T>::DoFit(const DensityFFClient
 //
 //  Totale energy terms for a charge density.
 //
-template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetOverlap  (const IrrepBasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetOverlap  (const IrrepBasisSet* bs) const
 {
     const std::vector<SMat>& overlap=bs->GetOverlap3C(itsBasisSet.get());
     int n=bs->GetNumFunctions();
@@ -77,7 +77,7 @@ template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetOverlap  (c
     return J;
 }
 
-template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetRepulsion(const IrrepBasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const IrrepBasisSet* bs) const
 {
     const std::vector<SMat>& repulsions=bs->GetRepulsion3C(itsBasisSet.get());
     int n=bs->GetNumFunctions();
@@ -89,38 +89,38 @@ template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetRepulsion(c
     return J;
 }
 
-template <class T> ChargeDensity::SMat FittedCDImplementation<T>::GetExchange(const IrrepBasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetExchange(const IrrepBasisSet* bs) const
 {
     std::cerr << "FittedCDImplementation<T>::AddExchange: Warning using four center ERIs from a fitted charge density !?!" << std::endl;
     return SMat();
 }
 
-template <class T> double FittedCDImplementation<T>::GetEnergy(const HamiltonianTerm* v) const
+template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) const
 {
     assert(itsExactRep);
     return itsExactRep->GetEnergy(v);
 }
 
-template <class T> double FittedCDImplementation<T>::GetSelfRepulsion() const
+template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 {
     return 0.5 * FittedFunctionImplementation<T>::FitGetRepulsion(this);
 }
 
-template <class T> double FittedCDImplementation<T>::GetRepulsion(const FittedFunction* ff) const
+template <class T> double FittedCDImp<T>::GetRepulsion(const FittedFunction* ff) const
 {
     const FittedFunctionImplementation<T>* ffi = dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     return FittedFunctionImplementation<T>::FitGetRepulsion(ffi); //Cross repulsion between to different fitted charge densities!!
 }
 
-template <class T> double FittedCDImplementation<T>::GetOverlap(const FittedFunction* ff) const
+template <class T> double FittedCDImp<T>::GetOverlap(const FittedFunction* ff) const
 {
     const FittedFunctionImplementation<T>* ffi = dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
     assert(ffi);
     return FittedFunctionImplementation<T>::FitGetOverlap(ffi); //Cross repulsion between to different fitted charge densities!!
 }
 
-template <class T> double FittedCDImplementation<T>::GetTotalCharge() const
+template <class T> double FittedCDImp<T>::GetTotalCharge() const
 {
     if (itsTotalCharge==0) itsTotalCharge=FitGetCharge();
     return itsTotalCharge;
@@ -130,7 +130,7 @@ template <class T> double FittedCDImplementation<T>::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-template <class T> Vector<double> FittedCDImplementation<T>::
+template <class T> Vector<double> FittedCDImp<T>::
 GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
 {
     return FitGet2CenterRepulsion(theFitBasisSet);
@@ -140,16 +140,16 @@ GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
 //
 //  SCF convergence stuff.
 //
-template <class T> void FittedCDImplementation<T>::MixIn(const ChargeDensity& cd,double c)
+template <class T> void FittedCDImp<T>::MixIn(const ChargeDensity& cd,double c)
 {
-    const FittedCDImplementation<T>* fcd = dynamic_cast<const FittedCDImplementation<T>*>(&cd);
+    const FittedCDImp<T>* fcd = dynamic_cast<const FittedCDImp<T>*>(&cd);
     assert(fcd);
     FitMixIn(*fcd,c);
 }
 
-template <class T> double FittedCDImplementation<T>::GetChangeFrom(const ChargeDensity& cd) const
+template <class T> double FittedCDImp<T>::GetChangeFrom(const ChargeDensity& cd) const
 {
-    const FittedCDImplementation<T>* fcd = dynamic_cast<const FittedCDImplementation<T>*>(&cd);
+    const FittedCDImp<T>* fcd = dynamic_cast<const FittedCDImp<T>*>(&cd);
     assert(fcd);
     return FitGetChangeFrom(*fcd);
 }
@@ -158,28 +158,28 @@ template <class T> double FittedCDImplementation<T>::GetChangeFrom(const ChargeD
 //
 //  Real space function stuff.
 //
-template <class T> void   FittedCDImplementation<T>::ReScale (double factor)
+template <class T> void   FittedCDImp<T>::ReScale (double factor)
 {
     itsTotalCharge*=factor;
     FittedFunctionImplementation<T>::ReScale(factor);
 }
 
-template <class T> void FittedCDImplementation<T>::ShiftOrigin(const RVec3& newCenter)
+template <class T> void FittedCDImp<T>::ShiftOrigin(const RVec3& newCenter)
 {
     FittedFunctionImplementation<T>::ShiftOrigin(newCenter);
 }
 
-template <class T> double FittedCDImplementation<T>::operator()(const RVec3& r) const
+template <class T> double FittedCDImp<T>::operator()(const RVec3& r) const
 {
     return FittedFunctionImplementation<T>::operator()(r);
 }
 
-template <class T> void FittedCDImplementation<T>::Eval(const Mesh& m, Vector<double>& v) const
+template <class T> void FittedCDImp<T>::Eval(const Mesh& m, Vector<double>& v) const
 {
     FittedFunctionImplementation<T>::Eval(m,v);
 }
 
-template <class T> typename FittedCDImplementation<T>::Vec3 FittedCDImplementation<T>::Gradient(const RVec3& r) const
+template <class T> typename FittedCDImp<T>::Vec3 FittedCDImp<T>::Gradient(const RVec3& r) const
 {
     return FittedFunctionImplementation<T>::Gradient(r);
 }
@@ -188,7 +188,7 @@ template <class T> typename FittedCDImplementation<T>::Vec3 FittedCDImplementati
 //
 //  Streamable stuff.
 //
-template <class T> std::ostream& FittedCDImplementation<T>::Write(std::ostream& os) const
+template <class T> std::ostream& FittedCDImp<T>::Write(std::ostream& os) const
 {
     ConstrainedFF<T>::Write(os);
     if (StreamableObject::Binary())
@@ -198,7 +198,7 @@ template <class T> std::ostream& FittedCDImplementation<T>::Write(std::ostream& 
     return os;
 }
 
-template <class T> std::istream& FittedCDImplementation<T>::Read(std::istream&is)
+template <class T> std::istream& FittedCDImp<T>::Read(std::istream&is)
 {
     ConstrainedFF<T>::Read(is);
     if (StreamableObject::Binary())
@@ -208,10 +208,10 @@ template <class T> std::istream& FittedCDImplementation<T>::Read(std::istream&is
     return is;
 }
 
-template <class T> FittedCD* FittedCDImplementation<T>::Clone() const
+template <class T> FittedCD* FittedCDImp<T>::Clone() const
 {
-    return new FittedCDImplementation<T>(*this);
+    return new FittedCDImp<T>(*this);
 }
 
 
-template class FittedCDImplementation<double>;
+template class FittedCDImp<double>;

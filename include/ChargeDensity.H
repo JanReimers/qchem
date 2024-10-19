@@ -2,8 +2,8 @@
 #ifndef _ChargeDensity_H_
 #define _ChargeDensity_H_
 
-#include "Functions/ScalarFunction.H"
-#include "Functions/FittedFunctionClient.H"
+#include <ScalarFunction.H>
+#include <FittedFunctionClient.H>
 #include "Misc/pmstream.h"
 
 
@@ -26,7 +26,7 @@ class ChargeDensity
 {
 public:
     typedef SMatrix<double> SMat;
-    virtual SMat   GetOverlap  (const IrrepBasisSet*) const=0;
+//    virtual SMat   GetOverlap  (const IrrepBasisSet*) const=0;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const=0;
     virtual SMat   GetExchange (const IrrepBasisSet*) const=0;
 
@@ -58,7 +58,6 @@ public:
     virtual       ChargeDensity* GetChargeDensity(const Spin&)      =0;
     virtual const ChargeDensity* GetChargeDensity(const Spin&) const=0;
 
-    virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
     virtual SMat   GetExchange (const IrrepBasisSet*) const;
 
@@ -80,7 +79,7 @@ public:
     virtual void   Eval(const Mesh&, RVec&) const;
 };
 
-#include "Functions/FittedFunction.H"
+#include <FittedFunction.H>
 
 //----------------------------------------------------------------------------------
 //

@@ -4,15 +4,15 @@
 
 
 
-#include "BasisSet.H"
+#include <BasisSet.H>
 #include "Misc/rc_ptr.H"
-#include "Functions/FittedFunction.H"
+#include <FittedFunction.H>
 #include "Mesh/Mesh.H"
 #include "Imp/LAParams.H"
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 
-template <class T> class FittedCDImplementation;
+template <class T> class FittedCDImp;
 template <class T> class ConstrainedFF;
 
 //--------------------------------------------------------------------------
@@ -60,7 +60,7 @@ protected:
     //SMat    GetInverseOverlap() const; //Inverse of the normalized fit basis overlap or repulsion.
 
 private:
-    friend class FittedCDImplementation<T>;
+    friend class FittedCDImp<T>;
     friend class ConstrainedFF<T>;
     const TIrrepBasisSet<T>* CastBasisSet() const
     {

@@ -5,9 +5,9 @@
 #include "IntegralDataBase.H"
 #include "QuantumNumber.H"
 #include "ChargeDensity.H"
-#include "ChargeDensityImplementation/ExactIrrepCD/ExactIrrepCD.H"
+#include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include "FunctionsImp/FittedFunctionImplementation.H"
+#include "Imp/Fitting/FittedFunction.H"
 #include "oml/vector3d.h"
 #include "oml/vector.h"
 #include "oml/matrix.h"
@@ -27,10 +27,10 @@ RVec3  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<doubl
 //
 //  Construction zone.
 //
-template <class T> ExactIrrepCD<T>::ExactIrrepCD()
+template <class T> IrrepCD<T>::IrrepCD()
 {};
 
-template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix,
+template <class T> IrrepCD<T>::IrrepCD(const DenSMat& theDensityMatrix,
                                                  const TIrrepBasisSet<T>* theBasisSet,
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
@@ -40,61 +40,26 @@ template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix
     assert(itsBasisSet);
 };
 
-template <class T> ExactIrrepCD<T>::ExactIrrepCD(const DenSMat& theDensityMatrix,
-                                                 const IrrepBasisSet* bs,
-                                                 const Spin& s)
-    : itsDensityMatrix(theDensityMatrix)
-    , itsBasisSet(dynamic_cast<const TIrrepBasisSet<T>*>(bs))
-    , itsSpin(s)
-{
-    assert(itsBasisSet);
-};
-
 //-----------------------------------------------------------------------------
 //
-//  Totale energy terms for a charge density.
+//  Total energy terms for a charge density.
 //
-template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetOverlap  (const IrrepBasisSet*) const
+template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const IrrepBasisSet* bs_ab) const
 {
-    std::cerr << "ExactIrrepCD::GetOverlap 4 electron integrals not implementated yet" << std::endl;
-    exit(-1);
-    return SMat();
-}
-
-
-//template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetRepulsion(const BasisSet* bs) const
-template <> ChargeDensity::SMat ExactIrrepCD<double>::GetRepulsion(const IrrepBasisSet* bs_ab) const
-{
-//    assert(itsBasisSet->GetID()==bs->GetID()); basis sets get cloned, so this won't work.
-//    std::cout << "   ExactIrrepCD GetRepulsion Lab=" << bs_ab->GetQuantumNumber() << ", Lcd=" << itsBasisSet->GetQuantumNumber() << std::endl;
     const TIrrepBasisSet<double>* tbs_cd=dynamic_cast<const TIrrepBasisSet<double>*>(itsBasisSet);
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
-    SMat Jab= tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
-//    const SphericalSymmetryQN* qn_ab=dynamic_cast<const SphericalSymmetryQN*>(&bs_ab->GetQuantumNumber());
-//    const SphericalSymmetryQN* qn_cd=dynamic_cast<const SphericalSymmetryQN*>(&itsBasisSet->GetQuantumNumber());
-//    if (qn_ab->GetL()==1 && qn_cd->GetL()==1)
-//    {
-//    std::cout.setf(std::ios::fixed,std::ios::floatfield);
-//
-//    std::cout << "     Dcd=" << itsDensityMatrix << std::endl;
-//    std::cout << "     Jab=" << Jab << std::endl;
-//
-//    }
-
-    return Jab;
+    return tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
 }
 
-//template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetExchange(const BasisSet* bs) const
-template <> ChargeDensity::SMat ExactIrrepCD<double>::GetExchange(const IrrepBasisSet* bs_ab) const
+template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const IrrepBasisSet* bs_ab) const
 {
-//    assert(itsBasisSet->GetID()==bs->GetID());
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
     return tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
 }
 
 //TODO: fix all complex fudges
 // Fudge to get things to build.
-template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetRepulsion(const IrrepBasisSet* bs) const
+template <> ChargeDensity::SMat IrrepCD<std::complex<double> >::GetRepulsion(const IrrepBasisSet* bs) const
 {
     assert(itsBasisSet->GetID()==bs->GetID());
     assert(false);
@@ -102,14 +67,14 @@ template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetRepulsio
 }
 
 //template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetExchange(const BasisSet* bs) const
-template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetExchange(const IrrepBasisSet* bs) const
+template <> ChargeDensity::SMat IrrepCD<std::complex<double> >::GetExchange(const IrrepBasisSet* bs) const
 {
     assert(itsBasisSet->GetID()==bs->GetID());
  assert(false);
       return SMat();
 }
 
-template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
+template <class T> double IrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
 {
     const HamiltonianTermImp* vi=dynamic_cast<const HamiltonianTermImp*>(v);
     assert(vi);
@@ -119,7 +84,7 @@ template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) c
 }
 
 
-template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
+template <class T> double IrrepCD<T>::GetTotalCharge() const
 {
     return real(Dot(itsDensityMatrix,itsBasisSet->GetOverlap()));
 }
@@ -127,7 +92,7 @@ template <class T> double ExactIrrepCD<T>::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-template <class T> Vector<double> ExactIrrepCD<T>::GetRepulsions(const IrrepBasisSet* fbs) const
+template <class T> Vector<double> IrrepCD<T>::GetRepulsions(const IrrepBasisSet* fbs) const
 {
     return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
 }
@@ -137,22 +102,22 @@ template <class T> Vector<double> ExactIrrepCD<T>::GetRepulsions(const IrrepBasi
 //
 //  SCF convergence stuff.
 //
-template <class T> void ExactIrrepCD<T>::ReScale(double factor)
+template <class T> void IrrepCD<T>::ReScale(double factor)
 {
     itsDensityMatrix*=factor;
 }
 
-template <class T> void ExactIrrepCD<T>::MixIn(const ChargeDensity& cd,double c)
+template <class T> void IrrepCD<T>::MixIn(const ChargeDensity& cd,double c)
 {
-    const ExactIrrepCD<T>* eicd = dynamic_cast<const ExactIrrepCD<T>*>(&cd);
+    const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
 }
 
-template <class T> double ExactIrrepCD<T>::GetChangeFrom(const ChargeDensity& cd) const
+template <class T> double IrrepCD<T>::GetChangeFrom(const ChargeDensity& cd) const
 {
-    const ExactIrrepCD<T>* eicd = dynamic_cast<const ExactIrrepCD<T>*>(&cd);
+    const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     return Max(fabs(itsDensityMatrix - eicd->itsDensityMatrix));
@@ -162,26 +127,26 @@ template <class T> double ExactIrrepCD<T>::GetChangeFrom(const ChargeDensity& cd
 //
 //  Real space function stuff.
 //
-template <class T> void ExactIrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
+template <class T> void IrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
 {
     std::cerr << "ExactIrrepCD::ShiftOrigin this is an odd thing to do for an exact charge density" << std::endl;
     itsBasisSet=dynamic_cast<const TIrrepBasisSet<T>*>(itsBasisSet->Clone(newCenter));
 }
 
-template <class T> double ExactIrrepCD<T>::operator()(const RVec3& r) const
+template <class T> double IrrepCD<T>::operator()(const RVec3& r) const
 {
     Vector<T> phir=(*itsBasisSet)(r);
     return real(phir*itsDensityMatrix*conj(phir));
 }
 
-template <class T> RVec3 ExactIrrepCD<T>::Gradient(const RVec3& r) const
+template <class T> RVec3 IrrepCD<T>::Gradient(const RVec3& r) const
 {
     Vector<T> phir=(*itsBasisSet)(r);
     Vector<RVec3 > gphir=itsBasisSet->Gradient(r);
     return GradientContraction(gphir,phir,itsDensityMatrix);
 }
 
-template <class T> void ExactIrrepCD<T>::Eval(const Mesh& m, Vec& v) const
+template <class T> void IrrepCD<T>::Eval(const Mesh& m, Vec& v) const
 {
     index_t nm=v.size(), nb=itsBasisSet->GetNumFunctions();
     const Matrix<T>& ms((*itsBasisSet)(m));
@@ -208,12 +173,12 @@ template <class T> void ExactIrrepCD<T>::Eval(const Mesh& m, Vec& v) const
 //
 //  Streamable stuff.
 //
-template <class T> std::ostream& ExactIrrepCD<T>::Write(std::ostream& os) const
+template <class T> std::ostream& IrrepCD<T>::Write(std::ostream& os) const
 {
     return os << itsDensityMatrix;
 }
 
-template <class T> std::istream& ExactIrrepCD<T>::Read(std::istream& is)
+template <class T> std::istream& IrrepCD<T>::Read(std::istream& is)
 {
     is >> itsDensityMatrix;
 
@@ -225,7 +190,7 @@ template <class T> std::istream& ExactIrrepCD<T>::Read(std::istream& is)
     return is;
 }
 
-template class ExactIrrepCD<double>;
+template class IrrepCD<double>;
 //template class ExactIrrepCD<std::complex<double> >;
 
 

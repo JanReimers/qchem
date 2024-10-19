@@ -1,6 +1,6 @@
-// File: PolarizedCDImplementation.H  Implementation for the polarize charge density category.
-#ifndef _PolarizedCDImplementation_H_
-#define _PolarizedCDImplementation_H_
+// File: PolarizedCDImp.H  Implementation for the polarize charge density.
+#ifndef _PolarizedCDImp_H_
+#define _PolarizedCDImp_H_
 
 
 
@@ -12,16 +12,16 @@
 //  Store spin and spin down a ChargeDensity*'s to allow polymorphism.
 //  All member functions just return the unpolarized answer.
 //
-class PolarizedCDImplementation
+class PolarizedCDImp
     : public virtual PolarizedCD
 {
 public:
 
-    PolarizedCDImplementation();
-    PolarizedCDImplementation(ChargeDensity* up, ChargeDensity* down);
-    ~PolarizedCDImplementation();
+    PolarizedCDImp();
+    PolarizedCDImp(ChargeDensity* up, ChargeDensity* down);
+    ~PolarizedCDImp();
 
-    ChargeDensity* GetChargeDensity(const Spin&)      ;
+    ChargeDensity*       GetChargeDensity(const Spin&)      ;
     const ChargeDensity* GetChargeDensity(const Spin&) const;
 
     virtual std::ostream&        Write(std::ostream&) const;
@@ -32,4 +32,4 @@ private:
     ChargeDensity* itsSpinDownCD;
 };
 
-#endif //_PolarizedCDImplementation_H_
+#endif //_PolarizedCDImp_H_

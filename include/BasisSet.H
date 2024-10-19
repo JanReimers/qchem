@@ -26,7 +26,7 @@ public:
     static  BasisFunction* Factory(std::istream&)        ;
 };
 
-#include "Functions/ScalarFunction.H"
+#include <ScalarFunction.H>
 //---------------------------------------------------------------
 //
 //  Here the basis becomes a real or complex valued function
@@ -116,7 +116,7 @@ private:
     virtual void SetStartIndex(int)=0;
 };
 
-#include "Functions/VectorFunction.H"
+#include <VectorFunction.H>
 #include "Imp/Containers/ptr_vector.h"
 //----------------------------------------------------------------------------
 //

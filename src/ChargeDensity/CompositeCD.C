@@ -2,8 +2,8 @@
 
 
 
-#include "ChargeDensityImplementation/CompositeCD/CompositeCD.H"
-#include "BasisSet.H"
+#include "Imp/ChargeDensity/CompositeCD.H"
+#include <BasisSet.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
 #include "oml/vector.h"
@@ -25,18 +25,8 @@ typedef optr_vector1<ChargeDensity*>::iterator ITER;
 typedef optr_vector1<ChargeDensity*>::const_iterator CITER;
 //-----------------------------------------------------------------------------
 //
-//  Totale energy terms for a charge density.
+//  Total energy terms for a charge density.
 //
-ChargeDensity::SMat CompositeCD::GetOverlap  (const IrrepBasisSet* bs) const
-{
-    // No UT coverage
-    int n=bs->GetNumFunctions();
-    SMat S(n,n);
-    Fill(S,0.0);
-    for (auto c:itsCDs) S+=c->GetOverlap(bs);
-    return S;
-}
-
 ChargeDensity::SMat CompositeCD::GetRepulsion(const IrrepBasisSet* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();

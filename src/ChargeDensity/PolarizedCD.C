@@ -1,21 +1,18 @@
-// File: PolarizedChargeDensity.C  Interface for the charge density category.
+// File: PolarizedCD.C  Interface for the charge density.
 
-
-
-#include "ChargeDensity.H"
-#include "ChargeDensityImplementation/PolarizedCDImplementation.H"
+#include "Imp/ChargeDensity/PolarizedCD.H"
 #include <cassert>
 
 //---------------------------------------------------------------------------------
 //
 //  Construction zone.
 //
-PolarizedCDImplementation::PolarizedCDImplementation()
+PolarizedCDImp::PolarizedCDImp()
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
 {};
 
-PolarizedCDImplementation::PolarizedCDImplementation(ChargeDensity* up, ChargeDensity* down)
+PolarizedCDImp::PolarizedCDImp(ChargeDensity* up, ChargeDensity* down)
     : itsSpinUpCD  (up  )
     , itsSpinDownCD(down)
 {
@@ -23,7 +20,7 @@ PolarizedCDImplementation::PolarizedCDImplementation(ChargeDensity* up, ChargeDe
     assert(itsSpinDownCD);
 };
 
-PolarizedCDImplementation::~PolarizedCDImplementation()
+PolarizedCDImp::~PolarizedCDImp()
 {
     delete itsSpinUpCD;
     delete itsSpinDownCD;
@@ -33,7 +30,7 @@ PolarizedCDImplementation::~PolarizedCDImplementation()
 //
 //  Access to individual components.
 //
-ChargeDensity* PolarizedCDImplementation::GetChargeDensity(const Spin& S)
+ChargeDensity* PolarizedCDImp::GetChargeDensity(const Spin& S)
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
@@ -44,7 +41,7 @@ ChargeDensity* PolarizedCDImplementation::GetChargeDensity(const Spin& S)
     return ret;
 }
 
-const ChargeDensity* PolarizedCDImplementation::GetChargeDensity(const Spin& S) const
+const ChargeDensity* PolarizedCDImp::GetChargeDensity(const Spin& S) const
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
@@ -61,14 +58,14 @@ const ChargeDensity* PolarizedCDImplementation::GetChargeDensity(const Spin& S) 
 //
 //  Streamable stuff.
 //
-std::ostream& PolarizedCDImplementation::Write(std::ostream& os) const
+std::ostream& PolarizedCDImp::Write(std::ostream& os) const
 {
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
     return os << *itsSpinUpCD << *itsSpinDownCD;
 }
 
-std::istream& PolarizedCDImplementation::Read (std::istream& is)
+std::istream& PolarizedCDImp::Read (std::istream& is)
 {
     delete itsSpinUpCD;
     itsSpinUpCD=ChargeDensity::Factory(is);
