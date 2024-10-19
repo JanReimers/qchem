@@ -9,7 +9,7 @@
 #include <stdlib.h>
 
 GaussAngularMesh::GaussAngularMesh(index_t numDir) :
-    AngularMeshImplementation(numDir)
+    AngularMeshImplementation()
 {
     Vector<RVec3>  D(numDir);
     Vector<double> W(numDir);

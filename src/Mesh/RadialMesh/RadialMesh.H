@@ -10,8 +10,6 @@ class RadialMesh
 {
 public:
     virtual ~RadialMesh() {};
-    virtual index_t GetNumPoints() const=0;
-    
     
     typedef std::tuple<double,double> rw_t;
     typedef std::vector<rw_t>         vec_t;

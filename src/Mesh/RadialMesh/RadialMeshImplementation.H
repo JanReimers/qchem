@@ -11,12 +11,7 @@ class RadialMeshImplementation
     : public virtual RadialMesh
 {
 public:
-    RadialMeshImplementation(index_t NumPoints);
-
-    virtual index_t  GetNumPoints () const
-    {
-        return itsPoints.size();
-    }
+    RadialMeshImplementation();
 
     virtual const_iterator begin() const {return itsRWs.begin();}
     virtual const_iterator end  () const {return itsRWs.end  ();}
@@ -26,10 +21,6 @@ protected:
     void Initialize(const Vector<double>& R,const Vector<double>& W);
 
 private:
-
-    Vector<double> itsPoints;
-    Vector<double> itsWeights;
-    
     vec_t itsRWs;
 };
 

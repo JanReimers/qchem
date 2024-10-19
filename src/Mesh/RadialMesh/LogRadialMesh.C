@@ -8,7 +8,7 @@
 #include <cmath>
 
 LogRadialMesh::LogRadialMesh(double start, double stop, index_t NumPoints)
-    : RadialMeshImplementation(NumPoints)
+    : RadialMeshImplementation()
 {
     Vector<double> R(NumPoints);
     Vector<double> W(NumPoints);

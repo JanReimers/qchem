@@ -9,7 +9,7 @@
 #include <cmath>
 
 MHLRadialMesh::MHLRadialMesh(index_t NumPoints, int m, double alpha)
-    : RadialMeshImplementation(NumPoints)
+    : RadialMeshImplementation()
 {
     Vector<double> R(NumPoints);
     Vector<double> W(NumPoints);

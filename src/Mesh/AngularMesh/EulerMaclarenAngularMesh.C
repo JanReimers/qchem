@@ -9,7 +9,7 @@
 #include <cassert>
 
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) :
-    AngularMeshImplementation((L+1)*(L+1)/2)
+    AngularMeshImplementation()
 {
     assert(m>=1 && m<=3);
     int numTheta = (L+1)/2;

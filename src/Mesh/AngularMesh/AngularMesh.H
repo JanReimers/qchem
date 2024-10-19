@@ -12,8 +12,7 @@ class AngularMesh
 public:
     virtual ~AngularMesh() {};
 
-    virtual size_t GetNumDirections() const=0;
-
+  
     typedef std::tuple<RVec3,double> rw_t;
     typedef std::vector<rw_t>         vec_t;
     typedef vec_t::const_iterator const_iterator;

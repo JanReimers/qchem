@@ -3,29 +3,23 @@
 
 
 #include "Mesh/AngularMesh/AngularMeshImplementation.H"
-#include "Mesh/AngularMesh/AngularMeshBrowser.H"
+#include "Mesh/Mesh.H"
 #include "oml/io3d.h"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 
-AngularMeshImplementation::AngularMeshImplementation(index_t NumDirections)
-    : itsDirections(NumDirections)
-    , itsWeights   (NumDirections)
-{};
+AngularMeshImplementation::AngularMeshImplementation()
+    {};
 
 void AngularMeshImplementation::Initialize(const Vector<RVec3>& D, const Vector<double>& W)
 {
-    assert(D.size()==itsDirections.size());
-    assert(W.size()==D            .size());
-    itsDirections=D;
-    itsWeights   =W;
+    assert(W.size()==D     .size());
     for (auto i:D.indices()) itsRWs.push_back(std::make_tuple(D(i),W(i)));
 
-    Vector<RVec3>::const_iterator b(D.begin());
-    for (; b!=D.end(); b++)
-        if (norm(*b) < 0.9999 || norm(*b)>1.0001)
-            std::cerr << "AngularMeshImplementation::Initialize Direction " << *b << " not as unit vector, mag=" << norm(*b) << std::endl;
+    for (auto rw: itsRWs)
+        if (norm(r(rw)) < 0.9999 || norm(r(rw))>1.0001)
+            std::cerr << "AngularMeshImplementation::Initialize Direction " << r(rw) << " not as unit vector, mag=" << norm(r(rw)) << std::endl;
 }
 
 

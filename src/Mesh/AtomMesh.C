@@ -4,7 +4,6 @@
 
 #include "Mesh/AtomMesh.H"
 #include "Mesh/AngularMesh/AngularMesh.H"
-#include "Mesh/AngularMesh/AngularMeshBrowser.H"
 #include "Mesh/RadialMesh/RadialMesh.H"
 #include "Mesh/AngularMesh/AngularMeshImplementation.H"
 #include "Mesh/AngularMesh/GaussAngularMesh.H"
@@ -14,9 +13,9 @@
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
 AtomMesh::AtomMesh(const RadialMesh& rm, const AngularMesh& am)
-    : MeshImplementation(rm.GetNumPoints() * am.GetNumDirections())
+    : MeshImplementation(rm.size() * am.size())
 {
-    index_t n=rm.GetNumPoints() * am.GetNumDirections();
+    index_t n=rm.size() * am.size();
     Vector<RVec3>  Points (n);
     Vector<double> Weights(n);
 

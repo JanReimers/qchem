@@ -11,7 +11,7 @@
 void GaussLegendre(double x1, double x2, Vector<double>& x, Vector<double>& w, int n);
 
 GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int) :
-    AngularMeshImplementation((L+1)*(L+1)/2)
+    AngularMeshImplementation()
 {
     int numTheta = (L+1)/2;
     int numPhi   = (L+1);
