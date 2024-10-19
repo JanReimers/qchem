@@ -21,7 +21,6 @@ void            CalcCellFunctions(Vector<double>&, const Matrix<double>&);
 //  See A. D. Becke, J. Chem. Phys, 88(4), page 2547 (1988).
 //
 MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
-    : MeshImplementation()
 {
     for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m);
 }

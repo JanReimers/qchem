@@ -13,7 +13,6 @@
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
 AtomMesh::AtomMesh(const RadialMesh& rm, const AngularMesh& am)
-    : MeshImplementation()
 {
     for (auto arw: am)
         for (auto rrw: rm)

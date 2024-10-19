@@ -2,11 +2,9 @@
 #ifndef _AtomMesh_H_
 #define _AtomMesh_H_
 
-#include "Mesh/MeshImplementation.H"
+#include "Mesh/Mesh.H"
 
-class AtomMesh
-    : public virtual Mesh
-    , public MeshImplementation
+class AtomMesh : public Mesh
 {
 public:
     AtomMesh(                                     ) {};

@@ -3,9 +3,9 @@
 
 #include "Mesh/MeshIntegrator.H"
 #include "Mesh/Mesh.H"
-#include "Mesh/MeshImplementation.H"
 #include <ScalarFunction.H>
 #include <VectorFunction.H>
+#include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/io3d.h"
@@ -20,8 +20,8 @@ using std::endl;
 //
 //  Construction zone.
 //
-template <class T> MeshIntegrator<T>::MeshIntegrator(const Mesh* theMesh)
-    : itsMesh(dynamic_cast<const MeshImplementation*>(theMesh))
+template <class T> MeshIntegrator<T>::MeshIntegrator(const Mesh* m)
+    : itsMesh(m)
 {
     assert(itsMesh);
 };

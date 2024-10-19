@@ -4,10 +4,10 @@
 
 #include "Mesh/LinearMesh.H"
 #include "Misc/DFTDefines.H"
+#include "oml/vector.h"
 #include <cmath>
 
 LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, index_t NumPoints)
-    : MeshImplementation()
 {
     RVec3 nd=normalize(direction); //Make sure its normailized.
 

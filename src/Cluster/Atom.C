@@ -64,11 +64,6 @@ void Atom::SetChargeDensityFile(const char*  filename)
 Mesh* Atom::GetIntegrationMesh() const
 {
     if (itsMesh) return itsMesh;
-    if(!UnPickle(itsMesh,itsMeshFileName.c_str(),"integration mesh"))
-    {
-        std::cerr << "Atom::GetIntegrationMesh mesh filename not initialized" << std::endl;
-        exit(-1);
-    }
     itsMesh->ShiftOrigin(itsR);
     return itsMesh;
 }

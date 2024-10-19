@@ -4,13 +4,12 @@
 
 
 
-#include "Mesh/MeshImplementation.H"
+#include "Mesh/Mesh.H"
 
 class Cluster;
 
-class MoleculeMesh
-    : public virtual Mesh
-    , public MeshImplementation
+class MoleculeMesh : public Mesh
+    
 {
 public:
     MoleculeMesh(                     ) {};

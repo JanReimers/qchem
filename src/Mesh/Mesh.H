@@ -8,22 +8,28 @@
 #include <tuple>
 #include <vector>
 
-class Mesh
-    : public virtual Persistent
+class Mesh : public virtual UniqueID
 {
 public:
     virtual ~Mesh () {};
 
-    virtual void    ShiftOrigin(const RVec3&)=0;
-    virtual Mesh*   Clone            () const=0;
-    static  Mesh*   Factory  (std::istream&);
+    virtual void    ShiftOrigin(const RVec3&);
+    virtual Mesh*   Clone      () const;
+    virtual std::ostream& Write(std::ostream& os) const {return os;}
+    virtual std::istream& Read (std::istream& is)       {return is;}
+   // static  Mesh*   Factory  (std::istream&);
     
     typedef std::tuple<RVec3,double> rw_t;
     typedef std::vector<rw_t>         vec_t;
     typedef vec_t::const_iterator const_iterator;
-    virtual const_iterator begin() const=0;
-    virtual const_iterator end  () const=0;
-    virtual index_t        size () const=0;
+    virtual const_iterator begin() const {return itsRWs.begin();}
+    virtual const_iterator end  () const {return itsRWs.end  ();}
+    virtual index_t        size () const {return itsRWs.size ();}
+
+protected:
+    void push_back(const RVec3& r, const double& w) {itsRWs.push_back(std::make_tuple(r,w));}
+private:
+    vec_t itsRWs;
 };
 
 inline const RVec3 & r(const Mesh::rw_t& rw) {return std::get<0>(rw);}

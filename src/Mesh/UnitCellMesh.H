@@ -4,13 +4,11 @@
 
 
 
-#include "Mesh/MeshImplementation.H"
+#include "Mesh/Mesh.H"
 
 class UnitCell;
 
-class UnitCellMesh
-    : public  virtual Mesh
-    , public          MeshImplementation
+class UnitCellMesh : public Mesh
 {
 public:
     UnitCellMesh() {};

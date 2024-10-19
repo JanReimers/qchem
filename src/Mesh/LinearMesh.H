@@ -2,11 +2,9 @@
 #ifndef _LinearMesh_H_
 #define _LinearMesh_H_
 
-#include "Mesh/MeshImplementation.H"
+#include "Mesh/Mesh.H"
 
-class LinearMesh
-    : public  virtual Mesh
-    , public          MeshImplementation
+class LinearMesh : public Mesh
 {
 public:
     LinearMesh(double start, double stop, const RVec3& direction, index_t numPoints);

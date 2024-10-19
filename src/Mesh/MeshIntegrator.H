@@ -39,7 +39,7 @@ public:
     virtual SMat Grad       (const Vf& a            ) const; // <grad(ai)|grad(aj)>
 
 private:
-    const MeshImplementation* itsMesh; //TODO Can we use base class Mesh?
+    const Mesh* itsMesh; //TODO Can we use base class Mesh?
 };
 
 #endif //_MeshIntegrator_H_

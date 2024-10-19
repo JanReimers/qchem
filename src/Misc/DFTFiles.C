@@ -97,12 +97,12 @@ Cluster*  DFTFiles::UnpickleCluster() const
     return ret;
 }
 
-Mesh* DFTFiles::UnpickleMesh() const
-{
-    Mesh* ret=0;
-    UnPickle(ret,GetMeshFN().c_str(),"numerical integration mesh");
-    return ret;
-}
+//Mesh* DFTFiles::UnpickleMesh() const
+//{
+//    Mesh* ret=0;
+//    UnPickle(ret,GetMeshFN().c_str(),"numerical integration mesh");
+//    return ret;
+//}
 
 ChargeDensity* DFTFiles::UnpickleChargeDensity() const
 {

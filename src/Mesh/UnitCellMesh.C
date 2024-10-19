@@ -8,7 +8,6 @@
 #include <cmath>
 
 UnitCellMesh::UnitCellMesh(const UnitCell& cell, index_t NumPoints)
-    : MeshImplementation()
 {
     index_t N=NumPoints*NumPoints*NumPoints;
     double w=cell.GetCellVolume()/N;
