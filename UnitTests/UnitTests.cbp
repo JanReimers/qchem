@@ -78,9 +78,6 @@
 		<Unit filename="M_PG_U.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="Persistance.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="Persistence2.C">
 			<Option compilerVar="CC" />
 		</Unit>

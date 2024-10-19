@@ -147,6 +147,17 @@
 		<Unit filename="include/Imp/Mesh/GaussLegendreAngularMesh.H" />
 		<Unit filename="include/Imp/Mesh/LogRadialMesh.H" />
 		<Unit filename="include/Imp/Mesh/MHLRadialMesh.H" />
+		<Unit filename="include/Imp/Misc/DFTDefines.H" />
+		<Unit filename="include/Imp/Misc/DFTFiles.H" />
+		<Unit filename="include/Imp/Misc/IntPower.H" />
+		<Unit filename="include/Imp/Misc/PeriodicTable.H" />
+		<Unit filename="include/Imp/Misc/Persistent/IDRef.H" />
+		<Unit filename="include/Imp/Misc/Persistent/PerDB.H" />
+		<Unit filename="include/Imp/Misc/Persistent/PerRef.H" />
+		<Unit filename="include/Imp/Misc/Persistent/Persistent.H" />
+		<Unit filename="include/Imp/Misc/UniqueID/UniqueID.H" />
+		<Unit filename="include/Imp/Misc/Unpickle.H" />
+		<Unit filename="include/Imp/Misc/rc_ptr.H" />
 		<Unit filename="include/Imp/Orbitals/ElectronContainer.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbital.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbitals.H" />
@@ -175,9 +186,6 @@
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
 		<Unit filename="src/AnalyticIE.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/IrrepCommon.C">
@@ -444,9 +452,6 @@
 		<Unit filename="src/LAParams.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/LASolver.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="src/LASolver/LASolver.H" />
 		<Unit filename="src/LASolver/LASolverImp.C">
 			<Option compilerVar="CC" />
@@ -488,29 +493,15 @@
 		<Unit filename="src/Misc/DFTDefines.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Misc/DFTDefines.H" />
 		<Unit filename="src/Misc/DFTFiles.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Misc/DFTFiles.H" />
 		<Unit filename="src/Misc/IntPower.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Misc/IntPower.H" />
 		<Unit filename="src/Misc/PeriodicTable.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Misc/PeriodicTable.H" />
-		<Unit filename="src/Misc/Persistent/IDRef.Ci" />
-		<Unit filename="src/Misc/Persistent/IDRef.H" />
-		<Unit filename="src/Misc/Persistent/PerDB.Ci" />
-		<Unit filename="src/Misc/Persistent/PerDB.H" />
-		<Unit filename="src/Misc/Persistent/PerRef.Ci" />
-		<Unit filename="src/Misc/Persistent/PerRef.H" />
-		<Unit filename="src/Misc/Persistent/Persistent.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/Persistent/Persistent.H" />
 		<Unit filename="src/Misc/UniqueID/UniqueID.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -518,14 +509,8 @@
 		<Unit filename="src/Misc/Unpickle.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Misc/Unpickle.H" />
 		<Unit filename="src/Misc/pmstream.C">
 			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/pmstream.h" />
-		<Unit filename="src/Misc/rc_ptr.H" />
-		<Unit filename="src/Orbital.C">
-			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Orbitals/ElectronContainer.C">
 			<Option compilerVar="CC" />
@@ -534,9 +519,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Orbitals/TOrbitals.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/SCFIterator.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/SCFIterator/SCFIterator.C">
@@ -561,9 +543,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/VectorFunction.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/WaveFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/WaveFunctionImp/ElectronDumper.C">

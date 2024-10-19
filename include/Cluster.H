@@ -3,12 +3,12 @@
 #define _Cluster_H_
 
 #include "Imp/Cluster/Atom.H"
+#include "Imp/Misc/UniqueID/UniqueID.H"
 #include <ScalarFunction.H>
-#include "Imp/Misc/Persistent/Persistent.H"
 #include <vector>
 
 class Cluster
-    : public virtual Persistent
+    : public UniqueID
 {
 public:
     typedef std::vector<Atom*>::      iterator       iterator;

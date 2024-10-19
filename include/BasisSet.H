@@ -3,8 +3,7 @@
 #define _BasisSet_H_
 
 #include "types.H"
-#include "Imp/Misc/Persistent/Persistent.H"
-
+#include "Imp/Misc/UniqueID/UniqueID.H"
 
 
 //--------------------------------------------------------------
@@ -15,7 +14,7 @@
 //  be real.
 //
 class BasisFunction
-    : public Persistent
+    : public UniqueID
 {
 public:
     virtual ~BasisFunction()  {};
@@ -50,7 +49,6 @@ template <class T> class TBasisFunction
 //  Clone(RVec&) creates a similar set with a new center.
 //  The quantum number could be L for atoms, Irreducable rep for molecules, or
 //  the wave vector k for solids.
-//  Persistent is derived from StreamableObject which has a virtual destructor
 //
 #include "IEClient.H"
 

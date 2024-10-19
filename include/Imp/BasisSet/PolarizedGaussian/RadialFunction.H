@@ -3,7 +3,7 @@
 #define _RadialFunction_H_
 
 #include "Polarization.H"
-#include "Imp/Misc/Persistent/Persistent.H"
+#include "Imp/Misc/UniqueID/UniqueID.H"
 #include <ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>
@@ -27,7 +27,7 @@ class  Block;
 //  and the SortingIndex is the offset into that list.
 //
 class RadialFunction
-    : public virtual Persistent
+    : public virtual UniqueID
     , public virtual ScalarFunction<double>
 {
 public:

@@ -4,10 +4,10 @@
 
 
 
-#include "Imp/Misc/Persistent/Persistent.H"
+#include "Imp/Misc/UniqueID/UniqueID.H"
 
 class QuantumNumber
-    : public virtual Persistent
+    : public virtual UniqueID
 {
 public:
     virtual bool Match(const QuantumNumber&) const=0;

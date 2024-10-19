@@ -5,7 +5,7 @@
 
 
 #include "types.H"
-#include "Imp/Misc/Persistent/Persistent.H"
+#include "Imp/Misc/UniqueID/UniqueID.H"
 #include "Imp/Containers/ERI4.H"
 
 class IrrepIEClient;
@@ -24,7 +24,7 @@ class IEClient;
 #define UT_COVERAGE_ONLY
 
 template <class T> class IntegralDataBase
-    : public virtual Persistent
+    : public virtual UniqueID
 {
 public:
     typedef Matrix<T>      Mat;
