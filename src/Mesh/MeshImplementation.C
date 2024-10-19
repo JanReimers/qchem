@@ -10,13 +10,6 @@
 //
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
-MeshImplementation::MeshImplementation(index_t numPoints)
-{};
-
-void MeshImplementation::Initialize(const Vector<RVec3>& R,const Vector<double>& W)
-{
-    for (auto i:R.indices()) itsRWs.push_back(std::make_tuple(R(i),W(i)));
-}
 
 std::ostream& MeshImplementation::Write(std::ostream& os) const
 {

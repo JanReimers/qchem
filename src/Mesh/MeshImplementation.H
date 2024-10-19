@@ -12,8 +12,7 @@ class MeshImplementation : public virtual Mesh
 {
 public:
     MeshImplementation(                 ) {};
-    MeshImplementation(index_t numPoints);
-
+   
     virtual void    ShiftOrigin (const RVec3&);
     
     virtual const_iterator begin() const {return itsRWs.begin();}
@@ -24,8 +23,7 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    void Initialize(const Vector<RVec3>& R,const Vector<double>& W);
-
+    void push_back(const RVec3& r, const double& w) {itsRWs.push_back(std::make_tuple(r,w));}
 private:
     vec_t itsRWs;
 };

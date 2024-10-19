@@ -11,7 +11,6 @@
 #include <stdlib.h>
 
 Vector<RVec3>  GetPositions     (const Cluster&);
-void            LoadFuzzyPoints  (const Atom&, const Cluster&, int, Vector<RVec3>::iterator&, Vector<double>::iterator&,int&);
 void            GetCutoffProfiles(Matrix<double>&,const Vector<RVec3>&, const RVec3&, int);
 double          CutoffProfile    (const RVec3&,const RVec3&,const RVec3&,int);
 double          Poly             (double,int);
@@ -31,22 +30,12 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
     for (auto atom:cl) nmax+=atom->GetIntegrationMesh()->size();
     std::cout << "Molecular mesh: total points=" << nmax;
 
-    Vector<RVec3 > Points (nmax);
-    Vector<double> Weights(nmax);
 //
 //  Now generate fuzzy points for each atom.
 //
-    Vector<RVec3 >::iterator ip(Points.begin());
-    Vector<double>::iterator iw(Weights.begin());
-    int numpoints=0;
     for (auto atom:cl) 
-        LoadFuzzyPoints(*atom,cl,m,ip,iw,numpoints);
+        LoadFuzzyPoints(*atom,cl,m);
 
-    std::cout << ", Fuzzy points=" << numpoints << std::endl;
-    Points .SetLimits(VecLimits(1,numpoints),true);
-    Weights.SetLimits(VecLimits(1,numpoints),true);
-
-    Initialize(Points,Weights);
 }
 
 
@@ -55,7 +44,7 @@ Mesh* MoleculeMesh::Clone() const
     return new MoleculeMesh(*this);
 }
 
-void LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m, Vector<RVec3>::iterator& p, Vector<double>::iterator& w,int& numpoints)
+void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m)
 {
     assert(m>=0);
 //
@@ -87,12 +76,7 @@ void LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m, Vector<RVec3>::ite
         if(P(index)>0)
         {
             double relativeWeight=P(index)/Sum(P);
-
-            *p=::r(rw);
-            *w=::w(rw)*relativeWeight;
-            p++;
-            w++;
-            numpoints++;
+            push_back(::r(rw),::w(rw)*relativeWeight);
         }
     }
 }
