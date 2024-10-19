@@ -4,11 +4,9 @@
 
 
 
-#include "Mesh/AngularMesh/AngularMeshImplementation.H"
+#include "Mesh/Mesh.H"
 
-class GaussAngularMesh :
-    public  virtual AngularMesh,
-    public          AngularMeshImplementation
+class GaussAngularMesh : public  Mesh
 {
 public:
     GaussAngularMesh(index_t numDir=1);

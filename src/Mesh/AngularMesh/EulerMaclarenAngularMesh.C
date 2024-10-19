@@ -4,12 +4,12 @@
 
 #include "Mesh/AngularMesh/EulerMaclarenAngularMesh.H"
 #include "Misc/DFTDefines.H"
+#include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
 
-EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) :
-    AngularMeshImplementation()
+EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {
     assert(m>=1 && m<=3);
     int numTheta = (L+1)/2;
@@ -93,5 +93,8 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) :
     cout << "Sum of weigths/4Pi = " << Sum(W)/4/Pi << std::endl;
 #endif
 
-    Initialize(D,W);
+    assert(W.size()==D     .size());
+    for (auto i:D.indices()) push_back(D(i),W(i));
+
 }
+

@@ -4,11 +4,9 @@
 
 
 
-#include "Mesh/AngularMesh/AngularMeshImplementation.H"
+#include "Mesh/Mesh.H"
 
-class EulerMaclarenAngularMesh :
-    public  virtual AngularMesh,
-    public          AngularMeshImplementation
+class EulerMaclarenAngularMesh : public  Mesh
 {
 public:
     EulerMaclarenAngularMesh(int L, int m);

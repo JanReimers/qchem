@@ -4,14 +4,14 @@
 
 #include "Mesh/AngularMesh/GaussLegendreAngularMesh.H"
 #include "Misc/DFTDefines.H"
+#include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
 
 void GaussLegendre(double x1, double x2, Vector<double>& x, Vector<double>& w, int n);
 
-GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int) :
-    AngularMeshImplementation()
+GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int)
 {
     int numTheta = (L+1)/2;
     int numPhi   = (L+1);
@@ -69,6 +69,6 @@ GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int) :
 #if DEBUG_OUTPUT
     cout << "Sum of weigths/4Pi = " << Sum(W)/4/Pi << std::endl;
 #endif
-
-    Initialize(D,W);
+    assert(W.size()==D     .size());
+    for (auto i:D.indices()) push_back(D(i),W(i));
 }

@@ -3,16 +3,14 @@
 
 
 #include "Mesh/AtomMesh.H"
-#include "Mesh/AngularMesh/AngularMesh.H"
 #include "Mesh/RadialMesh/RadialMesh.H"
-#include "Mesh/AngularMesh/AngularMeshImplementation.H"
 #include "Mesh/AngularMesh/GaussAngularMesh.H"
 #include <typeinfo>
 
 //
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
-AtomMesh::AtomMesh(const RadialMesh& rm, const AngularMesh& am)
+AtomMesh::AtomMesh(const RadialMesh& rm, const Mesh& am)
 {
     for (auto arw: am)
         for (auto rrw: rm)

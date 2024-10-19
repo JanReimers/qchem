@@ -48,7 +48,7 @@ public:
     {
         StreamableObject::SetToPretty();
         RadialMesh*  rm=new MHLRadialMesh(200,3U,2.0); //mem leak
-        AngularMesh* am=new GaussAngularMesh(1);      //mem leak
+        Mesh* am=new GaussAngularMesh(1);      //mem leak
         mesh=new AtomMesh(*rm,*am); 
         mintegrator=new MeshIntegrator<double>(mesh);
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));

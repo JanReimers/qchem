@@ -10,7 +10,7 @@
 Molecule* MakeN2()
 {
     RadialMesh*  rm=new MHLRadialMesh(100,2U,2.0);
-    AngularMesh* am=new GaussAngularMesh(12);
+    Mesh* am=new GaussAngularMesh(12);
     Mesh* atom_mesh=new AtomMesh(*rm,*am);
     Atom* a1=new Atom(7,0,Vector3D<double>(-1.03,0,0));
     Atom* a2=new Atom(7,0,Vector3D<double>( 1.04,0,0));

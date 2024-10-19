@@ -4,11 +4,9 @@
 
 
 
-#include "Mesh/AngularMesh/AngularMeshImplementation.H"
+#include "Mesh/Mesh.H"
 
-class GaussLegendreAngularMesh :
-    public  virtual AngularMesh,
-    public          AngularMeshImplementation
+class GaussLegendreAngularMesh :  public  Mesh
 {
 public:
     GaussLegendreAngularMesh(int L, int m);

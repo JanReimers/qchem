@@ -54,13 +54,13 @@ public:
         StreamableObject::SetToPretty();
         {
             RadialMesh*  rm=new MHLRadialMesh(200,2U,1.0); //mem leak
-            AngularMesh* am=new GaussAngularMesh(1);      //mem leak
+            Mesh* am=new GaussAngularMesh(1);      //mem leak
             mesh=new AtomMesh(*rm,*am); 
             mintegrator=new MeshIntegrator<double>(mesh);
         }
         {
             RadialMesh*  rm=new MHLRadialMesh(200,2U,2.0); //mem leak
-            AngularMesh* am=new GaussAngularMesh(32);      //mem leak
+            Mesh* am=new GaussAngularMesh(32);      //mem leak
             rmesh=new AtomMesh(*rm,*am); 
             rmintegrator=new MeshIntegrator<double>(rmesh);
        }

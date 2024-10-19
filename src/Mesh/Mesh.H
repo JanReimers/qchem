@@ -9,7 +9,7 @@
 #include <vector>
 
 class Mesh : public virtual UniqueID
-{
+{ 
 public:
     virtual ~Mesh () {};
 

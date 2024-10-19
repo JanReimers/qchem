@@ -4,12 +4,12 @@
 
 #include "Mesh/AngularMesh/GaussAngularMesh.H"
 #include "Misc/DFTDefines.H"
+#include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <stdlib.h>
 
-GaussAngularMesh::GaussAngularMesh(index_t numDir) :
-    AngularMeshImplementation()
+GaussAngularMesh::GaussAngularMesh(index_t numDir)
 {
     Vector<RVec3>  D(numDir);
     Vector<double> W(numDir);
@@ -277,6 +277,6 @@ GaussAngularMesh::GaussAngularMesh(index_t numDir) :
 #if DEBUG_OUTPUT
     cout << "Sum of weigths/4Pi = " << Sum(W)/4/Pi << std::endl;
 #endif
-
-    Initialize(D,W);
+    assert(W.size()==D     .size());
+    for (auto i:D.indices()) push_back(D(i),W(i));
 }

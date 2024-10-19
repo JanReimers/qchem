@@ -263,7 +263,7 @@ Cluster* TestAtom::GetCluster() const
 Mesh* TestAtom::GetIntegrationMesh() const
 {
     RadialMesh*            rm=new MHLRadialMesh(50,2U,2.0); //mem leak
-    AngularMesh*           am=new GaussAngularMesh(1);      //mem leak
+    Mesh*           am=new GaussAngularMesh(1);      //mem leak
     return new AtomMesh(*rm,*am); //why not own?
 }
 
