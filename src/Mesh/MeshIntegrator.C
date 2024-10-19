@@ -37,12 +37,14 @@ template <class T> typename MeshIntegrator<T>::RVec MeshIntegrator<T>::Integrate
     RVec ret(n);
     Fill(ret,0.0);
 
-    typename RVec::Subscriptor      sr(ret);
     const Mat& sv(v(*itsMesh));
-    MeshBrowser m(*itsMesh);
-    for (index_t iw=1; m; iw++,m++)
+    int iw=1;
+    for (auto rw:*itsMesh)
+    {
         for (index_t i=1; i<=n; i++)
-            sr(i)+=sv(i,iw)*m.W();
+            ret(i)+=sv(i,iw)*w(rw);
+        iw++;
+    }
 
     assert(!isnan(ret));
     return ret;
@@ -54,17 +56,14 @@ template <class T> typename MeshIntegrator<T>::RVec MeshIntegrator<T>::Normalize
     RVec ret(n);
     Fill(ret,0.0);
 
-//    v(*itsMesh);
-    typename RVec::Subscriptor      sr(ret);
     const Mat& sv(v(*itsMesh));
-    MeshBrowser m(*itsMesh);
-    for (index_t iw=1; m; iw++,m++)
+    int iw=1;
+    for (auto rw:*itsMesh)
+    {
         for (index_t i=1; i<=n; i++)
-        {
-//            std::cout << sv(i,iw) << " " << m.W() << std::endl;
-            sr(i)+=sv(i,iw)*sv(i,iw)*m.W();
-
-        }
+            ret(i)+=sv(i,iw)*sv(i,iw)*w(rw);
+        iw++;          
+    }
 
     ret=1.0/sqrt(ret);
     return ret;
@@ -82,13 +81,13 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap(c
 
     const Mat& sf(v(*itsMesh));
 
-    int wi=1;
+    int iw=1;
     for (auto rw:*itsMesh)
     {
         for (index_t i=1; i<=n; i++)
             for (index_t j=i; j<=n; j++)
-                ret(i,j)+=sf(i,wi)*sf(j,wi)*w(rw);
-        wi++;
+                ret(i,j)+=sf(i,iw)*sf(j,iw)*w(rw);
+        iw++;
     }
 
     return ret;
@@ -100,17 +99,18 @@ template <class T> typename MeshIntegrator<T>::Vec MeshIntegrator<T>::Overlap(co
     Vec ret(n);
     Fill(ret,0.0);
 
-    typename Vec ::Subscriptor      sr(ret);
     const Mat & sv(v(*itsMesh));
     assert(!isnan(sv));
     const RVec& sf(f(*itsMesh));
     assert(!isnan(sf));
-    MeshBrowser m(*itsMesh);
-    for (index_t iw=1; m; iw++,m++)
+    int iw=1;
+    for (auto rw:*itsMesh)
+    {
         for (index_t i=1; i<=n; i++)
-        {
-            sr(i)+=sv(i,iw)*sf(iw)*m.W();
-        }
+            ret(i)+=sv(i,iw)*sf(iw)*w(rw);
+        
+        iw++;
+    }
     assert(!isnan(ret));
     return ret;
 
@@ -124,15 +124,17 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Overlap(co
     Mat ret(nf,ng);
     Fill(ret,0.0);
 
-    typename Mat::Subscriptor      r (ret);
     const Mat& sf(f(*itsMesh));
     const Mat& sg(g(*itsMesh));
 
-    MeshBrowser m(*itsMesh);
-    for (index_t wi=1; m; wi++,m++)
+    int iw=1;
+    for (auto rw:*itsMesh)
+    {
         for (index_t fi=1; fi<=nf; fi++)
             for (index_t gi=1; gi<=ng; gi++)
-                r(fi,gi)+=sf(fi,wi)*sg(gi,wi)*m.W();
+                ret(fi,gi)+=sf(fi,iw)*sg(gi,iw)*w(rw);
+        iw++;
+    }
 
     assert(!isnan(ret));
     return ret;
@@ -176,28 +178,19 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
     SMat ret(n,n);
     Fill(ret,0.0);
 
-    typename SMat::Subscriptor          r (ret);
     const Mat& sf(f(*itsMesh));
-
-    MeshBrowser m1(*itsMesh);
-//    double oor1=m1.W()*m1.W()/!m1.R();
-    for (index_t wi=1; m1; wi++,m1++)
+    int iw=1;
+    for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
-//        for (index_t i=1; i<=n; i++)
-//            for (index_t j=i; j<=n; j++)
-//                r(i,j)+=sf(i,wi)*sf(j,wi)*oor1;
-
-        MeshBrowser m2(m1);
-        m2++;
-        double oor=m1.W()*m2.W()/norm(m1.R()-m2.R());
-        if (norm(m1.R()-m2.R()) <1e-4)
-            cout << oor << " " << norm(m1.R()-m2.R()) << endl;
-        assert(!std::isnan(oor));
-        for (index_t wj=wi+1; m2; wj++,m2++)
+        int jw=iw+1;
+        for (auto rw2=rw1+1; rw2!=itsMesh->end(); jw++,rw2++)
         {
+            if (r(*rw1)==r(*rw2)) continue;
+            double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
+            assert(!std::isnan(oor));
             for (index_t i=1; i<=n; i++)
                 for (index_t j=i; j<=n; j++)
-                    r(i,j)+=(sf(i,wi)*sf(j,wj)+sf(i,wj)*sf(j,wi))*oor;
+                    ret(i,j)+=(sf(i,iw)*sf(j,jw)+sf(i,jw)*sf(j,iw))*oor;
         }
     }
     assert(!isnan(ret));

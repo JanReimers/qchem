@@ -59,8 +59,8 @@ public:
             mintegrator=new MeshIntegrator<double>(mesh);
         }
         {
-            RadialMesh*  rm=new MHLRadialMesh(50,1U,1.0); //mem leak
-            AngularMesh* am=new GaussAngularMesh(1);      //mem leak
+            RadialMesh*  rm=new MHLRadialMesh(200,2U,2.0); //mem leak
+            AngularMesh* am=new GaussAngularMesh(32);      //mem leak
             rmesh=new AtomMesh(*rm,*am); 
             rmintegrator=new MeshIntegrator<double>(rmesh);
        }
@@ -335,5 +335,38 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
     }
 }
 
+TEST_F(SlaterRadialIntegralTests, Numerical)
+{
+    TIrrepBasisSet<double>* vf=*bs->beginT();
+    TBasisFunction<double>* sf=*vf->beginT();
 
+    Vector<double> cnum=mintegrator->Integrate(*vf);
+    Vector<double> c=ie->MakeCharge(vf);
+    EXPECT_NEAR(Max(fabs(cnum-c)),0.0,1e-13);
+
+    Vector<double> nnum=mintegrator->Normalize(*vf);
+    EXPECT_NEAR(Max(fabs(nnum-1.0)),0.0,1e-12);
+    {
+        Vector <double> onum=mintegrator->Overlap(*sf,*vf);
+        SMatrix<double> o=ie->MakeOverlap(vf);
+        EXPECT_NEAR(Max(fabs(onum-o.GetRow(1))),0.0,1e-12);        
+    }
+    {
+        Matrix<double> onum=mintegrator->Overlap(*vf,*vf);
+        SMatrix<double> o=ie->MakeOverlap(vf);
+        EXPECT_NEAR(Max(fabs(onum-o)),0.0,1e-12); 
+    }
+    {
+        SMatrix<double> onum=mintegrator->Overlap3C(*vf,*sf);
+        ERI3 o=ie->MakeOverlap3C(vf,vf);
+        EXPECT_NEAR(Max(fabs(onum-o[0])),0.0,1e-12); 
+    }
+    {
+        SMatrix<double> rnum=rmintegrator->Repulsion(*vf);
+        SMatrix<double> r=ie->MakeRepulsion(vf);
+        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
+    }
+    
+    
+}
  

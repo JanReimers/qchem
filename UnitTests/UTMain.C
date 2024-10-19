@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
-//      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
+      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.Numerical";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_EigenSolverTests.*";

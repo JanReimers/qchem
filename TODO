@@ -61,6 +61,7 @@ oml:
     **-SMAT does not support S+=Xpr
     -Support V*SymMat without including matrix.h
     -Vector constructors with fill arguments was a really bad idea.
+    -GetColumn fails for SMatrix.
 
       
 Priority 2:
