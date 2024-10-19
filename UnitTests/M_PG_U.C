@@ -2,9 +2,9 @@
 
 #include "QchemTester.H"
 
-#include "Mesh/RadialMesh/MHLRadialMesh.H"
-#include "Mesh/AngularMesh/GaussAngularMesh.H"
-#include "Mesh/AtomMesh.H"
+#include "Imp/Mesh/MHLRadialMesh.H"
+#include "Imp/Mesh/GaussAngularMesh.H"
+#include "Imp/Cluster/AtomMesh.H"
 #include "Imp/Cluster/Molecule.H"
 
 Molecule* MakeN2()

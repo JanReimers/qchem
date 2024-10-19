@@ -5,7 +5,7 @@
 #include <Hamiltonian.H>
 #include <ChargeDensity.H>
 #include <Cluster.H>
-#include "Mesh/Mesh.H"
+#include <Mesh.H>
 #include <WaveFunction.H>
 #include <fstream>
 #include <iostream>

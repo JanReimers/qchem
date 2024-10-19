@@ -3,7 +3,7 @@
 
 
 #include <ScalarFunction.H>
-#include "Mesh/Mesh.H"
+#include <Mesh.H>
 #include "oml/vector.h"
 #include <cassert>
 #include <iostream>

@@ -1,6 +1,6 @@
 //  File: Mesh.C  mesh implementation
 
-#include "Mesh/Mesh.H"
+#include <Mesh.H>
 
 void Mesh::ShiftOrigin(const RVec3& r)
 {

@@ -2,19 +2,16 @@
 
 
 
-#include <WaveFunction.H>
 #include "Imp/SCFIterator/SCFIterator.H"
+#include "Imp/WaveFunction/ElectronDumper.H"
+#include <WaveFunction.H>
 #include <IterationParams.H>
 #include <Hamiltonian.H>
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
-#include "Imp/WaveFunction/ElectronDumper.H"
-#include "Mesh/LinearMesh.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-
-LinearMesh mesh(-6,6,RVec3(1,0,0),241);
 
 SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H,bool showplot)
     : itsWaveFunction         (W )

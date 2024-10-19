@@ -7,7 +7,7 @@
 #include <BasisSet.H>
 #include "Misc/rc_ptr.H"
 #include <FittedFunction.H>
-#include "Mesh/Mesh.H"
+#include <Mesh.H>
 #include <LAParams.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"

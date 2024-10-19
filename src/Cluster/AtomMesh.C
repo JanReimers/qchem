@@ -2,9 +2,9 @@
 
 
 
-#include "Mesh/AtomMesh.H"
-#include "Mesh/RadialMesh/RadialMesh.H"
-#include "Mesh/AngularMesh/GaussAngularMesh.H"
+#include "Imp/Cluster/AtomMesh.H"
+#include <RadialMesh.H>
+#include "Imp/Mesh/GaussAngularMesh.H"
 #include <typeinfo>
 
 //

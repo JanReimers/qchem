@@ -4,7 +4,7 @@
 #include <IntegralDataBase.H>
 #include <ChargeDensity.H>
 #include <BasisSet.H>
-#include <Mesh/Mesh.H>
+#include <Mesh.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"

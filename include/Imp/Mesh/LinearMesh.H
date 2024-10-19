@@ -2,7 +2,7 @@
 #ifndef _LinearMesh_H_
 #define _LinearMesh_H_
 
-#include "Mesh/Mesh.H"
+#include <Mesh.H>
 
 class LinearMesh : public Mesh
 {

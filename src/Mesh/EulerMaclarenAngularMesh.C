@@ -1,18 +1,17 @@
-//  File: GaussLegendreAngularMesh.C  GaussLegendre style angular mesh implementation
+//  File: EulerMaclarenAngularMesh.C  EulerMaclaren style angular mesh implementation
 
 
 
-#include "Mesh/AngularMesh/GaussLegendreAngularMesh.H"
+#include "Imp/Mesh/EulerMaclarenAngularMesh.H"
 #include "Misc/DFTDefines.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
 
-void GaussLegendre(double x1, double x2, Vector<double>& x, Vector<double>& w, int n);
-
-GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int)
+EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {
+    assert(m>=1 && m<=3);
     int numTheta = (L+1)/2;
     int numPhi   = (L+1);
     int numDir   = numTheta*numPhi;
@@ -24,8 +23,30 @@ GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int)
 //
     Vector<double> thetas(numTheta);
     Vector<double> Wt(numTheta);
-    GaussLegendre(-1.0,1.0,thetas,Wt,numTheta);
-    thetas=acos(thetas);
+    {
+        Vector<double>::iterator it(thetas.begin());
+        Vector<double>::iterator iw(Wt.begin());
+        double del=Pi/numTheta;
+        for (int i=0; i<numTheta; i++,it++,iw++)
+        {
+            double q=del*i;
+            if (m==1)
+            {
+                *it=q;
+                *iw=del*sin(*it);
+            }
+            if (m==2)
+            {
+                *it=q*q*(3*Pi-2*q)/(Pi*Pi);
+                *iw=del*sin(*it)*6.0/(Pi*Pi)*q*(Pi-q);
+            }
+            if (m==3)
+            {
+                *it=q*q*q*(10*Pi*Pi-15*Pi*q+6*q*q)/(Pi*Pi*Pi*Pi);
+                *iw=del*sin(*it)*30.0/(Pi*Pi*Pi*Pi)*q*q*(Pi-q)*(Pi-q);
+            }
+        }
+    }
 #if DEBUG_OUTPUT
     cout << "Sum of theta weigths = " << Sum(Wt) << std::endl;
 #endif
@@ -45,7 +66,9 @@ GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int)
             *iw=del;
         }
     }
-//  cout << "Sum of phi weigths = " << Sum(Wp) << std::endl;
+#if DEBUG_OUTPUT
+    cout << "Sum of phi weigths = " << Sum(Wp) << std::endl;
+#endif
 //
 //  Now take the direct product of the
 //
@@ -69,6 +92,9 @@ GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int)
 #if DEBUG_OUTPUT
     cout << "Sum of weigths/4Pi = " << Sum(W)/4/Pi << std::endl;
 #endif
+
     assert(W.size()==D     .size());
     for (auto i:D.indices()) push_back(D(i),W(i));
+
 }
+

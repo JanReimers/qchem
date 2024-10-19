@@ -3,7 +3,7 @@
 
 
 #include "Imp/DataBase/HeapDB.H"
-#include "Mesh/MeshIntegrator.H"
+#include "Imp/Integrals/MeshIntegrator.H"
 #include <BasisSet.H>
 #include <Cluster.H>
 #include <AnalyticIE.H>

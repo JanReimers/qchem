@@ -256,9 +256,9 @@ Cluster* TestAtom::GetCluster() const
     return cl;
 }
 
-#include "Mesh/RadialMesh/MHLRadialMesh.H"
-#include "Mesh/AngularMesh/GaussAngularMesh.H"
-#include "Mesh/AtomMesh.H"
+#include "Imp/Mesh/MHLRadialMesh.H"
+#include "Imp/Mesh/GaussAngularMesh.H"
+#include "Imp/Cluster/AtomMesh.H"
 
 Mesh* TestAtom::GetIntegrationMesh() const
 {
@@ -275,7 +275,7 @@ void TestMolecule::Init(Molecule* p)
 
 Cluster* TestMolecule::GetCluster() const {return itsCluster;}
 
-#include "Mesh/MoleculeMesh.H"
+#include "Imp/Cluster/MoleculeMesh.H"
 Mesh*    TestMolecule::GetIntegrationMesh() const
 {
     return  new MoleculeMesh(*itsCluster,3);

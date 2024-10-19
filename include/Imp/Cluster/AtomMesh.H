@@ -2,7 +2,7 @@
 #ifndef _AtomMesh_H_
 #define _AtomMesh_H_
 
-#include "Mesh/Mesh.H"
+#include <Mesh.H>
 
 class AtomMesh : public Mesh
 {

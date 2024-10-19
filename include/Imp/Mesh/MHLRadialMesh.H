@@ -4,7 +4,7 @@
 
 
 
-#include "Mesh/RadialMesh/RadialMesh.H"
+#include <RadialMesh.H>
 
 //
 // C.W. Murray,N.C. HandyandG.J. Laming, Mol. Phys.78 (1993) 997. 
