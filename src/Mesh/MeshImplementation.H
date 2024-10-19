@@ -15,10 +15,6 @@ public:
     MeshImplementation(index_t numPoints);
 
     virtual void    ShiftOrigin (const RVec3&);
-    virtual size_t  GetNumPoints() const
-    {
-        return itsPoints.size();
-    }
     
     virtual const_iterator begin() const {return itsRWs.begin();}
     virtual const_iterator end  () const {return itsRWs.end  ();}
@@ -31,9 +27,6 @@ protected:
     void Initialize(const Vector<RVec3>& R,const Vector<double>& W);
 
 private:
-    Vector<RVec3>  itsPoints;
-    Vector<double> itsWeights;
-
     vec_t itsRWs;
 };
 

@@ -22,5 +22,8 @@ public:
     
 };
 
+inline const double& r(const RadialMesh::rw_t& rw) {return std::get<0>(rw);}
+inline const double& w(const RadialMesh::rw_t& rw) {return std::get<1>(rw);}
+
 #endif //_RadialMesh_H_
 

@@ -11,16 +11,11 @@
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
 MeshImplementation::MeshImplementation(index_t numPoints)
-    : itsPoints (numPoints)
-    , itsWeights(numPoints)
 {};
 
 void MeshImplementation::Initialize(const Vector<RVec3>& R,const Vector<double>& W)
 {
-    itsPoints=R;
-    itsWeights=W;
     for (auto i:R.indices()) itsRWs.push_back(std::make_tuple(R(i),W(i)));
-    assert(itsRWs.size()==itsPoints.size());
 }
 
 std::ostream& MeshImplementation::Write(std::ostream& os) const
@@ -28,14 +23,14 @@ std::ostream& MeshImplementation::Write(std::ostream& os) const
     if (!StreamableObject::Pretty())
     {
         UniqueID::Write(os);
-        os << itsPoints << itsWeights;
+       // os << itsRWs;
     }
     else
     {
         std::ios::fmtflags f=os.setf(std::ios::left,std::ios::adjustfield);
 //    os << setw(15) << Type();
         os.flags(f);
-        os << std::setw(8) << itsPoints.size();
+        os << std::setw(8) << size();
     }
     return os;
 }
@@ -43,14 +38,12 @@ std::ostream& MeshImplementation::Write(std::ostream& os) const
 std::istream& MeshImplementation::Read(std::istream& is)
 {
     UniqueID::Read(is);
-    is >> itsPoints >> itsWeights;
+    //is >> itsRWs;
     return is;
 }
 
 void MeshImplementation::ShiftOrigin(const RVec3& r)
 {
-    Vector<RVec3>::iterator i(itsPoints.begin());
-    for(; i!=itsPoints.end(); i++) (*i)+=r;
     for (auto& rw:itsRWs) std::get<0>(rw)+=r;
     NewID();
 }

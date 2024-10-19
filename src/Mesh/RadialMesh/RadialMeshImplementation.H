@@ -26,7 +26,6 @@ protected:
     void Initialize(const Vector<double>& R,const Vector<double>& W);
 
 private:
-    friend  class RadialMeshBrowser;
 
     Vector<double> itsPoints;
     Vector<double> itsWeights;

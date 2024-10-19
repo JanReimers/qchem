@@ -15,6 +15,9 @@ public:
     {
         return itsDirections.size();
     }
+    virtual const_iterator begin() const {return itsRWs.begin();}
+    virtual const_iterator end  () const {return itsRWs.end  ();}
+    virtual index_t        size () const {return itsRWs.size ();}
 
 protected:
     void Initialize(const Vector<RVec3>& D, const Vector<double>& W);
@@ -24,6 +27,7 @@ private:
 
     Vector<RVec3>  itsDirections;
     Vector<double> itsWeights;
+    vec_t itsRWs;
 };
 
 #endif // _AngularMeshImp_H_

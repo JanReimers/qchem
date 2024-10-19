@@ -20,6 +20,8 @@ void AngularMeshImplementation::Initialize(const Vector<RVec3>& D, const Vector<
     assert(W.size()==D            .size());
     itsDirections=D;
     itsWeights   =W;
+    for (auto i:D.indices()) itsRWs.push_back(std::make_tuple(D(i),W(i)));
+
     Vector<RVec3>::const_iterator b(D.begin());
     for (; b!=D.end(); b++)
         if (norm(*b) < 0.9999 || norm(*b)>1.0001)
