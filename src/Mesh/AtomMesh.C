@@ -3,7 +3,6 @@
 
 
 #include "Mesh/AtomMesh.H"
-#include "Mesh/MeshBrowser.H"
 #include "Mesh/AngularMesh/AngularMesh.H"
 #include "Mesh/AngularMesh/AngularMeshBrowser.H"
 #include "Mesh/RadialMesh/RadialMesh.H"

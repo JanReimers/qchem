@@ -31,10 +31,6 @@ protected:
     void Initialize(const Vector<RVec3>& R,const Vector<double>& W);
 
 private:
-    friend class MeshBrowser;
-    friend class MeshIntegrator<double>;
-    friend class MeshIntegrator<std::complex<double> >;
-
     Vector<RVec3>  itsPoints;
     Vector<double> itsWeights;
 

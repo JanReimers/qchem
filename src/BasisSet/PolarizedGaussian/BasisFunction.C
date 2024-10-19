@@ -3,7 +3,6 @@
 
 
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
-#include "Mesh/MeshBrowser.H"
 #include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
@@ -85,37 +84,6 @@ BasisFunction::RVec3 BasisFunction::Gradient(const RVec3& r) const
     const RadialFunction& rf=*itsRadial;
     RVec3 dr=r-rf.GetCenter();
     return itsNormalization*(itsPol.Gradient(dr) * rf(r) + itsPol(dr) * rf.Gradient(r));
-}
-
-void BasisFunction::Eval(const Mesh& mesh, Vec& vec) const
-{
-    assert(itsRadial);
-    Vector<double> radial((*itsRadial)(mesh));
-    Vector<double>::const_iterator  rf(radial.begin());
-    Vec            ::iterator i(vec.begin());
-    MeshBrowser               m(mesh);
-    for(; i!=vec.end()&&m&&rf!=radial.end(); i++,m++,rf++)
-    {
-//        std::cout << itsNormalization << " " << *rf << " " << itsPol( m.R()-itsRadial->GetCenter() ) << std::endl;
-        *i += itsNormalization * (*rf) * itsPol( m.R()-itsRadial->GetCenter() );
-    }
-}
-
-void BasisFunction::EvalGrad(const Mesh& mesh, Vec3Vec& vec) const
-{
-    assert(itsRadial);
-    Vector<double> radial((*itsRadial)(mesh));
-    Vector<double>::const_iterator  rf(radial.begin());
-    Vector<RVec3 > gradrf(itsRadial->Gradient(mesh));
-    Vector<RVec3 >::const_iterator grf(gradrf.begin());
-    Vec3Vec        ::iterator  i(vec.begin());
-    MeshBrowser                m(mesh);
-
-    for (; rf!=radial.end()&&grf!=gradrf.end()&&i!=vec.end()&&m; rf++,grf++,i++,m++)
-    {
-        RVec3 dr = m.R()-itsRadial->GetCenter();
-        *i += itsNormalization*(itsPol(dr) * (*grf) + itsPol.Gradient(dr) * (*rf));
-    }
 }
 
 BasisFunction* BasisFunction::Clone() const

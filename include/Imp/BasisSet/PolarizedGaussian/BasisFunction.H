@@ -29,8 +29,6 @@ public:
     virtual RVec3  Gradient  (const RVec3&) const;
 
 private:
-    virtual void Eval    (const Mesh&,     Vec&) const;
-    virtual void EvalGrad(const Mesh&, Vec3Vec&) const;
     void Insert  (const RadialFunction* theRF,const Polarization& thePol);
 
     const RadialFunction*  itsRadial;

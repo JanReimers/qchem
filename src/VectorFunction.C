@@ -12,7 +12,7 @@
 template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator() (const Mesh& mesh) const
 {
     index_t n=GetVectorSize();
-    Mat ret(MatLimits(n,mesh.GetNumPoints()));
+    Mat ret(MatLimits(n,mesh.size()));
     Fill(ret,T(0.0));
     Eval(mesh,ret);
     return ret;
@@ -21,7 +21,7 @@ template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator()
 template <class T> typename VectorFunction<T>::Vec3Mat VectorFunction<T>::Gradient(const Mesh& mesh) const
 {
     index_t n=GetVectorSize();
-    Vec3Mat ret(MatLimits(n,mesh.GetNumPoints()));
+    Vec3Mat ret(MatLimits(n,mesh.size()));
     Fill(ret,Vec3(0,0,0));
     EvalGrad(mesh,ret);
     return ret;

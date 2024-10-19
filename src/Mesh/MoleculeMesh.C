@@ -28,7 +28,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
 //  First count total number of mesh points for all atoms.
 //
     int nmax=0;
-    for (auto atom:cl) nmax+=atom->GetIntegrationMesh()->GetNumPoints();
+    for (auto atom:cl) nmax+=atom->GetIntegrationMesh()->size();
     std::cout << "Molecular mesh: total points=" << nmax;
 
     Vector<RVec3 > Points (nmax);

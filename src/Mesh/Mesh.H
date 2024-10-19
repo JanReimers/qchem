@@ -15,7 +15,6 @@ public:
     virtual ~Mesh () {};
 
     virtual void    ShiftOrigin(const RVec3&)=0;
-    virtual size_t  GetNumPoints     () const=0;
     virtual Mesh*   Clone            () const=0;
     static  Mesh*   Factory  (std::istream&);
     

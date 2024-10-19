@@ -11,7 +11,7 @@
 
 template <class T> typename ScalarFunction<T>::Vec ScalarFunction<T>::operator() (const Mesh& mesh) const
 {
-    Vec ret(mesh.GetNumPoints());
+    Vec ret(mesh.size());
     Fill(ret,T(0.0));
     Eval(mesh, ret);
     return ret;
@@ -19,7 +19,7 @@ template <class T> typename ScalarFunction<T>::Vec ScalarFunction<T>::operator()
 
 template <class T> typename ScalarFunction<T>::Vec3Vec ScalarFunction<T>::Gradient(const Mesh& mesh) const
 {
-    Vec3Vec ret(mesh.GetNumPoints());
+    Vec3Vec ret(mesh.size());
     Fill(ret,Vec3(0,0,0));
     EvalGrad(mesh, ret);
     return ret;
