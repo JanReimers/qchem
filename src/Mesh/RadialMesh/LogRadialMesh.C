@@ -8,7 +8,6 @@
 #include <cmath>
 
 LogRadialMesh::LogRadialMesh(double start, double stop, index_t NumPoints)
-    : RadialMeshImplementation()
 {
     double q   = exp((log(stop)-log(start))/(NumPoints-1));
     double sq  = sqrt(q);

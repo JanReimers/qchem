@@ -2,13 +2,9 @@
 #ifndef _LogRadialMesh_H_
 #define _LogRadialMesh_H_
 
+#include "Mesh/RadialMesh/RadialMesh.H"
 
-
-#include "Mesh/RadialMesh/RadialMeshImplementation.H"
-
-class LogRadialMesh
-    : public  virtual RadialMesh
-    , public          RadialMeshImplementation
+class LogRadialMesh : public   RadialMesh
 {
 public:
     LogRadialMesh(double start, double stop, index_t numPoints);

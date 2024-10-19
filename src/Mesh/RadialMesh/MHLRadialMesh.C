@@ -9,7 +9,6 @@
 #include <cmath>
 
 MHLRadialMesh::MHLRadialMesh(index_t NumPoints, int m, double alpha)
-    : RadialMeshImplementation()
 {
     double del=1.0/NumPoints;
     for(index_t i=0; i<NumPoints; i++)
