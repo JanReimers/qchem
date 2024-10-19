@@ -1,3 +1,3 @@
 // File: LASolver.C  General eigen solver.
 
-#include "LASolver/LASolver.H"
+#include <LASolver.H>

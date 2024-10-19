@@ -4,7 +4,7 @@
 
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
-#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
+#include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include <Spin.H>
 #include <cassert>
 
@@ -42,7 +42,7 @@ ChargeDensity* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
 
 SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons, double kT, bool showplot)
 {
-    return new UnPolarizedSCFIterator(this, H, cd,nElectrons, kT,showplot);
+    return new SCFIteratorUnPol(this, H, cd,nElectrons, kT,showplot);
 }
 
 void MasterUnPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)

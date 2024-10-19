@@ -2,20 +2,20 @@
 
 
 
-#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
-#include "SCFIterator/IterationParams.H"
-#include "Hamiltonian.H"
-#include "WaveFunction.H"
+#include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/WaveFunction/ElectronDumper.H"
-#include "ChargeDensity.H"
+#include <IterationParams.H>
+#include <Hamiltonian.H>
+#include <WaveFunction.H>
+#include <ChargeDensity.H>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 
 
-UnPolarizedSCFIterator::UnPolarizedSCFIterator(WaveFunction* W, Hamiltonian* H,ChargeDensity* guess,
+SCFIteratorUnPol::SCFIteratorUnPol(WaveFunction* W, Hamiltonian* H,ChargeDensity* guess,
                                                double nElectrons, double kT, bool showplot)
-    : SCFIteratorImplementation(W,H,showplot)
+    : SCFIteratorImp(W,H,showplot)
     , itsTotalCharge(nElectrons)
     , itsEf(0)
 {
@@ -23,7 +23,7 @@ UnPolarizedSCFIterator::UnPolarizedSCFIterator(WaveFunction* W, Hamiltonian* H,C
     assert(itsTotalCharge>0);
 }
 
-bool UnPolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
+bool SCFIteratorUnPol::Iterate(const SCFIterationParams& ipar)
 {
     if (ipar.Verbose)
     {
@@ -31,7 +31,7 @@ bool UnPolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
         std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up) " << std::endl;
         std::cout << "-------------------------------------------------------------------------------" << std::endl;
     }
-    bool ret=SCFIteratorImplementation::Iterate(ipar);
+    bool ret=SCFIteratorImp::Iterate(ipar);
 
     if (ipar.Verbose)
     {
@@ -41,15 +41,15 @@ bool UnPolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
     return ret;
 }
 
-void UnPolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
+void SCFIteratorUnPol::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
 {
-    SCFIteratorImplementation::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
+    SCFIteratorImp::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
 //    std::cout.setf(std::ios::fixed,std::ios::floatfield);
 //    std::cout << std::setw(9) << std::setprecision(6) << itsEf << std::endl;
     std::cout << std::endl;
 }
 
-void UnPolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)
+void SCFIteratorUnPol::DumpElectrons(WaveFunction* wf, double kT)
 {
     assert(wf);
     ElectronDumper ed  (0.000001,kT);
@@ -58,7 +58,7 @@ void UnPolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)
     itsEf=ed.GetFermiEnergy();
 }
 
-void UnPolarizedSCFIterator::DisplayEigen() const
+void SCFIteratorUnPol::DisplayEigen() const
 {
     ElectronDumper ed  (0.000001,0.0);
     itsWaveFunction->UpdateElectronDumper(ed);

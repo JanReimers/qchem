@@ -8,7 +8,7 @@
 #include "Misc/rc_ptr.H"
 #include <FittedFunction.H>
 #include "Mesh/Mesh.H"
-#include "Imp/LAParams.H"
+#include <LAParams.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 

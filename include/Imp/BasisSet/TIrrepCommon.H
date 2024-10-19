@@ -1,10 +1,9 @@
-// File: TBasisSetImplementation.H
-#ifndef _TBasisSetImplementation_H_
-#define _TBasisSetImplementation_H_
+// File: TIrrepCommon.H
+#ifndef _TIrrepCommon_H_
+#define _TIrrepCommon_H_
 
-#include "BasisSet.H"
-#include "Imp/LAParams.H"
-
+#include <BasisSet.H>
+#include <LAParams.H>
 //---------------------------------------------------------------------
 //
 //  This class implements functionality common to
@@ -79,4 +78,4 @@ private:
     mutable IntegralDataBase<T>*  itsDataBase;
 };
 
-#endif //_TBasisSetImplementation_H_
+#endif //_TIrrepCommon_H_

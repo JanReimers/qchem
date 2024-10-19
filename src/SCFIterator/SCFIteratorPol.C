@@ -1,21 +1,19 @@
 // File: PolarizedSCFIterator.C  SCF convergence for a Polarized wave fction.
 
-
-
+#include "Imp/SCFIterator/SCFIteratorPol.H"
+#include "Imp/WaveFunction/ElectronDumper.H"
 #include <Hamiltonian.H>
 #include <WaveFunction.H>
-#include "Imp/SCFIterator/PolarizedSCFIterator.H"
-#include "SCFIterator/IterationParams.H"
+#include <IterationParams.H>
 #include <ChargeDensity.H>
-#include "Imp/WaveFunction/ElectronDumper.H"
 #include <Spin.H>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 
-PolarizedSCFIterator::PolarizedSCFIterator(PolarizedWF* W, Hamiltonian* H, ChargeDensity* guess,
+SCFIteratorPol::SCFIteratorPol(PolarizedWF* W, Hamiltonian* H, ChargeDensity* guess,
                                            double nElectrons, double spin, double kT, bool showplot)
-    : SCFIteratorImplementation(W,H,showplot)
+    : SCFIteratorImp(W,H,showplot)
     , itsTotalUp               (0.0)
     , itsTotalDown             (0.0)
     , itsUpEf                  (0)
@@ -25,7 +23,7 @@ PolarizedSCFIterator::PolarizedSCFIterator(PolarizedWF* W, Hamiltonian* H, Charg
     Initialize(guess,kT);
 }
 
-void PolarizedSCFIterator::DecideElectronCounts(double total, double spin)
+void SCFIteratorPol::DecideElectronCounts(double total, double spin)
 {
     double a2=total+spin;
     double b2=total-spin;
@@ -35,7 +33,7 @@ void PolarizedSCFIterator::DecideElectronCounts(double total, double spin)
     assert(fabs(itsTotalDown-floor(itsTotalDown))==0.0);
 }
 
-void PolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)
+void SCFIteratorPol::DumpElectrons(WaveFunction* wf, double kT)
 {
     assert(wf);
     PolarizedWF* pwf=dynamic_cast<PolarizedWF*>(wf);
@@ -51,7 +49,7 @@ void PolarizedSCFIterator::DumpElectrons(WaveFunction* wf, double kT)
     itsDownEf=downed.GetFermiEnergy();
 }
 
-bool PolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
+bool SCFIteratorPol::Iterate(const SCFIterationParams& ipar)
 {
     if (ipar.Verbose)
     {
@@ -59,7 +57,7 @@ bool PolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
         std::cout << " #        Etotal     Virial  K    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up)   Ef(down) " << std::endl;
         std::cout << "----------------------------------------------------------------------------" << std::endl;
     }
-    bool ret=SCFIteratorImplementation::Iterate(ipar);
+    bool ret=SCFIteratorImp::Iterate(ipar);
     if (ipar.Verbose)
     {
         std::cout << "-----------------------------------------------------------------" << std::endl;
@@ -71,9 +69,9 @@ bool PolarizedSCFIterator::Iterate(const SCFIterationParams& ipar)
 
 
 
-void PolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
+void SCFIteratorPol::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
 {
-    SCFIteratorImplementation::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
+    SCFIteratorImp::DisplayEnergies(i,lam,ChargeDensityChange,fitError);
 //    std::cout.setf(std::ios::fixed,std::ios::floatfield);
 //    std::cout
 //        << std::setw(9) << std::setprecision(6) << itsUpEf << " "
@@ -81,7 +79,7 @@ void PolarizedSCFIterator::DisplayEnergies(int i, double lam, double ChargeDensi
     std::cout << std::endl;
 }
 
-void PolarizedSCFIterator::DisplayEigen() const
+void SCFIteratorPol::DisplayEigen() const
 {
     assert(itsWaveFunction);
     PolarizedWF* pwf=dynamic_cast<PolarizedWF*>(itsWaveFunction);

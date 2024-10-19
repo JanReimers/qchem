@@ -2,13 +2,13 @@
 
 
 #include "Imp/BasisSet/TIrrepCommon.H"
+#include "Imp/Containers/ERI4.H"
 #include <BasisSet.H>
 #include <QuantumNumber.H>
 #include <AnalyticIE.H>
 #include <IntegralDataBase.H>
-#include <LASolver/LASolver.H>
+#include <LASolver.H>
 #include <Hamiltonian.H>
-#include "Imp/Containers/ERI4.H"
 #include <cassert>
 #include <iostream>
 

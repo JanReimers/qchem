@@ -2,14 +2,15 @@
 #ifndef _PolarizedSCFIterator_H_
 #define _PolarizedSCFIterator_H_
 
-#include "Imp/SCFIterator/SCFIteratorImplementation.H"
+#include "Imp/SCFIterator/SCFIterator.H"
 
+class PolarizedWF;
 
-class PolarizedSCFIterator
-    : virtual public SCFIteratorImplementation
+class SCFIteratorPol
+    : virtual public SCFIteratorImp
 {
 public:
-    PolarizedSCFIterator(PolarizedWF* W, Hamiltonian*, ChargeDensity* guess, double nElectrons, double spin, double kT, bool showplot);
+    SCFIteratorPol(PolarizedWF* W, Hamiltonian*, ChargeDensity* guess, double nElectrons, double spin, double kT, bool showplot);
 
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DumpElectrons  (WaveFunction*, double kT);

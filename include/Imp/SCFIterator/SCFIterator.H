@@ -1,13 +1,15 @@
 // File: SCFIteratorImplementation.H  Partial common implementation for an object that manages SCF convergence.
+#ifndef _SCFIteratorImp_H_
+#define _SCFIteratorImp_H_
 
-#include "SCFIterator/SCFIterator.H"
+#include <SCFIterator.H>
 
-class SCFIteratorImplementation
+class SCFIteratorImp
     : public virtual SCFIterator
 {
 public:
-    SCFIteratorImplementation(WaveFunction*, Hamiltonian*,bool showplot);
-    virtual ~SCFIteratorImplementation();
+    SCFIteratorImp(WaveFunction*, Hamiltonian*,bool showplot);
+    virtual ~SCFIteratorImp();
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
 
@@ -23,4 +25,6 @@ private:
     ChargeDensity*       itsExactChargeDensity;
     ChargeDensity*       itsOldExactChargeDensity;
 };
+
+#endif // _SCFIteratorImp_H_
 

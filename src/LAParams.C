@@ -1,4 +1,4 @@
-#include "Imp/LAParams.H"
+#include <LAParams.H>
 #include <iostream>
 
 std::string PkgStrs[]={"OML","Lapack"};

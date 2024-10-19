@@ -7,7 +7,7 @@
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
-#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
+#include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Containers/ptr_vector_io.h"
 #include <cassert>
 
@@ -51,7 +51,7 @@ void WaveFunctionGroup::UpdateElectronDumper(ElectronDumper& ed)
 
 SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double NElectrons, double kT, bool showplot)
 {
-    return new UnPolarizedSCFIterator(this, H, cd,NElectrons,kT,showplot);
+    return new SCFIteratorUnPol(this, H, cd,NElectrons,kT,showplot);
 }
 
 std::ostream& WaveFunctionGroup::Write(std::ostream& os) const

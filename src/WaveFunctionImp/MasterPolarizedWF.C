@@ -4,7 +4,7 @@
 
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
-#include "Imp/SCFIterator/PolarizedSCFIterator.H"
+#include "Imp/SCFIterator/SCFIteratorPol.H"
 #include "Imp/ChargeDensity/PolarizedCD.H"
 #include <ChargeDensity.H>
 #include <Spin.H>
@@ -63,7 +63,7 @@ void MasterPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
 
 SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons, double kT, bool showplot)
 {
-    return new PolarizedSCFIterator(this,H,cd,nElectrons,itsNetSpin,kT,showplot);
+    return new SCFIteratorPol(this,H,cd,nElectrons,itsNetSpin,kT,showplot);
 }
 
 WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)

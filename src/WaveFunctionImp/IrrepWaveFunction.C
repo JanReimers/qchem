@@ -4,7 +4,7 @@
 
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/WaveFunction/ElectronDumper.H"
-#include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
+#include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
 #include "oml/imp/binio.h"
@@ -52,7 +52,7 @@ void IrrepWaveFunction::UpdateElectronDumper(ElectronDumper& ed)
 
 SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons, double kT, bool showplot)
 {
-    return new UnPolarizedSCFIterator(this, H, cd,nElectrons, kT, showplot);
+    return new SCFIteratorUnPol(this, H, cd,nElectrons, kT, showplot);
 }
 
 std::string spin_strs[]={"Down","None","Up"};

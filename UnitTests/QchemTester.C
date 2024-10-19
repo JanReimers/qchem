@@ -1,6 +1,6 @@
 
 #include "QchemTester.H"
-#include "SCFIterator/SCFIterator.H"
+#include <SCFIterator.H>
 #include <WaveFunction.H>
 #include <Hamiltonian.H>
 #include <Cluster.H>

@@ -1016,9 +1016,9 @@
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1728753679 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
-	"BasisSet.H"
-	"Imp/LAParams.H"
+1729309405 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
+	<BasisSet.H>
+	<LAParams.H>
 
 1728702044 /home/janr/Code/qchem/include/Imp/LAParams.H
 	<iosfwd>
@@ -1122,9 +1122,9 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729308004 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729309927 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
-	"SCFIterator/SCFIterator.H"
+	<SCFIterator.H>
 	<WaveFunction.H>
 	<Hamiltonian.H>
 	<Cluster.H>
@@ -1158,12 +1158,12 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729296950 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729309909 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
-	"types.H"
+	<types.H>
 	"Misc/rc_ptr.H"
-	"SCFIterator/IterationParams.H"
-	"Imp/LAParams.H"
+	<IterationParams.H>
+	<LAParams.H>
 	"Misc/PeriodicTable.H"
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"BasisSet.H"
@@ -1277,12 +1277,12 @@
 	<types.H>
 	<ScalarFunction.H>
 
-1729306343 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
+1729309444 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
 	<BasisSet.H>
 	"Misc/rc_ptr.H"
 	<FittedFunction.H>
 	"Mesh/Mesh.H"
-	"Imp/LAParams.H"
+	<LAParams.H>
 	"oml/vector.h"
 	"oml/smatrix.h"
 
@@ -1310,4 +1310,13 @@
 	<IEClient.H>
 	"Imp/Containers/ERI4.H"
 	<map>
+
+1728702044 /home/janr/Code/qchem/include/LAParams.H
+	<iosfwd>
+
+1729199452 /home/janr/Code/qchem/include/IterationParams.H
+	"types.H"
+
+1729199689 /home/janr/Code/qchem/include/SCFIterator.H
+	"types.H"
 

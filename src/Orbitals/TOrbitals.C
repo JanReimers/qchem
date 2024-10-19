@@ -8,7 +8,7 @@
 #include "Misc/DFTDefines.H"
 #include <Hamiltonian.H>
 #include <QuantumNumber.H>
-#include <LASolver/LASolver.H>
+#include <LASolver.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/vector.h"
 #include "oml/smatrix.h"

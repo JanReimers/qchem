@@ -1,6 +1,6 @@
-#include "AnalyticIE.H"
-#include "LASolver/LASolver.H"
-#include "Imp/LAParams.H"
+#include <AnalyticIE.H>
+#include <LASolver.H>
+#include <LAParams.H>
 #include "oml/smatrix.h"
 
 template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::

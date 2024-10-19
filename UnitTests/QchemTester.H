@@ -2,10 +2,10 @@
 #define QchemTester_H
 
 #include "gtest/gtest.h"
-#include "types.H"
+#include <types.H>
 #include "Misc/rc_ptr.H"
-#include "SCFIterator/IterationParams.H"
-#include "Imp/LAParams.H"
+#include <IterationParams.H>
+#include <LAParams.H>
 #include "Misc/PeriodicTable.H"
 
 

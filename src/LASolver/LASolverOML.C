@@ -1,6 +1,6 @@
 // File: LASolverOML.C  General eigen solver.
 
-#include "LASolver/LASolver.H"
+#include <LASolver.H>
 #include "Imp/LASolver/LASolverOML.H"
 #include "oml/smatrix.h"
 #include "oml/diagonalmatrix.h"
