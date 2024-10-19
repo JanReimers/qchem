@@ -2,8 +2,8 @@
 
 
 
-#include "Cluster/Lattice.H"
-#include "Cluster/Molecule.H"
+#include "Imp/Cluster/Lattice.H"
+#include "Imp/Cluster/Molecule.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include <iostream>

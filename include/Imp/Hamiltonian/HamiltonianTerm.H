@@ -4,8 +4,8 @@
 
 
 
-#include "Hamiltonian.H"
-#include "Misc/Spin.H"
+#include <Hamiltonian.H>
+#include <Spin.H>
 #include "oml/smatrix.h"
 #include <map>
 

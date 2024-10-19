@@ -1,13 +1,13 @@
 // File: ExactIrrepCD.C  Exact implementation of the charged density.
 
 
-#include "Cluster/Molecule.H"
-#include "IntegralDataBase.H"
-#include "QuantumNumber.H"
-#include "ChargeDensity.H"
+#include "Imp/Cluster/Molecule.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "Imp/Fitting/FittedFunction.H"
+#include <IntegralDataBase.H>
+#include <QuantumNumber.H>
+#include <ChargeDensity.H>
 #include "oml/vector3d.h"
 #include "oml/vector.h"
 #include "oml/matrix.h"

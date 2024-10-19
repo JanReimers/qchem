@@ -49,11 +49,11 @@ public:
     virtual FittedCD* Clone(        ) const;
 
 private:
-    using FittedFunctionImplementation<T>::FitGetCharge;
-    using FittedFunctionImplementation<T>::FitGet2CenterOverlap;
-    using FittedFunctionImplementation<T>::FitGet2CenterRepulsion;
-    using FittedFunctionImplementation<T>::itsFitCoeff;
-    using FittedFunctionImplementation<T>::itsBasisSet;
+    using FittedFunctionImp<T>::FitGetCharge;
+    using FittedFunctionImp<T>::FitGet2CenterOverlap;
+    using FittedFunctionImp<T>::FitGet2CenterRepulsion;
+    using FittedFunctionImp<T>::itsFitCoeff;
+    using FittedFunctionImp<T>::itsBasisSet;
     
     virtual void Eval(const Mesh&, Vector<double>&) const;
 

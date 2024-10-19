@@ -14,7 +14,7 @@
 //#include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
 //#include "BasisSetImplementation/PlaneWave/PlaneWaveIE.H"
 
-#include "DFTDataBase/HeapDB/HeapDB.H"
+#include "Imp/DataBase/HeapDB.H"
 
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include <UnitSymmetryQN.H>

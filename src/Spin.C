@@ -1,6 +1,6 @@
 // File: Spin.C  A 3 state variable indicating the spin polarization.
 
-#include "Misc/Spin.H"
+#include <Spin.H>
 #include "oml/imp/stream.h"
 #include "oml/imp/binio.h"
 #include <cassert>

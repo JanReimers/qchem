@@ -4,9 +4,9 @@
 
 
 
-#include "WaveFunction.H"
-#include "BasisSet.H"
-#include "Misc/Spin.H"
+#include <WaveFunction.H>
+#include <BasisSet.H>
+#include <Spin.H>
 
 class IrrepWaveFunction
     : public virtual WaveFunction

@@ -5,7 +5,7 @@
 #include "Mesh/RadialMesh/MHLRadialMesh.H"
 #include "Mesh/AngularMesh/GaussAngularMesh.H"
 #include "Mesh/AtomMesh.H"
-#include "Cluster/Molecule.H"
+#include "Imp/Cluster/Molecule.H"
 
 Molecule* MakeN2()
 {

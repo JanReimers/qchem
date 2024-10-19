@@ -4,8 +4,8 @@
 
 
 
-#include "ChargeDensity.H"
-#include "Misc/Spin.H"
+#include <ChargeDensity.H>
+#include <Spin.H>
 
 //---------------------------------------------------------------------------------------
 //

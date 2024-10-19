@@ -5,7 +5,7 @@
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/UnPolarizedSCFIterator.H"
-#include "Misc/Spin.H"
+#include <Spin.H>
 #include <cassert>
 
 MasterUnPolarizedWF::MasterUnPolarizedWF()

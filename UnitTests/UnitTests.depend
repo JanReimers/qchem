@@ -587,7 +587,7 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1729179626 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1729308667 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
@@ -595,13 +595,13 @@
 	"Imp/BasisSet/Slater/BasisFunction.H"
 	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
-	"DFTDataBase/HeapDB/HeapDB.H"
+	"Imp/DataBase/HeapDB.H"
 	"Mesh/RadialMesh/MHLRadialMesh.H"
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
 	"Mesh/MeshIntegrator.H"
 	"Misc/DFTDefines.H"
-	"Cluster/Molecule.H"
+	"Imp/Cluster/Molecule.H"
 	"Cluster.H"
 	"BasisSet.H"
 	"Imp/Containers/ERI4.H"
@@ -615,14 +615,14 @@
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/Wigner3j.H
 
-1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io.C
+1729308029 source:/home/janr/Code/qchem/UnitTests/stl_io.C
 	"gtest/gtest.h"
 	"oml/vector.h"
 	"oml/imp/stream.h"
 	"Imp/Containers/stl_io.h"
 	"Imp/Containers/ptr_vector.h"
 	"Imp/Containers/ptr_vector_io.h"
-	"Cluster/Molecule.H"
+	"Imp/Cluster/Molecule.H"
 	<vector>
 	<ostream>
 	<sstream>
@@ -789,16 +789,16 @@
 
 1728599453 /home/janr/Code/qchem/include/TotalEnergy.H
 
-1729305701 /home/janr/Code/qchem/include/Cluster.H
-	"Misc/Persistent/Persistent.H"
+1729307021 /home/janr/Code/qchem/include/Cluster.H
+	"Imp/Cluster/Atom.H"
 	<ScalarFunction.H>
-	"Cluster/Atom.H"
+	"Misc/Persistent/Persistent.H"
 	<vector>
 
-1728740636 /home/janr/Code/qchem/include/WaveFunction.H
-	"types.H"
+1729306957 /home/janr/Code/qchem/include/WaveFunction.H
+	<types.H>
+	<Spin.H>
 	"Misc/pmstream.h"
-	"Misc/Spin.H"
 
 1727901331 /home/janr/Code/qchem/include/PolarizedWF.H
 	"WaveFunction.H"
@@ -1031,20 +1031,20 @@
 	"Misc/IntPower.H"
 	<cmath>
 
-1729180094 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
+1729308655 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/GaussianIntegrals.H"
 	"Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-	"DFTDataBase/HeapDB/HeapDB.H"
+	"Imp/DataBase/HeapDB.H"
 	"Mesh/RadialMesh/MHLRadialMesh.H"
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
 	"Mesh/MeshIntegrator.H"
 	"Misc/DFTDefines.H"
-	"Cluster/Molecule.H"
+	"Imp/Cluster/Molecule.H"
 	"Cluster.H"
 	"oml/imp/ran250.h"
 	<iostream>
@@ -1122,7 +1122,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729298463 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729308004 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	"SCFIterator/SCFIterator.H"
 	<WaveFunction.H>
@@ -1150,7 +1150,7 @@
 	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
-	"Cluster/Molecule.H"
+	"Imp/Cluster/Molecule.H"
 	"Mesh/RadialMesh/MHLRadialMesh.H"
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
@@ -1184,12 +1184,12 @@
 	"Mesh/AtomMesh.H"
 	"Cluster/Molecule.H"
 
-1729268252 source:/home/janr/Code/qchem/UnitTests/M_PG_U.C
+1729307998 source:/home/janr/Code/qchem/UnitTests/M_PG_U.C
 	"QchemTester.H"
 	"Mesh/RadialMesh/MHLRadialMesh.H"
 	"Mesh/AngularMesh/GaussAngularMesh.H"
 	"Mesh/AtomMesh.H"
-	"Cluster/Molecule.H"
+	"Imp/Cluster/Molecule.H"
 
 1729269680 source:/home/janr/Code/qchem/UnitTests/GaussianERIIntegral.C
 	"gtest/gtest.h"
@@ -1208,9 +1208,9 @@
 1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/Kinetic.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
-1729297217 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
-	"Hamiltonian.H"
-	"Misc/Spin.H"
+1729306957 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
+	<Hamiltonian.H>
+	<Spin.H>
 	"oml/smatrix.h"
 	<map>
 
@@ -1230,15 +1230,15 @@
 1729297647 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vee.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
-1729296831 /home/janr/Code/qchem/include/Imp/Hamiltonian/SlaterExchange.H
+1729306839 /home/janr/Code/qchem/include/Imp/Hamiltonian/SlaterExchange.H
 	"Imp/Hamiltonian/ExchangeFunctionalImp.H"
-	"Misc/Spin.H"
+	<Spin.H>
 
 1729305871 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
 	"Misc/pmstream.h"
 	<ScalarFunction.H>
 
-1729305919 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
+1729306343 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Fitting/FittedFunction.H"
@@ -1277,7 +1277,7 @@
 	<types.H>
 	<ScalarFunction.H>
 
-1729305841 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
+1729306343 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
 	<BasisSet.H>
 	"Misc/rc_ptr.H"
 	<FittedFunction.H>
@@ -1289,4 +1289,25 @@
 1729305772 /home/janr/Code/qchem/include/FittedFunction.H
 	<types.H>
 	<ScalarFunction.H>
+
+1728599453 /home/janr/Code/qchem/include/Imp/Cluster/Molecule.H
+	"Cluster.H"
+	"Imp/Containers/ptr_vector.h"
+	<iostream>
+
+1728599453 /home/janr/Code/qchem/include/Imp/Cluster/Atom.H
+	"types.H"
+	"Misc/pmstream.h"
+	"oml/vector3d.h"
+	<string>
+
+1728599453 /home/janr/Code/qchem/include/Spin.H
+	"Misc/pmstream.h"
+	<iosfwd>
+
+1728746622 /home/janr/Code/qchem/include/Imp/DataBase/HeapDB.H
+	"IntegralDataBase.H"
+	<IEClient.H>
+	"Imp/Containers/ERI4.H"
+	<map>
 

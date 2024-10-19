@@ -1,6 +1,6 @@
-// File: FittedFunctionImplementation.H  General Fitted Function.
-#ifndef _FittedFunctionImplementation_H_
-#define _FittedFunctionImplementation_H_
+// File: FittedFunctionImp.H  Common imp for Fitted Functions.
+#ifndef _FittedFunctionImp_H_
+#define _FittedFunctionImp_H_
 
 
 
@@ -20,15 +20,15 @@ template <class T> class ConstrainedFF;
 //  The fit function is assumed to be real valued, but the basis set and
 //  coefficients can be complex.
 //
-template <class T> class FittedFunctionImplementation
+template <class T> class FittedFunctionImp
     : public virtual FittedFunction
 {
 public:
     typedef Vector<T> Vec;
 
-    FittedFunctionImplementation(                                         );
-    FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>&);
-    ~FittedFunctionImplementation();
+    FittedFunctionImp(                                         );
+    FittedFunctionImp(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>&);
+    ~FittedFunctionImp();
     
     virtual double DoFit           (const ScalarFFClient& )      ;
     virtual double DoFit           (const DensityFFClient& )      ;
@@ -52,8 +52,8 @@ protected:
     virtual Vec    FitGet2CenterRepulsion(const IrrepBasisSet*) const;
     virtual SMat   FitGet3CenterOverlap  (const IrrepBasisSet*) const;
     virtual double FitGetCharge   (                    ) const;
-    virtual double FitGetRepulsion(const FittedFunctionImplementation*) const;
-    virtual double FitGetOverlap  (const FittedFunctionImplementation*) const;
+    virtual double FitGetRepulsion(const FittedFunctionImp*) const;
+    virtual double FitGetOverlap  (const FittedFunctionImp*) const;
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
@@ -75,5 +75,5 @@ private:
     LAParams itsLAParams; //Decides about matrix inversion.
 };
 
-#endif //_FittedFunctionImplementation_H_
+#endif //_FittedFunctionImp_H_
 

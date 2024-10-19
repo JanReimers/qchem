@@ -2,9 +2,9 @@
 
 
 
-#include "Cluster/Atom.H"
+#include "Imp/Cluster/Atom.H"
 #include "Mesh/Mesh.H"
-#include "ChargeDensity.H"
+#include <ChargeDensity.H>
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include "Misc/Unpickle.H"

@@ -55,10 +55,8 @@
 		<Unit filename="include/ChargeDensity.H" />
 		<Unit filename="include/Cluster.H" />
 		<Unit filename="include/EnergyLevel.H" />
-		<Unit filename="include/Functions/FittedFunction.H" />
-		<Unit filename="include/Functions/FittedFunctionClient.H" />
-		<Unit filename="include/Functions/ScalarFunction.H" />
-		<Unit filename="include/Functions/VectorFunction.H" />
+		<Unit filename="include/FittedFunction.H" />
+		<Unit filename="include/FittedFunctionClient.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/IrrepCommon.H" />
@@ -100,12 +98,19 @@
 		<Unit filename="include/Imp/ChargeDensity/FittedCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/IrrepCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/PolarizedCD.H" />
+		<Unit filename="include/Imp/Cluster/Atom.H" />
+		<Unit filename="include/Imp/Cluster/Lattice.H" />
+		<Unit filename="include/Imp/Cluster/Molecule.H" />
+		<Unit filename="include/Imp/Cluster/UnitCell.H" />
 		<Unit filename="include/Imp/Containers/ERI4.H" />
 		<Unit filename="include/Imp/Containers/Triangle2D.H" />
 		<Unit filename="include/Imp/Containers/Triangle3D.H" />
 		<Unit filename="include/Imp/Containers/ptr_vector.h" />
 		<Unit filename="include/Imp/Containers/ptr_vector_io.h" />
 		<Unit filename="include/Imp/Containers/stl_io.h" />
+		<Unit filename="include/Imp/Fitting/ConstrainedFF.H" />
+		<Unit filename="include/Imp/Fitting/FittedFunction.H" />
+		<Unit filename="include/Imp/Fitting/IntegralConstrainedFF.H" />
 		<Unit filename="include/Imp/Hamiltonian/ExchangeFunctional.H" />
 		<Unit filename="include/Imp/Hamiltonian/ExchangeFunctionalImp.H" />
 		<Unit filename="include/Imp/Hamiltonian/FittedVee.H" />
@@ -142,8 +147,11 @@
 		<Unit filename="include/IntegralDataBase.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
+		<Unit filename="include/ScalarFunction.H" />
+		<Unit filename="include/Spin.H" />
 		<Unit filename="include/TotalEnergy.H" />
 		<Unit filename="include/UnitSymmetryQN.H" />
+		<Unit filename="include/VectorFunction.H" />
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
 		<Unit filename="src/AnalyticIE.C">
@@ -273,19 +281,15 @@
 		<Unit filename="src/Cluster/Atom.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Cluster/Atom.H" />
 		<Unit filename="src/Cluster/Lattice.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Cluster/Lattice.H" />
 		<Unit filename="src/Cluster/Molecule.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Cluster/Molecule.H" />
 		<Unit filename="src/Cluster/UnitCell.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Cluster/UnitCell.H" />
 		<Unit filename="src/Containers/ERI4.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -352,24 +356,15 @@
 		<Unit filename="src/Factories/WaveFunctionFactories.C">
 			<Option compilerVar="CPP" />
 		</Unit>
-		<Unit filename="src/Functions/ScalarFunction.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Fitting/ConstrainedFF.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Functions/VectorFunction.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Fitting/FittedFunction.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/FunctionsImp/ConstrainedFF.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Fitting/IntegralConstrainedFF.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/FunctionsImp/ConstrainedFF.H" />
-		<Unit filename="src/FunctionsImp/FittedFunctionImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/FittedFunctionImplementation.H" />
-		<Unit filename="src/FunctionsImp/IntegralConstrainedFF.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/FunctionsImp/IntegralConstrainedFF.H" />
 		<Unit filename="src/Hamiltonian/ExchangeFunctionalImp.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -603,10 +598,19 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/SCFIterator/SCFIterator.H" />
+		<Unit filename="src/ScalarFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Spin.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/TotalEnergy.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/UnitSymmetryQN.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/VectorFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/WaveFunction.C">

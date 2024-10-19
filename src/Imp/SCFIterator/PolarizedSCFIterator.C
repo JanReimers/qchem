@@ -8,7 +8,7 @@
 #include "SCFIterator/IterationParams.H"
 #include <ChargeDensity.H>
 #include "Imp/WaveFunction/ElectronDumper.H"
-#include "Misc/Spin.H"
+#include <Spin.H>
 #include <iostream>
 #include <iomanip>
 #include <cassert>

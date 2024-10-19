@@ -1,7 +1,5 @@
 // File: ConstrainedFF.C  General constrained fit.
 
-
-
 #include "Imp/Fitting/ConstrainedFF.H"
 #include <FittedFunctionClient.H>
 #include <BasisSet.H>
@@ -14,7 +12,7 @@
 
 
 template <class T> ConstrainedFF<T>::ConstrainedFF()
-    : FittedFunctionImplementation<T>()
+    : FittedFunctionImp<T>()
     , g  ( )
     , gS ( )
     , gSg(0)
@@ -22,7 +20,7 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 
 template <class T> ConstrainedFF<T>::
 ConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const Vec& theg, const rc_ptr<Mesh>&  m)
-    : FittedFunctionImplementation<T>(theFitBasisSet,m)
+    : FittedFunctionImp<T>(theFitBasisSet,m)
     , g  (theg)
     , gS (g*itsInvRepl)
     , gSg(gS*g)
@@ -31,16 +29,16 @@ ConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const Vec& theg, cons
 
 template <class T> double ConstrainedFF<T>::DoFit(const ScalarFFClient& ffc)
 {
-    return FittedFunctionImplementation<T>::DoFitInternal(ffc);
+    return FittedFunctionImp<T>::DoFitInternal(ffc);
 }
 template <class T> double ConstrainedFF<T>::DoFit(const DensityFFClient& ffc)
 {
-    return FittedFunctionImplementation<T>::DoFitInternal(ffc,ffc.FitGetConstraint());
+    return FittedFunctionImp<T>::DoFitInternal(ffc,ffc.FitGetConstraint());
 }
 
 template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const
 {
-    FittedFunctionImplementation<T>::Write(os);
+    FittedFunctionImp<T>::Write(os);
     os << g << gS;
     if (StreamableObject::Binary())
     {
@@ -55,7 +53,7 @@ template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const
 
 template <class T> std::istream& ConstrainedFF<T>::Read (std::istream& is)
 {
-    FittedFunctionImplementation<T>::Read(is);
+    FittedFunctionImp<T>::Read(is);
     is >> g >> gS;
     if (StreamableObject::Binary())
     {

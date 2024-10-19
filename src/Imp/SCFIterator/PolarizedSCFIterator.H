@@ -1,6 +1,6 @@
 // File: PolarizedSCFIterator.H  SCF convergence for a UnPolarized wave function.
-
-
+#ifndef _PolarizedSCFIterator_H_
+#define _PolarizedSCFIterator_H_
 
 #include "Imp/SCFIterator/SCFIteratorImplementation.H"
 
@@ -24,3 +24,5 @@ private:
     double itsUpEf;
     double itsDownEf;
 };
+
+#endif // _PolarizedSCFIterator_H_

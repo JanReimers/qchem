@@ -247,7 +247,7 @@ IrrepBasisSet* PG_OBasis::GetXBasisSet () const
 }
 
 
-#include "Cluster/Molecule.H"
+#include "Imp/Cluster/Molecule.H"
 
 Cluster* TestAtom::GetCluster() const
 {

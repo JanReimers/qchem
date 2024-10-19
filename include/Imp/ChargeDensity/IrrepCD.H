@@ -6,7 +6,7 @@
 
 #include <BasisSet.H>
 #include <ChargeDensity.H>
-#include "Misc/Spin.H"
+#include <Spin.H>
 #include "oml/smatrix.h"
 
 //------------------------------------------------------------------------------------

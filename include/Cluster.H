@@ -2,9 +2,9 @@
 #ifndef _Cluster_H_
 #define _Cluster_H_
 
-#include "Misc/Persistent/Persistent.H"
+#include "Imp/Cluster/Atom.H"
 #include <ScalarFunction.H>
-#include "Cluster/Atom.H"
+#include "Misc/Persistent/Persistent.H"
 #include <vector>
 
 class Cluster

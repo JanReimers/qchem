@@ -5,7 +5,7 @@
 
 
 #include "Imp/Hamiltonian/ExchangeFunctionalImp.H"
-#include "Misc/Spin.H"
+#include <Spin.H>
 
 class SlaterExchange
     : public  virtual ExFunctional

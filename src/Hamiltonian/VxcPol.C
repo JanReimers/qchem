@@ -7,7 +7,7 @@
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include <BasisSet.H>
-#include "Misc/Spin.H"
+#include <Spin.H>
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"
 #include <cassert>

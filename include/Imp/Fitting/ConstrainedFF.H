@@ -1,13 +1,13 @@
-// File: ConstrainedFF.H  General constrained fit.
+// File: ConstrainedFF.H  constrained fit.
 #ifndef _ConstrainedFF_H_
 #define _ConstrainedFF_H_
 
 #include "Imp/Fitting/FittedFunction.H"
 
 template <class T> class ConstrainedFF
-    : public FittedFunctionImplementation<T>
+    : public FittedFunctionImp<T>
 {
-    typedef FittedFunctionImplementation<T> Base;
+    typedef FittedFunctionImp<T> Base;
     typedef typename Base::Vec Vec;
 public:
     ConstrainedFF();
@@ -20,7 +20,7 @@ public:
     virtual std::istream& Read     (std::istream&)      ;
 
 private:
-    using FittedFunctionImplementation<T>::itsInvRepl;
+    using FittedFunctionImp<T>::itsInvRepl;
     Vec g,gS;
     T   gSg;
 };

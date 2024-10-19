@@ -5,8 +5,8 @@
 #include "Mesh/Mesh.H"
 #include "Mesh/MeshImplementation.H"
 #include "Mesh/MeshBrowser.H"
-#include "Functions/ScalarFunction.H"
-#include "Functions/VectorFunction.H"
+#include <ScalarFunction.H>
+#include <VectorFunction.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/io3d.h"

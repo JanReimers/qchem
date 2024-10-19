@@ -5,7 +5,7 @@
 
 
 #include <Orbital.H>
-#include "Misc/Spin.H"
+#include <Spin.H>
 
 
 class ElectronContainerImp

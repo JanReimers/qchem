@@ -1,5 +1,4 @@
-// File: FittedFunctionImplementation.C  General Fitted Function.
-
+// File: FittedFunctionImp.C  Common imp for Fitted Functions.
 
 #include "Imp/Fitting/FittedFunction.H"
 #include <IntegralDataBase.H>
@@ -19,8 +18,8 @@
 //  instead of the charge density.  The only difference in practice
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
-template <class T> FittedFunctionImplementation<T>::
-FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,const rc_ptr<Mesh>& m)
+template <class T> FittedFunctionImp<T>::
+FittedFunctionImp(const rc_ptr<IrrepBasisSet>& theFitBasisSet,const rc_ptr<Mesh>& m)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsMesh    (m)
@@ -33,7 +32,7 @@ FittedFunctionImplementation(const rc_ptr<IrrepBasisSet>& theFitBasisSet,const r
     itsInvRepl=itsBasisSet->GetInverseRepulsion(itsLAParams);
 };
 
-template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation()
+template <class T> FittedFunctionImp<T>::FittedFunctionImp()
     : itsBasisSet (    )
     , itsFitCoeff (    )
     , itsMesh     (0   )
@@ -41,7 +40,7 @@ template <class T> FittedFunctionImplementation<T>::FittedFunctionImplementation
     Fill(itsFitCoeff,0.0);
 };
 
-template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementation()
+template <class T> FittedFunctionImp<T>::~FittedFunctionImp()
 {
 }
 
@@ -51,22 +50,22 @@ template <class T> FittedFunctionImplementation<T>::~FittedFunctionImplementatio
 //  Implement all DoFit functions.  The overlaps will be accumulated in
 //  itsFitCoeff by the call to GetRepulsions or GetOverlap.
 //
-template <class T> double FittedFunctionImplementation<T>::DoFit(const ScalarFFClient& ffc)
+template <class T> double FittedFunctionImp<T>::DoFit(const ScalarFFClient& ffc)
 {
     return DoFitInternal(ffc,0); //No contraint.
 }
-template <class T> double FittedFunctionImplementation<T>::DoFit(const DensityFFClient& ffc)
+template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc)
 {
     return DoFitInternal(ffc,0); //No contraint.
 }
 
-template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
+template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
     itsFitCoeff=itsInvOvlp*itsBasisSet->GetOverlap(&*itsMesh,ffc.GetScalarFunction());;
     return 0;
 }
 
-template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
+template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
     itsFitCoeff=itsInvRepl*ffc.GetRepulsions(&*itsBasisSet);
     return 0;
@@ -76,19 +75,19 @@ template <class T> double FittedFunctionImplementation<T>::DoFitInternal(const D
 //
 //  Provide Overlap and Repulsion matricies for derived classes.
 //
-template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
+template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 {
     return itsFitCoeff * (itsBasisSet->GetOverlap(&*itsMesh,bs));
 }
 
-template <class T> typename FittedFunctionImplementation<T>::Vec FittedFunctionImplementation<T>::
+template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
 {
     return itsFitCoeff * (itsBasisSet->GetRepulsion(    bs));
 }
 
-template <class T> typename FittedFunctionImplementation<T>::SMat FittedFunctionImplementation<T>::
+template <class T> typename FittedFunctionImp<T>::SMat FittedFunctionImp<T>::
 FitGet3CenterOverlap(const IrrepBasisSet* bs) const
 {
     const std::vector<SMat>& O3=bs->GetOverlap3C(itsBasisSet.get());
@@ -106,8 +105,8 @@ FitGet3CenterOverlap(const IrrepBasisSet* bs) const
 //  Get overlap and repulsion with a charge density.  And total charge.
 //  Again only for derived classes.
 //
-template <class T> double FittedFunctionImplementation<T>::
-FitGetOverlap(const FittedFunctionImplementation<T>* ffi) const
+template <class T> double FittedFunctionImp<T>::
+FitGetOverlap(const FittedFunctionImp<T>* ffi) const
 {
     return
         itsFitCoeff *
@@ -115,15 +114,15 @@ FitGetOverlap(const FittedFunctionImplementation<T>* ffi) const
         ffi->itsFitCoeff;
 }
 
-template <class T> double FittedFunctionImplementation<T>::
-FitGetRepulsion(const FittedFunctionImplementation<T>* ffi) const
+template <class T> double FittedFunctionImp<T>::
+FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 {
     return
         itsFitCoeff * itsBasisSet->GetRepulsion(ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
 }
 
-template <class T> double FittedFunctionImplementation<T>::FitGetCharge() const
+template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 {
     return itsFitCoeff * itsBasisSet->GetCharge();
 }
@@ -132,28 +131,28 @@ template <class T> double FittedFunctionImplementation<T>::FitGetCharge() const
 //
 //  Handy utilities for fitted functions.
 //
-template <class T> void FittedFunctionImplementation<T>::ShiftOrigin(const RVec3& newCenter)
+template <class T> void FittedFunctionImp<T>::ShiftOrigin(const RVec3& newCenter)
 {
     itsBasisSet.reset(itsBasisSet->Clone(newCenter)); //TOT Clone
 }
 
-template <class T> void FittedFunctionImplementation<T>::FitMixIn(const FittedFunction& ff,double c)
+template <class T> void FittedFunctionImp<T>::FitMixIn(const FittedFunction& ff,double c)
 {
-    const FittedFunctionImplementation<T>* ffi = dynamic_cast<const FittedFunctionImplementation<T>*>(&ff);
+    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
     assert(ffi);
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
     itsFitCoeff = itsFitCoeff*(1-c) + ffi->itsFitCoeff*c;
 }
 
-template <class T> double FittedFunctionImplementation<T>::FitGetChangeFrom(const FittedFunction& ff) const
+template <class T> double FittedFunctionImp<T>::FitGetChangeFrom(const FittedFunction& ff) const
 {
-    const FittedFunctionImplementation<T>* ffi = dynamic_cast<const FittedFunctionImplementation<T>*>(&ff);
+    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
     assert(ffi);
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
     return Max(fabs(itsFitCoeff - ffi->itsFitCoeff));
 }
 
-template <class T> void FittedFunctionImplementation<T>::ReScale(double factor)
+template <class T> void FittedFunctionImp<T>::ReScale(double factor)
 {
     itsFitCoeff*=factor;
 }
@@ -162,17 +161,17 @@ template <class T> void FittedFunctionImplementation<T>::ReScale(double factor)
 //
 //  Real space function stuff.
 //
-template <class T> double  FittedFunctionImplementation<T>::operator()(const RVec3& r) const
+template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) const
 {
     return itsFitCoeff * (*CastBasisSet())(r);
 }
 
-template <class T> void  FittedFunctionImplementation<T>::Eval(const Mesh& m, Vec& v) const
+template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
 {
     v += Vec(itsFitCoeff * (*CastBasisSet())(m));
 }
 
-template <class T> typename FittedFunctionImplementation<T>::RVec3  FittedFunctionImplementation<T>::Gradient(const RVec3& r) const
+template <class T> typename FittedFunctionImp<T>::RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {
     Vec3Vec br = CastBasisSet()->Gradient(r);
     RVec3 ret(0,0,0);
@@ -186,7 +185,7 @@ template <class T> typename FittedFunctionImplementation<T>::RVec3  FittedFuncti
 //
 //  Streamable stuff.
 //
-template <class T> std::ostream& FittedFunctionImplementation<T>::Write(std::ostream& os) const
+template <class T> std::ostream& FittedFunctionImp<T>::Write(std::ostream& os) const
 {
 //    if (StreamableObject::Binary())
 //       
@@ -207,7 +206,7 @@ template <class T> std::ostream& FittedFunctionImplementation<T>::Write(std::ost
     return os;
 }
 
-template <class T> std::istream& FittedFunctionImplementation<T>::Read (std::istream& is)
+template <class T> std::istream& FittedFunctionImp<T>::Read (std::istream& is)
 {
 //    if (StreamableObject::Binary())
 //        BinaryRead(itsCDFitFlag,is);
@@ -219,4 +218,4 @@ template <class T> std::istream& FittedFunctionImplementation<T>::Read (std::ist
     return is;
 }
 
-template class FittedFunctionImplementation<double>;
+template class FittedFunctionImp<double>;

@@ -31,7 +31,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(const rc_ptr<IrrepBasisSet>& bs, 
     , itsExactRep(0)
     , itsTotalCharge(totalCharge)
 {
-    FittedFunctionImplementation<double>::ReScale(itsTotalCharge);
+    FittedFunctionImp<double>::ReScale(itsTotalCharge);
     assert(itsTotalCharge>0);
     assert(abs(itsTotalCharge-FitGetCharge())<1e-10);
 };
@@ -103,21 +103,21 @@ template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) co
 
 template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 {
-    return 0.5 * FittedFunctionImplementation<T>::FitGetRepulsion(this);
+    return 0.5 * FittedFunctionImp<T>::FitGetRepulsion(this);
 }
 
 template <class T> double FittedCDImp<T>::GetRepulsion(const FittedFunction* ff) const
 {
-    const FittedFunctionImplementation<T>* ffi = dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
+    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(ff);
     assert(ffi);
-    return FittedFunctionImplementation<T>::FitGetRepulsion(ffi); //Cross repulsion between to different fitted charge densities!!
+    return FittedFunctionImp<T>::FitGetRepulsion(ffi); //Cross repulsion between to different fitted charge densities!!
 }
 
 template <class T> double FittedCDImp<T>::GetOverlap(const FittedFunction* ff) const
 {
-    const FittedFunctionImplementation<T>* ffi = dynamic_cast<const FittedFunctionImplementation<T>*>(ff);
+    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(ff);
     assert(ffi);
-    return FittedFunctionImplementation<T>::FitGetOverlap(ffi); //Cross repulsion between to different fitted charge densities!!
+    return FittedFunctionImp<T>::FitGetOverlap(ffi); //Cross repulsion between to different fitted charge densities!!
 }
 
 template <class T> double FittedCDImp<T>::GetTotalCharge() const
@@ -161,27 +161,27 @@ template <class T> double FittedCDImp<T>::GetChangeFrom(const ChargeDensity& cd)
 template <class T> void   FittedCDImp<T>::ReScale (double factor)
 {
     itsTotalCharge*=factor;
-    FittedFunctionImplementation<T>::ReScale(factor);
+    FittedFunctionImp<T>::ReScale(factor);
 }
 
 template <class T> void FittedCDImp<T>::ShiftOrigin(const RVec3& newCenter)
 {
-    FittedFunctionImplementation<T>::ShiftOrigin(newCenter);
+    FittedFunctionImp<T>::ShiftOrigin(newCenter);
 }
 
 template <class T> double FittedCDImp<T>::operator()(const RVec3& r) const
 {
-    return FittedFunctionImplementation<T>::operator()(r);
+    return FittedFunctionImp<T>::operator()(r);
 }
 
 template <class T> void FittedCDImp<T>::Eval(const Mesh& m, Vector<double>& v) const
 {
-    FittedFunctionImplementation<T>::Eval(m,v);
+    FittedFunctionImp<T>::Eval(m,v);
 }
 
 template <class T> typename FittedCDImp<T>::Vec3 FittedCDImp<T>::Gradient(const RVec3& r) const
 {
-    return FittedFunctionImplementation<T>::Gradient(r);
+    return FittedFunctionImp<T>::Gradient(r);
 }
 
 //-----------------------------------------------------------------------

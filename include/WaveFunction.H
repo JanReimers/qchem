@@ -2,9 +2,9 @@
 #ifndef _WaveFunction_H_
 #define _WaveFunction_H_
 
-#include "types.H"
+#include <types.H>
+#include <Spin.H>
 #include "Misc/pmstream.h"
-#include "Misc/Spin.H"
 
 
 class WaveFunction

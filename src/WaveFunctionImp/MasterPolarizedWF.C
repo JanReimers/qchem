@@ -2,12 +2,12 @@
 
 
 
-#include "ChargeDensity.H"
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/PolarizedSCFIterator.H"
 #include "Imp/ChargeDensity/PolarizedCD.H"
-#include "Misc/Spin.H"
+#include <ChargeDensity.H>
+#include <Spin.H>
 #include "oml/imp/binio.h"
 #include <cassert>
 

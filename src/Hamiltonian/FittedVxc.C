@@ -11,14 +11,14 @@
 
 FittedVxc::FittedVxc()
     : HamiltonianTermImp     ( )
-    , FittedFunctionImplementation<double>( )
+    , FittedFunctionImp<double>( )
     , itsLDAVxc                 (0)
 {};
 
 
 FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExFunctional>& lda,const rc_ptr<Mesh>& m)
     : HamiltonianTermImp     (   )
-    , FittedFunctionImplementation<double>(bs,m) //Use regular overlap for fitting.
+    , FittedFunctionImp<double>(bs,m) //Use regular overlap for fitting.
     , itsLDAVxc                 (new LDAVxc(lda))
 {};
 
@@ -67,14 +67,14 @@ void FittedVxc::GetEnergy(TotalEnergy& te) const
 
 std::ostream& FittedVxc::Write(std::ostream& os) const
 {
-    FittedFunctionImplementation<double>::Write(os);
+    FittedFunctionImp<double>::Write(os);
     os << itsLDAVxc;
     return os;
 }
 
 std::istream& FittedVxc::Read (std::istream& is)
 {
-    FittedFunctionImplementation<double>::Read(is);
+    FittedFunctionImp<double>::Read(is);
     delete itsLDAVxc;
     itsLDAVxc = FittablePotential::Factory(is);
     is >> itsLDAVxc;

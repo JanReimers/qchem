@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/TCommon.H"
 
-#include "DFTDataBase/HeapDB/HeapDB.H"
+#include "Imp/DataBase/HeapDB.H"
 #include "Imp/Containers/ptr_vector_io.h"
 
 BasisSetImp::BasisSetImp()

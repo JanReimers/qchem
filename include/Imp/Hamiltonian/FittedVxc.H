@@ -19,7 +19,7 @@ class FittedVxc
     : public virtual FittedFunction
     , public virtual HamiltonianTerm
     , private        HamiltonianTermImp
-    , public         FittedFunctionImplementation<double>
+    , public         FittedFunctionImp<double>
 {
     typedef HamiltonianTerm::SMat SMat;
 public:

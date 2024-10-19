@@ -12,7 +12,7 @@ bool ChargeDensity::IsPolarized() const
 }
 
 #include "oml/smatrix.h"
-#include "Misc/Spin.H"
+#include <Spin.H>
 #include "oml/vector.h"
 //----------------------------------------------------------------------------
 //

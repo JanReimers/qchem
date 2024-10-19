@@ -10,7 +10,7 @@
 
 //#include "Imp/BasisSet/Slater/IEClient.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
-#include "DFTDataBase/HeapDB/HeapDB.H"
+#include "Imp/DataBase/HeapDB.H"
 //#include "Imp/Integrals/SlaterRadialIntegrals.H"
 //#include "Imp/Integrals/Wigner3j.H"
 #include "Mesh/RadialMesh/MHLRadialMesh.H"
@@ -18,8 +18,7 @@
 #include "Mesh/AtomMesh.H"
 #include "Mesh/MeshIntegrator.H"
 #include "Misc/DFTDefines.H"
-//#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
+#include "Imp/Cluster/Molecule.H"
 #include "Cluster.H"
 #include "BasisSet.H"
 #include "Imp/Containers/ERI4.H"
