@@ -23,19 +23,7 @@ void            CalcCellFunctions(Vector<double>&, const Matrix<double>&);
 MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
     : MeshImplementation()
 {
-//
-//  First count total number of mesh points for all atoms.
-//
-    int nmax=0;
-    for (auto atom:cl) nmax+=atom->GetIntegrationMesh()->size();
-    std::cout << "Molecular mesh: total points=" << nmax;
-
-//
-//  Now generate fuzzy points for each atom.
-//
-    for (auto atom:cl) 
-        LoadFuzzyPoints(*atom,cl,m);
-
+    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m);
 }
 
 

@@ -18,7 +18,7 @@ public:
     virtual index_t        size () const {return itsRWs.size ();}
     
 protected:
-    void Initialize(const Vector<double>& R,const Vector<double>& W);
+    void push_back(const double& r, const double& w) {itsRWs.push_back(std::make_tuple(r,w));}
 
 private:
     vec_t itsRWs;

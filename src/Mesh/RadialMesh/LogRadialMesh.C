@@ -10,29 +10,18 @@
 LogRadialMesh::LogRadialMesh(double start, double stop, index_t NumPoints)
     : RadialMeshImplementation()
 {
-    Vector<double> R(NumPoints);
-    Vector<double> W(NumPoints);
     double q   = exp((log(stop)-log(start))/(NumPoints-1));
     double sq  = sqrt(q);
     double wq  = 1.0/3.0 * ( Cube(sq) - Cube(1.0/sq) );
     double r   = start;
-
-    Vector<double>::iterator ir(R.begin());
-    Vector<double>::iterator iw(W.begin());
-    for(;ir!=R.end()&&iw!=W.end(); ir++,iw++)
+    push_back(r,1.0/3.0 *  Cube(start*sq)); //Do whole sphere instead of anulus.
+    r*=q;
+    for(int i=2;i<NumPoints;i++)
     {
-        *ir=r;
-        *iw=Cube(r)*wq;
+        push_back(r,Cube(r)*wq);
         r*=q;
     }
-    W(1)         = 1.0/3.0 *  Cube(start*sq); //Do whole sphere instead of anulus.
-    W(NumPoints) = 1.0/3.0 * (Cube(stop)-Cube(stop/sq)); //Do only half anulus.
-
-#if DEBUG_OUTPUT
-    double rmax=R(NumPoints);
-    cout << "Sum of weigths/Vol(rmax) = " << Sum(W)/(4.0/3.0*Pi*rmax*rmax*rmax) << std::endl;
-#endif
-
-    Initialize(R,W);
+    push_back(r,1.0/3.0 * (Cube(stop)-Cube(stop/sq))); //Do only half anulus.
+//    Initialize(R,W);
 }
 
