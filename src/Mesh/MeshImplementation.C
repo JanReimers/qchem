@@ -19,6 +19,8 @@ void MeshImplementation::Initialize(const Vector<RVec3>& R,const Vector<double>&
 {
     itsPoints=R;
     itsWeights=W;
+    for (auto i:R.indices()) itsRWs.push_back(std::make_tuple(R(i),W(i)));
+    assert(itsRWs.size()==itsPoints.size());
 }
 
 std::ostream& MeshImplementation::Write(std::ostream& os) const
@@ -49,6 +51,7 @@ void MeshImplementation::ShiftOrigin(const RVec3& r)
 {
     Vector<RVec3>::iterator i(itsPoints.begin());
     for(; i!=itsPoints.end(); i++) (*i)+=r;
+    for (auto& rw:itsRWs) std::get<0>(rw)+=r;
     NewID();
 }
 

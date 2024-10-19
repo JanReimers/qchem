@@ -108,6 +108,7 @@
 		<Unit filename="include/Imp/Containers/ptr_vector.h" />
 		<Unit filename="include/Imp/Containers/ptr_vector_io.h" />
 		<Unit filename="include/Imp/Containers/stl_io.h" />
+		<Unit filename="include/Imp/DataBase/HeapDB.H" />
 		<Unit filename="include/Imp/Fitting/ConstrainedFF.H" />
 		<Unit filename="include/Imp/Fitting/FittedFunction.H" />
 		<Unit filename="include/Imp/Fitting/IntegralConstrainedFF.H" />
@@ -135,9 +136,15 @@
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
 		<Unit filename="include/Imp/LAParams.H" />
+		<Unit filename="include/Imp/LASolver/LASolverImp.H" />
+		<Unit filename="include/Imp/LASolver/LASolverLapack.H" />
+		<Unit filename="include/Imp/LASolver/LASolverOML.H" />
 		<Unit filename="include/Imp/Orbitals/ElectronContainer.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbital.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbitals.H" />
+		<Unit filename="include/Imp/SCFIterator/SCFIterator.H" />
+		<Unit filename="include/Imp/SCFIterator/SCFIteratorPol.H" />
+		<Unit filename="include/Imp/SCFIterator/SCFIteratorUnPol.H" />
 		<Unit filename="include/Imp/WaveFunction/ElectronDumper.H" />
 		<Unit filename="include/Imp/WaveFunction/FermiThermalizer.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
@@ -145,8 +152,11 @@
 		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/WaveFunctionGroup.H" />
 		<Unit filename="include/IntegralDataBase.H" />
+		<Unit filename="include/IterationParams.H" />
+		<Unit filename="include/LASolver.H" />
 		<Unit filename="include/Orbital.H" />
 		<Unit filename="include/QuantumNumber.H" />
+		<Unit filename="include/SCFIterator.H" />
 		<Unit filename="include/ScalarFunction.H" />
 		<Unit filename="include/Spin.H" />
 		<Unit filename="include/TotalEnergy.H" />
@@ -259,10 +269,6 @@
 		<Unit filename="src/BasisSet/TIrrepCommon.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSetImplementation/PlaneWave/BlochQN.H" />
-		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBF.H" />
-		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveBS.H" />
-		<Unit filename="src/BasisSetImplementation/PlaneWave/PlaneWaveIE.H" />
 		<Unit filename="src/ChargeDensity.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -302,20 +308,8 @@
 		<Unit filename="src/Containers/stl_io.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/DFTDataBase/DFTDataBase.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/DFTDataBase/DFTDataBase.H" />
-		<Unit filename="src/DFTDataBase/HeapDB/HeapDB.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/DFTDataBase/HeapDB/HeapDB.H" />
-		<Unit filename="src/DFTDataBase/Instance.Ci" />
-		<Unit filename="src/DFTDataBase/InstanceComplexIDB.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/DFTDataBase/InstanceIDB.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/DataBase/HeapDB.C">
+			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/EnergyLevel.C">
 			<Option compilerVar="CC" />
@@ -333,9 +327,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Factories/ExchangeFunctionalFactories.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Factories/FittedFunctionFactories.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Factories/HamiltonianFactories.C">
@@ -407,33 +398,6 @@
 		<Unit filename="src/Hamiltonian/VxcPol.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Imp/LAParams.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/Imp/LASolver/LASolverImp.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Imp/LASolver/LASolverImp.H" />
-		<Unit filename="src/Imp/LASolver/LASolverLapack.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Imp/LASolver/LASolverLapack.H" />
-		<Unit filename="src/Imp/LASolver/LASolverOML.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Imp/LASolver/LASolverOML.H" />
-		<Unit filename="src/Imp/SCFIterator/PolarizedSCFIterator.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/Imp/SCFIterator/PolarizedSCFIterator.H" />
-		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Imp/SCFIterator/SCFIteratorImplementation.H" />
-		<Unit filename="src/Imp/SCFIterator/UnPolarizedSCFIterator.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/Imp/SCFIterator/UnPolarizedSCFIterator.H" />
 		<Unit filename="src/Integrals/AuxillaryData.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -455,7 +419,22 @@
 		<Unit filename="src/Integrals/Wigner3j.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/LAParams.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/LASolver.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/LASolver/LASolver.H" />
+		<Unit filename="src/LASolver/LASolverImp.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/LASolver/LASolverLapack.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/LASolver/LASolverOML.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/Mesh/AngularMesh/AngularMesh.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -564,10 +543,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Misc/Persistent/Persistent.H" />
-		<Unit filename="src/Misc/Spin.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Misc/Spin.H" />
 		<Unit filename="src/Misc/UniqueID/UniqueID.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -593,11 +568,18 @@
 		<Unit filename="src/Orbitals/TOrbitals.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/SCFIterator/IterationParams.H" />
-		<Unit filename="src/SCFIterator/SCFIterator.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/SCFIterator.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/SCFIterator/SCFIterator.H" />
+		<Unit filename="src/SCFIterator/SCFIterator.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/SCFIterator/SCFIteratorPol.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/SCFIterator/SCFIteratorUnPol.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/ScalarFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>

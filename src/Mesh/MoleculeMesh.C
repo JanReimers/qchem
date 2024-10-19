@@ -3,7 +3,6 @@
 
 
 #include "Mesh/MoleculeMesh.H"
-#include "Mesh/MeshBrowser.H"
 #include "Cluster.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"
@@ -40,7 +39,8 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
     Vector<RVec3 >::iterator ip(Points.begin());
     Vector<double>::iterator iw(Weights.begin());
     int numpoints=0;
-    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m,ip,iw,numpoints);
+    for (auto atom:cl) 
+        LoadFuzzyPoints(*atom,cl,m,ip,iw,numpoints);
 
     std::cout << ", Fuzzy points=" << numpoints << std::endl;
     Points .SetLimits(VecLimits(1,numpoints),true);
@@ -79,17 +79,17 @@ void LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m, Vector<RVec3>::ite
     Matrix<double> s(na,na);
     Vector<double> P(na);
 
-    MeshBrowser mb(*n.GetIntegrationMesh());
-    for (; mb; mb++)
+    for (auto rw: *n.GetIntegrationMesh())
     {
-        GetCutoffProfiles(s,nuclearPositions,mb.R(),m);
+        GetCutoffProfiles(s,nuclearPositions,::r(rw),m);
         CalcCellFunctions(P,s);
 
         if(P(index)>0)
         {
             double relativeWeight=P(index)/Sum(P);
-            *p=mb.R();
-            *w=mb.W()*relativeWeight;
+
+            *p=::r(rw);
+            *w=::w(rw)*relativeWeight;
             p++;
             w++;
             numpoints++;

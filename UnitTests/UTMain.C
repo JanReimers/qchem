@@ -7,7 +7,7 @@ int main(int argc, char **argv)
      testing::InitGoogleTest(&argc, argv);
 
 //    testing::GTEST_FLAG(filter) = "M_*:Multiple/A_*";
-//    testing::GTEST_FLAG(filter) = "M_*";
+//    testing::GTEST_FLAG(filter) = "M_PG_SHF*";
 //
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";

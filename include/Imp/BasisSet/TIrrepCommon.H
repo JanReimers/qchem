@@ -70,8 +70,7 @@ protected:
 private:
     IntegralDataBase<T>* GetDataBase () const;
    
-    virtual void Eval    (const Mesh&,     Mat&) const;
-    virtual void EvalGrad(const Mesh&, Vec3Mat&) const;
+//    virtual void EvalGrad(const Mesh&, Vec3Mat&) const;
 protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 private:

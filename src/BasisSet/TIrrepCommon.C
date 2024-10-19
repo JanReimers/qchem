@@ -240,25 +240,25 @@ Gradient(const RVec3& r) const
     return ret;
 }
 
-template <class T> void TIrrepBasisSetCommon<T>::Eval(const Mesh& mesh, Mat& mat) const
-{
-    // No UT coverage
-    StreamableObject::SetToPretty();
-    index_t i=1;
-    for (auto b=this->beginT(); b!=this->end(); i++,b++)
-    {
-        mat.GetRow(i)=(**b)(mesh);
-//		cout << "TBasisSetImplementation<T>::Eval (*b)(mesh)=" << (*b)(mesh) << std::endl;
-//		cout << "TBasisSetImplementation<T>::Eval mat.GetRow(i)=" << mat.GetRow(i) << std::endl;
-    }
-}
+//template <class T> void TIrrepBasisSetCommon<T>::Eval(const Mesh& mesh, Mat& mat) const
+//{
+//    // No UT coverage
+//    StreamableObject::SetToPretty();
+//    index_t i=1;
+//    for (auto b=this->beginT(); b!=this->end(); i++,b++)
+//    {
+//        mat.GetRow(i)=(**b)(mesh);
+////		cout << "TBasisSetImplementation<T>::Eval (*b)(mesh)=" << (*b)(mesh) << std::endl;
+////		cout << "TBasisSetImplementation<T>::Eval mat.GetRow(i)=" << mat.GetRow(i) << std::endl;
+//    }
+//}
 
-template <class T> void TIrrepBasisSetCommon<T>::EvalGrad(const Mesh& mesh, Vec3Mat& mat) const
-{
-    // No UT coverage
-    index_t i=1;
-    for (auto b=this->beginT(); b!=this->end(); i++,b++) mat.GetRow(i)=(**b).Gradient(mesh);
-}
+//template <class T> void TIrrepBasisSetCommon<T>::EvalGrad(const Mesh& mesh, Vec3Mat& mat) const
+//{
+//    // No UT coverage
+//    index_t i=1;
+//    for (auto b=this->beginT(); b!=this->end(); i++,b++) mat.GetRow(i)=(**b).Gradient(mesh);
+//}
 
 //-----------------------------------------------------------------------------
 //

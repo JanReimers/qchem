@@ -16,5 +16,6 @@ void RadialMeshImplementation::Initialize(const Vector<double>& R, const Vector<
     assert(R.size()==itsPoints.size());
     itsPoints =R;
     itsWeights=W;
+    for (auto i:R.indices()) itsRWs.push_back(std::make_tuple(R(i),W(i)));
 }
 

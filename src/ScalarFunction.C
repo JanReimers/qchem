@@ -4,7 +4,6 @@
 
 #include <ScalarFunction.H>
 #include "Mesh/Mesh.H"
-#include "Mesh/MeshBrowser.H"
 #include "oml/vector.h"
 #include <cassert>
 #include <iostream>
@@ -31,19 +30,17 @@ template <class T> typename ScalarFunction<T>::Vec3Vec ScalarFunction<T>::Gradie
 //
 template <class T> void ScalarFunction<T>::Eval(const Mesh& mesh, Vec& v) const
 {
-    assert(v.size()==mesh.GetNumPoints());
-    MeshBrowser          b(mesh);
-    typename Vec::iterator i(v.begin());
-    for (; b&&i!=v.end(); b++,i++)
-        *i+=this->operator()(b.R());
+    assert(v.size()==mesh.size());
+    auto i(v.begin());
+    for (auto rw:mesh) (*i++) += (*this)(r(rw));
+    
 }
 
 template <class T> void ScalarFunction<T>::EvalGrad(const Mesh& mesh, Vec3Vec& v) const
 {
-    assert(v.size()==mesh.GetNumPoints());
-    MeshBrowser            b(mesh);
-    typename Vec3Vec::iterator i(v.begin());
-    for (; b&&i!=v.end(); b++,i++) *i+=this->Gradient(b.R());
+    assert(v.size()==mesh.size());
+    auto i(v.begin());
+    for (auto rw:mesh) (*i++) += this->Gradient(r(rw));
 }
 
 template class ScalarFunction<double>;

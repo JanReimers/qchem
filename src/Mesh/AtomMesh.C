@@ -31,8 +31,10 @@ AtomMesh::AtomMesh(const RadialMesh& r, const AngularMesh& a)
         {
             *ip= rb.R() * normalize(ab.D()); //Use normalized version of the direction d.
             *iw= rb.W() *  ab.W();
+           // itsRWs.push_back(std::make_tuple(rb.R() * normalize(ab.D()),rb.W() *  ab.W()));
         }
     }
+    //for (auto i:R.indices()) itsRWs.push_back(std::make_tuple(R(i),W(i)));
     Initialize(Points,Weights);
 }
 

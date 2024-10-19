@@ -4,8 +4,8 @@
 
 #include <VectorFunction.H>
 #include "Mesh/Mesh.H"
-#include "Mesh/MeshBrowser.H"
 #include "oml/matrix.h"
+#include "oml/vector.h"
 #include <cassert>
 #include <complex>
 
@@ -30,28 +30,28 @@ template <class T> typename VectorFunction<T>::Vec3Mat VectorFunction<T>::Gradie
 template <class T> void VectorFunction<T>::Eval(const Mesh& mesh, Mat& mat) const
 {
     assert(mat.GetNumRows()==GetVectorSize    ());
-    assert(mat.GetNumCols()==mesh.GetNumPoints());
+    assert(mat.GetNumCols()==mesh.size());
     index_t n=GetVectorSize();
-    MeshBrowser b(mesh);
-    typename Mat::Subscriptor s(mat);
-    for (int i=1; b; b++,i++)
+    int i=1;
+    for (auto rw:mesh) 
     {
-        const Vec& v(operator()(b.R()));
-        for (int j=1; j<=n; j++) s(j,i) += v(j);
+        const Vec& v((*this)(r(rw)));
+        for (int j=1; j<=n; j++) mat(j,i) += v(j);
+        i++;
     }
 }
 
 template <class T> void VectorFunction<T>::EvalGrad(const Mesh& mesh, Vec3Mat& mat) const
 {
     assert(mat.GetNumRows()==GetVectorSize    ());
-    assert(mat.GetNumCols()==mesh.GetNumPoints());
+    assert(mat.GetNumCols()==mesh.size());
     index_t n=GetVectorSize();
-    MeshBrowser b(mesh);
-    typename Vec3Mat::Subscriptor s(mat);
-    for (int i=1; b; b++,i++)
+    int i=1;
+    for (auto rw:mesh) 
     {
-        const Vec3Vec& v(Gradient(b.R()));
-        for (int j=1; j<=n; j++) s(j,i) += v(j);
+        const Vec3Vec& v(Gradient(r(rw)));
+        for (int j=1; j<=n; j++) mat(j,i) += v(j);
+        i++;
     }
 }
 

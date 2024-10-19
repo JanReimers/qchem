@@ -19,6 +19,10 @@ public:
     {
         return itsPoints.size();
     }
+    
+    virtual const_iterator begin() const {return itsRWs.begin();}
+    virtual const_iterator end  () const {return itsRWs.end  ();}
+    virtual index_t        size () const {return itsRWs.size ();}
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
@@ -33,6 +37,8 @@ private:
 
     Vector<RVec3>  itsPoints;
     Vector<double> itsWeights;
+
+    vec_t itsRWs;
 };
 
 #endif // _MeshImplementation_H_

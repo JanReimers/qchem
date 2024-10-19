@@ -77,17 +77,19 @@ template <class T> typename MeshIntegrator<T>::RVec MeshIntegrator<T>::Normalize
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap(const Vf& v) const
 {
     index_t n=v.GetVectorSize();
-    SMat ret(n,n);
+    SMat ret(n);
     Fill(ret,0.0);
 
-    typename SMat::Subscriptor      r (ret);
     const Mat& sf(v(*itsMesh));
 
-    MeshBrowser m(*itsMesh);
-    for (index_t wi=1; m; wi++,m++)
+    int wi=1;
+    for (auto rw:*itsMesh)
+    {
         for (index_t i=1; i<=n; i++)
             for (index_t j=i; j<=n; j++)
-                r(i,j)+=sf(i,wi)*sf(j,wi)*m.W();
+                ret(i,j)+=sf(i,wi)*sf(j,wi)*w(rw);
+        wi++;
+    }
 
     return ret;
 }
@@ -143,18 +145,21 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Overlap(co
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap3C(const Vf& f,const Sf& g) const
 {
     index_t n=f.GetVectorSize();
-    SMat ret(n,n);
+    SMat ret(n);
     Fill(ret,0.0);
 
-    typename SMat::Subscriptor      r (ret);
     const Mat& sf(f(*itsMesh));
     const Vec& sg(g(*itsMesh));
 
     for (index_t i=1; i<=n; i++)
         for (index_t j=i; j<=n; j++)
         {
-            MeshBrowser m(*itsMesh);
-            for (index_t wi=1; m; wi++,m++) r(i,j)+=sf(i,wi)*sf(j,wi)*sg(wi)*m.W();
+            int wi=1;
+            for (auto rw:*itsMesh)
+            {
+                ret(i,j)+=sf(i,wi)*sf(j,wi)*sg(wi)*w(rw);
+                wi++;
+            }
         }
 
     assert(!isnan(ret));
@@ -312,14 +317,17 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Nuclear(c
     SMat ret(n,n);
     Fill(ret,0.0);
 
-    typename SMat::Subscriptor   r (ret);
     const Mat& sf(f(*itsMesh));
 
     for (index_t i=1; i<=n; i++)
         for (index_t j=i; j<=n; j++)
         {
-            MeshBrowser m(*itsMesh);
-            for (index_t wi=1; m; wi++,m++) if (norm(m.R())!=0) r(i,j)+=sf(i,wi)*sf(j,wi)*m.W()/norm(m.R());
+            int wi=1;
+            for (auto rw:*itsMesh)
+            {
+                if (norm(r(rw))!=0) ret(i,j)+=sf(i,wi)*sf(j,wi)*w(rw)/norm(r(rw));
+                wi++;
+            }
         }
     return ret;
 }
@@ -327,17 +335,20 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Nuclear(c
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Grad(const Vf& f) const
 {
     index_t n=f.GetVectorSize();
-    SMat ret(n,n);
+    SMat ret(n);
     Fill(ret,0.0);
 
-    typename SMat::Subscriptor      r (ret);
     const Matrix<Vec3>& sf(f.Gradient(*itsMesh));
 
     for (index_t i=1; i<=n; i++)
         for (index_t j=i; j<=n; j++)
         {
-            MeshBrowser m(*itsMesh);
-            for (index_t wi=1; m; wi++,m++) r(i,j)+=sf(i,wi)*sf(j,wi)*m.W();
+            int wi=1;
+            for (auto rw:*itsMesh)
+            {
+                 ret(i,j)+=sf(i,wi)*sf(j,wi)*w(rw);
+                 wi++;
+            }
         }
     return ret;
 }

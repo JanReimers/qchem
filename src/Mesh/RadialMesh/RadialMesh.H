@@ -3,12 +3,23 @@
 #define _RadialMesh_H_
 
 #include "types.H"
+#include <tuple>
+#include <vector>
 
 class RadialMesh
 {
 public:
     virtual ~RadialMesh() {};
     virtual index_t GetNumPoints() const=0;
+    
+    
+    typedef std::tuple<double,double> rw_t;
+    typedef std::vector<rw_t>         vec_t;
+    typedef vec_t::const_iterator const_iterator;
+    virtual const_iterator begin() const=0;
+    virtual const_iterator end  () const=0;
+    virtual index_t        size () const=0;
+    
 };
 
 #endif //_RadialMesh_H_

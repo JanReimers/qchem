@@ -38,12 +38,24 @@ Priority 1:
                                     ^^^^^^^^^^^^^^
     -Vosco LDA
     Done: -Sort out Orbital category.  WF should not see OrbImp stuff.
-    -Sort out Ham category.  WF should not see OrbImp stuff.
-    -Sort out CD category.  WF should not see OrbImp stuff.
+    Done: -Sort out Ham category.  WF should not see OrbImp stuff.
+    Done: -Sort out CD category.  WF should not see OrbImp stuff.
         
         
     -Done: Clean up factorial wigner 3j table init.  Too many calls.
     -G-orbs for gaussians?
+    -Mesh re-org
+        -Support iterators.
+        -Cluster should support MakeMesh
+        -Move Mesh.H up to interfaces level.
+        -get <ss|1/r12|ss> working.
+        -Integration is doing two sets of loops
+            1) eval BasisSet(r), loop over rs
+            2) Integrate with weights, loop over ws.
+            -Is better to just do a weighted eval with one loop?
+                The weighted eval should then use the sqrt(W).
+        -use size() in VectorFunction<T>
+        -Do we really need separate Eval, and EvalGrad functions?
     
 oml:
     **-SMAT does not support S+=Xpr
