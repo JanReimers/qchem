@@ -17,7 +17,7 @@
 #include "Imp/Mesh/GaussAngularMesh.H"
 #include "Imp/Cluster/AtomMesh.H"
 #include "Imp/Integrals/MeshIntegrator.H"
-#include "Misc/DFTDefines.H"
+#include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Cluster.H"
 #include "BasisSet.H"

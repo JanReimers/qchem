@@ -5,7 +5,7 @@
 
 
 #include "types.H"
-#include "Misc/Persistent/Persistent.H"
+#include "Imp/Misc/Persistent/Persistent.H"
 #include "Imp/Containers/ERI4.H"
 
 class IrrepIEClient;

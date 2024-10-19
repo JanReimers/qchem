@@ -2,7 +2,7 @@
 #ifndef _Polarization_H_
 #define _Polarization_H_
 
-#include "Misc/IntPower.H"
+#include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include <iosfwd>
 

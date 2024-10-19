@@ -3,7 +3,7 @@
 
 #include "Imp/Integrals/Wigner3j.H"
 #include "Imp/Integrals/Factorials.H"
-#include "Misc/IntPower.H"
+#include "Imp/Misc/IntPower.H"
 #include <cmath>
 
 

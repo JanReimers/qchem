@@ -595,7 +595,7 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1729376003 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1729379074 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
@@ -608,7 +608,7 @@
 	"Imp/Mesh/GaussAngularMesh.H"
 	"Imp/Cluster/AtomMesh.H"
 	"Imp/Integrals/MeshIntegrator.H"
-	"Misc/DFTDefines.H"
+	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Molecule.H"
 	"Cluster.H"
 	"BasisSet.H"
@@ -760,9 +760,9 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1729378313 /home/janr/Code/qchem/include/BasisSet.H
+1729379959 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
-	"Misc/Persistent/Persistent.H"
+	"Imp/Misc/Persistent/Persistent.H"
 	<ScalarFunction.H>
 	<vector>
 	"IEClient.H"
@@ -782,9 +782,9 @@
 	"types.H"
 	"Misc/pmstream.h"
 
-1728702378 /home/janr/Code/qchem/include/IntegralDataBase.H
+1729380041 /home/janr/Code/qchem/include/IntegralDataBase.H
 	"types.H"
-	"Misc/Persistent/Persistent.H"
+	"Imp/Misc/Persistent/Persistent.H"
 	"Imp/Containers/ERI4.H"
 
 1729305787 /home/janr/Code/qchem/include/Hamiltonian.H
@@ -798,10 +798,10 @@
 
 1728599453 /home/janr/Code/qchem/include/TotalEnergy.H
 
-1729307021 /home/janr/Code/qchem/include/Cluster.H
+1729380031 /home/janr/Code/qchem/include/Cluster.H
 	"Imp/Cluster/Atom.H"
 	<ScalarFunction.H>
-	"Misc/Persistent/Persistent.H"
+	"Imp/Misc/Persistent/Persistent.H"
 	<vector>
 
 1729376837 /home/janr/Code/qchem/include/WaveFunction.H
@@ -891,8 +891,8 @@
 	"oml/vector.h"
 	<iostream>
 
-1728604680 /home/janr/Code/qchem/include/IEClient.H
-	"Misc/UniqueID/UniqueID.H"
+1729380010 /home/janr/Code/qchem/include/IEClient.H
+	"Imp/Misc/UniqueID/UniqueID.H"
 
 1728492922 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/IEClient.H
 	<IEClient.H>
@@ -921,9 +921,9 @@
 1729378329 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1729186656 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+1729378873 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Integrals/Wigner3j.H"
-	"Misc/IntPower.H"
+	"Imp/Misc/IntPower.H"
 	"Imp/Integrals/Factorials.H"
 	<cmath>
 	<cassert>
@@ -946,9 +946,9 @@
 	"Misc/pmstream.h"
 	<cassert>
 
-1729305686 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
+1729380007 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
 	"Polarization.H"
-	"Misc/Persistent/Persistent.H"
+	"Imp/Misc/Persistent/Persistent.H"
 	<ScalarFunction.H>
 	"oml/vector3d.h"
 	<vector>
@@ -978,8 +978,8 @@
 	"types.H"
 	<vector>
 
-1728751839 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Polarization.H
-	"Misc/IntPower.H"
+1729378849 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Polarization.H
+	"Imp/Misc/IntPower.H"
 	"oml/vector3d.h"
 	<iosfwd>
 
@@ -1034,13 +1034,13 @@
 
 1729179651 /home/janr/Code/qchem/include/Imp/Integrals/Factorials.H
 
-1728946050 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
+1729378873 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
 	"Imp/Integrals/Wigner3j.H"
 	"Imp/Integrals/Factorials.H"
-	"Misc/IntPower.H"
+	"Imp/Misc/IntPower.H"
 	<cmath>
 
-1729375961 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
+1729379074 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/GaussianIntegrals.H"
 	"Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
@@ -1052,7 +1052,7 @@
 	"Imp/Mesh/GaussAngularMesh.H"
 	"Imp/Cluster/AtomMesh.H"
 	"Imp/Integrals/MeshIntegrator.H"
-	"Misc/DFTDefines.H"
+	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Molecule.H"
 	"Cluster.H"
 	"oml/imp/ran250.h"
@@ -1085,15 +1085,15 @@
 	<AnalyticIE.H>
 	"oml/vector.h"
 
-1728751665 /home/janr/Code/qchem/include/Imp/Integrals/GaussianIntegrals.H
+1729378894 /home/janr/Code/qchem/include/Imp/Integrals/GaussianIntegrals.H
 	<cmath>
-	"Misc/DFTDefines.H"
+	"Imp/Misc/DFTDefines.H"
 
 1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
 	<QuantumNumber.H>
 
-1728599453 /home/janr/Code/qchem/include/QuantumNumber.H
-	"Misc/Persistent/Persistent.H"
+1729380015 /home/janr/Code/qchem/include/QuantumNumber.H
+	"Imp/Misc/Persistent/Persistent.H"
 
 1728772650 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/BasisFunction.H
 	<BasisSet.H>
@@ -1167,13 +1167,13 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729309909 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729379074 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	<types.H>
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 	<IterationParams.H>
 	<LAParams.H>
-	"Misc/PeriodicTable.H"
+	"Imp/Misc/PeriodicTable.H"
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"BasisSet.H"
 
@@ -1200,11 +1200,11 @@
 	"Imp/Cluster/AtomMesh.H"
 	"Imp/Cluster/Molecule.H"
 
-1729269680 source:/home/janr/Code/qchem/UnitTests/GaussianERIIntegral.C
+1729379074 source:/home/janr/Code/qchem/UnitTests/GaussianERIIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/GaussianRadialIntegrals.H"
 	"Imp/Integrals/Wigner3j.H"
-	"Misc/DFTDefines.H"
+	"Imp/Misc/DFTDefines.H"
 	"oml/imp/ran250.h"
 	<iostream>
 	<fstream>
@@ -1226,15 +1226,15 @@
 1729297536 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
-1729297647 /home/janr/Code/qchem/include/Imp/Hamiltonian/Ven.H
+1729378949 /home/janr/Code/qchem/include/Imp/Hamiltonian/Ven.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	<Cluster.H>
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 
-1729297563 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vnn.H
+1729378949 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vnn.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	<Cluster.H>
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 
 1729297647 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vee.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
@@ -1247,21 +1247,21 @@
 	"Misc/pmstream.h"
 	<ScalarFunction.H>
 
-1729306343 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
+1729378949 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Fitting/FittedFunction.H"
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 
-1729298076 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
+1729378949 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/Hamiltonian.H"
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 
-1729297740 /home/janr/Code/qchem/include/Imp/Hamiltonian/VxcPol.H
+1729378949 /home/janr/Code/qchem/include/Imp/Hamiltonian/VxcPol.H
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/HamiltonianTerm.H"
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 
 1729298198 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVeeCD.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
@@ -1270,9 +1270,9 @@
 1729296858 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctionalImp.H
 	"Imp/Hamiltonian/ExchangeFunctional.H"
 
-1729298198 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVee.H
+1729378949 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVee.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 
 1729377362 /home/janr/Code/qchem/include/ScalarFunction.H
 	"types.H"
@@ -1286,9 +1286,9 @@
 	<types.H>
 	<ScalarFunction.H>
 
-1729375602 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
+1729378949 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
 	<BasisSet.H>
-	"Misc/rc_ptr.H"
+	"Imp/Misc/rc_ptr.H"
 	<FittedFunction.H>
 	<Mesh.H>
 	<LAParams.H>
@@ -1353,9 +1353,9 @@
 1729375602 /home/janr/Code/qchem/include/Imp/Mesh/GaussAngularMesh.H
 	<Mesh.H>
 
-1729372647 /home/janr/Code/qchem/include/Mesh.H
+1729380046 /home/janr/Code/qchem/include/Mesh.H
 	"types.H"
-	"Misc/Persistent/Persistent.H"
+	"Imp/Misc/Persistent/Persistent.H"
 	"oml/vector3d.h"
 	<tuple>
 	<vector>
@@ -1368,4 +1368,19 @@
 
 1729375738 /home/janr/Code/qchem/include/Imp/Cluster/MoleculeMesh.H
 	<Mesh.H>
+
+1728599453 /home/janr/Code/qchem/include/Imp/Misc/rc_ptr.H
+
+1728599453 /home/janr/Code/qchem/include/Imp/Misc/PeriodicTable.H
+
+1729380001 /home/janr/Code/qchem/include/Imp/Misc/Persistent/Persistent.H
+	"Imp/Misc/UniqueID/UniqueID.H"
+
+1728599453 /home/janr/Code/qchem/include/Imp/Misc/UniqueID/UniqueID.H
+	"Misc/pmstream.h"
+
+1728599453 /home/janr/Code/qchem/include/Imp/Misc/IntPower.H
+	"DFTDefines.H"
+
+1728599453 /home/janr/Code/qchem/include/Imp/Misc/DFTDefines.H
 

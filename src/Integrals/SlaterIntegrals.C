@@ -2,7 +2,7 @@
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/Factorials.H"
 #include "Imp/Integrals/PascalTriangle.H"
-#include "Misc/DFTDefines.H"
+#include "Imp/Misc/DFTDefines.H"
 #include "oml/vector.h"
 #include <cassert>
 #include <cmath>

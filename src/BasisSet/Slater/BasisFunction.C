@@ -1,7 +1,7 @@
 // File: Slater.C  r^(n-1) exp(-ar) type basis function for an atom.
 
 #include "Imp/BasisSet/Slater/BasisFunction.H"
-#include "Misc/IntPower.H"
+#include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"
 #include <cmath>

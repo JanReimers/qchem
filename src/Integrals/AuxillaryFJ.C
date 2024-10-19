@@ -1,8 +1,8 @@
 // File:  AuxillaryFJ.C  Class for calculating the auxiliary function.
 
 #include "Imp/Integrals/AuxillaryFJ.H"
-#include "Misc/DFTDefines.H"
-#include "Misc/IntPower.H"
+#include "Imp/Misc/DFTDefines.H"
+#include "Imp/Misc/IntPower.H"
 #include "oml/vector.h"
 #include <cmath>
 #include <cassert>

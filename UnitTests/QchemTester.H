@@ -3,10 +3,10 @@
 
 #include "gtest/gtest.h"
 #include <types.H>
-#include "Misc/rc_ptr.H"
+#include "Imp/Misc/rc_ptr.H"
 #include <IterationParams.H>
 #include <LAParams.H>
-#include "Misc/PeriodicTable.H"
+#include "Imp/Misc/PeriodicTable.H"
 
 
 class QchemTester

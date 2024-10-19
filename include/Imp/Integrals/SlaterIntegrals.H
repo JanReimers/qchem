@@ -2,7 +2,7 @@
 #define SLATERINTEGRALS_H
 
 #include "Imp/Integrals/Wigner3j.H"
-#include "Misc/IntPower.H"
+#include "Imp/Misc/IntPower.H"
 #include "Imp/Integrals/Factorials.H"
 
 #include <cmath>

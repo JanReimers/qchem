@@ -3,7 +3,7 @@
 
 
 #include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
-#include "Misc/IntPower.H"
+#include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"
 #include <cmath>

@@ -2,7 +2,7 @@
 
 
 
-#include "Misc/IntPower.H"
+#include "Imp/Misc/IntPower.H"
 #include <iostream>
 #include <stdlib.h>
 #include <cmath>

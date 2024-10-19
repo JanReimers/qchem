@@ -7,7 +7,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianRF.H"
 #include "Imp/Cluster/Atom.H"
-#include "Misc/PeriodicTable.H"
+#include "Imp/Misc/PeriodicTable.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>

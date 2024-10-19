@@ -6,7 +6,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H"
 #include "types.H"
 #include "Imp/Containers/ptr_vector.h"
-#include "Misc/UniqueID/UniqueID.H"
+#include "Imp/Misc/UniqueID/UniqueID.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"

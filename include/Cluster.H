@@ -4,7 +4,7 @@
 
 #include "Imp/Cluster/Atom.H"
 #include <ScalarFunction.H>
-#include "Misc/Persistent/Persistent.H"
+#include "Imp/Misc/Persistent/Persistent.H"
 #include <vector>
 
 class Cluster

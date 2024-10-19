@@ -1,7 +1,7 @@
 // File: UnitCell.C  Unit cell for a lattice.
 
 #include "Imp/Cluster/UnitCell.H"
-#include "Misc/DFTDefines.H"
+#include "Imp/Misc/DFTDefines.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include <cmath>

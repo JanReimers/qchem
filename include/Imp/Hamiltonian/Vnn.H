@@ -6,7 +6,7 @@
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include <Cluster.H>
-#include "Misc/rc_ptr.H"
+#include "Imp/Misc/rc_ptr.H"
 
 class Vnn
     : public virtual HamiltonianTerm

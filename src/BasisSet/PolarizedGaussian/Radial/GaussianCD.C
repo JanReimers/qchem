@@ -9,7 +9,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianCD.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
 #include <Cluster.H>
-#include "Misc/DFTDefines.H"
+#include "Imp/Misc/DFTDefines.H"
 #include "oml/matrix.h"
 #include "oml/io3d.h"
 #include <cmath>

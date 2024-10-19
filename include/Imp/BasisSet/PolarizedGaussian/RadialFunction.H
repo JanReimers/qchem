@@ -3,7 +3,7 @@
 #define _RadialFunction_H_
 
 #include "Polarization.H"
-#include "Misc/Persistent/Persistent.H"
+#include "Imp/Misc/Persistent/Persistent.H"
 #include <ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>

@@ -7,7 +7,7 @@
 #include <ChargeDensity.H>
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
-#include "Misc/Unpickle.H"
+//#include "Misc/Unpickle.H"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -70,12 +70,13 @@ Mesh* Atom::GetIntegrationMesh() const
 
 ChargeDensity* Atom::GetChargeDensity() const
 {
+    assert(false);
     ChargeDensity* ret=0;
-    if(!UnPickle(ret,itsChargeDensityFileName.c_str(),"charge density"))
-    {
-        std::cerr << "Atom::GetChargeDensity charge density filename not initialized" << std::endl;
-        exit(-1);
-    }
+//    if(!UnPickle(ret,itsChargeDensityFileName.c_str(),"charge density"))
+//    {
+//        std::cerr << "Atom::GetChargeDensity charge density filename not initialized" << std::endl;
+//        exit(-1);
+//    }
     ret->ShiftOrigin(itsR);
     return ret;
 }
