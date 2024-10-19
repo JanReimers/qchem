@@ -33,11 +33,9 @@ public:
 
     virtual T        operator()(const RVec3&      ) const=0;
     virtual Vec      operator()(const Mesh&       ) const  ;
-    virtual void     Eval      (const Mesh&, Vec&) const  ;
 
     virtual Vec3    Gradient   (const RVec3&         ) const=0;
     virtual Vec3Vec Gradient   (const Mesh&          ) const  ;
-    virtual void    EvalGrad   (const Mesh&, Vec3Vec&) const  ;
 };
 
 

@@ -222,7 +222,7 @@ GetRepulsion3C(const IrrepBasisSet* ff) const
 template <class T> typename TIrrepBasisSetCommon<T>::Vec TIrrepBasisSetCommon<T>::
 operator() (const RVec3& r) const
 {
-    Vec  ret(GetVectorSize());
+    Vec  ret(this->size());
     typename Vec::iterator i(ret.begin());
     for(auto b=this->beginT();b!=this->end();i++,b++) *i=(**b)(r);
 
@@ -233,7 +233,7 @@ template <class T> typename TIrrepBasisSetCommon<T>::Vec3Vec TIrrepBasisSetCommo
 Gradient(const RVec3& r) const
 {
     // No UT coverage
-    Vec3Vec  ret(GetVectorSize());
+    Vec3Vec  ret(this->size());
     typename Vec3Vec::iterator i(ret.begin());
     for(auto b=this->beginT(); b!=this->end(); i++,b++) *i=b->Gradient(r);
 

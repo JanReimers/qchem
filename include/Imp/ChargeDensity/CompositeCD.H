@@ -40,7 +40,6 @@ public:
 
 private:
     CompositeCD(const CompositeCD&);
-    virtual void  Eval(const Mesh&, Vec&) const;
 
     optr_vector1<ChargeDensity*> itsCDs;
 };

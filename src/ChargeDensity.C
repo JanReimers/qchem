@@ -113,12 +113,6 @@ ChargeDensity::RVec3 PolarizedCD::Gradient  (const RVec3& r) const
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
 }
 
-void PolarizedCD::Eval(const Mesh& m, Vec& v) const
-{
-    GetChargeDensity(Spin::Up)  ->Eval(m,v);
-    GetChargeDensity(Spin::Down)->Eval(m,v);
-}
-
 //---------------------------------------------------------------------------------
 //
 //  Construction zone.

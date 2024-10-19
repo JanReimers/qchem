@@ -30,11 +30,9 @@ public:
 
     virtual Vec     operator() (const RVec3&     ) const=0;
     virtual Mat     operator() (const Mesh&      ) const  ;
-    virtual void    Eval       (const Mesh&, Mat&) const  ;
 
     virtual Vec3Vec Gradient   (const RVec3&         ) const=0;
     virtual Vec3Mat Gradient   (const Mesh&          ) const  ;
-    virtual void    EvalGrad   (const Mesh&, Vec3Mat&) const  ;
 };
 
 #endif // _VectorFunction_H_

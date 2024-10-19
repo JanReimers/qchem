@@ -126,12 +126,6 @@ double CompositeCD::operator()(const RVec3& r) const
     return ret;
 }
 
-void  CompositeCD::Eval(const Mesh& mesh, Vec& v) const
-{
-    // No UT coverage
-    for (auto c:itsCDs) c->Eval(mesh,v); //Each  does v+= operation.
-}
-
 ChargeDensity::Vec3 CompositeCD::Gradient  (const RVec3& r) const
 {
     // No UT coverage

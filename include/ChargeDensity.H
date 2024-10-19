@@ -76,7 +76,6 @@ public:
 
     virtual double operator()(const RVec3&) const;
     virtual RVec3  Gradient  (const RVec3&) const;
-    virtual void   Eval(const Mesh&, RVec&) const;
 };
 
 #include <FittedFunction.H>
