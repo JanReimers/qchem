@@ -15,11 +15,11 @@
 class LDAVxc
     : public virtual FittablePotential
     , public virtual ScalarFFClient
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
     LDAVxc();
-    LDAVxc(const rc_ptr<ExchangeFunctional>& lda);
+    LDAVxc(const rc_ptr<ExFunctional>& lda);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* exact);
     virtual void GetEnergy       (TotalEnergy&               ) const;
@@ -32,7 +32,7 @@ private:
     virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 
-    rc_ptr<ExchangeFunctional> itsExchangeFunctional;
+    rc_ptr<ExFunctional> itsExchangeFunctional;
 };
 
 #endif //_LDAVxc_H_

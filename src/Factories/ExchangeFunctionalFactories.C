@@ -7,7 +7,7 @@
 #include <typeinfo>
 #include <stdlib.h>
 
-ExchangeFunctional*  ExchangeFunctional::Factory(std::istream& is)
+ExFunctional*  ExFunctional::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(SlaterExchange).name()) return new  SlaterExchange;

@@ -18,13 +18,13 @@
 class FittedVxc
     : public virtual FittedFunction
     , public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
     , public         FittedFunctionImplementation<double>
 {
     typedef HamiltonianTerm::SMat SMat;
 public:
     FittedVxc();
-    FittedVxc(const rc_ptr<IrrepBasisSet>& VxcFitBasisSet, const rc_ptr<ExchangeFunctional>&, const rc_ptr<Mesh>&);
+    FittedVxc(const rc_ptr<IrrepBasisSet>& VxcFitBasisSet, const rc_ptr<ExFunctional>&, const rc_ptr<Mesh>&);
     ~FittedVxc();
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;

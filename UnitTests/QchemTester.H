@@ -78,7 +78,7 @@ public:
     virtual ~SHFHamiltonian();
     virtual HamiltonianTerm* GetVxc() const;
 protected:
-    rc_ptr<ExchangeFunctional> XcFunct;
+    rc_ptr<ExFunctional> XcFunct;
 };
 
 class PolSHFHamiltonian : public HFHamiltonian
@@ -88,7 +88,7 @@ public:
     PolSHFHamiltonian(double ex);
     virtual HamiltonianTerm* GetVxc() const;
 private:
-    rc_ptr<ExchangeFunctional> XcFunct;
+    rc_ptr<ExFunctional> XcFunct;
 };
 
 class DFTHamiltonian : public SHFHamiltonian

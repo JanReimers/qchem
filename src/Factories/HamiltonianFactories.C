@@ -28,7 +28,7 @@
 Hamiltonian* Hamiltonian::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(HamiltonianImplementation).name()) return new HamiltonianImplementation;
+    if (Name==typeid(HamiltonianImp).name()) return new HamiltonianImp;
 
     std::cout << "Unknown Hamiltonian type :" << Name << std::endl;
     exit(-1);
@@ -45,15 +45,15 @@ HamiltonianTerm* HamiltonianTerm::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(Kinetic  ).name()) return new Kinetic ();
-    if (Name==typeid(ExactVee ).name()) return new ExactVee();
-    if (Name==typeid(ExactVen ).name()) return new ExactVen();
-    if (Name==typeid(ExactVnn ).name()) return new ExactVnn();
+    if (Name==typeid(Vee ).name()) return new Vee();
+    if (Name==typeid(Ven ).name()) return new Ven();
+    if (Name==typeid(Vnn ).name()) return new Vnn();
     if (Name==typeid(LDAVxc   ).name()) return new LDAVxc();
-    if (Name==typeid(HartreeFockVxc).name()) return new HartreeFockVxc();
+    if (Name==typeid(Vxc).name()) return new Vxc();
     if (Name==typeid(CDFittedVee).name()) return new  CDFittedVee();
     if (Name==typeid(FittedVxc).name()) return new FittedVxc();
-    if (Name==typeid(PolarizedFittedVxc).name()) return new PolarizedFittedVxc();
-    if (Name==typeid(PolarizedHartreeFockVxc).name()) return new PolarizedHartreeFockVxc();
+    if (Name==typeid(FittedVxcPol).name()) return new FittedVxcPol();
+    if (Name==typeid(VxcPol).name()) return new VxcPol();
 
     std::cout << "Unknown HamiltonianTerm type :" << Name << std::endl;
     exit(-1);

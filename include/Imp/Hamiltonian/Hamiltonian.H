@@ -1,17 +1,17 @@
 // File: HamiltonianImplementation.H  General matrix implementation of a Hamiltonian operator.
-#ifndef _HamiltonianImplementation_H_
-#define _HamiltonianImplementation_H_
+#ifndef _HamiltonianImp_H_
+#define _HamiltonianImp_H_
 
 
 
 #include <Hamiltonian.H>
 #include "Imp/Containers/ptr_vector.h"
 
-class HamiltonianImplementation
+class HamiltonianImp
     : public virtual Hamiltonian
 {
 public:
-    HamiltonianImplementation();
+    HamiltonianImp();
 
     virtual void        UseChargeDensity(const ChargeDensity* exact   )      ;
     virtual void        Add             (      HamiltonianTerm*             )      ;
@@ -27,4 +27,4 @@ protected:
     const ChargeDensity*    itsExactCD;    //Exact charge density.
 };
 
-#endif //_HamiltonianImplementation_H_
+#endif //_HamiltonianImp_H_

@@ -8,8 +8,8 @@
 #include "Misc/Spin.H"
 
 class SlaterExchange
-    : public  virtual ExchangeFunctional
-    , private ExchangeFunctionalImplementation
+    : public  virtual ExFunctional
+    , private ExFunctionalImp
 {
     typedef Vector3D<double> Vec3;
 public:

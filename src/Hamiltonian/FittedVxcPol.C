@@ -13,14 +13,14 @@
 #include <iostream>
 #include <stdlib.h>
 
-PolarizedFittedVxc::PolarizedFittedVxc()
-    : HamiltonianTermImplementation     ( )
+FittedVxcPol::FittedVxcPol()
+    : HamiltonianTermImp     ( )
     , itsUpVxc                    (0)
     , itsDownVxc                  (0)
 {};
 
-PolarizedFittedVxc::PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda, const rc_ptr<Mesh>& m)
-    : HamiltonianTermImplementation(   )
+FittedVxcPol::FittedVxcPol(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExFunctional>& lda, const rc_ptr<Mesh>& m)
+    : HamiltonianTermImp(   )
     , itsUpVxc               (new FittedVxc(bs,lda,m))
     , itsDownVxc             (new FittedVxc(bs,lda,m))
 {
@@ -28,18 +28,18 @@ PolarizedFittedVxc::PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc
     assert(itsDownVxc);
 };
 
-PolarizedFittedVxc::~PolarizedFittedVxc()
+FittedVxcPol::~FittedVxcPol()
 {
     delete itsUpVxc;
     delete itsDownVxc;
 }
 
-void PolarizedFittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
+void FittedVxcPol::UseChargeDensity(const ChargeDensity* exactCD)
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
 
-    HamiltonianTermImplementation::UseChargeDensity(exactCD);
+    HamiltonianTermImp::UseChargeDensity(exactCD);
 
     const PolarizedCD* PolExactCD =  dynamic_cast<const PolarizedCD*>(exactCD);
     assert(PolExactCD);
@@ -50,7 +50,7 @@ void PolarizedFittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
     itsDownVxc->UseChargeDensity(downExactCD);
 }
 
-bool PolarizedFittedVxc::IsPolarized() const
+bool FittedVxcPol::IsPolarized() const
 {
     return true;
 }
@@ -68,7 +68,7 @@ bool PolarizedFittedVxc::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat PolarizedFittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat FittedVxcPol::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -83,7 +83,7 @@ HamiltonianTerm::SMat PolarizedFittedVxc::CalculateHamiltonianMatrix(const Irrep
 }
 
 
-void PolarizedFittedVxc::GetEnergy(TotalEnergy& te) const
+void FittedVxcPol::GetEnergy(TotalEnergy& te) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -93,7 +93,7 @@ void PolarizedFittedVxc::GetEnergy(TotalEnergy& te) const
     itsDownVxc->GetEnergy(te);
 }
 
-std::ostream& PolarizedFittedVxc::Write(std::ostream& os) const
+std::ostream& FittedVxcPol::Write(std::ostream& os) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -101,7 +101,7 @@ std::ostream& PolarizedFittedVxc::Write(std::ostream& os) const
     return os << itsUpVxc << itsDownVxc;
 }
 
-std::istream& PolarizedFittedVxc::Read (std::istream& is)
+std::istream& FittedVxcPol::Read (std::istream& is)
 {
     delete itsUpVxc;
     itsUpVxc = HamiltonianTerm::Factory(is);

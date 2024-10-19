@@ -813,7 +813,7 @@
 	"Misc/pmstream.h"
 	"Functions/FittedFunction.H"
 
-1729278600 /home/janr/Code/qchem/include/types.H
+1729296831 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728695540 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -1122,7 +1122,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729292189 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729297660 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	"SCFIterator/SCFIterator.H"
 	<WaveFunction.H>
@@ -1140,7 +1140,7 @@
 	"Imp/Hamiltonian/SlaterExchange.H"
 	"Imp/Hamiltonian/FittedVxc.H"
 	"Imp/Hamiltonian/FittedVxcPol.H"
-	"Hamiltonian/ExchangeFunctional.H"
+	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/VxcPol.H"
 	"Imp/Hamiltonian/FittedVeeCD.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
@@ -1158,7 +1158,7 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729296568 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729296950 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	"types.H"
 	"Misc/rc_ptr.H"
@@ -1201,60 +1201,63 @@
 	<fstream>
 	<cmath>
 
-1729290820 /home/janr/Code/qchem/include/Imp/Hamiltonian/Hamiltonian.H
+1729296680 /home/janr/Code/qchem/include/Imp/Hamiltonian/Hamiltonian.H
 	<Hamiltonian.H>
 	"Imp/Containers/ptr_vector.h"
 
-1729291596 /home/janr/Code/qchem/include/Imp/Hamiltonian/Kinetic.H
+1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/Kinetic.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
-1728599453 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
+1729297217 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
 	"Hamiltonian.H"
 	"Misc/Spin.H"
 	"oml/smatrix.h"
 	<map>
 
-1729292447 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vxc.H
+1729297536 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
-1729291858 /home/janr/Code/qchem/include/Imp/Hamiltonian/Ven.H
-	"Imp/Hamiltonian/HamiltonianTerm.H"
-	<Cluster.H>
-	"Misc/rc_ptr.H"
-
-1729291869 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vnn.H
+1729297647 /home/janr/Code/qchem/include/Imp/Hamiltonian/Ven.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	<Cluster.H>
 	"Misc/rc_ptr.H"
 
-1729291838 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vee.H
+1729297563 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vnn.H
+	"Imp/Hamiltonian/HamiltonianTerm.H"
+	<Cluster.H>
+	"Misc/rc_ptr.H"
+
+1729297647 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vee.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
-1729290862 /home/janr/Code/qchem/include/Imp/Hamiltonian/SlaterExchange.H
-	"Imp/Hamiltonian/ExchangeFunctional.H"
+1729296831 /home/janr/Code/qchem/include/Imp/Hamiltonian/SlaterExchange.H
+	"Imp/Hamiltonian/ExchangeFunctionalImp.H"
 	"Misc/Spin.H"
 
-1729296352 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
+1729296831 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
 	"Misc/pmstream.h"
 	"Functions/ScalarFunction.H"
 
-1729291944 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
+1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
-	"Hamiltonian/ExchangeFunctional.H"
+	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Misc/rc_ptr.H"
 	"FunctionsImp/FittedFunctionImplementation.H"
 
-1729291496 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
-	"Hamiltonian/ExchangeFunctional.H"
+1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxcPol.H
+	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/Hamiltonian.H"
 	"Misc/rc_ptr.H"
 
-1729291932 /home/janr/Code/qchem/include/Imp/Hamiltonian/VxcPol.H
-	"Hamiltonian/ExchangeFunctional.H"
+1729297740 /home/janr/Code/qchem/include/Imp/Hamiltonian/VxcPol.H
+	"Imp/Hamiltonian/ExchangeFunctional.H"
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Misc/rc_ptr.H"
 
-1729292439 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVeeCD.H
+1729297175 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVeeCD.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 	"Misc/rc_ptr.H"
+
+1729296858 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctionalImp.H
+	"Imp/Hamiltonian/ExchangeFunctional.H"
 

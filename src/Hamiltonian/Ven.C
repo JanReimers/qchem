@@ -1,4 +1,4 @@
-// File: ExactVen.C  Nuclear potential.
+// File: Ven.C  Electron-Nuclear potential.
 
 
 
@@ -10,13 +10,10 @@
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 
-ExactVen::ExactVen()
-    : HamiltonianTermImplementation()
-    , theCluster()
-{};
+Ven::Ven() : HamiltonianTermImp() , theCluster() {};
 
-ExactVen::ExactVen(const rc_ptr<Cluster>& cl)
-    : HamiltonianTermImplementation()
+Ven::Ven(const rc_ptr<Cluster>& cl)
+    : HamiltonianTermImp()
     , theCluster(cl)
 {
     assert(cl->GetNumAtoms()>0);
@@ -32,17 +29,17 @@ ExactVen::ExactVen(const rc_ptr<Cluster>& cl)
 //    return -r/!r;
 //}
 
-HamiltonianTerm::SMat ExactVen::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     return bs->GetNuclear(&*theCluster);
 }
 
-void ExactVen::GetEnergy(TotalEnergy& te) const
+void Ven::GetEnergy(TotalEnergy& te) const
 {
     te.Een=CalculateEnergy();
 }
 
-std::ostream& ExactVen::Write(std::ostream& os) const
+std::ostream& Ven::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
         os << "    Nuclear-electron potential Zi/|Ri-r| with " << theCluster->GetNumAtoms() << " atoms." << std::endl;
@@ -51,7 +48,7 @@ std::ostream& ExactVen::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& ExactVen::Read (std::istream& is)
+std::istream& Ven::Read (std::istream& is)
 {
     Cluster* cl=Cluster::Factory(is);
     is >> *cl;

@@ -8,14 +8,14 @@
 #include <iostream>
 #include <cassert>
 
-HamiltonianTermImplementation::HamiltonianTermImplementation()
+HamiltonianTermImp::HamiltonianTermImp()
     : itsExactCD(0)
 {
     MarkAllDirty();
 };
 
 
-void HamiltonianTermImplementation::MarkAllDirty()
+void HamiltonianTermImp::MarkAllDirty()
 {
     typedef DirtyMap::iterator DITER;
     for (DITER i=itsDirtyCache.begin(); i!=itsDirtyCache.end(); i++)
@@ -23,7 +23,7 @@ void HamiltonianTermImplementation::MarkAllDirty()
 
 }
 
-HamiltonianTerm::SMat HamiltonianTermImplementation::BuildHamiltonian(const IrrepBasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const IrrepBasisSet* bs,const Spin& s) const
 {
     assert(bs);
     CacheIndex i(bs,s);
@@ -40,7 +40,7 @@ HamiltonianTerm::SMat HamiltonianTermImplementation::BuildHamiltonian(const Irre
     return itsCache[i];
 }
 
-double HamiltonianTermImplementation::CalculateEnergy() const
+double HamiltonianTermImp::CalculateEnergy() const
 {
     if (DependsOnChargeDensity())
     {
@@ -59,7 +59,7 @@ double HamiltonianTermImplementation::CalculateEnergy() const
     return itsExactCD->GetEnergy(this);
 }
 
-void HamiltonianTermImplementation::UseChargeDensity(const ChargeDensity* theExactCD)
+void HamiltonianTermImp::UseChargeDensity(const ChargeDensity* theExactCD)
 {
 //  TODO: SHould charge density have an unique ID?
 //    assert(!itsExactCD || itsExactCD->GetID()!=theExactCD->GetID());
@@ -68,7 +68,7 @@ void HamiltonianTermImplementation::UseChargeDensity(const ChargeDensity* theExa
     if (DependsOnChargeDensity()) MarkAllDirty();
 }
 
-const HamiltonianTermImplementation::SMat& HamiltonianTermImplementation::GetCachedMatrix(const IrrepBasisSet* bs, const Spin& s) const
+const HamiltonianTermImp::SMat& HamiltonianTermImp::GetCachedMatrix(const IrrepBasisSet* bs, const Spin& s) const
 {
     assert(bs);
     CacheIndex index(bs,s);
@@ -77,12 +77,12 @@ const HamiltonianTermImplementation::SMat& HamiltonianTermImplementation::GetCac
     return i->second;
 }
 
-std::ostream&  HamiltonianTermImplementation::Write(std::ostream& os) const
+std::ostream&  HamiltonianTermImp::Write(std::ostream& os) const
 {
     return os;
 }
 
-std::istream&  HamiltonianTermImplementation::Read (std::istream& is)
+std::istream&  HamiltonianTermImp::Read (std::istream& is)
 {
     return is;
 }

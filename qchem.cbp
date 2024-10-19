@@ -102,6 +102,21 @@
 		<Unit filename="include/Imp/Containers/ptr_vector.h" />
 		<Unit filename="include/Imp/Containers/ptr_vector_io.h" />
 		<Unit filename="include/Imp/Containers/stl_io.h" />
+		<Unit filename="include/Imp/Hamiltonian/ExchangeFunctional.H" />
+		<Unit filename="include/Imp/Hamiltonian/ExchangeFunctionalImp.H" />
+		<Unit filename="include/Imp/Hamiltonian/FittedVeeCD.H" />
+		<Unit filename="include/Imp/Hamiltonian/FittedVxc.H" />
+		<Unit filename="include/Imp/Hamiltonian/FittedVxcPol.H" />
+		<Unit filename="include/Imp/Hamiltonian/Hamiltonian.H" />
+		<Unit filename="include/Imp/Hamiltonian/HamiltonianTerm.H" />
+		<Unit filename="include/Imp/Hamiltonian/Kinetic.H" />
+		<Unit filename="include/Imp/Hamiltonian/LDAVxc.H" />
+		<Unit filename="include/Imp/Hamiltonian/SlaterExchange.H" />
+		<Unit filename="include/Imp/Hamiltonian/Vee.H" />
+		<Unit filename="include/Imp/Hamiltonian/Ven.H" />
+		<Unit filename="include/Imp/Hamiltonian/Vnn.H" />
+		<Unit filename="include/Imp/Hamiltonian/Vxc.H" />
+		<Unit filename="include/Imp/Hamiltonian/VxcPol.H" />
 		<Unit filename="include/Imp/Integrals/AuxillaryFJ.H" />
 		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
 		<Unit filename="include/Imp/Integrals/Factorials.H" />
@@ -112,7 +127,6 @@
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
 		<Unit filename="include/Imp/LAParams.H" />
 		<Unit filename="include/Imp/Orbitals/ElectronContainer.H" />
-		<Unit filename="include/Imp/Orbitals/Orbitals.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbital.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbitals.H" />
 		<Unit filename="include/Imp/WaveFunction/ElectronDumper.H" />
@@ -357,68 +371,50 @@
 		</Unit>
 		<Unit filename="src/FunctionsImp/IntegralConstrainedFF.H" />
 		<Unit filename="src/Hamiltonian/ExchangeFunctional.C">
-			<Option compilerVar="CPP" />
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Hamiltonian/ExchangeFunctional.H" />
-		<Unit filename="src/Hamiltonian/TotalEnergy.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/ExchangeFunctionalImp.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/CDFittedVee.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/FittedVeeCD.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/CDFittedVee.H" />
-		<Unit filename="src/HamiltonianImplementation/ExactVee.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/FittedVxc.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/ExactVee.H" />
-		<Unit filename="src/HamiltonianImplementation/ExactVen.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/FittedVxcPol.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/ExactVen.H" />
-		<Unit filename="src/HamiltonianImplementation/ExactVnn.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/Hamiltonian.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/ExactVnn.H" />
-		<Unit filename="src/HamiltonianImplementation/ExchangeFunctionalImplementation.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/HamiltonianTerm.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/ExchangeFunctionalImplementation.H" />
-		<Unit filename="src/HamiltonianImplementation/FittedVxc.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/Kinetic.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/FittedVxc.H" />
-		<Unit filename="src/HamiltonianImplementation/HamiltonianImplementation.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/LDAVxc.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/HamiltonianImplementation.H" />
-		<Unit filename="src/HamiltonianImplementation/HamiltonianTermImplementation.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/SlaterExchange.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/HamiltonianTermImplementation.H" />
-		<Unit filename="src/HamiltonianImplementation/HartreeFockVxc.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/Vee.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/HartreeFockVxc.H" />
-		<Unit filename="src/HamiltonianImplementation/Kinetic.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/Ven.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/Kinetic.H" />
-		<Unit filename="src/HamiltonianImplementation/LDAVxc.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/Vnn.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/LDAVxc.H" />
-		<Unit filename="src/HamiltonianImplementation/PolarizedFittedVxc.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/Vxc.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/PolarizedFittedVxc.H" />
-		<Unit filename="src/HamiltonianImplementation/PolarizedHartreeFockVxc.C">
-			<Option compilerVar="CPP" />
+		<Unit filename="src/Hamiltonian/VxcPol.C">
+			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/HamiltonianImplementation/PolarizedHartreeFockVxc.H" />
-		<Unit filename="src/HamiltonianImplementation/SlaterExchange.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/HamiltonianImplementation/SlaterExchange.H" />
 		<Unit filename="src/Imp/LAParams.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -599,9 +595,6 @@
 		<Unit filename="src/Orbitals/ElectronContainer.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Orbitals/Orbitals.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="src/Orbitals/TOrbital.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -613,6 +606,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/SCFIterator/SCFIterator.H" />
+		<Unit filename="src/TotalEnergy.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/UnitSymmetryQN.C">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -11,12 +11,12 @@
 #include <stdlib.h>
 
 LDAVxc::LDAVxc()
-    : HamiltonianTermImplementation( )
+    : HamiltonianTermImp( )
     , itsExchangeFunctional  (0)
 {};
 
-LDAVxc::LDAVxc(const rc_ptr<ExchangeFunctional>& lda)
-    : HamiltonianTermImplementation(   )
+LDAVxc::LDAVxc(const rc_ptr<ExFunctional>& lda)
+    : HamiltonianTermImp(   )
     , itsExchangeFunctional  (lda)
 {
     assert(&*itsExchangeFunctional);
@@ -24,7 +24,7 @@ LDAVxc::LDAVxc(const rc_ptr<ExchangeFunctional>& lda)
 
 void LDAVxc::UseChargeDensity(const ChargeDensity* exact)
 {
-    HamiltonianTermImplementation::UseChargeDensity(exact);
+    HamiltonianTermImp::UseChargeDensity(exact);
     itsExchangeFunctional->InsertChargeDensity(itsExactCD);
 }
 
@@ -55,7 +55,7 @@ std::ostream& LDAVxc::Write(std::ostream& os) const
 
 std::istream& LDAVxc::Read (std::istream& is)
 {
-    itsExchangeFunctional.reset(ExchangeFunctional::Factory(is));
+    itsExchangeFunctional.reset(ExFunctional::Factory(is));
     is >> *itsExchangeFunctional;
 
     return is;

@@ -14,14 +14,14 @@
 //  inserted by the constructor,  and is not owned by PolarizedFittedVxc, and as such
 //  does not get deleted by ~FittedVee.  The LDA function is owned by Vxc.
 //
-class PolarizedFittedVxc
+class FittedVxcPol
     : public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
-    PolarizedFittedVxc();
-    PolarizedFittedVxc(const rc_ptr<IrrepBasisSet>&, const rc_ptr<ExchangeFunctional>&, const rc_ptr<Mesh>& );
-   ~PolarizedFittedVxc();
+    FittedVxcPol();
+    FittedVxcPol(const rc_ptr<IrrepBasisSet>&, const rc_ptr<ExFunctional>&, const rc_ptr<Mesh>& );
+   ~FittedVxcPol();
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* exact);
     virtual void GetEnergy       (TotalEnergy&               ) const;

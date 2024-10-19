@@ -5,7 +5,7 @@
 #include <TotalEnergy.H>
 
 Kinetic::Kinetic()
-    : HamiltonianTermImplementation()
+    : HamiltonianTermImp()
 {};
 
 

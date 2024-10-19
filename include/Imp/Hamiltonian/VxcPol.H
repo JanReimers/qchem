@@ -1,6 +1,6 @@
-// File: PolarizedHartreeFockVxc.H  Fitted exchange potential.
-#ifndef _PolarizedHartreeFockVxc_H_
-#define _PolarizedHartreeFockVxc_H_
+// File: VxcPol.H  Polarized HF exchange potential
+#ifndef _VxcPol_H_
+#define _VxcPol_H_
 
 
 
@@ -14,13 +14,13 @@
 //  inserted by the constructor,  and is not owned by PolarizedHartreeFockVxc, and as such
 //  does not get deleted by ~FittedVee.  The LDA function is owned by Vxc.
 //
-class PolarizedHartreeFockVxc
+class VxcPol
     : public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
-    PolarizedHartreeFockVxc();
-    ~PolarizedHartreeFockVxc();
+    VxcPol();
+    ~VxcPol();
     // Required by HamiltonianTerm
     virtual void           GetEnergy(TotalEnergy& ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
@@ -32,4 +32,4 @@ private:
 
 };
 
-#endif //_PolarizedHartreeFockVxc_H_
+#endif //_VxcPol_H_

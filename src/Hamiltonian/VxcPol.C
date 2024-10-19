@@ -1,4 +1,4 @@
-// File: PolarizedHartreeFockVxc.C  Fitted exchange potential.
+// File: VxcPol.C  Polarized HF exchange potential
 
 
 
@@ -14,16 +14,16 @@
 #include <iostream>
 #include <stdlib.h>
 
-PolarizedHartreeFockVxc::PolarizedHartreeFockVxc()
-    : HamiltonianTermImplementation     ( )
+VxcPol::VxcPol()
+    : HamiltonianTermImp     ( )
 {
 };
 
-PolarizedHartreeFockVxc::~PolarizedHartreeFockVxc()
+VxcPol::~VxcPol()
 {
 }
 
-bool PolarizedHartreeFockVxc::IsPolarized() const
+bool VxcPol::IsPolarized() const
 {
     return true;
 }
@@ -41,7 +41,7 @@ bool PolarizedHartreeFockVxc::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat PolarizedHartreeFockVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat VxcPol::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
 {
     if  (s.itsState==Spin::None)
     {
@@ -54,12 +54,12 @@ HamiltonianTerm::SMat PolarizedHartreeFockVxc::CalculateHamiltonianMatrix(const 
     SMat Kab=SpinCD->GetExchange(bs)*-1.0;
     return Kab;
 }
-void PolarizedHartreeFockVxc::GetEnergy(TotalEnergy& te) const
+void VxcPol::GetEnergy(TotalEnergy& te) const
 {
     te.Exc += 0.5*CalculateEnergy(); //This should sum K^alpha and K^beta.
 }
 
-std::ostream& PolarizedHartreeFockVxc::Write(std::ostream& os) const
+std::ostream& VxcPol::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
         os << "    Polarized Hartee-Fock exchange potential." << std::endl;

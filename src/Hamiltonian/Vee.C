@@ -1,4 +1,4 @@
-// File: ExactVee.C  Exact Coulomb potential
+// File: Vee.C  Electron-Electron Coulomb potential
 
 
 
@@ -10,8 +10,8 @@
 #include <iostream>
 #include <stdlib.h>
 
-ExactVee::ExactVee()
-    : HamiltonianTermImplementation()
+Vee::Vee()
+    : HamiltonianTermImp()
 {};
 
 
@@ -25,13 +25,13 @@ ExactVee::ExactVee()
 //  Where ro is the charge density.
 //
 
-HamiltonianTerm::SMat ExactVee::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Vee::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     assert(itsExactCD);
     return itsExactCD->GetRepulsion(bs);
 }
 
-void ExactVee::GetEnergy(TotalEnergy& te) const
+void Vee::GetEnergy(TotalEnergy& te) const
 {
     assert(itsExactCD);
     te.Eee=0.5*CalculateEnergy();
@@ -39,7 +39,7 @@ void ExactVee::GetEnergy(TotalEnergy& te) const
     te.EeeFitFit = 0.0;
 }
 
-std::ostream& ExactVee::Write(std::ostream& os) const
+std::ostream& Vee::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
         os << "    Coulomb potential ro(r_2)/r_12" << std::endl;

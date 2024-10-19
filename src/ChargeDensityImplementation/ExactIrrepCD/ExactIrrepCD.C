@@ -111,7 +111,7 @@ template <> ChargeDensity::SMat ExactIrrepCD<std::complex<double> >::GetExchange
 
 template <class T> double ExactIrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
 {
-    const HamiltonianTermImplementation* vi=dynamic_cast<const HamiltonianTermImplementation*>(v);
+    const HamiltonianTermImp* vi=dynamic_cast<const HamiltonianTermImp*>(v);
     assert(vi);
     T ComplexE=Sum(DirectMultiply(itsDensityMatrix,vi->GetCachedMatrix(itsBasisSet,itsSpin)));
     assert(fabs(imag(ComplexE))<1e-8);

@@ -1,6 +1,6 @@
-// File: ExactVen.H  Nuclear potential.
-#ifndef _ExactVen_H_
-#define _ExactVen_H_
+// File: Ven.H  Electron-Nuclear potential.
+#ifndef _Ven_H_
+#define _Ven_H_
 
 
 
@@ -9,13 +9,13 @@
 #include <Cluster.H>
 #include "Misc/rc_ptr.H"
 
-class ExactVen
+class Ven
     : public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
-    ExactVen(                         );
-    ExactVen(const rc_ptr<Cluster>& cl);
+    Ven(                         );
+    Ven(const rc_ptr<Cluster>& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;
 
@@ -30,4 +30,4 @@ private:
     rc_ptr<Cluster> theCluster;
 };
 
-#endif //_ExactVen_H_
+#endif //_Ven_H_

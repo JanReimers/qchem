@@ -1,8 +1,6 @@
-// File: ExactVee.H  Exact Coulomb potential
-#ifndef _ExactVee_H_
-#define _ExactVee_H_
-
-
+// File: Vee.H  Electron-Electron Coulomb potential
+#ifndef _Vee_H_
+#define _Vee_H_
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 
@@ -18,12 +16,12 @@
 // matrix and MO basis functions.  This is the coulomb potential used in Hartree-Fock
 // claculations.
 //
-class ExactVee
+class Vee
     : public virtual HamiltonianTerm
-    , private HamiltonianTermImplementation
+    , private HamiltonianTermImp
 {
 public:
-    ExactVee();
+    Vee();
     // Required by HamiltonianTerm
     virtual void          GetEnergy(TotalEnergy& ) const;
     virtual std::ostream& Write    (std::ostream&) const;
@@ -33,4 +31,4 @@ private:
     virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 };
 
-#endif //_ExactVee_H_
+#endif //_Vee_H_

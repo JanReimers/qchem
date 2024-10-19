@@ -6,7 +6,7 @@
 
 class Kinetic
     : public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
     Kinetic(                         );

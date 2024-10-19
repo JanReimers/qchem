@@ -12,11 +12,11 @@
 #include <stdlib.h>
 
 CDFittedVee::CDFittedVee()
-    : HamiltonianTermImplementation()
+    : HamiltonianTermImp()
 {};
 
 CDFittedVee::CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>&  m, double numElectrons)
-    : HamiltonianTermImplementation()
+    : HamiltonianTermImp()
     , itsFittedChargeDensity(new FittedCDImplementation<double>(chargeDensityFitBasisSet,m,numElectrons))
 {
     assert(itsFittedChargeDensity);
@@ -24,7 +24,7 @@ CDFittedVee::CDFittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, 
 
 void CDFittedVee::UseChargeDensity(const ChargeDensity* cd)
 {
-    HamiltonianTermImplementation::UseChargeDensity(cd);
+    HamiltonianTermImp::UseChargeDensity(cd);
     itsFittedChargeDensity->DoFit(*cd);
 }
 //########################################################################

@@ -1,6 +1,6 @@
 // File: FittedVxc.C  Fitted exchange potential.
 
-
+ 
 
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/LDAVxc.H"
@@ -10,14 +10,14 @@
 #include "oml/imp/binio.h"
 
 FittedVxc::FittedVxc()
-    : HamiltonianTermImplementation     ( )
+    : HamiltonianTermImp     ( )
     , FittedFunctionImplementation<double>( )
     , itsLDAVxc                 (0)
 {};
 
 
-FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExchangeFunctional>& lda,const rc_ptr<Mesh>& m)
-    : HamiltonianTermImplementation     (   )
+FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExFunctional>& lda,const rc_ptr<Mesh>& m)
+    : HamiltonianTermImp     (   )
     , FittedFunctionImplementation<double>(bs,m) //Use regular overlap for fitting.
     , itsLDAVxc                 (new LDAVxc(lda))
 {};
@@ -29,7 +29,7 @@ FittedVxc::~FittedVxc()
 
 void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 {
-    HamiltonianTermImplementation::UseChargeDensity(exactCD);
+    HamiltonianTermImp::UseChargeDensity(exactCD);
     itsLDAVxc->UseChargeDensity(exactCD);
 
     DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap

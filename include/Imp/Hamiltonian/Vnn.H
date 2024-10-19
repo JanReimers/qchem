@@ -1,6 +1,6 @@
-// File: ExactVnn.H  Nuclear potential.
-#ifndef _ExactVnn_H_
-#define _ExactVnn_H_
+// File: Vnn.H  Nuclear-Nuclear potential.
+#ifndef _Vnn_H_
+#define _Vnn_H_
 
 
 
@@ -8,13 +8,13 @@
 #include <Cluster.H>
 #include "Misc/rc_ptr.H"
 
-class ExactVnn
+class Vnn
     : public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
-    ExactVnn(                         );
-    ExactVnn(const rc_ptr<Cluster>& cl);
+    Vnn(                         );
+    Vnn(const rc_ptr<Cluster>& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;
     // Required by PMStreamableObject
@@ -27,4 +27,4 @@ private:
     rc_ptr<Cluster> theCluster;
 };
 
-#endif //_ExactVnn_H_
+#endif //_Vnn_H_

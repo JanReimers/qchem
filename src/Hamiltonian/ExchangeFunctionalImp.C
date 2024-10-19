@@ -7,19 +7,19 @@
 #include "oml/vector.h"
 #include <cassert>
 
-ExchangeFunctionalImplementation::ExchangeFunctionalImplementation()
+ExFunctionalImp::ExFunctionalImp()
     : itsChargeDensity(0)
     , isPolarized(true)
 {};
 
 
-void ExchangeFunctionalImplementation::InsertChargeDensity(const ChargeDensity* theChargeDensity)
+void ExFunctionalImp::InsertChargeDensity(const ChargeDensity* theChargeDensity)
 {
     assert(theChargeDensity);
     itsChargeDensity=theChargeDensity;
 }
 
-void ExchangeFunctionalImplementation::Eval(const Mesh& m, Vector<double>& v) const
+void ExFunctionalImp::Eval(const Mesh& m, Vector<double>& v) const
 {
     assert(itsChargeDensity);
     Vector<double> ro=(*itsChargeDensity)(m);
@@ -27,7 +27,7 @@ void ExchangeFunctionalImplementation::Eval(const Mesh& m, Vector<double>& v) co
     v=GetVxcs(ro);
 }
 
-Vector<double> ExchangeFunctionalImplementation::GetVxcs(const Vector<double>& ros) const
+Vector<double> ExFunctionalImp::GetVxcs(const Vector<double>& ros) const
 {
     Vector<double> ret(ros.size());
     Vector<double>::iterator i(ret.begin());

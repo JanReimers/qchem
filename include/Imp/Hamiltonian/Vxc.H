@@ -1,6 +1,6 @@
-// File: HartreeFockVxc.H  HartreeFock Exchange potential, only useful for plotting.
-#ifndef _HartreeFockVxc_H_
-#define _HartreeFockVxc_H_
+// File: Vxc.H  Hartree-Fock Exchange potential
+#ifndef _Vxc_H_
+#define _Vxc_H_
 
 
 
@@ -8,14 +8,14 @@
 
 //###############################################################################
 //
-//  HartreeFock exchange potential.
+//  Hartree-Fock exchange potential.
 //
-class HartreeFockVxc
+class Vxc
     : public virtual HamiltonianTerm
-    , private        HamiltonianTermImplementation
+    , private        HamiltonianTermImp
 {
 public:
-    HartreeFockVxc();
+    Vxc();
 
     // Required by HamiltonianTerm
     virtual void           GetEnergy(TotalEnergy& ) const;
@@ -26,4 +26,4 @@ private:
     virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 };
 
-#endif //_HartreeFockVxc_H_
+#endif //_Vxc_H_

@@ -1,4 +1,4 @@
-// File: ExactVnn.C  Nuclear potential.
+// File: Vnn.C  Nuclear-Nuclear potential.
 
 
 
@@ -10,17 +10,17 @@
 #include "oml/vector3d.h"
 #include <cassert>
 
-ExactVnn::ExactVnn()
-    : HamiltonianTermImplementation()
+Vnn::Vnn()
+    : HamiltonianTermImp()
     , theCluster()
 {};
 
-ExactVnn::ExactVnn(const rc_ptr<Cluster>& cl)
-    : HamiltonianTermImplementation()
+Vnn::Vnn(const rc_ptr<Cluster>& cl)
+    : HamiltonianTermImp()
     , theCluster(cl)
 {};
 
-HamiltonianTerm::SMat ExactVnn::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Vnn::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMat ret(n,n);
@@ -28,7 +28,7 @@ HamiltonianTerm::SMat ExactVnn::CalculateHamiltonianMatrix(const IrrepBasisSet* 
     return ret;
 }
 
-void ExactVnn::GetEnergy(TotalEnergy& te) const
+void Vnn::GetEnergy(TotalEnergy& te) const
 {
     double vnn=0.0;
     for(auto atom1:*theCluster)
@@ -41,7 +41,7 @@ void ExactVnn::GetEnergy(TotalEnergy& te) const
     te.Enn=vnn;
 }
 
-std::ostream& ExactVnn::Write(std::ostream& os) const
+std::ostream& Vnn::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
     {
@@ -53,7 +53,7 @@ std::ostream& ExactVnn::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& ExactVnn::Read (std::istream& is)
+std::istream& Vnn::Read (std::istream& is)
 {
     theCluster.reset(Cluster::Factory(is));
     return is >> *theCluster;

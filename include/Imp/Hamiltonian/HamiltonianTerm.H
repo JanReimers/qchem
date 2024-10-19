@@ -1,6 +1,6 @@
 // File: HamiltonianTermImplementation.H  General implementation of a HamiltonianTerm term in the Hamiltonian.
-#ifndef _HamiltonianTermImplementation_H_
-#define _HamiltonianTermImplementation_H_
+#ifndef _HamiltonianTermImp_H_
+#define _HamiltonianTermImp_H_
 
 
 
@@ -9,11 +9,11 @@
 #include "oml/smatrix.h"
 #include <map>
 
-class HamiltonianTermImplementation
+class HamiltonianTermImp
     : public virtual HamiltonianTerm
 {
 public:
-    HamiltonianTermImplementation();
+    HamiltonianTermImp();
 
     virtual SMat BuildHamiltonian(const IrrepBasisSet* bs,const Spin&) const;
 

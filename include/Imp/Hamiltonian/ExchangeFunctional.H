@@ -7,7 +7,7 @@
 #include "Misc/pmstream.h"
 #include "Functions/ScalarFunction.H"
 
-class ExchangeFunctional
+class ExFunctional
     : public virtual PMStreamableObject
     , public virtual ScalarFunction<double>
 {
@@ -19,7 +19,7 @@ public:
 
     virtual std::ostream&       Write(std::ostream&) const=0;
     virtual std::istream&       Read (std::istream&)      =0;
-    static  ExchangeFunctional* Factory(std::istream&);
+    static  ExFunctional* Factory(std::istream&);
 };
 
 #endif //_ExchangeFunctional_H_
