@@ -435,18 +435,6 @@
 		<Unit filename="src/LASolver/LASolverOML.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Mesh/AngularMesh/AngularMesh.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/AngularMesh/AngularMesh.H" />
-		<Unit filename="src/Mesh/AngularMesh/AngularMeshBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/AngularMesh/AngularMeshBrowser.H" />
-		<Unit filename="src/Mesh/AngularMesh/AngularMeshImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/AngularMesh/AngularMeshImplementation.H" />
 		<Unit filename="src/Mesh/AngularMesh/EulerMaclarenAngularMesh.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -466,9 +454,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Mesh/AtomMesh.H" />
-		<Unit filename="src/Mesh/ComplexMeshIntegrator.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/Mesh/LinearMesh.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -477,14 +462,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Mesh/Mesh.H" />
-		<Unit filename="src/Mesh/MeshBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/MeshBrowser.H" />
-		<Unit filename="src/Mesh/MeshImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/MeshImplementation.H" />
 		<Unit filename="src/Mesh/MeshIntegrator.C">
 			<Option compilerVar="CPP" />
 		</Unit>
@@ -501,18 +478,7 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="src/Mesh/RadialMesh/MHLRadialMesh.H" />
-		<Unit filename="src/Mesh/RadialMesh/RadialMesh.C">
-			<Option compilerVar="CPP" />
-		</Unit>
 		<Unit filename="src/Mesh/RadialMesh/RadialMesh.H" />
-		<Unit filename="src/Mesh/RadialMesh/RadialMeshBrowser.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/RadialMesh/RadialMeshBrowser.H" />
-		<Unit filename="src/Mesh/RadialMesh/RadialMeshImplementation.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="src/Mesh/RadialMesh/RadialMeshImplementation.H" />
 		<Unit filename="src/Mesh/UnitCellMesh.C">
 			<Option compilerVar="CPP" />
 		</Unit>
