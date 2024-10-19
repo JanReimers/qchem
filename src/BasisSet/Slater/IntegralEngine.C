@@ -5,8 +5,6 @@
 #include "Imp/BasisSet/Slater/IEClient.H" 
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/Factorials.H"
-//#include "Imp/Integrals/GaussianIntegrals.H"
-//#include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include <Cluster.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
@@ -239,7 +237,7 @@ IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
 {
     auto a=dcast(iea);;
     RVec c(a->size());
-    for (auto i:a->es.indices())  c(i)=SlaterIntegral(a->es(i),a->Ls(i))*a->ns(i);
+    for (auto i:a->es.indices())  c(i)=SlaterIntegral(a->es(i),a->Ns(i)+1)*a->ns(i);
     return c;
 }
 
