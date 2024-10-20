@@ -27,7 +27,6 @@ template <class T> class VectorFunction;
 //  Forward declarations for qchem abstract base classes.
 //
 class Atom;
-class AngularMesh;
 class IrrepBasisSet;
 class BasisSet;
 class ChargeDensity;

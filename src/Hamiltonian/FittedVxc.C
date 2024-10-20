@@ -16,10 +16,10 @@ FittedVxc::FittedVxc()
 {};
 
 
-FittedVxc::FittedVxc(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExFunctional>& lda,const rc_ptr<Mesh>& m)
-    : HamiltonianTermImp     (   )
+FittedVxc::FittedVxc(bs_t& bs, ex_t& lda,mesh_t& m)
+    : HamiltonianTermImp       (   )
     , FittedFunctionImp<double>(bs,m) //Use regular overlap for fitting.
-    , itsLDAVxc                 (new LDAVxc(lda))
+    , itsLDAVxc                (new LDAVxc(lda))
 {};
 
 FittedVxc::~FittedVxc()

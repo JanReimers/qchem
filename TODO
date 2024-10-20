@@ -1,5 +1,8 @@
 Priority 1:
-    -Fix all warnings.
+    -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
+        is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
+        FitFuncImp had shared_ptr for basis set and mesh.
+    Done: -Fix all warnings.
     -Fix valgrind errors
         Seeing 1 errors related open MP
         Atom mesh leaks.  Should own radial and angular meshes?
@@ -21,9 +24,6 @@ Priority 1:
         Done: -Test the integrals with numerical integrations.
             Fixed: Numerical repulsion integrals don't give the right numbers.
     -Make a new PolG::IntegralEngine using libcint
-    -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
-        is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
-        FitFuncImp had shared_ptr for basis set and mesh.
     -Automate exponents for slater orbitals.  0.5->1.5*Z ?
         Done: for testing.
     Done: -Re-org UT class network.  too many classes.

@@ -6,6 +6,7 @@
 #include <Cluster.H>
 #include <BasisSet.H>
 #include <TotalEnergy.H>
+#include <memory>
 
 PeriodicTable QchemTester::itsPT;
 
@@ -130,13 +131,12 @@ HamiltonianTerm* HFHamiltonian:: GetVxc() const
 #include "Imp/Hamiltonian/ExchangeFunctional.H" 
 
 SHFHamiltonian::SHFHamiltonian(int Z)
-{
-    XcFunct=new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z));
-}
+    : XcFunct(new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z)))
+{}
+
 SHFHamiltonian::SHFHamiltonian(double ex)
-{
-    XcFunct=new SlaterExchange(ex);
-}
+    : XcFunct(new SlaterExchange(ex))
+{}    
 
 SHFHamiltonian::~SHFHamiltonian()
 {}
@@ -144,23 +144,24 @@ SHFHamiltonian::~SHFHamiltonian()
 
 HamiltonianTerm* SHFHamiltonian:: GetVxc() const
 {
-    rc_ptr<IrrepBasisSet> XFitBasis=GetXBasisSet();    
-    return new FittedVxc(XFitBasis, XcFunct,GetIntegrationMesh());
+    std::shared_ptr<const IrrepBasisSet> XFitBasis(GetXBasisSet());
+    std::shared_ptr<const Mesh>  m(GetIntegrationMesh());
+    return new FittedVxc(XFitBasis, XcFunct,m);
 }
 
 PolSHFHamiltonian::PolSHFHamiltonian(int Z)
-{
-    XcFunct=new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z),Spin(Spin::Up));
-}
+    : XcFunct(new SlaterExchange(QchemTester::itsPT.GetSlaterAlpha(Z),Spin(Spin::Up)))
+{}
+
 PolSHFHamiltonian::PolSHFHamiltonian(double ex)
-{
-    XcFunct=new SlaterExchange(ex);
-}
+    : XcFunct(new SlaterExchange(ex))
+{}
 
 HamiltonianTerm* PolSHFHamiltonian:: GetVxc() const
 {
-    rc_ptr<IrrepBasisSet> XFitBasis=GetXBasisSet();    
-    return new FittedVxcPol(XFitBasis,XcFunct ,GetIntegrationMesh());
+    std::shared_ptr<const IrrepBasisSet> XFitBasis(GetXBasisSet());  
+    std::shared_ptr<const Mesh>  m(GetIntegrationMesh());  
+    return new FittedVxcPol(XFitBasis,XcFunct ,m);
 }
 
 
@@ -174,13 +175,15 @@ HamiltonianTerm* PolHFHamiltonian:: GetVxc() const
 
 HamiltonianTerm* DFTHamiltonian::GetVee() const
 {
-    rc_ptr<IrrepBasisSet> CFitBasis=GetCBasisSet(); 
-    return new FittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
+    std::shared_ptr<const IrrepBasisSet> CFitBasis(GetCBasisSet()); 
+    std::shared_ptr<const Mesh>          m(GetIntegrationMesh());  
+    return new FittedVee(CFitBasis,m,GetZ());
 }
 HamiltonianTerm* PolDFTHamiltonian::GetVee() const
 {
-    rc_ptr<IrrepBasisSet> CFitBasis=GetCBasisSet(); 
-    return new FittedVee(CFitBasis,GetIntegrationMesh(),GetZ());
+    std::shared_ptr<const IrrepBasisSet> CFitBasis(GetCBasisSet()); 
+    std::shared_ptr<const Mesh>          m(GetIntegrationMesh());  
+    return new FittedVee(CFitBasis,m,GetZ());
 }
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"

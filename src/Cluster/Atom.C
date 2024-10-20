@@ -63,8 +63,8 @@ void Atom::SetChargeDensityFile(const char*  filename)
 
 Mesh* Atom::GetIntegrationMesh() const
 {
-    if (itsMesh) return itsMesh;
-    itsMesh->ShiftOrigin(itsR);
+//    if (itsMesh) return itsMesh;
+//    itsMesh->ShiftOrigin(itsR);
     return itsMesh;
 }
 
@@ -77,7 +77,7 @@ ChargeDensity* Atom::GetChargeDensity() const
 //        std::cerr << "Atom::GetChargeDensity charge density filename not initialized" << std::endl;
 //        exit(-1);
 //    }
-    ret->ShiftOrigin(itsR);
+//    ret->ShiftOrigin(itsR);
     return ret;
 }
 

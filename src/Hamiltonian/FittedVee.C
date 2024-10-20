@@ -15,7 +15,7 @@ FittedVee::FittedVee()
     : HamiltonianTermImp()
 {};
 
-FittedVee::FittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>&  m, double numElectrons)
+FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElectrons)
     : HamiltonianTermImp()
     , itsFittedChargeDensity(new FittedCDImp<double>(chargeDensityFitBasisSet,m,numElectrons))
 {

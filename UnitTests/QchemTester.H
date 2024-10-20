@@ -69,6 +69,7 @@ public:
 //Why??
 #include "Imp/Hamiltonian/ExchangeFunctional.H" 
 #include "BasisSet.H" 
+#include <memory>
 
 class SHFHamiltonian : public HFHamiltonian
 {
@@ -78,7 +79,7 @@ public:
     virtual ~SHFHamiltonian();
     virtual HamiltonianTerm* GetVxc() const;
 protected:
-    rc_ptr<ExFunctional> XcFunct;
+    mutable std::shared_ptr<ExFunctional> XcFunct;
 };
 
 class PolSHFHamiltonian : public HFHamiltonian
@@ -88,7 +89,7 @@ public:
     PolSHFHamiltonian(double ex);
     virtual HamiltonianTerm* GetVxc() const;
 private:
-    rc_ptr<ExFunctional> XcFunct;
+    mutable std::shared_ptr<ExFunctional> XcFunct;
 };
 
 class DFTHamiltonian : public SHFHamiltonian

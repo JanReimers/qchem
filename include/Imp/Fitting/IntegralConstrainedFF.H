@@ -10,8 +10,11 @@ template <class T> class IntegralConstrainedFF
     : public ConstrainedFF<T>
 {
 public:
+    typedef typename ConstrainedFF<T>::mesh_t mesh_t;
+    typedef typename ConstrainedFF<T>::bs_t   bs_t;
+
     IntegralConstrainedFF(                                   );
-    IntegralConstrainedFF(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& );
+    IntegralConstrainedFF(bs_t&, mesh_t& );
 };
 
 #endif //_IntegralConstraintFF_H_

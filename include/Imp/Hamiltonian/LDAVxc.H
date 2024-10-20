@@ -6,7 +6,8 @@
 
 #include "Imp/Hamiltonian/ExchangeFunctional.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include "Imp/Misc/rc_ptr.H"
+//#include "Imp/Misc/rc_ptr.H"
+#include <memory>
 
 //###############################################################################
 //
@@ -17,14 +18,15 @@ class LDAVxc
     , public virtual ScalarFFClient
     , private        HamiltonianTermImp
 {
+    typedef std::shared_ptr<ExFunctional> ex_t;
 public:
     LDAVxc();
-    LDAVxc(const rc_ptr<ExFunctional>& lda);
+    LDAVxc(ex_t& lda);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* exact);
     virtual void GetEnergy       (TotalEnergy&               ) const;
     // Required by FittablePotential.
-    virtual ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
+    virtual const ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
     
     virtual std::ostream&           Write(std::ostream&) const;
     virtual std::istream&           Read (std::istream&)      ;
@@ -32,7 +34,7 @@ private:
     virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 
-    rc_ptr<ExFunctional> itsExchangeFunctional;
+    ex_t itsExchangeFunctional;
 };
 
 #endif //_LDAVxc_H_

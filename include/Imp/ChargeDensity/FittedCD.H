@@ -16,10 +16,12 @@ template <class T> class FittedCDImp
     : public virtual FittedCD
     , public         IntegralConstrainedFF<T>
 {
+     typedef typename IntegralConstrainedFF<T>::mesh_t mesh_t;
+     typedef typename IntegralConstrainedFF<T>::bs_t   bs_t;
 public:
     FittedCDImp();
-    FittedCDImp(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& );
-    FittedCDImp(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>& , double totalCharge);
+    FittedCDImp(bs_t&, mesh_t&);
+    FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
     virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;

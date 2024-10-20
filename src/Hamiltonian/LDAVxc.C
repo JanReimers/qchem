@@ -15,7 +15,7 @@ LDAVxc::LDAVxc()
     , itsExchangeFunctional  (0)
 {};
 
-LDAVxc::LDAVxc(const rc_ptr<ExFunctional>& lda)
+LDAVxc::LDAVxc(ex_t& lda)
     : HamiltonianTermImp(   )
     , itsExchangeFunctional  (lda)
 {

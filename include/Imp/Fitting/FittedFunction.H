@@ -6,11 +6,13 @@
 
 #include <BasisSet.H>
 #include "Imp/Misc/rc_ptr.H"
+
 #include <FittedFunction.H>
 #include <Mesh.H>
 #include <LAParams.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
+#include <memory> // for std::shared_ptr
 
 template <class T> class FittedCDImp;
 template <class T> class ConstrainedFF;
@@ -25,9 +27,11 @@ template <class T> class FittedFunctionImp
 {
 public:
     typedef Vector<T> Vec;
-
+    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const IrrepBasisSet> bs_t;
+    
     FittedFunctionImp(                                         );
-    FittedFunctionImp(const rc_ptr<IrrepBasisSet>&, const rc_ptr<Mesh>&);
+    FittedFunctionImp(bs_t&, mesh_t&);
     ~FittedFunctionImp();
     
     virtual double DoFit           (const ScalarFFClient& )      ;
@@ -64,14 +68,14 @@ private:
     friend class ConstrainedFF<T>;
     const TIrrepBasisSet<T>* CastBasisSet() const
     {
-        return dynamic_cast<TIrrepBasisSet<T>*>(itsBasisSet.get());
+        return dynamic_cast<const TIrrepBasisSet<T>*>(itsBasisSet.get());
     }
 
-    rc_ptr<IrrepBasisSet> itsBasisSet;
-    Vec   itsFitCoeff;
-    SMat  itsInvOvlp;
-    SMat  itsInvRepl;
-    rc_ptr<Mesh> itsMesh;
+    bs_t     itsBasisSet;
+    Vec      itsFitCoeff;
+    SMat     itsInvOvlp;
+    SMat     itsInvRepl;
+    mesh_t   itsMesh;
     LAParams itsLAParams; //Decides about matrix inversion.
 };
 

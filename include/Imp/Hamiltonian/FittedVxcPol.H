@@ -6,7 +6,8 @@
 
 #include "Imp/Hamiltonian/ExchangeFunctional.H"
 #include "Imp/Hamiltonian/Hamiltonian.H"
-#include "Imp/Misc/rc_ptr.H"
+//#include "Imp/Misc/rc_ptr.H"
+#include <memory>
 
 //###############################################################################
 //
@@ -18,9 +19,13 @@ class FittedVxcPol
     : public virtual HamiltonianTerm
     , private        HamiltonianTermImp
 {
+    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const IrrepBasisSet> bs_t;
+    typedef std::shared_ptr<      ExFunctional>  ex_t;
+
 public:
     FittedVxcPol();
-    FittedVxcPol(const rc_ptr<IrrepBasisSet>&, const rc_ptr<ExFunctional>&, const rc_ptr<Mesh>& );
+    FittedVxcPol(bs_t&, ex_t&, mesh_t& );
    ~FittedVxcPol();
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* exact);

@@ -19,7 +19,7 @@ FittedVxcPol::FittedVxcPol()
     , itsDownVxc                  (0)
 {};
 
-FittedVxcPol::FittedVxcPol(const rc_ptr<IrrepBasisSet>& bs, const rc_ptr<ExFunctional>& lda, const rc_ptr<Mesh>& m)
+FittedVxcPol::FittedVxcPol(bs_t& bs, ex_t& lda, mesh_t& m)
     : HamiltonianTermImp(   )
     , itsUpVxc               (new FittedVxc(bs,lda,m))
     , itsDownVxc             (new FittedVxc(bs,lda,m))

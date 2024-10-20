@@ -19,13 +19,13 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImp<T>::
-FittedFunctionImp(const rc_ptr<IrrepBasisSet>& theFitBasisSet,const rc_ptr<Mesh>& m)
+FittedFunctionImp(bs_t& theFitBasisSet,mesh_t& m)
     : itsBasisSet(theFitBasisSet)
     , itsFitCoeff(theFitBasisSet->GetNumFunctions())
     , itsMesh    (m)
     , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
 {
-    assert(&*itsMesh);
+    assert(itsMesh);
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
     itsInvOvlp=itsBasisSet->GetInverseOverlap(itsLAParams);
@@ -214,7 +214,7 @@ template <class T> std::istream& FittedFunctionImp<T>::Read (std::istream& is)
 //        is >> itsCDFitFlag;
 
     itsBasisSet.reset(IrrepBasisSet::Factory(is));
-    is >> *itsBasisSet >> itsFitCoeff;
+    //is >> *itsBasisSet >> itsFitCoeff;
     return is;
 }
 

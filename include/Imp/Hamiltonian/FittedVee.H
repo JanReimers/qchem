@@ -5,7 +5,8 @@
 
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include "Imp/Misc/rc_ptr.H"
+//#include "Imp/Misc/rc_ptr.H"
+#include <memory>
 
 //###############################################################################
 //
@@ -24,9 +25,11 @@ class FittedVee
     : public virtual HamiltonianTerm
     , private        HamiltonianTermImp
 {
+    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const IrrepBasisSet> bs_t;
 public:
     FittedVee();
-    FittedVee(const rc_ptr<IrrepBasisSet>& chargeDensityFitBasisSet, const rc_ptr<Mesh>& m, double numElectrons);
+    FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const ChargeDensity* cd    )       ;
     virtual void GetEnergy       (TotalEnergy&               ) const;

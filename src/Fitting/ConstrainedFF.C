@@ -19,7 +19,7 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 {}
 
 template <class T> ConstrainedFF<T>::
-ConstrainedFF(const rc_ptr<IrrepBasisSet>& theFitBasisSet, const Vec& theg, const rc_ptr<Mesh>&  m)
+ConstrainedFF(bs_t& theFitBasisSet, const Vec& theg, mesh_t&  m)
     : FittedFunctionImp<T>(theFitBasisSet,m)
     , g  (theg)
     , gS (g*itsInvRepl)
