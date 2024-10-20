@@ -132,6 +132,11 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
                 s*=2*Pi/ab.AlphaP*ab.Eij;
             }
             break;
+        case qchem::InvOverlap :
+        case qchem::InvRepulsion :
+        case qchem::Charge :
+        case qchem::Normalization :
+            std::cerr << "GaussianRF::Integrate switch case not handled." <<  std::endl;
     } //switch
   
     return s;

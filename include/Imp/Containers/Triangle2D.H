@@ -16,23 +16,23 @@ class Triangle2D
 {
 public:
     Triangle2D(   );
-    Triangle2D(int);
+    Triangle2D(size_t);
 
-    double operator()(int row,int j) const
+    double operator()(size_t row,size_t j) const
     {
         CHECK(row,j);
         return itsData[row*(row+1)/2+j];
     }
-    double& operator()(int row, int j)
+    double& operator()(size_t row, size_t j)
     {
         CHECK(row,j);
         return itsData[row*(row+1)/2+j];
     }
  
 private:
-    void    Check(int,int) const;
+    void    Check(size_t,size_t) const;
 
-    int     N;
+    size_t     N;
     std::vector<double> itsData;
 };
 

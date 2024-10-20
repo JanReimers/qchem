@@ -99,10 +99,12 @@ template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& w,double tol)
 
 template <class T>  typename LASolverCommon<T>::SMat LASolverCommon<T>::MakeSymmetric(Mat& A,c_str name)
 {
-    double del=::MakeSymmetric(A); // A=0.5*(A+~A)
 #ifdef DEBUG
+    double del=::MakeSymmetric(A); // A=0.5*(A+~A)
     if (fabs(del) > 1e-9)
         std::cerr << "Warning: " << name << " asymmetry = " << del << " is big!" << std::endl;
+#else
+    ::MakeSymmetric(A); // A=0.5*(A+~A)
 #endif
     return A;
 }

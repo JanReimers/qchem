@@ -6,7 +6,10 @@ Priority 1:
     -kT Occ smearing fails miserably.
     -Clean up PolGaussian construction
     -Does UniqueID really need to enforce Read/Write?
-    -Get all headers into include.
+        Tightly couple with PMStreamableObject which is tightly coupled with
+        the Read/Write functions throughout.
+        -Need a mile high plan to io before doing anything.
+    Done: -Get all headers into include.
     -STO basis set for atoms.
         -Type out the integral formulas
         Done: -Use a static pascal triangle for I_k calculations.
@@ -16,7 +19,7 @@ Priority 1:
         -One alpha=Z/n basis function, to satisfy the cusp condition.
         Done: -Start coding the BF/BS/IE classes.
         Done: -Test the integrals with numerical integrations.
-            Numerical repulsion integrals don't give the right numbers.
+            Fixed: Numerical repulsion integrals don't give the right numbers.
     -Make a new PolG::IntegralEngine using libcint
     -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
         is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
@@ -45,17 +48,19 @@ Priority 1:
     -Done: Clean up factorial wigner 3j table init.  Too many calls.
     -G-orbs for gaussians?
     -Mesh re-org
-        -Support iterators.
+        Done: -Support iterators.
         -Cluster should support MakeMesh
-        -Move Mesh.H up to interfaces level.
-        -get <ss|1/r12|ss> working.
+        Done: -Move Mesh.H up to interfaces level.
+        Done: -get <ss|1/r12|ss> working.
         -Integration is doing two sets of loops
             1) eval BasisSet(r), loop over rs
             2) Integrate with weights, loop over ws.
             -Is better to just do a weighted eval with one loop?
                 The weighted eval should then use the sqrt(W).
+                Not always sqrt(W)!!!  i.e. charge integral.
         -use size() in VectorFunction<T>
-        -Do we really need separate Eval, and EvalGrad functions?
+            Got into a big mess with final overrider.
+        Done: No -Do we really need separate Eval, and EvalGrad functions?
     
 oml:
     **-SMAT does not support S+=Xpr
@@ -70,7 +75,7 @@ Priority 2:
         Done: -Stop deriving from StreamableObject  it is mostly static any way
         -Include binio in stream.h?
         -Move stream up from imp.
-    -Persistent base doesn't do anything.
+    Done:  Gone -Persistent base doesn't do anything.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
         
     
@@ -92,7 +97,7 @@ Priority 3:
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
-    -Mesh code re-write  use pairs of points/weights, also get rid of
+    Done: -Mesh code re-write  use pairs of points/weights, also get rid of
         MeshBrowser 
         AngularMeshBrowser 
         RadialMeshBrowser 
@@ -109,14 +114,8 @@ Priority 3:
             
     -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.
-    -Organize headers in the include folder.
-    
-            
-            -These can be prided by an IEEngineClient base interface?  
-        -Create Integrals folders for headers and code.
-        
-    -QuantumNumber.C 
-        
+    Done: -Organize headers in the include folder.
+       
     -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
     -Set up a CMake build.  Run from vscode.
     

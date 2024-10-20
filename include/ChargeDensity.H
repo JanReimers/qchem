@@ -4,7 +4,7 @@
 
 #include <ScalarFunction.H>
 #include <FittedFunctionClient.H>
-#include "Misc/pmstream.h"
+#include "Imp/Misc/pmstream.h"
 
 
 //----------------------------------------------------------------------------------

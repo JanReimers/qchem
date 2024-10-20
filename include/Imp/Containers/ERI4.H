@@ -1,7 +1,7 @@
 #ifndef ERI4_H
 #define ERI4_H
 
-#include "Misc/pmstream.h"
+#include "Imp/Misc/pmstream.h"
 #include "oml/smatrix.h"
 #include "oml/imp/cow.h"
 #include "oml/vector.h"

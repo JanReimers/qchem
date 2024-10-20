@@ -2,7 +2,7 @@
 #ifndef _Spin_H_
 #define _Spin_H_
 
-#include "Misc/pmstream.h"
+#include "Imp/Misc/pmstream.h"
 #include <iosfwd>
 
 class Spin : public virtual PMStreamableObject

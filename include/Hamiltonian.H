@@ -3,7 +3,7 @@
 #define _Hamiltonian_H_
 
 #include "types.H"
-#include "Misc/pmstream.h"
+#include "Imp/Misc/pmstream.h"
 
 //
 //  Abstract base for any HamiltonianTerm term in the Hamiltonian.

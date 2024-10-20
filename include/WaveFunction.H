@@ -4,7 +4,7 @@
 
 #include <types.H>
 #include <Spin.H>
-#include "Misc/pmstream.h"
+#include "Imp/Misc/pmstream.h"
 
 
 class WaveFunction 

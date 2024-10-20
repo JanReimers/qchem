@@ -60,7 +60,7 @@ bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
     double relax;
     double relMax=relax=ipar.StartingRelaxRo;
 
-    for (int i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
+    for (size_t i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian); //Just gets a set of eigen orbitals from the Hamiltonian
         DumpElectrons(itsWaveFunction,ipar.kT);

@@ -7,13 +7,13 @@ Triangle2D::Triangle2D()
     : N(-1)
 {};
 
-Triangle2D::Triangle2D(int theMaxSum)
+Triangle2D::Triangle2D(size_t theMaxSum)
     : N(theMaxSum)
     , itsData  ((N+1)*(N+2)/2)
 {};
 
 
-void Triangle2D::Check(int row,int j) const
+void Triangle2D::Check(size_t row,size_t j) const
 {
     if(row*(row+1)/2+j >= itsData.size())
     {

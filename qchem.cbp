@@ -151,10 +151,6 @@
 		<Unit filename="include/Imp/Misc/DFTFiles.H" />
 		<Unit filename="include/Imp/Misc/IntPower.H" />
 		<Unit filename="include/Imp/Misc/PeriodicTable.H" />
-		<Unit filename="include/Imp/Misc/Persistent/IDRef.H" />
-		<Unit filename="include/Imp/Misc/Persistent/PerDB.H" />
-		<Unit filename="include/Imp/Misc/Persistent/PerRef.H" />
-		<Unit filename="include/Imp/Misc/Persistent/Persistent.H" />
 		<Unit filename="include/Imp/Misc/UniqueID/UniqueID.H" />
 		<Unit filename="include/Imp/Misc/Unpickle.H" />
 		<Unit filename="include/Imp/Misc/rc_ptr.H" />

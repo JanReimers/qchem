@@ -3,7 +3,7 @@
 #define _Atom_H_
 
 #include "types.H"
-#include "Misc/pmstream.h"
+#include "Imp/Misc/pmstream.h"
 #include "oml/vector3d.h"
 #include <string>
 
