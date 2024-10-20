@@ -3,7 +3,9 @@
 
 
 #include "Imp/Cluster/Lattice.H"
+#include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
+#include "Imp/Cluster/MoleculeMesh.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include <iostream>
@@ -70,10 +72,15 @@ double Lattice::GetNumElectrons() const
     return itsAtoms->GetNumElectrons();
 }
 
-ChargeDensity* Lattice::GetChargeDensity() const
+Mesh*  Lattice::Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const
 {
-    return itsAtoms->GetChargeDensity();
+    return new MoleculeMesh(*itsAtoms,2,Nradial,Nangle);
 }
+
+//ChargeDensity* Lattice::GetChargeDensity() const
+//{
+//    return itsAtoms->GetChargeDensity();
+//}
 
 
 //----------------------------------------------------------

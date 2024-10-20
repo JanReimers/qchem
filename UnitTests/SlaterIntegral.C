@@ -7,23 +7,17 @@
 #include "Imp/BasisSet/Slater/BasisSet.H"
 #include "Imp/BasisSet/Slater/BasisFunction.H"
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
-
-//#include "Imp/BasisSet/Slater/IEClient.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
-#include "Imp/DataBase/HeapDB.H"
-//#include "Imp/Integrals/SlaterRadialIntegrals.H"
-//#include "Imp/Integrals/Wigner3j.H"
-#include "Imp/Mesh/MHLRadialMesh.H"
-#include "Imp/Mesh/GaussAngularMesh.H"
-#include "Imp/Cluster/AtomMesh.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
+#include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
-#include "Cluster.H"
-#include "BasisSet.H"
 #include "Imp/Containers/ERI4.H"
-#include "oml/imp/ran250.h"
 #include "Imp/Containers/ptr_vector.h"
+
+#include <Cluster.H>
+#include <BasisSet.H>
+#include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -44,27 +38,15 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new Slater::IntegralEngine())
-    , db(new HeapDB<double>())
-    , ibs(new Slater::IrrepBasisSet(lap,db,6,0.1,10,Lmax))
+//    , db(new HeapDB<double>())
+//    , ibs(new Slater::IrrepBasisSet(lap,db,6,0.1,10,Lmax))
     , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
-    , mesh(0)
     , cl(new Molecule())
-    , mintegrator()
     {
         StreamableObject::SetToPretty();
-        {
-            RadialMesh*  rm=new MHLRadialMesh(200,2U,1.0); //mem leak
-            Mesh* am=new GaussAngularMesh(1);      //mem leak
-            mesh=new AtomMesh(*rm,*am); 
-            mintegrator=new MeshIntegrator<double>(mesh);
-        }
-        {
-            RadialMesh*  rm=new MHLRadialMesh(200,2U,2.0); //mem leak
-            Mesh* am=new GaussAngularMesh(32);      //mem leak
-            rmesh=new AtomMesh(*rm,*am); 
-            rmintegrator=new MeshIntegrator<double>(rmesh);
-       }
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
+        mintegrator=new MeshIntegrator<double>(cl->Create_MHL_G_Mesh(200,1));
+        rmintegrator=new MeshIntegrator<double>(cl->Create_MHL_G_Mesh(200,32));
     }
     
     bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
@@ -75,11 +57,7 @@ public:
     int Lmax, Z;
     LAParams lap;
     AnalyticIE<double>* ie;
-    IntegralDataBase<double>* db;
-    Slater::IrrepBasisSet* ibs;
     Slater::BasisSet* bs;
-    Mesh* mesh;
-    Mesh* rmesh;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;
@@ -201,7 +179,6 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
-        //cout << S << endl;
         SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
 

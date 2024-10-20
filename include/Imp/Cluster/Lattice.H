@@ -34,7 +34,9 @@ public:
     virtual int            GetNuclearCharge   () const;
     virtual double         GetNetCharge       () const;
     virtual double         GetNumElectrons    () const;
-    virtual ChargeDensity* GetChargeDensity   () const;
+    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const;
+
+    //virtual ChargeDensity* GetChargeDensity   () const;
 
     const  UnitCell& GetUnitCell() const
     {

@@ -2,9 +2,8 @@
 #ifndef _Cluster_H_
 #define _Cluster_H_
 
-#include "Imp/Cluster/Atom.H"
+#include "types.H"
 #include "Imp/Misc/UniqueID/UniqueID.H"
-#include <ScalarFunction.H>
 #include <vector>
 
 class Cluster
@@ -20,12 +19,12 @@ public:
         return false;
     }
 
-    virtual void           Insert    (Atom*    )      =0;
-    virtual size_t         GetNumAtoms        () const=0;
-    virtual int            GetNuclearCharge   () const=0;
-    virtual double         GetNetCharge       () const=0;
-    virtual double         GetNumElectrons    () const=0;
-    virtual ChargeDensity* GetChargeDensity   () const=0;
+    virtual void   Insert    (Atom*    )      =0;
+    virtual size_t GetNumAtoms      () const=0;
+    virtual int    GetNuclearCharge () const=0;
+    virtual double GetNetCharge     () const=0;
+    virtual double GetNumElectrons  () const=0;
+    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const=0;
     
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
@@ -33,8 +32,6 @@ public:
     virtual       iterator end  ()      =0;
 
     static  Cluster*       Factory    (std::istream&)        ;
-
-private:
 };
 
 #endif

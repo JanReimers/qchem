@@ -1,18 +1,18 @@
 // UTMain.C Main entry point for all unit tests.
 
-#include "gtest/gtest.h"
+#include "gtest/gtest.h"    
 
 int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
 
-//    testing::GTEST_FLAG(filter) = "M_*:Multiple/A_*";
-//    testing::GTEST_FLAG(filter) = "M_PG_SHF*";
+//  testing::GTEST_FLAG(filter) = "Multiple/A_*";
+//    testing::GTEST_FLAG(filter) = "M_PG_*";
 //
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
-//      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.Numerical";
+//      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_EigenSolverTests.*";

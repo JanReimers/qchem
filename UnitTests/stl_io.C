@@ -7,6 +7,7 @@
 #include "Imp/Containers/stl_io.h"
 #include "Imp/Containers/ptr_vector.h"
 #include "Imp/Containers/ptr_vector_io.h"
+#include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include <vector>
 #include <ostream>

@@ -6,18 +6,14 @@
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
-//#include "Imp/BasisSet/Slater/IEClient.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-#include "Imp/DataBase/HeapDB.H"
-//#include "Imp/Integrals/SlaterRadialIntegrals.H"
-//#include "Imp/Integrals/Wigner3j.H"
-#include "Imp/Mesh/MHLRadialMesh.H"
-#include "Imp/Mesh/GaussAngularMesh.H"
-#include "Imp/Cluster/AtomMesh.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"
+#include "Imp/Cluster/Atom.H"
 #include "Cluster.H"
+#include "oml/smatrix.h"
+#include "oml/matrix.h"
 #include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
@@ -39,28 +35,20 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new SphericalGaussian::IntegralEngine())
-    , db(new HeapDB<double>())
-    , ibs(new SphericalGaussian::IrrepBasisSet(lap,db,5,.01,100.0,0))
     , bs(new SphericalGaussian::BasisSet(lap,5,.01,100.0,Lmax))
-    , mesh(0)
     , cl(new Molecule())
     , mintegrator()
     {
         StreamableObject::SetToPretty();
-        RadialMesh*  rm=new MHLRadialMesh(200,3U,2.0); //mem leak
-        Mesh* am=new GaussAngularMesh(1);      //mem leak
-        mesh=new AtomMesh(*rm,*am); 
-        mintegrator=new MeshIntegrator<double>(mesh);
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
+        mintegrator=new MeshIntegrator<double>(cl->Create_MHL_G_Mesh(200,1));
+        
     }
     
     int Lmax, Z;
     LAParams lap;
     AnalyticIE<double>* ie;
-    IntegralDataBase<double>* db;
-    SphericalGaussian::IrrepBasisSet* ibs;
     SphericalGaussian::BasisSet* bs;
-    Mesh* mesh;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

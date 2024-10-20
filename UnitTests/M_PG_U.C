@@ -2,23 +2,14 @@
 
 #include "QchemTester.H"
 
-#include "Imp/Mesh/MHLRadialMesh.H"
-#include "Imp/Mesh/GaussAngularMesh.H"
-#include "Imp/Cluster/AtomMesh.H"
 #include "Imp/Cluster/Molecule.H"
+#include "Imp/Cluster/Atom.H"
 
 Molecule* MakeN2()
 {
-    RadialMesh*  rm=new MHLRadialMesh(100,2U,2.0);
-    Mesh* am=new GaussAngularMesh(12);
-    Mesh* atom_mesh=new AtomMesh(*rm,*am);
-    Atom* a1=new Atom(7,0,Vector3D<double>(-1.03,0,0));
-    Atom* a2=new Atom(7,0,Vector3D<double>( 1.04,0,0));
-    a1->SetMesh(atom_mesh);
-    a2->SetMesh(atom_mesh);
     Molecule* N2=new Molecule();
-    N2->Insert(a1);
-    N2->Insert(a2);
+    N2->Insert(new Atom(7,0,Vector3D<double>(-1.03,0,0)));
+    N2->Insert(new Atom(7,0,Vector3D<double>( 1.04,0,0)));
     return N2;
 }
 
@@ -35,7 +26,7 @@ public:
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(1e-2);
+        QchemTester::Init(3e-3);
     }
 };
 

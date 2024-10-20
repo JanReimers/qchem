@@ -14,13 +14,8 @@ public:
     Atom();
     Atom(int Z, double charge, const RVec3& R);
 
-    void  SetMesh             (Mesh*);
-    void  SetMeshFile         (const char*);
-    void  SetChargeDensityFile(const char*);
-
-    Mesh*          GetIntegrationMesh() const;
-    ChargeDensity* GetChargeDensity  () const;
-    double         GetNumElectrons   () const;
+    virtual double GetNumElectrons      () const;
+    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const;
 
     virtual std::ostream& Write  (std::ostream&) const;
     virtual std::istream& Read   (std::istream&)      ;
@@ -32,10 +27,6 @@ public:
 
 private:
     Atom& operator=(const Atom&);
-
-    std::string  itsMeshFileName; //Integration Mesh.
-    std::string  itsChargeDensityFileName;
-    mutable Mesh* itsMesh;
 };
 
 #endif

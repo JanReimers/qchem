@@ -219,6 +219,7 @@ BasisSet* PG_OBasis::GetBasisSet () const
 }
 
 
+#include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 TestAtom::TestAtom(int Z, int q)  
 {
@@ -227,15 +228,9 @@ TestAtom::TestAtom(int Z, int q)
     itsCluster=cl_t(cl);
 };
 
-#include "Imp/Mesh/MHLRadialMesh.H"
-#include "Imp/Mesh/GaussAngularMesh.H"
-#include "Imp/Cluster/AtomMesh.H"
-
 Mesh* TestAtom::GetIntegrationMesh() const
 {
-    RadialMesh*            rm=new MHLRadialMesh(50,2U,2.0); //mem leak
-    Mesh*           am=new GaussAngularMesh(1);      //mem leak
-    return new AtomMesh(*rm,*am); //why not own?
+    return itsCluster->Create_MHL_G_Mesh(50,1);
 }
 
 void TestMolecule::Init(Molecule* p)
@@ -244,11 +239,9 @@ void TestMolecule::Init(Molecule* p)
     itsCluster=cl_t(p);
 }
 
-
-#include "Imp/Cluster/MoleculeMesh.H"
 Mesh*    TestMolecule::GetIntegrationMesh() const
 {
-    return  new MoleculeMesh(*itsCluster,3);
+    return itsCluster->Create_MHL_G_Mesh(30,12);
 }
 
     

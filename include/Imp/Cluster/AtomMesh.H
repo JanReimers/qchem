@@ -7,8 +7,8 @@
 class AtomMesh : public Mesh
 {
 public:
-    AtomMesh(                                     ) {};
-    AtomMesh(const RadialMesh&, const Mesh&);
+    AtomMesh(                              ) {};
+    AtomMesh(const RadialMesh&, const Mesh&, const RVec3& R);
 
     virtual Mesh*  Clone(        ) const;
 };

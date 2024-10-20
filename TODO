@@ -1,5 +1,5 @@
 Priority 1:
-    -Cluster should support MakeMesh
+    Done: -Cluster should support MakeMesh
     -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
     -Add A-PG_*_* tests.
     -put periodic table in spreadsheet and read in a csv file.

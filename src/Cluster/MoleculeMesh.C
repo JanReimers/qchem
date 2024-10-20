@@ -3,6 +3,7 @@
 
 
 #include "Imp/Cluster/MoleculeMesh.H"
+#include "Imp/Cluster/Atom.H"
 #include <Cluster.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
@@ -20,9 +21,9 @@ void            CalcCellFunctions(Vector<double>&, const Matrix<double>&);
 //  Use Becke's fuzzy polyedra algorithm for integrating over a molecule.
 //  See A. D. Becke, J. Chem. Phys, 88(4), page 2547 (1988).
 //
-MoleculeMesh::MoleculeMesh(const Cluster& cl, int m)
+MoleculeMesh::MoleculeMesh(const Cluster& cl, int m,size_t Nradial, size_t Nangle)
 {
-    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m);
+    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m,Nradial,Nangle);
 }
 
 
@@ -31,7 +32,7 @@ Mesh* MoleculeMesh::Clone() const
     return new MoleculeMesh(*this);
 }
 
-void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m)
+void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m,size_t Nradial, size_t Nangle)
 {
     assert(m>=0);
 //
@@ -55,7 +56,8 @@ void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m)
     Matrix<double> s(na,na);
     Vector<double> P(na);
 
-    for (auto rw: *n.GetIntegrationMesh())
+    Mesh* am= n.Create_MHL_G_Mesh(Nradial,Nangle);
+    for (auto rw: *am)
     {
         GetCutoffProfiles(s,nuclearPositions,::r(rw),m);
         CalcCellFunctions(P,s);
@@ -66,6 +68,7 @@ void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m)
             push_back(::r(rw),::w(rw)*relativeWeight);
         }
     }
+    delete am;
 }
 
 //

@@ -2,6 +2,7 @@
 
 
 
+#include "Imp/Cluster/Atom.H"
 #include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
 #include <BasisSet.H>

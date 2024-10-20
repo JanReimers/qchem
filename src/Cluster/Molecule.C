@@ -3,7 +3,9 @@
 
 
 #include "Imp/Cluster/Molecule.H"
-#include "Imp/ChargeDensity/CompositeCD.H"
+#include "Imp/Cluster/Atom.H"
+//#include "Imp/ChargeDensity/CompositeCD.H"
+#include "Imp/Cluster/MoleculeMesh.H"
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/imp/binio.h"
 #include <iostream>
@@ -43,12 +45,17 @@ double Molecule::GetNumElectrons() const
     return itsNumElectrons;
 }
 
-ChargeDensity* Molecule::GetChargeDensity() const
+Mesh*  Molecule::Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const
 {
-    CompositeCD* ret=new CompositeCD;
-    for(auto b:*this) ret->Insert(b->GetChargeDensity());
-    return ret;
+    return new MoleculeMesh(*this,2,Nradial,Nangle);
 }
+
+//ChargeDensity* Molecule::GetChargeDensity() const
+//{
+//    CompositeCD* ret=new CompositeCD;
+//    for(auto b:*this) ret->Insert(b->GetChargeDensity());
+//    return ret;
+//}
 
 std::ostream& Molecule::Write(std::ostream& os) const
 {
