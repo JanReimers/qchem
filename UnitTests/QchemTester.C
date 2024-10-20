@@ -33,9 +33,9 @@ void QchemTester::Init(double eps)
     assert(eps>0.0);
     MaxRelErrE=eps;
     
-    itsCluster=GetCluster(); //Atom or Molecule
+    assert(itsCluster);
     assert(&*itsCluster);
-    itsBasisSet=GetBasisSet(&*itsCluster); //SG, PG, Slater
+    itsBasisSet=GetBasisSet(); //SG, PG, Slater
     assert(itsBasisSet);
     itsHamiltonian=GetHamiltonian(itsCluster); //HF,semi HF, DFT all Pol or un-polarized.
     assert(itsHamiltonian);
@@ -52,6 +52,7 @@ void QchemTester::Iterate(const SCFIterationParams& ipar)
     assert(itsSCFIterator);
     itsSCFIterator->Iterate(ipar);
 }
+
 
 double QchemTester::TotalEnergy() const
 {
@@ -101,7 +102,7 @@ int QchemTester::GetZ() const
 #include "Imp/Hamiltonian/Vxc.H"
 #include "Imp/Hamiltonian/Ven.H"
 #include "Imp/Hamiltonian/Vnn.H"
-Hamiltonian* TestHamiltonian::GetHamiltonian(const rc_ptr<Cluster>& cl) const
+Hamiltonian* TestHamiltonian::GetHamiltonian(cl_t& cl) const
 {
     Hamiltonian* H=new HamiltonianImp();
     
@@ -188,7 +189,7 @@ HamiltonianTerm* PolDFTHamiltonian::GetVee() const
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-BasisSet* SG_OBasis::GetBasisSet (const Cluster*) const
+BasisSet* SG_OBasis::GetBasisSet () const
 {
     BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
     idb=bs->GetDataBase();
@@ -207,7 +208,7 @@ IrrepBasisSet* SG_OBasis::GetXBasisSet () const
 
 #include "Imp/BasisSet/Slater/BasisSet.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
-BasisSet* SL_OBasis::GetBasisSet (const Cluster*) const
+BasisSet* SL_OBasis::GetBasisSet () const
 {
     BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
     idb=bs->GetDataBase();
@@ -229,10 +230,10 @@ IrrepBasisSet* SL_OBasis::GetXBasisSet () const
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 
-BasisSet* PG_OBasis::GetBasisSet (const Cluster* cl) const
+BasisSet* PG_OBasis::GetBasisSet () const
 {
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    auto bs=new PolarizedGaussian::BasisSet(lap, &reader,cl);
+    auto bs=new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());
     idb=bs->GetDataBase();
     return  bs;
 }
@@ -251,13 +252,12 @@ IrrepBasisSet* PG_OBasis::GetXBasisSet () const
 
 
 #include "Imp/Cluster/Molecule.H"
-
-Cluster* TestAtom::GetCluster() const
+TestAtom::TestAtom(int Z, int q)  
 {
     Cluster* cl=new Molecule;
     cl->Insert(new Atom(Z,q,Vector3D<double>(0,0,0)));
-    return cl;
-}
+    itsCluster=cl_t(cl);
+};
 
 #include "Imp/Mesh/MHLRadialMesh.H"
 #include "Imp/Mesh/GaussAngularMesh.H"
@@ -273,10 +273,9 @@ Mesh* TestAtom::GetIntegrationMesh() const
 void TestMolecule::Init(Molecule* p)
 {
     assert(p);
-    itsCluster=p;
+    itsCluster=cl_t(p);
 }
 
-Cluster* TestMolecule::GetCluster() const {return itsCluster;}
 
 #include "Imp/Cluster/MoleculeMesh.H"
 Mesh*    TestMolecule::GetIntegrationMesh() const

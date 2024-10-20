@@ -15,7 +15,7 @@ Vnn::Vnn()
     , theCluster()
 {};
 
-Vnn::Vnn(const rc_ptr<Cluster>& cl)
+Vnn::Vnn(cl_t& cl)
     : HamiltonianTermImp()
     , theCluster(cl)
 {};
@@ -56,6 +56,6 @@ std::ostream& Vnn::Write(std::ostream& os) const
 std::istream& Vnn::Read (std::istream& is)
 {
     theCluster.reset(Cluster::Factory(is));
-    return is >> *theCluster;
+//    return is >> *theCluster;
 }
 

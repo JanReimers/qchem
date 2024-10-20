@@ -5,7 +5,6 @@
 
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-//#include "Imp/Misc/rc_ptr.H"
 #include <memory>
 
 //###############################################################################

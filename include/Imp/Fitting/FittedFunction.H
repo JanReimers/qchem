@@ -5,8 +5,6 @@
 
 
 #include <BasisSet.H>
-#include "Imp/Misc/rc_ptr.H"
-
 #include <FittedFunction.H>
 #include <Mesh.H>
 #include <LAParams.H>

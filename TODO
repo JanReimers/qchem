@@ -1,7 +1,41 @@
 Priority 1:
+    -ID, streaming
+        1) Test boost::serialization, does it work for shared pointers???
+            Looks like yes, can std::shared_ptr in the headers.
+        -We need a non-streamable UniqueID for caching GuassianCD amd RNLM objects.
+        -Separate UniquesID from streaming
+        -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
+        -What about pretty output?
+        -boost::serialization of OML objects.
+
+    -What can we use from boost:
+        -Filesystem
+        -Flyweight for GaussianCD s?
+        -Foreach looping
+        -iostream state saver.
+        -iterator
+        -Logging
+        -Multi-index containers
+        -MySQL
+        -Pointer container, poly-container
+        -Program options
+        -Python interface generation.
+        -Range 
+        -uBlas,
+        -units
+        -Uuid
+        -Boost::Serialize is what we need for saving and restoring object trees.
+            Talks about boost::shared_pointer ... too old for sdt::shared_ptr?
+            Need to try.
+            
+    -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
+    -Add A-PG_*_* tests.
+    -put periodc table in spreadsheet and read in a csv file.
+    -Use BasisSet interface to create charge and Vxc fitting basis sets.
     -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
         is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
-        FitFuncImp had shared_ptr for basis set and mesh.
+        Done: FitFuncImp had shared_ptr for basis set and mesh.
+        Use std:: for Cluster pointers.
     Done: -Fix all warnings.
     -Fix valgrind errors
         Seeing 1 errors related open MP

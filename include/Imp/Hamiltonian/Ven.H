@@ -7,15 +7,16 @@
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include <Cluster.H>
-#include "Imp/Misc/rc_ptr.H"
+#include <memory>
 
 class Ven
     : public virtual HamiltonianTerm
     , private        HamiltonianTermImp
 {
 public:
+    typedef std::shared_ptr<const Cluster> cl_t;
     Ven(                         );
-    Ven(const rc_ptr<Cluster>& cl);
+    Ven(cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;
 
@@ -27,7 +28,7 @@ private:
     virtual bool DependsOnChargeDensity() const {return false;}
     virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
 
-    rc_ptr<Cluster> theCluster;
+    cl_t theCluster;
 };
 
 #endif //_Ven_H_

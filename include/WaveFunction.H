@@ -22,9 +22,6 @@ public:
     virtual std::istream&   Read (std::istream&)      =0;
     static  WaveFunction* Factory(std::istream&)        ;
 
-//protected:
-//    void FixUpPointer(OrbitalGroup* og, const rc_ptr<const IrrepBasisSet>& bs);
-
 private:
     WaveFunction& operator=(const WaveFunction&);
 };

@@ -12,22 +12,13 @@
 
 Ven::Ven() : HamiltonianTermImp() , theCluster() {};
 
-Ven::Ven(const rc_ptr<Cluster>& cl)
+Ven::Ven(cl_t& cl)
     : HamiltonianTermImp()
     , theCluster(cl)
 {
     assert(cl->GetNumAtoms()>0);
 };
 
-//double ExactVen::operator()(const RVec3& r) const
-//{
-//    return 1.0/!r;
-//}
-//
-//ExactVen::Vec3 ExactVen::Gradient(const RVec3& r) const
-//{
-//    return -r/!r;
-//}
 
 HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {

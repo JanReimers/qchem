@@ -14,11 +14,6 @@ template <class T> class Vector3D;
 
 typedef Vector3D<double> RVec3;
 //
-//  Forward declarations for misc. types.
-//
-template <class T> class rc_ptr;
-
-//
 //  Forward declarations for functions types.
 //
 template <class T> class ScalarFunction;

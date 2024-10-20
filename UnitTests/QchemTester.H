@@ -3,11 +3,10 @@
 
 #include "gtest/gtest.h"
 #include <types.H>
-#include "Imp/Misc/rc_ptr.H"
 #include <IterationParams.H>
 #include <LAParams.H>
 #include "Imp/Misc/PeriodicTable.H"
-
+#include <memory>
 
 class QchemTester
 {
@@ -22,20 +21,22 @@ public:
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
     
 protected:
+    typedef std::shared_ptr<const Cluster> cl_t;
+
     // Atom of Molecule functions
-    virtual Cluster*     GetCluster        () const=0;
-    virtual Mesh*        GetIntegrationMesh() const=0;
-    virtual int          GetZ              () const;
+    virtual const Cluster*  GetCluster        () const {return itsCluster.get();}
+    virtual Mesh*           GetIntegrationMesh() const=0;
+    virtual int             GetZ              () const;
     // Orbital Basis Set functions SG, PG, Slater
-    virtual BasisSet*      GetBasisSet   (const Cluster*) const=0;
+    virtual BasisSet*      GetBasisSet   () const=0;
     virtual IrrepBasisSet* GetCBasisSet  () const=0;
     virtual IrrepBasisSet* GetXBasisSet  () const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
-    virtual Hamiltonian* GetHamiltonian(const rc_ptr<Cluster>& cl) const=0;
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
     // Polarized or un-polarized
     virtual WaveFunction* GetWaveFunction(const BasisSet*) const=0;
 protected:
-    rc_ptr<Cluster> itsCluster;
+    cl_t          itsCluster;
     BasisSet*     itsBasisSet;
     Hamiltonian*  itsHamiltonian;
     WaveFunction* itsWaveFunction;
@@ -48,7 +49,7 @@ public:
 class TestHamiltonian : public virtual QchemTester
 {
 public:
-    virtual Hamiltonian* GetHamiltonian(const rc_ptr<Cluster>& cl) const;
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const;
     virtual HamiltonianTerm* GetVee() const=0;
     virtual HamiltonianTerm* GetVxc() const=0;
 };
@@ -126,7 +127,7 @@ public:
     }
      
 private:
-    virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual BasisSet*      GetBasisSet () const;
     virtual IrrepBasisSet* GetCBasisSet() const;
     virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
@@ -149,7 +150,7 @@ public:
     }
     
 private:
-    virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual BasisSet*      GetBasisSet () const;
     virtual IrrepBasisSet* GetCBasisSet() const;
     virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
@@ -163,7 +164,7 @@ class PG_OBasis : public virtual QchemTester
 public:
     PG_OBasis() : lap({qchem::Lapack,qchem::SVD,1e-4,1e-12}) {};     
 private:
-    virtual BasisSet*      GetBasisSet (const Cluster*) const;
+    virtual BasisSet*      GetBasisSet () const;
     virtual IrrepBasisSet* GetCBasisSet() const;
     virtual IrrepBasisSet* GetXBasisSet() const;
     LAParams lap;
@@ -177,25 +178,16 @@ private:
 class TestAtom : public virtual QchemTester
 {
 public:
-    TestAtom(int _Z, int _q=0) : Z(_Z), q(_q) {};
-    virtual Cluster* GetCluster() const;
+    TestAtom(int _Z, int _q=0);
     virtual Mesh*    GetIntegrationMesh() const;
-    virtual int      GetZ              () const {return Z;}
-private:
-    int Z,q; //Atomic # and charge.
-
 };
 
 class TestMolecule : public virtual QchemTester
 {
 public:
-    TestMolecule() : itsCluster(0) {};
+    TestMolecule() {};
     void Init(Molecule*);
-    
-    virtual Cluster* GetCluster() const;
     virtual Mesh*    GetIntegrationMesh() const;
-private:
-    Molecule* itsCluster;
 };
 
 
