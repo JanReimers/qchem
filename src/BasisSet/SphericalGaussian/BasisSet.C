@@ -14,13 +14,10 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double minexp, double maxexp, s
     for (size_t L=0;L<=Lmax;L++)
     {
         IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),N,minexp,maxexp,L);
-        Append(ibs);
-        Insert(ibs);
-        
+        Append(ibs); //IECleint
+        Insert(ibs); //Common with optr_vector     
     }
-        
-    
-        
 }
+
 
 } //namespace

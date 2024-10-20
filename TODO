@@ -30,9 +30,9 @@ Priority 1:
             
     -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
     -Add A-PG_*_* tests.
-    -put periodc table in spreadsheet and read in a csv file.
-    -Use BasisSet interface to create charge and Vxc fitting basis sets.
-    -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
+    -put periodic table in spreadsheet and read in a csv file.
+    Done: -Use BasisSet interface to create charge and Vxc fitting basis sets.
+    Deon: -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
         is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
         Done: FitFuncImp had shared_ptr for basis set and mesh.
         Use std:: for Cluster pointers.

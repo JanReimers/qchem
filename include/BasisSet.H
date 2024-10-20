@@ -70,9 +70,12 @@ public:
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
 //
-//  This is where the real work gets done.
+//  Creat helpers
 //
     virtual LASolver<double>* CreateSolver() const=0;
+    virtual IrrepBasisSet*    CreateCDFitBasisSet(const Cluster*) const=0;
+    virtual IrrepBasisSet*    CreateVxcFitBasisSet(const Cluster*) const=0;
+
 //
 //  Used by fitting routines.
 //
@@ -175,6 +178,15 @@ public:
 
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     const_Titerator beginT() const {return const_Titerator(begin());};
+    
+    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster* cl) const
+    {
+        return (*begin())->CreateCDFitBasisSet(cl);
+    }
+    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster* cl) const
+    {
+        return (*begin())->CreateVxcFitBasisSet(cl);
+    }
     
     static  BasisSet*  Factory(std::istream&    )      ;
 };

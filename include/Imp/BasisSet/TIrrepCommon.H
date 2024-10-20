@@ -67,7 +67,6 @@ public:
 
 protected:
     void  Insert(AnalyticIE<T>*);
-private:
     IntegralDataBase<T>* GetDataBase () const;
    
 //    virtual void EvalGrad(const Mesh&, Vec3Mat&) const;

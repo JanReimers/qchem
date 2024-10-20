@@ -55,7 +55,6 @@ std::ostream& Vnn::Write(std::ostream& os) const
 
 std::istream& Vnn::Read (std::istream& is)
 {
-    theCluster.reset(Cluster::Factory(is));
-//    return is >> *theCluster;
+    return is;
 }
 

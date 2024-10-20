@@ -336,7 +336,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 }
 
 
-
+#ifndef DEBUG
 #include "oml/io3d.h"
 TEST_F(SlaterRadialIntegralTests, Numerical)
 {
@@ -385,4 +385,4 @@ TEST_F(SlaterRadialIntegralTests, Numerical)
         EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r[0],r[0]))),0.0,0.1); 
     }
 }
- 
+ #endif

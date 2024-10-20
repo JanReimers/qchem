@@ -47,6 +47,19 @@ IrrepBasisSet::IrrepBasisSet(
 
 };
 
+IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
+{
+    double emin=es(1), emax=es(size());
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),size(),emin*2,emax*2,0);
+}
+
+IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
+{
+    double emin=es(1), emax=es(size());
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),size(),emin*2.0/3.0,emax*2.0/3.0,0);    
+}
+
+
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
     if (!Pretty())

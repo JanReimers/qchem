@@ -29,8 +29,8 @@ protected:
     virtual int             GetZ              () const;
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet*      GetBasisSet   () const=0;
-    virtual IrrepBasisSet* GetCBasisSet  () const=0;
-    virtual IrrepBasisSet* GetXBasisSet  () const=0;
+    virtual IrrepBasisSet* GetCBasisSet  () const;
+    virtual IrrepBasisSet* GetXBasisSet  () const;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
     // Polarized or un-polarized
@@ -128,12 +128,10 @@ public:
      
 private:
     virtual BasisSet*      GetBasisSet () const;
-    virtual IrrepBasisSet* GetCBasisSet() const;
-    virtual IrrepBasisSet* GetXBasisSet() const;
+
     int N,Lmax;
     double emin,emax;
     LAParams lap;
-    mutable IntegralDataBase<double>* idb;
 };
 
 class SL_OBasis : public virtual QchemTester
@@ -151,12 +149,9 @@ public:
     
 private:
     virtual BasisSet*      GetBasisSet () const;
-    virtual IrrepBasisSet* GetCBasisSet() const;
-    virtual IrrepBasisSet* GetXBasisSet() const;
     int N,Lmax;
     double emin,emax;
     LAParams lap;
-    mutable IntegralDataBase<double>* idb;
 };
 
 class PG_OBasis : public virtual QchemTester
@@ -165,10 +160,7 @@ public:
     PG_OBasis() : lap({qchem::Lapack,qchem::SVD,1e-4,1e-12}) {};     
 private:
     virtual BasisSet*      GetBasisSet () const;
-    virtual IrrepBasisSet* GetCBasisSet() const;
-    virtual IrrepBasisSet* GetXBasisSet() const;
     LAParams lap;
-    mutable IntegralDataBase<double>* idb;
 };
 
 //----------------------------------------------------------------------------------

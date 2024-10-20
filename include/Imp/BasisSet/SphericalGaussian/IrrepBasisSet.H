@@ -22,6 +22,9 @@ public:
     IrrepBasisSet();
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L);
 
+    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
+    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
+
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
     virtual ::IrrepBasisSet* Clone(            ) const;

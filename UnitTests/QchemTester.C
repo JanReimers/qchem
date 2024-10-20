@@ -93,6 +93,16 @@ int QchemTester::GetZ() const
 {
     return GetCluster()->GetNuclearCharge();
 }
+
+IrrepBasisSet* QchemTester::GetCBasisSet() const
+{
+    return itsBasisSet->CreateCDFitBasisSet(itsCluster.get());
+}
+
+IrrepBasisSet* QchemTester::GetXBasisSet() const
+{
+    return itsBasisSet->CreateVxcFitBasisSet(itsCluster.get());    
+}
     
 
 
@@ -188,66 +198,24 @@ HamiltonianTerm* PolDFTHamiltonian::GetVee() const
 }
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 BasisSet* SG_OBasis::GetBasisSet () const
 {
-    BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
-    idb=bs->GetDataBase();
-    return  bs;
-}
-
-IrrepBasisSet* SG_OBasis::GetCBasisSet () const
-{
-    return new SphericalGaussian::IrrepBasisSet(lap,idb,N,emin*2.0,emax*2.0,0);
-}
-
-IrrepBasisSet* SG_OBasis::GetXBasisSet () const
-{
-    return new SphericalGaussian::IrrepBasisSet(lap,idb,N,emin*2.0/3.0,emax*2.0/3.0,0);
+    return  new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
 }
 
 #include "Imp/BasisSet/Slater/BasisSet.H"
-#include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 BasisSet* SL_OBasis::GetBasisSet () const
 {
-    BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
-    idb=bs->GetDataBase();
-    return  bs;
+    return new Slater::BasisSet(lap,N,emin,emax,Lmax);
 }
-
-IrrepBasisSet* SL_OBasis::GetCBasisSet () const
-{
-    return new Slater::IrrepBasisSet(lap,idb,N,emin*2.0,emax*2.0,0);
-}
-
-IrrepBasisSet* SL_OBasis::GetXBasisSet () const
-{
-    return new Slater::IrrepBasisSet(lap,idb,N,emin*2.0/3.0,emax*2.0/3.0,0);
-}
-
 
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-#include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 
 BasisSet* PG_OBasis::GetBasisSet () const
 {
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    auto bs=new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());
-    idb=bs->GetDataBase();
-    return  bs;
-}
-
-IrrepBasisSet* PG_OBasis::GetCBasisSet () const
-{
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A2_coul.bsd");
-    return new PolarizedGaussian::IrrepBasisSet(lap,idb, &reader,GetCluster());
-}
-
-IrrepBasisSet* PG_OBasis::GetXBasisSet () const
-{
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
-    return new PolarizedGaussian::IrrepBasisSet(lap,idb, &reader,GetCluster());
+    return new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());
 }
 
 

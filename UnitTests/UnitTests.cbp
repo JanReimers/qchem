@@ -43,7 +43,6 @@
 			<Add option="-Wall" />
 			<Add option="-std=c++17" />
 			<Add option="-fopenmp" />
-			<Add directory="../src" />
 			<Add directory="../../oml/include" />
 			<Add directory="../include" />
 		</Compiler>
@@ -76,9 +75,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="M_PG_U.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="Persistence2.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="QchemTester.C">

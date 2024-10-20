@@ -6,6 +6,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H"
+#include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include <UnitSymmetryQN.H>
 #include <Cluster.H>
 #include "Imp/Containers/ptr_vector_io.h"
@@ -130,6 +131,20 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
         for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
             IrrepBasisSetCommon::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
 }//Compiler says these calls are ambiguous.  BUG
+
+
+IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster* cl) const
+{
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A2_coul.bsd");
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),&reader,cl);
+}
+
+IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster* cl) const
+{
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),&reader,cl);    
+}
+
 
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
