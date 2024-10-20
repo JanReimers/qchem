@@ -1,4 +1,59 @@
 Priority 1:
+    -Cluster should support MakeMesh
+    -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
+    -Add A-PG_*_* tests.
+    -put periodic table in spreadsheet and read in a csv file.
+    -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
+    -Fix valgrind errors
+        Seeing 1 errors related open MP
+        Atom mesh leaks.  Should own radial and angular meshes?
+    -kT Occ smearing fails miserably.
+    -Clean up PolGaussian construction
+    -Does UniqueID really need to enforce Read/Write?
+        Tightly couple with PMStreamableObject which is tightly coupled with
+        the Read/Write functions throughout.
+        -Need a mile high plan to io before doing anything.
+    -STO basis set for atoms.
+        -Type out the integral formulas
+        Done: -Use a static pascal triangle for I_k calculations.
+        Done: -Get maxL=4 working (f g functions)
+            Done: Need to automate the I_k expressions using binomial sum. 
+        -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
+        -One alpha=Z/n basis function, to satisfy the cusp condition.
+        Done: -Start coding the BF/BS/IE classes.
+        Done: -Test the integrals with numerical integrations.
+            Fixed: Numerical repulsion integrals don't give the right numbers.
+    -Make a new PolG::IntegralEngine using libcint
+    -Automate exponents for slater orbitals.  0.5->1.5*Z ?
+        Done: for testing.
+    -SCFSupervisor class:
+        Owns BS, H, WaveF, SCFIterator
+    -Electron loading problem/buf for Z=55 and up
+    -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
+                                    ^^^^^^^^^^^^^^
+    -G-orbs for gaussians?
+    -Mesh re-org
+        Done: -Support iterators.
+        Done: -Move Mesh.H up to interfaces level.
+        Done: -get <ss|1/r12|ss> working.
+        -Integration is doing two sets of loops
+            1) eval BasisSet(r), loop over rs
+            2) Integrate with weights, loop over ws.
+            -Is better to just do a weighted eval with one loop?
+                The weighted eval should then use the sqrt(W).
+                Not always sqrt(W)!!!  i.e. charge integral.
+        -use size() in VectorFunction<T>
+            Got into a big mess with final overrider.
+        Done: No -Do we really need separate Eval, and EvalGrad functions?
+    
+oml:
+    **-SMAT does not support S+=Xpr
+    -Support V*SymMat without including matrix.h
+    -Vector constructors with fill arguments was a really bad idea.
+    -GetColumn fails for SMatrix.
+
+      
+Priority 2:
     -ID, streaming
         1) Test boost::serialization, does it work for shared pointers???
             Looks like yes, can std::shared_ptr in the headers.
@@ -28,90 +83,14 @@ Priority 1:
             Talks about boost::shared_pointer ... too old for sdt::shared_ptr?
             Need to try.
             
-    -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
-    -Add A-PG_*_* tests.
-    -put periodic table in spreadsheet and read in a csv file.
-    Done: -Use BasisSet interface to create charge and Vxc fitting basis sets.
-    Deon: -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
-        is std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
-        Done: FitFuncImp had shared_ptr for basis set and mesh.
-        Use std:: for Cluster pointers.
-    Done: -Fix all warnings.
-    -Fix valgrind errors
-        Seeing 1 errors related open MP
-        Atom mesh leaks.  Should own radial and angular meshes?
-    -kT Occ smearing fails miserably.
-    -Clean up PolGaussian construction
-    -Does UniqueID really need to enforce Read/Write?
-        Tightly couple with PMStreamableObject which is tightly coupled with
-        the Read/Write functions throughout.
-        -Need a mile high plan to io before doing anything.
-    Done: -Get all headers into include.
-    -STO basis set for atoms.
-        -Type out the integral formulas
-        Done: -Use a static pascal triangle for I_k calculations.
-        Done: -Get maxL=4 working (f g functions)
-            Done: Need to automate the I_k expressions using binomial sum. 
-        -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
-        -One alpha=Z/n basis function, to satisfy the cusp condition.
-        Done: -Start coding the BF/BS/IE classes.
-        Done: -Test the integrals with numerical integrations.
-            Fixed: Numerical repulsion integrals don't give the right numbers.
-    -Make a new PolG::IntegralEngine using libcint
-    -Automate exponents for slater orbitals.  0.5->1.5*Z ?
-        Done: for testing.
-    Done: -Re-org UT class network.  too many classes.
-        Decouple
-            Basis set type
-            H type
-                Some H types need fit basis sets.
-            cluster type
-                Some basis sets only work with atoms
-        Use case:
-    -SCFSupervisor class:
-        Owns BS, H, WaveF, SCFIterator
-    -Electron loading problem/buf for Z=55 and up
-    -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
-                                    ^^^^^^^^^^^^^^
-    -Vosco LDA
-    Done: -Sort out Orbital category.  WF should not see OrbImp stuff.
-    Done: -Sort out Ham category.  WF should not see OrbImp stuff.
-    Done: -Sort out CD category.  WF should not see OrbImp stuff.
-        
-        
-    -Done: Clean up factorial wigner 3j table init.  Too many calls.
-    -G-orbs for gaussians?
-    -Mesh re-org
-        Done: -Support iterators.
-        -Cluster should support MakeMesh
-        Done: -Move Mesh.H up to interfaces level.
-        Done: -get <ss|1/r12|ss> working.
-        -Integration is doing two sets of loops
-            1) eval BasisSet(r), loop over rs
-            2) Integrate with weights, loop over ws.
-            -Is better to just do a weighted eval with one loop?
-                The weighted eval should then use the sqrt(W).
-                Not always sqrt(W)!!!  i.e. charge integral.
-        -use size() in VectorFunction<T>
-            Got into a big mess with final overrider.
-        Done: No -Do we really need separate Eval, and EvalGrad functions?
-    
-oml:
-    **-SMAT does not support S+=Xpr
-    -Support V*SymMat without including matrix.h
-    -Vector constructors with fill arguments was a really bad idea.
-    -GetColumn fails for SMatrix.
-
-      
-Priority 2:
     -Hunt for dynamic casts that can be removed using dynamic_cast iterator
     -Do something about the oml/imp includes.
         Done: -Stop deriving from StreamableObject  it is mostly static any way
         -Include binio in stream.h?
         -Move stream up from imp.
-    Done:  Gone -Persistent base doesn't do anything.
     -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-        
+     -Vosco LDA
+    
     
 Priority 3:
     
@@ -148,12 +127,33 @@ Priority 3:
             
     -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.
-    Done: -Organize headers in the include folder.
        
-    -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
     -Set up a CMake build.  Run from vscode.
     
 --------------------------------------------------------------------------------------
+    Fixed? -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
+    Done:  Gone -Persistent base doesn't do anything.
+    Done: -Organize headers in the include folder.
+    Done: -Get all headers into include.
+    Done: -Re-org UT class network.  too many classes.
+        Decouple
+            Basis set type
+            H type
+                Some H types need fit basis sets.
+            cluster type
+                Some basis sets only work with atoms
+        Use case:
+    Done: -Sort out Orbital category.  WF should not see OrbImp stuff.
+    Done: -Sort out Ham category.  WF should not see OrbImp stuff.
+    Done: -Sort out CD category.  WF should not see OrbImp stuff.
+        
+        
+    -Done: Clean up factorial wigner 3j table init.  Too many calls.
+   Done: -Use BasisSet interface to create charge and Vxc fitting basis sets.
+    Done: -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
+        Done: FitFuncImp had shared_ptr for basis set and mesh.
+        Use std:: for Cluster pointers.
+    Done: -Fix all warnings.
     Done: -Get rid of TwoLPlusOne
     Done -Do we still nee fast contraction functions?
     Done: -Design problem:  

@@ -1131,7 +1131,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729443325 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729446198 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	<SCFIterator.H>
 	<WaveFunction.H>
@@ -1154,11 +1154,8 @@
 	"Imp/Hamiltonian/VxcPol.H"
 	"Imp/Hamiltonian/FittedVee.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
-	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
-	"Imp/BasisSet/Slater/IrrepBasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-	"Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 	"Imp/Cluster/Molecule.H"
 	"Imp/Mesh/MHLRadialMesh.H"
