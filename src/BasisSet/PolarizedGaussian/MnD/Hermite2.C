@@ -126,7 +126,8 @@ Hermite2::Hermite2()
 {}
 
 
-
+//using std::cout;
+//using std::endl;
 Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int LA, int LB)
     : itsLA(LA)
     , itsLB(LB)
@@ -134,6 +135,9 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int LA, int 
     , e(-(itsLA+itsLB)+1,theArraySizes[itsLA][itsLB],0.0)
     , f(-(itsLA+itsLB)+1,theArraySizes[itsLA][itsLB],0.0)
 {
+    //cout << LA << " " << LB << " " <<  d.GetLimits() << " " << e.GetLimits() << " " <<  f.GetLimits() << endl;
+    assert(LA<LMAX+1);
+    assert(LB<LMAX+1);
     Vector<double>::Subscriptor sd(d);
     Vector<double>::Subscriptor se(e);
     Vector<double>::Subscriptor sf(f);

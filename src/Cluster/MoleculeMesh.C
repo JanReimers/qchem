@@ -35,7 +35,7 @@ Mesh* MoleculeMesh::Clone() const
 
 void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl,const MeshParams& mp)
 {
-    assert(m>=0);
+    assert(mp.m_mu>=0);
 //
 //  First find the index for this Atom.
 //
@@ -85,7 +85,7 @@ Vector<RVec3> GetPositions(const Cluster& cl)
 
 void GetCutoffProfiles(Matrix<double>& S, const Vector<RVec3>& R, const RVec3& r, int m_mu)
 {
-    assert(m>=0);
+    assert(m_mu>=0);
     int n=R.size();
     Matrix<double>::Subscriptor      Ss(S);
     for (int i=1; i<=n; i++)
