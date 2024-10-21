@@ -3,12 +3,14 @@
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
 
-template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
+template <class T> void FillPower(Vector<T>& arr,T start, T stop)
 {
   double del=(std::log(stop/start))/(double)(arr.size()-1);
   typename Vector<T>::iterator i=arr.begin();
   for (int n=0;i!=arr.end();i++,n++) *i=T(start*std::exp(n*del));
 }
+
+template void FillPower(Vector<double>& arr,double start, double stop);
 
 namespace Slater
 {

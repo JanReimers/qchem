@@ -24,6 +24,7 @@ public:
     typedef typename ::IrrepBasisSet::RVec RVec;
     IrrepBasisSet();
     IrrepBasisSet(const LAParams&, IntegralDataBase<double>*, Reader*, const Cluster*);
+    IrrepBasisSet(const LAParams&, IntegralDataBase<double>*,  size_t N, double emin, double emax, size_t L);
 
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;

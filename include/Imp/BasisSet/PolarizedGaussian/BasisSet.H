@@ -17,6 +17,8 @@ class BasisSet
 public:
     BasisSet() {};
     BasisSet(const LAParams&, Reader*, const Cluster*);
+    //! Make a primatives dentered at R=(0.0,0) with polarizations up to LMax
+    BasisSet(const LAParams&, size_t N, double emin, double emax, size_t LMax);
     
 };
 
