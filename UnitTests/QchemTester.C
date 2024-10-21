@@ -109,7 +109,6 @@ IrrepBasisSet* QchemTester::GetXBasisSet() const
 
 #include "Imp/Hamiltonian/Hamiltonian.H"
 #include "Imp/Hamiltonian/Kinetic.H"
-#include "Imp/Hamiltonian/Vxc.H"
 #include "Imp/Hamiltonian/Ven.H"
 #include "Imp/Hamiltonian/Vnn.H"
 Hamiltonian* TestHamiltonian::GetHamiltonian(cl_t& cl) const
@@ -131,6 +130,7 @@ HamiltonianTerm* HFHamiltonian:: GetVee() const
     return new Vee;
 }
 
+#include "Imp/Hamiltonian/Vxc.H"
 HamiltonianTerm* HFHamiltonian:: GetVxc() const
 {
     return new Vxc;
@@ -165,7 +165,7 @@ PolSHFHamiltonian::PolSHFHamiltonian(int Z)
 {}
 
 PolSHFHamiltonian::PolSHFHamiltonian(double ex)
-    : XcFunct(new SlaterExchange(ex))
+    : XcFunct(new SlaterExchange(ex,Spin(Spin::Up)))
 {}
 
 HamiltonianTerm* PolSHFHamiltonian:: GetVxc() const

@@ -6,7 +6,7 @@ int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
 
-//  testing::GTEST_FLAG(filter) = "Multiple/A_*";
+//  testing::GTEST_FLAG(filter) = "Multiple/A_*_DFT_*";
 //    testing::GTEST_FLAG(filter) = "M_PG_*";
 //
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";

@@ -6,6 +6,7 @@
 
 #include <Hamiltonian.H>
 #include "Imp/Containers/ptr_vector.h"
+#include <memory>
 
 class HamiltonianImp
     : public virtual Hamiltonian
@@ -23,6 +24,8 @@ public:
     virtual std::istream&     Read (std::istream&)      ;
 
 protected:
+    typedef std::shared_ptr<const Cluster> cl_t;
+    void InsertStandardTerms(cl_t & cl);
     optr_vector1<HamiltonianTerm*> itsHamiltonianTerms;
     const ChargeDensity*    itsExactCD;    //Exact charge density.
 };

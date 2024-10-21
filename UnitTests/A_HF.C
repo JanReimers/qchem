@@ -1,12 +1,12 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
-
+#include "Imp/Hamiltonian/Hamiltonians.H"
 //
 //  Un-polarized tests.
 //
 class A_SG_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, public SG_OBasis, HFHamiltonian, TestUnPolarized
+, public TestAtom, public SG_OBasis, TestUnPolarized
 {
 public:
     A_SG_HF_U() : TestAtom(GetParam()) {};
@@ -15,10 +15,15 @@ public:
         SG_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
     }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return new Ham_HF_U(cluster);
+    }
+    
 };
 
 class A_SL_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, public SL_OBasis, HFHamiltonian, TestUnPolarized
+, public TestAtom, public SL_OBasis, TestUnPolarized
 {
 public:
     A_SL_HF_U() : TestAtom(GetParam()) {};
@@ -26,6 +31,10 @@ public:
     {
         SL_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return new Ham_HF_U(cluster);
     }
 };
 
@@ -53,7 +62,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,18,36,54));
 //  Polarized tests.
 //
 class A_SG_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, public SG_OBasis, PolHFHamiltonian, TestPolarized
+, public TestAtom, public SG_OBasis, TestPolarized
 {
 public:
     A_SG_HF_P() : TestAtom(GetParam()),TestPolarized(GetParam()) {};
@@ -61,6 +70,10 @@ public:
     {
         SG_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return new Ham_HF_P(cluster);
     }
 };
 
@@ -75,7 +88,7 @@ TEST_P(A_SG_HF_P,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,5,7,37,53)); 
 
 class A_SL_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, public SL_OBasis, PolHFHamiltonian, TestPolarized
+, public TestAtom, public SL_OBasis, TestPolarized
 {
 public:
     A_SL_HF_P() : TestAtom(GetParam()),TestPolarized(GetParam()) {};
@@ -83,6 +96,10 @@ public:
     {
         SL_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return new Ham_HF_P(cluster);
     }
 };
 

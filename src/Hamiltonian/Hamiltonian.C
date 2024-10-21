@@ -3,6 +3,9 @@
 
 
 #include "Imp/Hamiltonian/Hamiltonian.H"
+#include "Imp/Hamiltonian/Kinetic.H"
+#include "Imp/Hamiltonian/Ven.H"
+#include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include <BasisSet.H>
@@ -21,6 +24,13 @@ HamiltonianImp::HamiltonianImp()
 void HamiltonianImp::Add(HamiltonianTerm* p)
 {
     itsHamiltonianTerms.push_back(p);
+}
+
+void HamiltonianImp::InsertStandardTerms(cl_t & cl)
+{
+    Add(new Kinetic);
+    Add(new Vnn(cl));
+    Add(new Ven(cl));
 }
 
 void HamiltonianImp::UseChargeDensity(const ChargeDensity* theExactCD)

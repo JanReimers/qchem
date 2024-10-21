@@ -1,31 +1,42 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
+#include "Imp/Hamiltonian/Hamiltonians.H"
 
 //
 //  Un-polarized tests.
 //
 class A_SG_DFT_U : public ::testing::TestWithParam<int>
-, public TestAtom, public SG_OBasis, DFTHamiltonian, TestUnPolarized
+, public TestAtom, public SG_OBasis, TestUnPolarized
 {
 public:
-    A_SG_DFT_U() : TestAtom(GetParam()), DFTHamiltonian(GetParam()) {};
+    A_SG_DFT_U() : TestAtom(GetParam()) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SG_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
     }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
+        return new Ham_DFT_U(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
+    }
 };
 
 class A_SL_DFT_U : public ::testing::TestWithParam<int>
-, public TestAtom, public SL_OBasis, DFTHamiltonian, TestUnPolarized
+, public TestAtom, public SL_OBasis, TestUnPolarized
 {
 public:
-    A_SL_DFT_U() : TestAtom(GetParam()), DFTHamiltonian(GetParam()) {};
+    A_SL_DFT_U() : TestAtom(GetParam()) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SL_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
+        return new Ham_DFT_U(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
     }
 };
 
@@ -52,14 +63,19 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SL_DFT_U,::testing::Values(2,4,10,18,36,54));
 //  Polarized tests.
 //
 class A_SG_DFT_P : public ::testing::TestWithParam<int>
-, public TestAtom, public SG_OBasis, PolDFTHamiltonian, TestPolarized
+, public TestAtom, public SG_OBasis, TestPolarized
 {
 public:
-    A_SG_DFT_P() : TestAtom(GetParam()), PolDFTHamiltonian(GetParam()),TestPolarized(GetParam()) {};
+    A_SG_DFT_P() : TestAtom(GetParam()),TestPolarized(GetParam()) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SG_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
+        return new Ham_DFT_P(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
     }
 };
 
@@ -74,14 +90,19 @@ TEST_P(A_SG_DFT_P,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DFT_P,::testing::Values(1,3,5,7,37,53)); //,3,5,7,37,53
 
 class A_SL_DFT_P : public ::testing::TestWithParam<int>
-, public TestAtom, public SL_OBasis, PolDFTHamiltonian, TestPolarized
+, public TestAtom, public SL_OBasis, TestPolarized
 {
 public:
-    A_SL_DFT_P() : TestAtom(GetParam()), PolDFTHamiltonian(GetParam()),TestPolarized(GetParam()) {};
+    A_SL_DFT_P() : TestAtom(GetParam()), TestPolarized(GetParam()) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SL_OBasis::Init(N,emin,emax,LMax);
         QchemTester::Init(1e-3);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
+        return new Ham_DFT_P(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
     }
 };
 
