@@ -46,69 +46,6 @@ public:
     double MaxRelErrE;
 };
 
-class TestHamiltonian : public virtual QchemTester
-{
-public:
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const;
-    virtual HamiltonianTerm* GetVee() const=0;
-    virtual HamiltonianTerm* GetVxc() const=0;
-};
-
-class HFHamiltonian : public TestHamiltonian
-{
-public:
-    virtual HamiltonianTerm* GetVee() const;
-    virtual HamiltonianTerm* GetVxc() const;
-};
-
-class PolHFHamiltonian : public HFHamiltonian
-{
-public:
-    virtual HamiltonianTerm* GetVxc() const;
-};
-
-//Why??
-#include "Imp/Hamiltonian/ExchangeFunctional.H" 
-#include "BasisSet.H" 
-#include <memory>
-
-class SHFHamiltonian : public HFHamiltonian
-{
-public:
-    SHFHamiltonian(int Z);
-    SHFHamiltonian(double ex);
-    virtual ~SHFHamiltonian();
-    virtual HamiltonianTerm* GetVxc() const;
-protected:
-    mutable std::shared_ptr<ExFunctional> XcFunct;
-};
-
-class PolSHFHamiltonian : public HFHamiltonian
-{
-public:
-    PolSHFHamiltonian(int Z);
-    PolSHFHamiltonian(double ex);
-    virtual HamiltonianTerm* GetVxc() const;
-private:
-    mutable std::shared_ptr<ExFunctional> XcFunct;
-};
-
-class DFTHamiltonian : public SHFHamiltonian
-{
-public:
-    DFTHamiltonian(int Z) : SHFHamiltonian(Z) {};
-    DFTHamiltonian(double ex) : SHFHamiltonian(ex) {};
-    virtual HamiltonianTerm* GetVee() const;
-};
-
-class PolDFTHamiltonian : public PolSHFHamiltonian
-{
-public:
-    PolDFTHamiltonian(int Z) : PolSHFHamiltonian(Z) {};
-    PolDFTHamiltonian(double ex) : PolSHFHamiltonian(ex) {};
-    virtual HamiltonianTerm* GetVee() const;
-};
-
 //------------------------------------------------------------------------------------
 //
 //  Basis sets
