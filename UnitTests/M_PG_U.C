@@ -5,7 +5,7 @@
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
-
+#include <MeshParams.H>
 
 Molecule* MakeN2()
 {
@@ -48,7 +48,8 @@ public:
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_SHF_U(cluster,Alpha_N2,GetIntegrationMesh(),itsBasisSet);
+        MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
+        return new Ham_SHF_U(cluster,Alpha_N2,GetMeshParams(),itsBasisSet);
     }
 };
 class M_PG_DFT_U : public ::testing::Test
@@ -63,7 +64,8 @@ public:
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_DFT_U(cluster,Alpha_N2,GetIntegrationMesh(),itsBasisSet);
+        //MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
+        return new Ham_DFT_U(cluster,Alpha_N2,GetMeshParams(),itsBasisSet);
     }
 };
 

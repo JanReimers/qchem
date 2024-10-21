@@ -17,8 +17,8 @@ public:
 class Ham_SHF_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_SHF_U(cl_t& cl,double alpha_ex, const Mesh* mesh, const BasisSet* or_bs);
-    Ham_SHF_U(cl_t& cl,ExFunctional*  , const Mesh* mesh, const BasisSet* or_bs);
+    Ham_SHF_U(cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* or_bs);
+    Ham_SHF_U(cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
 };
 
 //
@@ -27,8 +27,8 @@ public:
 class Ham_DFT_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_U(cl_t& cl,double alpha_ex, const Mesh* mesh, const BasisSet* fit_bs);
-    Ham_DFT_U(cl_t& cl,ExFunctional*  , const Mesh* mesh, const BasisSet* fit_bs);
+    Ham_DFT_U(cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* fit_bs);
+    Ham_DFT_U(cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* fit_bs);
 };
 
 //
@@ -46,8 +46,8 @@ public:
 class Ham_SHF_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_SHF_P(cl_t& cl,double alpha_ex, const Mesh* mesh, const BasisSet* or_bs);
-    Ham_SHF_P(cl_t& cl,ExFunctional*  , const Mesh* mesh, const BasisSet* or_bs);
+    Ham_SHF_P(cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* or_bs);
+    Ham_SHF_P(cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
 };
 
 //
@@ -56,7 +56,7 @@ public:
 class Ham_DFT_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_P(cl_t& cl,double alpha_ex, const Mesh* mesh, const BasisSet* or_bs);
-    Ham_DFT_P(cl_t& cl,ExFunctional*  , const Mesh* mesh, const BasisSet* or_bs);
+    Ham_DFT_P(cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* or_bs);
+    Ham_DFT_P(cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
 };
 

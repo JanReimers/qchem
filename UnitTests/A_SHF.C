@@ -2,7 +2,7 @@
 
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
-
+#include <MeshParams.H>
 //
 //  Un-polarized tests.
 //
@@ -19,7 +19,7 @@ public:
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
-        return new Ham_SHF_U(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
+        return new Ham_SHF_U(cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 
@@ -36,7 +36,7 @@ public:
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
-        return new Ham_SHF_U(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
+       return new Ham_SHF_U(cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 
 };
@@ -76,7 +76,7 @@ public:
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
-        return new Ham_SHF_P(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
+        return new Ham_SHF_P(cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 
 };
@@ -104,7 +104,7 @@ public:
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetParam());
-        return new Ham_SHF_P(cluster,alpha_ex,GetIntegrationMesh(),itsBasisSet);
+        return new Ham_SHF_P(cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 

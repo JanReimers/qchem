@@ -137,10 +137,9 @@ TestAtom::TestAtom(int Z, int q)
     itsCluster=cl_t(cl);
 };
 
-Mesh* TestAtom::GetIntegrationMesh() const
+MeshParams TestAtom::GetMeshParams() const
 {
-    MeshParams mp({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0});
-    return itsCluster->CreateMesh(mp);
+    return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0});
 }
 
 void TestMolecule::Init(Molecule* p)
@@ -149,10 +148,9 @@ void TestMolecule::Init(Molecule* p)
     itsCluster=cl_t(p);
 }
 
-Mesh*    TestMolecule::GetIntegrationMesh() const
+MeshParams TestMolecule::GetMeshParams() const
 {
-    MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
-    return itsCluster->CreateMesh(mp);
+    return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
 }
 
     

@@ -24,9 +24,9 @@ protected:
     typedef std::shared_ptr<const Cluster> cl_t;
 
     // Atom of Molecule functions
-    virtual const Cluster*  GetCluster        () const {return itsCluster.get();}
-    virtual Mesh*           GetIntegrationMesh() const=0;
-    virtual int             GetZ              () const;
+    virtual const Cluster*  GetCluster   () const {return itsCluster.get();}
+    virtual MeshParams      GetMeshParams() const=0;
+    virtual int             GetZ         () const;
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet*      GetBasisSet   () const=0;
     virtual IrrepBasisSet* GetCBasisSet  () const;
@@ -108,7 +108,7 @@ class TestAtom : public virtual QchemTester
 {
 public:
     TestAtom(int _Z, int _q=0);
-    virtual Mesh*    GetIntegrationMesh() const;
+    virtual MeshParams GetMeshParams() const;
 };
 
 class TestMolecule : public virtual QchemTester
@@ -116,7 +116,7 @@ class TestMolecule : public virtual QchemTester
 public:
     TestMolecule() {};
     void Init(Molecule*);
-    virtual Mesh*    GetIntegrationMesh() const;
+    virtual MeshParams  GetMeshParams() const;
 };
 
 
