@@ -135,12 +135,14 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 
 IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster* cl) const
 {
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A2_coul.bsd");
+    // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_coul.bsd");
     return new IrrepBasisSet(itsLAParams,GetDataBase(),&reader,cl);
 }
 
 IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster* cl) const
 {
+    // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
     return new IrrepBasisSet(itsLAParams,GetDataBase(),&reader,cl);    
 }

@@ -2,6 +2,8 @@
 
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
+#include "Imp/Cluster/Atom.H"
+#include "Imp/Cluster/Molecule.H"
 
 class HF_U : public virtual QchemTester
 {
@@ -38,6 +40,19 @@ public:
     }
 };
 
+class A_PG_HF_U : public ::testing::TestWithParam<int>
+, public TestMolecule, PG_OBasis, HF_U, TestUnPolarized
+{
+public:
+    A_PG_HF_U() : TestMolecule() {};
+    void Init()
+    { 
+        Molecule* m=new Molecule;
+        m->Insert(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
+        TestMolecule::Init(m);
+        QchemTester::Init(1e-3);
+    }
+};
 
 TEST_P(A_SG_HF_U,Multiple)
 {
@@ -56,6 +71,14 @@ TEST_P(A_SL_HF_U,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,18,36,54));
+
+TEST_P(A_PG_HF_U,Multiple)
+{
+    Init();
+    Iterate({40,1e-1,1.0,0.0,false});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
 
 
 class HF_P : public virtual QchemTester
@@ -112,3 +135,26 @@ TEST_P(A_SL_HF_P,Multiple)
 }
 
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,5,7,37,53)); 
+
+class A_PG_HF_P : public ::testing::TestWithParam<int>
+, public TestMolecule, PG_OBasis, HF_P, TestPolarized
+{
+public:
+    A_PG_HF_P() : TestMolecule(), TestPolarized(GetParam()) {};
+    void Init()
+    { 
+        Molecule* m=new Molecule;
+        m->Insert(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
+        TestMolecule::Init(m);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_P(A_PG_HF_P,Multiple)
+{
+    Init();
+    Iterate({40,1e-1,1.0,0.0,false});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,7,37)); //Z=51 is slow
+
