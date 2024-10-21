@@ -1,6 +1,6 @@
 Priority 1:
     Done: -Cluster should support CreateMesh
-    -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
+    Done: -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
     -Add A-PG_*_* tests.
     -put periodic table in spreadsheet and read in a csv file.
     -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
