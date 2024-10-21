@@ -15,7 +15,7 @@ public:
     Atom(int Z, double charge, const RVec3& R);
 
     virtual double GetNumElectrons      () const;
-    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const;
+    virtual Mesh*  CreateMesh(const MeshParams&) const;
 
     virtual std::ostream& Write  (std::ostream&) const;
     virtual std::istream& Read   (std::istream&)      ;

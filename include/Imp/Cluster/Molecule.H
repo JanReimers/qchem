@@ -17,7 +17,7 @@ public:
     virtual int    GetNuclearCharge   () const;
     virtual double GetNetCharge       () const;
     virtual double GetNumElectrons    () const;
-    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const;
+    virtual Mesh*  CreateMesh(const MeshParams&) const;
     
     virtual const_iterator begin() const {return itsAtoms.begin();}
     virtual const_iterator end  () const {return itsAtoms.end  ();} 

@@ -29,12 +29,12 @@ public:
     Lattice(const UnitCell&, const Vector3D<int>&,Cluster* Atoms); //Full  unit cell.
     ~Lattice();
 
-    virtual void           Insert        (Atom*)      ;
-    virtual size_t         GetNumAtoms        () const;
-    virtual int            GetNuclearCharge   () const;
-    virtual double         GetNetCharge       () const;
-    virtual double         GetNumElectrons    () const;
-    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const;
+    virtual void   Insert        (Atom*)      ;
+    virtual size_t GetNumAtoms        () const;
+    virtual int    GetNuclearCharge   () const;
+    virtual double GetNetCharge       () const;
+    virtual double GetNumElectrons    () const;
+    virtual Mesh*  CreateMesh(const MeshParams&) const;
 
     //virtual ChargeDensity* GetChargeDensity   () const;
 

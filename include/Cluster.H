@@ -24,7 +24,7 @@ public:
     virtual int    GetNuclearCharge () const=0;
     virtual double GetNetCharge     () const=0;
     virtual double GetNumElectrons  () const=0;
-    virtual Mesh*  Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const=0;
+    virtual Mesh*  CreateMesh(const MeshParams&) const=0;
     
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;

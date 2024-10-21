@@ -1,5 +1,6 @@
 
 #include "QchemTester.H"
+#include <MeshParams.H>
 #include <SCFIterator.H>
 #include <WaveFunction.H>
 #include <Hamiltonian.H>
@@ -138,7 +139,8 @@ TestAtom::TestAtom(int Z, int q)
 
 Mesh* TestAtom::GetIntegrationMesh() const
 {
-    return itsCluster->Create_MHL_G_Mesh(50,1);
+    MeshParams mp({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0});
+    return itsCluster->CreateMesh(mp);
 }
 
 void TestMolecule::Init(Molecule* p)
@@ -149,7 +151,8 @@ void TestMolecule::Init(Molecule* p)
 
 Mesh*    TestMolecule::GetIntegrationMesh() const
 {
-    return itsCluster->Create_MHL_G_Mesh(30,12);
+    MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
+    return itsCluster->CreateMesh(mp);
 }
 
     

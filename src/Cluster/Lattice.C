@@ -72,9 +72,9 @@ double Lattice::GetNumElectrons() const
     return itsAtoms->GetNumElectrons();
 }
 
-Mesh*  Lattice::Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const
+Mesh*  Lattice::CreateMesh(const MeshParams& mp) const
 {
-    return new MoleculeMesh(*itsAtoms,2,Nradial,Nangle);
+    return new MoleculeMesh(*itsAtoms,2,mp);
 }
 
 //ChargeDensity* Lattice::GetChargeDensity() const

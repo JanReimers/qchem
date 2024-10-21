@@ -37,6 +37,7 @@ class Hamiltonian;
 class HamiltonianTerm;
 class Molecule;
 class Mesh;
+class MeshParams;
 class Orbital;
 class Orbitals;
 class QuantumNumber;

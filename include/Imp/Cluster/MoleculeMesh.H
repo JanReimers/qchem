@@ -13,11 +13,11 @@ class MoleculeMesh : public Mesh
 {
 public:
     MoleculeMesh(                     ) {};
-    MoleculeMesh(const Cluster&, int m,size_t Nradial, size_t Nangle);
+    MoleculeMesh(const Cluster&, int m,const MeshParams& mp);
 
     virtual Mesh*  Clone() const;
 private:
-    void LoadFuzzyPoints  (const Atom&, const Cluster&, int m, size_t Nradial, size_t Nangle);
+    void LoadFuzzyPoints  (const Atom&, const Cluster&, int m, const MeshParams&);
 
 };
 

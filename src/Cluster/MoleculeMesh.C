@@ -21,9 +21,9 @@ void            CalcCellFunctions(Vector<double>&, const Matrix<double>&);
 //  Use Becke's fuzzy polyedra algorithm for integrating over a molecule.
 //  See A. D. Becke, J. Chem. Phys, 88(4), page 2547 (1988).
 //
-MoleculeMesh::MoleculeMesh(const Cluster& cl, int m,size_t Nradial, size_t Nangle)
+MoleculeMesh::MoleculeMesh(const Cluster& cl, int m,const MeshParams& mp)
 {
-    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m,Nradial,Nangle);
+    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m,mp);
 }
 
 
@@ -32,7 +32,7 @@ Mesh* MoleculeMesh::Clone() const
     return new MoleculeMesh(*this);
 }
 
-void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m,size_t Nradial, size_t Nangle)
+void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m,const MeshParams& mp)
 {
     assert(m>=0);
 //
@@ -56,7 +56,7 @@ void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m,size_
     Matrix<double> s(na,na);
     Vector<double> P(na);
 
-    Mesh* am= n.Create_MHL_G_Mesh(Nradial,Nangle);
+    Mesh* am= n.CreateMesh(mp);
     for (auto rw: *am)
     {
         GetCutoffProfiles(s,nuclearPositions,::r(rw),m);

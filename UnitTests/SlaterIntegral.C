@@ -15,6 +15,7 @@
 #include "Imp/Containers/ERI4.H"
 #include "Imp/Containers/ptr_vector.h"
 
+#include <MeshParams.H>
 #include <Cluster.H>
 #include <BasisSet.H>
 #include "oml/imp/ran250.h"
@@ -38,15 +39,15 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new Slater::IntegralEngine())
-//    , db(new HeapDB<double>())
-//    , ibs(new Slater::IrrepBasisSet(lap,db,6,0.1,10,Lmax))
     , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
     , cl(new Molecule())
     {
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
-        mintegrator=new MeshIntegrator<double>(cl->Create_MHL_G_Mesh(200,1));
-        rmintegrator=new MeshIntegrator<double>(cl->Create_MHL_G_Mesh(200,32));
+        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
+        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
+        MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,32,0,0});
+        rmintegrator=new MeshIntegrator<double>(cl->CreateMesh(rmp));
     }
     
     bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;

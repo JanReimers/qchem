@@ -7,7 +7,7 @@
 #include <RadialMesh.H>
 
 //
-// C.W. Murray,N.C. HandyandG.J. Laming, Mol. Phys.78 (1993) 997. 
+// C.W. Murray,N.C. Handy and G.J. Laming, Mol. Phys.78 (1993) 997. 
 //
 class MHLRadialMesh : public  RadialMesh
 {

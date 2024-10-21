@@ -45,9 +45,9 @@ double Molecule::GetNumElectrons() const
     return itsNumElectrons;
 }
 
-Mesh*  Molecule::Create_MHL_G_Mesh(size_t Nradial, size_t Nangle) const
+Mesh*  Molecule::CreateMesh(const MeshParams& mp) const
 {
-    return new MoleculeMesh(*this,2,Nradial,Nangle);
+    return new MoleculeMesh(*this,2,mp);
 }
 
 //ChargeDensity* Molecule::GetChargeDensity() const

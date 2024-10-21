@@ -11,7 +11,8 @@
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
-#include "Cluster.H"
+#include <MeshParams.H>
+#include <Cluster.H>
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include "oml/imp/ran250.h"
@@ -41,7 +42,8 @@ public:
     {
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
-        mintegrator=new MeshIntegrator<double>(cl->Create_MHL_G_Mesh(200,1));
+        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
+        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
         
     }
     
