@@ -139,7 +139,7 @@ TestAtom::TestAtom(int Z, int q)
 
 MeshParams TestAtom::GetMeshParams() const
 {
-    return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0});
+    return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
 }
 
 void TestMolecule::Init(Molecule* p)
@@ -150,7 +150,7 @@ void TestMolecule::Init(Molecule* p)
 
 MeshParams TestMolecule::GetMeshParams() const
 {
-    return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
+    return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
 }
 
     

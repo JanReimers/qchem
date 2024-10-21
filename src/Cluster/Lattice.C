@@ -74,7 +74,7 @@ double Lattice::GetNumElectrons() const
 
 Mesh*  Lattice::CreateMesh(const MeshParams& mp) const
 {
-    return new MoleculeMesh(*itsAtoms,2,mp);
+    return new MoleculeMesh(*itsAtoms,mp);
 }
 
 //ChargeDensity* Lattice::GetChargeDensity() const

@@ -5,6 +5,7 @@
 #include "Imp/Cluster/MoleculeMesh.H"
 #include "Imp/Cluster/Atom.H"
 #include <Cluster.H>
+#include <MeshParams.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include <cassert>
@@ -12,18 +13,18 @@
 #include <stdlib.h>
 
 Vector<RVec3>  GetPositions     (const Cluster&);
-void            GetCutoffProfiles(Matrix<double>&,const Vector<RVec3>&, const RVec3&, int);
-double          CutoffProfile    (const RVec3&,const RVec3&,const RVec3&,int);
-double          Poly             (double,int);
+void            GetCutoffProfiles(Matrix<double>&,const Vector<RVec3>&, const RVec3&, int m_mu);
+double          CutoffProfile    (const RVec3&,const RVec3&,const RVec3&,int m_mu);
+double          Poly             (double,int m_mu);
 void            CalcCellFunctions(Vector<double>&, const Matrix<double>&);
 
 //
 //  Use Becke's fuzzy polyedra algorithm for integrating over a molecule.
 //  See A. D. Becke, J. Chem. Phys, 88(4), page 2547 (1988).
 //
-MoleculeMesh::MoleculeMesh(const Cluster& cl, int m,const MeshParams& mp)
+MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
 {
-    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,m,mp);
+    for (auto atom:cl) LoadFuzzyPoints(*atom,cl,mp);
 }
 
 
@@ -32,7 +33,7 @@ Mesh* MoleculeMesh::Clone() const
     return new MoleculeMesh(*this);
 }
 
-void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m,const MeshParams& mp)
+void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl,const MeshParams& mp)
 {
     assert(m>=0);
 //
@@ -59,7 +60,7 @@ void MoleculeMesh::LoadFuzzyPoints(const Atom& n, const Cluster& cl, int m,const
     Mesh* am= n.CreateMesh(mp);
     for (auto rw: *am)
     {
-        GetCutoffProfiles(s,nuclearPositions,::r(rw),m);
+        GetCutoffProfiles(s,nuclearPositions,::r(rw),mp.m_mu);
         CalcCellFunctions(P,s);
 
         if(P(index)>0)
@@ -82,7 +83,7 @@ Vector<RVec3> GetPositions(const Cluster& cl)
     return ret;
 }
 
-void GetCutoffProfiles(Matrix<double>& S, const Vector<RVec3>& R, const RVec3& r, int m)
+void GetCutoffProfiles(Matrix<double>& S, const Vector<RVec3>& R, const RVec3& r, int m_mu)
 {
     assert(m>=0);
     int n=R.size();
@@ -91,25 +92,25 @@ void GetCutoffProfiles(Matrix<double>& S, const Vector<RVec3>& R, const RVec3& r
     {
         Ss(i,i)=0.0;
         for (int j=1; j<=n; j++)
-            if (i!=j) Ss(i,j)=CutoffProfile(R(i),R(j),r,m);
+            if (i!=j) Ss(i,j)=CutoffProfile(R(i),R(j),r,m_mu);
     }
 }
 
-double CutoffProfile(const RVec3& Ra,const RVec3& Rb,const RVec3& r,int m)
+double CutoffProfile(const RVec3& Ra,const RVec3& Rb,const RVec3& r,int m_mu)
 {
     assert(norm(Ra-Rb)!=0);
-    assert(m>=0);
+    assert(m_mu>=0);
     double u=(norm(r-Ra)-norm(r-Rb))/norm(Ra-Rb);
-    return Poly(u,m);
+    return Poly(u,m_mu);
 }
 
-double Poly(double u,int m)
+double Poly(double u,int m_mu)
 {
     assert(u<= 1.000000000001);
     assert(u>=-1.000000000001);
-    assert(m< 10);
-    assert(m>=0);
-    for (; m>0; m--) u=0.5*u*(3-u*u);
+    assert(m_mu< 10);
+    assert(m_mu>=0);
+    for (; m_mu>0; m_mu--) u=0.5*u*(3-u*u);
     return 0.5*(1-u);
 }
 

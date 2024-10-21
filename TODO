@@ -1,50 +1,25 @@
 Priority 1:
-    Done: -Cluster should support CreateMesh
-    Done: -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
-    -Add A-PG_*_* tests.
+    -Document and make UTs for all the mesh types.
     -put periodic table in spreadsheet and read in a csv file.
+        -Use python to read NIST DFT tables, and Hartree–Fock–Roothaan energies.txt
     -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
     -Fix valgrind errors
         Seeing 1 errors related open MP
         Atom mesh leaks.  Should own radial and angular meshes?
     -kT Occ smearing fails miserably.
     -Clean up PolGaussian construction
+        -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
+   
     -Does UniqueID really need to enforce Read/Write?
         Tightly couple with PMStreamableObject which is tightly coupled with
         the Read/Write functions throughout.
         -Need a mile high plan to io before doing anything.
-    -STO basis set for atoms.
-        -Type out the integral formulas
-        Done: -Use a static pascal triangle for I_k calculations.
-        Done: -Get maxL=4 working (f g functions)
-            Done: Need to automate the I_k expressions using binomial sum. 
-        -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
-        -One alpha=Z/n basis function, to satisfy the cusp condition.
-        Done: -Start coding the BF/BS/IE classes.
-        Done: -Test the integrals with numerical integrations.
-            Fixed: Numerical repulsion integrals don't give the right numbers.
+    -Clean up tech notes.
     -Make a new PolG::IntegralEngine using libcint
-    -Automate exponents for slater orbitals.  0.5->1.5*Z ?
-        Done: for testing.
-    -SCFSupervisor class:
-        Owns BS, H, WaveF, SCFIterator
     -Electron loading problem/buf for Z=55 and up
     -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
                                     ^^^^^^^^^^^^^^
     -G-orbs for gaussians?
-    -Mesh re-org
-        Done: -Support iterators.
-        Done: -Move Mesh.H up to interfaces level.
-        Done: -get <ss|1/r12|ss> working.
-        -Integration is doing two sets of loops
-            1) eval BasisSet(r), loop over rs
-            2) Integrate with weights, loop over ws.
-            -Is better to just do a weighted eval with one loop?
-                The weighted eval should then use the sqrt(W).
-                Not always sqrt(W)!!!  i.e. charge integral.
-        -use size() in VectorFunction<T>
-            Got into a big mess with final overrider.
-        Done: No -Do we really need separate Eval, and EvalGrad functions?
     
 oml:
     **-SMAT does not support S+=Xpr
@@ -88,11 +63,13 @@ Priority 2:
         Done: -Stop deriving from StreamableObject  it is mostly static any way
         -Include binio in stream.h?
         -Move stream up from imp.
-    -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-     -Vosco LDA
+    -Vosco LDA
     
     
 Priority 3:
+    -SCFSupervisor class:
+        Owns BS, H, WaveF, SCFIterator
+        Lest important now that Ham, mash, aux basis handling is mostly automated.
     
     -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
         -This would require separate derived classes like FitSGIrrepBasis derived from both SGIrrepBasis
@@ -110,10 +87,6 @@ Priority 3:
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
-    Done: -Mesh code re-write  use pairs of points/weights, also get rid of
-        MeshBrowser 
-        AngularMeshBrowser 
-        RadialMeshBrowser 
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     -If N_nucleus=1 (atom) leave out Vnn term.
     -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
@@ -131,6 +104,38 @@ Priority 3:
     -Set up a CMake build.  Run from vscode.
     
 --------------------------------------------------------------------------------------
+    Done: -Mesh code re-write  use pairs of points/weights, also get rid of
+        MeshBrowser 
+        AngularMeshBrowser 
+        RadialMeshBrowser 
+     Done: -Mesh re-org
+        Done: -Support iterators.
+        Done: -Move Mesh.H up to interfaces level.
+        Done: -get <ss|1/r12|ss> working.
+        -Integration is doing two sets of loops
+            1) eval BasisSet(r), loop over rs
+            2) Integrate with weights, loop over ws.
+            -Is better to just do a weighted eval with one loop?
+                The weighted eval should then use the sqrt(W).
+                Not always sqrt(W)!!!  i.e. charge integral.
+        -use size() in VectorFunction<T>
+            Got into a big mess with final overrider.
+        Done: No -Do we really need separate Eval, and EvalGrad functions?
+   -Automate exponents for slater orbitals.  0.5->1.5*Z ?
+        Done: for testing.
+    Done: -Cluster should support CreateMesh
+    Done: -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
+    Done: -Add A-PG_*_* tests.
+    -STO basis set for atoms.
+        -Type out the integral formulas
+        Done: -Use a static pascal triangle for I_k calculations.
+        Done: -Get maxL=4 working (f g functions)
+            Done: Need to automate the I_k expressions using binomial sum. 
+        -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
+        -One alpha=Z/n basis function, to satisfy the cusp condition.
+        Done: -Start coding the BF/BS/IE classes.
+        Done: -Test the integrals with numerical integrations.
+            Fixed: Numerical repulsion integrals don't give the right numbers.
     Fixed? -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
     Done:  Gone -Persistent base doesn't do anything.
     Done: -Organize headers in the include folder.

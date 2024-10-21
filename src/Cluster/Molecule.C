@@ -47,7 +47,7 @@ double Molecule::GetNumElectrons() const
 
 Mesh*  Molecule::CreateMesh(const MeshParams& mp) const
 {
-    return new MoleculeMesh(*this,2,mp);
+    return new MoleculeMesh(*this,mp);
 }
 
 //ChargeDensity* Molecule::GetChargeDensity() const
