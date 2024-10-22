@@ -52,7 +52,7 @@ public:
 TEST_F(MeshIntegralsTests, GaussAngles)
 {
     StreamableObject::SetToPretty();
-    cout.precision(2);
+    //cout.precision(2);
     size_t Nradial=100;
     cout << "alpha m      s        p         d"  << endl;
     for (size_t mMHL=2;mMHL<=4;mMHL++)
