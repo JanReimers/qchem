@@ -7,6 +7,11 @@
 #include "oml/vector3d.h"
 #include <iosfwd>
 
+//#define USE_CACHE
+
+#ifdef USE_CACHE
+#include <map>
+#endif
 
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients
@@ -28,9 +33,9 @@ namespace PolarizedGaussian
 class Hermite2
 {
 public:
-    Hermite2();
+    //Hermite2();
     Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int LA, int LB);
-
+    ~Hermite2();
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
@@ -38,21 +43,18 @@ public:
     virtual Hermite2* Clone(        ) const;
 
 private:
+    Hermite2(const Hermite2&) {};
+    Hermite2& operator=(const Hermite2&) {return *this;}
     RVec3 Get(int N,int na,int nb) const 
     {
         size_t index=GetIndex(N,na,nb);
         return RVec3(d[index],e[index],f[index]);
     } 
-    void Assign(int N,int na,int nb,const RVec3& a)
-    {
-        size_t index=GetIndex(N,na,nb);
-        d[index]=a.x;
-        e[index]=a.y;
-        f[index]=a.z;
-    }
-    
-
-    size_t GetIndex(size_t N, size_t na, size_t nb) const 
+    void Assign(int N,int na,int nb,const RVec3& a);
+    //
+    //  This has very high hits and total time in profiling.
+    //
+    inline size_t GetIndex(size_t N, size_t na, size_t nb) const 
     {
         assert(N>=0);
         assert(N<=LA+LB);
@@ -61,17 +63,17 @@ private:
         assert(nb>=0);
         assert(nb<=LB);
         assert(N<=na+nb);
-        size_t index=N*(LA+1)*(LB+1)+na*(LB+1)+nb;
-        if (d.size()>0 && index>d.size())
-            std::cout << N << " " << na << " " << nb << " " << index << " " << d.size() << std::endl;
-        assert(d.size()==0 || index<=d.size());
-        return index;
+        return N*LAB+na*LB1+nb;
     }
     size_t GetSize() const {return (LA+LB)*(LA+1)*(LB+1)+LA*(LB+1)+LB+1;}
 
 
-    int             LA, LB;
+    int LA, LB;
+    int LAB,LB1;
     std::vector<double> d,e,f;
+    #ifdef USE_CACHE
+    std::map<Polarization,size_t> indexCache;
+    #endif
 };
 
 } //namespace PolarizedGaussian

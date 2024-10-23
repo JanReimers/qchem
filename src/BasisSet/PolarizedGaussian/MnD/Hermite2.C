@@ -3,6 +3,7 @@
 
 
 #include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H"
+#include "Imp/BasisSet/PolarizedGaussian/Polarization.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/imp/binio.h"
 
@@ -63,10 +64,6 @@ using std::endl;
 //----------------------------------------------------------------------------------------
 
 
-Hermite2::Hermite2()
-    : LA(0)
-    , LB(0)
-{}
 
 
 inline bool near(double a, double b) 
@@ -98,32 +95,28 @@ inline RVec3 operator*(const RVec3& a, const int& b)
 Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int _LB)
     : LA(_LA)
     , LB(_LB)
+    , LAB((LA+1)*(LB+1))
+    , LB1(LB+1)    
     , d(GetSize())
     , e(GetSize())
     , f(GetSize())
 {
     assert(_LA>=0);
     assert(_LB>=0);
-    //cout << "Constructor: " << LA << " " << LB << " " <<  d1.size()  << " " << AlphaP << endl;
-
+   // cout << "Hermite 2 constructor" << endl;
+    
     double a12=1.0/(2*AlphaP);
-
-    size_t index=GetIndex(0,0,0);
-    d[index]=e[index]=f[index]=1.0;
-  
+    Assign(0,0,0,RVec3(1,1,1)); //d_0^00 
     //
     // Layered approach:  na+nb = layer.  
     //
     for (int layer=0;layer<=LA+LB-1;layer++)
-    {
         for (int na=0;na<=layer;na++)
         {
             int nb=layer-na;
             if (na>LA || nb>LB) continue;
             for (int N=0;N<=layer+1;N++)
             {
-                //cout << "new LA,LB,layer,N,na,nb = " << LA << " " << LB << " " << layer << " " << N << " " << na << " " << nb << endl;
-              
                 assert(N<=na+nb+1);
                 RVec3 t1(0,0,0),ta(0,0,0),tb(0,0,0),t3(0,0,0);
                 if (N-1>=0)
@@ -137,32 +130,30 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
                     t3=Get(N+1,na,nb)*(N+1);
                 
                 if (na+1<=LA)
-                {
-                    //cout << "new LA,LB,layer,N,na+1,nb = " << LA << " " << LB << " " << layer << " " << N << " " << na+1 << " " << nb << endl;
                     Assign(N,na+1,nb,t1+ta+t3);                 
-        
-    //                    cout << Getd (N-1,na,nb) << " " << Getd (N,na,nb) << " " << Getd (N+1,na,nb) << " " << endl;
-    //                    cout << Getd1(N-1,na,nb) << " " << Getd1(N,na,nb) << " " << Getd1(N+1,na,nb) << " " << endl ;
-                               
-                }
                 
                 if (nb+1<=LB)
-                {
-                    //cout << "new LA,LB,layer,N,na,nb+1 = " << LA << " " << LB << " " << layer << " " << N << " " << na << " " << nb+1 << endl;
                     Assign(N,na,nb+1,t1+tb+t3);    
-                
-
-                    //cout << "Getd(N,na+1,nb)=" << Getd(N,na+1,nb) << " Getd(N,na,nb+1)=" << Getd(N,na,nb+1) << endl<< endl;
-                  
-                }
-                
-
             }
         }
-    }
-    //cout << d << endl << d1 << endl << endl;
 }
 
+Hermite2::~Hermite2()
+{
+    //cout << (void*)this << " destructor! " << endl;
+}
+void Hermite2::Assign(int N,int na,int nb,const RVec3& a)
+{
+    size_t index=GetIndex(N,na,nb);
+    #ifdef USE_CACHE
+    Polarization key(N,na,nb);
+    if (auto i=indexCache.find(key);i==indexCache.end())
+        indexCache[key]=index;
+    #endif
+    d[index]=a.x;
+    e[index]=a.y;
+    f[index]=a.z;
+}
 
 double Hermite2::operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const
 {
@@ -190,7 +181,20 @@ double Hermite2::operator()(const Polarization& P,const Polarization& Pa,const P
     if ( Pa.n < 0 || Pb.n < 0 || P.n < 0) return 0.0;
     if ( Pa.l < 0 || Pb.l < 0 || P.l < 0) return 0.0;
     if ( Pa.m < 0 || Pb.m < 0 || P.m < 0) return 0.0;
-
+    
+    #ifdef USE_CACHE
+    auto dindex=indexCache.find(Polarization(P.n,Pa.n,Pb.n));
+    auto eindex=indexCache.find(Polarization(P.l,Pa.l,Pb.l));
+    auto findex=indexCache.find(Polarization(P.m,Pa.m,Pb.m));
+//    cout << (void*)this << "  Looking up index at " << Polarization(P.n,Pa.n,Pb.n) << endl;
+//    if (!(dindex!=indexCache.end()))
+//        for (auto i:indexCache) cout << i.first << " ";
+    assert(dindex!=indexCache.end());
+    assert(eindex!=indexCache.end());
+    assert(findex!=indexCache.end());
+    
+    return d[dindex->second]*e[eindex->second]*f[findex->second];
+    #endif
     return d[GetIndex(P.n,Pa.n,Pb.n)]*e[GetIndex(P.l,Pa.l,Pb.l)]*f[GetIndex(P.m,Pa.m,Pb.m)];
 }
 

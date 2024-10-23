@@ -44,6 +44,12 @@ public:
     {
         return n>p.n|| l>p.l || m>p.m;
     }
+    bool          operator<(const Polarization& p) const
+    {
+        int i1=  n*LMax*LMax+  l*LMax+  m;
+        int i2=p.n*LMax*LMax+p.l*LMax+p.m;
+        return i1<i2;
+    }
 
     double operator   ()(const RVec3& r) const
     {
@@ -59,6 +65,7 @@ public:
     friend std::istream& operator>>(std::istream&,       Polarization&);
 
     int n,l,m;
+    const static int LMax=64;
 };
 
 inline int Polarization::GetTotalL() const
