@@ -33,6 +33,11 @@ public:
 
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
+    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::istream&  Read (std::istream&)      ;
+    virtual Hermite2* Clone(        ) const;
+
+private:
     RVec3 Get(int N,int na,int nb) const 
     {
         size_t index=GetIndex(N,na,nb);
@@ -45,32 +50,21 @@ public:
         e[index]=a.y;
         f[index]=a.z;
     }
-    double Getd(int N,int na,int nb) const {return GetAny(d,N,na,nb);}
-    double Gete(int N,int na,int nb) const {return GetAny(e,N,na,nb);}
-    double Getf(int N,int na,int nb) const {return GetAny(f,N,na,nb);}
-    double Getd1(int N,int na,int nb) const {return GetAny(d1,N,na,nb);}
-    double Gete1(int L,int la,int lb) const {return GetAny(e1,L,la,lb);}
-    double Getf1(int M,int ma,int mb) const {return GetAny(f1,M,ma,mb);}
+    
 
-    virtual std::ostream&  Write(std::ostream&) const;
-    virtual std::istream&  Read (std::istream&)      ;
-    virtual Hermite2* Clone(        ) const;
-
-private:
-    double GetAny(const std::vector<double>& def, int N,int na,int nb) const;
     size_t GetIndex(size_t N, size_t na, size_t nb) const 
     {
         assert(N>=0);
         assert(N<=LA+LB);
         assert(na>=0);
-        //assert(na<=LA);
+        assert(na<=LA);
         assert(nb>=0);
-        //assert(nb<=LB);
+        assert(nb<=LB);
         assert(N<=na+nb);
         size_t index=N*(LA+1)*(LB+1)+na*(LB+1)+nb;
-        if (d1.size()>0 && index>d1.size())
-            std::cout << N << " " << na << " " << nb << " " << index << " " << d1.size() << std::endl;
-        assert(d1.size()==0 || index<=d1.size());
+        if (d.size()>0 && index>d.size())
+            std::cout << N << " " << na << " " << nb << " " << index << " " << d.size() << std::endl;
+        assert(d.size()==0 || index<=d.size());
         return index;
     }
     size_t GetSize() const {return (LA+LB)*(LA+1)*(LB+1)+LA*(LB+1)+LB+1;}
@@ -78,7 +72,6 @@ private:
 
     int             LA, LB;
     std::vector<double> d,e,f;
-    std::vector<double> d1,e1,f1;
 };
 
 } //namespace PolarizedGaussian

@@ -101,9 +101,6 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
     , d(GetSize())
     , e(GetSize())
     , f(GetSize())
-    , d1(GetSize())
-    , e1(GetSize())
-    , f1(GetSize())
 {
     assert(_LA>=0);
     assert(_LB>=0);
@@ -113,79 +110,7 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
 
     size_t index=GetIndex(0,0,0);
     d[index]=e[index]=f[index]=1.0;
-    d1[index]=e1[index]=f1[index]=1.0;
-    for(size_t N=1;N<=LA+LB;N++)
-        for (int na=0;na<=LA;na++)
-        {
-            int nb=N-na;
-            if (nb>LB) continue;
-            //cout << "old N,na,nb = " << N << " " << na << " " << nb << endl;
-            size_t index=GetIndex(N,na,nb);
-            //cout << index << " " << d1.size() << endl;
-            d1[index]=e1[index]=f1[index]=intpow(a12,N);        
-        }
-
-    for (int n=1; n<=LA+LB; n++)
-    {
-        for (int N=0; N<n ; N++)
-        {
-            if (LA>=LB)
-            {
-                int nb_low=n-LA;
-                if (nb_low<0) nb_low=0;
-                for (int nb=nb_low; nb<n && nb<=LB; nb++)
-                {
-                    int na=n-nb;
-                    //cout << "old N,na,nb = " << N << " " << na << " " << nb << endl;
-                    //cout << index << " " << Getd(N-1,na-1,nb) << endl;
-                    size_t index1=GetIndex(N,na,nb);
-                    d1[index1]=Getd1(N-1,na-1,nb)*a12 + Getd1(N,na-1,nb)*PA.x + Getd1(N+1,na-1,nb)*(N+1);
-                    e1[index1]=Gete1(N-1,na-1,nb)*a12 + Gete1(N,na-1,nb)*PA.y + Gete1(N+1,na-1,nb)*(N+1);
-                    f1[index1]=Getf1(N-1,na-1,nb)*a12 + Getf1(N,na-1,nb)*PA.z + Getf1(N+1,na-1,nb)*(N+1);
-                    
-                   
-                }
-                if (n<=LB)
-                {
-                    //cout << "old N,na,nb = " << N << " " << 0 << " " << n << endl;
-                    size_t index1=GetIndex(N,0,n);
-                    d1[index1]=Getd1(N-1,0,n-1)*a12 + Getd1(N,0,n-1)*PB.x + Getd1(N+1,0,n-1)*(N+1);
-                    e1[index1]=Gete1(N-1,0,n-1)*a12 + Gete1(N,0,n-1)*PB.y + Gete1(N+1,0,n-1)*(N+1);
-                    f1[index1]=Getf1(N-1,0,n-1)*a12 + Getf1(N,0,n-1)*PB.z + Getf1(N+1,0,n-1)*(N+1);
-                }
-            }
-            else
-            {
-                int na_low=n-LB;
-                if (na_low<0) na_low=0;
-                for (int na=na_low; na<n && na<=LA; na++)
-                {
-                    int nb=n-na;
-                    //cout << "old N,na,nb = " << N << " " << na << " " << nb << endl;
-                    size_t index1=GetIndex(N,na,nb);
-                    d1[index1]=Getd1(N-1,na,nb-1)*a12 + Getd1(N,na,nb-1)*PB.x + Getd1(N+1,na,nb-1)*(N+1);
-                    e1[index1]=Gete1(N-1,na,nb-1)*a12 + Gete1(N,na,nb-1)*PB.y + Gete1(N+1,na,nb-1)*(N+1);
-                    f1[index1]=Getf1(N-1,na,nb-1)*a12 + Getf1(N,na,nb-1)*PB.z + Getf1(N+1,na,nb-1)*(N+1);
-//                    cout << Getd (N-1,na-1,nb) << " " << Getd (N,na-1,nb) << " " << Getd (N+1,na-1,nb) << " " << endl;
-//                    cout << Getd1(N-1,na-1,nb) << " " << Getd1(N,na-1,nb) << " " << Getd1(N+1,na-1,nb) << " " << endl << endl;
-                  
-                }
-                if (n<=LA)
-                {
-                    //cout << "old N,na,nb = " << N << " " << n << " " << 0 << endl;
-                    size_t indexb=GetIndex(N,n,0);
-                    d1[indexb]=Getd1(N-1,n-1,0)*a12 + Getd1(N,n-1,0)*PA.x + Getd1(N+1,n-1,0)*(N+1);
-                    e1[indexb]=Gete1(N-1,n-1,0)*a12 + Gete1(N,n-1,0)*PA.y + Gete1(N+1,n-1,0)*(N+1);
-                    f1[indexb]=Getf1(N-1,n-1,0)*a12 + Getf1(N,n-1,0)*PA.z + Getf1(N+1,n-1,0)*(N+1);
-                }
-
-            }
-        }
-    }
-//    if (LB>=2)
-//        cout << "after  d1[0,0,1]=" << d1[GetIndex(0,0,1)] << " Getd(0,0,1)=" << Getd(0,0,1) << " Getd1(0,0,1)=" << Getd1(0,0,1) << endl;;
-
-
+  
     //
     // Layered approach:  na+nb = layer.  
     //
@@ -198,16 +123,7 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
             for (int N=0;N<=layer+1;N++)
             {
                 //cout << "new LA,LB,layer,N,na,nb = " << LA << " " << LB << " " << layer << " " << N << " " << na << " " << nb << endl;
-                assert(near(Getd(N-1,na,nb),Getd1(N-1,na,nb)));
-                assert(near(Getd(N  ,na,nb),Getd1(N  ,na,nb)));
-                assert(near(Getd(N+1,na,nb),Getd1(N+1,na,nb)));
-                assert(near(Gete(N-1,na,nb),Gete1(N-1,na,nb)));
-                assert(near(Gete(N  ,na,nb),Gete1(N  ,na,nb)));
-                assert(near(Gete(N+1,na,nb),Gete1(N+1,na,nb)));
-                assert(near(Getf(N-1,na,nb),Getf1(N-1,na,nb)));
-                assert(near(Getf(N  ,na,nb),Getf1(N  ,na,nb)));
-                assert(near(Getf(N+1,na,nb),Getf1(N+1,na,nb)));
-
+              
                 assert(N<=na+nb+1);
                 RVec3 t1(0,0,0),ta(0,0,0),tb(0,0,0),t3(0,0,0);
                 if (N-1>=0)
@@ -224,30 +140,20 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
                 {
                     //cout << "new LA,LB,layer,N,na+1,nb = " << LA << " " << LB << " " << layer << " " << N << " " << na+1 << " " << nb << endl;
                     Assign(N,na+1,nb,t1+ta+t3);                 
-                    assert(near(Getd(N,na+1,nb),Getd1(N,na+1,nb)));
-                    assert(near(Gete(N,na+1,nb),Gete1(N,na+1,nb)));
-                    assert(near(Getf(N,na+1,nb),Getf1(N,na+1,nb)));
+        
     //                    cout << Getd (N-1,na,nb) << " " << Getd (N,na,nb) << " " << Getd (N+1,na,nb) << " " << endl;
     //                    cout << Getd1(N-1,na,nb) << " " << Getd1(N,na,nb) << " " << Getd1(N+1,na,nb) << " " << endl ;
-                    size_t indexa=GetIndex(N,na+1,nb);
-                    assert(near(d[indexa],d1[indexa]));                    
-                    assert(near(e[indexa],e1[indexa]));                    
-                    assert(near(f[indexa],f1[indexa]));                    
+                               
                 }
                 
                 if (nb+1<=LB)
                 {
                     //cout << "new LA,LB,layer,N,na,nb+1 = " << LA << " " << LB << " " << layer << " " << N << " " << na << " " << nb+1 << endl;
                     Assign(N,na,nb+1,t1+tb+t3);    
-                    assert(near(Getd(N,na,nb+1),Getd1(N,na,nb+1))); 
-                    assert(near(Gete(N,na,nb+1),Gete1(N,na,nb+1)));
-                    assert(near(Getf(N,na,nb+1),Getf1(N,na,nb+1)));
+                
 
                     //cout << "Getd(N,na+1,nb)=" << Getd(N,na+1,nb) << " Getd(N,na,nb+1)=" << Getd(N,na,nb+1) << endl<< endl;
-                    size_t indexb=GetIndex(N,na,nb+1);
-                    assert(near(d[indexb],d1[indexb]));
-                    assert(near(e[indexb],e1[indexb]));
-                    assert(near(f[indexb],f1[indexb]));
+                  
                 }
                 
 
@@ -256,38 +162,6 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
     }
     //cout << d << endl << d1 << endl << endl;
 }
-
-double Hermite2::GetAny(const std::vector<double>& def, int N, int na, int nb) const
-{
-    if (nb>LB)
-        cout << nb << endl;
-    
-    //assert(N <=LA+LB);
-    assert(na<=LA      );
-    assert(nb<=LB      );
-
-//
-//  Take care of negative n's generated by derivatives of distributions.
-//
-    if ( na < 0 || nb < 0 || N < 0) return 0.0;
-
-    int n=na+nb; // we now know that n1 and n2 are >=0.
-//
-//  Take care of s-s charge distributions.  We know n1 and n2 are >=0.
-//
-    if (n==0 && N==0) return 1.0;
-//
-//  All other 0.0 elements.
-//
-    if (N >  n) return 0.0;
-//
-//  Use std indexing to get at the numbers
-//
-    int index = GetIndex(N,na,nb);
-    assert(index>=0        );
-    return def[index];
-}
-
 
 
 double Hermite2::operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const
@@ -313,44 +187,11 @@ double Hermite2::operator()(const Polarization& P,const Polarization& Pa,const P
 //
 //  Take care of negative n's generated by derivatives of distributions.
 //
-    if ( Pa.n < 0 || Pb.n < 0 || P.n < 0) 
-        return 0.0;
-    if ( Pa.l < 0 || Pb.l < 0 || P.l < 0) 
-        return 0.0;
-    if ( Pa.m < 0 || Pb.m < 0 || P.m < 0) 
-        return 0.0;
+    if ( Pa.n < 0 || Pb.n < 0 || P.n < 0) return 0.0;
+    if ( Pa.l < 0 || Pb.l < 0 || P.l < 0) return 0.0;
+    if ( Pa.m < 0 || Pb.m < 0 || P.m < 0) return 0.0;
 
-    int n=Pa.n+Pb.n; // we now know that na and nb are >=0.
-    int l=Pa.l+Pb.l; // we now know that na and nb are >=0.
-    int m=Pa.m+Pb.m; // we now know that na and nb are >=0.
-    assert(P.n<=n && P.l<=l && P.m<=m);
-//
-//  Take care of s-s charge distributions.  We know n1 and n2 are >=0.
-//
-    return Getd(P.n,Pa.n,Pb.n)*Gete(P.l,Pa.l,Pb.l)*Getf(P.m,Pa.m,Pb.m);
-//    double retd=0.0, rete=0.0, retf=0.0;
-//    if (n==0 && P.n==0) 
-//        retd=1.0;
-//    if (l==0 && P.l==0) 
-//        rete=1.0;
-//    if (m==0 && P.m==0) 
-//        retf=1.0;
-////
-////  Use fancy indexing to get at the numbers
-////
-//    if (retd==0.0)
-//    {
-//        retd=Getd(P.n,Pa.n,Pb.n);
-//    }
-//    if (rete==0.0)
-//    {
-//        rete=Gete(P.l,Pa.l,Pb.l);
-//    }
-//    if (retf==0.0)
-//    {
-//        retf=Getf(P.m,Pa.m,Pb.m);
-//    }
-//    return retd * rete * retf;
+    return d[GetIndex(P.n,Pa.n,Pb.n)]*e[GetIndex(P.l,Pa.l,Pb.l)]*f[GetIndex(P.m,Pa.m,Pb.m)];
 }
 
 std::ostream& Hermite2::Write(std::ostream& os) const
@@ -367,7 +208,7 @@ std::ostream& Hermite2::Write(std::ostream& os) const
             os << "N = " << N << std::endl;
             for (int na=0; na<=LA; na++)
             {
-                for (int nb=0; nb<=LB; nb++)  os << Getd1(N,na,nb) << " ";
+                for (int nb=0; nb<=LB; nb++)  os << d[GetIndex(N,na,nb)] << " ";
                 os << std::endl;
             }
         }
@@ -377,7 +218,7 @@ std::ostream& Hermite2::Write(std::ostream& os) const
             os << "L = " << N << std::endl;
             for (int na=0; na<=LA; na++)
             {
-                for (int nb=0; nb<=LB; nb++)  os << Gete1(N,na,nb) << " ";
+                for (int nb=0; nb<=LB; nb++)  os << e[GetIndex(N,na,nb)] << " ";
                 os << std::endl;
             }
         }
@@ -387,7 +228,7 @@ std::ostream& Hermite2::Write(std::ostream& os) const
             os << "M = " << N << std::endl;
             for (int na=0; na<=LA; na++)
             {
-                for (int nb=0; nb<=LB; nb++)  os << Getf1(N,na,nb) << " ";
+                for (int nb=0; nb<=LB; nb++)  os << f[GetIndex(N,na,nb)] << " ";
                 os << std::endl;
             }
         }
