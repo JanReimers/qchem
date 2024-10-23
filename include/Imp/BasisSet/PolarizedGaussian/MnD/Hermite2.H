@@ -33,7 +33,18 @@ public:
 
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
-    
+    RVec3 Get(int N,int na,int nb) const 
+    {
+        size_t index=GetIndex(N,na,nb);
+        return RVec3(d[index],e[index],f[index]);
+    } 
+    void Assign(int N,int na,int nb,const RVec3& a)
+    {
+        size_t index=GetIndex(N,na,nb);
+        d[index]=a.x;
+        e[index]=a.y;
+        f[index]=a.z;
+    }
     double Getd(int N,int na,int nb) const {return GetAny(d,N,na,nb);}
     double Gete(int N,int na,int nb) const {return GetAny(e,N,na,nb);}
     double Getf(int N,int na,int nb) const {return GetAny(f,N,na,nb);}

@@ -78,6 +78,21 @@ inline bool near(double a, double b)
     return err<eps;
 }
 
+inline bool near(const RVec3& a, const RVec3& b) 
+{
+    return near(a.x,b.x) && near(a.y,b.y) &&  near(a.z,b.z);
+}
+
+inline RVec3 DirectMultiply(const RVec3& a, const RVec3& b)
+{
+    return RVec3(a.x*b.x, a.y*b.y, a.z*b.z);
+}
+
+inline RVec3 operator*(const RVec3& a, const int& b)
+{
+    return RVec3(a.x*b,a.y*b,a.z*b);
+}
+
 //using std::cout;
 //using std::endl;
 Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int _LB)
@@ -194,45 +209,27 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
                 assert(near(Getf(N+1,na,nb),Getf1(N+1,na,nb)));
 
                 assert(N<=na+nb+1);
-                //if (na<LA) //is na+1 in range?
-                double dt1=0.0,et1=0.0,ft1=0.0;
-                double dta=0.0,eta=0.0,fta=0.0;
-                double dtb=0.0,etb=0.0,ftb=0.0;
-                double dt3=0.0,et3=0.0,ft3=0.0;
+                RVec3 t1(0,0,0),ta(0,0,0),tb(0,0,0),t3(0,0,0);
                 if (N-1>=0)
-                {
-                    dt1=Getd(N-1,na,nb)*a12;
-                    et1=Gete(N-1,na,nb)*a12;
-                    ft1=Getf(N-1,na,nb)*a12;
-                }
+                    t1=Get(N-1,na,nb)*a12;
                 if (N<=na+nb)
                 {
-                    dta=Getd(N,na,nb)*PA.x;
-                    eta=Gete(N,na,nb)*PA.y;
-                    fta=Getf(N,na,nb)*PA.z;
-                    dtb=Getd(N,na,nb)*PB.x;
-                    etb=Gete(N,na,nb)*PB.y;
-                    ftb=Getf(N,na,nb)*PB.z;
+                    ta=DirectMultiply(Get(N,na,nb),PA);
+                    tb=DirectMultiply(Get(N,na,nb),PB);
                 }
                 if (N+1<=na+nb)
-                {
-                    dt3=(N+1)*Getd(N+1,na,nb);
-                    et3=(N+1)*Gete(N+1,na,nb);
-                    ft3=(N+1)*Getf(N+1,na,nb);
-                }
+                    t3=Get(N+1,na,nb)*(N+1);
                 
                 if (na+1<=LA)
                 {
                     //cout << "new LA,LB,layer,N,na+1,nb = " << LA << " " << LB << " " << layer << " " << N << " " << na+1 << " " << nb << endl;
-                    size_t indexa=GetIndex(N,na+1,nb);
-                    d[indexa]=dt1+dta+dt3;
-                    e[indexa]=et1+eta+et3;
-                    f[indexa]=ft1+fta+ft3;                    
+                    Assign(N,na+1,nb,t1+ta+t3);                 
                     assert(near(Getd(N,na+1,nb),Getd1(N,na+1,nb)));
                     assert(near(Gete(N,na+1,nb),Gete1(N,na+1,nb)));
                     assert(near(Getf(N,na+1,nb),Getf1(N,na+1,nb)));
     //                    cout << Getd (N-1,na,nb) << " " << Getd (N,na,nb) << " " << Getd (N+1,na,nb) << " " << endl;
     //                    cout << Getd1(N-1,na,nb) << " " << Getd1(N,na,nb) << " " << Getd1(N+1,na,nb) << " " << endl ;
+                    size_t indexa=GetIndex(N,na+1,nb);
                     assert(near(d[indexa],d1[indexa]));                    
                     assert(near(e[indexa],e1[indexa]));                    
                     assert(near(f[indexa],f1[indexa]));                    
@@ -241,16 +238,13 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
                 if (nb+1<=LB)
                 {
                     //cout << "new LA,LB,layer,N,na,nb+1 = " << LA << " " << LB << " " << layer << " " << N << " " << na << " " << nb+1 << endl;
-                    size_t indexb=GetIndex(N,na,nb+1);
-                    d[indexb]=dt1+dtb+dt3;
-                    e[indexb]=et1+etb+et3;
-                    f[indexb]=ft1+ftb+ft3;
-                    
+                    Assign(N,na,nb+1,t1+tb+t3);    
                     assert(near(Getd(N,na,nb+1),Getd1(N,na,nb+1))); 
                     assert(near(Gete(N,na,nb+1),Gete1(N,na,nb+1)));
                     assert(near(Getf(N,na,nb+1),Getf1(N,na,nb+1)));
 
                     //cout << "Getd(N,na+1,nb)=" << Getd(N,na+1,nb) << " Getd(N,na,nb+1)=" << Getd(N,na,nb+1) << endl<< endl;
+                    size_t indexb=GetIndex(N,na,nb+1);
                     assert(near(d[indexb],d1[indexb]));
                     assert(near(e[indexb],e1[indexb]));
                     assert(near(f[indexb],f1[indexb]));
