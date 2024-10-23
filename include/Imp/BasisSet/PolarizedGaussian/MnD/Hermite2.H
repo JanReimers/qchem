@@ -34,18 +34,7 @@ public:
 
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
-    double Getd(int N,int na,int nb) const
-    {
-        return GetAny(d,N,na,nb);
-    }
-    double Gete(int L,int la,int lb) const
-    {
-        return GetAny(e,L,la,lb);
-    }
-    double Getf(int M,int ma,int mb) const
-    {
-        return GetAny(f,M,ma,mb);
-    }
+    
     double Getd1(int N,int na,int nb) const
     {
         return GetAny(d1,N,na,nb);
@@ -63,17 +52,7 @@ public:
     virtual Hermite2* Clone(        ) const;
 
 private:
-    double GetAny(const Vector<double>& def, int N,int na,int nb) const;
     double GetAny(const std::vector<double>& def, int N,int na,int nb) const;
-    typedef std::vector<double> v1_t;
-    typedef std::vector<v1_t> v2_t;
-    
-
-    static int      theIndex[2*LMAX+1][LMAX+1][LMAX+1];
-    static int      theArraySizes[LMAX+1][LMAX+1];
-    int             itsLA, itsLB;
-    Vector<double>  d,e,f;
-    
     size_t GetIndex(size_t N, size_t na, size_t nb) const 
     {
         assert(N>=0);
@@ -89,9 +68,10 @@ private:
         assert(d1.size()==0 || index<=d1.size());
         return index;
     }
-        //size_t GetSize() const {return GetIndex(LA+LB,LA,LB);}
-        size_t GetSize() const {return (LA+LB)*(LA+1)*(LB+1)+LA*(LB+1)+LB+1;}
-    size_t LA,LB;
+    size_t GetSize() const {return (LA+LB)*(LA+1)*(LB+1)+LA*(LB+1)+LB+1;}
+
+
+    int             LA, LB;
     std::vector<double> d1,e1,f1;
 };
 
