@@ -32,7 +32,7 @@ class MeshIntegralsTests : public ::testing::Test
 {
 public:
     MeshIntegralsTests()
-    : Lmax(2   )
+    : Lmax(4   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new PolarizedGaussian::IntegralEngine())

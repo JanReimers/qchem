@@ -7,7 +7,6 @@
 #include "oml/vector3d.h"
 #include <iosfwd>
 
-#define LMAX 3
 
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients
@@ -35,18 +34,13 @@ public:
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
     
-    double Getd1(int N,int na,int nb) const
-    {
-        return GetAny(d1,N,na,nb);
-    }
-    double Gete1(int L,int la,int lb) const
-    {
-        return GetAny(e1,L,la,lb);
-    }
-    double Getf1(int M,int ma,int mb) const
-    {
-        return GetAny(f1,M,ma,mb);
-    }
+    double Getd(int N,int na,int nb) const {return GetAny(d,N,na,nb);}
+    double Gete(int N,int na,int nb) const {return GetAny(e,N,na,nb);}
+    double Getf(int N,int na,int nb) const {return GetAny(f,N,na,nb);}
+    double Getd1(int N,int na,int nb) const {return GetAny(d1,N,na,nb);}
+    double Gete1(int L,int la,int lb) const {return GetAny(e1,L,la,lb);}
+    double Getf1(int M,int ma,int mb) const {return GetAny(f1,M,ma,mb);}
+
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
     virtual Hermite2* Clone(        ) const;
@@ -58,7 +52,7 @@ private:
         assert(N>=0);
         assert(N<=LA+LB);
         assert(na>=0);
-       // assert(na<=LA);
+        //assert(na<=LA);
         assert(nb>=0);
         //assert(nb<=LB);
         assert(N<=na+nb);
@@ -72,6 +66,7 @@ private:
 
 
     int             LA, LB;
+    std::vector<double> d,e,f;
     std::vector<double> d1,e1,f1;
 };
 

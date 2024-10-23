@@ -32,3 +32,5 @@ gmon.out
 gprof-N1-newIE.out
 
 *.out
+
+*.ods#
