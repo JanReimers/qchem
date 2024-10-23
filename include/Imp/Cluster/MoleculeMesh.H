@@ -16,9 +16,6 @@ public:
     MoleculeMesh(const Cluster&, const MeshParams& mp);
 
     virtual Mesh*  Clone() const;
-private:
-    void LoadFuzzyPoints  (const Atom&, const Cluster&, const MeshParams&);
-
 };
 
 #endif // _MoleculeMesh_H_

@@ -9,6 +9,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/Cluster/Atom.H"
 #include <UnitSymmetryQN.H>
 #include <Cluster.H>
 #include "Imp/Containers/ptr_vector_io.h"
@@ -21,6 +22,7 @@ namespace PolarizedGaussian
 {
 
 std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls);
+std::vector<Polarization> MakePolarizations(int L);
 template <class T> T Max(const std::vector<T>& v)
 {
     return *std::max_element(v.begin(), v.end());
@@ -113,27 +115,31 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, 
 
 
 IrrepBasisSet::
-IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, double emin, double emax, size_t L)
-    : IrrepBasisSetCommon(new SphericalSymmetryQN(L))
+IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
+    : IrrepBasisSetCommon(new UnitSymmetryQN)
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
-
-    RVec3 R0(0,0,0);
-    int nbasis=1;
     Vector<double> es(N);
-    std::vector<int> Ls;
-    Ls.push_back(L);
     FillPower(es,emin,emax);
-    for (auto e:es)
+    int nbasis=1;
+    for (auto atom:*cl)
     {
-        RadialFunction* r=new GaussianRF(e,R0,L);
-        Block* bfb=new Block(r,nbasis);
-        for (auto& p:MakePolarizations(Ls))
+        for (int L=0;L<=LMax;L++)
         {
-            bfb->Add(p);
-            nbasis++;
+            std::vector<Polarization> Ps=MakePolarizations(L);
+            for (auto e:es)
+            {
+                RadialFunction* r=new GaussianRF(e,atom->itsR,L);
+                Block* bfb=new Block(r,nbasis);
+                for (auto& p:Ps)
+                {
+                    bfb->Add(p);
+                    nbasis++;
+                }
+                itsBlocks.push_back(bfb);
+            }
+            
         }
-        itsBlocks.push_back(bfb);
     }
     std::vector<const Block*> bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
@@ -236,6 +242,15 @@ std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls)
         for(int m=0; m<=*bl; m++)
             for(int l=0; l<=*bl-m; l++)
                 ret.push_back(Polarization(*bl-m-l,l,m));
+
+    return ret;
+}
+std::vector<Polarization> MakePolarizations(int L)
+{
+    std::vector<Polarization> ret;
+        for(int m=0; m<=L; m++)
+            for(int l=0; l<=L-m; l++)
+                ret.push_back(Polarization(L-m-l,l,m));
 
     return ret;
 }

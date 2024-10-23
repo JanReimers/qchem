@@ -16,15 +16,11 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Cluster* cl)
     Insert(ibs);
 }
 
-BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size_t LMax)
+BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
-    for (size_t L=0;L<=LMax;L++)
-    {
-        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),N,emin,emax,L);
-        Append(ibs);
-        Insert(ibs);
-        
-    }
+    IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),N,emin,emax,LMax,cl);
+    Append(ibs);
+    Insert(ibs);
 }
 } //namespace

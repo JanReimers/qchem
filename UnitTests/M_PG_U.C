@@ -48,7 +48,7 @@ public:
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
+        //MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,3});
         return new Ham_SHF_U(cluster,Alpha_N2,GetMeshParams(),itsBasisSet);
     }
 };

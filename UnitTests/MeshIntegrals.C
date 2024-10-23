@@ -32,14 +32,28 @@ class MeshIntegralsTests : public ::testing::Test
 {
 public:
     MeshIntegralsTests()
-    : Lmax(2    )
+    : Lmax(2   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , ie(new PolarizedGaussian::IntegralEngine())
-    , bs(new PolarizedGaussian::BasisSet(lap,3,.1,10.0,Lmax))
+    , bs(0)
     , cl(new Molecule())
     {
+        
+        
+    }
+    
+    void InitAtom()
+    {
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
+        bs=new PolarizedGaussian::BasisSet(lap,3,.1,10.0,Lmax,cl);
+    }
+    
+    void InitMolecule()
+    {
+        cl->Insert(new Atom(Z,0.0,Vector3D( 1.,0.,0.)));
+        cl->Insert(new Atom(Z,0.0,Vector3D(-1.,0.,0.)));
+        bs=new PolarizedGaussian::BasisSet(lap,3,.1,10.0,Lmax,cl);        
     }
     
     int Lmax, Z;
@@ -52,6 +66,8 @@ public:
 TEST_F(MeshIntegralsTests, GaussAngles)
 {
     StreamableObject::SetToPretty();
+    InitAtom();
+    cout << *bs << endl;
     //cout.precision(2);
     size_t Nradial=100;
     cout << "alpha m      s        p         d"  << endl;
@@ -74,3 +90,19 @@ TEST_F(MeshIntegralsTests, GaussAngles)
     }
 }
 
+TEST_F(MeshIntegralsTests, GObritals)
+{
+    StreamableObject::SetToPretty();
+    InitMolecule();
+    cout << *bs << endl;
+    auto ibs=bs->beginT();
+    SMatrix<double> o= ie->MakeOverlap(*ibs);
+
+    MeshParams mp({qchem::MHL,100,3,2,qchem::GaussLegendre,12,4,3,3});
+    MeshIntegrator<double> mi(cl->CreateMesh(mp));
+    SMatrix<double> on= mi.Overlap(**ibs);
+   // cout << o << on << o-on << endl;
+    double err=norm1(o-on);
+    cout <<  std::setprecision(12) << err << endl ;
+    
+}
