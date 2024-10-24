@@ -109,12 +109,14 @@ std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
     }
     else
     {
-        os << "Type" << " with " << GetNumFunctions() << " basis functions"
-        << ", Quantum number=" << "QN Type" << std::endl;
+        os << "IrrepBasisSet " << " with " << GetNumFunctions() << " basis functions"
+        << ", Quantum number=" << *itsQuantumNumber << ", start index=" << itsStartIndex << std::endl;
         os << "   #          Center      Pol     Radial     Exponents" << std::endl;
         // No UT coverage
         int i=1;
         for(auto b:*this) os << std::setw(4) << i++ << " " << *b << std::endl;
+        
+        os << "-------------------------------------------------------------------------------" << std::endl;
     }
 
     return os;

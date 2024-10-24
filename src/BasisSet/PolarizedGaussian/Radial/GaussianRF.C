@@ -423,7 +423,7 @@ std::ostream& GaussianRF::Write(std::ostream& os) const
 
     if (Pretty())
     {
-        os << "Primative  " << std::setw(8) << itsExponent;
+        os << "Primative  " <<  std::setw(8) << itsExponent;
     }
 
     if (!Pretty()) RadialCommon::Write(os);
