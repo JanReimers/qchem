@@ -3,17 +3,19 @@
 #include "Imp/BasisSet/Slater/BasisSet.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
+#include "Imp/BasisSet/SlaterScaler.H"
 
 namespace Slater
 {
 
 
-BasisSet::BasisSet(const LAParams& lap,size_t N, double minexp, double maxexp, size_t Lmax)
+BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
-    for (size_t L=0;L<=Lmax;L++)
+    SlaterScaler ss(N,emin,emax,LMax);
+    for (size_t L=0;L<=LMax;L++)
     {
-        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),N,minexp,maxexp,L);
+        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),ss.N(L),ss.emin(L),ss.emax(L),L);
         Append(ibs);
         Insert(ibs);
         

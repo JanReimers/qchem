@@ -9,6 +9,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/BasisSet/GaussianScaler.H"
 #include "Imp/Cluster/Atom.H"
 #include <UnitSymmetryQN.H>
 #include <Cluster.H>
@@ -16,7 +17,7 @@
 #include <cassert>
 #include <algorithm> //Need std::max
 
-template <class T> inline void FillPower(Vector<T>& arr,T start, T stop);
+template <class T> void FillPower(Vector<T>& arr,T start, T stop);
 
 namespace PolarizedGaussian
 {
@@ -119,13 +120,14 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, d
     : IrrepBasisSetCommon(new UnitSymmetryQN)
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
-    Vector<double> es(N);
-    FillPower(es,emin,emax);
+    GaussianScaler gs(N,emin,emax,LMax);
     int nbasis=1;
     for (auto atom:*cl)
     {
-        for (int L=0;L<=LMax;L++)
+        for (size_t L=0;L<=LMax;L++)
         {
+            Vector<double> es(gs.N(L));
+            FillPower(es,gs.emin(L),gs.emax(L));
             std::vector<Polarization> Ps=MakePolarizations(L);
             for (auto e:es)
             {
@@ -150,6 +152,37 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, d
 //
     MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
     
+}
+
+// Single atom version
+IrrepBasisSet::
+IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, double emin, double emax, size_t L)
+    : IrrepBasisSetCommon(new UnitSymmetryQN())
+    , TIrrepBasisSetCommon<double>(lap,theDB)
+{
+    Vector<double> es(N);
+    FillPower(es,emin,emax);
+    int nbasis=1;
+    std::vector<Polarization> Ps=MakePolarizations(L);
+    for (auto e:es)
+    {
+        RadialFunction* r=new GaussianRF(e,RVec3(0,0,0),L);
+        Block* bfb=new Block(r,nbasis);
+        for (auto& p:Ps)
+        {
+            bfb->Add(p);
+            nbasis++;
+        }
+        itsBlocks.push_back(bfb);
+    }
+    std::vector<const Block*> bls;
+    for (auto bl:itsBlocks) bls.push_back(bl);
+    IrrepIEClient::Init(bls);
+    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());    
+//
+//  Now insert the basis functions.
+//
+    MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 }
 //----------------------------------------------------------------
 //
@@ -195,16 +228,17 @@ IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster* cl) const
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
+    IrrepBasisSetCommon::Write(os);
+    TIrrepBasisSetCommon<double>::Write(os);
     if (!Pretty())
     {
         os << itsBlocks;
-        IrrepBasisSetCommon::Write(os);
-        TIrrepBasisSetCommon<double>::Write(os);
+       
     }
     else
     {
-        for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
-            os << **bl;
+//        for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
+//            os << **bl;
     }
     return os;
 }

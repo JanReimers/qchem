@@ -137,8 +137,11 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             for (int ic=1; ic<=Ncd; ic++)
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-                    //std::cout << ia << " " << ib << " " << ic << " " << id << " " << J.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) << " " << J(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
-//                    assert(J(ia,ib,ic,id)==eris(ia,ib,ic,id));
+//                    int ia1=ia+this->GetStartIndex()-1, ib1=ib+this->GetStartIndex()-1;
+//                    int ic1=ic+bs_cd->GetStartIndex()-1, id1=id+bs_cd->GetStartIndex()-1;                    
+//                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") J_abcd=" 
+//                    << std::scientific << std::setw(8) << J(ia,ib,ic,id)  << std::endl;
+                    assert(J(ia,ib,ic,id)!=-1.0);
                     Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
@@ -148,6 +151,7 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
     return Jab;
 }
 
+#include <iomanip>
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
@@ -164,14 +168,11 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             for (int ic=1; ic<=Ncd; ic++)
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-//                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
-//                    << K.GetIndex(ia,ib,ic,id) << " " << eris.GetIndex(ia,ib,ic,id) 
-//                    << " " << K(ia,ib,ic,id) << " " << eris(ia,ib,ic,id) << std::endl;
-//                    assert(K(ia,ib,ic,id)==eris(ia,ib,ic,id));
-//                    std::cout << ia << " " << ib << " " << ic << " " << id << " " 
-//                    << K.GetIndex(ia,id,ic,ib) << " " << eris.GetIndex(ia,id,ic,ib) 
-//                    << " " << K.Exchange(ia,id,ic,ib) << " " << eris.Exchange(ia,id,ic,ib) << std::endl;
-//                    assert(K.Exchange(ia,id,ic,ib)==eris.Exchange(ia,id,ic,ib));
+//                    int ia1=ia+this->GetStartIndex()-1, ib1=ib+this->GetStartIndex()-1;
+//                    int ic1=ic+bs_cd->GetStartIndex()-1, id1=id+bs_cd->GetStartIndex()-1;                    
+//                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") K_adcb=" 
+//                    << std::scientific << std::setw(8) << K.Exchange(ia,id,ic,ib)  << std::endl;
+//                    assert(K.Exchange(ia,id,ic,ib)!=-1.0); //Marker for un-assigned.
                     Kab_temp+=K.Exchange(ia,id,ic,ib)*Dcd(ic,id);
                 }
             Kab(ia,ib)=Kab_temp;

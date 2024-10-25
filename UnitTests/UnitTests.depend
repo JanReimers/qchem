@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1729705092 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1729788037 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -759,7 +759,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1729444876 /home/janr/Code/qchem/include/BasisSet.H
+1729778151 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
 	<ScalarFunction.H>
@@ -795,7 +795,7 @@
 	"Functions/FittedFunctionClient.H"
 	"Misc/pmstream.h"
 
-1728599453 /home/janr/Code/qchem/include/TotalEnergy.H
+1729796154 /home/janr/Code/qchem/include/TotalEnergy.H
 
 1729475680 /home/janr/Code/qchem/include/Cluster.H
 	"types.H"
@@ -873,7 +873,7 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1728702273 /home/janr/Code/qchem/include/AnalyticIE.H
+1729778151 /home/janr/Code/qchem/include/AnalyticIE.H
 	"types.H"
 	<vector>
 	<iosfwd>
@@ -889,7 +889,7 @@
 	"oml/vector.h"
 	<iostream>
 
-1729380010 /home/janr/Code/qchem/include/IEClient.H
+1729778151 /home/janr/Code/qchem/include/IEClient.H
 	"Imp/Misc/UniqueID/UniqueID.H"
 
 1728492922 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/IEClient.H
@@ -916,7 +916,7 @@
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1729378329 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
+1729778151 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
 1729378873 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
@@ -932,11 +932,12 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1728604680 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
+1729780292 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
 	"Polarization.H"
 	<IEClient.H>
 	"oml/vector.h"
 	<vector>
+	<map>
 
 1729383623 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Block.H
 	"RadialFunction.H"
@@ -1011,7 +1012,7 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1729606198 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H
+1729724060 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H
 	"../IrrepCommon.H"
 	"../TIrrepCommon.H"
 	"Polarization.H"
@@ -1058,7 +1059,7 @@
 	<fstream>
 	<cmath>
 
-1729114450 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
+1729778740 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
 	<AnalyticIE.H>
 	"oml/vector.h"
 
@@ -1079,7 +1080,7 @@
 1729371184 /home/janr/Code/qchem/src/Mesh/MeshIntegrator.H
 	"types.H"
 
-1728686165 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
+1729778538 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
 	<AnalyticIE.H>
 	"oml/vector.h"
 
@@ -1129,7 +1130,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1729530662 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1729817003 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	<MeshParams.H>
 	<SCFIterator.H>
@@ -1149,7 +1150,7 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1729478122 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1729720232 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	<types.H>
 	<IterationParams.H>
@@ -1157,7 +1158,7 @@
 	"Imp/Misc/PeriodicTable.H"
 	<memory>
 
-1729515899 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1729817979 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1399,7 +1400,7 @@
 	"oml/matrix.h"
 	<iomanip>
 
-1728686165 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IntegralEngine.H
+1729778649 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IntegralEngine.H
 	"RadialFunction.H"
 	"CDCache.H"
 	"Polarization.H"

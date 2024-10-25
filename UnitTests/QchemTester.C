@@ -115,7 +115,10 @@ BasisSet* SG_OBasis::GetBasisSet () const
 #include "Imp/BasisSet/Slater/BasisSet.H"
 BasisSet* SL_OBasis::GetBasisSet () const
 {
-    return new Slater::BasisSet(lap,N,emin,emax,Lmax);
+    Slater::BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
+    return bs;
 }
 
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
@@ -123,8 +126,23 @@ BasisSet* SL_OBasis::GetBasisSet () const
 
 BasisSet* PG_OBasis::GetBasisSet () const
 {
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    return new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());
+    if (N==0)
+    {
+        PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+        PolarizedGaussian::BasisSet* bs=new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());  
+        StreamableObject::SetToPretty();
+        std::cout << *bs << std::endl;
+        return bs;
+//        return new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());        
+    }
+    else
+    {
+        PolarizedGaussian::BasisSet* bs=new PolarizedGaussian::BasisSet(lap, N,emin,emax,LMax,GetCluster());  
+        StreamableObject::SetToPretty();
+        std::cout << *bs << std::endl;
+        return bs;
+//        return new PolarizedGaussian::BasisSet(lap, N,emin,emax,LMax,GetCluster());   
+    }
 }
 
 

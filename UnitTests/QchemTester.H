@@ -94,10 +94,16 @@ private:
 class PG_OBasis : public virtual QchemTester
 {
 public:
-    PG_OBasis() : lap({qchem::Lapack,qchem::SVD,1e-4,1e-12}) {};     
+    PG_OBasis() : lap({qchem::Lapack,qchem::SVD,1e-4,1e-12}), N(0) {};     
+    void Init(int _N, double _emin, double _emax, int _LMax)
+    {
+      N=_N;LMax=_LMax;emin=_emin;emax=_emax;
+    }
 private:
     virtual BasisSet*      GetBasisSet () const;
     LAParams lap;
+    int N,LMax;
+    double emin,emax;
 };
 
 //----------------------------------------------------------------------------------
@@ -133,7 +139,8 @@ public:
 class TestPolarized  : public virtual QchemTester
 {
 public:
-    TestPolarized(int Z);
+    explicit TestPolarized(int Z);
+    explicit TestPolarized(double s) : spin(s) {};
     virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
 private:
     double spin;

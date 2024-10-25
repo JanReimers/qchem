@@ -23,6 +23,7 @@ Priority 1:
         -Hermite2 crashes for L=3 (f orbitals).
         -What are those horrible lookup tables!!
     -Something wrong with Molecular mesh generation.
+    -GaussianRF.C has its own DFact tables.  Use the global tables.
     
 oml:
     **-SMAT does not support S+=Xpr

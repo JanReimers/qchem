@@ -41,11 +41,12 @@ std::ostream& Block::Write(std::ostream& os) const
     }
     else
     {
+        os << "Block start:" << std::endl;
         os.setf(std::ios::fixed,std::ios::floatfield);
         os << std::setw(5) << std::setprecision(2) << itsRadial->GetCenter() << " "
         << *itsRadial << " " ;
         for (std::vector<Polarization>::const_iterator b(itsPols.begin()); b!=itsPols.end(); b++) os << *b;
-        os << std::endl;
+        os << std::endl << "-------------------------------------------------------------------" << std::endl;
     }
     return os;
 }

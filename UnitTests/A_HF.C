@@ -81,6 +81,7 @@ TEST_P(A_PG_HF_U,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
 
 
+
 class HF_P : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
@@ -157,4 +158,65 @@ TEST_P(A_PG_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,7,37)); //Z=51 is slow
+
+
+//
+//  Uranium atom test for f-orbitals
+//
+class A_SL_HF_P_92 : public ::testing::Test
+, public TestAtom, SL_OBasis, HF_P, TestPolarized
+{
+public:
+    A_SL_HF_P_92() : TestAtom(92), TestPolarized(6.0) {};
+    void Init(int N, double emin, double emax, int LMax)
+    {
+        SL_OBasis::Init(N,emin,emax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_F(A_SL_HF_P_92,Unranium)
+{
+    Init(10,1.0,1.5*92,3);
+    Iterate({40,1e-1,1.0,0.0,true});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+
+class A_SG_HF_P_92 : public ::testing::Test
+, public TestAtom, SG_OBasis, HF_P, TestPolarized
+{
+public:
+    A_SG_HF_P_92() : TestAtom(92), TestPolarized(6.0) {};
+    void Init(int N, double emin, double emax, int LMax)
+    {
+        SG_OBasis::Init(N,emin,emax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_F(A_SG_HF_P_92,Unranium)
+{
+    Init(20,0.08,7000*92,3);
+    Iterate({40,1e-1,1.0,0.0,true});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+
+class A_PG_HF_P_92 : public ::testing::Test
+, public TestAtom, SL_OBasis, HF_P, TestPolarized
+{
+public:
+    A_PG_HF_P_92() : TestAtom(21), TestPolarized(1.0) {};
+    void Init(int N, double emin, double emax, int LMax)
+    {
+        SL_OBasis::Init(N,emin,emax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_F(A_PG_HF_P_92,Unranium)
+{
+    Init(15,0.3,50,2  );
+    Iterate({40,1e-4,1.0,0.0,true});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
 
