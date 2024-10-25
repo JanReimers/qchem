@@ -58,6 +58,9 @@ public:
     //! \f$ K_{ab,cd}=\left\langle a\left(1\right)d\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)b\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{d}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{b}\left(\vec{r}_{2}\right) \f$. \n
     //! These integrals are not block diagonal for each irreducible representation. Therefore they
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
+    //! When there is only one Irrep (no symmetry) then we can store and Coulomb and Exchange all in one
+    //! Table, so we call the first version.  Other wise we need both J&K, the second version.
+    virtual void Make4C(ERI4& J,          const IEClient*) const=0; //Used for Hartree-Fock
     virtual void Make4C(ERI4& J, ERI4& K, const IEClient*) const=0; //Used for Hartree-Fock
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition

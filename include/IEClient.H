@@ -19,7 +19,8 @@ class IEClient //Client for a full basis set.
 public:
     virtual ~IEClient() {};
     virtual UniqueID::IDtype GetID() const=0;
-    virtual size_t size() const=0;  
+    virtual size_t size        () const=0;  //Total BFs across all sym adapted blocks;
+    virtual size_t GetNumIrreps() const=0;  //how many sym adapted blocks?
 };
 
 #endif //_IEClient_H_

@@ -16,7 +16,7 @@ public:
     
     virtual ~BasisSetImp();
     virtual size_t GetNumFunctions() const;
-    virtual size_t GetNumBasisSets() const;
+    virtual size_t GetNumIrreps() const;
     virtual void Insert(IrrepBasisSet*);
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}

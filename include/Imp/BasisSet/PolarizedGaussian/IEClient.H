@@ -6,6 +6,7 @@
 #include <IEClient.H> // <> prevents file search on this SphericalGaussian folder.
 #include "oml/vector.h"
 #include <vector>
+#include <map>
 
 namespace PolarizedGaussian
 {
@@ -40,6 +41,9 @@ struct IEClient
     void Append(const IrrepIEClient*);
     
     virtual size_t size() const {return radials.size();}
+    bool SameIrrep(index_t ia, index_t ib) const;
+    
+    std::map <index_t,index_t> irrepIDs;  //<index,irrep#>
 };
     
 } //namespace PolarizedGaussian

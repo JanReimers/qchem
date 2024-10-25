@@ -29,7 +29,7 @@ size_t BasisSetImp::GetNumFunctions() const
     return ret;
 }
 
-size_t BasisSetImp::GetNumBasisSets() const
+size_t BasisSetImp::GetNumIrreps() const
 {
     return itsBasisSets.size();
 }

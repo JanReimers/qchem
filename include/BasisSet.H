@@ -170,7 +170,7 @@ public:
 
     virtual ~BasisSet() {}; 
     virtual size_t GetNumFunctions() const=0;
-    virtual size_t GetNumBasisSets() const=0;
+    virtual size_t GetNumIrreps() const=0;
 
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;

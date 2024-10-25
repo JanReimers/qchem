@@ -32,8 +32,22 @@ void IEClient::Append(const IrrepIEClient* ic)
     for (auto r:ic->pols   ) pols   .push_back(r);
     ns.SetLimits(size(),true);
     for (size_t i=1;i<=ic->size();i++,j++)
+    {
         ns(j)=ic->ns(i);
+        irrepIDs[j]=ic->GetID();
+    }
+    //for (auto i: irrepIDs) std::cout << i.first << " " << i.second << std::endl;
     
+}
+
+bool IEClient::SameIrrep(index_t a, index_t b) const
+{
+     auto ia=irrepIDs.find(a);
+     assert(ia!=irrepIDs.end());
+     auto ib=irrepIDs.find(b);
+     assert(ib!=irrepIDs.end());
+//     std::cout << a << " " << b << " " << ia->second << " " << ib->second << std::endl;
+     return ia->second==ib->second;
 }
 
 } //namespace PolarizedGaussian

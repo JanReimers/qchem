@@ -298,7 +298,11 @@ template <class T> void HeapDB<T>::BuildERIs()
     assert(istIEClient);
     assert(itsJTable.size()==0);
     assert(itsKTable.size()==0); //They should be synchronized.
-    itsAnalyticIE->Make4C(itsJTable,itsKTable,istIEClient);
+    if (istIEClient->GetNumIrreps()>1)
+        itsAnalyticIE->Make4C(itsJTable,itsKTable,istIEClient);
+    else
+        itsAnalyticIE->Make4C(itsJTable,istIEClient);
+            
 }
 
 template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
@@ -310,7 +314,7 @@ template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
 template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
 {
    if (itsJTable.size()==0) BuildERIs(); 
-   if (itsKTable.size()==0)
+   if (istIEClient->GetNumIrreps()==1)
         return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
     else
         return ERI4view(itsKTable,a.GetStartIndex(),b.GetStartIndex());

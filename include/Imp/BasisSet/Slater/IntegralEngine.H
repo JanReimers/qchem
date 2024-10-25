@@ -40,6 +40,7 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
 
+    virtual void Make4C(ERI4& J,          const ::IEClient*) const; //Used for Hartree-Fock
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
 
     virtual void Report(std::ostream&) const;
@@ -50,6 +51,7 @@ private:
     typedef std::tuple<int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
+    void Make4C(ERI4* J, ERI4* K, const ::IEClient*) const; //Used for Hartree-Fock
     
     static double FourPi2;
 

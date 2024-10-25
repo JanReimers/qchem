@@ -132,29 +132,48 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
     return s3;
 }
 
+void IntegralEngine::Make4C(ERI4& J,const ::IEClient* iec) const
+{
+    Make4C(&J,NULL,iec);
+}
+void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
+{
+    Make4C(&J,&K,iec);
+}
+
 //-----------------------------------------------------------------------------------
 //
 //  4 centre integrals.
 //
-void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
+void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 {
     const IEClient* pg=dynamic_cast<const IEClient*>(iec);
     
     int N=pg->size();
-    J.SetSize(N,-1);
-    std::cout << N << " " << J.itsData.size() <<" " << K.itsData.size() << std::endl;
+    J->SetSize(N,-1);
+    if (K)
+        K->SetSize(N,-1.0);
+    std::cout << N << " " << J->itsData.size() << std::endl;
 
     for (index_t ia:pg->ns.indices())
         for (index_t ib:pg->ns.indices(ia))
             for (index_t ic:pg->ns.indices())
                 for (index_t id:pg->ns.indices(ic))
                 {
-                    if (J(ia,ib,ic,id)==-1.0)
+                    bool doJ = pg->SameIrrep(ia,ib) && pg->SameIrrep(ic,id) && (*J)(ia,ib,ic,id)==-1.0;
+                    bool doK = K && pg->SameIrrep(ia,ic) && pg->SameIrrep(ib,id) && (*K)(ia,ib,ic,id)==-1.0;
+
+                    if (doJ || doK)
                     {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                         double norm=pg->ns(ia)*pg->ns(ib)*pg->ns(ic)*pg->ns(id);
                         assert(pg->radials[id-1]);
-                        J(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
+                        if (doJ)
+                            (*J)(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
+                        if (doK)
+                            (*K)(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
+                        else
+                            if (K) (*K)(ia,ib,ic,id)=0.0;
                     }
                 }
 }
