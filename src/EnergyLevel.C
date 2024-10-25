@@ -46,18 +46,39 @@ void EnergyLevel::Empty()
     for (auto o:itsOrbitals) o->Empty();
 }
 
-void EnergyLevel::SetOccupation(double OccupationFactor)
+void EnergyLevel::SetOccupation(double ne)
 {
-    assert(OccupationFactor>=0);
-    assert(OccupationFactor<=1);
-    double NumElectronsPerOrbital=GetDegeneracy()*OccupationFactor/GetNumOrbitals();
-    for (auto o:itsOrbitals) o->SetOccupation(NumElectronsPerOrbital);
+    for (auto o:itsOrbitals) 
+    {
+        int degen=o->GetDegeneracy();
+        if (degen>ne)
+        {
+            o->SetOccupation(ne);
+            ne=0.0;
+        }
+        else
+        {
+            o->SetOccupation(degen);
+            ne-=degen;
+        }
+        if (ne<=0.0) break;
+    }
+    //for (auto o:itsOrbitals) std::cout << *o << std::endl;
+    
 }
 
 int  EnergyLevel::GetDegeneracy() const
 {
     int  deg=0;
-    for (auto o:itsOrbitals) deg+=o->GetDegeneracy();
+    int i=1;
+    //std::cout << "  Energy level E=" << GetEnergy() << " with " << GetNumOrbitals() << " orbitals." << std::endl;
+    for (auto o:itsOrbitals) 
+    {
+        //std::cout << "    Orbital " << i++ << " degen=" << o->GetDegeneracy() << " e=" << o->GetEigenEnergy() << std::endl;
+        deg+=o->GetDegeneracy();
+        //if (i>5) break;
+    }
+    //std::cout << "  ---------------------------------------" << std::endl;
     return deg;
 };
 

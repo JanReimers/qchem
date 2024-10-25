@@ -13,12 +13,12 @@ public:
     EnergyLevel(double Tolerance);
     ~EnergyLevel() {};
     
-    virtual bool   IsOccupied   (       ) const;
-    virtual double GetOccupation(       ) const;
-    virtual double GetSpin      (       ) const;
-    virtual void   Empty        (       )      ;
-    virtual void   SetOccupation(double )      ; //Supply thermal occ. factor.
-    virtual int    GetDegeneracy(       ) const;
+    virtual bool   IsOccupied   (        ) const;
+    virtual double GetOccupation(        ) const;
+    virtual double GetSpin      (        ) const;
+    virtual void   Empty        (        )      ;
+    virtual void   SetOccupation(double n)      ; //# of electrons
+    virtual int    GetDegeneracy(        ) const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;

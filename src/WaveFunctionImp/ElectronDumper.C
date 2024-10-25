@@ -72,6 +72,10 @@ void ElectronDumper::MakeEnergyLevels()
             }
         }
     }
+//    std::cout << "Sorted energy levels:" << std::endl;
+//    for (auto e : itsEnergyLevels)
+//        std::cout << "  Level i E=" << e->GetEnergy() << " with " << e->GetNumOrbitals() << " orbitals." << std:: endl;
+//    std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
     IsDirty=false;
 }
 
@@ -86,12 +90,17 @@ void ElectronDumper::DumpInElectrons(double NumElectrons)
     {
         double n=ft.GetOccupation(i->GetEnergy());
         double degen=i->GetDegeneracy();
+//        std:: cout << "1 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
         if (n>0.0 && degen>Ntotal)
         {
-            n*=Ntotal/degen;
+            n=Ntotal;  //finish off the remaining electrons.
         }
-        i->SetOccupation(n);
-        Ntotal-=n*degen;
+        else
+            n=degen;
+//        std::cout << "2 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
+//        std::cout << "===================================================" << std::endl; 
+        i->SetOccupation(n); //Send occupation factor 0 <= occ-factor <= 1
+        Ntotal-=n;
         if (Ntotal<=0.0) break;
     }
 //    std::cout << "residual n=" << Ntotal << std::endl;
