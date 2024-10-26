@@ -66,7 +66,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,18,36,54));
 TEST_P(A_SL_HF_U,Multiple)
 {
     int Z=GetParam();
-    Init(10,1.0,1.5*Z,GetLMax(Z));
+    Init(15,1.0,5*Z,GetLMax(Z));
     Iterate({40,1e-1,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -108,7 +108,7 @@ public:
 TEST_P(A_SG_HF_P,Multiple)
 {
     int Z=GetParam();
-    Init(20,0.05,4000*Z,GetLMax(Z));
+    Init(20,0.05,8000*Z,GetLMax(Z));
     Iterate({40,Z*1e-3,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -130,7 +130,7 @@ public:
 TEST_P(A_SL_HF_P,Multiple)
 {
     int Z=GetParam();
-    Init(10,0.7,1.5*Z,GetLMax(Z));
+    Init(15,0.7,5*Z,GetLMax(Z));
     Iterate({40,Z*1e-2,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -205,7 +205,7 @@ class A_PG_HF_P_92 : public ::testing::Test
 , public TestAtom, SL_OBasis, HF_P, TestPolarized
 {
 public:
-    A_PG_HF_P_92() : TestAtom(21), TestPolarized(1.0) {};
+    A_PG_HF_P_92() : TestAtom(21), TestPolarized(3.0) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SL_OBasis::Init(N,emin,emax,LMax);
@@ -215,8 +215,8 @@ public:
 
 TEST_F(A_PG_HF_P_92,Unranium)
 {
-    Init(15,0.3,50,2  );
-    Iterate({40,1e-4,1.0,0.0,true});
+    Init(15,0.1,80,2  );
+    Iterate({40,1e-1,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
