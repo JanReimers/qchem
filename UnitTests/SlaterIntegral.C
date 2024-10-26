@@ -44,10 +44,11 @@ public:
     {
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
-        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
+        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
-        MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,32,0,0});
+        MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,32,0,0,3});
         rmintegrator=new MeshIntegrator<double>(cl->CreateMesh(rmp));
+        //cout << *bs << endl;
     }
     
     bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
@@ -168,7 +169,7 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        //cout << S << endl;
+        cout << S << endl;
         SMatrix<double> Snum = mintegrator->Overlap(**i);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
 
