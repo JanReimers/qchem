@@ -161,7 +161,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         if (doK)
                             (*K)(ia,ib,ic,id)=FourPi2*R.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
                         else
-                            (*K)(ia,ib,ic,id)=0.0;
+                            if (K) (*K)(ia,ib,ic,id)=0.0;
 //                        std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                        << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J=" << J(ia,ib,ic,id) << std::endl;
                                 

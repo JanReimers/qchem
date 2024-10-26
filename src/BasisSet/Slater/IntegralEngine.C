@@ -184,7 +184,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                             
                         }
                         else
-                            (*K)(ia,ib,ic,id)=0.0;
+                            if (K) (*K)(ia,ib,ic,id)=0.0;
                      }
                 }
     
