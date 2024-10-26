@@ -91,19 +91,16 @@ void ElectronDumper::DumpInElectrons(double NumElectrons)
         double n=ft.GetOccupation(i->GetEnergy());
         double degen=i->GetDegeneracy();
 //        std:: cout << "1 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
-        if (n>0.0 && degen>Ntotal)
-        {
+        if (degen>Ntotal)
             n=Ntotal;  //finish off the remaining electrons.
-        }
         else
-            n=degen;
+            n=degen;  //Fill the orbital(s)
+        i->SetOccupation(n); //Dump electron into orbitals at this E level.
+        Ntotal-=n;
 //        std::cout << "2 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
 //        std::cout << "===================================================" << std::endl; 
-        i->SetOccupation(n); //Send occupation factor 0 <= occ-factor <= 1
-        Ntotal-=n;
         if (Ntotal<=0.0) break;
     }
-//    std::cout << "residual n=" << Ntotal << std::endl;
 
 }
 

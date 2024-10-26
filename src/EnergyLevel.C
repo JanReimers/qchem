@@ -70,7 +70,7 @@ void EnergyLevel::SetOccupation(double ne)
 int  EnergyLevel::GetDegeneracy() const
 {
     int  deg=0;
-    int i=1;
+//    int i=1;
     //std::cout << "  Energy level E=" << GetEnergy() << " with " << GetNumOrbitals() << " orbitals." << std::endl;
     for (auto o:itsOrbitals) 
     {
