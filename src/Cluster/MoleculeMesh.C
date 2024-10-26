@@ -8,6 +8,7 @@
 #include <MeshParams.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
+#include "oml/io3d.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
@@ -54,14 +55,18 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
             for (int i=1; i<=natom; i++)
                 for (int j=1; j<=natom; j++)
                     if (i!=j) P(i)*=s(i,j);
-            //cout << "r,w = "<< r << "," << w(rw) <<    " P=" << P(1) << " " << P(2) << endl;
+            
+            //std::cout << "r,w = "<< r << "," << w(rw) <<    " P=" << P(1) << " " << P(2) << std::endl;
+            //std::cout << "r,w = "<< r << "," << w(rw) << std::endl;
 
-            if(P(ia)>0)
+            if(natom>1 && P(ia)>0)
             {
                 double relativeWeight=P(ia)/Sum(P);
-                //cout << "ia,r,w=" << ia << " " << r << " " << relativeWeight << endl;
+//                cout << "ia,r,w=" << ia << " " << r << " " << relativeWeight << endl;
                 push_back(::r(rw),::w(rw)*relativeWeight);
             }
+            else if(natom==1)
+                push_back(::r(rw),::w(rw));
         }
         delete mesh_a;
         ia++;
