@@ -1,8 +1,23 @@
 Priority 1:
+    -ROHF for one open orbital.
+        -Need separate list of C and O orbitals in TOrbitals.
+        -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
+        -Need coupling constants for d orbitals.
+        -Understand what ERI4view.Exchange(a,b,c,d) is doing.
+        -
+        
+    -Diagnostic when spin=#unapaired electron does not work.  even/odd combos.
+    -PG basis with irreps for L converged to wrong answer ... too low.
+        Full matrix is fine?
+    -Molecule mesh gives crappy integrals.  
+        -Something wrong with Molecular mesh generation.
+    -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2
+    
+    -Convergence acceleration.
+        Should go in SCFIterator.
     -Document and make UTs for all the mesh types.
     -put periodic table in spreadsheet and read in a csv file.
         -Use python to read NIST DFT tables, and Hartree–Fock–Roothaan energies.txt
-    -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
     -Fix valgrind errors
         Seeing 1 errors related open MP
         Atom mesh leaks.  Should own radial and angular meshes?
@@ -10,19 +25,15 @@ Priority 1:
     -Clean up PolGaussian construction
         -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
    
-    -Does UniqueID really need to enforce Read/Write?
-        Tightly couple with PMStreamableObject which is tightly coupled with
-        the Read/Write functions throughout.
-        -Need a mile high plan to io before doing anything.
     -Clean up tech notes.
     -Make a new PolG::IntegralEngine using libcint
     -Electron loading problem/buf for Z=55 and up
     -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
                                     ^^^^^^^^^^^^^^
     -G-orbs for gaussians?
-        -Hermite2 crashes for L=3 (f orbitals).
-        -What are those horrible lookup tables!!
-    -Something wrong with Molecular mesh generation.
+        Fixed -Hermite2 crashes for L=3 (f orbitals).
+        Fixed -What are those horrible lookup tables!!
+        Need to unit test with PG basis for uranium.
     -GaussianRF.C has its own DFact tables.  Use the global tables.
     
 oml:
@@ -41,6 +52,14 @@ Priority 2:
         -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
         -What about pretty output?
         -boost::serialization of OML objects.
+        -Also consider cereal.
+        -Does UniqueID really need to enforce Read/Write?
+        Tightly couple with PMStreamableObject which is tightly coupled with
+        the Read/Write functions throughout.
+    -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
+    -Try serializing with cereal.  
+        -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
+        -Need a mile high plan to io before doing anything.
 
     -What can we use from boost:
         -Filesystem
@@ -98,7 +117,7 @@ Priority 3:
         Lapack uses the extra space in the full matrix as working space.
         So we end up converting to full anyway.  THis is just a convenience for the user.
      ??? the order of H, which may cause some problem in the qchem code.
-    -SphericalGuassian accept different exponent ranges for each L.
+    Done: -SphericalGuassian accept different exponent ranges for each L.
     -Dynamically adjust kT ?
     
             
