@@ -291,6 +291,9 @@
 		<Unit filename="src/ChargeDensity/FittedCD.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/ChargeDensity/FittedPolarizedCD.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/ChargeDensity/IrrepCD.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -394,6 +397,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Hamiltonian/HamiltonianTerm.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Hamiltonian/Hamiltonians.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Hamiltonian/Kinetic.C">

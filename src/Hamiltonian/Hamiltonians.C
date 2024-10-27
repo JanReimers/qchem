@@ -5,7 +5,7 @@
 #include "Imp/Hamiltonian/Vxc.H"
 #include <memory>
 
-Ham_HF_U::Ham_HF_U(cl_t& cl)
+Ham_HF_U::Ham_HF_U(cl_t& cl) 
 {
     InsertStandardTerms(cl);
     Add(new Vee);
