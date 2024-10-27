@@ -45,6 +45,7 @@ public:
 
     void Dump        (std::ostream&) const;
     void DumpExchange(std::ostream&) const;
+    double GetZerosFraction() const;
 
     virtual std::ostream&    Write(std::ostream&) const;
     virtual std::istream&    Read (std::istream&)      ;
@@ -114,6 +115,9 @@ public:
     {
         return itsERI4.GetIndex(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
     }
+    
+    size_t GetFullSize() const {return itsERI4.itsData.size();}
+    double GetZerosFraction() const {return itsERI4.GetZerosFraction();}
 private:
     const ERI4& itsERI4; 
     int itsStart_a;
