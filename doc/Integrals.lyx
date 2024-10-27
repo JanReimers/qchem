@@ -350,6 +350,79 @@ Angular Integration
 \end_layout
 
 \begin_layout Standard
+Here we follow 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "2007"
+literal "false"
+
+\end_inset
+
+ who goes into enough detail t inspire confidence.
+ He defines similar as above but with different (more conventional?) ordering.
+\begin_inset Formula 
+\[
+g_{abcd}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{2}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{1}})g_{d}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+So int his notation the Coulomb integrals are 
+\begin_inset Formula $g_{abab}$
+\end_inset
+
+ and exchange looks like 
+\begin_inset Formula $g_{abba}$
+\end_inset
+
+.
+ After some summations of the 
+\begin_inset Formula $m$
+\end_inset
+
+ quantum numbers,
+ and application of Wigner-Eckart theorm he gets (eq.
+ 3.64)
+\begin_inset Formula 
+\[
+g_{abab}=2\left(2l_{b}+1\right)R_{0}\left(n_{a},n_{b},n_{c},n_{d}\right).
+\]
+
+\end_inset
+
+This breaks symmetry between 
+\begin_inset Formula $l_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{b}$
+\end_inset
+
+?.
+ For the exchange case (eq.
+ 3.66)
+\begin_inset Formula 
+\[
+g_{abba}=\sum_{l=\left|l_{a}-l_{b}\right|}^{l_{a}+l_{b}}\frac{\left\langle l_{b}\left|C^{l}\right|l_{a}\right\rangle ^{2}}{2l_{a}+1}R_{l}\left(n_{a},n_{b},n_{c},n_{d}\right),\;l_{a}+l_{b}+l\:=even
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(2l_{b}+1\right)\sum_{l=\left|l_{a}-l_{b}\right|}^{l_{a}+l_{b}}\frac{1}{2}\left(\begin{array}{ccc}
+l_{a} & l & l_{b}\\
+0 & 0 & 0
+\end{array}\right)^{2}R_{l}\left(n_{a},n_{b},n_{c},n_{d}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 We end up with these constraints
 \begin_inset Formula 
 \[
