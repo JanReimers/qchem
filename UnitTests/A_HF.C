@@ -67,7 +67,7 @@ TEST_P(A_SL_HF_U,Multiple)
 {
     int Z=GetParam();
     Init(15,1.0,5*Z,GetLMax(Z));
-    Iterate({40,1e-1,1.0,0.0,false});
+    Iterate({40,1e-1,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,18,36,54));
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,18,36,54));
 TEST_P(A_PG_HF_U,Multiple)
 {
     Init();
-    Iterate({40,1e-1,1.0,0.0,false});
+    Iterate({40,1e-1,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
@@ -131,7 +131,7 @@ TEST_P(A_SL_HF_P,Multiple)
 {
     int Z=GetParam();
     Init(15,0.7,5*Z,GetLMax(Z));
-    Iterate({40,Z*1e-2,1.0,0.0,false});
+    Iterate({40,Z*1e-2,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -154,10 +154,10 @@ public:
 TEST_P(A_PG_HF_P,Multiple)
 {
     Init();
-    Iterate({40,1e-1,1.0,0.0,false});
+    Iterate({40,1e-3,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,7,37)); //Z=51 is slow
+INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,3,5,7,37)); //Z=51 is slow
 
 
 //
