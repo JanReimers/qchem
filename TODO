@@ -1,4 +1,12 @@
 Priority 1:
+    -Fix Boron.
+        The K integrals appear correct, at least for s & p orbitals in Boron.
+        So why does PG work and SL fails?
+        Because the int PG basis occupied Px can split from py/pz, and give a small energy gain.
+        For SL it is hard coded as one level with degen=2L+1=3.
+        We would need to introduce the m QN number and allow m splitting, at least for valance shells.
+    -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
+        PG can be a typedef so SG::ExponentScaler?
     -ROHF for one open orbital.
         -Need separate list of C and O orbitals in TOrbitals.
         -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
