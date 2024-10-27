@@ -17,7 +17,7 @@ using std::endl;
 };
     
 
-double SlaterRadialIntegrals::operator()   (int k,int la, int lb, int lc, int ld) const
+double SlaterRadialIntegrals::R(int k,int la, int lb, int lc, int ld) const
 {
     int Lab_p=la+lb+2+k; // first term r_1^2
     int Lcd_m=lc+ld+1-k; // first term r_2
@@ -34,7 +34,7 @@ double SlaterRadialIntegrals::operator()   (int k,int la, int lb, int lc, int ld
     return afact*Iab+cfact*Icd;
 }
 
-double SlaterRadialIntegrals::operator()   (int lab, int lcd) const
+double SlaterRadialIntegrals::Coulomb(int lab, int lcd) const
 {
     int Lab_p=lab+2; // first term r_1^2
     int Lcd_m=lcd+1; // first term r_2
@@ -51,11 +51,20 @@ double SlaterRadialIntegrals::operator()   (int lab, int lcd) const
     return afact*Iab+cfact*Icd;
 }
 
-double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld) const
+double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
+{
+    assert(la==lb);
+    assert(lc==ld);
+    return R(0,la,lb,lc,ld);
+//    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
+}
+
+double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) const
 {
 //    if (la==1 && lb==1 && lc==1 && ld==1)
 //        cout << "DoExchangeSum (" << la << "," << lb << "," << lc << "," << ld << ")" << endl;
-//                    
+//      
+    if (la==ld && lb==lc && la!=lb) return DoExchangeSum(la,lb,ld,lc);
     assert(la==lc);
     assert(lb==ld);
     assert(la>=0);
@@ -64,7 +73,12 @@ double SlaterRadialIntegrals::DoExchangeSum(      int la, int lb, int lc, int ld
     int kmax=la+lb;
     double ret=0.0;
     for (int k=kmin;k<=kmax;k+=2)
-        ret+=(*this)(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb);
+    {
+        assert((k+la+lb)%2==0);
+//        std::cout << "Exchange sum la,lb,k=" << la << " " << lb << " " << k << " w3j=" << Wigner3j::theW3j(la,k,lb) << std::endl; 
+        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb);
+    }
+//    return 2*(2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
     return 2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 
