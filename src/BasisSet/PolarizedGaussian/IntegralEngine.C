@@ -160,8 +160,8 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
             for (index_t ic:pg->ns.indices())
                 for (index_t id:pg->ns.indices(ic))
                 {
-                    bool doJ = pg->SameIrrep(ia,ib) && pg->SameIrrep(ic,id) && (*J)(ia,ib,ic,id)==-1.0;
-                    bool doK = K && pg->SameIrrep(ia,ic) && pg->SameIrrep(ib,id) && (*K)(ia,ib,ic,id)==-1.0;
+                    bool doJ = pg->SameIrrep(ia,ib) && pg->SameIrrep(ic,id);// && (*J)(ia,ib,ic,id)==-1.0;
+                    bool doK = K && pg->SameIrrep(ia,ic) && pg->SameIrrep(ib,id);// && (*K)(ia,ib,ic,id)==-1.0;
 
                     if (doJ || doK)
                     {
@@ -170,6 +170,9 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         assert(pg->radials[id-1]);
                         if (doJ)
                             (*J)(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
+                        else
+                            if (J) (*J)(ia,ib,ic,id)=0.0;
+
                         if (doK)
                             (*K)(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
                         else
