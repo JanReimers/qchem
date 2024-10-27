@@ -139,7 +139,7 @@ BasisSet* PG_OBasis::GetBasisSet () const
     {
         PolarizedGaussian::BasisSet* bs=new PolarizedGaussian::BasisSet(lap, N,emin,emax,LMax,GetCluster());  
         StreamableObject::SetToPretty();
-        std::cout << *bs << std::endl;
+        //std::cout << *bs << std::endl;
         return bs;
 //        return new PolarizedGaussian::BasisSet(lap, N,emin,emax,LMax,GetCluster());   
     }
