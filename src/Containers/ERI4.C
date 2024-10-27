@@ -81,6 +81,12 @@ void ERI4::DumpExchange(std::ostream& os) const
         }
 }
 
+double ERI4::GetZerosFraction() const
+{
+    size_t Nz=0;
+    for (auto jk:itsData) if(jk==0.0) Nz++;
+    return (double)Nz/double(itsData.size());
+}
 
 
 ERI4view::ERI4view(const ERI4& eril,int start_ab, int start_cd)
