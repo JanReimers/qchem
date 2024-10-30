@@ -58,7 +58,8 @@ public:
 //    double operator()   (int lab, int lcd) const;
     double Coulomb      (int lab, int lcd) const;
     double Coulomb      (int la, int lb, int lc, int ld) const;
-    double DoExchangeSum(int la, int lb, int lc, int ld) const; //Sum over l
+    double DoExchangeSum(int la, int lb, int lc, int ld) const; //Sum over k
+    double DoExchangeSum(int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const; //Sum over k, Ylm version
     
 private:
     double R(int k,int la, int lb, int lc, int ld) const;

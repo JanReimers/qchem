@@ -3,9 +3,17 @@
 
 #include "gtest/gtest.h"
 #include "Imp/Integrals/SlaterIntegrals.H"
+
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/BasisSet.H"
 #include "Imp/BasisSet/Slater/BasisFunction.H"
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+
+//#include "Imp/BasisSet/Slater_m/IrrepBasisSet.H"
+//#include "Imp/BasisSet/Slater_m/IntegralEngine.H"
+//#include "Imp/BasisSet/Slater_m/BasisSet.H"
+//#include "Imp/BasisSet/Slater_m/BasisFunction.H"
+
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "Imp/Integrals/MeshIntegrator.H"
@@ -60,6 +68,7 @@ public:
     LAParams lap;
     AnalyticIE<double>* ie;
     Slater::BasisSet* bs;
+//    Slater_m::BasisSet* bsm;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;
@@ -312,6 +321,55 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
             }
         }
     }
+}
+
+TEST_F(SlaterRadialIntegralTests, YlmExchange)
+{
+     double eps=1e-14;
+     SlaterRadialIntegrals S(0.5,0.5);
+     double ssss=S.DoExchangeSum(0,0,0,0);
+     double ssss_m=S.DoExchangeSum(0,0,0,0,0,0,0,0);
+     EXPECT_NEAR(ssss,ssss_m,ssss*eps);
+     
+     double spsp=S.DoExchangeSum(0,1,0,1);
+     double spsp_m=0.0;
+     for (int mb=-1;mb<=1;mb++)
+        spsp_m+=S.DoExchangeSum(0,1,0,1,0,mb,0,mb);
+    
+     EXPECT_NEAR(spsp,spsp_m,spsp*eps);
+     
+     double psps=S.DoExchangeSum(1,0,1,0);
+     double psps_m=0.0;
+     for (int ma=-1;ma<=1;ma++)
+        psps_m+=S.DoExchangeSum(1,0,1,0,ma,0,ma,0);
+    
+     EXPECT_NEAR(psps,psps_m,psps*eps);
+
+     double spps=S.DoExchangeSum(0,1,1,0);
+     double spps_m=0.0;
+     for (int mb=-1;mb<=1;mb++)
+        spps_m+=S.DoExchangeSum(0,1,1,0,0,mb,mb,0);
+    
+     EXPECT_NEAR(spps,spps_m,spps*eps);
+     
+     double pssp=S.DoExchangeSum(1,0,0,1);
+     double pssp_m=0.0;
+     for (int ma=-1;ma<=1;ma++)
+        pssp_m+=S.DoExchangeSum(1,0,0,1,ma,0,0,ma);
+    
+     EXPECT_NEAR(pssp,pssp_m,pssp*eps);
+     
+     double pppp=S.DoExchangeSum(1,1,1,1);
+     double pppp_mac=0.0,pppp_mad=0.0;
+     for (int ma=-1;ma<=1;ma++)
+     for (int mb=-1;mb<=1;mb++)
+     {
+        pppp_mac+=S.DoExchangeSum(1,1,1,1,ma,mb,ma,mb);
+        pppp_mad+=S.DoExchangeSum(1,1,1,1,ma,mb,mb,ma);         
+     }
+       
+     EXPECT_NEAR(pppp,pppp_mac,pppp*eps);
+     EXPECT_NEAR(pppp,pppp_mad,pppp*eps);
 }
 
 
