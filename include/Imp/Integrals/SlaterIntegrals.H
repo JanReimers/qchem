@@ -59,6 +59,7 @@ public:
     double Coulomb      (int lab, int lcd) const;
     double Coulomb      (int la, int lb, int lc, int ld) const;
     double DoExchangeSum(int la, int lb, int lc, int ld) const; //Sum over k
+    double Coulomb      (int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const; //Sum over k, Ylm version
     double DoExchangeSum(int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const; //Sum over k, Ylm version
     
 private:

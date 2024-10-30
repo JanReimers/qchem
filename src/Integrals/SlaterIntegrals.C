@@ -56,7 +56,7 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
 {
     assert(la==lb);
 //    assert(lc==ld);
-    return R(0,la,lb,lc,ld);
+    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
 //    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
 }
 
@@ -78,6 +78,34 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) cons
     }
     return (2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+}
+
+double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld,int ma, int mb, int mc, int md) const
+{
+    assert(la==lb);
+    assert(lc==ld);
+    assert(la>=0);
+    assert(lc>=0);
+    assert(ma>=-la);
+    assert(ma<= la);
+    assert(mc>=-lc);
+    assert(mc<= lc);
+    int phase=pow(-1,ma+mc);
+    int kmin=0;
+    int kmax=2*std::min(la,lc);
+    double ret=0.0;
+    for (int k=kmin;k<=kmax;k+=2)
+    {
+        //std::cout << "Coulomb sum ma,mc,k=" << ma << " " << mc << " " << k << std::endl; 
+        double w3a=WignerSymbols::wigner3j(la,k,la,0,0,0);
+        double w3c=WignerSymbols::wigner3j(lc,k,lc,0,0,0);
+        double w3am=WignerSymbols::wigner3j(la,k,la,ma,0,-ma);
+        double w3cm=WignerSymbols::wigner3j(lc,k,lc,mc,0,-mc);
+//        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb,ma,mb);
+        ret+=R(k,la,la,lc,lc)*w3a*w3am*w3c*w3cm; //What about *(2k+1) ??
+    }
+    return (2*la+1)*(2*lc+1)*phase*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+//    return ret; //Compensate for
 }
 
 double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const

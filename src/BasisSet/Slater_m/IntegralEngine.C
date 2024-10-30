@@ -152,8 +152,8 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 bool Jmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
 {
     bool l=iec.Ls(ia)==iec.Ls(ib) && iec.Ls(ic)==iec.Ls(id); 
-    bool m=iec.Ms(ia)==iec.Ms(ib) && iec.Ms(ic)==iec.Ms(id); 
-    return l && m;
+    //bool m=iec.Ms(ia)==iec.Ms(ib) && iec.Ms(ic)==iec.Ms(id); 
+    return l;// && m;
 }
 
 bool Kmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
@@ -187,7 +187,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                         if (doJ)
                         {
-                            (*J)(ia,ib,ic,id)=FourPi2*S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                            (*J)(ia,ib,ic,id)=FourPi2*S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
                         //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
                         //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
 

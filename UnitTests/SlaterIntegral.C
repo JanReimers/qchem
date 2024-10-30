@@ -372,6 +372,40 @@ TEST_F(SlaterRadialIntegralTests, YlmExchange)
      EXPECT_NEAR(pppp,pppp_mad,pppp*eps);
 }
 
+TEST_F(SlaterRadialIntegralTests, YlmCoulomb)
+{
+     double eps=1e-14;
+     SlaterRadialIntegrals S(0.5,0.5);
+     double ssss=S.Coulomb(0,0,0,0);
+     double ssss_m=S.Coulomb(0,0,0,0,0,0,0,0);
+     EXPECT_NEAR(ssss,ssss_m,ssss*eps);
+     
+     double sspp=S.Coulomb(0,0,1,1);
+     double sspp_m=0.0;
+     for (int mb=-1;mb<=1;mb++)
+        sspp_m+=S.Coulomb(0,0,1,1,0,0,mb,mb);
+    
+     EXPECT_NEAR(sspp,sspp_m,sspp*eps);
+     
+     double ppss=S.Coulomb(1,1,0,0);
+     double ppss_m=0.0;
+     for (int ma=-1;ma<=1;ma++)
+        ppss_m+=S.Coulomb(1,1,0,0,ma,ma,0,0);
+    
+     EXPECT_NEAR(ppss,ppss_m,ppss*eps);
+
+     
+     double pppp=S.Coulomb(1,1,1,1);
+     double pppp_m=0.0;
+     for (int ma=-1;ma<=1;ma++)
+     for (int mc=-1;mc<=1;mc++)
+     {
+        pppp_m+=S.Coulomb(1,1,1,1,ma,ma,mc,mc);
+     }
+       
+     EXPECT_NEAR(pppp,pppp_m,pppp*eps);
+}
+
 
 #ifndef DEBUG
 #include "oml/io3d.h"
