@@ -14,6 +14,12 @@ Wigner3j::Wigner3j()
         for (int l=0; l<=LMax; l++)
             for (int lb=0; lb<=LMax; lb++)
                 Data[la][l][lb]=-1.0; //Use this as a marker for un-assigned.
+    for (int la=0; la<=1; la++)
+        for (int k=0; k<=2; k++)
+            for (int lb=0; lb<=1; lb++)
+            for (int ma=-la; ma<=la; ma++)
+            for (int mb=-lb; mb<=lb; mb++)
+                Data6[la][k][lb][ma][-mb]=-1.0; //Use this as a marker for un-assigned.
 
     //
     //  Now hand assign from Johnson's table 3.1
@@ -40,6 +46,34 @@ Wigner3j::Wigner3j()
     Data[4][4][4]=  9./1001.;
     Data[4][4][6]= 10./1287.;
     Data[4][4][8]=245./21879.;
+    
+    
+    // these are really (2k+1)*3j(....)
+    Data6[0][0][0][0][0]=1;  //(ss|ss)
+    
+    Data6[0][0][1][0][-1]=1./3; //(sp|sp)
+    Data6[0][0][1][0][ 0]=1./3;
+    Data6[0][0][1][0][ 1]=1./3;
+    
+    Data6[1][0][1][-1][-1]=1./9; //(pp|pp) k=0
+    Data6[1][0][1][-1][ 0]=0;
+    Data6[1][0][1][-1][ 1]=0;
+    Data6[1][0][1][ 0][-1]=0;
+    Data6[1][0][1][ 0][ 0]=1./9;
+    Data6[1][0][1][ 0][ 1]=0;
+    Data6[1][0][1][ 1][-1]=0;
+    Data6[1][0][1][ 1][ 0]=0;
+    Data6[1][0][1][ 1][ 1]=1./9;
+    
+    Data6[1][2][1][-1][-1]=1./45; //(pp|pp) k=2
+    Data6[1][2][1][-1][ 0]=1./15;
+    Data6[1][2][1][-1][ 1]=2./15;
+    Data6[1][2][1][ 0][-1]=1./15;
+    Data6[1][2][1][ 0][ 0]=4./45;
+    Data6[1][2][1][ 0][ 1]=1./15;
+    Data6[1][2][1][ 1][-1]=2./15;
+    Data6[1][2][1][ 1][ 0]=1./15;
+    Data6[1][2][1][ 1][ 1]=1./45;
     //
     //  Now make it toally symmetric
     //
@@ -48,8 +82,8 @@ Wigner3j::Wigner3j()
             for (int lb=l; lb<=LMax; lb++)
             if ((la+l+lb)%2==0) //Check that summ is even
             {
-                double wigner=Data[la][l][lb];
-                if (wigner!=-1.0)
+                double wigner=2*Data[la][l][lb];
+                if (wigner!=-2.0)
                 {
                     Data[la][lb][l ]=wigner;
                     Data[lb][l ][la]=wigner;
@@ -57,6 +91,24 @@ Wigner3j::Wigner3j()
                     Data[l ][la][lb]=wigner;
                     Data[l ][lb][la]=wigner;                    
                 }
+            }
+            
+    for (int la=0; la<=1; la++)
+        for (int k=0; k<=2; k++)
+            for (int lb=0; lb<=1; lb++)
+                 if ((la+k+lb)%2==0) //Check that summ is even
+                    for (int ma=-la; ma<=la; ma++)
+                    for (int mb=-lb; mb<=lb; mb++)
+                    {
+                        double wigner=Data6[la][k][lb][ma][-mb];
+                        if (wigner!=-1.0)
+                        {
+                            Data6[la][lb][k ][ma][-mb]=wigner;
+                            Data6[lb][k ][la][ma][-mb]=wigner;
+                            Data6[lb][la][k ][ma][-mb]=wigner;
+                            Data6[k ][la][lb][ma][-mb]=wigner;
+                            Data6[k ][lb][la][ma][-mb]=wigner;                    
+                        }
             }
 
 }
@@ -73,11 +125,31 @@ double Wigner3j::operator()(int la, int k, int lb) const
     assert(lb>=0);
     assert(lb<=LMax);
     double ret=Data[la][k][lb];
-    if (ret==-1.0)
+    if (ret==-2.0)
     {
         cout << "Wigner3j no data for la,k,lb = " << LMax << " " << la  << " " << k << " " << lb << endl;
     }
-    assert(ret!=-1.0);
+    assert(ret!=-2.0);
     assert(ret>0.0);
     return ret;
 }
+
+double Wigner3j::operator()(int la, int k, int lb,int ma, int mb) const 
+{
+    assert(la>=0);
+    assert(la<=1);
+    assert(k >=0);
+    assert(k <=2);
+    assert(lb>=0);
+    assert(lb<=1);
+    assert((la+lb+k)%2==0);
+    double ret=Data6[la][k][lb][ma][-mb];
+    if (ret==-1.0)
+    {
+        cout << "Wigner3j no data for la,k,lb,ma,mb = " << LMax << " " << la  << " " << k << " " << lb << " " << ma << " " << mb << endl;
+    }
+    assert(ret!=-1.0);
+    assert(ret>=0.0);
+    return ret;
+}
+

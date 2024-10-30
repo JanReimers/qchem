@@ -349,8 +349,22 @@ where
 Angular Integration
 \end_layout
 
+\begin_layout Subsubsection
+Degenerate Slater orbitals.
+\end_layout
+
 \begin_layout Standard
-Here we follow 
+These orbitals only have the 
+\begin_inset Formula $l$
+\end_inset
+
+ quantum number,
+ and have degeneracy of 
+\begin_inset Formula $2l+1$
+\end_inset
+
+.
+ Here we follow 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "2007"
@@ -483,6 +497,342 @@ and
 \begin_layout Standard
 We must also add a factor of 
 \begin_inset Formula $\left(4\pi\right)^{2}.$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+\begin_inset Formula $Y_{lm}$
+\end_inset
+
+ Slater orbitals
+\end_layout
+
+\begin_layout Standard
+These have the additional quantum number 
+\begin_inset Formula $m$
+\end_inset
+
+ and degeneracy of 1.
+ These basis functions allow so called magnetic splitting from exchange interactions of unpaired spins.
+ In this case the exchange integrals or more complicated:
+\begin_inset Formula 
+\[
+g_{abba}=\sum_{l=0}^{\infty}\left(\begin{array}{ccc}
+l_{b} & l & l_{a}\\
+m_{b} & -m_{a}-m_{b} & m_{a}
+\end{array}\right)^{2}R_{l}\left(n_{a},n_{b},n_{c},n_{d}\right),\;l_{a}+l_{b}+l\:=even
+\]
+
+\end_inset
+
+where we have enforced 
+\begin_inset Formula $m_{1}+m_{2}+m_{3}=0$
+\end_inset
+
+ for 
+\begin_inset Formula $3j$
+\end_inset
+
+ symbols.
+ Lets look at some cases
+\begin_inset Formula 
+\[
+\left(ss|ss\right)=\left(\begin{array}{ccc}
+0 & 0 & 0\\
+0 & 0 & 0
+\end{array}\right)^{2}R_{0}\left(n_{a},n_{b},n_{c},n_{d}\right)=R_{0}\left(n_{a},n_{b},n_{c},n_{d}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(sp_{m_{b}}|P_{m_{b}}s\right)=\sum_{l=0}^{\infty}\left(\begin{array}{ccc}
+1 & l & 0\\
+m_{b} & -m_{b} & 0
+\end{array}\right)^{2}R_{l}\left(n_{a},n_{b},n_{c},n_{d}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{3}R_{1}\left(n_{a},n_{b},n_{c},n_{d}\right)
+\]
+
+\end_inset
+
+Now for the harder one
+\begin_inset Formula 
+\[
+\left(p_{m_{a}}p_{m_{b}}|P_{m_{b}}p_{m_{a}}\right)=\sum_{l=\left|m_{a}+m_{b}\right|}^{l_{a}+l_{b}}\left(\begin{array}{ccc}
+1 & l & 1\\
+m_{b} & -m_{b}-m_{a} & m_{a}
+\end{array}\right)^{2}R_{l}\left(n_{a},n_{b},n_{c},n_{d}\right)
+\]
+
+\end_inset
+
+Let's go through the cases:
+\begin_inset Formula 
+\[
+\left(p_{-1}p_{-1}|p_{-1}p_{-1}\right)=\left(\begin{array}{ccc}
+1 & 2 & 1\\
+-1 & 2 & -1
+\end{array}\right)^{2}R_{2}=\frac{1}{5}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(p_{-1}p_{0}|p_{0}p_{-1}\right)=\left(p_{0}p_{-1}|p_{-1}0\right)=\left(\begin{array}{ccc}
+1 & 1 & 1\\
+-1 & 1 & 0
+\end{array}\right)^{2}R_{1}+\left(\begin{array}{ccc}
+1 & 2 & 1\\
+-1 & 1 & 0
+\end{array}\right)^{2}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{6}R_{1}+\frac{1}{10}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(p_{-1}p_{1}|p_{1}p_{-1}\right)=\left(p_{1}p_{-1}|p_{-1}p_{1}\right)=\left(\begin{array}{ccc}
+1 & 0 & 1\\
+-1 & 0 & 1
+\end{array}\right)^{2}R_{0}+\left(\begin{array}{ccc}
+1 & 1 & 1\\
+-1 & 0 & 1
+\end{array}\right)^{2}R_{1}+\left(\begin{array}{ccc}
+1 & 2 & 1\\
+-1 & 0 & 1
+\end{array}\right)^{2}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{3}R_{0}+\frac{1}{6}R_{1}+\frac{1}{30}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(p_{0}p_{0}|p_{0}p_{0}\right)=\frac{1}{3}R_{0}+\frac{2}{15}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(p_{0}p_{1}|p_{1}p_{0}\right)=\left(p_{1}p_{0}|p_{0}p_{1}\right)=\frac{1}{6}R_{1}+\frac{1}{10}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(p_{1}p_{1}|p_{1}p_{1}\right)=\frac{1}{5}R_{2}
+\]
+
+\end_inset
+
+ow lets try
+\begin_inset Formula 
+\[
+\sum_{m_{a}m_{b}}\left(p_{m_{a}}p_{m_{b}}|P_{m_{b}}p_{m_{a}}\right)=\frac{2}{5}R_{2}+\frac{4}{6}R_{1}+\frac{4}{10}R_{2}+\frac{2}{3}R_{0}+\frac{2}{6}R_{1}+\frac{2}{30}R_{2}+\frac{1}{3}R_{0}+\frac{2}{15}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=R_{0}+R_{1}+\frac{2}{5}\left(1+\frac{1}{6}+\frac{1}{3}\right)R_{2}=R_{0}+R_{1}+\frac{3}{5}R_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{abba}=Y_{l_{a}m_{a}}^{*}\left(1\right)R_{l_{a}}(1)Y_{l_{b}m_{b}}^{*}\left(1\right)R_{l_{b}}(1)\frac{1}{r_{12}}Y_{l_{b}m_{b}}\left(2\right)R_{l_{b}}(2)Y_{l_{a}m_{a}}\left(2\right)R_{l_{a}}(2)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\int dr_{1}^{3}d^{3}r_{2}R_{l_{a}}(1)R_{l_{b}}(1)R_{l_{b}}(2)R_{l_{a}}(2)\sum_{km}\frac{r_{<}^{k}}{r_{>}^{k+1}}Y_{km}^{*}\left(1\right)Y_{km}\left(2\right)Y_{l_{a}m_{a}}^{*}\left(1\right)Y_{l_{b}m_{b}}^{*}\left(1\right)Y_{l_{b}m_{b}}\left(2\right)Y_{l_{a}m_{a}}\left(2\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{km}R_{k}\left(l_{a}l_{b}l_{b}l_{a}\right)\left\{ \int dA_{1}Y_{l_{a}m_{a}}^{*}\left(1\right)Y_{l_{b}m_{b}}\left(1\right)Y_{km}^{*}\left(1\right)\right\} \left\{ \int dA_{2}Y_{l_{a}m_{a}}\left(2\right)Y_{l_{b}m_{b}}^{*}\left(2\right)Y_{km}\left(2\right)\right\} 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{1}=\int d\varOmega Y_{l_{a}m_{a}}^{*}Y_{l_{b}m_{b}}Y_{km}^{*}=\left(-1\right)^{m_{a}+m}\int d\varOmega Y_{l_{a},-m_{a}}Y_{l_{b}m_{b}}Y_{k,-m}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m_{a}+m}\sqrt{\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+-m_{a} & m_{b} & -m
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{2}=\int d\varOmega Y_{l_{a}m_{a}}Y_{l_{b}m_{b}}^{*}Y_{km}=\left(-1\right)^{m_{b}}\int d\varOmega Y_{l_{a}m_{a}}Y_{l_{b}-m_{b}}Y_{km}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m_{b}}\sqrt{\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & -m_{b} & m
+\end{array}\right)
+\]
+
+\end_inset
+
+Requiring 
+\begin_inset Formula $m_{a}-m_{b}+m=0$
+\end_inset
+
+,
+ or 
+\begin_inset Formula $m=m_{b}-m_{a}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{1}A_{2}=\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+-m_{a} & m_{b} & m_{a}-m_{b}
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & -m_{b} & m_{b}-m_{a}
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{l_{a}+l_{b}+k}\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & -m_{b} & m_{b}-m_{a}
+\end{array}\right)^{2}
+\]
+
+\end_inset
+
+Constraints
+\begin_inset Formula 
+\[
+\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+l_{a}+l_{b}+k=even
+\]
+
+\end_inset
+
+Now 
+\begin_inset Formula 
+\[
+g_{abba}=\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)}{4\pi}\sum_{k}R_{k}\left(l_{a}l_{b}l_{b}l_{a}\right)\left(2k+1\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & -m_{b} & m_{b}-m_{a}
+\end{array}\right)^{2}
+\]
+
+\end_inset
+
+We can use
+\begin_inset Formula 
+\[
+\left(2k+1\right)\sum_{m_{a}m_{b}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & -m_{b} & m_{b}-m_{a}
+\end{array}\right)^{2}=1
+\]
+
+\end_inset
+
+to get the result for the degenrate Slater orbitals
+\begin_inset Formula 
+\[
+\sum_{m_{a}m_{b}}g_{abba}=\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)}{4\pi}\sum_{k}R_{k}\left(l_{a}l_{b}l_{b}l_{a}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}
+\]
+
 \end_inset
 
 
@@ -1029,6 +1379,382 @@ G_{n}\left(\alpha\right)=\intop_{0}^{\infty}r^{n}e^{-\alpha r^{2}}dr\label{eq:Gn
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection
+Two electron Integrals
+\end_layout
+
+\begin_layout Standard
+There are couple of conventions for labelling these:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+Convention 1:
+\begin_inset Formula 
+\begin{equation}
+g_{abcd}=<ab\left|\frac{1}{r_{12}}\right|cd>=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})\label{eq:1122 convention}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+Convention 2:
+\begin_inset Formula 
+\begin{equation}
+g_{abcd}=<ab\left|\frac{1}{r_{12}}\right|cd>=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{2}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{1}})g_{d}(\overrightarrow{r_{2}})\label{1212 convention}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+I order to proceed we will need some ...
+\end_layout
+
+\begin_layout Subsubsection
+useful relations.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+Y_{lm}\left(\theta,\phi\right)=\left(-1\right)^{m}\sqrt{\frac{\left(2l+1\right)\left(l-m\right)!}{4\pi\left(l+m\right)!}}\:e^{im\phi}\:P_{l}^{m}\left(cos\theta\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+Y_{lm}^{*}=\left(-1\right)^{m}Y_{l,-m}\label{eq:Y-star}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\frac{1}{r_{12}}=\sum_{k=0}^{\infty}\frac{4\pi}{2l+1}\frac{r_{<}^{k}}{r_{>}^{k+1}}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})\label{multipole}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\int d\varOmega Y_{l_{a}m_{a}}^{*}Y_{l_{b}m_{b}}=\delta_{l_{a}l_{b}}\delta_{m_{a}m_{b}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\int d\varOmega Y_{l_{a}m_{a}}Y_{l_{b}m_{b}}Y_{km}=\sqrt{\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & m_{b} & m
+\end{array}\right)\label{eq:Gaunt}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{m_{a}m_{b}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k_{1}\\
+m_{a} & m_{b} & m_{1}
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k_{2}\\
+m_{a} & m_{b} & m_{2}
+\end{array}\right)=\frac{\delta_{k_{1}k_{2}}\delta_{m_{1}m_{2}}}{2k_{1}+1}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Radial/Angular separation
+\end_layout
+
+\begin_layout Standard
+Using the 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "1212 convention"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ and inserting 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "multipole"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we get
+\begin_inset Formula 
+\[
+g_{abcd}=\sum_{k=0}^{\infty}\sum_{m=-k}^{k}\frac{4\pi}{2l+1}\int r_{1}^{2}dr_{1}d\varOmega_{1}\int r_{2}^{2}dr_{2}d\varOmega_{2}\;Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})g_{c}^{*}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{l_{a}}\left(r_{1}\right)Y_{l_{a}m_{a}}^{*}\left(\varOmega_{1}\right)R_{l_{b}}\left(r_{1}\right)Y_{l_{b}m_{b}}^{*}\left(\varOmega_{1}\right)Y_{km}^{*}(\Omega_{1})\frac{r_{<}^{k}}{r_{>}^{k+1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+Y_{km}(\Omega_{2})R_{l_{c}}\left(r_{2}\right)Y_{l_{c}m_{c}}\left(\varOmega_{2}\right)R_{l_{d}}\left(r_{2}\right)Y_{l_{d}m_{d}}\left(\varOmega_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{1}=\int d\varOmega Y_{l_{a}m_{a}}^{*}\left(\varOmega\right)Y_{l_{b}m_{b}}^{*}\left(\varOmega\right)Y_{km}^{*}(\varOmega)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+A_{2}=\int d\varOmega Y_{km}(\varOmega)Y_{l_{c}m_{c}}\left(\varOmega\right)Y_{l_{d}m_{d}}\left(\varOmega\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{k}\left(l_{a}l_{b}l_{c}l_{d}\right)=\int r_{1}^{2}dr_{1}\int r_{2}^{2}dr_{2}R_{l_{a}}\left(r_{1}\right)R_{l_{b}}\left(r_{1}\right)\frac{r_{<}^{k}}{r_{>}^{k+1}}R_{l_{c}}\left(r_{2}\right)R_{l_{d}}\left(r_{2}\right)
+\]
+
+\end_inset
+
+So now 
+\begin_inset Formula 
+\[
+g_{abcd}=\sum_{k=0}^{\infty}\sum_{m=-k}^{k}\frac{4\pi}{2l+1}A_{1}\left(l_{a}m_{a}l_{b}m_{a}km\right)A_{2}\left(l_{c}m_{c}l_{d}m_{d}km\right)R_{k}\left(l_{a}l_{b}l_{c}l_{d}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Angular integrals
+\end_layout
+
+\begin_layout Standard
+For the second one we can use 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Gaunt"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ directly.
+\begin_inset Formula 
+\[
+A_{2}=\int d\varOmega Y_{km}(\Omega)Y_{l_{c}m_{c}}\left(\varOmega\right)Y_{l_{d}m_{d}}\left(\varOmega\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sqrt{\frac{\left(2l_{c}+1\right)\left(2l_{d}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{c} & l_{d} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{d} & k\\
+m_{c} & m_{d} & m
+\end{array}\right)
+\]
+
+\end_inset
+
+Using 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Y-star"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{1}=\left(-1\right)^{m_{a}+m_{b}+m}\int d\varOmega Y_{l_{a},-m_{a}}\left(\varOmega\right)Y_{l_{b},-m_{b}}\left(\varOmega\right)Y_{k,-m}(\varOmega)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m_{a}+m_{b}+m}\sqrt{\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+-m_{a} & -m_{b} & -m
+\end{array}\right)
+\]
+
+\end_inset
+
+The full Wigner 
+\begin_inset Formula $3j$
+\end_inset
+
+ symbols enforce
+\begin_inset Formula 
+\[
+m_{c}+m_{d}+m=0,\;m_{a}+m_{b}+m=0
+\]
+
+\end_inset
+
+which eliminates the sum over 
+\begin_inset Formula $m$
+\end_inset
+
+,
+ and
+\begin_inset Formula 
+\[
+\left(-1\right)^{m_{a}+m_{b}+m}=1
+\]
+
+\end_inset
+
+Also
+\begin_inset Formula 
+\[
+\left|l_{a}-l_{b}\right|\leq k\leq l_{a}+l_{b}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left|l_{c}-l_{d}\right|\leq k\leq l_{c}+l_{d}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+k\;even
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Coulomb case:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $l_{a}=l_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{c}=l_{d}$
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+A_{1}A_{2}=\frac{\left(2l_{a}+1\right)\left(2l_{c}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+m_{c} & m_{d} & -m_{c}-m_{d}
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Exchange case
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $l_{a}=l_{c}$
+\end_inset
+
+and 
+\begin_inset Formula $l_{b}=l_{d}$
+\end_inset
+
+ for the exchange term.
 \end_layout
 
 \begin_layout Subsection

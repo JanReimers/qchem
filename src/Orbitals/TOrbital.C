@@ -3,6 +3,7 @@
 
 
 #include "Imp/Orbitals/TOrbital.H"
+#include <QuantumNumber.H>
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
@@ -34,7 +35,13 @@ template <class T> double TOrbitalImp<T>::GetEigenEnergy() const
 
 template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
 {
-    if (IsOccupied()) d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
+    
+    if (IsOccupied()) 
+    {
+        std::cout << "Orbital occ=" << GetOccupation() << std::fixed << " E=" << GetEigenEnergy() 
+        << " QN=" << itsBasisSet->GetQuantumNumber() << std::endl;
+        d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
+    }
 }
 
 

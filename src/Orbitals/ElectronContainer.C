@@ -13,7 +13,9 @@ ElectronContainerImp::ElectronContainerImp(const Spin& S,const QuantumNumber& qn
     : itsOccupation       (0)
     , itsSpin             (S)
     , itsOrbitalDegeneracy(qn.GetDegeneracy())
-{};
+{
+//    std::cout << "itsOrbitalDegeneracy=" << itsOrbitalDegeneracy << std::endl;
+};
 
 ElectronContainerImp::ElectronContainerImp()
     : itsOccupation       (0)

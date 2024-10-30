@@ -4,6 +4,7 @@
 #include "Imp/Integrals/PascalTriangle.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "oml/vector.h"
+#include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -54,16 +55,13 @@ double SlaterRadialIntegrals::Coulomb(int lab, int lcd) const
 double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
 {
     assert(la==lb);
-    assert(lc==ld);
+//    assert(lc==ld);
     return R(0,la,lb,lc,ld);
 //    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
 }
 
 double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) const
 {
-//    if (la==1 && lb==1 && lc==1 && ld==1)
-//        cout << "DoExchangeSum (" << la << "," << lb << "," << lc << "," << ld << ")" << endl;
-//      
     if (la==ld && lb==lc && la!=lb) return DoExchangeSum(la,lb,ld,lc);
     assert(la==lc);
     assert(lb==ld);
@@ -76,10 +74,43 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) cons
     {
         assert((k+la+lb)%2==0);
 //        std::cout << "Exchange sum la,lb,k=" << la << " " << lb << " " << k << " w3j=" << Wigner3j::theW3j(la,k,lb) << std::endl; 
-        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb);
+        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb); //What about *(2k+1) ??
     }
-//    return 2*(2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
-    return 2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return (2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+//    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+}
+
+double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const
+{
+    if (la==ld && lb==lc && la!=lb) 
+        return DoExchangeSum(la,lb,ld,lc,ma,mb,md,mc);
+   
+    assert(la==lc);
+    assert(lb==ld);
+//    if (la==lb && ma==md && mb==mc && ma!=mc && mb!=md) 
+//        return DoExchangeSum(la,lb,ld,lc,ma,mb,md,mc);
+//    assert(ma==mc);
+//    assert(mb==md);
+    assert(la>=0);
+    assert(lb>=0);
+    assert(ma>=-la);
+    assert(ma<= la);
+    assert(mb>=-lb);
+    assert(mb<= lb);
+    int kmin=std::abs(la-lb);
+    int kmax=la+lb;
+    double ret=0.0;
+    for (int k=kmin;k<=kmax;k+=2)
+    {
+        assert((k+la+lb)%2==0);
+//        std::cout << "Exchange sum la,lb,k=" << la << " " << lb << " " << k << " w3j=" << Wigner3j::theW3j(la,k,lb) << std::endl; 
+        double w3a=WignerSymbols::wigner3j(la,lb,k,0,0,0);
+        double w3b=WignerSymbols::wigner3j(la,lb,k,ma,-mb,mb-ma);
+//        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb,ma,mb);
+        ret+=R(k,la,lb,la,lb)*w3a*w3a*w3b*w3b; //What about *(2k+1) ??
+    }
+    return (2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+//    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 
 //

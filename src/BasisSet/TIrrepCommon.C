@@ -147,6 +147,11 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             Jab(ia,ib)=Jab_temp;
         }
     assert(!isnan(Jab));
+    if (Max(fabs(Dcd))>0.0)
+        std::cout << "Coulomb DM sum this ab=" << this->GetQuantumNumber() 
+        << " cd=" << bs_cd->GetQuantumNumber() 
+        << " max|Dcd|=" << Max(fabs(Dcd)) 
+        << " max|Jab|=" << Max(fabs(Jab)) << std::endl;
 
     return Jab;
 }
@@ -178,7 +183,11 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             Kab(ia,ib)=Kab_temp;
         }
     assert(!isnan(Kab));
-
+    if (Max(fabs(Dcd))>0.0)
+        std::cout << "Exhange DM sum this ab=" << this->GetQuantumNumber() 
+        << " cd=" << bs_cd->GetQuantumNumber() 
+        << " max|Dcd|=" << Max(fabs(Dcd)) 
+        << " max|Kab|=" << Max(fabs(Kab)) << std::endl;
     return Kab;
 }
 //

@@ -148,7 +148,7 @@ std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
             s << *g << std::ends;
             std::string ss(s.str());
             std::string num=ss.substr(10);
-            os << num << " ";
+            //os << num << " ";
         }
         os << "}";
     }

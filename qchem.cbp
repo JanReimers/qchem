@@ -85,6 +85,12 @@
 		<Unit filename="include/Imp/BasisSet/Slater/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/IrrepBasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_m/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_m/BasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_m/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_m/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_m/IrrepBasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_m/QuantumNumber.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IEClient.H" />
@@ -256,6 +262,24 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/Slater/IrrepBasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_m/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_m/BasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_m/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_m/IntegralEngine.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_m/IrrepBasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_m/QuantumNumber.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/BasisFunction.C">

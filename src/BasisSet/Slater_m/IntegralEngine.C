@@ -194,9 +194,9 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         }
                         if (doK)
                         {
-                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-                            << ") m=(" << sg->Ms(ia) << "," << sg->Ms(ib) << "," << sg->Ms(ic) << "," << sg->Ms(id) 
-                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
+//                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
+//                            << ") m=(" << sg->Ms(ia) << "," << sg->Ms(ib) << "," << sg->Ms(ic) << "," << sg->Ms(id) 
+//                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                             (*K)(ia,ib,ic,id)=FourPi2*S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;

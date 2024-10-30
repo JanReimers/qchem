@@ -84,11 +84,17 @@ public:
         Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-4,1e-12}));
     }
     
-private:
+protected:
     virtual BasisSet*      GetBasisSet () const;
     int N,Lmax;
     double emin,emax;
     LAParams lap;
+};
+
+class SLm_OBasis : public SL_OBasis
+{
+ protected:
+    virtual BasisSet*      GetBasisSet () const;   
 };
 
 class PG_OBasis : public virtual QchemTester

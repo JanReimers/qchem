@@ -1,4 +1,7 @@
 Priority 1:
+    -Stop build zero density matrices.   And definitely don''t bother contracting them!!!
+    -Get 4Pi^2 out of the integral engines.
+    -QchemTester: make show basis set an option.
     -Fix Boron.
         The K integrals appear correct, at least for s & p orbitals in Boron.
         So why does PG work and SL fails?

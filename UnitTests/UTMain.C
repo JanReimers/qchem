@@ -5,11 +5,11 @@
 int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
-     testing::GTEST_FLAG(filter) = "A_PG_HF_P_92*";
+//     testing::GTEST_FLAG(filter) = "A_PG_HF_P_92*";
 
 //     testing::GTEST_FLAG(filter) = "MeshIntegralsTests.GObritals:M_PG_*:Multiple/A_PG*";
 //  testing::GTEST_FLAG(filter) = "Multiple/A_PG_DFT*";
-//    testing::GTEST_FLAG(filter) = "M_PG_*:Multiple/A_PG*";
+    testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/2";
 //
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";

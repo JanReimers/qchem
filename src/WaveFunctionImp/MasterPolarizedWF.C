@@ -40,8 +40,11 @@ void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
+    std::cout << "Spin up" << std::endl;
     itsSpinUpGroup  ->DoSCFIteration(ham);
+    std::cout << "Spin dn" << std::endl;
     itsSpinDownGroup->DoSCFIteration(ham);
+    std::cout << "----------------------------------------------------" << std::endl;
 }
 
 ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
@@ -49,7 +52,12 @@ ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
     assert(s==Spin::None);
-    return new PolarizedCDImp(itsSpinUpGroup->GetChargeDensity(Spin::Up),itsSpinDownGroup->GetChargeDensity(Spin::Down));
+    std::cout << "Spin up" << std::endl;
+    ChargeDensity* up=itsSpinUpGroup->GetChargeDensity(Spin::Up);
+    std::cout << "Spin dn" << std::endl;
+    ChargeDensity* dn=itsSpinDownGroup->GetChargeDensity(Spin::Down);
+    std::cout << "----------------------------------------------------" << std::endl;
+    return new PolarizedCDImp(up,dn);
 }
 
 void MasterPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)

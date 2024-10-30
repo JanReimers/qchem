@@ -1,7 +1,6 @@
 
 #include "Imp/BasisSet/Slater/IEClient.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
-#include "Imp/Integrals/GaussianRadialIntegrals.H"
 
 template <class T> void FillPower(Vector<T>& arr,T start, T stop)
 {

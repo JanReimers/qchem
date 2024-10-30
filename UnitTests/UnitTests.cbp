@@ -53,6 +53,7 @@
 			<Add library="lapack" />
 			<Add library="gtest" />
 			<Add library="pthread" />
+			<Add library="wignerSymbols" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
 		<Unit filename="A_DFT.C">
