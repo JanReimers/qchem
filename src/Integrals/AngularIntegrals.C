@@ -13,7 +13,8 @@ double Exchange(int k,int la,int lb)
 {
     assert(k>=std::abs(la-lb));
     assert(k<=la+lb);
-    return Wigner3j::theW3j(la,lb,k); //What about *(2k+1) ??
+    double wabk=Wigner3j::theW3j(la,lb,k);
+    return wabk*wabk; 
 }
 
 double Coulomb (int k,int la,int lc,int ma,int mc)
