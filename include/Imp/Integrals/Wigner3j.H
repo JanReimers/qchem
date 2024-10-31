@@ -15,8 +15,8 @@ public:
     double operator()(int la, int lb, int k) const;
 private:
     Wigner3j();
-    static const int LMax=8;
-    double Data[LMax+1][LMax+1][LMax+1];
+    static const int LMax=4;
+    double Data[LMax+1][LMax+1][2*LMax+1];
 };
 
 #endif // WIGNER3J_H
