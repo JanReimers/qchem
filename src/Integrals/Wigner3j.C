@@ -19,7 +19,7 @@ Wigner3j::Wigner3j()
                 Data[la][lb][k]=WignerSymbols::wigner3j(la,lb,k,0,0,0);
                 for (int ma=-la;ma<=la;ma++)
                     for (int mb=-lb;mb<=lb;mb++)
-                        Data_m[la][lb][k][ma+LMax][lb+LMax]=WignerSymbols::wigner3j(la,lb,k,ma,mb,-ma-mb);
+                        Data_m[la][lb][k][ma+LMax][mb+LMax]=WignerSymbols::wigner3j(la,lb,k,ma,mb,-ma-mb);
             }
           
   

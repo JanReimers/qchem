@@ -10,7 +10,7 @@ Priority 1:
         Done: 1) Clean up data dumps.
         Done: 2) Get all UTas running again.
         Done: 3) Refactor out the angular parts with all the w3j symbols
-        4) Build static wj3 tables using the wigner library.
+        Done: 4) Build static wj3 tables using the wigner library.
         5) Get d orbitals working
         6) Try Sc again.
         7) Make a SG_m basis set.

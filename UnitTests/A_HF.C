@@ -153,7 +153,7 @@ TEST_P(A_SLm_HF_P,Multiple)
 {
     int Z=GetParam();
     Init(9,0.5,4*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,0.0,false});
+    Iterate({40,Z*1e-3,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
