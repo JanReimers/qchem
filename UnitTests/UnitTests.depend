@@ -927,7 +927,7 @@
 	<cmath>
 	<cassert>
 
-1730397476 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
+1730398665 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
 
 1729606171 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/BasisSet.H
 	"IEClient.H"

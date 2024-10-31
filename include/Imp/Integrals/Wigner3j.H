@@ -13,12 +13,10 @@ class Wigner3j
 public:
     static Wigner3j theW3j;
     double operator()(int la, int lb, int k) const;
-    double operator()(int la, int l, int lb,int ma, int mb) const;
 private:
     Wigner3j();
     static const int LMax=8;
     double Data[LMax+1][LMax+1][LMax+1];
-    double Data6[2][3][2][3][3];
 };
 
 #endif // WIGNER3J_H
