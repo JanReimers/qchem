@@ -56,7 +56,7 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
 {
     assert(la==lb);
 //    assert(lc==ld);
-    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
+    return R(0,la,lb,lc,ld);
 //    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
 }
 
@@ -76,7 +76,7 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) cons
 //        std::cout << "Exchange sum la,lb,k=" << la << " " << lb << " " << k << " w3j=" << Wigner3j::theW3j(la,k,lb) << std::endl; 
         ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb); //What about *(2k+1) ??
     }
-    return (2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 

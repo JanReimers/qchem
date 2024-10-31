@@ -38,8 +38,8 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     
     if (IsOccupied()) 
     {
-        std::cout << "Orbital occ=" << GetOccupation() << std::fixed << " E=" << GetEigenEnergy() 
-        << " QN=" << itsBasisSet->GetQuantumNumber() << std::endl;
+//        std::cout << "Orbital occ=" << GetOccupation() << std::fixed << " E=" << GetEigenEnergy() 
+//        << " QN=" << itsBasisSet->GetQuantumNumber() << std::endl;
         d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
     }
 }

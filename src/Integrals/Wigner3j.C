@@ -82,8 +82,8 @@ Wigner3j::Wigner3j()
             for (int lb=l; lb<=LMax; lb++)
             if ((la+l+lb)%2==0) //Check that summ is even
             {
-                double wigner=2*Data[la][l][lb];
-                if (wigner!=-2.0)
+                double wigner=Data[la][l][lb];
+                if (wigner!=-1.0)
                 {
                     Data[la][lb][l ]=wigner;
                     Data[lb][l ][la]=wigner;
@@ -125,13 +125,13 @@ double Wigner3j::operator()(int la, int k, int lb) const
     assert(lb>=0);
     assert(lb<=LMax);
     double ret=Data[la][k][lb];
-    if (ret==-2.0)
+    if (ret==-1.0)
     {
         cout << "Wigner3j no data for la,k,lb = " << LMax << " " << la  << " " << k << " " << lb << endl;
     }
-    assert(ret!=-2.0);
+    assert(ret!=-1.0);
     assert(ret>0.0);
-    return ret;
+    return 2*ret;
 }
 
 double Wigner3j::operator()(int la, int k, int lb,int ma, int mb) const 

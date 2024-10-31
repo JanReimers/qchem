@@ -52,7 +52,6 @@ double HamiltonianTermImp::CalculateEnergy() const
                 const IrrepBasisSet* bs=i->first.itsBasisSet;
                 Spin s=i->first.itsSpin;
                 assert(bs);
-                std::cout << "Spin = " << s << std::endl;
                 BuildHamiltonian(bs,s);
             }
         }

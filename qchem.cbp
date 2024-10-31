@@ -58,6 +58,7 @@
 		<Unit filename="include/FittedFunctionClient.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/GaussianScaler.H" />
 		<Unit filename="include/Imp/BasisSet/IrrepCommon.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisSet.H" />
@@ -85,6 +86,7 @@
 		<Unit filename="include/Imp/BasisSet/Slater/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/IrrepBasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/SlaterScaler.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/IEClient.H" />

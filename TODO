@@ -1,13 +1,22 @@
 Priority 1:
-    -Stop build zero density matrices.   And definitely don''t bother contracting them!!!
-    -Get 4Pi^2 out of the integral engines.
     -QchemTester: make show basis set an option.
-    -Fix Boron.
+    Done: -Fix Boron.
         The K integrals appear correct, at least for s & p orbitals in Boron.
         So why does PG work and SL fails?
-        Because the int PG basis occupied Px can split from py/pz, and give a small energy gain.
+        Because the in the PG basis occupied Px can split from py/pz, and give a small energy gain.
         For SL it is hard coded as one level with degen=2L+1=3.
         We would need to introduce the m QN number and allow m splitting, at least for valance shells.
+    -Slater_m next steps now that Boron is working:
+        1) Clean up data dumps.
+        2) Get all UTas running again.
+        3) Refactor out the angular parts with all the w3j symbols
+        4) Build static wj3 tables using the wigner library.
+        5) Get d orbitals working
+        6) Try Sc again.
+        7) Make a SG_m basis set.
+        8) 3C repulsions should call R_k(lalblcld) directly.
+        9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
+        10) Get 4Pi^2 out of the integral engines.
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -ROHF for one open orbital.
@@ -18,8 +27,6 @@ Priority 1:
         -
         
     -Diagnostic when spin=#unapaired electron does not work.  even/odd combos.
-    -PG basis with irreps for L converged to wrong answer ... too low.
-        Full matrix is fine?
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.
     -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2

@@ -125,6 +125,7 @@ template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
+    //assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view J=GetDataBase()->GetRepulsion4C(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
@@ -147,11 +148,11 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             Jab(ia,ib)=Jab_temp;
         }
     assert(!isnan(Jab));
-    if (Max(fabs(Dcd))>0.0)
-        std::cout << "Coulomb DM sum this ab=" << this->GetQuantumNumber() 
-        << " cd=" << bs_cd->GetQuantumNumber() 
-        << " max|Dcd|=" << Max(fabs(Dcd)) 
-        << " max|Jab|=" << Max(fabs(Jab)) << std::endl;
+//    if (Max(fabs(Dcd))>0.0)
+//        std::cout << "Coulomb DM sum this ab=" << this->GetQuantumNumber() 
+//        << " cd=" << bs_cd->GetQuantumNumber() 
+//        << " max|Dcd|=" << Max(fabs(Dcd)) 
+//        << " max|Jab|=" << Max(fabs(Jab)) << std::endl;
 
     return Jab;
 }
@@ -161,6 +162,7 @@ template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
+    //assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view K=GetDataBase()->GetExchange4C(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
@@ -183,11 +185,11 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             Kab(ia,ib)=Kab_temp;
         }
     assert(!isnan(Kab));
-    if (Max(fabs(Dcd))>0.0)
-        std::cout << "Exhange DM sum this ab=" << this->GetQuantumNumber() 
-        << " cd=" << bs_cd->GetQuantumNumber() 
-        << " max|Dcd|=" << Max(fabs(Dcd)) 
-        << " max|Kab|=" << Max(fabs(Kab)) << std::endl;
+//    if (Max(fabs(Dcd))>0.0)
+//        std::cout << "Exhange DM sum this ab=" << this->GetQuantumNumber() 
+//        << " cd=" << bs_cd->GetQuantumNumber() 
+//        << " max|Dcd|=" << Max(fabs(Dcd)) 
+//        << " max|Kab|=" << Max(fabs(Kab)) << std::endl;
     return Kab;
 }
 //

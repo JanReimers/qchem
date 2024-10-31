@@ -178,7 +178,7 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        cout << S << endl;
+        //cout << S << endl;
         SMatrix<double> Snum = mintegrator->Overlap(**i);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
 
@@ -327,46 +327,62 @@ TEST_F(SlaterRadialIntegralTests, YlmExchange)
 {
      double eps=1e-14;
      SlaterRadialIntegrals S(0.5,0.5);
-     double ssss=S.DoExchangeSum(0,0,0,0);
-     double ssss_m=S.DoExchangeSum(0,0,0,0,0,0,0,0);
+     int la=0,lb=0,lc=0,ld=0;
+
+     double ssss=S.DoExchangeSum(la,lb,lc,ld);
+     double ssss_m=S.DoExchangeSum(la,lb,lc,ld,0,0,0,0);
      EXPECT_NEAR(ssss,ssss_m,ssss*eps);
      
-     double spsp=S.DoExchangeSum(0,1,0,1);
+     lb=ld=1;
+     double spsp=S.DoExchangeSum(la,lb,lc,ld);
      double spsp_m=0.0;
      for (int mb=-1;mb<=1;mb++)
-        spsp_m+=S.DoExchangeSum(0,1,0,1,0,mb,0,mb);
+        spsp_m+=S.DoExchangeSum(la,lb,lc,ld,0,mb,0,mb);
     
+     spsp_m*=1.0/(2*la+1)/(2*lb+1);
      EXPECT_NEAR(spsp,spsp_m,spsp*eps);
      
-     double psps=S.DoExchangeSum(1,0,1,0);
+     la=lc=1;
+     lb=ld=0;
+     double psps=S.DoExchangeSum(la,lb,lc,ld);
      double psps_m=0.0;
      for (int ma=-1;ma<=1;ma++)
-        psps_m+=S.DoExchangeSum(1,0,1,0,ma,0,ma,0);
-    
+        psps_m+=S.DoExchangeSum(la,lb,lc,ld,ma,0,ma,0);
+     
+     psps_m*=1.0/(2*la+1)/(2*lb+1);
      EXPECT_NEAR(psps,psps_m,psps*eps);
 
-     double spps=S.DoExchangeSum(0,1,1,0);
+     la=ld=0;
+     lb=lc=1;
+     double spps=S.DoExchangeSum(la,lb,lc,ld);
      double spps_m=0.0;
      for (int mb=-1;mb<=1;mb++)
-        spps_m+=S.DoExchangeSum(0,1,1,0,0,mb,mb,0);
+        spps_m+=S.DoExchangeSum(la,lb,lc,ld,0,mb,mb,0);
+     spps_m*=1.0/(2*la+1)/(2*lb+1);
     
      EXPECT_NEAR(spps,spps_m,spps*eps);
      
-     double pssp=S.DoExchangeSum(1,0,0,1);
+     la=ld=1;
+     lb=lc=0;
+     double pssp=S.DoExchangeSum(la,lb,lc,ld);
      double pssp_m=0.0;
      for (int ma=-1;ma<=1;ma++)
-        pssp_m+=S.DoExchangeSum(1,0,0,1,ma,0,0,ma);
+        pssp_m+=S.DoExchangeSum(la,lb,lc,ld,ma,0,0,ma);
+     pssp_m*=1.0/(2*la+1)/(2*lb+1);
     
      EXPECT_NEAR(pssp,pssp_m,pssp*eps);
      
-     double pppp=S.DoExchangeSum(1,1,1,1);
+     la=lb=lc=ld=1;
+     double pppp=S.DoExchangeSum(la,lb,lc,ld);
      double pppp_mac=0.0,pppp_mad=0.0;
      for (int ma=-1;ma<=1;ma++)
      for (int mb=-1;mb<=1;mb++)
      {
-        pppp_mac+=S.DoExchangeSum(1,1,1,1,ma,mb,ma,mb);
-        pppp_mad+=S.DoExchangeSum(1,1,1,1,ma,mb,mb,ma);         
+        pppp_mac+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,ma,mb);
+        pppp_mad+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,mb,ma);         
      }
+     pppp_mac*=1.0/(2*la+1)/(2*lb+1);
+     pppp_mad*=1.0/(2*la+1)/(2*lb+1);
        
      EXPECT_NEAR(pppp,pppp_mac,pppp*eps);
      EXPECT_NEAR(pppp,pppp_mad,pppp*eps);
@@ -376,38 +392,45 @@ TEST_F(SlaterRadialIntegralTests, YlmCoulomb)
 {
      double eps=1e-14;
      SlaterRadialIntegrals S(0.5,0.5);
-     double ssss=S.Coulomb(0,0,0,0);
-     double ssss_m=S.Coulomb(0,0,0,0,0,0,0,0);
+     int la=0,lb=0,lc=0,ld=0;
+     double ssss=S.Coulomb(la,lb,lc,ld);
+     double ssss_m=S.Coulomb(la,lb,lc,ld,0,0,0,0);
      EXPECT_NEAR(ssss,ssss_m,ssss*eps);
      
-     double sspp=S.Coulomb(0,0,1,1);
+     lc=ld=1;
+     double sspp=S.Coulomb(la,lb,lc,ld);
      double sspp_m=0.0;
      for (int mb=-1;mb<=1;mb++)
-        sspp_m+=S.Coulomb(0,0,1,1,0,0,mb,mb);
+        sspp_m+=S.Coulomb(la,lb,lc,ld,0,0,mb,mb);
+     sspp_m*=1.0/(2*la+1)/(2*lc+1);
     
      EXPECT_NEAR(sspp,sspp_m,sspp*eps);
      
-     double ppss=S.Coulomb(1,1,0,0);
+     la=lb=1;
+     lc=ld=0;
+     double ppss=S.Coulomb(la,lb,lc,ld);
      double ppss_m=0.0;
      for (int ma=-1;ma<=1;ma++)
-        ppss_m+=S.Coulomb(1,1,0,0,ma,ma,0,0);
-    
+        ppss_m+=S.Coulomb(la,lb,lc,ld,ma,ma,0,0);
+     ppss_m*=1.0/(2*la+1)/(2*lc+1);
+     
      EXPECT_NEAR(ppss,ppss_m,ppss*eps);
 
      
-     double pppp=S.Coulomb(1,1,1,1);
+     lc=ld=1;
+     double pppp=S.Coulomb(la,lb,lc,ld);
      double pppp_m=0.0;
-     for (int ma=-1;ma<=1;ma++)
-     for (int mc=-1;mc<=1;mc++)
-     {
-        pppp_m+=S.Coulomb(1,1,1,1,ma,ma,mc,mc);
-     }
-       
+     for (int ma=-la;ma<=la;ma++)
+     for (int mc=-lc;mc<=lc;mc++)
+        pppp_m+=S.Coulomb(la,lb,lc,ld,ma,ma,mc,mc);
+
+     pppp_m*=1.0/(2*la+1)/(2*lc+1);       
+     
      EXPECT_NEAR(pppp,pppp_m,pppp*eps);
 }
 
 
-#ifndef DEBUG
+#ifndef DEBUG 
 #include "oml/io3d.h"
 TEST_F(SlaterRadialIntegralTests, Numerical)
 {

@@ -228,7 +228,7 @@ double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) co
     {
         ret+=(*this)(l,la,lb,la,lb)*Wigner3j::theW3j(la,l,lb);
     }
-    return 2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 
 

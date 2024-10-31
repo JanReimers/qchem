@@ -154,17 +154,17 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
     size_t N=sg->size();
-    J->SetSize(N,-1.0);
+    J->SetSize(N,0.0);
     if (K)
-        K->SetSize(N,-1.0);
+        K->SetSize(N,0.0);
     
     for (index_t ia:sg->es.indices())
         for (index_t ib:sg->es.indices(ia))
             for (index_t ic:sg->es.indices())
                 for (index_t id:sg->es.indices(ic))
                 {
-                    bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id) && (*J)(ia,ib,ic,id)==-1.0;
-                    bool doK = K && sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id) && (*K)(ia,ib,ic,id)==-1.0;
+                    bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id);
+                    bool doK = K && sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id);
                     if (doJ || doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
@@ -183,8 +183,8 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
                             
                         }
-                        else
-                            if (K) (*K)(ia,ib,ic,id)=0.0;
+//                        else
+//                            if (K) (*K)(ia,ib,ic,id)=0.0;
                      }
                 }
     

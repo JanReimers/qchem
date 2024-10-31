@@ -59,12 +59,12 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 {
     assert(itsBasisSet);
     SMatrix<T> H=ham.BuildHamiltonian(itsBasisSet,spin);
-    std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
+//    std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
     assert(!isnan(H));
     auto [U,e]=itsLASolver->Solve(H);
     itsOrbitals.clear();
     index_t n=e.size();
-    std::cout << "   Eigen values=" << e << std::endl;
+    //std::cout << "   Eigen values=" << e << std::endl;
     for (index_t i=1; i<=n; i++)
         itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),spin));
 }
