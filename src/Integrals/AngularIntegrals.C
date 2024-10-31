@@ -13,7 +13,7 @@ double Exchange(int k,int la,int lb)
 {
     assert(k>=std::abs(la-lb));
     assert(k<=la+lb);
-    return Wigner3j::theW3j(la,k,lb); //What about *(2k+1) ??
+    return Wigner3j::theW3j(la,lb,k); //What about *(2k+1) ??
 }
 
 double Coulomb (int k,int la,int lc,int ma,int mc)
@@ -21,10 +21,10 @@ double Coulomb (int k,int la,int lc,int ma,int mc)
     assert(k>=0);
     assert(k<=2*std::min(la,lc));
     int phase=intpow(-1,ma+mc);
-    double w3a=WignerSymbols::wigner3j(la,k,la,0,0,0);
-    double w3c=WignerSymbols::wigner3j(lc,k,lc,0,0,0);
-    double w3am=WignerSymbols::wigner3j(la,k,la,ma,0,-ma);
-    double w3cm=WignerSymbols::wigner3j(lc,k,lc,mc,0,-mc);
+    double w3a=WignerSymbols::wigner3j(la,la,k,0,0,0);
+    double w3c=WignerSymbols::wigner3j(lc,lc,k,0,0,0);
+    double w3am=WignerSymbols::wigner3j(la,la,k,ma,-ma,0);
+    double w3cm=WignerSymbols::wigner3j(lc,lc,k,mc,-mc,0);
     return phase*w3a*w3am*w3c*w3cm;
 }
 

@@ -116,7 +116,7 @@ Wigner3j::Wigner3j()
 using std::cout;
 using std::endl;
 
-double Wigner3j::operator()(int la, int k, int lb) const 
+double Wigner3j::operator()(int la, int lb, int k) const 
 {
     assert(la>=0);
     assert(la<=LMax);
