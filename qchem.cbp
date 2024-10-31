@@ -137,6 +137,7 @@
 		<Unit filename="include/Imp/Hamiltonian/Vnn.H" />
 		<Unit filename="include/Imp/Hamiltonian/Vxc.H" />
 		<Unit filename="include/Imp/Hamiltonian/VxcPol.H" />
+		<Unit filename="include/Imp/Integrals/AngularIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/AuxillaryFJ.H" />
 		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
 		<Unit filename="include/Imp/Integrals/Factorials.H" />
@@ -450,6 +451,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Hamiltonian/VxcPol.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/AngularIntegrals.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/AuxillaryData.C">

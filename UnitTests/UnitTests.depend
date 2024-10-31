@@ -1034,11 +1034,7 @@
 
 1729179651 /home/janr/Code/qchem/include/Imp/Integrals/Factorials.H
 
-1729378873 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
-	"Imp/Integrals/Wigner3j.H"
-	"Imp/Integrals/Factorials.H"
-	"Imp/Misc/IntPower.H"
-	<cmath>
+1730396233 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
 
 1729476545 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
 	"gtest/gtest.h"
@@ -1160,7 +1156,7 @@
 	"Imp/Misc/PeriodicTable.H"
 	<memory>
 
-1730389509 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1730390021 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"

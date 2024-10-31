@@ -1,10 +1,9 @@
-#include "Imp/Integrals/Wigner3j.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Integrals/Factorials.H"
 #include "Imp/Integrals/PascalTriangle.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "oml/vector.h"
-#include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -73,8 +72,9 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) cons
     for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
-//        std::cout << "Exchange sum la,lb,k=" << la << " " << lb << " " << k << " w3j=" << Wigner3j::theW3j(la,k,lb) << std::endl; 
-        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb); //What about *(2k+1) ??
+        //ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb); //What about *(2k+1) ??
+        ret+=R(k,la,lb,la,lb)*AngularIntegrals::Exchange(k,la,lb); //What about *(2k+1) ??
+
     }
     return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
@@ -90,21 +90,14 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld,int ma, int
     assert(ma<= la);
     assert(mc>=-lc);
     assert(mc<= lc);
-    int phase=pow(-1,ma+mc);
     int kmin=0;
     int kmax=2*std::min(la,lc);
     double ret=0.0;
     for (int k=kmin;k<=kmax;k+=2)
     {
-        //std::cout << "Coulomb sum ma,mc,k=" << ma << " " << mc << " " << k << std::endl; 
-        double w3a=WignerSymbols::wigner3j(la,k,la,0,0,0);
-        double w3c=WignerSymbols::wigner3j(lc,k,lc,0,0,0);
-        double w3am=WignerSymbols::wigner3j(la,k,la,ma,0,-ma);
-        double w3cm=WignerSymbols::wigner3j(lc,k,lc,mc,0,-mc);
-//        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb,ma,mb);
-        ret+=R(k,la,la,lc,lc)*w3a*w3am*w3c*w3cm; //What about *(2k+1) ??
+        ret+=R(k,la,la,lc,lc)*AngularIntegrals::Coulomb(k,la,lc,ma,mc); //What about *(2k+1) ??
     }
-    return (2*la+1)*(2*lc+1)*phase*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return (2*la+1)*(2*lc+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for
 }
 
@@ -131,11 +124,7 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld, int 
     for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
-//        std::cout << "Exchange sum la,lb,k=" << la << " " << lb << " " << k << " w3j=" << Wigner3j::theW3j(la,k,lb) << std::endl; 
-        double w3a=WignerSymbols::wigner3j(la,lb,k,0,0,0);
-        double w3b=WignerSymbols::wigner3j(la,lb,k,ma,-mb,mb-ma);
-//        ret+=R(k,la,lb,la,lb)*Wigner3j::theW3j(la,k,lb,ma,mb);
-        ret+=R(k,la,lb,la,lb)*w3a*w3a*w3b*w3b; //What about *(2k+1) ??
+        ret+=R(k,la,lb,la,lb)*AngularIntegrals::Exchange(k,la,lb,ma,mb); //What about *(2k+1) ??
     }
     return (2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.

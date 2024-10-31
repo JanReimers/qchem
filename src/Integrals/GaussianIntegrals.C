@@ -3,6 +3,9 @@
 
 #include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
+#include "Imp/Integrals/AngularIntegrals.H"
+#include "Imp/Integrals/Factorials.H"
+
 #include <iostream>
 #include <cassert>
 
@@ -45,32 +48,6 @@ inline void Swap(double& a, double& b, int& la, int& lb)
     la=lb;
     lb=it;
 }
-
-//double ExchangeIntegral(double a, double b, int l1, int l2)
-//{
-//    if (l2 > l1)
-//    {
-//        int t=l1;
-//        l1=l2;
-//        l2=t;
-//        double td=a;
-//        a=b;
-//        b=td;
-//    }
-//    if (l1==0 && l2==0) return GaussianRepulsionIntegral(a,b,l1,l2);
-//    double ab=a+b, rab=sqrt(a+b), rab3=ab*rab;
-//    if (l1==1 && l2==1) return 3*Pi52/(6*a*b*rab3);
-//    double a2=a*a,b2=b*b,rab5=ab*rab3;
-//    if (l1==2 && l2==2)
-//    {
-//        double R0=3*Pi52*(a+ab)*(b+ab)/(2*a2*b2*rab5);
-//        double R2=15*Pi52/(2*a*b*rab5);
-//        return R0/6+R2/15;
-//    }
-//    std::cerr << "ExchangeIntegral: Unhandeled exponents in repulsion integral: l1=" << l1 << ", l2=" << l2 << std::endl;
-//    return 0;
-//}
-
 
 double GaussianRepulsionIntegral(double ab, double cd, int lab, int lcd)
 {
@@ -226,7 +203,7 @@ double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) co
     double ret=0.0;
     for (int l=lmin;l<=lmax;l+=2)
     {
-        ret+=(*this)(l,la,lb,la,lb)*Wigner3j::theW3j(la,l,lb);
+        ret+=(*this)(l,la,lb,la,lb)*AngularIntegrals::Exchange(l,la,lb);
     }
     return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
