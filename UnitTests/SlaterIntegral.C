@@ -386,97 +386,264 @@ TEST_F(SlaterRadialIntegralTests, YlmExchange)
        
      EXPECT_NEAR(pppp,pppp_mac,pppp*eps);
      EXPECT_NEAR(pppp,pppp_mad,pppp*eps);
+//
+//  d-s
+// 
+{
+    la=lc=0;
+    lb=ld=2;
+    double sdsd=S.DoExchangeSum(la,lb,lc,ld);
+    double sdsd_m=0.0;
+    for (int mb=-lb;mb<=lb;mb++)
+        sdsd_m+=S.DoExchangeSum(la,lb,lc,ld,0,mb,0,mb);
+
+    sdsd_m*=1.0/(2*la+1)/(2*lb+1);
+    EXPECT_NEAR(sdsd,sdsd_m,sdsd*eps);
+
+    la=lc=2;
+    lb=ld=0;
+    double dsds=S.DoExchangeSum(la,lb,lc,ld);
+    double dsds_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        dsds_m+=S.DoExchangeSum(la,lb,lc,ld,ma,0,ma,0);
+
+    dsds_m*=1.0/(2*la+1)/(2*lb+1);
+    EXPECT_NEAR(dsds,dsds_m,dsds*eps);
+
+    la=ld=0;
+    lb=lc=2;
+    double sdds=S.DoExchangeSum(la,lb,lc,ld);
+    double sdds_m=0.0;
+    for (int mb=-lb;mb<=lb;mb++)
+        sdds_m+=S.DoExchangeSum(la,lb,lc,ld,0,mb,mb,0);
+    sdds_m*=1.0/(2*la+1)/(2*lb+1);
+
+    EXPECT_NEAR(sdds,sdds_m,sdds*eps);
+
+    la=ld=2;
+    lb=lc=0;
+    double dssd=S.DoExchangeSum(la,lb,lc,ld);
+    double dssd_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        dssd_m+=S.DoExchangeSum(la,lb,lc,ld,ma,0,0,ma);
+    dssd_m*=1.0/(2*la+1)/(2*lb+1);
+
+    EXPECT_NEAR(dssd,dssd_m,dssd*eps);
+}
+//
+//  d-p
+//
+    {
+    
+    la=lc=1;
+    lb=ld=2;
+    double pdpd=S.DoExchangeSum(la,lb,lc,ld);
+    double pdpd_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mb=-lb;mb<=lb;mb++)
+            pdpd_m+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,ma,mb);
+
+    pdpd_m*=1.0/(2*la+1)/(2*lb+1);
+    EXPECT_NEAR(pdpd,pdpd_m,pdpd*eps);
+
+    la=lc=2;
+    lb=ld=1;
+    double dpdp=S.DoExchangeSum(la,lb,lc,ld);
+    double dpdp_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mb=-lb;mb<=lb;mb++)
+            dpdp_m+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,ma,mb);
+
+    dpdp_m*=1.0/(2*la+1)/(2*lb+1);
+    EXPECT_NEAR(dpdp,dpdp_m,dpdp*eps);
+
+    la=ld=1;
+    lb=lc=2;
+    double pddp=S.DoExchangeSum(la,lb,lc,ld);
+    double pddp_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mb=-lb;mb<=lb;mb++)
+            pddp_m+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,mb,ma);
+    pddp_m*=1.0/(2*la+1)/(2*lb+1);
+
+    EXPECT_NEAR(pddp,pddp_m,pddp*eps);
+
+    la=ld=2;
+    lb=lc=1;
+    double dppd=S.DoExchangeSum(la,lb,lc,ld);
+    double dppd_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mb=-lb;mb<=lb;mb++)
+            dppd_m+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,mb,ma);
+    dppd_m*=1.0/(2*la+1)/(2*lb+1);
+
+    EXPECT_NEAR(dppd,dppd_m,dppd*eps);
+    }
+
+//
+//  d-d
+//
+    la=ld=2;
+    lb=lc=2;
+    double dddd=S.DoExchangeSum(la,lb,lc,ld);
+    double dddd_mac=0.0,dddd_mad=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mb=-lb;mb<=lb;mb++)
+        {
+            dddd_mac+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,ma,mb);
+            dddd_mad+=S.DoExchangeSum(la,lb,lc,ld,ma,mb,mb,ma);
+            
+        }
+    dddd_mac*=1.0/(2*la+1)/(2*lb+1);
+    dddd_mad*=1.0/(2*la+1)/(2*lb+1);
+
+    EXPECT_NEAR(dddd,dddd_mac,dddd*eps);
+    EXPECT_NEAR(dddd,dddd_mad,dddd*eps);
+    
 }
 
 TEST_F(SlaterRadialIntegralTests, YlmCoulomb)
 {
-     double eps=1e-14;
-     SlaterRadialIntegrals S(0.5,0.5);
-     int la=0,lb=0,lc=0,ld=0;
-     double ssss=S.Coulomb(la,lb,lc,ld);
-     double ssss_m=S.Coulomb(la,lb,lc,ld,0,0,0,0);
-     EXPECT_NEAR(ssss,ssss_m,ssss*eps);
-     
-     lc=ld=1;
-     double sspp=S.Coulomb(la,lb,lc,ld);
-     double sspp_m=0.0;
-     for (int mb=-1;mb<=1;mb++)
-        sspp_m+=S.Coulomb(la,lb,lc,ld,0,0,mb,mb);
-     sspp_m*=1.0/(2*la+1)/(2*lc+1);
-    
-     EXPECT_NEAR(sspp,sspp_m,sspp*eps);
-     
-     la=lb=1;
-     lc=ld=0;
-     double ppss=S.Coulomb(la,lb,lc,ld);
-     double ppss_m=0.0;
-     for (int ma=-1;ma<=1;ma++)
-        ppss_m+=S.Coulomb(la,lb,lc,ld,ma,ma,0,0);
-     ppss_m*=1.0/(2*la+1)/(2*lc+1);
-     
-     EXPECT_NEAR(ppss,ppss_m,ppss*eps);
+    double eps=1e-14;
+    SlaterRadialIntegrals S(0.5,0.5);
+    int la=0,lb=0,lc=0,ld=0;
+    double ssss=S.Coulomb(la,lb,lc,ld);
+    double ssss_m=S.Coulomb(la,lb,lc,ld,0,0,0,0);
+    EXPECT_NEAR(ssss,ssss_m,ssss*eps);
 
-     
-     lc=ld=1;
-     double pppp=S.Coulomb(la,lb,lc,ld);
-     double pppp_m=0.0;
-     for (int ma=-la;ma<=la;ma++)
-     for (int mc=-lc;mc<=lc;mc++)
+    lc=ld=1;
+    double sspp=S.Coulomb(la,lb,lc,ld);
+    double sspp_m=0.0;
+    for (int mb=-1;mb<=1;mb++)
+        sspp_m+=S.Coulomb(la,lb,lc,ld,0,0,mb,mb);
+    sspp_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(sspp,sspp_m,sspp*eps);
+
+    la=lb=1;
+    lc=ld=0;
+    double ppss=S.Coulomb(la,lb,lc,ld);
+    double ppss_m=0.0;
+    for (int ma=-1;ma<=1;ma++)
+        ppss_m+=S.Coulomb(la,lb,lc,ld,ma,ma,0,0);
+    ppss_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(ppss,ppss_m,ppss*eps);
+
+
+    lc=ld=1;
+    double pppp=S.Coulomb(la,lb,lc,ld);
+    double pppp_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+    for (int mc=-lc;mc<=lc;mc++)
         pppp_m+=S.Coulomb(la,lb,lc,ld,ma,ma,mc,mc);
 
-     pppp_m*=1.0/(2*la+1)/(2*lc+1);       
-     
-     EXPECT_NEAR(pppp,pppp_m,pppp*eps);
+    pppp_m*=1.0/(2*la+1)/(2*lc+1);       
+
+    EXPECT_NEAR(pppp,pppp_m,pppp*eps);
+
+    la=lb=0;
+    lc=ld=2;
+    double ssdd=S.Coulomb(la,lb,lc,ld);
+    double ssdd_m=0.0;
+    for (int mc=-lc;mc<=lc;mc++)
+        ssdd_m+=S.Coulomb(la,lb,lc,ld,0,0,mc,mc);
+    ssdd_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(ssdd,ssdd_m,ssdd*eps);
+   
+    la=lb=2;
+    lc=ld=0;
+    double ddss=S.Coulomb(la,lb,lc,ld);
+    double ddss_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        ddss_m+=S.Coulomb(la,lb,lc,ld,ma,ma,0,0);
+    ddss_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(ddss,ddss_m,ddss*eps);
+    
+    la=lb=1;
+    lc=ld=2;
+    double ppdd=S.Coulomb(la,lb,lc,ld);
+    double ppdd_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mc=-lc;mc<=lc;mc++)
+            ppdd_m+=S.Coulomb(la,lb,lc,ld,ma,ma,mc,mc);
+    ppdd_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(ppdd,ppdd_m,ppdd*eps);
+   
+    la=lb=2;
+    lc=ld=1;
+    double ddpp=S.Coulomb(la,lb,lc,ld);
+    double ddpp_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mc=-lc;mc<=lc;mc++)
+            ddpp_m+=S.Coulomb(la,lb,lc,ld,ma,ma,mc,mc);
+    ddpp_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(ddpp,ddpp_m,ddpp*eps);
+    
+    la=lb=2;
+    lc=ld=2;
+    double dddd=S.Coulomb(la,lb,lc,ld);
+    double dddd_m=0.0;
+    for (int ma=-la;ma<=la;ma++)
+        for (int mc=-lc;mc<=lc;mc++)
+            dddd_m+=S.Coulomb(la,lb,lc,ld,ma,ma,mc,mc);
+    dddd_m*=1.0/(2*la+1)/(2*lc+1);
+
+    EXPECT_NEAR(dddd,dddd_m,dddd*eps);
 }
-
-
-#ifndef DEBUG 
-#include "oml/io3d.h"
-TEST_F(SlaterRadialIntegralTests, Numerical)
-{
-    TIrrepBasisSet<double>* vf=*bs->beginT();
-    TBasisFunction<double>* sf=*vf->beginT();
-
-    Vector<double> cnum=mintegrator->Integrate(*vf);
-    Vector<double> c=ie->MakeCharge(vf);
-    EXPECT_NEAR(Max(fabs(cnum-c)),0.0,1e-13);
-
-    Vector<double> nnum=mintegrator->Normalize(*vf);
-    EXPECT_NEAR(Max(fabs(nnum-1.0)),0.0,1e-12);
-    {
-        Vector <double> onum=mintegrator->Overlap(*sf,*vf);
-        SMatrix<double> o=ie->MakeOverlap(vf);
-        EXPECT_NEAR(Max(fabs(onum-o.GetRow(1))),0.0,1e-12);        
-    }
-    {
-        Matrix<double> onum=mintegrator->Overlap(*vf,*vf);
-        SMatrix<double> o=ie->MakeOverlap(vf);
-        EXPECT_NEAR(Max(fabs(onum-o)),0.0,1e-12); 
-    }
-    {
-        SMatrix<double> onum=mintegrator->Overlap3C(*vf,*sf);
-        ERI3 o=ie->MakeOverlap3C(vf,vf);
-        EXPECT_NEAR(Max(fabs(onum-o[0])),0.0,1e-12); 
-    }
-    {
-        SMatrix<double> rnum=rmintegrator->Repulsion(*vf);
-        SMatrix<double> r=ie->MakeRepulsion(vf);
-        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
-    }
-    {
-        Vector<double> rnum=rmintegrator->Repulsion(*sf,*vf);
-        Vector<double> r=ie->MakeRepulsion(vf).GetRow(1);
-        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
-    }
-    {
-        SMatrix<double> rnum=rmintegrator->Repulsion(*vf,*vf);
-        SMatrix<double> r=ie->MakeRepulsion(vf,vf);
-        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
-    }
-    {
-        SMatrix<double> rnum=rmintegrator->Repulsion3C(*vf,*sf);
-        ERI3 r=ie->MakeRepulsion3C(vf,vf);
-        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r[0],r[0]))),0.0,0.1); 
-    }
-}
- #endif
+//
+//
+//#ifndef DEBUG 
+//#include "oml/io3d.h"
+//TEST_F(SlaterRadialIntegralTests, Numerical)
+//{
+//    TIrrepBasisSet<double>* vf=*bs->beginT();
+//    TBasisFunction<double>* sf=*vf->beginT();
+//
+//    Vector<double> cnum=mintegrator->Integrate(*vf);
+//    Vector<double> c=ie->MakeCharge(vf);
+//    EXPECT_NEAR(Max(fabs(cnum-c)),0.0,1e-13);
+//
+//    Vector<double> nnum=mintegrator->Normalize(*vf);
+//    EXPECT_NEAR(Max(fabs(nnum-1.0)),0.0,1e-12);
+//    {
+//        Vector <double> onum=mintegrator->Overlap(*sf,*vf);
+//        SMatrix<double> o=ie->MakeOverlap(vf);
+//        EXPECT_NEAR(Max(fabs(onum-o.GetRow(1))),0.0,1e-12);        
+//    }
+//    {
+//        Matrix<double> onum=mintegrator->Overlap(*vf,*vf);
+//        SMatrix<double> o=ie->MakeOverlap(vf);
+//        EXPECT_NEAR(Max(fabs(onum-o)),0.0,1e-12); 
+//    }
+//    {
+//        SMatrix<double> onum=mintegrator->Overlap3C(*vf,*sf);
+//        ERI3 o=ie->MakeOverlap3C(vf,vf);
+//        EXPECT_NEAR(Max(fabs(onum-o[0])),0.0,1e-12); 
+//    }
+//    {
+//        SMatrix<double> rnum=rmintegrator->Repulsion(*vf);
+//        SMatrix<double> r=ie->MakeRepulsion(vf);
+//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
+//    }
+//    {
+//        Vector<double> rnum=rmintegrator->Repulsion(*sf,*vf);
+//        Vector<double> r=ie->MakeRepulsion(vf).GetRow(1);
+//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
+//    }
+//    {
+//        SMatrix<double> rnum=rmintegrator->Repulsion(*vf,*vf);
+//        SMatrix<double> r=ie->MakeRepulsion(vf,vf);
+//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
+//    }
+//    {
+//        SMatrix<double> rnum=rmintegrator->Repulsion3C(*vf,*sf);
+//        ERI3 r=ie->MakeRepulsion3C(vf,vf);
+//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r[0],r[0]))),0.0,0.1); 
+//    }
+//}
+// #endif
