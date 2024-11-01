@@ -2,6 +2,7 @@
 #ifndef _Orbital_H_
 #define _Orbital_H_
 
+#include "types.H"
 #include "Imp/Misc/pmstream.h"
 
 class ElectronContainer
@@ -31,6 +32,7 @@ class Orbital
 public:
     virtual ~Orbital() {};
     virtual double   GetEigenEnergy(        ) const=0;
+    virtual const QuantumNumber& GetQuantumNumber() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;

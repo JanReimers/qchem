@@ -95,7 +95,7 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld,int ma, int
     double ret=0.0;
     for (int k=kmin;k<=kmax;k+=2)
     {
-        ret+=R(k,la,la,lc,lc)*AngularIntegrals::Coulomb(k,la,lc,ma,mc); //What about *(2k+1) ??
+        ret+=R(k,la,la,lc,lc)*(2*k+1)*AngularIntegrals::Coulomb(k,la,lc,ma,mc); //What about *(2k+1) ??
     }
     return (2*la+1)*(2*lc+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for

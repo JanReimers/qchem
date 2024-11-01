@@ -4,8 +4,10 @@
 
 #include <EnergyLevel.H>
 #include <Orbital.H>
+#include <QuantumNumber.H>
 #include <cmath>
 #include <iostream>
+#include <sstream>
 #include <cassert>
 
 EnergyLevel::EnergyLevel()
@@ -101,6 +103,14 @@ bool EnergyLevel::Add(Orbital* orbital)
     if (matchEnergy) itsOrbitals.push_back(orbital);
 
     return matchEnergy;
+}
+
+std::string EnergyLevel::GetQuantumNumbers() const
+{
+    std::ostringstream ss;
+    for (auto o:itsOrbitals) 
+        ss << o->GetQuantumNumber();
+    return ss.str();
 }
 
 

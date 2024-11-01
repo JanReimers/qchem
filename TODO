@@ -11,12 +11,16 @@ Priority 1:
         Done: 2) Get all UTas running again.
         Done: 3) Refactor out the angular parts with all the w3j symbols
         Done: 4) Build static wj3 tables using the wigner library.
-        5) Get d orbitals working
+        Done: 5) Get d orbitals working
         6) Try Sc again.
+            Still difficult.  PG nails it.  Need to sort out all the factors of 4*Pi.
+            10) Get 4Pi^2 out of the integral engines.
         7) Make a SG_m basis set.
+            We could optionally read the exponents and contractions from the BS files.
         8) 3C repulsions should call R_k(lalblcld) directly.
         9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
-        10) Get 4Pi^2 out of the integral engines.
+        11) Check for double calculation of J/K ERIs
+        
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -ROHF for one open orbital.

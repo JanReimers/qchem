@@ -5,6 +5,10 @@
 #include "Imp/Misc/IntPower.H"
 #include <cassert>
 #include <cmath>
+#include <iostream>
+
+using std::cout;
+using std::endl;
 
 namespace AngularIntegrals
 {
@@ -26,6 +30,9 @@ double Coulomb (int k,int la,int lc,int ma,int mc)
     double w3c=Wigner3j::w3j(lc,lc,k);
     double w3am=Wigner3j::w3j(la,la,k,ma,-ma);
     double w3cm=Wigner3j::w3j(lc,lc,k,mc,-mc);
+//    if ((la==2 || lc==2) && (fabs(w3a) != fabs(w3am)))
+//        cout << "la,lc,k,w3a,w3c,w3am,w3cm=" << la << " " << lc << " " << k << " " <<  w3a << " " << w3c << " " << w3am << " " << w3cm << endl;
+
     return phase*w3a*w3am*w3c*w3cm;
 }
 
@@ -41,6 +48,8 @@ double Exchange(int k,int la,int lb,int ma,int mb)
     assert(k<=la+lb);
     double w3ab=Wigner3j::w3j(la,lb,k);
     double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
+//    if ((la==2 || lb==2))
+//        cout << "la,lb,k,w3ab,w3abm = (" << la << " " << lb << " " << k << ")    " <<  w3ab << "    " <<  w3ab_m << endl;
     return w3ab*w3ab*w3ab_m*w3ab_m;
 }
 

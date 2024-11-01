@@ -145,10 +145,10 @@ std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
         for(auto& g:gs)
         {
             std::ostringstream s;
-            s << *g << std::ends;
+            s << *g;
             std::string ss(s.str());
             std::string num=ss.substr(10);
-            //os << num << " ";
+            os << num << " ";
         }
         os << "}";
     }

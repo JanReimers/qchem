@@ -152,12 +152,12 @@ public:
 TEST_P(A_SLm_HF_P,Multiple)
 {
     int Z=GetParam();
-    Init(9,0.5,4*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,0.0,true});
+    Init(9,0.5,5*Z,GetLMax(Z));
+    Iterate({40,Z*1e-5,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7)); //37,53
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53)); //37,53
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
 , public TestMolecule, PG_OBasis, HF_P, TestPolarized
@@ -176,10 +176,10 @@ public:
 TEST_P(A_PG_HF_P,Multiple)
 {
     Init();
-    Iterate({40,1e-3,1.0,0.0,false});
+    Iterate({40,1e-3,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,3,5,7,37)); //Z=51 is slow
+INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,3,5,7,21,37)); //Z=51 is slow
 
 
 //

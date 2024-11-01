@@ -9,10 +9,10 @@ public:
         itsN(N), itsLMax(LMax), itsemin(emin), itsemax(emax) {};
     size_t N   (size_t L) const 
     {
-        size_t Nt=(itsN*(itsLMax+1-L))/(itsLMax+1);
+        size_t Nt=(itsN*(itsLMax+2-L))/(itsLMax+1);
         return Nt>0 ? Nt : 1;
     }
-    double emin(size_t L) const {return itsemin/pow(.7,L);}
+    double emin(size_t L) const {return itsemin/pow(1.0,L);}
     double emax(size_t L) const {return itsemax/pow(3,L);}    
 private:        
     size_t itsN,itsLMax;

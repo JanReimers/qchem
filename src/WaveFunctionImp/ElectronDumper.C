@@ -121,6 +121,7 @@ std::ostream& operator<<(std::ostream& os,const ElectronDumper& ed)
         os << std::setw(4) << std::setprecision(1);
         if (b->GetOccupation() != b->GetDegeneracy()) os << b->GetOccupation() << "/";
         os << b->GetDegeneracy() << ") ";
+        os << b->GetQuantumNumbers() << " ";
         os << std::endl;
         if (b->GetOccupation() ==0 && --nLumo==0) break;
     }

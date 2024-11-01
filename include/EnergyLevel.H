@@ -19,6 +19,7 @@ public:
     virtual void   Empty        (        )      ;
     virtual void   SetOccupation(double n)      ; //# of electrons
     virtual int    GetDegeneracy(        ) const;
+    virtual std::string GetQuantumNumbers(        ) const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
