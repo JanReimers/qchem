@@ -90,7 +90,7 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
         for (auto j:r.cols(i))
         {
             SlaterRadialIntegrals R(a->es(i),a->es(j));
-            r(i,j)=FourPi2*R.Coulomb(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+            r(i,j)=FourPi2*R.R0(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
         }
 
     return r;
@@ -106,7 +106,7 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
         for (auto j:s.cols())
         {
             SlaterRadialIntegrals R(a->es(i),b->es(j));
-            s(i,j)=FourPi2*R.Coulomb(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+            s(i,j)=FourPi2*R.R0(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
         }
 
     return s;
@@ -125,7 +125,7 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
         for (auto j:s.cols(i))
         {
             SlaterRadialIntegrals R(ab->es(i)+ab->es(j),ec);
-            s(i,j)=FourPi2*R.Coulomb(ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
+            s(i,j)=FourPi2*R.R0(ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
         }
     return s;
 }
@@ -187,7 +187,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                         if (doJ)
                         {
-                            (*J)(ia,ib,ic,id)=FourPi2*S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
+                            (*J)(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
                         //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
                         //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
 
@@ -197,7 +197,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") m=(" << sg->Ms(ia) << "," << sg->Ms(ib) << "," << sg->Ms(ic) << "," << sg->Ms(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                            (*K)(ia,ib,ic,id)=FourPi2*S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
+                            (*K)(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
                             

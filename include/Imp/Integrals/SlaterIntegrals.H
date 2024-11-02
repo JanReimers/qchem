@@ -61,13 +61,18 @@ public:
     double DoExchangeSum(int la, int lb, int lc, int ld) const; //Sum over k
     double Coulomb      (int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const; //Sum over k, Ylm version
     double DoExchangeSum(int la, int lb, int lc, int ld, int ma, int mb, int mc, int md) const; //Sum over k, Ylm version
-    
+
+    double R0(int lab, int lcd) const {return R(0,lab,lab,lcd,lcd);}
+    double R0(int la, int lb, int lc, int ld) const {return R(0,la,lb,lc,ld);}
+
+        
 private:
     double R(int k,int la, int lb, int lc, int ld) const;
     double D(double _a, int m, int n) const;
     double fk(double _a, int m, int n) const;
     
     double eab,ecd;
+    static double FourPi2;
 };
 
 

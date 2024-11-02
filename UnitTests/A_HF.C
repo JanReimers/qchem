@@ -66,7 +66,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,18,36,54));
 TEST_P(A_SL_HF_U,Multiple)
 {
     int Z=GetParam();
-    Init(15,1.0,5*Z,GetLMax(Z));
+    Init(9,1.0,5*Z,GetLMax(Z));
     Iterate({40,1e-2,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -130,7 +130,7 @@ public:
 TEST_P(A_SL_HF_P,Multiple)
 {
     int Z=GetParam();
-    Init(15,0.7,5*Z,GetLMax(Z));
+    Init(9,0.7,5*Z,GetLMax(Z));
     Iterate({40,Z*1e-2,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }

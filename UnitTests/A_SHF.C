@@ -124,7 +124,7 @@ public:
 TEST_P(A_SL_SHF_P,Multiple)
 {
     int Z=GetParam();
-    Init(15,0.7,5*Z,GetLMax(Z));
+    Init(9,0.7,5*Z,GetLMax(Z));
     Iterate({40,Z*1e-2,1.0,0.0,false});
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }

@@ -11,6 +11,8 @@
 using std::cout;
 using std::endl;
 
+double SlaterRadialIntegrals::FourPi2=4*4*Pi*Pi;
+
  SlaterRadialIntegrals::SlaterRadialIntegrals(double _eab, double _ecd)
     : eab(_eab), ecd(_ecd)
 {
@@ -55,7 +57,7 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
 {
     assert(la==lb);
 //    assert(lc==ld);
-    return R(0,la,lb,lc,ld);
+    return FourPi2*R(0,la,lb,lc,ld);
 //    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
 }
 
@@ -76,7 +78,7 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) cons
         ret+=R(k,la,lb,la,lb)*AngularIntegrals::Exchange(k,la,lb); //What about *(2k+1) ??
 
     }
-    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return FourPi2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 
@@ -97,7 +99,7 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld,int ma, int
     {
         ret+=R(k,la,la,lc,lc)*(2*k+1)*AngularIntegrals::Coulomb(k,la,lc,ma,mc); //What about *(2k+1) ??
     }
-    return (2*la+1)*(2*lc+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return FourPi2*(2*la+1)*(2*lc+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for
 }
 
@@ -126,7 +128,7 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld, int 
         assert((k+la+lb)%2==0);
         ret+=R(k,la,lb,la,lb)*AngularIntegrals::Exchange(k,la,lb,ma,mb); //What about *(2k+1) ??
     }
-    return (2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return FourPi2*(2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 //    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 
