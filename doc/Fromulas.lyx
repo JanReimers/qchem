@@ -266,7 +266,70 @@ r_{i}=q_{r}^{i},\quad w_{i}=r_{i}^{3}q_{w}
 
 \end_inset
 
- 
+
+\begin_inset Newline newline
+\end_inset
+
+Fitting
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+F\left(\vec{r}\right)\sim\sum_{a}c_{a}f_{a}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{\partial}{\partial c_{b}}\int d^{3}\vec{r}\left[F\left(\vec{r}\right)-\sum_{a}c_{a}f_{a}\left(\vec{r}\right)\right]^{2}=0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\int d^{3}\vec{r}F\left(\vec{r}\right)f_{b}\left(\vec{r}\right)=F_{b}=\sum_{a}c_{a}\int d^{3}\vec{r}f_{a}\left(\vec{r}\right)f_{b}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F_{b}=\sum_{a}c_{a}S_{ab}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+c_{b}=\sum_{a}F_{a}S_{ab}^{-1}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F\left(\vec{r}\right)=\sum_{ab}b_{a}\left(\vec{r}\right)b_{b}\left(\vec{r}\right)D_{ab}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{a}\left(c_{a}-g_{a}\right)\int d^{3}\vec{r}f_{a}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
 \end_layout
 
 \end_body
