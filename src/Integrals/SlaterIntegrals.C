@@ -56,7 +56,7 @@ double SlaterRadialIntegrals::Coulomb(int lab, int lcd) const
 double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
 {
     assert(la==lb);
-//    assert(lc==ld);
+    assert(lc==ld);
     return FourPi2*R(0,la,lb,lc,ld);
 //    return (2*la+1)*(2*lc+1)*R(0,la,lb,lc,ld);
 }

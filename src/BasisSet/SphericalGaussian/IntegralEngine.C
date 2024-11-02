@@ -113,7 +113,7 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
         for (auto j:s.cols(i))
         {
             GaussianRadialIntegrals R(ab->es(i)+ab->es(j),ec);
-            s(i,j)=FourPi2*R(0,ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
+            s(i,j)=R.Coulomb(ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
         }
     return s;
 }
@@ -157,9 +157,9 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                         GaussianRadialIntegrals R(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                         if (doJ)
-                            (*J)(ia,ib,ic,id)=FourPi2*R(0,sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                            (*J)(ia,ib,ic,id)=R.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
                         if (doK)
-                            (*K)(ia,ib,ic,id)=FourPi2*R.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                            (*K)(ia,ib,ic,id)=R.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
 //                        else
 //                            if (K) (*K)(ia,ib,ic,id)=0.0;
 //                        std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 

@@ -158,18 +158,21 @@ double GaussianExchangeIntegral(double a, double b, double c, double d, int la, 
 
 }
 
+double GaussianRadialIntegrals::FourPi2=4*4*Pi*Pi;
+
+
 GaussianRadialIntegrals::GaussianRadialIntegrals(double e_ab, double e_cd)
     : a(e_ab)
     , c(e_cd)
 {
 }
 
-double GaussianRadialIntegrals::operator()(int l,int la, int lb, int lc, int ld) const
+double GaussianRadialIntegrals::R(int k,int la, int lb, int lc, int ld) const
 {
-    int Lab_p=la+lb+l;
-    int Lab_m=la+lb-l;
-    int Lcd_p=lc+ld+l;
-    int Lcd_m=lc+ld-l;
+    int Lab_p=la+lb+k;
+    int Lab_m=la+lb-k;
+    int Lcd_p=lc+ld+k;
+    int Lcd_m=lc+ld-k;
     //Check that everything is even.
     assert(Lab_p%2==0);
     assert(Lab_m%2==0);
@@ -191,6 +194,12 @@ double GaussianRadialIntegrals::operator()(int l,int la, int lb, int lc, int ld)
 //    }
     return Pi12/8*(afact*Iab+cfact*Icd);
 }
+double GaussianRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const
+{
+    assert(la==lb);
+    assert(lc==ld);
+    return FourPi2*R(0,la,lb,lc,ld);
+}
 
 double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) const
 {
@@ -198,14 +207,14 @@ double GaussianRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld) co
     assert(lb==ld);
     assert(la>=0);
     assert(lb>=0);
-    int lmin=std::abs(la-lb);
-    int lmax=la+lb;
+    int kmin=std::abs(la-lb);
+    int kmax=la+lb;
     double ret=0.0;
-    for (int l=lmin;l<=lmax;l+=2)
+    for (int k=kmin;k<=kmax;k+=2)
     {
-        ret+=(*this)(l,la,lb,la,lb)*AngularIntegrals::Exchange(l,la,lb);
+        ret+=R(k,la,lb,la,lb)*AngularIntegrals::Exchange(k,la,lb);
     }
-    return ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
+    return FourPi2*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
 }
 
 
