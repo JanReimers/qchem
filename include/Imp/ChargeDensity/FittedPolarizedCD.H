@@ -33,7 +33,7 @@ public:
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
-    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;

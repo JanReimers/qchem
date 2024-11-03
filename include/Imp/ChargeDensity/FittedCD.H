@@ -34,7 +34,7 @@ public:
     virtual double GetOverlap          (const FittedFunction*) const;  // <ro(1) | f(1)>
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;

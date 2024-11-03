@@ -26,12 +26,10 @@ class ChargeDensity
 {
 public:
     typedef SMatrix<double> SMat;
-//    virtual SMat   GetOverlap  (const IrrepBasisSet*) const=0;
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const=0;
     virtual SMat   GetExchange (const IrrepBasisSet*) const=0;
 
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
-
     virtual double GetTotalCharge      (                     ) const=0;  // <ro>
 
     virtual bool   IsPolarized  (                           ) const  ;
@@ -66,7 +64,7 @@ public:
     virtual double GetTotalCharge      (                     ) const;  // <ro>
     virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
 
-    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual bool   IsPolarized  (                           ) const;
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor

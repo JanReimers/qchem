@@ -26,8 +26,9 @@ public:
 class DensityFFClient
 {
 public:
+    typedef Vector<double> RVec;
     virtual double FitGetConstraint() const=0;
-    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const=0;
+    virtual RVec   GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const=0;
 };
 
 #endif //_FittedFunctionClient_H_

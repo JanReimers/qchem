@@ -63,11 +63,11 @@ double CompositeCD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-Vector<double> CompositeCD::GetRepulsions(const IrrepBasisSet* fbs) const
+Vector<double> CompositeCD::GetRepulsion3C(const IrrepBasisSet* fbs) const
 {
     Vector<double> ret(fbs->size());
     Fill(ret,0.0);
-    for (auto c:itsCDs) ret+=c->GetRepulsions(fbs);
+    for (auto c:itsCDs) ret+=c->GetRepulsion3C(fbs);
     return ret;
 }
 

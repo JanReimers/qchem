@@ -40,12 +40,35 @@ template <class T> IrrepCD<T>::IrrepCD(const DenSMat& theDensityMatrix,
     assert(itsBasisSet);
 };
 
+template <> bool IrrepCD<double>::IsZero() const
+{
+    return Max(fabs(itsDensityMatrix))==0.0;
+}
+
+template <> ChargeDensity::SMat IrrepCD<double>::ZeroM(const IrrepBasisSet* bs_ab) const
+{
+    assert(bs_ab);
+    size_t N=bs_ab->size();
+    SMat S(N);
+    Fill(S,0.0);
+    return S;
+}
+
+template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(const IrrepBasisSet* bs_ab) const
+{
+    assert(bs_ab);
+    size_t N=bs_ab->size();
+    RVec V(N);
+    Fill(V,0.0);
+    return V;
+}
 //-----------------------------------------------------------------------------
 //
 //  Total energy terms for a charge density.
 //
 template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const IrrepBasisSet* bs_ab) const
 {
+    if (IsZero()) return ZeroM(bs_ab);
     const TIrrepBasisSet<double>* tbs_cd=dynamic_cast<const TIrrepBasisSet<double>*>(itsBasisSet);
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
     return tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
@@ -53,26 +76,21 @@ template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const IrrepBasisSe
 
 template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const IrrepBasisSet* bs_ab) const
 {
+    if (IsZero()) return ZeroM(bs_ab);
     const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
     return tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
 }
 
-//TODO: fix all complex fudges
-// Fudge to get things to build.
-template <> ChargeDensity::SMat IrrepCD<std::complex<double> >::GetRepulsion(const IrrepBasisSet* bs) const
+//------------------------------------------------------------------------------
+//
+//  Required by fitting routines.
+//
+template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const IrrepBasisSet* fbs) const
 {
-    assert(itsBasisSet->GetID()==bs->GetID());
-    assert(false);
-    return SMat();
+    if (IsZero()) return ZeroV(fbs);
+    return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
 }
 
-//template <class T> ChargeDensity::SMat ExactIrrepCD<T>::GetExchange(const BasisSet* bs) const
-template <> ChargeDensity::SMat IrrepCD<std::complex<double> >::GetExchange(const IrrepBasisSet* bs) const
-{
-    assert(itsBasisSet->GetID()==bs->GetID());
- assert(false);
-      return SMat();
-}
 
 template <class T> double IrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
 {
@@ -87,14 +105,6 @@ template <class T> double IrrepCD<T>::GetEnergy(const HamiltonianTerm* v) const
 template <class T> double IrrepCD<T>::GetTotalCharge() const
 {
     return real(Dot(itsDensityMatrix,itsBasisSet->GetOverlap()));
-}
-//------------------------------------------------------------------------------
-//
-//  Required by fitting routines.
-//
-template <class T> Vector<double> IrrepCD<T>::GetRepulsions(const IrrepBasisSet* fbs) const
-{
-    return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
 }
 
 
@@ -146,28 +156,6 @@ template <class T> RVec3 IrrepCD<T>::Gradient(const RVec3& r) const
     return GradientContraction(gphir,phir,itsDensityMatrix);
 }
 
-template <class T> void IrrepCD<T>::Eval(const Mesh& m, Vec& v) const
-{
-    index_t nm=v.size(), nb=itsBasisSet->GetNumFunctions();
-    const Matrix<T>& ms((*itsBasisSet)(m));
-    Vec::Subscriptor      vs(v);
-
-    DenMat temp(nb,nm);
-    Fill(temp,T(0));
-    typename DenMat::Subscriptor ts(temp);
-
-    for (index_t ib=1; ib<=nb; ib++)
-        for (index_t jb=1; jb<=nb; jb++)
-        {
-            T dtemp=itsDensityMatrix(ib,jb);
-            for (index_t iv=1; iv<=nm; iv++)
-                ts(ib,iv)+=dtemp*conj(ms(jb,iv));
-        }
-
-    for (index_t ib=1; ib<=nb; ib++)
-        for (index_t iv=1; iv<=nm; iv++)
-            vs(iv)+=real(ms(ib,iv)*ts(ib,iv));
-}
 
 //-----------------------------------------------------------------------
 //

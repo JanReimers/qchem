@@ -47,10 +47,10 @@ double PolarizedCD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-Vector<double> PolarizedCD::GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
+Vector<double> PolarizedCD::GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const
 {
-    return GetChargeDensity(Spin::Up  )->GetRepulsions(theFitBasisSet)
-        +  GetChargeDensity(Spin::Down)->GetRepulsions(theFitBasisSet);
+    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(theFitBasisSet)
+        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(theFitBasisSet);
 }
 
 //-----------------------------------------------------------------------

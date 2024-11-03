@@ -103,6 +103,7 @@
 		<Unit filename="include/Imp/BasisSet/TIrrepCommon.H" />
 		<Unit filename="include/Imp/ChargeDensity/CompositeCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/FittedCD.H" />
+		<Unit filename="include/Imp/ChargeDensity/FittedPolarizedCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/IrrepCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/PolarizedCD.H" />
 		<Unit filename="include/Imp/Cluster/Atom.H" />

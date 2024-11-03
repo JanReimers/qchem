@@ -21,17 +21,17 @@ template <class T> class IrrepCD
 public:
     typedef Matrix<T>  DenMat;
     typedef SMatrix<T> DenSMat; //Type for the density matrix.
+    typedef DensityFFClient::RVec RVec;
 
     IrrepCD();
     IrrepCD(const DenSMat&,const TIrrepBasisSet<T>*, const Spin&);
 
     virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
     virtual SMat   GetExchange (const IrrepBasisSet*) const;
+    virtual RVec   GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual double GetEnergy     (const HamiltonianTerm*) const;
     virtual double GetTotalCharge(                ) const;
-
-    virtual Vector<double> GetRepulsions(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual void   ReScale      (double factor              )      ;
     virtual void   ShiftOrigin  (const RVec3&               )      ;
@@ -45,8 +45,9 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
 
 private:
-
-    virtual void  Eval(const Mesh&, Vec&) const;
+    bool IsZero() const;
+    SMat ZeroM(const IrrepBasisSet* bs_ab) const;
+    RVec ZeroV(const IrrepBasisSet* bs_ab) const;
 
     DenSMat                  itsDensityMatrix;
     const TIrrepBasisSet<T>* itsBasisSet;

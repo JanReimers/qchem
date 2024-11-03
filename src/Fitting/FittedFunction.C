@@ -67,7 +67,7 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClie
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvRepl*ffc.GetRepulsions(&*itsBasisSet);
+    itsFitCoeff=itsInvRepl*ffc.GetRepulsion3C(&*itsBasisSet);
     return 0;
 }
 

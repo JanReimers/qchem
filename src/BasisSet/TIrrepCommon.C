@@ -120,12 +120,16 @@ GetNuclear(const Cluster* cl) const
  {
     return GetDataBase()->GetRepulsion(m,*this,*sf);
  }
- 
+
+ using std::cout;
+ using std::endl;
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    //assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
+//    if (Max(fabs(Dcd))==0.0)
+//        cout << "Why?" << endl;
+    assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view J=GetDataBase()->GetRepulsion4C(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
@@ -162,7 +166,7 @@ template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
-    //assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
+    assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view K=GetDataBase()->GetExchange4C(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();

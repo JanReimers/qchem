@@ -14,13 +14,19 @@ Priority 1:
         Done: 5) Get d orbitals working
         6) Try Sc again.
             Still difficult.  PG nails it.  Need to sort out all the factors of 4*Pi.
-            10) Get 4Pi^2 out of the integral engines.
+            10) Get 4Pi^2 out of the integral engines.  Why?
+            -Better to completely dis-entangle angular and radial.
+            -Evaluate angular for whole blocks.  Less w3j lookups.
         7) Make a SG_m basis set.
             We could optionally read the exponents and contractions from the BS files.
-        8) 3C repulsions should call R_k(lalblcld) directly.
-        9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
+        Done: 8) 3C repulsions should call R_k(lalblcld) directly.
+        Done: 9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
         11) Check for double calculation of J/K ERIs
-        
+    - Support SL/SLm/SG/SGm in a systematic manner
+        Common angular code.
+        Common Dab code
+        fk is different.
+        Do Angular integrals in blocks.
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -ROHF for one open orbital.

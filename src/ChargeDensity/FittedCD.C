@@ -131,7 +131,7 @@ template <class T> double FittedCDImp<T>::GetTotalCharge() const
 //  Required by fitting routines.
 //
 template <class T> Vector<double> FittedCDImp<T>::
-GetRepulsions(const IrrepBasisSet* theFitBasisSet) const
+GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const
 {
     return FitGet2CenterRepulsion(theFitBasisSet);
 }
