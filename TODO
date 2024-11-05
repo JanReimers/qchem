@@ -27,6 +27,16 @@ Priority 1:
         Common Dab code
         fk is different.
         Do Angular integrals in blocks.
+        Steps
+        1) Separate sums for J K
+            for J do
+                loop ab
+                Ak(l_ab,m_ab), Rk(l_ab,e_ab)
+                  loop cd
+                  Ak(l_cd,m_cd), Rk(l_cd,e_cd)
+                    J=sum(k,Ak(ab)*Ak(cd)*{Rk(ab)+Rk(cd)+})
+        2) Can we cache Ak(ab), Rk(ab) ?  (instead of blocking)
+            Blocking should be more efficient, less map<> lookups.
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -ROHF for one open orbital.

@@ -3,6 +3,7 @@
 #include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Integrals/Wigner3j.H"
 #include "Imp/Misc/IntPower.H"
+#include "oml/vector.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -51,6 +52,23 @@ double Exchange(int k,int la,int lb,int ma,int mb)
 //    if ((la==2 || lb==2))
 //        cout << "la,lb,k,w3ab,w3abm = (" << la << " " << lb << " " << k << ")    " <<  w3ab << "    " <<  w3ab_m << endl;
     return w3ab*w3ab*w3ab_m*w3ab_m;
+}
+
+RVec Coulomb (int la,int lc,int ma,int mc)
+{    
+    RVec Ak(la+lc+1);
+    int kmax=2*std::min(la,lc);
+    int phase=intpow(-1,ma+mc);
+    int i=1;
+    for (int k=0;k<=kmax;k+=2,i++)
+    {
+        double w3a=Wigner3j::w3j(la,la,k);
+        double w3c=Wigner3j::w3j(lc,lc,k);
+        double w3am=Wigner3j::w3j(la,la,k,ma,-ma);
+        double w3cm=Wigner3j::w3j(lc,lc,k,mc,-mc);
+        Ak(i)= phase*w3a*w3am*w3c*w3cm;
+    }
+    return Ak;
 }
 
 } //namespace 

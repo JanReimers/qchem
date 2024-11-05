@@ -4,8 +4,10 @@
 #include "Imp/BasisSet/Slater_m/IntegralEngine.H"
 #include "Imp/BasisSet/Slater_m/IEClient.H" 
 #include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Integrals/Factorials.H"
 #include <Cluster.H>
+#include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
@@ -156,6 +158,23 @@ bool Jmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
     return l;// && m;
 }
 
+const SlaterCD& IntegralEngine::find(const IEClient* client,int ia, int ib, int ic, int id) const
+{
+    size_t key=client->eindex(ia,ib,ic,id);
+    if (auto i=SL_CDcache.find(key);i==SL_CDcache.end())
+    {
+//        CDinserts++;
+        return *(SL_CDcache[key]=new SlaterCD(client->es(ia)+client->es(ib),client->es(ic)+client->es(id),client->LMax()));
+    }
+    else
+    {
+       // cout << ia << " " << ib << " " << ic << " " << id << " " << key << " " << client->es_indexes.size() << endl;
+        assert(i->second->eab==client->es(ia)+client->es(ib));
+        assert(i->second->ecd==client->es(ic)+client->es(id));
+        return *(i->second);
+    }
+}
+
 bool Kmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
 {
     bool lac=iec.Ls(ia)==iec.Ls(ic) && iec.Ls(ib)==iec.Ls(id); 
@@ -175,37 +194,56 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
         K->SetSize(N,0.0);
     
     for (index_t ia:sg->es.indices())
-        for (index_t ib:sg->es.indices())
-            for (index_t ic:sg->es.indices())
+        for (index_t ic:sg->es.indices())
+        {
+            int la=sg->Ls(ia), lc=sg->Ls(ic);
+            int ma=sg->Ms(ia), mc=sg->Ms(ic);
+            RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
+            //cout << std::setprecision(6) << "Akac=" << Akac << endl;
+            for (index_t ib:sg->es.indices())
                 for (index_t id:sg->es.indices())
                 {
                     bool doJ = Jmatch(*sg,ia,ib,ic,id) ;
+                    if (doJ)
+                    {
+                        double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+
+                        const SlaterCD& cd= find(sg,ia,ib,ic,id);
+                        //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
+                        double j=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Rk(la,lc);
+
+                        SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
+                        (*J)(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
+                        double JJ=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id));
+                        double rerr=fabs((j-JJ)/j);
+                        if (rerr>1e-14)
+                            cout << "j,J = " << j << "  " << JJ << std::endl;
+                        assert(rerr<1e-14);
+                     }
+                }
+        }
+
+                
+    for (index_t ia:sg->es.indices())
+        for (index_t ic:sg->es.indices())
+            for (index_t ib:sg->es.indices())
+                for (index_t id:sg->es.indices())
+                {
                     bool doK = K && Kmatch(*sg,ia,ib,ic,id) ;
-                    if (doJ || doK)
+                    if (doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-                        if (doJ)
-                        {
-                            (*J)(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
-                        //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-                        //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
-
-                        }
-                        if (doK)
-                        {
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") m=(" << sg->Ms(ia) << "," << sg->Ms(ib) << "," << sg->Ms(ic) << "," << sg->Ms(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                            (*K)(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
+                        (*K)(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
                             
-                        }
-//                        else
-//                            if (K) (*K)(ia,ib,ic,id)=0.0;
                      }
                 }
+                
     
 }
 

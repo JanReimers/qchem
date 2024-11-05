@@ -1,34 +1,12 @@
 #ifndef SLATERINTEGRALS_H
 #define SLATERINTEGRALS_H
 
-#include "Imp/Integrals/Wigner3j.H"
+//#include "Imp/Integrals/Wigner3j.H"
 #include "Imp/Misc/IntPower.H"
 #include "Imp/Integrals/Factorials.H"
 
 #include <cmath>
 #include <cassert>
-
-
-
-//class GaussianRadialIntegrals
-//{
-//public:
-//    GaussianRadialIntegrals(double e_ab, double e_cd);
-//
-//    double operator()   (int l,int la, int lb, int lc, int ld) const;
-//    double DoExchangeSum(      int la, int lb, int lc, int ld) const; //Sum over l
-//   
-//private:
-//    double Dab(int m, int n) const;
-//    double Dcd(int m, int n) const;
-//    double D(double _a, int m, int n) const;
-//    double I(double _a, int m, int n) const;
-//
-//
-//
-//    double a,c; //Compact notation for exponents a+b and c+d.
-//};
-
 
 //--------------------------------------------------------------------
 //      /
@@ -74,6 +52,10 @@ private:
     double eab,ecd;
     static double FourPi2;
 };
+
+template <class T> class Vector;
+
+Vector<double> Rk(int la,int lc,double eab,double ecd);
 
 
 #endif // SLATERINTEGRALS_H

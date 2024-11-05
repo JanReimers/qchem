@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1730643299 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1730653506 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -919,8 +919,7 @@
 1729778151 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1730505544 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
-	"Imp/Integrals/Wigner3j.H"
+1730675870 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Misc/IntPower.H"
 	"Imp/Integrals/Factorials.H"
 	<cmath>
@@ -1414,7 +1413,9 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1730051371 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IEClient.H
+1730844156 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IEClient.H
 	<IEClient.H>
 	"oml/vector.h"
+	"oml/matrix.h"
+	<map>
 

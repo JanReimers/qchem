@@ -5,12 +5,15 @@
 
 #include <AnalyticIE.H>
 #include "oml/vector.h"
+#include <map>
 
 
 namespace Slater_m
 {
     
 class IrrepIEClient;
+class IEClient;
+class SlaterCD;
     
 class IntegralEngine
     : public virtual AnalyticIE<double>
@@ -48,10 +51,16 @@ public:
 
 private:
     static const IrrepIEClient* dcast(iec_t*);
+    const SlaterCD& find(const Slater_m::IEClient*,int ia, int ib, int ic, int id) const;
+    
+    
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
     void Make4C(ERI4* J, ERI4* K, const ::IEClient*) const; //Used for Hartree-Fock
+    
+    mutable std::map<size_t,const SlaterCD*> SL_CDcache;
+
     
     static double FourPi2;
 

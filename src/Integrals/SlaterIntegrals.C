@@ -33,6 +33,7 @@ double SlaterRadialIntegrals::R(int k,int la, int lb, int lc, int ld) const
     double cfact=qchem::Fact[Lab_p];
     double Iab=D(eab,Lab_m,Lcd_p+1);
     double Icd=D(ecd,Lcd_m,Lab_p+1);
+    //cout << " SlaterRI::Rk " <<  Lab_p << " " << Lcd_m << " " << Lab_m << " " << Lcd_p << " " << Iab << " " << Icd << " " << eab << " " << ecd << endl;
     return afact*Iab+cfact*Icd;
 }
 
@@ -50,6 +51,7 @@ double SlaterRadialIntegrals::Coulomb(int lab, int lcd) const
     double cfact=qchem::Fact[Lab_p];
     double Iab=D(eab,Lab_m,Lcd_p+1);
     double Icd=D(ecd,Lcd_m,Lab_p+1);
+
     return afact*Iab+cfact*Icd;
 }
 
@@ -97,6 +99,7 @@ double SlaterRadialIntegrals::Coulomb(int la, int lb, int lc, int ld,int ma, int
     double ret=0.0;
     for (int k=kmin;k<=kmax;k+=2)
     {
+        //cout << "Rk*(2k+1) , A = " << R(k,la,la,lc,lc)*(2*k+1) << " " << AngularIntegrals::Coulomb(k,la,lc,ma,mc) << endl;
         ret+=R(k,la,la,lc,lc)*(2*k+1)*AngularIntegrals::Coulomb(k,la,lc,ma,mc); //What about *(2k+1) ??
     }
     return FourPi2*(2*la+1)*(2*lc+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.
@@ -155,4 +158,29 @@ double SlaterRadialIntegrals::fk(double _a, int k,int n) const
     assert(_a==eab || _a==ecd);
     return qchem::Fact[k]*(n/pow(eab+ecd,k+1)+1/pow(_a,k+1));
 }
-
+//
+//
+//
+//Vector<double> Rk(int la,int lc,double eab,double ecd)
+//{
+//    Vector<double> ret(la+lc+1);
+//    int i=1;
+//    int kmax=2*std::min(la,lc);
+//    for (int k=0;k<=kmax;k+=2)
+//    {
+//        int Lab_p=2*la+2+k; // first term r_1^2
+//        int Lcd_m=2*lc+1-k; // first term r_2
+//        int Lab_m=2+la+1-k; // second term r_1
+//        int Lcd_p=2*lc+2+k; // second term r_2^2
+//        assert(Lab_m>=0);
+//        assert(Lcd_m>=0);
+//        assert(Lab_p+1<=qchem::NMax);
+//        assert(Lcd_p+1<=qchem::NMax);
+//        double afact=qchem::Fact[Lcd_p]; //These ab and cd are reversed on purpose.
+//        double cfact=qchem::Fact[Lab_p];
+//        double Iab=D(eab,ecd,Lab_m,Lcd_p+1);
+//        double Icd=D(ecd,eab,Lcd_m,Lab_p+1);
+//        ret(i++)=afact*Iab+cfact*Icd;
+//    }
+//    return ret;
+//}
