@@ -44,7 +44,7 @@ public:
     
 //private:
     static double fk(double a, double ab, int k,int n);
-    static double D (double a, double ab, int k,int n);
+//    static double D (double a, double ab, int k,int n);
 //    double R(int k,int la, int lb, int lc, int ld) const;
     
     double eab, ecd;
