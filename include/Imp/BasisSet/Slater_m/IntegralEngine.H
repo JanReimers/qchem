@@ -28,6 +28,7 @@ public:
 
             
     IntegralEngine();
+    ~IntegralEngine();
     
     virtual size_t size() const {return -1;}
 
@@ -60,7 +61,7 @@ private:
     void Make4C(ERI4* J, ERI4* K, const ::IEClient*) const; //Used for Hartree-Fock
     
     mutable std::map<size_t,const SlaterCD*> SL_CDcache;
-
+    mutable size_t CDinserts,CDlookups;
     
     static double FourPi2;
 

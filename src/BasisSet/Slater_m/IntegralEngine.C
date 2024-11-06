@@ -11,6 +11,7 @@
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
+#include <iomanip>
 
 namespace Slater_m
 {
@@ -18,7 +19,16 @@ namespace Slater_m
 double IntegralEngine::FourPi2=4*4*Pi*Pi;
 
 IntegralEngine::IntegralEngine()
+    : CDinserts(0), CDlookups(0)
 {
+}
+
+IntegralEngine::~IntegralEngine()
+{
+    double eff=100*(1.0-CDinserts/(double)CDlookups); 
+    std::cout << "    Slater_m Charge Distributions cache N=" << std::setw(10) << CDinserts << " lookups=" << std::setw(10) << CDlookups << " efficiencty=" << eff << "%" << std::endl;
+
+    for (auto c:SL_CDcache) delete c.second;
 }
 
 AnalyticIE<double>* IntegralEngine::Clone() const
@@ -160,10 +170,11 @@ bool Jmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
 
 const SlaterCD& IntegralEngine::find(const IEClient* client,int ia, int ib, int ic, int id) const
 {
+    CDlookups++;
     size_t key=client->eindex(ia,ib,ic,id);
     if (auto i=SL_CDcache.find(key);i==SL_CDcache.end())
     {
-//        CDinserts++;
+        CDinserts++;
         return *(SL_CDcache[key]=new SlaterCD(client->es(ia)+client->es(ib),client->es(ic)+client->es(id),client->LMax()));
     }
     else
