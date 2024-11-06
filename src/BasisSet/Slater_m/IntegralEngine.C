@@ -186,8 +186,10 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     for (index_t ia:sg->es.indices())
     {
         cache_3& ca=find(sg->es_indices[ia-1],SL_CDcache4);
+        sg->loop_1(ia);
         for (index_t ic:sg->es.indices(ia))
         {
+            sg->loop_2(ic);
             cache_2& cac=find(sg->es_indices[ic-1],ca);
             int la=sg->Ls(ia), lc=sg->Ls(ic);
             int ma=sg->Ms(ia), mc=sg->Ms(ic);
@@ -195,20 +197,24 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
             //cout << std::setprecision(6) << "Akac=" << Akac << endl;
             for (const auto& ib:sg->indices(la))
             {
+                sg->loop_3(ib);
                 cache_1& cacb=find(sg->es_indices[ib-1],cac);
                 for (const auto& id:sg->indices(lc))
                 {
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    const SlaterCD* cd1=sg->loop_4(id);
+
                     const SlaterCD* cd=0;
                     //cout << "id" << id << " c1.size()=" << cacb.size() << endl;
                     size_t id1=sg->es_indices[id-1];
                     auto i_acbd=cacb.find(id1);
+                    //cout << "old " << sg->es(ia) << " " << sg->es(ib) << " " << sg->es(ic) << " " << sg->es(id) << endl;
                     if (i_acbd==cacb.end())
                         cd=cacb[id1]=new SlaterCD(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),sg->LMax());
                     else
                         cd=i_acbd->second;
                     //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
+                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd1->Coulomb_Rk(la,lc)*norm;
                 }
             }
         }
@@ -217,6 +223,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                 
     for (index_t ia:sg->es.indices())
     {
+        sg->loop_1(ia);
         cache_3& ca=find(sg->es_indices[ia-1],SL_CDcache4);
         for (index_t ib:sg->es.indices(ia))
         {
@@ -226,12 +233,15 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
             //cout << std::setprecision(6) << "Akab=" << Akab << endl;
             for (index_t ic:sg->indices(la))
             {
+                sg->loop_2(ic);
+                sg->loop_3(ib);
                 cache_2& cac=find(sg->es_indices[ic-1],ca);
                 cache_1& cacb=find(sg->es_indices[ib-1],cac);
 
                 for (index_t id:sg->indices(lb))
                 {
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    const SlaterCD* cd1=sg->loop_4(id);
                     const SlaterCD* cd=0;
                     //cout << "id" << id << " c1.size()=" << cacb.size() << endl;
                     size_t id1=sg->es_indices[id-1];
@@ -241,7 +251,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     else
                         cd=i_acbd->second;
                     //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
-                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm;                        
+                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1->ExchangeRk(la,lb)*norm;                        
                 }
            }
         }

@@ -6,7 +6,8 @@
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include <map>
-
+using std::cout;
+using std::endl;
 
 namespace Slater_m
 {
@@ -36,7 +37,13 @@ struct IrrepIEClient
     bf_tuple operator()(index_t i) const {return std::make_tuple(Ns(i),Ls(i),Ms(i),es(i),ns(i));}
 };
 
-class SlaterCD
+class Cacheable
+{
+public:
+    virtual ~Cacheable() {};
+};
+
+class SlaterCD :public virtual Cacheable
 {
 public:
     SlaterCD(double eab, double ecd, size_t LMax);
@@ -53,9 +60,39 @@ public:
     Matrix<double> Iab,Icd;
 };
 
+//
+//
+//  Cache object based on four unsigned integer indices.
+//
+class Cache4
+{
+public:
+    void       loop_1(size_t i1) const;
+    void       loop_2(size_t i2) const;
+    void       loop_3(size_t i3) const;
+    virtual const Cacheable* loop_4(size_t i4) const;
+    
+    
+    
+private:
+    virtual const Cacheable* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
+
+    typedef std::map<size_t,const Cacheable*> cache_4; 
+    typedef std::map<size_t,cache_4> cache_3; 
+    typedef std::map<size_t,cache_3> cache_2; 
+    typedef std::map<size_t,cache_2> cache_t; 
+    
+    mutable cache_t cache;
+    mutable cache_2* i1_cache;
+    mutable cache_3* i2_cache;
+    mutable cache_4* i3_cache;
+    mutable size_t i1,i2,i3,i4; //Current indexes
+};
+
 //Use the same struct for a full basis set.;
 struct IEClient 
     : public virtual ::IEClient 
+    , public virtual Cache4
     , public IEData
 {
     IEClient() {};
@@ -69,11 +106,31 @@ struct IEClient
        size_t N=es_indices.size();
        return ((es_indices[ia-1]*N+es_indices[ib-1])*N+es_indices[ic-1])*N+es_indices[id-1];
     }
+    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const
+    {
+//        cout << "new " << ia << " " << ib << " " << ic << " " << id << endl;
+//        cout << "new " << unique_esv[ia] << " " << unique_esv[ib] << " " << unique_esv[ic] << " " << unique_esv[id] << endl;
+
+        return new SlaterCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax());
+    }
+    void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
+    void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
+    void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}
+
+    virtual const SlaterCD* loop_4(size_t id)  const
+    {
+        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
+        return dynamic_cast<const SlaterCD*>(c);
+    }
+
+
+    
     //! Get all indices with Ls(i)=l
     const std::vector<size_t>& indices(size_t l) const;
     
     std::map<double,size_t> unique_es; //Unique exponents.
-    std::vector<size_t> es_indices; //One based index for each exponent.
+    std::vector<size_t> es_indices; //zero based index for each exponent.
+    std::vector<double> unique_esv;
     std::map<size_t,std::vector<size_t> > L_indices; // <L,indices>
 }; 
 
