@@ -218,18 +218,9 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                     if (doJ)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-
                         const SlaterCD& cd= find(sg,ia,ib,ic,id);
                         //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                        double j=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Coulomb_Rk(la,lc);
-
-                        SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-                        (*J)(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
-                        double JJ=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id));
-                        double rerr=fabs((j-JJ)/j);
-                        if (rerr>1e-14)
-                            cout << "j,J = " << j << "  " << JJ << std::endl;
-                        assert(rerr<1e-14);
+                        (*J)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Coulomb_Rk(la,lc)*norm;
                      }
                 }
         }
@@ -249,23 +240,9 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                     if (doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        
                         const SlaterCD& cd= find(sg,ia,ib,ic,id);
                         //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
-                        double k=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd.ExchangeRk(la,lb);
-                        
-                        SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-//                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-//                            << ") m=(" << sg->Ms(ia) << "," << sg->Ms(ib) << "," << sg->Ms(ic) << "," << sg->Ms(id) 
-//                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        (*K)(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
-//                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-//                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
-                        double KK=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id));
-                        double rerr=fabs((k-KK)/k);
-                        if (rerr>1e-14)
-                            cout << "k,K = " << k << "  " << KK << std::endl;
-                        assert(rerr<1e-14);
+                        (*K)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd.ExchangeRk(la,lb)*norm;                        
                      }
                 }
            }
