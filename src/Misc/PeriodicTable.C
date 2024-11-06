@@ -263,6 +263,26 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     2.0,//Te
     1.0,//I
     0.0,//Xe
+    1.0,//Cs
+    0.0,//Ba
+    1.0,//La
+    2.0,//Ce
+    3.0,//Pr
+    4.0,//Nd
+    5.0,//Pm
+    6.0,//Sm
+    7.0,//Eu
+    8.0,//Gd
+    5.0,//Tb
+    4.0,//Dy
+    3.0,//Ho
+    2.0,//Er
+    1.0,//Tm
+    0.0,//Yb
+    1.0,//Lu
+    2.0,//Hf
+    3.0,//Ta
+    
 
 };
 
@@ -323,6 +343,27 @@ int PeriodicTable::MaxL[N_Elements]=
     2,//Te
     2,//I
     2,//Xe
+    2,//Cs
+    2,//Ba
+    3,//La
+    3,//Ce
+    3,//Pr
+    3,//Nd
+    3,//Pm
+    3,//Sm
+    3,//Eu
+    3,//Gd
+    3,//Tb
+    3,//Dy
+    3,//Ho
+    3,//Er
+    3,//Tm
+    3,//Yb
+    3,//Lu
+    3,//Hf
+    3,//Ta
+    3,//W
+    3,//Re
 
 };
 

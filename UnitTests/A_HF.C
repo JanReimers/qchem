@@ -160,7 +160,7 @@ TEST_P(A_SLm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53)); //37,53
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53,57,64)); //37,53
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
 , public TestMolecule, PG_OBasis, HF_P, TestPolarized
