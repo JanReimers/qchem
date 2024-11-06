@@ -25,10 +25,10 @@ IntegralEngine::IntegralEngine()
 
 IntegralEngine::~IntegralEngine()
 {
-    double eff=100*(1.0-CDinserts/(double)CDlookups); 
-    std::cout << "    Slater_m Charge Distributions cache N=" << std::setw(10) << CDinserts << " lookups=" << std::setw(10) << CDlookups << " efficiencty=" << eff << "%" << std::endl;
-
-    for (auto c:SL_CDcache) delete c.second;
+    for (auto a:SL_CDcache4) 
+        for (auto b:a.second) 
+            for (auto c:b.second) 
+                for (auto d:c.second) delete d.second;
 }
 
 AnalyticIE<double>* IntegralEngine::Clone() const
@@ -168,23 +168,32 @@ bool Jmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
     return l;// && m;
 }
 
-const SlaterCD& IntegralEngine::find(const IEClient* client,int ia, int ib, int ic, int id) const
+
+IntegralEngine::cache_3& IntegralEngine::find(int ia, cache_4& c)
 {
-    CDlookups++;
-    size_t key=client->eindex(ia,ib,ic,id);
-    if (auto i=SL_CDcache.find(key);i==SL_CDcache.end())
-    {
-        CDinserts++;
-        return *(SL_CDcache[key]=new SlaterCD(client->es(ia)+client->es(ib),client->es(ic)+client->es(id),client->LMax()));
-    }
+    if (auto i=c.find(ia);i==c.end())
+        return c[ia]=cache_3();
     else
-    {
-       // cout << ia << " " << ib << " " << ic << " " << id << " " << key << " " << client->es_indexes.size() << endl;
-        assert(i->second->eab==client->es(ia)+client->es(ib));
-        assert(i->second->ecd==client->es(ic)+client->es(id));
-        return *(i->second);
-    }
+        return i->second;
 }
+
+IntegralEngine::cache_2& IntegralEngine::find(int ic, cache_3& c)
+{
+    if (auto i=c.find(ic);i==c.end())
+        return c[ic]=cache_2();
+    else
+        return i->second;
+}
+
+IntegralEngine::cache_1& IntegralEngine::find(int ib, cache_2& c)
+{
+    if (auto i=c.find(ib);i==c.end())
+        return c[ib]=cache_1();
+    else
+        return i->second;
+}
+
+    
 
 bool Kmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
 {
@@ -205,25 +214,41 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
         K->SetSize(N,0.0);
     
     for (index_t ia:sg->es.indices())
+    {
+        cache_3& ca=find(sg->es_indices[ia-1],SL_CDcache4);
         for (index_t ic:sg->es.indices(ia))
         {
+            cache_2& cac=find(sg->es_indices[ic-1],ca);
             int la=sg->Ls(ia), lc=sg->Ls(ic);
             int ma=sg->Ms(ia), mc=sg->Ms(ic);
             RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
             //cout << std::setprecision(6) << "Akac=" << Akac << endl;
             for (const auto& ib:sg->indices(la))
+            {
+                cache_1& cacb=find(sg->es_indices[ib-1],cac);
                 for (const auto& id:sg->indices(lc))
                 {
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                    const SlaterCD& cd= find(sg,ia,ib,ic,id);
+                    const SlaterCD* cd=0;
+                    //cout << "id" << id << " c1.size()=" << cacb.size() << endl;
+                    size_t id1=sg->es_indices[id-1];
+                    auto i_acbd=cacb.find(id1);
+                    if (i_acbd==cacb.end())
+                        cd=cacb[id1]=new SlaterCD(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),sg->LMax());
+                    else
+                        cd=i_acbd->second;
                     //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                    (*J)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Coulomb_Rk(la,lc)*norm;
+                    (*J)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }
+            }
         }
+    }
 
                 
     if (K)
     for (index_t ia:sg->es.indices())
+    {
+        cache_3& ca=find(sg->es_indices[ia-1],SL_CDcache4);
         for (index_t ib:sg->es.indices(ia))
         {
             int la=sg->Ls(ia), lb=sg->Ls(ib);
@@ -231,14 +256,27 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
             RVec Akab=AngularIntegrals::Exchange(la,lb,ma,mb);
             //cout << std::setprecision(6) << "Akab=" << Akab << endl;
             for (index_t ic:sg->indices(la))
+            {
+                cache_2& cac=find(sg->es_indices[ic-1],ca);
+                cache_1& cacb=find(sg->es_indices[ib-1],cac);
+
                 for (index_t id:sg->indices(lb))
                 {
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                    const SlaterCD& cd= find(sg,ia,ib,ic,id);
+                    const SlaterCD* cd=0;
+                    //cout << "id" << id << " c1.size()=" << cacb.size() << endl;
+                    size_t id1=sg->es_indices[id-1];
+                    auto i_acbd=cacb.find(id1);
+                    if (i_acbd==cacb.end())
+                        cd=cacb[id1]=new SlaterCD(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),sg->LMax());
+                    else
+                        cd=i_acbd->second;
                     //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
-                    (*K)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd.ExchangeRk(la,lb)*norm;                        
-            }
+                    (*K)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm;                        
+                }
            }
+        }
+    }
          
     
 }
