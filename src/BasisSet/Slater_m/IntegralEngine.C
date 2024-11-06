@@ -210,7 +210,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 
                         const SlaterCD& cd= find(sg,ia,ib,ic,id);
                         //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                        double j=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Rk(la,lc);
+                        double j=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Coulomb_Rk(la,lc);
 
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                         (*J)(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
@@ -225,14 +225,24 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 
                 
     for (index_t ia:sg->es.indices())
-        for (index_t ic:sg->es.indices())
-            for (index_t ib:sg->es.indices())
+        for (index_t ib:sg->es.indices())
+        {
+            int la=sg->Ls(ia), lb=sg->Ls(ib);
+            int ma=sg->Ms(ia), mb=sg->Ms(ib);
+            RVec Akab=AngularIntegrals::Exchange(la,lb,ma,mb);
+            //cout << std::setprecision(6) << "Akab=" << Akab << endl;
+            for (index_t ic:sg->es.indices())
                 for (index_t id:sg->es.indices())
                 {
                     bool doK = K && Kmatch(*sg,ia,ib,ic,id) ;
                     if (doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                        
+                        const SlaterCD& cd= find(sg,ia,ib,ic,id);
+                        //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
+                        double k=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd.ExchangeRk(la,lb);
+                        
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") m=(" << sg->Ms(ia) << "," << sg->Ms(ib) << "," << sg->Ms(ic) << "," << sg->Ms(id) 
@@ -240,10 +250,15 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                         (*K)(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
-                            
+                        double KK=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id),sg->Ms(ia),sg->Ms(ib),sg->Ms(ic),sg->Ms(id));
+                        double rerr=fabs((k-KK)/k);
+                        if (rerr>1e-14)
+                            cout << "k,K = " << k << "  " << KK << std::endl;
+                        assert(rerr<1e-14);
                      }
                 }
-                
+           }
+         
     
 }
 

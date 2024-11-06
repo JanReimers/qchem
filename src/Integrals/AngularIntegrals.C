@@ -71,5 +71,28 @@ RVec Coulomb (int la,int lc,int ma,int mc)
     return Ak;
 }
 
+RVec Exchange(int la,int lb,int ma,int mb)
+{    
+    assert(la>=0);
+    assert(lb>=0);
+    assert(ma>=-la);
+    assert(ma<= la);
+    assert(mb>=-lb);
+    assert(mb<= lb);
+    int kmin=std::abs(la-lb);
+    int kmax=la+lb;
+    int N=(kmax-kmin)/2+1;
+    RVec Ak(N);
+    int i=1;
+    for (int k=kmin;k<=kmax;k+=2)
+    {
+        assert((k+la+lb)%2==0);
+        double w3ab=Wigner3j::w3j(la,lb,k);
+        double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
+        Ak(i++)=w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
+    }
+    return Ak;
+}
+
 } //namespace 
 

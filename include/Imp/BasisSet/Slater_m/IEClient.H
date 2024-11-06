@@ -40,7 +40,8 @@ class SlaterCD
 {
 public:
     SlaterCD(double eab, double ecd, size_t LMax);
-    Vector<double> Rk(int la,int lc) const;
+    Vector<double> Coulomb_Rk(int la,int lc) const; //R_k(la,la,lc,lc);
+    Vector<double> ExchangeRk(int la,int lb) const; //R_k(la,lb,la,lb);
     
 //private:
     static double fk(double a, double ab, int k,int n);

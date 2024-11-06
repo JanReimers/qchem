@@ -12,6 +12,7 @@ namespace AngularIntegrals
 
     typedef Vector<double> RVec;
     RVec Coulomb (int la,int lc,int ma,int mc);            
+    RVec Exchange(int la,int lb,int ma,int mb);            
 
 };
 

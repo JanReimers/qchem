@@ -129,6 +129,8 @@ double SlaterRadialIntegrals::DoExchangeSum(int la, int lb, int lc, int ld, int 
     for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
+       //cout << "Rk*(2k+1) , A = " << R(k,la,la,lc,lc)*(2*k+1) << " " << AngularIntegrals::Coulomb(k,la,lc,ma,mc) << endl;
+
         ret+=R(k,la,lb,la,lb)*AngularIntegrals::Exchange(k,la,lb,ma,mb); //What about *(2k+1) ??
     }
     return FourPi2*(2*la+1)*(2*lb+1)*ret; //Compensate for factor if 1/2 built into the Wigner3j lookup tables.

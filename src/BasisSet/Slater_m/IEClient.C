@@ -130,7 +130,7 @@ using std::endl;
 //    return afact*Iab+cfact*Icd;
 //}
 
-Vector<double> SlaterCD::Rk(int la,int lc) const
+Vector<double> SlaterCD::Coulomb_Rk(int la,int lc) const
 {
     Vector<double> ret(la+lc+1,0.0);
     int i=1;
@@ -141,6 +141,24 @@ Vector<double> SlaterCD::Rk(int la,int lc) const
         int Lab_m=2*la+1-k; // second term r_1
         int Lcd_p=2*lc+3+k; // second term r_2^2
         ret(i++)=(2*k+1)*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+    }
+    return ret;
+}
+
+Vector<double> SlaterCD::ExchangeRk(int la,int lb) const
+{
+    int kmin=std::abs(la-lb);
+    int kmax=la+lb;
+    int N=(kmax-kmin)/2+1;
+    Vector<double> ret(N,0.0);
+    int i=1;
+    for (int k=kmin;k<=kmax;k+=2)
+    {
+        int Lab_p=la+lb+3+k; // first term r_1^2
+        int Lcd_m=la+lb+1-k; // first term r_2
+        int Lab_m=la+lb+1-k; // second term r_1
+        int Lcd_p=la+lb+3+k; 
+        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
     }
     return ret;
 }
