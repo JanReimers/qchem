@@ -37,7 +37,6 @@ public:
 
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual void Make4C(ERI4& J,          const ::IEClient*) const; //Used for Hartree-Fock
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
     
     virtual AnalyticIE<double>* Clone() const;
@@ -46,7 +45,6 @@ private:
     static const IrrepIEClient* dcast(iec_t*);
     SMat Integrate(qchem::IType2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(qchem::IType3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
-    void Make4C(ERI4* J, ERI4* K, const ::IEClient*) const; //Used for Hartree-Fock
 
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };

@@ -3954,7 +3954,7 @@ hr2i
 33.663042
 2.322541
 
-851
+851
 
 S.L. Saito / Atomic Data and Nuclear Data Tables 95 (2009) 836–870
 Table 1 (continued)

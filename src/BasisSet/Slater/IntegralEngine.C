@@ -140,23 +140,12 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
     return s3;
 }
 
-void IntegralEngine::Make4C(ERI4& J,const ::IEClient* iec) const
-{
-    Make4C(&J,NULL,iec);
-}
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
-{
-    Make4C(&J,&K,iec);
-}
-
-
-void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
     size_t N=sg->size();
-    J->SetSize(N,0.0);
-    if (K)
-        K->SetSize(N,0.0);
+    J.SetSize(N,0.0);
+    if (&K!=&J) K.SetSize(N,0.0);
     
     for (index_t ia:sg->es.indices())
         for (index_t ib:sg->es.indices(ia))
@@ -164,21 +153,21 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                 for (index_t id:sg->es.indices(ic))
                 {
                     bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id);
-                    bool doK = K && sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id);
+                    bool doK = sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id);
                     if (doJ || doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                         SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
                        if (doJ)
                        {
-                            (*J)(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                            J(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
 
                        }
                         if (doK)
                         {
-                            (*K)(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                            K(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
                             

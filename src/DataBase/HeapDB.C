@@ -301,7 +301,7 @@ template <class T> void HeapDB<T>::BuildERIs()
     if (istIEClient->GetNumIrreps()>1)
         itsAnalyticIE->Make4C(itsJTable,itsKTable,istIEClient);
     else
-        itsAnalyticIE->Make4C(itsJTable,istIEClient);
+        itsAnalyticIE->Make4C(itsJTable,itsJTable,istIEClient);
             
 }
 

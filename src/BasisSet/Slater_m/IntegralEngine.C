@@ -152,22 +152,6 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
     return s3;
 }
 
-void IntegralEngine::Make4C(ERI4& J,const ::IEClient* iec) const
-{
-    Make4C(&J,NULL,iec);
-}
-void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
-{
-    Make4C(&J,&K,iec);
-}
-
-bool Jmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
-{
-    bool l=iec.Ls(ia)==iec.Ls(ib) && iec.Ls(ic)==iec.Ls(id); 
-    //bool m=iec.Ms(ia)==iec.Ms(ib) && iec.Ms(ic)==iec.Ms(id); 
-    return l;// && m;
-}
-
 
 IntegralEngine::cache_3& IntegralEngine::find(int ia, cache_4& c)
 {
@@ -195,23 +179,12 @@ IntegralEngine::cache_1& IntegralEngine::find(int ib, cache_2& c)
 
     
 
-bool Kmatch(const IEClient& iec, index_t ia, index_t ib, index_t ic, index_t id)
-{
-    bool lac=iec.Ls(ia)==iec.Ls(ic) && iec.Ls(ib)==iec.Ls(id); 
-    bool mac=iec.Ms(ia)==iec.Ms(ic) && iec.Ms(ib)==iec.Ms(id); 
-    bool lad=iec.Ls(ia)==iec.Ls(id) && iec.Ls(ib)==iec.Ls(ic); 
-    bool mad=iec.Ms(ia)==iec.Ms(id) && iec.Ms(ib)==iec.Ms(ic); 
-    return (lac && mac) || (lad && mad);
-}
-
-
-void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
+void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
     size_t N=sg->size();
-    J->SetSize(N,0.0);
-    if (K)
-        K->SetSize(N,0.0);
+    J.SetSize(N,0.0);
+    if (&K!=&J) K.SetSize(N,0.0);
     
     for (index_t ia:sg->es.indices())
     {
@@ -238,14 +211,13 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                     else
                         cd=i_acbd->second;
                     //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                    (*J)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
+                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }
             }
         }
     }
 
                 
-    if (K)
     for (index_t ia:sg->es.indices())
     {
         cache_3& ca=find(sg->es_indices[ia-1],SL_CDcache4);
@@ -272,7 +244,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                     else
                         cd=i_acbd->second;
                     //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
-                    (*K)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm;                        
+                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm;                        
                 }
            }
         }

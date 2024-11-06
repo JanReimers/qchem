@@ -59,8 +59,7 @@ public:
     //! These integrals are not block diagonal for each irreducible representation. Therefore they
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
     //! When there is only one Irrep (no symmetry) then we can store and Coulomb and Exchange all in one
-    //! Table, so we call the first version.  Other wise we need both J&K, the second version.
-    virtual void Make4C(ERI4& J,          const IEClient*) const=0; //Used for Hartree-Fock
+    //! Table, so we call Make4C(J,J,iec) to get all coulomb and exchange integrals in the J table.  
     virtual void Make4C(ERI4& J, ERI4& K, const IEClient*) const=0; //Used for Hartree-Fock
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
