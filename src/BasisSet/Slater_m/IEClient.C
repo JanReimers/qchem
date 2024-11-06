@@ -46,12 +46,12 @@ void IEClient::Append(const IrrepIEClient* ic)
             index=ie->second;
         
         es_indexes.push_back(index);
-//        for (auto e:unique_es) cout << e.first << " ";
-//        cout << endl;
-//        for (auto i:es_indexes) cout << i << " ";
-//        cout << endl;
         
     }
+//    for (auto e:unique_es) cout << e.first << " ";
+//    cout << endl;
+//    for (auto i:es_indexes) cout << i << " ";
+//    cout << endl;
 
 }
 
