@@ -56,20 +56,20 @@ private:
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
     
-    mutable size_t CDinserts,CDlookups;
+//    mutable size_t CDinserts,CDlookups;
     
     static double FourPi2;
     
-    typedef std::map<size_t,const SlaterCD*> cache_1; 
-    typedef std::map<size_t,cache_1> cache_2; 
-    typedef std::map<size_t,cache_2> cache_3; 
-    typedef std::map<size_t,cache_3> cache_4; 
-    
-    mutable cache_4 SL_CDcache4;
-    
-    static cache_3&        find(int ia, cache_4&);
-    static cache_2&        find(int ib, cache_3&);
-    static cache_1&        find(int ic, cache_2&);
+//    typedef std::map<size_t,const SlaterCD*> cache_1; 
+//    typedef std::map<size_t,cache_1> cache_2; 
+//    typedef std::map<size_t,cache_2> cache_3; 
+//    typedef std::map<size_t,cache_3> cache_4; 
+//    
+//    mutable cache_4 SL_CDcache4;
+//    
+//    static cache_3&        find(int ia, cache_4&);
+//    static cache_2&        find(int ib, cache_3&);
+//    static cache_1&        find(int ic, cache_2&);
     //static const SlaterCD* find(int id, cache_1&);
     
 

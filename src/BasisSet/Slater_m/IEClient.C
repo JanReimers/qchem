@@ -57,8 +57,8 @@ void IEClient::Append(const IrrepIEClient* ic)
         
         
     }
-    for (auto e:unique_esv) cout << e << " ";
-    cout << endl;
+//    for (auto e:unique_esv) cout << e << " ";
+//    cout << endl;
 //    for (auto e:unique_es) cout << e.first << " ";
 //    cout << endl;
 //    for (auto i:es_indexes) cout << i << " ";
@@ -75,6 +75,14 @@ const std::vector<size_t>& IEClient::indices(size_t l) const
 
 using std::cout;
 using std::endl;
+
+Cache4::~Cache4()
+{
+     for (auto a:cache) 
+        for (auto b:a.second) 
+            for (auto c:b.second) 
+                for (auto d:c.second) delete d.second;
+}
 
 void Cache4::loop_1(size_t _i1) const
 {
