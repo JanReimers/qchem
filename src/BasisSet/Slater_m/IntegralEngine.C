@@ -166,11 +166,11 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
             //cout << std::setprecision(6) << "Akac=" << Akac << endl;
             for (const auto& ib:sg->indices(la))
             {
-                //if (ib<ia) continue;
+                if (ib<ia) continue;
                 sg->loop_3(ib);
                 for (const auto& id:sg->indices(lc))
                 {
-                    //if (id<ic) continue;
+                    if (id<ic) continue;
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                     const SlaterCD* cd1=sg->loop_4(id);
                     //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
@@ -192,13 +192,13 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
             //cout << std::setprecision(6) << "Akab=" << Akab << endl;
             for (index_t ic:sg->indices(la))
             {
-                //if (ic<ia) continue;
+                if (ic<ia) continue;
                 sg->loop_2(ic);
                 sg->loop_3(ib);
 
                 for (index_t id:sg->indices(lb))
                 {
-                    //if (id<ib) continue;
+                    if (id<ic) continue;
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                     const SlaterCD* cd1=sg->loop_4(id);
                     //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
