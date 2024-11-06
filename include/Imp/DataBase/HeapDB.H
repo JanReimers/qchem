@@ -86,7 +86,7 @@ private:
     typedef std::vector<UniqueID::IDtype>      IDList;
 
     AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
-    const IEClient*    istIEClient; //Used for 4 center integrals.
+    const IEClient*    itsIEClient; //Used for 4 center integrals.
     
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.

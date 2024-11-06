@@ -286,6 +286,8 @@ struct Vf : public VectorFunction<double>
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
     ERI4 J,K;
+    J.SetSize(bs->size(),0.0);
+    K.SetSize(bs->size(),0.0);
     ie->Make4C(J,K,bs);
     //int L=0;
     for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)

@@ -182,10 +182,7 @@ IntegralEngine::cache_1& IntegralEngine::find(int ib, cache_2& c)
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
-    size_t N=sg->size();
-    J.SetSize(N,0.0);
-    if (&K!=&J) K.SetSize(N,0.0);
-    
+
     for (index_t ia:sg->es.indices())
     {
         cache_3& ca=find(sg->es_indices[ia-1],SL_CDcache4);

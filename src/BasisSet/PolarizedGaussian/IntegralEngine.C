@@ -141,10 +141,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* pg=dynamic_cast<const IEClient*>(iec);
     
-    int N=pg->size();
-    J.SetSize(N,-1);
-    if (&K!=&J) K.SetSize(N,-1.0);
-    
     for (index_t ia:pg->ns.indices())
         for (index_t ib:pg->ns.indices(ia))
             for (index_t ic:pg->ns.indices())

@@ -143,10 +143,7 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
-    size_t N=sg->size();
-    J.SetSize(N,0.0);
-    if (&K!=&J) K.SetSize(N,0.0);
-    
+
     for (index_t ia:sg->es.indices())
         for (index_t ib:sg->es.indices(ia))
             for (index_t ic:sg->es.indices())
