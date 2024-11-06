@@ -68,14 +68,15 @@ using std::endl;
 //    1 <= Lcd_p=lc+ld+3+k <= 2LMax+1
 //
  SlaterCD::SlaterCD(double _eab, double _ecd, size_t _LMax)
- : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,2*LMax+1,3,4*LMax+1), Icd(0,2*LMax+1,3,4*LMax+1)
+ : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,2*LMax+1,3,4*LMax+3), Icd(0,2*LMax+1,3,4*LMax+3)
  {
+    assert(Iab.GetLimits()==Icd.GetLimits());
     Fill(Iab,0.0);
     Fill(Icd,0.0);
     Vector<double> f(0,2*LMax,0.0);
     const PascalTriangle& c1(PascalTriangle::thePascalTriangle);
     double eabcd=eab+ecd;
-    for (size_t L2=3;L2<=4*LMax+1;L2++)
+    for (size_t L2:Iab.cols())
     {
         double fL2=qchem::Fact[L2-1]; //(L2-1)!
         for (auto ik:f.indices()) f(ik)=fk(eab,eabcd,ik,L2);
@@ -140,6 +141,7 @@ Vector<double> SlaterCD::Coulomb_Rk(int la,int lc) const
         int Lcd_m=2*lc+1-k; // first term r_2
         int Lab_m=2*la+1-k; // second term r_1
         int Lcd_p=2*lc+3+k; // second term r_2^2
+        //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
         ret(i++)=(2*k+1)*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
     }
     return ret;

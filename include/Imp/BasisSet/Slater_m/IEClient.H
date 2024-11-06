@@ -63,7 +63,8 @@ struct IEClient
     void Append(const IrrepIEClient*);
     
     virtual size_t size() const {return es.size();}
-    size_t LMax() const {return 3;}
+    size_t LMax() const {return Max(Ls);}
+    //size_t LMax() const {return 1;}
     size_t eindex(int ia, int ib, int ic, int id) const
     {
        size_t N=es_indexes.size();
