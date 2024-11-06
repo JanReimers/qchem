@@ -64,15 +64,17 @@ struct IEClient
     
     virtual size_t size() const {return es.size();}
     size_t LMax() const {return Max(Ls);}
-    //size_t LMax() const {return 1;}
     size_t eindex(int ia, int ib, int ic, int id) const
     {
-       size_t N=es_indexes.size();
-       return ((es_indexes[ia-1]*N+es_indexes[ib-1])*N+es_indexes[ic-1])*N+es_indexes[id-1];
+       size_t N=es_indices.size();
+       return ((es_indices[ia-1]*N+es_indices[ib-1])*N+es_indices[ic-1])*N+es_indices[id-1];
     }
+    //! Get all indices with Ls(i)=l
+    const std::vector<size_t>& indices(size_t l) const;
     
     std::map<double,size_t> unique_es; //Unique exponents.
-    std::vector<size_t> es_indexes; //One based index for each exponent.
+    std::vector<size_t> es_indices; //One based index for each exponent.
+    std::map<size_t,std::vector<size_t> > L_indices; // <L,indices>
 }; 
 
 } //namespace Slater_m

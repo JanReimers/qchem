@@ -45,7 +45,13 @@ void IEClient::Append(const IrrepIEClient* ic)
         else 
             index=ie->second;
         
-        es_indexes.push_back(index);
+        es_indices.push_back(index);
+        
+        if (const auto &il =L_indices.find(Ls(j));il==L_indices.end())
+            L_indices[Ls(j)]=std::vector<size_t>();
+        
+        L_indices[Ls(j)].push_back(j);
+        
         
     }
 //    for (auto e:unique_es) cout << e.first << " ";
@@ -53,6 +59,13 @@ void IEClient::Append(const IrrepIEClient* ic)
 //    for (auto i:es_indexes) cout << i << " ";
 //    cout << endl;
 
+}
+
+const std::vector<size_t>& IEClient::indices(size_t l) const
+{
+    auto i=L_indices.find(l);
+    assert(i!=L_indices.end());
+    return i->second;
 }
 
 using std::cout;

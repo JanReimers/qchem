@@ -211,21 +211,18 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
             int ma=sg->Ms(ia), mc=sg->Ms(ic);
             RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
             //cout << std::setprecision(6) << "Akac=" << Akac << endl;
-            for (index_t ib:sg->es.indices())
-                for (index_t id:sg->es.indices())
+            for (const auto& ib:sg->indices(la))
+                for (const auto& id:sg->indices(lc))
                 {
-                    bool doJ = Jmatch(*sg,ia,ib,ic,id) ;
-                    if (doJ)
-                    {
-                        double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        const SlaterCD& cd= find(sg,ia,ib,ic,id);
-                        //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                        (*J)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Coulomb_Rk(la,lc)*norm;
-                     }
+                    double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    const SlaterCD& cd= find(sg,ia,ib,ic,id);
+                    //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
+                    (*J)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd.Coulomb_Rk(la,lc)*norm;
                 }
         }
 
                 
+    if (K)
     for (index_t ia:sg->es.indices())
         for (index_t ib:sg->es.indices())
         {
@@ -233,18 +230,14 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
             int ma=sg->Ms(ia), mb=sg->Ms(ib);
             RVec Akab=AngularIntegrals::Exchange(la,lb,ma,mb);
             //cout << std::setprecision(6) << "Akab=" << Akab << endl;
-            for (index_t ic:sg->es.indices())
-                for (index_t id:sg->es.indices())
+            for (index_t ic:sg->indices(la))
+                for (index_t id:sg->indices(lb))
                 {
-                    bool doK = K && Kmatch(*sg,ia,ib,ic,id) ;
-                    if (doK)
-                    {
-                        double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        const SlaterCD& cd= find(sg,ia,ib,ic,id);
-                        //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
-                        (*K)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd.ExchangeRk(la,lb)*norm;                        
-                     }
-                }
+                    double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    const SlaterCD& cd= find(sg,ia,ib,ic,id);
+                    //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
+                    (*K)(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd.ExchangeRk(la,lb)*norm;                        
+            }
            }
          
     
