@@ -205,7 +205,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
         K->SetSize(N,0.0);
     
     for (index_t ia:sg->es.indices())
-        for (index_t ic:sg->es.indices())
+        for (index_t ic:sg->es.indices(ia))
         {
             int la=sg->Ls(ia), lc=sg->Ls(ic);
             int ma=sg->Ms(ia), mc=sg->Ms(ic);
@@ -224,7 +224,7 @@ void IntegralEngine::Make4C(ERI4* J, ERI4* K,const ::IEClient* iec) const
                 
     if (K)
     for (index_t ia:sg->es.indices())
-        for (index_t ib:sg->es.indices())
+        for (index_t ib:sg->es.indices(ia))
         {
             int la=sg->Ls(ia), lb=sg->Ls(ib);
             int ma=sg->Ms(ia), mb=sg->Ms(ib);
