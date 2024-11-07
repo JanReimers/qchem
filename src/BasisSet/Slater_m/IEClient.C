@@ -122,12 +122,18 @@ const Cacheable* Cache4::loop_4(size_t _i4)  const
         return i->second;    
 }
 
+const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
+{
+//        cout << "new " << ia << " " << ib << " " << ic << " " << id << endl;
+//        cout << "new " << unique_esv[ia] << " " << unique_esv[ib] << " " << unique_esv[ic] << " " << unique_esv[id] << endl;
+    return new SlaterCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax());
+}
 //
-//  Ranges: All 
+//  Ranges:  
 //    0 <= k <= 2LMax  in steps of 2
-//    3 <= Lab_p=la+lb+3+k <= 2*(LMax+1) + 2LMax
+//    3 <= Lab_p=la+lb+3+k <= 4LMax+3
 //    1 <= Lcd_m=lc+ld+1-k <= 2LMax+1
-//    3 <= Lab_m=la+lb+1-k <= 2*(LMax+1) + 2LMax
+//    3 <= Lab_m=la+lb+1-k <= 4LMax+3
 //    1 <= Lcd_p=lc+ld+3+k <= 2LMax+1
 //
  SlaterCD::SlaterCD(double _eab, double _ecd, size_t _LMax)

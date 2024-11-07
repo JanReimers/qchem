@@ -100,18 +100,8 @@ struct IEClient
     
     virtual size_t size() const {return es.size();}
     size_t LMax() const {return Max(Ls);}
-    size_t eindex(int ia, int ib, int ic, int id) const
-    {
-       size_t N=es_indices.size();
-       return ((es_indices[ia-1]*N+es_indices[ib-1])*N+es_indices[ic-1])*N+es_indices[id-1];
-    }
-    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const
-    {
-//        cout << "new " << ia << " " << ib << " " << ic << " " << id << endl;
-//        cout << "new " << unique_esv[ia] << " " << unique_esv[ib] << " " << unique_esv[ic] << " " << unique_esv[id] << endl;
-
-        return new SlaterCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax());
-    }
+    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
+    
     void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
     void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
     void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}

@@ -154,21 +154,21 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
 
-    for (index_t ia:sg->es.indices())
+    for (size_t ia:sg->es.indices())
     {
-        sg->loop_1(ia);
-        for (index_t ic:sg->es.indices(ia))
+        sg->loop_1(ia); //Start a cache for SlaterCD*
+        for (size_t ic:sg->es.indices(ia))
         {
             sg->loop_2(ic);
             int la=sg->Ls(ia), lc=sg->Ls(ic);
             int ma=sg->Ms(ia), mc=sg->Ms(ic);
             RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
             //cout << std::setprecision(6) << "Akac=" << Akac << endl;
-            for (const auto& ib:sg->indices(la))
+            for (size_t ib:sg->indices(la))
             {
                 if (ib<ia) continue;
                 sg->loop_3(ib);
-                for (const auto& id:sg->indices(lc))
+                for (size_t id:sg->indices(lc))
                 {
                     if (id<ic) continue;
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
@@ -181,22 +181,22 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     }
 
                 
-    for (index_t ia:sg->es.indices())
+    for (size_t ia:sg->es.indices())
     {
         sg->loop_1(ia);
-        for (index_t ib:sg->es.indices(ia))
+        for (size_t ib:sg->es.indices(ia))
         {
             int la=sg->Ls(ia), lb=sg->Ls(ib);
             int ma=sg->Ms(ia), mb=sg->Ms(ib);
             RVec Akab=AngularIntegrals::Exchange(la,lb,ma,mb);
             //cout << std::setprecision(6) << "Akab=" << Akab << endl;
-            for (index_t ic:sg->indices(la))
+            for (size_t ic:sg->indices(la))
             {
                 if (ic<ia) continue;
                 sg->loop_2(ic);
                 sg->loop_3(ib);
 
-                for (index_t id:sg->indices(lb))
+                for (size_t id:sg->indices(lb))
                 {
                     if (id<ic) continue;
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
