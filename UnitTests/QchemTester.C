@@ -109,7 +109,10 @@ IrrepBasisSet* QchemTester::GetXBasisSet() const
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 BasisSet* SG_OBasis::GetBasisSet () const
 {
-    return  new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
+    SphericalGaussian::BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
+    return  bs;
 }
 
 #include "Imp/BasisSet/Slater/BasisSet.H"
