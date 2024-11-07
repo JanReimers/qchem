@@ -66,7 +66,10 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,18,36,54));
 TEST_P(A_SL_HF_U,Multiple)
 {
     int Z=GetParam();
-    Init(9,1.0,5*Z,GetLMax(Z));
+    int N=8;
+    if (Z>20) N=10;
+    if (Z>50) N=11;
+    Init(N,1.0,5*Z,GetLMax(Z));
     Iterate({40,1e-2,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }

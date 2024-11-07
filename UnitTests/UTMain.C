@@ -7,10 +7,10 @@ int main(int argc, char **argv)
      testing::InitGoogleTest(&argc, argv);
 //     testing::GTEST_FLAG(filter) = "A_PG_HF_P_92*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SL*:Multiple/A_SG*";
-     testing::GTEST_FLAG(filter) = "Multiple/A_SL_HF_P.Multiple/*";
+//     testing::GTEST_FLAG(filter) = "Multiple/A_SL_HF_P.Multiple/*";
 
 //     testing::GTEST_FLAG(filter) = "MeshIntegralsTests.GObritals:M_PG_*:Multiple/A_PG*";
-//  testing::GTEST_FLAG(filter) = "Multiple/A_PG_DFT*";
+//  testing::GTEST_FLAG(filter) = "Multiple/A_SLm*";
 //    testing::GTEST_FLAG(filter) = "Multiple/A_SL_HF_P.Multiple/*";
 //
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";

@@ -5,7 +5,6 @@
 #include "Imp/BasisSet/Slater/IEClient.H" 
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-//#include "Imp/Integrals/Factorials.H"
 #include <Cluster.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
@@ -90,8 +89,8 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
     for (auto i:r.rows())
         for (auto j:r.cols(i))
         {
-            SlaterRadialIntegrals R(a->es(i),a->es(j));
-            r(i,j)=FourPi2*R.R0(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+            SlaterCD cd(a->es(i),a->es(j),std::max(a->Ls(i),a->Ls(j)));
+            r(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
         }
 
     return r;
@@ -106,8 +105,8 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
     for (auto i:s.rows())
         for (auto j:s.cols())
         {
-            SlaterRadialIntegrals R(a->es(i),b->es(j));
-            s(i,j)=FourPi2*R.R0(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+            SlaterCD cd(a->es(i),b->es(j),std::max(a->Ls(i),b->Ls(j)));
+            s(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
         }
 
     return s;
@@ -125,8 +124,9 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
     for (auto i:s.rows())
         for (auto j:s.cols(i))
         {
-            SlaterRadialIntegrals R(ab->es(i)+ab->es(j),ec);
-            s(i,j)=FourPi2*R.R0(ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
+            assert(ab->Ls(i)==ab->Ls(j));
+            SlaterCD cd(ab->es(i)+ab->es(j),ec,std::max(ab->Ls(i),(long unsigned)Lc));
+            s(i,j)=FourPi2*cd.Coulomb_R0(ab->Ls(i),Lc)*ab->ns(i)*ab->ns(j)*nc;
         }
     return s;
 }
