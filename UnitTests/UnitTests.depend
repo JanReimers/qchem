@@ -919,7 +919,7 @@
 1729778151 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1730675870 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+1730983089 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Misc/IntPower.H"
 	"Imp/Integrals/Factorials.H"
 	<cmath>
@@ -1413,9 +1413,16 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1730938161 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IEClient.H
+1730983324 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IEClient.H
 	<IEClient.H>
+	"Imp/Integrals/SlaterCD.H"
 	"oml/vector.h"
-	"oml/matrix.h"
 	<map>
+
+1730981824 /home/janr/Code/qchem/include/Imp/Integrals/Cache4.H
+	<map>
+
+1730982442 /home/janr/Code/qchem/include/Imp/Integrals/SlaterCD.H
+	"Imp/Integrals/Cache4.H"
+	"oml/matrix.h"
 

@@ -13,7 +13,6 @@ namespace Slater_m
     
 class IrrepIEClient;
 class IEClient;
-class SlaterCD;
     
 class IntegralEngine
     : public virtual AnalyticIE<double>

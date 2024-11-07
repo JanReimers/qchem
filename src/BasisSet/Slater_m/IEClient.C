@@ -1,7 +1,6 @@
 
 #include "Imp/BasisSet/Slater_m/IEClient.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
-#include "Imp/Integrals/PascalTriangle.H"
 
 using std::cout;
 using std::endl;
@@ -76,51 +75,6 @@ const std::vector<size_t>& IEClient::indices(size_t l) const
 using std::cout;
 using std::endl;
 
-Cache4::~Cache4()
-{
-     for (auto a:cache) 
-        for (auto b:a.second) 
-            for (auto c:b.second) 
-                for (auto d:c.second) delete d.second;
-}
-
-void Cache4::loop_1(size_t _i1) const
-{
-    i1=_i1;
-    if (auto i=cache.find(i1);i==cache.end())
-        i1_cache = &(cache[i1]=cache_2());
-    else
-        i1_cache = &i->second;
-}
-
-void Cache4::loop_2(size_t _i2) const
-{
-    i2=_i2;
-    cache_2& c=*i1_cache; //De-reference for readability.
-    if (auto i=c.find(i2);i==c.end())
-        i2_cache = &(c[i2]=cache_3());
-    else
-        i2_cache = &i->second;
-}
-void Cache4::loop_3(size_t _i3) const
-{
-    i3=_i3;
-    cache_3& c=*i2_cache; //De-reference for readability.
-    if (auto i=c.find(i3);i==c.end())
-        i3_cache = &(c[i3]=cache_4());
-    else
-        i3_cache = &i->second;    
-}
-
-const Cacheable* Cache4::loop_4(size_t _i4)  const
-{
-    i4=_i4;
-    cache_4& c=*i3_cache; //De-reference for readability.
-    if (auto i=c.find(i4);i==c.end())
-        return c[i4]=Create(i1,i2,i3,i4);
-    else
-        return i->second;    
-}
 
 const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
@@ -128,111 +82,7 @@ const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 //        cout << "new " << unique_esv[ia] << " " << unique_esv[ib] << " " << unique_esv[ic] << " " << unique_esv[id] << endl;
     return new SlaterCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax());
 }
-//
-//  Ranges:  
-//    0 <= k <= 2LMax  in steps of 2
-//    3 <= Lab_p=la+lb+3+k <= 4LMax+3
-//    1 <= Lcd_m=lc+ld+1-k <= 2LMax+1
-//    3 <= Lab_m=la+lb+1-k <= 4LMax+3
-//    1 <= Lcd_p=lc+ld+3+k <= 2LMax+1
-//
- SlaterCD::SlaterCD(double _eab, double _ecd, size_t _LMax)
- : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,2*LMax+1,3,4*LMax+3), Icd(0,2*LMax+1,3,4*LMax+3)
- {
-    assert(Iab.GetLimits()==Icd.GetLimits());
-    Fill(Iab,0.0);
-    Fill(Icd,0.0);
-    Vector<double> f(0,2*LMax,0.0);
-    const PascalTriangle& c1(PascalTriangle::thePascalTriangle);
-    double eabcd=eab+ecd;
-    for (size_t L2:Iab.cols())
-    {
-        double fL2=qchem::Fact[L2-1]; //(L2-1)!
-        for (auto ik:f.indices()) f(ik)=fk(eab,eabcd,ik,L2);
-        Iab(0,L2)=fL2/(eab*pow(eabcd,L2));
-        for (size_t ik=1;ik<=2*LMax+1;ik++)
-            for (size_t jk=0;jk<=ik-1;jk++)
-                Iab(ik,L2)+=c1(ik-1,jk)*Iab(jk,L2)*f(ik-1-jk);  
-            
-        for (auto ik:f.indices()) f(ik)=fk(ecd,eabcd,ik,L2);
-        Icd(0,L2)=fL2/(ecd*pow(eabcd,L2));
-        for (size_t ik=1;ik<=2*LMax+1;ik++)
-            for (size_t jk=0;jk<=ik-1;jk++)
-                Icd(ik,L2)+=c1(ik-1,jk)*Icd(jk,L2)*f(ik-1-jk);  
-    }
-        
- }
- 
- double SlaterCD::fk(double a, double ab, int k,int n)
-{
-    assert(n>0);
-    assert(k>=0);
-    assert(k<=qchem::NMax);
-    return qchem::Fact[k]*(n/pow(ab,k+1)+1/pow(a,k+1));
-}
 
-//double SlaterCD::D(double a, double ab, int k,int n) 
-//{
-//    Vector<double> I(0,k,0.0),f(0,k-1,0.0);
-//    const PascalTriangle& c1(PascalTriangle::thePascalTriangle);
-//    I(0)=1/(a*pow(ab,n));
-//    for (auto ik:f.indices()) f(ik)=fk(a,ab,ik,n);
-//    for (int ik=1;ik<=k;ik++)
-//         for (int jk=0;jk<=ik-1;jk++)
-//            I(ik)+=c1(ik-1,jk)*I(jk)*f(ik-1-jk);             
-//    return I(k);
-//}
-
-//double SlaterCD::R(int k,int la, int lb, int lc, int ld) const
-//{
-//    int Lab_p=la+lb+3+k; // first term r_1^2
-//    int Lcd_m=lc+ld+1-k; // first term r_2
-//    int Lab_m=la+lb+1-k; // second term r_1
-//    int Lcd_p=lc+ld+3+k; // second term r_2^2
-//    assert(Lab_m>=0);
-//    assert(Lcd_m>=0);
-//    assert(Lab_p+1<=qchem::NMax);
-//    assert(Lcd_p+1<=qchem::NMax);
-//    double afact=qchem::Fact[Lcd_p-1]; //These ab and cd are reversed on purpose.
-//    double cfact=qchem::Fact[Lab_p-1];
-//    double Iab=D(eab,eab+ecd,Lab_m,Lcd_p);
-//    double Icd=D(ecd,eab+ecd,Lcd_m,Lab_p);
-//    return afact*Iab+cfact*Icd;
-//}
-
-Vector<double> SlaterCD::Coulomb_Rk(int la,int lc) const
-{
-    Vector<double> ret(la+lc+1,0.0);
-    int i=1;
-    for (int k=0;k<=2*std::min(la,lc);k+=2)
-    {
-        int Lab_p=2*la+3+k; // first term r_1^2
-        int Lcd_m=2*lc+1-k; // first term r_2
-        int Lab_m=2*la+1-k; // second term r_1
-        int Lcd_p=2*lc+3+k; // second term r_2^2
-        //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        ret(i++)=(2*k+1)*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
-    }
-    return ret;
-}
-
-Vector<double> SlaterCD::ExchangeRk(int la,int lb) const
-{
-    int kmin=std::abs(la-lb);
-    int kmax=la+lb;
-    int N=(kmax-kmin)/2+1;
-    Vector<double> ret(N,0.0);
-    int i=1;
-    for (int k=kmin;k<=kmax;k+=2)
-    {
-        int Lab_p=la+lb+3+k; // first term r_1^2
-        int Lcd_m=la+lb+1-k; // first term r_2
-        int Lab_m=la+lb+1-k; // second term r_1
-        int Lcd_p=la+lb+3+k; 
-        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
-    }
-    return ret;
-}
 
 
 

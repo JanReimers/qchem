@@ -1,7 +1,6 @@
 #ifndef SLATERINTEGRALS_H
 #define SLATERINTEGRALS_H
 
-//#include "Imp/Integrals/Wigner3j.H"
 #include "Imp/Misc/IntPower.H"
 #include "Imp/Integrals/Factorials.H"
 
