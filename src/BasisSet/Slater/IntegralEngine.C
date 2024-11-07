@@ -4,6 +4,7 @@
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/IEClient.H" 
 #include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Integrals/Factorials.H"
 #include <Cluster.H>
 #include "oml/matrix.h"
@@ -145,34 +146,65 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
 
     for (index_t ia:sg->es.indices())
-        for (index_t ib:sg->es.indices(ia))
-            for (index_t ic:sg->es.indices())
-                for (index_t id:sg->es.indices(ic))
+    {
+        sg->loop_1(ia); //Start a cache for SlaterCD*
+        for (index_t ic:sg->es.indices())
+        {
+            sg->loop_2(ic);
+            int la=sg->Ls(ia), lc=sg->Ls(ic);
+            //No angular integrals required for the Coulomb part.
+            for (index_t ib:sg->indices(la)) //Only loop over indices with l=la
+            {
+                sg->loop_3(ib);
+                for (index_t id:sg->indices(lc)) //Only loop over indices with l=lc
                 {
-                    bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id);
-                    bool doK = sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id);
-                    if (doJ || doK)
-                    {
-                        double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-                       if (doJ)
-                       {
-                            J(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                    assert(sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id));
+                    const SlaterCD* cd1=sg->loop_4(id);
+
+                    double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
+                    J(ia,ib,ic,id)=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                    double j=FourPi2*cd1->Coulomb_R0(la,lc);
+                    double JJ=S.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id));
+                    double rerr=fabs((j-JJ)/j);
+                    assert(rerr<1e-14);
+                    
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J/norm=" << J(ia,ib,ic,id)/norm << std::endl;
+                 }
+            }
+        }
+    }
 
-                       }
-                        if (doK)
-                        {
-                            K(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                
+    for (index_t ia:sg->es.indices())
+    {
+        sg->loop_1(ia);
+        for (index_t ib:sg->es.indices(ia))
+        {
+            int la=sg->Ls(ia), lb=sg->Ls(ib);
+            RVec Akab=AngularIntegrals::Exchange(la,lb);
+            for (index_t ic:sg->indices(la))
+            {
+                sg->loop_2(ic);
+                sg->loop_3(ib);
+                for (index_t id:sg->indices(lb))
+                {
+                    assert(sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id));
+                    const SlaterCD* cd1=sg->loop_4(id);
+                    double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    SlaterRadialIntegrals S(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
+                    K(ia,ib,ic,id)=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id))*norm;
+                    double k=FourPi2*Akab*cd1->ExchangeRk(la,lb);
+                    double KK=S.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id));
+                    double rerr=fabs((k-KK)/k);
+                    assert(rerr<1e-14);
 //                           std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                            << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  K/norm=" << K(ia,ib,ic,id)/norm << std::endl;
-                            
-                        }
-//                        else
-//                            if (K) (*K)(ia,ib,ic,id)=0.0;
-                     }
                 }
+            }
+        }
+    }
     
 }
 

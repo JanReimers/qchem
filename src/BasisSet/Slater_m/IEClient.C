@@ -21,6 +21,8 @@ void IrrepIEClient::Init(double minexp,double maxexp,size_t L, int m)
       for (auto i:es.indices())  ns(i)=SlaterNorm(es(i),Ns(i));
 }
 
+
+
 void IEClient::Append(const IrrepIEClient* ic)
 {
     size_t j=size()+1;
@@ -38,23 +40,7 @@ void IEClient::Append(const IrrepIEClient* ic)
         es(j)=ic->es(i);
         ns(j)=ic->ns(i);
         
-        size_t index=unique_es.size();
-        if (const auto &ie =unique_es.find(es(j));ie==unique_es.end())
-        {
-            unique_esv.push_back(es(j));
-            unique_es[es(j)]=index;
-        }
-        else 
-            index=ie->second;
-        
-        es_indices.push_back(index);
-        
-        if (const auto &il =L_indices.find(Ls(j));il==L_indices.end())
-            L_indices[Ls(j)]=std::vector<size_t>();
-        
-        L_indices[Ls(j)].push_back(j);
-        
-        
+        BFGrouper::Append(es(j),Ls(j),j);
     }
 //    for (auto e:unique_esv) cout << e << " ";
 //    cout << endl;
@@ -65,12 +51,6 @@ void IEClient::Append(const IrrepIEClient* ic)
 
 }
 
-const std::vector<size_t>& IEClient::indices(size_t l) const
-{
-    auto i=L_indices.find(l);
-    assert(i!=L_indices.end());
-    return i->second;
-}
 
 using std::cout;
 using std::endl;

@@ -54,6 +54,24 @@ double Exchange(int k,int la,int lb,int ma,int mb)
     return w3ab*w3ab*w3ab_m*w3ab_m;
 }
 
+RVec Exchange(int la,int lb)
+{    
+    assert(la>=0);
+    assert(lb>=0);
+    int kmin=std::abs(la-lb);
+    int kmax=la+lb;
+    int N=(kmax-kmin)/2+1;
+    RVec Ak(N);
+    int i=1;
+    for (int k=kmin;k<=kmax;k+=2)
+    {
+        assert((k+la+lb)%2==0);
+        Ak(i++)=Exchange(k,la,lb); //What about *(2k+1) ??
+    }
+    return Ak;
+}
+
+
 RVec Coulomb (int la,int lc,int ma,int mc)
 {    
     RVec Ak(la+lc+1);

@@ -39,8 +39,17 @@ void IEClient::Append(const IrrepIEClient* ic)
         Ls(j)=ic->Ls(i);
         es(j)=ic->es(i);
         ns(j)=ic->ns(i);
+        BFGrouper::Append(es(j),Ls(j),j);
     }
 
 }
+
+const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
+{
+//        cout << "new " << ia << " " << ib << " " << ic << " " << id << endl;
+//        cout << "new " << unique_esv[ia] << " " << unique_esv[ib] << " " << unique_esv[ic] << " " << unique_esv[id] << endl;
+    return new SlaterCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax());
+}
+
 
 } //namespace

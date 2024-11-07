@@ -4,6 +4,7 @@
 
 #include <IEClient.H> // <> prevents file search on this Slater_m folder.
 #include "Imp/Integrals/SlaterCD.H"
+#include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
 #include <map>
 
@@ -37,12 +38,12 @@ struct IrrepIEClient
 };
 
 
-
 //Use the same struct for a full basis set.;
 struct IEClient 
     : public virtual ::IEClient 
     , public virtual Cache4
     , public IEData
+    , public BFGrouper
 {
     IEClient() {};
     IEClient(size_t N) : IEData(N) {};
@@ -64,13 +65,6 @@ struct IEClient
 
 
     
-    //! Get all indices with Ls(i)=l
-    const std::vector<size_t>& indices(size_t l) const;
-    
-    std::map<double,size_t> unique_es; //Unique exponents.
-    std::vector<size_t> es_indices; //zero based index for each exponent.
-    std::vector<double> unique_esv;
-    std::map<size_t,std::vector<size_t> > L_indices; // <L,indices>
 }; 
 
 } //namespace Slater_m
