@@ -130,12 +130,15 @@ public:
 TEST_P(A_SL_HF_P,Multiple)
 {
     int Z=GetParam();
-    Init(9,0.7,5*Z,GetLMax(Z));
-    Iterate({40,Z*1e-2,1.0,0.0,false});
+    int N=8;
+    if (Z>20) N=10;
+    if (Z>50) N=11;
+    Init(N,0.31,3*Z,GetLMax(Z));
+    Iterate({40,Z*1e-3,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
 
 class A_SLm_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SLm_OBasis, HF_P, TestPolarized

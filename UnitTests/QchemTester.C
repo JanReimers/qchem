@@ -117,7 +117,7 @@ BasisSet* SL_OBasis::GetBasisSet () const
 {
     Slater::BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
-    //std::cout << *bs << std::endl;
+    std::cout << *bs << std::endl;
     return bs;
 }
 
