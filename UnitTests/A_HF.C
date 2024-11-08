@@ -61,7 +61,7 @@ TEST_P(A_SG_HF_U,Multiple)
     Iterate({40,Z*1e-3,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,18,36,54)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,18,36,54,64)); 
 
 TEST_P(A_SL_HF_U,Multiple)
 {

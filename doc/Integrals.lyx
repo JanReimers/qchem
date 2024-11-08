@@ -1151,7 +1151,7 @@ R_{k}(n_{a},n_{b},n_{c},n_{d})=\iint\frac{r_{<}^{k}}{r_{>}^{k+1}}\:r_{1}^{n_{a}+
 For Gaussians we use
 \begin_inset Formula 
 \[
-L_{+}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}+k\right)
+L_{+}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}+k\right)=\frac{1}{2}\left(l_{a}+l_{b}+2+k\right)
 \]
 
 \end_inset
@@ -1159,7 +1159,7 @@ L_{+}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}+k\right)
 
 \begin_inset Formula 
 \[
-L_{-}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}-k-2\right)
+L_{-}^{ab}=\frac{1}{2}\left(n_{a}+n_{b}-k-2\right)=\frac{1}{2}\left(l_{a}+l_{b}-k\right)
 \]
 
 \end_inset
@@ -1169,10 +1169,27 @@ where
 \end_inset
 
  is guaranteed to be even for the Coulomb and Exchange cases.
- The generating functions are:
+ These constant are chosen so that we leave behind factors of 
+\begin_inset Formula $r_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $r_{2}$
+\end_inset
+
+ in the right places for completing the integrals.
+ Now
 \begin_inset Formula 
 \[
-\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{0}^{r1}\:e^{-\beta r_{2}^{2}}dr_{2}=\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}
+R_{k}=D_{\alpha}^{L_{-}^{ab}}D_{\beta}^{L_{+}^{cd}}\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha r_{1}^{2}}\intop_{0}^{r1}\:e^{-\beta r_{2}^{2}}dr_{2}+D_{\alpha}^{L_{+}^{ab}}D_{\beta}^{L_{-}^{cd}}\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\beta r_{2}^{2}}dr_{2}
+\]
+
+\end_inset
+
+The generating functions are:
+\begin_inset Formula 
+\[
+\intop_{0}^{\infty}dr_{1}r_{1}e^{-\alpha r_{1}^{2}}\intop_{0}^{r1}\:e^{-\beta r_{2}^{2}}dr_{2}=\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}
 \]
 
 \end_inset
@@ -1180,7 +1197,7 @@ where
 
 \begin_inset Formula 
 \[
-\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:e^{-\alpha_{cd}r_{2}^{2}}dr_{2}=\frac{\sqrt{\pi}}{4\beta\sqrt{\alpha+\beta}}
+\intop_{0}^{\infty}dr_{1}e^{-\alpha r_{1}^{2}}\intop_{r_{1}}^{\infty}\:r_{2}e^{-\beta r_{2}^{2}}dr_{2}=\frac{\sqrt{\pi}}{4\beta\sqrt{\alpha+\beta}}
 \]
 
 \end_inset
@@ -1188,15 +1205,39 @@ where
 And now 
 \begin_inset Formula 
 \[
-R_{k}(n_{a},n_{b},n_{c},n_{d})=D_{\alpha}^{L_{-}}D_{\beta}^{L_{+}}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}^{L_{+}}D_{\beta}^{L_{-}}\frac{\sqrt{\pi}}{4\beta\sqrt{\alpha+\beta}}
+R_{k}(n_{a},n_{b},n_{c},n_{d})=D_{\alpha}^{L_{-}^{ab}}D_{\beta}^{L_{+}^{cd}}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}^{L_{+}^{ab}}D_{\beta}^{L_{-}^{cd}}\frac{\sqrt{\pi}}{4\beta\sqrt{\alpha+\beta}}
 \]
 
 \end_inset
 
+
+\end_layout
+
+\begin_layout Standard
+Using 
+\begin_inset Formula 
+\[
+D_{\alpha}^{n}\frac{1}{\sqrt{\alpha+\beta}}=D_{\beta}^{n}\frac{1}{\sqrt{\alpha+\beta}}=\frac{\left(2n-1\right)!!}{2^{n}}\frac{1}{\sqrt{\alpha+\beta}^{2n-1}}
+\]
+
+\end_inset
+
+Now
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=\frac{\sqrt{\pi}\left(2L_{+}^{cd}-1\right)!!}{4\cdot2^{L_{+}^{cd}}}D_{\alpha}^{L_{-}}\frac{1}{\alpha\sqrt{\alpha+\beta}^{2L_{+}^{cd}-1}}+\frac{\sqrt{\pi}\left(2L_{+}^{ab}-1\right)!!}{4\cdot2^{L_{+}^{ab}}}D_{\beta}^{L_{-}}\frac{1}{\beta\sqrt{\alpha+\beta}^{2L_{+}^{ab}-1}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 As an example
 \begin_inset Formula 
 \[
-R_{0}(1,1,1,1)=D_{\beta}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}\frac{\sqrt{\pi}}{24\sqrt{\alpha+\beta}}
+R_{0}(1,1,1,1)=D_{\beta}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}\frac{\sqrt{\pi}}{4\sqrt{\alpha+\beta}}
 \]
 
 \end_inset
@@ -1810,6 +1851,53 @@ One can recognize the binomial expansion appearance.
 \begin_inset Formula 
 \[
 I_{k+1}=\sum_{i=0}^{k}\binom{k}{i}I_{i}f_{k}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+GTOs
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+R_{k}(n_{a},n_{b},n_{c},n_{d})=\frac{\sqrt{\pi}\left(2L_{+}^{cd}-1\right)!!}{4\cdot2^{L_{+}^{cd}}}D_{\alpha}^{L_{-}}\frac{1}{\alpha\sqrt{\alpha+\beta}^{2L_{+}^{cd}-1}}+\frac{\sqrt{\pi}\left(2L_{+}^{ab}-1\right)!!}{4\cdot2^{L_{+}^{ab}}}D_{\beta}^{L_{-}}\frac{1}{\beta\sqrt{\alpha+\beta}^{2L_{+}^{ab}-1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+I_{0}^{\alpha}=\frac{1}{\alpha\sqrt{\alpha+\beta}^{2n-1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+I_{1}=D_{\alpha}I_{0}=\frac{1}{\alpha^{2}\sqrt{\alpha+\beta}^{2n-1}}+\frac{n-\frac{1}{2}}{\alpha\sqrt{\alpha+\beta}^{2n-3}}=I_{0}^{\alpha}\left(\frac{1}{\alpha}+\frac{n-\frac{1}{2}}{\alpha+\beta}\right)=I_{0}^{\alpha}f_{0}^{\alpha}
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+f_{0}^{\alpha}=\left(\frac{1}{\alpha}+\frac{n-\frac{1}{2}}{\alpha+\beta}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+f_{k}^{\alpha}=\left(-\frac{\partial}{\partial\alpha}\right)^{k}f_{0}^{\alpha}=k!\left(\frac{1}{\alpha^{k+1}}+\frac{\left(n-\frac{1}{2}\right)}{\left(\alpha+\beta\right)^{k+1}}\right)
 \]
 
 \end_inset

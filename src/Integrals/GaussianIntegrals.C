@@ -187,11 +187,11 @@ double GaussianRadialIntegrals::R(int k,int la, int lb, int lc, int ld) const
     double cfact=qchem::DFact[Lab_p+1]/qchem::Twon[Lab_p/2];
     double Iab=Dab(Lab_m/2,Lcd_p+3);
     double Icd=Dcd(Lcd_m/2,Lab_p+3);
-//    if(Lab_p>0 || Lcd_p>0 )
-//    {
-//        std::cout <<  "L+=" << Lab_p << ", " << Lcd_p << ", L-=" << Lab_m << ", " << Lcd_m << std::endl;
-//        std::cout <<  afact << "*" << Iab << " + " << cfact << "*" << Icd << std::endl;
-//    }
+    //if(Lab_p>0 || Lcd_p>0 )
+    {
+        //std::cout <<  "L+=" << Lab_p << ", " << Lcd_p << ", L-=" << Lab_m << ", " << Lcd_m << std::endl;
+        //std::cout << k << "  " <<  afact << " * " << Iab << "   +   " << cfact << " * " << Icd << std::endl;
+    }
     return Pi12/8*(afact*Iab+cfact*Icd);
 }
 double GaussianRadialIntegrals::Coulomb(int la, int lb, int lc, int ld) const

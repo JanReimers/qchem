@@ -58,6 +58,7 @@
 		<Unit filename="include/FittedFunctionClient.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/BFGrouper.H" />
 		<Unit filename="include/Imp/BasisSet/GaussianScaler.H" />
 		<Unit filename="include/Imp/BasisSet/IrrepCommon.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisFunction.H" />
@@ -143,13 +144,13 @@
 		<Unit filename="include/Imp/Integrals/Cache4.H" />
 		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
 		<Unit filename="include/Imp/Integrals/Factorials.H" />
+		<Unit filename="include/Imp/Integrals/GaussianCD.H" />
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/GaussianRadialIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/PascalTriangle.H" />
 		<Unit filename="include/Imp/Integrals/SlaterCD.H" />
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
-		<Unit filename="include/Imp/LAParams.H" />
 		<Unit filename="include/Imp/LASolver/LASolverImp.H" />
 		<Unit filename="include/Imp/LASolver/LASolverLapack.H" />
 		<Unit filename="include/Imp/LASolver/LASolverOML.H" />
@@ -193,6 +194,9 @@
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
 		<Unit filename="src/AnalyticIE.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/BFGrouper.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/IrrepCommon.C">
@@ -471,6 +475,7 @@
 		<Unit filename="src/Integrals/Factorials.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/Integrals/GaussianCD.H" />
 		<Unit filename="src/Integrals/GaussianIntegrals.C">
 			<Option compilerVar="CC" />
 		</Unit>
