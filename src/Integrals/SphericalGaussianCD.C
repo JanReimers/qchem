@@ -1,0 +1,109 @@
+// File: SphericalGaussianCD.C  2 electron Charge distribution of Gaussian orbitals. 
+
+#include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/Integrals/PascalTriangle.H"
+#include "Imp/Integrals/Factorials.H"
+#include "oml/vector.h"
+using std::cout;
+using std::endl;
+//
+//  Ranges:  
+//    0 <= k <= 2LMax  in steps of 2
+//    1 <= Lab_p=0.5*(la+lb+2+k) <= 2LMax+1
+//    0 <= Lcd_m=0.5*(lc+ld  -k) <=  LMax
+//    0 <= Lab_m=0.5*(la+lb  -k) <= 2LMax+1
+//    1 <= Lcd_p=0.5*(lc+ld+2+k) <=  LMax
+//
+//  Build up the derivative look up tables.
+//
+ SphericalGaussianCD::SphericalGaussianCD(double _eab, double _ecd, size_t _LMax)
+ : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,LMax,1,2*LMax+1), Icd(0,LMax,1,2*LMax+1)
+ {
+    assert(Iab.GetLimits()==Icd.GetLimits());
+    Fill(Iab,0.0);
+    Fill(Icd,0.0);
+    Vector<double> f(0,LMax,0.0);
+    const PascalTriangle& c1(PascalTriangle::thePascalTriangle); //Binomial coefficients.
+    double eabcd=eab+ecd;
+    
+    for (size_t L2:Iab.cols())
+    {
+        double fL2=qchem::DFact[2*L2-1]/pow(2,L2-1); //sqrt(pi)*(2*n-1)!!/2^n/4
+        for (auto ik:f.indices()) f(ik)=fk(eab,eabcd,ik,L2);
+        Iab(0,L2)=fL2/(eab*pow(eabcd,L2+0.5)); //This is what gets differentiated.
+        //cout << "L2,Iab(0,L2) " << L2 << " " << Iab(0,L2) << endl;
+        for (size_t ik=1;ik<=LMax;ik++)
+            for (size_t jk=0;jk<=ik-1;jk++)
+                Iab(ik,L2)+=c1(ik-1,jk)*Iab(jk,L2)*f(ik-1-jk);  
+            
+        for (auto ik:f.indices()) f(ik)=fk(ecd,eabcd,ik,L2);
+        Icd(0,L2)=fL2/(ecd*pow(eabcd,L2+0.5)); //This is what gets differentiated.
+        //cout << "L2,Icd(0,L2) " << L2 << " " << Icd(0,L2) << endl;
+        for (size_t ik=1;ik<=LMax;ik++)
+            for (size_t jk=0;jk<=ik-1;jk++)
+            {
+                Icd(ik,L2)+=c1(ik-1,jk)*Icd(jk,L2)*f(ik-1-jk);  
+//                if (ik==1 && L2==1)
+//                {
+//                    cout << jk << " " << c1(ik-1,jk) << " " << Icd(jk,L2) << " " << f(ik-1-jk) << endl;
+//                }
+                
+            }
+    }
+        
+ }
+ 
+ double SphericalGaussianCD::fk(double a, double ab, int k,int n)
+{
+    assert(n>0);
+    assert(k>=0);
+    assert(k<=qchem::NMax);
+    return qchem::Fact[k]*((n+0.5)/pow(ab,k+1)+1/pow(a,k+1));
+}
+
+double SphericalGaussianCD::Coulomb_R0(int la,int lc) const
+{
+        int Lab_p=la+1; // (la+lb+2)/2 
+        int Lcd_m=lc;   // (lc+ld)/2   
+        int Lab_m=la;   // (la+lb)/2   
+        int Lcd_p=lc+1; // (lc+ld+2)/2
+        //cout << "Lab_m Lcd_m Lab_p Lcd_p" << Lab_m << " " << Lcd_m << " " << Lab_p << " " << Lcd_p << endl;
+        //cout << "Iab Icd = " << Iab(Lab_m,Lcd_p) << " " << Icd(Lcd_m,Lab_p) << endl;
+        return sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+}
+
+Vector<double> SphericalGaussianCD::Coulomb_Rk(int la,int lc) const
+{
+    Vector<double> ret(la+lc+1,0.0);
+    int i=1;
+    for (int k=0;k<=2*std::min(la,lc);k+=2)
+    {
+        int Lab_p=2*la+3+k; // first term r_1^2
+        int Lcd_m=2*lc+1-k; // first term r_2
+        int Lab_m=2*la+1-k; // second term r_1
+        int Lcd_p=2*lc+3+k; // second term r_2^2
+        //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
+        ret(i++)=(2*k+1)*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+    }
+    return ret;
+}
+
+Vector<double> SphericalGaussianCD::ExchangeRk(int la,int lb) const
+{
+    int kmin=std::abs(la-lb);
+    int kmax=la+lb;
+    int N=(kmax-kmin)/2+1;
+    Vector<double> ret(N,0.0);
+    int i=1;
+    for (int k=kmin;k<=kmax;k+=2)
+    {
+        int Lab_p=la+lb+3+k; // first term r_1^2
+        int Lcd_m=la+lb+1-k; // first term r_2
+        int Lab_m=la+lb+1-k; // second term r_1
+        int Lcd_p=la+lb+3+k; 
+        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
+    }
+    return ret;
+}
+
+
