@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
-#include "Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H"
+//#include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"

@@ -72,6 +72,15 @@ double ContractedGaussianRF::GetCharge(const Polarization& p) const
     return ret;
 }
 
+RadialFunction::sd_t ContractedGaussianRF::GetExponents() const
+{
+    sd_t ret;
+    for (auto i:gs)
+        for (auto& e:i->GetExponents()) ret.insert(e);
+    return ret;
+}
+
+
 double ContractedGaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0;

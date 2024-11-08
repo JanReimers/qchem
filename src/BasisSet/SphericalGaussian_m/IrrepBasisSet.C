@@ -37,6 +37,23 @@ IrrepBasisSet::IrrepBasisSet(
 
 };
 
+IrrepBasisSet::IrrepBasisSet(
+        const LAParams& lap,
+        IntegralDataBase<double>* theDB,
+        std::set<double>& exponents,
+        size_t L, int m)
+    : IrrepBasisSetCommon(new YlmQN(L,m))
+    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , IrrepIEClient(exponents.size())
+{
+    IrrepIEClient::Init(exponents,L,m);
+    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());  
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,m,ns(i++))); //ns from SlaterIEClient
+
+};
+
 IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
 {
     double emin=es(1), emax=es(size());

@@ -166,7 +166,8 @@ TEST_P(A_SLm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53,57,64)); //37,53
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53,57,64)); //37,53
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(2,25)); //37,53
 
 class A_SGm_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SGm_OBasis, HF_P, TestPolarized
@@ -188,7 +189,8 @@ TEST_P(A_SGm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,37,53,57,64)); 
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(3,3,5,7,21,37)); //,53,57,64
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,25)); //,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
@@ -211,7 +213,8 @@ TEST_P(A_PG_HF_P,Multiple)
     Iterate({40,1e-3,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,3,5,7,21,37)); //Z=51 is slow
+//INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,3,5,7,21,37)); //Z=51 is slow
+INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Range(2,25)); //Z=51 is slow
 
 
 //

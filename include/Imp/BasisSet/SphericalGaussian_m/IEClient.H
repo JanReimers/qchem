@@ -7,6 +7,7 @@
 #include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
 #include <map>
+#include <set>
 
 
 namespace SphericalGaussian_m
@@ -31,6 +32,7 @@ struct IrrepIEClient
     IrrepIEClient() {};
     IrrepIEClient(size_t N) : IEData(N) {};
     void Init(double minexp,double maxexp,size_t L, int n);
+    void Init(std::set<double>& exponents,size_t L, int n);
     
     virtual size_t size() const {return es.size();}
     typedef std::tuple<int,int,int,double,double> bf_tuple;

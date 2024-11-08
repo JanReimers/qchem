@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731079427 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731098102 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -969,8 +969,8 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H
-	"RadialFunction.H"
+1731085016 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H
+	"Reader.H"
 	<fstream>
 	<string>
 
@@ -1129,7 +1129,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1731078416 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1731092590 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	<MeshParams.H>
 	<SCFIterator.H>
@@ -1144,14 +1144,14 @@
 	"Imp/BasisSet/Slater/BasisSet.H"
 	"Imp/BasisSet/Slater_m/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
-	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
+	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1731078452 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1731092294 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	<types.H>
 	<IterationParams.H>
@@ -1159,7 +1159,7 @@
 	"Imp/Misc/PeriodicTable.H"
 	<memory>
 
-1731079306 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1731098148 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1440,14 +1440,19 @@
 	"Imp/Integrals/Cache4.H"
 	"oml/matrix.h"
 
-1731077102 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/BasisSet.H
+1731084778 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/BasisSet.H
 	"IEClient.H"
 	"../TCommon.H"
 
-1731077431 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
+1731085423 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
 	<IEClient.H>
 	"Imp/Integrals/SphericalGaussianCD.H"
 	"Imp/BasisSet/BFGrouper.H"
 	"oml/vector.h"
 	<map>
+	<set>
+
+1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Readers/Reader.H
+	"types.H"
+	<vector>
 

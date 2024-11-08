@@ -5,6 +5,11 @@
 #include "IEClient.H"
 #include "../TCommon.H"
 
+namespace PolarizedGaussian
+{
+    class Reader;    
+}
+
 namespace SphericalGaussian_m
 {
 
@@ -15,6 +20,7 @@ class BasisSet
 public:
     BasisSet() {};
     BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
+    BasisSet(const LAParams&,PolarizedGaussian::Reader*, const Atom*);
     
 };
 

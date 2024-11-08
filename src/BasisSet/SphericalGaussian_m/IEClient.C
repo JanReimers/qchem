@@ -21,6 +21,16 @@ void IrrepIEClient::Init(double minexp,double maxexp,size_t L, int m)
       for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),Ls(i));
 }
 
+void IrrepIEClient::Init(std::set<double>& exponents,size_t L, int m)
+{
+    int i=1;
+    for (auto& e:exponents) es(i++)=e;
+    Fill(Ns,L+1);
+    Fill(Ls,L);
+    Fill(Ms,m);
+    for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),Ls(i));
+}
+
 
 
 void IEClient::Append(const IrrepIEClient* ic)

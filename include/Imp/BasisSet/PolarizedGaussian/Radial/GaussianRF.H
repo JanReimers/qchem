@@ -23,6 +23,7 @@ public:
     virtual bool            operator==      (const RadialFunction&) const;
     virtual double          GetNormalization(const Polarization&  ) const;
     virtual double          GetCharge       (const Polarization&  ) const;
+    virtual sd_t            GetExponents    (                     ) const; 
 
     typedef RadialFunction::rf_t rf_t;
     typedef RadialFunction::po_t po_t;

@@ -8,6 +8,7 @@
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
 #include "oml/vector.h"
+#include <set>
 
 namespace SphericalGaussian_m
 {
@@ -21,6 +22,7 @@ class IrrepBasisSet
 public:
     IrrepBasisSet();
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L,int m);
+    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,std::set<double>& esponents, size_t L,int m);
 
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;

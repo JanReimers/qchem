@@ -61,6 +61,14 @@ bool GaussianRF::operator==(const RadialFunction& rf) const
     return ret;
 }
 
+RadialFunction::sd_t GaussianRF::GetExponents() const
+{
+    sd_t ret;
+    ret.insert(itsExponent);
+    return ret;
+}
+
+
 double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0.0;

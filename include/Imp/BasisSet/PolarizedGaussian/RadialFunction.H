@@ -7,6 +7,7 @@
 #include <ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>
+#include <set>
 #include <map>
 
 class  Polarization;
@@ -31,11 +32,13 @@ class RadialFunction
     , public virtual ScalarFunction<double>
 {
 public:
+    typedef std::set<double> sd_t;
     virtual       bool      operator==      (const RadialFunction&) const=0; //Ignores L!
     virtual const RVec3&    GetCenter       (                     ) const=0;
     virtual       int       GetL            (                     ) const=0; //N+L+M?
     virtual       double    GetNormalization(const Polarization&  ) const=0;
     virtual       double    GetCharge       (const Polarization&  ) const=0;
+    virtual       sd_t      GetExponents    (                     ) const=0; 
 
     typedef const RadialFunction rf_t;
     typedef const Polarization   po_t;
