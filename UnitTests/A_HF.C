@@ -112,11 +112,11 @@ TEST_P(A_SG_HF_P,Multiple)
 {
     int Z=GetParam();
     Init(15,0.05,8000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,0.0,false});
+    Iterate({40,Z*1e-3,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,37,53)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
 
 class A_SL_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SL_OBasis, HF_P, TestPolarized

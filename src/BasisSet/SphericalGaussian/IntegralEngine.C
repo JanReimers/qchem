@@ -143,24 +143,11 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                 for (index_t id:sg->es.indices(ic))
                 {
                     bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id);
-                    bool doK = sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id);
-                    if (doJ || doK)
+                    if (doJ)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        GaussianRadialIntegrals R(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-                        if (doJ)
-                        {
-                            //cout << " eab, ecd = " << sg->es(ia)+sg->es(ib) << " " << sg->es(ic)+sg->es(id) << endl;
-                            double JJ=R.Coulomb(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id));
-                            J(ia,ib,ic,id)=JJ*norm;
-                            SphericalGaussianCD cd(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),3);
-                            double j=FourPi2*cd.Coulomb_R0(sg->Ls(ia),sg->Ls(ic));
-                            //cout << sg->Ls(ia) << " "  << sg->Ls(ib) << " "  << sg->Ls(ic) << " "  << sg->Ls(id) << " " << JJ << " " << j << endl;
-                            //cout << " eab, ecd = " << sg->es(ia)+sg->es(ib) << " " << sg->es(ic)+sg->es(id) << endl;
-                            double rerr=fabs((j-JJ)/j);
-                            assert(rerr<1e-14);
-                        }
-                                
+                        SphericalGaussianCD cd(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),3);
+                        J(ia,ib,ic,id)=FourPi2*cd.Coulomb_R0(sg->Ls(ia),sg->Ls(ic))*norm;
                      }
                 }
     
@@ -173,18 +160,16 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     if (doK)
                     {
                         double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        GaussianRadialIntegrals R(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id));
-                        double KK=R.DoExchangeSum(sg->Ls(ia),sg->Ls(ib),sg->Ls(ic),sg->Ls(id));
-                        K(ia,ib,ic,id)=KK*norm;
-                        KK/=FourPi2;
                         SphericalGaussianCD cd(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),3);
                         RVec Ak=AngularIntegrals::Exchange(sg->Ls(ia),sg->Ls(ib));
                         RVec Rk=cd.ExchangeRk(sg->Ls(ia),sg->Ls(ib));
-                        double k=Ak*Rk;
-//                        cout << sg->Ls(ia) << " "  << sg->Ls(ib) << " "  << sg->Ls(ic) << " "  << sg->Ls(id) << " " << KK << " " << k << endl;
-//                        cout << " eab, ecd = " << sg->es(ia)+sg->es(ib) << " " << sg->es(ic)+sg->es(id) << endl;
-                        double rerr=fabs((k-KK)/k);
-                        assert(rerr<1e-14);
+                        K(ia,ib,ic,id)=FourPi2*Ak*Rk*norm;
+//                        KK/=FourPi2;
+//                        double k=Ak*Rk;
+////                        cout << sg->Ls(ia) << " "  << sg->Ls(ib) << " "  << sg->Ls(ic) << " "  << sg->Ls(id) << " " << KK << " " << k << endl;
+////                        cout << " eab, ecd = " << sg->es(ia)+sg->es(ib) << " " << sg->es(ic)+sg->es(id) << endl;
+//                        double rerr=fabs((k-KK)/k);
+//                        assert(rerr<1e-14);
 
 //                        std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
 //                        << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J=" << J(ia,ib,ic,id) << std::endl;
