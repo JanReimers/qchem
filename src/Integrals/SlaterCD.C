@@ -71,7 +71,7 @@ Vector<double> SlaterCD::Coulomb_Rk(int la,int lc) const
         int Lab_m=2*la+1-k; // second term r_1
         int Lcd_p=2*lc+3+k; // second term r_2^2
         //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        ret(i++)=(2*k+1)*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
     }
     return ret;
 }

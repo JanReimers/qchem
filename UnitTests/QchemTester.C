@@ -133,6 +133,15 @@ BasisSet* SLm_OBasis::GetBasisSet () const
     return bs;
 }
 
+#include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
+BasisSet* SGm_OBasis::GetBasisSet () const
+{
+    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,N,emin,emax,Lmax);
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
+    return  bs;
+}
+
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 

@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731072307 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731079427 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -1129,7 +1129,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1731003167 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1731078416 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	<MeshParams.H>
 	<SCFIterator.H>
@@ -1143,6 +1143,7 @@
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
 	"Imp/BasisSet/Slater_m/BasisSet.H"
+	"Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 	"Imp/Cluster/Atom.H"
@@ -1150,7 +1151,7 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1730059564 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1731078452 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	<types.H>
 	<IterationParams.H>
@@ -1158,7 +1159,7 @@
 	"Imp/Misc/PeriodicTable.H"
 	<memory>
 
-1731072177 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1731079306 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1438,4 +1439,15 @@
 1731003954 /home/janr/Code/qchem/include/Imp/Integrals/SphericalGaussianCD.H
 	"Imp/Integrals/Cache4.H"
 	"oml/matrix.h"
+
+1731077102 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/BasisSet.H
+	"IEClient.H"
+	"../TCommon.H"
+
+1731077431 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
+	<IEClient.H>
+	"Imp/Integrals/SphericalGaussianCD.H"
+	"Imp/BasisSet/BFGrouper.H"
+	"oml/vector.h"
+	<map>
 

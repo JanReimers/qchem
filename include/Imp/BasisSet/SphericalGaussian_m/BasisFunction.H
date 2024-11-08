@@ -1,18 +1,18 @@
-// File: Slater_m/BasisFunction.H  r^l exp(-ar)*Y_lm type basis function 
-#ifndef _Slater_m_BasisFunction_H_
-#define _Slater_m_BasisFunction_H_
+// File: SphericalGaussian_m/BasisFunction.H  r^l exp(-ar^2)*Y_lm type basis function.
+#ifndef _SphericalGaussian_m_BasisFunction_H_
+#define _SphericalGaussian_m_BasisFunction_H_
 
 #include <BasisSet.H>
 
-namespace Slater_m
+namespace SphericalGaussian_m
 {
     
 class BasisFunction
     : public virtual ::TBasisFunction<double>
 {
 public:
-    BasisFunction();
-    BasisFunction(double ex, int n, int l, int m, double norm);
+    BasisFunction(                             );
+    BasisFunction(double theExponent,int n, int l, int m, double norm);
     
     virtual bool   operator==(const ::BasisFunction&) const;
 
@@ -30,6 +30,6 @@ private:
 };
 
 
-} //namespace _Slater_m_BasisFunction_H_
+} //namespace
 
-#endif //_SlaterBF_H_
+#endif //_SphericalGaussian_m_BasisFunction_H_

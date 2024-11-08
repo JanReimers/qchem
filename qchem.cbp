@@ -100,6 +100,11 @@
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/BasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/TCommon.H" />
 		<Unit filename="include/Imp/BasisSet/TIrrepCommon.H" />
 		<Unit filename="include/Imp/ChargeDensity/CompositeCD.H" />
@@ -144,12 +149,12 @@
 		<Unit filename="include/Imp/Integrals/Cache4.H" />
 		<Unit filename="include/Imp/Integrals/FJLookUp.H" />
 		<Unit filename="include/Imp/Integrals/Factorials.H" />
-		<Unit filename="include/Imp/Integrals/GaussianCD.H" />
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/GaussianRadialIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/PascalTriangle.H" />
 		<Unit filename="include/Imp/Integrals/SlaterCD.H" />
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
+		<Unit filename="include/Imp/Integrals/SphericalGaussianCD.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
 		<Unit filename="include/Imp/LASolver/LASolverImp.H" />
 		<Unit filename="include/Imp/LASolver/LASolverLapack.H" />
@@ -308,6 +313,21 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/QuantumNumber.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian_m/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian_m/BasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian_m/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian_m/IntegralEngine.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/SphericalGaussian_m/IrrepBasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/TCommon.C">
@@ -475,7 +495,6 @@
 		<Unit filename="src/Integrals/Factorials.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Integrals/GaussianCD.H" />
 		<Unit filename="src/Integrals/GaussianIntegrals.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -489,6 +508,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/SlaterIntegrals.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Integrals/SphericalGaussianCD.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/Wigner3j.C">

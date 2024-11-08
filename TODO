@@ -1,4 +1,5 @@
 Priority 1:
+    -Sort out locations for QN headers
     -QchemTester: make show basis set an option.
     Done: -Fix Boron.
         The K integrals appear correct, at least for s & p orbitals in Boron.

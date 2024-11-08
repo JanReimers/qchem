@@ -83,7 +83,7 @@ Vector<double> SphericalGaussianCD::Coulomb_Rk(int la,int lc) const
         int Lab_m=la-k/2; 
         int Lcd_p=lc+1+k/2;
         //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        ret(i++)=(2*k+1)*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+        ret(i++)=sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
     }
     return ret;
 }
