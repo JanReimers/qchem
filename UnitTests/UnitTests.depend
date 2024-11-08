@@ -908,8 +908,10 @@
 	"../TIrrepCommon.H"
 	"oml/vector.h"
 
-1728604255 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
+1731072953 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
 	<IEClient.H>
+	"Imp/Integrals/SphericalGaussianCD.H"
+	"Imp/BasisSet/BFGrouper.H"
 	"oml/vector.h"
 
 1728612887 /home/janr/Code/qchem/include/Imp/BasisSet/Common.H
@@ -1432,4 +1434,8 @@
 1730992120 /home/janr/Code/qchem/include/Imp/BasisSet/BFGrouper.H
 	<vector>
 	<map>
+
+1731003954 /home/janr/Code/qchem/include/Imp/Integrals/SphericalGaussianCD.H
+	"Imp/Integrals/Cache4.H"
+	"oml/matrix.h"
 

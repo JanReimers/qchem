@@ -138,44 +138,51 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
 
     for (index_t ia:sg->es.indices())
-        for (index_t ib:sg->es.indices(ia))
-            for (index_t ic:sg->es.indices())
-                for (index_t id:sg->es.indices(ic))
+    {
+        sg->loop_1(ia); //Start a cache for SphericalGaussianCD*
+        for (index_t ic:sg->es.indices())
+        {
+            sg->loop_2(ic);
+            int la=sg->Ls(ia), lc=sg->Ls(ic);
+            for (index_t ib:sg->indices(la))
+            {
+                if (ib<ia) continue;
+                sg->loop_3(ib);
+                for (index_t id:sg->indices(lc))
                 {
-                    bool doJ = sg->Ls(ia)==sg->Ls(ib) && sg->Ls(ic)==sg->Ls(id);
-                    if (doJ)
-                    {
-                        double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        SphericalGaussianCD cd(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),3);
-                        J(ia,ib,ic,id)=FourPi2*cd.Coulomb_R0(sg->Ls(ia),sg->Ls(ic))*norm;
-                     }
+                    if (id<ic) continue;
+                    const SphericalGaussianCD* cd1=sg->loop_4(id);
+                    double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    J(ia,ib,ic,id)=FourPi2*cd1->Coulomb_R0(la,lc)*norm;
                 }
+            }
+        }
+    }
     
     for (index_t ia:sg->es.indices())
+    {
+        sg->loop_1(ia); //Start a cache for SphericalGaussianCD*
         for (index_t ib:sg->es.indices(ia))
-            for (index_t ic:sg->es.indices())
-                for (index_t id:sg->es.indices(ic))
-                {
-                    bool doK = sg->Ls(ia)==sg->Ls(ic) && sg->Ls(ib)==sg->Ls(id);
-                    if (doK)
-                    {
-                        double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                        SphericalGaussianCD cd(sg->es(ia)+sg->es(ib),sg->es(ic)+sg->es(id),3);
-                        RVec Ak=AngularIntegrals::Exchange(sg->Ls(ia),sg->Ls(ib));
-                        RVec Rk=cd.ExchangeRk(sg->Ls(ia),sg->Ls(ib));
-                        K(ia,ib,ic,id)=FourPi2*Ak*Rk*norm;
-//                        KK/=FourPi2;
-//                        double k=Ak*Rk;
-////                        cout << sg->Ls(ia) << " "  << sg->Ls(ib) << " "  << sg->Ls(ic) << " "  << sg->Ls(id) << " " << KK << " " << k << endl;
-////                        cout << " eab, ecd = " << sg->es(ia)+sg->es(ib) << " " << sg->es(ic)+sg->es(id) << endl;
-//                        double rerr=fabs((k-KK)/k);
-//                        assert(rerr<1e-14);
+        {
+            int la=sg->Ls(ia), lb=sg->Ls(ib);
+            RVec Ak=AngularIntegrals::Exchange(la,lb);
 
-//                        std::cout << "L=(" << sg->Ls(ia) << "," << sg->Ls(ib) << "," << sg->Ls(ic) << "," << sg->Ls(id) 
-//                        << ") abcd=(" << ia << "," << ib << "," << ic << "," << id << ")  J=" << J(ia,ib,ic,id) << std::endl;
-                                
-                     }
+            for (index_t ic:sg->indices(la))
+            {
+                if (ic<ia) continue;
+                sg->loop_2(ic);
+                sg->loop_3(ib);
+                
+                for (index_t id:sg->indices(lb))
+                {
+                    if (id<ic) continue;
+                    const SphericalGaussianCD* cd1=sg->loop_4(id);
+                    double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
+                    K(ia,ib,ic,id)=FourPi2*Ak*cd1->ExchangeRk(la,lb)*norm;
                 }
+            }
+        }
+    }
     
 }
 
