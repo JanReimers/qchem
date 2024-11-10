@@ -17,7 +17,7 @@ public:
     double GetSlaterAlpha         (int Z) const;
     double GetNumUnpairedElectrons(int Z) const;
     int    GetMaxL                (int Z) const;
-
+    int*   GetValanceConfiguration(int Z) const;
 private:
     static char theSymbols[N_Elements][3];
     static double EnergyHF   [N_Elements];
@@ -25,6 +25,7 @@ private:
     static double SlaterAlpha[N_Elements];
     static double NumUnpaired[N_Elements];
     static int    MaxL       [N_Elements];
+    static int    ValConfig  [N_Elements][4];
 
 };
 

@@ -170,13 +170,13 @@
 		<Unit filename="include/Imp/Misc/PeriodicTable.H" />
 		<Unit filename="include/Imp/Misc/UniqueID/UniqueID.H" />
 		<Unit filename="include/Imp/Misc/Unpickle.H" />
-		<Unit filename="include/Imp/Misc/rc_ptr.H" />
 		<Unit filename="include/Imp/Orbitals/ElectronContainer.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbital.H" />
 		<Unit filename="include/Imp/Orbitals/TOrbitals.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIterator.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorPol.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorUnPol.H" />
+		<Unit filename="include/Imp/WaveFunction/ElectronConfiguration.H" />
 		<Unit filename="include/Imp/WaveFunction/ElectronDumper.H" />
 		<Unit filename="include/Imp/WaveFunction/FermiThermalizer.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
@@ -610,6 +610,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/VectorFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/WaveFunctionImp/ElectronConfiguration.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/WaveFunctionImp/ElectronDumper.C">

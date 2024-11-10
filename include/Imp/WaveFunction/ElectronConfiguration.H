@@ -1,0 +1,42 @@
+// File: ElectronConfiguration.H
+#ifndef _ElectronConfiguration_H_
+#define _ElectronConfiguration_H_
+
+class Spin;
+class QuantumNumber;
+
+class ElectronConfiguration
+{
+public:
+    //! Total number of electrons    
+    virtual int GetN(                                 ) const=0;
+    //! Number of electrons in the spin up/dn sector 
+    virtual int GetN(                      const Spin&) const=0;
+    //! Number of electrons in one symmetry/irrep sector 
+    virtual int GetN(const QuantumNumber&             ) const=0;
+    //! Number of electrons in one {symmetry/irrep,spin up/dn} sector
+    virtual int GetN(const QuantumNumber&, const Spin&) const=0;    
+};
+
+
+const int Nshell=8;
+const int LMax=3;
+
+class AtomElectronConfiguration : public virtual ElectronConfiguration
+{
+public: 
+    AtomElectronConfiguration(int Z);
+    //AtomElectronConfiguration(int Z, double charge, int val_config[4]);
+    
+    virtual int GetN(                                 ) const;
+    virtual int GetN(                      const Spin&) const;
+    virtual int GetN(const QuantumNumber&             ) const;
+    virtual int GetN(const QuantumNumber&, const Spin&) const;
+private:
+    static const int FullShells[Nshell][LMax+2];
+    int N[LMax+1];
+    int NUnpaired;
+    double charge;
+};
+
+#endif // _ElectronConfiguration_H_
