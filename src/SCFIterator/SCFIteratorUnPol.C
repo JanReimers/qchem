@@ -14,12 +14,12 @@
 
 
 SCFIteratorUnPol::SCFIteratorUnPol(WaveFunction* W, Hamiltonian* H,ChargeDensity* guess,
-                                               double nElectrons, double kT, bool showplot)
-    : SCFIteratorImp(W,H,showplot)
+                                               double nElectrons)
+    : SCFIteratorImp(W,H)
     , itsTotalCharge(nElectrons)
     , itsEf(0)
 {
-    Initialize(guess,kT);
+    Initialize(guess);
     assert(itsTotalCharge>0);
 }
 

@@ -3,6 +3,7 @@
 #include "Imp/WaveFunction/FermiThermalizer.H"
 #include "Imp/WaveFunction/ElectronDumper.H"
 #include "oml/vector.h"
+#include "oml/imp/subvector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
@@ -11,7 +12,8 @@ void fermi(const Vector<double>& e, const Vector<double>& g,
            double kT, double mu,
            double& f, double& fp);
 
-double Ef(const Vector<double>& e, const Vector<double>& g, double& NumE);
+// return <Ef,Nf,last_index>        
+std::tuple<double,double,int> Ef(const Vector<double>& e, const Vector<double>& g, double NumE);
 
 FermiThermalizer::FermiThermalizer(const optr_vector1<EnergyLevel*>& el,
                                    double kT, double NumE)
@@ -26,22 +28,33 @@ FermiThermalizer::FermiThermalizer(const optr_vector1<EnergyLevel*>& el,
         e(i+1)=el[i]->GetEnergy    ();
         g(i+1)=el[i]->GetDegeneracy();
     }
+    //std::cout << "e,g=" << e << " " << g << std::endl;
     if (NumE>Sum(g))
     {
         std::cerr << "Too many electrons " << NumE << ", not enough levels " << Sum(g) << std::endl;
     }
-    itsMu=Ef(e,g,itsNf);
+    int last_index;
+    std::tie(itsMu,itsNf,last_index)=Ef(e,g,NumE);
     if (itskT>0)
     {
+        Vector<double> e1(last_index+1);
+        Vector<double> g1(last_index+1);
+        for (auto i:e1.indices())
+        {
+            e1(i)=e(i);
+            g1(i)=g(i);
+        }
+        
         double f,fp,dmu=0;
         do
         {
-            fermi(e,g,itskT,itsMu,f,fp);
+            fermi(e1,g1,itskT,itsMu,f,fp);
             dmu=-(f-NumE)/fp;
             itsMu+=dmu;
         }
         while (fabs(dmu)>1e-14);
     }
+    std::cout << "FermiThermalizer kT,Mu,Nf=" << itskT << " " << itsMu << " " << itsNf << std::endl;
 }
 
 double FermiThermalizer::GetOccupation(double e)
@@ -60,27 +73,29 @@ double FermiThermalizer::GetOccupation(double e)
     return ret;
 }
 
-double Ef(const Vector<double>& e, const Vector<double>& g, double& Nf)
+std::tuple<double,double,int>  Ef(const Vector<double>& e, const Vector<double>& g, double NumE)
 {
     Vector<double>::const_iterator be(e.begin());
     Vector<double>::const_iterator bg(g.begin());
-    if (Nf==0) return *be-1.0;
+    assert(NumE>0.0);
+//    if (NumE==0) return *be-1.0;
     int n=0;
-    double ret=0;
-    double N=Nf;
+    double Ef=0,Nf=0.0;
+    double N=NumE;
     while (N >=0 )
     {
         assert(*bg>0);
         Nf=N/(*bg);
         N-=*bg;
-        ret=*be;
+        Ef=*be;
         bg++;
         be++;
         n++;
+//        std::cout << N << " " << Nf << " " << Ef << std::endl;
     };
-    if (N==0) ret=(ret+*be)/2.0; //If HOMO is full then goto midpoint of gap.
+    if (N==0) Ef=(Ef+*be)/2.0; //If HOMO is full then goto midpoint of gap.
 //  cout << "Ef=" << ret << " Nf=" << Nf << " nlevel=" << n << " N=" << N << std::endl;
-    return ret;
+    return std::make_tuple(Ef,Nf,n);
 }
 
 

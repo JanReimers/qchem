@@ -49,9 +49,9 @@ void WaveFunctionGroup::UpdateElectronDumper(ElectronDumper& ed)
     for (auto w:itsIrrepWFs) w->UpdateElectronDumper(ed);
 }
 
-SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double NElectrons, double kT, bool showplot)
+SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double NElectrons)
 {
-    return new SCFIteratorUnPol(this, H, cd,NElectrons,kT,showplot);
+    return new SCFIteratorUnPol(this, H, cd,NElectrons);
 }
 
 std::ostream& WaveFunctionGroup::Write(std::ostream& os) const

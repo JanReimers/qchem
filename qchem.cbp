@@ -81,7 +81,7 @@
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H" />
-		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H" />
+		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Readers/Reader.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/Slater/IEClient.H" />

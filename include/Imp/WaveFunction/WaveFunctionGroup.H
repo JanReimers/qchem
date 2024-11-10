@@ -17,7 +17,7 @@ public:
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;
     virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
     virtual void           UpdateElectronDumper(ElectronDumper&)      ;
-    virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double NElectrons, double kT, bool showplot);
+    virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double NElectrons);
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;

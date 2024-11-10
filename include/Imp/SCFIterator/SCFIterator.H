@@ -8,7 +8,7 @@ class SCFIteratorImp
     : public virtual SCFIterator
 {
 public:
-    SCFIteratorImp(WaveFunction*, Hamiltonian*,bool showplot);
+    SCFIteratorImp(WaveFunction*, Hamiltonian*);
     virtual ~SCFIteratorImp();
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
@@ -16,7 +16,7 @@ public:
     virtual ChargeDensity* GetExactChargeDensity () const;
 
 protected:
-    void Initialize(ChargeDensity* cd, double kT);  //Does on iteration to set up the exact charge density.
+    void Initialize(ChargeDensity* cd);  //Does on iteration to set up the exact charge density.
 
     WaveFunction*        itsWaveFunction;  //We don't own this guy!
 private:

@@ -44,7 +44,7 @@ void QchemTester::Init(double eps)
     assert(itsWaveFunction);
     ChargeDensity* GuessCD=itsWaveFunction->GetChargeDensity();
     itsSCFIterator=itsWaveFunction->
-                   MakeIterator(itsHamiltonian,GuessCD,itsCluster->GetNumElectrons(),0.0,false); //show plot flag.
+                   MakeIterator(itsHamiltonian,GuessCD,itsCluster->GetNumElectrons()); //show plot flag.
 
 }
 
@@ -138,11 +138,11 @@ BasisSet* SLm_OBasis::GetBasisSet () const
 
 BasisSet* SGm_OBasis::GetBasisSet () const
 {
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-    const Cluster* cl=GetCluster();
-    Atom* a=*cl->begin();
-    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
-//    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,N,emin,emax,Lmax);
+//    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+//    const Cluster* cl=GetCluster();
+//    Atom* a=*cl->begin();
+//    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
+    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
     std::cout << *bs << std::endl;
     return  bs;

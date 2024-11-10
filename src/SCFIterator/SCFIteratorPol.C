@@ -12,15 +12,15 @@
 #include <cassert>
 
 SCFIteratorPol::SCFIteratorPol(PolarizedWF* W, Hamiltonian* H, ChargeDensity* guess,
-                                           double nElectrons, double spin, double kT, bool showplot)
-    : SCFIteratorImp(W,H,showplot)
+                                           double nElectrons, double spin)
+    : SCFIteratorImp(W,H)
     , itsTotalUp               (0.0)
     , itsTotalDown             (0.0)
     , itsUpEf                  (0)
     , itsDownEf                (0)
 {
     DecideElectronCounts(nElectrons,spin);
-    Initialize(guess,kT);
+    Initialize(guess);
 }
 
 void SCFIteratorPol::DecideElectronCounts(double total, double spin)

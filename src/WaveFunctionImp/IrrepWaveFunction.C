@@ -50,9 +50,9 @@ void IrrepWaveFunction::UpdateElectronDumper(ElectronDumper& ed)
     ed.Add(itsOrbitals);
 }
 
-SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons, double kT, bool showplot)
+SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
 {
-    return new SCFIteratorUnPol(this, H, cd,nElectrons, kT, showplot);
+    return new SCFIteratorUnPol(this, H, cd,nElectrons);
 }
 
 std::string spin_strs[]={"Down","None","Up"};

@@ -307,6 +307,10 @@ template <class T> void HeapDB<T>::BuildERIs()
     }
     else
         itsAnalyticIE->Make4C(itsJTable,itsJTable,itsIEClient);
+        
+    std::cout << "J table size=" << itsJTable.itsData.size() << ", " << itsJTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
+    std::cout << "K table size=" << itsKTable.itsData.size() << ", " << itsKTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
+    
             
 }
 

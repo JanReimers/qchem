@@ -1,4 +1,23 @@
 Priority 1:
+    -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
+    Done: -Survey Z=2-25
+        Big trouble starts at Sc.
+    -Attack Sc problem:
+        1) Review angular integral theory
+        2) Build PolGau BS with only primitives to match SGm exponents.  Look at J/K tables.
+        3) Use libcint for Real-spheric GTOs and check against SGm.
+            https://orbkit.github.io/dev/integrals/libcint.html
+            https://github.com/ValeevGroup/libintx
+        4) Done: Check high Z closed shell atoms.  If these are correct the d/f ERI integrals must be right .. No?
+            SGm/SLm unpolarized *OR* polarized  all get Sr/Ba (38/56) wrong  d^2 instead of s^2 in the valance shell.
+            options:
+            4.1) Simulated anneal occupations with Fermi function.
+            4.2) Electron dumper force s valance electrons
+                For Sc we need to force 4s^2 (E=-0.21) or 3d^1 (E=-0.34) ... or both?
+                
+            4.3) Read in an accurate starting charge density.  (this could get complicated fast)
+        
+        
     -Sort out locations for QN headers
     -QchemTester: make show basis set an option.
     Done: -Fix Boron.
@@ -15,29 +34,30 @@ Priority 1:
         Done: 5) Get d orbitals working
         6) Try Sc again.
             Still difficult.  PG nails it.  Need to sort out all the factors of 4*Pi.
-            10) Get 4Pi^2 out of the integral engines.  Why?
+            No: 10) Get 4Pi^2 out of the integral engines.  Why?
             -Better to completely dis-entangle angular and radial.
             -Evaluate angular for whole blocks.  Less w3j lookups.
-        7) Make a SG_m basis set.
-            We could optionally read the exponents and contractions from the BS files.
+        Done: 7) Make a SG_m basis set.
+            Done: We could optionally read the exponents and contractions from the BS files.
         Done: 8) 3C repulsions should call R_k(lalblcld) directly.
         Done: 9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
         11) Check for double calculation of J/K ERIs
     - Support SL/SLm/SG/SGm in a systematic manner
-        Common angular code.
+        Done: Common angular code.
         Common Dab code
         fk is different.
-        Do Angular integrals in blocks.
+        Done: Do Angular integrals in blocks.
         Steps
-        1) Separate sums for J K
+        Done: 1) Separate sums for J K
             for J do
                 loop ab
                 Ak(l_ab,m_ab), Rk(l_ab,e_ab)
                   loop cd
                   Ak(l_cd,m_cd), Rk(l_cd,e_cd)
                     J=sum(k,Ak(ab)*Ak(cd)*{Rk(ab)+Rk(cd)+})
-        2) Can we cache Ak(ab), Rk(ab) ?  (instead of blocking)
+        No: 2) Can we cache Ak(ab), Rk(ab) ?  (instead of blocking)
             Blocking should be more efficient, less map<> lookups.
+        Done: Shareable 4way cache.
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -ROHF for one open orbital.
@@ -80,6 +100,8 @@ oml:
     -Support V*SymMat without including matrix.h
     -Vector constructors with fill arguments was a really bad idea.
     -GetColumn fails for SMatrix.
+    -Subvector why in imp?
+        Also infinite recursion:  VecLimits GetLimits() const {return static_cast<const Derived*>(this)->GetLimits();}
 
       
 Priority 2:

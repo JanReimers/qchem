@@ -63,9 +63,9 @@ void MasterPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
 }
 
 
-SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons, double kT, bool showplot)
+SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
 {
-    return new SCFIteratorPol(this,H,cd,nElectrons,itsNetSpin,kT,showplot);
+    return new SCFIteratorPol(this,H,cd,nElectrons,itsNetSpin);
 }
 
 WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)

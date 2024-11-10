@@ -1889,7 +1889,7 @@ I_{1}=D_{\alpha}I_{0}=\frac{1}{\alpha^{2}\sqrt{\alpha+\beta}^{2n-1}}+\frac{n-\fr
 where
 \begin_inset Formula 
 \[
-f_{0}^{\alpha}=\left(\frac{1}{\alpha}+\frac{n-\frac{1}{2}}{\alpha+\beta}\right)
+f_{0}^{\alpha}=\left(\frac{1}{\alpha}+\frac{n+\frac{1}{2}}{\alpha+\beta}\right)
 \]
 
 \end_inset

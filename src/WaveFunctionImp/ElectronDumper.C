@@ -82,25 +82,23 @@ void ElectronDumper::MakeEnergyLevels()
 void ElectronDumper::DumpInElectrons(double NumElectrons)
 {
     if (IsDirty) MakeEnergyLevels();
-    FermiThermalizer ft(itsEnergyLevels,itskT,NumElectrons);
-    itsFermiEnergy=ft.GetFermiEnergy();
-
+   
     double Ntotal=NumElectrons;
     for (auto i:itsEnergyLevels)
     {
-        double n=ft.GetOccupation(i->GetEnergy());
         double degen=i->GetDegeneracy();
+        double n=degen;
 //        std:: cout << "1 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
-        if (degen>Ntotal)
+        if (n>Ntotal)
             n=Ntotal;  //finish off the remaining electrons.
-        else
-            n=degen;  //Fill the orbital(s)
+//        else
+//            n=degen*fracn;  //Fill the orbital(s)
         i->SetOccupation(n); //Dump electron into orbitals at this E level.
         Ntotal-=n;
-//        std::cout << "2 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
-//        std::cout << "===================================================" << std::endl; 
+        //std::cout << std::fixed << "2 Ntotal,n,degen:  " << Ntotal << " " << n << " " << i->GetEnergy() << " " << degen << " " << i->GetQuantumNumbers() << std::endl; 
         if (Ntotal<=0.0) break;
     }
+//        std::cout << "===================================================" << std::endl; 
 
 }
 

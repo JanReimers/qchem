@@ -40,9 +40,9 @@ ChargeDensity* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
     return itsGroup->GetChargeDensity(s);
 }
 
-SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons, double kT, bool showplot)
+SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
 {
-    return new SCFIteratorUnPol(this, H, cd,nElectrons, kT,showplot);
+    return new SCFIteratorUnPol(this, H, cd,nElectrons);
 }
 
 void MasterUnPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)

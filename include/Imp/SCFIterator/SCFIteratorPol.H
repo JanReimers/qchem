@@ -10,7 +10,7 @@ class SCFIteratorPol
     : virtual public SCFIteratorImp
 {
 public:
-    SCFIteratorPol(PolarizedWF* W, Hamiltonian*, ChargeDensity* guess, double nElectrons, double spin, double kT, bool showplot);
+    SCFIteratorPol(PolarizedWF* W, Hamiltonian*, ChargeDensity* guess, double nElectrons, double spin);
 
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DumpElectrons  (WaveFunction*, double kT);

@@ -13,7 +13,7 @@
 #include <iomanip>
 #include <cassert>
 
-SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H,bool showplot)
+SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H)
     : itsWaveFunction         (W )
     , itsHamiltonian          (H )
     , itsExactChargeDensity   (0)
@@ -24,13 +24,13 @@ SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H,bool showplot)
 }
 
 
-void SCFIteratorImp::Initialize(ChargeDensity* cd, double kT)
+void SCFIteratorImp::Initialize(ChargeDensity* cd)
 {
     assert(cd);
 
     itsHamiltonian->UseChargeDensity(cd);
     itsWaveFunction->DoSCFIteration(*itsHamiltonian);
-    DumpElectrons(itsWaveFunction,kT);
+    DumpElectrons(itsWaveFunction,0.0);
 
     itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
     assert(itsExactChargeDensity);

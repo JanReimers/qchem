@@ -254,7 +254,7 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     5.0,//Tc
     4.0,//Ru
     3.0,//Rh
-    2.0,//Pd
+    0.0,//Pd
     1.0,//Ag
     0.0,//Cd
     1.0,//In
@@ -282,6 +282,21 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     1.0,//Lu
     2.0,//Hf
     3.0,//Ta
+    4.0,//W
+    5.0,//Re
+    4.0,//Os
+    3.0,//Ir
+    2.0,//Pt
+    1.0,//Au
+    0.0,//Hg
+    1.0,//Tl
+    2.0,//Pb
+    3.0,//Bi
+    2.0,//Po
+    1.0,//At
+    0.0,//Rd
+    1.0,//Fr
+    0.0,//Ra
     
 
 };
@@ -365,6 +380,7 @@ int PeriodicTable::MaxL[N_Elements]=
     3,//W
     3,//Re
 
+
 };
 
 const char* PeriodicTable::GetSymbol(int Z) const
@@ -424,5 +440,7 @@ int PeriodicTable::GetMaxL(int Z) const
 {
     assert(Z>0);
     assert(Z<N_Elements);
-    return MaxL[Z];
+    int ret=MaxL[Z];
+    if (Z>50 && ret==0) ret=3;
+    return ret;
 }
