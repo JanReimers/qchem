@@ -13,7 +13,7 @@ public:
     virtual double GetOccupation(       ) const=0;
     virtual double GetSpin      (       ) const=0;
     virtual void   Empty        (       )      =0;
-    virtual void   SetOccupation(double )      =0;
+    virtual double TakeElectrons(double )      =0;
     virtual int    GetDegeneracy(       ) const=0;
 };
 

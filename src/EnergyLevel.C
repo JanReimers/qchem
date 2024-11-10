@@ -48,25 +48,17 @@ void EnergyLevel::Empty()
     for (auto o:itsOrbitals) o->Empty();
 }
 
-void EnergyLevel::SetOccupation(double ne)
+
+
+double EnergyLevel::TakeElectrons(double ne)
 {
     for (auto o:itsOrbitals) 
     {
-        int degen=o->GetDegeneracy();
-        if (degen>ne)
-        {
-            o->SetOccupation(ne);
-            ne=0.0;
-        }
-        else
-        {
-            o->SetOccupation(degen);
-            ne-=degen;
-        }
+        ne=o->TakeElectrons(ne);
         if (ne<=0.0) break;
     }
     //for (auto o:itsOrbitals) std::cout << *o << std::endl;
-    
+    return ne;
 }
 
 int  EnergyLevel::GetDegeneracy() const

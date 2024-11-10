@@ -86,16 +86,7 @@ void ElectronDumper::DumpInElectrons(double NumElectrons)
     double Ntotal=NumElectrons;
     for (auto i:itsEnergyLevels)
     {
-        double degen=i->GetDegeneracy();
-        double n=degen;
-//        std:: cout << "1 Ntotal,n,degen:  " << Ntotal << " " << n << " " << degen << std::endl; 
-        if (n>Ntotal)
-            n=Ntotal;  //finish off the remaining electrons.
-//        else
-//            n=degen*fracn;  //Fill the orbital(s)
-        i->SetOccupation(n); //Dump electron into orbitals at this E level.
-        Ntotal-=n;
-        //std::cout << std::fixed << "2 Ntotal,n,degen:  " << Ntotal << " " << n << " " << i->GetEnergy() << " " << degen << " " << i->GetQuantumNumbers() << std::endl; 
+        Ntotal=i->TakeElectrons(Ntotal);
         if (Ntotal<=0.0) break;
     }
 //        std::cout << "===================================================" << std::endl; 

@@ -17,7 +17,7 @@ public:
     virtual double GetOccupation(        ) const;
     virtual double GetSpin      (        ) const;
     virtual void   Empty        (        )      ;
-    virtual void   SetOccupation(double n)      ; //# of electrons
+    virtual double TakeElectrons(double n)      ;
     virtual int    GetDegeneracy(        ) const;
     virtual std::string GetQuantumNumbers(        ) const;
 

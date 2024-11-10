@@ -61,17 +61,14 @@ void ElectronContainerImp::Empty()
     itsOccupation=0;
 }
 
-void  ElectronContainerImp::SetOccupation(double n)
+double ElectronContainerImp::TakeElectrons(double n)
 {
     assert(n>=0);
-    if (n>GetDegeneracy())
-    {
-        std::cerr << "Trying to load " << n << " electrons into an orbital with degeneracy "
-                  << GetDegeneracy() << std::endl;
-//        exit(-1);
-    }
-    itsOccupation=n;
+    double g=GetDegeneracy();
+    itsOccupation=std::min(g,n);
+    return n-itsOccupation;
 }
+
 
 std::ostream& ElectronContainerImp::Write(std::ostream& os) const
 {

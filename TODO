@@ -1,5 +1,7 @@
 Priority 1:
     -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
+        1) Check view blocks for all zeros.
+        2) Us a two way cache K[irrep1,irrep2]
     Done: -Survey Z=2-25
         Big trouble starts at Sc.
     -Attack Sc problem:

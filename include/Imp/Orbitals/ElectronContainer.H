@@ -20,7 +20,7 @@ public:
     virtual bool   IsOccupied   (       ) const;
     virtual double GetOccupation(       ) const;
     virtual void   Empty        (       )      ;
-    virtual void   SetOccupation(double )      ;
+    virtual double TakeElectrons(double )      ;
 
     virtual std::ostream&           Write(std::ostream&) const;
     virtual std::istream&           Read (std::istream&)      ;
