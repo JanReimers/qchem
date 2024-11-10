@@ -232,7 +232,7 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     1.0,//Sc
     2.0,//Ti
     3.0,//V
-    4.0,//Cr
+    6.0,//Cr
     5.0,//Mn
     4.0,//Fe
     3.0,//Co
@@ -266,7 +266,7 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     1.0,//Cs
     0.0,//Ba
     1.0,//La
-    2.0,//Ce
+    0.0,//Ce
     3.0,//Pr
     4.0,//Nd
     5.0,//Pm
@@ -425,7 +425,7 @@ int PeriodicTable::ValConfig[N_Elements][4]=
         {2,1,10,0}, //Ga [Ar]4s23d104p1 (2P)
         {2,2,10,0}, //Ge [Ar]4s23d104p2 (3P)
         {2,3,10,0}, //As [Ar]4s23d104p3 (4S)
-        {2,4,10,0}, //Ce [Ar]4s23d104p4 (3P)
+        {2,4,10,0}, //Se [Ar]4s23d104p4 (3P)
         {2,5,10,0}, //Br [Ar]4s23d104p5 (2P)
         {0,0, 0,0}, //Kr [Ar]4s23d104p6 (1S)
         {1,0, 0,0}, //Rb [Kr]5s1 (2S)

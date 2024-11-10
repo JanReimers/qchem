@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 //      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
 //    testing::GTEST_FLAG(filter) = "qchem_PersistanceTests.*";
-    testing::GTEST_FLAG(filter) = "ElectronConfigurationTests.SumLAndSpin";
+    testing::GTEST_FLAG(filter) = "ElectronConfigurationTests.*";
 
     return RUN_ALL_TESTS();
 }

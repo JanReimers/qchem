@@ -42,6 +42,8 @@ AtomElectronConfiguration::AtomElectronConfiguration(int Z)
 //    cout << endl;
 
     for (int l=0;l<=LMax;l++) N[l]=FullShells[ns][l+1]*2*(2*l+1)+valance_configuration[l];
+//    for (auto l:{0,1,2,3}) cout << N[l] << ",";
+//    cout << endl;
 }
 
 int AtomElectronConfiguration::GetN() const
@@ -79,25 +81,49 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) cons
     }
     else if (l==1)
     {
-//        assert(N[0]%2==0); //Assume all s orbitals are filled
-        if (N[2]%10==0) //No partial D orbital
-        {
-            int NpUnpaired= N[0]%2==0 ? NUnpaired : NUnpaired-1;
-            assert((nl+NpUnpaired)%2==0);
-            return s==Spin::Up ? (nl+NpUnpaired)/2 : (nl-NpUnpaired)/2;            
-        }
-        else
-        {
-            assert(nl%6==0); //p better be full
-            return nl/2;  
-        }
+        if (nl%6==0) return nl/2;
+        assert(N[2]%10==0); //No partial D orbital
+        int NpUnpaired= N[0]%2==0 ? NUnpaired : NUnpaired-1;
+        assert((nl+NpUnpaired)%2==0);
+        return s==Spin::Up ? (nl+NpUnpaired)/2 : (nl-NpUnpaired)/2;            
     }
     else if (l==2)
     {
         if (nl%10==0) return nl/2;
         assert(N[1]%6==0); //p better be full
-        int NdUnpaired= N[0]%2==0 ? NUnpaired : NUnpaired-1; //One of the unpaired is s?
-        return s==Spin::Up ? (nl+NdUnpaired)/2 : (nl-NdUnpaired)/2;
+        int ndv=nl%10;
+        int nsv=N[0]%2;
+//        cout << "nsv,ndv,nfv = " << nsv << " " << ndv << " " << nfv << endl;
+        if (nsv==1)
+        {
+            int NdUnpaired= NUnpaired-1; //One of the unpaired is s?
+            return s==Spin::Up ? (nl+NdUnpaired)/2 : (nl-NdUnpaired)/2;            
+        }
+        if (ndv==1)
+        {
+            return s==Spin::Up ? (nl+1)/2 : (nl-1)/2;
+        }
+        if (ndv>1)
+            return s==Spin::Up ? (nl+NUnpaired)/2 : (nl-NUnpaired)/2;   
+    }
+    else if(l==3)
+    {
+        if (nl%14==0) return nl/2;
+        // f is partial.
+        assert(N[0]%2==0); //If f is Partial s must be full.
+        assert(N[1]%6==0); //If f is Partial p must be full.
+        if (N[2]%10==0) //d is full so all unpaired must be f.
+        {
+            assert((nl+NUnpaired)%2==0);
+            return s==Spin::Up ? (nl+NUnpaired)/2 : (nl-NUnpaired)/2;            
+        }
+        else
+        {
+            assert(N[2]%10==1); //Only case is one unpaired d electron.
+            int NfUnpaired=NUnpaired-1;
+            assert((nl+NfUnpaired)%2==0);
+            return s==Spin::Up ? (nl+NfUnpaired)/2 : (nl-NfUnpaired)/2;            
+        }
     }
     assert(false);
     return 0;
