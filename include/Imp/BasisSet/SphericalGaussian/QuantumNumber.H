@@ -5,6 +5,7 @@
 
 
 #include <QuantumNumber.H>
+#include <tuple>
 
 //---------------------------------------------------------------------------------
 //
@@ -26,10 +27,8 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
     virtual QuantumNumber* Clone(        ) const;
 
-    int     GetL() const
-    {
-        return itsL;
-    }
+    int     GetL() const {return itsL;}
+    std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
 protected:
     int itsL;

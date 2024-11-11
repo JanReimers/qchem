@@ -80,30 +80,10 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn) const
 int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) const
 {
     if (s==Spin::None) return GetN(qn);
+    
     const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN&>(qn);
-    int l=sqn.GetL();
-    int nl=N[l];
-    if (Nv[l]==0) return nl/2;
-    assert(nl!=0);
-    // Handle partial shells
-    int nlu=1; //# unpaired in shell l. 
-    if (l==1) // p is partial.
-    {
-        assert(Nv[2]==0); //No partial D orbital
-        nlu=NUnpaired-Nv[0];
-    }
-    else if (l==2) // d is partial.
-    {
-        assert(Nv[1]==0); //p better be full
-        if (Nv[l]>1) nlu=NUnpaired-Nv[0];            
-    }
-    else if(l==3) // f is partial.
-    {
-        
-        assert(Nv[0]==0); //If f is Partial s must be full.
-        assert(Nv[1]==0); //If f is Partial p must be full.
-        nlu=NUnpaired-Nv[2];
-    }
+    int nl,nlu;
+    std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
     assert((nl+nlu)%2==0);
     return s==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;            
 }
