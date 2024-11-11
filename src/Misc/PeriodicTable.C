@@ -266,7 +266,7 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     1.0,//Cs
     0.0,//Ba
     1.0,//La
-    0.0,//Ce
+    2.0,//Ce //There is some controversy on this between 1G 3H term symbols
     3.0,//Pr
     4.0,//Nd
     5.0,//Pm
@@ -449,7 +449,7 @@ int PeriodicTable::ValConfig[N_Elements][4]=
         {1,0, 0, 0}, //Cs [Xe]6s1 (2S)
         {2,0, 0, 0}, //Ba [Xe]6s2 (1S)
         {2,0, 1, 0}, //La [Xe]6s25d1 (2D)
-        {2,0, 1, 1}, //Ce [Xe]6s24f15d1 (1G)
+        {2,0, 1, 1}, //Ce [Xe]6s24f15d1 (1G) //There is some controversy on this between 1G 3H term symbols
         {2,0, 0, 3}, //Pr [Xe]6s24f3 (4I)
         {2,0, 0, 4}, //Nd [Xe]6s24f4 (5I)
         {2,0, 0, 5}, //Pm [Xe]6s24f5 (6H)

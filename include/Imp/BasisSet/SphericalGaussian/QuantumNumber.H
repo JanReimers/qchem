@@ -32,6 +32,7 @@ public:
 
 protected:
     int itsL;
+    static const int LMax=3;
 };
 
 #endif

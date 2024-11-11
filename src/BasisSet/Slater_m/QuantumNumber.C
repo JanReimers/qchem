@@ -27,6 +27,7 @@ int YlmQN::GetDegeneracy() const
 
 std::pair<int,int> YlmQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
 {
+    assert(itsL<=LMax);
     int nl,nlu;
     std::tie(nl,nlu)=SphericalSymmetryQN::GetN(N,Nv,NUnpaired);
     assert((nl+nlu)%2==0);
@@ -36,42 +37,30 @@ std::pair<int,int> YlmQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpai
     assert(nlc%(2*g)==0);
     nlc/=g;
     int nlv=Nv[l];
+    
+    int nlmv[2*LMax+1]={0,0,0,0,0,0,0};
+    int nlmu[2*LMax+1]={0,0,0,0,0,0,0};
 
-    if (l==1)
+    if (l>0)
     {
-        int nlmv[3]={0,0,0};
-        int nlmu[3]={0,0,0};
-        for (int m1=-1;m1<=l&&nlv>0;m1++)
+        //cout << "Start v,u=" << nlv << " " << nlu << endl;
+
+        bool less_than_half = nlv<=g;
+        for (int m1=-l;m1<=l&&nlv>0&&nlu>=0;m1++)
         {
             nlmv[m1+l]++;
             nlmu[m1+l]++;
             nlv--;
-        }
-        for (int m1=-1;m1<=l&&nlv>0;m1++)
-        {
-            nlmv[m1+l]++;
-            nlmu[m1+l]--;
-            nlv--;
-        }
-        nlv=nlmv[m+l];
-        nlu=nlmu[m+l];
-        //cout << "(" << " " << nlmv << " " << nlmu << ") ";
-    }
-    if (l==2)
-    {
-        int nlmv[5]={0,0,0,0,0};
-        int nlmu[5]={0,0,0,0,0};
-        for (int m1=-l;m1<=l&&nlv>0;m1++)
-        {
-            nlmv[m1+l]++;
-            nlmu[m1+l]++;
-            nlv--;
+            if (less_than_half) nlu--;
+            //cout << "Up v,u=" << nlv << " " << nlu << endl;
         }
         for (int m1=-l;m1<=l&&nlv>0;m1++)
         {
             nlmv[m1+l]++;
             nlmu[m1+l]--;
             nlv--;
+            if (!less_than_half) nlu--;
+            //cout << "Down v,u=" << nlv << " " << nlu << endl;
         }
         nlv=nlmv[m+l];
         

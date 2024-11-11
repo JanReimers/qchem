@@ -50,6 +50,7 @@ std::pair<int,int> SphericalSymmetryQN::GetN(const int (&N)[4], const int (&Nv)[
         assert(Nv[0]==0); //If f is Partial s must be full.
         assert(Nv[1]==0); //If f is Partial p must be full.
         nlu=NUnpaired-Nv[2];
+        assert(nlu>=0);
     }
     return std::make_pair(nl,nlu);
 }

@@ -307,13 +307,13 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
 
 TEST_F(ElectronConfigurationTests, Ylm_SP)
 {
-    for (int Z=41;Z<=41;Z++)
+    for (int Z=1;Z<=94;Z++)
     {
-        cout << "Z=" << Z << endl;
+//        cout << "Z=" << Z << endl;
         AtomElectronConfiguration ec(Z);
-        for (int l=0;l<=2;l++)
+        for (int l=0;l<=3;l++)
         {
-            cout << "  l=" << l << endl;
+//            cout << "  l=" << l << endl;
             int nlu=ec.GetN(qn(l),Spin::Up);
             int nld=ec.GetN(qn(l),Spin::Down);
             int nlu1=0,nld1=0;
@@ -329,16 +329,16 @@ TEST_F(ElectronConfigurationTests, Ylm_SP)
     
 }
 
-TEST_F(ElectronConfigurationTests, Ylm_D)
-{
-    AtomElectronConfiguration ec(41);
-    for (int l=0;l<=2;l++)
-    {
-        for (int m=-l;m<=l;m++)
-        {
-            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Up) << endl;
-            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Down) << endl;      
-        }        
-    }
-    
-}
+//TEST_F(ElectronConfigurationTests, Ylm_D)
+//{
+//    AtomElectronConfiguration ec(41);
+//    for (int l=0;l<=2;l++)
+//    {
+//        for (int m=-l;m<=l;m++)
+//        {
+//            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Up) << endl;
+//            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Down) << endl;      
+//        }        
+//    }
+//    
+//}
