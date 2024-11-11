@@ -28,7 +28,7 @@ MasterUnPolarizedWF::~MasterUnPolarizedWF()
 }
 //----------------------------------------------------------------------------
 //
-//  This function will creat EMPTY orbtials.  One must use the ElectronDumper
+//  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
 void MasterUnPolarizedWF::DoSCFIteration(Hamiltonian& ham)
@@ -53,12 +53,6 @@ void MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*, const Spin&
 {
     assert(itsGroup);
     itsGroup->FillOrbitals(itsEC,Spin::None);
-}
-
-void MasterUnPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
-{
-    assert(itsGroup);
-    itsGroup->UpdateElectronDumper(ed);
 }
 
 void MasterUnPolarizedWF::DisplayEigen() const

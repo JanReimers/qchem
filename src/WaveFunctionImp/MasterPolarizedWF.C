@@ -34,7 +34,7 @@ MasterPolarizedWF::~MasterPolarizedWF()
 }
 //----------------------------------------------------------------------------
 //
-//  This function will creat EMPTY orbtials.  One must use the ElectronDumper
+//  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
 void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
@@ -55,13 +55,6 @@ ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
     return new PolarizedCDImp(up,dn);
 }
 
-void MasterPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
-{
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDownGroup);
-    itsSpinUpGroup  ->UpdateElectronDumper(ed);
-    itsSpinDownGroup->UpdateElectronDumper(ed);
-}
 
 void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*, const Spin&)
 {

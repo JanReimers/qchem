@@ -215,16 +215,16 @@ TEST_P(A_SLm_HF_P,Multiple)
 {
     int Z=GetParam();
     int N=10;
-    if (Z>15) N=14;
+    if (Z>12) N=14;
     if (Z>50) N=18;
-    Init(N,0.3,5*Z,GetLMax(Z));
+    Init(N,0.3,6*Z,GetLMax(Z));
     Iterate({40,Z*1e-4,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53,57,64)); //37,53
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(2,26)); //37,53
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(3,3,5,7,21,22,23,24,25,26,27,28,29,30)); //37,53
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(2,56)); //37,53
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
 
 class A_SGm_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SGm_OBasis, HF_P, TestPolarized
@@ -244,14 +244,14 @@ TEST_P(A_SGm_HF_P,Multiple)
     int N=20;
     if (Z>40) N=20;
     if (Z>70) N=25;
-    Init(N,0.05,4000*Z,GetLMax(Z));
+    Init(N,0.05,6000*Z,GetLMax(Z));
     Iterate({40,Z*1e-4,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(3,3,5,7,21,37)); //,53,57,64
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(3,3,5,7,21,22,23,24,25,26,27,28,29,30)); //,53,57,64
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,26)); //,53,57,64
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,56)); //,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>

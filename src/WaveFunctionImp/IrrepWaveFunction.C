@@ -45,12 +45,6 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
     return itsOrbitals->GetChargeDensity(s);
 }
 
-void IrrepWaveFunction::UpdateElectronDumper(ElectronDumper& ed)
-{
-    assert(itsOrbitals);
-    ed.Add(itsOrbitals);
-}
-
 void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)
 {
     ElectronDumper ed(0.0001,0.0);

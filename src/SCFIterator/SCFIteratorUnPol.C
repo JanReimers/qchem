@@ -3,7 +3,6 @@
 
 
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
-#include "Imp/WaveFunction/ElectronDumper.H"
 #include <IterationParams.H>
 #include <Hamiltonian.H>
 #include <WaveFunction.H>
@@ -49,22 +48,10 @@ void SCFIteratorUnPol::DisplayEnergies(int i, double lam, double ChargeDensityCh
     std::cout << std::endl;
 }
 
-void SCFIteratorUnPol::DumpElectrons(WaveFunction* wf, double kT)
-{
-    assert(wf);
-    ElectronDumper ed  (0.000001,kT);
-    wf->UpdateElectronDumper(ed);
-    ed.DumpInElectrons(itsTotalCharge);  //Define occupations for all orbitals.
-    itsEf=ed.GetFermiEnergy();
-}
 
 void SCFIteratorUnPol::DisplayEigen() const
 {
     itsWaveFunction->DisplayEigen();
-//    ElectronDumper ed  (0.000001,0.0);
-//    itsWaveFunction->UpdateElectronDumper(ed);
-//    ed.DumpInElectrons(itsTotalCharge);  //Define occupations for all orbitals.
-//    std::cout << ed << std::endl;
 }
 
 

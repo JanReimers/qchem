@@ -12,7 +12,6 @@ public:
     SCFIteratorUnPol(WaveFunction*, Hamiltonian* ,ChargeDensity* guess, double nElectrons);
 
     virtual bool Iterate(const SCFIterationParams& ipar);
-    virtual void DumpElectrons  (WaveFunction*, double kT);
     virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
     virtual void DisplayEigen   () const;
 

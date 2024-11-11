@@ -1,75 +1,33 @@
 Priority 1:
+    -SVD truncation ... we need no know which L is getting truncated.
+    -Merge degen levels with diff m QNs.
+        -Also make two column list of levels/occs
+        -Get rid of ElectronDumper.
+        -Merge/sort all levels for a given spin/l  
+    -Upgrade iteration output.
+        -More digits for virial.
+        -Unused columns.
+        -Mixing parameter.
+    -Do we need to do an SCF iter in Initialize?
+    
     -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
         1) Check view blocks for all zeros.
         2) Us a two way cache K[irrep1,irrep2]
-    Done: -Survey Z=2-25
-        Big trouble starts at Sc.
-    -Attack Sc problem:
-        1) Review angular integral theory
-        2) Build PolGau BS with only primitives to match SGm exponents.  Look at J/K tables.
-        3) Use libcint for Real-spheric GTOs and check against SGm.
-            https://orbkit.github.io/dev/integrals/libcint.html
-            https://github.com/ValeevGroup/libintx
-        4) Done: Check high Z closed shell atoms.  If these are correct the d/f ERI integrals must be right .. No?
-            SGm/SLm unpolarized *OR* polarized  all get Sr/Ba (38/56) wrong  d^2 instead of s^2 in the valance shell.
-            options:
-            4.1) Simulated anneal occupations with Fermi function.
-            4.2) Electron dumper force s valance electrons
-                For Sc we need to force 4s^2 (E=-0.21) or 3d^1 (E=-0.34) ... or both?
-                
-            4.3) Read in an accurate starting charge density.  (this could get complicated fast)
-        
+            Need to deal with Diag (ir1==ir2) and non-diag K tables (ir1!=ir2) .
         
     -Sort out locations for QN headers
     -QchemTester: make show basis set an option.
-    Done: -Fix Boron.
-        The K integrals appear correct, at least for s & p orbitals in Boron.
-        So why does PG work and SL fails?
-        Because the in the PG basis occupied Px can split from py/pz, and give a small energy gain.
-        For SL it is hard coded as one level with degen=2L+1=3.
-        We would need to introduce the m QN number and allow m splitting, at least for valance shells.
-    -Slater_m next steps now that Boron is working:
-        Done: 1) Clean up data dumps.
-        Done: 2) Get all UTas running again.
-        Done: 3) Refactor out the angular parts with all the w3j symbols
-        Done: 4) Build static wj3 tables using the wigner library.
-        Done: 5) Get d orbitals working
-        6) Try Sc again.
-            Still difficult.  PG nails it.  Need to sort out all the factors of 4*Pi.
-            No: 10) Get 4Pi^2 out of the integral engines.  Why?
-            -Better to completely dis-entangle angular and radial.
-            -Evaluate angular for whole blocks.  Less w3j lookups.
-        Done: 7) Make a SG_m basis set.
-            Done: We could optionally read the exponents and contractions from the BS files.
-        Done: 8) 3C repulsions should call R_k(lalblcld) directly.
-        Done: 9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
-        11) Check for double calculation of J/K ERIs
-    - Support SL/SLm/SG/SGm in a systematic manner
-        Done: Common angular code.
-        Common Dab code
-        fk is different.
-        Done: Do Angular integrals in blocks.
-        Steps
-        Done: 1) Separate sums for J K
-            for J do
-                loop ab
-                Ak(l_ab,m_ab), Rk(l_ab,e_ab)
-                  loop cd
-                  Ak(l_cd,m_cd), Rk(l_cd,e_cd)
-                    J=sum(k,Ak(ab)*Ak(cd)*{Rk(ab)+Rk(cd)+})
-        No: 2) Can we cache Ak(ab), Rk(ab) ?  (instead of blocking)
-            Blocking should be more efficient, less map<> lookups.
-        Done: Shareable 4way cache.
+    -Common base for SlaterCD and SG_CD
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
-    -ROHF for one open orbital.
-        -Need separate list of C and O orbitals in TOrbitals.
-        -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
-        -Need coupling constants for d orbitals.
-        -Understand what ERI4view.Exchange(a,b,c,d) is doing.
-        -
+    -Point group symmtery
+        https://www.mantidproject.org/
+            https://docs.mantidproject.org/v3.11.0/concepts/PointAndSpaceGroups.html
+        https://jmol.sourceforge.net/
+        https://pypi.org/project/PyPointGroup/
+        https://www.sciencedirect.com/science/article/abs/pii/S0010465517300310
+            https://data.mendeley.com/datasets/xd4g8hyjf2/1
         
-    -Diagnostic when spin=#unapaired electron does not work.  even/odd combos.
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.
     -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2
@@ -82,13 +40,11 @@ Priority 1:
     -Fix valgrind errors
         Seeing 1 errors related open MP
         Atom mesh leaks.  Should own radial and angular meshes?
-    -kT Occ smearing fails miserably.
     -Clean up PolGaussian construction
         -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
    
     -Clean up tech notes.
     -Make a new PolG::IntegralEngine using libcint
-    -Electron loading problem/buf for Z=55 and up
     -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
                                     ^^^^^^^^^^^^^^
     -G-orbs for gaussians?
@@ -107,6 +63,7 @@ oml:
 
       
 Priority 2:
+    -Set up a CMake build.  Run from vscode.
     -ID, streaming
         1) Test boost::serialization, does it work for shared pointers???
             Looks like yes, can std::shared_ptr in the headers.
@@ -123,6 +80,10 @@ Priority 2:
     -Try serializing with cereal.  
         -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
         -Need a mile high plan to io before doing anything.
+        -Less include from oml/imp
+        -Basis set
+        -Charge densities.
+        -Use CDs for starting SCF iterations.
 
     -What can we use from boost:
         -Filesystem
@@ -146,7 +107,6 @@ Priority 2:
             
     -Hunt for dynamic casts that can be removed using dynamic_cast iterator
     -Do something about the oml/imp includes.
-        Done: -Stop deriving from StreamableObject  it is mostly static any way
         -Include binio in stream.h?
         -Move stream up from imp.
     -Vosco LDA
@@ -166,10 +126,6 @@ Priority 3:
         With separate Vee and Vxc it seems we need to store J and K separatly.
         We could just store JK=J-0.5*K to save space, but then we need a combined Ham term.
         How doe PolG do it with just J?
-   -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
-        -Broke BasisSet persistence tests. Need to put back 
-            PerRef<IntegralDatabase> int BSImp<T>
-        Yes but only for the gradient, renamed accordingly.
     -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
@@ -180,16 +136,81 @@ Priority 3:
         Lapack uses the extra space in the full matrix as working space.
         So we end up converting to full anyway.  THis is just a convenience for the user.
      ??? the order of H, which may cause some problem in the qchem code.
-    Done: -SphericalGuassian accept different exponent ranges for each L.
-    -Dynamically adjust kT ?
     
             
     -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.
        
-    -Set up a CMake build.  Run from vscode.
+    -ROHF for one open orbital.
+        -Need separate list of C and O orbitals in TOrbitals.
+        -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
+        -Need coupling constants for d orbitals.
+        -Understand what ERI4view.Exchange(a,b,c,d) is doing.
+        -Polarized HF with m splitting basis works just well. Way less complicated.
     
 --------------------------------------------------------------------------------------
+Fixed:: -Electron loading problem/buf for Z=55 and up
+        -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
+        -Broke BasisSet persistence tests. Need to put back 
+            PerRef<IntegralDatabase> int BSImp<T>
+        Yes but only for the gradient, renamed accordingly.
+    No -Dynamically adjust kT ?
+   Done: -SphericalGuassian accept different exponent ranges for each L.
+    - Support SL/SLm/SG/SGm in a systematic manner
+        Done: Common angular code.
+        Common Dab code
+        fk is different.
+        Done: Do Angular integrals in blocks.
+        Steps
+        Done: 1) Separate sums for J K
+            for J do
+                loop ab
+                Ak(l_ab,m_ab), Rk(l_ab,e_ab)
+                  loop cd
+                  Ak(l_cd,m_cd), Rk(l_cd,e_cd)
+                    J=sum(k,Ak(ab)*Ak(cd)*{Rk(ab)+Rk(cd)+})
+        No: 2) Can we cache Ak(ab), Rk(ab) ?  (instead of blocking)
+            Blocking should be more efficient, less map<> lookups.
+        Done: Shareable 4way cache.
+    Done: -Fix Boron.
+        The K integrals appear correct, at least for s & p orbitals in Boron.
+        So why does PG work and SL fails?
+        Because the in the PG basis occupied Px can split from py/pz, and give a small energy gain.
+        For SL it is hard coded as one level with degen=2L+1=3.
+        We would need to introduce the m QN number and allow m splitting, at least for valance shells.
+    -Slater_m next steps now that Boron is working:
+        Done: 1) Clean up data dumps.
+        Done: 2) Get all UTas running again.
+        Done: 3) Refactor out the angular parts with all the w3j symbols
+        Done: 4) Build static wj3 tables using the wigner library.
+        Done: 5) Get d orbitals working
+        6) Try Sc again.
+            Still difficult.  PG nails it.  Need to sort out all the factors of 4*Pi.
+            No: 10) Get 4Pi^2 out of the integral engines.  Why?
+            -Better to completely dis-entangle angular and radial.
+            -Evaluate angular for whole blocks.  Less w3j lookups.
+        Done: 7) Make a SG_m basis set.
+            Done: We could optionally read the exponents and contractions from the BS files.
+        Done: 8) 3C repulsions should call R_k(lalblcld) directly.
+        Done: 9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
+        11) Check for double calculation of J/K ERIs
+    Done: -Survey Z=2-25
+        Fixed: Big trouble starts at Sc.
+    Done: -Attack Sc problem:
+        1) Review angular integral theory
+        2) Build PolGau BS with only primitives to match SGm exponents.  Look at J/K tables.
+        3) Use libcint for Real-spheric GTOs and check against SGm.
+            https://orbkit.github.io/dev/integrals/libcint.html
+            https://github.com/ValeevGroup/libintx
+        4) Done: Check high Z closed shell atoms.  If these are correct the d/f ERI integrals must be right .. No?
+            SGm/SLm unpolarized *OR* polarized  all get Sr/Ba (38/56) wrong  d^2 instead of s^2 in the valance shell.
+            options:
+            4.1) Simulated anneal occupations with Fermi function.
+            4.2) Electron dumper force s valance electrons
+                For Sc we need to force 4s^2 (E=-0.21) or 3d^1 (E=-0.34) ... or both?
+                
+            4.3) Read in an accurate starting charge density.  (this could get complicated fast)
+        
     Done: -Mesh code re-write  use pairs of points/weights, also get rid of
         MeshBrowser 
         AngularMeshBrowser 
@@ -390,30 +411,5 @@ Priority 3:
 
         
         
-SCFIteratorImp::Iterate
-    DumpElectrons(itsWaveFunction,ipar.kT);
-        SCFIteratorUnPol::DumpElectrons
-            ElectronDumper ed  (0.000001,0.0);
-            itsWaveFunction->UpdateElectronDumper(ed);
-                 ed.Add(itsOrbitals);
-            ed.DumpInElectrons(itsTotalCharge);  //Define
-                if (IsDirty) MakeEnergyLevels();
-                double Ntotal=NumElectrons;
-                for (auto i:itsEnergyLevels)
-                {
-                    Ntotal=i->TakeElectrons(Ntotal);
-                    if (Ntotal<=0.0) break;
-                }
-    itsWaveFunction->FillOrbitals()
-        WF_up->FillOrbitals(EC)
-            WF_ir1->FillOrbitals(EC,Spin)
-                EDumper.SortLevels
-                EDumper.Fill(EC,qn,spin)
-            WF_ir2->FillOrbitals(EC,Spin)
-            ..
-        WF_dn->FillOrbitals(EC)
-            WF_ir1->FillOrbitals(EC,Spin)
-            WF_ir2->FillOrbitals(EC,Spin)
-            ..
         
         

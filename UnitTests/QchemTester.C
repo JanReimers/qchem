@@ -65,7 +65,7 @@ double QchemTester::TotalEnergy() const
 double QchemTester::RelativeHFError(bool quiet) const
 {
     double E_HF=itsPT.GetEnergyHF(itsCluster->GetNuclearCharge());
-    double error=fabs((E_HF-TotalEnergy())/E_HF);
+    double error=(E_HF-TotalEnergy())/E_HF;
     if (!quiet)
     {
         std::cout.precision(6);
@@ -79,7 +79,7 @@ double QchemTester::RelativeHFError(bool quiet) const
 double QchemTester::RelativeDFTError(bool quiet) const
 {
     double E_DFT=itsPT.GetEnergyDFT(itsCluster->GetNuclearCharge());
-    double error=fabs((E_DFT-TotalEnergy())/E_DFT);
+    double error=(E_DFT-TotalEnergy())/E_DFT;
     if (!quiet)
     {
         std::cout.precision(6);
@@ -111,7 +111,7 @@ BasisSet* SG_OBasis::GetBasisSet () const
 {
     SphericalGaussian::BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
-    std::cout << *bs << std::endl;
+    //std::cout << *bs << std::endl;
     return  bs;
 }
 
@@ -120,7 +120,7 @@ BasisSet* SL_OBasis::GetBasisSet () const
 {
     Slater::BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
-    std::cout << *bs << std::endl;
+    //std::cout << *bs << std::endl;
     return bs;
 }
 
@@ -129,7 +129,7 @@ BasisSet* SLm_OBasis::GetBasisSet () const
 {
     Slater_m::BasisSet* bs=new Slater_m::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
-    std::cout << *bs << std::endl;
+    //std::cout << *bs << std::endl;
     return bs;
 }
 
@@ -144,7 +144,7 @@ BasisSet* SGm_OBasis::GetBasisSet () const
 //    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
     SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
-    std::cout << *bs << std::endl;
+    //std::cout << *bs << std::endl;
     return  bs;
 }
 

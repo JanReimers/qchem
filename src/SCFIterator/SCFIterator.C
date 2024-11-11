@@ -3,7 +3,6 @@
 
 
 #include "Imp/SCFIterator/SCFIterator.H"
-#include "Imp/WaveFunction/ElectronDumper.H"
 #include <WaveFunction.H>
 #include <IterationParams.H>
 #include <Hamiltonian.H>
@@ -64,7 +63,6 @@ bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian); //Just gets a set of eigen orbitals from the Hamiltonian
         itsWaveFunction->FillOrbitals(0,Spin::None);
-        //DumpElectrons(itsWaveFunction,ipar.kT);
 
         delete itsOldExactChargeDensity;
         itsOldExactChargeDensity=itsExactChargeDensity;

@@ -29,7 +29,7 @@ WaveFunctionGroup::WaveFunctionGroup(const BasisSet* bg, const Spin& S)
 
 //----------------------------------------------------------------------------
 //
-//  This function will creat EMPTY orbtials.  One must use the ElectronDumper
+//  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
 void WaveFunctionGroup::DoSCFIteration(Hamiltonian& ham)
@@ -42,11 +42,6 @@ ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
     CompositeCD* cd = new CompositeCD();
     for (auto w:itsIrrepWFs) cd->Insert(w->GetChargeDensity(s));
     return cd;
-}
-
-void WaveFunctionGroup::UpdateElectronDumper(ElectronDumper& ed)
-{
-    for (auto w:itsIrrepWFs) w->UpdateElectronDumper(ed);
 }
 
 void WaveFunctionGroup::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)

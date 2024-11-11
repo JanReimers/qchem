@@ -1,7 +1,6 @@
 // File: PolarizedSCFIterator.C  SCF convergence for a Polarized wave fction.
 
 #include "Imp/SCFIterator/SCFIteratorPol.H"
-#include "Imp/WaveFunction/ElectronDumper.H"
 #include <Hamiltonian.H>
 #include <WaveFunction.H>
 #include <IterationParams.H>
@@ -31,22 +30,6 @@ void SCFIteratorPol::DecideElectronCounts(double total, double spin)
     itsTotalDown=b2/2.0;
 //    assert(fabs(itsTotalUp-floor(itsTotalUp))==0.0);
 //    assert(fabs(itsTotalDown-floor(itsTotalDown))==0.0);
-}
-
-void SCFIteratorPol::DumpElectrons(WaveFunction* wf, double kT)
-{
-    assert(wf);
-    PolarizedWF* pwf=dynamic_cast<PolarizedWF*>(wf);
-    assert(pwf);
-
-    ElectronDumper uped  (0.0001,kT);
-    ElectronDumper downed(0.0001,kT);
-    pwf->GetWaveFunction(Spin::Up  )->UpdateElectronDumper(uped  );
-    pwf->GetWaveFunction(Spin::Down)->UpdateElectronDumper(downed);
-    uped  .DumpInElectrons(itsTotalUp  );  //Define occupations for all spin up   orbitals.
-    downed.DumpInElectrons(itsTotalDown);  //Define occupations for all spin down orbitals.
-    itsUpEf  =uped  .GetFermiEnergy();
-    itsDownEf=downed.GetFermiEnergy();
 }
 
 bool SCFIteratorPol::Iterate(const SCFIterationParams& ipar)
@@ -83,17 +66,5 @@ void SCFIteratorPol::DisplayEigen() const
 {
     assert(itsWaveFunction);
     itsWaveFunction->DisplayEigen();
-//    PolarizedWF* pwf=dynamic_cast<PolarizedWF*>(itsWaveFunction);
-//    assert(pwf);
-//    ElectronDumper uped  (0.0001,0.0);
-//    ElectronDumper downed(0.0001,0.0);
-//    pwf->GetWaveFunction(Spin::Up  )->UpdateElectronDumper(uped  );
-//    pwf->GetWaveFunction(Spin::Down)->UpdateElectronDumper(downed);
-//    uped  .DumpInElectrons(itsTotalUp  );  //Define occupations for all spin up   orbitals.
-//    downed.DumpInElectrons(itsTotalDown);  //Define occupations for all spin down orbitals.
-//    std::cout << "Alpha spin :" << std::endl;
-//    std::cout <<uped << std::endl;
-//    std::cout << "Beta spin :" << std::endl;
-//    std::cout << downed << std::endl;
 }
 
