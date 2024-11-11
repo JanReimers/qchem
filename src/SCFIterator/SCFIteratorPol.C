@@ -29,8 +29,8 @@ void SCFIteratorPol::DecideElectronCounts(double total, double spin)
     double b2=total-spin;
     itsTotalUp=a2/2.0;
     itsTotalDown=b2/2.0;
-    assert(fabs(itsTotalUp-floor(itsTotalUp))==0.0);
-    assert(fabs(itsTotalDown-floor(itsTotalDown))==0.0);
+//    assert(fabs(itsTotalUp-floor(itsTotalUp))==0.0);
+//    assert(fabs(itsTotalDown-floor(itsTotalDown))==0.0);
 }
 
 void SCFIteratorPol::DumpElectrons(WaveFunction* wf, double kT)
@@ -82,17 +82,18 @@ void SCFIteratorPol::DisplayEnergies(int i, double lam, double ChargeDensityChan
 void SCFIteratorPol::DisplayEigen() const
 {
     assert(itsWaveFunction);
-    PolarizedWF* pwf=dynamic_cast<PolarizedWF*>(itsWaveFunction);
-    assert(pwf);
-    ElectronDumper uped  (0.0001,0.0);
-    ElectronDumper downed(0.0001,0.0);
-    pwf->GetWaveFunction(Spin::Up  )->UpdateElectronDumper(uped  );
-    pwf->GetWaveFunction(Spin::Down)->UpdateElectronDumper(downed);
-    uped  .DumpInElectrons(itsTotalUp  );  //Define occupations for all spin up   orbitals.
-    downed.DumpInElectrons(itsTotalDown);  //Define occupations for all spin down orbitals.
-    std::cout << "Alpha spin :" << std::endl;
-    std::cout <<uped << std::endl;
-    std::cout << "Beta spin :" << std::endl;
-    std::cout << downed << std::endl;
+    itsWaveFunction->DisplayEigen();
+//    PolarizedWF* pwf=dynamic_cast<PolarizedWF*>(itsWaveFunction);
+//    assert(pwf);
+//    ElectronDumper uped  (0.0001,0.0);
+//    ElectronDumper downed(0.0001,0.0);
+//    pwf->GetWaveFunction(Spin::Up  )->UpdateElectronDumper(uped  );
+//    pwf->GetWaveFunction(Spin::Down)->UpdateElectronDumper(downed);
+//    uped  .DumpInElectrons(itsTotalUp  );  //Define occupations for all spin up   orbitals.
+//    downed.DumpInElectrons(itsTotalDown);  //Define occupations for all spin down orbitals.
+//    std::cout << "Alpha spin :" << std::endl;
+//    std::cout <<uped << std::endl;
+//    std::cout << "Beta spin :" << std::endl;
+//    std::cout << downed << std::endl;
 }
 

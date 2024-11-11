@@ -73,6 +73,7 @@ public:
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual ChargeDensity* GetChargeDensity   (Spin               ) const=0;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&)=0;
+    virtual void           DisplayEigen       (               ) const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;

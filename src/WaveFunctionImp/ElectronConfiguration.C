@@ -42,8 +42,8 @@ AtomElectronConfiguration::AtomElectronConfiguration(int Z)
 //    cout << endl;
 
     for (int l=0;l<=LMax;l++) N[l]=FullShells[ns][l+1]*2*(2*l+1)+valance_configuration[l];
-//    for (auto l:{0,1,2,3}) cout << N[l] << ",";
-//    cout << endl;
+    for (auto l:{0,1,2,3}) cout << N[l] << ",";
+    cout << endl;
 }
 
 int AtomElectronConfiguration::GetN() const
@@ -55,6 +55,7 @@ int AtomElectronConfiguration::GetN() const
 
 int AtomElectronConfiguration::GetN(const Spin& s) const
 {
+    if (s==Spin::None) return GetN();
     int ne=GetN();
     assert((ne+NUnpaired)%2==0);
     assert(s!=Spin::None);
@@ -68,6 +69,7 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn) const
 }
 int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) const
 {
+    if (s==Spin::None) return GetN(qn);
     const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN&>(qn);
     int l=sqn.GetL();
     int nl=N[l];
@@ -129,3 +131,11 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) cons
     return 0;
 }
     
+
+int MoleculeElectronConfiguration::GetN(const Spin& s) const
+{
+    if (Ne%2==0)
+        return Ne/2;
+    else
+        return s==Spin::Up ? (Ne+1)/2 : (Ne-1)/2;
+}

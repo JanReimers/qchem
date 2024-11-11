@@ -85,6 +85,38 @@ CalculateDensityMatrix() const
     return d;
 }
 
+template <class T> void TOrbitalsImp<T>::DisplayEigen() const
+{
+    std::cout.setf(std::ios::fixed,std::ios::floatfield);
+    double occ=0.0;
+    double e=0.0;
+    bool start=true;
+    int Nvirtual=2;
+    for (auto o:*this) 
+    {
+        double ei=o->GetEigenEnergy();
+        if (fabs(ei-e)<0.0001 && !start)
+        {
+            occ+=o->GetOccupation();
+        }
+        else
+        {
+            // new level
+            if (!start && ((occ>0.0) || (occ==0.0 && e<0.0)))
+            {
+                std::cout << std::setw(12) << std::setprecision(6) << e 
+                << " (" << std::setw(4) << std::setprecision(1) << occ 
+                << "/"  << o->GetDegeneracy() 
+                << ") " << o->GetQuantumNumber() << std::endl;
+                if (occ==0.0) Nvirtual--;
+            }
+            e=ei;
+            occ=o->GetOccupation();
+            start=false;
+        }
+        if (Nvirtual<=0) break;
+    }
+}
 //-----------------------------------------------------------------
 //
 //  VectorFunction stuff.

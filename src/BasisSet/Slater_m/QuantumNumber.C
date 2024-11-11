@@ -6,15 +6,15 @@
 #include <iostream>
 #include <cassert>
 
-YlmQN::YlmQN(): l(0),m(0) {};
+YlmQN::YlmQN(): SphericalSymmetryQN(0),m(0) {};
 
-YlmQN::YlmQN(int _l, int _m) : l(_l), m(_m) {};
+YlmQN::YlmQN(int _l, int _m) : SphericalSymmetryQN(_l), m(_m) {};
 
 bool YlmQN::Match(const QuantumNumber& qn) const
 {
     const YlmQN* yqn = dynamic_cast<const YlmQN*>(&qn);
     assert(yqn);
-    return l==yqn->l && l==yqn->m;
+    return itsL==yqn->itsL && m==yqn->m;
 }
 
 int YlmQN::GetDegeneracy() const
@@ -27,7 +27,7 @@ extern std::string SPDFG[];
 std::ostream& YlmQN::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
-        os << SPDFG[l] << "_" << m << " ";
+        os << SPDFG[itsL] << "_" << m << " ";
     return os;
 }
 

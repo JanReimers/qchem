@@ -49,10 +49,22 @@ void WaveFunctionGroup::UpdateElectronDumper(ElectronDumper& ed)
     for (auto w:itsIrrepWFs) w->UpdateElectronDumper(ed);
 }
 
+void WaveFunctionGroup::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)
+{
+    for (auto w:itsIrrepWFs) w->FillOrbitals(ec,s);
+}
+
+
 SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double NElectrons)
 {
     return new SCFIteratorUnPol(this, H, cd,NElectrons);
 }
+
+void WaveFunctionGroup::DisplayEigen() const
+{
+    for (auto w:itsIrrepWFs) w->DisplayEigen();
+}
+
 
 std::ostream& WaveFunctionGroup::Write(std::ostream& os) const
 {

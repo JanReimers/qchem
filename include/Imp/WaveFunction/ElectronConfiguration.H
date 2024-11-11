@@ -39,4 +39,19 @@ private:
     double charge;
 };
 
+class MoleculeElectronConfiguration : public virtual ElectronConfiguration
+{
+public: 
+    MoleculeElectronConfiguration() : Ne(0) {};
+    MoleculeElectronConfiguration(int _Ne) : Ne(_Ne) {};
+    //AtomElectronConfiguration(int Z, double charge, int val_config[4]);
+    
+    virtual int GetN(                                 ) const {return Ne;}
+    virtual int GetN(                      const Spin&) const;
+    virtual int GetN(const QuantumNumber&             ) const {return Ne;}
+    virtual int GetN(const QuantumNumber&, const Spin& s) const {return GetN(s);}
+private:
+    int Ne;
+};
+
 #endif // _ElectronConfiguration_H_

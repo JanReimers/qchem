@@ -13,7 +13,7 @@
 //
 
 class SphericalSymmetryQN
-    : public QuantumNumber
+    : public virtual QuantumNumber
 {
 public:
     SphericalSymmetryQN(        );
@@ -31,7 +31,7 @@ public:
         return itsL;
     }
 
-private:
+protected:
     int itsL;
 };
 

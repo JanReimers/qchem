@@ -100,7 +100,7 @@ class A_SG_DFT_P : public ::testing::TestWithParam<int>
 , public TestAtom, SG_OBasis, DFT_P,TestPolarized
 {
 public:
-    A_SG_DFT_P() : TestAtom(GetParam()),TestPolarized(GetParam()) {};
+    A_SG_DFT_P() : TestAtom(GetParam()) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SG_OBasis::Init(N,emin,emax,LMax);
@@ -122,7 +122,7 @@ class A_SL_DFT_P : public ::testing::TestWithParam<int>
 , public TestAtom, SL_OBasis, DFT_P, TestPolarized
 {
 public:
-    A_SL_DFT_P() : TestAtom(GetParam()), TestPolarized(GetParam()) {};
+    A_SL_DFT_P() : TestAtom(GetParam()) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SL_OBasis::Init(N,emin,emax,LMax);
@@ -147,7 +147,7 @@ class A_PG_DFT_P : public ::testing::TestWithParam<int>
 , public TestMolecule, PG_OBasis, DFT_P, TestPolarized
 {
 public:
-    A_PG_DFT_P() : TestMolecule(), TestPolarized(GetParam())  {};
+    A_PG_DFT_P() : TestMolecule() {};
     void Init()
     { 
         Molecule* m=new Molecule;

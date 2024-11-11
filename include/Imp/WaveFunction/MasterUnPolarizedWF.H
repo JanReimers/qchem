@@ -11,13 +11,15 @@ class MasterUnPolarizedWF
 {
 public:
     MasterUnPolarizedWF();
-    MasterUnPolarizedWF(const BasisSet*);
+    MasterUnPolarizedWF(const BasisSet*,const ElectronConfiguration*);
     virtual ~MasterUnPolarizedWF();
 
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;
     virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
     virtual void           UpdateElectronDumper(ElectronDumper&)      ;
+    virtual void           FillOrbitals        (const ElectronConfiguration*, const Spin&);
     virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double nElectrons);
+    virtual void           DisplayEigen        (               ) const;
 
 
     virtual std::ostream&       Write(std::ostream&) const;
@@ -25,6 +27,8 @@ public:
 
 private:
     WaveFunction* itsGroup;
+    const ElectronConfiguration* itsEC;
+
 };
 
 #endif //_MasterUnPolarizedWF_H_

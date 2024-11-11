@@ -4,6 +4,7 @@
 
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/WaveFunction/ElectronDumper.H"
+#include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
@@ -48,6 +49,20 @@ void IrrepWaveFunction::UpdateElectronDumper(ElectronDumper& ed)
 {
     assert(itsOrbitals);
     ed.Add(itsOrbitals);
+}
+
+void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)
+{
+    ElectronDumper ed(0.0001,0.0);
+    ed.Add(itsOrbitals);
+    ed.MakeEnergyLevels();
+    Orbital* o1=*itsOrbitals->begin();
+    ed.DumpInElectrons(ec->GetN(o1->GetQuantumNumber(),s));
+}
+
+void  IrrepWaveFunction::DisplayEigen() const
+{
+    itsOrbitals->DisplayEigen();
 }
 
 SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)

@@ -30,7 +30,7 @@ void SCFIteratorImp::Initialize(ChargeDensity* cd)
 
     itsHamiltonian->UseChargeDensity(cd);
     itsWaveFunction->DoSCFIteration(*itsHamiltonian);
-    DumpElectrons(itsWaveFunction,0.0);
+    itsWaveFunction->FillOrbitals(0,Spin::None);
 
     itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
     assert(itsExactChargeDensity);
@@ -63,7 +63,8 @@ bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
     for (size_t i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian); //Just gets a set of eigen orbitals from the Hamiltonian
-        DumpElectrons(itsWaveFunction,ipar.kT);
+        itsWaveFunction->FillOrbitals(0,Spin::None);
+        //DumpElectrons(itsWaveFunction,ipar.kT);
 
         delete itsOldExactChargeDensity;
         itsOldExactChargeDensity=itsExactChargeDensity;

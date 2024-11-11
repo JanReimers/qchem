@@ -69,6 +69,9 @@
 			<Option compilerVar="CPP" />
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="ElectronConfigurations.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="GaussianERIIntegral.C">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -387,3 +387,33 @@ Priority 3:
     Done: -Add some tests for IO of basis sets, waved functions, hamiltonians.
     Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
         Unpickle;
+
+        
+        
+SCFIteratorImp::Iterate
+    DumpElectrons(itsWaveFunction,ipar.kT);
+        SCFIteratorUnPol::DumpElectrons
+            ElectronDumper ed  (0.000001,0.0);
+            itsWaveFunction->UpdateElectronDumper(ed);
+                 ed.Add(itsOrbitals);
+            ed.DumpInElectrons(itsTotalCharge);  //Define
+                if (IsDirty) MakeEnergyLevels();
+                double Ntotal=NumElectrons;
+                for (auto i:itsEnergyLevels)
+                {
+                    Ntotal=i->TakeElectrons(Ntotal);
+                    if (Ntotal<=0.0) break;
+                }
+    itsWaveFunction->FillOrbitals()
+        WF_up->FillOrbitals(EC)
+            WF_ir1->FillOrbitals(EC,Spin)
+                EDumper.SortLevels
+                EDumper.Fill(EC,qn,spin)
+            WF_ir2->FillOrbitals(EC,Spin)
+            ..
+        WF_dn->FillOrbitals(EC)
+            WF_ir1->FillOrbitals(EC,Spin)
+            WF_ir2->FillOrbitals(EC,Spin)
+            ..
+        
+        

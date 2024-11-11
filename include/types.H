@@ -26,6 +26,7 @@ class IrrepBasisSet;
 class BasisSet;
 class ChargeDensity;
 class Cluster;
+class ElectronConfiguration;
 class ElectronDumper;
 class EnergyLevel;
 class ERI4;

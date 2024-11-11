@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731269706 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731332121 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -802,7 +802,7 @@
 	"Imp/Misc/UniqueID/UniqueID.H"
 	<vector>
 
-1731187714 /home/janr/Code/qchem/include/WaveFunction.H
+1731330874 /home/janr/Code/qchem/include/WaveFunction.H
 	<types.H>
 	<Spin.H>
 	"Imp/Misc/pmstream.h"
@@ -820,7 +820,7 @@
 	"Misc/pmstream.h"
 	"Functions/FittedFunction.H"
 
-1729475680 /home/janr/Code/qchem/include/types.H
+1731277235 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728695540 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -839,10 +839,10 @@
 	"types.H"
 	"Functions/ScalarFunction.H"
 
-1731187640 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
+1731330874 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
 	"WaveFunction.H"
 
-1731187791 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
+1731330873 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
 	"WaveFunction.H"
 
 1728239691 /home/janr/Code/qchem/include/IntegralEngine1.H
@@ -1087,7 +1087,7 @@
 	<cmath>
 	"Imp/Misc/DFTDefines.H"
 
-1728599453 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
+1731282296 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
 	<QuantumNumber.H>
 
 1729380889 /home/janr/Code/qchem/include/QuantumNumber.H
@@ -1129,7 +1129,7 @@
 1729263649 /home/janr/Code/qchem/UnitTests/DFTTesterSlater.H
 	"SemiHFTester.H"
 
-1731187890 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
+1731277516 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
 	<MeshParams.H>
 	<SCFIterator.H>
@@ -1151,28 +1151,29 @@
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
-1731092294 /home/janr/Code/qchem/UnitTests/QchemTester.H
+1731278269 /home/janr/Code/qchem/UnitTests/QchemTester.H
 	"gtest/gtest.h"
 	<types.H>
 	<IterationParams.H>
 	<LAParams.H>
 	"Imp/Misc/PeriodicTable.H"
 	<memory>
+	"Imp/WaveFunction/ElectronConfiguration.H"
 
-1731247441 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1731332478 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
 
-1731001411 source:/home/janr/Code/qchem/UnitTests/A_SHF.C
+1731277656 source:/home/janr/Code/qchem/UnitTests/A_SHF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
 	<MeshParams.H>
 
-1730999808 source:/home/janr/Code/qchem/UnitTests/A_DFT.C
+1731277656 source:/home/janr/Code/qchem/UnitTests/A_DFT.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1456,7 +1457,7 @@
 	"types.H"
 	<vector>
 
-1731267793 source:/home/janr/Code/qchem/UnitTests/ElectronConfigurations.C
+1731271723 source:/home/janr/Code/qchem/UnitTests/ElectronConfigurations.C
 	"gtest/gtest.h"
 	"Imp/WaveFunction/ElectronConfiguration.H"
 	"Imp/Misc/PeriodicTable.H"
@@ -1464,5 +1465,5 @@
 	<Spin.H>
 	<iostream>
 
-1731261371 /home/janr/Code/qchem/include/Imp/WaveFunction/ElectronConfiguration.H
+1731277393 /home/janr/Code/qchem/include/Imp/WaveFunction/ElectronConfiguration.H
 

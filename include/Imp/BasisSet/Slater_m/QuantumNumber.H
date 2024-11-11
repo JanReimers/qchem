@@ -4,7 +4,8 @@
 
 
 
-#include <QuantumNumber.H>
+#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+
 
 //---------------------------------------------------------------------------------
 //
@@ -12,7 +13,8 @@
 //
 
 class YlmQN
-    : public QuantumNumber
+    : public virtual QuantumNumber
+    , public SphericalSymmetryQN
 {
 public:
     YlmQN(            );
@@ -25,11 +27,10 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
     virtual QuantumNumber* Clone(        ) const;
 
-    int Getl() const {return l;}
     int Getm() const {return m;}
 
 private:
-    int l,m;
+    int m;
 };
 
 #endif //_Slater_m_QuantumNumer_H_

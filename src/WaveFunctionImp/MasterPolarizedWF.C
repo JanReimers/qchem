@@ -14,16 +14,17 @@
 MasterPolarizedWF::MasterPolarizedWF()
     : itsSpinUpGroup  (0)
     , itsSpinDownGroup(0)
-    , itsNetSpin      (0)
+    , itsEC      (0)
 {};
 
-MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bg,double spin)
+MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bg,const ElectronConfiguration* ec)
     : itsSpinUpGroup  (new WaveFunctionGroup(bg,Spin(Spin::Up  )))
     , itsSpinDownGroup(new WaveFunctionGroup(bg,Spin(Spin::Down)))
-    , itsNetSpin      (spin)
+    , itsEC           (ec) //Electron cofiguration
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
+    assert(itsEC);
 };
 
 MasterPolarizedWF::~MasterPolarizedWF()
@@ -62,10 +63,18 @@ void MasterPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
     itsSpinDownGroup->UpdateElectronDumper(ed);
 }
 
+void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*, const Spin&)
+{
+    assert(itsSpinUpGroup  );
+    assert(itsSpinDownGroup);
+    itsSpinUpGroup  ->FillOrbitals(itsEC,Spin::Up  );
+    itsSpinDownGroup->FillOrbitals(itsEC,Spin::Down);
+}
+
 
 SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
 {
-    return new SCFIteratorPol(this,H,cd,nElectrons,itsNetSpin);
+    return new SCFIteratorPol(this,H,cd,nElectrons,0.0);
 }
 
 WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
@@ -77,16 +86,22 @@ WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
     return ret;
 }
 
+void MasterPolarizedWF::DisplayEigen() const
+{
+    std::cout << "Alpha spin :" << std::endl;
+    itsSpinUpGroup->DisplayEigen();
+    std::cout << "Beta spin :" << std::endl;
+    itsSpinDownGroup->DisplayEigen();
+}
+
 std::ostream& MasterPolarizedWF::Write(std::ostream& os) const
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
     if (Pretty())
-        os << "Polarized wave function with net spin=" << itsNetSpin << ":" << std::endl;
+        os << "Polarized wave function :" << std::endl;
     os << *itsSpinUpGroup << *itsSpinDownGroup;
     
-    if (Binary()) BinaryWrite(itsNetSpin,os);
-    if (Ascii ()) os << itsNetSpin << " ";
     return os;
 }
 
@@ -101,11 +116,6 @@ std::istream& MasterPolarizedWF::Read (std::istream& is)
     itsSpinDownGroup=WaveFunction::Factory(is);
     assert(itsSpinDownGroup  );
     is >> *itsSpinDownGroup;
-
-    if (Binary())
-        BinaryRead(itsNetSpin,is);
-    else
-        is >> itsNetSpin;
 
     return is;
 }

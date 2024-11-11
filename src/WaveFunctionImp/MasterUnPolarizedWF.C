@@ -7,15 +7,19 @@
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include <Spin.H>
 #include <cassert>
+#include <iostream>
 
 MasterUnPolarizedWF::MasterUnPolarizedWF()
     : itsGroup(0)
+    , itsEC(0)
 {};
 
-MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bg)
+MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bg,const ElectronConfiguration* ec)
     :itsGroup(new WaveFunctionGroup(bg,Spin(Spin::None)))
+    ,itsEC(ec)
 {
     assert(itsGroup);
+    assert(itsEC);
 };
 
 MasterUnPolarizedWF::~MasterUnPolarizedWF()
@@ -45,11 +49,24 @@ SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd
     return new SCFIteratorUnPol(this, H, cd,nElectrons);
 }
 
+void MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*, const Spin&)
+{
+    assert(itsGroup);
+    itsGroup->FillOrbitals(itsEC,Spin::None);
+}
+
 void MasterUnPolarizedWF::UpdateElectronDumper(ElectronDumper& ed)
 {
     assert(itsGroup);
     itsGroup->UpdateElectronDumper(ed);
 }
+
+void MasterUnPolarizedWF::DisplayEigen() const
+{
+    std::cout << "Alpha+Beta spin :" << std::endl;
+    itsGroup->DisplayEigen();
+}
+
 
 std::ostream& MasterUnPolarizedWF::Write(std::ostream& os) const
 {

@@ -175,7 +175,7 @@ BasisSet* PG_OBasis::GetBasisSet () const
 
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
-TestAtom::TestAtom(int Z, int q)  
+TestAtom::TestAtom(int Z, int q) : ec(Z)
 {
     Cluster* cl=new Molecule;
     cl->Insert(new Atom(Z,q,Vector3D<double>(0,0,0)));
@@ -187,10 +187,11 @@ MeshParams TestAtom::GetMeshParams() const
     return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
 }
 
-void TestMolecule::Init(Molecule* p)
+void TestMolecule::Init(Molecule* m)
 {
-    assert(p);
-    itsCluster=cl_t(p);
+    assert(m);
+    itsCluster=cl_t(m);
+    ec=MoleculeElectronConfiguration(m->GetNumElectrons());
 }
 
 MeshParams TestMolecule::GetMeshParams() const
@@ -203,16 +204,13 @@ MeshParams TestMolecule::GetMeshParams() const
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const
 {
-    return new MasterUnPolarizedWF(bs);
+    return new MasterUnPolarizedWF(bs,GetElectronConfiguration());
 }
 
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 
-TestPolarized::TestPolarized(int Z) : spin(QchemTester::itsPT.GetNumUnpairedElectrons(Z)) {};
-
 WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
 {
-    assert(spin>=0);
-    return new MasterPolarizedWF(bs,spin);
+    return new MasterPolarizedWF(bs,GetElectronConfiguration() );
 }
 

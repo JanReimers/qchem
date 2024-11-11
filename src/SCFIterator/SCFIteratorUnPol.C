@@ -60,10 +60,11 @@ void SCFIteratorUnPol::DumpElectrons(WaveFunction* wf, double kT)
 
 void SCFIteratorUnPol::DisplayEigen() const
 {
-    ElectronDumper ed  (0.000001,0.0);
-    itsWaveFunction->UpdateElectronDumper(ed);
-    ed.DumpInElectrons(itsTotalCharge);  //Define occupations for all orbitals.
-    std::cout << ed << std::endl;
+    itsWaveFunction->DisplayEigen();
+//    ElectronDumper ed  (0.000001,0.0);
+//    itsWaveFunction->UpdateElectronDumper(ed);
+//    ed.DumpInElectrons(itsTotalCharge);  //Define occupations for all orbitals.
+//    std::cout << ed << std::endl;
 }
 
 

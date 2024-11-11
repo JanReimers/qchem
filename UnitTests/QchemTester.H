@@ -27,6 +27,8 @@ protected:
     virtual const Cluster*  GetCluster   () const {return itsCluster.get();}
     virtual MeshParams      GetMeshParams() const=0;
     virtual int             GetZ         () const;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const=0;
+
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet*      GetBasisSet   () const=0;
     virtual IrrepBasisSet* GetCBasisSet  () const;
@@ -118,6 +120,7 @@ private:
     double emin,emax;
 };
 
+#include "Imp/WaveFunction/ElectronConfiguration.H"
 //----------------------------------------------------------------------------------
 //
 //  Atoms and Molecules
@@ -127,6 +130,9 @@ class TestAtom : public virtual QchemTester
 public:
     TestAtom(int _Z, int _q=0);
     virtual MeshParams GetMeshParams() const;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
+private:
+    AtomElectronConfiguration ec;
 };
 
 class TestMolecule : public virtual QchemTester
@@ -135,6 +141,9 @@ public:
     TestMolecule() {};
     void Init(Molecule*);
     virtual MeshParams  GetMeshParams() const;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
+private:
+    MoleculeElectronConfiguration ec;
 };
 
 
@@ -151,11 +160,7 @@ public:
 class TestPolarized  : public virtual QchemTester
 {
 public:
-    explicit TestPolarized(int Z);
-    explicit TestPolarized(double s) : spin(s) {};
     virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
-private:
-    double spin;
 };
 
 
