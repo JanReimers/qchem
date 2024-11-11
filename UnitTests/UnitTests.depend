@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731341817 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731357829 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -1087,7 +1087,7 @@
 	<cmath>
 	"Imp/Misc/DFTDefines.H"
 
-1731341813 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
+1731347087 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
 	<QuantumNumber.H>
 	<tuple>
 
@@ -1161,7 +1161,7 @@
 	<memory>
 	"Imp/WaveFunction/ElectronConfiguration.H"
 
-1731332478 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1731357876 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1458,13 +1458,16 @@
 	"types.H"
 	<vector>
 
-1731271723 source:/home/janr/Code/qchem/UnitTests/ElectronConfigurations.C
+1731352631 source:/home/janr/Code/qchem/UnitTests/ElectronConfigurations.C
 	"gtest/gtest.h"
 	"Imp/WaveFunction/ElectronConfiguration.H"
 	"Imp/Misc/PeriodicTable.H"
-	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+	"Imp/BasisSet/Slater_m/QuantumNumber.H"
 	<Spin.H>
 	<iostream>
 
 1731335940 /home/janr/Code/qchem/include/Imp/WaveFunction/ElectronConfiguration.H
+
+1731347087 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/QuantumNumber.H
+	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 

@@ -249,8 +249,8 @@ TEST_P(A_SGm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(3,3,5,7,21,37)); //,53,57,64
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(3,3,5,7,21,37)); //,53,57,64
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,26)); //,53,57,64
 
 

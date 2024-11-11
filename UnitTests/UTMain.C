@@ -7,11 +7,11 @@ int main(int argc, char **argv)
      testing::InitGoogleTest(&argc, argv);
 //     testing::GTEST_FLAG(filter) = "A_PG_HF_P_92*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_U.Multiple/*";
-//     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/*";
+     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/4";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/4:Multiple/A_PG_HF_P.Multiple/4";
 
 //     testing::GTEST_FLAG(filter) = "MeshIntegralsTests.GObritals:M_PG_*:Multiple/A_PG*";
-      testing::GTEST_FLAG(filter) = "Multiple/A_SG_HF_*.Multiple/*";
+//      testing::GTEST_FLAG(filter) = "Multiple/A_SG_HF_*.Multiple/*";
 //    testing::GTEST_FLAG(filter) = "STLTesting.RangeBasedLoops";
 //    testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";
 //      testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";

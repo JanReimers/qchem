@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/Misc/PeriodicTable.H"
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/BasisSet/Slater_m/QuantumNumber.H"
 #include <Spin.H>
 #include <iostream>
 
@@ -21,6 +21,7 @@ class ElectronConfigurationTests : public ::testing::Test
 public:
     ElectronConfigurationTests() {}
     SphericalSymmetryQN qn(int l) const {return SphericalSymmetryQN(l);}
+    YlmQN qn(int l, int m) const {return YlmQN(l,m);}
 };
 
 TEST_F(ElectronConfigurationTests, Ntotal)
@@ -302,4 +303,42 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
 
+}
+
+TEST_F(ElectronConfigurationTests, Ylm_SP)
+{
+    for (int Z=41;Z<=41;Z++)
+    {
+        cout << "Z=" << Z << endl;
+        AtomElectronConfiguration ec(Z);
+        for (int l=0;l<=2;l++)
+        {
+            cout << "  l=" << l << endl;
+            int nlu=ec.GetN(qn(l),Spin::Up);
+            int nld=ec.GetN(qn(l),Spin::Down);
+            int nlu1=0,nld1=0;
+            for (int m=-l;m<=l;m++)
+            {
+                nlu1+=ec.GetN(qn(l,m),Spin::Up);
+                nld1+=ec.GetN(qn(l,m),Spin::Down);
+            }
+            EXPECT_EQ(nlu,nlu1);
+            EXPECT_EQ(nld,nld1);
+        }
+    }
+    
+}
+
+TEST_F(ElectronConfigurationTests, Ylm_D)
+{
+    AtomElectronConfiguration ec(41);
+    for (int l=0;l<=2;l++)
+    {
+        for (int m=-l;m<=l;m++)
+        {
+            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Up) << endl;
+            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Down) << endl;      
+        }        
+    }
+    
 }

@@ -28,7 +28,7 @@ public:
     virtual QuantumNumber* Clone(        ) const;
 
     int     GetL() const {return itsL;}
-    std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
+    virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
 protected:
     int itsL;
