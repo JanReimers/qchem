@@ -31,7 +31,7 @@ AtomElectronConfiguration::AtomElectronConfiguration(int Z)
 {
     assert(Z>0);
     assert(Z<=N_Elements);
-    int* valance_configuration=pt.GetValanceConfiguration(Z);
+    int* vc=pt.GetValanceConfiguration(Z);
     int ns=0;
     for (;ns<Nshell;ns++)
         if (FullShells[ns][0]>Z) break;
@@ -40,10 +40,20 @@ AtomElectronConfiguration::AtomElectronConfiguration(int Z)
 //    cout << endl;
 //    for (auto l:{0,1,2,3}) cout << FullShells[ns][l+1] << ",";
 //    cout << endl;
-
-    for (int l=0;l<=LMax;l++) N[l]=FullShells[ns][l+1]*2*(2*l+1)+valance_configuration[l];
-    for (auto l:{0,1,2,3}) cout << N[l] << ",";
-    cout << endl;
+    for (int l=0;l<=LMax;l++) 
+    {
+        Nf[l]=FullShells[ns][l+1]*2*(2*l+1);
+        Nv[l]=vc[l];
+        int g=2*(2*l+1); //degeneracy
+        if (Nv[l]>0 && Nv[l]%g==0)
+        {   
+            Nv[l]-=g;
+            Nf[l]+=g;
+        }
+        N[l]=Nf[l]+Nv[l];
+        //cout << N[l] << ",";
+    }
+    //cout << endl;
 }
 
 int AtomElectronConfiguration::GetN() const
@@ -73,62 +83,29 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) cons
     const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN&>(qn);
     int l=sqn.GetL();
     int nl=N[l];
-    if (nl==0) return nl;
-    if (l==0)
-    { //s
-        if (nl%2==0) 
-            return nl/2;
-        else
-            return s==Spin::Up ? (nl+1)/2 : (nl-1)/2;
-    }
-    else if (l==1)
+    if (Nv[l]==0) return nl/2;
+    assert(nl!=0);
+    // Handle partial shells
+    int nlu=1; //# unpaired in shell l. 
+    if (l==1) // p is partial.
     {
-        if (nl%6==0) return nl/2;
-        assert(N[2]%10==0); //No partial D orbital
-        int NpUnpaired= N[0]%2==0 ? NUnpaired : NUnpaired-1;
-        assert((nl+NpUnpaired)%2==0);
-        return s==Spin::Up ? (nl+NpUnpaired)/2 : (nl-NpUnpaired)/2;            
+        assert(Nv[2]==0); //No partial D orbital
+        nlu=NUnpaired-Nv[0];
     }
-    else if (l==2)
+    else if (l==2) // d is partial.
     {
-        if (nl%10==0) return nl/2;
-        assert(N[1]%6==0); //p better be full
-        int ndv=nl%10;
-        int nsv=N[0]%2;
-//        cout << "nsv,ndv,nfv = " << nsv << " " << ndv << " " << nfv << endl;
-        if (nsv==1)
-        {
-            int NdUnpaired= NUnpaired-1; //One of the unpaired is s?
-            return s==Spin::Up ? (nl+NdUnpaired)/2 : (nl-NdUnpaired)/2;            
-        }
-        if (ndv==1)
-        {
-            return s==Spin::Up ? (nl+1)/2 : (nl-1)/2;
-        }
-        if (ndv>1)
-            return s==Spin::Up ? (nl+NUnpaired)/2 : (nl-NUnpaired)/2;   
+        assert(Nv[1]==0); //p better be full
+        if (Nv[l]>1) nlu=NUnpaired-Nv[0];            
     }
-    else if(l==3)
+    else if(l==3) // f is partial.
     {
-        if (nl%14==0) return nl/2;
-        // f is partial.
-        assert(N[0]%2==0); //If f is Partial s must be full.
-        assert(N[1]%6==0); //If f is Partial p must be full.
-        if (N[2]%10==0) //d is full so all unpaired must be f.
-        {
-            assert((nl+NUnpaired)%2==0);
-            return s==Spin::Up ? (nl+NUnpaired)/2 : (nl-NUnpaired)/2;            
-        }
-        else
-        {
-            assert(N[2]%10==1); //Only case is one unpaired d electron.
-            int NfUnpaired=NUnpaired-1;
-            assert((nl+NfUnpaired)%2==0);
-            return s==Spin::Up ? (nl+NfUnpaired)/2 : (nl-NfUnpaired)/2;            
-        }
+        
+        assert(Nv[0]==0); //If f is Partial s must be full.
+        assert(Nv[1]==0); //If f is Partial p must be full.
+        nlu=NUnpaired-Nv[2];
     }
-    assert(false);
-    return 0;
+    assert((nl+nlu)%2==0);
+    return s==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;            
 }
     
 

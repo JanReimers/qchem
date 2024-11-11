@@ -34,7 +34,9 @@ public:
     virtual int GetN(const QuantumNumber&, const Spin&) const;
 private:
     static const int FullShells[Nshell][LMax+2];
-    int N[LMax+1];
+    int N [LMax+1]; //Total N[l]
+    int Nf[LMax+1]; //Full shell N[l]
+    int Nv[LMax+1]; //Valance shell N[l]
     int NUnpaired;
     double charge;
 };
