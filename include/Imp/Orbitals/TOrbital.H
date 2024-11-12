@@ -22,7 +22,7 @@ public:
 
     virtual double GetEigenEnergy() const;
     virtual const QuantumNumber& GetQuantumNumber() const;
-    virtual EnergyLevel1 MakeEnergyLevel(const Spin& s);
+    virtual EnergyLevel MakeEnergyLevel(const Spin& s);
     virtual void   AddDensityMatrix(SMat&) const;
 
     virtual T      operator()      (const RVec3&) const;

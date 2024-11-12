@@ -50,9 +50,9 @@ template <class T> const QuantumNumber& TOrbitalImp<T>::GetQuantumNumber() const
     return itsBasisSet->GetQuantumNumber();
 }
 
-template <class T> EnergyLevel1 TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
+template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
 {
-    return EnergyLevel1
+    return EnergyLevel
     (
         GetEigenEnergy(),
         GetOccupation(),

@@ -13,11 +13,11 @@ class WaveFunction
 public:
     virtual ~WaveFunction() {};
 
-    virtual void           DoSCFIteration      (Hamiltonian&      )      =0;
-    virtual ChargeDensity* GetChargeDensity    (Spin=Spin::None   ) const=0;
-    virtual void           FillOrbitals        (const ElectronConfiguration*)=0;
-    virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double NElectrons)=0;
-    virtual void           DisplayEigen        (                  ) const=0;
+    virtual void                DoSCFIteration  (Hamiltonian&      )      =0;
+    virtual ChargeDensity*      GetChargeDensity(Spin=Spin::None   ) const=0;
+    virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*)=0;
+    virtual SCFIterator*        MakeIterator    (Hamiltonian*, ChargeDensity* guess, double NElectrons)=0;
+    virtual void                DisplayEigen    (                  ) const=0;
 
     virtual std::ostream&   Write(std::ostream&) const=0;
     virtual std::istream&   Read (std::istream&)      =0;

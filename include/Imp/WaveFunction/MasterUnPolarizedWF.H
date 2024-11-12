@@ -5,6 +5,7 @@
 
 
 #include "WaveFunction.H"
+#include <EnergyLevel.H>
 
 class MasterUnPolarizedWF
     : public virtual WaveFunction
@@ -14,11 +15,11 @@ public:
     MasterUnPolarizedWF(const BasisSet*,const ElectronConfiguration*);
     virtual ~MasterUnPolarizedWF();
 
-    virtual void           DoSCFIteration      (Hamiltonian&   )      ;
-    virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
-    virtual void           FillOrbitals        (const ElectronConfiguration*);
-    virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double nElectrons);
-    virtual void           DisplayEigen        (               ) const;
+    virtual void                DoSCFIteration  (Hamiltonian&   )      ;
+    virtual ChargeDensity*      GetChargeDensity(Spin           ) const;
+    virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
+    virtual SCFIterator*        MakeIterator    (Hamiltonian*, ChargeDensity* guess, double nElectrons);
+    virtual void                DisplayEigen    (               ) const;
 
 
     virtual std::ostream&       Write(std::ostream&) const;
@@ -27,7 +28,7 @@ public:
 private:
     WaveFunction* itsGroup;
     const ElectronConfiguration* itsEC;
-
+    EnergyLevels itsELevels;
 };
 
 #endif //_MasterUnPolarizedWF_H_

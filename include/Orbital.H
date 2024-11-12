@@ -33,7 +33,7 @@ public:
     virtual ~Orbital() {};
     virtual double   GetEigenEnergy(        ) const=0;
     virtual const QuantumNumber& GetQuantumNumber() const=0;
-    virtual EnergyLevel1 MakeEnergyLevel(const Spin& s)=0;
+    virtual EnergyLevel MakeEnergyLevel(const Spin& s)=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;

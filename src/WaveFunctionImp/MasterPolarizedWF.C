@@ -13,24 +13,24 @@
 
 MasterPolarizedWF::MasterPolarizedWF()
     : itsSpinUpGroup  (0)
-    , itsSpinDownGroup(0)
+    , itsSpinDnGroup(0)
     , itsEC      (0)
 {};
 
 MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bg,const ElectronConfiguration* ec)
     : itsSpinUpGroup  (new WaveFunctionGroup(bg,Spin(Spin::Up  )))
-    , itsSpinDownGroup(new WaveFunctionGroup(bg,Spin(Spin::Down)))
+    , itsSpinDnGroup(new WaveFunctionGroup(bg,Spin(Spin::Down)))
     , itsEC           (ec) //Electron cofiguration
 {
     assert(itsSpinUpGroup  );
-    assert(itsSpinDownGroup);
+    assert(itsSpinDnGroup);
     assert(itsEC);
 };
 
 MasterPolarizedWF::~MasterPolarizedWF()
 {
     delete itsSpinUpGroup;
-    delete itsSpinDownGroup;
+    delete itsSpinDnGroup;
 }
 //----------------------------------------------------------------------------
 //
@@ -40,28 +40,29 @@ MasterPolarizedWF::~MasterPolarizedWF()
 void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
 {
     assert(itsSpinUpGroup  );
-    assert(itsSpinDownGroup);
+    assert(itsSpinDnGroup);
     itsSpinUpGroup  ->DoSCFIteration(ham);
-    itsSpinDownGroup->DoSCFIteration(ham);
+    itsSpinDnGroup->DoSCFIteration(ham);
 }
 
 ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
 {
     assert(itsSpinUpGroup  );
-    assert(itsSpinDownGroup);
+    assert(itsSpinDnGroup);
     assert(s==Spin::None);
     ChargeDensity* up=itsSpinUpGroup->GetChargeDensity(Spin::Up);
-    ChargeDensity* dn=itsSpinDownGroup->GetChargeDensity(Spin::Down);
+    ChargeDensity* dn=itsSpinDnGroup->GetChargeDensity(Spin::Down);
     return new PolarizedCDImp(up,dn);
 }
 
 
-void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
+const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
     assert(itsSpinUpGroup  );
-    assert(itsSpinDownGroup);
-    itsSpinUpGroup  ->FillOrbitals(itsEC);
-    itsSpinDownGroup->FillOrbitals(itsEC);
+    assert(itsSpinDnGroup);
+    itsUpELevels=itsSpinUpGroup->FillOrbitals(itsEC);
+    itsDnELevels=itsSpinDnGroup->FillOrbitals(itsEC);
+    return itsUpELevels;
 }
 
 
@@ -75,7 +76,7 @@ WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
     assert(S.itsState!=Spin::None);
     WaveFunction* ret=0;
     if (S.itsState==Spin::Up  ) ret=itsSpinUpGroup  ;
-    if (S.itsState==Spin::Down) ret=itsSpinDownGroup;
+    if (S.itsState==Spin::Down) ret=itsSpinDnGroup;
     return ret;
 }
 
@@ -84,16 +85,16 @@ void MasterPolarizedWF::DisplayEigen() const
     std::cout << "Alpha spin :" << std::endl;
     itsSpinUpGroup->DisplayEigen();
     std::cout << "Beta spin :" << std::endl;
-    itsSpinDownGroup->DisplayEigen();
+    itsSpinDnGroup->DisplayEigen();
 }
 
 std::ostream& MasterPolarizedWF::Write(std::ostream& os) const
 {
     assert(itsSpinUpGroup  );
-    assert(itsSpinDownGroup);
+    assert(itsSpinDnGroup);
     if (Pretty())
         os << "Polarized wave function :" << std::endl;
-    os << *itsSpinUpGroup << *itsSpinDownGroup;
+    os << *itsSpinUpGroup << *itsSpinDnGroup;
     
     return os;
 }
@@ -105,10 +106,10 @@ std::istream& MasterPolarizedWF::Read (std::istream& is)
     assert(itsSpinUpGroup  );
     is >> *itsSpinUpGroup;
 
-    delete itsSpinDownGroup;
-    itsSpinDownGroup=WaveFunction::Factory(is);
-    assert(itsSpinDownGroup  );
-    is >> *itsSpinDownGroup;
+    delete itsSpinDnGroup;
+    itsSpinDnGroup=WaveFunction::Factory(is);
+    assert(itsSpinDnGroup  );
+    is >> *itsSpinDnGroup;
 
     return is;
 }

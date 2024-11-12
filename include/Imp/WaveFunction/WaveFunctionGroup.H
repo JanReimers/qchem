@@ -5,6 +5,7 @@
 
 
 #include "WaveFunction.H"
+#include <EnergyLevel.H>
 #include "Imp/Containers/ptr_vector.h"
 
 class WaveFunctionGroup
@@ -14,11 +15,11 @@ public:
     WaveFunctionGroup(                                   );
     WaveFunctionGroup(const BasisSet* bg, const Spin&);
 
-    virtual void           DoSCFIteration      (Hamiltonian&   )      ;
-    virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
-    virtual void           FillOrbitals        (const ElectronConfiguration*);
-    virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double NElectrons);
-    virtual void           DisplayEigen        (               ) const;
+    virtual void                DoSCFIteration  (Hamiltonian&   )      ;
+    virtual ChargeDensity*      GetChargeDensity(Spin           ) const;
+    virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
+    virtual SCFIterator*        MakeIterator    (Hamiltonian*, ChargeDensity* guess, double NElectrons);
+    virtual void                DisplayEigen    (               ) const;
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;
@@ -26,6 +27,7 @@ public:
 private:
     optr_vector1<WaveFunction*>  itsIrrepWFs;
     const BasisSet* itsBasisSet; //Union of all irrep basis sets.  used for managing 4 center ERIs.
+    EnergyLevels itsELevels;
 };
 
 #endif //_WaveFunctionGroup_H_

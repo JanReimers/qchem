@@ -802,7 +802,7 @@
 	"Imp/Misc/UniqueID/UniqueID.H"
 	<vector>
 
-1731377028 /home/janr/Code/qchem/include/WaveFunction.H
+1731377993 /home/janr/Code/qchem/include/WaveFunction.H
 	<types.H>
 	<Spin.H>
 	"Imp/Misc/pmstream.h"
@@ -820,7 +820,7 @@
 	"Misc/pmstream.h"
 	"Functions/FittedFunction.H"
 
-1731368990 /home/janr/Code/qchem/include/types.H
+1731378015 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728695540 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -839,11 +839,13 @@
 	"types.H"
 	"Functions/ScalarFunction.H"
 
-1731377095 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
+1731378504 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
 	"WaveFunction.H"
+	<EnergyLevel.H>
 
-1731377062 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
+1731378486 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
 	"WaveFunction.H"
+	<EnergyLevel.H>
 
 1728239691 /home/janr/Code/qchem/include/IntegralEngine1.H
 	"types.H"
@@ -1470,4 +1472,9 @@
 
 1731347087 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/QuantumNumber.H
 	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+
+1731378836 /home/janr/Code/qchem/include/EnergyLevel.H
+	<types.H>
+	<Spin.H>
+	<map>
 

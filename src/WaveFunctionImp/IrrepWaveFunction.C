@@ -7,7 +7,6 @@
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
-#include <EnergyLevel.H>
 #include "oml/imp/binio.h"
 #include <cassert>
 
@@ -45,11 +44,11 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
     return itsOrbitals->GetChargeDensity(s);
 }
 
-void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
+const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
 {
     itsELevels.clear();
     for (auto o:*itsOrbitals)
-        itsELevels.insert(std::make_pair(o->GetEigenEnergy(),o->MakeEnergyLevel(itsSpin)));
+        itsELevels.insert(o->MakeEnergyLevel(itsSpin));
     
     double ne=ec->GetN(*itsQN,itsSpin);
     for (auto el:itsELevels)
@@ -57,6 +56,7 @@ void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
         ne=el.second.orbital->TakeElectrons(ne);
         if (ne<=0.0) break;
     }
+    return itsELevels;
 }
 
 void  IrrepWaveFunction::DisplayEigen() const

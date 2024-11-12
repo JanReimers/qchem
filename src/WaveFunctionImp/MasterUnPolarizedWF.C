@@ -49,10 +49,10 @@ SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd
     return new SCFIteratorUnPol(this, H, cd,nElectrons);
 }
 
-void MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*)
+const EnergyLevels& MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
     assert(itsGroup);
-    itsGroup->FillOrbitals(itsEC);
+    return itsGroup->FillOrbitals(itsEC);
 }
 
 void MasterUnPolarizedWF::DisplayEigen() const
