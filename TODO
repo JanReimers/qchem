@@ -8,6 +8,7 @@ Priority 1:
         -More digits for virial.
         -Unused columns.
         -Mixing parameter.
+        -Stream to a separate log file?
     -Do we need to do an SCF iter in Initialize?
     
     -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
@@ -18,6 +19,7 @@ Priority 1:
     -Sort out locations for QN headers
     -QchemTester: make show basis set an option.
     -Common base for SlaterCD and SG_CD
+        -Make some unit test first?
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -Point group symmtery

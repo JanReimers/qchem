@@ -75,7 +75,10 @@ int AtomElectronConfiguration::GetN(const Spin& s) const
 int AtomElectronConfiguration::GetN(const QuantumNumber& qn) const
 {
     const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN&>(qn);
-    return N[sqn.GetL()];    
+    int nl,nlu;
+    std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
+    assert(nlu==0);
+    return nl;    
 }
 int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) const
 {
@@ -91,6 +94,7 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) cons
 
 int MoleculeElectronConfiguration::GetN(const Spin& s) const
 {
+    if (s==Spin::None) return GetN();
     if (Ne%2==0)
         return Ne/2;
     else
