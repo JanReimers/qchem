@@ -3,6 +3,7 @@
 
 
 #include "Imp/Orbitals/TOrbital.H"
+#include <EnergyLevel.H>
 #include <QuantumNumber.H>
 #include "oml/vector.h"
 #include "oml/vector3d.h"
@@ -49,6 +50,17 @@ template <class T> const QuantumNumber& TOrbitalImp<T>::GetQuantumNumber() const
     return itsBasisSet->GetQuantumNumber();
 }
 
+template <class T> EnergyLevel1 TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
+{
+    return EnergyLevel1
+    (
+        GetEigenEnergy(),
+        GetOccupation(),
+        GetDegeneracy(),
+        itsBasisSet->GetQuantumNumber(),
+        s,this
+    );    
+}
 //----------------------------------------------------------------------------
 //
 //  Real space function stuff.

@@ -25,7 +25,7 @@ public:
 
 private:
     optr_vector1<WaveFunction*>  itsIrrepWFs;
-    const BasisSet* itsBasisGroup; //Union of all irrep basis sets.  used for managing 4 center ERIs.
+    const BasisSet* itsBasisSet; //Union of all irrep basis sets.  used for managing 4 center ERIs.
 };
 
 #endif //_WaveFunctionGroup_H_

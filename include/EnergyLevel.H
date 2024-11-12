@@ -2,41 +2,20 @@
 #ifndef _EnergyLevel_H_
 #define _EnergyLevel_H_
 
-#include "Orbital.H"
-#include <vector>
+#include <types.H>
+#include <Spin.H>
 
-class EnergyLevel
-    : public virtual ElectronContainer
+struct EnergyLevel1
 {
-public:
-    EnergyLevel(                );
-    EnergyLevel(double Tolerance);
-    ~EnergyLevel() {};
-    
-    virtual bool   IsOccupied   (        ) const;
-    virtual double GetOccupation(        ) const;
-    virtual double GetSpin      (        ) const;
-    virtual void   Empty        (        )      ;
-    virtual double TakeElectrons(double n)      ;
-    virtual int    GetDegeneracy(        ) const;
-    virtual std::string GetQuantumNumbers(        ) const;
+    EnergyLevel1(double _e, double _occ, double _g,const QuantumNumber& _qn,const Spin& _s, Orbital* _o)
+        : e(_e), occ(_occ), degen(_g), qn(_qn), s(_s), orbital(_o) 
+        {};
 
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
-    virtual index_t  GetNumOrbitals(        ) const;
-    virtual double   GetEnergy     (        ) const;
-    virtual bool     Add           (Orbital*)      ;
-
-    static  EnergyLevel* Factory(std::istream&)
-    {
-        return new EnergyLevel;
-    }
-
-private:
-    double                itsEnergy;
-    double                itsTolerance;
-    std::vector<Orbital*> itsOrbitals;
+    double               e,occ;
+    int                  degen;
+    const QuantumNumber& qn;
+    Spin                 s;
+    Orbital*             orbital;
 };
 
 

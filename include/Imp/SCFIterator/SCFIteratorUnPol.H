@@ -17,7 +17,6 @@ public:
 
 private:
     double itsTotalCharge;
-    double itsEf;
 };
 
 #endif // _SCFIteratorUnPol_H_

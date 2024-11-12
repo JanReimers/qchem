@@ -16,7 +16,6 @@ SCFIteratorUnPol::SCFIteratorUnPol(WaveFunction* W, Hamiltonian* H,ChargeDensity
                                                double nElectrons)
     : SCFIteratorImp(W,H)
     , itsTotalCharge(nElectrons)
-    , itsEf(0)
 {
     Initialize(guess);
     assert(itsTotalCharge>0);

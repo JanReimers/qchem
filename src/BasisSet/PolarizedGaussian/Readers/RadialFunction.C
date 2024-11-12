@@ -2,4 +2,4 @@
 
 
 
-#include "Imp/BasisSet/PolarizedGaussian/Readers/RadialFunction.H"
+#include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"

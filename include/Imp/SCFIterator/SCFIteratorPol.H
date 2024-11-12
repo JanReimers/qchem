@@ -15,14 +15,6 @@ public:
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
     virtual void DisplayEigen   () const;
-
-private:
-    void DecideElectronCounts(double total, double spin);
-
-    double itsTotalUp;
-    double itsTotalDown;
-    double itsUpEf;
-    double itsDownEf;
 };
 
 #endif // _PolarizedSCFIterator_H_

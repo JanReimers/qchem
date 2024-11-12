@@ -13,23 +13,8 @@
 SCFIteratorPol::SCFIteratorPol(PolarizedWF* W, Hamiltonian* H, ChargeDensity* guess,
                                            double nElectrons, double spin)
     : SCFIteratorImp(W,H)
-    , itsTotalUp               (0.0)
-    , itsTotalDown             (0.0)
-    , itsUpEf                  (0)
-    , itsDownEf                (0)
 {
-    DecideElectronCounts(nElectrons,spin);
     Initialize(guess);
-}
-
-void SCFIteratorPol::DecideElectronCounts(double total, double spin)
-{
-    double a2=total+spin;
-    double b2=total-spin;
-    itsTotalUp=a2/2.0;
-    itsTotalDown=b2/2.0;
-//    assert(fabs(itsTotalUp-floor(itsTotalUp))==0.0);
-//    assert(fabs(itsTotalDown-floor(itsTotalDown))==0.0);
 }
 
 bool SCFIteratorPol::Iterate(const SCFIterationParams& ipar)

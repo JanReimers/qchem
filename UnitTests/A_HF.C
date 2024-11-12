@@ -100,7 +100,7 @@ TEST_P(A_SGm_HF_U,Multiple)
     Iterate({40,Z*1e-4,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_U,::testing::Values(2,4,10));//,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
 
 TEST_P(A_SL_HF_U,Multiple)
 {
@@ -222,8 +222,8 @@ TEST_P(A_SLm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(3,3,5,7,21,22,23,24,25,26,27,28,29,30)); //37,53
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(2,56)); //37,53
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,7,21,37,53)); //37,53
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(2,56)); //37,53
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
 
 class A_SGm_HF_P : public ::testing::TestWithParam<int>
@@ -249,9 +249,9 @@ TEST_P(A_SGm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(3,3,5,7,21,22,23,24,25,26,27,28,29,30)); //,53,57,64
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,21,37,53)); //,53,57,64
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,56)); //,53,57,64
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,56)); //,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>

@@ -3,13 +3,14 @@
 
 
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
-#include "Imp/WaveFunction/ElectronDumper.H"
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
+#include <EnergyLevel.H>
 #include "oml/imp/binio.h"
 #include <cassert>
+#include <map>
 
 IrrepWaveFunction::IrrepWaveFunction()
     : itsOrbitals(0)
@@ -19,6 +20,7 @@ IrrepWaveFunction::IrrepWaveFunction()
 IrrepWaveFunction::IrrepWaveFunction(const IrrepBasisSet* bs, const Spin& S)
     : itsOrbitals(new  TOrbitalsImp<double>(dynamic_cast<const TIrrepBasisSet<double>*>(bs)))
     , itsSpin    (S )
+    , itsQN      (&bs->GetQuantumNumber())
 {
     assert(itsOrbitals);
 };
@@ -30,8 +32,7 @@ IrrepWaveFunction::~IrrepWaveFunction()
 
 //----------------------------------------------------------------------------
 //
-//  This function will creat EMPTY orbtials.  One must use the ElectronDumper
-//  to fill up the orbitals with electrons.
+//  This function will creat EMPTY orbtials.  
 //
 void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
 {
@@ -47,11 +48,16 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
 
 void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)
 {
-    ElectronDumper ed(0.0001,0.0);
-    ed.Add(itsOrbitals);
-    ed.MakeEnergyLevels();
-    Orbital* o1=*itsOrbitals->begin();
-    ed.DumpInElectrons(ec->GetN(o1->GetQuantumNumber(),s));
+    std::multimap<double,EnergyLevel1> els;
+    for (auto o:*itsOrbitals)
+        els.insert(std::make_pair(o->GetEigenEnergy(),o->MakeEnergyLevel(s)));
+    
+    double ne=ec->GetN(*itsQN,s);
+    for (auto el:els)
+    {
+        ne=el.second.orbital->TakeElectrons(ne);
+        if (ne<=0.0) break;
+    }
 }
 
 void  IrrepWaveFunction::DisplayEigen() const

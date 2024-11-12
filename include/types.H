@@ -28,6 +28,7 @@ class ChargeDensity;
 class Cluster;
 class ElectronConfiguration;
 class EnergyLevel;
+class EnergyLevel1;
 class ERI4;
 class ExFunctional;
 class FittedCD;

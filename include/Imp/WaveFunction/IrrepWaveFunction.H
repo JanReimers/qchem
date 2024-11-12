@@ -30,6 +30,7 @@ private:
 
     Orbitals*            itsOrbitals;
     Spin                 itsSpin;
+    const QuantumNumber* itsQN;
 }; 
 
 #endif //IrrepWaveFunction

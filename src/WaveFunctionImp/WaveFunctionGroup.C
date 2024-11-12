@@ -16,10 +16,10 @@ WaveFunctionGroup::WaveFunctionGroup()
 {};
 
 WaveFunctionGroup::WaveFunctionGroup(const BasisSet* bg, const Spin& S)
-: itsBasisGroup(bg)
+: itsBasisSet(bg)
 {
-    assert(itsBasisGroup);
-    for (auto b:*itsBasisGroup)
+    assert(itsBasisSet);
+    for (auto b:*itsBasisSet)
     {
         const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(b); //TODO avoid casting here?
         assert(tbs);
