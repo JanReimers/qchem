@@ -16,7 +16,7 @@ public:
 
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;
     virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
-    virtual void           FillOrbitals        (const ElectronConfiguration*, const Spin&);
+    virtual void           FillOrbitals        (const ElectronConfiguration*);
     virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double NElectrons);
     virtual void           DisplayEigen        (               ) const;
 

@@ -44,9 +44,9 @@ ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
     return cd;
 }
 
-void WaveFunctionGroup::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)
+void WaveFunctionGroup::FillOrbitals(const ElectronConfiguration* ec)
 {
-    for (auto w:itsIrrepWFs) w->FillOrbitals(ec,s);
+    for (auto w:itsIrrepWFs) w->FillOrbitals(ec);
 }
 
 

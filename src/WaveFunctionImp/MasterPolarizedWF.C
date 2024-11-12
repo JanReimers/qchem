@@ -56,12 +56,12 @@ ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
 }
 
 
-void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*, const Spin&)
+void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDownGroup);
-    itsSpinUpGroup  ->FillOrbitals(itsEC,Spin::Up  );
-    itsSpinDownGroup->FillOrbitals(itsEC,Spin::Down);
+    itsSpinUpGroup  ->FillOrbitals(itsEC);
+    itsSpinDownGroup->FillOrbitals(itsEC);
 }
 
 

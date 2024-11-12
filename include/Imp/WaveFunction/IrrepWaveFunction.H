@@ -5,8 +5,8 @@
 
 
 #include <WaveFunction.H>
-#include <BasisSet.H>
 #include <Spin.H>
+#include <map>
 
 class IrrepWaveFunction
     : public virtual WaveFunction
@@ -18,7 +18,7 @@ public:
 
     virtual void           DoSCFIteration      (Hamiltonian&   )      ;
     virtual ChargeDensity* GetChargeDensity    (Spin           ) const;
-    virtual void           FillOrbitals        (const ElectronConfiguration*, const Spin&);
+    virtual void           FillOrbitals        (const ElectronConfiguration*);
     virtual SCFIterator*   MakeIterator        (Hamiltonian*, ChargeDensity* guess, double nElectrons);
     virtual void           DisplayEigen        (               ) const;
 
@@ -31,6 +31,8 @@ private:
     Orbitals*            itsOrbitals;
     Spin                 itsSpin;
     const QuantumNumber* itsQN;
+    std::multimap<double,EnergyLevel1> itsELevels;
+
 }; 
 
 #endif //IrrepWaveFunction

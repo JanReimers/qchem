@@ -10,7 +10,6 @@
 #include <EnergyLevel.H>
 #include "oml/imp/binio.h"
 #include <cassert>
-#include <map>
 
 IrrepWaveFunction::IrrepWaveFunction()
     : itsOrbitals(0)
@@ -46,14 +45,14 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
     return itsOrbitals->GetChargeDensity(s);
 }
 
-void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec, const Spin& s)
+void IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
 {
-    std::multimap<double,EnergyLevel1> els;
+    itsELevels.clear();
     for (auto o:*itsOrbitals)
-        els.insert(std::make_pair(o->GetEigenEnergy(),o->MakeEnergyLevel(s)));
+        itsELevels.insert(std::make_pair(o->GetEigenEnergy(),o->MakeEnergyLevel(itsSpin)));
     
-    double ne=ec->GetN(*itsQN,s);
-    for (auto el:els)
+    double ne=ec->GetN(*itsQN,itsSpin);
+    for (auto el:itsELevels)
     {
         ne=el.second.orbital->TakeElectrons(ne);
         if (ne<=0.0) break;
