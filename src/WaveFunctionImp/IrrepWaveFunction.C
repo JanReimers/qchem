@@ -44,24 +44,30 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
     return itsOrbitals->GetChargeDensity(s);
 }
 
+//
+//  There are three steps here:
+//
 const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
 {
+    // Step one: How many electron for this Irrep(qn,spin) ?
+    double ne=ec->GetN(*itsQN,itsSpin);
+    //  Loop over orbitals and consume the electrons quota.
+    for (auto& o:*itsOrbitals)
+    {
+        ne=o->TakeElectrons(ne);
+        if (ne<=0.0) break;
+    }
+    //  Now update the list of energy levels.
     itsELevels.clear();
     for (auto o:*itsOrbitals)
         itsELevels.insert(o->MakeEnergyLevel(itsSpin));
-    
-    double ne=ec->GetN(*itsQN,itsSpin);
-    for (auto el:itsELevels)
-    {
-        ne=el.second.orbital->TakeElectrons(ne);
-        if (ne<=0.0) break;
-    }
     return itsELevels;
 }
 
 void  IrrepWaveFunction::DisplayEigen() const
 {
-    itsOrbitals->DisplayEigen();
+    itsELevels.Report(std::cout);
+    //itsOrbitals->DisplayEigen();
 }
 
 SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)

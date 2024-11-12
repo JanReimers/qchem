@@ -30,6 +30,7 @@ Priority 1:
         https://www.sciencedirect.com/science/article/abs/pii/S0010465517300310
             https://data.mendeley.com/datasets/xd4g8hyjf2/1
         
+    -use map hints for caches
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.
     -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2

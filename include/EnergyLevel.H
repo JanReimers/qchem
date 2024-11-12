@@ -11,6 +11,9 @@ struct EnergyLevel
         : e(_e), occ(_occ), degen(_g), qn(_qn), s(_s), orbital(_o) 
         {};
 
+    void merge(const EnergyLevel&);
+    void Report(std::ostream&) const;
+    
     double               e,occ;
     int                  degen;
     const QuantumNumber& qn;
@@ -31,14 +34,15 @@ public:
         itsELevels.insert(std::make_pair(el.e,el));
     }
     void clear() {itsELevels.clear();}
-    void merge(const EnergyLevels& els)
-    {
-        for (auto& el:els) itsELevels.insert(el);
-    }
+    void merge(const EnergyLevels& els);
+    void merge(const EnergyLevels& els, double tol);
     iterator       begin()       {return itsELevels.begin();}
     iterator       end  ()       {return itsELevels.end  ();}
     const_iterator begin() const {return itsELevels.begin();}
     const_iterator end  () const {return itsELevels.end  ();}
+    
+    void Report(std::ostream&) const;
+
 private:
      el_t itsELevels;
 };

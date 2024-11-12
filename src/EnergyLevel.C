@@ -1,0 +1,56 @@
+// File: EnergyLevel.H  Energy level with degeneracy and orbital list.
+
+#include <EnergyLevel.H>
+#include <QuantumNumber.H>
+#include <cassert>
+#include <iostream>
+#include <iomanip>
+
+void EnergyLevel::merge(const EnergyLevel& el)
+{
+    occ+=el.occ;
+    degen+=el.degen;
+    assert(s==el.s);
+    // Should we had lists of QNs and Orbitals?
+}
+
+void EnergyLevel::Report(std::ostream& os) const
+{
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    os << std::setw(12) << std::setprecision(6) << e 
+       << " (" << std::setw(4) << std::setprecision(1) << occ 
+       << "/"  << degen 
+       << ") " << std::setw(8) << qn;
+}
+
+
+void EnergyLevels::merge(const EnergyLevels& els)
+{
+    for (auto& el:els) itsELevels.insert(el);
+}
+
+void EnergyLevels::merge(const EnergyLevels& els, double tol)
+{
+    for (auto& el:els) 
+    {
+        auto il=itsELevels.lower_bound(el.first-tol);
+        auto iu=itsELevels.upper_bound(el.first+tol);
+        if (il==itsELevels.end() || il==iu)
+            itsELevels.insert(el);
+        else
+            il->second.merge(el.second);
+        
+    }
+}
+
+
+void EnergyLevels::Report(std::ostream& os) const
+{
+    for (auto el:itsELevels) 
+    {
+        el.second.Report(os);
+        os << std::endl;
+        if (el.first>0.0) break;
+    }
+}
+

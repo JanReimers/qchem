@@ -177,8 +177,6 @@
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorPol.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorUnPol.H" />
 		<Unit filename="include/Imp/WaveFunction/ElectronConfiguration.H" />
-		<Unit filename="include/Imp/WaveFunction/ElectronDumper.H" />
-		<Unit filename="include/Imp/WaveFunction/FermiThermalizer.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterPolarizedWF.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterUnPolarizedWF.H" />
@@ -388,9 +386,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/DataBase/HeapDB.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/EnergyLevel.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Factories/BasisSetFactories.C">
@@ -613,12 +608,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/WaveFunctionImp/ElectronConfiguration.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/WaveFunctionImp/ElectronDumper.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/WaveFunctionImp/FermiThermalizer.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/WaveFunctionImp/IrrepWaveFunction.C">

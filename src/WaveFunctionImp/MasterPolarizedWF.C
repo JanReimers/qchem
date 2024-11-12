@@ -82,10 +82,27 @@ WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
 
 void MasterPolarizedWF::DisplayEigen() const
 {
-    std::cout << "Alpha spin :" << std::endl;
-    itsSpinUpGroup->DisplayEigen();
-    std::cout << "Beta spin :" << std::endl;
-    itsSpinDnGroup->DisplayEigen();
+    std::cout << "  Spin:     up                 down" << std::endl;
+    auto iup=itsUpELevels.begin();
+    auto idn=itsDnELevels.begin();
+    while (iup!=itsUpELevels.end() && idn!=itsDnELevels.end())
+    {
+        if (iup!=itsUpELevels.end() && iup->first<=0.0)
+            iup->second.Report(std::cout);
+        else
+            std::cout << "                                     ";
+        
+        if (idn!=itsDnELevels.end() && idn->first<=0.0)
+            idn->second.Report(std::cout);
+        
+        
+            
+        std::cout << std::endl;
+        if (iup!=itsUpELevels.end()) iup++;
+        if (idn!=itsDnELevels.end()) idn++;
+        if (iup->first>0.0 && idn->first>0.0) break;
+    }
+   
 }
 
 std::ostream& MasterPolarizedWF::Write(std::ostream& os) const
