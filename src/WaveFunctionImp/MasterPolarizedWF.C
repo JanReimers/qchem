@@ -8,6 +8,7 @@
 #include "Imp/ChargeDensity/PolarizedCD.H"
 #include <ChargeDensity.H>
 #include <Spin.H>
+#include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <cassert>
 
@@ -82,24 +83,30 @@ WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
 
 void MasterPolarizedWF::DisplayEigen() const
 {
-    std::cout << "  Spin:     up                 down" << std::endl;
+    std::cout << "Spin:         up                 down            avg" << std::endl;
     auto iup=itsUpELevels.begin();
     auto idn=itsDnELevels.begin();
     while (iup!=itsUpELevels.end() && idn!=itsDnELevels.end())
     {
-        if (iup!=itsUpELevels.end() && iup->first<=0.0)
+        bool valid_up = iup!=itsUpELevels.end();
+        bool valid_dn = idn!=itsDnELevels.end();
+        bool print_up = valid_up && iup->first<=0.0;
+        bool print_dn = valid_dn && idn->first<=0.0;
+        bool qn_match = valid_up && valid_dn && iup->second.qn==idn->second.qn;
+        
+        if (print_up)
             iup->second.Report(std::cout);
         else
             std::cout << "                                     ";
         
-        if (idn!=itsDnELevels.end() && idn->first<=0.0)
+        if (print_dn && qn_match)
             idn->second.Report(std::cout);
         
         
             
         std::cout << std::endl;
-        if (iup!=itsUpELevels.end()) iup++;
-        if (idn!=itsDnELevels.end()) idn++;
+        if (valid_up) iup++;
+        if (valid_dn && qn_match) idn++; //If no match, let iup catch up.
         if (iup->first>0.0 && idn->first>0.0) break;
     }
    

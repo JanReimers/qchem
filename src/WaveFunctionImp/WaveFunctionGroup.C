@@ -47,7 +47,7 @@ ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
 const EnergyLevels& WaveFunctionGroup::FillOrbitals(const ElectronConfiguration* ec)
 {
     itsELevels.clear();
-    for (auto w:itsIrrepWFs) itsELevels.merge(w->FillOrbitals(ec));
+    for (auto w:itsIrrepWFs) itsELevels.merge(w->FillOrbitals(ec),0.0001);
     return itsELevels;
 }
 
@@ -59,7 +59,8 @@ SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, 
 
 void WaveFunctionGroup::DisplayEigen() const
 {
-    for (auto w:itsIrrepWFs) w->DisplayEigen();
+    itsELevels.Report(std::cout);
+//    for (auto w:itsIrrepWFs) w->DisplayEigen();
 }
 
 
