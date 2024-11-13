@@ -106,7 +106,7 @@ void MasterPolarizedWF::DisplayEigen() const
             
         std::cout << std::endl;
         if (valid_up) iup++;
-        if (valid_dn && qn_match) idn++; //If no match, let iup catch up.
+        if (valid_dn) idn++; //If no match, let iup catch up.
         if (iup->first>0.0 && idn->first>0.0) break;
     }
    
