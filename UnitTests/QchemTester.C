@@ -73,7 +73,7 @@ double QchemTester::RelativeHFError(bool quiet) const
         std::cout.precision(2);
         std::cout << error*1e6 << "(ppm)" << std::endl;            
     }
-    return error;
+    return fabs(error);
 }
 
 double QchemTester::RelativeDFTError(bool quiet) const
