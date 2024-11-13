@@ -140,7 +140,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     for (index_t ia:sg->es.indices())
     {
         sg->loop_1(ia); //Start a cache for SphericalGaussianCD*
-        for (index_t ic:sg->es.indices())
+        for (index_t ic:sg->es.indices(ia))
         {
             sg->loop_2(ic);
             int la=sg->Ls(ia), lc=sg->Ls(ic);
@@ -153,10 +153,19 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                 for (index_t id:sg->indices(lc))
                 {
                     if (id<ic) continue;
+                    if (ia==ic && id<ib) continue;
+                    if (J(ia,ib,ic,id)!=0.0)
+                    {
+                        cout << "overwritting Jold(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        cout << J(ia,ib,ic,id) << endl;    
+                        assert(false);
+                    }
                     const SphericalGaussianCD* cd1=sg->loop_4(id);
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                     J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd1->Coulomb_Rk(la,lc)*norm;
-                }
+//                    cout << "J(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+//                    cout << std::setprecision(8) << J(ia,ib,ic,id) << endl; 
+                 }
             }
         }
     }
@@ -179,9 +188,18 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                 for (index_t id:sg->indices(lb))
                 {
                     if (id<ic) continue;
+                    if (ia==ic && id<ib) continue;
+                    if (K(ia,ib,ic,id)!=0.0)
+                    {
+                        cout << "overwritting Kold(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        cout << K(ia,ib,ic,id) << endl;    
+                        assert(false);
+                    }
                     const SphericalGaussianCD* cd1=sg->loop_4(id);
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1->ExchangeRk(la,lb)*norm;  
+                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1->ExchangeRk(la,lb)*norm;
+//                    cout << "Kold(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+//                    cout << std::setprecision(8) << K(ia,ib,ic,id) << endl; 
                 }
             }
         }
