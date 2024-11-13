@@ -184,7 +184,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") K_adcb=" 
 //                    << std::scientific << std::setw(8) << K.Exchange(ia,id,ic,ib)  << std::endl;
 //                    assert(K.Exchange(ia,id,ic,ib)!=-1.0); //Marker for un-assigned.
-                    Kab_temp+=K.Exchange(ia,id,ic,ib)*Dcd(ic,id);
+                    Kab_temp+=K(ia,ic,ib,id)*Dcd(ic,id);
                 }
             Kab(ia,ib)=Kab_temp;
         }

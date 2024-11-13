@@ -388,6 +388,9 @@
 		<Unit filename="src/DataBase/HeapDB.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/EnergyLevel.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/Factories/BasisSetFactories.C">
 			<Option compilerVar="CPP" />
 		</Unit>

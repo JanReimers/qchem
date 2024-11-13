@@ -104,7 +104,7 @@ public:
     // Swpas limits for j and l.
     double Exchange(int i, int j, int k, int l) const
     {
-        return itsERI4(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
+        return itsERI4(i+itsStart_a-1,j+itsStart_c-1,k+itsStart_b-1,l+itsStart_d-1);
     }
     // Swpas limits for j and l.
 //    double& Exchange(int i, int j, int k, int l)
@@ -113,7 +113,7 @@ public:
 //    }
     inline int GetIndex(int i,int j,int k,int l) const
     {
-        return itsERI4.GetIndex(i+itsStart_a-1,j+itsStart_d-1,k+itsStart_c-1,l+itsStart_b-1);
+        return itsERI4.GetIndex(i+itsStart_a-1,j+itsStart_b-1,k+itsStart_c-1,l+itsStart_d-1);
     }
     
     size_t GetFullSize() const {return itsERI4.itsData.size();}

@@ -300,13 +300,13 @@ template <class T> void HeapDB<T>::BuildERIs()
     assert(itsKTable.size()==0); //They should be synchronized.
     size_t N=itsIEClient->size();
     itsJTable.SetSize(N,0.0);
-    if (itsIEClient->GetNumIrreps()>1)
+    //if (itsIEClient->GetNumIrreps()>1)
     {
         itsKTable.SetSize(N,0.0);
         itsAnalyticIE->Make4C(itsJTable,itsKTable,itsIEClient);
     }
-    else
-        itsAnalyticIE->Make4C(itsJTable,itsJTable,itsIEClient);
+//    else
+//        itsAnalyticIE->Make4C(itsJTable,itsJTable,itsIEClient);
         
     std::cout << "J table size=" << itsJTable.itsData.size() << ", " << itsJTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
     std::cout << "K table size=" << itsKTable.itsData.size() << ", " << itsKTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
@@ -323,10 +323,11 @@ template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
 template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
 {
    if (itsJTable.size()==0) BuildERIs(); 
-   if (itsIEClient->GetNumIrreps()==1)
-        return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
-    else
-        return ERI4view(itsKTable,a.GetStartIndex(),b.GetStartIndex());
+   int sa=a.GetStartIndex(),sb=b.GetStartIndex();
+//   if (itsIEClient->GetNumIrreps()==1)
+//        return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
+//    else
+        return ERI4view(itsKTable,sa,sb,sa,sb);
 }
 //-------------------------------------------------------------------------
 //
