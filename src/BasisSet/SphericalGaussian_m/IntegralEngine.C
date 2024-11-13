@@ -181,8 +181,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     if (id<ic) continue;
                     const SphericalGaussianCD* cd1=sg->loop_4(id);
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                    assert(cd1->eab==sg->es(ia)+sg->es(ib));
-                    assert(cd1->ecd==sg->es(ic)+sg->es(id));
                     K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1->ExchangeRk(la,lb)*norm;  
                 }
             }

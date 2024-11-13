@@ -181,9 +181,8 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
                 {
 //                    int ia1=ia+this->GetStartIndex()-1, ib1=ib+this->GetStartIndex()-1;
 //                    int ic1=ic+bs_cd->GetStartIndex()-1, id1=id+bs_cd->GetStartIndex()-1;                    
-//                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") K_adcb=" 
-//                    << std::scientific << std::setw(8) << K.Exchange(ia,id,ic,ib)  << std::endl;
-//                    assert(K.Exchange(ia,id,ic,ib)!=-1.0); //Marker for un-assigned.
+//                    std::cout << "(acbd)=(" << ia1 << " " << ic1 << " " << ib1 << " " << id1 << ") K_acbd=" 
+//                    << K(ia,ic,ib,id)  << std::endl;
                     Kab_temp+=K(ia,ic,ib,id)*Dcd(ic,id);
                 }
             Kab(ia,ib)=Kab_temp;
