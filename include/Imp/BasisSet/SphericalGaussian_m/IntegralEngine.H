@@ -11,6 +11,7 @@ namespace SphericalGaussian_m
 {
     
 class IrrepIEClient;
+class IEClient;
     
 class IntegralEngine
     : public virtual AnalyticIE<double>
@@ -52,8 +53,8 @@ private:
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
-    ERI4ab MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
-    ERI4ab MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const;
+    ERI4ab MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c,const IEClient*) const;
+    ERI4ab MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const;
    
     static double FourPi2;
 };
