@@ -35,6 +35,8 @@ void IrrepIEClient::Init(std::set<double>& exponents,size_t L, int m)
 
 void IEClient::Append(const IrrepIEClient* ic)
 {
+    itsIrreps.push_back(ic);
+    
     size_t j=size()+1;
     size_t N=size()+ic->size();
     Ns.SetLimits(N,true);

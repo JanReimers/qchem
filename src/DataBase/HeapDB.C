@@ -311,7 +311,8 @@ template <class T> void HeapDB<T>::BuildERIs()
     std::cout << "J table size=" << itsJTable.itsData.size() << ", " << itsJTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
     std::cout << "K table size=" << itsKTable.itsData.size() << ", " << itsKTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
     
-            
+    itsAnalyticIE->MakeDirect  (Jac,itsIEClient);
+    itsAnalyticIE->MakeExchange(Kab,itsIEClient);            
 }
 
 template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
@@ -329,6 +330,31 @@ template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
 //    else
         return ERI4view(itsKTable,sa,sb,sa,sb);
 }
+
+using std::cout;
+using std::endl;
+template <class T> ERI4ab HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
+{
+    //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
+    assert(Jac.find(a.GetIndex())!=Jac.end());
+    assert(Jac[a.GetIndex()].find(c.GetIndex())!=Jac[a.GetIndex()].end());
+    
+    return Jac[a.GetIndex()][c.GetIndex()];
+}
+template <class T> ERI4ab HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
+{
+    //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
+    assert(Kab.find(a.GetIndex())!=Kab.end());
+    assert(Kab[a.GetIndex()].find(b.GetIndex())!=Kab[a.GetIndex()].end());
+    
+    return Kab[a.GetIndex()][b.GetIndex()];
+}
+
+ 
+
+
+
+
 //-------------------------------------------------------------------------
 //
 //  These guys have to check the ID lists to see if it integrals are

@@ -117,3 +117,21 @@ ERI4view::ERI4view(const ERI4& eril,int sa,int sb,int sc, int sd)
     //ctor
 }
 
+
+ERI4ab::ERI4ab(size_t Na, size_t Nb)
+    : itsNa(Na)
+    , itsNb(Nb)
+    , itsData(VecLimits(0,GetIndex(Na,Na,Nb,Nb,Na,Nb)))
+{
+    Fill(itsData,0.0);
+};
+
+//Clear out all data.
+void ERI4ab::Empty()
+{
+    itsData.SetLimits(0);
+    itsNa=0;
+    itsNb=0;
+}
+
+

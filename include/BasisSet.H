@@ -67,6 +67,7 @@ public:
     
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual int                  GetStartIndex   (               ) const=0;
+    virtual size_t               GetIndex        (               ) const=0;
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
 //
@@ -115,6 +116,7 @@ public:
 private:
     friend class BasisSetImp;
     virtual void SetStartIndex(int)=0;
+    virtual void SetIndex(size_t)=0;
 };
 
 #include <VectorFunction.H>

@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731523400 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731538546 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -759,7 +759,7 @@
 	"Misc/ptr_vector1.h"
 	"Misc/ERIList.H"
 
-1731508926 /home/janr/Code/qchem/include/BasisSet.H
+1731524434 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
 	<ScalarFunction.H>
@@ -820,7 +820,7 @@
 	"Misc/pmstream.h"
 	"Functions/FittedFunction.H"
 
-1731508926 /home/janr/Code/qchem/include/types.H
+1731524263 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728695540 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -875,9 +875,10 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1731508926 /home/janr/Code/qchem/include/AnalyticIE.H
+1731524043 /home/janr/Code/qchem/include/AnalyticIE.H
 	"types.H"
 	<vector>
+	<map>
 	<iosfwd>
 
 1728258350 /home/janr/Code/qchem/include/NumericalIE.H
@@ -990,7 +991,7 @@
 	<cassert>
 	"oml/imp/index_t.h"
 
-1731513901 /home/janr/Code/qchem/include/Imp/Containers/ERI4.H
+1731551737 /home/janr/Code/qchem/include/Imp/Containers/ERI4.H
 	"Imp/Misc/pmstream.h"
 	"oml/smatrix.h"
 	"oml/imp/cow.h"
@@ -1023,7 +1024,7 @@
 	"Block.H"
 	"Imp/Containers/ptr_vector.h"
 
-1731508926 /home/janr/Code/qchem/include/Imp/BasisSet/IrrepCommon.H
+1731524445 /home/janr/Code/qchem/include/Imp/BasisSet/IrrepCommon.H
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
@@ -1163,7 +1164,7 @@
 	<memory>
 	"Imp/WaveFunction/ElectronConfiguration.H"
 
-1731523380 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1731544825 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1448,7 +1449,7 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1731508926 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
+1731524523 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
 	<IEClient.H>
 	"Imp/Integrals/SphericalGaussianCD.H"
 	"Imp/BasisSet/BFGrouper.H"

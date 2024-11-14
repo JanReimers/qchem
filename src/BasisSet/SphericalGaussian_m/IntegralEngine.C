@@ -192,7 +192,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     if (K(ia,ib,ic,id)!=0.0)
                     {
                         cout << "overwritting Kold(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-                        cout << K(ia,ib,ic,id) << endl;    
+                        cout << std::setprecision(8) << K(ia,ib,ic,id) << endl;    
                         assert(false);
                     }
                     const SphericalGaussianCD* cd1=sg->loop_4(id);
@@ -204,6 +204,124 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
             }
         }
     }
+    
+}
+
+
+ERI4ab IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c) const
+{
+    size_t Na=a->size(), Nc=c->size();
+    ERI4ab J(Na,Nc);
+    for (size_t ia:a->indices())
+    {
+//        sg->loop_1(ia); //Start a cache for SphericalGaussianCD*
+        for (size_t ic:c->indices())
+        {
+            //if (ic<ia) continue;
+//            sg->loop_2(ic);
+            int la=a->Ls(ia), lc=c->Ls(ic);
+            int ma=a->Ms(ia), mc=c->Ms(ic);
+            RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
+            for (size_t ib:a->indices())
+            {
+                //if (ib<ia) continue;
+//                sg->loop_3(ib);
+                for (size_t id:c->indices())
+                {
+                    //if (id<ic) continue;
+                    //const SphericalGaussianCD* cd1=sg->loop_4(id);
+                    assert(la==a->Ls(ib));
+                    assert(lc==c->Ls(id));
+                    if (J(ia,ib,ic,id)!=0.0)
+                    {
+                        cout << "overwritting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        cout << J(ia,ib,ic,id) << endl;    
+                        assert(false);
+                    }
+                    SphericalGaussianCD cd1(a->es(ia)+a->es(ib),c->es(ic)+c->es(id),3);
+                    double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
+                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd1.Coulomb_Rk(la,lc)*norm;
+                }
+            }
+        }
+    }
+    return J;
+}
+
+ERI4ab IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const
+{
+    size_t Na=a->size(), Nb=b->size();
+    ERI4ab K(Na,Nb);
+    for (size_t ia:a->indices())
+    {
+        //sg->loop_1(ia); //Start a cache for SphericalGaussianCD*
+        for (size_t ib:b->indices())
+        {
+            int la=a->Ls(ia), lb=b->Ls(ib);
+            int ma=a->Ms(ia), mb=b->Ms(ib);
+            RVec Akab=AngularIntegrals::Exchange(la,lb,ma,mb);
+
+            for (size_t ic:a->indices())
+            {
+                //if (ic<ia) continue;
+                //sg->loop_2(ic);
+                //sg->loop_3(ib);
+                
+                for (size_t id:b->indices())
+                {
+                    //if (id<ic) continue;
+                    //if (ia==ic && id<ib) continue;
+                    //if (id<ib) continue;
+                    //const SphericalGaussianCD* cd1=sg->loop_4(id);
+                    assert(la==a->Ls(ic));
+                    assert(lb==b->Ls(id));
+                    if (K(ia,ic,ib,id)!=0.0)
+                    {
+                        cout << "overwritting Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
+                        cout << K(ia,ic,ib,id) << endl;    
+                        assert(false);
+                    }
+                    SphericalGaussianCD cd1(a->es(ia)+a->es(ib),b->es(ic)+b->es(id),3);
+                    double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
+                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1.ExchangeRk(la,lb)*norm; 
+//                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
+//                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    
+
+                }
+            }
+        }
+    }
+    return K;
+}
+
+void IntegralEngine::MakeDirect(eri_t& Jac, const ::IEClient* iec) const
+{
+    Jac.clear();
+    const IEClient& sg=*dynamic_cast<const IEClient*>(iec);
+    size_t NIrrep=sg.GetNumIrreps();
+    for (size_t ia=1;ia<=NIrrep;ia++)
+        for (size_t ic=1;ic<=NIrrep;ic++) //TODO run from ia n
+        {
+            cout << "MakeDirect a,c=" << ia << " " << ic << endl;
+            const IrrepIEClient* a=sg[ia];
+            const IrrepIEClient* c=sg[ic];
+            Jac[ia][ic]=MakeDirect(a,c);
+        }
+
+}
+
+void IntegralEngine::MakeExchange(eri_t& Kab, const ::IEClient* iec) const
+{
+    Kab.clear();
+    const IEClient& sg=*dynamic_cast<const IEClient*>(iec);
+    size_t NIrrep=sg.GetNumIrreps();
+    for (size_t ia=1;ia<=NIrrep;ia++)
+        for (size_t ib=1;ib<=NIrrep;ib++) //TODO run from ib 
+        {
+            const IrrepIEClient* a=sg[ia];
+            const IrrepIEClient* b=sg[ib];
+            Kab[ia][ib]=MakeExchange(a,b);
+        }
     
 }
 

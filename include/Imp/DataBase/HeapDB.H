@@ -6,6 +6,7 @@
 
 #include "IntegralDataBase.H"
 #include <IEClient.H>
+#include <AnalyticIE.H>
 #include "Imp/Containers/ERI4.H"
 #include <map>
 
@@ -68,6 +69,8 @@ public:
 
     virtual    ERI4view    GetRepulsion4C(bs_t& a,bs_t& b);
     virtual    ERI4view    GetExchange4C (bs_t& a,bs_t& b);
+    virtual    ERI4ab      GetRepulsion4C_new(bs_t& a,bs_t& b);
+    virtual    ERI4ab      GetExchange4C_new(bs_t& a,bs_t& b);
 
     virtual void Report(std::ostream&) const;
     virtual std::ostream&  Write(std::ostream&) const;
@@ -99,7 +102,8 @@ private:
     std::map<id3c_t ,ERI3> its3C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     ERI4 itsJTable; //Coulomb integrals.
     ERI4 itsKTable; //Exchange integrals.
-    
+    AnalyticIE<double>::eri_t Jac,Kab;
+
 };
 
 #endif

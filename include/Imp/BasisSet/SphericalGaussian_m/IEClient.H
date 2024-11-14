@@ -37,6 +37,7 @@ struct IrrepIEClient
     virtual size_t size() const {return es.size();}
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     bf_tuple operator()(index_t i) const {return std::make_tuple(Ns(i),Ls(i),Ms(i),es(i),ns(i));}
+    auto indices() const {return es.indices();}
 };
 
 
@@ -65,6 +66,8 @@ struct IEClient
         return dynamic_cast<const SphericalGaussianCD*>(c);
     }
 
+    virtual const IrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
+    std::vector<const IrrepIEClient*> itsIrreps;
 
     
 }; 

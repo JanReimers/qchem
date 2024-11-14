@@ -17,12 +17,14 @@
 IrrepBasisSetCommon::IrrepBasisSetCommon()
     : itsQuantumNumber(0)
     , itsStartIndex(0)
+    , itsIndex(0)
 {
 };
 
 IrrepBasisSetCommon::IrrepBasisSetCommon(QuantumNumber* theQN)
     : itsQuantumNumber(theQN)
     , itsStartIndex(0)
+    , itsIndex(0)
 {
 };
 
@@ -30,6 +32,7 @@ IrrepBasisSetCommon::IrrepBasisSetCommon(const IrrepBasisSetCommon& bs)
   : itsQuantumNumber (bs.itsQuantumNumber->Clone())
   , itsBasisFunctions(bs.itsBasisFunctions)
   , itsStartIndex(bs.itsStartIndex)
+  , itsIndex(bs.itsIndex)
   {
     assert(itsQuantumNumber);
   };
@@ -69,6 +72,15 @@ int  IrrepBasisSetCommon::GetStartIndex() const
 {
     assert(itsStartIndex>0);
     return itsStartIndex;
+}
+void IrrepBasisSetCommon::SetIndex(size_t i)
+{
+    itsIndex=i;
+}
+
+size_t  IrrepBasisSetCommon::GetIndex() const
+{
+    return itsIndex;
 }
 
 

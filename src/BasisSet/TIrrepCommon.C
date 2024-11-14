@@ -131,6 +131,7 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //        cout << "Why?" << endl;
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view J=GetDataBase()->GetRepulsion4C(*this,*bs_cd);
+    ERI4ab J1=GetDataBase()->GetRepulsion4C_new(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -146,7 +147,14 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //                    int ic1=ic+bs_cd->GetStartIndex()-1, id1=id+bs_cd->GetStartIndex()-1;                    
 //                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") J_abcd=" 
 //                    << std::scientific << std::setw(8) << J(ia,ib,ic,id)  << std::endl;
-                    assert(J(ia,ib,ic,id)!=-1.0);
+                    //assert(J(ia,ib,ic,id)!=-1.0);
+                    double rerr=fabs(J(ia,ib,ic,id)-J1(ia,ib,ic,id))/fabs(J(ia,ib,ic,id));
+                    if (rerr>=1e-14)
+                    {
+                        cout << "(abcd)=(" << ia << " " << ib << " " << ic << " " << id << ") J_abcd="; 
+                        cout << J(ia,ib,ic,id) << " " << J1(ia,ib,ic,id) << endl;                        
+                    }
+                    assert(rerr<1e-14);
                     Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
@@ -168,6 +176,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view K=GetDataBase()->GetExchange4C(*this,*bs_cd);
+    ERI4ab  K1=GetDataBase()->GetExchange4C_new(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -177,14 +186,35 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
         {
             T Kab_temp=0;
             for (int ic=1; ic<=Ncd; ic++)
+            {
+                //Kab_temp+= K(ia,ic,ib,ic)*Dcd(ic,ic);
+
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
 //                    int ia1=ia+this->GetStartIndex()-1, ib1=ib+this->GetStartIndex()-1;
 //                    int ic1=ic+bs_cd->GetStartIndex()-1, id1=id+bs_cd->GetStartIndex()-1;                    
 //                    std::cout << "(acbd)=(" << ia1 << " " << ic1 << " " << ib1 << " " << id1 << ") K_acbd=" 
 //                    << K(ia,ic,ib,id)  << std::endl;
-                    Kab_temp+=K(ia,ic,ib,id)*Dcd(ic,id);
+                    double Kold=K(ia,ic,ib,id);
+                    double Knew=K1(ia,ib,ic,id);
+                    double rerr= Kold==0.0 ?
+                        fabs(Kold-Knew)
+                        :
+                        fabs(Kold-Knew)/fabs(Kold);
+                    if (rerr>=1e-14)
+                    {
+                        cout << rerr << endl;
+                        cout << std::setprecision(8) << "Kold(" << ia << " " << ic << " " << ib << " " << id << ")=";
+                        cout << Kold << endl; 
+                        cout << std::setprecision(8) << "Knew(" << ia << " " << ib << " " << ic << " " << id << ")=";
+                        cout << Knew << endl; 
+                    }
+                    assert(rerr<1e-14);
+                    
+                    Kab_temp+= Kold*Dcd(ic,id);
                 }
+                }
+
             Kab(ia,ib)=Kab_temp;
         }
     assert(!isnan(Kab));
