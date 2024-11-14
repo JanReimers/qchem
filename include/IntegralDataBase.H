@@ -77,8 +77,8 @@ public:
 
     virtual    ERI4view    GetRepulsion4C(bs_t& a,bs_t& b) =0;
     virtual    ERI4view    GetExchange4C (bs_t& a,bs_t& b) =0;
-    virtual    ERI4ab        GetRepulsion4C_new(bs_t& a,bs_t& b)=0;
-    virtual    ERI4ab        GetExchange4C_new(bs_t& a,bs_t& b)=0;
+    virtual    ERIJ        GetRepulsion4C_new(bs_t& a,bs_t& b)=0;
+    virtual    ERIK        GetExchange4C_new(bs_t& a,bs_t& b)=0;
     
     virtual IntegralDataBase*      Clone            (               ) const=0;
     static  IntegralDataBase*      Factory          (std::istream&       )       ;

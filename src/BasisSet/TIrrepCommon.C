@@ -131,7 +131,7 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //        cout << "Why?" << endl;
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view J=GetDataBase()->GetRepulsion4C(*this,*bs_cd);
-    ERI4ab J1=GetDataBase()->GetRepulsion4C_new(*this,*bs_cd);
+    ERIJ J1=GetDataBase()->GetRepulsion4C_new(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -176,7 +176,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
     ERI4view K=GetDataBase()->GetExchange4C(*this,*bs_cd);
-    ERI4ab  K1=GetDataBase()->GetExchange4C_new(*this,*bs_cd);
+    ERIK  K1=GetDataBase()->GetExchange4C_new(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 

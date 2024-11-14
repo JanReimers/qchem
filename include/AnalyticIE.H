@@ -32,7 +32,8 @@ public:
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
     typedef const IrrepIEClient iec_t;
-    typedef std::map<size_t,std::map<size_t,ERI4ab> > eri_t;
+    typedef std::map<size_t,std::map<size_t,ERIJ> > erij_t;
+    typedef std::map<size_t,std::map<size_t,ERIK> > erik_t;
 
     virtual ~AnalyticIE()  {};
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
@@ -62,8 +63,8 @@ public:
     //! When there is only one Irrep (no symmetry) then we can store and Coulomb and Exchange all in one
     //! Table, so we call Make4C(J,J,iec) to get all coulomb and exchange integrals in the J table.  
     virtual void Make4C(ERI4& J, ERI4& K, const IEClient*) const=0; //Used for Hartree-Fock
-    virtual void MakeDirect  (eri_t& Jab, const IEClient*) const {}; //Used for Hartree-Fock
-    virtual void MakeExchange(eri_t& Kab, const IEClient*) const {}; //Used for Hartree-Fock
+    virtual void MakeDirect  (erij_t& Jab, const IEClient*) const {}; //Used for Hartree-Fock
+    virtual void MakeExchange(erik_t& Kab, const IEClient*) const {}; //Used for Hartree-Fock
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

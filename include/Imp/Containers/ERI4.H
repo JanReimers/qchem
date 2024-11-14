@@ -126,13 +126,63 @@ private:
     int itsStart_d;
 };
 
-
-
-class ERI4ab
+class ERIJ
 {
 public:
-    ERI4ab() : itsNa(0), itsNb(0), itsData() {};
-    ERI4ab(size_t Na, size_t Nb);
+    ERIJ() : itsNa(0), itsNb(0), itsData() {};
+    ERIJ(size_t Na, size_t Nb);
+    void SetSize(size_t Na, size_t Nb, double _fill=0.0);
+
+    double operator()(size_t i, size_t j, size_t k, size_t l) const
+    {
+        return itsData(GetIndex(i,j,k,l,itsNa,itsNb));
+    }
+    double& operator()(size_t i, size_t j, size_t k, size_t l)
+    {
+        return itsData(GetIndex(i,j,k,l,itsNa,itsNb));
+    }
+
+    double GetZerosFraction() const;
+
+private:
+    // Zero based indexing into a symmetric matrix.
+    inline static size_t GetSymOffset(size_t i,size_t j,size_t n)
+    {
+        return SMatrix<double>::GetSymOffset(i,j,n);
+    }
+   
+//    inline size_t GetIndex(size_t i,size_t j,size_t k,size_t l) const
+//    {
+//        return GetIndex(i,j,k,l,itsNa,itsNb);
+//    }
+
+    inline static size_t GetIndex(size_t i,size_t j,size_t k,size_t l,size_t Na,size_t Nb)
+    {
+        assert(i>0);
+        assert(j>0);
+        assert(k>0);
+        assert(l>0);
+        assert(i<=Na);
+        assert(j<=Na);
+        assert(k<=Nb);
+        assert(l<=Nb);
+        int ij=GetSymOffset(i-1,j-1,Na); //zero based
+        int kl=GetSymOffset(k-1,l-1,Nb); //zero based
+        return ij*Nb*(Nb+1)/2+kl;
+ //       return GetSymOffset(ij,kl,Na*(Na+1)/2); //This only works if irreps a&b are the same.
+    }
+
+    int itsNa, itsNb; //Basis set size;
+    Vector<double> itsData; //Linear data array.
+};
+
+
+
+class ERIK
+{
+public:
+    ERIK() : itsNa(0), itsNb(0), itsData() {};
+    ERIK(size_t Na, size_t Nb);
     void Empty(); //Clear out all data.
     void SetSize(size_t Na, size_t Nb, double _fill=0.0);
 
@@ -145,28 +195,14 @@ public:
         return itsData(GetIndex(i,j,k,l,itsNa,itsNb));
     }
 
-//    void Dump        (std::ostream&) const;
-//    void DumpExchange(std::ostream&) const;
     double GetZerosFraction() const;
 
-//    virtual std::ostream&    Write(std::ostream&) const;
-//    virtual std::istream&    Read (std::istream&)      ;
-
-
-//private:
-
-
+private:
     // Zero based indexing into a symmetric matrix.
     inline static size_t GetSymOffset(size_t i,size_t j,size_t n)
     {
         return SMatrix<double>::GetSymOffset(i,j,n);
     }
-   
-    inline size_t GetIndex(size_t i,size_t j,size_t k,size_t l) const
-    {
-        return GetIndex(i,j,k,l,itsNa,itsNb);
-    }
-
     inline static size_t GetIndex(size_t i,size_t j,size_t k,size_t l,size_t Na,size_t Nb)
     {
         assert(i>0);
@@ -180,16 +216,6 @@ public:
         int ij=(i-1)*Na+j-1;
         int kl=(k-1)*Nb+l-1;
         return ij*Nb*Nb+kl;
-
-//        int ij=GetSymOffset(i-1,j-1,Na); //zero based
-//        int kl=GetSymOffset(k-1,l-1,Nb); //zero based
-//        assert(ij<Na*(Na+1)/2);
-//        assert(kl<Nb*(Nb+1)/2);
-//        assert(ij*Nb*(Nb+1)/2+kl<itsData.size());
-////        std::cout << "<ijkl>=" << i << "," << j << "," << k<< "," << l << ",  ij=" << ij << ", kl=" << kl << " index=" << GetSymOffset(ij,kl,n*(n+1)/2) << std::endl;
-//        return ij*Nb*(Nb+1)/2+kl;
-        
- //       return GetSymOffset(ij,kl,Na*(Na+1)/2);
     }
 
     int itsNa, itsNb; //Basis set size;

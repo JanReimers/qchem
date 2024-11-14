@@ -208,27 +208,26 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 }
 
 
-ERI4ab IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c,const IEClient* iec) const
+ERIJ IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c,const IEClient* iec) const
 {
     size_t Na=a->size(), Nc=c->size();
-    ERI4ab J(Na,Nc);
+    ERIJ J(Na,Nc);
     for (size_t ia:a->indices())
     {
         iec->loop_1(ia); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
-            //if (ic<ia) continue;
             iec->loop_2(ic);
             int la=a->Ls(ia), lc=c->Ls(ic);
             int ma=a->Ms(ia), mc=c->Ms(ic);
             RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
             for (size_t ib:a->indices())
             {
-                //if (ib<ia) continue;
+                if (ib<ia) continue; 
                 iec->loop_3(ib);
                 for (size_t id:c->indices())
                 {
-                    //if (id<ic) continue;
+                    if (id<ic) continue;
                     const SphericalGaussianCD* cd=iec->loop_4(id);
                     assert(la==a->Ls(ib));
                     assert(lc==c->Ls(id));
@@ -238,7 +237,6 @@ ERI4ab IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c
                         cout << J(ia,ib,ic,id) << endl;    
                         assert(false);
                     }
-                    //SphericalGaussianCD cd1(a->es(ia)+a->es(ib),c->es(ic)+c->es(id),3);
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }
@@ -248,10 +246,10 @@ ERI4ab IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c
     return J;
 }
 
-ERI4ab IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient* iec) const
+ERIK IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient* iec) const
 {
     size_t Na=a->size(), Nb=b->size();
-    ERI4ab K(Na,Nb);
+    ERIK K(Na,Nb);
     for (size_t ia:a->indices())
     {
         iec->loop_1(ia); //Start a cache for SphericalGaussianCD*
@@ -281,7 +279,6 @@ ERI4ab IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient*
                         cout << K(ia,ic,ib,id) << endl;    
                         assert(false);
                     }
-                    //SphericalGaussianCD cd1(a->es(ia)+a->es(ib),b->es(ic)+b->es(id),3);
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
                     K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
 //                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
@@ -294,7 +291,7 @@ ERI4ab IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient*
     return K;
 }
 
-void IntegralEngine::MakeDirect(eri_t& Jac, const ::IEClient* iec) const
+void IntegralEngine::MakeDirect(erij_t& Jac, const ::IEClient* iec) const
 {
     Jac.clear();
     const IEClient& sg=*dynamic_cast<const IEClient*>(iec);
@@ -309,7 +306,7 @@ void IntegralEngine::MakeDirect(eri_t& Jac, const ::IEClient* iec) const
 
 }
 
-void IntegralEngine::MakeExchange(eri_t& Kab, const ::IEClient* iec) const
+void IntegralEngine::MakeExchange(erik_t& Kab, const ::IEClient* iec) const
 {
     Kab.clear();
     const IEClient& sg=*dynamic_cast<const IEClient*>(iec);

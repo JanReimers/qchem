@@ -333,7 +333,7 @@ template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
 
 using std::cout;
 using std::endl;
-template <class T> ERI4ab HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
+template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 {
     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
     assert(Jac.find(a.GetIndex())!=Jac.end());
@@ -341,7 +341,7 @@ template <class T> ERI4ab HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
     
     return Jac[a.GetIndex()][c.GetIndex()];
 }
-template <class T> ERI4ab HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
+template <class T> ERIK HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
 {
     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
     assert(Kab.find(a.GetIndex())!=Kab.end());
