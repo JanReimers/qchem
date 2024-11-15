@@ -2,14 +2,10 @@
 #ifndef _SphericalGaussian_m_IEClient_H_
 #define _SphericalGaussian_m_IEClient_H_
 
-#include <IEClient.H> // <> prevents file search on this SphericalGaussian_m folder.
-#include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/BasisSet/SphericalGaussian/IEClient.H" 
+#include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
-#include <map>
-#include <set>
-
 
 namespace SphericalGaussian_m
 {
