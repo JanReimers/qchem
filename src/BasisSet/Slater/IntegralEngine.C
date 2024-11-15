@@ -236,61 +236,61 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 ////
 ////  Special integrals
 ////
-IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
-{
-    auto a=dcast(iea);;
-    size_t N=a->size();
-    SMatrix<double> Hk(N);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols(i))
-        {
-            assert(a->Ls(i)==a->Ls(j));
-            double ea=a->es(i), eb=a->es(j);
-            double ab=ea+eb;
-            int la=a->Ls(i),lb=a->Ls(j);
-            int na=la+1,nb=lb+1;
-            int n=a->Ns(i)+a->Ns(j);
-            int l=a->Ls(i);
-            assert(la==lb);
-            double Term1=0.5*a->ns(i)*a->ns(j)*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2);
-            double Term2=-0.5*a->ns(i)*a->ns(j)*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-            double Term3=0.5*a->ns(i)*a->ns(j)*ea*eb*SlaterIntegral(ab,n);
-            Hk(i,j)=Term1+Term2+Term3;
-            
-        }
-
-    return Hk;
-}
+//IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
+//{
+//    auto a=dcast(iea);;
+//    size_t N=a->size();
+//    SMatrix<double> Hk(N);
+//    for (auto i:Hk.rows())
+//        for (auto j:Hk.cols(i))
+//        {
+//            assert(a->Ls(i)==a->Ls(j));
+//            double ea=a->es(i), eb=a->es(j);
+//            double ab=ea+eb;
+//            int la=a->Ls(i),lb=a->Ls(j);
+//            int na=la+1,nb=lb+1;
+//            int n=a->Ns(i)+a->Ns(j);
+//            int l=a->Ls(i);
+//            assert(la==lb);
+//            double Term1=0.5*a->ns(i)*a->ns(j)*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2);
+//            double Term2=-0.5*a->ns(i)*a->ns(j)*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+//            double Term3=0.5*a->ns(i)*a->ns(j)*ea*eb*SlaterIntegral(ab,n);
+//            Hk(i,j)=Term1+Term2+Term3;
+//            
+//        }
 //
-IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* iea,const Cluster& cl) const
-{
-    auto a=dcast(iea);;
-    size_t N=a->size();
-    SMatrix<double> Hn(N);
-    double Z=-cl.GetNuclearCharge();
-    for (auto i:Hn.rows())
-        for (auto j:Hn.cols(i))
-            Hn(i,j)= Z*SlaterIntegral(a->es(i)+a->es(j),a->Ns(i)+a->Ns(j)-1)*a->ns(i)*a->ns(j);
+//    return Hk;
+//}
+//
+//IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* iea,const Cluster& cl) const
+//{
+//    auto a=dcast(iea);;
+//    size_t N=a->size();
+//    SMatrix<double> Hn(N);
+//    double Z=-cl.GetNuclearCharge();
+//    for (auto i:Hn.rows())
+//        for (auto j:Hn.cols(i))
+//            Hn(i,j)= Z*SlaterIntegral(a->es(i)+a->es(j),a->Ns(i)+a->Ns(j)-1)*a->ns(i)*a->ns(j);
+//
+//    return Hn;
+//}
 
-    return Hn;
-}
-
-IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
-{
-
-    auto a=dcast(iea);;
-    RVec n(a->size());
-    for (auto i:a->es.indices())  n(i)=SlaterNorm(a->es(i),a->Ls(i));
-    return n;
-}
-
-IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
-{
-    auto a=dcast(iea);;
-    RVec c(a->size());
-    for (auto i:a->es.indices())  c(i)=SlaterIntegral(a->es(i),a->Ns(i)+1)*a->ns(i);
-    return c;
-}
+//IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
+//{
+//
+//    auto a=dcast(iea);;
+//    RVec n(a->size());
+//    for (auto i:a->es.indices())  n(i)=SlaterNorm(a->es(i),a->Ls(i));
+//    return n;
+//}
+//
+//IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
+//{
+//    auto a=dcast(iea);;
+//    RVec c(a->size());
+//    for (auto i:a->es.indices())  c(i)=SlaterIntegral(a->es(i),a->Ns(i)+1)*a->ns(i);
+//    return c;
+//}
 
 void IntegralEngine::Report(std::ostream& os) const
 {
