@@ -18,19 +18,6 @@ namespace Slater_m
 
 double IntegralEngine::FourPi2=4*4*pi*pi;
 
-IntegralEngine::IntegralEngine()
-{
-}
-
-IntegralEngine::~IntegralEngine()
-{
-
-}
-
-AnalyticIE<double>* IntegralEngine::Clone() const
-{
-    return new IntegralEngine(*this);
-}
 
 const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
 {
@@ -272,12 +259,6 @@ IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
     RVec c(a->size());
     for (auto i:a->es.indices())  c(i)=SlaterIntegral(a->es(i),a->Ns(i)+1)*a->ns(i);
     return c;
-}
-
-void IntegralEngine::Report(std::ostream& os) const
-{
-    os << "Spherical Gaussian integral engine cache:" << std::endl;
-    os << "    No cache." << std::endl;
 }
 
 

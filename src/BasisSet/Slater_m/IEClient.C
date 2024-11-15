@@ -11,17 +11,6 @@ template <class T> void FillPower(Vector<T>& arr,T start, T stop);
 namespace Slater_m
 {
     
-void IrrepIEClient::Init(double minexp,double maxexp,size_t L, int m)
-{
-    
-      FillPower(es,minexp,maxexp);
-      Fill(Ns,L+1);
-      Fill(Ls,L);
-      Fill(Ms,m);
-      for (auto i:es.indices())  ns(i)=SlaterNorm(es(i),Ns(i));
-}
-
-
 
 void IEClient::Append(const IrrepIEClient* ic)
 {

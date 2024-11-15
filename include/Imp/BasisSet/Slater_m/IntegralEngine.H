@@ -3,7 +3,10 @@
 #define _Slater_m_IntegralEngine_H_
 
 
-#include <AnalyticIE.H>
+//#include <AnalyticIE.H>
+//#include "Imp/BasisSet/AtomIE.H"
+#include "Imp/BasisSet/Slater/IntegralEngine.H"
+#include "Imp/BasisSet/Slater_m/IEClient.H"
 #include "oml/vector.h"
 #include <map>
 
@@ -11,11 +14,11 @@
 namespace Slater_m
 {
     
-class IrrepIEClient;
 class IEClient;
     
 class IntegralEngine
     : public virtual AnalyticIE<double>
+    , public Slater::IntegralEngine  
 {
 
 public:
@@ -24,12 +27,6 @@ public:
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
     typedef IE::RVec RVec;
-
-            
-    IntegralEngine();
-    ~IntegralEngine();
-    
-    virtual size_t size() const {return -1;}
 
     virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
@@ -45,8 +42,6 @@ public:
 
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
 
-    virtual void Report(std::ostream&) const;
-    virtual IE* Clone() const;
 
 private:
     static const IrrepIEClient* dcast(iec_t*);

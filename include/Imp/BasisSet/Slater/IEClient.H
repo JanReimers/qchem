@@ -4,14 +4,13 @@
 
 #include <IEClient.H> // <> prevents file search on this Slater folder.
 #include "Imp/BasisSet/AtomIEClient.H"
+
 #include "Imp/Integrals/SlaterCD.H"
 #include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
 
 namespace Slater
 {
-    
-
     
 struct IrrepIEClient
     : public virtual ::IrrepIEClient

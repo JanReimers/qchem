@@ -2,14 +2,10 @@
 
 
 #include "Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H"
-//#include "Imp/BasisSet/SphericalGaussian_m/IEClient.H" 
 #include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-//#include <Cluster.H>
-//#include "oml/matrix.h"
-//#include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
 
 using std::cout;
