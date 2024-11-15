@@ -58,6 +58,8 @@
 		<Unit filename="include/FittedFunctionClient.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/AtomIE.H" />
+		<Unit filename="include/Imp/BasisSet/AtomIEClient.H" />
 		<Unit filename="include/Imp/BasisSet/BFGrouper.H" />
 		<Unit filename="include/Imp/BasisSet/GaussianScaler.H" />
 		<Unit filename="include/Imp/BasisSet/IrrepCommon.H" />
@@ -197,6 +199,12 @@
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
 		<Unit filename="src/AnalyticIE.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/AtomIE.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/AtomIEClient.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/BFGrouper.C">

@@ -66,8 +66,7 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="ERIList.C">
-			<Option compilerVar="CPP" />
-			<Option target="&lt;{~None~}&gt;" />
+			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="ElectronConfigurations.C">
 			<Option compilerVar="CC" />

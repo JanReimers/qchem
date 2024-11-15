@@ -44,8 +44,6 @@ private:
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const;
     
     static const IrrepIEClient* dcast(iec_t*);
-    typedef std::tuple<int,int,int,double,double> bf_tuple;
-//    SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     
     static double FourPi2;
 };
