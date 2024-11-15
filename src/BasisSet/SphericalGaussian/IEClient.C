@@ -12,7 +12,7 @@ template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
 namespace SphericalGaussian
 {
 
-double IrrepIEClient::Norm(double e, double l)
+double IrrepIEClient::Norm(double e, size_t l) const
 {
     return GaussianNorm(e,l);
 }

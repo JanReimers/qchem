@@ -4,6 +4,7 @@
 
 
 #include <AnalyticIE.H>
+#include "Imp/BasisSet/AtomIE.H"
 #include "oml/vector.h"
 
 
@@ -14,6 +15,7 @@ class IrrepIEClient;
     
 class IntegralEngine
     : public virtual AnalyticIE<double>
+    , public AtomIE
 {
 
 public:
@@ -46,8 +48,14 @@ public:
     virtual IE* Clone() const;
 
 private:
+    virtual double Overlap(double ea, double eb,size_t l) const;
+    virtual double Kinetic(double ea ,double eb,size_t l) const;
+    virtual double Nuclear(double ea, double eb,size_t l) const;
+    virtual double Charge (double ea,           size_t l) const;
+    virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const;
+ 
     static const IrrepIEClient* dcast(iec_t*);
-    typedef std::tuple<int,int,double,double> bf_tuple;
+    typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
     

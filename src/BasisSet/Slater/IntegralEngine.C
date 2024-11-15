@@ -33,6 +33,42 @@ const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
 
 using std::cout;
 using std::endl;
+
+double IntegralEngine::Overlap(double ea, double eb,size_t l) const
+{
+    return SlaterIntegral(ea+eb,2*(l+1));
+}
+
+double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
+{
+    double ab=ea+eb;
+    int na=l+1,nb=l+1;
+    int n=na+nb;
+    double Term1=0.5*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2);
+    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+    return Term1+Term2+Term3;
+}
+
+double IntegralEngine::Nuclear(double ea, double eb,size_t l) const
+{
+    return SlaterIntegral(ea+eb,2*l+1);
+}
+
+double IntegralEngine::Charge (double ea,           size_t l) const
+{
+    return SlaterIntegral(ea,l+2);
+}
+
+double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) const
+{    
+    SlaterCD cd(eab,ec,std::max(la,lc));
+    return FourPi2*cd.Coulomb_R0(la,lc);
+}
+
+
+
+
 //----------------------------------------------------------------------------------------
 //
 //  Overlap type integrals
@@ -57,9 +93,9 @@ IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c)
 {    
     auto ab=dcast(ieab);
     size_t N=ab->size();
-    int Nc,Lc;
+    int Nc,Lc,Mc;
     double ec,nc;
-    std::tie(Nc,Lc,ec,nc)=c;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
@@ -117,9 +153,9 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
 {    
     auto ab=dcast(ieab);;
     size_t N=ab->size();
-    int Nc,Lc;
+    int Nc,Lc,Mc;
     double ec,nc;
-    std::tie(Nc,Lc,ec,nc)=c;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
     SMat s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
