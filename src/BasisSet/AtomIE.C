@@ -20,7 +20,7 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* iea ) const
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=Overlap(a->es(i),a->es(j),a->Ls(i))*a->ns(i)*a->ns(j);
+            s(i,j)=Overlap(a->es(i),a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
 
     return s;
 }

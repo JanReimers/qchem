@@ -43,7 +43,7 @@ const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
 //
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
-    return GaussianIntegral(ea+eb,2*l);
+    return GaussianIntegral(ea+eb,l);
 }
 
 double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
