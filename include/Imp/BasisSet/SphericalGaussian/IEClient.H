@@ -19,7 +19,7 @@ struct IrrepIEClient
     IrrepIEClient() {};
     IrrepIEClient(size_t N) : AtomIEClient(N) {};
 private:
-    virtual double Norm(double e, size_t l) const;
+    virtual double Norm(double e, double l);
 };
 
 struct IEData
