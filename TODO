@@ -1,4 +1,7 @@
 Priority 1:
+    -Work towards linear contraction of D_cd*J_abcd and D_cd*K_abcd
+        -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
+        -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
     -SVD truncation ... we need no know which L is getting truncated.
     -Merge degen levels with diff m QNs.
         -Also make two column list of levels/occs

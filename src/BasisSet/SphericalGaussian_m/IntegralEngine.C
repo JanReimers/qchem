@@ -207,6 +207,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     
 }
 
+//#define SymmetryCheck
 
 ERIJ IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c,const IEClient* iec) const
 {
@@ -243,6 +244,44 @@ ERIJ IntegralEngine::MakeDirect(const IrrepIEClient* a, const IrrepIEClient* c,c
             }
         }
     }
+
+#ifdef SymmetryCheck
+    double tol=1e-12;
+    typedef std::tuple<int,int,int,int> i4_t;
+    std::map<double,std::vector<i4_t> > Jsym;
+    for (size_t ia:a->indices())
+        for (size_t ib:a->indices())
+            for (size_t ic:c->indices())
+                for (size_t id:c->indices())
+                {
+                    double key= J(ia,ib,ic,id);
+                    auto il=Jsym.lower_bound(key-tol);
+                    auto iu=Jsym.upper_bound(key+tol);
+                    if (il==Jsym.end() || il==iu)
+                    {
+                        std::vector<i4_t> indices;
+                        indices.push_back(std::make_tuple(ia,ib,ic,id));
+                        Jsym[key]=indices;
+                    }
+                    else
+                        il->second.push_back(std::make_tuple(ia,ib,ic,id));
+                }
+
+    if (a==c) 
+        cout << "J Irreps are equal" << endl;
+    else
+        cout << "J Irreps are NOT equal" << endl;
+
+    for (auto k:Jsym)
+    {
+        cout << std::setprecision(14) << k.first;
+        for (auto i:k.second)
+            cout << " (" << std::get<0>(i) << "," << std::get<1>(i) << "," <<std::get<2>(i) << "," <<std::get<3>(i) << ") ";
+        cout << std::endl;
+    }
+#endif
+    
+    
     return J;
 }
 
@@ -261,14 +300,14 @@ ERIK IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b
 
             for (size_t ic:a->indices())
             {
-                //if (ic<ia) continue;
+                if (ic<ia) continue;
                 iec->loop_2(ic);
                 iec->loop_3(ib);
                 
                 for (size_t id:b->indices())
                 {
-                    //if (id<ic) continue;
-                    //if (ia==ic && id<ib) continue;
+//                    if (id<ic) continue;
+                    if (ia==ic && id<ib) continue;
                     //if (id<ib) continue;
                     const SphericalGaussianCD* cd=iec->loop_4(id);
                     assert(la==a->Ls(ic));
@@ -281,6 +320,7 @@ ERIK IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b
                     }
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
                     K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
+                    if (ia==ic) K(ia,ic,id,ib)=K(ia,ic,ib,id); //ERIK container does support this symmetry yet.
 //                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
 //                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    
 
@@ -288,6 +328,43 @@ ERIK IntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b
             }
         }
     }
+
+    #ifdef SymmetryCheck    
+    double tol=1e-12;
+    typedef std::tuple<int,int,int,int> i4_t;
+    std::map<double,std::vector<i4_t> > Ksym;
+    for (size_t ia:a->indices())
+        for (size_t ib:b->indices())
+            for (size_t ic:a->indices())
+                for (size_t id:b->indices())
+                {
+                    double key= K(ia,ic,ib,id);
+                    auto il=Ksym.lower_bound(key-tol);
+                    auto iu=Ksym.upper_bound(key+tol);
+                    if (il==Ksym.end() || il==iu)
+                    {
+                        std::vector<i4_t> indices;
+                        indices.push_back(std::make_tuple(ia,ic,ib,id));
+                        Ksym[key]=indices;
+                    }
+                    else
+                        il->second.push_back(std::make_tuple(ia,ic,ib,id));
+                }
+
+    if (a==b) 
+        cout << "Irreps are equal" << endl;
+    else
+        cout << "Irreps are NOT equal" << endl;
+
+    for (auto k:Ksym)
+    {
+        cout << std::setprecision(14) << k.first;
+        for (auto i:k.second)
+            cout << " (" << std::get<0>(i) << "," << std::get<1>(i) << "," <<std::get<2>(i) << "," <<std::get<3>(i) << ") ";
+        cout << std::endl;
+    }
+#endif
+
     return K;
 }
 

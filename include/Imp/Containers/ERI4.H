@@ -169,14 +169,16 @@ private:
         int ij=GetSymOffset(i-1,j-1,Na); //zero based
         int kl=GetSymOffset(k-1,l-1,Nb); //zero based
         return ij*Nb*(Nb+1)/2+kl;
- //       return GetSymOffset(ij,kl,Na*(Na+1)/2); //This only works if irreps a&b are the same.
+ //       return GetSymOffset(ij,kl,Nb*(Nb+1)/2); //This only works if irreps a&b are the same.
     }
 
     int itsNa, itsNb; //Basis set size;
     Vector<double> itsData; //Linear data array.
 };
 
-
+using std::cout;
+using std::endl;
+class ERI4Tests;
 
 class ERIK
 {
@@ -198,11 +200,17 @@ public:
     double GetZerosFraction() const;
 
 private:
-    // Zero based indexing into a symmetric matrix.
-    inline static size_t GetSymOffset(size_t i,size_t j,size_t n)
+    friend class ERI4Tests;
+    // Zero based indexing to support (ij|kl)==(ji|lk) symmetry.
+    // Symmetric in ij but not in kl, when ij get swapped also swap kl.
+    inline static std::pair<size_t,size_t> GetSymOffset(size_t i,size_t j,size_t k,size_t l,size_t Na,size_t Nb )
     {
-        return SMatrix<double>::GetSymOffset(i,j,n);
+        if (i<=j  )
+            return std::make_pair(i*(2*Na-i-1)/2+j,k*Nb+l);
+        else
+            return std::make_pair(j*(2*Na-j-1)/2+i,l*Nb+k);
     }
+    
     inline static size_t GetIndex(size_t i,size_t j,size_t k,size_t l,size_t Na,size_t Nb)
     {
         assert(i>0);
@@ -213,8 +221,8 @@ private:
         assert(j<=Na);
         assert(k<=Nb);
         assert(l<=Nb);
-        int ij=(i-1)*Na+j-1;
-        int kl=(k-1)*Nb+l-1;
+        size_t ij,kl;
+        std::tie(ij,kl)=GetSymOffset(i-1,j-1,k-1,l-1,Na,Nb);       
         return ij*Nb*Nb+kl;
     }
 
