@@ -5,34 +5,12 @@
 #include "Imp/BasisSet/Slater/IEClient.H" 
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-#include <Cluster.H>
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
 
 namespace Slater
 {
 
 double IntegralEngine::FourPi2=4*4*pi*pi;
-
-IntegralEngine::IntegralEngine()
-{
-}
-
-AnalyticIE<double>* IntegralEngine::Clone() const
-{
-    return new IntegralEngine(*this);
-}
-
-const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
-{
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
-    assert(a);
-    return a;
-}
-
-using std::cout;
-using std::endl;
 
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
@@ -65,42 +43,6 @@ double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) cons
     SlaterCD cd(eab,ec,std::max(la,lc));
     return FourPi2*cd.Coulomb_R0(la,lc);
 }
-
-//----------------------------------------------------------------------------------------
-//
-//  Repulsion type integrals
-//
-//IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
-//{
-//    auto a=dcast(iea);;
-//    assert(a);
-//    size_t N=a->size();
-//    SMat r(N,N);
-//    for (auto i:r.rows())
-//        for (auto j:r.cols(i))
-//        {
-//            SlaterCD cd(a->es(i),a->es(j),std::max(a->Ls(i),a->Ls(j)));
-//            r(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
-//        }
-//
-//    return r;
-//}
-
-//IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
-//{
-//    auto a=dcast(iea);;
-//    auto b=dcast(ieb);;
-//    size_t Na=a->es.size(), Nb=b->es.size();
-//    Mat s(Na,Nb);
-//    for (auto i:s.rows())
-//        for (auto j:s.cols())
-//        {
-//            SlaterCD cd(a->es(i),b->es(j),std::max(a->Ls(i),b->Ls(j)));
-//            s(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
-//        }
-//
-//    return s;
-//}
 
 
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
@@ -154,13 +96,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
         }
     }
     
-}
-
-
-void IntegralEngine::Report(std::ostream& os) const
-{
-    os << "Spherical Gaussian integral engine cache:" << std::endl;
-    os << "    No cache." << std::endl;
 }
 
 

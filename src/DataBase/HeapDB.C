@@ -98,7 +98,6 @@ template <class T> void HeapDB<T>::Report(std::ostream& os) const
     size_t N3=Size(its3C);
     size_t N4=itsJTable.itsData.size()+itsKTable.itsData.size();
     
-    itsAnalyticIE->Report(os);
     os << "Heap DB storage report:" << std::endl;
     os << "    " << setw(10) << N1 << " 1 centre integrals." << std::endl;
     os << "    " << setw(10) << N2 << " 2 centre integrals." << std::endl;

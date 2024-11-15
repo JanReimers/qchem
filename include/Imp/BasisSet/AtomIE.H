@@ -7,6 +7,7 @@ class AtomIEClient;
 
 class AtomIE : public virtual AnalyticIE<double>
 {
+    virtual size_t size() const {return -1;}
 public:
     // One electron functions for DFT and HF
     virtual SMat MakeOverlap  (iec_t* a) const;

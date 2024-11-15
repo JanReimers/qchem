@@ -70,9 +70,6 @@ public:
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  RSMat MakeInverse  (const RSMat&,const LAParams&); //Numerically stable algo required.
 
-    virtual void Report(std::ostream&) const=0;
-    virtual AnalyticIE* Clone  (         ) const=0;
-    static  AnalyticIE* Factory(std::istream&);
 };
 
 
