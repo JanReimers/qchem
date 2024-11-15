@@ -68,28 +68,6 @@ double IntegralEngine::Charge (double ea,           size_t l) const
 }
 
 
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
-{    
-    auto ab=dcast(ieab);;
-    size_t N=ab->size();
-    int Nc,Lc,Mc;
-    double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=GaussianIntegral(ab->es(i)+ab->es(j)+ec,ab->Ls(i)+ab->Ls(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
-    return s;
-}
-
-IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
-{
-    auto c=dcast(iec);;
-   
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
-    return s3;
-}
 
 //----------------------------------------------------------------------------------------
 //

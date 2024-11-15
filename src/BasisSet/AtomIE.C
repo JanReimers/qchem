@@ -61,3 +61,32 @@ AtomIE::RVec AtomIE::MakeCharge(iec_t* iea) const
     return c;
 }
 
+AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
+{    
+    auto ab=dcast(ieab);;
+    size_t N=ab->size();
+    int Nc,Lc,Mc;
+    double ec,nc;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
+    SMat s(N);
+    for (auto i:s.rows())
+        for (auto j:s.cols(i))
+        {
+            assert(ab->Ls(i)==ab->Ls(j));
+            assert(Lc==0); //Non-polarized fit basis
+            //assert(ab->Ls(i)==Lc); //TODO what going on here?
+            s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->Ls(i)+ab->Ls(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+        }
+    return s;
+}
+
+AtomIE::ERI3 AtomIE::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
+{
+    auto c=dcast(iec);;
+   
+    ERI3 s3;
+    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
+    return s3;
+}
+
+
