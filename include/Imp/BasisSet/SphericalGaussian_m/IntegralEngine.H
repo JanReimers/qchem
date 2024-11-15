@@ -30,12 +30,6 @@ public:
     
     virtual size_t size() const {return -1;}
 
-    //virtual RVec MakeNormalization(iec_t* a) const;
-    //virtual RVec MakeCharge       (iec_t* a) const;
-    
-    //virtual  SMat MakeOverlap  (iec_t* a         ) const;
-    //virtual  SMat MakeKinetic  (iec_t* a         ) const;
-    //virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const;
     virtual  SMat MakeRepulsion(iec_t* a         ) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
 

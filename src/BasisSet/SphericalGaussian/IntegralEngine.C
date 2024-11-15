@@ -35,20 +35,36 @@ const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
     assert(a);
     return a;
 }
+
+
 //----------------------------------------------------------------------------------------
 //
 //  Overlap type integrals
 //
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
+double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
-    auto  a=dcast(iea);
-    size_t N=a->size();
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=GaussianIntegral(a->es(i)+a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
+    return GaussianIntegral(ea+eb,2*l);
+}
 
-    return s;
+double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
+{
+    double t=ea+eb;
+    size_t l1=l+1;
+    return 0.5*(
+               (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
+               -2*l1 * t      * GaussianIntegral(t,2*l  )
+               +4*ea*eb       * GaussianIntegral(t,2*l+2)
+           );
+}
+
+double IntegralEngine::Nuclear(double ea, double eb,size_t l) const
+{
+    return GaussianIntegral(ea+eb,2*l-1);
+}
+
+double IntegralEngine::Charge (double ea,           size_t l) const
+{
+    return GaussianIntegral(ea,l);
 }
 
 
@@ -192,57 +208,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 ////
 ////  Special integrals
 ////
-IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
-{
-    auto a=dcast(iea);;
-    size_t N=a->size();
-    SMatrix<double> Hk(N);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols(i))
-        {
-            assert(a->Ls(i)==a->Ls(j));
-            double t=a->es(i)+a->es(j);
-            int L=a->Ls(i),L1=L+1;
-            Hk(i,j)=0.5*a->ns(i)*a->ns(j)*
-                   (
-                       (L1*L1 + L*L1) * GaussianIntegral(t,2*L-2)
-                       -2*L1 * t      * GaussianIntegral(t,2*L  )
-                       +4*a->es(i)*a->es(j) * GaussianIntegral(t,2*L+2)
-                   );
-        }
-
-    return Hk;
-}
-//
-IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* iea,const Cluster& cl) const
-{
-    auto a=dcast(iea);;
-    size_t N=a->size(),L=a->Ls(1);
-    SMatrix<double> Hn(N);
-    double Z=-cl.GetNuclearCharge();
-    for (auto i:Hn.rows())
-        for (auto j:Hn.cols(i))
-            Hn(i,j)= Z*GaussianIntegral(a->es(i)+a->es(j),2*L-1)*a->ns(i)*a->ns(j);
-
-    return Hn;
-}
-
-IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
-{
-
-    auto a=dcast(iea);;
-    RVec n(a->size());
-    for (auto i:a->es.indices())  n(i)=GaussianNorm(a->es(i),a->Ls(i));
-    return n;
-}
-
-IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
-{
-    auto a=dcast(iea);;
-    RVec c(a->size());
-    for (auto i:a->es.indices())  c(i)=GaussianIntegral(a->es(i),a->Ls(i))*a->ns(i);
-    return c;
-}
 
 void IntegralEngine::Report(std::ostream& os) const
 {

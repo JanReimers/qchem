@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731691770 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731695915 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -1083,8 +1083,9 @@
 1729371184 /home/janr/Code/qchem/src/Mesh/MeshIntegrator.H
 	"types.H"
 
-1731692208 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
+1731696069 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
 	<AnalyticIE.H>
+	"Imp/BasisSet/AtomIE.H"
 	"oml/vector.h"
 
 1729378894 /home/janr/Code/qchem/include/Imp/Integrals/GaussianIntegrals.H
@@ -1491,4 +1492,7 @@
 	<IEClient.H>
 	"oml/vector.h"
 	<set>
+
+1731691675 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIE.H
+	<AnalyticIE.H>
 
