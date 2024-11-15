@@ -23,3 +23,19 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* iea ) const
 
     return s;
 }
+
+AtomIE::SMat AtomIE::MakeKinetic(iec_t* iea) const
+{
+    auto a=dcast(iea);;
+    size_t N=a->size();
+    SMatrix<double> Hk(N);
+    for (auto i:Hk.rows())
+        for (auto j:Hk.cols(i))
+        {
+            Hk(i,j)=Kinetic(a->es(i),a->es(j),a->Ls(i))*a->ns(i)*a->ns(j);
+            assert(a->Ls(i)==a->Ls(j));
+        }
+
+    return Hk;
+}
+

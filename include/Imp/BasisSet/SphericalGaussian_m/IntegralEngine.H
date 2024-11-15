@@ -34,7 +34,7 @@ public:
     virtual RVec MakeCharge       (iec_t* a) const;
     
     //virtual  SMat MakeOverlap  (iec_t* a         ) const;
-    virtual  SMat MakeKinetic  (iec_t* a         ) const;
+    //virtual  SMat MakeKinetic  (iec_t* a         ) const;
     virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const;
     virtual  SMat MakeRepulsion(iec_t* a         ) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
@@ -51,6 +51,7 @@ public:
 
 private:
     virtual double Overlap(double eab,size_t lab) const;
+    virtual double Kinetic(double ea, double eb,size_t l) const;
 
     
     static const IrrepIEClient* dcast(iec_t*);

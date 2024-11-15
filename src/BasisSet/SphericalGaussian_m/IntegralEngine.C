@@ -44,18 +44,18 @@ double IntegralEngine::Overlap(double eab,size_t lab) const
     return GaussianIntegral(eab,lab);
 }
 
-//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
-//{
-//    auto  a=dcast(iea);
-//    size_t N=a->size();
-//    SMat s(N);
-//    for (auto i:s.rows())
-//        for (auto j:s.cols(i))
-//            s(i,j)=GaussianIntegral(a->es(i)+a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
-//
-//    return s;
-//}
-//
+double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
+{
+    double t=ea+eb;
+    size_t l1=l+1;
+    return 0.5*(
+               (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
+               -2*l1 * t      * GaussianIntegral(t,2*l  )
+               +4*ea*eb       * GaussianIntegral(t,2*l+2)
+           );
+}
+
+
 
 IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
 {    
@@ -409,28 +409,30 @@ void IntegralEngine::MakeExchange(erik_t& Kab, const ::IEClient* iec) const
 ////
 ////  Special integrals
 ////
-IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
-{
-    auto a=dcast(iea);;
-    size_t N=a->size();
-    SMatrix<double> Hk(N);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols(i))
-        {
-            assert(a->Ls(i)==a->Ls(j));
-            double t=a->es(i)+a->es(j);
-            int L=a->Ls(i),L1=L+1;
-            Hk(i,j)=0.5*a->ns(i)*a->ns(j)*
-                   (
-                       (L1*L1 + L*L1) * GaussianIntegral(t,2*L-2)
-                       -2*L1 * t      * GaussianIntegral(t,2*L  )
-                       +4*a->es(i)*a->es(j) * GaussianIntegral(t,2*L+2)
-                   );
-        }
 
-    return Hk;
-}
+
+//IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
+//{
+//    auto a=dcast(iea);;
+//    size_t N=a->size();
+//    SMatrix<double> Hk(N);
+//    for (auto i:Hk.rows())
+//        for (auto j:Hk.cols(i))
+//        {
+//            assert(a->Ls(i)==a->Ls(j));
+//            double t=a->es(i)+a->es(j);
+//            int L=a->Ls(i),L1=L+1;
+//            Hk(i,j)=0.5*a->ns(i)*a->ns(j)*
+//                   (
+//                       (L1*L1 + L*L1) * GaussianIntegral(t,2*L-2)
+//                       -2*L1 * t      * GaussianIntegral(t,2*L  )
+//                       +4*a->es(i)*a->es(j) * GaussianIntegral(t,2*L+2)
+//                   );
+//        }
 //
+//    return Hk;
+//}
+////
 IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* iea,const Cluster& cl) const
 {
     auto a=dcast(iea);;
