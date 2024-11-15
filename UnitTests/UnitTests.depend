@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731705135 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731706913 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -911,7 +911,7 @@
 	"../TIrrepCommon.H"
 	"oml/vector.h"
 
-1731704947 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
+1731705791 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
 	<IEClient.H>
 	"Imp/Integrals/SphericalGaussianCD.H"
 	"Imp/BasisSet/AtomIEClient.H"
@@ -1060,8 +1060,9 @@
 	<fstream>
 	<cmath>
 
-1730920636 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
+1731706966 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
 	<AnalyticIE.H>
+	"Imp/BasisSet/AtomIE.H"
 	"oml/vector.h"
 
 1730039469 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IrrepBasisSet.H
@@ -1070,8 +1071,9 @@
 	"../TIrrepCommon.H"
 	"oml/vector.h"
 
-1730994648 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IEClient.H
+1731705728 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IEClient.H
 	<IEClient.H>
+	"Imp/BasisSet/AtomIEClient.H"
 	"Imp/Integrals/SlaterCD.H"
 	"Imp/BasisSet/BFGrouper.H"
 	"oml/vector.h"
@@ -1488,7 +1490,7 @@
 	<iostream>
 	<fstream>
 
-1731687542 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIEClient.H
+1731705679 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIEClient.H
 	<IEClient.H>
 	"oml/vector.h"
 	<set>

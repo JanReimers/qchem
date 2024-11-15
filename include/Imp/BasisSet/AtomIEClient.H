@@ -24,7 +24,7 @@ struct AtomIEClient : public virtual ::IrrepIEClient
     bf_tuple operator()(index_t i) const {return std::make_tuple(Ns(i),Ls(i),Ms(i),es(i),ns(i));}
     auto indices() const {return es.indices();}
 private:
-    virtual double Norm(double e, double l)=0;
+    virtual double Norm(double e, size_t l) const=0;
 };
 
 #endif // _AtomIEClient_H_
