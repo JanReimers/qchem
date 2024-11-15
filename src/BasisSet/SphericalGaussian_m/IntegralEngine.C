@@ -99,31 +99,31 @@ double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) cons
 //
 //  Repulsion type integrals
 //
-IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
-{
-    auto a=dcast(iea);;
-    assert(a);
-    size_t N=a->size();
-    SMat r(N,N);
-    for (auto i:r.rows())
-        for (auto j:r.cols(i))
-            r(i,j)=GaussianRepulsionIntegral(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
-
-    return r;
-}
-
-IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
-{
-    auto a=dcast(iea);;
-    auto b=dcast(ieb);;
-    size_t Na=a->es.size(), Nb=b->es.size();
-    Mat s(Na,Nb);
-    for (auto i:s.rows())
-        for (auto j:s.cols())
-            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
-
-    return s;
-}
+//IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
+//{
+//    auto a=dcast(iea);;
+//    assert(a);
+//    size_t N=a->size();
+//    SMat r(N,N);
+//    for (auto i:r.rows())
+//        for (auto j:r.cols(i))
+//            r(i,j)=GaussianRepulsionIntegral(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+//
+//    return r;
+//}
+//
+//IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
+//{
+//    auto a=dcast(iea);;
+//    auto b=dcast(ieb);;
+//    size_t Na=a->es.size(), Nb=b->es.size();
+//    Mat s(Na,Nb);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols())
+//            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+//
+//    return s;
+//}
 
 //
 //IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const

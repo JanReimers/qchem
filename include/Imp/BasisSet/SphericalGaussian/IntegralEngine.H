@@ -30,11 +30,6 @@ public:
     
     virtual size_t size() const {return -1;}
 
-    virtual  SMat MakeRepulsion(iec_t* a         ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
-
-    //virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
-    //virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
 
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
 

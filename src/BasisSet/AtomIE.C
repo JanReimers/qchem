@@ -61,6 +61,35 @@ AtomIE::RVec AtomIE::MakeCharge(iec_t* iea) const
     return c;
 }
 
+AtomIE::SMat AtomIE::MakeRepulsion(iec_t* iea ) const
+{
+    auto a=dcast(iea);;
+    assert(a);
+    size_t N=a->size();
+    SMat r(N,N);
+    for (auto i:r.rows())
+        for (auto j:r.cols(i))
+            //r(i,j)=GaussianRepulsionIntegral(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+            r(i,j)=Repulsion(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+
+    return r;
+}
+
+AtomIE::Mat AtomIE::MakeRepulsion(iec_t* iea,iec_t* ieb) const
+{
+    auto a=dcast(iea);;
+    auto b=dcast(ieb);;
+    size_t Na=a->es.size(), Nb=b->es.size();
+    Mat s(Na,Nb);
+    for (auto i:s.rows())
+        for (auto j:s.cols())
+            s(i,j)=Repulsion(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*a->ns(j);
+//            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+
+    return s;
+}
+
+
 AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
 {    
     auto ab=dcast(ieab);;
@@ -79,6 +108,7 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
         }
     return s;
 }
+
 
 AtomIE::ERI3 AtomIE::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
 {
