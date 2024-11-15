@@ -8,13 +8,17 @@ class AtomIEClient;
 class AtomIE : public virtual AnalyticIE<double>
 {
 public:
-    virtual  SMat MakeOverlap  (iec_t* a         ) const;
-    virtual  SMat MakeKinetic  (iec_t* a         ) const;
+    virtual SMat MakeOverlap  (iec_t* a) const;
+    virtual SMat MakeKinetic  (iec_t* a) const;
+    virtual SMat MakeNuclear  (iec_t* a,const Cluster&) const;
+    virtual RVec MakeCharge   (iec_t* a) const;
 private:
     static const AtomIEClient* dcast(iec_t*);
     
-    virtual double Overlap(double eab,size_t lab) const=0;
+    virtual double Overlap(double ea, double eb,size_t l) const=0;
     virtual double Kinetic(double ea, double eb,size_t l) const=0;
+    virtual double Nuclear(double ea, double eb,size_t l) const=0;
+    virtual double Charge (double ea,           size_t l) const=0;
 };
 
 

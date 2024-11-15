@@ -37,7 +37,7 @@ public:
 
     virtual ~AnalyticIE()  {};
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
-    virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
+    //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
     //! Total charge \f$ \left\langle a\left|\right|1\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right) \f$
     virtual RVec MakeCharge       (const IrrepIEClient* a) const=0;
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
