@@ -89,28 +89,28 @@ double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) cons
 //
 //
 // <ab|c>
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
-{    
-    auto ab=dcast(ieab);
-    size_t N=ab->size();
-    int Nc,Lc,Mc;
-    double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=SlaterIntegral(ab->es(i)+ab->es(j)+ec,ab->Ns(i)+ab->Ns(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
-    return s;
-}
-
-IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
-{
-    auto c=dcast(iec);;
-   
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
-    return s3;
-}
+//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
+//{    
+//    auto ab=dcast(ieab);
+//    size_t N=ab->size();
+//    int Nc,Lc,Mc;
+//    double ec,nc;
+//    std::tie(Nc,Lc,Mc,ec,nc)=c;
+//    SMat s(N);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols(i))
+//            s(i,j)=SlaterIntegral(ab->es(i)+ab->es(j)+ec,ab->Ns(i)+ab->Ns(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
+//    return s;
+//}
+//
+//IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
+//{
+//    auto c=dcast(iec);;
+//   
+//    ERI3 s3;
+//    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
+//    return s3;
+//}
 
 //----------------------------------------------------------------------------------------
 //
@@ -149,33 +149,33 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 }
 
 //
-IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
-{    
-    auto ab=dcast(ieab);;
-    size_t N=ab->size();
-    int Nc,Lc,Mc;
-    double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
-    SMat s(N,N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-        {
-            assert(ab->Ls(i)==ab->Ls(j));
-            SlaterCD cd(ab->es(i)+ab->es(j),ec,std::max(ab->Ls(i),(long unsigned)Lc));
-            s(i,j)=FourPi2*cd.Coulomb_R0(ab->Ls(i),Lc)*ab->ns(i)*ab->ns(j)*nc;
-        }
-    return s;
-}
-
-
-IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
-{
-    auto c=dcast(iec);;
-    
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
-    return s3;
-}
+//IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
+//{    
+//    auto ab=dcast(ieab);;
+//    size_t N=ab->size();
+//    int Nc,Lc,Mc;
+//    double ec,nc;
+//    std::tie(Nc,Lc,Mc,ec,nc)=c;
+//    SMat s(N,N);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols(i))
+//        {
+//            assert(ab->Ls(i)==ab->Ls(j));
+//            SlaterCD cd(ab->es(i)+ab->es(j),ec,std::max(ab->Ls(i),(long unsigned)Lc));
+//            s(i,j)=FourPi2*cd.Coulomb_R0(ab->Ls(i),Lc)*ab->ns(i)*ab->ns(j)*nc;
+//        }
+//    return s;
+//}
+//
+//
+//IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+//{
+//    auto c=dcast(iec);;
+//    
+//    ERI3 s3;
+//    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
+//    return s3;
+//}
 
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
@@ -230,67 +230,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     
 }
 
-////
-//
-////----------------------------------------------------------------------------------------
-////
-////  Special integrals
-////
-//IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* iea) const
-//{
-//    auto a=dcast(iea);;
-//    size_t N=a->size();
-//    SMatrix<double> Hk(N);
-//    for (auto i:Hk.rows())
-//        for (auto j:Hk.cols(i))
-//        {
-//            assert(a->Ls(i)==a->Ls(j));
-//            double ea=a->es(i), eb=a->es(j);
-//            double ab=ea+eb;
-//            int la=a->Ls(i),lb=a->Ls(j);
-//            int na=la+1,nb=lb+1;
-//            int n=a->Ns(i)+a->Ns(j);
-//            int l=a->Ls(i);
-//            assert(la==lb);
-//            double Term1=0.5*a->ns(i)*a->ns(j)*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2);
-//            double Term2=-0.5*a->ns(i)*a->ns(j)*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-//            double Term3=0.5*a->ns(i)*a->ns(j)*ea*eb*SlaterIntegral(ab,n);
-//            Hk(i,j)=Term1+Term2+Term3;
-//            
-//        }
-//
-//    return Hk;
-//}
-//
-//IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* iea,const Cluster& cl) const
-//{
-//    auto a=dcast(iea);;
-//    size_t N=a->size();
-//    SMatrix<double> Hn(N);
-//    double Z=-cl.GetNuclearCharge();
-//    for (auto i:Hn.rows())
-//        for (auto j:Hn.cols(i))
-//            Hn(i,j)= Z*SlaterIntegral(a->es(i)+a->es(j),a->Ns(i)+a->Ns(j)-1)*a->ns(i)*a->ns(j);
-//
-//    return Hn;
-//}
-
-//IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
-//{
-//
-//    auto a=dcast(iea);;
-//    RVec n(a->size());
-//    for (auto i:a->es.indices())  n(i)=SlaterNorm(a->es(i),a->Ls(i));
-//    return n;
-//}
-//
-//IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
-//{
-//    auto a=dcast(iea);;
-//    RVec c(a->size());
-//    for (auto i:a->es.indices())  c(i)=SlaterIntegral(a->es(i),a->Ns(i)+1)*a->ns(i);
-//    return c;
-//}
 
 void IntegralEngine::Report(std::ostream& os) const
 {
