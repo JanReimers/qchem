@@ -66,116 +66,42 @@ double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) cons
     return FourPi2*cd.Coulomb_R0(la,lc);
 }
 
-
-
-
-//----------------------------------------------------------------------------------------
-//
-//  Overlap type integrals
-//
-// <a|b>
-//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
-//{
-//    auto  a=dcast(iea);
-//    size_t N=a->size();
-//    SMat s(N);
-//    for (auto i:s.rows())
-//        for (auto j:s.cols(i))
-//            s(i,j)=SlaterIntegral(a->es(i)+a->es(j),a->Ns(i)+a->Ns(j))*a->ns(i)*a->ns(j);
-//
-//    return s;
-//}
-
-//
-//
-// <ab|c>
-//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
-//{    
-//    auto ab=dcast(ieab);
-//    size_t N=ab->size();
-//    int Nc,Lc,Mc;
-//    double ec,nc;
-//    std::tie(Nc,Lc,Mc,ec,nc)=c;
-//    SMat s(N);
-//    for (auto i:s.rows())
-//        for (auto j:s.cols(i))
-//            s(i,j)=SlaterIntegral(ab->es(i)+ab->es(j)+ec,ab->Ns(i)+ab->Ns(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
-//    return s;
-//}
-//
-//IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
-//{
-//    auto c=dcast(iec);;
-//   
-//    ERI3 s3;
-//    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
-//    return s3;
-//}
-
 //----------------------------------------------------------------------------------------
 //
 //  Repulsion type integrals
 //
-IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
-{
-    auto a=dcast(iea);;
-    assert(a);
-    size_t N=a->size();
-    SMat r(N,N);
-    for (auto i:r.rows())
-        for (auto j:r.cols(i))
-        {
-            SlaterCD cd(a->es(i),a->es(j),std::max(a->Ls(i),a->Ls(j)));
-            r(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
-        }
-
-    return r;
-}
-
-IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
-{
-    auto a=dcast(iea);;
-    auto b=dcast(ieb);;
-    size_t Na=a->es.size(), Nb=b->es.size();
-    Mat s(Na,Nb);
-    for (auto i:s.rows())
-        for (auto j:s.cols())
-        {
-            SlaterCD cd(a->es(i),b->es(j),std::max(a->Ls(i),b->Ls(j)));
-            s(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
-        }
-
-    return s;
-}
-
-//
-//IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
-//{    
-//    auto ab=dcast(ieab);;
-//    size_t N=ab->size();
-//    int Nc,Lc,Mc;
-//    double ec,nc;
-//    std::tie(Nc,Lc,Mc,ec,nc)=c;
-//    SMat s(N,N);
-//    for (auto i:s.rows())
-//        for (auto j:s.cols(i))
+//IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
+//{
+//    auto a=dcast(iea);;
+//    assert(a);
+//    size_t N=a->size();
+//    SMat r(N,N);
+//    for (auto i:r.rows())
+//        for (auto j:r.cols(i))
 //        {
-//            assert(ab->Ls(i)==ab->Ls(j));
-//            SlaterCD cd(ab->es(i)+ab->es(j),ec,std::max(ab->Ls(i),(long unsigned)Lc));
-//            s(i,j)=FourPi2*cd.Coulomb_R0(ab->Ls(i),Lc)*ab->ns(i)*ab->ns(j)*nc;
+//            SlaterCD cd(a->es(i),a->es(j),std::max(a->Ls(i),a->Ls(j)));
+//            r(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
 //        }
+//
+//    return r;
+//}
+
+//IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
+//{
+//    auto a=dcast(iea);;
+//    auto b=dcast(ieb);;
+//    size_t Na=a->es.size(), Nb=b->es.size();
+//    Mat s(Na,Nb);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols())
+//        {
+//            SlaterCD cd(a->es(i),b->es(j),std::max(a->Ls(i),b->Ls(j)));
+//            s(i,j)=FourPi2*cd.Coulomb_R0(a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+//        }
+//
 //    return s;
 //}
-//
-//
-//IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
-//{
-//    auto c=dcast(iec);;
-//    
-//    ERI3 s3;
-//    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
-//    return s3;
-//}
+
 
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
