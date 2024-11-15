@@ -10,11 +10,6 @@ template <class T> void FillPower(Vector<T>& arr,T start, T stop);
 
 namespace SphericalGaussian_m
 {
-double IrrepIEClient::Norm(double e, double l)
-{
-    return GaussianNorm(e,l);
-}
-
 
 void IEClient::Append(const IrrepIEClient* ic)
 {

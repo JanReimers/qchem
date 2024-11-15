@@ -2,17 +2,12 @@
 #ifndef _SphericalGaussian_mIE_H_
 #define _SphericalGaussian_mIE_H_
 
-#include "Imp/BasisSet/AtomIE.H"
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
-#include <AnalyticIE.H>
-#include "oml/vector.h"
-
+#include "Imp/BasisSet/SphericalGaussian_m/IEClient.H" 
 
 namespace SphericalGaussian_m
 {
-    
-class IrrepIEClient;
-class IEClient;
+
     
 class IntegralEngine
     : public virtual AnalyticIE<double>

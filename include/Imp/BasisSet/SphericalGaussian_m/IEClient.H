@@ -4,7 +4,7 @@
 
 #include <IEClient.H> // <> prevents file search on this SphericalGaussian_m folder.
 #include "Imp/Integrals/SphericalGaussianCD.H"
-#include "Imp/BasisSet/AtomIEClient.H"
+#include "Imp/BasisSet/SphericalGaussian/IEClient.H" 
 #include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
 #include <map>
@@ -14,16 +14,7 @@
 namespace SphericalGaussian_m
 {
     
-    
-struct IrrepIEClient
-    : public virtual ::IrrepIEClient
-    , public AtomIEClient
-{
-    IrrepIEClient() {};
-    IrrepIEClient(size_t N) : AtomIEClient(N) {};
-private:
-    virtual double Norm(double e, double l);
-};
+typedef SphericalGaussian::IrrepIEClient IrrepIEClient;
 
 struct IEData
 {

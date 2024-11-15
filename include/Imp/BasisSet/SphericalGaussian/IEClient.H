@@ -18,11 +18,6 @@ struct IrrepIEClient
 {
     IrrepIEClient() {};
     IrrepIEClient(size_t N) : AtomIEClient(N) {};
-//    void Init(double minexp,double maxexp,size_t L);
-//    
-//    virtual size_t size() const {return es.size();}
-//    typedef std::tuple<int,double,double> bf_tuple;
-//    bf_tuple operator()(index_t i) const {return std::make_tuple(Ls(i),es(i),ns(i));}
 private:
     virtual double Norm(double e, double l);
 };
