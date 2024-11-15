@@ -4,12 +4,29 @@
 
 #include <IEClient.H> // <> prevents file search on this SphericalGaussian folder.
 #include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
 
 namespace SphericalGaussian
 {
     
+    
+struct IrrepIEClient
+    : public virtual ::IrrepIEClient
+    , public AtomIEClient
+{
+    IrrepIEClient() {};
+    IrrepIEClient(size_t N) : AtomIEClient(N) {};
+//    void Init(double minexp,double maxexp,size_t L);
+//    
+//    virtual size_t size() const {return es.size();}
+//    typedef std::tuple<int,double,double> bf_tuple;
+//    bf_tuple operator()(index_t i) const {return std::make_tuple(Ls(i),es(i),ns(i));}
+private:
+    virtual double Norm(double e, double l);
+};
+
 struct IEData
 {
     IEData() {}; 
@@ -19,19 +36,6 @@ struct IEData
     Vector<double> ns; //Normalization constants
 };
 
-    
-struct IrrepIEClient
-    : public virtual ::IrrepIEClient
-    , public IEData
-{
-    IrrepIEClient() {};
-    IrrepIEClient(size_t N) : IEData(N) {};
-    void Init(double minexp,double maxexp,size_t L);
-    
-    virtual size_t size() const {return es.size();}
-    typedef std::tuple<int,double,double> bf_tuple;
-    bf_tuple operator()(index_t i) const {return std::make_tuple(Ls(i),es(i),ns(i));}
-};
 
 //Use the same struct for a full basis set.;
 struct IEClient 

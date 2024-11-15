@@ -56,9 +56,9 @@ IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c)
 {    
     auto ab=dcast(ieab);;
     size_t N=ab->size();
-    int Lc;
+    int Nc,Lc,Mc;
     double ec,nc;
-    std::tie(Lc,ec,nc)=c;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
@@ -110,9 +110,9 @@ IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c
 {    
     auto ab=dcast(ieab);;
     size_t N=ab->size();
-    int Lc;
+    int Nc,Lc,Mc;
     double ec,nc;
-    std::tie(Lc,ec,nc)=c;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
     SMat s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))

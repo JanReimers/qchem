@@ -11,14 +11,19 @@ template <class T> inline void FillPower(Vector<T>& arr,T start, T stop)
 
 namespace SphericalGaussian
 {
-    
-void IrrepIEClient::Init(double minexp,double maxexp,size_t L)
+
+double IrrepIEClient::Norm(double e, double l)
 {
-    
-      FillPower(es,minexp,maxexp);
-      Fill(Ls,L);
-      for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
+    return GaussianNorm(e,l);
 }
+    
+//void IrrepIEClient::Init(double minexp,double maxexp,size_t L)
+//{
+//    
+//      FillPower(es,minexp,maxexp);
+//      Fill(Ls,L);
+//      for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
+//}
 
 void IEClient::Append(const IrrepIEClient* ic)
 {

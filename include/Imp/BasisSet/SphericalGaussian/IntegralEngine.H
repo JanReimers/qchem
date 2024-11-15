@@ -47,7 +47,7 @@ public:
 
 private:
     static const IrrepIEClient* dcast(iec_t*);
-    typedef std::tuple<int,double,double> bf_tuple;
+    typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
     

@@ -911,9 +911,10 @@
 	"../TIrrepCommon.H"
 	"oml/vector.h"
 
-1731072953 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
+1731692024 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
 	<IEClient.H>
 	"Imp/Integrals/SphericalGaussianCD.H"
+	"Imp/BasisSet/AtomIEClient.H"
 	"Imp/BasisSet/BFGrouper.H"
 	"oml/vector.h"
 
@@ -1082,7 +1083,7 @@
 1729371184 /home/janr/Code/qchem/src/Mesh/MeshIntegrator.H
 	"types.H"
 
-1730920636 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
+1731692208 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
 	<AnalyticIE.H>
 	"oml/vector.h"
 
