@@ -36,7 +36,7 @@ using std::endl;
 
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
-    return SlaterIntegral(ea+eb,2*(l+1));
+    return SlaterIntegral(ea+eb,l+2);
 }
 
 double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
@@ -74,17 +74,17 @@ double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) cons
 //  Overlap type integrals
 //
 // <a|b>
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
-{
-    auto  a=dcast(iea);
-    size_t N=a->size();
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=SlaterIntegral(a->es(i)+a->es(j),a->Ns(i)+a->Ns(j))*a->ns(i)*a->ns(j);
-
-    return s;
-}
+//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
+//{
+//    auto  a=dcast(iea);
+//    size_t N=a->size();
+//    SMat s(N);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols(i))
+//            s(i,j)=SlaterIntegral(a->es(i)+a->es(j),a->Ns(i)+a->Ns(j))*a->ns(i)*a->ns(j);
+//
+//    return s;
+//}
 
 //
 //
