@@ -6,7 +6,7 @@ int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
 //     testing::GTEST_FLAG(filter) = "ERI4Tests.*"; 
-     testing::GTEST_FLAG(filter) = "Multiple/A_*_HF_P.Multiple/*:Multiple/A_*_DFT_P.Multiple/*";
+     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_DFT_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_U.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_PG_HF_P.Multiple/*";
 

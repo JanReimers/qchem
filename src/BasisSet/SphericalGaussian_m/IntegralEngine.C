@@ -2,14 +2,14 @@
 
 
 #include "Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H"
-#include "Imp/BasisSet/SphericalGaussian_m/IEClient.H" 
+//#include "Imp/BasisSet/SphericalGaussian_m/IEClient.H" 
 #include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-#include <Cluster.H>
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
+//#include <Cluster.H>
+//#include "oml/matrix.h"
+//#include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
 
 using std::cout;
@@ -19,22 +19,6 @@ namespace SphericalGaussian_m
 {
     
 double IntegralEngine::FourPi2=4*4*Pi*Pi;
-
-//-----------------------------------------------------------------
-//
-//  Streamable Object stuff
-//
-AnalyticIE<double>* IntegralEngine::Clone() const
-{
-    return new IntegralEngine(*this);
-}
-
-const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
-{
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
-    assert(a);
-    return a;
-}
 
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
@@ -301,11 +285,6 @@ void IntegralEngine::MakeExchange(erik_t& Kab, const ::IEClient* iec) const
     
 }
 
-void IntegralEngine::Report(std::ostream& os) const
-{
-    os << "Spherical Gaussian integral engine cache:" << std::endl;
-    os << "    No cache." << std::endl;
-}
 
 
 } //namespace

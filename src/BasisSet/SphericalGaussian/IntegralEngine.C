@@ -20,27 +20,7 @@ namespace SphericalGaussian
 
 double IntegralEngine::FourPi2=4*4*Pi*Pi;
 
-//-----------------------------------------------------------------
-//
-//  Streamable Object stuff
-//
-AnalyticIE<double>* IntegralEngine::Clone() const
-{
-    return new IntegralEngine(*this);
-}
 
-const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
-{
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
-    assert(a);
-    return a;
-}
-
-
-//----------------------------------------------------------------------------------------
-//
-//  Overlap type integrals
-//
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
     return GaussianIntegral(ea+eb,l);
@@ -66,14 +46,6 @@ double IntegralEngine::Charge (double ea,           size_t l) const
 {
     return GaussianIntegral(ea,l);
 }
-
-
-
-//----------------------------------------------------------------------------------------
-//
-//  Repulsion type integrals
-//
-
 
 double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
@@ -135,19 +107,5 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
     }
     
 }
-
-////
-//
-////----------------------------------------------------------------------------------------
-////
-////  Special integrals
-////
-
-void IntegralEngine::Report(std::ostream& os) const
-{
-    os << "Spherical Gaussian integral engine cache:" << std::endl;
-    os << "    No cache." << std::endl;
-}
-
 
 } //namespace
