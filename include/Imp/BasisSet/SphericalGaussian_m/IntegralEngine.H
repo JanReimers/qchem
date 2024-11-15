@@ -2,7 +2,7 @@
 #ifndef _SphericalGaussian_mIE_H_
 #define _SphericalGaussian_mIE_H_
 
-
+#include "Imp/BasisSet/AtomIE.H"
 #include <AnalyticIE.H>
 #include "oml/vector.h"
 
@@ -15,6 +15,7 @@ class IEClient;
     
 class IntegralEngine
     : public virtual AnalyticIE<double>
+    , public AtomIE
 {
 
 public:
@@ -32,7 +33,7 @@ public:
     virtual RVec MakeNormalization(iec_t* a) const;
     virtual RVec MakeCharge       (iec_t* a) const;
     
-    virtual  SMat MakeOverlap  (iec_t* a         ) const;
+    //virtual  SMat MakeOverlap  (iec_t* a         ) const;
     virtual  SMat MakeKinetic  (iec_t* a         ) const;
     virtual  SMat MakeNuclear  (iec_t* a,const Cluster&   ) const;
     virtual  SMat MakeRepulsion(iec_t* a         ) const; //Used for charge and Vxc fitting.
@@ -49,6 +50,9 @@ public:
     virtual IE* Clone() const;
 
 private:
+    virtual double Overlap(double eab,size_t lab) const;
+
+    
     static const IrrepIEClient* dcast(iec_t*);
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;

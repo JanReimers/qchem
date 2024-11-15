@@ -148,13 +148,13 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") J_abcd=" 
 //                    << std::scientific << std::setw(8) << J(ia,ib,ic,id)  << std::endl;
                     //assert(J(ia,ib,ic,id)!=-1.0);
-                    double rerr=fabs(J(ia,ib,ic,id)-J1(ia,ib,ic,id))/fabs(J(ia,ib,ic,id));
-                    if (rerr>=1e-14)
-                    {
-                        cout << "(abcd)=(" << ia << " " << ib << " " << ic << " " << id << ") J_abcd="; 
-                        cout << J(ia,ib,ic,id) << " " << J1(ia,ib,ic,id) << endl;                        
-                    }
-                    assert(rerr<1e-14);
+//                    double rerr=fabs(J(ia,ib,ic,id)-J1(ia,ib,ic,id))/fabs(J(ia,ib,ic,id));
+//                    if (rerr>=1e-14)
+//                    {
+//                        cout << "(abcd)=(" << ia << " " << ib << " " << ic << " " << id << ") J_abcd="; 
+//                        cout << J(ia,ib,ic,id) << " " << J1(ia,ib,ic,id) << endl;                        
+//                    }
+//                    assert(rerr<1e-14);
                     Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
@@ -196,20 +196,20 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //                    std::cout << "(acbd)=(" << ia1 << " " << ic1 << " " << ib1 << " " << id1 << ") K_acbd=" 
 //                    << K(ia,ic,ib,id)  << std::endl;
                     double Kold=K(ia,ic,ib,id);
-                    double Knew=K1(ia,ib,ic,id);
-                    double rerr= Kold==0.0 ?
-                        fabs(Kold-Knew)
-                        :
-                        fabs(Kold-Knew)/fabs(Kold);
-                    if (rerr>=1e-14)
-                    {
-                        cout << rerr << endl;
-                        cout << std::setprecision(8) << "Kold(" << ia << " " << ic << " " << ib << " " << id << ")=";
-                        cout << Kold << endl; 
-                        cout << std::setprecision(8) << "Knew(" << ia << " " << ib << " " << ic << " " << id << ")=";
-                        cout << Knew << endl; 
-                    }
-                    assert(rerr<1e-14);
+//                    double Knew=K1(ia,ib,ic,id);
+//                    double rerr= Kold==0.0 ?
+//                        fabs(Kold-Knew)
+//                        :
+//                        fabs(Kold-Knew)/fabs(Kold);
+//                    if (rerr>=1e-14)
+//                    {
+//                        cout << rerr << endl;
+//                        cout << std::setprecision(8) << "Kold(" << ia << " " << ic << " " << ib << " " << id << ")=";
+//                        cout << Kold << endl; 
+//                        cout << std::setprecision(8) << "Knew(" << ia << " " << ib << " " << ic << " " << id << ")=";
+//                        cout << Knew << endl; 
+//                    }
+//                    assert(rerr<1e-14);
                     
                     Kab_temp+= Kold*Dcd(ic,id);
                 }

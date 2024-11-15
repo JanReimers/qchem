@@ -170,7 +170,7 @@ TEST_P(A_SG_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,5,7,21,37,53,56,64)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,21,37,53,56,64)); //Can't do boron, need SGm basis for that.
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
 class A_SL_HF_P : public ::testing::TestWithParam<int>
@@ -196,8 +196,8 @@ TEST_P(A_SL_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-//INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
+//INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
 class A_SLm_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SLm_OBasis, HF_P, TestPolarized

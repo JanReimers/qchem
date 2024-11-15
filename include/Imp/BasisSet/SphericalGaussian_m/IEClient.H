@@ -4,6 +4,7 @@
 
 #include <IEClient.H> // <> prevents file search on this SphericalGaussian_m folder.
 #include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/BasisSet/BFGrouper.H"
 #include "oml/vector.h"
 #include <map>
@@ -13,6 +14,17 @@
 namespace SphericalGaussian_m
 {
     
+    
+struct IrrepIEClient
+    : public virtual ::IrrepIEClient
+    , public AtomIEClient
+{
+    IrrepIEClient() {};
+    IrrepIEClient(size_t N) : AtomIEClient(N) {};
+private:
+    virtual double Norm(double e, double l);
+};
+
 struct IEData
 {
     IEData() {}; 
@@ -22,22 +34,6 @@ struct IEData
     Vector<int   > Ms;  //Angular momentum.
     Vector<double> es; //The orbital exponents.
     Vector<double> ns; //Normalization constants
-};
-
-    
-struct IrrepIEClient
-    : public virtual ::IrrepIEClient
-    , public IEData
-{
-    IrrepIEClient() {};
-    IrrepIEClient(size_t N) : IEData(N) {};
-    void Init(double minexp,double maxexp,size_t L, int n);
-    void Init(std::set<double>& exponents,size_t L, int n);
-    
-    virtual size_t size() const {return es.size();}
-    typedef std::tuple<int,int,int,double,double> bf_tuple;
-    bf_tuple operator()(index_t i) const {return std::make_tuple(Ns(i),Ls(i),Ms(i),es(i),ns(i));}
-    auto indices() const {return es.indices();}
 };
 
 

@@ -1,7 +1,16 @@
 Priority 1:
-    -Work towards linear contraction of D_cd*J_abcd and D_cd*K_abcd
+    -1) Refactor atom IEs, lots of common code.
+        2) Then propagate and new ERIJ ERIK code to all atom basis sets.
+        3) Compare table sizes before removing old JK code.
+    -5) Work towards linear contraction of D_cd*J_abcd and D_cd*K_abcd
         -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
-        -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
+        4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
+    -List all 2LAs in one place an use them throughout.
+        2LAs: IE,BF,IR,BS,DB,QN,WF,EL,PG,SL,SG,CL(Client),FF(Fit Function),CD (Charge distribution), 
+        3LAs: Occ,SGm,SLm,ERI,IE_CL,Rho(Charge density), Pol, UnP
+        Conventions
+            Underscore between acronyms: IR_BS
+    -Need to tighten up/specialize allowed errors in HF energies for all UTs.
     -SVD truncation ... we need no know which L is getting truncated.
     -Merge degen levels with diff m QNs.
         -Also make two column list of levels/occs

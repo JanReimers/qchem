@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1731681458 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1731689517 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -1164,7 +1164,7 @@
 	<memory>
 	"Imp/WaveFunction/ElectronConfiguration.H"
 
-1731681458 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1731688880 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1449,9 +1449,10 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1731524523 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
+1731689643 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/IEClient.H
 	<IEClient.H>
 	"Imp/Integrals/SphericalGaussianCD.H"
+	"Imp/BasisSet/AtomIEClient.H"
 	"Imp/BasisSet/BFGrouper.H"
 	"oml/vector.h"
 	<map>
@@ -1479,9 +1480,14 @@
 	<Spin.H>
 	<map>
 
-1731680480 source:/home/janr/Code/qchem/UnitTests/ERIList.C
+1731684021 source:/home/janr/Code/qchem/UnitTests/ERIList.C
 	"gtest/gtest.h"
 	"Imp/Containers/ERI4.H"
 	<iostream>
 	<fstream>
+
+1731687542 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIEClient.H
+	<IEClient.H>
+	"oml/vector.h"
+	<set>
 

@@ -39,18 +39,23 @@ const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
 //
 //  Overlap type integrals
 //
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
+double IntegralEngine::Overlap(double eab,size_t lab) const
 {
-    auto  a=dcast(iea);
-    size_t N=a->size();
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=GaussianIntegral(a->es(i)+a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
-
-    return s;
+    return GaussianIntegral(eab,lab);
 }
 
+//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* iea ) const
+//{
+//    auto  a=dcast(iea);
+//    size_t N=a->size();
+//    SMat s(N);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols(i))
+//            s(i,j)=GaussianIntegral(a->es(i)+a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
+//
+//    return s;
+//}
+//
 
 IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
 {    
