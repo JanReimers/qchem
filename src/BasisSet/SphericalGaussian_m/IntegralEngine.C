@@ -65,29 +65,35 @@ double IntegralEngine::Charge (double ea,           size_t l) const
     return GaussianIntegral(ea,l);
 }
 
-
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
+double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
-    auto ab=dcast(ieab);;
-    size_t N=ab->size();
-    int Nc,Lc,Mc;
-    double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=GaussianIntegral(ab->es(i)+ab->es(j)+ec,ab->Ls(i)+ab->Ls(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
-    return s;
+    GaussianRadialIntegrals R(eab,ec);
+    return R.Coulomb(la,la,lc,0); 
 }
 
-IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
-{
-    auto c=dcast(iec);;
-   
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
-    return s3;
-}
+
+//IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
+//{    
+//    auto ab=dcast(ieab);;
+//    size_t N=ab->size();
+//    int Nc,Lc,Mc;
+//    double ec,nc;
+//    std::tie(Nc,Lc,Mc,ec,nc)=c;
+//    SMat s(N);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols(i))
+//            s(i,j)=GaussianIntegral(ab->es(i)+ab->es(j)+ec,ab->Ls(i)+ab->Ls(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;
+//    return s;
+//}
+//
+//IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
+//{
+//    auto c=dcast(iec);;
+//   
+//    ERI3 s3;
+//    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
+//    return s3;
+//}
 
 //----------------------------------------------------------------------------------------
 //
@@ -120,32 +126,32 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 }
 
 //
-IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
-{    
-    auto ab=dcast(ieab);;
-    size_t N=ab->size();
-    int Nc,Lc,Mc;
-    double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
-    SMat s(N,N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-        {
-            GaussianRadialIntegrals R(ab->es(i)+ab->es(j),ec);
-            s(i,j)=R.Coulomb(ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
-        }
-    return s;
-}
-
-
-IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
-{
-    auto c=dcast(iec);;
-    
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
-    return s3;
-}
+//IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
+//{    
+//    auto ab=dcast(ieab);;
+//    size_t N=ab->size();
+//    int Nc,Lc,Mc;
+//    double ec,nc;
+//    std::tie(Nc,Lc,Mc,ec,nc)=c;
+//    SMat s(N,N);
+//    for (auto i:s.rows())
+//        for (auto j:s.cols(i))
+//        {
+//            GaussianRadialIntegrals R(ab->es(i)+ab->es(j),ec);
+//            s(i,j)=R.Coulomb(ab->Ls(i),ab->Ls(j),Lc,0)*ab->ns(i)*ab->ns(j)*nc;
+//        }
+//    return s;
+//}
+//
+//
+//IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+//{
+//    auto c=dcast(iec);;
+//    
+//    ERI3 s3;
+//    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
+//    return s3;
+//}
 
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {

@@ -90,3 +90,31 @@ AtomIE::ERI3 AtomIE::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
 }
 
 
+AtomIE::SMat AtomIE::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
+{    
+    auto ab=dcast(ieab);;
+    size_t N=ab->size();
+    int Nc,Lc,Mc;
+    double ec,nc;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
+    SMat s(N,N);
+    for (auto i:s.rows())
+        for (auto j:s.cols(i))
+        {
+            assert(ab->Ls(i)==ab->Ls(j));
+            s(i,j)=Repulsion(ab->es(i)+ab->es(j),ec,ab->Ls(i),Lc)*ab->ns(i)*ab->ns(j)*nc;            
+        }
+    return s;
+}
+
+
+AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+{
+    auto c=dcast(iec);;
+    
+    ERI3 s3;
+    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
+    return s3;
+}
+
+
