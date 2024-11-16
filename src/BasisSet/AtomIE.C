@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/AtomIE.H"
 #include "Imp/BasisSet/AtomIEClient.H"
+#include "Imp/Containers/ERI4.H"
 #include <Cluster.H>
 #include "oml/smatrix.h"
 
@@ -145,6 +146,48 @@ AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
     ERI3 s3;
     for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
     return s3;
+}
+
+ERIJ AtomIE::MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const 
+{
+    assert(false);
+    return ERIJ();
+};
+
+ERIK AtomIE::MakeExchange(const iriec* a, const iriec* c,const AtomIEClient*) const 
+{
+    assert(false);
+    return ERIK();
+};
+
+void AtomIE::MakeDirect(erij_t& Jac, const ::IEClient* iec) const
+{
+    Jac.clear();
+    const AtomIEClient& sg=*dynamic_cast<const AtomIEClient*>(iec);
+    size_t NIrrep=sg.GetNumIrreps();
+    for (size_t ia=1;ia<=NIrrep;ia++)
+        for (size_t ic=1;ic<=NIrrep;ic++) //TODO run from ia n
+        {
+            const iriec* a=sg[ia];
+            const iriec* c=sg[ic];
+            Jac[ia][ic]=MakeDirect(a,c,&sg);
+        }
+
+}
+
+void AtomIE::MakeExchange(erik_t& Kab, const ::IEClient* iec) const
+{
+    Kab.clear();
+    const AtomIEClient& sg=*dynamic_cast<const AtomIEClient*>(iec);
+    size_t NIrrep=sg.GetNumIrreps();
+    for (size_t ia=1;ia<=NIrrep;ia++)
+        for (size_t ib=1;ib<=NIrrep;ib++) //TODO run from ib 
+        {
+            const iriec* a=sg[ia];
+            const iriec* b=sg[ib];
+            Kab[ia][ib]=MakeExchange(a,b,&sg);
+        }
+    
 }
 
 

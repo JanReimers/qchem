@@ -4,6 +4,7 @@
 
 #include <AnalyticIE.H>
 class AtomIrrepIEClient;
+class AtomIEClient;
 
 class AtomIE : public virtual AnalyticIE<double>
 {
@@ -20,10 +21,15 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
-    //virtual void MakeDirect  (erij_t& Jab, const ::IEClient*) const; //Used for Hartree-Fock
+    virtual void MakeDirect  (erij_t& Jab, const ::IEClient*) const; //Used for Hartree-Fock
+    virtual void MakeExchange(erik_t& Kab, const ::IEClient*) const; //Used for Hartree-Fock
     
 private:
-    static const AtomIrrepIEClient* dcast(iec_t*);
+    typedef AtomIrrepIEClient iriec;
+    virtual ERIJ MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const;
+    virtual ERIK MakeExchange(const iriec* a, const iriec* b,const AtomIEClient*) const;
+
+    static const iriec* dcast(iec_t*);
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;

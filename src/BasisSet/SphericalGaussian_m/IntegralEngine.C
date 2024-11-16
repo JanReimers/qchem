@@ -92,8 +92,9 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 
 //#define SymmetryCheck
 
-ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const IEClient* iec) const
+ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const AtomIEClient* aiec) const
 {
+    const IEClient* iec=dynamic_cast<const IEClient*>(aiec);
     size_t Na=a->size(), Nc=c->size();
     ERIJ J(Na,Nc);
     for (size_t ia:a->indices())
@@ -168,8 +169,9 @@ ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const IEClient* i
     return J;
 }
 
-ERIK IntegralEngine::MakeExchange(const iriec* a, const iriec* b,const IEClient* iec) const
+ERIK IntegralEngine::MakeExchange(const iriec* a, const iriec* b,const AtomIEClient* aiec) const
 {
+    const IEClient* iec=dynamic_cast<const IEClient*>(aiec);
     size_t Na=a->size(), Nb=b->size();
     ERIK K(Na,Nb);
     for (size_t ia:a->indices())
@@ -251,35 +253,6 @@ ERIK IntegralEngine::MakeExchange(const iriec* a, const iriec* b,const IEClient*
     return K;
 }
 
-void IntegralEngine::MakeDirect(erij_t& Jac, const ::IEClient* iec) const
-{
-    Jac.clear();
-    const IEClient& sg=*dynamic_cast<const IEClient*>(iec);
-    size_t NIrrep=sg.GetNumIrreps();
-    for (size_t ia=1;ia<=NIrrep;ia++)
-        for (size_t ic=1;ic<=NIrrep;ic++) //TODO run from ia n
-        {
-            const iriec* a=sg[ia];
-            const iriec* c=sg[ic];
-            Jac[ia][ic]=MakeDirect(a,c,&sg);
-        }
-
-}
-
-void IntegralEngine::MakeExchange(erik_t& Kab, const ::IEClient* iec) const
-{
-    Kab.clear();
-    const IEClient& sg=*dynamic_cast<const IEClient*>(iec);
-    size_t NIrrep=sg.GetNumIrreps();
-    for (size_t ia=1;ia<=NIrrep;ia++)
-        for (size_t ib=1;ib<=NIrrep;ib++) //TODO run from ib 
-        {
-            const iriec* a=sg[ia];
-            const iriec* b=sg[ib];
-            Kab[ia][ib]=MakeExchange(a,b,&sg);
-        }
-    
-}
 
 
 

@@ -17,13 +17,11 @@ class IntegralEngine
 public:
    
     virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
-    virtual void MakeDirect  (erij_t& Jab, const ::IEClient*) const; //Used for Hartree-Fock
-    virtual void MakeExchange(erik_t& Kab, const ::IEClient*) const; //Used for Hartree-Fock
 
 private:
     typedef AtomIrrepIEClient iriec;
-    ERIJ MakeDirect  (const iriec* a, const iriec* c,const IEClient*) const;
-    ERIK MakeExchange(const iriec* a, const iriec* b,const IEClient*) const;
+    virtual ERIJ MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const;
+    virtual ERIK MakeExchange(const iriec* a, const iriec* b,const AtomIEClient*) const;
    
     static double FourPi2;
 };
