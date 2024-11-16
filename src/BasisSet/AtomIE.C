@@ -5,9 +5,9 @@
 #include <Cluster.H>
 #include "oml/smatrix.h"
 
-const AtomIEClient* AtomIE::dcast(iec_t* iea)
+const AtomIrrepIEClient* AtomIE::dcast(iec_t* iea)
 {
-    const AtomIEClient* a=dynamic_cast<const AtomIEClient*>(iea);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(iea);
     assert(a);
     return a;
 }

@@ -3,13 +3,15 @@
 #define _AtomIEClient_H_
 
 #include <IEClient.H> // <> prevents file search on this folder.
+#include "Imp/BasisSet/BFGrouper.H"
+#include "Imp/Integrals/Cache4.H"
 #include "oml/vector.h"
 #include <set>
 
-struct AtomIEClient : public virtual ::IrrepIEClient
+struct AtomIrrepIEClient : public virtual ::IrrepIEClient
 {
-    AtomIEClient() {}; 
-    AtomIEClient(size_t N) : Ns(N), Ls(N), Ms(N), es(N), ns(N) {};
+    AtomIrrepIEClient() {}; 
+    AtomIrrepIEClient(size_t N) : Ns(N), Ls(N), Ms(N), es(N), ns(N) {};
     Vector<size_t> Ns;  //Principle QN.
     Vector<size_t> Ls;  //Angular momentum.
     Vector<int   > Ms;  //Angular momentum.
@@ -26,5 +28,26 @@ struct AtomIEClient : public virtual ::IrrepIEClient
 private:
     virtual double Norm(double e, size_t l) const=0;
 };
+
+struct AtomIEClient 
+    : public virtual ::IEClient 
+    , public virtual Cache4
+    , public BFGrouper
+{
+    void Append(const AtomIrrepIEClient*);
+    
+    virtual size_t size() const {return es.size();}
+    size_t LMax() const {return Max(Ls);}
+    void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
+    void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
+    void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}
+
+    Vector<size_t> Ns;  //Angular momentum.
+    Vector<size_t> Ls;  //Angular momentum.
+    Vector<int   > Ms;  //Angular momentum.
+    Vector<double> es; //The orbital exponents.
+    Vector<double> ns; //Normalization constants
+}; 
+
 
 #endif // _AtomIEClient_H_

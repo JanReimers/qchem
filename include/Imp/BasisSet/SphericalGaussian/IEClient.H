@@ -14,10 +14,10 @@ namespace SphericalGaussian
     
 struct IrrepIEClient
     : public virtual ::IrrepIEClient
-    , public AtomIEClient
+    , public AtomIrrepIEClient
 {
     IrrepIEClient() {};
-    IrrepIEClient(size_t N) : AtomIEClient(N) {};
+    IrrepIEClient(size_t N) : AtomIrrepIEClient(N) {};
 private:
     virtual double Norm(double e, size_t l) const;
 };
