@@ -245,7 +245,7 @@ TEST_P(A_SGm_HF_P,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,6000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,true});
+    Iterate({40,Z*1e-4,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 

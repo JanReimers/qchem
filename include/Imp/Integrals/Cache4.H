@@ -26,6 +26,7 @@ protected:
     void       loop_3(size_t i3) const;
     virtual const Cacheable* loop_4(size_t i4) const;
     
+    
 private:
     virtual const Cacheable* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
 

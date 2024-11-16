@@ -310,8 +310,8 @@ template <class T> void HeapDB<T>::BuildERIs()
     std::cout << "J table size=" << itsJTable.itsData.size() << ", " << itsJTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
     std::cout << "K table size=" << itsKTable.itsData.size() << ", " << itsKTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
     
-//    itsAnalyticIE->MakeDirect  (Jac,itsIEClient);
-//    itsAnalyticIE->MakeExchange(Kab,itsIEClient);            
+    itsAnalyticIE->MakeDirect  (Jac,itsIEClient);
+    itsAnalyticIE->MakeExchange(Kab,itsIEClient);            
 }
 
 template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)

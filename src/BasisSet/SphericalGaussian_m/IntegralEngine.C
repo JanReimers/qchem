@@ -16,6 +16,16 @@ namespace SphericalGaussian_m
     
 double IntegralEngine::FourPi2=4*4*Pi*Pi;
 
+IntegralEngine::RVec IntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
+{
+    return AngularIntegrals::Coulomb(la,lc,ma,mc);
+}
+
+IntegralEngine::RVec IntegralEngine::ExchangeAngularIntegrals(size_t la, size_t lb, int ma, int mb) const
+{
+    return AngularIntegrals::Exchange(la,lb,ma,mb);
+}
+
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 {
     const IEClient* sg=dynamic_cast<const IEClient*>(iec);
@@ -105,7 +115,7 @@ ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const AtomIEClien
             iec->loop_2(ic);
             int la=a->Ls(ia), lc=c->Ls(ic);
             int ma=a->Ms(ia), mc=c->Ms(ic);
-            RVec Akac=AngularIntegrals::Coulomb(la,lc,ma,mc);
+            RVec Akac=Coulomb_AngularIntegrals(la,lc,ma,mc);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
@@ -113,17 +123,19 @@ ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const AtomIEClien
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
-                    const SphericalGaussianCD* cd=iec->loop_4(id);
                     assert(la==a->Ls(ib));
                     assert(lc==c->Ls(id));
                     if (J(ia,ib,ic,id)!=0.0)
                     {
-                        cout << "overwritting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
                         cout << J(ia,ib,ic,id) << endl;    
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
+                    RVec Rkac=iec->loop_4_direct(id,la,lc);
+                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*Rkac*norm;
+//                    const SphericalGaussianCD* cd=iec->loop_4(id);
+//                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }
             }
         }
@@ -181,7 +193,7 @@ ERIK IntegralEngine::MakeExchange(const iriec* a, const iriec* b,const AtomIECli
         {
             int la=a->Ls(ia), lb=b->Ls(ib);
             int ma=a->Ms(ia), mb=b->Ms(ib);
-            RVec Akab=AngularIntegrals::Exchange(la,lb,ma,mb);
+            RVec Akab=ExchangeAngularIntegrals(la,lb,ma,mb);
 
             for (size_t ic:a->indices())
             {
@@ -194,17 +206,19 @@ ERIK IntegralEngine::MakeExchange(const iriec* a, const iriec* b,const AtomIECli
 //                    if (id<ic) continue;
                     if (ia==ic && id<ib) continue;
                     //if (id<ib) continue;
-                    const SphericalGaussianCD* cd=iec->loop_4(id);
                     assert(la==a->Ls(ic));
                     assert(lb==b->Ls(id));
                     if (K(ia,ic,ib,id)!=0.0)
                     {
-                        cout << "overwritting Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
+                        cout << "overwriting Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
                         cout << K(ia,ic,ib,id) << endl;    
                         assert(false);
                     }
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
-                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
+                    RVec RKab=iec->loop_4_exchange(id,la,lb);
+                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*RKab*norm; 
+//                    const SphericalGaussianCD* cd=iec->loop_4(id);
+//                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
                     if (ia==ic) K(ia,ic,id,ib)=K(ia,ic,ib,id); //ERIK container does support this symmetry yet.
 //                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
 //                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    

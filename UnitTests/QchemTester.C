@@ -144,7 +144,7 @@ BasisSet* SGm_OBasis::GetBasisSet () const
 //    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
     SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,N,emin,emax,Lmax);
     StreamableObject::SetToPretty();
-    std::cout << *bs << std::endl;
+    //std::cout << *bs << std::endl;
     return  bs;
 }
 
