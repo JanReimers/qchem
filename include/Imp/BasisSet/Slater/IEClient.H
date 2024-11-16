@@ -27,7 +27,6 @@ struct IEClient
     : public virtual ::IEClient 
     , public AtomIEClient
 {
-
     virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
     virtual const SlaterCD* loop_4(size_t id)  const
     {

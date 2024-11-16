@@ -30,12 +30,14 @@ void AtomIEClient::Append(const AtomIrrepIEClient* ic)
     size_t N=size()+ic->size();
     Ns.SetLimits(N,true);
     Ls.SetLimits(N,true);
+    Ms.SetLimits(N,true);
     es.SetLimits(N,true);
     ns.SetLimits(N,true);
     for (size_t i=1;i<=ic->size();i++,j++)
     {
         Ns(j)=ic->Ns(i);
         Ls(j)=ic->Ls(i);
+        Ms(j)=ic->Ms(i);
         es(j)=ic->es(i);
         ns(j)=ic->ns(i);
         BFGrouper::Append(es(j),Ls(j),j);

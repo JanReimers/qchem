@@ -16,31 +16,6 @@ double IrrepIEClient::Norm(double e, size_t l) const
 {
     return GaussianNorm(e,l);
 }
-    
-//void IrrepIEClient::Init(double minexp,double maxexp,size_t L)
-//{
-//    
-//      FillPower(es,minexp,maxexp);
-//      Fill(Ls,L);
-//      for (auto i:es.indices())  ns(i)=GaussianNorm(es(i),L);
-//}
-
-void IEClient::Append(const IrrepIEClient* ic)
-{
-    size_t j=size()+1;
-    size_t N=size()+ic->size();
-    Ls.SetLimits(N,true);
-    es.SetLimits(N,true);
-    ns.SetLimits(N,true);
-    for (size_t i=1;i<=ic->size();i++,j++)
-    {
-        Ls(j)=ic->Ls(i);
-        es(j)=ic->es(i);
-        ns(j)=ic->ns(i);
-        BFGrouper::Append(es(j),Ls(j),j);
-    }
-
-}
 
 const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
