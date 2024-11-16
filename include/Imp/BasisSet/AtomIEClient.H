@@ -36,21 +36,17 @@ struct AtomIEClient
 {
     void Append(const AtomIrrepIEClient*);
     
-    virtual size_t size() const {return es.size();}
-    size_t LMax() const {return Max(Ls);}
+    virtual size_t size() const {return Ls.size();}
+    size_t LMax() const;
     void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
     void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
     void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
-    
-    Vector<size_t> Ns;  //Angular momentum.
-    Vector<size_t> Ls;  //Angular momentum.
-    Vector<int   > Ms;  //Angular momentum.
-    Vector<double> es; //The orbital exponents.
-    Vector<double> ns; //Normalization constants
-    
     virtual const AtomIrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
+    
+private:
+    Vector<size_t> Ls;  //Angular momentum.
     std::vector<const AtomIrrepIEClient*> itsIrreps;
 }; 
 

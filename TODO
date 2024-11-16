@@ -1,7 +1,7 @@
 Priority 1:
-    -1) Refactor atom IEs, lots of common code.
-        2) Then propagate and new ERIJ ERIK code to all atom basis sets.
-        3) Compare table sizes before removing old JK code.
+    Done: -1) Refactor atom IEs, lots of common code.
+        Done: 2) Then propagate and new ERIJ ERIK code to all atom basis sets.
+        Oops: 3) Compare table sizes before removing old JK code.
     -5) Work towards linear contraction of D_cd*J_abcd and D_cd*K_abcd
         -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
         4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)

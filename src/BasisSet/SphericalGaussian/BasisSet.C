@@ -16,10 +16,14 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
     for (size_t L=0;L<=LMax;L++)
     {
         size_t  NL=N;
-        IrrepBasisSet* ibs=  L==0 ?
-                new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),ss.emax(L),L)
-            :
-                new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),es(NL),L); 
+        IrrepBasisSet* ibs=0;
+        if (L==0)
+            ibs=new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),ss.emax(L),L);
+        else
+        {
+            const AtomIrrepIEClient* ibs0=(*this)[1];
+            ibs=new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),ibs0->es(NL),L);             
+        }
         Append(ibs); //IECleint
         Insert(ibs); //Common with optr_vector     
     }

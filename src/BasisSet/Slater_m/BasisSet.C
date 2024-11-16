@@ -18,11 +18,14 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
         size_t  NL=ss.N(L);
         for (int m=-L;m<=L;m++)
         {
-            IrrepBasisSet* ibs= 
-            L==0 ?
-                new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),ss.emax(L),L,m)
-            :
-                new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),es(NL),L,m); 
+            IrrepBasisSet* ibs=0;
+            if (L==0)
+                ibs=new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),ss.emax(L),L,m);
+            else
+            {
+                const AtomIrrepIEClient* ibs0=(*this)[1];
+                ibs=new IrrepBasisSet(lap,GetDataBase(),NL,ss.emin(L),ibs0->es(NL),L,m);             
+            }
             Append(ibs);
             Insert(ibs);            
         }

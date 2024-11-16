@@ -24,24 +24,20 @@ void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t L, int m)
     for (auto i:es.indices())  ns(i)=Norm(es(i),Ls(i));
 }
 
+size_t AtomIEClient::LMax() const 
+{
+    return Max(Ls);
+}
 void AtomIEClient::Append(const AtomIrrepIEClient* ic)
 {
     itsIrreps.push_back(ic);
     size_t j=size()+1;
     size_t N=size()+ic->size();
-    Ns.SetLimits(N,true);
     Ls.SetLimits(N,true);
-    Ms.SetLimits(N,true);
-    es.SetLimits(N,true);
-    ns.SetLimits(N,true);
     for (size_t i=1;i<=ic->size();i++,j++)
     {
-        Ns(j)=ic->Ns(i);
         Ls(j)=ic->Ls(i);
-        Ms(j)=ic->Ms(i);
-        es(j)=ic->es(i);
-        ns(j)=ic->ns(i);
-        BFGrouper::Append(es(j),Ls(j),j);
+        BFGrouper::Append(ic->es(i),ic->Ls(i),j);
     }
 
 }

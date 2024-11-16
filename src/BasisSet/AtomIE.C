@@ -203,7 +203,7 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const
     const iriec* b=dynamic_cast<const iriec* >(_b);
     assert(aiec);
     assert(a);
-    assert(c);
+    assert(b);
     size_t Na=a->size(), Nb=b->size();
     ERIK K(Na,Nb);
     for (size_t ia:a->indices())
