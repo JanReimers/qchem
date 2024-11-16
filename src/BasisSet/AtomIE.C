@@ -180,7 +180,7 @@ ERIJ AtomIE::MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient* aie
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     RVec Rkac=aiec->loop_4_direct(id,la,lc);
-                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*Rkac*norm;
+                    J(ia,ib,ic,id)=FourPi2*Akac*Rkac*norm;
 //                    const SphericalGaussianCD* cd=iec->loop_4(id);
 //                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }
@@ -224,7 +224,7 @@ ERIK AtomIE::MakeExchange(const iriec* a, const iriec* b,const AtomIEClient* aie
                     }
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
                     RVec RKab=aiec->loop_4_exchange(id,la,lb);
-                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*RKab*norm; 
+                    K(ia,ic,ib,id)=FourPi2*Akab*RKab*norm; 
 //                    const SphericalGaussianCD* cd=iec->loop_4(id);
 //                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
                     if (ia==ic) K(ia,ic,id,ib)=K(ia,ic,ib,id); //ERIK container does support this symmetry yet.

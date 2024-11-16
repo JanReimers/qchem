@@ -20,8 +20,6 @@ public:
 
 private:
     typedef AtomIrrepIEClient iriec;
-    //virtual ERIJ MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const;
-    //virtual ERIK MakeExchange(const iriec* a, const iriec* b,const AtomIEClient*) const;
    
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;

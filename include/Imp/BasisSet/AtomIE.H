@@ -30,8 +30,8 @@ private:
     typedef AtomIrrepIEClient iriec;
     virtual ERIJ MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const;
     virtual ERIK MakeExchange(const iriec* a, const iriec* b,const AtomIEClient*) const;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const {return Vector<double>();}
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const {return Vector<double>();};
+    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
+    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
 
     static const iriec* dcast(iec_t*);
     typedef std::tuple<int,int,int,double,double> bf_tuple;

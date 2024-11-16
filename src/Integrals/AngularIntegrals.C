@@ -54,6 +54,14 @@ double Exchange(int k,int la,int lb,int ma,int mb)
     return w3ab*w3ab*w3ab_m*w3ab_m;
 }
 
+RVec Coulomb(int la,int lb)
+{    
+    RVec Ak(1);
+    Ak(1)=1.0;
+    return Ak;
+}
+
+
 RVec Exchange(int la,int lb)
 {    
     assert(la>=0);
@@ -84,7 +92,7 @@ RVec Coulomb (int la,int lc,int ma,int mc)
         double w3c=Wigner3j::w3j(lc,lc,k);
         double w3am=Wigner3j::w3j(la,la,k,ma,-ma);
         double w3cm=Wigner3j::w3j(lc,lc,k,mc,-mc);
-        Ak(i)= phase*w3a*w3am*w3c*w3cm;
+        Ak(i)= phase*(2*la+1)*(2*lc+1)*w3a*w3am*w3c*w3cm;
     }
     return Ak;
 }
@@ -107,7 +115,7 @@ RVec Exchange(int la,int lb,int ma,int mb)
         assert((k+la+lb)%2==0);
         double w3ab=Wigner3j::w3j(la,lb,k);
         double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
-        Ak(i++)=w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
+        Ak(i++)=(2*la+1)*(2*lb+1)*w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
     }
     return Ak;
 }

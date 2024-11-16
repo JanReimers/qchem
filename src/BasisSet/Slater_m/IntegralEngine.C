@@ -13,6 +13,16 @@ namespace Slater_m
 
 double IntegralEngine::FourPi2=4*4*pi*pi;
 
+IntegralEngine::RVec IntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
+{
+    return AngularIntegrals::Coulomb(la,lc,ma,mc);
+}
+
+IntegralEngine::RVec IntegralEngine::ExchangeAngularIntegrals(size_t la, size_t lb, int ma, int mb) const
+{
+    return AngularIntegrals::Exchange(la,lb,ma,mb);
+}
+
 using std::cout;
 using std::endl;
 
@@ -40,7 +50,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                     const SlaterCD* cd1=sg->loop_4(id);
                     //cout << "cd.Rk=" << cd.Rk(la,lc) << endl;
-                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd1->Coulomb_Rk(la,lc)*norm;
+                    J(ia,ib,ic,id)=FourPi2*Akac*cd1->Coulomb_Rk(la,lc)*norm;
                 }
             }
         }
@@ -68,7 +78,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
                     const SlaterCD* cd1=sg->loop_4(id);
                     //cout << "cd.ExchangeRk=" << cd.ExchangeRk(la,lb) << endl;
-                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1->ExchangeRk(la,lb)*norm;                        
+                    K(ia,ib,ic,id)=FourPi2*Akab*cd1->ExchangeRk(la,lb)*norm;                        
                 }
            }
         }

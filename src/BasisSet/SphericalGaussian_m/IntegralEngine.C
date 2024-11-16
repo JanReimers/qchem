@@ -55,7 +55,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     }
                     const SphericalGaussianCD* cd1=sg->loop_4(id);
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd1->Coulomb_Rk(la,lc)*norm;
+                    J(ia,ib,ic,id)=FourPi2*Akac*cd1->Coulomb_Rk(la,lc)*norm;
 //                    cout << "J(" << ia << " " << ib << " " << ic << " " << id << ")="; 
 //                    cout << std::setprecision(8) << J(ia,ib,ic,id) << endl; 
                  }
@@ -90,7 +90,7 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
                     }
                     const SphericalGaussianCD* cd1=sg->loop_4(id);
                     double norm=sg->ns(ia)*sg->ns(ib)*sg->ns(ic)*sg->ns(id);
-                    K(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd1->ExchangeRk(la,lb)*norm;
+                    K(ia,ib,ic,id)=FourPi2*Akab*cd1->ExchangeRk(la,lb)*norm;
 //                    cout << "Kold(" << ia << " " << ib << " " << ic << " " << id << ")="; 
 //                    cout << std::setprecision(8) << K(ia,ib,ic,id) << endl; 
                 }
@@ -102,44 +102,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 
 //#define SymmetryCheck
 
-//ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const AtomIEClient* aiec) const
-//{
-//    //const IEClient* iec=dynamic_cast<const IEClient*>(aiec);
-//    size_t Na=a->size(), Nc=c->size();
-//    ERIJ J(Na,Nc);
-//    for (size_t ia:a->indices())
-//    {
-//        aiec->loop_1(ia); //Start a cache for SphericalGaussianCD*
-//        for (size_t ic:c->indices())
-//        {
-//            aiec->loop_2(ic);
-//            int la=a->Ls(ia), lc=c->Ls(ic);
-//            int ma=a->Ms(ia), mc=c->Ms(ic);
-//            RVec Akac=Coulomb_AngularIntegrals(la,lc,ma,mc);
-//            for (size_t ib:a->indices())
-//            {
-//                if (ib<ia) continue; 
-//                aiec->loop_3(ib);
-//                for (size_t id:c->indices())
-//                {
-//                    if (id<ic) continue;
-//                    assert(la==a->Ls(ib));
-//                    assert(lc==c->Ls(id));
-//                    if (J(ia,ib,ic,id)!=0.0)
-//                    {
-//                        cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-//                        cout << J(ia,ib,ic,id) << endl;    
-//                        assert(false);
-//                    }
-//                    double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                    RVec Rkac=aiec->loop_4_direct(id,la,lc);
-//                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*Rkac*norm;
-////                    const SphericalGaussianCD* cd=iec->loop_4(id);
-////                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
-//                }
-//            }
-//        }
-//    }
 //
 //#ifdef SymmetryCheck
 //    double tol=1e-12;
@@ -181,52 +143,6 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 //    return J;
 //}
 
-//ERIK IntegralEngine::MakeExchange(const iriec* a, const iriec* b,const AtomIEClient* aiec) const
-//{
-//    //const IEClient* iec=dynamic_cast<const IEClient*>(aiec);
-//    size_t Na=a->size(), Nb=b->size();
-//    ERIK K(Na,Nb);
-//    for (size_t ia:a->indices())
-//    {
-//        aiec->loop_1(ia); //Start a cache for SphericalGaussianCD*
-//        for (size_t ib:b->indices())
-//        {
-//            int la=a->Ls(ia), lb=b->Ls(ib);
-//            int ma=a->Ms(ia), mb=b->Ms(ib);
-//            RVec Akab=ExchangeAngularIntegrals(la,lb,ma,mb);
-//
-//            for (size_t ic:a->indices())
-//            {
-//                if (ic<ia) continue;
-//                aiec->loop_2(ic);
-//                aiec->loop_3(ib);
-//                
-//                for (size_t id:b->indices())
-//                {
-////                    if (id<ic) continue;
-//                    if (ia==ic && id<ib) continue;
-//                    //if (id<ib) continue;
-//                    assert(la==a->Ls(ic));
-//                    assert(lb==b->Ls(id));
-//                    if (K(ia,ic,ib,id)!=0.0)
-//                    {
-//                        cout << "overwriting Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
-//                        cout << K(ia,ic,ib,id) << endl;    
-//                        assert(false);
-//                    }
-//                    double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
-//                    RVec RKab=aiec->loop_4_exchange(id,la,lb);
-//                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*RKab*norm; 
-////                    const SphericalGaussianCD* cd=iec->loop_4(id);
-////                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
-//                    if (ia==ic) K(ia,ic,id,ib)=K(ia,ic,ib,id); //ERIK container does support this symmetry yet.
-////                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
-////                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    
-//
-//                }
-//            }
-//        }
-//    }
 //
 //    #ifdef SymmetryCheck    
 //    double tol=1e-12;

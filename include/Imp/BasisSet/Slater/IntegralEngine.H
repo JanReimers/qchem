@@ -26,6 +26,8 @@ private:
     virtual double Nuclear(double ea, double eb,size_t l) const;
     virtual double Charge (double ea,           size_t l) const;
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const;
+    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
+    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
     
     static double FourPi2;
 

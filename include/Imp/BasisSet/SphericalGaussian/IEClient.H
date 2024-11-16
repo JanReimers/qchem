@@ -32,6 +32,18 @@ struct IEClient
         const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
         return dynamic_cast<const SphericalGaussianCD*>(c);
     }
+    virtual Vector<double> loop_4_direct(size_t id, size_t la, size_t lc)  const
+    {
+        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
+        const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
+        return cd->Coulomb_Rk(la,lc);
+    }
+    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const
+    {
+        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
+        const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
+        return cd->ExchangeRk(la,lc);
+    }
 }; 
 
 } //namespace

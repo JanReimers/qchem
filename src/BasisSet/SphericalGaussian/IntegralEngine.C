@@ -53,6 +53,16 @@ double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) cons
     return R.Coulomb(la,la,lc,0); 
 }
 
+IntegralEngine::RVec IntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
+{
+    return AngularIntegrals::Coulomb(la,lc);
+}
+
+IntegralEngine::RVec IntegralEngine::ExchangeAngularIntegrals(size_t la, size_t lb, int, int) const
+{
+    return AngularIntegrals::Exchange(la,lb);
+}
+
 //
 
 void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
