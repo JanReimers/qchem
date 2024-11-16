@@ -104,22 +104,22 @@ void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
 
 ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const AtomIEClient* aiec) const
 {
-    const IEClient* iec=dynamic_cast<const IEClient*>(aiec);
+    //const IEClient* iec=dynamic_cast<const IEClient*>(aiec);
     size_t Na=a->size(), Nc=c->size();
     ERIJ J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        iec->loop_1(ia); //Start a cache for SphericalGaussianCD*
+        aiec->loop_1(ia); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
-            iec->loop_2(ic);
+            aiec->loop_2(ic);
             int la=a->Ls(ia), lc=c->Ls(ic);
             int ma=a->Ms(ia), mc=c->Ms(ic);
             RVec Akac=Coulomb_AngularIntegrals(la,lc,ma,mc);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
-                iec->loop_3(ib);
+                aiec->loop_3(ib);
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
@@ -132,7 +132,7 @@ ERIJ IntegralEngine::MakeDirect(const iriec* a, const iriec* c,const AtomIEClien
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    RVec Rkac=iec->loop_4_direct(id,la,lc);
+                    RVec Rkac=aiec->loop_4_direct(id,la,lc);
                     J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*Rkac*norm;
 //                    const SphericalGaussianCD* cd=iec->loop_4(id);
 //                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;

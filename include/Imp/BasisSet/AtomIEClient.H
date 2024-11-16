@@ -41,7 +41,9 @@ struct AtomIEClient
     void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
     void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
     void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}
-
+    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const {return Vector<double>();};
+    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const {return Vector<double>();};
+    
     Vector<size_t> Ns;  //Angular momentum.
     Vector<size_t> Ls;  //Angular momentum.
     Vector<int   > Ms;  //Angular momentum.
