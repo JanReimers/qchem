@@ -3,6 +3,7 @@
 
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/IEClient.H" 
+#include "Imp/Integrals/SlaterCD.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Containers/ERI4.H"

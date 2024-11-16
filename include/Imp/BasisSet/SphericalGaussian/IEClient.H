@@ -1,12 +1,8 @@
-// File: SphericalGaussianIEClient
+// File: SphericalGaussianIEClient.H
 #ifndef _SphericalGaussianIEClient_H_
 #define _SphericalGaussianIEClient_H_
 
-#include <IEClient.H> // <> prevents file search on this SphericalGaussian folder.
-#include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/BasisSet/AtomIEClient.H"
-#include "Imp/BasisSet/BFGrouper.H"
-#include "oml/vector.h"
 
 namespace SphericalGaussian
 {
@@ -27,23 +23,8 @@ struct IEClient
     , public AtomIEClient
 {
     virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual const SphericalGaussianCD* loop_4(size_t id)  const
-    {
-        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
-        return dynamic_cast<const SphericalGaussianCD*>(c);
-    }
-    virtual Vector<double> loop_4_direct(size_t id, size_t la, size_t lc)  const
-    {
-        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
-        const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
-        return cd->Coulomb_Rk(la,lc);
-    }
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const
-    {
-        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
-        const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
-        return cd->ExchangeRk(la,lc);
-    }
+    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
+    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
 }; 
 
 } //namespace

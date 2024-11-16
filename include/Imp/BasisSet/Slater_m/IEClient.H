@@ -3,8 +3,7 @@
 #define _Slater_m_IEClient_H_
 
 #include "Imp/BasisSet/Slater/IEClient.H" 
-#include "Imp/Integrals/SlaterCD.H"
-#include "Imp/BasisSet/BFGrouper.H"
+
     
 namespace Slater_m
 {
@@ -16,26 +15,8 @@ struct IEClient
     , public AtomIEClient
 {
     virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
-    
-    virtual const SlaterCD* loop_4(size_t id)  const
-    {
-        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
-        return dynamic_cast<const SlaterCD*>(c);
-    }
-
-    virtual Vector<double> loop_4_direct(size_t id, size_t la, size_t lc)  const
-    {
-        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
-        const SlaterCD* cd = dynamic_cast<const SlaterCD*>(c);
-        return cd->Coulomb_Rk(la,lc);
-    }
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const
-    {
-        const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
-        const SlaterCD* cd = dynamic_cast<const SlaterCD*>(c);
-        return cd->ExchangeRk(la,lc);
-    }
-     
+    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
+    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
 }; 
 
 } //namespace Slater_m
