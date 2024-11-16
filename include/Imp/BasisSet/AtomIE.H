@@ -11,6 +11,7 @@ class AtomIE : public virtual AnalyticIE<double>
 {
     virtual size_t size() const {return -1;}
 public:
+    typedef Vector<double> RVec;
     // One electron functions for DFT and HF
     virtual SMat MakeOverlap  (iec_t* a) const;
     virtual SMat MakeKinetic  (iec_t* a) const;
@@ -22,16 +23,13 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
-    virtual void MakeDirect  (erij_t& Jab, const IEClient*) const; //Used for Hartree-Fock
-    virtual void MakeExchange(erik_t& Kab, const IEClient*) const; //Used for Hartree-Fock
-    
-    typedef Vector<double> RVec;
-private:
-    typedef AtomIrrepIEClient iriec;
     virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c,const IEClient*) const;
     virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
+    
+private:
+    typedef AtomIrrepIEClient iriec;
 
     static const iriec* dcast(iec_t*);
     typedef std::tuple<int,int,int,double,double> bf_tuple;

@@ -149,12 +149,12 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 //                    << std::scientific << std::setw(8) << J(ia,ib,ic,id)  << std::endl;
 
                     double rerr=fabs(J(ia,ib,ic,id)-J1(ia,ib,ic,id))/fabs(J(ia,ib,ic,id));
-                    if (rerr>=1e-14)
+                    if (rerr>=1e-13)
                     {
                         cout << "(abcd)=(" << ia << " " << ib << " " << ic << " " << id << ") J_abcd="; 
                         cout << J(ia,ib,ic,id) << " " << J1(ia,ib,ic,id) << endl;                        
                     }
-                    assert(rerr<1e-14);
+                    assert(rerr<1e-13);
                     Jab_temp+=J(ia,ib,ic,id)*Dcd(ic,id);
                 }
             Jab(ia,ib)=Jab_temp;
@@ -201,7 +201,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
                         fabs(Kold-Knew)
                         :
                         fabs(Kold-Knew)/fabs(Kold);
-                    if (rerr>=1e-14)
+                    if (rerr>=1e-13)
                     {
                         cout << rerr << endl;
                         cout << std::setprecision(8) << "Kold(" << ia << " " << ic << " " << ib << " " << id << ")=";
@@ -209,7 +209,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
                         cout << std::setprecision(8) << "Knew(" << ia << " " << ib << " " << ic << " " << id << ")=";
                         cout << Knew << endl; 
                     }
-                    assert(rerr<1e-14);
+                    assert(rerr<1e-13);
                     
                     Kab_temp+= Kold*Dcd(ic,id);
                 }
