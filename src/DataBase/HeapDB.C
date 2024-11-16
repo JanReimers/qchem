@@ -291,49 +291,13 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec
         return i->second;
 }
 
-template <class T> void HeapDB<T>::BuildERIs()
-{
-    assert(itsAnalyticIE);
-    assert(itsIEClient);
-    assert(itsJTable.size()==0);
-    assert(itsKTable.size()==0); //They should be synchronized.
-    size_t N=itsIEClient->size();
-    itsJTable.SetSize(N,0.0);
-    //if (itsIEClient->GetNumIrreps()>1)
-    {
-        itsKTable.SetSize(N,0.0);
-        itsAnalyticIE->Make4C(itsJTable,itsKTable,itsIEClient);
-    }
-//    else
-//        itsAnalyticIE->Make4C(itsJTable,itsJTable,itsIEClient);
-        
-    std::cout << "J table size=" << itsJTable.itsData.size() << ", " << itsJTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
-    std::cout << "K table size=" << itsKTable.itsData.size() << ", " << itsKTable.GetZerosFraction()*100 << "% is zeros." << std::endl;
-    
-    itsAnalyticIE->MakeDirect  (Jac,itsIEClient);
-    itsAnalyticIE->MakeExchange(Kab,itsIEClient);            
-}
-
-template <class T> ERI4view  HeapDB<T>::GetRepulsion4C(bs_t& a,bs_t& b)
-{
-   if (itsJTable.size()==0) BuildERIs(); 
-   return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
-}
-
-template <class T> ERI4view  HeapDB<T>::GetExchange4C (bs_t& a,bs_t& b)
-{
-   if (itsJTable.size()==0) BuildERIs(); 
-   int sa=a.GetStartIndex(),sb=b.GetStartIndex();
-//   if (itsIEClient->GetNumIrreps()==1)
-//        return ERI4view(itsJTable,a.GetStartIndex(),b.GetStartIndex());
-//    else
-        return ERI4view(itsKTable,sa,sb,sa,sb);
-}
 
 using std::cout;
 using std::endl;
 template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 {
+    if (Jac.size()==0) 
+        itsAnalyticIE->MakeDirect  (Jac,itsIEClient);
     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
     assert(Jac.find(a.GetIndex())!=Jac.end());
     assert(Jac[a.GetIndex()].find(c.GetIndex())!=Jac[a.GetIndex()].end());
@@ -342,6 +306,8 @@ template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 }
 template <class T> ERIK HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
 {
+    if (Kab.size()==0)
+        itsAnalyticIE->MakeExchange(Kab,itsIEClient); 
     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
     assert(Kab.find(a.GetIndex())!=Kab.end());
     assert(Kab[a.GetIndex()].find(b.GetIndex())!=Kab[a.GetIndex()].end());

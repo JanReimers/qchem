@@ -75,8 +75,6 @@ public:
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual    ERI4view    GetRepulsion4C(bs_t& a,bs_t& b) =0;
-    virtual    ERI4view    GetExchange4C (bs_t& a,bs_t& b) =0;
     virtual    ERIJ        GetRepulsion4C_new(bs_t& a,bs_t& b)=0;
     virtual    ERIK        GetExchange4C_new(bs_t& a,bs_t& b)=0;
     
