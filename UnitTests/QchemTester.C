@@ -158,7 +158,7 @@ BasisSet* PG_OBasis::GetBasisSet () const
         PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
         PolarizedGaussian::BasisSet* bs=new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());  
         StreamableObject::SetToPretty();
-        std::cout << *bs << std::endl;
+        //std::cout << *bs << std::endl;
         return bs;
 //        return new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());        
     }
