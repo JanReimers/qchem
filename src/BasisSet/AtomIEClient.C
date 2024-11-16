@@ -4,24 +4,25 @@
 
 template <class T> void FillPower(Vector<T>& arr,T start, T stop);
 
-void AtomIrrepIEClient::Init(double minexp,double maxexp,size_t L, int m)
+void AtomIrrepIEClient::Init(double minexp,double maxexp,size_t _l, int _m)
 {
+    n=_l+1;
+    l=_l;
+    m=_m;
     
-      FillPower(es,minexp,maxexp);
-      Fill(Ns,L+1);
-      Fill(Ls,L);
-      Fill(Ms,m);
-      for (auto i:es.indices())  ns(i)=Norm(es(i),Ls(i));
+    FillPower(es,minexp,maxexp);
+    for (auto i:es.indices())  ns(i)=Norm(es(i),l);
 }
 
-void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t L, int m)
+void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t _l, int _m)
 {
+    n=_l+1;
+    l=_l;
+    m=_m;
+
     int i=1;
     for (auto& e:exponents) es(i++)=e;
-    Fill(Ns,L+1);
-    Fill(Ls,L);
-    Fill(Ms,m);
-    for (auto i:es.indices())  ns(i)=Norm(es(i),Ls(i));
+    for (auto i:es.indices())  ns(i)=Norm(es(i),l);
 }
 
 size_t AtomIEClient::LMax() const 
@@ -36,8 +37,8 @@ void AtomIEClient::Append(const AtomIrrepIEClient* ic)
     Ls.SetLimits(N,true);
     for (size_t i=1;i<=ic->size();i++,j++)
     {
-        Ls(j)=ic->Ls(i);
-        BFGrouper::Append(ic->es(i),ic->Ls(i),j);
+        Ls(j)=ic->l;
+        BFGrouper::Append(ic->es(i),ic->l,j);
     }
 
 }

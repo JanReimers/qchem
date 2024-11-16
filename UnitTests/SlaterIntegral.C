@@ -76,8 +76,8 @@ public:
 
 bool SlaterRadialIntegralTests::supported(const Slater::IrrepIEClient& ab, const Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
-    int nab=ab.Ns(ia)+ab.Ns(ib);
-    int ncd=cd.Ns(ic)+cd.Ns(id);
+    int nab=ab.n+ab.n;
+    int ncd=cd.n+cd.n;
     return nab<=6 && ncd<=6;
 }
 
@@ -86,8 +86,8 @@ double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slat
 {
     double a=ab.es(ia)+ab.es(ib);
     double b=cd.es(ic)+cd.es(id);
-    int nab=ab.Ns(ia)+ab.Ns(ib);
-    int ncd=cd.Ns(ic)+cd.Ns(id);
+    int nab=ab.n+ab.n;
+    int ncd=cd.n+cd.n;
     double f=4*4*Pi*Pi/(a*b*(a+b));
     if (nab==2 && ncd==2)
         return 2*f*( 

@@ -23,7 +23,7 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* iea ) const
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=Overlap(a->es(i),a->es(j),2*a->Ls(i))*a->ns(i)*a->ns(j);
+            s(i,j)=Overlap(a->es(i),a->es(j),2*a->l)*a->ns(i)*a->ns(j);
 
     return s;
 }
@@ -35,10 +35,7 @@ AtomIE::SMat AtomIE::MakeKinetic(iec_t* iea) const
     SMatrix<double> Hk(N);
     for (auto i:Hk.rows())
         for (auto j:Hk.cols(i))
-        {
-            Hk(i,j)=Kinetic(a->es(i),a->es(j),a->Ls(i))*a->ns(i)*a->ns(j);
-            assert(a->Ls(i)==a->Ls(j));
-        }
+            Hk(i,j)=Kinetic(a->es(i),a->es(j),a->l)*a->ns(i)*a->ns(j);
 
     return Hk;
 }
@@ -46,7 +43,7 @@ AtomIE::SMat AtomIE::MakeKinetic(iec_t* iea) const
 AtomIE::SMat AtomIE::MakeNuclear(iec_t* iea,const Cluster& cl) const
 {
     auto a=dcast(iea);;
-    size_t N=a->size(),L=a->Ls(1);
+    size_t N=a->size(),L=a->l;
     SMatrix<double> Hn(N);
     double Z=-cl.GetNuclearCharge();
     for (auto i:Hn.rows())
@@ -60,7 +57,7 @@ AtomIE::RVec AtomIE::MakeCharge(iec_t* iea) const
 {
     auto a=dcast(iea);;
     RVec c(a->size());
-    for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->Ls(i))*a->ns(i);
+    for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
     return c;
 }
 
@@ -72,8 +69,7 @@ AtomIE::SMat AtomIE::MakeRepulsion(iec_t* iea ) const
     SMat r(N,N);
     for (auto i:r.rows())
         for (auto j:r.cols(i))
-            //r(i,j)=GaussianRepulsionIntegral(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
-            r(i,j)=Repulsion(a->es(i),a->es(j),a->Ls(i),a->Ls(j))*a->ns(i)*a->ns(j);
+            r(i,j)=Repulsion(a->es(i),a->es(j),a->l,a->l)*a->ns(i)*a->ns(j);
 
     return r;
 }
@@ -86,8 +82,7 @@ AtomIE::Mat AtomIE::MakeRepulsion(iec_t* iea,iec_t* ieb) const
     Mat s(Na,Nb);
     for (auto i:s.rows())
         for (auto j:s.cols())
-            s(i,j)=Repulsion(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*a->ns(j);
-//            s(i,j)=GaussianRepulsionIntegral(a->es(i),b->es(j),a->Ls(i),b->Ls(j))*a->ns(i)*b->ns(j);
+            s(i,j)=Repulsion(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*a->ns(j);
 
     return s;
 }
@@ -107,7 +102,7 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
             assert(ab->Ls(i)==ab->Ls(j));
             assert(Lc==0); //Non-polarized fit basis
             //assert(ab->Ls(i)==Lc); //TODO what going on here?
-            s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->Ls(i)+ab->Ls(j)+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
         }
     return s;
 }
@@ -135,7 +130,7 @@ AtomIE::SMat AtomIE::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
         for (auto j:s.cols(i))
         {
             assert(ab->Ls(i)==ab->Ls(j));
-            s(i,j)=Repulsion(ab->es(i)+ab->es(j),ec,ab->Ls(i),Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
         }
     return s;
 }
@@ -166,8 +161,8 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const
         for (size_t ic:c->indices())
         {
             aiec->loop_2(ic);
-            int la=a->Ls(ia), lc=c->Ls(ic);
-            int ma=a->Ms(ia), mc=c->Ms(ic);
+            int la=a->l, lc=c->l;
+            int ma=a->m, mc=c->m;
             RVec Akac=Coulomb_AngularIntegrals(la,lc,ma,mc);
             for (size_t ib:a->indices())
             {
@@ -211,8 +206,8 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const
         aiec->loop_1(ia); //Start a cache for SphericalGaussianCD*
         for (size_t ib:b->indices())
         {
-            int la=a->Ls(ia), lb=b->Ls(ib);
-            int ma=a->Ms(ia), mb=b->Ms(ib);
+            int la=a->l, lb=b->l;
+            int ma=a->m, mb=b->m;
             RVec Akab=ExchangeAngularIntegrals(la,lb,ma,mb);
 
             for (size_t ic:a->indices())

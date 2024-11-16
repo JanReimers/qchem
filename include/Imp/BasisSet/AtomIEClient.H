@@ -11,19 +11,18 @@
 struct AtomIrrepIEClient : public virtual ::IrrepIEClient
 {
     AtomIrrepIEClient() {}; 
-    AtomIrrepIEClient(size_t N) : Ns(N), Ls(N), Ms(N), es(N), ns(N) {};
-    Vector<size_t> Ns;  //Principle QN.
-    Vector<size_t> Ls;  //Angular momentum.
-    Vector<int   > Ms;  //Angular momentum.
+    AtomIrrepIEClient(size_t N) :  es(N), ns(N) {};
     Vector<double> es; //The orbital exponents.
     Vector<double> ns; //Normalization constants
+    size_t n,l;
+    int m;
     
-    void Init(double minexp,double maxexp,size_t L, int m=0);
-    void Init(std::set<double>& exponents,size_t L, int m=0);
+    void Init(double minexp,double maxexp,size_t l, int m=0);
+    void Init(std::set<double>& exponents,size_t l, int m=0);
     
     virtual size_t size() const {return es.size();}
     typedef std::tuple<int,int,int,double,double> bf_tuple;
-    bf_tuple operator()(index_t i) const {return std::make_tuple(Ns(i),Ls(i),Ms(i),es(i),ns(i));}
+    bf_tuple operator()(index_t i) const {return std::make_tuple(n,l,m,es(i),ns(i));}
     auto indices() const {return es.indices();}
 private:
     virtual double Norm(double e, size_t l) const=0;
