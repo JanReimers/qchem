@@ -4,12 +4,6 @@
 namespace SphericalGaussian_m
 {
 
-void IEClient::Append(const IrrepIEClient* ic)
-{
-    itsIrreps.push_back(ic);
-    AtomIEClient::Append(ic);
-}
-
 
 const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {

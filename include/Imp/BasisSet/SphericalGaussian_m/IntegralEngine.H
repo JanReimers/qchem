@@ -21,8 +21,9 @@ public:
     virtual void MakeExchange(erik_t& Kab, const ::IEClient*) const; //Used for Hartree-Fock
 
 private:
-    ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c,const IEClient*) const;
-    ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const;
+    typedef AtomIrrepIEClient iriec;
+    ERIJ MakeDirect  (const iriec* a, const iriec* c,const IEClient*) const;
+    ERIK MakeExchange(const iriec* a, const iriec* b,const IEClient*) const;
    
     static double FourPi2;
 };

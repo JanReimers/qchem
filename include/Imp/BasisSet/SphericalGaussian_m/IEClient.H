@@ -12,25 +12,10 @@ namespace SphericalGaussian_m
     
 typedef SphericalGaussian::IrrepIEClient IrrepIEClient;
 
-struct IEData
-{
-    IEData() {}; 
-    IEData(size_t N) : Ns(N), Ls(N), Ms(N), es(N), ns(N) {};
-    Vector<size_t> Ns;  //Angular momentum.
-    Vector<size_t> Ls;  //Angular momentum.
-    Vector<int   > Ms;  //Angular momentum.
-    Vector<double> es; //The orbital exponents.
-    Vector<double> ns; //Normalization constants
-};
-
-
-//Use the same struct for a full basis set.;
 struct IEClient 
     : public virtual ::IEClient 
     , public AtomIEClient
 {
-    void Append(const IrrepIEClient*);
-    
     virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
     
     virtual const SphericalGaussianCD* loop_4(size_t id)  const
@@ -39,12 +24,11 @@ struct IEClient
         return dynamic_cast<const SphericalGaussianCD*>(c);
     }
 
-    virtual const IrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
-    std::vector<const IrrepIEClient*> itsIrreps;
+
 
     
 }; 
 
-} //namespace Slater_m
+} //namespace SphericalGaussian_m
 
 #endif // _Slater_m_IEClient_H_

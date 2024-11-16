@@ -47,6 +47,9 @@ struct AtomIEClient
     Vector<int   > Ms;  //Angular momentum.
     Vector<double> es; //The orbital exponents.
     Vector<double> ns; //Normalization constants
+    
+    virtual const AtomIrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
+    std::vector<const AtomIrrepIEClient*> itsIrreps;
 }; 
 
 

@@ -26,6 +26,7 @@ void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t L, int m)
 
 void AtomIEClient::Append(const AtomIrrepIEClient* ic)
 {
+    itsIrreps.push_back(ic);
     size_t j=size()+1;
     size_t N=size()+ic->size();
     Ns.SetLimits(N,true);
