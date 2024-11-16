@@ -27,6 +27,7 @@ void IEData::Init(std::vector<const Block*>& blocks)
 
 void IEClient::Append(const IrrepIEClient* ic)
 {
+    itsIrreps.push_back(ic);
     size_t j=size()+1;
     for (auto r:ic->radials) radials.push_back(r);
     for (auto r:ic->pols   ) pols   .push_back(r);

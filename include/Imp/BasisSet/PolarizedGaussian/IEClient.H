@@ -44,6 +44,10 @@ struct IEClient
     bool SameIrrep(index_t ia, index_t ib) const;
     
     std::map <index_t,index_t> irrepIDs;  //<index,irrep#>
+    
+    virtual const IrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
+    std::vector<const IrrepIEClient*> itsIrreps;
+
 };
     
 } //namespace PolarizedGaussian

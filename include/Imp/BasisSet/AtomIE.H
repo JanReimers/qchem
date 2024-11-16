@@ -16,20 +16,20 @@ public:
     virtual SMat MakeKinetic  (iec_t* a) const;
     virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
     virtual RVec MakeCharge   (iec_t* a) const;
-    //  DFT functions
+    //  DFT Rho,Vac fitting functions
     virtual SMat MakeRepulsion  (iec_t* a) const; //Used for charge and Vxc fitting.
     virtual  Mat MakeRepulsion  (iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
-    virtual void MakeDirect  (erij_t& Jab, const ::IEClient*) const; //Used for Hartree-Fock
-    virtual void MakeExchange(erik_t& Kab, const ::IEClient*) const; //Used for Hartree-Fock
+    virtual void MakeDirect  (erij_t& Jab, const IEClient*) const; //Used for Hartree-Fock
+    virtual void MakeExchange(erik_t& Kab, const IEClient*) const; //Used for Hartree-Fock
     
     typedef Vector<double> RVec;
 private:
     typedef AtomIrrepIEClient iriec;
-    virtual ERIJ MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const;
-    virtual ERIK MakeExchange(const iriec* a, const iriec* b,const AtomIEClient*) const;
+    virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c,const IEClient*) const;
+    virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
 

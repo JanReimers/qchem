@@ -150,8 +150,14 @@ AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
     return s3;
 }
 
-ERIJ AtomIE::MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient* aiec) const 
+ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const IEClient* iec) const 
 {
+    const AtomIEClient* aiec= dynamic_cast<const AtomIEClient*>(iec);
+    const iriec* a=dynamic_cast<const iriec* >(_a);
+    const iriec* c=dynamic_cast<const iriec* >(_c);
+    assert(aiec);
+    assert(a);
+    assert(c);
     size_t Na=a->size(), Nc=c->size();
     ERIJ J(Na,Nc);
     for (size_t ia:a->indices())
@@ -190,8 +196,14 @@ ERIJ AtomIE::MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient* aie
     return J;
 };
 
-ERIK AtomIE::MakeExchange(const iriec* a, const iriec* b,const AtomIEClient* aiec) const 
+ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const IEClient* iec) const 
 {
+    const AtomIEClient* aiec= dynamic_cast<const AtomIEClient*>(iec);
+    const iriec* a=dynamic_cast<const iriec* >(_a);
+    const iriec* b=dynamic_cast<const iriec* >(_b);
+    assert(aiec);
+    assert(a);
+    assert(c);
     size_t Na=a->size(), Nb=b->size();
     ERIK K(Na,Nb);
     for (size_t ia:a->indices())
@@ -242,14 +254,13 @@ ERIK AtomIE::MakeExchange(const iriec* a, const iriec* b,const AtomIEClient* aie
 void AtomIE::MakeDirect(erij_t& Jac, const ::IEClient* iec) const
 {
     Jac.clear();
-    const AtomIEClient& sg=*dynamic_cast<const AtomIEClient*>(iec);
-    size_t NIrrep=sg.GetNumIrreps();
+    size_t NIrrep=iec->GetNumIrreps();
     for (size_t ia=1;ia<=NIrrep;ia++)
         for (size_t ic=1;ic<=NIrrep;ic++) //TODO run from ia n
         {
-            const iriec* a=sg[ia];
-            const iriec* c=sg[ic];
-            Jac[ia][ic]=MakeDirect(a,c,&sg);
+            const IrrepIEClient* a=(*iec)[ia];
+            const IrrepIEClient* c=(*iec)[ic];
+            Jac[ia][ic]=MakeDirect(a,c,iec);
         }
 
 }
@@ -257,14 +268,13 @@ void AtomIE::MakeDirect(erij_t& Jac, const ::IEClient* iec) const
 void AtomIE::MakeExchange(erik_t& Kab, const ::IEClient* iec) const
 {
     Kab.clear();
-    const AtomIEClient& sg=*dynamic_cast<const AtomIEClient*>(iec);
-    size_t NIrrep=sg.GetNumIrreps();
+    size_t NIrrep=iec->GetNumIrreps();
     for (size_t ia=1;ia<=NIrrep;ia++)
         for (size_t ib=1;ib<=NIrrep;ib++) //TODO run from ib 
         {
-            const iriec* a=sg[ia];
-            const iriec* b=sg[ib];
-            Kab[ia][ib]=MakeExchange(a,b,&sg);
+            const IrrepIEClient* a=(*iec)[ia];
+            const IrrepIEClient* b=(*iec)[ib];
+            Kab[ia][ib]=MakeExchange(a,b,iec);
         }
     
 }
