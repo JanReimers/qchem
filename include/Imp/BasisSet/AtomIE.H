@@ -3,6 +3,7 @@
 #define _AtomIE_H_
 
 #include <AnalyticIE.H>
+#include "oml/vector.h"
 class AtomIrrepIEClient;
 class AtomIEClient;
 
@@ -24,10 +25,13 @@ public:
     virtual void MakeDirect  (erij_t& Jab, const ::IEClient*) const; //Used for Hartree-Fock
     virtual void MakeExchange(erik_t& Kab, const ::IEClient*) const; //Used for Hartree-Fock
     
+    typedef Vector<double> RVec;
 private:
     typedef AtomIrrepIEClient iriec;
     virtual ERIJ MakeDirect  (const iriec* a, const iriec* c,const AtomIEClient*) const;
     virtual ERIK MakeExchange(const iriec* a, const iriec* b,const AtomIEClient*) const;
+    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const {return Vector<double>();}
+    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const {return Vector<double>();};
 
     static const iriec* dcast(iec_t*);
     typedef std::tuple<int,int,int,double,double> bf_tuple;
@@ -39,6 +43,8 @@ private:
     virtual double Nuclear  (double ea , double eb,size_t l) const=0;
     virtual double Charge   (double ea ,           size_t l) const=0;
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
+    
+    static double FourPi2;
 };
 
 
