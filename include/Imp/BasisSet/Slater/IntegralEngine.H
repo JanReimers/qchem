@@ -18,7 +18,6 @@ class IntegralEngine
     , public AtomIE
 {
 public:
-    virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
 
 private:
     virtual double Overlap(double ea, double eb,size_t l) const;

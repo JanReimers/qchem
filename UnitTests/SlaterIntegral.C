@@ -288,15 +288,13 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
     ERI4 J,K;
     J.SetSize(bs->size(),0.0);
     K.SetSize(bs->size(),0.0);
-    ie->Make4C(J,K,bs);
-    //int L=0;
     for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
     for (auto icdt=bs->beginT();icdt!=bs->end();icdt++)
     {
         const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
         const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERI4view Jview(J,iab->GetStartIndex(),icd->GetStartIndex());
+        ERIJ Jview=ie->MakeDirect(*iabt,*icdt,bs);
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)

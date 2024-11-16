@@ -38,7 +38,6 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
-    virtual void Make4C(ERI4& J, ERI4& K, const ::IEClient*) const; //Used for Hartree-Fock
     virtual ERIJ MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c,const ::IEClient*) const;
     virtual ERIK MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b,const ::IEClient*) const;
     

@@ -137,35 +137,6 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 //
 //  4 centre integrals.
 //
-void IntegralEngine::Make4C(ERI4& J, ERI4& K,const ::IEClient* iec) const
-{
-    const IEClient* pg=dynamic_cast<const IEClient*>(iec);
-    
-    for (index_t ia:pg->ns.indices())
-        for (index_t ib:pg->ns.indices(ia))
-            for (index_t ic:pg->ns.indices())
-                for (index_t id:pg->ns.indices(ic))
-                {
-                    bool doJ = pg->SameIrrep(ia,ib) && pg->SameIrrep(ic,id);// && (*J)(ia,ib,ic,id)==-1.0;
-                    bool doK = pg->SameIrrep(ia,ic) && pg->SameIrrep(ib,id);// && (*K)(ia,ib,ic,id)==-1.0;
-
-                    if (doJ || doK)
-                    {
-                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=pg->ns(ia)*pg->ns(ib)*pg->ns(ic)*pg->ns(id);
-                        assert(pg->radials[id-1]);
-                        if (doJ)
-                            J(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
-                        else
-                            J(ia,ib,ic,id)=0.0;
-
-                        if (doK)
-                            K(ia,ib,ic,id)=norm * pg->radials[id-1]->Integrate(pg->radials[ia-1],pg->radials[ib-1],pg->radials[ic-1],pg->pols[ia-1],pg->pols[ib-1],pg->pols[ic-1],pg->pols[id-1],cache);
-                        else
-                            K(ia,ib,ic,id)=0.0;
-                    }
-                }
-}
 
 ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c,const ::IEClient*) const
 {
