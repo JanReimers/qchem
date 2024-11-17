@@ -27,8 +27,8 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
             else
             {
                 const AtomIrrepIEClient* ibs0=(*this)[1];
-                ibs=new IrrepBasisSet(lap,GetDataBase(),N,ibs0->es(1),ibs0->es(N),L,m);             
-//                ibs=new IrrepBasisSet(lap,GetDataBase(),N-2*L,ibs0->es(L+1),ibs0->es(N-L),L,m);             
+//                ibs=new IrrepBasisSet(lap,GetDataBase(),N,ibs0->es(1),ibs0->es(N),L,m);             
+                ibs=new IrrepBasisSet(lap,GetDataBase(),N-2*L,ibs0->es(L+1),ibs0->es(N-L),L,m);             
             }
             Append(ibs);
             Insert(ibs);            
