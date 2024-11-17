@@ -21,9 +21,6 @@ protected:
     size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 
-    //! zero based index for each unique exponent.
-    std::vector<size_t> es_indices; 
-
 private:
     std::map<double,size_t> unique_es; //Unique exponents.
     //! For each unique exponent, store the maximum l value.

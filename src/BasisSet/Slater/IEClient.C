@@ -34,13 +34,13 @@ const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 
 Vector<double> IEClient::loop_4_direct(size_t id, size_t la, size_t lc)  const
 {
-    const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
+    const Cacheable* c=Cache4::loop_4(id);
     const SlaterCD* cd = dynamic_cast<const SlaterCD*>(c);
     return cd->Coulomb_Rk(la,lc);
 }
 Vector<double> IEClient::loop_4_exchange(size_t id, size_t la, size_t lc)  const
 {
-    const Cacheable* c=Cache4::loop_4(es_indices[id-1]);
+    const Cacheable* c=Cache4::loop_4(id);
     const SlaterCD* cd = dynamic_cast<const SlaterCD*>(c);
     return cd->ExchangeRk(la,lc);
 }

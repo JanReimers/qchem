@@ -19,6 +19,7 @@ using std::endl;
  SphericalGaussianCD::SphericalGaussianCD(double _eab, double _ecd, size_t _LMax)
  : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,LMax,1,2*LMax+1), Icd(0,LMax,1,2*LMax+1)
  {
+ //   cout << "SphericalGaussianCD eab,ecd,LMax=" << eab << " " << ecd << " " << LMax << endl;
     assert(Iab.GetLimits()==Icd.GetLimits());
     Fill(Iab,0.0);
     Fill(Icd,0.0);

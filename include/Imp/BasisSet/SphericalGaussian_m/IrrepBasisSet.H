@@ -27,6 +27,11 @@ public:
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
 
+    using IrrepBasisSetCommon::const_iterator;
+    using IrrepBasisSetCommon::iterator;
+    using IrrepBasisSetCommon::begin;
+    using IrrepBasisSetCommon::end;
+
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
     virtual ::IrrepBasisSet* Clone(            ) const;

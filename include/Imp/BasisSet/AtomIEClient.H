@@ -14,6 +14,8 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     AtomIrrepIEClient(size_t N) :  es(N), ns(N) {};
     Vector<double> es; //The orbital exponents.
     Vector<double> ns; //Normalization constants
+    std::vector<size_t> es_indices; //Unique exponent index
+    
     size_t n,l;
     int m;
     
@@ -24,6 +26,8 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     bf_tuple operator()(index_t i) const {return std::make_tuple(n,l,m,es(i),ns(i));}
     auto indices() const {return es.indices();}
+    typedef std::vector<size_t>::const_iterator const_iterator;
+    
 private:
     virtual double Norm(double e, size_t l) const=0;
 };
@@ -36,9 +40,9 @@ struct AtomIEClient
     void Append(AtomIrrepIEClient*);
     
     virtual size_t size() const;
-    void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
-    void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
-    void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}
+    void loop_1(size_t ia) const {Cache4::loop_1(ia);}
+    void loop_2(size_t ic) const {Cache4::loop_2(ic);}
+    void loop_3(size_t ib) const {Cache4::loop_3(ib);}
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
     virtual const AtomIrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}

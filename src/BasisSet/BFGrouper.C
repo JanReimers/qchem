@@ -17,15 +17,15 @@ void BFGrouper::Append(AtomIrrepIEClient* aiec)
             unique_esv.push_back(e);
             maxls.push_back(aiec->l);
             unique_es[e]=index;
-            for (auto e:unique_esv) cout << e << " ";
-            cout << endl;
+//            for (auto e:unique_esv) cout << e << " ";
+//            cout << endl;
         }
         else 
             index=ie->second;
 
         if (aiec->l>maxls[index]) maxls[index]=aiec->l;
-        cout << "BFGrouper index,l,maxl=" << index << " " << aiec->l << " " << maxls[index] << endl;
-        es_indices.push_back(index);  
+//        cout << "BFGrouper index,l,maxl=" << index << " " << aiec->l << " " << maxls[index] << endl;
+        aiec->es_indices.push_back(index);  
     }        
 }
  
@@ -37,7 +37,7 @@ size_t BFGrouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
 {
     size_t lmax_ab=std::max(maxls[ia],maxls[ib]);
     size_t lmax_cd=std::max(maxls[ic],maxls[id]);
-    cout << "(abcd)=(" << ia << " "  << ib << " "  << ic << " "  << id << ") max(ab)=" << lmax_ab << " max(cd)=" << lmax_cd <<endl;
+//    cout << "(abcd)=(" << ia << " "  << ib << " "  << ic << " "  << id << ") max(ab)=" << lmax_ab << " max(cd)=" << lmax_cd <<endl;
     return std::max(lmax_ab,lmax_cd);
 }
 

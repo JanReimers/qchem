@@ -154,22 +154,26 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const
     ERIJ J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        aiec->loop_1(ia); //Start a cache for SphericalGaussianCD*
+        size_t iea=a->es_indices[ia-1]; //Unique exponent index. zero based.
+        aiec->loop_1(iea); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
-            aiec->loop_2(ic);
+            size_t iec=c->es_indices[ic-1]; //Unique exponent index. zero based.
+            aiec->loop_2(iec);
             int la=a->l, lc=c->l;
             int ma=a->m, mc=c->m;
             RVec Akac=Coulomb_AngularIntegrals(la,lc,ma,mc);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
-                aiec->loop_3(ib);
+                size_t ieb=a->es_indices[ib-1]; //Unique exponent index. zero based.
+                aiec->loop_3(ieb);
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
                     assert(la==a->l);
                     assert(lc==c->l);
+                    size_t ied=c->es_indices[id-1]; //Unique exponent index. zero based.
                     if (J(ia,ib,ic,id)!=0.0)
                     {
                         cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
@@ -177,7 +181,7 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    RVec Rkac=aiec->loop_4_direct(id,la,lc);
+                    RVec Rkac=aiec->loop_4_direct(ied,la,lc);
                     J(ia,ib,ic,id)=FourPi2*Akac*Rkac*norm;
 //                    const SphericalGaussianCD* cd=iec->loop_4(id);
 //                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
@@ -200,9 +204,11 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const
     ERIK K(Na,Nb);
     for (size_t ia:a->indices())
     {
-        aiec->loop_1(ia); //Start a cache for SphericalGaussianCD*
+        size_t iea=a->es_indices[ia-1]; //Unique exponent index. zero based.
+        aiec->loop_1(iea); //Start a cache for SphericalGaussianCD*
         for (size_t ib:b->indices())
         {
+            size_t ieb=b->es_indices[ib-1]; //Unique exponent index. zero based.
             int la=a->l, lb=b->l;
             int ma=a->m, mb=b->m;
             RVec Akab=ExchangeAngularIntegrals(la,lb,ma,mb);
@@ -210,8 +216,9 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const
             for (size_t ic:a->indices())
             {
                 if (ic<ia) continue;
-                aiec->loop_2(ic);
-                aiec->loop_3(ib);
+                size_t iec=a->es_indices[ic-1]; //Unique exponent index. zero based.
+                aiec->loop_2(iec);
+                aiec->loop_3(ieb);
                 
                 for (size_t id:b->indices())
                 {
@@ -227,7 +234,8 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const
                         assert(false);
                     }
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
-                    RVec RKab=aiec->loop_4_exchange(id,la,lb);
+                    size_t ied=b->es_indices[id-1]; //Unique exponent index. zero based.
+                    RVec RKab=aiec->loop_4_exchange(ied,la,lb);
                     K(ia,ic,ib,id)=FourPi2*Akab*RKab*norm; 
 //                    const SphericalGaussianCD* cd=iec->loop_4(id);
 //                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
