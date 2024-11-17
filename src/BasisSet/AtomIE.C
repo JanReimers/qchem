@@ -99,7 +99,6 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
     for (auto i:s.rows())
         for (auto j:s.cols(i))
         {
-            assert(ab->Ls(i)==ab->Ls(j));
             assert(Lc==0); //Non-polarized fit basis
             //assert(ab->Ls(i)==Lc); //TODO what going on here?
             s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
@@ -128,10 +127,8 @@ AtomIE::SMat AtomIE::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
     SMat s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-        {
-            assert(ab->Ls(i)==ab->Ls(j));
             s(i,j)=Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
-        }
+
     return s;
 }
 
@@ -171,8 +168,8 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
-                    assert(la==a->Ls(ib));
-                    assert(lc==c->Ls(id));
+                    assert(la==a->l);
+                    assert(lc==c->l);
                     if (J(ia,ib,ic,id)!=0.0)
                     {
                         cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
@@ -221,8 +218,8 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const
 //                    if (id<ic) continue;
                     if (ia==ic && id<ib) continue;
                     //if (id<ib) continue;
-                    assert(la==a->Ls(ic));
-                    assert(lb==b->Ls(id));
+                    assert(la==a->l);
+                    assert(lb==b->l);
                     if (K(ia,ic,ib,id)!=0.0)
                     {
                         cout << "overwriting Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
