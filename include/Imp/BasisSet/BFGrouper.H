@@ -12,10 +12,12 @@
 // and work out the radial integral tables up to LMax for each exponent combination. 
 // THis class should be working together with the charge distribution caching mechanism.
 //  
+class AtomIrrepIEClient;
+
 class BFGrouper
 {
 protected:
-    void Append(double e, size_t l);
+    void Append(AtomIrrepIEClient*);
     size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 

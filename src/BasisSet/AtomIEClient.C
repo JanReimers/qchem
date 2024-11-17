@@ -25,10 +25,11 @@ void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t _l, int _m)
     for (auto i:es.indices())  ns(i)=Norm(es(i),l);
 }
 
-void AtomIEClient::Append(const AtomIrrepIEClient* ic)
+void AtomIEClient::Append(AtomIrrepIEClient* ic)
 {
     itsIrreps.push_back(ic);
-    for (auto e:ic->es) BFGrouper::Append(e,ic->l);
+    BFGrouper::Append(ic);
+//    for (auto e:ic->es) BFGrouper::Append(e,ic->l);
 }
 
 size_t AtomIEClient::size() const 

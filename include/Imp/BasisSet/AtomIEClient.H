@@ -33,7 +33,7 @@ struct AtomIEClient
     , public virtual Cache4
     , public BFGrouper
 {
-    void Append(const AtomIrrepIEClient*);
+    void Append(AtomIrrepIEClient*);
     
     virtual size_t size() const;
     void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
