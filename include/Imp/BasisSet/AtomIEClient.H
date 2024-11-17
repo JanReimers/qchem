@@ -35,8 +35,7 @@ struct AtomIEClient
 {
     void Append(const AtomIrrepIEClient*);
     
-    virtual size_t size() const {return Ls.size();}
-    size_t LMax() const;
+    virtual size_t size() const;
     void loop_1(size_t ia) const {Cache4::loop_1(es_indices[ia-1]);}
     void loop_2(size_t ic) const {Cache4::loop_2(es_indices[ic-1]);}
     void loop_3(size_t ib) const {Cache4::loop_3(es_indices[ib-1]);}
@@ -45,7 +44,6 @@ struct AtomIEClient
     virtual const AtomIrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
     
 private:
-    Vector<size_t> Ls;  //Angular momentum.
     std::vector<const AtomIrrepIEClient*> itsIrreps;
 }; 
 

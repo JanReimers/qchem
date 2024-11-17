@@ -20,7 +20,7 @@ double IrrepIEClient::Norm(double e, size_t l) const
 
 const Cacheable* IEClient::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
-    return new SphericalGaussianCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax());
+    return new SphericalGaussianCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax(ia,ib,ic,id));
 }
 
 Vector<double>  IEClient::loop_4_direct(size_t id, size_t la, size_t lc)  const

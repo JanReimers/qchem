@@ -5,30 +5,27 @@
 #include <vector>
 #include <map>
 
-//
 // 
-// Group Slater or Gaussian basis functions by unique exponents.  When using this
-// class there are two sets of indices:
-//   1) flat indices which include duplicates
-//   2) unique indices which refer to the list of unique exponents.
-// 
+// Keep a list of unique exponents for Group Slater or Gaussian basis functions.
+// For each unique exponent also store am index and the maximum l angular momentum used
+// for that exponent.  The idea is to share exponents between different l-irreps 
+// and work out the radial integral tables up to LMax for each exponent combination. 
+// THis class should be working together with the charge distribution caching mechanism.
 //  
 class BFGrouper
 {
-public:
-    //! zero based index for each unique exponent.
-    std::vector<size_t> es_indices; 
+protected:
+    void Append(double e, size_t l);
+    size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 
-    //! Get all indices with Ls(i)=l
-    const std::vector<size_t>& indices(size_t l) const;
-
-protected:
-    void Append(double e, size_t l, size_t flat_index);
+    //! zero based index for each unique exponent.
+    std::vector<size_t> es_indices; 
 
 private:
     std::map<double,size_t> unique_es; //Unique exponents.
-    std::map<size_t,std::vector<size_t> > L_indices; // <L,flat indices>
+    //! For each unique exponent, store the maximum l value.
+    std::vector<double> maxls;
 };
 
 
