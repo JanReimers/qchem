@@ -52,16 +52,20 @@
 
 double SlaterCD::Coulomb_R0(int la,int lc) const
 {
-        int Lab_p=2*la+3; // first term r_1^2
-        int Lcd_m=2*lc+1; // first term r_2
-        int Lab_m=2*la+1; // second term r_1
-        int Lcd_p=2*lc+3; // second term r_2^2
-        //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        return (Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+    assert(la<=LMax);
+    assert(lc<=LMax);
+    int Lab_p=2*la+3; // first term r_1^2
+    int Lcd_m=2*lc+1; // first term r_2
+    int Lab_m=2*la+1; // second term r_1
+    int Lcd_p=2*lc+3; // second term r_2^2
+    //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
+    return (Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
 Vector<double> SlaterCD::Coulomb_Rk(int la,int lc) const
 {
+    assert(la<=LMax);
+    assert(lc<=LMax);
     Vector<double> ret(la+lc+1,0.0);
     int i=1;
     for (int k=0;k<=2*std::min(la,lc);k+=2)
@@ -78,6 +82,8 @@ Vector<double> SlaterCD::Coulomb_Rk(int la,int lc) const
 
 Vector<double> SlaterCD::ExchangeRk(int la,int lb) const
 {
+    assert(la<=LMax);
+    assert(lb<=LMax);
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
     int N=(kmax-kmin)/2+1;

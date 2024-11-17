@@ -63,17 +63,21 @@ using std::endl;
 
 double SphericalGaussianCD::Coulomb_R0(int la,int lc) const
 {
-        int Lab_p=la+1; // (la+lb+2)/2 
-        int Lcd_m=lc;   // (lc+ld)/2   
-        int Lab_m=la;   // (la+lb)/2   
-        int Lcd_p=lc+1; // (lc+ld+2)/2
-        //cout << "Lab_m Lcd_m Lab_p Lcd_p" << Lab_m << " " << Lcd_m << " " << Lab_p << " " << Lcd_p << endl;
-        //cout << "Iab Icd = " << Iab(Lab_m,Lcd_p) << " " << Icd(Lcd_m,Lab_p) << endl;
-        return sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+    assert(la<=LMax);
+    assert(lc<=LMax);
+    int Lab_p=la+1; // (la+lb+2)/2 
+    int Lcd_m=lc;   // (lc+ld)/2   
+    int Lab_m=la;   // (la+lb)/2   
+    int Lcd_p=lc+1; // (lc+ld+2)/2
+    //cout << "Lab_m Lcd_m Lab_p Lcd_p" << Lab_m << " " << Lcd_m << " " << Lab_p << " " << Lcd_p << endl;
+    //cout << "Iab Icd = " << Iab(Lab_m,Lcd_p) << " " << Icd(Lcd_m,Lab_p) << endl;
+    return sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
 Vector<double> SphericalGaussianCD::Coulomb_Rk(int la,int lc) const
 {
+    assert(la<=LMax);
+    assert(lc<=LMax);
     Vector<double> ret(la+lc+1,0.0);
     int i=1;
     for (int k=0;k<=2*std::min(la,lc);k+=2)
@@ -90,6 +94,8 @@ Vector<double> SphericalGaussianCD::Coulomb_Rk(int la,int lc) const
 
 Vector<double> SphericalGaussianCD::ExchangeRk(int la,int lb) const
 {
+    assert(la<=LMax);
+    assert(lb<=LMax);
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
     int N=(kmax-kmin)/2+1;
