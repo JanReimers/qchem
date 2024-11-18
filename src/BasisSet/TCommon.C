@@ -12,7 +12,8 @@ BasisSetImp::BasisSetImp()
 }
 
 BasisSetImp::BasisSetImp(AnalyticIE<double>* ie)
-: itsDB(new HeapDB<double>(ie,this))
+: itsIE(ie)
+, itsDB(new HeapDB<double>(ie,this))
 , itsBasisSets()
 {
 }

@@ -35,17 +35,10 @@ private:
 
 struct AtomIEClient 
     : public virtual ::IEClient 
-    , public virtual Cache4
-    , public BFGrouper
 {
     void Append(AtomIrrepIEClient*);
     
     virtual size_t size() const;
-    void loop_1(size_t ia) const {Cache4::loop_1(ia);}
-    void loop_2(size_t ic) const {Cache4::loop_2(ic);}
-    void loop_3(size_t ib) const {Cache4::loop_3(ib);}
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
     virtual const AtomIrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
     
 private:

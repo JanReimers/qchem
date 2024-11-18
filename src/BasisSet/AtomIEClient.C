@@ -37,8 +37,6 @@ void AtomIrrepIEClient::Init(const Vector<double>& exponents,size_t _l, int _m)
 void AtomIEClient::Append(AtomIrrepIEClient* ic)
 {
     itsIrreps.push_back(ic);
-    BFGrouper::Append(ic);
-//    for (auto e:ic->es) BFGrouper::Append(e,ic->l);
 }
 
 size_t AtomIEClient::size() const 

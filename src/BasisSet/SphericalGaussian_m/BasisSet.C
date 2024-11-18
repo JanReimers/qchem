@@ -22,6 +22,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
         {
             IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L,m);
             Append(ibs);
+            itsIE->Append(ibs); //IECleint
             Insert(ibs);            
         }
     }
@@ -69,7 +70,8 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
         for (int m=-L;m<=L;m++)
         {
             IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),le.second,L,m);
-            Append(ibs); //IECleint
+            AtomIEClient::Append(ibs); //IECleint
+            itsIE->Append(ibs); //IECleint
             Insert(ibs); //Common with optr_vector     
         }
     }

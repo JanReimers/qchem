@@ -36,6 +36,7 @@ public:
     typedef std::map<size_t,std::map<size_t,ERIK> > erik_t;
 
     virtual ~AnalyticIE()  {};
+    virtual void Append(IrrepIEClient*) {};
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
     //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
     //! Total charge \f$ \left\langle a\left|\right|1\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right) \f$

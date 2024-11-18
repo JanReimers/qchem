@@ -29,6 +29,10 @@ private:
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
     
+    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
+    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
+    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
+        
     static double FourPi2;
 };
 

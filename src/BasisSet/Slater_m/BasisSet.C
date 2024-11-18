@@ -19,6 +19,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
         {
             IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),ss.Get_es(L),L,m);
             Append(ibs);
+            itsIE->Append(ibs); //IECleint
             Insert(ibs);            
         }
     }

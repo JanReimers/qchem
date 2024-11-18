@@ -3,11 +3,15 @@
 #define _AtomIE_H_
 
 #include <AnalyticIE.H>
+#include "Imp/BasisSet/BFGrouper.H"
+#include "Imp/Integrals/Cache4.H"
 #include "oml/vector.h"
 class AtomIrrepIEClient;
-class AtomIEClient;
 
-class AtomIE : public virtual AnalyticIE<double>
+class AtomIE 
+    : public virtual AnalyticIE<double>
+    , public virtual Cache4
+    , public BFGrouper
 {
     virtual size_t size() const {return -1;}
 public:
@@ -27,7 +31,12 @@ public:
     virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
-    
+    // Cach4 functions
+    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
+    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
+    virtual void Append(IrrepIEClient*);
+
+        
 private:
     typedef AtomIrrepIEClient iriec;
 
