@@ -285,16 +285,13 @@ struct Vf : public VectorFunction<double>
 
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
-    ERI4 J,K;
-    J.SetSize(bs->GetNumFunctions(),0.0);
-    K.SetSize(bs->GetNumFunctions(),0.0);
     for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
     for (auto icdt=bs->beginT();icdt!=bs->end();icdt++)
     {
         const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
         const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERIJ Jview=ie->MakeDirect(*iabt,*icdt);
+        ERIJ J=ie->MakeDirect(*iabt,*icdt);
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)
@@ -306,7 +303,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
                 if (supported(*iab,*icd,ia,ib,ic,id))
                 {
                         
-                    double jv=Jview(ia,ib,ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
+                    double jv=J(ia,ib,ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
                     if (fabs(jv-r0)/jv>1e-12)
                     {
                         cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
