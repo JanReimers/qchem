@@ -22,12 +22,10 @@ public:
     IrrepBasisSetCommon(              );
     IrrepBasisSetCommon(QuantumNumber*);
     IrrepBasisSetCommon(const IrrepBasisSetCommon&);
-    virtual void SetStartIndex(int);
     virtual void SetIndex(size_t);
 
     virtual ~IrrepBasisSetCommon();
 
-    virtual int     GetStartIndex  (               ) const;
     virtual size_t  GetIndex       (               ) const;
     virtual size_t  GetNumFunctions(               ) const;
     virtual bool    operator==     (const IrrepBasisSet&) const;

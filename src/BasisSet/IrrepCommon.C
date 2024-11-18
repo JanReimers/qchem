@@ -62,17 +62,6 @@ void IrrepBasisSetCommon::EmptyBasisFunctions()
 //
 //  Basis Set Stuff.
 //
-void IrrepBasisSetCommon::SetStartIndex(int si)
-{
-    assert(si>0);
-    itsStartIndex=si;
-}
-
-int  IrrepBasisSetCommon::GetStartIndex() const
-{
-    assert(itsStartIndex>0);
-    return itsStartIndex;
-}
 void IrrepBasisSetCommon::SetIndex(size_t i)
 {
     itsIndex=i;

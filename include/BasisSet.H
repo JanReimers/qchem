@@ -66,8 +66,8 @@ public:
     typedef std::vector<SMat> ERI3;
     
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
-    virtual int                  GetStartIndex   (               ) const=0;
     virtual size_t               GetIndex        (               ) const=0;
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
 //
@@ -104,7 +104,6 @@ public:
     virtual       iterator end  ()      =0;
     
     
-    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
 //
 //  StreamableObject stuff.
 //
@@ -115,7 +114,6 @@ public:
     static  IrrepBasisSet* Factory(std::istream&    )        ;
 private:
     friend class BasisSetImp;
-    virtual void SetStartIndex(int)=0;
     virtual void SetIndex(size_t)=0;
 };
 

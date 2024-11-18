@@ -38,7 +38,6 @@ size_t BasisSetImp::GetNumIrreps() const
 void BasisSetImp::Insert(IrrepBasisSet* bs)
 {
     assert(bs);
-    bs->SetStartIndex(GetNumFunctions()+1);
     itsBasisSets.push_back(bs);
     bs->SetIndex(itsBasisSets.size());
 }
