@@ -35,9 +35,7 @@ public:
     typedef std::map<size_t,std::map<size_t,ERIK> > erik_t;
 
     virtual ~AnalyticIE()  {};
-    virtual void Append(IrrepIEClient*)=0;
-    virtual size_t GetNumIrreps() const=0;  //how many sym adapted blocks?
-    virtual const IrrepIEClient* operator[](size_t i) const=0;
+    virtual void Append(IrrepIEClient*);
 
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
     //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
@@ -71,6 +69,8 @@ public:
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  RSMat MakeInverse  (const RSMat&,const LAParams&); //Numerically stable algo required.
+private:
+    std::vector<const IrrepIEClient*> itsIrreps;
 
 };
 

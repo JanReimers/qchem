@@ -14,11 +14,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
 {
     GaussianScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
-    {
-        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L);
-        itsIE->Append(ibs); //IECleint
-        Insert(ibs); //Common with optr_vector     
-    }
+        Insert(new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L)); //Common with optr_vector     
 }
 
 

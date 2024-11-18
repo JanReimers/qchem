@@ -17,16 +17,8 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
 {
     GaussianScaler gs(N,emin,emax,LMax);
     for (int L=0;L<=LMax;L++)
-    {
         for (int m=-L;m<=L;m++)
-        {
-            IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L,m);
-            itsIE->Append(ibs); //IECleint
-            Insert(ibs);            
-        }
-    }
-        
-    
+            Insert(new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L,m));            
         
 }
 
@@ -55,11 +47,6 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
                 std::set<double> unions;
                 set_union(esL.begin(), esL.end(), es.begin(),es.end(), inserter(unions, unions.begin()));
                 i->second = unions;
-//                if (l==2)
-//                {
-//                    std::set<double>& es0=Lexponents[0];
-//                    for (auto& e:esL) es0.insert(e); //Stick all the d exponents into the s list
-//                }
             }
         }
     }
@@ -67,11 +54,7 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
     {
         int L=le.first;
         for (int m=-L;m<=L;m++)
-        {
-            IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),le.second,L,m);
-            itsIE->Append(ibs); //IECleint
-            Insert(ibs); //Common with optr_vector     
-        }
+            Insert(new IrrepBasisSet(lap,GetDataBase(),le.second,L,m)); //Common with optr_vector     
     }
 }
 

@@ -27,10 +27,10 @@ public:
 //
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
-protected:
-    friend class SlaterRadialIntegralTests;
-    AnalyticIE<double>* itsIE;
 private:
+    friend class SlaterRadialIntegralTests;
+
+    AnalyticIE<double>* itsIE;
     mutable IntegralDataBase<double>* itsDB;
     optr_vector1<IrrepBasisSet*> itsBasisSets;
 };

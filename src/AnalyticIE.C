@@ -5,6 +5,12 @@
 #include <LAParams.H>
 #include "oml/smatrix.h"
 
+
+template <class T> void AnalyticIE<T>::Append(IrrepIEClient* iec)
+{
+    itsIrreps.push_back(iec);
+}
+
 template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
     MakeInverse(const RSMat& S,const LAParams& lap) 
 {
@@ -17,12 +23,9 @@ template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
 template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
 {
     Jac.clear();
-    size_t NIrrep=GetNumIrreps();
-    for (size_t ia=1;ia<=NIrrep;ia++)
-        for (size_t ic=1;ic<=NIrrep;ic++) //TODO run from ia n
+    for (auto a: itsIrreps)
+        for (auto c: itsIrreps) //TODO run from ia n
         {
-            const IrrepIEClient* a=(*this)[ia];
-            const IrrepIEClient* c=(*this)[ic];
             Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
         }
 
@@ -31,14 +34,9 @@ template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
 template <class T> void AnalyticIE<T>::MakeExchange(erik_t& Kab) const
 {
     Kab.clear();
-    size_t NIrrep=GetNumIrreps();
-    for (size_t ia=1;ia<=NIrrep;ia++)
-        for (size_t ib=1;ib<=NIrrep;ib++) //TODO run from ib 
-        {
-            const IrrepIEClient* a=(*this)[ia];
-            const IrrepIEClient* b=(*this)[ib];
+    for (auto a: itsIrreps)
+        for (auto b: itsIrreps) //TODO run from ia n
             Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);
-        }
     
 }
 

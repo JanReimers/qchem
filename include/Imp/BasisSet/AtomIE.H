@@ -37,13 +37,9 @@ public:
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 
     virtual void Append(IrrepIEClient*);
-    virtual size_t GetNumIrreps() const {return itsIrreps.size();}
-    virtual const IrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
         
 private:
-    typedef AtomIrrepIEClient iriec;
-
-    static const iriec* dcast(iec_t*);
+    static const AtomIrrepIEClient* dcast(iec_t*);
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
     SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
@@ -53,9 +49,7 @@ private:
     virtual double Nuclear  (double ea , double eb,size_t l) const=0;
     virtual double Charge   (double ea ,           size_t l) const=0;
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
-private:
-    std::vector<const IrrepIEClient*> itsIrreps;
-        
+
     static double FourPi2;
 };
 

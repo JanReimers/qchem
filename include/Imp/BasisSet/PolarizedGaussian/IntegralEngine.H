@@ -41,10 +41,6 @@ public:
     virtual ERIJ MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
     virtual ERIK MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
 
-    virtual void Append(::IrrepIEClient*);
-    virtual size_t GetNumIrreps() const {return itsIrreps.size();}
-    virtual const ::IrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
-    
     virtual AnalyticIE<double>* Clone() const;
     virtual void Report(std::ostream&) const;
 private:
@@ -53,8 +49,8 @@ private:
     SMat Integrate(qchem::IType3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
-    std::vector<const ::IrrepIEClient*> itsIrreps;
 };
+
 } //namespace PolarizedGaussian
 
 #endif //_PolarizedGaussianIE_H_

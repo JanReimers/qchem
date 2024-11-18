@@ -13,10 +13,7 @@ namespace PolarizedGaussian
 BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Cluster* cl)
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
-    IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),reader,cl);
-    itsIE->Append(ibs); //IECleint
-//    Append(ibs);
-    Insert(ibs);
+    Insert(new IrrepBasisSet(lap,GetDataBase(),reader,cl));
 }
 
 BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
@@ -24,22 +21,12 @@ BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size
 {
     GaussianScaler gs(N,emin,emax,LMax);
     if (cl->GetNumAtoms()>1)
-    {
-        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(0),LMax,cl);
-//        Append(ibs);
-        itsIE->Append(ibs); //IECleint
-        Insert(ibs);        
-    }
+        Insert(new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(0),LMax,cl));        
     else
     {
         assert(cl->GetNumAtoms()==1);
         for (size_t L=0;L<=LMax;L++)
-        {
-            IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L);
-//            Append(ibs);
-            itsIE->Append(ibs); //IECleint
-            Insert(ibs);  
-        }
+            Insert(new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L));  
             
     }
 }

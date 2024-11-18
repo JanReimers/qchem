@@ -14,14 +14,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
 {
     SlaterScaler ss(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
-    {
-        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),ss.Get_es(L),L);
-        itsIE->Append(ibs); //IECleint
-        Insert(ibs);
-        
-    }
-        
-    
+        Insert(new IrrepBasisSet(lap,GetDataBase(),ss.Get_es(L),L));
         
 }
 

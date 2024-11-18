@@ -10,11 +10,6 @@
 namespace PolarizedGaussian
 {
 
-void IntegralEngine::Append(::IrrepIEClient* iec)
-{
-    itsIrreps.push_back(iec);
-}
-
 const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
