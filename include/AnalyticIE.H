@@ -8,7 +8,6 @@
 #include <map>
 #include <iosfwd>
 
-class IEClient;
 class IrrepIEClient;
 //--------------------------------------------------------------------------------
 //
@@ -18,8 +17,8 @@ class IrrepIEClient;
 //!  precise details of basis function or basis set.  Hence for each concrete type
 //!  of basis function there is a corresponding basis set and integral engine.
 //!  The integral engine does not see the basis function/set objects directly. Instead it
-//!  works with IrrepIEClient and IEClient interfaces which simply supply list of
-//!  exponents, polarizations and normalization constants for the particular basis set.
+//!  works with the IrrepIEClient interface which simply supply list of
+//!  exponents, polarizations and normalization constants for the particular irrep basis set.
 //!  All functions except MakeNormalization return normalized integrals.
 //!
 template <class T> class AnalyticIE

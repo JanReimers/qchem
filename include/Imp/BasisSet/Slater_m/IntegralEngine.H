@@ -10,8 +10,6 @@
 namespace Slater_m
 {
     
-class IEClient;
-    
 class IntegralEngine
     : public virtual AnalyticIE<double>
     , public Slater::IntegralEngine  

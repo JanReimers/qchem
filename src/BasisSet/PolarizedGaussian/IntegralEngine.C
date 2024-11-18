@@ -145,10 +145,8 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 
 ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
 {
-   // const IEClient* pgiec= dynamic_cast<const IEClient*>(iec);
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(_c);
-    //assert(pgiec);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
@@ -169,10 +167,8 @@ ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClie
 
 ERIK IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
 {
-//    const IEClient* pgiec= dynamic_cast<const IEClient*>(iec);
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(_b);
-//    assert(pgiec);
     assert(a);
     assert(b);
     size_t Na=a->size(), Nb=b->size();

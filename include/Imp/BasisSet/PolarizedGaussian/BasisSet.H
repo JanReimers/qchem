@@ -11,8 +11,7 @@ namespace PolarizedGaussian
 class Reader;
 
 class BasisSet 
-    : public virtual IEClient
-    , public BasisSetImp
+    : public BasisSetImp
 {
 public:
     BasisSet() {};

@@ -9,7 +9,6 @@
 #include "Imp/Containers/ERI4.H"
 
 class IrrepIEClient;
-class IEClient;
 
 //-----------------------------------------------------------------------------
 //

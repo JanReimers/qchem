@@ -15,7 +15,7 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Cluster* cl)
 {
     IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),reader,cl);
     itsIE->Append(ibs); //IECleint
-    Append(ibs);
+//    Append(ibs);
     Insert(ibs);
 }
 
@@ -26,7 +26,7 @@ BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size
     if (cl->GetNumAtoms()>1)
     {
         IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(0),LMax,cl);
-        Append(ibs);
+//        Append(ibs);
         itsIE->Append(ibs); //IECleint
         Insert(ibs);        
     }
@@ -36,7 +36,7 @@ BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size
         for (size_t L=0;L<=LMax;L++)
         {
             IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L);
-            Append(ibs);
+//            Append(ibs);
             itsIE->Append(ibs); //IECleint
             Insert(ibs);  
         }
