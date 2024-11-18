@@ -14,8 +14,7 @@ namespace SphericalGaussian_m
 {
 
 class BasisSet 
-    : public SphericalGaussian_m::IEClient
-    , public ::BasisSetImp
+    : public ::BasisSetImp
 {
 public:
     BasisSet() {};

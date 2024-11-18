@@ -46,8 +46,8 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , ie(new Slater::IntegralEngine())
     , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
+    , ie(bs->itsIE)
     , cl(new Molecule())
     {
         StreamableObject::SetToPretty();
@@ -66,8 +66,8 @@ public:
     
     int Lmax, Z;
     LAParams lap;
-    AnalyticIE<double>* ie;
     Slater::BasisSet* bs;
+    AnalyticIE<double>* ie;
 //    Slater_m::BasisSet* bsm;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
@@ -286,15 +286,15 @@ struct Vf : public VectorFunction<double>
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
     ERI4 J,K;
-    J.SetSize(bs->size(),0.0);
-    K.SetSize(bs->size(),0.0);
+    J.SetSize(bs->GetNumFunctions(),0.0);
+    K.SetSize(bs->GetNumFunctions(),0.0);
     for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
     for (auto icdt=bs->beginT();icdt!=bs->end();icdt++)
     {
         const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
         const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERIJ Jview=ie->MakeDirect(*iabt,*icdt,bs);
+        ERIJ Jview=ie->MakeDirect(*iabt,*icdt);
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)

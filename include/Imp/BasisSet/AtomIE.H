@@ -6,6 +6,7 @@
 #include "Imp/BasisSet/BFGrouper.H"
 #include "Imp/Integrals/Cache4.H"
 #include "oml/vector.h"
+class IrrepIEClient;
 class AtomIrrepIEClient;
 
 class AtomIE 
@@ -27,15 +28,17 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
-    virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c,const IEClient*) const;
-    virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const;
+    virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     // Cach4 functions
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
-    virtual void Append(IrrepIEClient*);
 
+    virtual void Append(IrrepIEClient*);
+    virtual size_t GetNumIrreps() const {return itsIrreps.size();}
+    virtual const IrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
         
 private:
     typedef AtomIrrepIEClient iriec;
@@ -50,7 +53,9 @@ private:
     virtual double Nuclear  (double ea , double eb,size_t l) const=0;
     virtual double Charge   (double ea ,           size_t l) const=0;
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
-    
+private:
+    std::vector<const IrrepIEClient*> itsIrreps;
+        
     static double FourPi2;
 };
 

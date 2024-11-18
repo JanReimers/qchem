@@ -22,12 +22,10 @@ template <class T> HeapDB<T>::HeapDB()
     :itsAnalyticIE   (0)
 {}
 
-template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie, const IEClient* iec)
+template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
     :itsAnalyticIE(ie)   
-    ,itsIEClient  (iec)
 {
     assert(itsAnalyticIE);
-    assert(itsIEClient);
 }
 
 template <class T> HeapDB<T>::~HeapDB()
@@ -297,7 +295,7 @@ using std::endl;
 template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 {
     if (Jac.size()==0) 
-        itsAnalyticIE->MakeDirect  (Jac,itsIEClient);
+        itsAnalyticIE->MakeDirect  (Jac);
     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
     assert(Jac.find(a.GetIndex())!=Jac.end());
     assert(Jac[a.GetIndex()].find(c.GetIndex())!=Jac[a.GetIndex()].end());
@@ -307,7 +305,7 @@ template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 template <class T> ERIK HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
 {
     if (Kab.size()==0)
-        itsAnalyticIE->MakeExchange(Kab,itsIEClient); 
+        itsAnalyticIE->MakeExchange(Kab); 
     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
     assert(Kab.find(a.GetIndex())!=Kab.end());
     assert(Kab[a.GetIndex()].find(b.GetIndex())!=Kab[a.GetIndex()].end());

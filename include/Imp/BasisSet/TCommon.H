@@ -3,6 +3,7 @@
 #define _BasisSet_TCommon_H_
 
 #include <BasisSet.H>
+class SlaterRadialIntegralTests;
 
 class BasisSetImp
     : public virtual BasisSet
@@ -28,6 +29,7 @@ public:
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
 protected:
+    friend class SlaterRadialIntegralTests;
     AnalyticIE<double>* itsIE;
 private:
     mutable IntegralDataBase<double>* itsDB;

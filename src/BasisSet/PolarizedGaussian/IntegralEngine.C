@@ -10,6 +10,11 @@
 namespace PolarizedGaussian
 {
 
+void IntegralEngine::Append(::IrrepIEClient* iec)
+{
+    itsIrreps.push_back(iec);
+}
+
 const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
@@ -138,7 +143,7 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 //  4 centre integrals.
 //
 
-ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c,const ::IEClient*) const
+ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
 {
    // const IEClient* pgiec= dynamic_cast<const IEClient*>(iec);
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
@@ -162,7 +167,7 @@ ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClie
     return J;
 }
 
-ERIK IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b,const ::IEClient*) const
+ERIK IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
 {
 //    const IEClient* pgiec= dynamic_cast<const IEClient*>(iec);
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);

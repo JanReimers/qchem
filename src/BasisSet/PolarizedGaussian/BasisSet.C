@@ -14,6 +14,7 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Cluster* cl)
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
     IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),reader,cl);
+    itsIE->Append(ibs); //IECleint
     Append(ibs);
     Insert(ibs);
 }
@@ -26,6 +27,7 @@ BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size
     {
         IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(0),LMax,cl);
         Append(ibs);
+        itsIE->Append(ibs); //IECleint
         Insert(ibs);        
     }
     else
@@ -35,6 +37,7 @@ BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size
         {
             IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L);
             Append(ibs);
+            itsIE->Append(ibs); //IECleint
             Insert(ibs);  
         }
             

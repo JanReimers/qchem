@@ -11,7 +11,7 @@ double AtomIE::FourPi2=4*4*pi*pi;
 void AtomIE::Append(IrrepIEClient* iec)
 {
     AtomIrrepIEClient* aiec=dynamic_cast<AtomIrrepIEClient*>(iec);
-    //itsIrreps.push_back(aiec);
+    itsIrreps.push_back(aiec);
     BFGrouper::Append(aiec);
 }
 
@@ -147,12 +147,10 @@ AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
     return s3;
 }
 
-ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const IEClient* iec) const 
+ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
-    const AtomIEClient* aiec= dynamic_cast<const AtomIEClient*>(iec);
     const iriec* a=dynamic_cast<const iriec* >(_a);
     const iriec* c=dynamic_cast<const iriec* >(_c);
-    assert(aiec);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
@@ -197,12 +195,10 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c,const
     return J;
 };
 
-ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b,const IEClient* iec) const 
+ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b) const 
 {
-    const AtomIEClient* aiec= dynamic_cast<const AtomIEClient*>(iec);
     const iriec* a=dynamic_cast<const iriec* >(_a);
     const iriec* b=dynamic_cast<const iriec* >(_b);
-    assert(aiec);
     assert(a);
     assert(b);
     size_t Na=a->size(), Nb=b->size();

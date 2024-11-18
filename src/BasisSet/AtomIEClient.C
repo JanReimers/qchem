@@ -34,15 +34,3 @@ void AtomIrrepIEClient::Init(const Vector<double>& exponents,size_t _l, int _m)
     for (auto i:es.indices())  ns(i)=Norm(es(i),l);
 }
 
-void AtomIEClient::Append(AtomIrrepIEClient* ic)
-{
-    itsIrreps.push_back(ic);
-}
-
-size_t AtomIEClient::size() const 
-{
-    size_t N=0;
-    for (auto ir:itsIrreps) N+=ir->size();
-    return N;
-}
-

@@ -33,17 +33,6 @@ private:
     virtual double Norm(double e, size_t l) const=0;
 };
 
-struct AtomIEClient 
-    : public virtual ::IEClient 
-{
-    void Append(AtomIrrepIEClient*);
-    
-    virtual size_t size() const;
-    virtual const AtomIrrepIEClient* operator[](size_t i) const {return itsIrreps[i-1];}
-    
-private:
-    std::vector<const AtomIrrepIEClient*> itsIrreps;
-}; 
 
 
 #endif // _AtomIEClient_H_

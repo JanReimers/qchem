@@ -10,13 +10,6 @@ namespace Slater_m
 
 typedef Slater::IrrepIEClient IrrepIEClient;    
 
-struct IEClient 
-    : public virtual ::IEClient 
-    , public AtomIEClient
-{
-    
-}; 
-
 } //namespace Slater_m
 
 #endif // _Slater_m_IEClient_H_

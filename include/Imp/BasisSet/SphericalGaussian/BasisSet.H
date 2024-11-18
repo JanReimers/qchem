@@ -9,8 +9,7 @@ namespace SphericalGaussian
 {
 
 class BasisSet 
-    : public SphericalGaussian::IEClient
-    , public ::BasisSetImp
+    : public ::BasisSetImp
 {
 public:
     BasisSet() {};

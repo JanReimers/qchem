@@ -9,8 +9,7 @@ namespace Slater
 {
 
 class BasisSet 
-    : public Slater::IEClient
-    , public ::BasisSetImp
+    : public ::BasisSetImp
 {
 public:
     BasisSet() {};

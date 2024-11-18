@@ -34,8 +34,7 @@ struct IrrepIEClient
 };
 
 struct IEClient
-    : public virtual ::IEClient
-    , public IEData
+    : public IEData
 {
     IEClient() {};
     void Append(const IrrepIEClient*);

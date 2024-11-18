@@ -18,13 +18,6 @@ private:
     virtual double Norm(double e, size_t l) const;
 };
 
-struct IEClient 
-    : public virtual ::IEClient 
-    , public AtomIEClient
-{
- 
-}; 
-
 } //namespace
 
 #endif // _SphericalGaussianIEClient_H_

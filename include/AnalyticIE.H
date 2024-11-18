@@ -36,7 +36,10 @@ public:
     typedef std::map<size_t,std::map<size_t,ERIK> > erik_t;
 
     virtual ~AnalyticIE()  {};
-    virtual void Append(IrrepIEClient*) {};
+    virtual void Append(IrrepIEClient*)=0;
+    virtual size_t GetNumIrreps() const=0;  //how many sym adapted blocks?
+    virtual const IrrepIEClient* operator[](size_t i) const=0;
+
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
     //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
     //! Total charge \f$ \left\langle a\left|\right|1\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right) \f$
@@ -61,10 +64,10 @@ public:
     //! \f$ K_{ab,cd}=\left\langle a\left(1\right)d\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)b\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{d}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{b}\left(\vec{r}_{2}\right) \f$. \n
     //! These integrals are not block diagonal for each irreducible representation. Therefore they
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
-    virtual void MakeDirect  (erij_t& Jab, const IEClient*) const; //Used for Hartree-Fock
-    virtual void MakeExchange(erik_t& Kab, const IEClient*) const; //Used for Hartree-Fock
-    virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c,const IEClient*) const=0;
-    virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b,const IEClient*) const=0;
+    virtual void MakeDirect  (erij_t& Jab) const; //Used for Hartree-Fock
+    virtual void MakeExchange(erik_t& Kab) const; //Used for Hartree-Fock
+    virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
