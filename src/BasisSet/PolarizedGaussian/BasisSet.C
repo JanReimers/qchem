@@ -21,19 +21,19 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Cluster* cl)
 BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
+    GaussianScaler gs(N,emin,emax,LMax);
     if (cl->GetNumAtoms()>1)
     {
-        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),N,emin,emax,LMax,cl);
+        IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(0),LMax,cl);
         Append(ibs);
         Insert(ibs);        
     }
     else
     {
-        GaussianScaler gs(N,emin,emax,LMax);
         assert(cl->GetNumAtoms()==1);
         for (size_t L=0;L<=LMax;L++)
         {
-            IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.N(L),gs.emin(L),gs.emax(L),L);
+            IrrepBasisSet* ibs=new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L);
             Append(ibs);
             Insert(ibs);  
         }

@@ -116,18 +116,15 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, 
 
 
 IrrepBasisSet::
-IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
+IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<double>& es, size_t LMax, const Cluster* cl)
     : IrrepBasisSetCommon(new UnitSymmetryQN)
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
-    GaussianScaler gs(N,emin,emax,LMax);
     int nbasis=1;
     for (auto atom:*cl)
     {
         for (size_t L=0;L<=LMax;L++)
         {
-            Vector<double> es(gs.N(L));
-            FillPower(es,gs.emin(L),gs.emax(L));
             std::vector<Polarization> Ps=MakePolarizations(L);
             for (auto e:es)
             {
@@ -156,12 +153,10 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, d
 
 // Single atom version
 IrrepBasisSet::
-IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,   size_t N, double emin, double emax, size_t L)
+IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<double>& es, size_t L)
     : IrrepBasisSetCommon(new UnitSymmetryQN())
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
-    Vector<double> es(N);
-    FillPower(es,emin,emax);
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
     for (auto e:es)
