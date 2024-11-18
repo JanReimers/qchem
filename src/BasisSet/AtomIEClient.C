@@ -14,7 +14,7 @@ void AtomIrrepIEClient::Init(double minexp,double maxexp,size_t _l, int _m)
     for (auto i:es.indices())  ns(i)=Norm(es(i),l);
 }
 
-void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t _l, int _m)
+void AtomIrrepIEClient::Init(const std::set<double>& exponents,size_t _l, int _m)
 {
     n=_l+1;
     l=_l;
@@ -22,6 +22,15 @@ void AtomIrrepIEClient::Init(std::set<double>& exponents,size_t _l, int _m)
 
     int i=1;
     for (auto& e:exponents) es(i++)=e;
+    for (auto i:es.indices())  ns(i)=Norm(es(i),l);
+}
+void AtomIrrepIEClient::Init(const Vector<double>& exponents,size_t _l, int _m)
+{
+    n=_l+1;
+    l=_l;
+    m=_m;
+
+    es=exponents;
     for (auto i:es.indices())  ns(i)=Norm(es(i),l);
 }
 

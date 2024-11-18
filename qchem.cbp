@@ -210,6 +210,9 @@
 		<Unit filename="src/BasisSet/BFGrouper.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/BasisSet/GaussianScaler.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/BasisSet/IrrepCommon.C">
 			<Option compilerVar="CC" />
 		</Unit>

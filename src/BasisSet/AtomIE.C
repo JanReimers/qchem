@@ -98,11 +98,8 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-        {
-            assert(Lc==0); //Non-polarized fit basis
-            //assert(ab->Ls(i)==Lc); //TODO what going on here?
             s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
-        }
+
     return s;
 }
 
