@@ -66,7 +66,6 @@ public:
     typedef std::vector<SMat> ERI3;
     
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
-    virtual size_t               GetIndex        (               ) const=0;
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
@@ -114,7 +113,6 @@ public:
     static  IrrepBasisSet* Factory(std::istream&    )        ;
 private:
     friend class BasisSetImp;
-    virtual void SetIndex(size_t)=0;
 };
 
 #include <VectorFunction.H>
@@ -169,7 +167,7 @@ public:
 
     virtual ~BasisSet() {}; 
     virtual size_t GetNumFunctions() const=0;
-    virtual size_t GetNumIrreps() const=0;
+//    virtual size_t GetNumIrreps() const=0;
 
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;

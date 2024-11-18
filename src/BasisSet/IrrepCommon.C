@@ -16,23 +16,17 @@
 //
 IrrepBasisSetCommon::IrrepBasisSetCommon()
     : itsQuantumNumber(0)
-    , itsStartIndex(0)
-    , itsIndex(0)
 {
 };
 
 IrrepBasisSetCommon::IrrepBasisSetCommon(QuantumNumber* theQN)
     : itsQuantumNumber(theQN)
-    , itsStartIndex(0)
-    , itsIndex(0)
 {
 };
 
 IrrepBasisSetCommon::IrrepBasisSetCommon(const IrrepBasisSetCommon& bs)
   : itsQuantumNumber (bs.itsQuantumNumber->Clone())
   , itsBasisFunctions(bs.itsBasisFunctions)
-  , itsStartIndex(bs.itsStartIndex)
-  , itsIndex(bs.itsIndex)
   {
     assert(itsQuantumNumber);
   };
@@ -62,15 +56,6 @@ void IrrepBasisSetCommon::EmptyBasisFunctions()
 //
 //  Basis Set Stuff.
 //
-void IrrepBasisSetCommon::SetIndex(size_t i)
-{
-    itsIndex=i;
-}
-
-size_t  IrrepBasisSetCommon::GetIndex() const
-{
-    return itsIndex;
-}
 
 
 size_t IrrepBasisSetCommon::GetNumFunctions() const
@@ -111,7 +96,7 @@ std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
     else
     {
         os << "IrrepBasisSet " << " with " << GetNumFunctions() << " basis functions"
-        << ", Quantum number=" << *itsQuantumNumber << ", start index=" << itsStartIndex << std::endl;
+        << ", Quantum number=" << *itsQuantumNumber <<  std::endl;
         os << "   #          Center      Pol     Radial     Exponents" << std::endl;
         // No UT coverage
         int i=1;

@@ -154,6 +154,6 @@ TEST_P(A_PG_SHF_P,Multiple)
     Iterate({40,1e-3,1.0,0.0,false});
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_PG_SHF_P,::testing::Values(3,5,7,37)); //Z=51 is slow.
+INSTANTIATE_TEST_CASE_P(Multiple,A_PG_SHF_P,::testing::Values(3,5,11,37)); //Z=51 is slow.
 
 

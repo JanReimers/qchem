@@ -297,20 +297,20 @@ template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
     if (Jac.size()==0) 
         itsAnalyticIE->MakeDirect  (Jac);
     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
-    assert(Jac.find(a.GetIndex())!=Jac.end());
-    assert(Jac[a.GetIndex()].find(c.GetIndex())!=Jac[a.GetIndex()].end());
+    assert(Jac.find(a.GetID())!=Jac.end());
+    assert(Jac[a.GetID()].find(c.GetID())!=Jac[a.GetID()].end());
     
-    return Jac[a.GetIndex()][c.GetIndex()];
+    return Jac[a.GetID()][c.GetID()];
 }
 template <class T> ERIK HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
 {
     if (Kab.size()==0)
         itsAnalyticIE->MakeExchange(Kab); 
     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
-    assert(Kab.find(a.GetIndex())!=Kab.end());
-    assert(Kab[a.GetIndex()].find(b.GetIndex())!=Kab[a.GetIndex()].end());
+    assert(Kab.find(a.GetID())!=Kab.end());
+    assert(Kab[a.GetID()].find(b.GetID())!=Kab[a.GetID()].end());
     
-    return Kab[a.GetIndex()][b.GetIndex()];
+    return Kab[a.GetID()][b.GetID()];
 }
 
  

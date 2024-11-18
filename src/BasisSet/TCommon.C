@@ -30,16 +30,10 @@ size_t BasisSetImp::GetNumFunctions() const
     return ret;
 }
 
-size_t BasisSetImp::GetNumIrreps() const
-{
-    return itsBasisSets.size();
-}
-
 void BasisSetImp::Insert(IrrepBasisSet* bs)
 {
     assert(bs);
     itsBasisSets.push_back(bs);
-    bs->SetIndex(itsBasisSets.size());
 }
 
 

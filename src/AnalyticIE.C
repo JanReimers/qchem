@@ -23,7 +23,7 @@ template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
         {
             const IrrepIEClient* a=(*this)[ia];
             const IrrepIEClient* c=(*this)[ic];
-            Jac[ia][ic]=MakeDirect(a,c);
+            Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
         }
 
 }
@@ -37,7 +37,7 @@ template <class T> void AnalyticIE<T>::MakeExchange(erik_t& Kab) const
         {
             const IrrepIEClient* a=(*this)[ia];
             const IrrepIEClient* b=(*this)[ib];
-            Kab[ia][ib]=MakeExchange(a,b);
+            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);
         }
     
 }

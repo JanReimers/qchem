@@ -10,6 +10,7 @@ class IrrepIEClient //Client for and Irrep basis set.
 {
 public:
     virtual ~IrrepIEClient() {};
+    //virtual size_t GetIndex() const=0;
     virtual UniqueID::IDtype GetID() const=0;
     virtual size_t size() const=0;
 };

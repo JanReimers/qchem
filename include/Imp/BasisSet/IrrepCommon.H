@@ -22,11 +22,9 @@ public:
     IrrepBasisSetCommon(              );
     IrrepBasisSetCommon(QuantumNumber*);
     IrrepBasisSetCommon(const IrrepBasisSetCommon&);
-    virtual void SetIndex(size_t);
 
     virtual ~IrrepBasisSetCommon();
 
-    virtual size_t  GetIndex       (               ) const;
     virtual size_t  GetNumFunctions(               ) const;
     virtual bool    operator==     (const IrrepBasisSet&) const;
 
@@ -54,8 +52,6 @@ private:
 
     QuantumNumber*               itsQuantumNumber;
     optr_vector1<BasisFunction*> itsBasisFunctions;
-    int                          itsStartIndex;
-    size_t                       itsIndex;
 };
 
 #endif //_BasisSetImplementation_H_
