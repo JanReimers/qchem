@@ -159,27 +159,20 @@ ERI4 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) cons
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        size_t iea=a->es_indices[ia-1]; //Unique exponent index. zero based.
-        loop_1(iea); //Start a cache for SphericalGaussianCD*
+        loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
-            size_t iec=c->es_indices[ic-1]; //Unique exponent index. zero based.
-            loop_2(iec);
+            loop_2(c->es_indices[ic-1]);
             int la=a->l, lc=c->l;
-            int ma=a->m, mc=c->m;
-            RVec Akac=Coulomb_AngularIntegrals(la,lc,ma,mc);
+            RVec Akac=Coulomb_AngularIntegrals(la,lc,a->m,c->m);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
                 SMat& Jab=J(ia,ib);
-                size_t ieb=a->es_indices[ib-1]; //Unique exponent index. zero based.
-                loop_3(ieb);
+                loop_3(a->es_indices[ib-1]);
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
-                    assert(la==a->l);
-                    assert(lc==c->l);
-                    size_t ied=c->es_indices[id-1]; //Unique exponent index. zero based.
                     if (Jab(ic,id)!=0.0)
                     {
                         cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
@@ -187,10 +180,8 @@ ERI4 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) cons
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    RVec Rkac=loop_4_direct(ied,la,lc);
+                    RVec Rkac=loop_4_direct(c->es_indices[id-1],la,lc);
                     Jab(ic,id)=FourPi2*Akac*Rkac*norm;
-//                    const SphericalGaussianCD* cd=iec->loop_4(id);
-//                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }
             }
         }
