@@ -124,36 +124,21 @@ GetNuclear(const Cluster* cl) const
  using std::cout;
  using std::endl;
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
+GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
 {
     assert(!isnan(Dcd));
-//    if (Max(fabs(Dcd))==0.0)
-//        cout << "Why?" << endl;
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    ERIJ J1=GetDataBase()->GetRepulsion4C_new(*this,*bs_cd);
-    int Nab=this->GetNumFunctions();
-    int Ncd=bs_cd->GetNumFunctions();
-
-    SMat Jab(Nab,Nab);
-    for (int ia=1; ia<=Nab; ia++)
-        for (int ib=ia; ib<=Nab; ib++)
-        {
-            T Jab_temp=0;
-            for (int ic=1; ic<=Ncd; ic++)
-                for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
-                {
-//                    int ia1=ia+this->GetStartIndex()-1, ib1=ib+this->GetStartIndex()-1;
-//                    int ic1=ic+bs_cd->GetStartIndex()-1, id1=id+bs_cd->GetStartIndex()-1;                    
-//                    std::cout << "(adcb)=(" << ia1 << " " << ib1 << " " << ic1 << " " << id1 << ") J_abcd=" 
-//                    << std::scientific << std::setw(8) << J(ia,ib,ic,id)  << std::endl;
-
-                    Jab_temp+=J1(ia,ib,ic,id)*Dcd(ic,id);
-                }
-            Jab(ia,ib)=Jab_temp;
-        }
-    assert(!isnan(Jab));
-
-    return Jab;
+    const TIrrepBasisSet<T>* ab=this;
+    if (ab->GetID()<=cd->GetID())
+    {
+        ERIJ1 Jabcd=GetDataBase()->GetRepulsion4C_new(*ab,*cd);
+        return Jabcd*Dcd;
+    }
+    else
+    {
+        ERIJ1 Jcdab=GetDataBase()->GetRepulsion4C_new(*cd,*ab);
+        return Dcd*Jcdab;        
+    }
 }
 
 #include <iomanip>

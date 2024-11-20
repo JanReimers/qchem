@@ -291,11 +291,12 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
         const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
         const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERIJ J=ie->MakeDirect(*iabt,*icdt);
+        ERIJ1 J=ie->MakeDirect(*iabt,*icdt);
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)
         {
+            SMatrix<double> Jab=J(ia,ib);
             for (int ic=1 ;ic<=Ncd;ic++)
             for (int id=ic;id<=Ncd;id++)
             {
@@ -303,7 +304,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
                 if (supported(*iab,*icd,ia,ib,ic,id))
                 {
                         
-                    double jv=J(ia,ib,ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
+                    double jv=Jab(ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
                     if (fabs(jv-r0)/jv>1e-12)
                     {
                         cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;

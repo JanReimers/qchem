@@ -147,14 +147,14 @@ AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
     return s3;
 }
 
-ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
+ERIJ1 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
     const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERIJ J(Na,Nc);
+    ERIJ1 J(Na,Nc);
     for (size_t ia:a->indices())
     {
         size_t iea=a->es_indices[ia-1]; //Unique exponent index. zero based.
@@ -169,6 +169,7 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) cons
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
+                SMat& Jab=J(ia,ib);
                 size_t ieb=a->es_indices[ib-1]; //Unique exponent index. zero based.
                 loop_3(ieb);
                 for (size_t id:c->indices())
@@ -177,15 +178,15 @@ ERIJ AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) cons
                     assert(la==a->l);
                     assert(lc==c->l);
                     size_t ied=c->es_indices[id-1]; //Unique exponent index. zero based.
-                    if (J(ia,ib,ic,id)!=0.0)
+                    if (Jab(ic,id)!=0.0)
                     {
                         cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-                        cout << J(ia,ib,ic,id) << endl;    
+                        cout << Jab(ic,id) << endl;    
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     RVec Rkac=loop_4_direct(ied,la,lc);
-                    J(ia,ib,ic,id)=FourPi2*Akac*Rkac*norm;
+                    Jab(ic,id)=FourPi2*Akac*Rkac*norm;
 //                    const SphericalGaussianCD* cd=iec->loop_4(id);
 //                    J(ia,ib,ic,id)=FourPi2*(2*la+1)*(2*lc+1)*Akac*cd->Coulomb_Rk(la,lc)*norm;
                 }

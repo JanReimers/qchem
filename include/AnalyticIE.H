@@ -31,7 +31,7 @@ public:
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
     typedef const IrrepIEClient iec_t;
-    typedef std::map<size_t,std::map<size_t,ERIJ> > erij_t;
+    typedef std::map<size_t,std::map<size_t,ERIJ1> > erij_t;
     typedef std::map<size_t,std::map<size_t,ERIK> > erik_t;
 
     virtual ~AnalyticIE()  {};
@@ -63,7 +63,7 @@ public:
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
     virtual void MakeDirect  (erij_t& Jab) const; //Used for Hartree-Fock
     virtual void MakeExchange(erik_t& Kab) const; //Used for Hartree-Fock
-    virtual ERIJ MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERIJ1 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
     virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition

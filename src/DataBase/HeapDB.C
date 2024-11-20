@@ -291,7 +291,7 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec
 
 using std::cout;
 using std::endl;
-template <class T> ERIJ HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
+template <class T> ERIJ1 HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 {
     if (Jac.size()==0) 
         itsAnalyticIE->MakeDirect  (Jac);

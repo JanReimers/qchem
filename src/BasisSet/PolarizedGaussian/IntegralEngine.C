@@ -138,25 +138,28 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 //  4 centre integrals.
 //
 
-ERIJ IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
+ERIJ1 IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERIJ J(Na,Nc);
+    ERIJ1 J(Na,Nc);
     
     for (index_t ia:a->ns.indices())
         for (index_t ib:a->ns.indices(ia))
+        {
+            SMat& Jab=J(ia,ib);
             for (index_t ic:c->ns.indices())
                 for (index_t id:c->ns.indices(ic))
                 {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                         double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                         assert(c->radials[id-1]);
-                        J(ia,ib,ic,id)=norm * c->radials[id-1]->Integrate(a->radials[ia-1],a->radials[ib-1],c->radials[ic-1],a->pols[ia-1],a->pols[ib-1],c->pols[ic-1],c->pols[id-1],cache);
+                        Jab(ic,id)=norm * c->radials[id-1]->Integrate(a->radials[ia-1],a->radials[ib-1],c->radials[ic-1],a->pols[ia-1],a->pols[ib-1],c->pols[ic-1],c->pols[id-1],cache);
                 }
+        }
     return J;
 }
 

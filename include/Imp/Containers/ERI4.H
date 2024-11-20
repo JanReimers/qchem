@@ -71,6 +71,21 @@ private:
     Vector<double> itsData; //Linear data array.
 };
 
+class ERIJ1
+{
+public:
+    typedef SMatrix<double> SMat;
+    ERIJ1() {};
+    ERIJ1(size_t Nab, size_t Ncd);
+    const SMat& operator()(size_t a, size_t b) const {return itsData.ref(a,b);}
+          SMat& operator()(size_t a, size_t b)       {return itsData(a,b);}
+          
+    friend SMat operator*(const ERIJ1& gabcd,const SMat& Scd);
+    friend SMat operator*(const SMat& Sab, const ERIJ1& gabcd);
+
+private:
+    SMatrix<SMatrix<double> > itsData;
+};
 using std::cout;
 using std::endl;
 class ERI4Tests;
