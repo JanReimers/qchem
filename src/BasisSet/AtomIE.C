@@ -196,52 +196,38 @@ ERIJ1 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) con
     return J;
 };
 
-ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _b) const 
+ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
-    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient* >(_b);
+    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
-    assert(b);
-    size_t Na=a->size(), Nb=b->size();
-    ERIK K(Na,Nb);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERIK K(Na,Nc);
     for (size_t ia:a->indices())
     {
-        size_t iea=a->es_indices[ia-1]; //Unique exponent index. zero based.
-        loop_1(iea); //Start a cache for SphericalGaussianCD*
-        for (size_t ib:b->indices())
+        loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        for (size_t ic:c->indices())
         {
-            size_t ieb=b->es_indices[ib-1]; //Unique exponent index. zero based.
-            int la=a->l, lb=b->l;
-            int ma=a->m, mb=b->m;
-            RVec Akab=ExchangeAngularIntegrals(la,lb,ma,mb);
-
-            for (size_t ic:a->indices())
+            int la=a->l, lc=c->l;
+            RVec Akac=ExchangeAngularIntegrals(la,lc,a->m,c->m);
+            for (size_t ib:a->indices(ia))
             {
-                if (ic<ia) continue;
-                size_t iec=a->es_indices[ic-1]; //Unique exponent index. zero based.
-                loop_2(iec);
-                loop_3(ieb);
-                
-                for (size_t id:b->indices())
+                loop_2(a->es_indices[ib-1]);
+                loop_3(c->es_indices[ic-1]);
+                for (size_t id:c->indices())
                 {
-//                    if (id<ic) continue;
-                    if (ia==ic && id<ib) continue;
-                    //if (id<ib) continue;
-                    assert(la==a->l);
-                    assert(lb==b->l);
-                    if (K(ia,ic,ib,id)!=0.0)
+                    if (ia==ib && id<ic) continue;
+                    if (K(ia,ib,ic,id)!=0.0)
                     {
-                        cout << "overwriting Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
-                        cout << K(ia,ic,ib,id) << endl;    
+                        cout << "overwriting Knew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        cout << K(ia,ib,ic,id) << endl;    
                         assert(false);
                     }
-                    double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
-                    size_t ied=b->es_indices[id-1]; //Unique exponent index. zero based.
-                    RVec RKab=loop_4_exchange(ied,la,lb);
-                    K(ia,ic,ib,id)=FourPi2*Akab*RKab*norm; 
-//                    const SphericalGaussianCD* cd=iec->loop_4(id);
-//                    K(ia,ic,ib,id)=FourPi2*(2*la+1)*(2*lb+1)*Akab*cd->ExchangeRk(la,lb)*norm; 
-                    if (ia==ic) K(ia,ic,id,ib)=K(ia,ic,ib,id); //ERIK container does support this symmetry yet.
+                    double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
+                    RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
+                    K(ia,ib,ic,id)=FourPi2*Akac*RKac*norm; 
+                    if (ia==ib) K(ia,ib,id,ic)=K(ia,ib,ic,id); //ERIK container does support this symmetry yet.
 //                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
 //                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    
 

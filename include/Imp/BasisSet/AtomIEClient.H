@@ -27,6 +27,7 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     bf_tuple operator()(index_t i) const {return std::make_tuple(n,l,m,es(i),ns(i));}
     auto indices() const {return es.indices();}
+    auto indices(size_t i) const {return es.indices(i);}
     typedef std::vector<size_t>::const_iterator const_iterator;
     
 private:
