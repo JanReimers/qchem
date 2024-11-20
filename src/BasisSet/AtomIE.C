@@ -228,6 +228,14 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) cons
                     RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
                     K(ia,ib,ic,id)=FourPi2*Akac*RKac*norm; 
                     if (ia==ib) K(ia,ib,id,ic)=K(ia,ib,ic,id); //ERIK container does support this symmetry yet.
+                    else
+                    {
+                        if (K(ia,ib,id,ic)!=0.0)
+                        {
+                            double Kavg=0.5*(K(ia,ib,id,ic)+K(ia,ib,ic,id));
+                            K(ia,ib,id,ic)=K(ia,ib,ic,id)=Kavg;
+                        }
+                    }
 //                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
 //                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    
 

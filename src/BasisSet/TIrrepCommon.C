@@ -160,6 +160,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
             {
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
+                    assert(K1(ia,ib,ic,id)==K1(ia,ib,id,ic));
                     Kab_temp+= K1(ia,ib,ic,id)*Dcd(ic,id);
                 }
             }
