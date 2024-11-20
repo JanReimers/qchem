@@ -68,7 +68,7 @@ public:
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) ; //<a(1)b(1)|1/r12|c(2)>
 
     virtual    ERIJ1      GetRepulsion4C_new(bs_t& a,bs_t& b);
-    virtual    ERIK      GetExchange4C_new(bs_t& a,bs_t& b);
+    virtual    ERIJ1      GetExchange4C_new(bs_t& a,bs_t& b);
 
     virtual void Report(std::ostream&) const;
     virtual std::ostream&  Write(std::ostream&) const;
@@ -97,7 +97,7 @@ private:
     std::map<id2cx_t, Mat> its2Cx; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     std::map<id3c_t ,ERI3> its3C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     AnalyticIE<double>::erij_t Jac; //Index symmetries are different for J and K
-    AnalyticIE<double>::erik_t Kab;
+    AnalyticIE<double>::erij_t Kab;
 
 };
 

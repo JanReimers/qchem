@@ -31,7 +31,7 @@ template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
 
 }
 
-template <class T> void AnalyticIE<T>::MakeExchange(erik_t& Kab) const
+template <class T> void AnalyticIE<T>::MakeExchange(erij_t& Kab) const
 {
     Kab.clear();
     for (auto a: itsIrreps)

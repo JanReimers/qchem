@@ -75,7 +75,7 @@ public:
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
 
     virtual    ERIJ1        GetRepulsion4C_new(bs_t& a,bs_t& b)=0;
-    virtual    ERIK        GetExchange4C_new(bs_t& a,bs_t& b)=0;
+    virtual    ERIJ1        GetExchange4C_new(bs_t& a,bs_t& b)=0;
     
     virtual IntegralDataBase*      Clone            (               ) const=0;
     static  IntegralDataBase*      Factory          (std::istream&       )       ;

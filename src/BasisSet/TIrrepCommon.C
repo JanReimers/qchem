@@ -147,7 +147,7 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    ERIK  K1=GetDataBase()->GetExchange4C_new(*this,*bs_cd);
+    ERIJ1  K1=GetDataBase()->GetExchange4C_new(*this,*bs_cd);
     int Nab=this->GetNumFunctions();
     int Ncd=bs_cd->GetNumFunctions();
 
@@ -155,13 +155,14 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
     for (int ia=1; ia<=Nab; ia++)
         for (int ib=ia; ib<=Nab; ib++)
         {
+            const SMat& Kab1=K1(ia,ib);
             T Kab_temp=0;
             for (int ic=1; ic<=Ncd; ic++)
             {
                 for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
                 {
-                    assert(K1(ia,ib,ic,id)==K1(ia,ib,id,ic));
-                    Kab_temp+= K1(ia,ib,ic,id)*Dcd(ic,id);
+                    assert(Kab1(ic,id)==Kab1(id,ic));
+                    Kab_temp+= Kab1(ic,id)*Dcd(ic,id);
                 }
             }
 

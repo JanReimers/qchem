@@ -196,14 +196,14 @@ ERIJ1 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) con
     return J;
 };
 
-ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
+ERIJ1 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
     const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERIK K(Na,Nc);
+    ERIJ1 K(Na,Nc);
     for (size_t ia:a->indices())
     {
         loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
@@ -213,29 +213,35 @@ ERIK AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) cons
             RVec Akac=ExchangeAngularIntegrals(la,lc,a->m,c->m);
             for (size_t ib:a->indices(ia))
             {
+                SMat& Kab=K(ia,ib);
                 loop_2(a->es_indices[ib-1]);
                 loop_3(c->es_indices[ic-1]);
                 for (size_t id:c->indices())
                 {
-                    if (ia==ib && id<ic) continue;
-                    if (K(ia,ib,ic,id)!=0.0)
-                    {
-                        cout << "overwriting Knew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-                        cout << K(ia,ib,ic,id) << endl;    
-                        assert(false);
-                    }
+                    //if (ia==ib && id<ic) continue;
+//                    if (ic<id && Kab(ic,id)!=0.0)
+//                    {
+//                        cout << "overwriting Knew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+//                        cout << Kab(ic,id) << endl;    
+//                        assert(false);
+//                    }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
-                    K(ia,ib,ic,id)=FourPi2*Akac*RKac*norm; 
-                    if (ia==ib) K(ia,ib,id,ic)=K(ia,ib,ic,id); //ERIK container does support this symmetry yet.
+                    if (ic==id)
+                        Kab(ic,id)=FourPi2*Akac*RKac*norm; 
+                    else if (id<ic)
+                        Kab(id,ic)+=0.5*FourPi2*Akac*RKac*norm; 
                     else
-                    {
-                        if (K(ia,ib,id,ic)!=0.0)
-                        {
-                            double Kavg=0.5*(K(ia,ib,id,ic)+K(ia,ib,ic,id));
-                            K(ia,ib,id,ic)=K(ia,ib,ic,id)=Kavg;
-                        }
-                    }
+                        Kab(ic,id)+=0.5*FourPi2*Akac*RKac*norm; 
+//                    if (ia==ib) K(ia,ib,id,ic)=K(ia,ib,ic,id); //ERIK container does support this symmetry yet.
+//                    else
+//                    {
+//                        if (K(ia,ib,id,ic)!=0.0)
+//                        {
+//                            double Kavg=0.5*(K(ia,ib,id,ic)+K(ia,ib,ic,id));
+//                            K(ia,ib,id,ic)=K(ia,ib,ic,id)=Kavg;
+//                        }
+//                    }
 //                    cout << "Knew(" << ia << " " << ic << " " << ib << " " << id << ")="; 
 //                    cout << std::setprecision(8) << K(ia,ic,ib,id) << endl;    
 

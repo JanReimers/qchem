@@ -301,7 +301,7 @@ template <class T> ERIJ1 HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
     
     return Jac[a.GetID()][c.GetID()];
 }
-template <class T> ERIK HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
+template <class T> ERIJ1 HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
 {
     if (Kab.size()==0)
         itsAnalyticIE->MakeExchange(Kab); 

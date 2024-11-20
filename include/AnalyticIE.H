@@ -62,9 +62,9 @@ public:
     //! These integrals are not block diagonal for each irreducible representation. Therefore they
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
     virtual void MakeDirect  (erij_t& Jab) const; //Used for Hartree-Fock
-    virtual void MakeExchange(erik_t& Kab) const; //Used for Hartree-Fock
+    virtual void MakeExchange(erij_t& Kab) const; //Used for Hartree-Fock
     virtual ERIJ1 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
-    virtual ERIK MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+    virtual ERIJ1 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

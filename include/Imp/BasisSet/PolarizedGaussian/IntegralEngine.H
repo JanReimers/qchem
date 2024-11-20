@@ -39,7 +39,7 @@ public:
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
     virtual ERIJ1 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
-    virtual ERIK MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
+    virtual ERIJ1 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
 
     virtual AnalyticIE<double>* Clone() const;
     virtual void Report(std::ostream&) const;
