@@ -288,6 +288,9 @@
 		<Unit filename="src/BasisSet/Slater/IrrepBasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/BasisSet/SlaterScaler.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/BasisSet/Slater_m/BasisFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>

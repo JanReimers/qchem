@@ -65,9 +65,6 @@
 		<Unit filename="A_SHF.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="ERIList.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="ElectronConfigurations.C">
 			<Option compilerVar="CC" />
 		</Unit>

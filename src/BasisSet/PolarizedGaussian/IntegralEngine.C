@@ -138,14 +138,14 @@ IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) con
 //  4 centre integrals.
 //
 
-ERIJ1 IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
+ERI4 IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERIJ1 J(Na,Nc);
+    ERI4 J(Na,Nc);
     
     for (index_t ia:a->ns.indices())
         for (index_t ib:a->ns.indices(ia))
@@ -163,14 +163,14 @@ ERIJ1 IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIECli
     return J;
 }
 
-ERIJ1 IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
+ERI4 IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(_b);
     assert(a);
     assert(b);
     size_t Na=a->size(), Nb=b->size();
-    ERIJ1 K(Na,Nb);
+    ERI4 K(Na,Nb);
     for (index_t ia:a->ns.indices())
         for (index_t ib:b->ns.indices())
            

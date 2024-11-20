@@ -291,7 +291,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
         const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
         const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERIJ1 J=ie->MakeDirect(*iabt,*icdt);
+        ERI4 J=ie->MakeDirect(*iabt,*icdt);
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)

@@ -28,8 +28,8 @@ public:
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions
-    virtual ERIJ1 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
-    virtual ERIJ1 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const;
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     // Cach4 functions

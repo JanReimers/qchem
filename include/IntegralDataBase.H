@@ -74,8 +74,8 @@ public:
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual    ERIJ1        GetRepulsion4C_new(bs_t& a,bs_t& b)=0;
-    virtual    ERIJ1        GetExchange4C_new(bs_t& a,bs_t& b)=0;
+    virtual    ERI4        GetDirect__4C(bs_t& a,bs_t& b)=0;
+    virtual    ERI4        GetExchange4C(bs_t& a,bs_t& b)=0;
     
     virtual IntegralDataBase*      Clone            (               ) const=0;
     static  IntegralDataBase*      Factory          (std::istream&       )       ;

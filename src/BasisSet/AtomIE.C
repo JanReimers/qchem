@@ -4,7 +4,9 @@
 #include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/Containers/ERI4.H"
 #include <Cluster.H>
-#include "oml/smatrix.h"
+
+using std::cout;
+using std::endl;
 
 double AtomIE::FourPi2=4*4*pi*pi;
 
@@ -147,14 +149,14 @@ AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
     return s3;
 }
 
-ERIJ1 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
+ERI4 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
     const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERIJ1 J(Na,Nc);
+    ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
         size_t iea=a->es_indices[ia-1]; //Unique exponent index. zero based.
@@ -196,14 +198,14 @@ ERIJ1 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) con
     return J;
 };
 
-ERIJ1 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
+ERI4 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
     const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERIJ1 K(Na,Nc);
+    ERI4 K(Na,Nc);
     for (size_t ia:a->indices())
     {
         loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*

@@ -595,7 +595,7 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1731968009 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1732124782 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
@@ -820,7 +820,7 @@
 	"Misc/pmstream.h"
 	"Functions/FittedFunction.H"
 
-1731967585 /home/janr/Code/qchem/include/types.H
+1732124729 /home/janr/Code/qchem/include/types.H
 	"oml/imp/index_t.h"
 
 1728695540 /home/janr/Code/qchem/include/Functions/ScalarFunction.H
@@ -875,7 +875,7 @@
 	"oml/vector3d.h"
 	<iosfwd>
 
-1732116074 /home/janr/Code/qchem/include/AnalyticIE.H
+1732125074 /home/janr/Code/qchem/include/AnalyticIE.H
 	"types.H"
 	<vector>
 	<map>
@@ -987,12 +987,8 @@
 	<cassert>
 	"oml/imp/index_t.h"
 
-1732122380 /home/janr/Code/qchem/include/Imp/Containers/ERI4.H
-	"Imp/Misc/pmstream.h"
+1732125109 /home/janr/Code/qchem/include/Imp/Containers/ERI4.H
 	"oml/smatrix.h"
-	"oml/imp/cow.h"
-	"oml/vector.h"
-	<iostream>
 
 1728599453 /home/janr/Code/qchem/include/Imp/Containers/ptr_vector_io.h
 	"oml/imp/binio.h"
@@ -1478,7 +1474,7 @@
 	"oml/vector.h"
 	<set>
 
-1732116074 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIE.H
+1732124729 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIE.H
 	<AnalyticIE.H>
 	"Imp/BasisSet/BFGrouper.H"
 	"Imp/Integrals/Cache4.H"

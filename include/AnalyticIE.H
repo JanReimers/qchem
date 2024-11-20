@@ -31,8 +31,7 @@ public:
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
     typedef const IrrepIEClient iec_t;
-    typedef std::map<size_t,std::map<size_t,ERIJ1> > erij_t;
-    typedef std::map<size_t,std::map<size_t,ERIK> > erik_t;
+    typedef std::map<size_t,std::map<size_t,ERI4> > erij_t;
 
     virtual ~AnalyticIE()  {};
     virtual void Append(IrrepIEClient*);
@@ -63,8 +62,8 @@ public:
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
     virtual void MakeDirect  (erij_t& Jab) const; //Used for Hartree-Fock
     virtual void MakeExchange(erij_t& Kab) const; //Used for Hartree-Fock
-    virtual ERIJ1 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
-    virtual ERIJ1 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

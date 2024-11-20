@@ -291,7 +291,7 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec
 
 using std::cout;
 using std::endl;
-template <class T> ERIJ1 HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
+template <class T> ERI4 HeapDB<T>::GetDirect__4C(bs_t& a,bs_t& c)
 {
     assert(a.GetID()<=c.GetID());
     if (Jac.size()==0) 
@@ -302,7 +302,7 @@ template <class T> ERIJ1 HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
     
     return Jac[a.GetID()][c.GetID()];
 }
-template <class T> ERIJ1 HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
+template <class T> ERI4 HeapDB<T>::GetExchange4C(bs_t& a,bs_t& b)
 {
     assert(a.GetID()<=b.GetID());
     if (Kab.size()==0)

@@ -31,7 +31,7 @@ class EnergyLevel;
 class EnergyLevels;
 class ERIJ;
 class ERIK;
-class ERIJ1;
+class ERI4;
 class ERIK1;
 class ExFunctional;
 class FittedCD;

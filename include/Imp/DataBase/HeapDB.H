@@ -67,8 +67,8 @@ public:
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) ; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) ; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual    ERIJ1      GetRepulsion4C_new(bs_t& a,bs_t& b);
-    virtual    ERIJ1      GetExchange4C_new(bs_t& a,bs_t& b);
+    virtual    ERI4      GetDirect__4C(bs_t& a,bs_t& b);
+    virtual    ERI4      GetExchange4C(bs_t& a,bs_t& b);
 
     virtual void Report(std::ostream&) const;
     virtual std::ostream&  Write(std::ostream&) const;

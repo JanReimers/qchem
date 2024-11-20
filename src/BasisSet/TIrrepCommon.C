@@ -9,6 +9,7 @@
 #include <IntegralDataBase.H>
 #include <LASolver.H>
 #include <Hamiltonian.H>
+#include "oml/vector.h"
 #include <cassert>
 #include <iostream>
 
@@ -131,12 +132,12 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
     const TIrrepBasisSet<T>* ab=this;
     if (ab->GetID()<=cd->GetID())
     {
-        ERIJ1 Jabcd=GetDataBase()->GetRepulsion4C_new(*ab,*cd);
+        ERI4 Jabcd=GetDataBase()->GetDirect__4C(*ab,*cd);
         return Jabcd*Dcd;
     }
     else
     {
-        ERIJ1 Jcdab=GetDataBase()->GetRepulsion4C_new(*cd,*ab);
+        ERI4 Jcdab=GetDataBase()->GetDirect__4C(*cd,*ab);
         return Dcd*Jcdab;        
     }
 }
@@ -151,12 +152,12 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
 
     if (ab->GetID()<=cd->GetID())
     {
-        ERIJ1 Kabcd=GetDataBase()->GetExchange4C_new(*ab,*cd);
+        ERI4 Kabcd=GetDataBase()->GetExchange4C(*ab,*cd);
         return Kabcd*Dcd;
     }
     else
     {
-        ERIJ1 Kcdab=GetDataBase()->GetExchange4C_new(*cd,*ab);
+        ERI4 Kcdab=GetDataBase()->GetExchange4C(*cd,*ab);
         return Dcd*Kcdab;        
     }
 
