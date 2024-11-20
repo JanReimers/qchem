@@ -143,33 +143,23 @@ GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
 
 #include <iomanip>
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const
+GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    ERIJ1  K1=GetDataBase()->GetExchange4C_new(*this,*bs_cd);
-    int Nab=this->GetNumFunctions();
-    int Ncd=bs_cd->GetNumFunctions();
+    const TIrrepBasisSet<T>* ab=this;
 
-    SMat Kab(Nab,Nab);
-    for (int ia=1; ia<=Nab; ia++)
-        for (int ib=ia; ib<=Nab; ib++)
-        {
-            const SMat& Kab1=K1(ia,ib);
-            T Kab_temp=0;
-            for (int ic=1; ic<=Ncd; ic++)
-            {
-                for (int id=1; id<=Ncd; id++) //Possible symmetric optimization here.  Need to be careful to handle complex D and ERIs.
-                {
-                    assert(Kab1(ic,id)==Kab1(id,ic));
-                    Kab_temp+= Kab1(ic,id)*Dcd(ic,id);
-                }
-            }
+    if (ab->GetID()<=cd->GetID())
+    {
+        ERIJ1 Kabcd=GetDataBase()->GetExchange4C_new(*ab,*cd);
+        return Kabcd*Dcd;
+    }
+    else
+    {
+        ERIJ1 Kcdab=GetDataBase()->GetExchange4C_new(*cd,*ab);
+        return Dcd*Kcdab;        
+    }
 
-            Kab(ia,ib)=Kab_temp;
-        }
-    assert(!isnan(Kab));
-    return Kab;
 }
 //
 //  Charge density repulsion calculations.

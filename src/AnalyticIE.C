@@ -26,6 +26,7 @@ template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
     for (auto a: itsIrreps)
         for (auto c: itsIrreps) //TODO run from ia n
         {
+            if (a->GetID()>c->GetID()) continue;
             Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
         }
 
@@ -35,8 +36,11 @@ template <class T> void AnalyticIE<T>::MakeExchange(erij_t& Kab) const
 {
     Kab.clear();
     for (auto a: itsIrreps)
-        for (auto b: itsIrreps) //TODO run from ia n
-            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);
+        for (auto b: itsIrreps) 
+        {
+            if (a->GetID()>b->GetID()) continue;
+            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);            
+        }
     
 }
 

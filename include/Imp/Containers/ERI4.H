@@ -84,6 +84,7 @@ public:
     friend SMat operator*(const SMat& Sab, const ERIJ1& gabcd);
 
 private:
+    static double contract(const SMat& A,const SMat& B);
     SMatrix<SMatrix<double> > itsData;
 };
 using std::cout;

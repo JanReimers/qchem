@@ -293,6 +293,7 @@ using std::cout;
 using std::endl;
 template <class T> ERIJ1 HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 {
+    assert(a.GetID()<=c.GetID());
     if (Jac.size()==0) 
         itsAnalyticIE->MakeDirect  (Jac);
     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
@@ -303,6 +304,7 @@ template <class T> ERIJ1 HeapDB<T>::GetRepulsion4C_new(bs_t& a,bs_t& c)
 }
 template <class T> ERIJ1 HeapDB<T>::GetExchange4C_new(bs_t& a,bs_t& b)
 {
+    assert(a.GetID()<=b.GetID());
     if (Kab.size()==0)
         itsAnalyticIE->MakeExchange(Kab); 
     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
