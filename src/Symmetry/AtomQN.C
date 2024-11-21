@@ -21,14 +21,14 @@ bool AtomQN::Match(const QuantumNumber& qn) const
 {
     const AtomQN* yqn = dynamic_cast<const AtomQN*>(&qn);
     assert(yqn);
-    return n==yqn->n && itsL==yqn->itsL && m==yqn->m;
+    return n==yqn->n && itsL==yqn->itsL;
 }
 
 
 
 std::ostream& AtomQN::Write(std::ostream& os) const
 {
-    os << n << " ";
+    os << n;
     return YlmQN::Write(os);
 }
 

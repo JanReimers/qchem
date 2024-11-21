@@ -92,21 +92,21 @@ void MasterPolarizedWF::DisplayEigen() const
         bool valid_dn = idn!=itsDnELevels.end();
         bool print_up = valid_up && iup->first<=0.0;
         bool print_dn = valid_dn && idn->first<=0.0;
-        //bool qn_match = valid_up && valid_dn && iup->second.qn==idn->second.qn;
+        bool qn_match = valid_up && valid_dn && *iup->second.qn==*idn->second.qn;
         
         if (print_up)
             iup->second.Report(std::cout);
         else
             std::cout << "                                     ";
         
-        if (print_dn)
+        if (print_dn && qn_match)
             idn->second.Report(std::cout);
         
         
             
         std::cout << std::endl;
         if (valid_up) iup++;
-        if (valid_dn) idn++; //If no match, let iup catch up.
+        if (valid_dn && qn_match) idn++; //If no match, let iup catch up.
         if (iup->first>0.0 && idn->first>0.0) break;
     }
    

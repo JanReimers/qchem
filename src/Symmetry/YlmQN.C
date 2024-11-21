@@ -5,6 +5,7 @@
 #include "Imp/Symmetry/YlmQN.H"
 #include "Imp/Symmetry/AtomQN.H"
 #include <iostream>
+#include <iomanip>
 #include <cassert>
 
 using std::cout;
@@ -83,7 +84,7 @@ extern std::string SPDFG[];
 std::ostream& YlmQN::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
-        os << SPDFG[itsL] << "_" << m << " ";
+        os << SPDFG[itsL] << " " << std::setw(2) << m << " ";
     return os;
 }
 
