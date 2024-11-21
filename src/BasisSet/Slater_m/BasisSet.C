@@ -13,8 +13,8 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
     SlaterScaler ss(N,emin,emax,LMax);
-    for (int L=0;L<=LMax;L++)
-        for (int m=-L;m<=L;m++)
+    for (size_t L=0;L<=LMax;L++)
+        for (int m=-L;m<=(int)L;m++)
             Insert(new IrrepBasisSet(lap,GetDataBase(),ss.Get_es(L),L,m));            
 
 }

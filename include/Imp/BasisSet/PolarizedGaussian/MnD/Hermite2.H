@@ -54,7 +54,7 @@ private:
     //
     //  This has very high hits and total time in profiling.
     //
-    inline size_t GetIndex(size_t N, size_t na, size_t nb) const 
+    inline size_t GetIndex(int N, int na, int nb) const 
     {
         assert(N>=0);
         assert(N<=LA+LB);

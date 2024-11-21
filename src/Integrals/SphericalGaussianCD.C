@@ -54,7 +54,7 @@ using std::endl;
         
  }
  
- double SphericalGaussianCD::fk(double a, double ab, int k,int n)
+ double SphericalGaussianCD::fk(double a, double ab, size_t k,size_t n)
 {
     assert(n>0);
     assert(k>=0);
@@ -62,53 +62,53 @@ using std::endl;
     return qchem::Fact[k]*((n+0.5)/pow(ab,k+1)+1/pow(a,k+1));
 }
 
-double SphericalGaussianCD::Coulomb_R0(int la,int lc) const
+double SphericalGaussianCD::Coulomb_R0(size_t la,size_t lc) const
 {
     assert(la<=LMax);
     assert(lc<=LMax);
-    int Lab_p=la+1; // (la+lb+2)/2 
-    int Lcd_m=lc;   // (lc+ld)/2   
-    int Lab_m=la;   // (la+lb)/2   
-    int Lcd_p=lc+1; // (lc+ld+2)/2
+    size_t Lab_p=la+1; // (la+lb+2)/2 
+    size_t Lcd_m=lc;   // (lc+ld)/2   
+    size_t Lab_m=la;   // (la+lb)/2   
+    size_t Lcd_p=lc+1; // (lc+ld+2)/2
     //cout << "Lab_m Lcd_m Lab_p Lcd_p" << Lab_m << " " << Lcd_m << " " << Lab_p << " " << Lcd_p << endl;
     //cout << "Iab Icd = " << Iab(Lab_m,Lcd_p) << " " << Icd(Lcd_m,Lab_p) << endl;
     return sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
-Vector<double> SphericalGaussianCD::Coulomb_Rk(int la,int lc) const
+Vector<double> SphericalGaussianCD::Coulomb_Rk(size_t la,size_t lc) const
 {
     assert(la<=LMax);
     assert(lc<=LMax);
     Vector<double> ret(la+lc+1,0.0);
-    int i=1;
-    for (int k=0;k<=2*std::min(la,lc);k+=2)
+    size_t i=1;
+    for (size_t k=0;k<=2*std::min(la,lc);k+=2)
     {
-        int Lab_p=la+1+k/2; 
-        int Lcd_m=lc-k/2; 
-        int Lab_m=la-k/2; 
-        int Lcd_p=lc+1+k/2;
+        size_t Lab_p=la+1+k/2; 
+        size_t Lcd_m=lc-k/2; 
+        size_t Lab_m=la-k/2; 
+        size_t Lcd_p=lc+1+k/2;
         //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
         ret(i++)=sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
     }
     return ret;
 }
 
-Vector<double> SphericalGaussianCD::ExchangeRk(int la,int lb) const
+Vector<double> SphericalGaussianCD::ExchangeRk(size_t la,size_t lb) const
 {
     assert(la<=LMax);
     assert(lb<=LMax);
-    int kmin=std::abs(la-lb);
-    int kmax=la+lb;
-    int N=(kmax-kmin)/2+1;
+    size_t kmin=std::abs((int)la-(int)lb);
+    size_t kmax=la+lb;
+    size_t N=(kmax-kmin)/2+1;
     Vector<double> ret(N,0.0);
-    int i=1;
-    for (int k=kmin;k<=kmax;k+=2)
+    size_t i=1;
+    for (size_t k=kmin;k<=kmax;k+=2)
     {
         assert((la+lb+k)%2==0);
-        int Lab_p=(la+lb+k)/2+1; 
-        int Lcd_m=(la+lb-k)/2; 
-        int Lab_m=(la+lb-k)/2; 
-        int Lcd_p=(la+lb+k)/2+1;
+        size_t Lab_p=(la+lb+k)/2+1; 
+        size_t Lcd_m=(la+lb-k)/2; 
+        size_t Lab_m=(la+lb-k)/2; 
+        size_t Lcd_p=(la+lb+k)/2+1;
 
         ret(i++)=sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
     }

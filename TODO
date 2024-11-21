@@ -1,10 +1,7 @@
 Priority 1:
-    Done: -1) Refactor atom IEs, lots of common code.
-        Done: 2) Then propagate and new ERIJ ERIK code to all atom basis sets.
-        Done: Oops: 3) Compare table sizes before removing old JK code.
-    -5) Work towards linear contraction of D_cd*J_abcd and D_cd*K_abcd
-        Done: -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
-        Done: 4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
+    -Make and atom app for testing basis sets
+        -N, -e{min.max} -b{S,Sm,G,Gm} -dL{front,back} 
+    -linear contraction of D_cd*J_abcd and D_cd*K_abcd
     -List all 2LAs in one place an use them throughout.
         2LAs: IE,BF,IR,BS,DB,QN,WF,EL,PG,SL,SG,CL(Client),FF(Fit Function),CD (Charge distribution), 
         3LAs: Occ,SGm,SLm,ERI,IE_CL,Rho(Charge density), Pol, UnP
@@ -13,20 +10,12 @@ Priority 1:
     -Overlap3C La==Lb, but La==Lc is not always true how???
     -Need to tighten up/specialize allowed errors in HF energies for all UTs.
     -SVD truncation ... we need no know which L is getting truncated.
-    Done: -Merge degen levels with diff m QNs.
-        Done: -Also make two column list of levels/occs
-        Done: -Get rid of ElectronDumper.
-        Done: -Merge/sort all levels for a given spin/l  
     -Energy levels:
         List m values [-1 0 1]
             How:  Merge std::vector<qn> into 3p [-1 0 1]
                 Should have common n,l
                 call qn->Append(os);  just output m?
             Handled cases where Up (col 1) is degenerate and Dn (col 2) is less/non degen.
-    Done: -Upgrade iteration output.
-        Done: -More digits for virial.
-        Done: -Unused columns.
-        Done: -Mixing parameter.
     -Stream output to a separate log file?
     -Do we need to do an SCF iter in Initialize?
     
@@ -34,8 +23,7 @@ Priority 1:
         1) Check view blocks for all zeros.
         Done: 2) Us a two way cache K[irrep1,irrep2]
             Done: Need to deal with Diag (ir1==ir2) and non-diag K tables (ir1!=ir2) .
-    -Another round of warning fixes.
-    Done: -Sort out locations for QN headers
+    Done: -Another round of warning fixes.
     -QchemTester: make show basis set an option.
     -Common base for SlaterCD and SG_CD
         -Make some unit test first?
@@ -172,7 +160,21 @@ Priority 3:
         -Polarized HF with m splitting basis works just well. Way less complicated.
     
 --------------------------------------------------------------------------------------
-Fixed:: -Electron loading problem/buf for Z=55 and up
+    Done: -1) Refactor atom IEs, lots of common code.
+        Done: 2) Then propagate and new ERIJ ERIK code to all atom basis sets.
+        Done: Oops: 3) Compare table sizes before removing old JK code.
+        Done: -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
+        Done: 4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
+    Done: -Merge degen levels with diff m QNs.
+        Done: -Also make two column list of levels/occs
+        Done: -Get rid of ElectronDumper.
+        Done: -Merge/sort all levels for a given spin/l  
+    Done: -Upgrade iteration output.
+        Done: -More digits for virial.
+        Done: -Unused columns.
+        Done: -Mixing parameter.
+    Done: -Sort out locations for QN headers
+    Fixed:: -Electron loading problem/buf for Z=55 and up
         -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
         -Broke BasisSet persistence tests. Need to put back 
             PerRef<IntegralDatabase> int BSImp<T>

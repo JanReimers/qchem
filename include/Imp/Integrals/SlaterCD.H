@@ -14,12 +14,12 @@ class SlaterCD : public virtual Cacheable
 {
 public:
     SlaterCD(double eab, double ecd, size_t LMax);
-    double Coulomb_R0(int la,int lc) const; //R_0(la,la,lc,lc);
-    Vector<double> Coulomb_Rk(int la,int lc) const; //R_k(la,la,lc,lc);
-    Vector<double> ExchangeRk(int la,int lb) const; //R_k(la,lb,la,lb);
+    double Coulomb_R0(size_t la,size_t lc) const; //R_0(la,la,lc,lc);
+    Vector<double> Coulomb_Rk(size_t la,size_t lc) const; //R_k(la,la,lc,lc);
+    Vector<double> ExchangeRk(size_t la,size_t lb) const; //R_k(la,lb,la,lb);
     
 private:
-    static double fk(double a, double ab, int k,int n);
+    static double fk(double a, double ab, size_t k,size_t n);
     
     double eab, ecd;
     size_t LMax;
