@@ -20,7 +20,7 @@ TotalEnergy::TotalEnergy()
 double TotalEnergy::GetVirial() const
 {
     double V=GetPotentialEnergy();
-    return V==0 ? 0 : -2.0*Kinetic/V;
+    return V/Kinetic;
 }
 
 TotalEnergy& TotalEnergy::operator+=(const TotalEnergy& e1)

@@ -4,17 +4,10 @@
 #include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-#include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
-//#include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
-//#include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
-//#include "BasisSetImplementation/PlaneWave/PlaneWaveIE.H"
-
-#include "Imp/DataBase/HeapDB.H"
 
 #include "Imp/Symmetry/YlmQN.H"
 #include "Imp/Symmetry/YlQN.H"
@@ -87,109 +80,6 @@ BasisSet* BasisSet::Factory(std::istream& is)
     exit(-1);
     return NULL;
 }
-
-//##################################################################
-//
-//  Integral data base factory, reads in name of IntegralDataBase
-//  derived class and makes a new object using the default constructor.
-//
-
-template <class T> IntegralDataBase<T>* IntegralDataBase<T>::Factory(std::istream& is)
-{
-    std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(HeapDB<T>).name()) return new HeapDB<T>;
-
-    std::cout << "Unknown integral database type :'" << Name << "'" << std::endl;
-    std::cout << "Lookgin for                    :'" << typeid(HeapDB<T>).name() << "'" << std::endl;
-    exit(-1);
-    return NULL;
-}
-
-template IntegralDataBase<double>* IntegralDataBase<double>::Factory(std::istream&);
-template IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >::Factory(std::istream&);
-
-/*
-IntegralDataBase<double>* IntegralDataBase<double>::Factory(std::istream& is)
-{
-  string Name=PeekAtName(is);
-  if (Name==typeid(HeapDB<double>).name()) return new HeapDB<double>;
-
-  cout << "Unknown integral database type :'" << Name << "'" << std::endl;
-	cout << "Lookgin for                    :'" << typeid(HeapDB<double>).name() << "'" << std::endl;
-  exit(-1);
-  return NULL;
-}
-
-IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >::Factory(std::istream& is)
-{
-  string Name=PeekAtName(is);
-  if (Name==typeid(HeapDB<std::complex<double> >).name()) return new HeapDB<std::complex<double> >;
-
-  cout << "Unknown integral database type :'" << Name << "'" << std::endl;
-	cout << "Lookgin for                    :'" << typeid(HeapDB<std::complex<double> >).name() << "'" << std::endl;
-  exit(-1);
-  return NULL;
-}
-*/
-
-//##################################################################
-//
-//  Integral engine factory, reads in name of IntegralEngine derived
-//  class and makes a new object using the default constructor.
-//
-
-//template <class T> NumericalIE<T>* NumericalIE<T>::Factory(std::istream& is)
-//{
-//    std::string Name=StreamableObject::PeekAtName(is);
-//    if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
-//    
-//    std::cout << "Unknown integral engine type :" << Name << std::endl;
-//    exit(-1);
-//    return NULL;
-//}
-
-//template <> NumericalIE<double>* NumericalIE<double>::Factory(std::istream& is)
-//{
-//  std::string Name=PeekAtName(is);
-//  if (Name==typeid(NumericalIEImp<double>).name()) return new NumericalIEImp<double>;
-//  
-//  std::cout << "Unknown integral engine type :" << Name << std::endl;
-//  exit(-1);
-//  return NULL;
-//}
-
-//template <class T> AnalyticIE<T>* AnalyticIE<T>::Factory(std::istream& is)
-//{
-//    std::string Name=StreamableObject::PeekAtName(is);
-//    if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
-//    if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
-//
-//    std::cout << "Unknown integral engine type :" << Name << std::endl;
-//    exit(-1);
-//    return NULL;
-//}
-//
-//template <> AnalyticIE<double>* AnalyticIE<double>::Factory(std::istream& is)
-//{
-//  std::string Name=PeekAtName(is);
-//  if (Name==typeid(SphericalGaussianIE1).name()) return new SphericalGaussianIE1;
-//  if (Name==typeid(PolarizedGaussianIE1).name()) return new PolarizedGaussianIE1;
-//
-//  std::cout << "Unknown integral engine type :" << Name << std::endl;
-//  exit(-1);
-//  return NULL;
-//}
-
-//template <> NumericalIE<std::complex<double> >* NumericalIE<std::complex<double> >::Factory(std::istream& is)
-//{
-//  std::string Name=PeekAtName(is);
-////  if (Name==typeid(        PlaneWaveIE).name()) return new         PlaneWaveIE;
-//
-//  std::cout << "Unknown complex integral engine type :" << Name << std::endl;
-//  exit(-1);
-//  return NULL;
-//}
-
 
 
 //##################################################################

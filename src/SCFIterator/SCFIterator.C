@@ -104,16 +104,16 @@ void SCFIteratorImp::DisplayEnergies(int i, double lam, double ChargeDensityChan
 
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(2)  << i << " "
-         << setw(16) << setprecision(8) << te.GetTotalEnergy()
-         << setw(6)  << setprecision(3) << te.GetVirial() << " "
-         << setw(6)  << setprecision(3) << te.Kinetic << " "
-         << setw(6)  << setprecision(3) << te.GetPotentialEnergy() << " "
-         << setw(6)  << setprecision(3) << te.Een << " "
-         << setw(6)  << setprecision(3) << te.Eee << " "
-         << setw(6)  << setprecision(3) << te.Exc << " ";
+         << setw(16) << setprecision(8) << te.GetTotalEnergy() << " "
+         << setw(10) << setprecision(8) << te.GetVirial() << " "
+         << setw(8)  << setprecision(3) << te.Kinetic << " "
+         << setw(8)  << setprecision(3) << te.GetPotentialEnergy() << " "
+         << setw(8)  << setprecision(3) << te.Een << " "
+         << setw(8)  << setprecision(3) << te.Eee << " "
+         << setw(8)  << setprecision(3) << te.Exc << " ";
     cout.setf(ios::scientific,ios::floatfield);
     cout << setw(8) << setprecision(2) << ChargeDensityChange << " ";
-    cout << setw(8) << setprecision(2) << fitError << " ";
-    cout << setw(9) << setprecision(2) << lam << " ";
+//    cout << setw(8) << setprecision(2) << fitError << " ";
+//    cout << setw(9) << setprecision(2) << lam << " ";
 }
 

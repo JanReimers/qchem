@@ -1,17 +1,11 @@
 // File: HeapDB.H  Implement a heap storage integral data base.
 
-
-
 #include "Imp/DataBase/HeapDB.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include <BasisSet.H>
 #include <Cluster.H>
 #include <AnalyticIE.H>
 #include "oml/vector.h"
-#include "Imp/Containers/stl_io.h"
-#include <iostream>
-//#include <cassert>
-#include <algorithm> //find
 #include <iomanip>
 
 //------------------------------------------------------------------------
@@ -32,23 +26,6 @@ template <class T> HeapDB<T>::~HeapDB()
 {
     Report(std::cout);
     delete itsAnalyticIE;
-}
-
-
-template <class T> bool HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
-{
-    const HeapDB* hdb=dynamic_cast<const HeapDB*>(&idb);
-    return hdb;
-    
-}
-//-------------------------------------------------------------------------
-//
-//  Assorted fluff.
-//
-
-template <class T> IntegralDataBase<T>* HeapDB<T>::Clone() const
-{
-    return new HeapDB(*this);
 }
 
 template <class T> size_t Size(const Vector <T>& m) {return m.size();}
@@ -87,50 +64,6 @@ template <class T> void HeapDB<T>::Report(std::ostream& os) const
     os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
     
 }
-//------------------------------------------------------------------
-//
-//  Pickle and un pickle the integral engine, all matricies, and
-//  all lists of ID's.
-//
-template <class T> std::ostream& HeapDB<T>::Write(std::ostream& os) const
-{
-//
-//  Write the IntegralEngine, which better be initialized.
-//
-    if(!Binary()) os << std::endl;
-    UniqueID::Write(os);
-
-
-    if (Binary())
-    {
-        
-    }
-    else
-    {
-        
-    }
-    return os;
-}
-
-template <class T> std::istream& HeapDB<T>::Read (std::istream& is)
-{
-    UniqueID::Read(is);
-
-    if (Binary())
-    {
-       
-    }
-    else
-    {
-       
-    }
-    return is;
-}
-
-
-
-
-
 //---------------------------------------------------------------------------------
 //
 //  If possible return cached integral tables.  Calculate using integral engine only if required.

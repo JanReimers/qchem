@@ -13,18 +13,24 @@ Priority 1:
     -Overlap3C La==Lb, but La==Lc is not always true how???
     -Need to tighten up/specialize allowed errors in HF energies for all UTs.
     -SVD truncation ... we need no know which L is getting truncated.
-    -Merge degen levels with diff m QNs.
-        -Also make two column list of levels/occs
-        -Get rid of ElectronDumper.
-        -Merge/sort all levels for a given spin/l  
-    -Upgrade iteration output.
-        -More digits for virial.
-        -Unused columns.
-        -Mixing parameter.
-        -Stream to a separate log file?
+    Done: -Merge degen levels with diff m QNs.
+        Done: -Also make two column list of levels/occs
+        Done: -Get rid of ElectronDumper.
+        Done: -Merge/sort all levels for a given spin/l  
+    -Energy levels:
+        List m values [-1 0 1]
+            How:  Merge std::vector<qn> into 3p [-1 0 1]
+                Should have common n,l
+                call qn->Append(os);  just output m?
+            Handled cases where Up (col 1) is degenerate and Dn (col 2) is less/non degen.
+    Done: -Upgrade iteration output.
+        Done: -More digits for virial.
+        Done: -Unused columns.
+        Done: -Mixing parameter.
+    -Stream output to a separate log file?
     -Do we need to do an SCF iter in Initialize?
     
-    -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
+    Fixed: -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
         1) Check view blocks for all zeros.
         Done: 2) Us a two way cache K[irrep1,irrep2]
             Done: Need to deal with Diag (ir1==ir2) and non-diag K tables (ir1!=ir2) .

@@ -22,13 +22,13 @@ bool SCFIteratorPol::Iterate(const SCFIterationParams& ipar)
     if (ipar.Verbose)
     {
         std::cout << std::endl << std::endl;
-        std::cout << " #        Etotal     Virial  K    V    Ven    Vee    Vxc    Del(Ro) Del(Vee)  Lambda     Ef(up)   Ef(down) " << std::endl;
-        std::cout << "----------------------------------------------------------------------------" << std::endl;
+        std::cout << " #       Etotal        Virial       K        V       Ven       Vee       Vxc    Del(Ro)" << std::endl;
+        std::cout << "----------------------------------------------------------------------------------------" << std::endl;
     }
     bool ret=SCFIteratorImp::Iterate(ipar);
     if (ipar.Verbose)
     {
-        std::cout << "-----------------------------------------------------------------" << std::endl;
+        std::cout << "----------------------------------------------------------------------------------------" << std::endl;
         DisplayEigen();
     }
     return ret;

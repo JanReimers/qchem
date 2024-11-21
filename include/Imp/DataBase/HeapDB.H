@@ -35,7 +35,6 @@ public:
     HeapDB();
     virtual ~HeapDB();
     HeapDB(AnalyticIE<T>* ie);
-    virtual bool  operator==(const IntegralDataBase<T>&) const;
 
 #ifndef UT_COVERAGE_ONLY
     virtual const RVec&    GetNormalization(bs_t& a);
@@ -70,18 +69,10 @@ public:
     virtual    ERI4      GetExchange4C(bs_t& a,bs_t& b);
 
     virtual void Report(std::ostream&) const;
-    virtual std::ostream&  Write(std::ostream&) const;
-    virtual std::istream&  Read (std::istream&)      ;
-    virtual IntegralDataBase<T>* Clone() const;
 
 private:
-    using StreamableObject::Binary;
-    using StreamableObject::Ascii;
-    using StreamableObject::Pretty;
-
     const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
 
-    typedef std::vector<UniqueID::IDtype>      IDList;
 
     AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
     

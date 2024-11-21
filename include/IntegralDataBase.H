@@ -5,7 +5,6 @@
 
 
 #include "types.H"
-#include "Imp/Misc/UniqueID/UniqueID.H"
 #include "Imp/Containers/ERI4.H"
 
 class IrrepIEClient;
@@ -23,7 +22,6 @@ class IrrepIEClient;
 #define UT_COVERAGE_ONLY
 
 template <class T> class IntegralDataBase
-    : public virtual UniqueID
 {
 public:
     typedef Matrix<T>      Mat;
@@ -41,7 +39,6 @@ public:
     
     virtual ~IntegralDataBase() {};
 
-    virtual bool  operator==(const IntegralDataBase&) const=0;
 //
 //  Integrals that get calculated once and then cached.
 //
@@ -75,9 +72,6 @@ public:
 
     virtual    ERI4        GetDirect__4C(bs_t& a,bs_t& b)=0;
     virtual    ERI4        GetExchange4C(bs_t& a,bs_t& b)=0;
-    
-    virtual IntegralDataBase*      Clone            (               ) const=0;
-    static  IntegralDataBase*      Factory          (std::istream&       )       ;
-};
+    };
 
 #endif //_IntegralDataBase_H_

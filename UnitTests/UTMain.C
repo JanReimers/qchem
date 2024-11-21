@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SG_DFT_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_HF_P.Multiple/*:Multiple/A_SLm_HF_P.Multiple/*:Multiple/A_SL_HF_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_HF_P.Multiple/*";
-     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_U.Multiple/*";
+//     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_PG_DFT_*.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "M_*";
 
