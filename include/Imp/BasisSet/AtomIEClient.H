@@ -3,8 +3,6 @@
 #define _AtomIEClient_H_
 
 #include <IEClient.H> // <> prevents file search on this folder.
-#include "Imp/BasisSet/BFGrouper.H"
-#include "Imp/Integrals/Cache4.H"
 #include "oml/vector.h"
 #include <set>
 
@@ -19,9 +17,8 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     size_t n,l;
     int m;
     
-    void Init(double minexp,double maxexp,size_t l, int m=0);
     void Init(const std::set<double>& exponents,size_t l, int m=0);
-    void Init(const Vector<double>& exponents,size_t l, int m=0);
+    void Init(const Vector  <double>& exponents,size_t l, int m=0);
     
     virtual size_t size() const {return es.size();}
     typedef std::tuple<int,int,int,double,double> bf_tuple;

@@ -17,8 +17,6 @@
 #include <cassert>
 #include <algorithm> //Need std::max
 
-template <class T> void FillPower(Vector<T>& arr,T start, T stop);
-
 namespace PolarizedGaussian
 {
 
