@@ -595,14 +595,13 @@
 	"oml/vector.h"
 	<iosfwd>
 
-1732124782 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
+1732207347 source:/home/janr/Code/qchem/UnitTests/SlaterIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/SlaterIntegrals.H"
 	"Imp/BasisSet/Slater/IntegralEngine.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
 	"Imp/BasisSet/Slater/BasisFunction.H"
-	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
-	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+	"Imp/Symmetry/YlQN.H"
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
 	"Imp/Integrals/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
@@ -1030,13 +1029,13 @@
 
 1732133822 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
 
-1731508926 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
+1732207322 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
 	"gtest/gtest.h"
 	"Imp/Integrals/GaussianIntegrals.H"
 	"Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
-	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+	"Imp/Symmetry/YlQN.H"
 	"Imp/Integrals/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Molecule.H"
@@ -1080,7 +1079,7 @@
 	<cmath>
 	"Imp/Misc/DFTDefines.H"
 
-1731361855 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
+1732205786 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
 	<QuantumNumber.H>
 	<tuple>
 
@@ -1154,7 +1153,7 @@
 	<memory>
 	"Imp/WaveFunction/ElectronConfiguration.H"
 
-1732200892 source:/home/janr/Code/qchem/UnitTests/A_HF.C
+1732201380 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
@@ -1442,17 +1441,17 @@
 	"types.H"
 	<vector>
 
-1731363052 source:/home/janr/Code/qchem/UnitTests/ElectronConfigurations.C
+1732207303 source:/home/janr/Code/qchem/UnitTests/ElectronConfigurations.C
 	"gtest/gtest.h"
 	"Imp/WaveFunction/ElectronConfiguration.H"
 	"Imp/Misc/PeriodicTable.H"
-	"Imp/BasisSet/Slater_m/QuantumNumber.H"
+	"Imp/Symmetry/YlmQN.H"
 	<Spin.H>
 	<iostream>
 
 1731335940 /home/janr/Code/qchem/include/Imp/WaveFunction/ElectronConfiguration.H
 
-1731347087 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/QuantumNumber.H
+1732205786 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/QuantumNumber.H
 	"Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 
 1731417034 /home/janr/Code/qchem/include/EnergyLevel.H
@@ -1478,4 +1477,11 @@
 	"Imp/BasisSet/BFGrouper.H"
 	"Imp/Integrals/Cache4.H"
 	"oml/vector.h"
+
+1732208394 /home/janr/Code/qchem/include/Imp/Symmetry/YlmQN.H
+	"Imp/Symmetry/YlQN.H"
+
+1732208331 /home/janr/Code/qchem/include/Imp/Symmetry/YlQN.H
+	<QuantumNumber.H>
+	<tuple>
 

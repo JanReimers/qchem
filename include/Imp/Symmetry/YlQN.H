@@ -1,6 +1,6 @@
-// File: SphericalSymmetryQN.H  A Quantum Number for atomic (spherical) symmetry
-#ifndef _SphericalSymmetryQN_H_
-#define _SphericalSymmetryQN_H_
+// File: Symmetry/YlmQN.H  A Quantum Number for atomic (spherical) symmetry
+#ifndef _Symmetry_YlQN_H_
+#define _Symmetry_YlQN_H_
 
 
 
@@ -13,12 +13,12 @@
 //  orbital angular momentum L.
 //
 
-class SphericalSymmetryQN
+class YlQN
     : public virtual QuantumNumber
 {
 public:
-    SphericalSymmetryQN(        );
-    SphericalSymmetryQN(int theL);
+    YlQN(        );
+    YlQN(int theL);
 
     virtual bool Match(const QuantumNumber&) const;
     virtual int GetDegeneracy() const;
@@ -35,4 +35,4 @@ protected:
     static const int LMax=3;
 };
 
-#endif
+#endif //_Symmetry_YlQN_H_

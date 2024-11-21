@@ -2,8 +2,8 @@
 
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/Misc/PeriodicTable.H"
+#include "Imp/Symmetry/YlQN.H"
 #include <Spin.H>
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include <cassert>
 #include <iostream>
 #include <initializer_list>
@@ -74,7 +74,7 @@ int AtomElectronConfiguration::GetN(const Spin& s) const
 
 int AtomElectronConfiguration::GetN(const QuantumNumber& qn) const
 {
-    const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN&>(qn);
+    const YlQN& sqn=dynamic_cast<const YlQN&>(qn);
     int nl,nlu;
     std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
     assert(nlu==0);
@@ -84,7 +84,7 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) cons
 {
     if (s==Spin::None) return GetN(qn);
     
-    const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN&>(qn);
+    const YlQN& sqn=dynamic_cast<const YlQN&>(qn);
     int nl,nlu;
     std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
     assert((nl+nlu)%2==0);

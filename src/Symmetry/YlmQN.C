@@ -2,16 +2,16 @@
 
 
 
-#include "Imp/BasisSet/Slater_m/QuantumNumber.H"
+#include "Imp/Symmetry/YlmQN.H"
 #include <iostream>
 #include <cassert>
 
 using std::cout;
 using std::endl;
 
-YlmQN::YlmQN(): SphericalSymmetryQN(0),m(0) {};
+YlmQN::YlmQN(): YlQN(0),m(0) {};
 
-YlmQN::YlmQN(int _l, int _m) : SphericalSymmetryQN(_l), m(_m) {};
+YlmQN::YlmQN(int _l, int _m) : YlQN(_l), m(_m) {};
 
 bool YlmQN::Match(const QuantumNumber& qn) const
 {
@@ -29,7 +29,7 @@ std::pair<int,int> YlmQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpai
 {
     assert(itsL<=LMax);
     int nl,nlu;
-    std::tie(nl,nlu)=SphericalSymmetryQN::GetN(N,Nv,NUnpaired);
+    std::tie(nl,nlu)=YlQN::GetN(N,Nv,NUnpaired);
     assert((nl+nlu)%2==0);
     int l=itsL;
     int g=2*l+1;

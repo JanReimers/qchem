@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/Misc/PeriodicTable.H"
-#include "Imp/BasisSet/Slater_m/QuantumNumber.H"
+#include "Imp/Symmetry/YlmQN.H"
 #include <Spin.H>
 #include <iostream>
 
@@ -20,7 +20,7 @@ class ElectronConfigurationTests : public ::testing::Test
 {
 public:
     ElectronConfigurationTests() {}
-    SphericalSymmetryQN qn(int l) const {return SphericalSymmetryQN(l);}
+    YlQN qn(int l) const {return YlQN(l);}
     YlmQN qn(int l, int m) const {return YlmQN(l,m);}
 };
 
@@ -72,7 +72,7 @@ TEST_F(ElectronConfigurationTests, SumLAndSpin)
         int Nld=0;
         for (int l=0;l<=3;l++)
         {
-            SphericalSymmetryQN qn(l);
+            YlQN qn(l);
             int nlu=ec.GetN(qn,Spin::Up);
             int nld=ec.GetN(qn,Spin::Down);
 //            cout << "l,nu,nd = " << l << " " << nlu << " " << nld << endl;

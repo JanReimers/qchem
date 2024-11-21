@@ -5,8 +5,8 @@
 #include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "Imp/Symmetry/YlQN.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"
@@ -92,7 +92,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
         const QuantumNumber& qn=i->GetQuantumNumber();
-        const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN& >(qn);
+        const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
         const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(*i);
         assert(sg);

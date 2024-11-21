@@ -3,7 +3,7 @@
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater/BasisFunction.H"
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/Symmetry/YlQN.H"
 #include <iostream>
 #include <cassert>
 
@@ -20,7 +20,7 @@ IrrepBasisSet::IrrepBasisSet()
 
 IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
         const Vector<double>& exponents,size_t L)
-    : IrrepBasisSetCommon(new SphericalSymmetryQN(L))
+    : IrrepBasisSetCommon(new YlQN(L))
     , TIrrepBasisSetCommon<double>(lap,theDB)
     , IrrepIEClient(exponents.size())
 {

@@ -2,32 +2,32 @@
 
 
 
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/Symmetry/YlQN.H"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>
 
-SphericalSymmetryQN::SphericalSymmetryQN()
+YlQN::YlQN()
     : itsL(0)
 {};
 
-SphericalSymmetryQN::SphericalSymmetryQN(int theL)
+YlQN::YlQN(int theL)
     : itsL(theL)
 {};
 
-bool SphericalSymmetryQN::Match(const QuantumNumber& qn) const
+bool YlQN::Match(const QuantumNumber& qn) const
 {
-    const SphericalSymmetryQN* aqn = dynamic_cast<const SphericalSymmetryQN*>(&qn);
+    const YlQN* aqn = dynamic_cast<const YlQN*>(&qn);
     assert(aqn);
     return itsL==aqn->itsL;
 }
 
-int SphericalSymmetryQN::GetDegeneracy() const
+int YlQN::GetDegeneracy() const
 {
     return 2*itsL+1;
 }
 
-std::pair<int,int> SphericalSymmetryQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
+std::pair<int,int> YlQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
 {
     int nl=N[itsL];
     if (Nv[itsL]==0) return std::make_pair(nl,0);
@@ -58,7 +58,7 @@ std::pair<int,int> SphericalSymmetryQN::GetN(const int (&N)[4], const int (&Nv)[
 
 std::string SPDFG[]={"s","p","d","f","g"};
 
-std::ostream& SphericalSymmetryQN::Write(std::ostream& os) const
+std::ostream& YlQN::Write(std::ostream& os) const
 {
     UniqueID::Write(os);
     if (StreamableObject::Binary())
@@ -70,7 +70,7 @@ std::ostream& SphericalSymmetryQN::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& SphericalSymmetryQN::Read (std::istream& is)
+std::istream& YlQN::Read (std::istream& is)
 {
     UniqueID::Read(is);
     if (StreamableObject::Binary())
@@ -82,8 +82,8 @@ std::istream& SphericalSymmetryQN::Read (std::istream& is)
     return is;
 }
 
-QuantumNumber* SphericalSymmetryQN::Clone() const
+QuantumNumber* YlQN::Clone() const
 {
-    return new SphericalSymmetryQN(*this);
+    return new YlQN(*this);
 }
 

@@ -8,10 +8,10 @@
 //#include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "Imp/BasisSet/GaussianScaler.H"
 #include "Imp/Cluster/Atom.H"
-#include <UnitSymmetryQN.H>
+#include "Imp/Symmetry/UnitQN.H"
+#include "Imp/Symmetry/YlQN.H"
 #include <Cluster.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include <cassert>

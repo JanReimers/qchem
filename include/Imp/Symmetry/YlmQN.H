@@ -1,10 +1,8 @@
-// File: Slater_m/QuantumNumer.H  Spherical harmonic Ylm symmetry.
-#ifndef _Slater_m_QuantumNumer_H_
-#define _Slater_m_QuantumNumer_H_
+// File: Symmetry/YlmQN.H  Spherical harmonic Ylm symmetry.
+#ifndef _Symmetry_YlmQN_H_
+#define _Symmetry_YlmQN_H_
 
-
-
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/Symmetry/YlQN.H"
 
 
 //---------------------------------------------------------------------------------
@@ -14,7 +12,7 @@
 
 class YlmQN
     : public virtual QuantumNumber
-    , public SphericalSymmetryQN
+    , public YlQN
 {
 public:
     YlmQN(            );
@@ -30,8 +28,8 @@ public:
 
     int Getm() const {return m;}
 
-private:
+protected:
     int m;
 };
 
-#endif //_Slater_m_QuantumNumer_H_
+#endif //_Symmetry_YlmQN_H_

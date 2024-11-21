@@ -16,8 +16,9 @@
 
 #include "Imp/DataBase/HeapDB.H"
 
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
-#include <UnitSymmetryQN.H>
+#include "Imp/Symmetry/YlmQN.H"
+#include "Imp/Symmetry/YlQN.H"
+#include "Imp/Symmetry/UnitQN.H"
 //#include "BasisSetImplementation/PlaneWave/BlochQN.H"
 
 #include <string>
@@ -199,7 +200,7 @@ IntegralDataBase<std::complex<double> >* IntegralDataBase<std::complex<double> >
 QuantumNumber* QuantumNumber::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalSymmetryQN).name()) return new SphericalSymmetryQN;
+    if (Name==typeid(YlQN).name()) return new YlQN;
     if (Name==typeid(     UnitSymmetryQN).name()) return new      UnitSymmetryQN;
 //    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
 

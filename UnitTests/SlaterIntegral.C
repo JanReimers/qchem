@@ -7,14 +7,8 @@
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/BasisSet.H"
 #include "Imp/BasisSet/Slater/BasisFunction.H"
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
+#include "Imp/Symmetry/YlQN.H"
 
-//#include "Imp/BasisSet/Slater_m/IrrepBasisSet.H"
-//#include "Imp/BasisSet/Slater_m/IntegralEngine.H"
-//#include "Imp/BasisSet/Slater_m/BasisSet.H"
-//#include "Imp/BasisSet/Slater_m/BasisFunction.H"
-
-#include "Imp/BasisSet/SphericalGaussian/QuantumNumber.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
@@ -206,7 +200,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
         const QuantumNumber& qn=i->GetQuantumNumber();
-        const SphericalSymmetryQN& sqn=dynamic_cast<const SphericalSymmetryQN& >(qn);
+        const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
         const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
         assert(sg);
