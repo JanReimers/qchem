@@ -4,22 +4,41 @@
 
 
 
-#include "QuantumNumber.H"
+#include <QuantumNumber.H>
 
-class UnitSymmetryQN
+class UnitQN
     : public virtual QuantumNumber
 {
 public:
-    UnitSymmetryQN();
+    UnitQN();
     virtual bool Match(const QuantumNumber&) const
     {
         return true;
     }
     virtual int GetDegeneracy() const;
+    virtual QuantumNumber* AddPrincipleQN(int index) const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
     virtual QuantumNumber* Clone() const;
+};
+
+class UnitnQN
+    : public virtual QuantumNumber
+    , UnitQN
+{
+public:
+    UnitnQN() ;
+    UnitnQN(int n);
+
+    virtual bool Match(const QuantumNumber&) const
+    {
+        return true;
+    }
+    virtual std::ostream& Write(std::ostream&) const;
+    virtual QuantumNumber* Clone() const;
+private:
+    int n; //Principle QN
 };
 
 #endif

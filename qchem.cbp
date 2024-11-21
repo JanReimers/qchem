@@ -95,13 +95,11 @@
 		<Unit filename="include/Imp/BasisSet/Slater_m/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/IrrepBasisSet.H" />
-		<Unit filename="include/Imp/BasisSet/Slater_m/QuantumNumber.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H" />
-		<Unit filename="include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/IEClient.H" />
@@ -178,6 +176,10 @@
 		<Unit filename="include/Imp/SCFIterator/SCFIterator.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorPol.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorUnPol.H" />
+		<Unit filename="include/Imp/Symmetry/AtomQN.H" />
+		<Unit filename="include/Imp/Symmetry/UnitQN.H" />
+		<Unit filename="include/Imp/Symmetry/YlQN.H" />
+		<Unit filename="include/Imp/Symmetry/YlmQN.H" />
 		<Unit filename="include/Imp/WaveFunction/ElectronConfiguration.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterPolarizedWF.H" />
@@ -194,7 +196,6 @@
 		<Unit filename="include/ScalarFunction.H" />
 		<Unit filename="include/Spin.H" />
 		<Unit filename="include/TotalEnergy.H" />
-		<Unit filename="include/UnitSymmetryQN.H" />
 		<Unit filename="include/VectorFunction.H" />
 		<Unit filename="include/WaveFunction.H" />
 		<Unit filename="include/types.H" />
@@ -306,9 +307,6 @@
 		<Unit filename="src/BasisSet/Slater_m/IrrepBasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/BasisSet/Slater_m/QuantumNumber.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/BasisFunction.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -322,9 +320,6 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/IrrepBasisSet.C">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="src/BasisSet/SphericalGaussian/QuantumNumber.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian_m/BasisFunction.C">
@@ -519,9 +514,6 @@
 		<Unit filename="src/Integrals/SlaterCD.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Integrals/SlaterIntegrals.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="src/Integrals/SphericalGaussianCD.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -615,10 +607,19 @@
 		<Unit filename="src/Spin.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/TotalEnergy.C">
+		<Unit filename="src/Symmetry/AtomQN.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/UnitSymmetryQN.C">
+		<Unit filename="src/Symmetry/UnitQN.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Symmetry/YlQN.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Symmetry/YlmQN.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/TotalEnergy.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/VectorFunction.C">

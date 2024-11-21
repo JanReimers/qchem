@@ -42,7 +42,7 @@ IrrepBasisSet::IrrepBasisSet()
 
 IrrepBasisSet::
 IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
-    : IrrepBasisSetCommon(new UnitSymmetryQN)
+    : IrrepBasisSetCommon(new UnitQN)
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
 //
@@ -116,7 +116,7 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, 
 
 IrrepBasisSet::
 IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<double>& es, size_t LMax, const Cluster* cl)
-    : IrrepBasisSetCommon(new UnitSymmetryQN)
+    : IrrepBasisSetCommon(new UnitQN)
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
     int nbasis=1;
@@ -152,7 +152,7 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<
 // Single atom version
 IrrepBasisSet::
 IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<double>& es, size_t L)
-    : IrrepBasisSetCommon(new UnitSymmetryQN())
+    : IrrepBasisSetCommon(new UnitQN())
     , TIrrepBasisSetCommon<double>(lap,theDB)
 {
     int nbasis=1;

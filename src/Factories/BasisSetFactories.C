@@ -201,7 +201,7 @@ QuantumNumber* QuantumNumber::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(YlQN).name()) return new YlQN;
-    if (Name==typeid(     UnitSymmetryQN).name()) return new      UnitSymmetryQN;
+    if (Name==typeid(     UnitQN).name()) return new      UnitQN;
 //    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
 
     std::cout << "Unknown Quantum Number type :" << Name << std::endl;

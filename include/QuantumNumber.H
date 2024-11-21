@@ -15,8 +15,11 @@ public:
     {
         return q1.Match(q2);
     }
+    //! Does not include spin degeneracy which is handles separately
     virtual int GetDegeneracy() const=0;
-
+    //! Combine with a principle QN from eigen levels with this Irrep.
+    virtual QuantumNumber* AddPrincipleQN(int index) const=0;
+    
     virtual QuantumNumber* Clone() const=0;
     static  QuantumNumber* Factory(std::istream&);
 };

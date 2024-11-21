@@ -66,7 +66,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
     index_t n=e.size();
     //std::cout << "   Eigen values=" << e << std::endl;
     for (index_t i=1; i<=n; i++)
-        itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),spin));
+        itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),spin, i));
 }
 
 

@@ -18,10 +18,10 @@ template <class T> class TOrbitalImp
     typedef typename Base::Vec3Vec Vec3Vec;
 public:
     TOrbitalImp();
-    TOrbitalImp(const TIrrepBasisSet<T>*,const Vec&, double, const Spin&);
+    TOrbitalImp(const TIrrepBasisSet<T>*,const Vec&, double, const Spin&, int i);
 
     virtual double GetEigenEnergy() const;
-    virtual const QuantumNumber& GetQuantumNumber() const;
+    virtual QuantumNumber* GetQuantumNumber() const;
     virtual EnergyLevel MakeEnergyLevel(const Spin& s);
     virtual void   AddDensityMatrix(SMat&) const;
 
@@ -35,6 +35,7 @@ private:
     double                   itsEigenEnergy;
     Vec                      itsCoeff;
     const TIrrepBasisSet<T>* itsBasisSet;
+    int                      itsIndex; //Index with Irrep ... could help determine a principle QN
 };
 
 #endif  //_TOrbitalImplementation_H_

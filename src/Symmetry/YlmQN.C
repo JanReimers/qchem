@@ -3,6 +3,7 @@
 
 
 #include "Imp/Symmetry/YlmQN.H"
+#include "Imp/Symmetry/AtomQN.H"
 #include <iostream>
 #include <cassert>
 
@@ -23,6 +24,11 @@ bool YlmQN::Match(const QuantumNumber& qn) const
 int YlmQN::GetDegeneracy() const
 {
     return 1;
+}
+
+QuantumNumber* YlmQN::AddPrincipleQN(int index) const
+{
+    return new AtomQN(index,*this);
 }
 
 std::pair<int,int> YlmQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const

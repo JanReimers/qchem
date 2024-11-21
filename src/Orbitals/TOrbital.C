@@ -17,11 +17,12 @@
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const TIrrepBasisSet<T>* bs,const Vec& c,double e, const Spin& S)
+TOrbitalImp(const TIrrepBasisSet<T>* bs,const Vec& c,double e, const Spin& S, int i)
     : ElectronContainerImp(S,bs->GetQuantumNumber())
     , itsEigenEnergy(e)
     , itsCoeff      (c)
     , itsBasisSet   (bs)
+    , itsIndex      (i)
 {
 };
 
@@ -45,9 +46,9 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     }
 }
 
-template <class T> const QuantumNumber& TOrbitalImp<T>::GetQuantumNumber() const
+template <class T> QuantumNumber* TOrbitalImp<T>::GetQuantumNumber() const
 {
-    return itsBasisSet->GetQuantumNumber();
+    return itsBasisSet->GetQuantumNumber(itsIndex);
 }
 
 template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
@@ -57,7 +58,7 @@ template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
         GetEigenEnergy(),
         GetOccupation(),
         GetDegeneracy(),
-        itsBasisSet->GetQuantumNumber(),
+        GetQuantumNumber(),
         s,this
     );    
 }

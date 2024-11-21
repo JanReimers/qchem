@@ -69,6 +69,7 @@ public:
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
+    virtual       QuantumNumber* GetQuantumNumber(int index      ) const=0;
 //
 //  Creat helpers
 //

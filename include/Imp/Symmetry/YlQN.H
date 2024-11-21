@@ -22,6 +22,7 @@ public:
 
     virtual bool Match(const QuantumNumber&) const;
     virtual int GetDegeneracy() const;
+    virtual QuantumNumber* AddPrincipleQN(int index) const;
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;

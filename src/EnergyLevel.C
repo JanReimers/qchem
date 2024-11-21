@@ -20,7 +20,7 @@ void EnergyLevel::Report(std::ostream& os) const
     os << std::setw(12) << std::setprecision(6) << e 
        << " (" << std::setw(4) << std::setprecision(1) << occ 
        << "/"  << degen 
-       << ") " << std::setw(8) << qn;
+       << ") " << std::setw(8) << *qn;
 }
 
 

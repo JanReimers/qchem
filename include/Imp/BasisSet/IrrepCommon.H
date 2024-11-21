@@ -32,6 +32,7 @@ public:
     {
         return *itsQuantumNumber;
     }
+    virtual QuantumNumber*  GetQuantumNumber(int index) const;
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 

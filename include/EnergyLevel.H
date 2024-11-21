@@ -7,18 +7,18 @@
 
 struct EnergyLevel
 {
-    EnergyLevel(double _e, double _occ, double _g,const QuantumNumber& _qn,const Spin& _s, Orbital* _o)
+    EnergyLevel(double _e, double _occ, double _g,QuantumNumber* _qn,const Spin& _s, Orbital* _o)
         : e(_e), occ(_occ), degen(_g), qn(_qn), s(_s), orbital(_o) 
         {};
 
     void merge(const EnergyLevel&);
     void Report(std::ostream&) const;
     
-    double               e,occ;
-    int                  degen;
-    const QuantumNumber& qn;
-    Spin                 s;
-    Orbital*             orbital;
+    double         e,occ;
+    int            degen;
+    QuantumNumber* qn;
+    Spin           s;
+    Orbital*       orbital;
 };
 
 #include <map>

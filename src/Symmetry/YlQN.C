@@ -3,6 +3,7 @@
 
 
 #include "Imp/Symmetry/YlQN.H"
+#include "Imp/Symmetry/AtomQN.H"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>
@@ -25,6 +26,11 @@ bool YlQN::Match(const QuantumNumber& qn) const
 int YlQN::GetDegeneracy() const
 {
     return 2*itsL+1;
+}
+
+QuantumNumber* YlQN::AddPrincipleQN(int index) const
+{
+    return new AtomQN(index,*this);
 }
 
 std::pair<int,int> YlQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const

@@ -77,6 +77,10 @@ bool IrrepBasisSetCommon::operator==(const IrrepBasisSet& bs) const
     return ret;
 }
 
+QuantumNumber*  IrrepBasisSetCommon::GetQuantumNumber(int index) const
+{
+    return itsQuantumNumber->AddPrincipleQN(index);
+}
 
 
 //-----------------------------------------------------------------------------

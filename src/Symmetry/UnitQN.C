@@ -3,30 +3,49 @@
 
 
 #include "Imp/Symmetry/UnitQN.H"
+#include <iostream>
 
-UnitSymmetryQN::UnitSymmetryQN()
+UnitQN::UnitQN()
 {};
 
-int UnitSymmetryQN::GetDegeneracy() const
+int UnitQN::GetDegeneracy() const
 {
     return 1;
 }
 
+QuantumNumber* UnitQN::AddPrincipleQN(int index) const
+{
+    return new UnitnQN(index);
+}
 
-std::ostream& UnitSymmetryQN::Write(std::ostream& os) const
+
+std::ostream& UnitQN::Write(std::ostream& os) const
 {
     UniqueID::Write(os);
     return os;
 }
 
-std::istream& UnitSymmetryQN::Read (std::istream& is)
+std::istream& UnitQN::Read (std::istream& is)
 {
     UniqueID::Read(is);
     return is;
 }
 
-QuantumNumber* UnitSymmetryQN::Clone() const
+QuantumNumber* UnitQN::Clone() const
 {
-    return new UnitSymmetryQN;
+    return new UnitQN;
 }
 
+UnitnQN::UnitnQN() : n(0) {};
+UnitnQN::UnitnQN(int _n) : n(_n) {};
+
+std::ostream& UnitnQN::Write(std::ostream& os) const
+{
+    os << n << " ";
+    return UnitQN::Write(os);
+}
+
+QuantumNumber* UnitnQN::Clone() const
+{
+    return new UnitnQN(*this);
+}

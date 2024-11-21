@@ -68,9 +68,6 @@
 		<Unit filename="ElectronConfigurations.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="GaussianERIIntegral.C">
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="GaussianIntegral.C">
 			<Option compilerVar="CC" />
 		</Unit>

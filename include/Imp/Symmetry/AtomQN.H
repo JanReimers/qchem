@@ -16,6 +16,7 @@ class AtomQN
 {
 public:
     AtomQN(            );
+    AtomQN(int n, const YlQN&);
     AtomQN(int n, const YlmQN&);
     AtomQN(int n, int l, int m);
 
