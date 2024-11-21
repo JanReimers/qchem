@@ -3,8 +3,8 @@ Priority 1:
         Done: 2) Then propagate and new ERIJ ERIK code to all atom basis sets.
         Oops: 3) Compare table sizes before removing old JK code.
     -5) Work towards linear contraction of D_cd*J_abcd and D_cd*K_abcd
-        -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
-        4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
+        Done: -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
+        Done: 4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
     -List all 2LAs in one place an use them throughout.
         2LAs: IE,BF,IR,BS,DB,QN,WF,EL,PG,SL,SG,CL(Client),FF(Fit Function),CD (Charge distribution), 
         3LAs: Occ,SGm,SLm,ERI,IE_CL,Rho(Charge density), Pol, UnP
@@ -42,7 +42,8 @@ Priority 1:
         https://pypi.org/project/PyPointGroup/
         https://www.sciencedirect.com/science/article/abs/pii/S0010465517300310
             https://data.mendeley.com/datasets/xd4g8hyjf2/1
-        
+    -Relativistic:
+        https://github.com/drjuls/AMBiT/tree/master/src
     -use map hints for caches
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.

@@ -56,12 +56,5 @@ double GaussianIntegral(double exp, int l);
 //  1/sqrt(<a|a>)
 //
 double GaussianNorm(double e, int l);
-//--------------------------------------------------------------------
-//      /
-//  4Pi |  r1^l1 exp(-e1*r1^2) * 1/r12 * r2^l2 exp(-e2*r2^2) * r^2 dr
-//     /
-double GaussianRepulsionIntegral(double e1, double e2, int l1, int l2);
-double GaussianRepulsionIntegral(double ea, double eb, double ec, double ed, int la, int lb, int lc, int ld);
-double GaussianExchangeIntegral (double ea, double eb, double ec, double ed, int la, int lb, int lc, int ld);
 
 #endif //_GaussianIntegrals_H_

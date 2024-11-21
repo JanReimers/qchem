@@ -5,7 +5,6 @@
 #include "Imp/Integrals/Factorials.H"
 
 #include <cmath>
-#include <cassert>
 
 //--------------------------------------------------------------------
 //      /

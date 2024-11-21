@@ -1,24 +1,13 @@
-// File: SphericalGaussianIE1.C  Here is where all the integral get calculated.
+// File: SphericalGaussian/IntegralEngine.C  Here is where all the integral get calculated.
 
 
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
-#include "Imp/BasisSet/SphericalGaussian/IEClient.H" 
 #include "Imp/Integrals/GaussianIntegrals.H"
-#include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-#include <Cluster.H>
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
-#include "Imp/Containers/ERI4.H"
-
-using std::cout;
-using std::endl;
 
 namespace SphericalGaussian
 {
-
-double IntegralEngine::FourPi2=4*4*Pi*Pi;
 
 
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
@@ -49,8 +38,8 @@ double IntegralEngine::Charge (double ea,           size_t l) const
 
 double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
-    GaussianRadialIntegrals R(eab,ec);
-    return R.Coulomb(la,la,lc,0); 
+    SphericalGaussianCD cd(eab,ec,std::max(la,lc));
+    return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
 }
 
 IntegralEngine::RVec IntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const

@@ -648,7 +648,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1732124098 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1732141048 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -921,11 +921,10 @@
 1731952619 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
-1731002152 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
+1732140944 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Misc/IntPower.H"
 	"Imp/Integrals/Factorials.H"
 	<cmath>
-	<cassert>
 
 1730402179 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
 
@@ -1029,7 +1028,7 @@
 
 1729179651 /home/janr/Code/qchem/include/Imp/Integrals/Factorials.H
 
-1730516611 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
+1732133822 /home/janr/Code/qchem/include/Imp/Integrals/GaussianRadialIntegrals.H
 
 1731508926 source:/home/janr/Code/qchem/UnitTests/GaussianIntegral.C
 	"gtest/gtest.h"
@@ -1051,7 +1050,7 @@
 	<fstream>
 	<cmath>
 
-1731936409 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
+1732133690 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
 	<AnalyticIE.H>
 	"Imp/BasisSet/AtomIE.H"
 	"oml/vector.h"
@@ -1072,12 +1071,12 @@
 1729371184 /home/janr/Code/qchem/src/Mesh/MeshIntegrator.H
 	"types.H"
 
-1731936473 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
+1732133738 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IntegralEngine.H
 	<AnalyticIE.H>
 	"Imp/BasisSet/AtomIE.H"
 	"oml/vector.h"
 
-1729378894 /home/janr/Code/qchem/include/Imp/Integrals/GaussianIntegrals.H
+1732140661 /home/janr/Code/qchem/include/Imp/Integrals/GaussianIntegrals.H
 	<cmath>
 	"Imp/Misc/DFTDefines.H"
 
@@ -1417,7 +1416,7 @@
 1731941890 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IEClient.H
 	"Imp/BasisSet/Slater/IEClient.H"
 
-1731759496 /home/janr/Code/qchem/include/Imp/Integrals/Cache4.H
+1732143796 /home/janr/Code/qchem/include/Imp/Integrals/Cache4.H
 	<map>
 
 1730995751 /home/janr/Code/qchem/include/Imp/Integrals/SlaterCD.H
@@ -1474,7 +1473,7 @@
 	"oml/vector.h"
 	<set>
 
-1732124729 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIE.H
+1732133455 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIE.H
 	<AnalyticIE.H>
 	"Imp/BasisSet/BFGrouper.H"
 	"Imp/Integrals/Cache4.H"

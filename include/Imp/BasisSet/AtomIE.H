@@ -50,7 +50,6 @@ private:
     virtual double Charge   (double ea ,           size_t l) const=0;
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
 
-    static double FourPi2;
 };
 
 

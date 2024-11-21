@@ -11,8 +11,6 @@
 namespace Slater
 {
 
-double IntegralEngine::FourPi2=4*4*pi*pi;
-
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
     return SlaterIntegral(ea+eb,l+2);
@@ -42,7 +40,7 @@ double IntegralEngine::Charge (double ea,           size_t l) const
 double IntegralEngine::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     SlaterCD cd(eab,ec,std::max(la,lc));
-    return FourPi2*cd.Coulomb_R0(la,lc);
+    return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
 }
 
 IntegralEngine::RVec IntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const

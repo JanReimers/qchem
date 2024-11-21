@@ -33,7 +33,6 @@ private:
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
         
-    static double FourPi2;
 };
 
 } //namespace

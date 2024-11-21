@@ -11,8 +11,6 @@
 namespace Slater_m
 {
 
-double IntegralEngine::FourPi2=4*4*pi*pi;
-
 IntegralEngine::RVec IntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
 {
     return AngularIntegrals::Coulomb(la,lc,ma,mc);

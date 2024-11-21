@@ -22,8 +22,6 @@ private:
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
 
-    static double FourPi2;
-
 };
 
 } //namespace
