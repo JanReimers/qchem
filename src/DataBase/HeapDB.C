@@ -35,23 +35,6 @@ template <class T> HeapDB<T>::~HeapDB()
 }
 
 
-template <class T> void HeapDB<T>::WipeCleanAllData()
-{
-    
-   
-}
-
-
-template <class T> void HeapDB<T>::Insert(AnalyticIE<T>* ie)
-{
-    assert(ie);
-    if (!itsAnalyticIE) 
-        itsAnalyticIE=ie;
-    else
-        delete ie;
-}
-
-
 template <class T> bool HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
 {
     const HeapDB* hdb=dynamic_cast<const HeapDB*>(&idb);

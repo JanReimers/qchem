@@ -66,7 +66,6 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    void  Insert(AnalyticIE<T>*);
     IntegralDataBase<T>* GetDataBase () const;
    
 //    virtual void EvalGrad(const Mesh&, Vec3Mat&) const;

@@ -40,7 +40,6 @@ public:
     typedef const IrrepIEClient iec_t;
     
     virtual ~IntegralDataBase() {};
-    virtual void  Insert(AnalyticIE<T>*)=0;
 
     virtual bool  operator==(const IntegralDataBase&) const=0;
 //

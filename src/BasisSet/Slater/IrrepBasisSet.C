@@ -30,7 +30,6 @@ IrrepBasisSet::IrrepBasisSet(
     , IrrepIEClient(size)
 {
     IrrepIEClient::Init(minexp,maxexp,L);
-    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());  
     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
@@ -44,8 +43,7 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L);
-    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());  
-    size_t i=1;
+     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
 

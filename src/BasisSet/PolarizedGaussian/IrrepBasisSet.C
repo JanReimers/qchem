@@ -106,7 +106,6 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, 
     std::vector<const Block*> bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
     IrrepIEClient::Init(bls);
-    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());    
 //
 //  Now insert the basis functions.
 //
@@ -143,7 +142,6 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<
     std::vector<const Block*> bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
     IrrepIEClient::Init(bls);
-    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());    
 //
 //  Now insert the basis functions.
 //
@@ -173,7 +171,6 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<
     std::vector<const Block*> bls;
     for (auto bl:itsBlocks) bls.push_back(bl);
     IrrepIEClient::Init(bls);
-    TIrrepBasisSetCommon<double>::Insert(new IntegralEngine());    
 //
 //  Now insert the basis functions.
 //

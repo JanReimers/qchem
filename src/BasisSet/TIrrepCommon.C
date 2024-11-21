@@ -35,16 +35,6 @@ template <class T> TIrrepBasisSetCommon<T>::~TIrrepBasisSetCommon()
 {
 }
 
-//-----------------------------------------------------------------------------
-//
-//  Post construction initializations called by dervied classes.
-//
-template <class T> void TIrrepBasisSetCommon<T>::Insert(AnalyticIE<T>* ie)
-{
-    assert(ie);
-    itsDataBase->Insert(ie);
-}
-
 template <class T> IntegralDataBase<T>* TIrrepBasisSetCommon<T>::GetDataBase() const
 {
     assert(&*itsDataBase);

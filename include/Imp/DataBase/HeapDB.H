@@ -35,7 +35,6 @@ public:
     HeapDB();
     virtual ~HeapDB();
     HeapDB(AnalyticIE<T>* ie);
-    virtual void  Insert(AnalyticIE<T>*);
     virtual bool  operator==(const IntegralDataBase<T>&) const;
 
 #ifndef UT_COVERAGE_ONLY
@@ -80,7 +79,6 @@ private:
     using StreamableObject::Ascii;
     using StreamableObject::Pretty;
 
-    void WipeCleanAllData   ()      ;
     const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
 
     typedef std::vector<UniqueID::IDtype>      IDList;
