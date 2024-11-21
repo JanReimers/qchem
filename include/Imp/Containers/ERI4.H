@@ -30,6 +30,7 @@ public:
     friend SMat operator*(const ERI4& gabcd,const SMat& Scd);
     friend SMat operator*(const SMat& Sab, const ERI4& gabcd);
 
+    size_t size() const;
 private:
     static double contract(const SMat& A,const SMat& B);
     SMatrix<SMatrix<double> > itsData;

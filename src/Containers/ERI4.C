@@ -7,6 +7,13 @@ ERI4::ERI4(size_t Nab, size_t Ncd) : itsData(Nab)
     Fill(itsData,Jcd);
 }
 
+size_t ERI4::size() const
+{
+    size_t Nab=itsData.size();
+    size_t Ncd=itsData(1,1).size();
+    return Nab*Ncd;
+}
+
 ERI4::SMat operator*(const ERI4& gabcd,const ERI4::SMat& Scd)
 {
     ERI4::SMat Sab(gabcd.itsData.GetLimits());

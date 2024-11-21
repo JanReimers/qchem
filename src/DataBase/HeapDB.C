@@ -30,7 +30,7 @@ template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
 
 template <class T> HeapDB<T>::~HeapDB()
 {
-    //Report(std::cout);
+    Report(std::cout);
     delete itsAnalyticIE;
 }
 
@@ -51,9 +51,10 @@ template <class T> IntegralDataBase<T>* HeapDB<T>::Clone() const
     return new HeapDB(*this);
 }
 
-template <class T> size_t Size(const Vector<T> & m) {return m.size();}
-template <class T> size_t Size(const Matrix<T> & m) {return m.size();}
-template <class T> size_t Size(const SMatrix<T> & m) {return m.size();}
+template <class T> size_t Size(const Vector <T>& m) {return m.size();}
+template <class T> size_t Size(const Matrix <T>& m) {return m.size();}
+template <class T> size_t Size(const SMatrix<T>& m) {return m.size();}
+                   size_t Size(const ERI4      & m) {return m.size();}
 template <class M> size_t Size(const std::vector<M> & v) 
 {
     size_t N=0;
@@ -77,12 +78,13 @@ template <class T> void HeapDB<T>::Report(std::ostream& os) const
     size_t N1=Size(its1C)+Size(its1Cx);
     size_t N2=Size(its2C)+Size(its2Cx)+Size(its2CNuc);
     size_t N3=Size(its3C);
+    size_t N4=Size(Jac)+Size(Kab);
     
     os << "Heap DB storage report:" << std::endl;
     os << "    " << setw(10) << N1 << " 1 centre integrals." << std::endl;
     os << "    " << setw(10) << N2 << " 2 centre integrals." << std::endl;
     os << "    " << setw(10) << N3 << " 3 centre integrals." << std::endl;
-//    os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
+    os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
     
 }
 //------------------------------------------------------------------
