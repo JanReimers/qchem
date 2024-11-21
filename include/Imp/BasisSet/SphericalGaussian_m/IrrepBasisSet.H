@@ -21,17 +21,11 @@ class IrrepBasisSet
 {
 public:
     IrrepBasisSet();
-    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,size_t size, double minexp, double maxexp, size_t L,int m);
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const std::set<double>& exponents, size_t L,int m);
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, size_t L,int m);
 
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
-    using IrrepBasisSetCommon::const_iterator;
-    using IrrepBasisSetCommon::iterator;
-    using IrrepBasisSetCommon::begin;
-    using IrrepBasisSetCommon::end;
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;

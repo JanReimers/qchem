@@ -21,24 +21,6 @@ IrrepBasisSet::IrrepBasisSet()
 IrrepBasisSet::IrrepBasisSet(
         const LAParams& lap,
         IntegralDataBase<double>* theDB,
-        size_t size,
-        double minexp,
-        double maxexp,
-        size_t L, int m)
-    : IrrepBasisSetCommon(new YlmQN(L,m))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
-    , IrrepIEClient(size)
-{
-    IrrepIEClient::Init(minexp,maxexp,L,m);
-    size_t i=1;
-    for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,m,ns(i++))); //ns from SlaterIEClient
-
-};
-
-IrrepBasisSet::IrrepBasisSet(
-        const LAParams& lap,
-        IntegralDataBase<double>* theDB,
         const std::set<double>& exponents,
         size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
@@ -67,14 +49,12 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
 
 IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
 {
-    double emin=es(1), emax=es(size());
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),size(),emin*2,emax*2,0,0);
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),es*2,0,0);
 }
 
 IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
 {
-    double emin=es(1), emax=es(size());
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),size(),emin*2.0/3.0,emax*2.0/3.0,0,0);    
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,0,0);    
 }
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
