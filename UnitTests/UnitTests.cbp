@@ -54,6 +54,7 @@
 			<Add library="gtest" />
 			<Add library="pthread" />
 			<Add library="wignerSymbols" />
+			<Add library="cint" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
 		<Unit filename="A_DFT.C">
@@ -82,6 +83,9 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="UTMain.C">
+			<Option compilerVar="CPP" />
+		</Unit>
+		<Unit filename="libCint.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="stl_io.C">

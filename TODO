@@ -1,7 +1,11 @@
 Priority 1:
     -Make and atom app for testing basis sets
-        -N, -e{min.max} -b{S,Sm,G,Gm} -dL{front,back} 
+        -Z{range or list} -N, -e{min.max} -b{S,Sm,G,Gm} -dL{front,back} 
+        -What command line arg system to use?
+        -Output:
+            Econfig, spin,  Etot, rel_err(ppm), occ levels (optinal).
     -linear contraction of D_cd*J_abcd and D_cd*K_abcd
+        -Try -march=native -O3
     -List all 2LAs in one place an use them throughout.
         2LAs: IE,BF,IR,BS,DB,QN,WF,EL,PG,SL,SG,CL(Client),FF(Fit Function),CD (Charge distribution), 
         3LAs: Occ,SGm,SLm,ERI,IE_CL,Rho(Charge density), Pol, UnP
