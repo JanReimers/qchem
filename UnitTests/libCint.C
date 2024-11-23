@@ -119,6 +119,9 @@ TEST_F(libCintTests, Test1)
         basiss.push_back(CBas(1,basiss[0]));
         basiss.push_back(CBas(1,basiss[1]));
         
+        int* atm_ptr=&(atoms[0].Z);
+        int* bas_ptr=&(basiss[0].atom_num);
+        
         n = 0; //Basis function 0
         /* basis #0, 3s -> 2s */
         bas[ATOM_OF  + BAS_SLOTS * n]  = 0; //Centred on atom 0
@@ -170,16 +173,14 @@ TEST_F(libCintTests, Test1)
         bas[PTR_COEFF+ BAS_SLOTS * n] = bas[PTR_COEFF+ BAS_SLOTS * 1];
         n++;
 
-        int* atm1=&(atoms[0].Z);
         for (unsigned i=0;i<ATM_SLOTS*atoms.size();i++)
         {
-            EXPECT_EQ(atm1[i],atm[i]);
+            EXPECT_EQ(atm_ptr[i],atm[i]);
         }
-        int* bas1=&(basiss[0].atom_num);
         for (unsigned i=0;i<BAS_SLOTS*basiss.size();i++)
         {
-            cout << i << endl;
-            EXPECT_EQ(bas1[i],bas[i]);
+//            cout << i << endl;
+            EXPECT_EQ(bas_ptr[i],bas[i]);
         }
         for (unsigned i=0;i<env1.size();i++)
         {
@@ -199,14 +200,14 @@ TEST_F(libCintTests, Test1)
 
         i = 0; 
         shls[0] = i; 
-        di = CINTcgto_cart(i, bas);
+        di = CINTcgto_cart(i, bas_ptr);
         
         j = 1; 
         shls[1] = j; 
-        dj = CINTcgto_cart(j, bas);
+        dj = CINTcgto_cart(j, bas_ptr);
         
         buf = new double[di * dj * 3];//malloc(sizeof(double) * di * dj * 3);
-        if (0 != cint1e_ipnuc_cart(buf, shls, atm, natm, bas, nbas, &env1[0])) {
+        if (0 != cint1e_ipnuc_cart(buf, shls, atm_ptr, atoms.size(), bas_ptr, basiss.size(), &env1[0])) {
                 printf("This gradient integral is not 0.\n");
                 cout << "(di,dj)=(" << di << "," << dj << ")" << endl;
                 for (int i=0;i<=di * dj * 3;i++) cout << buf[i] << " ";
@@ -220,12 +221,12 @@ TEST_F(libCintTests, Test1)
         /*
          * call two-electron cartesian integrals
          */
-        i = 0; shls[0] = i; di = CINTcgto_cart(i, bas);
-        j = 1; shls[1] = j; dj = CINTcgto_cart(j, bas);
-        k = 2; shls[2] = k; dk = CINTcgto_cart(k, bas);
-        l = 2; shls[3] = l; dl = CINTcgto_cart(l, bas);
+        i = 0; shls[0] = i; di = CINTcgto_cart(i, bas_ptr);
+        j = 1; shls[1] = j; dj = CINTcgto_cart(j, bas_ptr);
+        k = 2; shls[2] = k; dk = CINTcgto_cart(k, bas_ptr);
+        l = 2; shls[3] = l; dl = CINTcgto_cart(l, bas_ptr);
         buf = new double[di * dj * dk * dl];// malloc(sizeof(double) * di * dj * dk * dl);
-        if (0 != cint2e_cart(buf, shls, atm, natm, bas, nbas,  &env1[0], NULL)) {
+        if (0 != cint2e_cart(buf, shls, atm_ptr, atoms.size(), bas_ptr, basiss.size(),  &env1[0], NULL)) {
                 printf("This integral is not 0.\n");
                 cout << "(di,dj,dk,dl)=(" << di << "," << dj << "," << dk << "," << dl << ")" << endl;
                 for (int i=0;i<=di * dj * dk * dl;i++) cout << buf[i] << " ";
@@ -239,13 +240,13 @@ TEST_F(libCintTests, Test1)
         //
         //  Using the optimizer.
         CINTOpt *opt = NULL;
-        cint2e_cart_optimizer(&opt, atm, natm, bas, nbas,  &env1[0]);
-        i = 0; shls[0] = i; di = CINTcgto_cart(i, bas);
-        j = 1; shls[1] = j; dj = CINTcgto_cart(j, bas);
-        k = 2; shls[2] = k; dk = CINTcgto_cart(k, bas);
-        l = 2; shls[3] = l; dl = CINTcgto_cart(l, bas);
+        cint2e_cart_optimizer(&opt, atm_ptr, atoms.size(), bas_ptr, nbas,  &env1[0]);
+        i = 0; shls[0] = i; di = CINTcgto_cart(i, bas_ptr);
+        j = 1; shls[1] = j; dj = CINTcgto_cart(j, bas_ptr);
+        k = 2; shls[2] = k; dk = CINTcgto_cart(k, bas_ptr);
+        l = 2; shls[3] = l; dl = CINTcgto_cart(l, bas_ptr);
         buf = new double[di * dj * dk * dl];//malloc(sizeof(double) * di * dj * dk * dl);
-        if (0 != cint2e_cart(buf, shls, atm, natm, bas, nbas,  &env1[0], opt)) {
+        if (0 != cint2e_cart(buf, shls, atm_ptr, atoms.size(), bas_ptr, basiss.size(),  &env1[0], opt)) {
                 printf("This integral is not 0.\n");
                 cout << "(di,dj,dk,dl)=(" << di << "," << dj << "," << dk << "," << dl << ")" << endl;
                 for (int i=0;i<=di * dj * dk * dl;i++) cout << buf[i] << " ";
