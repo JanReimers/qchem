@@ -28,37 +28,24 @@ TEST_F(libCintTests, Test1)
         // ATM_SLOTS = 6; BAS_SLOTS = 8;
         int *atm = new int[natm * ATM_SLOTS]; //malloc(sizeof(int) * natm * ATM_SLOTS);
         int *bas = new int[nbas * BAS_SLOTS]; //;malloc(sizeof(int) * nbas * BAS_SLOTS);
-        double *env = new double[10000]; //malloc(sizeof(double) * 10000);
         std::vector<double> env1(PTR_ENV_START);
 
-        int i, n, off;
-        off = PTR_ENV_START; // = 20
-        EXPECT_EQ(off,env1.size());
+        int i, n;
         i = 0; //atom 0
         atm[CHARGE_OF + ATM_SLOTS * i] = 1; //Z=1 i.e. hydrogen.
         atm[PTR_COORD + ATM_SLOTS * i] = env1.size(); //offset into the env array.
-        env[off + 0] =  0; // x (Bohr) Position of atom 0.
-        env[off + 1] =  0; // y (Bohr)
-        env[off + 2] =-.8; // z (Bohr)
         env1.push_back(0.0);
         env1.push_back(0.0);
         env1.push_back(-0.8);
         i++; //Atom 1
-        off += 3; //bump env array offset.
-        EXPECT_EQ(off,env1.size());
-
+  
         atm[CHARGE_OF + ATM_SLOTS * i] = 1; //Z=1
         atm[PTR_COORD + ATM_SLOTS * i] = env1.size(); //offset into the env array.
-        env[off + 0] = 0; //Position of atom 1.
-        env[off + 1] = 0;
-        env[off + 2] =.8; // (Bohr)
         env1.push_back(0.0);
         env1.push_back(0.0);
         env1.push_back(0.8);
         i++; //Done with atoms, so why increment?
-        off += 3; //Next slot in env array.
-        EXPECT_EQ(off,env1.size());
-
+  
         n = 0; //Basis function 0
         /* basis #0, 3s -> 2s */
         bas[ATOM_OF  + BAS_SLOTS * n]  = 0; //Centred on atom 0
@@ -66,31 +53,18 @@ TEST_F(libCintTests, Test1)
         bas[NPRIM_OF + BAS_SLOTS * n]  = 3; //3 primitive radial functions
         bas[NCTR_OF  + BAS_SLOTS * n]  = 2; //2 contracted radial functions
         bas[PTR_EXP  + BAS_SLOTS * n]  = env1.size(); //offset into the env array for primitive exponents.
-        env[off + 0] = 6.; //primitive exponent 1
-        env[off + 1] = 2.; //primitive exponent 2
-        env[off + 2] = .8; //primitive exponent 3
         env1.push_back(6.0);
         env1.push_back(2.0);
         env1.push_back(0.8);
-        off += 3;
-        EXPECT_EQ(off,env1.size());
 
         bas[PTR_COEFF+ BAS_SLOTS * n] = env1.size(); //contraction coefficients
-        env[off + 0] = .7 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+0]);
-        env[off + 1] = .6 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+1]);
-        env[off + 2] = .5 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+2]);
-        env[off + 3] = .4 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+0]);
-        env[off + 4] = .3 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+1]);
-        env[off + 5] = .2 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+2]);
-        env1.push_back( .7 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+0]));
-        env1.push_back( .6 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+1]));
-        env1.push_back( .5 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+2]));
-        env1.push_back( .4 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+0]));
-        env1.push_back( .3 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+1]));
-        env1.push_back( .2 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]+2]));
+        env1.push_back( .7 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]+0]));
+        env1.push_back( .6 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]+1]));
+        env1.push_back( .5 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]+2]));
+        env1.push_back( .4 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]+0]));
+        env1.push_back( .3 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]+1]));
+        env1.push_back( .2 * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]+2]));
         
-        off += 6;
-        EXPECT_EQ(off,env1.size());
         n++; //Next basis function.
 
         /* basis #1 */
@@ -99,20 +73,11 @@ TEST_F(libCintTests, Test1)
         bas[NPRIM_OF + BAS_SLOTS * n]  = 1; //1 prim
         bas[NCTR_OF  + BAS_SLOTS * n]  = 1; //1 contr
         bas[PTR_EXP  + BAS_SLOTS * n]  = env1.size();
-        env[off + 0] = .9; //exponent
         env1.push_back(0.9);
-        off += 1;
         
-        EXPECT_EQ(off,env1.size());
         bas[PTR_COEFF+ BAS_SLOTS * n] = env1.size();
-        env[off + 0] = 1. * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]]); //coeff
-        env1.push_back( 1. * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env[bas[PTR_EXP+BAS_SLOTS*n]]));
-        off += 1;
-        EXPECT_EQ(off,env1.size());
+        env1.push_back( 1. * CINTgto_norm(bas[ANG_OF+BAS_SLOTS*n], env1[bas[PTR_EXP+BAS_SLOTS*n]]));
         n++; //Next basis function.
-
-        for (unsigned i=0;i<env1.size();i++) 
-            EXPECT_EQ(env[i],env1[i]);
 
         /* basis #2 == basis #0 */
         bas[ATOM_OF  + BAS_SLOTS * n] = 1; //Centred on atom 1
@@ -205,5 +170,4 @@ TEST_F(libCintTests, Test1)
 
         delete [] atm;
         delete [] bas;
-        delete [] env;
 }
