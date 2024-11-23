@@ -1,8 +1,11 @@
 // File libCint.C   test the libCint molecular integral library
 
 #include "gtest/gtest.h"
+#include "oml/vector3d.h"
 #include <vector>
 #include <iostream>
+
+typedef Vector3D<double> RVec3;
 
 extern "C" {
 #include "cint.h"
@@ -21,6 +24,53 @@ public:
 private:
 };
 
+struct CAtom
+{
+    CAtom(int _Z, const RVec3& r,std::vector<double>& env) 
+    : Z(_Z), R_index(env.size()), nuc_model(0), nuc_exponent(0)
+    {
+        env.push_back(r.x);
+        env.push_back(r.y);
+        env.push_back(r.z);
+        unused[0]=0;
+        unused[1]=0;
+    }
+    int Z;
+    int R_index;
+    int nuc_model;
+    int nuc_exponent;
+    int unused[2];
+};
+
+struct CBas
+{
+    template <size_t c> CBas(int na, int _l, int np, int nc, const double es[], const double cs[][c],std::vector<double>& env) 
+    : atom_num(na), l(_l), nprim(np), ncont(nc), kappa(0), exp_index(env.size()), unused(0)
+    {
+        for (int ie=0;ie<nprim;ie++)
+            env.push_back(es[ie]);
+        cof_index=env.size();
+        int i=0;
+        for (int ic=0;ic<ncont;ic++)
+            for (int ie=0;ie<nprim;ie++,i++)
+                env.push_back(cs[ic][ie]*CINTgto_norm(l, es[ie]));
+    }
+    CBas(int na,const CBas& b) 
+    : atom_num(na), l(b.l), nprim(b.nprim), ncont(b.ncont), kappa(b.kappa)
+    , exp_index(b.exp_index), cof_index(b.cof_index), unused(0)
+    {};
+
+    int atom_num;
+    int l; //angular momentum
+    int nprim;
+    int ncont;
+    int kappa;
+    int exp_index;
+    int cof_index;
+    int unused;
+};
+
+
 TEST_F(libCintTests, Test1)
 {
         int natm = 2;
@@ -29,7 +79,14 @@ TEST_F(libCintTests, Test1)
         int *atm = new int[natm * ATM_SLOTS]; //malloc(sizeof(int) * natm * ATM_SLOTS);
         int *bas = new int[nbas * BAS_SLOTS]; //;malloc(sizeof(int) * nbas * BAS_SLOTS);
         std::vector<double> env1(PTR_ENV_START);
-
+ 
+        std::vector<double> env2(PTR_ENV_START);
+        std::vector<CAtom> atoms;
+        atoms.push_back(CAtom(1,RVec3(0,0,-0.8),env2));
+        atoms.push_back(CAtom(1,RVec3(0,0, 0.8),env2));
+        
+ 
+ 
         int i, n;
         i = 0; //atom 0
         atm[CHARGE_OF + ATM_SLOTS * i] = 1; //Z=1 i.e. hydrogen.
@@ -45,7 +102,23 @@ TEST_F(libCintTests, Test1)
         env1.push_back(0.0);
         env1.push_back(0.8);
         i++; //Done with atoms, so why increment?
-  
+        
+        std::vector<CBas> basiss;
+        
+        {
+            double es[]={6.,2.,0.8};
+            double cs[][3]={{.7,.6,.5},{.4,.3,.2}};
+            basiss.push_back(CBas(0,0,3,2,es,cs,env2));
+        }
+        {            
+            double es[]={0.9};
+            double cs[][1]={{1.0}};
+            basiss.push_back(CBas(0,1,1,1,es,cs,env2));
+        }
+        
+        basiss.push_back(CBas(1,basiss[0]));
+        basiss.push_back(CBas(1,basiss[1]));
+        
         n = 0; //Basis function 0
         /* basis #0, 3s -> 2s */
         bas[ATOM_OF  + BAS_SLOTS * n]  = 0; //Centred on atom 0
@@ -97,6 +170,21 @@ TEST_F(libCintTests, Test1)
         bas[PTR_COEFF+ BAS_SLOTS * n] = bas[PTR_COEFF+ BAS_SLOTS * 1];
         n++;
 
+        int* atm1=&(atoms[0].Z);
+        for (unsigned i=0;i<ATM_SLOTS*atoms.size();i++)
+        {
+            EXPECT_EQ(atm1[i],atm[i]);
+        }
+        int* bas1=&(basiss[0].atom_num);
+        for (unsigned i=0;i<BAS_SLOTS*basiss.size();i++)
+        {
+            cout << i << endl;
+            EXPECT_EQ(bas1[i],bas[i]);
+        }
+        for (unsigned i=0;i<env1.size();i++)
+        {
+            EXPECT_EQ(env1[i],env2[i]);
+        }
         /*
          * call one-electron cartesian integrals
          * the integral has 3 components, saving as
