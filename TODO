@@ -42,6 +42,8 @@ Priority 1:
             https://data.mendeley.com/datasets/xd4g8hyjf2/1
     -Relativistic:
         https://github.com/drjuls/AMBiT/tree/master/src
+        https://diracprogram.org/doku.php?id=start
+        https://nubakery.org/scf/dhf.html
     -use map hints for caches
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.

@@ -157,6 +157,12 @@ Total Energy
 \end_layout
 
 \begin_layout Standard
+Most HF work for spin polarized systems uses an elaborate open shell theory with various configurations interacting through coupling constants which must calculated separately.
+ I much simpler approach which is widely adopted for solid state systems is the spin-polarized method describe here.
+ 
+\end_layout
+
+\begin_layout Standard
 We can define the one electron part operator for spin 
 \begin_inset Formula $\alpha$
 \end_inset
@@ -234,13 +240,13 @@ The energy is minimized if
 
 \end_inset
 
-these are known as the unpolarized Hartree-Fock equations.
+these are known as the polarized Hartree-Fock equations.
  Notice that the factors of half disappeared for the Coulomb and exchange terms.
  This is simply because those terms depend on the square of the orbitals.
  The Coulomb and exchange operator are defined as follows
 \begin_inset Formula 
 \[
-\hat{J^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})}=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
+\hat{J^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})}=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
 \]
 
 \end_inset
@@ -248,7 +254,7 @@ these are known as the unpolarized Hartree-Fock equations.
 
 \begin_inset Formula 
 \[
-K_{i}^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{i}^{\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
+K_{i}^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{i}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
 \]
 
 \end_inset
@@ -269,6 +275,21 @@ Notice that
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Standard
+One can question the accuracy of the spin polarized as compared to the full open-shell techniques commonly employed for atomic and molecular systems.
+ Here we just show some ground stat energies for open shell atoms and compare them to literature values from 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Saito_2009"
+literal "false"
+
+\end_inset
+
+.
+ Inaccuracies arising from incomplete basis sets are hopefully minimized in this comparison.
+ 
 \end_layout
 
 \begin_layout Section
@@ -310,12 +331,12 @@ with the expansion coefficients depending on the spin.
 
 \begin_inset Formula 
 \[
-\sum_{i}c_{ia}^{\beta}c_{ib}^{\beta}\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}^{\beta}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\mathbf{}}}\right|g_{b}(\overrightarrow{r_{i}})\right\rangle =\varepsilon_{i}^{\mathbf{\beta}}\sum_{i}c_{ia}^{\beta}c_{ib}^{\beta}\left\langle g_{a}(\overrightarrow{r_{i}})|g_{b}(\overrightarrow{r_{i}})\right\rangle 
+\sum_{i}c_{ia}^{\beta}c_{ib}^{\beta}\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}^{\beta}}+\hat{J^{\alpha}}\hat{+J^{\beta}}-\hat{K^{\mathbf{\beta}}}\right|g_{b}(\overrightarrow{r_{i}})\right\rangle =\varepsilon_{i}^{\mathbf{\beta}}\sum_{i}c_{ia}^{\beta}c_{ib}^{\beta}\left\langle g_{a}(\overrightarrow{r_{i}})|g_{b}(\overrightarrow{r_{i}})\right\rangle 
 \]
 
 \end_inset
 
-Which are generalized eigenvalue problems
+Which are two sets of generalized eigenvalue problems
 \begin_inset Formula 
 \[
 F^{\alpha}C^{\alpha}=\varepsilon^{\alpha}SC^{\alpha}
@@ -356,7 +377,7 @@ F_{ab}^{\beta}=\left\langle g_{a}(\overrightarrow{r_{1}})\left|\hat{h^{\beta}}+\
 \end_inset
 
 Let's pick these terms apart a little more.
- The one electron part is actually not spin dependent
+ The one electron part of the is actually not spin dependent
 \begin_inset Formula 
 \[
 h_{ab}=\left\langle g_{a}(\overrightarrow{r_{i}})\left|\hat{h_{i}}\right|g_{b}(\overrightarrow{r_{i}})\right\rangle ,
@@ -466,7 +487,7 @@ K_{ab}^{\beta}=\sum_{cd}D_{cd}^{\beta}\left\langle ac||bd\right\rangle
 \end_layout
 
 \begin_layout Subsection
-Unpolarized Roothaan Hall Equations,
+Polarized Roothaan Hall Equations,
  Summary
 \end_layout
 
@@ -6513,6 +6534,19 @@ R_{0}(0,0,0,0)=\left(-\frac{\partial}{\partial\alpha}\right)\left(-\frac{\partia
 \[
 =\frac{2}{\alpha\beta\left(\alpha+\beta\right)}\left[\frac{1}{\alpha\beta}+\frac{1}{\left(\alpha+\beta\right)^{2}}\right]
 \]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintCited"
+bibfiles "qchem"
+options "plainnat"
+encoding "default"
 
 \end_inset
 

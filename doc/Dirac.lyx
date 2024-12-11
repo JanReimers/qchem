@@ -1,0 +1,5030 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language canadian
+\language_package default
+\inputencoding auto-legacy-plain
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics dvips
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize letter
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 0
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 0
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine natbib
+\cite_engine_type authoryear
+\biblio_style plainnat
+\use_bibtopic false
+\use_indices false
+\paperorientation landscape
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1cm
+\rightmargin 1cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Relativistic Treatment of Atoms
+\end_layout
+
+\begin_layout Subsection
+Dirac Equation
+\end_layout
+
+\begin_layout Standard
+For heavier atoms the core electrons orbit at speeds comparable with the speed of light.
+ There are many ways of writing out the Dirac equation,
+ a typical compact version looks like:
+\begin_inset Formula 
+\begin{equation}
+\left[i\hbar\gamma^{\mu}\partial_{\mu}-mc\right]\psi=0\label{eq:Dirac1}
+\end{equation}
+
+\end_inset
+
+This sort of dense notation obscures the nature of 
+\begin_inset Formula $\psi$
+\end_inset
+
+ and 
+\begin_inset Formula $\gamma^{\mu}$
+\end_inset
+
+.
+ The wave function actually has four components
+\begin_inset Formula 
+\begin{equation}
+\psi=\begin{bmatrix}\psi^{\alpha L}\\
+\psi^{\beta L}\\
+\psi^{\alpha S}\\
+\psi^{\beta S}
+\end{bmatrix}\label{eq:Psi4}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ and 
+\begin_inset Formula $\beta$
+\end_inset
+
+ are 
+\emph on
+like
+\emph default
+ the spin labels used by quantum chemists and 
+\begin_inset Formula $L$
+\end_inset
+
+ and 
+\begin_inset Formula $S$
+\end_inset
+
+ refer to the so called large and small components of the wave function.
+ One can show that 
+\begin_inset Formula $\psi^{S}\sim\frac{1}{c}\psi^{L}$
+\end_inset
+
+.
+ The 
+\begin_inset Formula $\gamma^{\mu}$
+\end_inset
+
+ are 4x4 matrices which can have many representations.
+ And
+\begin_inset Formula $i\hbar\partial_{\mu}=\begin{bmatrix}\frac{E}{c} & -p_{x} & -p_{y} & -p_{z}\end{bmatrix}$
+\end_inset
+
+ is the covariant four momentum.
+ Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dirac1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ can be converted to a more convenient form for quantum chemistry calculations
+\begin_inset Formula 
+\begin{equation}
+\left[\alpha^{\mu}p_{\mu}-\beta mc\right]\psi=0\label{eq:Dirac2}
+\end{equation}
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+\alpha^{0}=\begin{bmatrix}1 & 0 & 0 & 0\\
+0 & 1 & 0 & 0\\
+0 & 0 & 1 & 0\\
+0 & 0 & 0 & 1
+\end{bmatrix},\;\alpha^{1}=\begin{bmatrix}0 & 0 & 0 & 1\\
+0 & 0 & 1 & 0\\
+0 & 1 & 0 & 0\\
+1 & 0 & 0 & 0
+\end{bmatrix},\;\alpha^{2}=\begin{bmatrix}0 & 0 & 0 & -i\\
+0 & 0 & i & 0\\
+0 & -i & 0 & 0\\
+i & 0 & 0 & 0
+\end{bmatrix},\;\alpha^{3}=\begin{bmatrix}0 & 0 & 1 & 0\\
+0 & 0 & 0 & -1\\
+1 & 0 & 0 & 0\\
+0 & -1 & 0 & 0
+\end{bmatrix}
+\]
+
+\end_inset
+
+and 
+\begin_inset Formula 
+\[
+\beta=\begin{bmatrix}1 & 0 & 0 & 0\\
+0 & 1 & 0 & 0\\
+0 & 0 & -1 & 0\\
+0 & 0 & 0 & -1
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+External Field
+\end_layout
+
+\begin_layout Standard
+We can do the standard substitution to incorporate a covariant EM field
+\begin_inset Formula 
+\begin{equation}
+p_{\mu}\rightarrow p_{\mu}-\frac{q}{c}a_{\mu}\label{eq:PA}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $q$
+\end_inset
+
+ is the charge on the electron,
+ and 
+\begin_inset Formula $a_{\mu}=\begin{bmatrix}\phi & -cA_{x} & -cA_{y} & -cA_{z}\end{bmatrix}$
+\end_inset
+
+ is covariant vector potential.
+ Inserting 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:PA"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ into 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dirac2"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+0=\left[\alpha^{\mu}\left(p_{\mu}-\frac{q}{c}a_{\mu}\right)-\beta mc\right]\psi
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left[\alpha^{0}\frac{E}{c}-\boldsymbol{\alpha\cdot p}-\frac{q\phi}{c}\alpha^{0}+q\boldsymbol{\alpha\cdot A}-\beta mc\right]\psi
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left[E-c\boldsymbol{\alpha\cdot p}-q\phi+cq\boldsymbol{\alpha\cdot A}-\beta mc^{2}\right]\psi
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+E\psi=\left[c\boldsymbol{\alpha\cdot}\left(\boldsymbol{p}-q\boldsymbol{A}\right)+q\phi+\beta mc^{2}\right]\psi
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+E\psi=\hat{H}_{D}\psi
+\]
+
+\end_inset
+
+which defines the Dirac Hamiltonian as
+\begin_inset Formula 
+\[
+\hat{H}_{D}=c\boldsymbol{\alpha\cdot}\left(\boldsymbol{p}-q\boldsymbol{A}\right)+q\phi+\beta mc^{2}
+\]
+
+\end_inset
+
+Often is it convenient to shift the energy scale down by 
+\begin_inset Formula $mc^{2}$
+\end_inset
+
+ (in other words subtract the rest mass of the electron) in order get energies comparable with non relativistic calculations
+\begin_inset Formula 
+\begin{equation}
+\hat{H}_{D}=c\boldsymbol{\alpha\cdot}\left(\boldsymbol{p}-q\boldsymbol{A}\right)+q\phi+\left(\beta-\alpha^{0}\right)mc^{2}.\label{eq:Dirac3}
+\end{equation}
+
+\end_inset
+
+For 1 electron atoms the EM potential is spherically symmetric and vector potential vanishes,
+ 
+\begin_inset Formula $\boldsymbol{A}=0$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Atomic units
+\end_layout
+
+\begin_layout Standard
+If we do the momentum substitution
+\begin_inset Formula 
+\[
+\boldsymbol{p}=\frac{\hbar}{i}\boldsymbol{\nabla}
+\]
+
+\end_inset
+
+we have
+\begin_inset Formula 
+\[
+\hat{H}_{D}=\frac{c\hbar}{i}\boldsymbol{\alpha\cdot}\boldsymbol{\nabla}+q\phi+\left(\beta-\alpha^{0}\right)mc^{2}
+\]
+
+\end_inset
+
+In atomic unit we have 
+\begin_inset Formula $\hbar=q=m=1$
+\end_inset
+
+ but what about 
+\begin_inset Formula $c$
+\end_inset
+
+?
+ This remains unmentioned in much of literature.
+ The answer is just 
+\begin_inset Formula $c=1/\alpha=137.035999177.$
+\end_inset
+
+ So in dimensionless units we have 
+\begin_inset Formula 
+\[
+\hat{H}_{D}=-ic\boldsymbol{\alpha\cdot}\boldsymbol{\nabla}+\phi+\left(\beta-\alpha^{0}\right)c^{2}.
+\]
+
+\end_inset
+
+ We can also substitute
+\begin_inset Formula 
+\[
+\phi=V_{en}\left(\boldsymbol{r}\right)=\sum_{i}\frac{-Z_{i}}{\left|\boldsymbol{r}-\boldsymbol{R}_{i}\right|}
+\]
+
+\end_inset
+
+for the electron nuclear attraction.
+ This is a one electron Hamiltonian so we still need to incorporate e-e repulsion.
+ Finally for an atom
+\begin_inset Formula 
+\begin{equation}
+\hat{H}_{D}=c\boldsymbol{\alpha\cdot}\boldsymbol{p}-\frac{Z}{r}+\left(\beta-\alpha^{0}\right)c^{2}.\label{eq:Dirac4}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Good Quantum Numbers
+\end_layout
+
+\begin_layout Standard
+The quantum numbers for atoms 
+\begin_inset Formula 
+\[
+n=\left\{ 1,2,3,...\right\} ,\quad l=\left\{ 0,1..n-1\right\} ,\quad m_{l}=\left\{ -l..l\right\} ,\quad s=\frac{1}{2},\quad m_{s}=\left\{ -\frac{1}{2},\frac{1}{2}\right\} 
+\]
+
+\end_inset
+
+ are almost ingrained,
+ especially for chemists
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+For clarity I will try and put subscripts on all of the 
+\begin_inset Formula $m$
+\end_inset
+
+ quantum numbers:
+ 
+\begin_inset Formula $m_{s},m_{l},m_{j}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+.
+ However we do encounter alternatives when spin-orbit coupling is considered as a perturbation
+\begin_inset Formula 
+\[
+H_{so}=\lambda\hat{\boldsymbol{L}}\cdot\hat{\boldsymbol{S}}.
+\]
+
+\end_inset
+
+For the Dirac Hamiltonian,
+ spin-orbit coupling is built in from the start (
+\begin_inset Formula $\boldsymbol{\hat{S}}=\frac{1}{2}\hat{\boldsymbol{\sigma}}$
+\end_inset
+
+) and we must get used to an alternate set of quantum numbers.
+ For HF theory the operators 
+\begin_inset Formula $\hat{S^{2}},\hat{s}_{z},\hat{L^{2}},\hat{l}_{z}$
+\end_inset
+
+ all commute with the Hamiltonian and have spherical harmonic/spinor product eigen functions
+\begin_inset Formula 
+\[
+Y_{lm_{l}}\left(\theta,\phi\right)\chi_{m_{s}}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\chi_{m_{s}}$
+\end_inset
+
+ is a two spinor
+\begin_inset Formula 
+\[
+\chi_{\nicefrac{1}{2}}=\begin{bmatrix}1\\
+0
+\end{bmatrix},\quad\chi_{\nicefrac{-1}{2}}=\begin{bmatrix}0\\
+1
+\end{bmatrix}
+\]
+
+\end_inset
+
+Defining the total angular momentum
+\begin_inset Formula 
+\[
+\boldsymbol{J}=\boldsymbol{L}+\boldsymbol{S}
+\]
+
+\end_inset
+
+we find that 
+\begin_inset Formula $\hat{J}^{2},\hat{j}_{z},\hat{L}^{2},\hat{S}^{2}$
+\end_inset
+
+ all commute with 
+\begin_inset Formula $\hat{H}_{D}$
+\end_inset
+
+ but 
+\begin_inset Formula $\hat{s}_{z},\hat{l}_{z}$
+\end_inset
+
+ do not.
+ As a result for the angular part of the orbitals we must use the so called spherical spinors
+\begin_inset Formula 
+\begin{equation}
+\Omega_{jlm_{j}}=\sum_{m_{s}}C\left(l,\frac{1}{2},j;m_{j}-m_{s},m_{s},m_{j}\right)Y_{l,m_{j}-m_{s}}\left(\theta,\phi\right)\chi_{m_{s}}\label{eq:SpSpin}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $m_{j}$
+\end_inset
+
+ is now the quantum number (eigen value) of 
+\begin_inset Formula $\hat{j}_{z}$
+\end_inset
+
+ and 
+\begin_inset Formula $C$
+\end_inset
+
+ is a Clebsch-Gordan coefficient.
+ Fortunately the sum is only over two spin states and the expressions for 
+\begin_inset Formula $C$
+\end_inset
+
+ are not too unwieldy.
+ Before expanding 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:SpSpin"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ is worth pointing out that angular momentum space has two sectors.
+ In particular the 
+\begin_inset Formula $j=l+\frac{1}{2}$
+\end_inset
+
+ sector is distinct from the 
+\begin_inset Formula $j=l-\frac{1}{2}$
+\end_inset
+
+ sector.
+ For now I will use 
+\begin_inset Formula $+$
+\end_inset
+
+ and 
+\begin_inset Formula $-$
+\end_inset
+
+ to label these two sectors.
+ This will be made manifest below when we introduce a new quantum number 
+\begin_inset Formula $\kappa$
+\end_inset
+
+.
+ As a result we get two expansions for eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:SpSpin"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ one for each sector.
+\begin_inset Formula 
+\[
+\Omega_{j=l+\frac{1}{2},lm_{j}}^{+}=\begin{bmatrix}\sqrt{\frac{l+m_{j}+\nicefrac{1}{2}}{2l+1}}Y_{l,m_{j}-\nicefrac{1}{2}}\\
+\sqrt{\frac{l-m_{j}+\nicefrac{1}{2}}{2l+1}}Y_{l,m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{j=l-\frac{1}{2},lm_{j}}^{-}=\begin{bmatrix}-\sqrt{\frac{l-m_{j}+\nicefrac{1}{2}}{2l+1}}Y_{l,m_{j}-\nicefrac{1}{2}}\\
+\sqrt{\frac{l+m_{j}+\nicefrac{1}{2}}{2l+1}}Y_{l,m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+or
+\begin_inset Formula 
+\[
+\Omega_{jlm_{j}}^{+}=\frac{1}{\sqrt{2j}}\begin{bmatrix}\sqrt{j+m_{j}}Y_{j-\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
+\sqrt{j-m_{j}}Y_{j-\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{jlm_{j}}^{-}=\frac{1}{\sqrt{2j+2}}\begin{bmatrix}-\sqrt{j+1-m_{j}}Y_{j+\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
+\sqrt{j+1+m_{j}}Y_{j+\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+It is conventional to define the operator (some authors use the opposite sign convention for 
+\begin_inset Formula $\hat{K}$
+\end_inset
+
+)
+\begin_inset Formula 
+\[
+\hat{K}=-1-\hat{\boldsymbol{\sigma}}\cdot\hat{\boldsymbol{L}}
+\]
+
+\end_inset
+
+for which 
+\begin_inset Formula $\Omega_{jlm_{j}}$
+\end_inset
+
+ is an eigen function with eigen values
+\begin_inset Formula 
+\[
+\kappa=\begin{cases}
+-l-1 & j=l+\frac{1}{2},\quad+\:sector\\
+l & j=l-\frac{1}{2},\quad-\:sector
+\end{cases}
+\]
+
+\end_inset
+
+or in tabulated form it becomes obvious that the 
+\begin_inset Formula $+$
+\end_inset
+
+ sector expands in the negative direction for 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ and the 
+\begin_inset Formula $-$
+\end_inset
+
+ sector is in the positive 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ direction.
+ In other words one value of 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ determines both 
+\begin_inset Formula $l$
+\end_inset
+
+ and 
+\begin_inset Formula $j$
+\end_inset
+
+ .
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+placement document
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $+,j=l+\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-,j=l-\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+excluded
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-5
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+The eigen value 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ as a function of 
+\begin_inset Formula $l$
+\end_inset
+
+ and 
+\begin_inset Formula $j$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Since the sign of 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ determines the 
+\begin_inset Formula $+/-$
+\end_inset
+
+ sector,
+ we can now remove those labels.
+ We can then rewrite
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}=\frac{1}{\sqrt{2\left|\kappa\right|-1}}\begin{bmatrix}\sqrt{\left|\kappa\right|+m_{j}-\nicefrac{1}{2}}Y_{\left|\kappa\right|-1,m_{j}-\nicefrac{1}{2}}\\
+\sqrt{\left|\kappa\right|-m_{j}-\nicefrac{1}{2}}Y_{\left|\kappa\right|-1,m_{j}+\nicefrac{1}{2}}
+\end{bmatrix},\quad\kappa<0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}=\frac{1}{\sqrt{2\kappa-1}}\begin{bmatrix}-\sqrt{\kappa-m_{j}+\nicefrac{1}{2}}Y_{\kappa,m_{j}-\nicefrac{1}{2}}\\
+\sqrt{\kappa+m_{j}+\nicefrac{1}{2}}Y_{\kappa,m_{j}+\nicefrac{1}{2}}
+\end{bmatrix},\quad\kappa>0
+\]
+
+\end_inset
+
+It will also be useful the write these out individually as scalars
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}^{m_{s}=-\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\alpha}=\sqrt{\frac{\left|\kappa\right|+m_{j}-\nicefrac{1}{2}}{2\left|\kappa\right|-1}}Y_{\left|\kappa\right|-1,m_{j}-\nicefrac{1}{2}},\quad\kappa<0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}^{m_{s}=+\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\beta}=\sqrt{\frac{\left|\kappa\right|-m_{j}-\nicefrac{1}{2}}{2\left|\kappa\right|-1}}Y_{\left|\kappa\right|-1,m_{j}+\nicefrac{1}{2}},\quad\kappa<0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}^{m_{s}=-\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\alpha}=-\sqrt{\frac{\kappa-m_{j}+\nicefrac{1}{2}}{2\kappa-1}}Y_{\kappa,m_{j}-\nicefrac{1}{2}},\quad\kappa>0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}^{m_{s}=+\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\beta}=\sqrt{\frac{\kappa+m_{j}+\nicefrac{1}{2}}{2\kappa-1}}Y_{\kappa,m_{j}+\nicefrac{1}{2}},\quad\kappa>0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left\langle \Omega_{\kappa m_{j}}^{\alpha}|\Omega_{\kappa m_{j}}^{\beta}\right\rangle \propto\left\langle Y_{\kappa,m_{j}-\nicefrac{1}{2}}|Y_{\kappa,m_{j}+\nicefrac{1}{2}}\right\rangle =0
+\]
+
+\end_inset
+
+As expected these spherical spinors obey the orthogonality conditions
+\begin_inset Formula 
+\begin{equation}
+\intop_{0}^{\pi}sin\theta d\theta\int_{0}^{2\pi}d\phi\Omega_{\kappa'm_{j}'}^{\dagger}\left(\theta,\phi\right)\Omega_{\kappa m_{j}}\left(\theta,\phi\right)=\delta_{\kappa'\kappa}\delta_{m_{j}'m_{j}}\label{eq:OmegaOrtho}
+\end{equation}
+
+\end_inset
+
+What about cross terms like
+\begin_inset Formula 
+\[
+\left\langle \Omega_{-\kappa m_{j}}|\Omega_{\kappa m_{j}}\right\rangle =\begin{bmatrix}\Omega_{-\kappa m_{j}}^{\alpha} & \Omega_{-\kappa m_{j}}^{\beta}\end{bmatrix}\begin{bmatrix}\Omega_{\kappa m_{j}}^{\alpha}\\
+\Omega_{-\kappa m_{j}}^{\beta}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left\langle \Omega_{-\kappa m_{j}}^{\alpha}|\Omega_{\kappa m_{j}}^{\alpha}\right\rangle +\left\langle \Omega_{-\kappa m_{j}}^{\beta}|\Omega_{\kappa m_{j}}^{\beta}\right\rangle 
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Johnson 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Johnson2007"
+literal "false"
+
+\end_inset
+
+ proves these two identities which will be used for isolating the radial wave equations:
+\begin_inset Formula 
+\begin{equation}
+\boldsymbol{\sigma}\cdot\hat{r}\Omega_{\kappa m}=-\Omega_{-\kappa m}\label{eq:Omega1}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\Omega_{\kappa m}=i\left(\frac{\partial f}{\partial r}+\frac{\kappa+1}{r}f\right)\Omega_{-\kappa m}\label{eq:Omega2}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\Omega_{jm}^{-}=i\left(\frac{\partial f}{\partial r}+\frac{j-\frac{1}{2}}{r}f\right)\Omega_{jm}^{+}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\Omega_{jm}^{+}=i\left(\frac{\partial f}{\partial r}+\frac{j+\frac{3}{2}}{r}f\right)\Omega_{jm}^{-}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\frac{1}{\sqrt{2j}}\begin{bmatrix}\sqrt{j+m_{j}}Y_{j-\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
+\sqrt{j-m_{j}}Y_{j-\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}=i\left(\frac{\partial f}{\partial r}+\frac{j-\frac{1}{2}}{r}f\right)\frac{1}{\sqrt{2j+2}}\begin{bmatrix}-\sqrt{j-m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
+\sqrt{j+m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\frac{1}{\sqrt{2j+2}}\begin{bmatrix}-\sqrt{j-m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
+\sqrt{j+m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}=i\left(\frac{\partial f}{\partial r}+\frac{j+\frac{3}{2}}{r}f\right)\frac{1}{\sqrt{2j}}\begin{bmatrix}\sqrt{j+m_{j}}Y_{j-\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
+\sqrt{j-m_{j}}Y_{j-\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Radial Solutions
+\end_layout
+
+\begin_layout Standard
+Now that convenient quantum numbers for the angular degrees of freedom,
+ are established we can postulate the form of the Dirac orbitals for a Hydrogen atom.
+\begin_inset Formula 
+\begin{equation}
+\varphi_{\kappa m_{j}}=\begin{bmatrix}\frac{i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)\\
+\frac{1}{r}Q_{\kappa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)
+\end{bmatrix}=\begin{bmatrix}\frac{i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\\
+\frac{i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\\
+\frac{1}{r}Q_{\kappa}\left(r\right)\Omega_{-\kappa m_{j}}^{\alpha}\\
+\frac{1}{r}Q_{\kappa}\left(r\right)\Omega_{-\kappa m_{j}}^{\beta}
+\end{bmatrix}\label{eq:Dorbitals}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $P$
+\end_inset
+
+ and 
+\begin_inset Formula $Q$
+\end_inset
+
+ are respectively the large and small components.
+ Note that the radial function is the same for both spin states in 
+\begin_inset Formula $\Omega_{\kappa m_{j}}$
+\end_inset
+
+.
+ This may need to be relaxed for multi-electron atoms where spin polarization can occur.
+ These definitions are chosen with hindsight,
+ in order tidy up the resulting radial equations.
+ The normalization condition looks like
+\begin_inset Formula 
+\[
+\intop d^{3}\boldsymbol{r}\varphi_{\kappa m}^{\dagger}\varphi_{\kappa m}=\intop d^{3}\boldsymbol{r}\begin{bmatrix}\frac{-i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m}\left(\hat{r}\right) & \frac{1}{r}Q_{\kappa}\left(r\right)\Omega_{-\kappa m}\left(\hat{r}\right)\end{bmatrix}\begin{bmatrix}\frac{i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m}\left(\hat{r}\right)\\
+\frac{1}{r}Q_{\kappa}\left(r\right)\Omega_{-\kappa m}\left(\hat{r}\right)
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\infty}\left[P_{\kappa}^{2}+Q_{\kappa}^{2}\right]dr=1
+\]
+
+\end_inset
+
+where we have used 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:OmegaOrtho"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ to eliminate the cross terms.
+ Using 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Omega2"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we can also evaluate
+\begin_inset Formula 
+\[
+\boldsymbol{\alpha}\cdot\boldsymbol{p}\varphi_{\kappa m}=\begin{bmatrix}0 & \boldsymbol{\sigma}\cdot\boldsymbol{p}\\
+\boldsymbol{\sigma}\cdot\boldsymbol{p} & 0
+\end{bmatrix}\begin{bmatrix}\frac{i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m}\left(\hat{r}\right)\\
+\frac{1}{r}Q_{\kappa}\left(r\right)\Omega_{-\kappa m}\left(\hat{r}\right)
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\begin{bmatrix}i\left(\frac{\partial}{\partial r}\frac{1}{r}Q_{\kappa}+\frac{-\kappa+1}{r^{2}}Q_{\kappa}\right)\Omega_{\kappa m}\\
+-\left(\frac{\partial}{\partial r}\frac{1}{r}P_{\kappa}\left(r\right)+\frac{\kappa+1}{r^{2}}P_{\kappa}\right)\Omega_{-\kappa m}
+\end{bmatrix}.
+\]
+
+\end_inset
+
+And finally we are in a position to evaluate
+\begin_inset Formula 
+\[
+\hat{H}_{D}\varphi_{\kappa m}=\left[c\boldsymbol{\alpha\cdot}\boldsymbol{p}+V+\beta c^{2}\right]\varphi_{\kappa m}=E\varphi_{\kappa m}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+c\begin{bmatrix}i\left(\frac{\partial}{\partial r}\frac{1}{r}Q_{\kappa}+\frac{-\kappa+1}{r^{2}}Q_{\kappa}\right)\Omega_{\kappa m}\\
+-\left(\frac{\partial}{\partial r}\frac{1}{r}P_{\kappa}\left(r\right)+\frac{\kappa+1}{r^{2}}P_{\kappa}\right)\Omega_{-\kappa m}
+\end{bmatrix}+V\begin{bmatrix}\frac{i}{r}P_{\kappa}\Omega_{\kappa m}\\
+\frac{1}{r}Q_{\kappa}\Omega_{-\kappa m}
+\end{bmatrix}+c^{2}\begin{bmatrix}\frac{i}{r}P_{\kappa}\Omega_{\kappa m}\\
+-\frac{1}{r}Q_{\kappa}\Omega_{-\kappa m}
+\end{bmatrix}=E\begin{bmatrix}\frac{i}{r}P_{\kappa}\Omega_{\kappa m}\\
+\frac{1}{r}Q_{\kappa}\Omega_{-\kappa m}
+\end{bmatrix}
+\]
+
+\end_inset
+
+We can see that the spherical spinors are already eigen functions (by construction) and they simply divide/factor out.
+ 
+\begin_inset Formula 
+\[
+c\begin{bmatrix}i\left(\frac{\partial}{\partial r}\frac{1}{r}Q_{\kappa}+\frac{-\kappa+1}{r^{2}}Q_{\kappa}\right)\\
+-\left(\frac{\partial}{\partial r}\frac{1}{r}P_{\kappa}\left(r\right)+\frac{\kappa+1}{r^{2}}P_{\kappa}\right)
+\end{bmatrix}+V\begin{bmatrix}\frac{i}{r}P_{\kappa}\\
+\frac{1}{r}Q_{\kappa}
+\end{bmatrix}+c^{2}\begin{bmatrix}\frac{i}{r}P_{\kappa}\\
+-\frac{1}{r}Q_{\kappa}
+\end{bmatrix}=E\begin{bmatrix}\frac{i}{r}P_{\kappa}\\
+\frac{1}{r}Q_{\kappa}
+\end{bmatrix}
+\]
+
+\end_inset
+
+or
+\begin_inset Formula 
+\[
+cr\left(\frac{\partial}{\partial r}\frac{1}{r}Q_{\kappa}+\frac{-\kappa+1}{r^{2}}Q_{\kappa}\right)+\left(V+c^{2}\right)P_{\kappa}=EP_{\kappa}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-cr\left(\frac{\partial}{\partial r}\frac{1}{r}P_{\kappa}+\frac{\kappa+1}{r^{2}}P_{\kappa}\right)+\left(V-c^{2}\right)Q_{\kappa}=EQ_{\kappa}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+c\left(\frac{\partial}{\partial r}-\frac{\kappa}{r}\right)Q_{\kappa}+\left(V+c^{2}\right)P_{\kappa}=EP_{\kappa}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-c\left(\frac{\partial}{\partial r}+\frac{\kappa}{r}\right)P_{\kappa}+\left(V-c^{2}\right)Q_{\kappa}=EQ_{\kappa}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Radial Dirac solution for a Coulomb Field
+\end_layout
+
+\begin_layout Standard
+When 
+\begin_inset Formula $V=\frac{-Z}{r}$
+\end_inset
+
+ we can find analytic solutions for the Hydrogen like atom.
+ With a number of ingenious steps one arrives at (un-normalized)
+\begin_inset Formula 
+\[
+P_{\kappa}\propto e^{-x/2}x^{\gamma}\left\{ \left(-\kappa+\frac{Z}{\lambda}\right)F\left(a,b,x\right)+\left(\gamma-\frac{EZ}{c^{2}\lambda}\right)F\left(a+1,b,x\right)\right\} 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+Q_{\kappa}\propto e^{-x/2}x^{\gamma}\left\{ \left(-\kappa+\frac{Z}{\lambda}\right)F\left(a,b,x\right)-\left(\gamma-\frac{EZ}{c^{2}\lambda}\right)F\left(a+1,b,x\right)\right\} 
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+x=2\lambda r,\quad\lambda=\sqrt{c^{2}-\frac{E^{2}}{c^{2}}},\quad\gamma=\sqrt{\kappa^{2}-\frac{Z^{2}}{c^{2}}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+a=\gamma-\frac{EZ}{c^{2}\lambda},\quad b=2\gamma+1
+\]
+
+\end_inset
+
+and 
+\begin_inset Formula $F\left(a,b,x\right)$
+\end_inset
+
+ is a confluent hypergeomtric function.
+\end_layout
+
+\begin_layout Standard
+So what are we missing here?
+ There is no principle quantum number!
+ It is hiding in the eigen value 
+\begin_inset Formula $E$
+\end_inset
+
+.
+ It turns out that the radial functions are only normalizable if
+\begin_inset Formula 
+\[
+E_{n\kappa}=\frac{c^{2}}{\sqrt{1+\frac{Z^{2}}{c^{2}\left(\gamma+n-\left|\kappa\right|\right)^{2}}}}=c^{2}+\frac{Z^{2}}{2n^{2}}+\frac{Z^{4}}{2c^{2}n^{3}}\left(\frac{1}{\left|\kappa\right|}-\frac{3}{4n}\right)+O\left(\frac{1}{c^{4}}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Orbital structure
+\end_layout
+
+\begin_layout Standard
+Finally we have a full set of quantum numbers for the Dirac Hydrogen atom:
+ 
+\begin_inset Formula $\left\{ n,\kappa,j,m_{j}\right\} $
+\end_inset
+
+ with the angular momentum quantum number determined unambiguously from 
+\begin_inset Formula $j$
+\end_inset
+
+ and the sign of 
+\begin_inset Formula $\kappa$
+\end_inset
+
+.
+ The allowed orbitals are (energies are for 
+\begin_inset Formula $Z=1$
+\end_inset
+
+)
+\begin_inset Float table
+placement document
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="17" columns="8">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $n$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\kappa$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $j$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+name
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ m_{j}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+degeneracy
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2\left(E_{n\left|\kappa\right|}-c^{2}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1s_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim1+\frac{1}{4c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2s_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{4}+\frac{5}{64c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{4}+\frac{5}{64c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2p_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{4}+\frac{1}{64c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3s_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{36c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{36c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3p_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{108c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3d_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{108c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{5}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3d_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{5}{2},-\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2},\frac{5}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $6$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{324c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4s_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{13}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{1}{2},\frac{1}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{13}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4p_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{5}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4d_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{5}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{5}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4d_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{5}{2},-\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2},\frac{5}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $6$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{7}{3072c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{5}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4f_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{5}{2},-\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2},\frac{5}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $6$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{7}{3072c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{7}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4f_{\nicefrac{7}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\left\{ -\frac{7}{2},-\frac{5}{2},-\frac{3}{2},-\frac{1}{2},\frac{1}{2},\frac{3}{2},\frac{5}{2},\frac{7}{2}\right\} $
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $8$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{1}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Distinct Dirac Hydrogen orbitals.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+With all degenerate levels combined
+\begin_inset Float table
+placement document
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="11" columns="7">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $n$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\kappa$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $j$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $l$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+name
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+degeneracy
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2\left(E_{n\left|\kappa\right|}-c^{2}\right)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1s_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim1+\frac{1}{4c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1,1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0,1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2s_{\nicefrac{1}{2}},2p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{4}+\frac{5}{64c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2p_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{4}+\frac{1}{64c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1,1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0,1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3s_{\nicefrac{1}{2}},3p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{9}{324c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2,2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1,2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3p_{\nicefrac{3}{2}},3d_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $8$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{3}{324c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{5}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3d_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $6$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{324c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1,1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0,1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4s_{\nicefrac{1}{2}},4p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{13}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2,2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{3}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1,2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4p_{\nicefrac{3}{2}},4d_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $8$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{5}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-3,3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{5}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2,3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4d_{\nicefrac{5}{2}},4f_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $12$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{2.333\ldots}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-4$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{7}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4f_{\nicefrac{7}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $8$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim\frac{1}{16}+\frac{1}{1024c^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Dirac Hydrogen orbitals with degenerate energy level combined.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Numerical values for some of the level splittings are
+\begin_inset Float table
+placement document
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Level 1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Level 2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\Delta E(ppm)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2p_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1.66$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.49$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3d_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3d_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.16$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4p_{\nicefrac{1}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.21$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4d_{\nicefrac{3}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4d_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.07$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4f_{\nicefrac{5}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4f_{\nicefrac{7}{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.03$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Fine structure level splittings
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+It will be very interesting to see how exchange interactions will split some of these degenerate levels for multi-electron atoms with partially filled orbitals.
+\end_layout
+
+\begin_layout Subsection
+Basis set expansion
+\end_layout
+
+\begin_layout Standard
+For multi-electron atoms we need to modify eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dorbitals"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ and expand the radial function using a set of 
+\begin_inset Formula $N$
+\end_inset
+
+ real basis functions,
+ with possibility of using distinct basis functions for the large and small components.
+ These radial basis functions are typically either Slater or Gaussian functions
+\begin_inset Formula 
+\[
+g_{\kappa a}^{L}=\begin{cases}
+r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
+r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
+r^{-\kappa-1}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
+r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\varphi_{\kappa m_{j}}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa m_{j}a}^{L\alpha}\left(\vec{r}\right)\\
+ic_{\kappa a}^{L\beta}g_{\kappa m_{j}a}^{L\beta}\left(\vec{r}\right)\\
+c_{\kappa a}^{S\alpha}g_{\kappa m_{j}a}^{S\alpha}\left(\vec{r}\right)\\
+c_{\kappa a}^{S\beta}g_{\kappa m_{j}a}^{S\beta}\left(\vec{r}\right)
+\end{bmatrix}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+ic_{\kappa a}^{L\beta}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)\\
+c_{\kappa a}^{S\alpha}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+c_{\kappa a}^{S\beta}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\beta}\left(\hat{r}\right)
+\end{bmatrix}\label{eq:Basis1}
+\end{equation}
+
+\end_inset
+
+As written we are allowing for distinct expansion coefficients for all four components.
+\end_layout
+
+\begin_layout Subsection
+Kinetic Balance
+\end_layout
+
+\begin_layout Standard
+The Dirac equation has negative energy solutions corresponding to anti particle or positron states.
+ In order to avoid variational collapse into these states we can restrict the small component basis functions in a specific manner.
+ As written this has full,
+ linear variational freedom.
+ Kinetic balance puts a constraint of the basis functions,
+ but not on the expansion coefficients:
+ 
+\begin_inset Formula 
+\begin{equation}
+g_{Sa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)=i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)\label{eq:KBal1}
+\end{equation}
+
+\end_inset
+
+This constraint only works approximately,
+ to order 
+\begin_inset Formula $\frac{1}{c^{4}}$
+\end_inset
+
+ but works well in practice.
+ Using eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Omega2"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we find that the angular spherical spinors already support kinetic balance,
+ and for the radial part:
+\begin_inset Formula 
+\begin{equation}
+g_{Sa}\left(r\right)=\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)\label{eq:KBalRadial}
+\end{equation}
+
+\end_inset
+
+There will be some instances where we can simply use 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBal1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ directly for calculating matrix elements,
+ rather operating on basis functions with 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBalRadial"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+In 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Yanai2001"
+literal "false"
+
+\end_inset
+
+ They claim to use a more accurate version of eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBal1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{Sa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)=i\frac{\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)}{V-E-2c^{2}}g_{La}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)
+\]
+
+\end_inset
+
+but they do not specify what 
+\begin_inset Formula $V$
+\end_inset
+
+ is.
+ It could be 
+\begin_inset Formula $\left\langle V\right\rangle $
+\end_inset
+
+ which should be easy to implement after the first iteration.
+ Also presumably 
+\begin_inset Formula $E$
+\end_inset
+
+ is the total energy.
+\end_layout
+
+\begin_layout Subsection
+Slater Determinant
+\end_layout
+
+\begin_layout Standard
+So far we have been discussing a one electron theory.
+ As usual for multiple electrons we must enforce anti symmetry of the wave function,
+ include electron-electron repulsion in the potential term.
+ Fortunately the same Condon-Slater rules apply for determining allowed (nonzero) matrix elements for one a two electron integrals.
+\end_layout
+
+\begin_layout Subsection
+Electron Repulsion
+\end_layout
+
+\begin_layout Standard
+It turns out that electron repulsion is considerably more complicated for relativistic systems:
+\begin_inset Formula 
+\[
+g_{ij}=\frac{1}{\left|\boldsymbol{r}_{i}-\boldsymbol{r}_{j}\right|}\left\{ 1-\boldsymbol{\alpha}_{i}\cdot\boldsymbol{\alpha}_{j}+\frac{1}{2}\frac{\left(\boldsymbol{\alpha}_{i}\times\boldsymbol{r}_{ij}\right)\cdot\left(\boldsymbol{\alpha}_{j}\times\boldsymbol{r}_{ij}\right)}{r_{ij}^{2}}+\ldots\right\} 
+\]
+
+\end_inset
+
+Presumably this is the effects conveniently ignoring the vector potential above in eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dirac3"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+ To begin we will simply deal with the first term,
+ and try adding the corrections later.
+\end_layout
+
+\begin_layout Subsection
+Matrix Elements
+\end_layout
+
+\begin_layout Standard
+As usual our goal is to build the Fock and overlap matrices and then solve the general eigen problems.
+ Instead of two sets of equations,
+ we should now get four sets of Fock/overlap matrices and four eigen equations.
+ As for the non relativistic case we can divide the problem into irreducible representation based on 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ and 
+\begin_inset Formula $m_{j}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+Overlap
+\end_layout
+
+\begin_layout Standard
+Because of 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:OmegaOrtho"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we can see that there is no overlap between the large and small sectors.
+ Also
+\begin_inset Formula 
+\begin{equation}
+\left\langle \Omega_{\kappa m_{j}}^{\alpha}|\Omega_{\kappa m_{j}}^{\beta}\right\rangle \propto\left\langle Y_{\kappa,m_{j}-\nicefrac{1}{2}}|Y_{\kappa,m_{j}+\nicefrac{1}{2}}\right\rangle =0\label{eq:Orthab}
+\end{equation}
+
+\end_inset
+
+so there us no overlap between distinct spin states.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+S_{ab}^{\kappa m_{j}}=\begin{bmatrix}S_{ab}^{LL\alpha\alpha} & 0 & 0 & 0\\
+0 & S_{ab}^{LL\beta\beta} & 0 & 0\\
+0 & 0 & S_{ab}^{SS\alpha\alpha} & 0\\
+0 & 0 & 0 & S_{ab}^{SS\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+For the small sector overlap we have
+\begin_inset Formula 
+\[
+S_{ab}^{SS\kappa m_{j}}=\left\langle g_{\kappa m_{j}a}^{S}\left(\vec{r}\right)|g_{\kappa m_{j}b}^{S}\left(\vec{r}\right)\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|p^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle =2T_{ab}^{\kappa m_{j}}=2\begin{bmatrix}T_{ab}^{\alpha\alpha} & 0\\
+0 & T_{ab}^{\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $T_{ab}$
+\end_inset
+
+ is just a kinetic energy integral.
+\end_layout
+
+\begin_layout Subsubsection
+Kinetic
+\end_layout
+
+\begin_layout Standard
+This is the 
+\begin_inset Formula 
+\[
+c\boldsymbol{\alpha\cdot}\boldsymbol{p}=c\begin{bmatrix}0 & \boldsymbol{\sigma}\cdot\boldsymbol{p}\\
+\boldsymbol{\sigma}\cdot\boldsymbol{p} & 0
+\end{bmatrix}
+\]
+
+\end_inset
+
+term from 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dirac4"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ which mixes the small and large sectors.
+ Since 
+\begin_inset Formula $\boldsymbol{\sigma}\cdot\boldsymbol{p}$
+\end_inset
+
+ is also non-diagonal the kinetic term also intermix the 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ and 
+\begin_inset Formula $\beta$
+\end_inset
+
+ spin components.
+ However the kinetic balance constraint 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBal1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ prevent any spin state mixing.
+ For example
+\begin_inset Formula 
+\[
+\left\langle g_{l'a}^{L}\left(r\right)\Omega_{j'l'm'_{j}}^{+}|\boldsymbol{\sigma}\cdot\boldsymbol{p}|g_{lb}^{S}\left(r\right)\Omega_{jlm_{j}}^{-}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-i\left\langle g_{la}^{L}\left(r\right)\Omega_{jlm_{j}}^{+}|\boldsymbol{\sigma}\cdot\boldsymbol{p}|\boldsymbol{\sigma}\cdot\boldsymbol{p}g^{L}\left(r\right)\Omega_{jlm}^{+}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-i\left\langle g_{la}^{L}\left(r\right)\Omega_{jlm_{j}}^{+}|p^{2}|g^{L}\left(r\right)\Omega_{jlm}^{+}\right\rangle 
+\]
+
+\end_inset
+
+and because 
+\begin_inset Formula $p^{2}$
+\end_inset
+
+ is a diagonal operator we get 
+\begin_inset Formula 
+\[
+=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|p^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle =2\begin{bmatrix}T_{ab}^{\alpha\alpha} & 0\\
+0 & T_{ab}^{\beta\beta}
+\end{bmatrix}
+\]
+
+\end_inset
+
+with 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ and 
+\begin_inset Formula $\beta$
+\end_inset
+
+ zero out.
+ Finally
+\begin_inset Formula 
+\[
+T_{ab}^{\kappa m_{j}}=2\begin{bmatrix}0 & 0 & T_{ab}^{\alpha\alpha} & 0\\
+0 & 0 & 0 & T_{ab}^{\beta\beta}\\
+T_{ab}^{\alpha\alpha} & 0 & 0 & 0\\
+0 & T_{ab}^{\beta\beta} & 0 & 0
+\end{bmatrix}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Nuclear
+\end_layout
+
+\begin_layout Standard
+This is the 
+\begin_inset Formula $\phi=\frac{-Z}{r}$
+\end_inset
+
+ term in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dirac4"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+V_{ab}^{LL\kappa m_{j}}=\begin{bmatrix}V_{ab}^{\alpha\alpha} & 0\\
+0 & V_{ab}^{\beta\beta}
+\end{bmatrix}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $V_{ab}^{\alpha\alpha}=-Z\left\langle g_{La}\left(r\right)|\frac{1}{r}|g_{Lb}\left(r\right)\right\rangle $
+\end_inset
+
+is the same as a non relativistic nuclear attraction integral.
+ However the small sector we get a new integral type
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\left\langle g_{Sa}\left(r\right)|\frac{1}{r}|g_{Sb}\left(r\right)\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-Z\left\langle g_{Sa}\left(r\right)|\frac{p^{2}}{r}|g_{Sb}\left(r\right)\right\rangle 
+\]
+
+\end_inset
+
+but for this integral it is probably easier to use 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBalRadial"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ rather than 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBal1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\left\langle \left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)|\frac{1}{r}|\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{Lb}\left(r\right)\right\rangle .
+\]
+
+\end_inset
+
+ Finally
+\begin_inset Formula 
+\[
+V_{ab}^{\kappa m_{j}}=-Z\begin{bmatrix}V_{ab}^{LL\alpha\alpha} & 0 & 0 & 0\\
+0 & V_{ab}^{LL\beta\beta} & 0 & 0\\
+0 & 0 & V_{ab}^{SS\alpha\alpha} & 0\\
+0 & 0 & 0 & V_{ab}^{SS\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Rest mass
+\end_layout
+
+\begin_layout Standard
+This is the 
+\begin_inset Formula $\left(\beta-\alpha^{0}\right)c^{2}$
+\end_inset
+
+ term in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dirac4"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+M_{ab}^{\kappa m_{j}}=-2c^{2}\begin{bmatrix}0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0\\
+0 & 0 & S_{ab}^{SS\alpha\alpha} & 0\\
+0 & 0 & 0 & S_{ab}^{SS\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+One electron Hamiltonian matrix
+\end_layout
+
+\begin_layout Standard
+For one irreducible representation the Dirac Hamiltonian matrix looks like
+\begin_inset Formula 
+\[
+H_{ab}^{\kappa m_{j}}=T_{ab}^{\kappa m_{j}}+V_{ab}^{\kappa m_{j}}+M_{ab}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\begin{bmatrix}-ZV_{ab}^{LL\alpha\alpha} & 0 & 2cT_{ab}^{\alpha\alpha} & 0\\
+0 & -ZV_{ab}^{LL\beta\beta} & 0 & 2cT_{ab}^{\beta\beta}\\
+2cT_{ab}^{\alpha\alpha} & 0 & -ZV_{ab}^{SS\alpha\alpha}-2c^{2}S_{ab}^{SS\alpha\alpha} & 0\\
+0 & 2cT_{ab}^{\beta\beta} & 0 & -ZV_{ab}^{SS\beta\beta}-2c^{2}S_{ab}^{SS\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}.\label{HDmatrix}
+\end{equation}
+
+\end_inset
+
+Because of 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Orthab"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we get the chequerboard pattern in 
+\begin_inset Formula $H_{ab}^{\kappa m_{j}}$
+\end_inset
+
+ so as with the non relativistic HF theory the 
+\begin_inset Formula $\alpha\beta$
+\end_inset
+
+ spin sectors only interact through exchange interactions.
+ So by rearranging 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Basis1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\varphi_{\kappa m_{j}}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa m_{j}a}^{L\alpha}\left(\vec{r}\right)\\
+c_{\kappa a}^{S\alpha}g_{\kappa m_{j}a}^{S\alpha}\left(\vec{r}\right)\\
+ic_{\kappa a}^{L\beta}g_{\kappa m_{j}a}^{L\beta}\left(\vec{r}\right)\\
+c_{\kappa a}^{S\beta}g_{\kappa m_{j}a}^{S\beta}\left(\vec{r}\right)
+\end{bmatrix}\label{eq:Basis2}
+\end{equation}
+
+\end_inset
+
+we can rearrange 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "HDmatrix-1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ as
+\begin_inset Formula 
+\[
+H_{ab}^{\kappa m_{j}}=\begin{bmatrix}H_{ab}^{\alpha\alpha} & 0\\
+0 & H_{ab}^{\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\begin{bmatrix}-ZV_{ab}^{LL\alpha\alpha} & 2cT_{ab}^{\alpha\alpha} & 0 & 0\\
+2cT_{ab}^{\alpha\alpha} & -ZV_{ab}^{SS\alpha\alpha}-2c^{2}S_{ab}^{SS\alpha\alpha} & 0 & 0\\
+0 & 0 & -ZV_{ab}^{LL\beta\beta} & 2cT_{ab}^{\beta\beta}\\
+00 & 0 & 2cT_{ab}^{\beta\beta} & -ZV_{ab}^{SS\beta\beta}-2c^{2}S_{ab}^{SS\beta\beta}
+\end{bmatrix}^{\kappa m_{j}}\label{HDmatrix-1}
+\end{equation}
+
+\end_inset
+
+In other words we can add 
+\begin_inset Formula $m_{s}$
+\end_inset
+
+ to the list of quantum numbers characterizing an irreducible representation.
+\begin_inset Formula 
+\[
+H_{ab}^{\kappa m_{j}m_{s}}=\begin{bmatrix}-ZV_{ab}^{LL} & 2cT_{ab}^{LS}\\
+2cT_{ab}^{SL} & -ZV_{ab}^{SS}-2c^{2}S_{ab}^{SS}
+\end{bmatrix}^{\kappa m_{j}m_{s}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintCited"
+bibfiles "qchem"
+options "plainnat"
+encoding "default"
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
