@@ -26,7 +26,8 @@ public:
     virtual double          GetNormalization(const Polarization&  ) const;
     virtual double          GetCharge       (const Polarization&  ) const;
     virtual sd_t            GetExponents    (                     ) const; 
-
+    virtual vd_t            GetCoeff        (                     ) const;
+    
     typedef RadialFunction::rf_t rf_t;
     typedef RadialFunction::po_t po_t;
     virtual double Integrate(qchem::IType2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache&,const Cluster* cl=0) const;
@@ -56,6 +57,7 @@ private:
     void Check() const;
 
     Vector<double>               cs;
+    Vector<double>               unormalized_cs;
     optr_vector1<RadialFunction*> gs;
 };
 

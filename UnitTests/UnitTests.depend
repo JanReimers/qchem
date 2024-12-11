@@ -796,7 +796,7 @@
 
 1729822532 /home/janr/Code/qchem/include/TotalEnergy.H
 
-1729475680 /home/janr/Code/qchem/include/Cluster.H
+1732470843 /home/janr/Code/qchem/include/Cluster.H
 	"types.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
 	<vector>
@@ -931,24 +931,25 @@
 	"IEClient.H"
 	"../TCommon.H"
 
-1731949538 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
+1732455178 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
 	"Polarization.H"
 	<IEClient.H>
 	"oml/vector.h"
 	<vector>
 
-1729383623 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Block.H
+1732455716 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Block.H
 	"RadialFunction.H"
 	"Polarization.H"
 	"Imp/Misc/pmstream.h"
 	<cassert>
 
-1729380889 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
+1732470843 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
 	"Polarization.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
 	<ScalarFunction.H>
 	"oml/vector3d.h"
 	<vector>
+	<set>
 	<map>
 
 1728563664 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Radial/GaussianCD.H
@@ -1395,7 +1396,7 @@
 	"oml/matrix.h"
 	<iomanip>
 
-1729778649 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IntegralEngine.H
+1732124729 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IntegralEngine.H
 	"RadialFunction.H"
 	"CDCache.H"
 	"Polarization.H"
@@ -1483,9 +1484,18 @@
 	<QuantumNumber.H>
 	<tuple>
 
-1732391928 source:/home/janr/Code/qchem/UnitTests/libCint.C
+1732800168 source:/home/janr/Code/qchem/UnitTests/libCint.C
 	"gtest/gtest.h"
+	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
+	"Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
+	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
+	"Imp/BasisSet/PolarizedGaussian/Block.H"
+	"Imp/Cluster/Molecule.H"
+	"Imp/Cluster/Atom.H"
+	<AnalyticIE.H>
+	<LAParams.H>
 	"oml/vector3d.h"
+	"oml/smatrix.h"
 	<vector>
 	<iostream>
 	"cint.h"

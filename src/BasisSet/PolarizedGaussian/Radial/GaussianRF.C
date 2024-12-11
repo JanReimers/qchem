@@ -68,6 +68,14 @@ RadialFunction::sd_t GaussianRF::GetExponents() const
     return ret;
 }
 
+RadialFunction::vd_t GaussianRF::GetCoeff() const
+{
+    vd_t ret;
+    ret.push_back(1.0);
+    return ret;
+}
+    
+
 
 double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {

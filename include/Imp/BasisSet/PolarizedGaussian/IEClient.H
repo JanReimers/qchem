@@ -28,8 +28,14 @@ struct IrrepIEClient
     , public IEData
 {
     IrrepIEClient() {};
+    void Init(std::vector<const Block*>& bs)
+    {
+        IEData::Init(bs);
+        for (auto b:bs) blocks.push_back(b);
+    }
     
     virtual size_t size() const {return radials.size();}
+    std::vector<const Block*> blocks;
 };
     
 } //namespace PolarizedGaussian

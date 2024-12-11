@@ -19,11 +19,13 @@ public:
         return false;
     }
 
-    virtual void   Insert    (Atom*    )      =0;
+    virtual void   Insert    (Atom*  )      =0;
     virtual size_t GetNumAtoms      () const=0;
     virtual int    GetNuclearCharge () const=0;
     virtual double GetNetCharge     () const=0;
     virtual double GetNumElectrons  () const=0;
+
+    virtual size_t GetAtomIndex(const RVec3&, double tol=0.0) const;
     virtual Mesh*  CreateMesh(const MeshParams&) const=0;
     
     virtual const_iterator begin() const=0;

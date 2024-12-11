@@ -32,6 +32,7 @@ public:
     {
         return itsPols.size();
     }
+    size_t LMax() const;
 
     virtual std::ostream&       Write  (std::ostream&) const;
     virtual std::istream&       Read   (std::istream&)      ;

@@ -24,6 +24,7 @@ ContractedGaussianRF::ContractedGaussianRF()
 ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, std::vector<RadialFunction*>& rfs)
     : RadialCommon( rfs[0]->GetCenter (), rfs[0]->GetL())
     , cs    (coeffs)
+    , unormalized_cs(coeffs)
     , gs(rfs   ) //Copy pointers
 {
     assert(cs.size()==gs.size());
@@ -79,6 +80,15 @@ RadialFunction::sd_t ContractedGaussianRF::GetExponents() const
         for (auto& e:i->GetExponents()) ret.insert(e);
     return ret;
 }
+
+RadialFunction::vd_t ContractedGaussianRF::GetCoeff() const
+{
+    vd_t ret;
+//    for (auto c:unormalized_cs) ret.push_back(c);
+    for (auto c:cs) ret.push_back(c);
+    return ret;
+}
+ 
 
 
 double ContractedGaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const

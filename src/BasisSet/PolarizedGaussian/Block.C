@@ -31,6 +31,13 @@ Block::~Block()
     delete itsRadial;
 };
 
+size_t Block::LMax() const
+{
+    size_t lmax=0;
+    for (auto p:itsPols) lmax=std::max(lmax,(size_t)p.GetTotalL());
+    return lmax;
+}
+
 std::ostream& Block::Write(std::ostream& os) const
 {
     if (!Pretty())
