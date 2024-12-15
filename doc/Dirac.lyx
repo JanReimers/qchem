@@ -91,7 +91,7 @@
 \begin_body
 
 \begin_layout Section
-Relativistic Treatment of Atoms
+`Relativistic Treatment of Atoms
 \end_layout
 
 \begin_layout Subsection
@@ -4375,6 +4375,86 @@ r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
 r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
 r^{-\kappa-1}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
 r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\left(\frac{d}{dr}+\frac{\kappa+1}{r}\right)r^{-\kappa-1}e^{-\lambda_{a}r}=\left[\left(-\kappa-1\right)r^{-\kappa-2}-\lambda_{a}r^{-\kappa-1}+\left(\kappa+1\right)r^{-\kappa-2}\right]e^{-\lambda_{a}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(\frac{d}{dr}+\frac{\kappa+1}{r}\right)r^{\kappa}e^{-\lambda_{a}r}=\left[\kappa r^{\kappa-1}-\lambda_{a}r^{\kappa}+\left(\kappa+1\right)r^{\kappa-1}\right]e^{-\lambda_{a}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(\frac{d}{dr}+\frac{\kappa+1}{r}\right)r^{-\kappa-1}e^{-\lambda_{a}r^{2}}=\left[\left(-\kappa-1\right)r^{-\kappa-2}-2\lambda_{a}rr^{-\kappa-1}+\left(\kappa+1\right)r^{-\kappa-2}\right]e^{-\lambda_{a}r^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-2\lambda_{a}r^{-\kappa}e^{-\lambda_{a}r^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(\frac{d}{dr}+\frac{\kappa+1}{r}\right)r^{\kappa}e^{-\lambda_{a}r^{2}}=\left[\kappa r^{\kappa-1}-2\lambda_{a}r^{\kappa+1}+\left(\kappa+1\right)r^{\kappa-1}\right]e^{-\lambda_{a}r^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(\frac{2\kappa+1}{r}-2\lambda_{a}r\right)r^{\kappa}e^{-\lambda_{a}r^{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{\kappa a}^{S}=\begin{cases}
+-\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
+\left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
+-2\lambda_{a}r^{-\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
+\left(\frac{2\kappa+1}{r}-2\lambda_{a}r\right)r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
 \end{cases}
 \]
 

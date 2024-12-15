@@ -5,7 +5,8 @@
 int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
-     testing::GTEST_FLAG(filter) = "libCintTests.*"; 
+     testing::GTEST_FLAG(filter) = "DiracIntegralTests.*"; 
+//     testing::GTEST_FLAG(filter) = "libCintTests.*"; 
 //     testing::GTEST_FLAG(filter) = "ERI4Tests.*"; 
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SG_DFT_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_HF_P.Multiple/*:Multiple/A_SLm_HF_P.Multiple/*:Multiple/A_SL_HF_P.Multiple/*";

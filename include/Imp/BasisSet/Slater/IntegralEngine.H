@@ -19,7 +19,7 @@ class IntegralEngine
 {
 public:
 
-private:
+protected:
     virtual double Overlap(double ea, double eb,size_t l) const;
     virtual double Kinetic(double ea ,double eb,size_t l) const;
     virtual double Nuclear(double ea, double eb,size_t l) const;

@@ -647,7 +647,7 @@
 1728599453 source:/home/janr/Code/qchem/UnitTests/stl_io_fwd.C
 	"Imp/Containers/stl_io.h"
 
-1732306384 source:/home/janr/Code/qchem/UnitTests/UTMain.C
+1734197136 source:/home/janr/Code/qchem/UnitTests/UTMain.C
 	"gtest/gtest.h"
 
 1727910193 /home/janr/Code/qchem/src/BasisSetImplementation/Gaussian94RFR.H
@@ -917,7 +917,7 @@
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1731952619 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
+1734102141 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
 	<BasisSet.H>
 
 1732140944 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
@@ -1050,7 +1050,7 @@
 	<fstream>
 	<cmath>
 
-1732133690 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
+1734110770 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IntegralEngine.H
 	<AnalyticIE.H>
 	"Imp/BasisSet/AtomIE.H"
 	"oml/vector.h"
@@ -1499,4 +1499,48 @@
 	<vector>
 	<iostream>
 	"cint.h"
+
+1734102152 source:/home/janr/Code/qchem/UnitTests/DiracIntegral.C
+	"gtest/gtest.h"
+	"Imp/BasisSet/Slater_mj/IntegralEngine.H"
+	"Imp/BasisSet/Slater_mj/BasisSet.H"
+	"Imp/BasisSet/Slater_mj/BasisFunction.H"
+	"Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
+	"Imp/Symmetry/OkmjQN.H"
+	"Imp/Misc/DFTDefines.H"
+	"Imp/Cluster/Atom.H"
+	"Imp/Cluster/Molecule.H"
+	"Imp/Containers/ERI4.H"
+	"Imp/Containers/ptr_vector.h"
+	<Cluster.H>
+	<BasisSet.H>
+	<iostream>
+
+1734111812 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/IntegralEngine.H
+	"Imp/BasisSet/Slater_m/IntegralEngine.H"
+	"Imp/BasisSet/Slater_mj/IEClient.H"
+
+1734110110 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/IEClient.H
+	"Imp/BasisSet/Slater/IEClient.H"
+
+1734031863 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/BasisSet.H
+	"IEClient.H"
+	"../TCommon.H"
+
+1734031609 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/BasisFunction.H
+	<BasisSet.H>
+
+1734100052 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/IrrepBasisSet.H
+	"IEClient.H"
+	"../IrrepCommon.H"
+	"../TIrrepCommon.H"
+	"oml/vector.h"
+
+1734275371 /home/janr/Code/qchem/include/Imp/Symmetry/OkmjQN.H
+	<QuantumNumber.H>
+	<utility>
+
+1732133738 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IntegralEngine.H
+	"Imp/BasisSet/Slater/IntegralEngine.H"
+	"Imp/BasisSet/Slater_m/IEClient.H"
 

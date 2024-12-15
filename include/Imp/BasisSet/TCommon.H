@@ -4,6 +4,7 @@
 
 #include <BasisSet.H>
 class SlaterRadialIntegralTests;
+class DiracIntegralTests;
 
 class BasisSetImp
     : public virtual BasisSet
@@ -29,6 +30,7 @@ public:
     virtual std::istream&  Read (std::istream&    )      ;
 private:
     friend class SlaterRadialIntegralTests;
+    friend class DiracIntegralTests;
 
     AnalyticIE<double>* itsIE;
     mutable IntegralDataBase<double>* itsDB;

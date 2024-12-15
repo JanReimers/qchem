@@ -66,6 +66,9 @@
 		<Unit filename="A_SHF.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="DiracIntegral.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="ElectronConfigurations.C">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -83,9 +86,6 @@
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="UTMain.C">
-			<Option compilerVar="CPP" />
-		</Unit>
-		<Unit filename="libCint.C">
 			<Option compilerVar="CPP" />
 		</Unit>
 		<Unit filename="stl_io.C">

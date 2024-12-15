@@ -95,6 +95,11 @@
 		<Unit filename="include/Imp/BasisSet/Slater_m/IEClient.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/Slater_m/IrrepBasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_mj/BasisFunction.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_mj/BasisSet.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_mj/IEClient.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_mj/IntegralEngine.H" />
+		<Unit filename="include/Imp/BasisSet/Slater_mj/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian/IEClient.H" />
@@ -177,6 +182,7 @@
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorPol.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorUnPol.H" />
 		<Unit filename="include/Imp/Symmetry/AtomQN.H" />
+		<Unit filename="include/Imp/Symmetry/OkmjQN.H" />
 		<Unit filename="include/Imp/Symmetry/UnitQN.H" />
 		<Unit filename="include/Imp/Symmetry/YlQN.H" />
 		<Unit filename="include/Imp/Symmetry/YlmQN.H" />
@@ -305,6 +311,21 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/Slater_m/IrrepBasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_mj/BasisFunction.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_mj/BasisSet.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_mj/IEClient.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_mj/IntegralEngine.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/BasisSet/Slater_mj/IrrepBasisSet.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/BasisSet/SphericalGaussian/BasisFunction.C">

@@ -40,11 +40,53 @@ Priority 1:
         https://pypi.org/project/PyPointGroup/
         https://www.sciencedirect.com/science/article/abs/pii/S0010465517300310
             https://data.mendeley.com/datasets/xd4g8hyjf2/1
+    -Slater_m, SG_m basis sets:
+        Add real spherical harmonic angular functions for g(r).
+        replace m with ml?  or m = {mj,ml} depending on context?
+    -Distinguish multi center and single center basis sets.  Clone(RVec3)
     -Relativistic:
         https://github.com/drjuls/AMBiT/tree/master/src
         https://diracprogram.org/doku.php?id=start
         https://nubakery.org/scf/dhf.html
+        -Make some tech notes
+        -Start coding
+            -BasisFunctions
+                -Large: Derive from SGm or SLm?
+                    -Multiply by CG coeffs for spherical spinor components.
+                -Small: Construct from Large.
+                -Quantum number: kappa: can infer j,l.
+                    AtomQN = radial QN * Angular QNs
+                    Done: -Right now AtomQN derived from YlmQN
+                    DOne: -Try AtomQN {n,QN* Anglular}
+                    Clean up LMax (multiple places)
+                        -LMax for electron configurations should be 3
+                        -LMax for basis sets/functions can be >3
+                    
+                -BasisSet
+                    -Slater_mj,  SG_mj
+                    -Loop over kappa and mj
+                    -How to arrange L/S basis functions?
+                        Have Dirac::IrrepBasisSet hold 
+                            Slater_mj::LargeBasisSet ={gL1,gL2,gL3...gLN}
+                            Slater_mj::SmallBasisSet ={gS1,gS2...gSN}
+                            Have Dirac::IntegralEngine manage the matrix build.
+                -IECLient
+                -Integral engine
+                    -Need a cross Kinetic integral calculator:  K(a,b) where a is a large BS, b is small.
+            -Hamiltonian
+                -Dirac K, Ven
+                -How to enforce Basis set is correct for H?
+                    -bool Relativistc() const=0 member for BS and H interfaces?
+            -Wave function
+                    -DiracWF {PolaraizedWF itsLarge, itsSmall}
+                    -L^alpha and S^alpha need to interact for kinetic energy matrix.
+            -Run H
+            -Add support J/K 2ERIs, Dirac Vee, Vxc
+            -Run He, Li, Be, B ....
+            -DFT support.
+            -Finite size nucleus,  Ven_fs
     -use map hints for caches
+        No such thing as map::hint for finding iterators.
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.
     -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2
