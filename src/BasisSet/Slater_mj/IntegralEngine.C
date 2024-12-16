@@ -51,11 +51,7 @@ DiracIntegralEngine::SMat DiracIntegralEngine::merge_off_diag(const SMat& ls)
     Fill(k,0.0);
     for (auto i:ls.rows())
         for (auto j:ls.cols())
-        {
-            k(   i,Ns+j)=ls(i,j);
-            k(Nl+i,   j)=ls(j,i);
-            
-        }
+            k(i,Ns+j)=ls(i,j);
    
     return k;
 }
@@ -83,7 +79,7 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
 {
     auto da=dcast(a);
-    SMat kl=itsLargeIE->MakeKinetic(da->itsLargeIEC);
+    SMat kl=2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC);
     //SMat ks=itsSmallIE->MakeKinetic(da->itsSmallIEC);
     return merge_off_diag(kl);
 }
@@ -160,6 +156,18 @@ double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 {
     assert(l2%2==0);
     return 2.0*Slater_m::IntegralEngine::Kinetic(ea,eb,l2/2);
+}
+
+//  This is anew one <a|p^2/r|b> !
+double Small_IntegralEngine::Nuclear(double ea, double eb,size_t l) const
+{
+    double ab=ea+eb;
+    int na=l+1,nb=l+1;
+    int n=na+nb;
+    double Term1= (na*nb+l*(l+1))* SlaterIntegral(ab,n-3);
+    double Term2=-(na*eb+nb*ea)  * SlaterIntegral(ab,n-2);
+    double Term3=        ea*eb   * SlaterIntegral(ab,n-1);
+    return Term1+Term2+Term3;
 }
 
 } //namespace

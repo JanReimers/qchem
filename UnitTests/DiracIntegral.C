@@ -31,7 +31,7 @@ class DiracIntegralTests : public ::testing::Test
 {
 public:
     DiracIntegralTests()
-    : Lmax(0    )
+    : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , bs(new Slater_mj::Dirac_BasisSet(lap,3,0.1,10,Lmax))
@@ -67,42 +67,30 @@ TEST_F(DiracIntegralTests, Overlap)
     }
 }
 
-/*
+
 TEST_F(DiracIntegralTests, Nuclear)
 {
+    StreamableObject::SetToPretty();
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
-        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
-        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
-
+        SMatrix<double> Ven=ie->MakeNuclear(*i,*cl);
+        cout << std::fixed << std::setprecision(3) << std::setw(6) << Ven << endl;
     }
 }
+
 
 TEST_F(DiracIntegralTests, Kinetic)
 {
+    StreamableObject::SetToPretty();
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> K=ie->MakeKinetic(*i);
-        //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
-            // We need to add the l*(l+1) term that comes from the angular integrals.
-        // Lost of dynamic cast just to get at L!
-        const QuantumNumber& qn=i->GetQuantumNumber();
-        const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
-        int l=sqn.GetL();
-        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
-        assert(sg);
-        int n=2*l+2;
-        for (auto i:Knum.rows())
-            for (auto j:Knum.cols(i))
-                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
-            
-        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
-
+        for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
+        cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
     }
 }
 
+/*
 TEST_F(DiracIntegralTests, Overlap3C)
 {
     for (auto i=bs->beginT();i!=bs->end();i++)

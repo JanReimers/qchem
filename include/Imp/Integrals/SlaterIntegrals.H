@@ -12,6 +12,11 @@
 //     /
 inline double SlaterIntegral(double a, int n)
 {
+    if (n==-1) 
+    {
+        assert(a>0.0);
+        return log(a);
+    }
     assert(n>=0);
     return 4*Pi* qchem::Fact[n]/pow(a,n+1);
 }

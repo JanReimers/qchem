@@ -50,6 +50,10 @@ class Small_IntegralEngine
 {
 public: 
     virtual double Overlap  (double ea , double eb,size_t l) const;
+    // THis does not fit the mold:  Kinetic is a cross between large and small in Drac theory.
+    //virtual double Kinetic(double ea ,double eb,size_t l) const;
+    virtual double Nuclear(double ea, double eb,size_t l) const;
+
 };
 
 } //namespace
