@@ -85,6 +85,8 @@ Priority 1:
             -Run He, Li, Be, B ....
             -DFT support.
             -Finite size nucleus,  Ven_fs
+            TODO:
+            -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
     -use map hints for caches
         No such thing as map::hint for finding iterators.
     -Molecule mesh gives crappy integrals.  

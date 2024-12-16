@@ -26,7 +26,7 @@ SlaterScaler::SlaterScaler(size_t N, double emin, double emax, size_t LMax)
 SlaterScaler::RVec   SlaterScaler::Get_es(size_t L) const
 {
     if (L==0) return es;
-    int N=itsN-2*L;
+    int N=itsN-1*L;
     if (N<1) N=1;
     if (N+L>itsN) L=itsN-N;
     RVec esL(N);

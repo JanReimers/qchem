@@ -155,9 +155,11 @@ Vector<double> DiracIntegralEngine::loop_4_exchange(size_t id, size_t la, size_t
 }
 
 
-double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l) const
+// Overlap gets called with l*2
+double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 {
-    return Slater_m::IntegralEngine::Kinetic(ea,eb,l);
+    assert(l2%2==0);
+    return 2.0*Slater_m::IntegralEngine::Kinetic(ea,eb,l2/2);
 }
 
 } //namespace

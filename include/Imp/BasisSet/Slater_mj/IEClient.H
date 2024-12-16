@@ -23,6 +23,18 @@ private:
     virtual double Norm(double e, size_t l) const;
 };
 
+struct Small_IrrepIEClient
+    : public virtual ::IrrepIEClient
+    , public IrrepIEClient
+{
+public:
+    Small_IrrepIEClient() {}; 
+    Small_IrrepIEClient(size_t N,int kappa, double mj) : IrrepIEClient(N,kappa,mj) {};
+private:
+    virtual double Norm(double e, size_t l) const;
+    static double Kinetic(double ea, double eb,size_t l);     
+};
+
 struct Dirac_IrrepIEClient
     : public virtual ::IrrepIEClient
 {

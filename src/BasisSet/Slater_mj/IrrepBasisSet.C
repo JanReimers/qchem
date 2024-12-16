@@ -144,9 +144,9 @@ std::istream&  Large_IrrepBasisSet::Read (std::istream& is)
 Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* db,const Large_IrrepBasisSet* lbs)
     : IrrepBasisSetCommon(lbs->GetQuantumNumber().Clone())
     , TIrrepBasisSetCommon<double>(lap,db)
-    , IrrepIEClient(lbs->size(),lbs->kappa,lbs->mj)
+    , Small_IrrepIEClient(lbs->size(),lbs->kappa,lbs->mj)
 {
-  IrrepIEClient::Init(lbs->es);
+  Small_IrrepIEClient::Init(lbs->es);
   for (auto b:*lbs) 
     {
         const Large_BasisFunction* lb=dynamic_cast<const Large_BasisFunction*>(b);

@@ -54,20 +54,20 @@ TEST_F(DiracIntegralTests, BasisSet)
     cout << *bs << endl;
 }
 
-/*
+
 TEST_F(DiracIntegralTests, Overlap)
 {
+    StreamableObject::SetToPretty();
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        //cout << S << endl;
-        SMatrix<double> Snum = mintegrator->Overlap(**i);
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+        cout << std::fixed << std::setprecision(3) << std::setw(6) << S << endl;
 
     }
 }
 
+/*
 TEST_F(DiracIntegralTests, Nuclear)
 {
     for (auto i=bs->beginT();i!=bs->end();i++)

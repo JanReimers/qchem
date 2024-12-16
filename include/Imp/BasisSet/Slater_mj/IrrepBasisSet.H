@@ -35,7 +35,7 @@ class Small_IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
     , public         TIrrepBasisSetCommon<double>
-    , public         IrrepIEClient
+    , public         Small_IrrepIEClient
 {
 public:
     Small_IrrepBasisSet() {};
