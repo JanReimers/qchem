@@ -16,7 +16,7 @@ class Omega_kmjQN
 {
 public:
     Omega_kmjQN(                 );
-    Omega_kmjQN(int kappa, int mj);
+    Omega_kmjQN(int kappa, double mj);
 
     virtual bool Match(const QuantumNumber&) const;
     virtual int GetDegeneracy() const;
@@ -27,18 +27,21 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
     virtual QuantumNumber* Clone(        ) const;
 
-    int GetKappa() const {return kappa;}
-    int Getj    () const {return j(kappa);}
-    int Getl    () const {return l(kappa);}
-    int Getmj   () const {return mj;}
+    int    GetKappa() const {return kappa;}
+    double Getj    () const {return j(kappa);}
+    int    Getl    () const {return l(kappa);}
+    double Getmj   () const {return mj;}
+    int    Getml   () const {return ml(kappa,mj);}
 
     static double j(int kappa) {return kappa>0 ? kappa-0.5 : -kappa-0.5;}
     static double l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
+    static double ms(int kappa) {return kappa<0 ? -0.5 : 0.5;}
+    static int    ml(int kappa, double mj) {return mj-ms(kappa);}
 protected:
     virtual std::pair<int,int> GetNk(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
     int kappa;
-    int mj;
+    double mj;
     static const int LMax=3;
 };
 

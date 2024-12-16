@@ -11,7 +11,7 @@ using std::endl;
 
 Omega_kmjQN::Omega_kmjQN(): kappa(0), mj(0) {};
 
-Omega_kmjQN::Omega_kmjQN(int _kappa, int _mj) : kappa(_kappa), mj(_mj) {};
+Omega_kmjQN::Omega_kmjQN(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
 
 bool Omega_kmjQN::Match(const QuantumNumber& qn) const
 {
@@ -101,9 +101,10 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
             if (!less_than_half) nlu--;
             //cout << "Down v,u=" << nlv << " " << nlu << endl;
         }
-        nlv=nlmv[mj+l];
+        int ml=Getml();
+        nlv=nlmv[ml+l];
         
-        nlu=nlmu[mj+l];
+        nlu=nlmu[ml+l];
         //cout << "(" << " " << nlmv << " " << nlmu << ") ";
     }
     assert(nlv%2==nlu);
@@ -112,11 +113,16 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
 
 
 extern std::string SPDFG[];
+std::string j2s[]={"1/2","3/2","5/2","7/2","9/2"};
 
 std::ostream& Omega_kmjQN::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
-        os << SPDFG[Getl()] << " " << std::setw(2) << mj << " ";
+    {
+        int jindex=Getj()-0.5;
+        os << SPDFG[Getl()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << mj << " ";
+        
+    }
     return os;
 }
 

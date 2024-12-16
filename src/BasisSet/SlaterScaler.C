@@ -28,6 +28,7 @@ SlaterScaler::RVec   SlaterScaler::Get_es(size_t L) const
     if (L==0) return es;
     int N=itsN-2*L;
     if (N<1) N=1;
+    if (N+L>itsN) L=itsN-N;
     RVec esL(N);
     for (auto i:esL.indices()) esL(i)=es(i+L);
     return esL;

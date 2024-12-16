@@ -16,7 +16,7 @@ namespace Slater_mj
 //
 
 Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
-        const Vector<double>& exponents,int kappa, int mj)
+        const Vector<double>& exponents,int kappa, double mj)
     : IrrepBasisSetCommon(new Omega_kmjQN(kappa,mj))
     , TIrrepBasisSetCommon<double>(lap,theDB)
     , itsLargeBS(new Large_IrrepBasisSet(lap,theDB,exponents,kappa,mj))
@@ -49,7 +49,7 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
     }
     else
     {
-        os << "Dirac basis set, Large:" << *itsLargeBS << endl << "Small:" << *itsSmallBS << endl;
+        os << "Dirac basis set." << endl << "    Large: " << *itsLargeBS << endl << "    Small: " << *itsSmallBS << endl;
     }
     return os;
 }
@@ -78,12 +78,12 @@ std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
 //  Large sector
 //
 Large_IrrepBasisSet::Large_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
-        const Vector<double>& exponents,int kappa, int mj)
+        const Vector<double>& exponents,int kappa, double mj)
     : IrrepBasisSetCommon(new Omega_kmjQN(kappa,mj))
     , TIrrepBasisSetCommon<double>(lap,theDB)
-    , IrrepIEClient(exponents.size())
+    , IrrepIEClient(exponents.size(),kappa,mj)
 {
-    //Large_IrrepIEClient::Init(exponents,kappa,mj);
+    IrrepIEClient::Init(exponents);
     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,mj,ns(i++))); //ns from Slater_mj::IEClient
@@ -110,10 +110,10 @@ std::ostream&  Large_IrrepBasisSet::Write(std::ostream& os) const
     }
     else
     {
-        os << "Slater functions j,mj=" << GetQuantumNumber()
-        << " with " << GetNumFunctions() << " basis functions, alpha={";
+        os << "Slater                  " << GetQuantumNumber()
+        << "                 r^" << l << "*exp(-alpha*r), alpha={";
         for (auto b:*this) os << *b;
-        os << "}" << std::endl;
+        os << "}";
     }
     return os;
 }
@@ -144,9 +144,9 @@ std::istream&  Large_IrrepBasisSet::Read (std::istream& is)
 Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* db,const Large_IrrepBasisSet* lbs)
     : IrrepBasisSetCommon(lbs->GetQuantumNumber().Clone())
     , TIrrepBasisSetCommon<double>(lap,db)
-    , Small_IrrepIEClient(lbs->size())
+    , IrrepIEClient(lbs->size(),lbs->kappa,lbs->mj)
 {
-    //Small_IrrepIEClient::Init(exponents,kappa,mj);
+  IrrepIEClient::Init(lbs->es);
   for (auto b:*lbs) 
     {
         const Large_BasisFunction* lb=dynamic_cast<const Large_BasisFunction*>(b);
@@ -179,10 +179,11 @@ std::ostream&  Small_IrrepBasisSet::Write(std::ostream& os) const
     }
     else
     {
-        os << "Slater functions j,mj=" << GetQuantumNumber()
-        << " with " << GetNumFunctions() << " basis functions, alpha={";
+        os << "Slater (Kintic Balance) " << GetQuantumNumber()
+        << "[(2*" << std::setw(2) << kappa << "+1)/r - e]*r^" << l << "*exp(-alpha*r), alpha={";
         for (auto b:*this) os << *b;
-        os << "}" << std::endl;
+        os << "}";
+        
     }
     return os;
 }

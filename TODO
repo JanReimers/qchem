@@ -61,7 +61,7 @@ Priority 1:
                     Clean up LMax (multiple places)
                         -LMax for electron configurations should be 3
                         -LMax for basis sets/functions can be >3
-                    
+                    Fix up GetN for O_kmj.
                 -BasisSet
                     -Slater_mj,  SG_mj
                     -Loop over kappa and mj

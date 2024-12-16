@@ -16,11 +16,11 @@ class Large_IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
     , public         TIrrepBasisSetCommon<double>
-    , public         Large_IrrepIEClient
+    , public         IrrepIEClient
 {
 public:
     Large_IrrepBasisSet() {};
-    Large_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa,int mj);
+    Large_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa,double mj);
 
     virtual ::IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
@@ -35,7 +35,7 @@ class Small_IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
     , public         TIrrepBasisSetCommon<double>
-    , public         Small_IrrepIEClient
+    , public         IrrepIEClient
 {
 public:
     Small_IrrepBasisSet() {};
@@ -58,7 +58,7 @@ class Dirac_IrrepBasisSet
 {
 public:
     Dirac_IrrepBasisSet() {};
-    Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa,int mj);
+    Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa,double mj);
 
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;

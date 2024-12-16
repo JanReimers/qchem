@@ -631,6 +631,9 @@
 		<Unit filename="src/Symmetry/AtomQN.C">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="src/Symmetry/OkmjQN.C">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="src/Symmetry/UnitQN.C">
 			<Option compilerVar="CC" />
 		</Unit>

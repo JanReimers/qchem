@@ -38,7 +38,6 @@ public:
     , ie(bs->itsIE)
     , cl(new Molecule())
     {
-        StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
     }
     
@@ -51,6 +50,7 @@ public:
 
 TEST_F(DiracIntegralTests, BasisSet)
 {
+    StreamableObject::SetToPretty();
     cout << *bs << endl;
 }
 

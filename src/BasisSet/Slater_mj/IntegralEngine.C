@@ -123,12 +123,12 @@ DiracIntegralEngine::ERI3 DiracIntegralEngine::MakeRepulsion3C(iec_t* ab,iec_t* 
     return ERI3();
 }
 
-ERI4 DiracIntegralEngine::MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const
+ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const
 {
     assert(false);
     return ERI4();    
 }
-ERI4 DiracIntegralEngine::MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const
+ERI4 DiracIntegralEngine::MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
 {
     assert(false);
     return ERI4();    
