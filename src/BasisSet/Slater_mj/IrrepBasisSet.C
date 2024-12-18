@@ -147,10 +147,11 @@ Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<do
     , Small_IrrepIEClient(lbs->size(),lbs->kappa,lbs->mj)
 {
   Small_IrrepIEClient::Init(lbs->es);
+  size_t i=1;
   for (auto b:*lbs) 
     {
         const Large_BasisFunction* lb=dynamic_cast<const Large_BasisFunction*>(b);
-        IrrepBasisSetCommon::Insert(new Small_BasisFunction(lb)); 
+        IrrepBasisSetCommon::Insert(new Small_BasisFunction(lb,ns(i++))); 
     }
 
 };

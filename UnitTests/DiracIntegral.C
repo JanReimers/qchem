@@ -9,12 +9,14 @@
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
 #include "Imp/Symmetry/OkmjQN.H"
 
+#include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Containers/ERI4.H"
 #include "Imp/Containers/ptr_vector.h"
 
+#include <MeshParams.H>
 #include <Cluster.H>
 #include <BasisSet.H>
 #include <iostream>
@@ -30,22 +32,46 @@ using std::endl;
 class DiracIntegralTests : public ::testing::Test
 {
 public:
+    typedef SMatrix<double> SMat;
+    
     DiracIntegralTests()
-    : Lmax(4    )
+    : Lmax(4   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Slater_mj::Dirac_BasisSet(lap,3,0.1,10,Lmax))
+    , bs(new Slater_mj::Dirac_BasisSet(lap,15,0.1,10,Lmax))
     , ie(bs->itsIE)
     , cl(new Molecule())
     {
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
+        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
+        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }
     
+    static const TIrrepBasisSet<double>* GetLarge(IrrepBasisSet* ibs)
+    {
+        assert(ibs);
+        const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
+        assert(dirbs);
+        return dirbs->itsLargeBS;
+    }
+    static const TIrrepBasisSet<double>* GetSmall(IrrepBasisSet* ibs)
+    {
+        assert(ibs);
+        const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
+        assert(dirbs);
+        return dirbs->itsSmallBS;
+    }
+    
+    static SMat merge_diag(const SMat& l,const SMat& s)
+    {
+        return Slater_mj::DiracIntegralEngine::merge_diag(l,s);
+    }
     int Lmax, Z;
     LAParams lap;
     Slater_mj::Dirac_BasisSet* bs;
     AnalyticIE<double>* ie;
     Cluster* cl;
+    MeshIntegrator<double>* mintegrator;
 };
 
 TEST_F(DiracIntegralTests, BasisSet)
@@ -62,12 +88,20 @@ TEST_F(DiracIntegralTests, Overlap)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        cout << std::fixed << std::setprecision(3) << std::setw(6) << S << endl;
-
+//        cout << std::fixed << std::setprecision(3) << std::setw(6) << S << endl;
+        const TIrrepBasisSet<double>* l=GetLarge(*i);
+        const TIrrepBasisSet<double>* s=GetSmall(*i);
+        SMatrix<double> SLnum = mintegrator->Overlap(*l);
+        SMatrix<double> SSnum = mintegrator->Overlap(*s);
+//        cout << SLnum << SSnum << endl;
+        SMat Snum=merge_diag(SLnum,SSnum);
+        cout << Max(fabs(S-Snum)) << endl;
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }
 }
 
 
+/*
 TEST_F(DiracIntegralTests, Nuclear)
 {
     StreamableObject::SetToPretty();
@@ -90,7 +124,6 @@ TEST_F(DiracIntegralTests, Kinetic)
     }
 }
 
-/*
 TEST_F(DiracIntegralTests, Overlap3C)
 {
     for (auto i=bs->beginT();i!=bs->end();i++)

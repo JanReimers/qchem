@@ -8,12 +8,15 @@
 #include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Containers/ERI4.H"
 
+using std::cout;
+using std::endl;
+
 namespace Slater
 {
 
 double IntegralEngine::Overlap(double ea, double eb,size_t l) const
 {
-    return SlaterIntegral(ea+eb,l+2);
+    return SlaterIntegral(ea+eb,l+2); //Already has 4*Pi
 }
 
 double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
@@ -21,15 +24,17 @@ double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
     double ab=ea+eb;
     int na=l+1,nb=l+1;
     int n=na+nb;
-    double Term1=0.5*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2);
+    double Term1=0.5*(na*nb+l*(l+1))*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
     double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
     double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
+
     return Term1+Term2+Term3;
 }
 
 double IntegralEngine::Nuclear(double ea, double eb,size_t l) const
 {
-    return SlaterIntegral(ea+eb,2*l+1);
+    return SlaterIntegral(ea+eb,2*l+1); //Already has 4*Pi
 }
 
 double IntegralEngine::Charge (double ea,           size_t l) const

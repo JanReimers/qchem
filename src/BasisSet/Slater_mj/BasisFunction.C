@@ -65,10 +65,12 @@ Large_BasisFunction::Vec3 Large_BasisFunction::Gradient(const Vec3& r) const
     return new  Large_BasisFunction(*this);
 }
 
-Small_BasisFunction::Small_BasisFunction(const Large_BasisFunction* _Pr)
+Small_BasisFunction::Small_BasisFunction(const Large_BasisFunction* _Pr,double norm)
 : Pr(_Pr)
+, itsNormalization(norm)
 {
     assert(Pr);
+    assert(itsNormalization>0.0);
 }
 
 bool Small_BasisFunction::operator==(const ::BasisFunction& bf) const
@@ -91,9 +93,10 @@ std::istream& Small_BasisFunction::Read(std::istream& is)
 //
 double Small_BasisFunction::operator()(const Vec3& r) const
 {
-    double e=Pr->itsExponent;
+    double e=Pr->itsExponent; 
     double f = Pr->kappa >0 ? (2*Pr->kappa+1)/norm(r)-e : -e;
-    return f*(*Pr)(r);
+    double n=itsNormalization/Pr->itsNormalization; //Pr(r) is already normalized.
+    return n*f*(*Pr)(r); 
 }
 
 Large_BasisFunction::Vec3 Small_BasisFunction::Gradient(const Vec3& r) const

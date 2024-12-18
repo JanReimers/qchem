@@ -9,6 +9,8 @@
 #include "../TIrrepCommon.H"
 #include "oml/vector.h"
 
+class DiracIntegralTests;
+
 namespace Slater_mj
 {
    
@@ -68,6 +70,8 @@ public:
     virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 private:
+    friend class ::DiracIntegralTests;
+    
     Large_IrrepBasisSet* itsLargeBS;
     Small_IrrepBasisSet* itsSmallBS;
 };

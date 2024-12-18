@@ -43,7 +43,7 @@ class Small_BasisFunction
 {
 public:
     Small_BasisFunction();
-    Small_BasisFunction(const Large_BasisFunction*);
+    Small_BasisFunction(const Large_BasisFunction*,double norm);
     
     virtual bool   operator==(const ::BasisFunction&) const;
 
@@ -55,6 +55,7 @@ public:
     virtual Vec3   Gradient  (const Vec3&) const;
 private:
     const Large_BasisFunction* Pr;
+    double itsNormalization;
 };
 
 } //namespace _Slater_mj_BasisFunction_H_

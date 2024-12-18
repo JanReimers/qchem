@@ -6,6 +6,7 @@
 #include "Imp/BasisSet/Slater_m/IntegralEngine.H"
 #include "Imp/BasisSet/Slater_mj/IEClient.H"
 
+class DiracIntegralTests;
 
 namespace Slater_mj
 {
@@ -35,6 +36,7 @@ public:
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const;
 
 private:
+    friend class ::DiracIntegralTests;
     static const Dirac_IrrepIEClient* dcast(iec_t*);
     static SMat merge_diag(const SMat& l,const SMat& s);
     static SMat merge_off_diag(const SMat& ls);

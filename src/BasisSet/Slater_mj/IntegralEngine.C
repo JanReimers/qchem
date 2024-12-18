@@ -155,7 +155,7 @@ Vector<double> DiracIntegralEngine::loop_4_exchange(size_t id, size_t la, size_t
 double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 {
     assert(l2%2==0);
-    return 2.0*Slater_m::IntegralEngine::Kinetic(ea,eb,l2/2);
+    return 2.0*Slater_m::IntegralEngine::Kinetic(ea,eb,l2/2); //Kinetic already has 4*Pi
 }
 
 //  This is anew one <a|p^2/r|b> !
@@ -164,7 +164,7 @@ double Small_IntegralEngine::Nuclear(double ea, double eb,size_t l) const
     double ab=ea+eb;
     int na=l+1,nb=l+1;
     int n=na+nb;
-    double Term1= (na*nb+l*(l+1))* SlaterIntegral(ab,n-3);
+    double Term1= (na*nb+l*(l+1))* SlaterIntegral(ab,n-3); 
     double Term2=-(na*eb+nb*ea)  * SlaterIntegral(ab,n-2);
     double Term3=        ea*eb   * SlaterIntegral(ab,n-1);
     return Term1+Term2+Term3;
