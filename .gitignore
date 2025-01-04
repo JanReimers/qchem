@@ -34,3 +34,13 @@ gprof-N1-newIE.out
 *.out
 
 *.ods#
+
+build/
+
+old/PlaneWave/BlochQN.C
+
+old/PlaneWave/PlaneWaveBF.C
+
+old/PlaneWave/PlaneWaveBS.C
+
+old/PlaneWave/PlaneWaveIE.C
