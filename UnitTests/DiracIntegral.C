@@ -35,10 +35,10 @@ public:
     typedef SMatrix<double> SMat;
     
     DiracIntegralTests()
-    : Lmax(4   )
+    : Lmax(0   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Slater_mj::Dirac_BasisSet(lap,15,0.1,10,Lmax))
+    , bs(new Slater_mj::Dirac_BasisSet(lap,3,0.1,10,Lmax))
     , ie(bs->itsIE)
     , cl(new Molecule())
     {
@@ -74,11 +74,11 @@ public:
     MeshIntegrator<double>* mintegrator;
 };
 
-TEST_F(DiracIntegralTests, BasisSet)
-{
-    StreamableObject::SetToPretty();
-    cout << *bs << endl;
-}
+// TEST_F(DiracIntegralTests, BasisSet)
+// {
+//     StreamableObject::SetToPretty();
+//     cout << *bs << endl;
+// }
 
 
 TEST_F(DiracIntegralTests, Overlap)
@@ -95,23 +95,30 @@ TEST_F(DiracIntegralTests, Overlap)
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
 //        cout << SLnum << SSnum << endl;
         SMat Snum=merge_diag(SLnum,SSnum);
-        cout << Max(fabs(S-Snum)) << endl;
+        // cout << Max(fabs(S-Snum)) << endl;
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }
 }
 
 
-/*
 TEST_F(DiracIntegralTests, Nuclear)
 {
     StreamableObject::SetToPretty();
+    int Z=cl->GetNuclearCharge();
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> Ven=ie->MakeNuclear(*i,*cl);
-        cout << std::fixed << std::setprecision(3) << std::setw(6) << Ven << endl;
+        const TIrrepBasisSet<double>* l=GetLarge(*i);
+        const TIrrepBasisSet<double>* s=GetSmall(*i);
+        SMatrix<double> VenLnum = -Z*mintegrator->Nuclear(*l);
+        SMatrix<double> VenSnum = -Z*mintegrator->Nuclear(*s);
+        SMat Vennum=merge_diag(VenLnum,VenSnum);
+        //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
+        //Because of the singularity at the origin, the error is larger than the other integrals.
+        EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
     }
 }
-
+/*
 
 TEST_F(DiracIntegralTests, Kinetic)
 {

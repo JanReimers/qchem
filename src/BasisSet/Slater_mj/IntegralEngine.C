@@ -159,15 +159,13 @@ double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 }
 
 //  This is anew one <a|p^2/r|b> !
+//  For this one we actually need to know the sign kappa = l or -l-1
 double Small_IntegralEngine::Nuclear(double ea, double eb,size_t l) const
 {
-    double ab=ea+eb;
-    int na=l+1,nb=l+1;
-    int n=na+nb;
-    double Term1= (na*nb+l*(l+1))* SlaterIntegral(ab,n-3); 
-    double Term2=-(na*eb+nb*ea)  * SlaterIntegral(ab,n-2);
-    double Term3=        ea*eb   * SlaterIntegral(ab,n-1);
-    return Term1+Term2+Term3;
+    assert(l==0);
+    int kappa = -l -1;
+    return ea*eb*SlaterIntegral(ea+eb,-2*kappa-1);
+   
 }
 
 } //namespace

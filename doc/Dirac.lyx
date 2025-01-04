@@ -4449,14 +4449,14 @@ r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
 
 
 \begin_inset Formula 
-\[
+\begin{equation}
 g_{\kappa a}^{S}=\begin{cases}
 -\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
 \left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
 -2\lambda_{a}r^{-\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
 \left(\frac{2\kappa+1}{r}-2\lambda_{a}r\right)r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
-\end{cases}
-\]
+\end{cases}\label{eq:gS}
+\end{equation}
 
 \end_inset
 
@@ -4879,7 +4879,7 @@ where
 \end_inset
 
 is the same as a non relativistic nuclear attraction integral.
- However the small sector we get a new integral type
+ However in the small sector we get a new integral type
 \begin_inset Formula 
 \[
 V_{ab}^{SS\alpha\alpha}=-Z\left\langle g_{Sa}\left(r\right)|\frac{1}{r}|g_{Sb}\left(r\right)\right\rangle 
@@ -4921,6 +4921,116 @@ nolink "false"
 \begin_inset Formula 
 \[
 V_{ab}^{SS\alpha\alpha}=-Z\left\langle \left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)|\frac{1}{r}|\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{Lb}\left(r\right)\right\rangle .
+\]
+
+\end_inset
+
+Using eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:gS"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ for Slater functions
+\begin_inset Formula 
+\begin{equation}
+g_{\kappa a}^{S}=\begin{cases}
+-\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
+\left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
+-2\lambda_{a}r^{-\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
+\left(\frac{2\kappa+1}{r}-2\lambda_{a}r\right)r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
+\end{cases}\label{eq:gS-1}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\left\langle -\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r}|\frac{1}{r}|-\lambda_{b}r^{-\kappa-1}e^{-\lambda_{b}r}\right\rangle  & \kappa<0\\
+\left\langle \left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r}|\frac{1}{r}|\left(\frac{2\kappa+1}{r}-\lambda_{b}\right)r^{\kappa}e^{-\lambda_{b}r}\right\rangle  & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\lambda_{a}\lambda_{b}\left\langle r^{-2\kappa-3}e^{-\lambda_{ab}r}\right\rangle  & \kappa<0\\
+\left\langle \left(\frac{\left(2\kappa+1\right)^{2}}{r^{2}}-\lambda_{ab}\frac{2\kappa+1}{r}+\lambda_{a}\lambda_{b}\right)r^{2\kappa-1}e^{-\lambda_{ab}r}\right\rangle  & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\lambda_{a}\lambda_{b}\int_{0}^{\infty}r^{2}dr\;r^{-2\kappa-3}e^{-\lambda_{ab}r} & \kappa<0\\
+\int_{0}^{\infty}r^{2}dr\;\left(\frac{\left(2\kappa+1\right)^{2}}{r^{2}}-\lambda_{ab}\frac{2\kappa+1}{r}+\lambda_{a}\lambda_{b}\right)r^{2\kappa-1}e^{-\lambda_{ab}r} & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\lambda_{a}\lambda_{b}\int_{0}^{\infty}dr\;r^{-2\kappa-1}e^{-\lambda_{ab}r} & \kappa<0\\
+\int_{0}^{\infty}dr\;\left(r^{2\kappa-1}\left(2\kappa+1\right)^{2}-r^{2\kappa}\lambda_{ab}\left(2\kappa+1\right)+r^{2\kappa+1}\lambda_{a}\lambda_{b}\right)e^{-\lambda_{ab}r} & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\lambda_{a}\lambda_{b}\int_{0}^{\infty}dr\;r^{-2\kappa-1}e^{-\lambda_{ab}r} & \kappa<0\\
+\int_{0}^{\infty}dr\;\left(r^{2\kappa-1}\left(2\kappa+1\right)^{2}-r^{2\kappa}\lambda_{ab}\left(2\kappa+1\right)+r^{2\kappa+1}\lambda_{a}\lambda_{b}\right)e^{-\lambda_{ab}r} & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+Defining the Slater function integral:
+\begin_inset Formula 
+\[
+S(n,\lambda)=\int dr\:r^{n}e^{-\lambda r}=\frac{n!}{\lambda^{n+1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\lambda_{a}\lambda_{b}S\left(-2\kappa-1,\lambda_{ab}\right) & \kappa<0\\
+\left(2\kappa+1\right)^{2}S\left(2\kappa-1,\lambda_{ab}\right)-\lambda_{ab}\left(2\kappa\right)S\left(2\kappa,\lambda_{ab}\right)+\lambda_{a}\lambda_{b}S\left(2\kappa+1,\lambda_{ab}\right) & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V_{ab}^{SS\alpha\alpha}=-Z\begin{cases}
+\lambda_{a}\lambda_{b}S\left(2l+1,\lambda_{ab}\right) & \kappa<0\\
+\left(2l+1\right)^{2}S\left(2l-1,\lambda_{ab}\right)-2l\lambda_{ab}S\left(2l,\lambda_{ab}\right)+\lambda_{a}\lambda_{b}S\left(2l+1,\lambda_{ab}\right) & \kappa>0
+\end{cases}
 \]
 
 \end_inset

@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "UTMain.C": "cpp"
+        "*.C": "cpp",
+        "*.H": "cpp"
     }
 }
