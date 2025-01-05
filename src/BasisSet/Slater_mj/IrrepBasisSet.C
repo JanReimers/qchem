@@ -23,6 +23,8 @@ Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,IntegralDataBase<do
     , itsSmallBS(new Small_IrrepBasisSet(lap,theDB,itsLargeBS))
 {
     Dirac_IrrepIEClient::Init(itsLargeBS,itsSmallBS);
+    for (auto b:*itsLargeBS) Insert(b);
+    for (auto b:*itsSmallBS) Insert(b);
 };
 
 IrrepBasisSet* Dirac_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const

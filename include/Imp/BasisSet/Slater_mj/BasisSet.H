@@ -9,12 +9,12 @@ namespace Slater_mj
 {
 
 
-class Dirac_BasisSet 
+class DiracBasisSet 
     : public ::BasisSetImp
 {
 public:
-    Dirac_BasisSet() {};
-    Dirac_BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t lMax);
+    DiracBasisSet() {};
+    DiracBasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t lMax);
     
 };
 

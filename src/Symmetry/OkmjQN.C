@@ -35,7 +35,7 @@ QuantumNumber* Omega_kmjQN::AddPrincipleQN(int index) const
 //
 std::pair<int,int> Omega_kmjQN::GetNk(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
 {
-    int l=Getl();
+    int l=GetL();
     int nl=N[l];
     if (Nv[l]==0) return std::make_pair(nl,0);
     assert(nl!=0);
@@ -71,7 +71,7 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
     assert((nl+nlu)%2==0);
     int j=Getj();
     int g=2*j+1;
-    int l=Getl();
+    int l=GetL();
     int nlc=N[l]-Nv[l];
     assert(nlc%(2*g)==0);
     nlc/=g;
@@ -120,7 +120,7 @@ std::ostream& Omega_kmjQN::Write(std::ostream& os) const
     if (StreamableObject::Pretty())
     {
         int jindex=Getj()-0.5;
-        os << SPDFG[Getl()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << mj << " ";
+        os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << mj << " ";
         
     }
     return os;
@@ -131,7 +131,7 @@ std::istream& Omega_kmjQN::Read (std::istream& is)
     return is;
 }
 
-QuantumNumber* Omega_kmjQN::Clone() const
+AngularQN* Omega_kmjQN::Clone() const
 {
     return new Omega_kmjQN(*this);
 }

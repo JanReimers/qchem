@@ -133,6 +133,17 @@ BasisSet* SLm_OBasis::GetBasisSet () const
     return bs;
 }
 
+#include "Imp/BasisSet/Slater_mj/BasisSet.H"
+BasisSet* SLmj_OBasis::GetBasisSet () const
+{
+    assert(N>0);
+    Slater_mj::DiracBasisSet* bs=new Slater_mj::DiracBasisSet(lap,N,emin,emax,Lmax);
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
+    assert(bs->GetNumFunctions()>0);
+    return bs;
+}
+
 #include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 
@@ -210,7 +221,14 @@ WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 
 WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
-{
+{   
+    assert(bs->GetNumFunctions()>0);
     return new MasterPolarizedWF(bs,GetElectronConfiguration() );
 }
 
+#include "Imp/WaveFunction/DiracWaveFunction.H"
+
+WaveFunction* TestDirac::GetWaveFunction(const BasisSet* bs) const
+{
+    return new DiracWF(bs,GetElectronConfiguration());
+}

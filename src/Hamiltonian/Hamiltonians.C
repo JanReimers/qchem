@@ -93,3 +93,15 @@ Ham_DFT_P::Ham_DFT_P(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const Basi
     
 }
 
+#include "Imp/Hamiltonian/Kinetic.H"
+#include "Imp/Hamiltonian/Vnn.H"
+#include "Imp/Hamiltonian/Ven.H"
+
+Ham_DHF::Ham_DHF(cl_t& cl)
+{
+    Add(new Kinetic());
+    Add(new Vnn(cl));
+    Add(new Ven(cl));
+    // Add(new DiracVee);
+    // Add(new DiracVxc);
+}

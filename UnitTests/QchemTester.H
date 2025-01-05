@@ -99,6 +99,7 @@ class SLm_OBasis : public SL_OBasis
     virtual BasisSet*      GetBasisSet () const;   
 };
 
+
 class SGm_OBasis : public SG_OBasis
 {
  protected:
@@ -119,6 +120,14 @@ private:
     int N,LMax;
     double emin,emax;
 };
+
+// For Dirac wave functions
+class SLmj_OBasis : public SL_OBasis
+{
+ protected:
+    virtual BasisSet*      GetBasisSet () const;   
+};
+
 
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 //----------------------------------------------------------------------------------
@@ -163,6 +172,11 @@ public:
     virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
 };
 
+class TestDirac : public virtual QchemTester
+{
+    public:
+    virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
+};  
 
 
 #endif //QchemTester_H

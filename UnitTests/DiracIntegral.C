@@ -38,7 +38,7 @@ public:
     : Lmax(0   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Slater_mj::Dirac_BasisSet(lap,3,0.1,10,Lmax))
+    , bs(new Slater_mj::DiracBasisSet(lap,3,0.1,10,Lmax))
     , ie(bs->itsIE)
     , cl(new Molecule())
     {
@@ -68,7 +68,7 @@ public:
     }
     int Lmax, Z;
     LAParams lap;
-    Slater_mj::Dirac_BasisSet* bs;
+    Slater_mj::DiracBasisSet* bs;
     AnalyticIE<double>* ie;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;

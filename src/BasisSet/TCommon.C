@@ -26,7 +26,8 @@ BasisSetImp::~BasisSetImp()
 size_t BasisSetImp::GetNumFunctions() const
 {
     index_t ret=0;
-    for (auto bs:*this) ret+=bs->GetNumFunctions();
+    for (auto bs:*this) 
+        ret+=bs->GetNumFunctions();
     return ret;
 }
 

@@ -93,7 +93,7 @@ std::istream& YlmQN::Read (std::istream& is)
     return is;
 }
 
-QuantumNumber* YlmQN::Clone() const
+AngularQN* YlmQN::Clone() const
 {
     return new YlmQN(*this);
 }

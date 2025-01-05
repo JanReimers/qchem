@@ -26,7 +26,9 @@ template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const TIrrepBasisSet<T>* bs)
     : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
-{};
+{
+    assert(itsBasisSet->GetNumFunctions()>0);
+};
 
 
 //-----------------------------------------------------------------
@@ -59,7 +61,8 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 {
     assert(itsBasisSet);
     SMatrix<T> H=ham.BuildHamiltonian(itsBasisSet,spin);
-//    std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
+    //std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
+    //std::cout << "H=" << H << std::endl;
     assert(!isnan(H));
     auto [U,e]=itsLASolver->Solve(H);
     itsOrbitals.clear();

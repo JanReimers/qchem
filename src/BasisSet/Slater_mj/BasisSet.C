@@ -9,7 +9,7 @@ namespace Slater_mj
 {
 
 
-Dirac_BasisSet::Dirac_BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t lMax)
+DiracBasisSet::DiracBasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t lMax)
 : BasisSetImp(new DiracIntegralEngine) // this makes a integral DB
 {
     SlaterScaler ss(N,emin,emax,lMax);

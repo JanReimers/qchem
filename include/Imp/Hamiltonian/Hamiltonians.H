@@ -60,3 +60,11 @@ public:
     Ham_DFT_P(cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
 };
 
+//
+//  Dirac-Hartree-Fock (which is polarized by definition).
+//
+class Ham_DHF : public virtual Hamiltonian, private HamiltonianImp
+{
+public:
+    Ham_DHF(cl_t& cl);
+};

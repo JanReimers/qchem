@@ -13,11 +13,14 @@ using std::endl;
 
 AtomQN::AtomQN(): l(0),n(0),itsAngularQN(0) {};
 
-AtomQN::AtomQN(int _n, const YlQN& Yl) 
-: l(Yl.GetL()), n(_n+l), itsAngularQN(Yl.Clone()) {};
+// AtomQN::AtomQN(int _n, const YlQN& Yl) 
+// : l(Yl.GetL()), n(_n+l), itsAngularQN(Yl.Clone()) {};
 
-AtomQN::AtomQN(int _n, const Omega_kmjQN& Okmj)
-: l(Okmj.Getl()), n(_n+l), itsAngularQN(Okmj.Clone()) {};
+// AtomQN::AtomQN(int _n, const Omega_kmjQN& Okmj)
+// : l(Okmj.GetL()), n(_n+l), itsAngularQN(Okmj.Clone()) {};
+
+AtomQN::AtomQN(int _n, const AngularQN& aqn)
+: l(aqn.GetL()), n(_n+l), itsAngularQN(aqn.Clone()) {};
 
 bool AtomQN::Match(const QuantumNumber& qn) const
 {
