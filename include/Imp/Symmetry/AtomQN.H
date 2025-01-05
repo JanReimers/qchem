@@ -3,12 +3,13 @@
 #define _Symmetry_AtomQN_H_
 
 #include <QuantumNumber.H>
+#include <tuple>
 
-class YlQN;
-class Omega_kmjQN;
+class AngularQN;
+
 //---------------------------------------------------------------------------------
 //
-//  angular momentum L and m.
+//  Atomic QN is a combination of the principle QN and the angular QN.
 //
 
 class AtomQN
@@ -16,18 +17,18 @@ class AtomQN
 {
 public:
     AtomQN(            );
-    AtomQN(int n, const YlQN&);
-    AtomQN(int n, const Omega_kmjQN&);
+    AtomQN(int n, const AngularQN&);
 
     virtual bool Match(const QuantumNumber&) const;
     virtual int GetDegeneracy() const;
     virtual QuantumNumber* AddPrincipleQN(int index) const;
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
+ 
+    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::istream&  Read (std::istream&)      ;
     virtual QuantumNumber* Clone(        ) const;
 private:
     int l,n;
-    QuantumNumber* itsAngularQN; //Yl Ylml, or relativistic Ok, Okmj
+    AngularQN* itsAngularQN; //Yl Ylml, or relativistic Ok, Okmj
 };
 
 #endif //_Symmetry_AtomQN_H_

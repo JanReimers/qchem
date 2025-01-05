@@ -18,17 +18,17 @@ public:
     YlmQN(            );
     YlmQN(int l, int m);
 
-    virtual bool Match(const QuantumNumber&) const;
-    virtual int GetDegeneracy() const;
+    virtual bool   Match(const QuantumNumber&) const;
+    virtual int    GetDegeneracy() const;
     QuantumNumber* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
-    virtual QuantumNumber* Clone(        ) const;
+    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::istream&  Read (std::istream&)      ;
+    virtual AngularQN* Clone(        ) const;
 
     int Getm() const {return m;}
-
+    using YlQN::GetL;
 protected:
     int m;
 };

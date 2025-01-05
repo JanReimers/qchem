@@ -88,7 +88,7 @@ std::istream& YlQN::Read (std::istream& is)
     return is;
 }
 
-QuantumNumber* YlQN::Clone() const
+AngularQN* YlQN::Clone() const
 {
     return new YlQN(*this);
 }

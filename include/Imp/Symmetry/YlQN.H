@@ -2,10 +2,7 @@
 #ifndef _Symmetry_YlQN_H_
 #define _Symmetry_YlQN_H_
 
-
-
-#include <QuantumNumber.H>
-#include <tuple>
+#include "Imp/Symmetry/AngularQN.H"
 
 //---------------------------------------------------------------------------------
 //
@@ -14,7 +11,7 @@
 //
 
 class YlQN
-    : public virtual QuantumNumber
+    : public virtual AngularQN
 {
 public:
     YlQN(        );
@@ -24,11 +21,11 @@ public:
     virtual int GetDegeneracy() const;
     virtual QuantumNumber* AddPrincipleQN(int index) const;
 
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
-    virtual QuantumNumber* Clone(        ) const;
+    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::istream&  Read (std::istream&)      ;
+    virtual AngularQN* Clone(        ) const;
 
-    int     GetL() const {return itsL;}
+    virtual int     GetL() const {return itsL;}
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
 protected:
