@@ -90,6 +90,20 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) cons
     assert((nl+nlu)%2==0);
     return s==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;            
 }
+
+void AtomElectronConfiguration::Display() const
+{
+    cout << "N: ";
+    for (auto n:N) cout << n << ",";
+    cout << endl;
+    cout << "Nf: ";
+    for (auto n:Nf) cout << n << ",";
+    cout << endl;
+    cout << "Nv: ";
+    for (auto n:Nv) cout << n << ",";
+    cout << endl;
+    cout << "NUnpaired: " << NUnpaired << endl;
+}
     
 
 int MoleculeElectronConfiguration::GetN(const Spin& s) const
@@ -99,4 +113,9 @@ int MoleculeElectronConfiguration::GetN(const Spin& s) const
         return Ne/2;
     else
         return s==Spin::Up ? (Ne+1)/2 : (Ne-1)/2;
+}
+
+void MoleculeElectronConfiguration::Display() const
+{
+    cout << "Ne: " << Ne << endl;
 }

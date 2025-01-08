@@ -63,7 +63,7 @@ namespace qchem
 {
     // Integral types.
     enum IType3C {Overlap3C, Repulsion3C}; // <ab|c> and <ar|1/r12|c>
-    enum IType2C {Overlap2C, Repulsion2C,Kinetic,Nuclear, InvOverlap, InvRepulsion, Charge, Normalization};
+    enum IType2C {Overlap2C, Repulsion2C,Kinetic,Nuclear,RestMass, InvOverlap, InvRepulsion, Charge, Normalization};
 }
 
 #endif // TYPES_H_INCLUDED

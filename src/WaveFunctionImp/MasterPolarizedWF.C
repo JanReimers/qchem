@@ -6,6 +6,7 @@
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/SCFIteratorPol.H"
 #include "Imp/ChargeDensity/PolarizedCD.H"
+#include "Imp/WaveFunction/ElectronConfiguration.H"
 #include <ChargeDensity.H>
 #include <Spin.H>
 #include <QuantumNumber.H>
@@ -61,6 +62,7 @@ const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);
+    itsEC->Display();
     itsUpELevels=itsSpinUpGroup->FillOrbitals(itsEC);
     itsDnELevels=itsSpinDnGroup->FillOrbitals(itsEC);
     return itsUpELevels;

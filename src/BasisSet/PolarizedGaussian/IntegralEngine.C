@@ -82,6 +82,12 @@ IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* a,const Cluster& cl) con
     return Integrate(qchem::Nuclear,a,&cl);
 }
 
+IntegralEngine::SMat IntegralEngine::MakeRestMass(iec_t* a) const
+{
+    assert(false);
+    return SMat();
+}
+
 IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
 {    
     auto a=dcast(iea);

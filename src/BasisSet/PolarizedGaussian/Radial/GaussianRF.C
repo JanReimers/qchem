@@ -153,6 +153,7 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
         case qchem::InvRepulsion :
         case qchem::Charge :
         case qchem::Normalization :
+        case qchem::RestMass :
             std::cerr << "GaussianRF::Integrate switch case not handled." <<  std::endl;
     } //switch
   

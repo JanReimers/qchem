@@ -7,6 +7,8 @@ extern const double  Pi12;
 extern const double  Pi32;
 extern const double  Pi52;
 
+extern const double  c_light; // speed of light in atomic units
+
 inline double Square(double x)
 {
     return x*x;

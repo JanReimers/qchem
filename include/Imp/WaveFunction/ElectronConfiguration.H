@@ -15,7 +15,9 @@ public:
     //! Number of electrons in one symmetry/irrep sector 
     virtual int GetN(const QuantumNumber&             ) const=0;
     //! Number of electrons in one {symmetry/irrep,spin up/dn} sector
-    virtual int GetN(const QuantumNumber&, const Spin&) const=0;    
+    virtual int GetN(const QuantumNumber&, const Spin&) const=0;
+
+    virtual void Display() const=0;
 };
 
 
@@ -32,6 +34,8 @@ public:
     virtual int GetN(                      const Spin&) const;
     virtual int GetN(const QuantumNumber&             ) const;
     virtual int GetN(const QuantumNumber&, const Spin&) const;
+    virtual void Display() const;
+
 private:
     static const int FullShells[Nshell][LMax+2];
     int N [LMax+1]; //Total N[l]
@@ -52,6 +56,7 @@ public:
     virtual int GetN(                      const Spin&) const;
     virtual int GetN(const QuantumNumber&             ) const {return Ne;}
     virtual int GetN(const QuantumNumber&, const Spin& s) const {return GetN(s);}
+    virtual void Display() const;
 private:
     int Ne;
 };

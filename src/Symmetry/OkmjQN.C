@@ -8,6 +8,86 @@
 
 using std::cout;
 using std::endl;
+Omega_kQN::Omega_kQN(): kappa(0) {};
+
+Omega_kQN::Omega_kQN(int _kappa) : kappa(_kappa) {};
+
+bool Omega_kQN::Match(const QuantumNumber& qn) const
+{
+    const Omega_kQN* oqn = dynamic_cast<const Omega_kQN*>(&qn);
+    assert(oqn);
+    return kappa==oqn->kappa;
+}
+
+int Omega_kQN::GetDegeneracy() const
+{
+    return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
+}
+
+QuantumNumber* Omega_kQN::AddPrincipleQN(int index) const
+{
+    return new AtomQN(index,*this);
+}
+
+std::pair<int,int> Omega_kQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
+{
+    int l=GetL();
+    int nl=N[l];
+    if (Nv[l]==0) return std::make_pair(nl,0);
+    assert(nl!=0);
+    // Handle partial shells
+    int nlu=1; //# unpaired in shell l. 
+    if (l==1) // p is partial.
+    {
+        assert(Nv[2]==0); //No partial D orbital
+        nlu=NUnpaired-Nv[0];
+    }
+    else if (l==2) // d is partial.
+    {
+        assert(Nv[1]==0); //p better be full
+        if (Nv[l]>1) nlu=NUnpaired-Nv[0];            
+    }
+    else if(l==3) // f is partial.
+    {
+        
+        assert(Nv[0]==0); //If f is Partial s must be full.
+        assert(Nv[1]==0); //If f is Partial p must be full.
+        nlu=NUnpaired-Nv[2];
+        assert(nlu>=0);
+    }
+    return std::make_pair(nl,nlu);
+}
+
+extern std::string SPDFG[];
+std::string j2s[]={"1/2","3/2","5/2","7/2","9/2"};
+
+
+std::ostream& Omega_kQN::Write(std::ostream& os) const
+{
+    if (StreamableObject::Pretty())
+    {
+        int jindex=Getj()-0.5;
+        os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " ";
+        
+    }
+    return os;
+}
+
+std::istream& Omega_kQN::Read (std::istream& is)
+{
+    return is;
+}
+
+AngularQN* Omega_kQN::Clone() const
+{
+    return new Omega_kQN(*this);
+}
+
+
+
+
+
+
 
 Omega_kmjQN::Omega_kmjQN(): kappa(0), mj(0) {};
 
@@ -69,7 +149,7 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
     int nl,nlu;
     std::tie(nl,nlu)=GetNk(N,Nv,NUnpaired);
     assert((nl+nlu)%2==0);
-    int j=Getj();
+    double j=Getj();
     int g=2*j+1;
     int l=GetL();
     int nlc=N[l]-Nv[l];
@@ -112,15 +192,13 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
 }
 
 
-extern std::string SPDFG[];
-std::string j2s[]={"1/2","3/2","5/2","7/2","9/2"};
 
 std::ostream& Omega_kmjQN::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
     {
         int jindex=Getj()-0.5;
-        os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << mj << " ";
+        os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << std::setprecision(1) << mj << " ";
         
     }
     return os;

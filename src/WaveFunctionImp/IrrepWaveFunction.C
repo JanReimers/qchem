@@ -6,7 +6,9 @@
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
+#include "Imp/Misc/DFTDefines.H"
 #include <Hamiltonian.H>
+#include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <cassert>
 
@@ -49,11 +51,15 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
 //
 const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
 {
+    static const double emin=-c_light*c_light;
     // Step one: How many electron for this Irrep(qn,spin) ?
     double ne=ec->GetN(*itsQN,itsSpin);
+    std::cout << "ne=" << ne << " QN=" << *itsQN << std::endl;
     //  Loop over orbitals and consume the electrons quota.
     for (auto& o:*itsOrbitals)
     {
+        std::cout << "o=" << o->GetEigenEnergy() << std::endl;
+        if (o->GetEigenEnergy()<=emin) continue;
         ne=o->TakeElectrons(ne);
         if (ne<=0.0) break;
     }
@@ -61,13 +67,17 @@ const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration*
     itsELevels.clear();
     for (auto o:*itsOrbitals)
         itsELevels.insert(o->MakeEnergyLevel(itsSpin));
+    
+     for (auto o:*itsOrbitals)
+        if (o->GetOccupation()>0.0)
+            std::cout << *o << std::endl;
     return itsELevels;
 }
 
 void  IrrepWaveFunction::DisplayEigen() const
 {
     itsELevels.Report(std::cout);
-    //itsOrbitals->DisplayEigen();
+   
 }
 
 SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)

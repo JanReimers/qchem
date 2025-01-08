@@ -90,6 +90,16 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Clu
     SMat vs=itsSmallIE->MakeNuclear(da->itsSmallIEC,cl);
     return merge_diag(vl,vs);
 }
+DiracIntegralEngine::SMat DiracIntegralEngine::MakeRestMass(iec_t* a) const
+{
+    static const double f=-2.0*c_light*c_light;
+    auto da=dcast(a);
+    SMat rl(da->itsLargeIEC->size());
+    Fill(rl,0.0);
+    SMat rs=f*itsSmallIE->MakeOverlap(da->itsSmallIEC);
+    return merge_diag(rl,rs);
+}
+
 DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
 {
     auto da=dcast(a);

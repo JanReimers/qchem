@@ -24,7 +24,7 @@ bool YlmQN::Match(const QuantumNumber& qn) const
 
 int YlmQN::GetDegeneracy() const
 {
-    return 1;
+    return 1; 
 }
 
 QuantumNumber* YlmQN::AddPrincipleQN(int index) const

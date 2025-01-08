@@ -22,7 +22,7 @@ class Large_IrrepBasisSet
 {
 public:
     Large_IrrepBasisSet() {};
-    Large_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa,double mj);
+    Large_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
 
     virtual ::IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
@@ -60,7 +60,7 @@ class Dirac_IrrepBasisSet
 {
 public:
     Dirac_IrrepBasisSet() {};
-    Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa,double mj);
+    Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
 
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;

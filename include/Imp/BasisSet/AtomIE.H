@@ -21,6 +21,7 @@ public:
     virtual SMat MakeOverlap  (iec_t* a) const;
     virtual SMat MakeKinetic  (iec_t* a) const;
     virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
+    virtual SMat MakeRestMass (iec_t* a) const;
     virtual RVec MakeCharge   (iec_t* a) const;
     //  DFT Rho,Vac fitting functions
     virtual SMat MakeRepulsion  (iec_t* a) const; //Used for charge and Vxc fitting.

@@ -8,16 +8,15 @@ using std::endl;
 namespace Slater_mj
 {
 
-IrrepIEClient::IrrepIEClient(size_t N,int _kappa, double _mj) 
+IrrepIEClient::IrrepIEClient(size_t N,int _kappa) 
     : AtomIrrepIEClient(N)
     , kappa(_kappa)
     , j(Omega_kmjQN::j(kappa))
-    , mj(_mj) 
     {};
     
 void IrrepIEClient::Init(const Vector  <double>& exponents)
 {
-    AtomIrrepIEClient::Init(exponents,Omega_kmjQN::l(kappa),Omega_kmjQN::ml(kappa,mj));
+    AtomIrrepIEClient::Init(exponents,Omega_kmjQN::l(kappa));
 }
 
 double IrrepIEClient::Norm(double e, size_t l) const

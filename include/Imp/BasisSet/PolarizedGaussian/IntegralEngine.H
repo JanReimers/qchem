@@ -28,13 +28,14 @@ public:
     
     virtual RVec MakeNormalization(iec_t* a) const;
     // One electron functions for DFT and HF    
-    virtual SMat MakeOverlap(iec_t* a) const;
-    virtual SMat MakeKinetic(iec_t* a) const;
-    virtual SMat MakeNuclear(iec_t* a, const Cluster&   ) const;
-    virtual RVec MakeCharge (iec_t* a) const;
+    virtual SMat MakeOverlap (iec_t* a) const;
+    virtual SMat MakeKinetic (iec_t* a) const;
+    virtual SMat MakeNuclear (iec_t* a, const Cluster&   ) const;
+    virtual SMat MakeRestMass(iec_t* a) const;
+    virtual RVec MakeCharge  (iec_t* a) const;
     //  DFT Rho,Vac fitting functions
-    virtual  SMat MakeRepulsion(iec_t* a          ) const; //Used for charge and Vxc fitting.
-    virtual   Mat MakeRepulsion(iec_t* a,iec_t* b) const; //Used for charge and Vxc fitting.
+    virtual SMat MakeRepulsion  (iec_t* a          ) const; //Used for charge and Vxc fitting.
+    virtual  Mat MakeRepulsion  (iec_t* a ,iec_t* b) const; //Used for charge and Vxc fitting.
     virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
     // HF functions

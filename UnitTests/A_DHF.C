@@ -32,7 +32,7 @@ public:
 TEST_P(A_SLmj_DHF,Multiple)
 {
     int Z=GetParam();
-    int N=3;
+    int N=10;
     if (Z>12) N=14;
     if (Z>50) N=16;
     Init(N,0.3,6*Z,GetLMax(Z));

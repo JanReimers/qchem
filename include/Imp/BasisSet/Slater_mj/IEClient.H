@@ -12,10 +12,10 @@ struct IrrepIEClient
     , public AtomIrrepIEClient
 {
     IrrepIEClient() {}; 
-    IrrepIEClient(size_t N,int _kappa, double _mj);
+    IrrepIEClient(size_t N,int _kappa);
 
     int kappa;
-    double j,mj;
+    double j;
     
     void Init(const Vector  <double>& exponents);
     
@@ -29,7 +29,7 @@ struct Small_IrrepIEClient
 {
 public:
     Small_IrrepIEClient() {}; 
-    Small_IrrepIEClient(size_t N,int kappa, double mj) : IrrepIEClient(N,kappa,mj) {};
+    Small_IrrepIEClient(size_t N,int kappa) : IrrepIEClient(N,kappa) {};
 private:
     virtual double Norm(double e, size_t l) const;
     static double Kinetic(double ea, double eb,size_t l);     

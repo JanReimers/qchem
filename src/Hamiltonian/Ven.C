@@ -22,6 +22,7 @@ Ven::Ven(cl_t& cl)
 
 HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
+    //std::cout << "Ven=" << bs->GetNuclear(&*theCluster) << std::endl;
     return bs->GetNuclear(&*theCluster);
 }
 

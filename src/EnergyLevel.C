@@ -9,6 +9,10 @@
 void EnergyLevel::merge(const EnergyLevel& el)
 {
     occ+=el.occ;
+    if (occ==1 && el.occ==1)
+        std::cout << "adding first electron" << std::endl;
+    if (occ >1)
+        std::cout << "occ=" << occ << std::endl;
     degen+=el.degen;
     assert(s==el.s);
     // Should we had lists of QNs and Orbitals?

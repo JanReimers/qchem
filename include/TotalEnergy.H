@@ -31,6 +31,7 @@ public:
     double Exc;
     double ExcFit;
     double ExcFitFit;
+    double RestMass;
 };
 
 #endif //_TotalEnergy_H_

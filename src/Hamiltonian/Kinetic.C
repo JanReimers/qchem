@@ -11,6 +11,8 @@ Kinetic::Kinetic()
 
 HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
 {
+    std::cout << "K=" << bs->GetKinetic() << std::endl;
+    
     return bs->GetKinetic();
 }
 

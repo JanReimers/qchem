@@ -1,4 +1,9 @@
 Priority 1:
+    -Adding RestMass integral calculation was very labourious.  Call Chain:
+        HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
+        -Should we at least get the basis set out of the call chain?
+        -Reimagine in conjunction with Separate FitBasisSet idea.
+
     -Make and atom app for testing basis sets
         -Z{range or list} -N, -e{min.max} -b{S,Sm,G,Gm} -dL{front,back} 
         -What command line arg system to use?

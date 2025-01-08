@@ -158,7 +158,15 @@ template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* 
     else
         return i->second;
 }
-
+template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRestMass(iec_t* a)
+{
+    assert(itsAnalyticIE);
+    id2c_t key=std::make_tuple(qchem::RestMass,a->GetID());
+    if (auto i = its2C.find(key); i==its2C.end())
+        return its2C[key] =itsAnalyticIE->MakeRestMass(a);
+    else
+        return i->second;
+}
 
 //
 //  THis get called in code by FittedFunctionImplementation<T>::FitGet2CenterOverlap(const IrrepBasisSet* bs) const

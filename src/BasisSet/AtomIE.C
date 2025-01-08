@@ -61,6 +61,12 @@ AtomIE::SMat AtomIE::MakeNuclear(iec_t* iea,const Cluster& cl) const
     return Hn;
 }
 
+AtomIE::SMat AtomIE::MakeRestMass(iec_t* iea) const
+{
+    assert(false);
+    return SMat();
+}
+
 AtomIE::RVec AtomIE::MakeCharge(iec_t* iea) const
 {
     auto a=dcast(iea);;
