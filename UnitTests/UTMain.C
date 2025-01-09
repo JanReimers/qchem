@@ -6,8 +6,9 @@ int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
 //     testing::GTEST_FLAG(filter) = "DiracIntegralTests.*"; 
-     testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/*:Multiple/A_SLm_HF_P.Multiple/0";
-//     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/0";
+//     testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/*:Multiple/A_SLm_HF_P.Multiple/0";
+//     testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/0";
+     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/0";
 
 //     testing::GTEST_FLAG(filter) = "libCintTests.*"; 
 //     testing::GTEST_FLAG(filter) = "ERI4Tests.*"; 

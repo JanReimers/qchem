@@ -214,10 +214,10 @@ public:
 TEST_P(A_SLm_HF_P,Multiple)
 {
     int Z=GetParam();
-    int N=10;
+    int N=7;
     if (Z>12) N=14;
     if (Z>50) N=16;
-    Init(N,0.3,6*Z,GetLMax(Z));
+    Init(N,0.125,8*Z,GetLMax(Z));
     Iterate({40,Z*1e-4,1.0,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
