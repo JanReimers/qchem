@@ -18,7 +18,7 @@ HamiltonianTerm::SMat DiracKinetic::CalculateHamiltonianMatrix(const IrrepBasisS
 
 void DiracKinetic::GetEnergy(TotalEnergy& te) const
 {
-    te.Kinetic=CalculateEnergy();
+    te.Kinetic=0.5*CalculateEnergy();
 }
 
 std::ostream& DiracKinetic::Write(std::ostream& os) const

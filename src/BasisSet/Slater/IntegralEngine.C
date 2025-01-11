@@ -31,6 +31,19 @@ double IntegralEngine::Kinetic(double ea, double eb,size_t l) const
 
     return Term1+Term2+Term3;
 }
+double IntegralEngine::Kinetic(double ea, double eb,size_t la, size_t lb) const
+{
+    double ab=ea+eb;
+    int na=la+1,nb=lb+1;
+    size_t ll=(la*(la+1)+lb*(lb+1))/2;
+    int n=na+nb;
+    double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
+    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
+
+    return Term1+Term2+Term3;
+}
 
 double IntegralEngine::Nuclear(double ea, double eb,size_t l) const
 {

@@ -48,6 +48,20 @@ AtomIE::SMat AtomIE::MakeKinetic(iec_t* iea) const
     return Hk;
 }
 
+AtomIE::Mat AtomIE::MakeKinetic(iec_t* iea, iec_t* ieb) const
+{
+    auto a=dcast(iea);;
+    auto b=dcast(ieb);;
+    size_t Na=a->size();
+    size_t Nb=b->size();
+    Matrix<double> Hk(Na,Nb);
+    for (auto i:Hk.rows())
+        for (auto j:Hk.cols())
+            Hk(i,j)=Kinetic(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*b->ns(j);
+
+    return Hk;
+}
+
 AtomIE::SMat AtomIE::MakeNuclear(iec_t* iea,const Cluster& cl) const
 {
     auto a=dcast(iea);;

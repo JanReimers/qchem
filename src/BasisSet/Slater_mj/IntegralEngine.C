@@ -42,7 +42,7 @@ DiracIntegralEngine::SMat DiracIntegralEngine::merge_diag(const SMat& l,const SM
     return ls;
 }
 
-DiracIntegralEngine::SMat DiracIntegralEngine::merge_off_diag(const SMat& ls)
+DiracIntegralEngine::SMat DiracIntegralEngine::merge_off_diag(const Mat& ls)
 {
     size_t Nl=ls.GetNumRows();
     size_t Ns=ls.GetNumCols();
@@ -79,10 +79,16 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
 {
     auto da=dcast(a);
-    SMat kl=2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC);
-    //SMat ks=itsSmallIE->MakeKinetic(da->itsSmallIEC);
-    return merge_off_diag(kl);
+    Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+    return merge_off_diag(kls);
 }
+
+DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
+{
+    assert(false);
+    return Mat();
+}
+
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
 {
     auto da=dcast(a);
@@ -177,5 +183,6 @@ double Small_IntegralEngine::Nuclear(double ea, double eb,size_t l) const
     return ea*eb*SlaterIntegral(ea+eb,-2*kappa-1);
    
 }
+ 
 
 } //namespace

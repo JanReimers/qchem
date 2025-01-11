@@ -33,6 +33,7 @@ class DiracIntegralTests : public ::testing::Test
 {
 public:
     typedef SMatrix<double> SMat;
+    typedef  Matrix<double>  Mat;
     
     DiracIntegralTests()
     : Lmax(0   )
@@ -66,6 +67,12 @@ public:
     {
         return Slater_mj::DiracIntegralEngine::merge_diag(l,s);
     }
+
+    static SMat merge_off_diag(const Mat& l)
+    {
+        return Slater_mj::DiracIntegralEngine::merge_off_diag(l);
+    }
+
     int Lmax, Z;
     LAParams lap;
     Slater_mj::DiracBasisSet* bs;
@@ -118,7 +125,7 @@ TEST_F(DiracIntegralTests, Nuclear)
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
     }
 }
-/*
+
 
 TEST_F(DiracIntegralTests, Kinetic)
 {
@@ -127,10 +134,16 @@ TEST_F(DiracIntegralTests, Kinetic)
     {
         SMatrix<double> K=ie->MakeKinetic(*i);
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
-        cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
+        //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
+        const TIrrepBasisSet<double>* l=GetLarge(*i);
+        const TIrrepBasisSet<double>* s=GetSmall(*i);
+        Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
+        SMat Knum=merge_off_diag(KnumL);
+        cout << "K=" << K << endl << "Knum=" << Knum << endl;
+        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
     }
 }
-
+/*
 TEST_F(DiracIntegralTests, Overlap3C)
 {
     for (auto i=bs->beginT();i!=bs->end();i++)

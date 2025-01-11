@@ -10,7 +10,7 @@ namespace SphericalGaussian
 
 
 BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
-: BasisSetImp(new IntegralEngine) // this makes a integral DB
+: BasisSetImp(new IntegralEngine) 
 {
     GaussianScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)

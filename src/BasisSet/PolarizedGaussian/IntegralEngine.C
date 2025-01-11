@@ -76,6 +76,12 @@ IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* a) const
 {
     return Integrate(qchem::Kinetic,a);
 }
+IntegralEngine::Mat IntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
+{
+    assert(false);
+    return Mat();
+}
+
 //
 IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* a,const Cluster& cl) const
 {

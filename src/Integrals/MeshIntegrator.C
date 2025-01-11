@@ -325,5 +325,52 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Grad(cons
     return ret;
 }
 
+//  Here we use grad(f)=g=g^hat*df/dr, so norm(grad(f))=df/dr which is valid for l=0;
+template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Grada_b(const Vf& a,const Vf& b) const
+{
+    index_t na=a.GetVectorSize();
+    index_t nb=b.GetVectorSize();
+    Mat ret(na,nb);
+    Fill(ret,T(0.0));
+
+    const Matrix<Vec3>& sa(a.Gradient(*itsMesh));
+    const Mat& sb(b(*itsMesh));
+
+    for (index_t i=1; i<=na; i++)
+        for (index_t j=1; j<=nb; j++)
+        {
+            int wi=1;
+            for (auto rw:*itsMesh)
+            {
+                ret(i,j)+=conj(norm(sa(i,wi)))*sb(j,wi)*w(rw);
+                wi++;
+            }
+        }
+    return ret;
+}
+
+template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::a_Gradb(const Vf& a,const Vf& b) const
+{
+    index_t na=a.GetVectorSize();
+    index_t nb=b.GetVectorSize();
+    Mat ret(na,nb);
+    Fill(ret,T(0.0));
+
+    const Mat& sa(a(*itsMesh));
+    const Matrix<Vec3>& sb(b.Gradient(*itsMesh));
+
+    for (index_t i=1; i<=na; i++)
+        for (index_t j=1; j<=nb; j++)
+        {
+            int wi=1;
+            for (auto rw:*itsMesh)
+            {
+                ret(i,j)+=conj(sa(i,wi))*norm(sb(j,wi))*w(rw);
+                wi++;
+            }
+        }
+    return ret;
+}
+
 template class MeshIntegrator<double>;
 template class MeshIntegrator<std::complex<double> >;

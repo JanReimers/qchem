@@ -37,6 +37,8 @@ public:
 
     virtual SMat Nuclear    (const Vf& a            ) const; // <ai|1/r|aj>
     virtual SMat Grad       (const Vf& a            ) const; // <grad(ai)|grad(aj)>
+    virtual  Mat Grada_b    (const Vf& a,const Vf& b) const; // <grad(ai)|bj> 
+    virtual  Mat a_Gradb    (const Vf& a,const Vf& b) const; // <ai|grad(bj)> 
 
 private:
     const Mesh* itsMesh; //TODO Can we use base class Mesh?

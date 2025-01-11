@@ -22,6 +22,7 @@ public:
 protected:
     virtual double Overlap(double ea, double eb,size_t l) const;
     virtual double Kinetic(double ea ,double eb,size_t l) const;
+    virtual double Kinetic(double ea , double eb,size_t la,size_t lb) const;
     virtual double Nuclear(double ea, double eb,size_t l) const;
     virtual double Charge (double ea,           size_t l) const;
     virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const;

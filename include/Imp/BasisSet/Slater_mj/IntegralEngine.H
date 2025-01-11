@@ -19,6 +19,7 @@ public:
     // One electron functions for DFT and HF
     virtual SMat MakeOverlap  (iec_t* a) const;
     virtual SMat MakeKinetic  (iec_t* a) const;
+    virtual  Mat MakeKinetic  (iec_t* a,iec_t* b) const;
     virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
     virtual SMat MakeRestMass (iec_t* a) const;
     virtual RVec MakeCharge   (iec_t* a) const;
@@ -40,7 +41,7 @@ private:
     friend class ::DiracIntegralTests;
     static const Dirac_IrrepIEClient* dcast(iec_t*);
     static SMat merge_diag(const SMat& l,const SMat& s);
-    static SMat merge_off_diag(const SMat& ls);
+    static SMat merge_off_diag(const Mat& ls);
     static RVec merge(const RVec& l,const RVec& s);
 
     AnalyticIE<double>* itsLargeIE;
@@ -53,8 +54,6 @@ class Small_IntegralEngine
 {
 public: 
     virtual double Overlap  (double ea , double eb,size_t l) const;
-    // THis does not fit the mold:  Kinetic is a cross between large and small in Drac theory.
-    //virtual double Kinetic(double ea ,double eb,size_t l) const;
     virtual double Nuclear(double ea, double eb,size_t l) const;
 
 };
