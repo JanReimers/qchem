@@ -52,7 +52,7 @@
 \biblio_style plainnat
 \use_bibtopic false
 \use_indices false
-\paperorientation landscape
+\paperorientation portrait
 \suppress_date false
 \justification true
 \use_refstyle 0
@@ -151,7 +151,7 @@ like
 \end_inset
 
  refer to the so called large and small components of the wave function.
- One can show that 
+ One can show that for bound electron states in atoms 
 \begin_inset Formula $\psi^{S}\sim\frac{1}{c}\psi^{L}$
 \end_inset
 
@@ -161,8 +161,8 @@ like
 \end_inset
 
  are 4x4 matrices which can have many representations.
- And
-\begin_inset Formula $i\hbar\partial_{\mu}=\begin{bmatrix}\frac{E}{c} & -p_{x} & -p_{y} & -p_{z}\end{bmatrix}$
+ And 
+\begin_inset Formula $i\hbar\partial_{\mu}=\begin{bmatrix}\frac{E}{c}, & -p_{x}, & -p_{y}, & -p_{z}\end{bmatrix}$
 \end_inset
 
  is the covariant four momentum.
@@ -244,7 +244,7 @@ where
 
  is the charge on the electron,
  and 
-\begin_inset Formula $a_{\mu}=\begin{bmatrix}\phi & -cA_{x} & -cA_{y} & -cA_{z}\end{bmatrix}$
+\begin_inset Formula $a_{\mu}=\begin{bmatrix}\phi, & -cA_{x}, & -cA_{y}, & -cA_{z}\end{bmatrix}$
 \end_inset
 
  is covariant vector potential.
@@ -368,7 +368,7 @@ In atomic unit we have
 \end_inset
 
 ?
- This remains unmentioned in much of literature.
+ This remains unmentioned in much of the literature.
  The answer is just 
 \begin_inset Formula $c=1/\alpha=137.035999177.$
 \end_inset
@@ -511,7 +511,15 @@ where
 \begin_inset Formula $m_{j}$
 \end_inset
 
- is now the quantum number (eigen value) of 
+ is now the 
+\begin_inset Quotes eld
+\end_inset
+
+magnetic
+\begin_inset Quotes erd
+\end_inset
+
+ quantum number (eigen value) of 
 \begin_inset Formula $\hat{j}_{z}$
 \end_inset
 
@@ -546,6 +554,19 @@ nolink "false"
 \end_inset
 
  sector.
+ So states with the same 
+\begin_inset Formula $j$
+\end_inset
+
+ like 
+\begin_inset Formula $j=l+\frac{1}{2}$
+\end_inset
+
+ and 
+\begin_inset Formula $j=\left(l+1\right)-\frac{1}{2}$
+\end_inset
+
+ are not the same.
  For now I will use 
 \begin_inset Formula $+$
 \end_inset
@@ -942,69 +963,11 @@ Since the sign of
 
 \end_inset
 
-It will also be useful the write these out individually as scalars
-\begin_inset Formula 
-\[
-\Omega_{\kappa m_{j}}^{m_{s}=-\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\alpha}=\sqrt{\frac{\left|\kappa\right|+m_{j}-\nicefrac{1}{2}}{2\left|\kappa\right|-1}}Y_{\left|\kappa\right|-1,m_{j}-\nicefrac{1}{2}},\quad\kappa<0
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\Omega_{\kappa m_{j}}^{m_{s}=+\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\beta}=\sqrt{\frac{\left|\kappa\right|-m_{j}-\nicefrac{1}{2}}{2\left|\kappa\right|-1}}Y_{\left|\kappa\right|-1,m_{j}+\nicefrac{1}{2}},\quad\kappa<0
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\Omega_{\kappa m_{j}}^{m_{s}=-\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\alpha}=-\sqrt{\frac{\kappa-m_{j}+\nicefrac{1}{2}}{2\kappa-1}}Y_{\kappa,m_{j}-\nicefrac{1}{2}},\quad\kappa>0
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\Omega_{\kappa m_{j}}^{m_{s}=+\nicefrac{1}{2}}=\Omega_{\kappa m_{j}}^{\beta}=\sqrt{\frac{\kappa+m_{j}+\nicefrac{1}{2}}{2\kappa-1}}Y_{\kappa,m_{j}+\nicefrac{1}{2}},\quad\kappa>0
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\left\langle \Omega_{\kappa m_{j}}^{\alpha}|\Omega_{\kappa m_{j}}^{\beta}\right\rangle \propto\left\langle Y_{\kappa,m_{j}-\nicefrac{1}{2}}|Y_{\kappa,m_{j}+\nicefrac{1}{2}}\right\rangle =0
-\]
-
-\end_inset
-
-As expected these spherical spinors obey the orthogonality conditions
+As expected these spherical spinors obey the usual orthogonality conditions
 \begin_inset Formula 
 \begin{equation}
 \intop_{0}^{\pi}sin\theta d\theta\int_{0}^{2\pi}d\phi\Omega_{\kappa'm_{j}'}^{\dagger}\left(\theta,\phi\right)\Omega_{\kappa m_{j}}\left(\theta,\phi\right)=\delta_{\kappa'\kappa}\delta_{m_{j}'m_{j}}\label{eq:OmegaOrtho}
 \end{equation}
-
-\end_inset
-
-What about cross terms like
-\begin_inset Formula 
-\[
-\left\langle \Omega_{-\kappa m_{j}}|\Omega_{\kappa m_{j}}\right\rangle =\begin{bmatrix}\Omega_{-\kappa m_{j}}^{\alpha} & \Omega_{-\kappa m_{j}}^{\beta}\end{bmatrix}\begin{bmatrix}\Omega_{\kappa m_{j}}^{\alpha}\\
-\Omega_{-\kappa m_{j}}^{\beta}
-\end{bmatrix}
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-=\left\langle \Omega_{-\kappa m_{j}}^{\alpha}|\Omega_{\kappa m_{j}}^{\alpha}\right\rangle +\left\langle \Omega_{-\kappa m_{j}}^{\beta}|\Omega_{\kappa m_{j}}^{\beta}\right\rangle 
-\]
 
 \end_inset
 
@@ -1037,46 +1000,6 @@ literal "false"
 \end_inset
 
 
-\begin_inset Formula 
-\[
-\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\Omega_{jm}^{-}=i\left(\frac{\partial f}{\partial r}+\frac{j-\frac{1}{2}}{r}f\right)\Omega_{jm}^{+}
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\Omega_{jm}^{+}=i\left(\frac{\partial f}{\partial r}+\frac{j+\frac{3}{2}}{r}f\right)\Omega_{jm}^{-}
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\frac{1}{\sqrt{2j}}\begin{bmatrix}\sqrt{j+m_{j}}Y_{j-\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
-\sqrt{j-m_{j}}Y_{j-\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
-\end{bmatrix}=i\left(\frac{\partial f}{\partial r}+\frac{j-\frac{1}{2}}{r}f\right)\frac{1}{\sqrt{2j+2}}\begin{bmatrix}-\sqrt{j-m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
-\sqrt{j+m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
-\end{bmatrix}
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\boldsymbol{\sigma}\cdot\boldsymbol{p}f\left(r\right)\frac{1}{\sqrt{2j+2}}\begin{bmatrix}-\sqrt{j-m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
-\sqrt{j+m_{j}+1}Y_{j+\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
-\end{bmatrix}=i\left(\frac{\partial f}{\partial r}+\frac{j+\frac{3}{2}}{r}f\right)\frac{1}{\sqrt{2j}}\begin{bmatrix}\sqrt{j+m_{j}}Y_{j-\nicefrac{1}{2},m_{j}-\nicefrac{1}{2}}\\
-\sqrt{j-m_{j}}Y_{j-\nicefrac{1}{2},m_{j}+\nicefrac{1}{2}}
-\end{bmatrix}
-\]
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Subsection
@@ -1084,8 +1007,8 @@ Radial Solutions
 \end_layout
 
 \begin_layout Standard
-Now that convenient quantum numbers for the angular degrees of freedom,
- are established we can postulate the form of the Dirac orbitals for a Hydrogen atom.
+Now that convenient quantum numbers for the angular degrees of freedom are established,
+ we can postulate the form of the Dirac orbitals for a Hydrogen atom.
 \begin_inset Formula 
 \begin{equation}
 \varphi_{\kappa m_{j}}=\begin{bmatrix}\frac{i}{r}P_{\kappa}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)\\
@@ -4023,7 +3946,7 @@ degeneracy
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Dirac Hydrogen orbitals with degenerate energy level combined.
+Dirac Hydrogen orbitals with degenerate energy levels combined.
 \end_layout
 
 \end_inset
@@ -4385,6 +4308,170 @@ r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
 
 \begin_layout Standard
 \begin_inset Formula 
+\begin{equation}
+\varphi_{\kappa m_{j}}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa m_{j}a}^{L\alpha}\left(\vec{r}\right)\\
+ic_{\kappa a}^{L\beta}g_{\kappa m_{j}a}^{L\beta}\left(\vec{r}\right)\\
+c_{\kappa a}^{S\alpha}g_{\kappa m_{j}a}^{S\alpha}\left(\vec{r}\right)\\
+c_{\kappa a}^{S\beta}g_{\kappa m_{j}a}^{S\beta}\left(\vec{r}\right)
+\end{bmatrix}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+ic_{\kappa a}^{L\beta}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)\\
+c_{\kappa a}^{S\alpha}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+c_{\kappa a}^{S\beta}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\beta}\left(\hat{r}\right)
+\end{bmatrix}\label{eq:Basis1}
+\end{equation}
+
+\end_inset
+
+As written we are allowing for distinct expansion coefficients for all four components.
+ The structure of the basis functions for the small sector is discussed in the next section.
+\end_layout
+
+\begin_layout Subsection
+Kinetic Balance
+\end_layout
+
+\begin_layout Standard
+The Dirac equation has negative energy solutions corresponding to anti particle or positron states.
+ In order to avoid variational collapse into these states we can restrict the small component basis functions in a specific manner.
+ As written this has full,
+ linear variational freedom.
+ Kinetic balance puts a constraint of the basis functions,
+ but not on the expansion coefficients:
+ 
+\begin_inset Formula 
+\begin{equation}
+g_{Sa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)=i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)\label{eq:KBal1}
+\end{equation}
+
+\end_inset
+
+This constraint only works approximately,
+ to order 
+\begin_inset Formula $\frac{1}{c^{4}}$
+\end_inset
+
+ but works well in practice.
+ Using eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Omega2"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we find that the angular spherical spinors already support kinetic balance,
+ and for the radial part:
+\begin_inset Formula 
+\begin{equation}
+g_{Sa}\left(r\right)=i\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)\label{eq:KBalRadial}
+\end{equation}
+
+\end_inset
+
+There will be some instances where we can simply use 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBal1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ directly for calculating matrix elements,
+ rather operating on basis functions with 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBalRadial"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+In 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Yanai2001"
+literal "false"
+
+\end_inset
+
+ They claim to use a more accurate version of eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBal1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{Sa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)=i\frac{\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)}{V-E-2c^{2}}g_{La}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)
+\]
+
+\end_inset
+
+but they do not specify what 
+\begin_inset Formula $V$
+\end_inset
+
+ is (matrix or scalar expectation).
+ It could be 
+\begin_inset Formula $\left\langle V\right\rangle $
+\end_inset
+
+ which should be easy to implement after the first iteration.
+ Also presumably 
+\begin_inset Formula $E$
+\end_inset
+
+ is just the total energy.
+\end_layout
+
+\begin_layout Standard
+From 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Basis1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:KBalRadial"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we can arrive at a set of small component basis functions:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
 \[
 \left(\frac{d}{dr}+\frac{\kappa+1}{r}\right)r^{-\kappa-1}e^{-\lambda_{a}r}=\left[\left(-\kappa-1\right)r^{-\kappa-2}-\lambda_{a}r^{-\kappa-1}+\left(\kappa+1\right)r^{-\kappa-2}\right]e^{-\lambda_{a}r}
 \]
@@ -4450,7 +4537,7 @@ r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
 
 \begin_inset Formula 
 \begin{equation}
-g_{\kappa a}^{S}=\begin{cases}
+g_{\kappa a}^{S}=i\begin{cases}
 -\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
 \left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
 -2\lambda_{a}r^{-\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
@@ -4461,140 +4548,21 @@ g_{\kappa a}^{S}=\begin{cases}
 \end_inset
 
 
-\begin_inset Formula 
-\begin{equation}
-\varphi_{\kappa m_{j}}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa m_{j}a}^{L\alpha}\left(\vec{r}\right)\\
-ic_{\kappa a}^{L\beta}g_{\kappa m_{j}a}^{L\beta}\left(\vec{r}\right)\\
-c_{\kappa a}^{S\alpha}g_{\kappa m_{j}a}^{S\alpha}\left(\vec{r}\right)\\
-c_{\kappa a}^{S\beta}g_{\kappa m_{j}a}^{S\beta}\left(\vec{r}\right)
-\end{bmatrix}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
-ic_{\kappa a}^{L\beta}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)\\
-c_{\kappa a}^{S\alpha}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
-c_{\kappa a}^{S\beta}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\beta}\left(\hat{r}\right)
-\end{bmatrix}\label{eq:Basis1}
-\end{equation}
-
-\end_inset
-
-As written we are allowing for distinct expansion coefficients for all four components.
-\end_layout
-
-\begin_layout Subsection
-Kinetic Balance
 \end_layout
 
 \begin_layout Standard
-The Dirac equation has negative energy solutions corresponding to anti particle or positron states.
- In order to avoid variational collapse into these states we can restrict the small component basis functions in a specific manner.
- As written this has full,
- linear variational freedom.
- Kinetic balance puts a constraint of the basis functions,
- but not on the expansion coefficients:
- 
-\begin_inset Formula 
-\begin{equation}
-g_{Sa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)=i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)\label{eq:KBal1}
-\end{equation}
-
-\end_inset
-
-This constraint only works approximately,
- to order 
-\begin_inset Formula $\frac{1}{c^{4}}$
-\end_inset
-
- but works well in practice.
- Using eq.
- 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "eq:Omega2"
-plural "false"
-caps "false"
-noprefix "false"
-nolink "false"
-
-\end_inset
-
- we find that the angular spherical spinors already support kinetic balance,
- and for the radial part:
-\begin_inset Formula 
-\begin{equation}
-g_{Sa}\left(r\right)=\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)\label{eq:KBalRadial}
-\end{equation}
-
-\end_inset
-
-There will be some instances where we can simply use 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "eq:KBal1"
-plural "false"
-caps "false"
-noprefix "false"
-nolink "false"
-
-\end_inset
-
- directly for calculating matrix elements,
- rather operating on basis functions with 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "eq:KBalRadial"
-plural "false"
-caps "false"
-noprefix "false"
-nolink "false"
-
+It appears that implementing RKB for basis functions does not remove the positron solutions from the eigen space,
+ so one must still manually remove these eigen vectors and leave them un-occupied.
+ The MOLDIFR documentation mentions this,
+ but most the kinetic balance literature does not.
+ What RKB does do is prevent the bound electron states from getting contaminated with the positron vector space.
+ Another thing not mentioned in the literature is that kinetic balance also removes the coupling between spin states,
+ which are usually coupled by the off diagonal part of the kinetic operator 
+\begin_inset Formula $\boldsymbol{\sigma}\cdot\boldsymbol{p}$
 \end_inset
 
 .
-\end_layout
-
-\begin_layout Standard
-In 
-\begin_inset CommandInset citation
-LatexCommand citet
-key "Yanai2001"
-literal "false"
-
-\end_inset
-
- They claim to use a more accurate version of eq.
- 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "eq:KBal1"
-plural "false"
-caps "false"
-noprefix "false"
-nolink "false"
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-g_{Sa}\left(r\right)\Omega_{-\kappa m_{j}}\left(\hat{r}\right)=i\frac{\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)}{V-E-2c^{2}}g_{La}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)
-\]
-
-\end_inset
-
-but they do not specify what 
-\begin_inset Formula $V$
-\end_inset
-
- is.
- It could be 
-\begin_inset Formula $\left\langle V\right\rangle $
-\end_inset
-
- which should be easy to implement after the first iteration.
- Also presumably 
-\begin_inset Formula $E$
-\end_inset
-
- is the total energy.
+ More on this below.
 \end_layout
 
 \begin_layout Subsection
@@ -4621,7 +4589,7 @@ g_{ij}=\frac{1}{\left|\boldsymbol{r}_{i}-\boldsymbol{r}_{j}\right|}\left\{ 1-\bo
 
 \end_inset
 
-Presumably this is the effects conveniently ignoring the vector potential above in eq.
+Presumably this is the effect of conveniently ignoring the vector potential above in eq.
  
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -4635,7 +4603,7 @@ nolink "false"
 
 .
  To begin we will simply deal with the first term,
- and try adding the corrections later.
+ and try adding the Breit corrections later.
 \end_layout
 
 \begin_layout Subsection
@@ -4644,13 +4612,11 @@ Matrix Elements
 
 \begin_layout Standard
 As usual our goal is to build the Fock and overlap matrices and then solve the general eigen problems.
- Instead of two sets of equations,
- we should now get four sets of Fock/overlap matrices and four eigen equations.
  As for the non relativistic case we can divide the problem into irreducible representation based on 
 \begin_inset Formula $\kappa$
 \end_inset
 
- and 
+ and optionally 
 \begin_inset Formula $m_{j}$
 \end_inset
 
@@ -4673,31 +4639,43 @@ nolink "false"
 
 \end_inset
 
- we can see that there is no overlap between the large and small sectors.
- Also
+ we can see that there is no overlap between the large and small sectors or 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ and 
+\begin_inset Formula $\beta$
+\end_inset
+
+ spin states:
 \begin_inset Formula 
 \begin{equation}
-\left\langle \Omega_{\kappa m_{j}}^{\alpha}|\Omega_{\kappa m_{j}}^{\beta}\right\rangle \propto\left\langle Y_{\kappa,m_{j}-\nicefrac{1}{2}}|Y_{\kappa,m_{j}+\nicefrac{1}{2}}\right\rangle =0\label{eq:Orthab}
+\left\langle \Omega_{\kappa m_{j}}|\Omega_{-\kappa m_{j}}\right\rangle =\left\langle \Omega_{\kappa m_{l}+\frac{1}{2}}|\Omega_{\kappa m_{l}-\frac{1}{2}}\right\rangle =0.\label{eq:Orthab}
 \end{equation}
 
 \end_inset
 
-so there us no overlap between distinct spin states.
+
 \end_layout
 
 \begin_layout Standard
 \begin_inset Formula 
 \[
-S_{ab}^{\kappa m_{j}}=\begin{bmatrix}S_{ab}^{LL\alpha\alpha} & 0 & 0 & 0\\
+S_{ab}^{\kappa}=\begin{bmatrix}S_{ab}^{LL\alpha\alpha} & 0 & 0 & 0\\
 0 & S_{ab}^{LL\beta\beta} & 0 & 0\\
 0 & 0 & S_{ab}^{SS\alpha\alpha} & 0\\
 0 & 0 & 0 & S_{ab}^{SS\beta\beta}
-\end{bmatrix}^{\kappa m_{j}}
+\end{bmatrix}^{\kappa}
 \]
 
 \end_inset
 
-For the small sector overlap we have
+Also none of the 1 electron integrals are dependent on the magnetic quantum number 
+\begin_inset Formula $m_{j}$
+\end_inset
+
+.
+ For the small sector overlap we have
 \begin_inset Formula 
 \[
 S_{ab}^{SS\kappa m_{j}}=\left\langle g_{\kappa m_{j}a}^{S}\left(\vec{r}\right)|g_{\kappa m_{j}b}^{S}\left(\vec{r}\right)\right\rangle 
@@ -4708,7 +4686,7 @@ S_{ab}^{SS\kappa m_{j}}=\left\langle g_{\kappa m_{j}a}^{S}\left(\vec{r}\right)|g
 
 \begin_inset Formula 
 \[
-=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle 
+=\left\langle i^{*}g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)|ig_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle 
 \]
 
 \end_inset
@@ -4716,9 +4694,9 @@ S_{ab}^{SS\kappa m_{j}}=\left\langle g_{\kappa m_{j}a}^{S}\left(\vec{r}\right)|g
 
 \begin_inset Formula 
 \[
-=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|p^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle =2T_{ab}^{\kappa m_{j}}=2\begin{bmatrix}T_{ab}^{\alpha\alpha} & 0\\
+=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|p^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle =2T_{ab}^{\kappa}=2\begin{bmatrix}T_{ab}^{\alpha\alpha} & 0\\
 0 & T_{ab}^{\beta\beta}
-\end{bmatrix}^{\kappa m_{j}}
+\end{bmatrix}^{\kappa}
 \]
 
 \end_inset
@@ -4761,7 +4739,7 @@ nolink "false"
 \begin_inset Formula $\boldsymbol{\sigma}\cdot\boldsymbol{p}$
 \end_inset
 
- is also non-diagonal the kinetic term also intermix the 
+ is also non-diagonal the kinetic term also intermixes the 
 \begin_inset Formula $\alpha$
 \end_inset
 
@@ -4781,7 +4759,7 @@ nolink "false"
 
 \end_inset
 
- prevent any spin state mixing.
+ prevents any spin state mixing.
  For example
 \begin_inset Formula 
 \[
@@ -4812,11 +4790,11 @@ and because
 
  is a diagonal operator we get 
 \begin_inset Formula 
-\[
+\begin{equation}
 =\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|p^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle =2\begin{bmatrix}T_{ab}^{\alpha\alpha} & 0\\
 0 & T_{ab}^{\beta\beta}
-\end{bmatrix}
-\]
+\end{bmatrix}\label{eq:RKB nomix}
+\end{equation}
 
 \end_inset
 
@@ -4828,20 +4806,20 @@ with
 \begin_inset Formula $\beta$
 \end_inset
 
- zero out.
+ interactions zeroed out.
  Finally
 \begin_inset Formula 
 \[
-T_{ab}^{\kappa m_{j}}=2\begin{bmatrix}0 & 0 & T_{ab}^{\alpha\alpha} & 0\\
+T_{ab}^{\kappa}=2\begin{bmatrix}0 & 0 & T_{ab}^{\alpha\alpha} & 0\\
 0 & 0 & 0 & T_{ab}^{\beta\beta}\\
 T_{ab}^{\alpha\alpha} & 0 & 0 & 0\\
 0 & T_{ab}^{\beta\beta} & 0 & 0
-\end{bmatrix}^{\kappa m_{j}}
+\end{bmatrix}^{\kappa}
 \]
 
 \end_inset
 
-
+Note that one must more careful than usual incorporating normalization constants into the kinetic matrix calculation.
 \end_layout
 
 \begin_layout Subsubsection
@@ -4920,7 +4898,7 @@ nolink "false"
 :
 \begin_inset Formula 
 \[
-V_{ab}^{SS\alpha\alpha}=-Z\left\langle \left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)|\frac{1}{r}|\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{Lb}\left(r\right)\right\rangle .
+V_{ab}^{SS\alpha\alpha}=-Z\left\langle i^{*}\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)|\frac{1}{r}|i\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{Lb}\left(r\right)\right\rangle .
 \]
 
 \end_inset
@@ -4940,7 +4918,7 @@ nolink "false"
  for Slater functions
 \begin_inset Formula 
 \begin{equation}
-g_{\kappa a}^{S}=\begin{cases}
+g_{\kappa a}^{S}=i\begin{cases}
 -\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r} & Slater,\kappa<0\\
 \left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r} & Slater,\kappa>0\\
 -2\lambda_{a}r^{-\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
@@ -5121,6 +5099,17 @@ nolink "false"
 
 \end_inset
 
+ combined with kinetic balance 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:RKB nomix"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
  we get the chequerboard pattern in 
 \begin_inset Formula $H_{ab}^{\kappa m_{j}}$
 \end_inset
@@ -5180,7 +5169,7 @@ H_{ab}^{\kappa m_{j}}=\begin{bmatrix}H_{ab}^{\alpha\alpha} & 0\\
 \begin{bmatrix}-ZV_{ab}^{LL\alpha\alpha} & 2cT_{ab}^{\alpha\alpha} & 0 & 0\\
 2cT_{ab}^{\alpha\alpha} & -ZV_{ab}^{SS\alpha\alpha}-2c^{2}S_{ab}^{SS\alpha\alpha} & 0 & 0\\
 0 & 0 & -ZV_{ab}^{LL\beta\beta} & 2cT_{ab}^{\beta\beta}\\
-00 & 0 & 2cT_{ab}^{\beta\beta} & -ZV_{ab}^{SS\beta\beta}-2c^{2}S_{ab}^{SS\beta\beta}
+0 & 0 & 2cT_{ab}^{\beta\beta} & -ZV_{ab}^{SS\beta\beta}-2c^{2}S_{ab}^{SS\beta\beta}
 \end{bmatrix}^{\kappa m_{j}}\label{HDmatrix-1}
 \end{equation}
 
@@ -5191,6 +5180,7 @@ In other words we can add
 \end_inset
 
  to the list of quantum numbers characterizing an irreducible representation.
+ 
 \begin_inset Formula 
 \[
 H_{ab}^{\kappa m_{j}m_{s}}=\begin{bmatrix}-ZV_{ab}^{LL} & 2cT_{ab}^{LS}\\
@@ -5200,7 +5190,17 @@ H_{ab}^{\kappa m_{j}m_{s}}=\begin{bmatrix}-ZV_{ab}^{LL} & 2cT_{ab}^{LS}\\
 
 \end_inset
 
+Even though at the operator level the 
+\begin_inset Formula $\hat{s}_{z}$
+\end_inset
 
+ does not commute with 
+\begin_inset Formula $\hat{H}_{D}$
+\end_inset
+
+,
+ when using a restricted kinetic balance basis set,
+ we find that matrices for those operators do commute.
 \end_layout
 
 \begin_layout Standard
