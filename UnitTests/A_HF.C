@@ -214,7 +214,7 @@ public:
 TEST_P(A_SLm_HF_P,Multiple)
 {
     int Z=GetParam();
-    int N=7;
+    int N=11;
     if (Z>12) N=14;
     if (Z>50) N=16;
     Init(N,0.125,8*Z,GetLMax(Z));
