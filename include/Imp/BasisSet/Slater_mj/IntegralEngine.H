@@ -43,6 +43,7 @@ private:
     static SMat merge_diag(const SMat& l,const SMat& s);
     static SMat merge_off_diag(const Mat& ls);
     static RVec merge(const RVec& l,const RVec& s);
+    static ERI4 merge(const ERI4& LL,const ERI4& LS,const ERI4& SL,const ERI4& SS);
 
     AnalyticIE<double>* itsLargeIE;
     AnalyticIE<double>* itsSmallIE;
@@ -55,7 +56,12 @@ class Small_IntegralEngine
 public: 
     virtual double Overlap  (double ea , double eb,size_t l) const;
     virtual double Nuclear(double ea, double eb,size_t l) const;
-
+    virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
+private:
+    static const IrrepIEClient* dcast(iec_t*);
+    ERI4 MakeDirectLS(const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeDirectSL(const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeDirectSS(const IrrepIEClient* a, const IrrepIEClient* c) const;
 };
 
 } //namespace

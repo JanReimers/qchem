@@ -18,6 +18,7 @@ struct IrrepIEClient
     double j;
     
     void Init(const Vector  <double>& exponents);
+    virtual bool Large() const {return true;}
     
 private:
     virtual double Norm(double e, size_t l) const;
@@ -30,6 +31,8 @@ struct Small_IrrepIEClient
 public:
     Small_IrrepIEClient() {}; 
     Small_IrrepIEClient(size_t N,int kappa) : IrrepIEClient(N,kappa) {};
+    virtual bool Large() const {return false;}
+
 private:
     virtual double Norm(double e, size_t l) const;
     static double Kinetic(double ea, double eb,size_t l);     
@@ -41,10 +44,10 @@ struct Dirac_IrrepIEClient
     Dirac_IrrepIEClient() : itsLargeIEC(0), itsSmallIEC(0) {};
     virtual size_t size() const;
 
-    void Init(const IrrepIEClient* large,const IrrepIEClient* small);
+    void Init(const Slater_mj::IrrepIEClient* large,const Slater_mj::IrrepIEClient* small);
     
-    const IrrepIEClient* itsLargeIEC;
-    const IrrepIEClient* itsSmallIEC;
+    const Slater_mj::IrrepIEClient* itsLargeIEC;
+    const Slater_mj::IrrepIEClient* itsSmallIEC;
         
 };
 

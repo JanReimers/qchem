@@ -328,7 +328,7 @@ literal "false"
  )
 \begin_inset Formula 
 \[
-\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2l+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})
+\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2k+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})
 \]
 
 \end_inset
@@ -381,7 +381,7 @@ g_{abcd}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}
 
 \end_inset
 
-So int his notation the Coulomb integrals are 
+So in this notation the Coulomb integrals are 
 \begin_inset Formula $g_{abab}$
 \end_inset
 

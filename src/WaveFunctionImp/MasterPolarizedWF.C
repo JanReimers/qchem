@@ -62,7 +62,7 @@ const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);
-    itsEC->Display();
+    //itsEC->Display();
     itsUpELevels=itsSpinUpGroup->FillOrbitals(itsEC);
     itsDnELevels=itsSpinDnGroup->FillOrbitals(itsEC);
     return itsUpELevels;

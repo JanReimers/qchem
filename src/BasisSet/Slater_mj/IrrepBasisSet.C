@@ -144,7 +144,7 @@ std::istream&  Large_IrrepBasisSet::Read (std::istream& is)
 //  Small sector
 //
 Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* db,const Large_IrrepBasisSet* lbs)
-    : IrrepBasisSetCommon(lbs->GetQuantumNumber().Clone())
+    : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
     , TIrrepBasisSetCommon<double>(lap,db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {

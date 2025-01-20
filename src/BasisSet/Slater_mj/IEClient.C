@@ -41,7 +41,7 @@ double Small_IrrepIEClient::Kinetic(double ea, double eb,size_t l)
     return (Term1+Term2+Term3);
 }
     
-void Dirac_IrrepIEClient::Init(const IrrepIEClient* liec,const IrrepIEClient* siec)
+void Dirac_IrrepIEClient::Init(const Slater_mj::IrrepIEClient* liec,const Slater_mj::IrrepIEClient* siec)
 {
     itsLargeIEC=liec;
     itsSmallIEC=siec;

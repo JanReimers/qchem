@@ -24,7 +24,7 @@ public:
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
-    virtual AngularQN* Clone(        ) const;
+    virtual AngularQN* Clone         () const;
 
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}

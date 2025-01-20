@@ -65,9 +65,9 @@ const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration*
         itsELevels.insert(o->MakeEnergyLevel(itsSpin));
     
     //  Display the occupied orbitals with eigen vectors.
-    for (auto o:*itsOrbitals)
-        if (o->GetOccupation()>0.0)
-            std::cout << *o << std::endl;
+    // for (auto o:*itsOrbitals)
+    //     if (o->GetOccupation()>0.0)
+    //         std::cout << *o << std::endl;
 
     return itsELevels;
 }

@@ -652,12 +652,12 @@ for which
 
  is an eigen function with eigen values
 \begin_inset Formula 
-\[
+\begin{equation}
 \kappa=\begin{cases}
 -l-1 & j=l+\frac{1}{2},\quad+\:sector\\
 l & j=l-\frac{1}{2},\quad-\:sector
-\end{cases}
-\]
+\end{cases}\label{eq:kappal}
+\end{equation}
 
 \end_inset
 
@@ -956,8 +956,32 @@ Since the sign of
 
 \begin_inset Formula 
 \[
-\Omega_{\kappa m_{j}}=\frac{1}{\sqrt{2\kappa-1}}\begin{bmatrix}-\sqrt{\kappa-m_{j}+\nicefrac{1}{2}}Y_{\kappa,m_{j}-\nicefrac{1}{2}}\\
+\Omega_{\kappa m_{j}}=\frac{1}{\sqrt{2\kappa+1}}\begin{bmatrix}-\sqrt{\kappa-m_{j}+\nicefrac{1}{2}}Y_{\kappa,m_{j}-\nicefrac{1}{2}}\\
 \sqrt{\kappa+m_{j}+\nicefrac{1}{2}}Y_{\kappa,m_{j}+\nicefrac{1}{2}}
+\end{bmatrix},\quad\kappa>0
+\]
+
+\end_inset
+
+Or in terms of 
+\begin_inset Formula $l$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}=\frac{1}{\sqrt{2l+1}}\begin{bmatrix}\sqrt{l+m_{l}}Y_{l,m_{l}}\\
+\sqrt{l-m_{l}}Y_{l,m_{l}}
+\end{bmatrix},\quad\kappa<0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\Omega_{\kappa m_{j}}=\frac{1}{\sqrt{2l+1}}\begin{bmatrix}-\sqrt{l-m_{l}}Y_{l,m_{l}}\\
+\sqrt{l+m_{l}}Y_{l,m_{l}}
 \end{bmatrix},\quad\kappa>0
 \]
 
@@ -968,6 +992,37 @@ As expected these spherical spinors obey the usual orthogonality conditions
 \begin{equation}
 \intop_{0}^{\pi}sin\theta d\theta\int_{0}^{2\pi}d\phi\Omega_{\kappa'm_{j}'}^{\dagger}\left(\theta,\phi\right)\Omega_{\kappa m_{j}}\left(\theta,\phi\right)=\delta_{\kappa'\kappa}\delta_{m_{j}'m_{j}}\label{eq:OmegaOrtho}
 \end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{\pi}sin\theta d\theta\int_{0}^{2\pi}d\phi\left[\Omega_{\kappa'm_{j}'}^{\alpha*}\Omega_{\kappa m_{j}}^{\alpha}+\Omega_{\kappa'm_{j}'}^{\beta\dagger}\Omega_{\kappa m_{j}}^{\beta}\right]
+\]
+
+\end_inset
+
+The individual terms are also orthogonal,
+ but not ortho-normal
+\begin_inset Formula 
+\[
+\intop_{0}^{\pi}sin\theta d\theta\int_{0}^{2\pi}d\phi\Omega_{\kappa'm_{j}'}^{\alpha*}\Omega_{\kappa m_{j}}^{\alpha}=\delta_{\kappa'\kappa}\delta_{m_{j}'m_{j}}\begin{cases}
+\frac{\left|\kappa\right|+m_{j}-\nicefrac{1}{2}}{2\left|\kappa\right|-1} & \kappa<0\\
+\frac{\kappa-m_{j}+\nicefrac{1}{2}}{2\kappa+1} & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{0}^{\pi}sin\theta d\theta\int_{0}^{2\pi}d\phi\Omega_{\kappa'm_{j}'}^{\beta*}\Omega_{\kappa m_{j}}^{\beta}=\delta_{\kappa'\kappa}\delta_{m_{j}'m_{j}}\begin{cases}
+\frac{\left|\kappa\right|-m_{j}-\nicefrac{1}{2}}{2\left|\kappa\right|-1} & \kappa<0\\
+\frac{\kappa+m_{j}+\nicefrac{1}{2}}{2\kappa+1} & \kappa>0
+\end{cases}
+\]
 
 \end_inset
 
@@ -1036,7 +1091,19 @@ where
 \end_inset
 
 .
- This may need to be relaxed for multi-electron atoms where spin polarization can occur.
+ In non relativistic literature this is called 
+\emph on
+restricted
+\emph default
+,
+ but in the relativistic literature this is most just implicitly assumed and rarely labelled as 
+\emph on
+Kramers-restricted
+\emph default
+.
+ Why we need two distinct names for one simple concept is beyond me.
+ This restriction will need to be relaxed for multi-electron atoms where spin polarization can occur.
+ However a huge portion of the literature implicitly constrains the radial functions for for opposite spins to be the same!
  These definitions are chosen with hindsight,
  in order tidy up the resulting radial equations.
  The normalization condition looks like
@@ -4289,7 +4356,7 @@ nolink "false"
 \end_inset
 
  real basis functions,
- with possibility of using distinct basis functions for the large and small components.
+ with the possibility of using distinct basis functions for the large and small components.
  These radial basis functions are typically either Slater or Gaussian functions
 \begin_inset Formula 
 \[
@@ -4303,30 +4370,64 @@ r^{\kappa}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
 
 \end_inset
 
+using 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:kappal"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
 
+\end_inset
+
+ we can see that in terms of the orbital angular momentum 
+\begin_inset Formula $l$
+\end_inset
+
+ these are identical to the usual HF basis functions
+\begin_inset Formula 
+\[
+g_{\kappa a}^{L}=\begin{cases}
+r^{l}e^{-\lambda_{a}r} & Slater\\
+r^{l}e^{-\lambda_{a}r^{2}} & Gaussian
+\end{cases}
+\]
+
+\end_inset
+
+which suggest using 
+\begin_inset Formula $l$
+\end_inset
+
+ instead of 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ when convenient in the code.
+ A general Kramers-unrestricted (distinct expansion coefficients for all four components) orbital expansion looks like
 \end_layout
 
 \begin_layout Standard
 \begin_inset Formula 
 \begin{equation}
-\varphi_{\kappa m_{j}}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa m_{j}a}^{L\alpha}\left(\vec{r}\right)\\
-ic_{\kappa a}^{L\beta}g_{\kappa m_{j}a}^{L\beta}\left(\vec{r}\right)\\
-c_{\kappa a}^{S\alpha}g_{\kappa m_{j}a}^{S\alpha}\left(\vec{r}\right)\\
-c_{\kappa a}^{S\beta}g_{\kappa m_{j}a}^{S\beta}\left(\vec{r}\right)
-\end{bmatrix}=\sum_{a=1}^{N}\begin{bmatrix}ic_{\kappa a}^{L\alpha}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
-ic_{\kappa a}^{L\beta}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)\\
-c_{\kappa a}^{S\alpha}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
-c_{\kappa a}^{S\beta}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\beta}\left(\hat{r}\right)
+\varphi_{i\kappa m_{j}}=\sum_{a=1}^{N}\begin{bmatrix}ic_{i\kappa a}^{L\alpha}g_{\kappa m_{j}a}^{L\alpha}\left(\vec{r}\right)\\
+ic_{i\kappa a}^{L\beta}g_{\kappa m_{j}a}^{L\beta}\left(\vec{r}\right)\\
+c_{i\kappa a}^{S\alpha}g_{\kappa m_{j}a}^{S\alpha}\left(\vec{r}\right)\\
+c_{i\kappa a}^{S\beta}g_{\kappa m_{j}a}^{S\beta}\left(\vec{r}\right)
+\end{bmatrix}=\sum_{a=1}^{N}\begin{bmatrix}ic_{i\kappa a}^{L\alpha}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+ic_{i\kappa a}^{L\beta}g_{\kappa a}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)\\
+c_{i\kappa a}^{S\alpha}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+c_{i\kappa a}^{S\beta}g_{\kappa a}^{S}\left(r\right)\Omega_{-\kappa m_{j}}^{\beta}\left(\hat{r}\right)
 \end{bmatrix}\label{eq:Basis1}
 \end{equation}
 
 \end_inset
 
-As written we are allowing for distinct expansion coefficients for all four components.
- The structure of the basis functions for the small sector is discussed in the next section.
+The structure of the basis functions for the small sector is discussed in the next section.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Subsubsection
 Kinetic Balance
 \end_layout
 
@@ -4431,7 +4532,8 @@ but they do not specify what
 \begin_inset Formula $V$
 \end_inset
 
- is (matrix or scalar expectation).
+ is (matrix,
+ function or scalar expectation).
  It could be 
 \begin_inset Formula $\left\langle V\right\rangle $
 \end_inset
@@ -4441,7 +4543,7 @@ but they do not specify what
 \begin_inset Formula $E$
 \end_inset
 
- is just the total energy.
+ is just the total energy?
 \end_layout
 
 \begin_layout Standard
@@ -4547,22 +4649,208 @@ g_{\kappa a}^{S}=i\begin{cases}
 
 \end_inset
 
+Or in terms of 
+\begin_inset Formula $l$
+\end_inset
 
+
+\begin_inset Formula 
+\begin{equation}
+g_{\kappa a}^{S}=i\begin{cases}
+-\lambda_{a}r^{l}e^{-\lambda_{a}r} & Slater,\kappa<0\\
+\left(\frac{2l+1}{r}-\lambda_{a}\right)r^{l}e^{-\lambda_{a}r} & Slater,\kappa>0\\
+-2\lambda_{a}r^{l+1}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa<0\\
+\left(\frac{2l+1}{r}-2\lambda_{a}r\right)r^{l}e^{-\lambda_{a}r^{2}} & Gaussian,\kappa>0
+\end{cases}\label{eq:gS-2}
+\end{equation}
+
+\end_inset
+
+We can also make use of the fact that there is common term for either sign of 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ which can be used in code
+\begin_inset Formula 
+\[
+g_{\kappa a}^{S}=i\begin{cases}
+\left[-\lambda_{a}+\frac{\left(2l+1\right)}{r}H\left(\kappa\right)\right]r^{l}e^{-\lambda_{a}r} & Slater\\
+\left[-2\lambda_{a}+\frac{2l+1}{r^{2}}H\left(\kappa\right)\right]r^{l+1}e^{-\lambda_{a}r^{2}} & Gaussian
+\end{cases}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $H\left(\kappa\right)$
+\end_inset
+
+ is the Heaviside step function,
+ which simply turns on the second term when 
+\begin_inset Formula $\kappa>0$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
-It appears that implementing RKB for basis functions does not remove the positron solutions from the eigen space,
+This construction is usually referred to as Restricted Kinetic Balance (RKB).
+ There are many other options for kinetic balance
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Sun2011"
+literal "false"
+
+\end_inset
+
+.
+ It appears that implementing RKB for basis functions does not remove the positron solutions from the eigen space,
  so one must still manually remove these eigen vectors and leave them un-occupied.
  The MOLDIFR documentation mentions this,
  but most the kinetic balance literature does not.
  What RKB does do is prevent the bound electron states from getting contaminated with the positron vector space.
- Another thing not mentioned in the literature is that kinetic balance also removes the coupling between spin states,
- which are usually coupled by the off diagonal part of the kinetic operator 
+ Another thing not mentioned in the literature is that kinetic balance also moves the coupling between spin states,
+ from the off diagonal part of the kinetic operator 
 \begin_inset Formula $\boldsymbol{\sigma}\cdot\boldsymbol{p}$
 \end_inset
 
-.
+ and over in into the small component part of the nuclear attraction operator!
  More on this below.
+ Again this is rarely pointed out the literature.
+ Only one mention found here 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Li2012"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+Unified and separated basis spinors.
+\end_layout
+
+\begin_layout Standard
+In the literature you will often see the Dirac spinor orbital written as a two component function
+\begin_inset Formula 
+\[
+\varphi=\begin{bmatrix}\varphi^{L}\\
+\varphi^{S}
+\end{bmatrix}
+\]
+
+\end_inset
+
+but these are almost always implicitly assumed to have unpolarized (Kramers-restricted) radial functions like in eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Dorbitals"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\varphi^{L}\left(\vec{r}\right)=\varphi^{L}\left(r\right)\Omega_{\kappa m_{j}}\left(\hat{r}\right)=\begin{bmatrix}\varphi^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+\varphi^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)
+\end{bmatrix}
+\]
+
+\end_inset
+
+and similarly for 
+\begin_inset Formula $\varphi^{S}$
+\end_inset
+
+.
+ These basis functions superficially appear to be to polarized,
+ but they are not.
+ In software we always want to allow for the radial functions to be polarized
+\begin_inset Formula 
+\[
+\varphi^{L}\left(\vec{r}\right)=\begin{bmatrix}\varphi^{L\alpha}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+\varphi^{L\beta}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)
+\end{bmatrix}.
+\]
+
+\end_inset
+
+The consequence of this that we must do more work when evaluating ERIs and most of the literature expressions are for unpolarized (Kramers-restricted) radial functions.
+\end_layout
+
+\begin_layout Standard
+Matsuoka discusses 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Matsuoka1989"
+literal "false"
+
+\end_inset
+
+ two cases:
+\end_layout
+
+\begin_layout Itemize
+Unified Basis Spinors (UBS):
+ 
+\begin_inset Formula $g^{L}\left(\vec{r}\right)=\begin{bmatrix}g^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)\\
+g^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\beta}\left(\hat{r}\right)
+\end{bmatrix}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Separated Basis Spinors (SBS):
+ 
+\begin_inset Formula $\begin{array}{c}
+g^{L\alpha}\left(\vec{r}\right)=\begin{bmatrix}g^{L}\left(r\right)Y_{lm_{l}}\left(\hat{r}\right)\\
+0
+\end{bmatrix}\\
+g^{L\beta}\left(\vec{r}\right)=\begin{bmatrix}0\\
+g^{L}\left(r\right)Y_{lm_{l}}\left(\hat{r}\right)
+\end{bmatrix}
+\end{array}.$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+You can see that the angular parts are simply related by a Clebsch-Gordan coefficient.
+ Are these polarized or unpolarized?
+ You have to look at how these basis functions interact with orbital expansion coefficients in order to decide.
+ But the SBS appears to be much more amenable to an unpolarized treatment.
+ What about the Clebsch-Gordan coefficients,
+ well I think they can just be absorbed into expansion coefficients:
+ 
+\begin_inset Formula 
+\[
+\varphi_{i}^{\alpha L}\left(\vec{r}\right)=\sum_{a}c_{ia}^{\alpha L}g_{al_{i}}^{L}\left(r\right)Y_{l_{i}m_{li}}\left(\hat{r}\right)=\sum_{a}c'_{ia}^{\alpha L}g_{a\kappa_{i}}^{L}\left(r\right)\Omega_{\kappa m_{j}}^{\alpha}\left(\hat{r}\right)
+\]
+
+\end_inset
+
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+c_{ia}^{\alpha L}=c'_{ia}^{\alpha L}C\left(l_{a},\frac{1}{2},j_{a};m_{ja}-\frac{1}{2},\frac{1}{2},m_{ja}\right)
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -4573,7 +4861,7 @@ Slater Determinant
 So far we have been discussing a one electron theory.
  As usual for multiple electrons we must enforce anti symmetry of the wave function,
  include electron-electron repulsion in the potential term.
- Fortunately the same Condon-Slater rules apply for determining allowed (nonzero) matrix elements for one a two electron integrals.
+ Fortunately the same Condon-Slater rules apply for determining allowed (nonzero) matrix elements for one and two electron integrals.
 \end_layout
 
 \begin_layout Subsection
@@ -4748,7 +5036,7 @@ nolink "false"
 \end_inset
 
  spin components.
- However the kinetic balance constraint 
+ However the RKB constraint 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:KBal1"
@@ -4868,12 +5156,47 @@ V_{ab}^{SS\alpha\alpha}=-Z\left\langle g_{Sa}\left(r\right)|\frac{1}{r}|g_{Sb}\l
 
 \begin_inset Formula 
 \[
-=-Z\left\langle g_{Sa}\left(r\right)|\frac{p^{2}}{r}|g_{Sb}\left(r\right)\right\rangle 
+=-Z\left\langle g_{La}\left(r\right)\boldsymbol{\sigma}\cdot\boldsymbol{p}|\frac{1}{r}|\boldsymbol{\sigma}\cdot\boldsymbol{p}g_{Lb}\left(r\right)\right\rangle 
 \]
 
 \end_inset
 
-but for this integral it is probably easier to use 
+Now we must take care because 
+\begin_inset Formula $\boldsymbol{\sigma}\cdot\boldsymbol{p}$
+\end_inset
+
+ and 
+\begin_inset Formula $\frac{1}{r}$
+\end_inset
+
+ do not commute,
+ so
+\begin_inset Formula 
+\[
+\boldsymbol{\sigma}\cdot\boldsymbol{p}|\frac{1}{r}|\boldsymbol{\sigma}\cdot\boldsymbol{p}=\frac{p^{2}}{r}+i\boldsymbol{\sigma}\cdot\boldsymbol{p}V\times\boldsymbol{p}=\frac{p^{2}}{r}+\frac{1}{r}\frac{\partial V}{\partial r}\boldsymbol{\sigma}\cdot\boldsymbol{r}\times\boldsymbol{p}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{p^{2}}{r}+\frac{2}{r}\frac{\partial V}{\partial r}\boldsymbol{s}\cdot\boldsymbol{l}
+\]
+
+\end_inset
+
+So like magic through the RKB condition,
+ the SO interaction term gets quietly moved from the kinetic term to the potential term.
+\begin_inset Formula 
+\[
+=-Z\left\langle g_{La}\left(r\right)|\frac{p^{2}}{r}|g_{Lb}\left(r\right)\right\rangle +2Z\left\langle g_{La}\left(r\right)|\frac{\boldsymbol{s}\cdot\boldsymbol{l}}{r^{3}}|g_{Lb}\left(r\right)\right\rangle 
+\]
+
+\end_inset
+
+For now we will treat the SO coupling term as a perturbation.
+ For the first term it is probably easier to use 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:KBalRadial"
@@ -5064,6 +5387,662 @@ M_{ab}^{\kappa m_{j}}=-2c^{2}\begin{bmatrix}0 & 0 & 0 & 0\\
 \end_layout
 
 \begin_layout Subsubsection
+Direct and Exchange 
+\end_layout
+
+\begin_layout Standard
+Can we express the relativistic ERI purely in terms of non-relativistic ERIs?
+ I don't think so,
+ a non-relativistic direct ERI looks like
+\begin_inset Formula 
+\[
+J_{abcd}=A_{0}\left(l_{a},l_{c}\right)R_{0}\left(l_{a},l_{c}\right)
+\]
+
+\end_inset
+
+which is a simple product of angular and radial parts.
+ The relativistic ERIs in the 
+\begin_inset Formula $LL$
+\end_inset
+
+ sector are the same (perhaps scaled by some Clebsch-Gordan coefficients).
+ However as soon as small component basis functions appear the radial and angular parts both get modified,
+ but in 
+\series bold
+different
+\series default
+ ways.
+ For the angular part we have 
+\begin_inset Formula $\kappa\rightarrow-\kappa$
+\end_inset
+
+ ,
+ so that for a 
+\begin_inset Formula $J^{LS}$
+\end_inset
+
+ ERI we get
+\begin_inset Formula 
+\[
+l_{c}\rightarrow\begin{cases}
+l_{c}+1 & \kappa_{c}<0\\
+l_{c}-1 & \kappa_{c}>0
+\end{cases}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{abcd}^{LS}=\begin{cases}
+A_{0}\left(l_{a},l_{c}+1\right)\lambda_{c}\lambda_{d}R_{0}\left(l_{a},l_{c}\right) & \kappa_{c}<0\\
+A_{0}\left(l_{a},l_{c}-1\right)\left[\lambda_{c}\lambda_{d}R_{0}\left(l_{a},l_{c}\right)-\left(\lambda_{c}+\lambda_{d}\right)\left(2\kappa'+1\right)R_{0}\left(l_{a},l_{c}-1\right)+\left(2\kappa'+1\right)^{2}R_{0}\left(l_{a},l_{c}-2\right)\right] & \kappa_{c}>0
+\end{cases}
+\]
+
+\end_inset
+
+Now using
+\end_layout
+
+\begin_layout Standard
+For the direct ERIs we have
+\begin_inset Formula 
+\[
+J_{\kappa}=\begin{bmatrix}J^{L\kappa\alpha} & 0 & 0 & 0\\
+0 & J^{L\kappa\beta} & 0 & 0\\
+0 & 0 & J^{S\kappa\alpha} & 0\\
+0 & 0 & 0 & J^{S\kappa\beta}
+\end{bmatrix}
+\]
+
+\end_inset
+
+where for example
+\begin_inset Formula 
+\[
+J_{ab}^{LL\kappa\tau}=\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}\left(D_{cd}^{LL\kappa'\tau'}J_{abcd}^{L\kappa\tau L\kappa'\tau'}+D_{cd}^{SS\kappa'\tau'}J_{abcd}^{L\kappa\tau S\kappa'\tau'}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{ab}^{SS\kappa\tau}=\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}\left(D_{cd}^{SS\kappa'\tau'}J_{abcd}^{S\kappa\tau S\kappa'\tau'}+D_{cd}^{LL\kappa'\tau'}J_{abcd}^{S\kappa\tau L\kappa'\tau'}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{cd}^{LL\kappa\tau}=\sum_{i\in occ}c_{ic}^{L\kappa\tau}c_{id}^{L\kappa\tau}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{cd}^{SS\kappa\tau}=\sum_{i\in occ}c_{ic}^{S\kappa\tau}c_{id}^{S\kappa\tau}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{abcd}^{L\kappa\tau L\kappa'\tau'}=\int d^{3}\overrightarrow{r}_{1}\int d^{3}\overrightarrow{r}_{2}\;g_{a}^{L*}\left(\overrightarrow{r}_{1}\right)g_{b}^{L}\left(\overrightarrow{r}_{1}\right)\frac{1}{r_{12}}g_{c}^{L*}(\overrightarrow{r}_{2})g_{d}^{L}\left(\overrightarrow{r}_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{abcd}^{L\kappa\tau S\kappa'\tau'}=\int d^{3}\overrightarrow{r}_{1}\int d^{3}\overrightarrow{r}_{2}\;g_{a}^{L*}\left(\overrightarrow{r}_{1}\right)g_{b}^{L}\left(\overrightarrow{r}_{1}\right)\frac{1}{r_{12}}g_{c}^{S*}(\overrightarrow{r}_{2})g_{d}^{S}\left(\overrightarrow{r}_{2}\right)
+\]
+
+\end_inset
+
+etc.
+ where we have the usual constraints for direct integrals:
+ 
+\begin_inset Formula 
+\[
+l=l_{a}=l_{b},\;\kappa=\kappa_{a}=\kappa_{b}\;l'=l_{c}=l_{d},\;\kappa'=\kappa_{c}=\kappa_{d}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Direct and Exchange (Polarized)
+\end_layout
+
+\begin_layout Standard
+using
+\begin_inset Formula 
+\[
+g_{\kappa a}^{S}=i\begin{cases}
+\left[-\lambda_{a}+\frac{\left(2l+1\right)}{r}H\left(\kappa\right)\right]r^{l}e^{-\lambda_{a}r} & Slater\\
+\left[-2\lambda_{a}+\frac{2l+1}{r^{2}}H\left(\kappa\right)\right]r^{l+1}e^{-\lambda_{a}r^{2}} & Gaussian
+\end{cases}
+\]
+
+\end_inset
+
+We need to expand
+\begin_inset Formula 
+\[
+g_{c}^{S*}g_{d}^{S}=\left[-\lambda_{c}+\frac{\left(2l'+1\right)}{r}H\left(\kappa'\right)\right]g_{\kappa'c}^{L}\left[-\lambda_{d}+\frac{\left(2l'+1\right)}{r}H\left(\kappa'\right)\right]g_{\kappa'd}^{L}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left[\lambda_{c}\lambda_{d}-\left(\lambda_{c}+\lambda_{d}\right)\frac{\left(2\kappa'+1\right)}{r}H\left(\kappa'\right)+\frac{\left(2\kappa'+1\right)^{2}}{r^{2}}H\left(\kappa'\right)\right]g_{\kappa'c}^{L}g_{\kappa'd}^{L}
+\]
+
+\end_inset
+
+Now we can write everything in terms of non-relativistic ERIs 
+\begin_inset Formula $J_{abcd}\left(l,l'\right)$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+J_{abcd}^{L\kappa\tau S\kappa'\tau'}=\lambda_{c}\lambda_{d}J_{abcd}\left(l,l'\right)-\left(\lambda_{c}+\lambda_{d}\right)\left(2l'+1\right)H\left(\kappa'\right)J_{abcd}\left(l,l'-1\right)+\left(2l'+1\right)^{2}H\left(\kappa'\right)J_{abcd}\left(l,l'-2\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{abcd}^{S\kappa\tau L\kappa'\tau'}=\lambda_{a}\lambda_{b}J_{abcd}\left(l,l'\right)-\left(\lambda_{a}+\lambda_{b}\right)\left(2l+1\right)H\left(\kappa\right)J_{abcd}\left(l-1,l'\right)+\left(2l+1\right)^{2}H\left(\kappa\right)J_{abcd}^{'}\left(l-2,l'\right)
+\]
+
+\end_inset
+
+And finally the worst case
+\begin_inset Formula 
+\[
+J_{abcd}^{S\kappa\tau S\kappa'\tau'}=\lambda_{c}\lambda_{d}\left[\lambda_{a}\lambda_{b}J_{abcd}^{'}\left(l,l'\right)-\left(\lambda_{a}+\lambda_{b}\right)\left(2l+1\right)H\left(\kappa\right)J_{abcd}\left(l-1,l\right)+\left(2l+1\right)^{2}H\left(\kappa\right)J_{abcd}\left(l-2,l'\right)\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+-\left(\lambda_{c}+\lambda_{d}\right)\left(2l'+1\right)H\left(\kappa'\right)\left[\lambda_{a}\lambda_{b}J_{abcd}\left(l,l'-1\right)-\left(\lambda_{a}+\lambda_{b}\right)\left(2l+1\right)H\left(\kappa\right)J_{abcd}\left(l-1,l'-1\right)+\left(2l+1\right)^{2}H\left(\kappa\right)J_{abcd}\left(l-2,l'-1\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
++\left(2l'+1\right)^{2}H\left(\kappa'\right)\left[\lambda_{a}\lambda_{b}J_{abcd}\left(l,l'-2\right)-\left(\lambda_{a}+\lambda_{b}\right)\left(2l+1\right)H\left(\kappa\right)J_{abcd}\left(l-1,l'-2\right)+\left(2l+1\right)^{2}H\left(\kappa\right)J_{abcd}\left(l-2,l'-2\right)\right]
+\]
+
+\end_inset
+
+In this section we will 
+\begin_inset Formula $g_{a}(\overrightarrow{r_{1}})$
+\end_inset
+
+ to denote Gaussian type spherical spinors,
+ 
+\begin_inset Formula $f_{a}(\overrightarrow{r_{1}})$
+\end_inset
+
+ to denote the non-relativistic counterpart with a spherical harmonic.
+ 
+\begin_inset Formula 
+\[
+g_{a}(\overrightarrow{r_{1}})=\begin{bmatrix}C\left(l_{a},\frac{1}{2},j_{a};m_{ja}+\frac{1}{2},-\frac{1}{2},m_{ja}\right)\\
+C\left(l_{a},\frac{1}{2},j_{a};m_{ja}-\frac{1}{2},\frac{1}{2},m_{ja}\right)
+\end{bmatrix}f_{a}(\overrightarrow{r_{1}})
+\]
+
+\end_inset
+
+and For the two centre integrals we will encounter many combinations.
+ If all four 
+\begin_inset Formula $g's$
+\end_inset
+
+ are in the large sector of the basis space then
+\begin_inset Formula 
+\[
+g_{abcd}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{2}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{1}})g_{d}(\overrightarrow{r_{2}})=C_{a}C_{b}C_{c}C_{d}f_{abcd}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+C_{a}=C\left(l_{a},\frac{1}{2},j_{a};m_{ja}-m_{sa},m_{sa},m_{ja}\right)
+\]
+
+\end_inset
+
+are the Clebsh-Gordon coefficients.
+ There will be many more ERIs with mixtures of large and small sector basis functions or all four in the small sector.
+ Using the notation
+\begin_inset Formula 
+\[
+g_{abcd}^{TT'}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{T*}(\overrightarrow{r_{1}})g_{b}^{T'}(\overrightarrow{r_{2}})\frac{1}{r_{12}}g_{c}^{T*}(\overrightarrow{r_{1}})g_{d}^{T'}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+Let us have a look at the worst case
+\begin_inset Formula 
+\[
+g_{abcd}^{SS}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{S*}(\overrightarrow{r_{1}})g_{b}^{S}(\overrightarrow{r_{2}})\frac{1}{r_{12}}g_{c}^{S}(\overrightarrow{r_{1}})g_{d}^{S}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+and for Slater functions expand using 
+\begin_inset Formula 
+\[
+g_{s}\left(r\right)=i\left(\frac{d}{dr}+\frac{\kappa_{a}+1}{r}\right)g_{a}^{L}\left(r\right)=i\begin{cases}
+-\lambda_{a}r^{-\kappa-1}e^{-\lambda_{a}r} & \kappa<0\\
+\left(\frac{2\kappa+1}{r}-\lambda_{a}\right)r^{\kappa}e^{-\lambda_{a}r} & \kappa>0
+\end{cases}
+\]
+
+\end_inset
+
+So for all four 
+\begin_inset Formula $\kappa<0$
+\end_inset
+
+ we find
+\begin_inset Formula 
+\[
+g_{abcd}^{SS}=C_{abcd}\lambda_{abcd}f_{abcd}
+\]
+
+\end_inset
+
+However we if all four 
+\begin_inset Formula $\kappa>0$
+\end_inset
+
+ we get 16 terms
+\begin_inset Formula 
+\[
+g_{abcd}^{SS}/C_{abcd}=\left(2\kappa_{a}+1\right)\left(2\kappa_{b}+1\right)\left(2\kappa_{c}+1\right)\left(2\kappa_{d}+1\right)f_{abcd}\left[\kappa_{a}-1,\kappa_{b}-1,\kappa_{c}-1,\kappa_{d}-1\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-\lambda_{a}\left(2\kappa_{b}+1\right)\left(2\kappa_{c}+1\right)\left(2\kappa_{d}+1\right)f_{abcd}\left[\kappa_{a},\kappa_{b}-1,\kappa_{c}-1,\kappa_{d}-1\right]-\circlearrowright
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
++\lambda_{a}\lambda_{b}\left(2\kappa_{c}+1\right)\left(2\kappa_{d}+1\right)f_{abcd}\left[\kappa_{a},\kappa_{b},\kappa_{c}-1,\kappa_{d}-1\right]+\circlearrowright
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-\lambda_{a}\lambda_{b}\lambda_{c}\left(2\kappa_{d}+1\right)f_{abcd}\left[\kappa_{a},\kappa_{b},\kappa_{c},\kappa_{d}-1\right]-\circlearrowright
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
++\lambda_{a}\lambda_{b}\lambda_{c}\lambda_{d}f_{abcd}\left[\kappa_{a},\kappa_{b},\kappa_{c},\kappa_{d}\right]
+\]
+
+\end_inset
+
+have to cases allowed by the Condon-Slater rules:
+\end_layout
+
+\begin_layout Enumerate
+Direct:
+ 
+\begin_inset Formula $\kappa_{a}=\kappa_{c},\;\kappa_{b}=\kappa_{d}$
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Enumerate
+Exchange:
+ 
+\begin_inset Formula $\kappa_{a}=\kappa_{b},\;\kappa_{c}=\kappa_{d}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $g_{abab}$
+\end_inset
+
+ would be a direct (Coulomb) integral and 
+\begin_inset Formula $g_{abba}$
+\end_inset
+
+ is then an exchange integral.
+ 
+\begin_inset Formula 
+\[
+\Omega_{jlm_{j}}=\sum_{m_{s}}C\left(l,\frac{1}{2},j;m_{j}-m_{s},m_{s},m_{j}\right)Y_{l,m_{j}-m_{s}}\left(\theta,\phi\right)\chi_{m_{s}}
+\]
+
+\end_inset
+
+We now need to break these down into large and small component combinations.
+ We can define
+\begin_inset Formula 
+\[
+g_{abcd}^{LL}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{L*}(\overrightarrow{r_{1}})g_{b}^{L}(\overrightarrow{r_{2}})\frac{1}{r_{12}}g_{c}^{L*}(\overrightarrow{r_{1}})g_{d}^{L}(\overrightarrow{r_{2}})
+\]
+
+\end_inset
+
+and using 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Basis1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{a}^{L*}(\overrightarrow{r_{1}})=g_{\kappa_{a}a}^{L}\left(r\right)\Omega_{\kappa_{a}m_{ja}}^{m_{sa}}\left(\hat{r}\right)
+\]
+
+\end_inset
+
+along with the multi-pole expansion
+\begin_inset Formula 
+\[
+\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2k+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+we get for the direct case 
+\begin_inset Formula 
+\[
+g_{abcd}^{LL}=A\left(\kappa_{a},m_{ja},0,m\right)A\left(\kappa_{b},m_{jc},0,m\right)R_{0}\left(a,b,a,b\right)
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+A\left(\kappa_{a},m_{ja},m_{jc},k\right)=\int d\Omega_{1}\Omega_{\kappa_{a}m_{ja}}^{*m_{sa}}\left(\Omega_{1}\right)Y_{km}^{*}(\Omega_{1})\Omega_{\kappa_{a}m_{jc}}^{m_{sc}}\left(\Omega_{1}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Direct and Exchange (Unpolarized)
+\end_layout
+
+\begin_layout Standard
+If wave function constrained in such a way that all radial functions are the same for 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+ spins (
+\begin_inset Formula $c_{\kappa a}^{L\alpha}=c_{\kappa a}^{L\beta},c_{\kappa a}^{S\alpha}=c_{\kappa a}^{S\beta}$
+\end_inset
+
+ in eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Basis1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) the we can think of the Dirac equation as a 
+\begin_inset Formula $2$
+\end_inset
+
+ component problem instead of 
+\begin_inset Formula $4$
+\end_inset
+
+ component.
+ The basis spinors are 
+\begin_inset Formula 
+\[
+g_{a}\left(\overrightarrow{r}\right)=\begin{bmatrix}g_{a}^{L}\left(r\right)\Omega_{\kappa_{a}m_{ja}}\\
+g_{a}^{S}\left(r\right)\Omega_{-\kappa_{a}m_{ja}}
+\end{bmatrix}
+\]
+
+\end_inset
+
+where two spine components are now hiding in each angular function
+\begin_inset Formula 
+\[
+\Omega_{\kappa_{a}m_{ja}}=\begin{bmatrix}\Omega_{\kappa_{a}m_{ja}}^{\alpha}\\
+\Omega_{\kappa_{a}m_{ja}}^{\beta}
+\end{bmatrix}.
+\]
+
+\end_inset
+
+The product of two basis function with a common coordinate 
+\begin_inset Formula $\overrightarrow{r}$
+\end_inset
+
+ looks like
+\begin_inset Formula 
+\[
+g_{a}^{\dagger}\left(\overrightarrow{r}\right)g_{c}\left(\overrightarrow{r}\right)=g_{a}^{L}\left(r\right)g_{c}^{L}\left(r\right)\Omega_{\kappa_{a}m_{ja}}^{\dagger}\Omega_{\kappa_{c}m_{jc}}+g_{a}^{S}\left(r\right)g_{c}^{S}\left(r\right)\Omega_{-\kappa_{a}m_{ja}}^{\dagger}\Omega_{-\kappa_{c}m_{jc}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left[g_{a}^{L}\left(r\right)g_{c}^{L}\left(r\right)+g_{a}^{S}\left(r\right)g_{c}^{S}\left(r\right)\right]\Omega_{\kappa_{a}m_{ja}}^{\dagger}\Omega_{\kappa_{c}m_{jc}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left[g_{a}^{L}\left(r\right)g_{c}^{L}\left(r\right)+g_{a}^{S}\left(r\right)g_{c}^{S}\left(r\right)\right]\left(\Omega_{\kappa_{a}m_{ja}}^{\alpha*}\Omega_{\kappa_{c}m_{jc}}^{\alpha}+\Omega_{\kappa_{a}m_{ja}}^{\beta*}\Omega_{\kappa_{c}m_{jc}}^{\beta}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+g_{abcd}=\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{\dagger}\left(\overrightarrow{r_{1}}\right)g_{b}^{\dagger}\left(\overrightarrow{r_{2}}\right)\frac{1}{r_{12}}g_{c}\left(\overrightarrow{r_{1}}\right)g_{d}\left(\overrightarrow{r_{2}}\right)
+\]
+
+\end_inset
+
+using 
+\begin_inset Formula 
+\[
+\frac{1}{r_{12}}=\sum_{k=0}^{\infty}\frac{4\pi}{2k+1}\frac{r_{<}^{k}}{r_{>}^{k+1}}\sum_{m=-k}^{k}Y_{km}^{*}\left(\Omega_{1}\right)Y_{km}\left(\Omega_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{abcd}=\sum_{km}R_{k}\left(abcd\right)A_{k}\left(\kappa_{a},m_{ja},\kappa_{c}m_{jc},-m\right)A_{k}\left(\kappa_{b},m_{jb},\kappa_{d}m_{jd},m\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{k}\left(abcd\right)=\int\int dr_{1}dr_{2}\left[g_{a}^{L}\left(r_{1}\right)g_{c}^{L}\left(r_{1}\right)+g_{a}^{S}\left(r_{1}\right)g_{c}^{S}\left(r_{1}\right)\right]\frac{r_{<}^{k}}{r_{>}^{k+1}}\left[g_{b}^{L}\left(r_{2}\right)g_{d}^{L}\left(r_{2}\right)+g_{b}^{S}\left(r_{2}\right)g_{d}^{S}\left(r_{2}\right)\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{k}\left(\kappa_{a},m_{ja},\kappa_{c}m_{jc},m\right)=\int d\theta d\phi\Omega_{\kappa_{a}m_{ja}}^{\dagger}\left(\theta,\phi\right)Y_{km}\left(\theta,\phi\right)\Omega_{\kappa_{c}m_{jc}}\left(\theta,\phi\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=C_{a}C_{c}\int d\theta d\phi Y_{l_{a}m_{la}}^{*}\left(\theta,\phi\right)Y_{km}\left(\theta,\phi\right)Y_{l_{c}m_{lc}}\left(\theta,\phi\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=C_{a}C_{c}\left(-1\right)^{m_{c}}\sqrt{\frac{\left(2l_{a}+1\right)\left(2l_{c}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{c} & k\\
+m_{la} & -m_{lc} & m
+\end{array}\right)
+\]
+
+\end_inset
+
+From the non-relativistic case we already know how to calculate
+\begin_inset Formula 
+\[
+R_{k}^{LL}\left(abcd\right)=\int\int dr_{1}dr_{2}g_{a}^{L}\left(r_{1}\right)g_{c}^{L}\left(r_{1}\right)\frac{r_{<}^{k}}{r_{>}^{k+1}}g_{b}^{L}\left(r_{2}\right)g_{d}^{L}\left(r_{2}\right)=R_{k}\left(abcd\right)
+\]
+
+\end_inset
+
+We need an efficient way to calculate
+\begin_inset Formula 
+\[
+R_{k}^{LS}\left(abcd\right)=\int\int dr_{1}dr_{2}g_{a}^{L}\left(r_{1}\right)g_{c}^{L}\left(r_{1}\right)\frac{r_{<}^{k}}{r_{>}^{k+1}}g_{b}^{S}\left(r_{2}\right)g_{d}^{S}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\int\int dr_{1}dr_{2}g_{a}^{L}\left(r_{1}\right)g_{c}^{L}\left(r_{1}\right)\frac{r_{<}^{k}}{r_{>}^{k+1}}\left(\frac{d}{dr}+\frac{\kappa_{b}+1}{r}\right)g_{b}^{L}\left(r_{2}\right)\left(\frac{d}{dr}+\frac{\kappa_{d}+1}{r}\right)g_{d}^{L}\left(r_{2}\right)
+\]
+
+\end_inset
+
+For Slater functions and 
+\begin_inset Formula $\kappa_{b}>0$
+\end_inset
+
+ and 
+\begin_inset Formula $\kappa_{d}>0$
+\end_inset
+
+ (worst case) this looks like
+\begin_inset Formula 
+\[
+=\int\int dr_{1}dr_{2}g_{a}^{L}\left(r_{1}\right)g_{c}^{L}\left(r_{1}\right)\frac{r_{<}^{k}}{r_{>}^{k+1}}\left(\frac{2\kappa_{b}+1}{r_{2}}-\lambda_{b}\right)g_{b}^{L}\left(r_{2}\right)\left(\frac{2\kappa_{d}+1}{r_{2}}-\lambda_{d}\right)g_{d}^{L}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(2\kappa_{b}+1\right)\left(2\kappa_{d}+1\right)R_{k}^{LL}\left(l_{a},l_{b}-1,l_{c},l_{d}-1\right)-\lambda_{d}\left(2\kappa_{b}+1\right)R_{k}^{LL}\left(l_{a},l_{b}-1,l_{c},l_{d}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+-\lambda_{b}\left(2\kappa_{d}+1\right)R_{k}^{LL}\left(l_{a},l_{b},l_{c},l_{d}-1\right)+\lambda_{b}\lambda_{d}R_{k}^{LL}\left(l_{a},l_{b},l_{c},l_{d}\right)
+\]
+
+\end_inset
+
+other cases with 
+\begin_inset Formula $\kappa_{b}<0$
+\end_inset
+
+ and/or 
+\begin_inset Formula $\kappa_{d}<0$
+\end_inset
+
+ result is a subset of the above four terms.
+\end_layout
+
+\begin_layout Subsubsection
 One electron Hamiltonian matrix
 \end_layout
 
@@ -5200,7 +6179,7 @@ Even though at the operator level the
 
 ,
  when using a restricted kinetic balance basis set,
- we find that matrices for those operators do commute.
+ we find that matrices for those operators do commute if the SO term in the potential is neglected (for now).
 \end_layout
 
 \begin_layout Standard

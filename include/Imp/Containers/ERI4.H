@@ -31,6 +31,10 @@ public:
     friend SMat operator*(const SMat& Sab, const ERI4& gabcd);
 
     size_t size() const;
+    auto rows() const {return itsData.rows();}
+    auto cols() const {return itsData.cols();}
+    auto rows(index_t i) const {return itsData.rows(i);}
+    auto cols(index_t i) const {return itsData.cols(i);}
 private:
     static double contract(const SMat& A,const SMat& B);
     SMatrix<SMatrix<double> > itsData;

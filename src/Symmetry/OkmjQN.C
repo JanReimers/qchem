@@ -85,10 +85,6 @@ AngularQN* Omega_kQN::Clone() const
 
 
 
-
-
-
-
 Omega_kmjQN::Omega_kmjQN(): kappa(0), mj(0) {};
 
 Omega_kmjQN::Omega_kmjQN(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
