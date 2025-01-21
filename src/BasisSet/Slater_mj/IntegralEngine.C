@@ -176,9 +176,18 @@ ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIE
 }
 ERI4 DiracIntegralEngine::MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
 {
-    assert(false);
-    return ERI4();    
+    auto da=dcast(a);
+    auto db=dcast(b);
+    assert(da->itsLargeIEC->kappa==-da->itsSmallIEC->kappa);
+    assert(db->itsLargeIEC->kappa==-db->itsSmallIEC->kappa);
+    ERI4 JLL=itsLargeIE->MakeExchange(da->itsLargeIEC,db->itsLargeIEC);
+    ERI4 JLS=itsSmallIE->MakeExchange(da->itsLargeIEC,db->itsSmallIEC);
+    ERI4 JSL=itsSmallIE->MakeExchange(da->itsSmallIEC,db->itsLargeIEC);
+    ERI4 JSS=itsSmallIE->MakeExchange(da->itsSmallIEC,db->itsSmallIEC);
+    
+    return merge(JLL,JLS,JSL,JSS);  
 }
+
 DiracIntegralEngine::RVec DiracIntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
 {
     assert(false);
@@ -410,5 +419,186 @@ ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIECli
     return J;
 }
 
+ERI4 Small_IntegralEngine::MakeExchange  (const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
+{
+    auto da=dcast(a);
+    auto db=dcast(b);  
+    if (da->Large() && !db->Large())
+        return MakeExchangeLS(da,db);
+    else if (!da->Large() && db->Large())
+        return MakeExchangeSL(da,db);
+    else if (!da->Large() && !db->Large())
+        return MakeExchangeSS(da,db);
+    assert(false);
+    return ERI4();
+}
+
+ERI4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* c) const
+{
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 K(Na,Nc);
+    for (size_t ia:a->indices())
+    {
+        double ea=a->es_indices[ia-1];
+        //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        double na=a->ns(ia);
+        for (size_t ic:c->indices())
+        {
+            int la=a->l, lc=c->l;
+            RVec Akac=ExchangeAngularIntegrals(la,Omega_kQN::l(-c->kappa),0,0);
+            double nac=na*c->ns(ic);
+            for (size_t ib:a->indices(ia))
+            {
+                SMat& Kab=K(ia,ib);
+                double eb=a->es_indices[ib-1];
+                double ec=c->es_indices[ic-1];
+                // loop_2(a->es_indices[ib-1]);
+                // loop_3(c->es_indices[ic-1]);
+                double nacb=nac*a->ns(ib);
+                for (size_t id:c->indices())
+                {
+                    double ed=c->es_indices[id-1];
+                    double norm=nacb*c->ns(id);
+                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    RVec Rkac=ec*ed*cd.ExchangeRk(la,lc);
+                    //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
+                     if (c->kappa>0)
+                    {
+                        int k2=2*c->kappa+1;
+                        Rkac-=RVec((ec+ed)*k2*cd.ExchangeRk(la,lc-1));
+                        Rkac+=RVec(k2*k2*cd.ExchangeRk(la,lc-2));
+                    }
+                    if (ic==id)
+                        Kab(ic,id)=Akac*Rkac*norm; 
+                    else if (id<ic)
+                        Kab(id,ic)+=0.5*Akac*Rkac*norm; 
+                    else
+                        Kab(ic,id)+=0.5*Akac*Rkac*norm; 
+
+                }
+            }
+        }
+    }
+
+    return K;
+}
+
+ERI4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* c) const
+{
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 K(Na,Nc);
+    for (size_t ia:a->indices())
+    {
+        double ea=a->es_indices[ia-1];
+        //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        double na=a->ns(ia);
+        for (size_t ic:c->indices())
+        {
+            int la=a->l, lc=c->l;
+            RVec Akac=ExchangeAngularIntegrals(Omega_kQN::l(-a->kappa),lc,0,0);
+            double nac=na*c->ns(ic);
+            for (size_t ib:a->indices(ia))
+            {
+                SMat& Kab=K(ia,ib);
+                double eb=a->es_indices[ib-1];
+                double ec=c->es_indices[ic-1];
+                // loop_2(a->es_indices[ib-1]);
+                // loop_3(c->es_indices[ic-1]);
+                double nacb=nac*a->ns(ib);
+                for (size_t id:c->indices())
+                {
+                    double ed=c->es_indices[id-1];
+                    double norm=nacb*c->ns(id);
+                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    RVec Rkac=ea*eb*cd.ExchangeRk(la,lc);
+                    //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
+                     if (a->kappa>0)
+                    {
+                        int k2=2*a->kappa+1;
+                        Rkac-=RVec((ea+eb)*k2*cd.ExchangeRk(la-1,lc));
+                        Rkac+=RVec(k2*k2*cd.ExchangeRk(la-2,lc));
+                    }
+                    if (ic==id)
+                        Kab(ic,id)=Akac*Rkac*norm; 
+                    else if (id<ic)
+                        Kab(id,ic)+=0.5*Akac*Rkac*norm; 
+                    else
+                        Kab(ic,id)+=0.5*Akac*Rkac*norm;
+                }
+            }
+        }
+    }
+    return K;
+}
+
+ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIEClient* c) const
+{
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 K(Na,Nc);
+    for (size_t ia:a->indices())
+    {
+        double ea=a->es_indices[ia-1];
+        //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        double na=a->ns(ia);
+        for (size_t ic:c->indices())
+        {
+            int la=a->l, lc=c->l;
+            RVec Akac=ExchangeAngularIntegrals(Omega_kQN::l(-a->kappa),Omega_kQN::l(-c->kappa),0,0);
+            double nac=na*c->ns(ic);
+            for (size_t ib:a->indices(ia))
+            {
+                SMat& Kab=K(ia,ib);
+                double eb=a->es_indices[ib-1];
+                double ec=c->es_indices[ic-1];
+                // loop_2(a->es_indices[ib-1]);
+                // loop_3(c->es_indices[ic-1]);
+                double nacb=nac*a->ns(ib);
+                for (size_t id:c->indices())
+                {
+                    double ed=c->es_indices[id-1];
+                    double norm=nacb*c->ns(id);
+                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    RVec Rabk=ea*eb*cd.ExchangeRk(la,lc);
+                    if (a->kappa>0)
+                    {
+                        int k2=2*a->kappa+1;
+                        Rabk-=RVec((ea+eb)*k2*cd.ExchangeRk(la-1,lc));
+                        Rabk+=RVec(k2*k2*cd.ExchangeRk(la-2,lc));
+                    }
+                    RVec Rk=ec*ed*Rabk;
+                    if (c->kappa>0)
+                    {
+                        RVec Rab1=ea*eb*cd.ExchangeRk(la,lc-1);
+                        RVec Rab2=ea*eb*cd.ExchangeRk(la,lc-2);
+                        if (a->kappa>0)
+                        {
+                            int k2a=2*a->kappa+1;
+                            Rab1-=RVec((ea+eb)*k2a*cd.ExchangeRk(la-1,lc-1));
+                            Rab1+=RVec(k2a*k2a*cd.ExchangeRk(la-2,lc-1));
+                            Rab2-=RVec((ea+eb)*k2a*cd.ExchangeRk(la-1,lc-2));
+                            Rab2+=RVec(k2a*k2a*cd.ExchangeRk(la-2,lc-2));
+                        }
+                        int k2c=2*c->kappa+1;
+                        Rk-=RVec((ec+ed)*k2c*Rab1);
+                        Rk+=RVec(k2c*k2c*Rab2);
+                    }
+                    if (ic==id)
+                        Kab(ic,id)=Akac*Rk*norm; 
+                    else if (id<ic)
+                        Kab(id,ic)+=0.5*Akac*Rk*norm; 
+                    else
+                        Kab(ic,id)+=0.5*Akac*Rk*norm;
+                }
+            }
+        }
+    }
+    return K;
+}
 
 } //namespace

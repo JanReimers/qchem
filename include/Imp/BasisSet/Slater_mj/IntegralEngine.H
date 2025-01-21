@@ -57,11 +57,15 @@ public:
     virtual double Overlap  (double ea , double eb,size_t l) const;
     virtual double Nuclear(double ea, double eb,size_t l) const;
     virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
+    virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
 private:
     static const IrrepIEClient* dcast(iec_t*);
-    ERI4 MakeDirectLS(const IrrepIEClient* a, const IrrepIEClient* c) const;
-    ERI4 MakeDirectSL(const IrrepIEClient* a, const IrrepIEClient* c) const;
-    ERI4 MakeDirectSS(const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeDirectLS  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeDirectSL  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeDirectSS  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* b) const;
+    ERI4 MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* b) const;
+    ERI4 MakeExchangeSS(const IrrepIEClient* a, const IrrepIEClient* b) const;
 };
 
 } //namespace

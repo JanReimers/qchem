@@ -5425,7 +5425,7 @@ different
  ERI we get
 \begin_inset Formula 
 \[
-l_{c}\rightarrow\begin{cases}
+l_{d}=l_{c}\rightarrow\begin{cases}
 l_{c}+1 & \kappa_{c}<0\\
 l_{c}-1 & \kappa_{c}>0
 \end{cases}
@@ -5514,6 +5514,87 @@ etc.
 \begin_inset Formula 
 \[
 l=l_{a}=l_{b},\;\kappa=\kappa_{a}=\kappa_{b}\;l'=l_{c}=l_{d},\;\kappa'=\kappa_{c}=\kappa_{d}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For exchange integrals we have the checker-board pattern.
+\begin_inset Formula 
+\[
+K_{\kappa}=\begin{bmatrix}K^{LL\kappa\alpha} & 0 & K^{LS\kappa\alpha} & 0\\
+0 & K^{LL\kappa\beta} & 0 & K^{LS\kappa\beta}\\
+K^{SL\kappa\alpha} & 0 & K^{SS\kappa\alpha} & 0\\
+0 & K^{SL\kappa\beta} & 0 & K^{SS\kappa\beta}
+\end{bmatrix}
+\]
+
+\end_inset
+
+The constraints from the Condon-Shortly rules are
+\begin_inset Formula 
+\[
+l=l_{a}=l_{c},\;\kappa=\kappa_{a}=\kappa_{c}\;l'=l_{b}=l_{d},\;\kappa'=\kappa_{b}=\kappa_{d}
+\]
+
+\end_inset
+
+where the non-relativistic version looks like
+\begin_inset Formula 
+\[
+K_{abcd}=\sum_{k}A_{k}\left(l_{a},l_{b}\right)R_{k}\left(l_{a},l_{b}\right).
+\]
+
+\end_inset
+
+In the relativistic case we have four 
+\begin_inset Formula $L/S$
+\end_inset
+
+ versions,
+ each a sum of four 
+\begin_inset Formula $L/S$
+\end_inset
+
+ terms:
+\begin_inset Formula 
+\[
+K_{ab}^{LL\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{LL\kappa\tau TT'\kappa'\tau'}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{LS\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{LS\kappa\tau TT'\kappa'\tau'}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{SL\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{SL\kappa\tau TT'\kappa'\tau'}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{SS\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{SS\kappa\tau TT'\kappa'\tau'}
+\]
+
+\end_inset
+
+So we need 16 versions of 
+\begin_inset Formula 
+\[
+K_{acbd}^{UU'\kappa\tau TT'\kappa'\tau'},\quad\left\{ U,U',T,T'\right\} \in\left\{ L,S\right\} 
 \]
 
 \end_inset
