@@ -30,6 +30,7 @@ class ElectronConfiguration;
 class EnergyLevel;
 class EnergyLevels;
 class ERI4;
+class M4;
 class ExFunctional;
 class FittedCD;
 class FittedFunction;
