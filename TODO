@@ -35,7 +35,7 @@ Priority 1:
     Done: -Another round of warning fixes.
     -QchemTester: make show basis set an option.
     -Common base for SlaterCD and SG_CD
-        -Make some unit test first?
+        -Make some unit tests first?
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -Point group symmtery
@@ -94,6 +94,14 @@ Priority 1:
             -Finite size nucleus,  Ven_fs
             TODO:
             -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
+        -Factors of 2
+            -Exchange
+                K_LSLS should be Matrix, not SMatrix
+                We need a non symmetrix version of ERI4
+            -Don't renormalize gS, make gS=1/(2*c)*OP*gL
+                Should be able to remove -2* for kinetic matrix, and 0.5* for energy.
+                This one could get messy. Commit first for easy back out.
+            
     -use map hints for caches
         No such thing as map::hint for finding iterators.
     -Molecule mesh gives crappy integrals.  
