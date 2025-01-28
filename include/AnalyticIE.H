@@ -34,7 +34,7 @@ public:
     typedef std::map<size_t,std::map<size_t,ERI4> > erij_t;
 
     virtual ~AnalyticIE()  {};
-    virtual void Append(IrrepIEClient*);
+    virtual void Append(const IrrepIEClient*);
 
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
     //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;

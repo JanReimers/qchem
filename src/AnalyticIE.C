@@ -6,7 +6,7 @@
 #include "oml/smatrix.h"
 
 
-template <class T> void AnalyticIE<T>::Append(IrrepIEClient* iec)
+template <class T> void AnalyticIE<T>::Append(const IrrepIEClient* iec)
 {
     itsIrreps.push_back(iec);
 }

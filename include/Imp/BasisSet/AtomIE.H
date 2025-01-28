@@ -38,7 +38,7 @@ public:
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 
-    virtual void Append(IrrepIEClient*);
+    virtual void Append(const IrrepIEClient*);
         
 private:
     static const AtomIrrepIEClient* dcast(iec_t*);
