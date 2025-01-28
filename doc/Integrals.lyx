@@ -1709,17 +1709,17 @@ Coulomb case:
 \begin_inset Formula 
 \[
 A_{1}A_{2}=\frac{\left(2l_{a}+1\right)\left(2l_{c}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
-l_{c} & l_{c} & k\\
-0 & 0 & 0
-\end{array}\right)\left(\begin{array}{ccc}
-l_{c} & l_{c} & k\\
-m_{c} & m_{d} & -m_{c}-m_{d}
-\end{array}\right)\left(\begin{array}{ccc}
 l_{a} & l_{a} & k\\
 0 & 0 & 0
 \end{array}\right)\left(\begin{array}{ccc}
 l_{a} & l_{a} & k\\
 -m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+m_{c} & m_{d} & -m_{c}-m_{d}
 \end{array}\right)
 \]
 
@@ -1741,6 +1741,23 @@ and
 \end_inset
 
  for the exchange term.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula 
+\[
+A_{1}A_{2}=\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection

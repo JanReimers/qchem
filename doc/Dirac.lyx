@@ -1058,6 +1058,149 @@ literal "false"
 \end_layout
 
 \begin_layout Subsection
+Editorial
+\end_layout
+
+\begin_layout Standard
+Writing software for Dirac-HF calculations is challenging mostly because a number details required for getting the software to work are glossed over poorly explained in the literature.
+ Here is the list:
+\end_layout
+
+\begin_layout Enumerate
+There are numerous versions of of Kinetic Balance
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Sun2011"
+literal "false"
+
+\end_inset
+
+.
+ The only version we want to use is Restricted Kinetic Balance (RKB).
+ The rest can be safely ignored.
+\end_layout
+
+\begin_layout Enumerate
+The RKB relationship is quoted in many different ways in the literature,
+ often with scalar constants in front
+\begin_inset Formula 
+\[
+g_{Sa}\left(\vec{r}\right)=i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{Sa}\left(\vec{r}\right)=\frac{1}{2}i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{Sa}\left(\vec{r}\right)=\frac{1}{2c}i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{Sa}\left(\vec{r}\right)=\frac{1}{c}i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+This is only meaningful if the small component basis functions are 
+\series bold
+not normalized
+\series default
+ in the code.
+ But nobody every states this explicitly.
+\end_layout
+
+\begin_layout Enumerate
+RKB results matrix equations that do no match the corresponding operator equations.
+ The reason is that we have an extra operator high inside the small component basis functions.
+ Point #5 below is one example.
+\end_layout
+
+\begin_layout Enumerate
+In the non relativistic HF literature they use terms like RHF,
+ URH,
+ ROFH to describe models with spin 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ and spin 
+\begin_inset Formula $\beta$
+\end_inset
+
+ orbitals being identical,
+ or distinct (restricted and unrestricted).
+ In the DHF literature this nomenclature changes to Kramers-Restricted and Kramers-UnRestricted.
+ Sometimes the term spin-free also appears.
+ A lot literature implicitly uses spin restricted (orbital expansion coefficients are not spin dependent) without making that statement.
+ You have to read it in orbital expansion expressions.
+\end_layout
+
+\begin_layout Enumerate
+DHF theory has spin orbit coupling built into the Hamiltonian.
+ It is hiding in the off diagonal components of the Kinetic energy operator.
+ However as soon as we invoke RKB,
+ those off diagonal 
+\series bold
+matrix
+\series default
+ elements immediately become zero.
+ With one exception 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Li2012"
+literal "false"
+
+\end_inset
+
+,
+ nobody ever states this plainly,
+ maybe they never noticed!
+ So did SO-coupling just disappear?
+ No,
+ it moved over to the small-component part of the Nuclear potential matrix.
+ Again 1) 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Li2012"
+literal "false"
+
+\end_inset
+
+ seems to be the only author noticing this,
+ and 2) the operators themselves do not reveal any of this.
+\end_layout
+
+\begin_layout Enumerate
+RKB does not actually remove the positron states from eigen solution space.
+ We need to filter all of those out (eigen 
+\begin_inset Formula $\varepsilon<-2c^{2}$
+\end_inset
+
+) manually in the code.
+ Again this is rarely stated 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Visscher1994"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
 Radial Solutions
 \end_layout
 
@@ -1323,11 +1466,7 @@ Finally we have a full set of quantum numbers for the Dirac Hydrogen atom:
 \begin_inset Formula $\left\{ n,\kappa,j,m_{j}\right\} $
 \end_inset
 
- with the angular momentum quantum number determined unambiguously from 
-\begin_inset Formula $j$
-\end_inset
-
- and the sign of 
+ with the angular momentum quantum number determined unambiguously from sign of 
 \begin_inset Formula $\kappa$
 \end_inset
 
@@ -5387,7 +5526,7 @@ M_{ab}^{\kappa m_{j}}=-2c^{2}\begin{bmatrix}0 & 0 & 0 & 0\\
 \end_layout
 
 \begin_layout Subsubsection
-Direct and Exchange 
+Direct (Coulomb) ERIs 
 \end_layout
 
 \begin_layout Standard
@@ -5396,12 +5535,50 @@ Can we express the relativistic ERI purely in terms of non-relativistic ERIs?
  a non-relativistic direct ERI looks like
 \begin_inset Formula 
 \[
-J_{abcd}=A_{0}\left(l_{a},l_{c}\right)R_{0}\left(l_{a},l_{c}\right)
+J_{abcd}=\sum_{k=0}^{\min\left\{ l_{a}^{'},l_{c}^{'}\right\} }\frac{\left(2l_{a}+1\right)\left(2l_{c}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+m_{c} & m_{d} & -m_{c}-m_{d}
+\end{array}\right)R_{k}(l_{a},l_{a},l_{c},l_{c})
 \]
 
 \end_inset
 
-which is a simple product of angular and radial parts.
+
+\begin_inset Formula 
+\[
+\sum_{k=0}^{\min\left\{ l_{a}^{'},l_{c}^{'}\right\} }\frac{\left(2k+1\right)}{4\pi}A_{k}\left(l_{a},m_{a},m_{b}\right)A_{k}\left(l_{c},m_{c},m_{d}\right)R_{k}(l_{a},l_{a},l_{c},l_{c})
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{k=0}^{\min\left\{ l_{a}^{'},l_{c}^{'}\right\} }\frac{\left(2k+1\right)}{4\pi}A_{k}\left(l_{a},l_{c},\left\{ m\right\} \right)R_{k}(l_{a},l_{a},l_{c},l_{c})
+\]
+
+\end_inset
+
+Usually at this point one will sum over the magnetic quantum numbers 
+\begin_inset Formula $m_{a},m_{b},m_{c},m_{d}$
+\end_inset
+
+ and discover that only the 
+\begin_inset Formula $k=0$
+\end_inset
+
+ term survives.
+ But if we want to handle open shell systems,
+ this magnetic sum is the last thing we want to do.
  The relativistic ERIs in the 
 \begin_inset Formula $LL$
 \end_inset
@@ -5418,7 +5595,7 @@ different
 \end_inset
 
  ,
- so that for a 
+ so that for the angular part of a 
 \begin_inset Formula $J^{LS}$
 \end_inset
 
@@ -5426,9 +5603,29 @@ different
 \begin_inset Formula 
 \[
 l_{d}=l_{c}\rightarrow\begin{cases}
-l_{c}+1 & \kappa_{c}<0\\
-l_{c}-1 & \kappa_{c}>0
-\end{cases}
+l_{rc}+1 & \kappa_{c}<0\\
+l_{rc}-1 & \kappa_{c}>0
+\end{cases}=l_{rc}+1-2H\left(\kappa_{c}\right)
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $rl_{c}$
+\end_inset
+
+ is the value used in the radial function
+\begin_inset Formula 
+\[
+g_{c}^{L}\left(r\right)=r^{l_{rc}}e^{-\lambda_{c}r}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+g_{c}^{S}\left(r\right)=i\left(\frac{\partial}{\partial r}+\frac{\kappa_{rc}+1}{r}\right)r^{l_{rc}}e^{-\lambda_{c}r}=\left[-\lambda_{c}+\frac{\left(2l_{rc}+1\right)}{r}H\left(\kappa_{rc}\right)\right]r^{l_{rc}}e^{-\lambda_{c}r}
 \]
 
 \end_inset
@@ -5437,14 +5634,40 @@ l_{c}-1 & \kappa_{c}>0
 \begin_inset Formula 
 \[
 J_{abcd}^{LS}=\begin{cases}
-A_{0}\left(l_{a},l_{c}+1\right)\lambda_{c}\lambda_{d}R_{0}\left(l_{a},l_{c}\right) & \kappa_{c}<0\\
-A_{0}\left(l_{a},l_{c}-1\right)\left[\lambda_{c}\lambda_{d}R_{0}\left(l_{a},l_{c}\right)-\left(\lambda_{c}+\lambda_{d}\right)\left(2\kappa'+1\right)R_{0}\left(l_{a},l_{c}-1\right)+\left(2\kappa'+1\right)^{2}R_{0}\left(l_{a},l_{c}-2\right)\right] & \kappa_{c}>0
+\lambda_{c}\lambda_{d}\sum_{k=0}^{\min\left\{ l_{a}^{'},l_{c}^{'}\right\} }\frac{\left(2k+1\right)}{4\pi}A_{k}\left(l_{a},l_{c},\left\{ m\right\} \right)R_{k}(l_{a},l_{a},l_{rc},l_{rc}) & \kappa_{c}<0\\
+\sum_{k=0}^{\min\left\{ l_{a}^{'},l_{c}^{'}\right\} }\frac{\left(2k+1\right)}{4\pi}A_{k}\left(l_{a},l_{c},\left\{ m\right\} \right)\left[\lambda_{c}\lambda_{d}R_{k}\left(l_{a},l_{a},l_{rc},l_{rc}\right)-\left(\lambda_{c}+\lambda_{d}\right)\left(2\kappa_{rc}+1\right)R_{k}\left(l_{a},l_{a},l_{rc}-1,l_{rc}\right)+\left(2\kappa_{rc}+1\right)^{2}R_{k}\left(l_{a},l_{a},l_{rc}-1,l_{rc}-1\right)\right] & \kappa_{c}>0
 \end{cases}
 \]
 
 \end_inset
 
-Now using
+If we now do a sum over magnetic quantum numbers we get
+\begin_inset Formula 
+\[
+J_{abcd}^{LS}=4\pi A_{0}\left(l_{a},l_{c}\right)\begin{cases}
+\lambda_{c}\lambda_{d}R_{0}(l_{a},l_{a},l_{rc},l_{rc}) & \kappa_{c}<0\\
+\lambda_{c}\lambda_{d}R_{0}\left(l_{a},l_{a},l_{rc},l_{rc}\right)-\left(\lambda_{c}+\lambda_{d}\right)\left(2\kappa_{rc}+1\right)R_{0}\left(l_{a},l_{a},l_{rc}-1,l_{rc}\right)+\left(2\kappa_{rc}+1\right)^{2}R_{0}\left(l_{a},l_{a},l_{rc}-1,l_{rc}-1\right) & \kappa_{c}>0
+\end{cases}
+\]
+
+\end_inset
+
+Now using 
+\begin_inset Formula $l_{rc}=l_{c}-1+2H\left(\kappa_{c}\right)$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{abcd}^{LS}=4\pi A_{0}\left(l_{a},l_{c}\right)\begin{cases}
+\lambda_{c}\lambda_{d}R_{0}(l_{a},l_{a},l_{c}-1,l_{c}-1) & \kappa_{c}<0\\
+\lambda_{c}\lambda_{d}R_{0}\left(l_{a},l_{a},l_{c}+1,l_{c}+1\right)-\left(\lambda_{c}+\lambda_{d}\right)\left(2\kappa_{rc}+1\right)R_{0}\left(l_{a},l_{a},l_{c},l_{c}+1\right)+\left(2\kappa_{rc}+1\right)^{2}R_{0}\left(l_{a},l_{a},l_{c},l_{c}\right) & \kappa_{c}>0
+\end{cases}
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -5521,6 +5744,10 @@ l=l_{a}=l_{b},\;\kappa=\kappa_{a}=\kappa_{b}\;l'=l_{c}=l_{d},\;\kappa'=\kappa_{c
 
 \end_layout
 
+\begin_layout Subsubsection
+Exchange ERIs
+\end_layout
+
 \begin_layout Standard
 For exchange integrals we have the checker-board pattern.
 \begin_inset Formula 
@@ -5545,7 +5772,7 @@ l=l_{a}=l_{c},\;\kappa=\kappa_{a}=\kappa_{c}\;l'=l_{b}=l_{d},\;\kappa'=\kappa_{b
 where the non-relativistic version looks like
 \begin_inset Formula 
 \[
-K_{abcd}=\sum_{k}A_{k}\left(l_{a},l_{b}\right)R_{k}\left(l_{a},l_{b}\right).
+K_{abcd}=\sum_{k=\left|l_{a}-l_{b}\right|}^{l_{a}+l_{b}}A_{k}\left(l_{a},l_{b}\right)R_{k}\left(l_{a},l_{b}\right).
 \]
 
 \end_inset
@@ -5554,15 +5781,11 @@ In the relativistic case we have four
 \begin_inset Formula $L/S$
 \end_inset
 
- versions,
- each a sum of four 
-\begin_inset Formula $L/S$
-\end_inset
-
- terms:
+ versions.
+ 
 \begin_inset Formula 
 \[
-K_{ab}^{LL\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{LL\kappa\tau TT'\kappa'\tau'}
+K_{ab}^{LL\kappa\tau}=\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{LL'\kappa'\tau'}K_{acbd}^{LL\kappa\tau LL\kappa'\tau'}
 \]
 
 \end_inset
@@ -5570,7 +5793,7 @@ K_{ab}^{LL\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,
 
 \begin_inset Formula 
 \[
-K_{ab}^{LS\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{LS\kappa\tau TT'\kappa'\tau'}
+K_{ab}^{LS\kappa\tau}=\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{LS\kappa'\tau'}K_{acbd}^{LS\kappa\tau LS\kappa'\tau'}
 \]
 
 \end_inset
@@ -5578,7 +5801,7 @@ K_{ab}^{LS\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,
 
 \begin_inset Formula 
 \[
-K_{ab}^{SL\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{SL\kappa\tau TT'\kappa'\tau'}
+K_{ab}^{SL\kappa\tau}=\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{SL\kappa'\tau'}K_{acbd}^{SL\kappa\tau SL\kappa'\tau'}
 \]
 
 \end_inset
@@ -5586,20 +5809,295 @@ K_{ab}^{SL\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,
 
 \begin_inset Formula 
 \[
-K_{ab}^{SS\kappa\tau}=\sum_{TT'=\left\{ L,S\right\} }\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{TT'\kappa'\tau'}K_{acbd}^{SS\kappa\tau TT'\kappa'\tau'}
+K_{ab}^{SS\kappa\tau}=\sum_{\tau'=\left\{ \alpha,\beta\right\} }\sum_{\kappa'}\sum_{cd}D_{cd}^{SS\kappa'\tau'}K_{acbd}^{SS\kappa\tau SS\kappa'\tau'}
 \]
 
 \end_inset
 
-So we need 16 versions of 
+Exchange integrals like 
+\begin_inset Formula $K_{acbd}^{LL\kappa\tau LS\kappa'\tau'}$
+\end_inset
+
+ are zero because of the orthogonality in the angular functions.
+ 
+\end_layout
+
+\begin_layout Standard
+What happens to an 
+\begin_inset Formula $s$
+\end_inset
+
+ orbital 
+\begin_inset Formula $\kappa=-1$
+\end_inset
+
+,
+ after the RKB operator is applied?
+\begin_inset Formula 
+\begin{equation}
+g_{Sa}\left(r\right)\Omega_{1m_{j}}\left(\hat{r}\right)=i\left(\boldsymbol{\sigma}\cdot\boldsymbol{p}\right)g_{La}\left(r\right)\Omega_{-1m_{j}}\left(\hat{r}\right)\label{eq:KBal1-1}
+\end{equation}
+
+\end_inset
+
+
 \begin_inset Formula 
 \[
-K_{acbd}^{UU'\kappa\tau TT'\kappa'\tau'},\quad\left\{ U,U',T,T'\right\} \in\left\{ L,S\right\} 
+=i\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r}\right)g_{La}\left(r\right)\Omega_{1m_{j}}\left(\hat{r}\right)
 \]
 
 \end_inset
 
 
+\begin_inset Formula 
+\[
+=i\left(\frac{\partial}{\partial r}+\frac{0}{r}\right)e^{-\lambda_{a}r}\Omega_{1m_{j}}\left(\hat{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=-i\lambda_{a}e^{-\lambda_{a}r}\Omega_{1m_{j}}\left(\hat{r}\right)
+\]
+
+\end_inset
+
+The tricky part with this basis function is that the radial part looks it has 
+\begin_inset Formula $l_{a}=0$
+\end_inset
+
+,
+ where as the angular part looks like an 
+\begin_inset Formula $l_{a}=1$
+\end_inset
+
+ function.
+ Now let's look at what happens to an 
+\begin_inset Formula $\left(LL|SS\right)$
+\end_inset
+
+ exchange integral
+\begin_inset Formula 
+\[
+K_{abcd}^{LS0LS0}=\int d^{3}\overrightarrow{r}_{1}\int d^{3}\overrightarrow{r}_{2}\;g_{a}^{L*}\left(\overrightarrow{r}_{1}\right)g_{c}^{L}\left(\overrightarrow{r}_{1}\right)\frac{1}{r_{12}}g_{b}^{S*}(\overrightarrow{r}_{2})g_{d}^{S}\left(\overrightarrow{r}_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\int d^{3}\overrightarrow{r}_{1}\int d^{3}\overrightarrow{r}_{2}\;g_{a}^{L*}\left(\overrightarrow{r}_{1}\right)g_{c}^{L}\left(\overrightarrow{r}_{1}\right)\frac{1}{r_{12}}\left[i\lambda_{b}e^{-\lambda_{b}r}\Omega_{1m_{j}}\left(\hat{r}_{2}\right)\right]\left[-i\lambda_{d}e^{-\lambda_{d}r}\Omega_{1m_{j}}\left(\hat{r}_{2}\right)\right]
+\]
+
+\end_inset
+
+which after a multipole expansion looks like
+\begin_inset Formula 
+\[
+K_{abcd}^{LS0LS0}=\lambda_{bd}\sum_{k=\left|l_{a}-l_{b}^{'}\right|}^{l_{a}+l_{b}^{'}}\frac{\left(2l_{a}+1\right)\left(2l_{b}^{'}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a} & l_{b}^{'} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b}^{'} & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{k}(l_{a},l_{b},l_{a},l_{b})
+\]
+
+\end_inset
+
+where I have use 
+\begin_inset Formula $l_{b}^{'}$
+\end_inset
+
+ for the angular parts and 
+\begin_inset Formula $l_{b}$
+\end_inset
+
+ for the radial parts.
+ Notice that the sum limits use 
+\begin_inset Formula $l_{b}^{'}$
+\end_inset
+
+ because those limits are imposed by the Wigner 
+\begin_inset Formula $3j$
+\end_inset
+
+ rules in the angular integrals.
+ Now we substitute 
+\begin_inset Formula $l_{a}=l_{b}=0$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{b}^{'}=1$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{abcd}^{LL0SS0}=\lambda_{bd}\sum_{k=\left|l_{a}-l_{b}\right|}^{l_{a}+l_{b}}\frac{3\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+0 & 1 & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+0 & 1 & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{k}(0,0,0,0)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\lambda_{bd}\frac{9}{4\pi}\left(\begin{array}{ccc}
+0 & 1 & 1\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+0 & 1 & 1\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{1}(0,0,0,0)
+\]
+
+\end_inset
+
+So only the 
+\begin_inset Formula $k=1$
+\end_inset
+
+ should survive.
+ I think 
+\begin_inset Formula $R_{1}(0,0,0,0)$
+\end_inset
+
+ is a radial integral combination that we have not encountered before.
+ For the worst case
+\begin_inset Formula 
+\[
+K_{abcd}^{SS0SS0}=\lambda_{abcd}\sum_{k=\left|l_{a}^{'}-l_{b}^{'}\right|}^{l_{a}^{'}+l_{b}^{'}}\frac{\left(2l_{a}^{'}+1\right)\left(2l_{b}^{'}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a}^{'} & l_{b}^{'} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a}^{'} & l_{b}^{'} & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{k}(l_{a},l_{b},l_{a},l_{b})
+\]
+
+\end_inset
+
+Now we substitute 
+\begin_inset Formula $l_{a}=l_{b}=0$
+\end_inset
+
+ and 
+\begin_inset Formula $l_{a}^{'}=l_{b}^{'}=1$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{abcd}^{SS0SS0}=\lambda_{abcd}\sum_{k=0}^{2}\frac{9\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+1 & 1 & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+0 & 0 & k\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{k}(0,0,0,0)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{abcd}^{SS0SS0}=\lambda_{abcd}\frac{9}{4\pi}\left(\begin{array}{ccc}
+1 & 1 & 0\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+0 & 0 & 0\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{0}(0,0,0,0)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
++\frac{27}{4\pi}\left(\begin{array}{ccc}
+1 & 1 & 2\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+1 & 1 & 2\\
+-m_{a} & -m_{b} & m_{a}+m_{b}
+\end{array}\right)^{2}R_{2}(0,0,0,0)
+\]
+
+\end_inset
+
+Again 
+\begin_inset Formula $R_{2}(0,0,0,0)$
+\end_inset
+
+ is a radial integral combination that we have not encountered before.
+ Executive summary,
+ the angular part of the basis function decides how terms in the 
+\begin_inset Formula $k$
+\end_inset
+
+ sum,
+ and the radial part just has to go along for the ride.
+ What does 
+\begin_inset Formula $R_{2}(0,0,0,0)$
+\end_inset
+
+ look like?
+\begin_inset Formula 
+\[
+R_{k}\left(0,0,0,0\right)=\int r_{1}^{2}dr_{1}\int r_{2}^{2}dr_{2}e^{-\lambda_{ab}r_{1}}\frac{r_{<}^{k}}{r_{>}^{k+1}}e^{-\lambda_{cd}r_{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\int r_{1}^{2}dr_{1}\int_{0}^{r_{1}}r_{2}^{2}dr_{2}e^{-\lambda_{ab}r_{1}}\frac{r_{2}^{k}}{r_{1}^{k+1}}e^{-\lambda_{cd}r_{2}}+\int r_{1}^{2}dr_{1}\int_{r_{1}}^{\infty}r_{2}^{2}dr_{2}e^{-\lambda_{ab}r_{1}}\frac{r_{1}^{k}}{r_{2}^{k+1}}e^{-\lambda_{cd}r_{2}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\int dr_{1}\frac{e^{-\lambda_{ab}r_{1}}}{r_{1}^{k-1}}\int_{0}^{r_{1}}dr_{2}r_{2}^{k+2}e^{-\lambda_{cd}r_{2}}+\int r_{1}^{2}dr_{1}r_{1}^{k+2}e^{-\lambda_{ab}r_{1}}\int_{r_{1}}^{\infty}dr_{2}\frac{1}{r_{2}^{k-1}}e^{-\lambda_{cd}r_{2}}
+\]
+
+\end_inset
+
+Just looking at the first term with 
+\begin_inset Formula $k=2$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\int_{0}^{r_{1}}dr_{2}r_{2}^{k+2}e^{-\lambda_{cd}r_{2}}=\frac{24}{\lambda_{cd}^{5}}-\frac{e^{-\lambda_{cd}r_{1}}}{\lambda_{cd}^{5}}\left[24+24r_{1}\lambda_{cd}+12r_{1}^{2}\lambda_{cd}^{2}+4r_{1}^{3}\lambda_{cd}^{3}+r_{1}^{4}\lambda_{cd}^{4}\right]
+\]
+
+\end_inset
+
+So we are left integrals like
+\begin_inset Formula 
+\[
+\frac{24}{\lambda_{cd}^{5}}\int_{0}^{\infty}\frac{e^{-\lambda_{ab}r_{1}}}{r_{1}}
+\]
+
+\end_inset
+
+which are divergent.
+ ???
 \end_layout
 
 \begin_layout Subsubsection
