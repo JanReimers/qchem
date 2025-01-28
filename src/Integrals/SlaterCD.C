@@ -64,6 +64,8 @@ double SlaterCD::Coulomb_R0(size_t la,size_t lc) const
 
 Vector<double> SlaterCD::Coulomb_Rk(size_t la,size_t lc) const
 {
+    assert(la>=0);
+    assert(lc>=0);
     assert(la<=LMax);
     assert(lc<=LMax);
     Vector<double> ret(la+lc+1,0.0);
@@ -82,6 +84,8 @@ Vector<double> SlaterCD::Coulomb_Rk(size_t la,size_t lc) const
 
 Vector<double> SlaterCD::ExchangeRk(size_t la,size_t lb) const
 {
+    assert(la>=0);
+    assert(lb>=0);
     assert(la<=LMax);
     assert(lb<=LMax);
     size_t kmin=std::abs((int)la-(int)lb);
@@ -100,4 +104,33 @@ Vector<double> SlaterCD::ExchangeRk(size_t la,size_t lb) const
     return ret;
 }
 
-
+Vector<double> SlaterCD::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const
+{
+    assert (Ala>=la);
+    assert (Alb>=lb);
+    assert(la>=0);
+    assert(lb>=0);
+    assert(la<=LMax);
+    assert(lb<=LMax);
+    size_t kmin=std::abs((int)Ala-(int)Alb);
+    size_t kmax=Ala+Alb;
+    size_t N=(kmax-kmin)/2+1;
+    Vector<double> ret(N,0.0);
+    size_t i=1;
+    for (size_t k=kmin;k<=kmax;k+=2)
+    {
+        if (k>la+lb+1)
+        {
+            //std::cerr << "SlaterCD::ExchangeRk: Divergent integral R_" << k << "(" << la << "," << lb << ")" << std::endl;
+            ret(i++)=0.0;
+            continue;
+        }
+        assert(k<=la+lb+1);
+        size_t Lab_p=la+lb+3+k; // first term r_1^2
+        size_t Lcd_m=la+lb+1-k; // first term r_2
+        size_t Lab_m=la+lb+1-k; // second term r_1
+        size_t Lcd_p=la+lb+3+k; 
+        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
+    }
+    return ret;
+}

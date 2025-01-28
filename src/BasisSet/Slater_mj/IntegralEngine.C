@@ -26,6 +26,14 @@ DiracIntegralEngine::DiracIntegralEngine()
      assert(itsSmallIE);
     }
 
+void DiracIntegralEngine::Append(const ::IrrepIEClient* iec)
+{
+    AnalyticIE<double>::Append(iec);
+    const Dirac_IrrepIEClient* diec=dynamic_cast<const Dirac_IrrepIEClient*>(iec);
+    itsLargeIE->Append(diec->itsLargeIEC);
+    itsSmallIE->Append(diec->itsSmallIEC);
+}
+
 const Dirac_IrrepIEClient* DiracIntegralEngine::dcast(iec_t* iec)
 {
     const Dirac_IrrepIEClient* diec=dynamic_cast<const Dirac_IrrepIEClient*>(iec);
@@ -74,24 +82,41 @@ DiracIntegralEngine::RVec DiracIntegralEngine::merge(const RVec& l,const RVec& s
     return ls;
 }
 
-ERI4 DiracIntegralEngine::merge(const ERI4& LL,const ERI4& LS,const ERI4& SL,const ERI4& SS)
+ERI4 DiracIntegralEngine::merge_diag(const ERI4& LLLL,const ERI4& LLSS,const ERI4& SSLL,const ERI4& SSSS)
 {
-    size_t Nl=LL.size();
-    size_t Ns=SS.size();
+    size_t Nl=LLLL.Nab();
+    size_t Ns=SSSS.Nab();
     ERI4 J(Nl+Ns,Nl+Ns);
-    for (auto i:LL.rows())
-        for (auto j:LL.cols(i))
-            J(i,j)=LL(i,j);
-    for (auto i:LS.rows())
-        for (auto j:LS.cols(i))
-            J(i,Nl+j)=LS(i,j);
-    for (auto i:SL.rows())
-        for (auto j:SL.cols(i))
-            J(Nl+i,j)=SL(i,j);
-    for (auto i:SS.rows())
-        for (auto j:SS.cols(i))
-            J(Nl+i,Nl+j)=SS(i,j);
+    for (auto i:LLLL.rows())
+        for (auto j:LLLL.cols(i))
+            J(i,j)=merge_diag(LLLL(i,j),LLSS(i,j));
+    for (auto i:SSSS.rows())
+        for (auto j:SSSS.cols(i))
+            J(Nl+i,Nl+j)=merge_diag(SSLL(i,j),SSSS(i,j));
     return J;
+}
+
+ERI4 DiracIntegralEngine::merge_off_diag(const ERI4& LLLL,const M4& LSLS,const M4& SLSL,const ERI4& SSSS)
+{
+    size_t Nl=LLLL.Nab();
+    size_t Ns=SSSS.Nab();
+    ERI4 K(Nl+Ns,Nl+Ns);
+    SMat LLSS(Ns);
+    Fill(LLSS,0.0);
+    for (auto i:LLLL.rows())
+        for (auto j:LLLL.cols(i))
+            K(i,j)=merge_diag(LLLL(i,j),LLSS);
+    for (auto i:SSSS.rows())
+        for (auto j:SSSS.cols(i))
+            K(Nl+i,Ns+j)=merge_diag(LLSS,SSSS(i,j));
+    for (auto i:LSLS.rows())
+        for (auto j:LSLS.cols(i))
+            K(i,Ns+j)=merge_off_diag(LSLS(i,j));   
+    // for (auto i:SLSL.rows())
+    //     for (auto j:SLSL.cols(i))
+    //         K(Nl+i,j)=SLSL(i,j);        
+            
+    return K;
 }
 
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
@@ -165,27 +190,33 @@ ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIE
 {
     auto da=dcast(a);
     auto dc=dcast(c);
-    assert(da->itsLargeIEC->kappa==-da->itsSmallIEC->kappa);
-    assert(dc->itsLargeIEC->kappa==-dc->itsSmallIEC->kappa);
-    ERI4 JLL=itsLargeIE->MakeDirect(da->itsLargeIEC,dc->itsLargeIEC);
-    ERI4 JLS=itsSmallIE->MakeDirect(da->itsLargeIEC,dc->itsSmallIEC);
-    ERI4 JSL=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsLargeIEC);
-    ERI4 JSS=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsSmallIEC);
+    assert(da->itsLargeIEC->kappa==da->itsSmallIEC->kappa);
+    assert(dc->itsLargeIEC->kappa==dc->itsSmallIEC->kappa);
+    ERI4 JLLLL=itsLargeIE->MakeDirect(da->itsLargeIEC,dc->itsLargeIEC);
+    ERI4 JLLSS=itsSmallIE->MakeDirect(da->itsLargeIEC,dc->itsSmallIEC);
+    ERI4 JSSLL=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsLargeIEC);
+    ERI4 JSSSS=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsSmallIEC);
     
-    return merge(JLL,JLS,JSL,JSS); 
+    return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
 }
 ERI4 DiracIntegralEngine::MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
 {
     auto da=dcast(a);
     auto db=dcast(b);
-    assert(da->itsLargeIEC->kappa==-da->itsSmallIEC->kappa);
-    assert(db->itsLargeIEC->kappa==-db->itsSmallIEC->kappa);
-    ERI4 JLL=itsLargeIE->MakeExchange(da->itsLargeIEC,db->itsLargeIEC);
-    ERI4 JLS=itsSmallIE->MakeExchange(da->itsLargeIEC,db->itsSmallIEC);
-    ERI4 JSL=itsSmallIE->MakeExchange(da->itsSmallIEC,db->itsLargeIEC);
-    ERI4 JSS=itsSmallIE->MakeExchange(da->itsSmallIEC,db->itsSmallIEC);
+    auto sie=dynamic_cast<const Small_IntegralEngine*>(itsSmallIE);
+    assert(da->itsLargeIEC->kappa==da->itsSmallIEC->kappa);
+    assert(db->itsLargeIEC->kappa==db->itsSmallIEC->kappa);
+    ERI4 KLLLL=itsLargeIE->MakeExchange(da->itsLargeIEC,db->itsLargeIEC);
+    M4   KLSLS=sie->MakeExchangeLS(da->itsLargeIEC,db->itsSmallIEC);
+    M4   KSLSL=sie->MakeExchangeSL(da->itsSmallIEC,db->itsLargeIEC);
+    ERI4 KSSSS=sie->MakeExchangeSS(da->itsSmallIEC,db->itsSmallIEC);
+
+    // std::cout << "KLLLL(2,2)=" << KLLLL(2,2) << std::endl;
+    // std::cout << "KLSLS(2,2)=" << KLSLS(2,2) << std::endl;
+    // std::cout << "KSLSL(2,2)=" << KSLSL(2,2) << std::endl;
+    // std::cout << "KSSSS(2,2)=" << KSSSS(2,2) << std::endl;
     
-    return merge(JLL,JLS,JSL,JSS);  
+    return merge_off_diag(KLLLL,KLSLS,KSLSL,KSSSS);  
 }
 
 DiracIntegralEngine::RVec DiracIntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
@@ -260,7 +291,7 @@ ERI4 Small_IntegralEngine::MakeDirectLS(const IrrepIEClient* a, const IrrepIECli
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        double ea=a->es_indices[ia-1];
+        double ea=a->es[ia-1];
         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
@@ -284,7 +315,7 @@ ERI4 Small_IntegralEngine::MakeDirectLS(const IrrepIEClient* a, const IrrepIECli
                         cout << Jab(ic,id) << endl;    
                         assert(false);
                     }
-                    double ed=c->es_indices[id-1];
+                    double ed=c->es[id-1];
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     double Rkac=ec*ed*cd.Coulomb_R0(la,lc);
@@ -310,11 +341,11 @@ ERI4 Small_IntegralEngine::MakeDirectSL(const IrrepIEClient* a, const IrrepIECli
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        double ea=a->es_indices[ia-1];
+        double ea=a->es[ia-1];
         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
-            double ec=c->es_indices[ic-1];
+            double ec=c->es[ic-1];
             //loop_2(c->es_indices[ic-1]);
             int la=a->l, lc=c->l;
             // Small sector kappa is negative of the large sector kappa, which shifts la but obly for the angular integrals.
@@ -323,7 +354,7 @@ ERI4 Small_IntegralEngine::MakeDirectSL(const IrrepIEClient* a, const IrrepIECli
             {
                 if (ib<ia) continue; 
                 SMat& Jab=J(ia,ib);
-                double eb=a->es_indices[ib-1];
+                double eb=a->es[ib-1];
                 //loop_3(a->es_indices[ib-1]);
                 for (size_t id:c->indices())
                 {
@@ -334,7 +365,7 @@ ERI4 Small_IntegralEngine::MakeDirectSL(const IrrepIEClient* a, const IrrepIECli
                         cout << Jab(ic,id) << endl;    
                         assert(false);
                     }
-                    double ed=c->es_indices[id-1];
+                    double ed=c->es[id-1];
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     double Rkac=ea*eb*cd.Coulomb_R0(la,lc);
@@ -360,11 +391,11 @@ ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIECli
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        double ea=a->es_indices[ia-1];
+        double ea=a->es[ia-1];
         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         for (size_t ic:c->indices())
         {
-            double ec=c->es_indices[ic-1];
+            double ec=c->es[ic-1];
             //loop_2(c->es_indices[ic-1]);
             int la=a->l, lc=c->l;
             // Small sector kappa is negative of the large sector kappa, which shifts la &l c but obly for the angular integrals.
@@ -373,7 +404,7 @@ ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIECli
             {
                 if (ib<ia) continue; 
                 SMat& Jab=J(ia,ib);
-                double eb=a->es_indices[ib-1];
+                double eb=a->es[ib-1];
                 //loop_3(a->es_indices[ib-1]);
                 for (size_t id:c->indices())
                 {
@@ -384,7 +415,7 @@ ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIECli
                         cout << Jab(ic,id) << endl;    
                         assert(false);
                     }
-                    double ed=c->es_indices[id-1];
+                    double ed=c->es[id-1];
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     double Rab0=ea*eb*cd.Coulomb_R0(la,lc);
@@ -419,29 +450,29 @@ ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIECli
     return J;
 }
 
-ERI4 Small_IntegralEngine::MakeExchange  (const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
-{
-    auto da=dcast(a);
-    auto db=dcast(b);  
-    if (da->Large() && !db->Large())
-        return MakeExchangeLS(da,db);
-    else if (!da->Large() && db->Large())
-        return MakeExchangeSL(da,db);
-    else if (!da->Large() && !db->Large())
-        return MakeExchangeSS(da,db);
-    assert(false);
-    return ERI4();
-}
+// ERI4 Small_IntegralEngine::MakeExchange  (const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
+// {
+//     auto da=dcast(a);
+//     auto db=dcast(b);  
+//     if (da->Large() && !db->Large())
+//         return MakeExchangeLS(da,db);
+//     else if (!da->Large() && db->Large())
+//         return MakeExchangeSL(da,db);
+//     else if (!da->Large() && !db->Large())
+//         return MakeExchangeSS(da,db);
+//     assert(false);
+//     return ERI4();
+// }
 
-ERI4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* c) const
+M4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* c) const
 {
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERI4 K(Na,Nc);
+    M4 K(Na,Nc);
     for (size_t ia:a->indices())
     {
-        double ea=a->es_indices[ia-1];
+        double ea=a->es[ia-1];
         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         double na=a->ns(ia);
         for (size_t ic:c->indices())
@@ -449,17 +480,17 @@ ERI4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEC
             int la=a->l, lc=c->l;
             RVec Akac=ExchangeAngularIntegrals(la,Omega_kQN::l(-c->kappa),0,0);
             double nac=na*c->ns(ic);
-            for (size_t ib:a->indices(ia))
+            for (size_t ib:a->indices())
             {
-                SMat& Kab=K(ia,ib);
-                double eb=a->es_indices[ib-1];
-                double ec=c->es_indices[ic-1];
+                Mat& Kab=K(ia,ib);
+                double eb=a->es[ib-1];
+                double ec=c->es[ic-1];
                 // loop_2(a->es_indices[ib-1]);
                 // loop_3(c->es_indices[ic-1]);
                 double nacb=nac*a->ns(ib);
                 for (size_t id:c->indices())
                 {
-                    double ed=c->es_indices[id-1];
+                    double ed=c->es[id-1];
                     double norm=nacb*c->ns(id);
                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     RVec Rkac=ec*ed*cd.ExchangeRk(la,lc);
@@ -470,13 +501,8 @@ ERI4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEC
                         Rkac-=RVec((ec+ed)*k2*cd.ExchangeRk(la,lc-1));
                         Rkac+=RVec(k2*k2*cd.ExchangeRk(la,lc-2));
                     }
-                    if (ic==id)
-                        Kab(ic,id)=Akac*Rkac*norm; 
-                    else if (id<ic)
-                        Kab(id,ic)+=0.5*Akac*Rkac*norm; 
-                    else
-                        Kab(ic,id)+=0.5*Akac*Rkac*norm; 
-
+                    Kab(ic,id)=Akac*Rkac*norm; //THis whole block is off diagonal.
+                    
                 }
             }
         }
@@ -485,15 +511,15 @@ ERI4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEC
     return K;
 }
 
-ERI4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* c) const
+M4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* c) const
 {
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
-    ERI4 K(Na,Nc);
+    M4 K(Na,Nc);
     for (size_t ia:a->indices())
     {
-        double ea=a->es_indices[ia-1];
+        double ea=a->es[ia-1];
         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         double na=a->ns(ia);
         for (size_t ic:c->indices())
@@ -501,17 +527,17 @@ ERI4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIEC
             int la=a->l, lc=c->l;
             RVec Akac=ExchangeAngularIntegrals(Omega_kQN::l(-a->kappa),lc,0,0);
             double nac=na*c->ns(ic);
-            for (size_t ib:a->indices(ia))
+            for (size_t ib:a->indices())
             {
-                SMat& Kab=K(ia,ib);
-                double eb=a->es_indices[ib-1];
-                double ec=c->es_indices[ic-1];
+                Mat& Kab=K(ia,ib);
+                double eb=a->es[ib-1];
+                double ec=c->es[ic-1];
                 // loop_2(a->es_indices[ib-1]);
                 // loop_3(c->es_indices[ic-1]);
                 double nacb=nac*a->ns(ib);
                 for (size_t id:c->indices())
                 {
-                    double ed=c->es_indices[id-1];
+                    double ed=c->es[id-1];
                     double norm=nacb*c->ns(id);
                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     RVec Rkac=ea*eb*cd.ExchangeRk(la,lc);
@@ -522,12 +548,7 @@ ERI4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIEC
                         Rkac-=RVec((ea+eb)*k2*cd.ExchangeRk(la-1,lc));
                         Rkac+=RVec(k2*k2*cd.ExchangeRk(la-2,lc));
                     }
-                    if (ic==id)
-                        Kab(ic,id)=Akac*Rkac*norm; 
-                    else if (id<ic)
-                        Kab(id,ic)+=0.5*Akac*Rkac*norm; 
-                    else
-                        Kab(ic,id)+=0.5*Akac*Rkac*norm;
+                    Kab(ic,id)=Akac*Rkac*norm; //THis whole block is off diagonal.
                 }
             }
         }
@@ -543,28 +564,29 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
     ERI4 K(Na,Nc);
     for (size_t ia:a->indices())
     {
-        double ea=a->es_indices[ia-1];
+        double ea=a->es[ia-1];
         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
         double na=a->ns(ia);
         for (size_t ic:c->indices())
         {
             int la=a->l, lc=c->l;
-            RVec Akac=ExchangeAngularIntegrals(Omega_kQN::l(-a->kappa),Omega_kQN::l(-c->kappa),0,0);
+            int Ala=Omega_kQN::l(-a->kappa), Alc=Omega_kQN::l(-c->kappa);
+            RVec Akac=ExchangeAngularIntegrals(Ala,Alc,0,0);
             double nac=na*c->ns(ic);
             for (size_t ib:a->indices(ia))
             {
                 SMat& Kab=K(ia,ib);
-                double eb=a->es_indices[ib-1];
-                double ec=c->es_indices[ic-1];
+                double eb=a->es[ib-1];
+                double ec=c->es[ic-1];
                 // loop_2(a->es_indices[ib-1]);
                 // loop_3(c->es_indices[ic-1]);
                 double nacb=nac*a->ns(ib);
                 for (size_t id:c->indices())
                 {
-                    double ed=c->es_indices[id-1];
+                    double ed=c->es[id-1];
                     double norm=nacb*c->ns(id);
                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
-                    RVec Rabk=ea*eb*cd.ExchangeRk(la,lc);
+                    RVec Rabk=ea*eb*cd.ExchangeRk(Ala,Alc,la,lc);
                     if (a->kappa>0)
                     {
                         int k2=2*a->kappa+1;
@@ -588,6 +610,8 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
                         Rk-=RVec((ec+ed)*k2c*Rab1);
                         Rk+=RVec(k2c*k2c*Rab2);
                     }
+                    // std::cout << "Rk=" << Rk << std::endl;
+                    // std::cout << "Akac=" << Akac << std::endl;
                     if (ic==id)
                         Kab(ic,id)=Akac*Rk*norm; 
                     else if (id<ic)

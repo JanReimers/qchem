@@ -16,6 +16,9 @@ class DiracIntegralEngine
 {
 public:
     DiracIntegralEngine();
+    virtual ~DiracIntegralEngine()  {};
+    virtual void Append(const ::IrrepIEClient*);
+
     // One electron functions for DFT and HF
     virtual SMat MakeOverlap  (iec_t* a) const;
     virtual SMat MakeKinetic  (iec_t* a) const;
@@ -43,7 +46,8 @@ private:
     static SMat merge_diag(const SMat& l,const SMat& s);
     static SMat merge_off_diag(const Mat& ls);
     static RVec merge(const RVec& l,const RVec& s);
-    static ERI4 merge(const ERI4& LL,const ERI4& LS,const ERI4& SL,const ERI4& SS);
+    static ERI4 merge_diag(const ERI4& LL,const ERI4& LS,const ERI4& SL,const ERI4& SS);
+    static ERI4 merge_off_diag(const ERI4 &LLLL, const M4 &LSLS, const M4 &SLSL, const ERI4 &SSSS);
 
     AnalyticIE<double>* itsLargeIE;
     AnalyticIE<double>* itsSmallIE;
@@ -57,14 +61,15 @@ public:
     virtual double Overlap  (double ea , double eb,size_t l) const;
     virtual double Nuclear(double ea, double eb,size_t l) const;
     virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
-    virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
+    //virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
 private:
     static const IrrepIEClient* dcast(iec_t*);
     ERI4 MakeDirectLS  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     ERI4 MakeDirectSL  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     ERI4 MakeDirectSS  (const IrrepIEClient* a, const IrrepIEClient* c) const;
-    ERI4 MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* b) const;
-    ERI4 MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* b) const;
+public:
+    M4   MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* b) const;
+    M4   MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* b) const;
     ERI4 MakeExchangeSS(const IrrepIEClient* a, const IrrepIEClient* b) const;
 };
 
