@@ -139,10 +139,24 @@ TEST_F(DiracIntegralTests, Kinetic)
         const TIrrepBasisSet<double>* s=GetSmall(*i);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMat Knum=merge_off_diag(KnumL);
-        cout << "K=" << K << endl << "Knum=" << Knum << endl;
+        //cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
     }
 }
+
+ //  For symmetric matricies, Sum() should know to double all the off diagonal elements.
+TEST_F(DiracIntegralTests, Contraction)
+{
+    size_t N=5;
+    SMatrix<double> H(N),D(N);
+    FillRandomPositive(H);
+    FillRandomPositive(D);
+    Matrix<double> Hf(H),Df(D);
+    double c=Sum(DirectMultiply(H,D));
+    double cf=Sum(DirectMultiply(Hf,Df));
+    EXPECT_NEAR(c,cf,2e-15);
+}
+
 /*
 TEST_F(DiracIntegralTests, Overlap3C)
 {
