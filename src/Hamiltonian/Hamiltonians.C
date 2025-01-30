@@ -104,6 +104,6 @@ Ham_DHF::Ham_DHF(cl_t& cl)
     Add(new RestMass());
     Add(new Vnn(cl));
     Add(new Ven(cl));
-    // Add(new DiracVee);
-    // Add(new DiracVxc);
+    // Add(new Vee());
+    // Add(new VxcPol());
 }
