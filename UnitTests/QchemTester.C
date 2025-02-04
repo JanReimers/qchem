@@ -143,6 +143,17 @@ BasisSet* SLmj_OBasis::GetBasisSet () const
     return bs;
 }
 
+#include "Imp/BasisSet/SG_RKB/BasisSet.H"
+BasisSet* SG_RKB_OBasis::GetBasisSet () const
+{
+    assert(N>0);
+    SphericalGaussian_RKB::DiracBasisSet* bs=new SphericalGaussian_RKB::DiracBasisSet(lap,N,emin,emax,Lmax);
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
+    assert(bs->GetNumFunctions()>0);
+    return bs;
+}
+
 #include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 

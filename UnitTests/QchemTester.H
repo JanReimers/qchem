@@ -129,6 +129,12 @@ class SLmj_OBasis : public SL_OBasis
     virtual BasisSet*      GetBasisSet () const;   
 };
 
+class SG_RKB_OBasis : public SG_OBasis
+{
+ protected:
+    virtual BasisSet*      GetBasisSet () const;   
+};
+
 
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 //----------------------------------------------------------------------------------
