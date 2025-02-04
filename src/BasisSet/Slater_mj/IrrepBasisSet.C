@@ -112,8 +112,8 @@ std::ostream&  Large_IrrepBasisSet::Write(std::ostream& os) const
     }
     else
     {
-        os << "Slater                  " << GetQuantumNumber()
-        << "             r^" << l << "*exp(-alpha*r), alpha={";
+        os << "Slater     " << GetQuantumNumber()
+        << "             r^" << l << "*exp(-e*r), e={";
         for (auto b:*this) os << *b;
         os << "}";
     }
@@ -182,12 +182,12 @@ std::ostream&  Small_IrrepBasisSet::Write(std::ostream& os) const
     }
     else
     {
-        os << "Slater (Kintic Balance) " << GetQuantumNumber();
+        os << "Slater RKB " << GetQuantumNumber();
         if (kappa>0)
             os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
         else
             os << "[       -e ]";
-        os << "*r^" << l << "*exp(-alpha*r), alpha={";
+        os << "*r^" << l << "*exp(-e*r), e={";
         for (auto b:*this) os << *b;
         os << "}";
         

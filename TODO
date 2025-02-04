@@ -1,8 +1,11 @@
 Priority 1:
--Total energy
-    -Calculated in  SCFIteratorImp::DisplayEnergies
-        end then re-calculated in SCFIteratorImp::Iterate
-        DisplayEnergies should just return E_total
+    -SlaterIntegral(alpha,n) includes r^2 in n
+        GaussianIntegral(alpha,n) does not 
+        Harmonize.
+    -Total energy
+        -Calculated in  SCFIteratorImp::DisplayEnergies
+            end then re-calculated in SCFIteratorImp::Iterate
+            DisplayEnergies should just return E_total
     -Adding RestMass integral calculation was very labourious.  Call Chain:
         HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
         -Should we at least get the basis set out of the call chain?
@@ -147,7 +150,7 @@ Priority 2:
     -ID, streaming
         1) Test boost::serialization, does it work for shared pointers???
             Looks like yes, can std::shared_ptr in the headers.
-        -We need a non-streamable UniqueID for caching GuassianCD amd RNLM objects.
+        -We need a non-streamable UniqueID for caching GaussianCD amd RNLM objects.
         -Separate UniquesID from streaming
         -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
         -What about pretty output?
@@ -249,7 +252,7 @@ Priority 3:
             PerRef<IntegralDatabase> int BSImp<T>
         Yes but only for the gradient, renamed accordingly.
     No -Dynamically adjust kT ?
-   Done: -SphericalGuassian accept different exponent ranges for each L.
+   Done: -SphericalGaussian accept different exponent ranges for each L.
     - Support SL/SLm/SG/SGm in a systematic manner
         Done: Common angular code.
         Common Dab code

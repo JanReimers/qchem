@@ -1,31 +1,27 @@
-// File: SlaterIE.C  Here is where all the integral get calculated.
+// File: SphericalGaussian/IntegralEngine.C  Here is where all the integral get calculated.
 
 
-#include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
-#include "Imp/BasisSet/Slater_m/IntegralEngine.H"
-#include "Imp/BasisSet/Slater_mj/IEClient.H" 
-#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
+#include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-#include "Imp/Integrals/SlaterCD.H"
 #include "Imp/Containers/ERI4.H"
-#include <iomanip>
-#include <iostream>
 #include <Imp/Symmetry/OkmjQN.H>
+#include <iostream>
 
 using std::cout;
 using std::endl;
 
-namespace Slater_mj
+namespace SphericalGaussian_RKB
 {
-    
+
 DiracIntegralEngine::DiracIntegralEngine()
-    : itsLargeIE(new Slater_m::IntegralEngine())
+    : itsLargeIE(new SphericalGaussian_m::IntegralEngine())
     , itsSmallIE(new Small_IntegralEngine())
 {
     assert(itsLargeIE);
     assert(itsSmallIE);
 }
-
 void DiracIntegralEngine::Append(const ::IrrepIEClient* iec)
 {
     AnalyticIE<double>::Append(iec);
@@ -33,6 +29,7 @@ void DiracIntegralEngine::Append(const ::IrrepIEClient* iec)
     itsLargeIE->Append(diec->itsLargeIEC);
     itsSmallIE->Append(diec->itsSmallIEC);
 }
+
 
 const Dirac_IrrepIEClient* DiracIntegralEngine::dcast(iec_t* iec)
 {
@@ -250,7 +247,7 @@ const IrrepIEClient* Small_IntegralEngine::dcast(iec_t* iec)
 double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 {
     assert(l2%2==0);
-    return 2.0*Slater_m::IntegralEngine::Kinetic(ea,eb,l2/2); //Kinetic already has 4*Pi
+    return 2.0*SphericalGaussian::IntegralEngine::Kinetic(ea,eb,l2/2); //Kinetic already has 4*Pi
 }
 
 //  This is anew one <a|p^2/r|b> !
@@ -259,7 +256,7 @@ double Small_IntegralEngine::Nuclear(double ea, double eb,size_t l) const
 {
     assert(l==0);
     int kappa = -l -1;
-    return ea*eb*SlaterIntegral(ea+eb,-2*kappa-1);
+    return 4*ea*eb*GaussianIntegral(ea+eb,l+1); //Don't count the r^2 in dr^3
    
 }
 
@@ -317,7 +314,7 @@ ERI4 Small_IntegralEngine::MakeDirectLS(const IrrepIEClient* a, const IrrepIECli
                     }
                     double ed=c->es[id-1];
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     double Rkac=ec*ed*cd.Coulomb_R0(la,lc);
                     if (c->kappa>0)
                     {
@@ -367,7 +364,7 @@ ERI4 Small_IntegralEngine::MakeDirectSL(const IrrepIEClient* a, const IrrepIECli
                     }
                     double ed=c->es[id-1];
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     double Rkac=ea*eb*cd.Coulomb_R0(la,lc);
                     if (a->kappa>0)
                     {
@@ -417,7 +414,7 @@ ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIECli
                     }
                     double ed=c->es[id-1];
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     double Rab0=ea*eb*cd.Coulomb_R0(la,lc);
                     if (a->kappa>0)
                     {
@@ -492,7 +489,7 @@ M4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIECli
                 {
                     double ed=c->es[id-1];
                     double norm=nacb*c->ns(id);
-                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     RVec Rkac=ec*ed*cd.ExchangeRk(la,lc);
                     //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
                      if (c->kappa>0)
@@ -539,7 +536,7 @@ M4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIECli
                 {
                     double ed=c->es[id-1];
                     double norm=nacb*c->ns(id);
-                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
                     RVec Rkac=ea*eb*cd.ExchangeRk(la,lc);
                     //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
                      if (a->kappa>0)
@@ -585,8 +582,8 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
                 {
                     double ed=c->es[id-1];
                     double norm=nacb*c->ns(id);
-                    SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
-                    RVec Rabk=ea*eb*cd.ExchangeRk(Ala,Alc,la,lc);
+                    SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+                    RVec Rabk=ea*eb*cd.ExchangeRk(la,lc);
                     if (a->kappa>0)
                     {
                         int k2=2*a->kappa+1;
@@ -624,5 +621,4 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
     }
     return K;
 }
-
 } //namespace

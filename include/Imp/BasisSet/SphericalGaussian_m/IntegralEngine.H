@@ -17,7 +17,7 @@ class IntegralEngine
 public:
    
 
-private:
+protected:
     typedef AtomIrrepIEClient iriec;
    
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
