@@ -102,7 +102,7 @@ Ham_DHF::Ham_DHF(cl_t& cl)
 {
     Add(new DiracKinetic());
     Add(new RestMass());
-    Add(new Vnn(cl));
+    //Add(new Vnn(cl));
     Add(new Ven(cl));
     // Add(new Vee());
     // Add(new VxcPol());

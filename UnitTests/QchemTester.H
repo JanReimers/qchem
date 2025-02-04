@@ -16,6 +16,7 @@ public:
     void   Init(double eps);
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
+    double RelativeError(double expected,bool quiet=false) const;
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}

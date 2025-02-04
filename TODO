@@ -1,4 +1,8 @@
 Priority 1:
+-Total energy
+    -Calculated in  SCFIteratorImp::DisplayEnergies
+        end then re-calculated in SCFIteratorImp::Iterate
+        DisplayEnergies should just return E_total
     -Adding RestMass integral calculation was very labourious.  Call Chain:
         HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
         -Should we at least get the basis set out of the call chain?

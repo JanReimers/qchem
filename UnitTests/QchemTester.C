@@ -62,32 +62,31 @@ double QchemTester::TotalEnergy() const
 }
 
 #include <cmath> //fabs
-double QchemTester::RelativeHFError(bool quiet) const
+double QchemTester::RelativeError(double E,bool quiet) const
 {
-    double E_HF=itsPT.GetEnergyHF(itsCluster->GetNuclearCharge());
-    double error=(E_HF-TotalEnergy())/E_HF;
+    double error=(E-TotalEnergy())/E;
     if (!quiet)
     {
         std::cout.precision(6);
-        std::cout << "E_HF relative error=" << error*100.0 << "%, ";
+        std::cout << "E relative error=" << error*100.0 << "%, ";
         std::cout.precision(2);
         std::cout << error*1e6 << "(ppm)" << std::endl;            
     }
     return fabs(error);
 }
 
+
+
+double QchemTester::RelativeHFError(bool quiet) const
+{
+    double E_HF=itsPT.GetEnergyHF(itsCluster->GetNuclearCharge());
+    return RelativeError(E_HF,quiet);
+}
+
 double QchemTester::RelativeDFTError(bool quiet) const
 {
     double E_DFT=itsPT.GetEnergyDFT(itsCluster->GetNuclearCharge());
-    double error=(E_DFT-TotalEnergy())/E_DFT;
-    if (!quiet)
-    {
-        std::cout.precision(6);
-        std::cout << "E_DFT relative error=" << error*100.0 << "%, ";
-        std::cout.precision(2);
-        std::cout << error*1e6 << "(ppm)" << std::endl;            
-    }
-    return fabs(error);
+    return RelativeError(E_DFT,quiet);
 }
 
 int QchemTester::GetZ() const
@@ -186,7 +185,7 @@ BasisSet* PG_OBasis::GetBasisSet () const
 
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
-TestAtom::TestAtom(int Z, int q) : ec(Z)
+TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 {
     Cluster* cl=new Molecule;
     cl->Insert(new Atom(Z,q,Vector3D<double>(0,0,0)));
