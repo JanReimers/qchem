@@ -7,8 +7,10 @@
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
+#include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Containers/ptr_vector_io.h"
+#include <QuantumNumber.H>
 #include <cassert>
 
 
@@ -43,6 +45,20 @@ ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
     CompositeCD* cd = new CompositeCD();
     for (auto w:itsIrrepWFs) cd->Insert(w->GetChargeDensity(s));
     return cd;
+}
+
+Orbitals* WaveFunctionGroup::GetOrbitals(const QuantumNumber& qn, Spin s) const
+{
+
+    auto w=itsIrrepWFs.begin();
+    for (auto b:*itsBasisSet)
+    {
+        if (qn==b->GetQuantumNumber()) 
+            return (*w)->GetOrbitals(qn,s); 
+        w++;
+    }
+    assert(false);
+    return NULL;
 }
 
 const EnergyLevels& WaveFunctionGroup::FillOrbitals(const ElectronConfiguration* ec)

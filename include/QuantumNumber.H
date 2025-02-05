@@ -24,4 +24,5 @@ public:
     static  QuantumNumber* Factory(std::istream&);
 };
 
+
 #endif

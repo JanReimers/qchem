@@ -57,6 +57,13 @@ ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
     return new PolarizedCDImp(up,dn);
 }
 
+Orbitals* MasterPolarizedWF::GetOrbitals(const QuantumNumber& qn,Spin s) const
+{
+    assert(itsSpinUpGroup  );
+    assert(itsSpinDnGroup);
+    return s==Spin::Up ? itsSpinUpGroup->GetOrbitals(qn,s) : itsSpinDnGroup->GetOrbitals(qn,s);
+}
+
 
 const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {

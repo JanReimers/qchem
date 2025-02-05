@@ -61,6 +61,11 @@ double QchemTester::TotalEnergy() const
     return itsHamiltonian->GetTotalEnergy().GetTotalEnergy();
 }
 
+Orbitals* QchemTester::GetOrbitals(const QuantumNumber& qn,Spin s) const
+{
+    return itsWaveFunction->GetOrbitals(qn,s);
+}
+
 #include <cmath> //fabs
 double QchemTester::RelativeError(double E,bool quiet) const
 {
@@ -92,6 +97,16 @@ double QchemTester::RelativeDFTError(bool quiet) const
 int QchemTester::GetZ() const
 {
     return GetCluster()->GetNuclearCharge();
+}
+
+std::vector<const QuantumNumber*> QchemTester::GetQuantumNumbers() const
+{
+    std::vector<const QuantumNumber*> qns;
+    for (const auto& b : *itsBasisSet)
+    {
+        qns.push_back(&(b->GetQuantumNumber()));
+    }
+    return qns;
 }
 
 IrrepBasisSet* QchemTester::GetCBasisSet() const
@@ -236,9 +251,3 @@ WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
     return new MasterPolarizedWF(bs,GetElectronConfiguration() );
 }
 
-#include "Imp/WaveFunction/DiracWaveFunction.H"
-
-WaveFunction* TestDirac::GetWaveFunction(const BasisSet* bs) const
-{
-    return new DiracWF(bs,GetElectronConfiguration());
-}

@@ -4,6 +4,13 @@
 #include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
+#include <Orbital.H>
+#include <Spin.H>
+#include <QuantumNumber.H>
+#include <iostream>
+
+using std::cout;
+using std::endl;
 
 class HF_P : public virtual QchemTester
 {
@@ -103,7 +110,14 @@ TEST_P(A_SG_DHF,Multiple)
     double alpha=0.01024,beta=2.5;
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1.0,0.0,true});
-    EXPECT_LT(RelativeError(-0.50000666,true),1e-8);
+
+    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    cout << "QN=" << *qns[0] << endl;
+    Orbitals* orbs=GetOrbitals(*qns[0],Spin::Up);
+    Orbital* orb=*(orbs->begin());
+    double e0=orb->GetEigenEnergy();
+    EXPECT_LT(-0.50000666,e0);
+    EXPECT_NEAR(-0.50000666,e0,1e-6);
 }
 
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53

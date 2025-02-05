@@ -44,6 +44,13 @@ ChargeDensity* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
     return itsGroup->GetChargeDensity(s);
 }
 
+Orbitals* MasterUnPolarizedWF::GetOrbitals(const QuantumNumber& qn,Spin s) const
+{
+    assert(itsGroup);
+    assert(s==Spin::None);
+    return itsGroup->GetOrbitals(qn,s);
+}
+
 SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
 {
     return new SCFIteratorUnPol(this, H, cd,nElectrons);

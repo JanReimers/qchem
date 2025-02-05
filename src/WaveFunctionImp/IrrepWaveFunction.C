@@ -10,6 +10,7 @@
 #include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <cassert>
+#include <iomanip>
 
 IrrepWaveFunction::IrrepWaveFunction()
     : itsOrbitals(0)
@@ -45,6 +46,13 @@ ChargeDensity* IrrepWaveFunction::GetChargeDensity(Spin s) const
     return itsOrbitals->GetChargeDensity(s);
 }
 
+Orbitals* IrrepWaveFunction::GetOrbitals(const QuantumNumber& qn, Spin s) const
+{
+    assert(itsOrbitals);
+    assert(qn==*itsQN);
+
+    return itsOrbitals;
+}
 //
 //  There are three steps here:
 //

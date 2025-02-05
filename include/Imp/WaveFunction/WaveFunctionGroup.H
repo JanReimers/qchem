@@ -7,6 +7,7 @@
 #include "WaveFunction.H"
 #include <EnergyLevel.H>
 #include "Imp/Containers/ptr_vector.h"
+#include <unordered_map>
 
 class WaveFunctionGroup
     : public virtual WaveFunction
@@ -17,6 +18,7 @@ public:
 
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;
     virtual ChargeDensity*      GetChargeDensity(Spin           ) const;
+    virtual Orbitals*           GetOrbitals     (const QuantumNumber&, Spin) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     virtual SCFIterator*        MakeIterator    (Hamiltonian*, ChargeDensity* guess, double NElectrons);
     virtual void                DisplayEigen    (               ) const;

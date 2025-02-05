@@ -1,4 +1,19 @@
 Priority 1:
+    -QNs should contain spin.  Right?
+    -Rethink WaveFunctions
+        -WaveFunctionGroup should have 
+            map<QN,IrrepWaveFunction*> All
+            map<QN,IrrepWaveFunction*> Up //QNs are all spin up
+            map<QN,IrrepWaveFunction*> Dn //QNs are all spin dn
+            What about un-polarized?  ust use All list?
+            But what is QN?  
+                QuantumNumber* ?  NO  QNs can get cloned.
+            -Use unordered_map and overload op==(const QuantumNumber*, const QuantumNumber*);
+                COmpile error
+                unordered_map<const QN&,WF*> also does not compile
+            -In order to key on an abstract base.
+            https://stackoverflow.com/questions/50180978/how-to-build-a-map-where-the-key-is-an-abstract-base-class-not-value
+        -Do we still need Pol and UnPol WFs?
     -SlaterIntegral(alpha,n) includes r^2 in n
         GaussianIntegral(alpha,n) does not 
         Harmonize.
