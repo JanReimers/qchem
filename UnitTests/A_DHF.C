@@ -8,6 +8,8 @@
 #include <Spin.H>
 #include <QuantumNumber.H>
 #include <iostream>
+#include <Imp/Misc/DFTDefines.H>
+#include <iomanip>
 
 using std::cout;
 using std::endl;
@@ -100,24 +102,51 @@ public:
     }
 };
 
+// Dirac energy for a single electron in a hydrogenic atom
+double Enk(int n, int kappa,int Z)
+{
+    double c2=c_light*c_light;
+    double gamma=sqrt(kappa*kappa-Z*Z/c2);
+    double d=gamma+n-abs(kappa);
+    return c2*(1/sqrt(1.0+Z*Z/(c2*d*d))-1.0);
+}
+
 TEST_P(A_SG_DHF,Multiple)
 {
     int Z=GetParam();
-    int N=15;
-    // if (Z>12) N=14;
+    int N=22;
+    double alpha=Z*Z*0.01024,beta=2.0;
+    if (Z>60) 
+    {   
+        N=24;
+        beta=2.3;
+    }
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
-    double alpha=0.01024,beta=2.5;
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1.0,0.0,true});
 
     std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
     cout << "QN=" << *qns[0] << endl;
     Orbitals* orbs=GetOrbitals(*qns[0],Spin::Up);
-    Orbital* orb=*(orbs->begin());
-    double e0=orb->GetEigenEnergy();
-    EXPECT_LT(-0.50000666,e0);
-    EXPECT_NEAR(-0.50000666,e0,1e-6);
+    Orbital* orb0=*(orbs->begin());
+    double e0=orb0->GetEigenEnergy();
+    double e0_expected=Enk(1,-1,Z);
+    double e0_rel=(e0_expected-e0)/e0_expected;
+    Orbital* orb1=*(++orbs->begin());
+    double e1=orb1->GetEigenEnergy();
+    double e1_expected=Enk(2,-1,Z);
+    double e1_rel=(e1_expected-e1)/e1_expected;
+
+    cout << std::setprecision(10) << "e0_rel=" << e0_rel << " e1_rel=" << e1_rel << endl;
+
+    EXPECT_LT(e0_expected,e0);
+    EXPECT_NEAR(e0_expected,e0,Z*Z*1e-5);
+    EXPECT_LT(e1_expected,e1);
+    EXPECT_NEAR(e1_expected,e1,Z*Z*5e-5);
+    EXPECT_LT(e0_rel,Z*1e-7);
+    EXPECT_LT(e1_rel,Z*5e-7);
+
 }
 
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53
