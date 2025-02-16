@@ -7,6 +7,7 @@
 #include <Cluster.H>
 #include <BasisSet.H>
 #include <TotalEnergy.H>
+#include <Orbital.H>
 #include <memory>
 
 PeriodicTable QchemTester::itsPT;
@@ -64,6 +65,13 @@ double QchemTester::TotalEnergy() const
 Orbitals* QchemTester::GetOrbitals(const QuantumNumber& qn,Spin s) const
 {
     return itsWaveFunction->GetOrbitals(qn,s);
+}
+
+Orbital* QchemTester::GetOrbital(size_t index, const QuantumNumber& qn,Spin s) const
+{
+    Orbitals* orbs=GetOrbitals(qn,s);
+    assert(index<orbs->GetNumOrbitals());
+    return *(orbs->begin()+index);
 }
 
 #include <cmath> //fabs

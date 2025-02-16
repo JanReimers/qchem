@@ -69,7 +69,7 @@ bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
         itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
         ChargeDensityChange = itsExactChargeDensity->GetChangeFrom(*itsOldExactChargeDensity); //Get MaxAbs of change.
         itsExactChargeDensity->MixIn(*itsOldExactChargeDensity,1.0-relax);                           //relaxation.
-        std::cout << "Total charge=" << itsExactChargeDensity->GetTotalCharge() << std::endl;
+        // std::cout << "Total charge=" << itsExactChargeDensity->GetTotalCharge() << std::endl;
         itsHamiltonian->UseChargeDensity(itsExactChargeDensity);      //Set all the potentials for this charge denisty distribution.
 
         if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0);

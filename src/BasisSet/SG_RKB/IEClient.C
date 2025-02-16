@@ -24,7 +24,8 @@ double IrrepIEClient::Norm(double e, size_t l) const
 }
 
 double Small_IrrepIEClient::Norm(double e, size_t l) const
-{ 
+{
+    //return GaussianNorm(e,l)/1.0; 
     return 1.0/sqrt(2.0*Kinetic(e,e,l));  //SlaterIntegral already has 4*Pi
 }
 

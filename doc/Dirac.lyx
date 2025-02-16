@@ -1435,14 +1435,22 @@ and
 \end_inset
 
  is a highly opaque confluent hypergeomtric function.
- For the 
+ For the normalized 
 \begin_inset Formula $H1s_{1/2}$
 \end_inset
 
  orbital we get
 \begin_inset Formula 
 \[
-\frac{1}{r}P_{-1}=r^{\gamma-1}e^{-r},\quad\gamma-1\sim−0.00002664.
+\frac{1}{r}P_{-1}=\frac{1}{\sqrt{N}}r^{\gamma-1}e^{-r},\quad\gamma-1\sim−0.00002664.
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+N=\int d^{3}r\left(r^{\gamma-1}e^{-r}\right)^{2}=4\pi\int_{0}^{\infty}r^{2\gamma}e^{-2r}dr=4\pi\frac{\Gamma\left(2\gamma+1\right)}{2^{2\gamma+1}}
 \]
 
 \end_inset
@@ -6823,6 +6831,672 @@ Even though at the operator level the
 ,
  when using a restricted kinetic balance basis set,
  we find that matrices for those operators do commute if the SO term in the potential is neglected (for now).
+\end_layout
+
+\begin_layout Section
+Bug
+\end_layout
+
+\begin_layout Standard
+This is a temporary section addressing a bug in the code.
+ Starting with the hydrogen atom and a one electron Dirac Hamiltonian (no Coulomb interactions),
+ and large Gaussian (or Slater) basis set,
+ I am seeing the correct eigen value for the 
+\begin_inset Formula $1s_{\nicefrac{1}{2}}$
+\end_inset
+
+ orbital 
+\begin_inset Formula $\epsilon_{1s_{\nicefrac{1}{2}}}=-0.50000666$
+\end_inset
+
+ which is correct to 8-9 significant figures.
+ The breakdown of the value is that 
+\begin_inset Formula $-0.5$
+\end_inset
+
+ is the non-relativistic portion of eigen energy,
+ and 
+\begin_inset Formula $-0.00000666=-\frac{1}{8c^{2}}+O\left(\frac{1}{c^{4}}\right)$
+\end_inset
+
+ is the relativistic correction.
+ For a one electron system,
+ the total,
+ kinetic and potential are all simply related to these values.
+\begin_inset Float table
+placement document
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="6">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\epsilon_{1s_{\nicefrac{1}{2}}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $E_{total}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $E_{kinetic}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $V_{en}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Virial 
+\begin_inset Formula $\frac{V_{en}}{E_{kinetic}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Non-relativistic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\frac{1}{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+relativistic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-.50000666$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-0.50000666$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.50000666$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1.00001333$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Code
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-.50000666$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-.50001330$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.50001329$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1.00002659$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-2.00000003$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Formula
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $H_{D}\phi_{1s_{\nicefrac{1}{2}}}=\epsilon_{1s_{\nicefrac{1}{2}}}S\phi_{1s_{\nicefrac{1}{2}}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $E_{kinetic}+V_{en}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sum_{ab}D_{ab}K_{ab}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sum_{ab}D_{ab}V_{ab}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Hydrogen atom energies.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+From the table we can see that the eigen value comes out correctly,
+ but for the other three energies the relativistic correction is coming out doubled.
+ The formula shows that the way these numbers are calculated is quite different.
+ Here 
+\begin_inset Formula 
+\[
+\phi_{1s_{\nicefrac{1}{2}}}\left(\vec{r}\right)=\sum_{a}d_{a,1s_{\nicefrac{1}{2}}}g_{a}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{ab}=d_{a,1s_{\nicefrac{1}{2}}}d_{b,1s_{\nicefrac{1}{2}}}
+\]
+
+\end_inset
+
+In order to proceed with the analysis we must first break everything down in terms of the large and small components.
+\begin_inset Formula 
+\[
+d=\begin{bmatrix}d^{L}\\
+d^{S}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\phi_{1s_{\nicefrac{1}{2}}}\left(\vec{r}\right)=\sum_{a=1}^{N}d_{a}^{L}g_{a}\left(\vec{r}\right)+\sum_{a=1}^{N}d_{a}^{S}\boldsymbol{\sigma}\cdot\boldsymbol{p}g_{a}\left(\vec{r}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{D}=\begin{bmatrix}V_{LL} & cT\\
+cT & V_{SS}-2c^{2}S^{SS}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+S=\begin{bmatrix}S^{LL} & 0\\
+0 & S^{SS}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V^{LL}d^{L}+T_{LS}d^{S}=\epsilon S^{LL}d^{L}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+T_{SL}d^{L}+V_{SS}d^{S}-2c^{2}S^{SS}d^{S}=\epsilon S^{SS}d^{S}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+E_{total}=d^{\dagger}H_{D}d=\begin{bmatrix}d^{L} & d^{S}\end{bmatrix}\begin{bmatrix}V_{LL} & cT\\
+cT & V_{SS}-2c^{2}S^{SS}
+\end{bmatrix}\begin{bmatrix}d^{L}\\
+d^{S}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\begin{bmatrix}d^{L\dagger} & d^{S\dagger}\end{bmatrix}\begin{bmatrix}V_{LL}d^{L}+cTd^{S}\\
+cTd^{L}+V_{SS}d^{S}-2c^{2}S^{SS}d^{S}
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=d^{L\dagger}V_{LL}d^{L}+d^{S\dagger}V_{SS}d^{S}+c\left(d^{L\dagger}Td^{S}+d^{S\dagger}Td^{L}\right)-2c^{2}d^{S\dagger}S^{SS}d^{S}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{ab}\left\{ D_{ab}^{LL}V_{ab}^{LL}+D_{ab}^{SS}V_{ab}^{SS}+cT_{ab}\left(D_{ab}^{LS}+D_{ab}^{SL}\right)-2c^{2}D_{ab}^{SS}S_{ab}^{SS}\right\} 
+\]
+
+\end_inset
+
+All terms except 
+\begin_inset Formula $D_{ab}^{SS}V_{ab}^{SS}$
+\end_inset
+
+ are of 
+\begin_inset Formula $O\left(1\right)$
+\end_inset
+
+.
+ 
+\begin_inset Formula $V_{ab}^{SS}$
+\end_inset
+
+ is of 
+\begin_inset Formula $O\left(1\right)$
+\end_inset
+
+,
+ but 
+\begin_inset Formula $D_{ab}^{SS}\sim O\left(\frac{1}{c^{2}}\right)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Fact sheet
+\end_layout
+
+\begin_layout Enumerate
+The eigen value for the Hydrogen 
+\begin_inset Formula $1s_{\nicefrac{1}{2}}$
+\end_inset
+
+ orbital is correct to order 
+\begin_inset Formula $O\left(\frac{1}{c^{2}}\right)$
+\end_inset
+
+ but perhaps wrong at higher order.
+\end_layout
+
+\begin_layout Enumerate
+The eigen function 
+\begin_inset Formula $\phi_{1s_{\nicefrac{1}{2}}}\left(\vec{r}\right)\neq r^{s}e^{-r}$
+\end_inset
+
+ appears wrong.
+\end_layout
+
+\begin_layout Enumerate
+The eigen function 
+\begin_inset Formula $\phi_{1s_{\nicefrac{1}{2}}}\left(\vec{r}\right)$
+\end_inset
+
+ is not normalized when numerically integrated.
+ 
+\end_layout
+
+\begin_layout Enumerate
+The non relativistic HF results 
+\begin_inset Formula $\phi_{1s}\left(\vec{r}\right)$
+\end_inset
+
+ are correct to 9 decimals.
+\end_layout
+
+\begin_layout Enumerate
+The errors become magnified when 
+\begin_inset Formula $Z$
+\end_inset
+
+ is increased and we maintain 
+\begin_inset Formula $N_{e}=1$
+\end_inset
+
+ (Hydrogen like ions).
+\end_layout
+
+\begin_layout Enumerate
+Numerical integration of the 
+\begin_inset Formula $T,V^{LL},V^{SS}$
+\end_inset
+
+ matrix elements appear to be correct.
+\end_layout
+
+\begin_layout Enumerate
+The relativistic correction is coming out doubled for 
+\begin_inset Formula $E_{total},E_{kinetic},V_{en}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+All of this is the same for both Gaussian and Slater basis functions.
+\end_layout
+
+\begin_layout Subsection
+Todo
+\end_layout
+
+\begin_layout Enumerate
+Verify Slater function results.
+\end_layout
+
+\begin_layout Enumerate
+Check quantitatively for doubled relativistic corrections for large 
+\begin_inset Formula $Z$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Try and pin down normalization problem.
+ (Same for Slater BFs?)
+\end_layout
+
+\begin_layout Enumerate
+Check non-relativistic limit,
+ make 
+\begin_inset Formula $c>>137$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
