@@ -11,6 +11,7 @@ int main(int argc, char **argv)
      // testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/4";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SG_DHF.Multiple/0";
 //     testing::GTEST_FLAG(filter) = "A_SG_DHF_H.Phir";
+     testing::GTEST_FLAG(filter) = "A_SL_DHF_H.Phir";
 //     testing::GTEST_FLAG(filter) = "A_SG_HFP_H.Phir";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/*";
 

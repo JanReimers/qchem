@@ -7437,15 +7437,27 @@ The non relativistic HF results
 \end_layout
 
 \begin_layout Enumerate
-The errors become magnified when 
+If we define the relativistic correction as 
+\begin_inset Formula $\epsilon_{rc}=\epsilon_{1s}-\epsilon_{1s_{\nicefrac{1}{2}}}$
+\end_inset
+
+ we find that for hydrogen the code gives 
+\begin_inset Formula $E_{total}=\epsilon_{1s}-2\epsilon_{1s_{\nicefrac{1}{2}}}.$
+\end_inset
+
+ But this factor of two gets bigger as 
 \begin_inset Formula $Z$
 \end_inset
 
- is increased and we maintain 
-\begin_inset Formula $N_{e}=1$
+ increases.
+\end_layout
+
+\begin_layout Enumerate
+The relativistic correction is coming out roughly doubled for 
+\begin_inset Formula $E_{kinetic},V_{en}$
 \end_inset
 
- (Hydrogen like ions).
+
 \end_layout
 
 \begin_layout Enumerate
@@ -7457,15 +7469,15 @@ Numerical integration of the
 \end_layout
 
 \begin_layout Enumerate
-The relativistic correction is coming out doubled for 
-\begin_inset Formula $E_{total},E_{kinetic},V_{en}$
-\end_inset
-
-
+All of this is the same for both Gaussian and Slater basis functions.
 \end_layout
 
 \begin_layout Enumerate
-All of this is the same for both Gaussian and Slater basis functions.
+Getting accurate 
+\begin_inset Formula $\epsilon_{2s_{\nicefrac{1}{2}}}$
+\end_inset
+
+ eigen values is exceedingly difficult with Slater functions.
 \end_layout
 
 \begin_layout Subsection
@@ -7473,11 +7485,13 @@ Todo
 \end_layout
 
 \begin_layout Enumerate
-Verify Slater function results.
+Done:
+ Verify Slater function results.
 \end_layout
 
 \begin_layout Enumerate
-Check quantitatively for doubled relativistic corrections for large 
+Done:
+ Check quantitatively for doubled relativistic corrections for large 
 \begin_inset Formula $Z$
 \end_inset
 
@@ -7485,6 +7499,13 @@ Check quantitatively for doubled relativistic corrections for large
  
 \end_layout
 
+\begin_deeper
+\begin_layout Enumerate
+Grows with Z.
+ Not always a factor of 2.
+\end_layout
+
+\end_deeper
 \begin_layout Enumerate
 Try and pin down normalization problem.
  (Same for Slater BFs?)

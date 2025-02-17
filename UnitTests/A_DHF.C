@@ -81,6 +81,7 @@ class A_SLmj_DHF : public ::testing::TestWithParam<int>
 {
 public:
     A_SLmj_DHF() : TestAtom(GetParam(),GetParam()-1) {};
+    A_SLmj_DHF(int Z) : TestAtom(Z,Z-1) {};
     void Init(int N, double emin, double emax, int LMax)
     {
         SLmj_OBasis::Init(N,emin,emax,LMax);
@@ -205,6 +206,12 @@ class A_SG_DHF_H : public A_SG_DHF
     A_SG_DHF_H() : A_SG_DHF(1) {};
 };
 
+class A_SL_DHF_H : public A_SLmj_DHF
+{
+    public:
+    A_SL_DHF_H() : A_SLmj_DHF(1) {};
+};
+
 
 double S12g(double r,double alpha)
 {
@@ -265,6 +272,22 @@ TEST_F(A_SG_DHF_H,Phir)
     int N=22;
     double alpha=0.01024,beta=2.0;
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
+    Iterate({1,1e-4,1.0,0.0,true});
+
+    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    Orbital* orb0=GetOrbital(0,*qns[0],Spin::Up);
+    double n1,n_expected,idphi;
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
+    EXPECT_NEAR(n1,1,1e-14);
+    EXPECT_NEAR(n_expected,1,1e-14);    
+    EXPECT_NEAR(idphi,0.0,2e-9); //Integrated delta.    
+
+}
+
+TEST_F(A_SL_DHF_H,Phir)
+{
+    int N=17;
+    Init(N,1./100.,100.0,GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
     std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
