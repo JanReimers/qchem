@@ -8,6 +8,7 @@
 #include <BasisSet.H>
 #include <TotalEnergy.H>
 #include <Orbital.H>
+#include <ChargeDensity.H>
 #include <memory>
 
 PeriodicTable QchemTester::itsPT;
@@ -60,6 +61,11 @@ double QchemTester::TotalEnergy() const
 {
     assert(itsHamiltonian);
     return itsHamiltonian->GetTotalEnergy().GetTotalEnergy();
+}
+
+double QchemTester::TotalCharge() const
+{
+    return itsWaveFunction->GetChargeDensity()->GetTotalCharge();
 }
 
 Orbitals* QchemTester::GetOrbitals(const QuantumNumber& qn,Spin s) const

@@ -7393,6 +7393,15 @@ All terms except
 \end_inset
 
 .
+ The total charge is
+\begin_inset Formula 
+\[
+q=\sum_{ab}\left\{ D_{ab}^{LL}S_{ab}^{LL}+D_{ab}^{SS}S_{ab}^{SS}\right\} 
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -7511,6 +7520,37 @@ Try and pin down normalization problem.
  (Same for Slater BFs?)
 \end_layout
 
+\begin_deeper
+\begin_layout Enumerate
+Yes same for Slater BFs.
+ N=1.0073
+\end_layout
+
+\begin_layout Enumerate
+Total charge is exactly 1.
+\end_layout
+
+\begin_layout Enumerate
+Break down is 
+\begin_inset Formula 
+\[
+q^{LL}=\sum_{ab}D_{ab}^{LL}S_{ab}^{LL}=0.9999866870
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+q^{SS}=\sum_{ab}D_{ab}^{SS}S_{ab}^{SS}=0.0000133130
+\]
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
 \begin_layout Enumerate
 Check non-relativistic limit,
  make 
@@ -7520,6 +7560,17 @@ Check non-relativistic limit,
 .
 \end_layout
 
+\begin_deeper
+\begin_layout Enumerate
+Seems to be working up to a point.
+ When 
+\begin_inset Formula $c$
+\end_inset
+
+ get very large the numerics go crazy.
+\end_layout
+
+\end_deeper
 \begin_layout Standard
 \begin_inset CommandInset bibtex
 LatexCommand bibtex

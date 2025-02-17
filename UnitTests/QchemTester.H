@@ -16,6 +16,7 @@ public:
     void   Init(double eps);
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
+    double TotalCharge() const;
     Orbitals* GetOrbitals(const QuantumNumber&,Spin) const;
     Orbital* GetOrbital(size_t index, const QuantumNumber&,Spin) const;
     double RelativeError(double expected,bool quiet=false) const;

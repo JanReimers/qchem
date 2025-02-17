@@ -250,6 +250,7 @@ const IrrepIEClient* Small_IntegralEngine::dcast(iec_t* iec)
 double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 {
     assert(l2%2==0);
+    assert(l2==0);
     return 2.0*Slater_m::IntegralEngine::Kinetic(ea,eb,l2/2); //Kinetic already has 4*Pi
 }
 

@@ -286,7 +286,7 @@ TEST_F(A_SG_DHF_H,Phir)
 
 TEST_F(A_SL_DHF_H,Phir)
 {
-    int N=17;
+    int N=15;
     Init(N,1./100.,100.0,GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
@@ -296,6 +296,7 @@ TEST_F(A_SL_DHF_H,Phir)
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
     EXPECT_NEAR(n1,1,1e-14);
     EXPECT_NEAR(n_expected,1,1e-14);    
-    EXPECT_NEAR(idphi,0.0,2e-9); //Integrated delta.    
-
+    EXPECT_NEAR(idphi,0.0,2e-9); //Integrated delta.   
+    EXPECT_NEAR(TotalCharge(),1.0,1e-14);
+    cout << "Charge=" << TotalCharge() << endl;
 }
