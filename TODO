@@ -1,4 +1,33 @@
 Priority 1:
+    -Break down interal engines
+        -OneElectron_IE:
+            Overlap
+            Nuclear
+            Kinetic
+        -DFT_IE->OneElectronIE Adds
+            Repulsion2
+            Overlap3
+            Repulsion3
+        -HF_IE->OneElectronIE Adds
+            Direct4
+            Exchange4
+        -DHF_IE
+            ?
+        -Can add more later for observables opertors.
+        Now what about the Database or Buffer Functionality?
+            -The interfaces are almost the same except DB returns refences to cached
+            Matrices.
+            -As long as COW semantics are working as designed the overhead of returning
+            matrix objects should almost un-measurable,
+        -COnjunction with:
+            1) Simplify integral call chain
+            2) Separate FitBasisSet idea.
+    -Simplify integral call chain
+        -Adding RestMass integral calculation was very labourious.  Call Chain:
+        HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
+        -Should we at least get the basis set out of the call chain?
+        -Reimagine in conjunction with Separate FitBasisSet idea.
+    
     -QNs should contain spin.  Right?
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
@@ -19,12 +48,9 @@ Priority 1:
         Harmonize.
     -Total energy
         -Calculated in  SCFIteratorImp::DisplayEnergies
-            end then re-calculated in SCFIteratorImp::Iterate
+            and then re-calculated in SCFIteratorImp::Iterate
             DisplayEnergies should just return E_total
-    -Adding RestMass integral calculation was very labourious.  Call Chain:
-        HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
-        -Should we at least get the basis set out of the call chain?
-        -Reimagine in conjunction with Separate FitBasisSet idea.
+    
 
     -Make and atom app for testing basis sets
         -Z{range or list} -N, -e{min.max} -b{S,Sm,G,Gm} -dL{front,back} 

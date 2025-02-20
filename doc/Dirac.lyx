@@ -1442,7 +1442,7 @@ and
  orbital we get
 \begin_inset Formula 
 \[
-\frac{1}{r}P_{-1}=\frac{1}{\sqrt{N}}r^{\gamma-1}e^{-r},\quad\gamma-1\sim−0.00002664.
+\frac{1}{r}P_{-1}=\frac{1}{r}Q_{-1}=\frac{1}{\sqrt{N}}r^{\gamma-1}e^{-r},\quad s=\gamma-1\sim−0.00002664.
 \]
 
 \end_inset
@@ -1451,6 +1451,16 @@ and
 \begin_inset Formula 
 \[
 N=\int d^{3}r\left(r^{\gamma-1}e^{-r}\right)^{2}=4\pi\int_{0}^{\infty}r^{2\gamma}e^{-2r}dr=4\pi\frac{\Gamma\left(2\gamma+1\right)}{2^{2\gamma+1}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\varphi_{\kappa}=\frac{1}{\sqrt{N}}r^{\gamma-1}e^{-r}\begin{bmatrix}\sqrt{\frac{1+\gamma}{2}}\Omega_{\kappa}\left(\hat{r}\right)\\
+\sqrt{\frac{1-\gamma}{2}}\Omega_{-\kappa}\left(\hat{r}\right)
+\end{bmatrix}
 \]
 
 \end_inset
@@ -7300,7 +7310,7 @@ d^{S}
 \begin_inset Formula 
 \[
 H_{D}=\begin{bmatrix}V_{LL} & cT\\
-cT & V_{SS}-2c^{2}S^{SS}
+cT^{\dagger} & V_{SS}-2c^{2}S^{SS}
 \end{bmatrix}
 \]
 
@@ -7319,7 +7329,7 @@ S=\begin{bmatrix}S^{LL} & 0\\
 
 \begin_inset Formula 
 \[
-V^{LL}d^{L}+T_{LS}d^{S}=\epsilon S^{LL}d^{L}
+V^{LL}d^{L}+Td^{S}=\epsilon S^{LL}d^{L}
 \]
 
 \end_inset
@@ -7327,7 +7337,7 @@ V^{LL}d^{L}+T_{LS}d^{S}=\epsilon S^{LL}d^{L}
 
 \begin_inset Formula 
 \[
-T_{SL}d^{L}+V_{SS}d^{S}-2c^{2}S^{SS}d^{S}=\epsilon S^{SS}d^{S}
+T^{\dagger}d^{L}+V_{SS}d^{S}-2c^{2}S^{SS}d^{S}=\epsilon S^{SS}d^{S}
 \]
 
 \end_inset
@@ -7550,6 +7560,32 @@ q^{SS}=\sum_{ab}D_{ab}^{SS}S_{ab}^{SS}=0.0000133130
 
 \end_layout
 
+\begin_layout Enumerate
+Are we somehow assign (roughly) double the charge to the small sector?
+ Either
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+\begin_inset Formula $S_{ab}^{SS}$
+\end_inset
+
+ is too big by a factor 2
+\end_layout
+
+\begin_layout Enumerate
+The orbital expansion coefficients for small sector 
+\begin_inset Formula $d_{a}^{S}$
+\end_inset
+
+ are too big a factor 
+\begin_inset Formula $\sqrt{2}$
+\end_inset
+
+
+\end_layout
+
+\end_deeper
 \end_deeper
 \begin_layout Enumerate
 Check non-relativistic limit,
@@ -7571,6 +7607,68 @@ Seems to be working up to a point.
 \end_layout
 
 \end_deeper
+\begin_layout Enumerate
+Try 
+\begin_inset Formula $g\left(r\right)=\frac{1}{\sqrt{N}}r^{\gamma-1}e^{-r}$
+\end_inset
+
+which is the exact solution,
+ with 
+\begin_inset Formula $f(r)=\left[\frac{\partial}{\partial2}+\frac{\kappa+1}{r}\right]r^{\gamma-1}e^{-r}=\left[\frac{\gamma-1}{r}-1\right]r^{\gamma-1}e^{-r}$
+\end_inset
+
+.
+ Then we need the Kinetic integral:
+\begin_inset Formula 
+\[
+T=4\pi\int r^{2}drr^{2\gamma}e^{-2r}\left[\frac{\left(\gamma-1\right)^{2}}{r^{2}}-2\frac{\gamma-1}{r}+1\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=4\pi\left[\left(\gamma-1\right)^{2}\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma-1}}-2\left(\gamma-1\right)\frac{\Gamma\left(2\gamma\right)}{2^{2\gamma}}+\frac{\Gamma\left(2\gamma+1\right)}{2^{2\gamma+1}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=4\pi\left[\left(\gamma-1\right)^{2}\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma-1}}-2\left(\gamma-1\right)\left(2\gamma-1\right)\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma}}+2\gamma\frac{\Gamma\left(2\gamma\right)}{2^{2\gamma+1}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=4\pi\left[\left(\gamma-1\right)^{2}\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma-1}}-2\left(\gamma-1\right)\left(2\gamma-1\right)\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma}}+2\gamma\left(2\gamma-1\right)\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma+1}}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=4\pi\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma-1}}\left[\left(\gamma-1\right)^{2}-2\left(\gamma-1\right)\left(2\gamma-1\right)\frac{1}{2}+2\gamma\left(2\gamma-1\right)\frac{1}{4}\right]
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=4\pi\frac{\Gamma\left(2\gamma-1\right)}{2^{2\gamma-1}}\left[\left(\gamma-1\right)^{2}-\left(\gamma-1\right)\left(2\gamma-1\right)+\gamma\left(2\gamma-1\right)\frac{1}{2}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Standard
 \begin_inset CommandInset bibtex
 LatexCommand bibtex
