@@ -14,14 +14,14 @@ namespace Slater
 //
 IrrepBasisSet::IrrepBasisSet()
     :  IrrepBasisSetCommon        ()
-    , TIrrepBasisSetCommon<double>()
+    , Orbital_IBS_Common<double>()
 {};
 
 
 IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
         const Vector<double>& exponents,size_t L)
     : IrrepBasisSetCommon(new YlQN(L))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L);

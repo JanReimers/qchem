@@ -5,6 +5,7 @@
 
 
 #include "IEClient.H"
+#include "IntegralEngine.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
 #include "oml/vector.h"
@@ -13,10 +14,11 @@ namespace Slater
 {
    
 class IrrepBasisSet
-    : public virtual TIrrepBasisSet<double>
-    , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
-    , public         IrrepIEClient
+    : public virtual Orbital_IBS<double>
+    , protected         IrrepBasisSetCommon
+    , protected         Orbital_IBS_Common<double>
+    , protected         IntegralEngine1
+    , protected         IrrepIEClient
 {
 public:
     IrrepBasisSet();

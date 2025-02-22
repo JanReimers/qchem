@@ -145,6 +145,21 @@ public:
     const_iterator beginT() const {return const_iterator(begin());};
 };
 
+#include "AnalyticIE.H"
+//
+// Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
+// Mix-in the integral interfaces required for an orbital basis. 
+//
+template <class T> class Orbital_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_1E<T> //One electron integrals used for everything
+    // , public virtual Integrals_2E<T> //Two electron integrals used for HF
+    // , public virtual Integrals_DFT<T> //DFT integrals
+    
+{
+    public:
+};
+
 
 
 //----------------------------------------------------------------------------

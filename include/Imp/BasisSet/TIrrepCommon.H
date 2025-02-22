@@ -6,10 +6,6 @@
 #include <LAParams.H>
 //---------------------------------------------------------------------
 //
-//  This class implements functionality common to
-//  all basis sets.  It stores a list of BasisFunction*'s.
-//  A basis set owns these BasisFunction*'s and deletes them in
-//  the destructor.  Hence copy operations are not allowed.
 //  This class also owns the IntegralDataBase.
 //
 template <class T> class TIrrepBasisSetCommon
@@ -74,6 +70,16 @@ protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 private:
     mutable IntegralDataBase<T>*  itsDataBase;
+};
+
+template <class T> class Orbital_IBS_Common
+    : public virtual Orbital_IBS<T>
+    , protected  TIrrepBasisSetCommon<T> 
+{
+    public:
+    Orbital_IBS_Common() {};
+    Orbital_IBS_Common(const LAParams& lap, IntegralDataBase<T>* db) 
+        : TIrrepBasisSetCommon<T>(lap,db) {};
 };
 
 #endif //_TIrrepCommon_H_

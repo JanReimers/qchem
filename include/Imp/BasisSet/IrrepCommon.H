@@ -9,11 +9,8 @@
 
 //---------------------------------------------------------------------
 //
-//  This class implements functionality common to
-//  all basis sets.  It stores a list of BasisFunction*'s.
-//  A basis set owns these BasisFunction*'s and deletes them in
-//  the destructor.  Hence copy operations are not allowed.
-//  This class also owns the IntegralDataBase.
+//  This class implements functionality common to all real/complex irrep basis sets.  
+//  It stores a list of BasisFunction*'s and Quantum number.
 //
 class IrrepBasisSetCommon
     : public virtual IrrepBasisSet
