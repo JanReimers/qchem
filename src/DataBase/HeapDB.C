@@ -24,7 +24,7 @@ template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
 
 template <class T> HeapDB<T>::~HeapDB()
 {
-    Report(std::cout);
+    //Report(std::cout);
     delete itsAnalyticIE;
 }
 
@@ -330,3 +330,19 @@ GetInverseRepulsion(iec_t* ,const LAParams&)
 
 template class HeapDB<double>;
 template class HeapDB<std::complex<double> >;
+
+
+template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Integrals(qchem::IType it,const bs_t* a,const Cluster* cl) const
+{
+    id2c_t key=std::make_tuple(it,a->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        const iec_t* g=dynamic_cast<const iec_t*>(a);
+        assert(g);
+        return itsBuffer[key] = Integrals(it,g,cl);
+    }
+    else
+        return i->second;
+}
+
+template class DB_1E<double>;

@@ -250,3 +250,25 @@ ERI4 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) cons
     return K;
 };
 
+template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::Integrals(qchem::IType t,const iec_t* iea,const Cluster* cl) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(iea);
+    assert(a);
+
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Integral(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+
+    if (t==qchem::Nuclear1)
+    {
+        assert(cl);
+        assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
+        H*=-cl->GetNuclearCharge(); 
+    }
+
+    return H;
+}
+
+template class AtomIE_1E<double>;

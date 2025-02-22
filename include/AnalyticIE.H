@@ -73,9 +73,29 @@ public:
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  RSMat MakeInverse  (const RSMat&,const LAParams&); //Numerically stable algo required.
 private:
-    std::vector<const IrrepIEClient*> itsIrreps;
+    std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
 
 };
 
+//
+// Interface for 1 electron integrals.  Can be used by Integral engines and Integral data bases.
+// Two of these are only used for the Dirac Hamiltonian.  SHould that be a separate interface?
+//
+template <class T> class Integrals_1E
+{
+public:
+    //! Instance then ensures integrals are calculated once and then buffered.
+    static Integrals_1E* theDB; 
+
+    typedef const TIrrepBasisSet<T> bs_t;
+    typedef  Matrix<T>  Mat;
+    typedef const SMatrix<T>& SMat_ref;
+    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+    //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
+    //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
+    virtual SMat_ref Integrals(qchem::IType,const bs_t* g,const Cluster* cl=0) const=0;
+       
+};
 
 #endif //_AnalyticIE_H_

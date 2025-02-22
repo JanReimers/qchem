@@ -255,7 +255,7 @@ double Small_IntegralEngine::Overlap  (double ea , double eb,size_t l2) const
 double Small_IntegralEngine::Nuclear(double ea, double eb,size_t l) const
 {
     assert(l==0);
-    int kappa = -l -1;
+    //int kappa = -l -1;
     return 4*ea*eb*GaussianIntegral(ea+eb,l+1); //Don't count the r^2 in dr^3
    
 }

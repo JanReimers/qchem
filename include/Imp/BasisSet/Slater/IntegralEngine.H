@@ -34,6 +34,14 @@ protected:
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
 };
 
+class IntegralEngine1
+    : public virtual Integrals_1E<double>
+    , public AtomIE_1E<double>
+{
+public:
+    virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
+};
+
 } //namespace
 
 #endif //_SlaterIE_H_

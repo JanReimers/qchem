@@ -130,7 +130,7 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
 {
     auto da=dcast(a);
-    Mat kls=2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+    Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
     return merge_off_diag(kls);
 }
 

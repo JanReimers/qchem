@@ -55,5 +55,18 @@ private:
 
 };
 
+#include "Imp/DataBase/HeapDB.H"
+
+template <class T> class AtomIE_1E : public DB_1E<double>
+{
+public:
+    typedef DB_1E<T> Base;
+    typedef IrrepIEClient iec_t;
+    typedef SMatrix<T> SMat;
+private:
+    virtual  SMat Integrals(qchem::IType,const iec_t* g,const Cluster*) const;
+
+    virtual  T Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+};
 
 #endif // _AtomIE_H_

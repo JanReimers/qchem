@@ -91,4 +91,26 @@ private:
 
 };
 
+template <class T> class DB_1E :
+    virtual public Integrals_1E<T>
+{
+    typedef Integrals_1E<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+    typedef typename Base::bs_t bs_t;
+    typedef IrrepIEClient iec_t;
+    typedef SMatrix<T> SMat;
+    typedef UniqueID::IDtype IDType;
+    
+public:
+    //  This is all buffered.
+    virtual SMat_ref Integrals(qchem::IType,const bs_t* g,const Cluster* cl=0) const;
+
+private:
+    // One time calls to un-buffered integral calculations.
+    virtual  SMat Integrals(qchem::IType,const iec_t* g,const Cluster*) const=0;
+
+    typedef std::tuple<qchem::IType,IDType> id2c_t;
+    mutable std::map<id2c_t ,SMat> itsBuffer; 
+};
+
 #endif

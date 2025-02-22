@@ -73,6 +73,8 @@ public:
 
     virtual    ERI4        GetDirect__4C(bs_t& a,bs_t& b)=0;
     virtual    ERI4        GetExchange4C(bs_t& a,bs_t& b)=0;
-    };
+};
+
+
 
 #endif //_IntegralDataBase_H_

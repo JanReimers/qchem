@@ -139,6 +139,7 @@ public:
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
 
+    // Only used by IntegralConstrainedFF!
     virtual IntegralDataBase<T>* GetDataBase() const=0;
     
     const_iterator beginT() const {return const_iterator(begin());};

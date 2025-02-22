@@ -1,4 +1,9 @@
 Priority 1:
+    -Move all Hamilton constants out of integral engines
+        factor of 1/2 for kinetic
+        factor of Z (and R) for Ven
+            -This is inefficenet, we only need the sum over centers
+        factos of c for H_Dirac
     -Break down interal engines
         -OneElectron_IE:
             Overlap
