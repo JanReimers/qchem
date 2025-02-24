@@ -93,15 +93,14 @@ private:
 
 template <class T> class DB_1E :
     virtual public Integrals_1E<T>
-{
+{    
+public:
     typedef Integrals_1E<T> Base;
     typedef typename Base::SMat_ref SMat_ref;
     typedef typename Base::bs_t bs_t;
     typedef IrrepIEClient iec_t;
     typedef SMatrix<T> SMat;
     typedef UniqueID::IDtype IDType;
-    
-public:
     //  This is all buffered.
     virtual SMat_ref Integrals(qchem::IType,const bs_t* g,const Cluster* cl=0) const;
 

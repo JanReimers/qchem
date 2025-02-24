@@ -5,6 +5,8 @@
 #include "RadialFunction.H"
 #include "CDCache.H"
 #include "Polarization.H"
+#include "Imp/DataBase/HeapDB.H"
+
 #include <AnalyticIE.H>
 #include "oml/vector.h"
 
@@ -50,6 +52,20 @@ private:
     SMat Integrate(qchem::IType2C , iec_t* a, const Cluster* cl=0) const;
     SMat Integrate(qchem::IType3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
 
+    mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
+};
+
+
+class IntegralEngine1
+    : public virtual Integrals_1E<double>
+    , public DB_1E<double>
+{
+public:
+    typedef DB_1E<double> Base;
+    typedef ::IrrepIEClient iec_t;
+    typedef Base::SMat SMat;
+private:
+    virtual  SMat Integrals(qchem::IType,const iec_t* g,const Cluster*) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
 

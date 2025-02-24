@@ -5,6 +5,7 @@
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
 #include "Polarization.H"
+#include "IntegralEngine.H"
 #include "IEClient.H"
 #include "Block.H"
 #include "Imp/Containers/ptr_vector.h"
@@ -17,7 +18,8 @@ class Reader;
 class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
+    , public         Orbital_IBS_Common<double>
+    , protected      IntegralEngine1
     , public         IrrepIEClient
 {
 public:

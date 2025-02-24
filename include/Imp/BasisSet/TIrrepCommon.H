@@ -31,7 +31,7 @@ public:
 //
 //  Make a gen/ EV solver that already has the overlap S factorized.
 //
-    virtual LASolver<double>* CreateSolver() const;
+//    virtual LASolver<double>* CreateSolver() const;
 //
 //  Used by fitting routines.
 // 
@@ -80,6 +80,13 @@ template <class T> class Orbital_IBS_Common
     Orbital_IBS_Common() {};
     Orbital_IBS_Common(const LAParams& lap, IntegralDataBase<T>* db) 
         : TIrrepBasisSetCommon<T>(lap,db) {};
+
+    //
+    //  Make a gen/ EV solver that already has the overlap S factorized.
+    //
+    virtual LASolver<double>* CreateSolver() const;
+
+    using TIrrepBasisSetCommon<T>::GetDataBase;
 };
 
 #endif //_TIrrepCommon_H_

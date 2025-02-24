@@ -36,6 +36,14 @@ protected:
         
 };
 
+class IntegralEngine1
+    : public virtual Integrals_1E<double>
+    , public AtomIE_1E<double>
+{
+public:
+    virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
+};
+
 } //namespace
 
 #endif //_SphericalGaussianIE1_H_

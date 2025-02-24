@@ -1,13 +1,14 @@
 // File: SphericalGaussian_RKB_IE.H  Integral Engine for Spherical gaussians.
-#ifndef _SphericalGaussian_RKB_IE_H_
-#define _SphericalGaussian_RKB_IE_H_
+#ifndef _SphericalGaussian_RKB_IE1_H_
+#define _SphericalGaussian_RKB_IE1_H_
 
 
 #include <AnalyticIE.H>
+#include "IEClient.H"
 #include "Imp/BasisSet/AtomIE.H"
 #include "Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H"
 #include "oml/vector.h"
-#include "IrrepBasisSet.H"
+//#include "IrrepBasisSet.H"
 
 class DiracIntegralTests;
 
@@ -45,11 +46,12 @@ public:
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const;
 
+    static SMat merge_diag(const SMat& l,const SMat& s);
+    static SMat merge_off_diag(const Mat& ls);
 private:
     friend class ::DiracIntegralTests;
     static const Dirac_IrrepIEClient* dcast(iec_t*);
-    static SMat merge_diag(const SMat& l,const SMat& s);
-    static SMat merge_off_diag(const Mat& ls);
+ 
     static RVec merge(const RVec& l,const RVec& s);
     static ERI4 merge_diag(const ERI4& LL,const ERI4& LS,const ERI4& SL,const ERI4& SS);
     static ERI4 merge_off_diag(const ERI4 &LLLL, const M4 &LSLS, const M4 &SLSL, const ERI4 &SSSS);
@@ -78,7 +80,17 @@ public:
     ERI4 MakeExchangeSS(const IrrepIEClient* a, const IrrepIEClient* b) const;
 };
 
+class Small_IntegralEngine1
+    : public virtual Integrals_1E<double>
+    , public AtomIE_1E<double>
+{
+public:
+    virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
+};
 
-} //namespace
+
+
+} //namespace SphericalGaussian_RKB
+
 
 #endif //_SphericalGaussian_RKB_IE_H_

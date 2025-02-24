@@ -240,4 +240,18 @@ void IntegralEngine::Report(std::ostream& os) const
     cache.Report(os);
 }
 
+IntegralEngine1::SMat IntegralEngine1::Integrals(qchem::IType t,const iec_t* iec,const Cluster* cl) const
+{
+    const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(iec);
+    assert(ab);
+    qchem::IType2C t2C=qchem::Overlap2C;
+    int N=ab->size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns(ia+1)*ab->ns(ib+1);
+
+    return s;
+}
+
 } //namespace PolarizedGaussian

@@ -43,9 +43,9 @@ template <class T> IntegralDataBase<T>* TIrrepBasisSetCommon<T>::GetDataBase() c
 
  
 
-template <class T>  LASolver<double>* TIrrepBasisSetCommon<T>::CreateSolver() const
+template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() const
 {
-    LASolver<double>* las=LASolver<double>::Factory(itsLAParams);
+    LASolver<double>* las=LASolver<double>::Factory(TIrrepBasisSetCommon<T>::itsLAParams);
     las->SetBasisOverlap(GetDataBase()->GetOverlap(this));
     return las;
 }
@@ -239,5 +239,6 @@ template <class T> std::istream& TIrrepBasisSetCommon<T>::Read(std::istream& is)
 };
 
 template class TIrrepBasisSetCommon<double>;
+template class Orbital_IBS_Common<double>;
 //template class TBasisSetImplementation<std::complex<double> >;
 

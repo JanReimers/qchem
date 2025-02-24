@@ -14,7 +14,7 @@ namespace SphericalGaussian_m
 //
 IrrepBasisSet::IrrepBasisSet()
     :  IrrepBasisSetCommon        ()
-    , TIrrepBasisSetCommon<double>()
+    , Orbital_IBS_Common<double>()
 {};
 
 
@@ -24,7 +24,7 @@ IrrepBasisSet::IrrepBasisSet(
         const std::set<double>& exponents,
         size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L,m);
@@ -37,7 +37,7 @@ IrrepBasisSet::IrrepBasisSet(
 IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
         const Vector<double>& exponents,size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L,m);

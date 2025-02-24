@@ -81,4 +81,26 @@ Vector<double>  IntegralEngine::loop_4_exchange(size_t id, size_t la, size_t lc)
     return cd->ExchangeRk(la,lc);
 }
 
+double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l) const
+{
+    switch(type)
+    {
+        case qchem::Overlap1: return GaussianIntegral(ea+eb,l); //Already has 4*Pi
+        case qchem::Kinetic1:
+        {
+            double t=ea+eb;
+            size_t l1=l+1;
+            return 0.5*(
+                    (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
+                    -2*l1 * t      * GaussianIntegral(t,2*l  )
+                    +4*ea*eb       * GaussianIntegral(t,2*l+2)
+                );
+        } 
+        case qchem::Nuclear1:  return GaussianIntegral(ea+eb,2*l-1); //Already has 4*Pi
+        default: assert(false);
+    }
+    return 0.0;
+}
+
+
 } //namespace

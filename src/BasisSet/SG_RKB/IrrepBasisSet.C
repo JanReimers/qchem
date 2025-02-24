@@ -3,7 +3,7 @@
 
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
 #include "Imp/BasisSet/SG_RKB/BasisFunction.H"
-#include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
+//#include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
 #include "Imp/Symmetry/OkmjQN.H"
 #include <iostream>
 #include <cassert>
@@ -16,7 +16,7 @@ namespace SphericalGaussian_RKB
 Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
         const Vector<double>& exponents,int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
     , itsLargeBS(new Large_IrrepBasisSet(lap,theDB,exponents,kappa))
     , itsSmallBS(new Small_IrrepBasisSet(lap,theDB,itsLargeBS))
 {
@@ -73,6 +73,32 @@ std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
     return Clone();
 }
 
+Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::Integrals(qchem::IType t,const iec_t* g,const Cluster* cl) const
+{
+    switch (t)  
+    {
+    case qchem::Overlap1:
+    case qchem::Nuclear1:
+    {
+        SMat ol=itsLargeBS->Integrals(t,g,cl);
+        SMat os=itsSmallBS->Integrals(t,g,cl);
+        return DiracIntegralEngine::merge_diag(ol,os);
+        break;
+
+    }
+    case qchem::Kinetic1:
+        assert(false);
+        // Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+        // return DiracIntegralEngine::merge_off_diag(kls);
+        //return SMat();
+        break;
+    
+    default:
+        assert(false);
+    }
+    return SMat();
+}
+
 //-----------------------------------------------------------------------------------------------
 //
 //  Large sector
@@ -80,7 +106,7 @@ std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
 Large_IrrepBasisSet::Large_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
         const Vector<double>& exponents,int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
     , IrrepIEClient(exponents.size(),kappa)
 {
     IrrepIEClient::Init(exponents);
@@ -143,7 +169,7 @@ std::istream&  Large_IrrepBasisSet::Read (std::istream& is)
 //
 Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* db,const Large_IrrepBasisSet* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
-    , TIrrepBasisSetCommon<double>(lap,db)
+    , Orbital_IBS_Common<double>(lap,db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
   Small_IrrepIEClient::Init(lbs->es);

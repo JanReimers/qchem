@@ -5,6 +5,7 @@
 
 
 #include "IEClient.H"
+#include "IntegralEngine.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
 #include "oml/vector.h"
@@ -15,7 +16,8 @@ namespace SphericalGaussian
 class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
+    , public         Orbital_IBS_Common<double>
+    , protected      IntegralEngine1
     , public         IrrepIEClient
 {
 public:

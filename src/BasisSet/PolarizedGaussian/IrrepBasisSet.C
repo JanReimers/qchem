@@ -35,13 +35,13 @@ template <class T> T Max(const std::vector<T>& v)
 //
 IrrepBasisSet::IrrepBasisSet()
     : IrrepBasisSetCommon()
-    , TIrrepBasisSetCommon<double>()
+    , Orbital_IBS_Common<double>()
 {};
 
 IrrepBasisSet::
 IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
     : IrrepBasisSetCommon(new UnitQN)
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
 {
 //
 //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
@@ -115,7 +115,7 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, Reader* bsr, 
 IrrepBasisSet::
 IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<double>& es, size_t LMax, const Cluster* cl)
     : IrrepBasisSetCommon(new UnitQN)
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
 {
     int nbasis=1;
     for (auto atom:*cl)
@@ -151,7 +151,7 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<
 IrrepBasisSet::
 IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB, const Vector<double>& es, size_t L)
     : IrrepBasisSetCommon(new UnitQN())
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap,theDB)
 {
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
@@ -182,7 +182,7 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs,
         IntegralDataBase<double>* theDB,
         const optr_vector1<Block*>& theBlocks)
     : IrrepBasisSetCommon(*bs)
-    , TIrrepBasisSetCommon<double>(bs->itsLAParams,theDB)
+    , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
     , itsBlocks(theBlocks)
 {
     // No UT coverage

@@ -626,4 +626,19 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
     return K;
 }
 
+double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size_t l) const
+{
+    assert(t==qchem::Overlap1);
+    double ab=ea+eb;
+            int na=l+1,nb=l+1;
+            size_t ll=(l*(l+1)+l*(l+1))/2;
+            int n=na+nb;
+            double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
+            double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+            double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+            //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
+        
+    return Term1+Term2+Term3;
+}
+
 } //namespace
