@@ -10,15 +10,16 @@
 #include "../TIrrepCommon.H"
 #include "oml/vector.h"
 
+
 namespace Slater
 {
    
 class IrrepBasisSet
     : public virtual Orbital_IBS<double>
-    , protected         IrrepBasisSetCommon
-    , protected         Orbital_IBS_Common<double>
-    , protected         IntegralEngine1
-    , protected         IrrepIEClient
+    , public         IrrepBasisSetCommon
+    , public         Orbital_IBS_Common<double>
+    , public         IntegralEngine1
+    , public         IrrepIEClient
 {
 public:
     IrrepBasisSet();
@@ -31,6 +32,7 @@ public:
     virtual std::istream&  Read (std::istream&    )      ;
     virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
 };
 
 } //namespace Slater

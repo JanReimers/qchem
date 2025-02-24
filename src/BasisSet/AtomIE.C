@@ -259,7 +259,7 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::Integrals(qchem::IT
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Integral(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+            H(i,j)= Integral(t,a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
 
     if (t==qchem::Nuclear1)
     {

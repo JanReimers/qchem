@@ -73,7 +73,6 @@ public:
 //
 //  Creat helpers
 //
-    virtual LASolver<double>* CreateSolver() const=0;
     virtual IrrepBasisSet*    CreateCDFitBasisSet(const Cluster*) const=0;
     virtual IrrepBasisSet*    CreateVxcFitBasisSet(const Cluster*) const=0;
 
@@ -158,6 +157,8 @@ template <class T> class Orbital_IBS
     
 {
     public:
+    virtual LASolver<double>* CreateSolver() const=0;
+
 };
 
 

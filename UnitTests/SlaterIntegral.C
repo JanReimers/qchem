@@ -171,10 +171,13 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
+        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        SMatrix<double> S1=oi->Integrals(qchem::Overlap1,*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        //cout << S << endl;
+        cout << S << S1 << endl;
         SMatrix<double> Snum = mintegrator->Overlap(**i);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+        EXPECT_NEAR(Max(fabs(S-S1)),0.0,1e-14);
 
     }
 }
