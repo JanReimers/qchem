@@ -80,8 +80,8 @@ Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::Integrals(qchem::IType t,const ie
     case qchem::Overlap1:
     case qchem::Nuclear1:
     {
-        SMat ol=itsLargeBS->Integrals(t,g,cl);
-        SMat os=itsSmallBS->Integrals(t,g,cl);
+        SMat ol=itsLargeBS->Integrals(t,itsLargeBS,cl);
+        SMat os=itsSmallBS->Integrals(t,itsSmallBS,cl);
         return DiracIntegralEngine::merge_diag(ol,os);
         break;
 

@@ -624,14 +624,25 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
 
 double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size_t l) const
 {
-    assert(t==qchem::Overlap1);
-    double eab=ea+eb;
-    size_t l1=l+1;
-    return 0.5*(
-               (l1*l1 + l*l1) * GaussianIntegral(eab,2*l-2)
-               -2*l1 * t      * GaussianIntegral(eab,2*l  )
-               +4*ea*eb       * GaussianIntegral(eab,2*l+2)
-           );
+    if (t==qchem::Overlap1)
+    {
+        assert(l==0);
+        double eab=ea+eb;
+        size_t l1=l+1;
+        return 1.0*(
+                (l1*l1 + l*l1) * GaussianIntegral(eab,2*l-2)
+                -2*l1 * eab      * GaussianIntegral(eab,2*l  )
+                +4*ea*eb       * GaussianIntegral(eab,2*l+2)
+            );
+    }
+    else if (t==qchem::Nuclear1)
+    {
+        assert(l==0);
+        //int kappa = -l -1;
+        return 4*ea*eb*GaussianIntegral(ea+eb,l+1); //Don't count the r^2 in dr^3
+    }
+    assert(false);
+    return 0.0;
 }
 
 } //namespace

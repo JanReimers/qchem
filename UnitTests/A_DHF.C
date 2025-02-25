@@ -69,7 +69,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     Init(N,Z/100.,Z*100.,GetLMax(1));
-    Iterate({40,Z*1e-4,1.0,0.0,true});
+    Iterate({40,Z*1e-4,1.0,0.0,false});
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
 }
 
@@ -166,7 +166,7 @@ TEST_P(A_SG_DHF,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
-    Iterate({40,Z*1e-4,1.0,0.0,true});
+    Iterate({40,Z*1e-4,1.0,0.0,false});
 
     std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
     cout << "QN=" << *qns[0] << endl;

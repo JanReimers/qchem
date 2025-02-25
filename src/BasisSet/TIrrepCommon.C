@@ -45,7 +45,11 @@ template <class T> IntegralDataBase<T>* TIrrepBasisSetCommon<T>::GetDataBase() c
 
 template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() const
 {
+    StreamableObject::SetToPretty();
+    // std::cout << "S_old=" << this->GetOverlap() << std::endl;
+    // std::cout << "S_new=" << this->Integrals(qchem::Overlap1,this) << std::endl;
     LASolver<double>* las=LASolver<double>::Factory(TIrrepBasisSetCommon<T>::itsLAParams);
+    //las->SetBasisOverlap(this->GetOverlap());
     las->SetBasisOverlap(this->Integrals(qchem::Overlap1,this));
     return las;
 }
