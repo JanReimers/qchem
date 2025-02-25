@@ -3,6 +3,7 @@
 
 
 #include "Imp/Hamiltonian/Vee.H"
+#include <BasisSet.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"
@@ -25,7 +26,7 @@ Vee::Vee()
 //  Where ro is the charge density.
 //
 
-HamiltonianTerm::SMat Vee::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Vee::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
     assert(itsExactCD);
     return itsExactCD->GetRepulsion(bs);

@@ -9,7 +9,7 @@ RestMass::RestMass()
 {};
 
 
-HamiltonianTerm::SMat RestMass::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat RestMass::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
     return bs->GetRestMass();
 }

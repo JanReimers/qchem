@@ -18,14 +18,14 @@ bool ChargeDensity::IsPolarized() const
 //
 //  Various integrals.
 //
-ChargeDensity::SMat PolarizedCD::GetRepulsion(const IrrepBasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetRepulsion(const Orbital_IBS<double>* bs) const
 {
     SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
     SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
-ChargeDensity::SMat PolarizedCD::GetExchange(const IrrepBasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetExchange(const Orbital_IBS<double>* bs) const
 {
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
     SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);

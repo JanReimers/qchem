@@ -85,7 +85,7 @@ double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l
 {
     switch(type)
     {
-        case qchem::Overlap1: return GaussianIntegral(ea+eb,l); //Already has 4*Pi
+        case qchem::Overlap1: return GaussianIntegral(ea+eb,2*l); //Already has 4*Pi
         case qchem::Kinetic1:
         {
             double t=ea+eb;

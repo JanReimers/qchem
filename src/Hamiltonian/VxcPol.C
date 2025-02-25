@@ -41,7 +41,7 @@ bool VxcPol::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat VxcPol::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat VxcPol::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin& s) const
 {
     if  (s.itsState==Spin::None)
     {

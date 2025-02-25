@@ -49,7 +49,7 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
     return FitGet3CenterOverlap(bs);
 }

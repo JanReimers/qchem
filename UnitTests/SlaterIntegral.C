@@ -174,7 +174,6 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
         auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
         SMatrix<double> S1=oi->Integrals(qchem::Overlap1,*i);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        cout << S << S1 << endl;
         SMatrix<double> Snum = mintegrator->Overlap(**i);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
         EXPECT_NEAR(Max(fabs(S-S1)),0.0,1e-14);
@@ -187,8 +186,11 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
+        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        SMatrix<double> Hn1=oi->Integrals(qchem::Nuclear1,*i,cl);
         SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
+        EXPECT_NEAR(Max(fabs(Hn-Hn1)),0.0,1e-14);
 
     }
 }
@@ -198,6 +200,8 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> K=ie->MakeKinetic(*i);
+        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        SMatrix<double> K1=oi->Integrals(qchem::Kinetic1,*i);
         //cout << S << endl;
         SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
             // We need to add the l*(l+1) term that comes from the angular integrals.
@@ -213,6 +217,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
                 Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
             
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
+        EXPECT_NEAR(Max(fabs(K-K1)),0.0,1e-14);
 
     }
 }

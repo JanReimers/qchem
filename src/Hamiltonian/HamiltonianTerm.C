@@ -23,7 +23,7 @@ void HamiltonianTermImp::MarkAllDirty()
 
 }
 
-HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const IrrepBasisSet* bs,const Spin& s) const
+HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const Orbital_IBS<double>* bs,const Spin& s) const
 {
     assert(bs);
     CacheIndex i(bs,s);
@@ -49,7 +49,7 @@ double HamiltonianTermImp::CalculateEnergy() const
         {
             if (i->second)
             {
-                const IrrepBasisSet* bs=i->first.itsBasisSet;
+                const Orbital_IBS<double>* bs=i->first.itsBasisSet;
                 Spin s=i->first.itsSpin;
                 assert(bs);
                 BuildHamiltonian(bs,s);
@@ -68,7 +68,7 @@ void HamiltonianTermImp::UseChargeDensity(const ChargeDensity* theExactCD)
     if (DependsOnChargeDensity()) MarkAllDirty();
 }
 
-const HamiltonianTermImp::SMat& HamiltonianTermImp::GetCachedMatrix(const IrrepBasisSet* bs, const Spin& s) const
+const HamiltonianTermImp::SMat& HamiltonianTermImp::GetCachedMatrix(const Orbital_IBS<double>* bs, const Spin& s) const
 {
     assert(bs);
     CacheIndex index(bs,s);

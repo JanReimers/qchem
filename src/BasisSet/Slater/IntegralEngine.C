@@ -96,12 +96,12 @@ double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l
 {
     switch(type)
     {
-        case qchem::Overlap1: return SlaterIntegral(ea+eb,l+2); //Already has 4*Pi
+        case qchem::Overlap1: return SlaterIntegral(ea+eb,2*l+2); //Already has 4*Pi
         case qchem::Kinetic1:
         {
             double ab=ea+eb;
             int na=l+1,nb=l+1;
-            size_t ll=(l*(l+1)+l*(l+1))/2;
+            size_t ll=l*(l+1);
             int n=na+nb;
             double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
             double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);

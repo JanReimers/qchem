@@ -16,7 +16,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return false;}
-    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const Orbital_IBS<double>*,const Spin&) const;
 };
 
 #endif //_RestMass_H_

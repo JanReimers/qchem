@@ -26,8 +26,8 @@ class ChargeDensity
 {
 public:
     typedef SMatrix<double> SMat;
-    virtual SMat   GetRepulsion(const IrrepBasisSet*) const=0;
-    virtual SMat   GetExchange (const IrrepBasisSet*) const=0;
+    virtual SMat   GetRepulsion(const Orbital_IBS<double>*) const=0;
+    virtual SMat   GetExchange (const Orbital_IBS<double>*) const=0;
 
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
     virtual double GetTotalCharge      (                     ) const=0;  // <ro>
@@ -56,8 +56,8 @@ public:
     virtual       ChargeDensity* GetChargeDensity(const Spin&)      =0;
     virtual const ChargeDensity* GetChargeDensity(const Spin&) const=0;
 
-    virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
-    virtual SMat   GetExchange (const IrrepBasisSet*) const;
+    virtual SMat   GetRepulsion(const Orbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const Orbital_IBS<double>*) const;
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 

@@ -58,6 +58,7 @@ template <class T> class AnalyticIE;
 template <class T> class IntegralDataBase;
 template <class T> class TBasisFunction;
 template <class T> class TIrrepBasisSet;
+template <class T> class Orbital_IBS;
 template <class T> class TOrbital;
 
 namespace qchem

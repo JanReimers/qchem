@@ -17,7 +17,7 @@ public:
     typedef SMatrix<double> SMat;
 
     virtual void UseChargeDensity(const ChargeDensity* exact)       =0;
-    virtual SMat BuildHamiltonian(const IrrepBasisSet*,const Spin&) const=0;
+    virtual SMat BuildHamiltonian(const Orbital_IBS<double>*,const Spin&) const=0;
     virtual void GetEnergy       (TotalEnergy&               ) const=0;
     virtual bool IsPolarized     (                           ) const  {return false;}
 
@@ -48,7 +48,7 @@ public:
 
     virtual void          UseChargeDensity(const ChargeDensity* exact )      =0;
     virtual void          Add             (      HamiltonianTerm*           )      =0;
-    virtual SMat          BuildHamiltonian(const IrrepBasisSet*,const Spin&) const=0;
+    virtual SMat          BuildHamiltonian(const Orbital_IBS<double>*,const Spin&) const=0;
     virtual TotalEnergy   GetTotalEnergy  (                           ) const=0;
     virtual bool          IsPolarized     (                           ) const=0;
 
