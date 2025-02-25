@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_HF_P.Multiple/*:Multiple/A_SLm_HF_P.Multiple/*:Multiple/A_SL_HF_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_HF_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SLm_HF_P.Multiple/*";
-//     testing::GTEST_FLAG(filter) = "Multiple/A_PG_HF_*.Multiple/*";
+//     testing::GTEST_FLAG(filter) = "Multiple/A_PG_HF*";
 //     testing::GTEST_FLAG(filter) = "M_*";
 
 //     testing::GTEST_FLAG(filter) = "MeshIntegralsTests.GObritals:M_PG_*:Multiple/A_PG*";

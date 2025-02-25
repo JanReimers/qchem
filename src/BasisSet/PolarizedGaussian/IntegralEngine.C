@@ -240,9 +240,9 @@ void IntegralEngine::Report(std::ostream& os) const
     cache.Report(os);
 }
 
-IntegralEngine1::SMat IntegralEngine1::Integrals(qchem::IType t,const iec_t* iec,const Cluster* cl) const
+IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType t,const Cluster* cl) const
 {
-    const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(iec);
+    const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
     assert(ab);
     qchem::IType2C t2C=qchem::Overlap2C;
     if (t==qchem::Kinetic1)

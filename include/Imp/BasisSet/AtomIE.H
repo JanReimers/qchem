@@ -63,7 +63,7 @@ public:
     typedef DB_1E<T> Base;
     typedef IrrepIEClient iec_t;
     typedef SMatrix<T> SMat;
-    virtual  SMat Integrals(qchem::IType,const iec_t* g,const Cluster*) const;
+    virtual  SMat MakeIntegrals(qchem::IType,const Cluster*) const;
 private:
 
     virtual  T Integral(qchem::IType,double ea , double eb,size_t l) const=0;

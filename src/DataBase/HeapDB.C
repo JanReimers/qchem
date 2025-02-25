@@ -332,14 +332,12 @@ template class HeapDB<double>;
 template class HeapDB<std::complex<double> >;
 
 
-template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Integrals(qchem::IType it,const bs_t* a,const Cluster* cl) const
+template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Integrals(qchem::IType it,const Cluster* cl) const
 {
-    id2c_t key=std::make_tuple(it,a->GetID());
+    id2c_t key=std::make_tuple(it,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
     {
-        const iec_t* g=dynamic_cast<const iec_t*>(a);
-        assert(g);
-        return itsBuffer[key] = Integrals(it,g,cl);
+        return itsBuffer[key] = MakeIntegrals(it,cl);
     }
     else
         return i->second;

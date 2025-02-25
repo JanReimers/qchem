@@ -24,6 +24,8 @@ class IrrepBasisSet
 public:
     IrrepBasisSet();
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, size_t L);
+    
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
 
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;

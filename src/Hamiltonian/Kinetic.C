@@ -13,7 +13,7 @@ HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const Orbital_IBS<doub
 {
     //std::cout << "K=" << bs->GetKinetic() << std::endl;
 //    return bs->GetKinetic();
-    return bs->Integrals(qchem::Kinetic1,bs);
+    return bs->Integrals(qchem::Kinetic1);
 }
 
 void Kinetic::GetEnergy(TotalEnergy& te) const

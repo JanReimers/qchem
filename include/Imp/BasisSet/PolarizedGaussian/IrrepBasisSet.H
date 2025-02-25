@@ -19,7 +19,7 @@ class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
     , public         Orbital_IBS_Common<double>
-    , protected      IntegralEngine1
+    , public         IntegralEngine1
     , public         IrrepIEClient
 {
 public:
@@ -29,6 +29,7 @@ public:
     IrrepBasisSet(const LAParams&, IntegralDataBase<double>*, const Vector<double>& exponents, size_t L, const Cluster*);
     IrrepBasisSet(const LAParams&, IntegralDataBase<double>*, const Vector<double>& exponents, size_t L);
 
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
 

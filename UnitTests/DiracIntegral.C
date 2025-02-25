@@ -124,7 +124,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     {
         SMatrix<double> S=sie->MakeOverlap(*i);
         auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        SMatrix<double> S1=oi->Integrals(qchem::Overlap1,*i);
+        SMatrix<double> S1=oi->Integrals(qchem::Overlap1);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
@@ -146,7 +146,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
     {
         SMatrix<double> S=gie->MakeOverlap(*i);
         auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        SMatrix<double> S1=oi->Integrals(qchem::Overlap1,*i);
+        SMatrix<double> S1=oi->Integrals(qchem::Overlap1);
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
@@ -170,7 +170,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     {
         SMatrix<double> Ven=sie->MakeNuclear(*i,*cl);
         auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        SMatrix<double> Ven1=oi->Integrals(qchem::Nuclear1,*i,cl);
+        SMatrix<double> Ven1=oi->Integrals(qchem::Nuclear1,cl);
 
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
         const TIrrepBasisSet<double>* s=SlaterGetSmall(*i);
@@ -193,7 +193,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     {
         SMatrix<double> Ven=gie->MakeNuclear(*i,*cl);
         auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        SMatrix<double> Ven1=oi->Integrals(qchem::Nuclear1,*i,cl);
+        SMatrix<double> Ven1=oi->Integrals(qchem::Nuclear1,cl);
 
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
         const TIrrepBasisSet<double>* s=GaussianGetSmall(*i);
@@ -215,7 +215,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     {
         SMatrix<double> K=sie->MakeKinetic(*i);
         // auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        // SMatrix<double> K1=oi->Integrals(qchem::Kinetic1,*i);
+        // SMatrix<double> K1=oi->Integrals(qchem::Kinetic1);
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
@@ -234,7 +234,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     {
         SMatrix<double> K=gie->MakeKinetic(*i);
         // auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        // SMatrix<double> K1=oi->Integrals(qchem::Kinetic1,*i);
+        // SMatrix<double> K1=oi->Integrals(qchem::Kinetic1);
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);

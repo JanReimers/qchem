@@ -72,6 +72,8 @@ private:
     mutable IntegralDataBase<T>*  itsDataBase;
 };
 
+#include "Imp/DataBase/HeapDB.H"
+
 template <class T> class Orbital_IBS_Common
     : public virtual Orbital_IBS<T>
     , protected  TIrrepBasisSetCommon<T> 

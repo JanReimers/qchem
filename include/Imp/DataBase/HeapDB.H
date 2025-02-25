@@ -102,11 +102,11 @@ public:
     typedef SMatrix<T> SMat;
     typedef UniqueID::IDtype IDType;
     //  This is all buffered.
-    virtual SMat_ref Integrals(qchem::IType,const bs_t* g,const Cluster* cl=0) const;
-
+    virtual SMat_ref Integrals(qchem::IType,const Cluster* cl=0) const;
+    virtual IDType GetID() const=0;
 private:
     // One time calls to un-buffered integral calculations.
-    virtual  SMat Integrals(qchem::IType,const iec_t* g,const Cluster*) const=0;
+    virtual  SMat MakeIntegrals(qchem::IType,const Cluster*) const=0;
 
     typedef std::tuple<qchem::IType,IDType> id2c_t;
     mutable std::map<id2c_t ,SMat> itsBuffer; 

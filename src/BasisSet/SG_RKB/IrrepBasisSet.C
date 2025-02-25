@@ -73,15 +73,15 @@ std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
     return Clone();
 }
 
-Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::Integrals(qchem::IType t,const iec_t* g,const Cluster* cl) const
+Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeIntegrals(qchem::IType t,const Cluster* cl) const
 {
     switch (t)  
     {
     case qchem::Overlap1:
     case qchem::Nuclear1:
     {
-        SMat ol=itsLargeBS->Integrals(t,itsLargeBS,cl);
-        SMat os=itsSmallBS->Integrals(t,itsSmallBS,cl);
+        SMat ol=itsLargeBS->Integrals(t,cl);
+        SMat os=itsSmallBS->Integrals(t,cl);
         return DiracIntegralEngine::merge_diag(ol,os);
         break;
 

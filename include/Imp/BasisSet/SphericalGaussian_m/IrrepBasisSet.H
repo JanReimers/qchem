@@ -18,7 +18,7 @@ class IrrepBasisSet
     : public virtual TIrrepBasisSet<double>
     , public         IrrepBasisSetCommon
     , public         Orbital_IBS_Common<double>
-    , protected      SphericalGaussian::IntegralEngine1
+    , public         SphericalGaussian::IntegralEngine1
     , public         IrrepIEClient
 {
 public:
@@ -26,6 +26,7 @@ public:
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const std::set<double>& exponents, size_t L,int m);
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, size_t L,int m);
 
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
     virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
 

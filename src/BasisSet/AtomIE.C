@@ -250,9 +250,9 @@ ERI4 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) cons
     return K;
 };
 
-template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::Integrals(qchem::IType t,const iec_t* iea,const Cluster* cl) const
+template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem::IType t,const Cluster* cl) const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(iea);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
 
     size_t N=a->size(),l=a->l;

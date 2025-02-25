@@ -65,7 +65,7 @@ public:
     typedef ::IrrepIEClient iec_t;
     typedef Base::SMat SMat;
 private:
-    virtual  SMat Integrals(qchem::IType,const iec_t* g,const Cluster*) const;
+    virtual  SMat MakeIntegrals(qchem::IType,const Cluster*) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
 
