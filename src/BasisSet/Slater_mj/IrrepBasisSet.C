@@ -83,7 +83,8 @@ Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeOverlap() const
 
 Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeKinetic() const
 {
-    SMat os=itsSmallBS->MakeKinetic();
+    const Integrals_RKB<double>* irkb=itsSmallBS;
+    Matrix<double> os=irkb->Kinetic(itsLargeBS);
     return DiracIntegralEngine::merge_off_diag(os);
 }
 

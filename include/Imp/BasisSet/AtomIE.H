@@ -57,7 +57,7 @@ private:
 
 #include "Imp/DataBase/HeapDB.H"
 
-template <class T> class AtomIE_1E : public DB_1E<double>
+template <class T> class AtomIE_1E : public DB_1E<T>
 {
 public:
     typedef typename DB_1E<T>::SMat SMat;
@@ -70,5 +70,15 @@ private:
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
+
+template <class T> class AtomIE_RKB : public DB_RKB<T>
+{
+public:
+    typedef typename DB_RKB<T>::Mat Mat;
+    virtual Mat MakeKinetic(const IrrepBasisSet* L) const;
+private:
+    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+};
+
 
 #endif // _AtomIE_H_

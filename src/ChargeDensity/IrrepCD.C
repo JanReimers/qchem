@@ -117,7 +117,7 @@ template <class T> double IrrepCD<T>::GetTotalCharge() const
     // SMat SSS=S.SubMatrix(MatLimits(NL+1,N, NL+1,N));
     // std::cout.precision(10);
     // std::cout << "Charge LL=" << real(Dot(DLL,SLL)) << " SS=" << real(Dot(DSS,SSS)) << std::endl;
-    return real(Dot(itsDensityMatrix,itsBasisSet->GetOverlap()));
+    return real(Dot(itsDensityMatrix,itsBasisSet->Overlap()));
 }
 
 

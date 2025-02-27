@@ -128,6 +128,7 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
 {
     auto da=dcast(a);
     Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+    //std::cout << "kls=" << kls << std::endl;
     return merge_off_diag(kls);
 }
 
@@ -624,7 +625,7 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
 
 double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size_t l) const
 {
-    if (t==qchem::Overlap1)
+    if (t==qchem::Overlap1 || t==qchem::Kinetic1)
     {
         assert(l==0);
         double eab=ea+eb;

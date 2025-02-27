@@ -94,6 +94,14 @@ public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
 };
 
+template <class T> class Integrals_RKB
+{
+public:
+    typedef const Matrix<T>& Mat_ref;
+    //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    virtual Mat_ref Kinetic(const IrrepBasisSet* L) const=0;
+};
+
 template <class T> class FitIntegrals_1E
 {
 public:

@@ -364,3 +364,17 @@ template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* 
 }
 
 template class DB_1E<double>;
+
+
+template <class T> typename DB_RKB<T>::Mat_ref DB_RKB<T>::Kinetic(const IrrepBasisSet* L) const
+{
+    id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeKinetic(L);
+    }
+    else
+        return i->second;
+}
+
+template class DB_RKB<double>;

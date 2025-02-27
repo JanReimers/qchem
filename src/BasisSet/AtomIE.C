@@ -283,3 +283,23 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
 }
 
 template class AtomIE_1E<double>;
+
+
+#include <BasisSet.H>
+
+template <class T> typename AtomIE_RKB<T>::Mat AtomIE_RKB<T>::MakeKinetic(const IrrepBasisSet* L) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(L);
+    assert(a->l==b->l);
+    size_t Na=a->size();
+    size_t Nb=b->size();
+    Matrix<double> Hk(Na,Nb);
+    for (auto i:Hk.rows())
+        for (auto j:Hk.cols())
+            Hk(i,j)=Integral(qchem::Kinetic1,b->es(j),a->es(i),a->l)*a->ns(j)*b->ns(i);
+
+    return Hk;
+}
+
+template class AtomIE_RKB<double>;

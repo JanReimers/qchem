@@ -115,4 +115,21 @@ private:
     mutable std::map<id2c_t ,SMat> itsBuffer; 
 };
 
+
+template <class T> class DB_RKB :
+    virtual public Integrals_RKB<T>
+{    
+public:
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_RKB<T> Base;
+    typedef Matrix<T> Mat;
+    typedef typename Base::Mat_ref Mat_ref;
+    virtual Mat_ref Kinetic(const IrrepBasisSet* L) const;
+private:
+    virtual IDType GetID() const=0;
+    virtual Mat MakeKinetic(const IrrepBasisSet* L) const=0;
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    mutable std::map<id2c_t ,Mat> itsBuffer;
+};
+
 #endif

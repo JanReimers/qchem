@@ -628,7 +628,7 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
 
 double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size_t l) const
 {
-    if (t==qchem::Overlap1)
+    if (t==qchem::Overlap1 || t==qchem::Kinetic1)
     {
     double ab=ea+eb;
             int na=l+1,nb=l+1;
