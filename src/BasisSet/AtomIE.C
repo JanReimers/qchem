@@ -250,6 +250,24 @@ ERI4 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) cons
     return K;
 };
 
+template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeOverlap() const
+{
+    return MakeIntegrals(qchem::Overlap1);
+}
+
+template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeKinetic() const
+{
+    return MakeIntegrals(qchem::Kinetic1);
+}
+
+template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeNuclear(const Cluster* cl) const
+{
+    assert(cl);
+    assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
+    int Z=-cl->GetNuclearCharge(); 
+    return Z*MakeIntegrals(qchem::Nuclear1,cl);
+}
+
 template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem::IType t,const Cluster* cl) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
@@ -260,13 +278,6 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
     for (auto i:H.rows())
         for (auto j:H.cols(i))
             H(i,j)= Integral(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
-
-    if (t==qchem::Nuclear1)
-    {
-        assert(cl);
-        assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
-        H*=-cl->GetNuclearCharge(); 
-    }
 
     return H;
 }

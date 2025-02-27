@@ -61,11 +61,14 @@ class IntegralEngine1
     , public DB_1E<double>
 {
 public:
-    typedef DB_1E<double> Base;
-    typedef ::IrrepIEClient iec_t;
-    typedef Base::SMat SMat;
 private:
-    virtual  SMat MakeIntegrals(qchem::IType,const Cluster*) const;
+    typedef DB_1E<double> Base;
+    typedef Base::SMat SMat;
+    virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);};
+    virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);};
+    virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);};
+
+    SMat MakeIntegrals(qchem::IType2C,const Cluster*cl =0) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
 

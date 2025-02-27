@@ -97,18 +97,21 @@ template <class T> class DB_1E :
 public:
     typedef Integrals_1E<T> Base;
     typedef typename Base::SMat_ref SMat_ref;
-    typedef typename Base::bs_t bs_t;
-    typedef IrrepIEClient iec_t;
-    typedef SMatrix<T> SMat;
-    typedef UniqueID::IDtype IDType;
     //  This is all buffered.
-    virtual SMat_ref Integrals(qchem::IType,const Cluster* cl=0) const;
-    virtual IDType GetID() const=0;
+    virtual SMat_ref Overlap() const;
+    virtual SMat_ref Kinetic() const;
+    virtual SMat_ref Nuclear(const Cluster*) const;
+protected:
+    typedef SMatrix<T> SMat;
 private:
+    typedef UniqueID::IDtype IDType;
+    virtual IDType GetID() const=0;
     // One time calls to un-buffered integral calculations.
-    virtual  SMat MakeIntegrals(qchem::IType,const Cluster*) const=0;
+    virtual SMat MakeOverlap() const=0;
+    virtual SMat MakeKinetic() const=0;
+    virtual SMat MakeNuclear(const Cluster*) const=0;
 
-    typedef std::tuple<qchem::IType,IDType> id2c_t;
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     mutable std::map<id2c_t ,SMat> itsBuffer; 
 };
 

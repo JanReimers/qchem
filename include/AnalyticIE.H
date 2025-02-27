@@ -84,17 +84,25 @@ private:
 template <class T> class Integrals_1E
 {
 public:
-    //! Instance then ensures integrals are calculated once and then buffered.
-    static Integrals_1E* theDB; 
-
-    typedef const TIrrepBasisSet<T> bs_t;
-    typedef  Matrix<T>  Mat;
     typedef const SMatrix<T>& SMat_ref;
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+    virtual SMat_ref Overlap() const=0;
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    virtual SMat_ref Kinetic() const=0;
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
+    virtual SMat_ref Nuclear(const Cluster*) const=0;   
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
-    virtual SMat_ref Integrals(qchem::IType,const Cluster* cl=0) const=0;
+};
+
+template <class T> class FitIntegrals_1E
+{
+public:
+    typedef const SMatrix<T>& SMat_ref;
+    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+    virtual SMat_ref Overlap() const=0;
+    virtual SMat_ref Repulsion() const=0;
+    virtual SMat_ref InvOverlap() const=0;
+    virtual SMat_ref InvRepulsion() const=0;
        
 };
 

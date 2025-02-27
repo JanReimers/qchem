@@ -74,32 +74,26 @@ std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return Clone();
 }
-
-Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeIntegrals(qchem::IType t,const Cluster* cl) const
+Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeOverlap() const
 {
-    switch (t)  
-    {
-    case qchem::Overlap1:
-    case qchem::Nuclear1:
-    {
-        SMat ol=itsLargeBS->MakeIntegrals(t,cl);
-        SMat os=itsSmallBS->MakeIntegrals(t,cl);
-        return DiracIntegralEngine::merge_diag(ol,os);
-        break;
-
-    }
-    case qchem::Kinetic1:
-        assert(false);
-        // Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
-        // return DiracIntegralEngine::merge_off_diag(kls);
-        //return SMat();
-        break;
-    
-    default:
-        assert(false);
-    }
-    return SMat();
+    SMat ol=itsLargeBS->MakeOverlap();
+    SMat os=itsSmallBS->MakeOverlap();
+    return DiracIntegralEngine::merge_diag(ol,os);
 }
+
+Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeKinetic() const
+{
+    SMat os=itsSmallBS->MakeKinetic();
+    return DiracIntegralEngine::merge_off_diag(os);
+}
+
+Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeNuclear(const Cluster* cl) const
+{
+    SMat ol=itsLargeBS->MakeNuclear(cl);
+    SMat os=itsSmallBS->MakeNuclear(cl);
+    return DiracIntegralEngine::merge_diag(ol,os);
+}
+
 
 //-----------------------------------------------------------------------------------------------
 //

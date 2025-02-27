@@ -50,7 +50,7 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
     // std::cout << "S_new=" << this->Integrals(qchem::Overlap1,this) << std::endl;
     LASolver<double>* las=LASolver<double>::Factory(TIrrepBasisSetCommon<T>::itsLAParams);
     //las->SetBasisOverlap(this->GetOverlap());
-    las->SetBasisOverlap(this->Integrals(qchem::Overlap1));
+    las->SetBasisOverlap(this->Overlap());
     return las;
 }
 

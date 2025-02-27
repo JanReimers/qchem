@@ -331,13 +331,33 @@ GetInverseRepulsion(iec_t* ,const LAParams&)
 template class HeapDB<double>;
 template class HeapDB<std::complex<double> >;
 
-
-template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Integrals(qchem::IType it,const Cluster* cl) const
+template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Overlap() const
 {
-    id2c_t key=std::make_tuple(it,this->GetID());
+    id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
     {
-        return itsBuffer[key] = MakeIntegrals(it,cl);
+        return itsBuffer[key] = MakeOverlap();
+    }
+    else
+        return i->second;
+}
+template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Kinetic() const
+{
+    id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeKinetic();
+    }
+    else
+        return i->second;
+}
+template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* cl) const
+{
+    assert(cl);
+    id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeNuclear(cl);
     }
     else
         return i->second;

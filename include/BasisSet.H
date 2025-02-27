@@ -161,7 +161,17 @@ template <class T> class Orbital_IBS
 
 };
 
+template <class T> class Fit_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual FitIntegrals_1E<T> //One electron integrals used for everything
+    // , public virtual Integrals_2E<T> //Two electron integrals used for HF
+    // , public virtual Integrals_DFT<T> //DFT integrals
+    
+{
+    public:
+  
 
+};
 
 //----------------------------------------------------------------------------
 //

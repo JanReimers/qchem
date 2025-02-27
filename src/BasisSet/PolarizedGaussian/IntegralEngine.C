@@ -239,19 +239,10 @@ void IntegralEngine::Report(std::ostream& os) const
     os << "Polarized Gaussian integral engine cache:" << std::endl;
     cache.Report(os);
 }
-
-IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType t,const Cluster* cl) const
+IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
     assert(ab);
-    qchem::IType2C t2C=qchem::Overlap2C;
-    if (t==qchem::Kinetic1)
-        t2C=qchem::Kinetic;
-    else if (t==qchem::Nuclear1)
-        t2C=qchem::Nuclear;
-    else if (t==qchem::RestMass1)
-        t2C=qchem::RestMass;
-
     int N=ab->size();
     SMat s(N);
     for (index_t ia=0;ia<N;ia++)
@@ -260,5 +251,6 @@ IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType t,const Cluste
 
     return s;
 }
+
 
 } //namespace PolarizedGaussian

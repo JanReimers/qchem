@@ -11,9 +11,7 @@ Kinetic::Kinetic()
 
 HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
-    //std::cout << "K=" << bs->GetKinetic() << std::endl;
-//    return bs->GetKinetic();
-    return bs->Integrals(qchem::Kinetic1);
+    return bs->Kinetic();
 }
 
 void Kinetic::GetEnergy(TotalEnergy& te) const

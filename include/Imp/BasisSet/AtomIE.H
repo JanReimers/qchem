@@ -60,13 +60,15 @@ private:
 template <class T> class AtomIE_1E : public DB_1E<double>
 {
 public:
-    typedef DB_1E<T> Base;
-    typedef IrrepIEClient iec_t;
-    typedef SMatrix<T> SMat;
-    virtual  SMat MakeIntegrals(qchem::IType,const Cluster*) const;
+    typedef typename DB_1E<T>::SMat SMat;
+    virtual SMat MakeOverlap() const;
+    virtual SMat MakeKinetic() const;
+    virtual SMat MakeNuclear(const Cluster*) const;
 private:
-
-    virtual  T Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    // Derived classes must provide the actual integral calculations.
+    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    // Use a paramaterized function for the loops over basis functions.
+    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
 
 #endif // _AtomIE_H_

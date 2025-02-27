@@ -22,8 +22,7 @@ Ven::Ven(cl_t& cl)
 
 HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
-//    return bs->GetNuclear(&*theCluster);
-    return bs->Integrals(qchem::Nuclear1,&*theCluster);
+    return bs->Nuclear(&*theCluster);
 }
 
 void Ven::GetEnergy(TotalEnergy& te) const
