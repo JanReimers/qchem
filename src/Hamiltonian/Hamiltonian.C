@@ -53,7 +53,7 @@ bool HamiltonianImp::IsPolarized() const
     return ret;
 }
 
-Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const Orbital_IBS<double>* bs,const Spin& S) const
+Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& S) const
 {
     int n=bs->GetNumFunctions();
     SMat H(n,n);

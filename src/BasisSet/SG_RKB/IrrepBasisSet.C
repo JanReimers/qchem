@@ -79,16 +79,6 @@ template <class T> typename Large_IE<T>::Mat  Large_IE<T>::MakeKinetic(const Orb
     return Hk;
 }
 
-template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::CreateCDFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return NULL;
-}
-template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::CreateVxcFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return NULL;
-}
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
     if (Pretty())
@@ -100,11 +90,7 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
     }
     return os;
 }
-template <class T> std::istream&  Large_Orbital_IBS<T>::Read (std::istream& is)
-{
-    
-    return is;
-}
+
 template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone() const
 {
     return new Large_Orbital_IBS<T>(*this);
@@ -113,16 +99,6 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return Clone();
-}
-template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::CreateCDFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return NULL;
-}
-template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::CreateVxcFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return NULL;
 }
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
@@ -135,19 +111,14 @@ template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) 
     }
     return os;
 }
-template <class T> std::istream&  Small_Orbital_IBS<T>::Read (std::istream& is)
-{
-    
-    return is;
-}
-template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone() const
-{
-    return new Small_Orbital_IBS<T>(*this);
-}
+// template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone() const
+// {
+//     return new Small_Orbital_IBS<T>(*this);
+// }
 template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    return 0;
 }
 
 
@@ -217,14 +188,6 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
         os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
     }
     return os;
-}
-
-std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
-{
-    ReadBasisFunctions(is);
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
 }
 
 ::IrrepBasisSet* Dirac_IrrepBasisSet::Clone() const

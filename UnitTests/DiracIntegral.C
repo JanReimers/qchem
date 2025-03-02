@@ -123,7 +123,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     for (auto i=sbs->beginT();i!=sbs->end();i++)
     {
         SMatrix<double> S=sie->MakeOverlap(*i);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S1=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
@@ -145,7 +145,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
     for (auto i=gbs->beginT();i!=gbs->end();i++)
     {
         SMatrix<double> S=gie->MakeOverlap(*i);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S1=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
@@ -169,7 +169,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     for (auto i=sbs->beginT();i!=sbs->end();i++)
     {
         SMatrix<double> Ven=sie->MakeNuclear(*i,*cl);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Ven1=oi->Nuclear(cl);
 
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
@@ -192,7 +192,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     for (auto i=gbs->beginT();i!=gbs->end();i++)
     {
         SMatrix<double> Ven=gie->MakeNuclear(*i,*cl);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Ven1=oi->Nuclear(cl);
 
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);

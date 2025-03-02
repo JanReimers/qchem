@@ -25,8 +25,8 @@ public:
     virtual ~UniqueID();
     UniqueID& operator=(const UniqueID&);
 
-    virtual std::ostream& Write(std::ostream&) const=0;
-    virtual std::istream& Read (std::istream&)      =0;
+    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::istream& Read (std::istream&)      ;
 
     IDtype GetID() const
     {

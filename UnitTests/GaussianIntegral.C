@@ -60,7 +60,7 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S1=oi->Overlap();
 
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
@@ -77,7 +77,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Hn1=oi->Nuclear(cl);
         //cout << S << endl;
         SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
@@ -93,7 +93,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> K=ie->MakeKinetic(*i);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> K1=oi->Kinetic();
         //cout << S << endl;
         SMatrix<double> Knum = 0.5*mintegrator->Grad(**i); //This give the wrong answer for l>0

@@ -37,7 +37,7 @@ void FittedVee::UseChargeDensity(const ChargeDensity* cd)
 //  Where ro is the fitted charge density.
 //
 
-HamiltonianTerm::SMat FittedVee::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
+HamiltonianTerm::SMat FittedVee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     const ChargeDensity* cd=itsFittedChargeDensity;
     return cd->GetRepulsion(bs);

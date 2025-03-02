@@ -44,11 +44,7 @@ template <class T> class Large_Orbital_IBS
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
 
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
     virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
@@ -76,18 +72,14 @@ public:
     Small_Orbital_IBS(const LAParams&,IntegralDataBase<T>*,const Large_Orbital_IBS<T>*);
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
 
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual ::IrrepBasisSet* Clone(            ) const;
+    //virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
 
 
 class Dirac_IrrepBasisSet
-    : public virtual Orbital_IBS<double>
+    : public virtual TOrbital_IBS<double>
     , public Dirac::IrrepBasisSet<double>
     , public         Dirac_IrrepIEClient
 {
@@ -101,7 +93,6 @@ public:
     virtual ::IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
 
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
     virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 

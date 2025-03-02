@@ -15,7 +15,7 @@ namespace Slater
 {
    
 class IrrepBasisSet
-    : public virtual Orbital_IBS<double>
+    : public virtual TOrbital_IBS<double>
     , public         IrrepBasisSetCommon
     , public         Orbital_IBS_Common<double>
     , public         IntegralEngine1

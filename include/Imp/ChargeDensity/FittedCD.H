@@ -24,8 +24,8 @@ public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
     virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
-    virtual SMat   GetRepulsion(const Orbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const Orbital_IBS<double>*) const; //makes no sense
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; //makes no sense
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 

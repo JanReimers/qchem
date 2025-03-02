@@ -70,11 +70,6 @@ public:
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
     virtual       QuantumNumber* GetQuantumNumber(int index      ) const=0;
-//
-//  Creat helpers
-//
-    virtual IrrepBasisSet*    CreateCDFitBasisSet(const Cluster*) const=0;
-    virtual IrrepBasisSet*    CreateVxcFitBasisSet(const Cluster*) const=0;
 
 //
 //  Used by fitting routines.
@@ -94,7 +89,7 @@ public:
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     //virtual SMat GetOverlap (              ) const=0;
-    virtual SMat GetKinetic (              ) const=0;
+    //virtual SMat GetKinetic (              ) const=0;
     //virtual SMat GetNuclear (const Cluster*) const=0;
     virtual SMat GetRestMass(              ) const=0;
      
@@ -108,8 +103,8 @@ public:
 //  StreamableObject stuff.
 //
     virtual std::ostream&  Write(std::ostream&    ) const=0;
-    virtual std::istream&  Read (std::istream&    )      =0;
-    virtual IrrepBasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
+//    virtual std::istream&  Read (std::istream&    )      =0;
+//    virtual IrrepBasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
     static  IrrepBasisSet* Factory(std::istream&    )        ;
 private:
@@ -149,15 +144,25 @@ public:
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 
 //
-template <class T> class Orbital_IBS
-    : public virtual TIrrepBasisSet<T>
+class Orbital_IBS
+    : public virtual IrrepBasisSet
+{
+    public:
+    virtual LASolver<double>* CreateSolver() const=0;
+    virtual IrrepBasisSet*    CreateCDFitBasisSet(const Cluster*) const=0;
+    virtual IrrepBasisSet*    CreateVxcFitBasisSet(const Cluster*) const=0;
+};
+
+template <class T> class TOrbital_IBS
+    : public virtual Orbital_IBS
+    , public virtual TIrrepBasisSet<T>
     , public virtual Integrals_1E<T> //One electron integrals used for everything
     // , public virtual Integrals_2E<T> //Two electron integrals used for HF
     // , public virtual Integrals_DFT<T> //DFT integrals
     
 {
     public:
-    virtual LASolver<double>* CreateSolver() const=0;
+    //virtual LASolver<double>* CreateSolver() const=0;
 
 };
 
@@ -203,8 +208,10 @@ class BasisSet
     : public UniqueID
 {
 public:
-    typedef optr_vector1<IrrepBasisSet*>::const_iterator const_iterator;
-    typedef dynamic_cast_iterator<IrrepBasisSet*,TIrrepBasisSet<double>* > const_Titerator;
+    typedef Orbital_IBS bs_t;
+    typedef TOrbital_IBS<double> tbs_t;
+    typedef optr_vector1<bs_t*>::const_iterator const_iterator;
+    typedef dynamic_cast_iterator<bs_t*,tbs_t* > const_Titerator;
 
     BasisSet() {};
 

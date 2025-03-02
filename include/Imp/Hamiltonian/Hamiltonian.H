@@ -16,7 +16,7 @@ public:
 
     virtual void        UseChargeDensity(const ChargeDensity* exact   )      ;
     virtual void        Add             (      HamiltonianTerm*             )      ;
-    virtual SMat        BuildHamiltonian(const Orbital_IBS<double>*,const Spin& S) const;
+    virtual SMat        BuildHamiltonian(const TOrbital_IBS<double>*,const Spin& S) const;
     virtual TotalEnergy GetTotalEnergy  (                             ) const;
     virtual bool        IsPolarized     (                             ) const;
 

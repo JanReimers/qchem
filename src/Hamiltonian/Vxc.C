@@ -16,7 +16,7 @@ Vxc::Vxc() : HamiltonianTermImp( ) {};
 //  Let the charge density do the work.
 //
 
-HamiltonianTerm::SMat Vxc::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
+HamiltonianTerm::SMat Vxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     assert(itsExactCD);
     SMat Kab=itsExactCD->GetExchange(bs);

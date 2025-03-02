@@ -23,7 +23,7 @@ template <class T> TOrbitalsImp<T>::TOrbitalsImp()
 {};
 
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const Orbital_IBS<T>* bs)
+TOrbitalsImp(const TOrbital_IBS<T>* bs)
     : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
 {

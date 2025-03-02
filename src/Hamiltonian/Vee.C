@@ -26,7 +26,7 @@ Vee::Vee()
 //  Where ro is the charge density.
 //
 
-HamiltonianTerm::SMat Vee::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
+HamiltonianTerm::SMat Vee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     assert(itsExactCD);
     return itsExactCD->GetRepulsion(bs);

@@ -77,7 +77,7 @@ template <class T> ChargeDensity::SMat FittedCDImp<T>::GetOverlap  (const IrrepB
     return J;
 }
 
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const Orbital_IBS<double>* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_IBS<double>* bs) const
 {
     const std::vector<SMat>& repulsions=bs->GetRepulsion3C(itsBasisSet.get());
     int n=bs->GetNumFunctions();
@@ -89,7 +89,7 @@ template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const Orbita
     return J;
 }
 
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetExchange(const Orbital_IBS<double>* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetExchange(const TOrbital_IBS<double>* bs) const
 {
     std::cerr << "FittedCDImplementation<T>::AddExchange: Warning using four center ERIs from a fitted charge density !?!" << std::endl;
     return SMat();

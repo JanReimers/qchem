@@ -18,8 +18,8 @@ public:
     CompositeCD();
     void Insert(ChargeDensity*);
 
-    virtual SMat   GetRepulsion(const Orbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const Orbital_IBS<double>*) const;
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 

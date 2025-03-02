@@ -24,10 +24,10 @@ public:
     typedef DensityFFClient::RVec RVec;
 
     IrrepCD();
-    IrrepCD(const DenSMat&,const Orbital_IBS<T>*, const Spin&);
+    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, const Spin&);
 
-    virtual SMat   GetRepulsion(const Orbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const Orbital_IBS<double>*) const;
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
     virtual RVec   GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
 
     virtual double GetEnergy     (const HamiltonianTerm*) const;
@@ -50,7 +50,7 @@ private:
     RVec ZeroV(const IrrepBasisSet* bs_ab) const;
 
     DenSMat                  itsDensityMatrix;
-    const Orbital_IBS<T>* itsBasisSet;
+    const TOrbital_IBS<T>* itsBasisSet;
     Spin                     itsSpin;
 };
 

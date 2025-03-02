@@ -38,7 +38,7 @@ public:
     virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
 
     virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
+    //virtual std::istream& Read (std::istream&)      ;
 
 protected:
     virtual void  Insert(BasisFunction* );

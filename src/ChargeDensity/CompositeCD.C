@@ -27,7 +27,7 @@ typedef optr_vector1<ChargeDensity*>::const_iterator CITER;
 //
 //  Total energy terms for a charge density.
 //
-ChargeDensity::SMat CompositeCD::GetRepulsion(const Orbital_IBS<double>* bs_ab) const
+ChargeDensity::SMat CompositeCD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -36,7 +36,7 @@ ChargeDensity::SMat CompositeCD::GetRepulsion(const Orbital_IBS<double>* bs_ab) 
     return J;
 }
 
-ChargeDensity::SMat CompositeCD::GetExchange(const Orbital_IBS<double>* bs_ab) const
+ChargeDensity::SMat CompositeCD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);

@@ -113,16 +113,16 @@ std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& IrrepBasisSetCommon::Read(std::istream& is)
-{
-    UniqueID::Read(is);
+// std::istream& IrrepBasisSetCommon::Read(std::istream& is)
+// {
+//     UniqueID::Read(is);
 
-    delete itsQuantumNumber;
-    itsQuantumNumber=QuantumNumber::Factory(is);
-    is >> *itsQuantumNumber;
+//     delete itsQuantumNumber;
+//     itsQuantumNumber=QuantumNumber::Factory(is);
+//     is >> *itsQuantumNumber;
 
-    return is;
-};
+//     return is;
+// };
 
 //-----------------------------------------------------------------------------
 //

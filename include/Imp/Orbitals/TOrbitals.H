@@ -25,7 +25,7 @@ template <class T> class TOrbitalsImp
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
     TOrbitalsImp();
-    TOrbitalsImp(const Orbital_IBS<T>*);
+    TOrbitalsImp(const TOrbital_IBS<T>*);
     virtual ~TOrbitalsImp() {};
 
     typedef Vector3D<T> TVec;
@@ -51,7 +51,7 @@ private:
     TOrbitalsImp(const TOrbitalsImp&);
     virtual SMat CalculateDensityMatrix() const;
 
-    const Orbital_IBS<T>* itsBasisSet;
+    const TOrbital_IBS<T>* itsBasisSet;
     optr_vector1<Orbital*>   itsOrbitals;
     LASolver<double>*        itsLASolver; //General eigen solver
 

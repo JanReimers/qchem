@@ -21,7 +21,7 @@ Vnn::Vnn(cl_t& cl)
     , theCluster(cl)
 {};
 
-HamiltonianTerm::SMat Vnn::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
+HamiltonianTerm::SMat Vnn::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMat ret(n,n);

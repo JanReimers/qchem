@@ -171,7 +171,7 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> S=ie->MakeOverlap(*i);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S1=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         SMatrix<double> Snum = mintegrator->Overlap(**i);
@@ -186,7 +186,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Hn1=oi->Nuclear(cl);
         SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
@@ -200,7 +200,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
         SMatrix<double> K=ie->MakeKinetic(*i);
-        auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> K1=oi->Kinetic();
         //cout << S << endl;
         SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);

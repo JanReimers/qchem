@@ -75,7 +75,7 @@ private:
 #include "Imp/DataBase/HeapDB.H"
 
 template <class T> class Orbital_IBS_Common
-    : public virtual Orbital_IBS<T>
+    : public virtual TOrbital_IBS<T>
     , public  TIrrepBasisSetCommon<T> 
 {
     public:

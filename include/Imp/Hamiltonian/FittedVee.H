@@ -35,7 +35,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const Orbital_IBS<double>*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     FittedCD* itsFittedChargeDensity;
 };

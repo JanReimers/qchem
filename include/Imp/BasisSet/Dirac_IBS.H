@@ -37,7 +37,7 @@ protected:
 
 
 template <class T> class IrrepBasisSet
-    : public virtual Orbital_IBS<T>
+    : public virtual TOrbital_IBS<T>
     , public IrrepBasisSetCommon
     , public Orbital_IBS_Common<T>
     , public IntegralEngine<T>
