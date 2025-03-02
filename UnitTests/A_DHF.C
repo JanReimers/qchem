@@ -166,7 +166,7 @@ TEST_P(A_SG_DHF,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
-    Iterate({40,Z*1e-4,1.0,0.0,false});
+    Iterate({40,Z*1e-4,1.0,0.0,true});
 
     std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
     cout << "QN=" << *qns[0] << endl;

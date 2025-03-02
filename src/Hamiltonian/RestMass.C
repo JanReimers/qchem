@@ -11,6 +11,7 @@ RestMass::RestMass()
 
 HamiltonianTerm::SMat RestMass::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
+    // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;
     return bs->GetRestMass();
 }
 

@@ -10,9 +10,11 @@ using std::endl;
 
 void AtomIE::Append(const IrrepIEClient* ciec)
 {
+    assert(ciec);
     AnalyticIE<double>::Append(ciec);
     IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
     AtomIrrepIEClient* aiec=dynamic_cast<AtomIrrepIEClient*>(iec);
+    assert(aiec);
     BFGrouper::Append(aiec);
 }
 

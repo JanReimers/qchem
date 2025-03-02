@@ -377,4 +377,130 @@ template <class T> typename DB_RKB<T>::Mat_ref DB_RKB<T>::Kinetic(const IrrepBas
         return i->second;
 }
 
+template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Overlap() const
+{
+    id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeOverlap();
+    }
+    else
+        return i->second;
+}
+
+template <class T> typename DB_RKBL<T>::Mat_ref DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+{
+    id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+    if (auto i = itsBufferX.find(key); i==itsBufferX.end())
+    {
+        return itsBufferX[key] = MakeKinetic(rkbs);
+    }
+    else
+        return i->second;
+}
+
+template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Nuclear(const Cluster* cl)  const
+{
+    id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeNuclear(cl);
+    }
+    else
+        return i->second;
+}
+
+template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Overlap() const
+{
+    id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeOverlap();
+    }
+    else
+        return i->second;
+}
+
+template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Nuclear(const Cluster* cl) const
+{
+    assert(cl);
+    id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeNuclear(cl);
+    }
+    else
+        return i->second;
+}
+
+template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::RestMass() const
+{
+    id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeRestMass();
+    }
+    else
+        return i->second;
+}
+
+template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeOverlap() const
+{
+    return this->MakeIntegrals(qchem::Overlap1);
+}
+
+template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeNuclear(const Cluster* cl) const
+{
+    assert(cl);
+    int Z=cl->GetNuclearCharge();
+    return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
+}
+
+#include "Imp/BasisSet/AtomIEClient.H"
+
+template <class T> typename DB_RKBL<T>::SMat  DB_RKBL<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Integral(it,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+
+    return H;
+}
+
+template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeOverlap() const
+{
+    return this->MakeIntegrals(qchem::Overlap1);
+}
+
+template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeNuclear(const Cluster* cl) const
+{
+    assert(cl);
+    int Z=cl->GetNuclearCharge();
+    return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
+}
+
+template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeRestMass() const
+{
+    return this->MakeIntegrals(qchem::RestMass1);
+}
+
+template <class T> typename DB_RKBS<T>::SMat  DB_RKBS<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Integral(it,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+
+    return H;
+}
+
 template class DB_RKB<double>;
+template class DB_RKBL<double>;
+template class DB_RKBS<double>;

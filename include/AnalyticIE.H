@@ -78,8 +78,8 @@ private:
 };
 
 //
-// Interface for 1 electron integrals.  Can be used by Integral engines and Integral data bases.
-// Two of these are only used for the Dirac Hamiltonian.  SHould that be a separate interface?
+// Interface for non-relativistic 1 electron integrals.  
+// The calls return matrix refrences which implies they are buffered behind the scenes.
 //
 template <class T> class Integrals_1E
 {
@@ -91,7 +91,6 @@ public:
     virtual SMat_ref Kinetic() const=0;
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
     virtual SMat_ref Nuclear(const Cluster*) const=0;   
-    //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
 };
 
 template <class T> class Integrals_RKB
@@ -100,6 +99,30 @@ public:
     typedef const Matrix<T>& Mat_ref;
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
     virtual Mat_ref Kinetic(const IrrepBasisSet* L) const=0;
+};
+
+template <class T> class Integrals_RKBL
+{
+public:
+    typedef SMatrix<T> SMat;
+    typedef  Matrix<T>  Mat;
+    typedef const SMat& SMat_ref;
+    typedef const  Mat&  Mat_ref;
+    virtual SMat_ref Overlap() const=0;
+    //! L/S cross Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    virtual  Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual SMat_ref Nuclear(const Cluster*) const=0;   
+};
+
+template <class T> class Integrals_RKBS
+{
+public:
+    typedef SMatrix<T> SMat;
+    typedef const SMat& SMat_ref;
+    virtual SMat_ref Overlap() const=0;
+    virtual SMat_ref Nuclear(const Cluster*) const=0;   
+    //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
+    virtual SMat_ref RestMass() const=0;
 };
 
 template <class T> class FitIntegrals_1E

@@ -84,6 +84,8 @@ Small_BasisFunction::Small_BasisFunction(const Large_BasisFunction* _Pr,double n
     assert(itsNormalization>0.0);
 }
 
+
+
 bool Small_BasisFunction::operator==(const ::BasisFunction& bf) const
 {
     return *Pr==bf;

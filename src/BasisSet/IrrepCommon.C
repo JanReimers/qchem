@@ -22,6 +22,7 @@ IrrepBasisSetCommon::IrrepBasisSetCommon()
 IrrepBasisSetCommon::IrrepBasisSetCommon(QuantumNumber* theQN)
     : itsQuantumNumber(theQN)
 {
+    assert(itsQuantumNumber);
 };
 
 IrrepBasisSetCommon::IrrepBasisSetCommon(const IrrepBasisSetCommon& bs)

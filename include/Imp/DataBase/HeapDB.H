@@ -132,4 +132,56 @@ private:
     mutable std::map<id2c_t ,Mat> itsBuffer;
 };
 
+template <class T> class DB_RKBL :
+    virtual public Integrals_RKBL<T>
+{
+public:
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_RKBL<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+    typedef typename Base::Mat_ref Mat_ref;
+    typedef typename Base::SMat SMat;
+    typedef typename Base::Mat  Mat;
+
+    virtual SMat_ref Overlap() const;
+    virtual Mat_ref  Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual SMat_ref Nuclear(const Cluster*) const;
+private:
+
+    virtual IDType GetID() const=0;
+    virtual SMat MakeOverlap() const;
+    virtual Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual SMat MakeNuclear(const Cluster*) const;
+    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
+    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    mutable std::map<id2c_t ,SMat> itsBuffer; 
+    mutable std::map<id2c_t ,Mat> itsBufferX; 
+};
+
+template <class T> class DB_RKBS :
+    virtual public Integrals_RKBS<T>
+{
+public:
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_RKBS<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+    typedef typename Base::SMat SMat;
+   
+    virtual SMat_ref Overlap() const;
+    virtual SMat_ref Nuclear(const Cluster*) const;
+    virtual SMat_ref RestMass() const;
+private:
+    virtual IDType GetID() const=0;
+    virtual SMat MakeOverlap() const;
+    virtual SMat MakeNuclear(const Cluster*) const;
+    virtual SMat MakeRestMass() const;
+    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
+    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    mutable std::map<id2c_t ,SMat> itsBuffer; 
+};
+
 #endif

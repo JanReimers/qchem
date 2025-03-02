@@ -76,7 +76,7 @@ private:
 
 template <class T> class Orbital_IBS_Common
     : public virtual Orbital_IBS<T>
-    , protected  TIrrepBasisSetCommon<T> 
+    , public  TIrrepBasisSetCommon<T> 
 {
     public:
     Orbital_IBS_Common() {};

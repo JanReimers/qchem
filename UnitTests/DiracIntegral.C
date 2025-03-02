@@ -74,14 +74,14 @@ public:
         assert(ibs);
         const SphericalGaussian_RKB::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const SphericalGaussian_RKB::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
-        return dirbs->itsLargeBS;
+        return dirbs->itsRKBL;
     }
     static const TIrrepBasisSet<double>* GaussianGetSmall(IrrepBasisSet* ibs)
     {
         assert(ibs);
         const SphericalGaussian_RKB::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const SphericalGaussian_RKB::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
-        return dirbs->itsSmallBS;
+        return dirbs->itsRKBS;
     }
     
     static SMat merge_diag(const SMat& l,const SMat& s)
@@ -201,6 +201,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
         SMatrix<double> VenSnum = -Z*mintegrator->Nuclear(*s);
         SMat Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
+        // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
         EXPECT_NEAR(Max(fabs(Ven-Ven1)),0.0,1e-14);        

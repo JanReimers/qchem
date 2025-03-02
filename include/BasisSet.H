@@ -94,7 +94,7 @@ public:
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
     //virtual SMat GetOverlap (              ) const=0;
-    //virtual SMat GetKinetic (              ) const=0;
+    virtual SMat GetKinetic (              ) const=0;
     //virtual SMat GetNuclear (const Cluster*) const=0;
     virtual SMat GetRestMass(              ) const=0;
      
@@ -159,6 +159,20 @@ template <class T> class Orbital_IBS
     public:
     virtual LASolver<double>* CreateSolver() const=0;
 
+};
+
+template <class T> class Orbital_RKBL_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_RKBL<T> //One electron integrals used for everything
+{
+    public:
+};
+
+template <class T> class Orbital_RKBS_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_RKBS<T> //One electron integrals used for everything
+{
+    public:
 };
 
 template <class T> class Fit_IBS

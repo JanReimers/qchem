@@ -27,6 +27,7 @@ public:
 
     virtual const QuantumNumber&  GetQuantumNumber() const
     {
+        assert(itsQuantumNumber);
         return *itsQuantumNumber;
     }
     virtual QuantumNumber*  GetQuantumNumber(int index) const;

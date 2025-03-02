@@ -22,6 +22,7 @@ Ven::Ven(cl_t& cl)
 
 HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const Orbital_IBS<double>* bs,const Spin&) const
 {
+    // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
     return bs->Nuclear(&*theCluster);
 }
 
