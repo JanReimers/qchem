@@ -40,7 +40,7 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,I
     };
 }
 
-template <class T> T Large_IE<T>::Integral(qchem::IType it,double ea , double eb,size_t l) const
+template <class T> T Large_Orbital_IBS<T>::Integral(qchem::IType it,double ea , double eb,size_t l) const
 {
     if (it==qchem::Overlap1)
     {
@@ -64,20 +64,6 @@ template <class T> T Large_IE<T>::Integral(qchem::IType it,double ea , double eb
     return 0.0;
 }
 
-template <class T> typename Large_IE<T>::Mat  Large_IE<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
-    assert(a->l==b->l);
-    size_t Na=a->size();
-    size_t Nb=b->size();
-    Matrix<double> Hk(Na,Nb);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols())
-            Hk(i,j)=Integral(qchem::Kinetic1,a->es(i),b->es(j),a->l)*a->ns(i)*b->ns(j);
-
-    return Hk;
-}
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
@@ -91,14 +77,11 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
     return os;
 }
 
-template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone() const
-{
-    return new Large_Orbital_IBS<T>(*this);
-}
 template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    assert(false);
+    return 0;
 }
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
@@ -111,10 +94,6 @@ template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) 
     }
     return os;
 }
-// template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone() const
-// {
-//     return new Small_Orbital_IBS<T>(*this);
-// }
 template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
@@ -122,7 +101,7 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
 }
 
 
-template <class T> T Small_IE<T>::Integral(qchem::IType it,double ea , double eb,size_t l) const
+template <class T> T Small_Orbital_IBS<T>::Integral(qchem::IType it,double ea , double eb,size_t l) const
 {
     if (it==qchem::Overlap1)
     {

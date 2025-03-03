@@ -399,6 +399,8 @@ template <class T> typename DB_RKBL<T>::Mat_ref DB_RKBL<T>::Kinetic(const Orbita
         return i->second;
 }
 
+
+
 template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Nuclear(const Cluster* cl)  const
 {
     id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
@@ -474,6 +476,21 @@ template <class T> typename DB_RKBL<T>::SMat  DB_RKBL<T>::MakeIntegrals(qchem::I
 template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeOverlap() const
 {
     return this->MakeIntegrals(qchem::Overlap1);
+}
+
+template <class T> typename DB_RKBL<T>::Mat  DB_RKBL<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
+    assert(a->l==b->l);
+    size_t Na=a->size();
+    size_t Nb=b->size();
+    Matrix<double> Hk(Na,Nb);
+    for (auto i:Hk.rows())
+        for (auto j:Hk.cols())
+            Hk(i,j)=Integral(qchem::Kinetic1,a->es(i),b->es(j),a->l)*a->ns(i)*b->ns(j);
+
+    return Hk;
 }
 
 template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeNuclear(const Cluster* cl) const

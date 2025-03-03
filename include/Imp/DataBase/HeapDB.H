@@ -150,7 +150,7 @@ private:
 
     virtual IDType GetID() const=0;
     virtual SMat MakeOverlap() const;
-    virtual Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
     virtual SMat MakeNuclear(const Cluster*) const;
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
     virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;

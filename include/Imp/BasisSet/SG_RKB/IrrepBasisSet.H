@@ -17,24 +17,11 @@ class DiracIntegralTests;
 namespace SphericalGaussian_RKB
 {
 
-template <class T> class Large_IE
-: public virtual Integrals_RKBL<T>
-, public DB_RKBL<T>
-{
-public:
-    typedef Integrals_RKBL<T> Base;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::Mat  Mat;
-
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
-    virtual Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-};
-
 template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
     , public     IrrepBasisSetCommon
     , protected  TIrrepBasisSetCommon<T> 
-    , public     Large_IE<T>
+    , public     DB_RKBL<T>
     , public     IrrepIEClient
 {
     public:
@@ -43,37 +30,25 @@ template <class T> class Large_Orbital_IBS
         const Vector<T>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
+    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
 
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-};
-
-template <class T> class Small_IE
-: public virtual Integrals_RKBS<T>
-, public DB_RKBS<T>
-{
-public:
-    typedef Integrals_RKBL<T> Base;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::Mat  Mat;
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
 };
 
 template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
     , public     IrrepBasisSetCommon
     , protected  TIrrepBasisSetCommon<T> 
-    , public     Small_IE<T>
+    , public     DB_RKBS<T>
     , public     Small_IrrepIEClient
 {
 public:
     Small_Orbital_IBS() {};
     Small_Orbital_IBS(const LAParams&,IntegralDataBase<T>*,const Large_Orbital_IBS<T>*);
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-
+    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
-    //virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
 
