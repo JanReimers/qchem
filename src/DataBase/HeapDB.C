@@ -365,6 +365,28 @@ template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* 
 
 template class DB_1E<double>;
 
+template <class T> ERI4 DB_2E<T>::Direct(const bs_t& c) const
+{
+    IDType key=c.GetID();
+    if (auto i = Jac.find(key); i==Jac.end())
+    {
+        return Jac[key] = MakeDirect(c);
+    }
+    else
+        return i->second;
+}
+template <class T> ERI4 DB_2E<T>::Exchange(const bs_t& b) const
+{
+    IDType key=b.GetID();
+    if (auto i = Kab.find(key); i==Kab.end())
+    {
+        return Kab[key] = MakeExchange(b);
+    }
+    else
+        return i->second;
+}
+
+template class DB_2E<double>;
 
 template <class T> typename DB_RKB<T>::Mat_ref DB_RKB<T>::Kinetic(const IrrepBasisSet* L) const
 {
@@ -376,7 +398,6 @@ template <class T> typename DB_RKB<T>::Mat_ref DB_RKB<T>::Kinetic(const IrrepBas
     else
         return i->second;
 }
-
 template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Overlap() const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
@@ -387,7 +408,6 @@ template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Overlap() const
     else
         return i->second;
 }
-
 template <class T> typename DB_RKBL<T>::Mat_ref DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
@@ -398,9 +418,6 @@ template <class T> typename DB_RKBL<T>::Mat_ref DB_RKBL<T>::Kinetic(const Orbita
     else
         return i->second;
 }
-
-
-
 template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Nuclear(const Cluster* cl)  const
 {
     id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
@@ -411,7 +428,6 @@ template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Nuclear(const Clust
     else
         return i->second;
 }
-
 template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Overlap() const
 {
     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
@@ -422,7 +438,6 @@ template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Overlap() const
     else
         return i->second;
 }
-
 template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Nuclear(const Cluster* cl) const
 {
     assert(cl);
@@ -434,7 +449,6 @@ template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Nuclear(const Clust
     else
         return i->second;
 }
-
 template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::RestMass() const
 {
     id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
@@ -445,18 +459,17 @@ template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::RestMass() const
     else
         return i->second;
 }
-
 template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeOverlap() const
 {
     return this->MakeIntegrals(qchem::Overlap1);
 }
-
 template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
     int Z=cl->GetNuclearCharge();
     return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
 }
+
 
 #include "Imp/BasisSet/AtomIEClient.H"
 
@@ -472,12 +485,10 @@ template <class T> typename DB_RKBL<T>::SMat  DB_RKBL<T>::MakeIntegrals(qchem::I
 
     return H;
 }
-
 template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeOverlap() const
 {
     return this->MakeIntegrals(qchem::Overlap1);
 }
-
 template <class T> typename DB_RKBL<T>::Mat  DB_RKBL<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
@@ -492,19 +503,16 @@ template <class T> typename DB_RKBL<T>::Mat  DB_RKBL<T>::MakeKinetic(const Orbit
 
     return Hk;
 }
-
 template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
     int Z=cl->GetNuclearCharge();
     return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
 }
-
 template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeRestMass() const
 {
     return this->MakeIntegrals(qchem::RestMass1);
 }
-
 template <class T> typename DB_RKBS<T>::SMat  DB_RKBS<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);

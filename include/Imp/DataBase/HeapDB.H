@@ -86,7 +86,7 @@ private:
     std::map<id2cx_t,SMat> its2CNuc; //Nuclear IDed by cluster
     std::map<id2cx_t, Mat> its2Cx; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     std::map<id3c_t ,ERI3> its3C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
-    AnalyticIE<double>::erij_t Jac; //Index symmetries are different for J and K
+    AnalyticIE<double>::erij_t Jac; 
     AnalyticIE<double>::erij_t Kab;
 
 };
@@ -113,6 +113,24 @@ private:
 
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     mutable std::map<id2c_t ,SMat> itsBuffer; 
+};
+
+template <class T> class DB_2E :  virtual public Integrals_2E<T>
+{
+public:
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_2E<T> Base;
+    typedef typename Base::bs_t bs_t;
+    virtual ERI4 Direct  (const bs_t& c) const;
+    virtual ERI4 Exchange(const bs_t& b) const;
+protected:
+private:
+    virtual IDType GetID() const=0;
+    virtual ERI4 MakeDirect  (const bs_t& c) const=0;
+    virtual ERI4 MakeExchange(const bs_t& b) const=0;
+    typedef std::map<size_t,ERI4> erij_t;
+    mutable erij_t Jac; 
+    mutable erij_t Kab;
 };
 
 

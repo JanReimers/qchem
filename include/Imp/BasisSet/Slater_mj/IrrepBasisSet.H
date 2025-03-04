@@ -63,6 +63,7 @@ class Dirac_IrrepBasisSet
     , public         IrrepBasisSetCommon
     , public         Orbital_IBS_Common<double>
     , public         DB_1E<double>    
+    //, public         DB_2E<double>    
     , public         Dirac_IrrepIEClient
 {
     typedef DB_1E<double>::SMat SMat;
@@ -78,9 +79,13 @@ public:
     virtual std::istream&  Read (std::istream&    )      ;
     virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
     virtual SMat MakeNuclear(const Cluster*) const;
+    typedef typename DB_2E<double>::bs_t bs_t;
+    // virtual ERI4 MakeDirect  (const bs_t& c) const;
+    // virtual ERI4 MakeExchange(const bs_t& b) const;
 private:
     friend class ::DiracIntegralTests;
     

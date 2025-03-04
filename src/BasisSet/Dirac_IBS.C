@@ -63,6 +63,27 @@ template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeNucle
     return merge_diag(nl,ns);
 }
 
+
+template <class T> ERI4 IntegralEngine<T>::MakeDirect  (const bs_t& c) const
+{
+    return ERI4();
+    // auto da=this;
+    // auto dc=dynamic_cast<const Dirac::IntegralEngine<T>*>(&c);
+    // assert(da->itsRKBL->GetKappa()==da->itsRKBS->GetKappa());
+    // assert(dc->itsRKBL->GetKappa()==dc->itsRKBS->GetKappa());
+    // ERI4 JLLLL=itsRKBL->Direct(dc->itsRKBL);
+    // ERI4 JLLSS=itsRKBS->Direct(dc->itsRKBS);
+    // ERI4 JSSLL=itsRKBS->Direct(dc->itsRKBL);
+    // ERI4 JSSSS=itsRKBS->Direct(dc->itsRKBS);
+    
+    // return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
+
+}
+template <class T> ERI4 IntegralEngine<T>::MakeExchange(const bs_t& b) const
+{
+    return ERI4();
+}
+
 template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,IntegralDataBase<T>* db
     ,::Orbital_RKBL_IBS<T>* rkbl, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))

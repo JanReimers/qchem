@@ -93,6 +93,15 @@ public:
     virtual SMat_ref Nuclear(const Cluster*) const=0;   
 };
 
+template <class T> class Integrals_2E
+{
+public:
+    typedef const TIrrepBasisSet<T> bs_t;
+    virtual ERI4 Direct  (const bs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
+    virtual ERI4 Exchange(const bs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
+
+};
+
 template <class T> class Integrals_RKB
 {
 public:
@@ -101,7 +110,7 @@ public:
     virtual Mat_ref Kinetic(const IrrepBasisSet* L) const=0;
 };
 
-template <class T> class Integrals_RKBL
+template <class T> class Integrals_RKBL 
 {
 public:
     typedef SMatrix<T> SMat;
@@ -114,7 +123,7 @@ public:
     virtual SMat_ref Nuclear(const Cluster*) const=0;   
 };
 
-template <class T> class Integrals_RKBS
+template <class T> class Integrals_RKBS 
 {
 public:
     typedef SMatrix<T> SMat;

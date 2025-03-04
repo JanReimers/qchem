@@ -286,6 +286,90 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
 
 template class AtomIE_1E<double>;
 
+template <class T> ERI4 AtomIE_2E<T>::MakeDirect  (const bs_t& _c) const 
+{
+    typedef SMatrix<T> SMat;
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(this);
+    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(&_c);
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 J(Na,Nc);
+    for (size_t ia:a->indices())
+    {
+        loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        for (size_t ic:c->indices())
+        {
+            loop_2(c->es_indices[ic-1]);
+            int la=a->l, lc=c->l;
+            RVec Akac=Coulomb_AngularIntegrals(la,lc,a->m,c->m);
+            for (size_t ib:a->indices())
+            {
+                if (ib<ia) continue; 
+                SMat& Jab=J(ia,ib);
+                loop_3(a->es_indices[ib-1]);
+                for (size_t id:c->indices())
+                {
+                    if (id<ic) continue;
+                    if (Jab(ic,id)!=0.0)
+                    {
+                        cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        cout << Jab(ic,id) << endl;    
+                        assert(false);
+                    }
+                    double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
+                    RVec Rkac=loop_4_direct(c->es_indices[id-1],la,lc);
+                    Jab(ic,id)=Akac*Rkac*norm;
+                }
+            }
+        }
+    }
+    return J;
+};
+
+template <class T> ERI4 AtomIE_2E<T>::MakeExchange(const bs_t& _c) const 
+{
+    typedef SMatrix<T> SMat;
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(this);
+    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(&_c);
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 K(Na,Nc);
+    for (size_t ia:a->indices())
+    {
+        loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        double na=a->ns(ia);
+        for (size_t ic:c->indices())
+        {
+            int la=a->l, lc=c->l;
+            RVec Akac=ExchangeAngularIntegrals(la,lc,a->m,c->m);
+            double nac=na*c->ns(ic);
+            for (size_t ib:a->indices(ia))
+            {
+                SMat& Kab=K(ia,ib);
+                loop_2(a->es_indices[ib-1]);
+                loop_3(c->es_indices[ic-1]);
+                double nacb=nac*a->ns(ib);
+                for (size_t id:c->indices())
+                {
+                    double norm=nacb*c->ns(id);
+                    RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
+                    if (ic==id)
+                        Kab(ic,id)=Akac*RKac*norm; 
+                    else if (id<ic)
+                        Kab(id,ic)+=0.5*Akac*RKac*norm; 
+                    else
+                        Kab(ic,id)+=0.5*Akac*RKac*norm; 
+
+                }
+            }
+        }
+    }
+
+    return K;
+};
+ template class AtomIE_2E<double>;
 
 #include <BasisSet.H>
 

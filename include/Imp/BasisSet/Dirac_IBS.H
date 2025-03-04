@@ -15,16 +15,20 @@ namespace Dirac
 template <class T> class IntegralEngine
     : public virtual Integrals_1E<T>
     , public DB_1E<T>
+    , public DB_2E<T>
 {
 public:
     typedef DB_1E<T> Base;
     typedef typename Base::SMat SMat;
+    typedef typename DB_2E<T>::bs_t bs_t;
     IntegralEngine() {};
     IntegralEngine(const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
 
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
     virtual SMat MakeNuclear(const Cluster*) const;
+    virtual ERI4 MakeDirect  (const bs_t& c) const;
+    virtual ERI4 MakeExchange(const bs_t& b) const;
 private:
     typedef Matrix<T> Mat;
     static SMat merge_diag(const SMat& l,const SMat& s);

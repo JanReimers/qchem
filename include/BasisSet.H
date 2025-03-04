@@ -157,27 +157,33 @@ template <class T> class TOrbital_IBS
     : public virtual Orbital_IBS
     , public virtual TIrrepBasisSet<T>
     , public virtual Integrals_1E<T> //One electron integrals used for everything
-    // , public virtual Integrals_2E<T> //Two electron integrals used for HF
     // , public virtual Integrals_DFT<T> //DFT integrals
     
 {
     public:
-    //virtual LASolver<double>* CreateSolver() const=0;
-
+    
+};
+template <class T> class TOrbital_HF_IBS
+    : public virtual TOrbital_IBS<T>
+    , public virtual Integrals_2E<T> //Two electron integrals used for HF
+{
+    
 };
 
 template <class T> class Orbital_RKBL_IBS
     : public virtual TIrrepBasisSet<T>
     , public virtual Integrals_RKBL<T> //One electron integrals used for everything
 {
-    public:
+public:
+    int GetKappa() const;
 };
 
 template <class T> class Orbital_RKBS_IBS
     : public virtual TIrrepBasisSet<T>
     , public virtual Integrals_RKBS<T> //One electron integrals used for everything
 {
-    public:
+public:
+    int GetKappa() const;
 };
 
 template <class T> class Fit_IBS

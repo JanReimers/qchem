@@ -76,6 +76,7 @@ public:
 class Small_IntegralEngine1
     : public virtual Integrals_1E<double>
     , public AtomIE_1E<double>
+    // , public AtomIE_2E<double>
     , public AtomIE_RKB<double>
 {
 public:
