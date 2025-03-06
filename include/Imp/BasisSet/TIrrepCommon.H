@@ -49,9 +49,9 @@ public:
 //
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
-    virtual SMat GetOverlap () const;
-    virtual SMat GetKinetic (              ) const;
-    virtual SMat GetNuclear (const Cluster*) const;
+    //virtual SMat GetOverlap () const;
+    // virtual SMat GetKinetic (              ) const;
+    // virtual SMat GetNuclear (const Cluster*) const;
     virtual SMat GetRestMass(              ) const;
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;

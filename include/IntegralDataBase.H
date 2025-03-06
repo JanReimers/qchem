@@ -59,20 +59,20 @@ public:
 //  These are all done analytically.
 //
     virtual const RVec&    GetCharge          (iec_t* a)=0;
-    virtual const SMat&    GetOverlap         (iec_t* a)=0; 
+   // virtual const SMat&    GetOverlap         (iec_t* a)=0; 
     virtual const SMat&    GetRepulsion       (iec_t* a)=0;
     virtual const SMat&    GetInverseOverlap  (iec_t* a,const LAParams&)=0; //uses analytic overlap
     virtual const SMat&    GetInverseRepulsion(iec_t* a,const LAParams&)=0; //Uses analytic overlap
-    virtual const SMat&    GetKinetic         (iec_t* a)=0;
-    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&)=0;
+    // virtual const SMat&    GetKinetic         (iec_t* a)=0;
+    // virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&)=0;
     virtual const SMat&    GetRestMass        (iec_t* a)=0;
 
     virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) =0; //<a(1)|1/r12|b(2)>
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
 
-    virtual    ERI4        GetDirect__4C(bs_t& a,bs_t& b)=0;
-    virtual    ERI4        GetExchange4C(bs_t& a,bs_t& b)=0;
+    // virtual    ERI4        GetDirect__4C(bs_t& a,bs_t& b)=0;
+    // virtual    ERI4        GetExchange4C(bs_t& a,bs_t& b)=0;
 };
 
 

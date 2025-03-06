@@ -149,15 +149,16 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(iec_t*
         return i->second;
 }
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* a)
-{
-    assert(itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::Kinetic,a->GetID());
-    if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeKinetic(a);
-    else
-        return i->second;
-}
+// template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* a)
+// {
+//     assert(itsAnalyticIE);
+//     id2c_t key=std::make_tuple(qchem::Kinetic,a->GetID());
+//     if (auto i = its2C.find(key); i==its2C.end())
+//         return its2C[key] =itsAnalyticIE->MakeKinetic(a);
+//     else
+//         return i->second;
+// }
+
 template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRestMass(iec_t* a)
 {
     assert(itsAnalyticIE);
@@ -217,28 +218,28 @@ template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetRepulsion3C(iec
 
 using std::cout;
 using std::endl;
-template <class T> ERI4 HeapDB<T>::GetDirect__4C(bs_t& a,bs_t& c)
-{
-    assert(a.GetID()<=c.GetID());
-    if (Jac.size()==0) 
-        itsAnalyticIE->MakeDirect  (Jac);
-    //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
-    assert(Jac.find(a.GetID())!=Jac.end());
-    assert(Jac[a.GetID()].find(c.GetID())!=Jac[a.GetID()].end());
+// template <class T> ERI4 HeapDB<T>::GetDirect__4C(bs_t& a,bs_t& c)
+// {
+//     assert(a.GetID()<=c.GetID());
+//     if (Jac.size()==0) 
+//         itsAnalyticIE->MakeDirect  (Jac);
+//     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
+//     assert(Jac.find(a.GetID())!=Jac.end());
+//     assert(Jac[a.GetID()].find(c.GetID())!=Jac[a.GetID()].end());
     
-    return Jac[a.GetID()][c.GetID()];
-}
-template <class T> ERI4 HeapDB<T>::GetExchange4C(bs_t& a,bs_t& b)
-{
-    assert(a.GetID()<=b.GetID());
-    if (Kab.size()==0)
-        itsAnalyticIE->MakeExchange(Kab); 
-    //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
-    assert(Kab.find(a.GetID())!=Kab.end());
-    assert(Kab[a.GetID()].find(b.GetID())!=Kab[a.GetID()].end());
+//     return Jac[a.GetID()][c.GetID()];
+// }
+// template <class T> ERI4 HeapDB<T>::GetExchange4C(bs_t& a,bs_t& b)
+// {
+//     assert(a.GetID()<=b.GetID());
+//     if (Kab.size()==0)
+//         itsAnalyticIE->MakeExchange(Kab); 
+//     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
+//     assert(Kab.find(a.GetID())!=Kab.end());
+//     assert(Kab[a.GetID()].find(b.GetID())!=Kab[a.GetID()].end());
     
-    return Kab[a.GetID()][b.GetID()];
-}
+//     return Kab[a.GetID()][b.GetID()];
+// }
 
  
 
@@ -251,15 +252,15 @@ template <class T> ERI4 HeapDB<T>::GetExchange4C(bs_t& a,bs_t& b)
 //  already known.
 //
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(iec_t* a,const Cluster& cl)
-{
-    assert(itsAnalyticIE);
-    id2cx_t key=std::make_tuple(qchem::Nuclear,a->GetID(),cl.GetID());
-    if (auto i = its2CNuc.find(key); i==its2CNuc.end())
-        return its2CNuc[key] =itsAnalyticIE->MakeNuclear(a,cl);
-    else
-        return i->second;
-}   
+// template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetNuclear(iec_t* a,const Cluster& cl)
+// {
+//     assert(itsAnalyticIE);
+//     id2cx_t key=std::make_tuple(qchem::Nuclear,a->GetID(),cl.GetID());
+//     if (auto i = its2CNuc.find(key); i==its2CNuc.end())
+//         return its2CNuc[key] =itsAnalyticIE->MakeNuclear(a,cl);
+//     else
+//         return i->second;
+// }   
 
 
 

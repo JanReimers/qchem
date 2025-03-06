@@ -60,11 +60,11 @@ GetCharge() const
     return GetDataBase()->GetCharge(this);
 }
 
-template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
-GetOverlap() const
-{
-    return GetDataBase()->GetOverlap(this);
-}
+// template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
+// GetOverlap() const
+// {
+//     return GetDataBase()->GetOverlap(this);
+// }
 
 template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
 GetInverseRepulsion(const LAParams& lap) const
@@ -78,16 +78,16 @@ GetInverseOverlap(const LAParams& lap) const
     return GetDataBase()->GetInverseOverlap(this,lap);
 }
 
-template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetKinetic() const
-{
-    return GetDataBase()->GetKinetic(this);
-}
-template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetNuclear(const Cluster* cl) const
-{
-    return itsDataBase->GetNuclear(this,*cl);
-}
+// template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
+// GetKinetic() const
+// {
+//     return GetDataBase()->GetKinetic(this);
+// }
+// template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
+// GetNuclear(const Cluster* cl) const
+// {
+//     return itsDataBase->GetNuclear(this,*cl);
+// }
 
 template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 GetRestMass() const
