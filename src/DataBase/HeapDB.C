@@ -367,26 +367,71 @@ template class DB_1E<double>;
 
 template <class T> ERI4 DB_2E<T>::Direct(const bs_t& c) const
 {
-    IDType key=c.GetID();
-    if (auto i = Jac.find(key); i==Jac.end())
-    {
-        return Jac[key] = MakeDirect(c);
-    }
-    else
-        return i->second;
+    assert(itsDB_BS_2E);
+    return itsDB_BS_2E->Direct(GetID(),c.GetID());
 }
 template <class T> ERI4 DB_2E<T>::Exchange(const bs_t& b) const
 {
-    IDType key=b.GetID();
-    if (auto i = Kab.find(key); i==Kab.end())
-    {
-        return Kab[key] = MakeExchange(b);
-    }
-    else
-        return i->second;
+    assert(itsDB_BS_2E);
+    return itsDB_BS_2E->Exchange(GetID(),b.GetID()); 
 }
 
+template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db) 
+    : itsDB_BS_2E(db) 
+    {
+        assert(itsDB_BS_2E);
+    };
+
+template <class T> void DB_BS_2E<T>::Append(const IrrepIEClient* iec)
+{
+    itsIrreps.push_back(iec);
+}
+template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
+{
+    assert(a<=c);
+    if (Jac.size()==0) MakeDirect();
+    //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
+    assert(Jac.find(a)!=Jac.end());
+    assert(Jac[a].find(c)!=Jac[a].end());
+    
+    return Jac[a][c];
+}
+template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
+{
+    assert(a<=b);
+    if (Kab.size()==0) MakeExchange(); 
+    //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
+    assert(Kab.find(a)!=Kab.end());
+    assert(Kab[a].find(b)!=Kab[a].end());
+    
+    return Kab[a][b];
+}
+template <class T> void DB_BS_2E<T>::MakeDirect() const
+{
+    Jac.clear();
+    for (auto a: itsIrreps)
+        for (auto c: itsIrreps) //TODO run from ia n
+        {
+            if (a->GetID()>c->GetID()) continue;
+            Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
+        }
+
+}
+template <class T> void DB_BS_2E<T>::MakeExchange() const
+{
+    Kab.clear();
+    for (auto a: itsIrreps)
+        for (auto b: itsIrreps) 
+        {
+            if (a->GetID()>b->GetID()) continue;
+            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);            
+        }
+    
+}
+
+
 template class DB_2E<double>;
+template class DB_BS_2E<double>;
 
 template <class T> typename DB_RKB<T>::Mat_ref DB_RKB<T>::Kinetic(const IrrepBasisSet* L) const
 {

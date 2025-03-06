@@ -16,10 +16,10 @@ namespace SphericalGaussian
 //
 //  Concrete  gaussian basis set.
 //
-IrrepBasisSet::IrrepBasisSet()
-    :  IrrepBasisSetCommon        ()
-    , Orbital_IBS_Common<double>()
-{};
+// IrrepBasisSet::IrrepBasisSet()
+//     :  IrrepBasisSetCommon        ()
+//     , Orbital_IBS_Common<double>()
+// {};
 
 //
 //  We need three constructors type here.  They all need DB, size, exponents,L
@@ -29,10 +29,11 @@ IrrepBasisSet::IrrepBasisSet()
 //
 
 
-IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
+IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,
         const Vector<double>& exponents,size_t L)
     : IrrepBasisSetCommon(new YlQN(L))
     , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(db)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L);
@@ -45,12 +46,12 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
 
 IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),es*2,0);
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0);
 }
 
 IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,0);    
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0);    
 }
 
 

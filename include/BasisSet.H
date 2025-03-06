@@ -208,8 +208,6 @@ template <class T> class Fit_IBS
 //  the wave vector k for solids.
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
-//could not convert ‘dynamic_cast_iterator<IrrepBasisSet*, TIrrepBasisSet<double>*>(((const BasisSet*)this)->BasisSet::begin())’ 
-//from ‘BasisSet::const_Titerator’ {aka ‘dynamic_cast_iterator<IrrepBasisSet*, TIrrepBasisSet<double>*>’} to ‘BasisSet::const_iterator’ {aka ‘std::vector<IrrepBasisSet*, std::allocator<IrrepBasisSet*> >::const_iterator’}|
 class BasisSet
     : public UniqueID
 {

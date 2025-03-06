@@ -15,15 +15,15 @@ namespace Slater
 {
    
 class IrrepBasisSet
-    : public virtual TOrbital_IBS<double>
+    : public virtual TOrbital_HF_IBS<double>
     , public         IrrepBasisSetCommon
     , public         Orbital_IBS_Common<double>
     , public         IntegralEngine1
     , public         IrrepIEClient
 {
 public:
-    IrrepBasisSet();
-    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, size_t L);
+   // IrrepBasisSet();
+    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L);
     
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
 

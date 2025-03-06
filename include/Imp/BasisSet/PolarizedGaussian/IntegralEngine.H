@@ -62,7 +62,9 @@ class IntegralEngine1
     , public DB_2E<double>
 {
 public:
-
+protected:
+    IntegralEngine1() {};
+    IntegralEngine1(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};
 private:
     typedef DB_1E<double> Base;
     typedef Base::SMat SMat;

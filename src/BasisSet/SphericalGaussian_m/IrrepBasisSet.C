@@ -9,22 +9,23 @@
 
 namespace SphericalGaussian_m
 {
-//
-//  Concrete  Slater basis set.
-//
-IrrepBasisSet::IrrepBasisSet()
-    :  IrrepBasisSetCommon        ()
-    , Orbital_IBS_Common<double>()
-{};
+
+// //
+// IrrepBasisSet::IrrepBasisSet()
+//     :  IrrepBasisSetCommon        ()
+//     , Orbital_IBS_Common<double>()
+// {};
 
 
 IrrepBasisSet::IrrepBasisSet(
         const LAParams& lap,
         IntegralDataBase<double>* theDB,
+        const DB_BS_2E<double>* db,
         const std::set<double>& exponents,
         size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
     , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(db)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L,m);
@@ -34,10 +35,11 @@ IrrepBasisSet::IrrepBasisSet(
 
 };
 
-IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
+IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,
         const Vector<double>& exponents,size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
     , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(db)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L,m);
@@ -49,12 +51,12 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
 
 IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),es*2,0,0);
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0,0);
 }
 
 IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,0,0);    
+    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0,0);    
 }
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const

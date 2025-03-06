@@ -286,11 +286,21 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
 
 template class AtomIE_1E<double>;
 
-template <class T> ERI4 AtomIE_2E<T>::MakeDirect  (const bs_t& _c) const 
+template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
+{
+    assert(ciec);
+    DB_BS_2E<T>::Append(ciec);
+    IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
+    AtomIrrepIEClient* aiec=dynamic_cast<AtomIrrepIEClient*>(iec);
+    assert(aiec);
+    BFGrouper::Append(aiec);
+}
+
+template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     typedef SMatrix<T> SMat;
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(this);
-    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(&_c);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
+    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
@@ -327,11 +337,11 @@ template <class T> ERI4 AtomIE_2E<T>::MakeDirect  (const bs_t& _c) const
     return J;
 };
 
-template <class T> ERI4 AtomIE_2E<T>::MakeExchange(const bs_t& _c) const 
+template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     typedef SMatrix<T> SMat;
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(this);
-    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(&_c);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
+    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
@@ -369,7 +379,7 @@ template <class T> ERI4 AtomIE_2E<T>::MakeExchange(const bs_t& _c) const
 
     return K;
 };
- template class AtomIE_2E<double>;
+ template class AtomIE_BS_2E<double>;
 
 #include <BasisSet.H>
 

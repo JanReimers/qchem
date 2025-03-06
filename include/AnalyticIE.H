@@ -4,6 +4,7 @@
 
 
 #include "types.H"
+#include "Imp/Misc/UniqueID/UniqueID.H"
 #include <vector>
 #include <map>
 #include <iosfwd>
@@ -100,6 +101,16 @@ public:
     virtual ERI4 Direct  (const bs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
     virtual ERI4 Exchange(const bs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
 
+};
+
+template <class T> class Integrals_BS_2E
+{
+    typedef UniqueID::IDtype IDType;   
+public:
+    virtual    ERI4 Direct  (IDType a,IDType c) const=0;
+    virtual    ERI4 Exchange(IDType a,IDType b) const=0;
+protected:
+    virtual void Append(const IrrepIEClient*)=0;
 };
 
 template <class T> class Integrals_RKB

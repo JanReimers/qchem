@@ -104,6 +104,7 @@ Large_IrrepBasisSet::Large_IrrepBasisSet(const LAParams& lap,IntegralDataBase<do
         const Vector<double>& exponents,int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(0)
     , IrrepIEClient(exponents.size(),kappa)
 {
     IrrepIEClient::Init(exponents);

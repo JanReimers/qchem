@@ -6,6 +6,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>
 
 namespace SphericalGaussian_m
@@ -13,12 +14,13 @@ namespace SphericalGaussian_m
 
 
 BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
-: BasisSetImp(new IntegralEngine) // this makes a integral DB
+: SphericalGaussian::BasisSet(new IntegralEngine) // this makes a integral DB
 {
     GaussianScaler gs(N,emin,emax,LMax);
+    const DB_BS_2E<double>* db=this;
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L,m));            
+            Insert(new IrrepBasisSet(lap,GetDataBase(),db,gs.Get_es(L),L,m));            
         
 }
 
@@ -26,7 +28,7 @@ using PolarizedGaussian::Reader;
 using PolarizedGaussian::RadialFunction;
 
 BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
-: BasisSetImp(new IntegralEngine) // this makes a integral DB
+: SphericalGaussian::BasisSet(new IntegralEngine) // this makes a integral DB
 {
     std::map<int,std::set<double> > Lexponents;
     reader->FindAtom(*atom);
@@ -54,8 +56,18 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
     {
         int L=le.first;
         for (int m=-L;m<=L;m++)
-            Insert(new IrrepBasisSet(lap,GetDataBase(),le.second,L,m)); //Common with optr_vector     
+            Insert(new IrrepBasisSet(lap,GetDataBase(),this,le.second,L,m)); //Common with optr_vector     
     }
+}
+
+BasisSet::RVec BasisSet::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
+{
+    return AngularIntegrals::Coulomb(la,lc,ma,mc);
+}
+
+BasisSet::RVec BasisSet::ExchangeAngularIntegrals(size_t la, size_t lb, int ma, int mb) const
+{
+    return AngularIntegrals::Exchange(la,lb,ma,mb);
 }
 
 

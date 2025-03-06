@@ -115,6 +115,26 @@ private:
     mutable std::map<id2c_t ,SMat> itsBuffer; 
 };
 
+template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>
+{
+    typedef UniqueID::IDtype IDType;    
+public:
+    virtual    ERI4 Direct  (IDType a,IDType c) const;
+    virtual    ERI4 Exchange(IDType a,IDType b) const;
+protected:
+    virtual void Append(const IrrepIEClient*);
+private:
+    //! Internally called once to build direct and exchange supermatrix tables.
+    virtual void MakeDirect  () const; 
+    virtual void MakeExchange() const; 
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+
+    std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
+    typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
+    mutable erij_t Jac,Kab;
+};
+
 template <class T> class DB_2E :  virtual public Integrals_2E<T>
 {
 public:
@@ -124,13 +144,11 @@ public:
     virtual ERI4 Direct  (const bs_t& c) const;
     virtual ERI4 Exchange(const bs_t& b) const;
 protected:
+    DB_2E() : itsDB_BS_2E(0) {};
+    DB_2E(const DB_BS_2E<T>* db);
 private:
     virtual IDType GetID() const=0;
-    virtual ERI4 MakeDirect  (const bs_t& c) const=0;
-    virtual ERI4 MakeExchange(const bs_t& b) const=0;
-    typedef std::map<size_t,ERI4> erij_t;
-    mutable erij_t Jac; 
-    mutable erij_t Kab;
+    const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
 };
 
 

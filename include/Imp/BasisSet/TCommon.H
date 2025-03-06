@@ -8,6 +8,7 @@ class DiracIntegralTests;
 
 class BasisSetImp
     : public virtual BasisSet
+   // , public virtual Integrals_BS_2E<double>
 {
 public:
     typedef BasisSet Base;
@@ -29,7 +30,7 @@ public:
 //
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
-private:
+protected:
     friend class SlaterRadialIntegralTests;
     friend class DiracIntegralTests;
 

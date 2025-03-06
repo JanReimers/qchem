@@ -15,7 +15,7 @@ namespace SphericalGaussian_m
 {
    
 class IrrepBasisSet
-    : public virtual TIrrepBasisSet<double>
+    : public virtual TOrbital_HF_IBS<double>
     , public         IrrepBasisSetCommon
     , public         Orbital_IBS_Common<double>
     , public         SphericalGaussian::IntegralEngine1
@@ -23,8 +23,8 @@ class IrrepBasisSet
 {
 public:
     IrrepBasisSet();
-    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const std::set<double>& exponents, size_t L,int m);
-    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, size_t L,int m);
+    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const DB_BS_2E<double>* db,const std::set<double>& exponents, size_t L,int m);
+    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L,int m);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;

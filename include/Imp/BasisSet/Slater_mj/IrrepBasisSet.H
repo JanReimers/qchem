@@ -24,7 +24,7 @@ class Large_IrrepBasisSet
     , public         IrrepIEClient
 {
 public:
-    Large_IrrepBasisSet() {};
+    // Large_IrrepBasisSet() {};
     Large_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}

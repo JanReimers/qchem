@@ -39,16 +39,12 @@ protected:
 class IntegralEngine1
     : public virtual Integrals_1E<double>
     , public AtomIE_1E<double>
-    , public AtomIE_2E<double>
+    , public DB_2E<double>
 {
 public:
     virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    
-    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
+protected:
+    IntegralEngine1(const DB_BS_2E<double>* db) : DB_2E<double>(db) {}; 
 };
 
 } //namespace

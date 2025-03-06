@@ -71,21 +71,23 @@ private:
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
 
-template <class T> class AtomIE_2E 
+template <class T> class AtomIE_BS_2E 
     : public virtual Cache4
-    , public DB_2E<T>
+    , public DB_BS_2E<T>
     , public BFGrouper
 {
 public:
     typedef Vector<double> RVec;
     typedef typename DB_2E<T>::bs_t bs_t;
-    virtual ERI4 MakeDirect  (const bs_t& c) const;
-    virtual ERI4 MakeExchange(const bs_t& b) const;
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     // Cach4 functions
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
+protected:
+    virtual void Append(const IrrepIEClient*);
 };
 
 template <class T> class AtomIE_RKB : public DB_RKB<T>
