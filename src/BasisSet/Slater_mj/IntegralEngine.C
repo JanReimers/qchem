@@ -140,13 +140,13 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
 //     return Mat();
 // }
 
-DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
-{
-    auto da=dcast(a);
-    SMat vl=itsLargeIE->MakeNuclear(da->itsLargeIEC,cl);
-    SMat vs=itsSmallIE->MakeNuclear(da->itsSmallIEC,cl);
-    return merge_diag(vl,vs);
-}
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
+// {
+//     auto da=dcast(a);
+//     SMat vl=itsLargeIE->MakeNuclear(da->itsLargeIEC,cl);
+//     SMat vs=itsSmallIE->MakeNuclear(da->itsSmallIEC,cl);
+//     return merge_diag(vl,vs);
+// }
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeRestMass(iec_t* a) const
 {
     static const double f=-2.0*c_light*c_light;

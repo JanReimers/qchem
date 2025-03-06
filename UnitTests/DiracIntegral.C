@@ -168,9 +168,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto i=sbs->beginT();i!=sbs->end();i++)
     {
-        SMatrix<double> Ven=sie->MakeNuclear(*i,*cl);
         auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
-        SMatrix<double> Ven1=oi->Nuclear(cl);
+        SMatrix<double> Ven=oi->Nuclear(cl);
 
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
         const TIrrepBasisSet<double>* s=SlaterGetSmall(*i);
@@ -180,7 +179,6 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
-        EXPECT_NEAR(Max(fabs(Ven-Ven1)),0.0,1e-14);        
     }
 }
 
@@ -191,9 +189,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto i=gbs->beginT();i!=gbs->end();i++)
     {
-        SMatrix<double> Ven=gie->MakeNuclear(*i,*cl);
         auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
-        SMatrix<double> Ven1=oi->Nuclear(cl);
+        SMatrix<double> Ven=oi->Nuclear(cl);
 
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
         const TIrrepBasisSet<double>* s=GaussianGetSmall(*i);
@@ -204,7 +201,6 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
-        EXPECT_NEAR(Max(fabs(Ven-Ven1)),0.0,1e-14);        
     }
 }
 

@@ -185,12 +185,10 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
-        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
         auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
-        SMatrix<double> Hn1=oi->Nuclear(cl);
+        SMatrix<double> Hn=oi->Nuclear(cl);
         SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
-        EXPECT_NEAR(Max(fabs(Hn-Hn1)),0.0,1e-14);
 
     }
 }
