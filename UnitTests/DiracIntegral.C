@@ -214,18 +214,16 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     StreamableObject::SetToPretty();
     for (auto i=sbs->beginT();i!=sbs->end();i++)
     {
-        SMatrix<double> K=sie->MakeKinetic(*i);
-        // auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        // SMatrix<double> K1=oi->Integrals(qchem::Kinetic1);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
+        SMatrix<double> K=oi->Kinetic();
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
         const TIrrepBasisSet<double>* s=SlaterGetSmall(*i);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMat Knum=merge_off_diag(KnumL);
-        //cout << "K=" << K << endl << "Knum=" << Knum << endl;
+        cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
-        // EXPECT_NEAR(Max(fabs(K-K1)),0.0,1e-14);      
     }
 }
 TEST_F(DiracIntegralTests, GaussianKinetic)
@@ -233,9 +231,8 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     StreamableObject::SetToPretty();
     for (auto i=gbs->beginT();i!=gbs->end();i++)
     {
-        SMatrix<double> K=gie->MakeKinetic(*i);
-        // auto oi=dynamic_cast<const Orbital_IBS<double>*>(*i);
-        // SMatrix<double> K1=oi->Integrals(qchem::Kinetic1);
+        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
+        SMatrix<double> K=oi->Kinetic();
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);

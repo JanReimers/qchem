@@ -124,19 +124,19 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
     return merge_diag(ol,os);
 }
 
-DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
-{
-    auto da=dcast(a);
-    Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
-    //std::cout << "kls=" << kls << std::endl;
-    return merge_off_diag(kls);
-}
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
+// {
+//     auto da=dcast(a);
+//     Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+//     //std::cout << "kls=" << kls << std::endl;
+//     return merge_off_diag(kls);
+// }
 
-DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
-{
-    assert(false);
-    return Mat();
-}
+// DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
+// {
+//     assert(false);
+//     return Mat();
+// }
 
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
 {

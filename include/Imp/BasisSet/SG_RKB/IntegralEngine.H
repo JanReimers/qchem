@@ -27,8 +27,8 @@ public:
 
     // One electron functions for DFT and HF
     virtual SMat MakeOverlap  (iec_t* a) const;
-    virtual SMat MakeKinetic  (iec_t* a) const;
-    virtual  Mat MakeKinetic  (iec_t* a,iec_t* b) const;
+    // virtual SMat MakeKinetic  (iec_t* a) const;
+    //virtual  Mat MakeKinetic  (iec_t* a,iec_t* b) const;
     virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
     virtual SMat MakeRestMass (iec_t* a) const;
     virtual RVec MakeCharge   (iec_t* a) const;

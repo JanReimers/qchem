@@ -127,18 +127,18 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
     return merge_diag(ol,os);
 }
 
-DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
-{
-    auto da=dcast(a);
-    Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
-    return merge_off_diag(kls);
-}
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
+// {
+//     auto da=dcast(a);
+//     Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+//     return merge_off_diag(kls);
+// }
 
-DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
-{
-    assert(false);
-    return Mat();
-}
+// DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
+// {
+//     assert(false);
+//     return Mat();
+// }
 
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
 {
@@ -638,8 +638,8 @@ double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size
             double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
             double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
             //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
-        
-    return 2.0*(Term1+Term2+Term3);
+
+        return t==qchem::Overlap1 ? 2.0*(Term1+Term2+Term3) : -2.0*(Term1+Term2+Term3);
     }
     else if(t==qchem::Nuclear1)
     {

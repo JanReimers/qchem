@@ -92,9 +92,8 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     
     for (auto i=bs->beginT();i!=bs->end();i++)
     {
-        SMatrix<double> K=ie->MakeKinetic(*i);
         auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
-        SMatrix<double> K1=oi->Kinetic();
+        SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
         SMatrix<double> Knum = 0.5*mintegrator->Grad(**i); //This give the wrong answer for l>0
 
@@ -109,8 +108,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
             for (auto j:Knum.cols(i))
                 Knum(i,j)+=0.5*((l)*(l+1))*GaussianIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
-        EXPECT_NEAR(Max(fabs(K-K1)),0.0,1e-14);
-
+        
     }
 }
 

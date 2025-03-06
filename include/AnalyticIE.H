@@ -44,9 +44,9 @@ public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual  SMat MakeOverlap  (const IrrepIEClient* g) const=0;
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual  SMat MakeKinetic  (const IrrepIEClient* g) const=0;
+    // virtual  SMat MakeKinetic  (const IrrepIEClient* g) const=0;
     //! Kinetic energy cross \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}f_{b}\left(\vec{r}\right)\f$
-    virtual   Mat MakeKinetic  (const IrrepIEClient* g, const IrrepIEClient* f) const=0;
+    //virtual   Mat MakeKinetic  (const IrrepIEClient* g, const IrrepIEClient* f) const=0;
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
     virtual  SMat MakeNuclear  (const IrrepIEClient* g,const Cluster&   ) const=0;
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
