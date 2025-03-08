@@ -34,7 +34,7 @@ size_t BasisSetImp::GetNumFunctions() const
 void BasisSetImp::Insert(bs_t* bs)
 {
     assert(bs);
-    itsIE->Append(bs);
+    //itsIE->Append(bs);
     itsBasisSets.push_back(bs);
 }
 

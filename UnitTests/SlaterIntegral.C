@@ -284,12 +284,12 @@ struct Vf : public VectorFunction<double>
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
     for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
-    for (auto icdt=bs->beginT();icdt!=bs->end();icdt++)
+    for (auto icdt=iabt;icdt!=bs->end();icdt++)
     {
         const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
         const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERI4 J=ie->MakeDirect(*iabt,*icdt);
+        ERI4 J=bs->Direct(iabt->GetID(),icdt->GetID());
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)

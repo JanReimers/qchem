@@ -32,10 +32,10 @@ public:
     typedef SMatrix<double> RSMat;
     typedef std::vector<SMat> ERI3;
     typedef const IrrepIEClient iec_t;
-    typedef std::map<size_t,std::map<size_t,ERI4> > erij_t;
+    //typedef std::map<size_t,std::map<size_t,ERI4> > erij_t;
 
     virtual ~AnalyticIE()  {};
-    virtual void Append(const IrrepIEClient*);
+    //virtual void Append(const IrrepIEClient*);
 
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
     //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
@@ -65,16 +65,16 @@ public:
     //! \f$ K_{ab,cd}=\left\langle a\left(1\right)d\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)b\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{d}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{b}\left(\vec{r}_{2}\right) \f$. \n
     //! These integrals are not block diagonal for each irreducible representation. Therefore they
     //! need to be evaluated over a full basis set which is a list of IrrepIEClients.
-    virtual void MakeDirect  (erij_t& Jab) const; //Used for Hartree-Fock
-    virtual void MakeExchange(erij_t& Kab) const; //Used for Hartree-Fock
-    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
-    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+    // virtual void MakeDirect  (erij_t& Jab) const; //Used for Hartree-Fock
+    // virtual void MakeExchange(erij_t& Kab) const; //Used for Hartree-Fock
+    // virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    // virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  RSMat MakeInverse  (const RSMat&,const LAParams&); //Numerically stable algo required.
-private:
-    std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
+// private:
+//     std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
 
 };
 

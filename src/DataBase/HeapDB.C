@@ -55,13 +55,13 @@ template <class T> void HeapDB<T>::Report(std::ostream& os) const
     size_t N1=Size(its1C)+Size(its1Cx);
     size_t N2=Size(its2C)+Size(its2Cx)+Size(its2CNuc);
     size_t N3=Size(its3C);
-    size_t N4=Size(Jac)+Size(Kab);
+    //size_t N4=Size(Jac)+Size(Kab);
     
     os << "Heap DB storage report:" << std::endl;
     os << "    " << setw(10) << N1 << " 1 centre integrals." << std::endl;
     os << "    " << setw(10) << N2 << " 2 centre integrals." << std::endl;
     os << "    " << setw(10) << N3 << " 3 centre integrals." << std::endl;
-    os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
+    //os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
     
 }
 //---------------------------------------------------------------------------------

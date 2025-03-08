@@ -86,8 +86,8 @@ private:
     std::map<id2cx_t,SMat> its2CNuc; //Nuclear IDed by cluster
     std::map<id2cx_t, Mat> its2Cx; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
     std::map<id3c_t ,ERI3> its3C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
-    AnalyticIE<double>::erij_t Jac; 
-    AnalyticIE<double>::erij_t Kab;
+    // AnalyticIE<double>::erij_t Jac; 
+    // AnalyticIE<double>::erij_t Kab;
 
 };
 

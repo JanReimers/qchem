@@ -24,10 +24,10 @@ DiracIntegralEngine::DiracIntegralEngine()
 }
 void DiracIntegralEngine::Append(const ::IrrepIEClient* iec)
 {
-    AnalyticIE<double>::Append(iec);
+    //AnalyticIE<double>::Append(iec);
     const Dirac_IrrepIEClient* diec=dynamic_cast<const Dirac_IrrepIEClient*>(iec);
-    itsLargeIE->Append(diec->itsLargeIEC);
-    itsSmallIE->Append(diec->itsSmallIEC);
+    // itsLargeIE->Append(diec->itsLargeIEC);
+    // itsSmallIE->Append(diec->itsSmallIEC);
 }
 
 
@@ -184,38 +184,38 @@ DiracIntegralEngine::ERI3 DiracIntegralEngine::MakeRepulsion3C(iec_t* ab,iec_t* 
     return ERI3();
 }
 
-ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const
-{
-    auto da=dcast(a);
-    auto dc=dcast(c);
-    assert(da->itsLargeIEC->kappa==da->itsSmallIEC->kappa);
-    assert(dc->itsLargeIEC->kappa==dc->itsSmallIEC->kappa);
-    ERI4 JLLLL=itsLargeIE->MakeDirect(da->itsLargeIEC,dc->itsLargeIEC);
-    ERI4 JLLSS=itsSmallIE->MakeDirect(da->itsLargeIEC,dc->itsSmallIEC);
-    ERI4 JSSLL=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsLargeIEC);
-    ERI4 JSSSS=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsSmallIEC);
+// ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const
+// {
+//     auto da=dcast(a);
+//     auto dc=dcast(c);
+//     assert(da->itsLargeIEC->kappa==da->itsSmallIEC->kappa);
+//     assert(dc->itsLargeIEC->kappa==dc->itsSmallIEC->kappa);
+//     ERI4 JLLLL=itsLargeIE->MakeDirect(da->itsLargeIEC,dc->itsLargeIEC);
+//     ERI4 JLLSS=itsSmallIE->MakeDirect(da->itsLargeIEC,dc->itsSmallIEC);
+//     ERI4 JSSLL=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsLargeIEC);
+//     ERI4 JSSSS=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsSmallIEC);
     
-    return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
-}
-ERI4 DiracIntegralEngine::MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
-{
-    auto da=dcast(a);
-    auto db=dcast(b);
-    auto sie=dynamic_cast<const Small_IntegralEngine*>(itsSmallIE);
-    assert(da->itsLargeIEC->kappa==da->itsSmallIEC->kappa);
-    assert(db->itsLargeIEC->kappa==db->itsSmallIEC->kappa);
-    ERI4 KLLLL=itsLargeIE->MakeExchange(da->itsLargeIEC,db->itsLargeIEC);
-    M4   KLSLS=sie->MakeExchangeLS(da->itsLargeIEC,db->itsSmallIEC);
-    M4   KSLSL=sie->MakeExchangeSL(da->itsSmallIEC,db->itsLargeIEC);
-    ERI4 KSSSS=sie->MakeExchangeSS(da->itsSmallIEC,db->itsSmallIEC);
+//     return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
+// }
+// ERI4 DiracIntegralEngine::MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
+// {
+//     auto da=dcast(a);
+//     auto db=dcast(b);
+//     auto sie=dynamic_cast<const Small_IntegralEngine*>(itsSmallIE);
+//     assert(da->itsLargeIEC->kappa==da->itsSmallIEC->kappa);
+//     assert(db->itsLargeIEC->kappa==db->itsSmallIEC->kappa);
+//     ERI4 KLLLL=itsLargeIE->MakeExchange(da->itsLargeIEC,db->itsLargeIEC);
+//     M4   KLSLS=sie->MakeExchangeLS(da->itsLargeIEC,db->itsSmallIEC);
+//     M4   KSLSL=sie->MakeExchangeSL(da->itsSmallIEC,db->itsLargeIEC);
+//     ERI4 KSSSS=sie->MakeExchangeSS(da->itsSmallIEC,db->itsSmallIEC);
 
-    // std::cout << "KLLLL(2,2)=" << KLLLL(2,2) << std::endl;
-    // std::cout << "KLSLS(2,2)=" << KLSLS(2,2) << std::endl;
-    // std::cout << "KSLSL(2,2)=" << KSLSL(2,2) << std::endl;
-    // std::cout << "KSSSS(2,2)=" << KSSSS(2,2) << std::endl;
+//     // std::cout << "KLLLL(2,2)=" << KLLLL(2,2) << std::endl;
+//     // std::cout << "KLSLS(2,2)=" << KLSLS(2,2) << std::endl;
+//     // std::cout << "KSLSL(2,2)=" << KSLSL(2,2) << std::endl;
+//     // std::cout << "KSSSS(2,2)=" << KSSSS(2,2) << std::endl;
     
-    return merge_off_diag(KLLLL,KLSLS,KSLSL,KSSSS);  
-}
+//     return merge_off_diag(KLLLL,KLSLS,KSLSL,KSSSS);  
+// }
 
 DiracIntegralEngine::RVec DiracIntegralEngine::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
 {

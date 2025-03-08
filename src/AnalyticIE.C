@@ -6,10 +6,10 @@
 #include "oml/smatrix.h"
 
 
-template <class T> void AnalyticIE<T>::Append(const IrrepIEClient* iec)
-{
-    itsIrreps.push_back(iec);
-}
+// template <class T> void AnalyticIE<T>::Append(const IrrepIEClient* iec)
+// {
+//     itsIrreps.push_back(iec);
+// }
 
 template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
     MakeInverse(const RSMat& S,const LAParams& lap) 
@@ -20,29 +20,29 @@ template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
     return Sinv;
 }
 
-template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
-{
-    Jac.clear();
-    for (auto a: itsIrreps)
-        for (auto c: itsIrreps) //TODO run from ia n
-        {
-            if (a->GetID()>c->GetID()) continue;
-            Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
-        }
+// template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
+// {
+//     Jac.clear();
+//     for (auto a: itsIrreps)
+//         for (auto c: itsIrreps) //TODO run from ia n
+//         {
+//             if (a->GetID()>c->GetID()) continue;
+//             Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
+//         }
 
-}
+// }
 
-template <class T> void AnalyticIE<T>::MakeExchange(erij_t& Kab) const
-{
-    Kab.clear();
-    for (auto a: itsIrreps)
-        for (auto b: itsIrreps) 
-        {
-            if (a->GetID()>b->GetID()) continue;
-            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);            
-        }
+// template <class T> void AnalyticIE<T>::MakeExchange(erij_t& Kab) const
+// {
+//     Kab.clear();
+//     for (auto a: itsIrreps)
+//         for (auto b: itsIrreps) 
+//         {
+//             if (a->GetID()>b->GetID()) continue;
+//             Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);            
+//         }
     
-}
+// }
 
 
 
