@@ -147,15 +147,15 @@ DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
 //     SMat vs=itsSmallIE->MakeNuclear(da->itsSmallIEC,cl);
 //     return merge_diag(vl,vs);
 // }
-DiracIntegralEngine::SMat DiracIntegralEngine::MakeRestMass(iec_t* a) const
-{
-    static const double f=-2.0*c_light*c_light;
-    auto da=dcast(a);
-    SMat rl(da->itsLargeIEC->size());
-    Fill(rl,0.0);
-    SMat rs=f*itsSmallIE->MakeOverlap(da->itsSmallIEC);
-    return merge_diag(rl,rs);
-}
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeRestMass(iec_t* a) const
+// {
+//     static const double f=-2.0*c_light*c_light;
+//     auto da=dcast(a);
+//     SMat rl(da->itsLargeIEC->size());
+//     Fill(rl,0.0);
+//     SMat rs=f*itsSmallIE->MakeOverlap(da->itsSmallIEC);
+//     return merge_diag(rl,rs);
+// }
 
 DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
 {
@@ -626,27 +626,5 @@ ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIECl
     return K;
 }
 
-double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size_t l) const
-{
-    if (t==qchem::Overlap1 || t==qchem::Kinetic1)
-    {
-    double ab=ea+eb;
-            int na=l+1,nb=l+1;
-            size_t ll=(l*(l+1)+l*(l+1))/2;
-            int n=na+nb;
-            double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
-            double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-            double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
-            //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
-
-        return t==qchem::Overlap1 ? 2.0*(Term1+Term2+Term3) : -2.0*(Term1+Term2+Term3);
-    }
-    else if(t==qchem::Nuclear1)
-    {
-        return ea*eb*SlaterIntegral(ea+eb,2*l+1);
-    }
-    assert(false);
-    return 0.0;
-}
 
 } //namespace

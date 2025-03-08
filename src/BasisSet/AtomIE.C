@@ -383,19 +383,19 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
 
 #include <BasisSet.H>
 
-template <class T> typename AtomIE_RKB<T>::Mat AtomIE_RKB<T>::MakeKinetic(const IrrepBasisSet* L) const
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(L);
-    assert(a->l==b->l);
-    size_t Na=a->size();
-    size_t Nb=b->size();
-    Matrix<double> Hk(Na,Nb);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols())
-            Hk(i,j)=Integral(qchem::Kinetic1,b->es(j),a->es(i),a->l)*a->ns(j)*b->ns(i);
+// template <class T> typename AtomIE_RKBS<T>::Mat AtomIE_RKBS<T>::MakeKinetic(const IrrepBasisSet* L) const
+// {
+//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+//     const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(L);
+//     assert(a->l==b->l);
+//     size_t Na=a->size();
+//     size_t Nb=b->size();
+//     Matrix<double> Hk(Na,Nb);
+//     for (auto i:Hk.rows())
+//         for (auto j:Hk.cols())
+//             Hk(i,j)=Integral(qchem::Kinetic1,b->es(j),a->es(i),a->l)*a->ns(j)*b->ns(i);
 
-    return Hk;
-}
+//     return Hk;
+// }
 
-template class AtomIE_RKB<double>;
+// template class AtomIE_RKBS<double>;

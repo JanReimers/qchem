@@ -90,14 +90,14 @@ protected:
     virtual void Append(const IrrepIEClient*);
 };
 
-template <class T> class AtomIE_RKB : public DB_RKB<T>
-{
-public:
-    typedef typename DB_RKB<T>::Mat Mat;
-    virtual Mat MakeKinetic(const IrrepBasisSet* L) const;
-private:
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
-};
+// template <class T> class AtomIE_RKBS : public DB_RKBS<T>
+// {
+// public:
+//     typedef typename DB_RKBS<T>::Mat Mat;
+// //    virtual Mat MakeKinetic(const IrrepBasisSet* L) const;
+// private:
+// //    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+// };
 
 
 #endif // _AtomIE_H_

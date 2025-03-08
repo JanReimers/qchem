@@ -24,7 +24,7 @@ public:
     // virtual SMat MakeKinetic  (iec_t* a) const;
     // virtual  Mat MakeKinetic  (iec_t* a,iec_t* b) const;
     //virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
-    virtual SMat MakeRestMass (iec_t* a) const;
+    //virtual SMat MakeRestMass (iec_t* a) const;
     virtual RVec MakeCharge   (iec_t* a) const;
     //  DFT Rho,Vac fitting functions
     virtual SMat MakeRepulsion  (iec_t* a) const; //Used for charge and Vxc fitting.
@@ -74,10 +74,10 @@ public:
 };
 
 class Small_IntegralEngine1
-    : public virtual Integrals_1E<double>
-    , public AtomIE_1E<double>
+    : public virtual Integrals_RKBS<double>
+    //, public AtomIE_1E<double>
     // , public AtomIE_2E<double>
-    , public AtomIE_RKB<double>
+    , public DB_RKBS<double>
 {
 public:
     virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;

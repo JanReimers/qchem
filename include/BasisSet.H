@@ -91,7 +91,7 @@ public:
     //virtual SMat GetOverlap (              ) const=0;
     //virtual SMat GetKinetic (              ) const=0;
     //virtual SMat GetNuclear (const Cluster*) const=0;
-    virtual SMat GetRestMass(              ) const=0;
+    //virtual SMat GetRestMass(              ) const=0;
      
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
@@ -167,6 +167,14 @@ template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_2E<T> //Two electron integrals used for HF
 {
+    
+};
+
+template <class T> class Orbital_RKB_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_RKB<T> 
+{
+public:
     
 };
 

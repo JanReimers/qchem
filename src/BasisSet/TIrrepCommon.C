@@ -89,11 +89,11 @@ GetInverseOverlap(const LAParams& lap) const
 //     return itsDataBase->GetNuclear(this,*cl);
 // }
 
-template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
-GetRestMass() const
-{
-    return itsDataBase->GetRestMass(this);
-}
+// template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
+// GetRestMass() const
+// {
+//     return itsDataBase->GetRestMass(this);
+// }
 
  template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
  GetRepulsion(const IrrepBasisSet* ff) const

@@ -1,6 +1,7 @@
 // File: BasisSet/Dirac_IBS.H  Interface for Dirac basis sets with Restricted Kinetic Balance (RKB).
 
 #include "Imp/BasisSet/Dirac_IBS.H"
+#include "Imp/Misc/DFTDefines.H"
 #include "Imp/Symmetry/OkmjQN.H"
 
 namespace Dirac
@@ -61,6 +62,15 @@ template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeNucle
     SMat nl=itsRKBL->Nuclear(c);
     SMat ns=itsRKBS->Nuclear(c);
     return merge_diag(nl,ns);
+}
+
+template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeRestMass() const
+{
+    static const double f=-2.0*c_light*c_light;
+    SMat rl(itsRKBL->size());
+    Fill(rl,0.0);
+    SMat rs=f*itsRKBS->Overlap();
+    return merge_diag(rl,rs);
 }
 
 

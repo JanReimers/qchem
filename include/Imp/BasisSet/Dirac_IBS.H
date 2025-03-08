@@ -15,7 +15,7 @@ namespace Dirac
 template <class T> class IntegralEngine
     : public virtual Integrals_1E<T>
     , public DB_1E<T>
-    , public DB_2E<T>
+    , public DB_RKB<T>
 {
 public:
     typedef DB_1E<T> Base;
@@ -27,6 +27,7 @@ public:
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
     virtual SMat MakeNuclear(const Cluster*) const;
+    virtual SMat MakeRestMass() const;
     virtual ERI4 MakeDirect  (const bs_t& c) const;
     virtual ERI4 MakeExchange(const bs_t& b) const;
 private:
@@ -41,7 +42,7 @@ protected:
 
 
 template <class T> class IrrepBasisSet
-    : public virtual TOrbital_IBS<T>
+    : public virtual Orbital_RKB_IBS<T>
     , public IrrepBasisSetCommon
     , public Orbital_IBS_Common<T>
     , public IntegralEngine<T>

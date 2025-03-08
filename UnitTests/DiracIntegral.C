@@ -59,14 +59,14 @@ public:
         assert(ibs);
         const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
-        return dirbs->itsLargeBS;
+        return dirbs->itsRKBL;
     }
     static const TIrrepBasisSet<double>* SlaterGetSmall(IrrepBasisSet* ibs)
     {
         assert(ibs);
         const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
-        return dirbs->itsSmallBS;
+        return dirbs->itsRKBS;
     }
 
     static const TIrrepBasisSet<double>* GaussianGetLarge(IrrepBasisSet* ibs)

@@ -159,15 +159,15 @@ template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(iec_t*
 //         return i->second;
 // }
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRestMass(iec_t* a)
-{
-    assert(itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::RestMass,a->GetID());
-    if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeRestMass(a);
-    else
-        return i->second;
-}
+// template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetRestMass(iec_t* a)
+// {
+//     assert(itsAnalyticIE);
+//     id2c_t key=std::make_tuple(qchem::RestMass,a->GetID());
+//     if (auto i = its2C.find(key); i==its2C.end())
+//         return its2C[key] =itsAnalyticIE->MakeRestMass(a);
+//     else
+//         return i->second;
+// }
 
 //
 //  THis get called in code by FittedFunctionImplementation<T>::FitGet2CenterOverlap(const IrrepBasisSet* bs) const
@@ -434,16 +434,27 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
 template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
-template <class T> typename DB_RKB<T>::Mat_ref DB_RKB<T>::Kinetic(const IrrepBasisSet* L) const
+template <class T> typename DB_RKB<T>::SMat_ref DB_RKB<T>::Kinetic() const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
     {
-        return itsBuffer[key] = MakeKinetic(L);
+        return itsBuffer[key] = MakeKinetic();
     }
     else
         return i->second;
 }
+template <class T> typename DB_RKB<T>::SMat_ref DB_RKB<T>::RestMass() const
+{
+    id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeRestMass();
+    }
+    else
+        return i->second;
+}
+
 template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Overlap() const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());

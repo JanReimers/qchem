@@ -60,7 +60,7 @@ public:
     virtual const SMat&    GetInverseRepulsion(iec_t* a,const LAParams&); //Uses analytic overlap
     // virtual const SMat&    GetKinetic         (iec_t* a);
     // virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&);
-    virtual const SMat&    GetRestMass        (iec_t* a);
+    //virtual const SMat&    GetRestMass        (iec_t* a);
     
     virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) ; //<a(1)|1/r12|b(2)>
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) ; //<ab|c>
@@ -159,13 +159,17 @@ public:
     typedef UniqueID::IDtype IDType;
     typedef Integrals_RKB<T> Base;
     typedef Matrix<T> Mat;
+    typedef SMatrix<T> SMat;
     typedef typename Base::Mat_ref Mat_ref;
-    virtual Mat_ref Kinetic(const IrrepBasisSet* L) const;
+    typedef typename Base::SMat_ref SMat_ref;
+    virtual SMat_ref Kinetic() const;
+    virtual SMat_ref RestMass() const;
 private:
     virtual IDType GetID() const=0;
-    virtual Mat MakeKinetic(const IrrepBasisSet* L) const=0;
+    virtual SMat MakeKinetic() const=0;
+    virtual SMat MakeRestMass() const=0;
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    mutable std::map<id2c_t ,Mat> itsBuffer;
+    mutable std::map<id2c_t ,SMat> itsBuffer;
 };
 
 template <class T> class DB_RKBL :

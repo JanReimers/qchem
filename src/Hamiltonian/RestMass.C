@@ -12,7 +12,9 @@ RestMass::RestMass()
 HamiltonianTerm::SMat RestMass::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;
-    return bs->GetRestMass();
+    auto sbs=dynamic_cast<const Orbital_RKB_IBS<double>*>(bs);
+    assert(sbs);
+    return sbs->RestMass();
 }
 
 void RestMass::GetEnergy(TotalEnergy& te) const
