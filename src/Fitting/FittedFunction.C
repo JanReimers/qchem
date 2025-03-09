@@ -27,7 +27,8 @@ FittedFunctionImp(bs_t& theFitBasisSet,mesh_t& m)
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
+    //itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
+    itsFitCoeff(1)=1.0/itsBasisSet->Charge()(1);
     itsInvOvlp=itsBasisSet->InvOverlap(itsLAParams);
     itsInvRepl=itsBasisSet->InvRepulsion(itsLAParams);
 };
@@ -124,7 +125,7 @@ FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 
 template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 {
-    return itsFitCoeff * itsBasisSet->GetCharge();
+    return itsFitCoeff * itsBasisSet->Charge();
 }
 
 //------------------------------------------------------------------------

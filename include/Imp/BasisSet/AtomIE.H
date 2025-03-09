@@ -74,12 +74,16 @@ private:
 class AtomIE_Fit : public DB_Fit
 {
 public:
+    typedef typename DB_Fit::Vec Vec;
     typedef typename DB_Fit::SMat SMat;
+    virtual Vec  MakeCharge() const;
     virtual SMat MakeOverlap() const;
     virtual SMat MakeRepulsion() const;
 private:
     // Derived classes must provide the actual integral calculations.
-    virtual double  Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    using DB_Fit::Charge; //un hide
+    virtual double Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    virtual double Charge   (double ea ,           size_t l) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };

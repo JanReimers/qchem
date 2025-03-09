@@ -40,7 +40,7 @@ public:
     //! Normalization constants \f$ \frac{1}{\sqrt{\int d^{3}\vec{r}\:g_{a}^{2}\left(\vec{r}\right)}} \f$
     //virtual RVec MakeNormalization(const IrrepIEClient* a) const=0;
     //! Total charge \f$ \left\langle a\left|\right|1\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right) \f$
-    virtual RVec MakeCharge       (const IrrepIEClient* a) const=0;
+    //virtual RVec MakeCharge       (const IrrepIEClient* a) const=0;
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     //virtual  SMat MakeOverlap  (const IrrepIEClient* g) const=0;
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
@@ -52,7 +52,7 @@ public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
     //virtual  SMat MakeRestMass (const IrrepIEClient* g) const=0;
     //! Single basis set repulsion \f$ \left\langle a\left(\vec{r}_{1}\right)\left|\frac{1}{r_{12}}\right|b\left(\vec{r}_{2}\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{b}\left(\vec{r}_{2}\right)\f$
-    //virtual  SMat MakeRepulsion(const IrrepIEClient* g) const=0; //Used for charge and Vxc fitting.
+    // virtual  SMat MakeRepulsion(const IrrepIEClient* g) const=0; //Used for charge and Vxc fitting.
     //! Cross basis set repulsion \f$ \left\langle a\left(\vec{r}_{1}\right)\left|\frac{1}{r_{12}}\right|b\left(\vec{r}_{2}\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{b}\left(\vec{r}_{2}\right) \f$
     virtual   Mat MakeRepulsion(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for charge and Vxc fitting.
 
@@ -151,12 +151,13 @@ template <class T> class FitIntegrals_1E
 {
 public:
     typedef const SMatrix<T>& SMat_ref;
+    typedef const Vector<double>& Vec_ref;
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    virtual SMat_ref Overlap() const=0;
+    virtual Vec_ref  Charge   () const=0;   
+    virtual SMat_ref Overlap  () const=0;
     virtual SMat_ref Repulsion() const=0;
     virtual SMat_ref InvOverlap(const LAParams&) const=0;
     virtual SMat_ref InvRepulsion(const LAParams&) const=0;
-       
 };
 
 #endif //_AnalyticIE_H_

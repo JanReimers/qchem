@@ -58,7 +58,7 @@ public:
 //
 //  These are all done analytically.
 //
-    virtual const RVec&    GetCharge          (iec_t* a)=0;
+    // virtual const RVec&    GetCharge          (iec_t* a)=0;
    // virtual const SMat&    GetOverlap         (iec_t* a)=0; 
     // virtual const SMat&    GetRepulsion       (iec_t* a)=0;
     // virtual const SMat&    GetInverseOverlap  (iec_t* a,const LAParams&)=0; //uses analytic overlap

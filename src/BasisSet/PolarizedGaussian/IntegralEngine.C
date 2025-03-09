@@ -240,6 +240,24 @@ void IntegralEngine::Report(std::ostream& os) const
     os << "Polarized Gaussian integral engine cache:" << std::endl;
     cache.Report(os);
 }
+
+IntegralEngine1::Vec IntegralEngine1::MakeCharge() const
+{
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
+    assert(a);
+    Vec c(a->size());
+    int i=0;
+    for (auto r:a->radials)
+    {
+        c(i+1)=r->GetCharge(a->pols[i])*a->ns(i+1); 
+        i++;       
+    }
+
+    // 1 line copilot version
+    //for (auto i:ab->ns.indices())  c(i)=ab->radials[i-1]->GetCharge(ab->pols[i-1])*ab->ns(i);
+    return c;
+}
+
 IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);

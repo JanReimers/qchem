@@ -54,11 +54,11 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
     return las;
 }
 
-template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
-GetCharge() const
-{
-    return GetDataBase()->GetCharge(this);
-}
+// template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+// GetCharge() const
+// {
+//     return GetDataBase()->GetCharge(this);
+// }
 
 // template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
 // GetOverlap() const

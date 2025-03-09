@@ -68,7 +68,9 @@ protected:
     IntegralEngine1(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};
 private:
     typedef DB_1E<double> Base;
+    typedef DB_Fit::Vec Vec;
     typedef Base::SMat SMat;
+    virtual Vec  MakeCharge() const;
     virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
     virtual SMat MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
     virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);}

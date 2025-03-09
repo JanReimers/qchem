@@ -155,13 +155,13 @@ ERI4 DiracIntegralEngine::merge_off_diag(const ERI4& LLLL,const M4& LSLS,const M
 //     return merge_diag(rl,rs);
 // }
 
-DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
-{
-    auto da=dcast(a);
-    RVec cl=itsLargeIE->MakeCharge(da->itsLargeIEC);
-    RVec cs=itsSmallIE->MakeCharge(da->itsSmallIEC);
-    return merge(cl,cs);
-}
+// DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
+// {
+//     auto da=dcast(a);
+//     RVec cl=itsLargeIE->MakeCharge(da->itsLargeIEC);
+//     RVec cs=itsSmallIE->MakeCharge(da->itsSmallIEC);
+//     return merge(cl,cs);
+// }
 
 DiracIntegralEngine::SMat DiracIntegralEngine::MakeRepulsion  (iec_t* a) const
 {

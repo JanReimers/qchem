@@ -25,7 +25,7 @@ public:
     // virtual  Mat MakeKinetic  (iec_t* a,iec_t* b) const;
     //virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
     //virtual SMat MakeRestMass (iec_t* a) const;
-    virtual RVec MakeCharge   (iec_t* a) const;
+    // virtual RVec MakeCharge   (iec_t* a) const;
     //  DFT Rho,Vac fitting functions
     // virtual SMat MakeRepulsion  (iec_t* a) const; //Used for charge and Vxc fitting.
     virtual  Mat MakeRepulsion  (iec_t*,iec_t*) const; //Used for charge and Vxc fitting.

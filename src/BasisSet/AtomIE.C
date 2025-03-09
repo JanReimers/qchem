@@ -381,6 +381,15 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
 };
 template class AtomIE_BS_2E<double>;
 
+AtomIE_Fit::Vec AtomIE_Fit::MakeCharge() const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+    Vec c(a->size());
+    for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
+    return c;
+}
+
 AtomIE_Fit::SMat AtomIE_Fit::MakeOverlap() const
 {
     return MakeIntegrals(qchem::Overlap1);

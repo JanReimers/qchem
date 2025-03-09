@@ -53,7 +53,7 @@ public:
 //
 //  These are all done analytically.
 //
-    virtual const RVec&    GetCharge          (iec_t* a);
+    //virtual const RVec&    GetCharge          (iec_t* a);
     //virtual const SMat&    GetOverlap         (iec_t* a); 
     // virtual const SMat&    GetRepulsion       (iec_t* a);
     // virtual const SMat&    GetInverseOverlap  (iec_t* a,const LAParams&); //uses analytic overlap
@@ -156,16 +156,20 @@ class DB_Fit : public virtual FitIntegrals_1E<double>
 public:
     typedef FitIntegrals_1E<double> Base;
     typedef typename Base::SMat_ref SMat_ref;
-    virtual SMat_ref Overlap() const;
+    typedef typename Base::Vec_ref Vec_ref;
+    virtual Vec_ref  Charge   () const;   
+    virtual SMat_ref Overlap  () const;
     virtual SMat_ref Repulsion() const;
     virtual SMat_ref InvOverlap(const LAParams&) const;
     virtual SMat_ref InvRepulsion(const LAParams&) const;
     protected:
     typedef SMatrix<double> SMat;
+    typedef Vector<double> Vec;
 private:
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
     // One time calls to un-buffered integral calculations.
+    virtual Vec  MakeCharge() const=0;
     virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
@@ -174,6 +178,7 @@ private:
 
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     mutable std::map<id2c_t ,SMat> itsBuffer; 
+    mutable std::map<id2c_t ,Vec> itsVBuffer; 
 };
 
 template <class T> class DB_RKB :

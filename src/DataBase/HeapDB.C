@@ -185,15 +185,15 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(const Me
 //        return i->second;
 }
 
-template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(iec_t* a)
-{
-    assert(itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::Charge,a->GetID());
-    if (auto i = its1C.find(key); i==its1C.end())
-        return its1C[key] =itsAnalyticIE->MakeCharge(a);
-    else
-        return i->second;
-}
+// template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetCharge(iec_t* a)
+// {
+//     assert(itsAnalyticIE);
+//     id2c_t key=std::make_tuple(qchem::Charge,a->GetID());
+//     if (auto i = its1C.find(key); i==its1C.end())
+//         return its1C[key] =itsAnalyticIE->MakeCharge(a);
+//     else
+//         return i->second;
+// }
 
 template <class T> const typename HeapDB<T>::ERI3& HeapDB<T>::GetOverlap3C(iec_t* ab,iec_t* c )
 {
@@ -366,6 +366,17 @@ template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* 
 
 template class DB_1E<double>;
 
+DB_Fit::Vec_ref DB_Fit::Charge() const
+{
+    id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
+    if (auto i = itsVBuffer.find(key); i==itsVBuffer.end())
+    {
+        return itsVBuffer[key] = MakeCharge();
+    }
+    else
+        return i->second;
+}
+
 DB_Fit::SMat_ref DB_Fit::Overlap() const
 {
     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
@@ -398,7 +409,6 @@ DB_Fit::SMat_ref DB_Fit::InvOverlap(const LAParams& lap) const
     else
         return i->second;
 }
-
 DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
 {
     id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());

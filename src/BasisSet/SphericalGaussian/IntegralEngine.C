@@ -81,6 +81,11 @@ Vector<double>  IntegralEngine::loop_4_exchange(size_t id, size_t la, size_t lc)
     return cd->ExchangeRk(la,lc);
 }
 
+double IntegralEngine1::Charge(double ea, size_t l) const
+{
+    return GaussianIntegral(ea,l);
+}
+
 double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l) const
 {
     switch(type)
