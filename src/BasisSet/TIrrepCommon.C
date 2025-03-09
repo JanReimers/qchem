@@ -239,21 +239,21 @@ Gradient(const RVec3& r) const
 //
 //  Streamable stuff.
 //
-template <class T> std::ostream& TIrrepBasisSetCommon<T>::Write(std::ostream& os) const
-{
-    if(!StreamableObject::Pretty())
-    {
-        os <<  itsDataBase;
-    }
-    return os;
-}
+// template <class T> std::ostream& TIrrepBasisSetCommon<T>::Write(std::ostream& os) const
+// {
+//     if(!StreamableObject::Pretty())
+//     {
+//         os <<  itsDataBase;
+//     }
+//     return os;
+// }
 
-template <class T> std::istream& TIrrepBasisSetCommon<T>::Read(std::istream& is)
-{
-    is >> itsDataBase;
+// template <class T> std::istream& TIrrepBasisSetCommon<T>::Read(std::istream& is)
+// {
+//     is >> itsDataBase;
 
-    return is;
-};
+//     return is;
+// };
 
 template class TIrrepBasisSetCommon<double>;
 template class Orbital_IBS_Common<double>;

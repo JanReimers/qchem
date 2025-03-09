@@ -213,7 +213,7 @@ template <class T> std::istream& FittedFunctionImp<T>::Read (std::istream& is)
 //    else
 //        is >> itsCDFitFlag;
 
-    itsBasisSet.reset(IrrepBasisSet::Factory(is));
+    //itsBasisSet.reset(IrrepBasisSet::Factory(is));
     //is >> *itsBasisSet >> itsFitCoeff;
     return is;
 }

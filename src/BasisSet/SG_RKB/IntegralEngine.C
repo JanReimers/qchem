@@ -25,7 +25,7 @@ DiracIntegralEngine::DiracIntegralEngine()
 void DiracIntegralEngine::Append(const ::IrrepIEClient* iec)
 {
     //AnalyticIE<double>::Append(iec);
-    const Dirac_IrrepIEClient* diec=dynamic_cast<const Dirac_IrrepIEClient*>(iec);
+    // const Dirac_IrrepIEClient* diec=dynamic_cast<const Dirac_IrrepIEClient*>(iec);
     // itsLargeIE->Append(diec->itsLargeIEC);
     // itsSmallIE->Append(diec->itsSmallIEC);
 }

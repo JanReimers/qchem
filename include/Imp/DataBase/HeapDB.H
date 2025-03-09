@@ -151,6 +151,30 @@ private:
     const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
 };
 
+class DB_Fit : public virtual FitIntegrals_1E<double>
+{
+public:
+    typedef FitIntegrals_1E<double> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+    virtual SMat_ref Overlap() const;
+    virtual SMat_ref Repulsion() const;
+    virtual SMat_ref InvOverlap(const LAParams&) const;
+    virtual SMat_ref InvRepulsion(const LAParams&) const;
+    protected:
+    typedef SMatrix<double> SMat;
+private:
+    typedef UniqueID::IDtype IDType;
+    virtual IDType GetID() const=0;
+    // One time calls to un-buffered integral calculations.
+    virtual SMat MakeOverlap() const=0;
+    virtual SMat MakeRepulsion() const=0;
+    //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
+    //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
+    static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
+
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    mutable std::map<id2c_t ,SMat> itsBuffer; 
+};
 
 template <class T> class DB_RKB :
     virtual public Integrals_RKB<T>

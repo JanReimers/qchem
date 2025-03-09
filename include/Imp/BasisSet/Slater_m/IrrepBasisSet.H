@@ -25,8 +25,8 @@ public:
     IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L,int m);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;

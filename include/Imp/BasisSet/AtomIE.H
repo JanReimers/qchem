@@ -71,6 +71,19 @@ private:
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
 
+class AtomIE_Fit : public DB_Fit
+{
+public:
+    typedef typename DB_Fit::SMat SMat;
+    virtual SMat MakeOverlap() const;
+    virtual SMat MakeRepulsion() const;
+private:
+    // Derived classes must provide the actual integral calculations.
+    virtual double  Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    // Use a paramaterized function for the loops over basis functions.
+    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
+};
+
 template <class T> class AtomIE_BS_2E 
     : public virtual Cache4
     , public DB_BS_2E<T>

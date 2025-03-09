@@ -102,7 +102,7 @@ public:
 //
 //  StreamableObject stuff.
 //
-    virtual std::ostream&  Write(std::ostream&    ) const=0;
+    // virtual std::ostream&  Write(std::ostream&    ) const=0;
 //    virtual std::istream&  Read (std::istream&    )      =0;
 //    virtual IrrepBasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
@@ -144,13 +144,14 @@ public:
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 
 //
+class Fit_IBS;
 class Orbital_IBS
     : public virtual IrrepBasisSet
 {
     public:
     virtual LASolver<double>* CreateSolver() const=0;
-    virtual IrrepBasisSet*    CreateCDFitBasisSet(const Cluster*) const=0;
-    virtual IrrepBasisSet*    CreateVxcFitBasisSet(const Cluster*) const=0;
+    virtual Fit_IBS*    CreateCDFitBasisSet(const Cluster*) const=0;
+    virtual Fit_IBS*    CreateVxcFitBasisSet(const Cluster*) const=0;
 };
 
 template <class T> class TOrbital_IBS
@@ -194,15 +195,15 @@ public:
     int GetKappa() const;
 };
 
-template <class T> class Fit_IBS
-    : public virtual TIrrepBasisSet<T>
-    , public virtual FitIntegrals_1E<T> //One electron integrals used for everything
+class Fit_IBS
+    : public virtual TIrrepBasisSet<double>
+    , public virtual FitIntegrals_1E<double> //One electron integrals used for everything
     // , public virtual Integrals_2E<T> //Two electron integrals used for HF
     // , public virtual Integrals_DFT<T> //DFT integrals
     
 {
     public:
-  
+    virtual Fit_IBS* Clone  (const RVec3&) const=0;  
 
 };
 
@@ -238,11 +239,11 @@ public:
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     const_Titerator beginT() const {return const_Titerator(begin());};
     
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster* cl) const
+    virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const
     {
         return (*begin())->CreateCDFitBasisSet(cl);
     }
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster* cl) const
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const
     {
         return (*begin())->CreateVxcFitBasisSet(cl);
     }

@@ -59,8 +59,8 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
+    // virtual std::ostream& Write(std::ostream&) const;
+    // virtual std::istream& Read (std::istream&)      ;
 
 protected:
     IntegralDataBase<T>* GetDataBase () const;

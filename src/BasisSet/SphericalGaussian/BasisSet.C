@@ -17,7 +17,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
 {
     GaussianScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
-        Insert(new IrrepBasisSet(lap,GetDataBase(),this,gs.Get_es(L),L)); //Common with optr_vector     
+        Insert(new Orbital_IBS(lap,GetDataBase(),this,gs.Get_es(L),L)); //Common with optr_vector     
 }
 
 void BasisSet::Insert(bs_t* bs)

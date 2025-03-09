@@ -49,14 +49,18 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
 
 };
 
-IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
+::Fit_IBS* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0,0);
+    // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0,0);
+    assert(false);
+    return 0;
 }
 
-IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
+::Fit_IBS* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0,0);    
+    // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0,0);    
+    assert(false);
+    return 0;
 }
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const

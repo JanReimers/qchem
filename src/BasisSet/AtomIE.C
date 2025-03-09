@@ -379,7 +379,30 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
 
     return K;
 };
- template class AtomIE_BS_2E<double>;
+template class AtomIE_BS_2E<double>;
+
+AtomIE_Fit::SMat AtomIE_Fit::MakeOverlap() const
+{
+    return MakeIntegrals(qchem::Overlap1);
+}
+AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
+{
+    return MakeIntegrals(qchem::Repulsion1);
+}
+AtomIE_Fit::SMat AtomIE_Fit::MakeIntegrals(qchem::IType t,const Cluster* cl) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Integral(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+
+    return H;
+}
+
 
 #include <BasisSet.H>
 

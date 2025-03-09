@@ -97,6 +97,11 @@ double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l
                 );
         } 
         case qchem::Nuclear1:  return GaussianIntegral(ea+eb,2*l-1); //Already has 4*Pi
+        case qchem::Repulsion1: 
+        {
+            SphericalGaussianCD cd(ea,eb,std::max(l,l));
+            return 4*4*pi*pi*cd.Coulomb_R0(l,l);
+        }
         default: assert(false);
     }
     return 0.0;

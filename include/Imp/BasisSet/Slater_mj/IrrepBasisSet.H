@@ -64,8 +64,8 @@ public:
     Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    virtual ::IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual ::IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(            ) const;

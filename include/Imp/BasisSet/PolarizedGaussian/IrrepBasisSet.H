@@ -15,34 +15,60 @@ namespace PolarizedGaussian
 {
 class Reader;
 
+// Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
-    : public virtual TOrbital_HF_IBS<double>
+    : public virtual ::IrrepBasisSet
     , public         IrrepBasisSetCommon
-    , public         Orbital_IBS_Common<double>
-    , public         IntegralEngine1
     , public         IrrepIEClient
 {
 public:
     typedef typename ::IrrepBasisSet::RVec RVec;
-    IrrepBasisSet();
-    IrrepBasisSet(const LAParams&, IntegralDataBase<double>*,const DB_BS_2E<double>* db, Reader*, const Cluster*);
-    IrrepBasisSet(const LAParams&, IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L, const Cluster*);
-    IrrepBasisSet(const LAParams&, IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L);
+    //IrrepBasisSet();
+    IrrepBasisSet(Reader*, const Cluster*);
+    IrrepBasisSet(const Vector<double>& exponents, size_t L, const Cluster*);
+    IrrepBasisSet(const Vector<double>& exponents, size_t L);
 
-    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
+ 
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual IrrepBasisSet* Clone(            ) const;
-    virtual IrrepBasisSet* Clone(const RVec3&) const;
 
 private:
-    IrrepBasisSet(const IrrepBasisSet* bs,IntegralDataBase<double>*,const DB_BS_2E<double>* db, const optr_vector1<Block*>&);
+    IrrepBasisSet(const IrrepBasisSet* bs,const optr_vector1<Block*>&);
     void MakeBasisFunctions(const RVec& norms);
    
     optr_vector1<Block*> itsBlocks;
+};
+
+class Orbital_IBS
+    : public virtual TOrbital_HF_IBS<double>
+    , public         IrrepBasisSet
+    , public         Orbital_IBS_Common<double>
+    , public         IntegralEngine1
+
+{
+public:
+    Orbital_IBS(const LAParams&, IntegralDataBase<double>*,const DB_BS_2E<double>* db, Reader*, const Cluster*);
+    Orbital_IBS(const LAParams&, IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L, const Cluster*);
+    Orbital_IBS(const LAParams&, IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L);
+
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
+    virtual IrrepBasisSet* Clone(const RVec3&) const;
+
+};
+
+class Fit_IBS 
+    : public virtual ::Fit_IBS
+    , public         IrrepBasisSet
+    , public         TIrrepBasisSetCommon<double>
+    , public         IntegralEngine1
+{
+    typedef DB_Fit::SMat SMat;
+public:
+    Fit_IBS(const LAParams&, IntegralDataBase<double>*, Reader*, const Cluster*);
+   
+    virtual ::Fit_IBS* Clone(const RVec3&) const;
+    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
 };
 
 } //namespace PolarizedGaussian

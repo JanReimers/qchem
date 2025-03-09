@@ -31,13 +31,13 @@ Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,IntegralDataBase<do
     for (auto b:*itsRKBL) Insert(b);
     for (auto b:*itsRKBS) Insert(b);
 };
-::IrrepBasisSet* Dirac_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
+::Fit_IBS* Dirac_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
 {
     assert(false);
     return 0;
 //    return new Dirac_IrrepBasisSet(itsLAParams,GetDataBase(),es*2,-1,0.5);
 }
-::IrrepBasisSet* Dirac_IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
+::Fit_IBS* Dirac_IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
 {
     assert(false);
     return 0;

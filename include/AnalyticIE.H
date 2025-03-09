@@ -154,8 +154,8 @@ public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual SMat_ref Overlap() const=0;
     virtual SMat_ref Repulsion() const=0;
-    virtual SMat_ref InvOverlap() const=0;
-    virtual SMat_ref InvRepulsion() const=0;
+    virtual SMat_ref InvOverlap(const LAParams&) const=0;
+    virtual SMat_ref InvRepulsion(const LAParams&) const=0;
        
 };
 

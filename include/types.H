@@ -32,6 +32,7 @@ class EnergyLevels;
 class ERI4;
 class M4;
 class ExFunctional;
+class Fit_IBS;
 class FittedCD;
 class FittedFunction;
 class FittedFunctionClient;

@@ -5,7 +5,6 @@
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
-//#include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/GaussianScaler.H"
@@ -20,34 +19,42 @@
 namespace PolarizedGaussian
 {
 
-std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls);
-std::vector<Polarization> MakePolarizations(int L);
 template <class T> T Max(const std::vector<T>& v)
 {
     return *std::max_element(v.begin(), v.end());
 }
 
-
-
-//#######################################################################
-//
-//  Concrete  gaussian basis set.
-//
-IrrepBasisSet::IrrepBasisSet()
-    : IrrepBasisSetCommon()
-    , Orbital_IBS_Common<double>()
-{};
-
-IrrepBasisSet::
-IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db, Reader* bsr, const Cluster* cl)
-    : IrrepBasisSetCommon(new UnitQN)
-    , Orbital_IBS_Common<double>(lap,theDB)
-    , IntegralEngine1(db)
+std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls)
 {
+    std::vector<Polarization> ret;
+    for (std::vector<int>::const_iterator bl(Ls.begin()); bl!=Ls.end(); bl++)
+        for(int m=0; m<=*bl; m++)
+            for(int l=0; l<=*bl-m; l++)
+                ret.push_back(Polarization(*bl-m-l,l,m));
+
+    return ret;
+}
+std::vector<Polarization> MakePolarizations(int L)
+{
+    std::vector<Polarization> ret;
+        for(int m=0; m<=L; m++)
+            for(int l=0; l<=L-m; l++)
+                ret.push_back(Polarization(L-m-l,l,m));
+
+    return ret;
+}
+
+//----------------------------------------------------------------
 //
-//  Read in all the radial functions.  These are usually contracted Gaussians, but could also
-//  be single Gaussians.
+//  Common implementation for orbital and fit basis sets.
 //
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
+    : IrrepBasisSetCommon(new UnitQN)
+{
+    //
+    //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
+    //  be single Gaussians.
+    //
     std::vector<RadialFunction*> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto atom:*cl) //Loop over atoms.
@@ -110,14 +117,10 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E
 //
     MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 };
-
-
-
-IrrepBasisSet::
-IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db, const Vector<double>& es, size_t LMax, const Cluster* cl)
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
     : IrrepBasisSetCommon(new UnitQN)
-    , Orbital_IBS_Common<double>(lap,theDB)
-    , IntegralEngine1(db)
+   // , Orbital_IBS_Common<double>(lap,theDB)
+   // , IntegralEngine1(db)
 {
     int nbasis=1;
     for (auto atom:*cl)
@@ -148,13 +151,11 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E
     MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
     
 }
-
 // Single atom version
-IrrepBasisSet::
-IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db, const Vector<double>& es, size_t L)
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
     : IrrepBasisSetCommon(new UnitQN())
-    , Orbital_IBS_Common<double>(lap,theDB) 
-    , IntegralEngine1(db)
+    // , Orbital_IBS_Common<double>(lap,theDB) 
+    // , IntegralEngine1(db)
 
 {
     int nbasis=1;
@@ -182,12 +183,10 @@ IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E
 //
 //  This contructor is used by Clone(RVec); only.
 //
-IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs,
-        IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,
-        const optr_vector1<Block*>& theBlocks)
+IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const optr_vector1<Block*>& theBlocks)
     : IrrepBasisSetCommon(*bs)
-    , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
-    , IntegralEngine1(db)
+    // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
+    // , IntegralEngine1(db)
     , itsBlocks(theBlocks)
 {
     // No UT coverage
@@ -195,36 +194,12 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs,
 //    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
-void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
-{
-    EmptyBasisFunctions();
-    size_t i=1;
-    for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
-        for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
-            IrrepBasisSetCommon::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
-}//Compiler says these calls are ambiguous.  BUG
-
-
-IrrepBasisSet* IrrepBasisSet::CreateCDFitBasisSet(const Cluster* cl) const
-{
-    // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_coul.bsd");
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,&reader,cl);
-}
-
-IrrepBasisSet* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster* cl) const
-{
-    // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
-    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
-    return new IrrepBasisSet(itsLAParams,GetDataBase(),0,&reader,cl);    
-}
-
 
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
     IrrepBasisSetCommon::Write(os);
-    TIrrepBasisSetCommon<double>::Write(os);
+    //TIrrepBasisSetCommon<double>::Write(os);
     if (!Pretty())
     {
         os << itsBlocks;
@@ -238,22 +213,48 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& IrrepBasisSet::Read (std::istream& is)
+void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 {
-    // No UT coverage
-    is >> itsBlocks;
-//    MakeBasisFunctions();
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
-}
+    EmptyBasisFunctions();
+    size_t i=1;
+    for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
+        for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
+            IrrepBasisSetCommon::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
+}//Compiler says these calls are ambiguous.  BUG
 
-IrrepBasisSet* IrrepBasisSet::Clone() const
+//----------------------------------------------------------------
+//
+// Orbital PG basis set.
+//
+Orbital_IBS::Orbital_IBS(const LAParams& lap, IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db, Reader* bsr, const Cluster* cl)
+    : IrrepBasisSet(bsr,cl)
+    , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(db)
+{};
+Orbital_IBS::Orbital_IBS(const LAParams& lap, IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
+    : IrrepBasisSet(exponents,L,cl)
+    , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(db)
+{};
+Orbital_IBS::Orbital_IBS(const LAParams& lap, IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L)
+    : IrrepBasisSet(exponents,L)
+    , Orbital_IBS_Common<double>(lap,theDB)
+    , IntegralEngine1(db)
+{};
+    
+::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
 {
-    return new IrrepBasisSet(*this);
+    // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_coul.bsd");
+    return new Fit_IBS(itsLAParams,GetDataBase(),&reader,cl);
 }
-
-IrrepBasisSet* IrrepBasisSet::Clone(const RVec3& newCenter) const
+::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+{
+    // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
+    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
+    return new Fit_IBS(itsLAParams,GetDataBase(),&reader,cl);
+}
+IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
 //    optr_vector1<Block*> newBlocks;
@@ -264,24 +265,20 @@ IrrepBasisSet* IrrepBasisSet::Clone(const RVec3& newCenter) const
     return 0;
 }
 
-std::vector<Polarization> MakePolarizations(const std::vector<int>& Ls)
+//----------------------------------------------------------------
+//
+//  Fit PG basis set.
+//
+Fit_IBS::Fit_IBS(const LAParams&lap , IntegralDataBase<double>* theDB, Reader* bsr, const Cluster* cl)
+: IrrepBasisSet(bsr,cl)
+, TIrrepBasisSetCommon<double>(lap,theDB)
+{};
+
+::Fit_IBS*Fit_IBS::Clone(const RVec3&) const
 {
-    std::vector<Polarization> ret;
-    for (std::vector<int>::const_iterator bl(Ls.begin()); bl!=Ls.end(); bl++)
-        for(int m=0; m<=*bl; m++)
-            for(int l=0; l<=*bl-m; l++)
-                ret.push_back(Polarization(*bl-m-l,l,m));
-
-    return ret;
+// No UT coverage
+    assert(false);
+    return 0;
 }
-std::vector<Polarization> MakePolarizations(int L)
-{
-    std::vector<Polarization> ret;
-        for(int m=0; m<=L; m++)
-            for(int l=0; l<=L-m; l++)
-                ret.push_back(Polarization(L-m-l,l,m));
-
-    return ret;
-}
-
+ 
 } //namespace PolarizedGaussian

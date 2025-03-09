@@ -60,6 +60,7 @@ class IntegralEngine1
     : public virtual Integrals_1E<double>
     , public DB_1E<double>
     , public DB_2E<double>
+    , public DB_Fit
 {
 public:
 protected:
@@ -68,9 +69,10 @@ protected:
 private:
     typedef DB_1E<double> Base;
     typedef Base::SMat SMat;
-    virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);};
-    virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);};
-    virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);};
+    virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
+    virtual SMat MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
+    virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);}
+    virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
     virtual ERI4 MakeDirect  (const bs_t& c) const;
     virtual ERI4 MakeExchange(const bs_t& b) const;
 

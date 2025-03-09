@@ -24,9 +24,9 @@ class FittedVee
     : public virtual HamiltonianTerm
     , private        HamiltonianTermImp
 {
-    typedef std::shared_ptr<const Mesh>          mesh_t;
-    typedef std::shared_ptr<const IrrepBasisSet> bs_t;
 public:
+    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const Fit_IBS> bs_t;
     FittedVee();
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
     // Required by HamiltonianTerm
