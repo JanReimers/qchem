@@ -119,13 +119,13 @@ ERI4 DiracIntegralEngine::merge_off_diag(const ERI4& LLLL,const M4& LSLS,const M
     return K;
 }
 
-DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
-{
-    auto da=dcast(a);
-    SMat ol=itsLargeIE->MakeOverlap(da->itsLargeIEC);
-    SMat os=itsSmallIE->MakeOverlap(da->itsSmallIEC);
-    return merge_diag(ol,os);
-}
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
+// {
+//     auto da=dcast(a);
+//     SMat ol=itsLargeIE->MakeOverlap(da->itsLargeIEC);
+//     SMat os=itsSmallIE->MakeOverlap(da->itsSmallIEC);
+//     return merge_diag(ol,os);
+// }
 
 // DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
 // {

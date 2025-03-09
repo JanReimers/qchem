@@ -72,11 +72,11 @@ GetInverseRepulsion(const LAParams& lap) const
     return GetDataBase()->GetInverseRepulsion(this,lap);
 }
 
-template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
-GetInverseOverlap(const LAParams& lap) const
-{
-    return GetDataBase()->GetInverseOverlap(this,lap);
-}
+// template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
+// GetInverseOverlap(const LAParams& lap) const
+// {
+//     return GetDataBase()->GetInverseOverlap(this,lap);
+// }
 
 // template <class T> IrrepBasisSet::SMat TIrrepBasisSetCommon<T>::
 // GetKinetic() const

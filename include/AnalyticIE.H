@@ -42,7 +42,7 @@ public:
     //! Total charge \f$ \left\langle a\left|\right|1\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right) \f$
     virtual RVec MakeCharge       (const IrrepIEClient* a) const=0;
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    virtual  SMat MakeOverlap  (const IrrepIEClient* g) const=0;
+    //virtual  SMat MakeOverlap  (const IrrepIEClient* g) const=0;
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
     // virtual  SMat MakeKinetic  (const IrrepIEClient* g) const=0;
     //! Kinetic energy cross \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}f_{b}\left(\vec{r}\right)\f$

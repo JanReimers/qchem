@@ -80,15 +80,15 @@ template <class T> const typename HeapDB<T>::RVec& HeapDB<T>::GetNumericalNormal
 }
 
 
-template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(iec_t* a)
-{
-    assert(itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::Overlap2C,a->GetID());
-    if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeOverlap(a);
-    else
-        return i->second;
-}
+// template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(iec_t* a)
+// {
+//     assert(itsAnalyticIE);
+//     id2c_t key=std::make_tuple(qchem::Overlap2C,a->GetID());
+//     if (auto i = its2C.find(key); i==its2C.end())
+//         return its2C[key] =itsAnalyticIE->MakeOverlap(a);
+//     else
+//         return i->second;
+// }
 
 
 //
@@ -264,16 +264,16 @@ using std::endl;
 
 
 
-template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(iec_t* a, const LAParams& lap)
-{
-     //Only used for numerical IE.
-    assert(itsAnalyticIE);
-    id2c_t key=std::make_tuple(qchem::InvOverlap,a->GetID());
-    if (auto i = its2C.find(key); i==its2C.end())
-        return its2C[key] =itsAnalyticIE->MakeInverse(GetOverlap(a),lap);
-    else
-        return i->second;
-}
+// template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseOverlap(iec_t* a, const LAParams& lap)
+// {
+//      //Only used for numerical IE.
+//     assert(itsAnalyticIE);
+//     id2c_t key=std::make_tuple(qchem::InvOverlap,a->GetID());
+//     if (auto i = its2C.find(key); i==its2C.end())
+//         return its2C[key] =itsAnalyticIE->MakeInverse(GetOverlap(a),lap);
+//     else
+//         return i->second;
+// }
 
 template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetInverseRepulsion(iec_t* a,const LAParams& lap)
 {
@@ -313,13 +313,13 @@ template <class T>  const typename HeapDB<T>::SMat& HeapDB<T>::GetOverlap(bs_t& 
 
 SMatrix<std::complex<double> > m; //dummy just to get the compiler to shut up.
 
-template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
-GetInverseOverlap(iec_t* a,const LAParams&)
-{
-    std::cerr << "Sorry, inverse of complex matrix is not implemented" << std::endl;
-    exit(-1);
-    return m;
-}
+// template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
+// GetInverseOverlap(iec_t* a,const LAParams&)
+// {
+//     std::cerr << "Sorry, inverse of complex matrix is not implemented" << std::endl;
+//     exit(-1);
+//     return m;
+// }
 
 template <> const HeapDB<std::complex<double> >::SMat& HeapDB<std::complex<double> >::
 GetInverseRepulsion(iec_t* ,const LAParams&)

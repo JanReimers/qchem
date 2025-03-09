@@ -122,9 +122,8 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     StreamableObject::SetToPretty();
     for (auto i=sbs->beginT();i!=sbs->end();i++)
     {
-        SMatrix<double> S=sie->MakeOverlap(*i);
         auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
-        SMatrix<double> S1=oi->Overlap();
+        SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
         const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
@@ -135,7 +134,6 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         SMat Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
-        EXPECT_NEAR(Max(fabs(S-S1)),0.0,1e-14);
     }
 }
 
@@ -144,9 +142,8 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
     StreamableObject::SetToPretty();
     for (auto i=gbs->beginT();i!=gbs->end();i++)
     {
-        SMatrix<double> S=gie->MakeOverlap(*i);
         auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
-        SMatrix<double> S1=oi->Overlap();
+        SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
         const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
@@ -157,7 +154,6 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
         SMat Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
-        EXPECT_NEAR(Max(fabs(S-S1)),0.0,1e-14);
     }
 }
 

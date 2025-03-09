@@ -20,7 +20,7 @@ public:
     virtual void Append(const ::IrrepIEClient*);
 
     // One electron functions for DFT and HF
-    virtual SMat MakeOverlap  (iec_t* a) const;
+    //virtual SMat MakeOverlap  (iec_t* a) const;
     // virtual SMat MakeKinetic  (iec_t* a) const;
     // virtual  Mat MakeKinetic  (iec_t* a,iec_t* b) const;
     //virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;

@@ -76,7 +76,7 @@ public:
 //
     virtual RVec GetCharge          () const=0;
     virtual SMat GetInverseRepulsion(const LAParams&) const=0;
-    virtual SMat GetInverseOverlap  (const LAParams&) const=0;
+    // virtual SMat GetInverseOverlap  (const LAParams&) const=0;
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const=0;
     virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
     virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const=0;

@@ -28,7 +28,7 @@ FittedFunctionImp(bs_t& theFitBasisSet,mesh_t& m)
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
-    itsInvOvlp=itsBasisSet->GetInverseOverlap(itsLAParams);
+    itsInvOvlp=itsBasisSet->InvOverlap(itsLAParams);
     itsInvRepl=itsBasisSet->GetInverseRepulsion(itsLAParams);
 };
 
