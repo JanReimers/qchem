@@ -111,6 +111,11 @@ double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l
             return Term1+Term2+Term3;
         } 
         case qchem::Nuclear1:  return SlaterIntegral(ea+eb,2*l+1); //Already has 4*Pi
+        case qchem::Repulsion1:
+        {
+            SlaterCD cd(ea,eb,l);
+            return 4*4*pi*pi*cd.Coulomb_R0(l,l);
+        }
         default: assert(false);
     }
     return 0.0;

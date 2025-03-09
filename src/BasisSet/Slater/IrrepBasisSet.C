@@ -9,54 +9,26 @@
 
 namespace Slater
 {
+//----------------------------------------------------------------
 //
-//  Concrete  Slater basis set.
+//  Common implementation for orbital and fit basis sets.
 //
-// IrrepBasisSet::IrrepBasisSet()
-//     :  IrrepBasisSetCommon        ()
-//     , Orbital_IBS_Common<double>()
-// {};
-
-
-IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,
-        const Vector<double>& exponents,size_t L)
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     : IrrepBasisSetCommon(new YlQN(L))
-    , Orbital_IBS_Common<double>(lap,theDB)
-    , IntegralEngine1(db)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L);
-     size_t i=1;
+    size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
 
 };
 
-::Fit_IBS* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
-{
-    // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0);
-    assert(false);
-    return 0;
-}
-
-::Fit_IBS* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
-{
-    // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0);    
-    assert(false);
-    return 0;
-}
-
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
-    if (!Pretty())
+    if (Pretty())
     {
-        WriteBasisFunctions(os);
-        IrrepBasisSetCommon::Write(os);
-        TIrrepBasisSetCommon<double>::Write(os);
-    }
-    else
-    {
-        os << "Slater functions L=" << GetQuantumNumber()
+        os << "Spherical Slater L=" << GetQuantumNumber()
         << " with " << GetNumFunctions() << " basis functions, alpha={";
         for (auto b:*this) os << *b;
         os << "}" << std::endl;
@@ -64,24 +36,34 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-std::istream&  IrrepBasisSet::Read (std::istream& is)
+//----------------------------------------------------------------
+//
+// Orbital SL basis set.
+//
+
+::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster*) const
 {
-    ReadBasisFunctions(is);
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
+    return new Fit_IBS(itsLAParams,GetDataBase(),es*2,0);
 }
 
-::IrrepBasisSet* IrrepBasisSet::Clone() const
+::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster*) const
 {
-    return new IrrepBasisSet(*this);
+    return new Fit_IBS(itsLAParams,GetDataBase(),es*2.0/3.0,0);    
 }
 
-::IrrepBasisSet* IrrepBasisSet::Clone(const RVec3&) const
+::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
 {
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
+    return 0;
 }
-
+//----------------------------------------------------------------
+//
+//  Fit PG basis set.
+//
+::Fit_IBS* Fit_IBS::Clone(const RVec3&) const
+{
+    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
+    return 0;
+}
 
 } //namespace
