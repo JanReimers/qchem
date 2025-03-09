@@ -258,6 +258,22 @@ IntegralEngine1::Vec IntegralEngine1::MakeCharge() const
     return c;
 }
 
+IntegralEngine1::Mat IntegralEngine1::MakeRepulsion(const bs_t& _b) const
+{   
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
+    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
+    assert(a);
+    assert(b); 
+    int Na=a->size(),Nb=b->size();
+    Mat s(Na,Nb);
+    for (index_t ia=0;ia<Na;ia++)
+        for (index_t ib=0;ib<Nb;ib++)
+            s(ia+1,ib+1)=a->radials[ia]->Integrate(qchem::Repulsion2C,
+                b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
+    assert(!isnan(s));
+    return s;
+}
+
 IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);

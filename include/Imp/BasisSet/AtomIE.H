@@ -73,17 +73,23 @@ private:
 
 class AtomIE_Fit : public DB_Fit
 {
+    typedef Integrals_Base<double> Base;
+    typedef typename Base::Mat_ref Mat_ref;
+    typedef typename Base::SMat_ref SMat_ref;
+    typedef typename Base::Vec_ref Vec_ref;
+    typedef typename Base::bs_t bs_t;
 public:
-    typedef typename DB_Fit::Vec Vec;
-    typedef typename DB_Fit::SMat SMat;
     virtual Vec  MakeCharge() const;
     virtual SMat MakeOverlap() const;
     virtual SMat MakeRepulsion() const;
+    virtual  Mat MakeRepulsion(const bs_t&) const;
 private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
+    using DB_Fit::Repulsion; //un hide
     virtual double Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     virtual double Charge   (double ea ,           size_t l) const=0;
+    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
@@ -95,7 +101,7 @@ template <class T> class AtomIE_BS_2E
 {
 public:
     typedef Vector<double> RVec;
-    typedef typename DB_2E<T>::bs_t bs_t;
+    typedef typename Integrals_Base<T>::bs_t bs_t;
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;

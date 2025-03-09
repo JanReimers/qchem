@@ -95,13 +95,13 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
 //     return itsDataBase->GetRestMass(this);
 // }
 
- template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
- GetRepulsion(const IrrepBasisSet* ff) const
- {
-    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
-    assert(tff);
-    return GetDataBase()->GetRepulsion(this,tff);
- }
+//  template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
+//  GetRepulsion(const IrrepBasisSet* ff) const
+//  {
+//     const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
+//     assert(tff);
+//     return GetDataBase()->GetRepulsion(this,tff);
+//  }
  
  template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
  GetOverlap(const Mesh* m,const IrrepBasisSet* ff) const

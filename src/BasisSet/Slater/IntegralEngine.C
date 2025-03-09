@@ -97,6 +97,12 @@ double IntegralEngine1::Charge(double ea, size_t l) const
     return SlaterIntegral(ea,l+2);
 }
 
+double IntegralEngine1::Repulsion(double eab, double ec,size_t la,size_t lc) const
+{    
+    SlaterCD cd(eab,ec,std::max(la,lc));
+    return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
+}
+
 double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l) const
 {
     switch(type)

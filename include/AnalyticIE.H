@@ -54,7 +54,7 @@ public:
     //! Single basis set repulsion \f$ \left\langle a\left(\vec{r}_{1}\right)\left|\frac{1}{r_{12}}\right|b\left(\vec{r}_{2}\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{b}\left(\vec{r}_{2}\right)\f$
     // virtual  SMat MakeRepulsion(const IrrepIEClient* g) const=0; //Used for charge and Vxc fitting.
     //! Cross basis set repulsion \f$ \left\langle a\left(\vec{r}_{1}\right)\left|\frac{1}{r_{12}}\right|b\left(\vec{r}_{2}\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{b}\left(\vec{r}_{2}\right) \f$
-    virtual   Mat MakeRepulsion(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for charge and Vxc fitting.
+    // virtual   Mat MakeRepulsion(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for charge and Vxc fitting.
 
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$
     virtual ERI3 MakeOverlap3C  (const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
@@ -82,10 +82,26 @@ public:
 // Interface for non-relativistic 1 electron integrals.  
 // The calls return matrix refrences which implies they are buffered behind the scenes.
 //
-template <class T> class Integrals_1E
+template <class T> class Integrals_Base
 {
 public:
-    typedef const SMatrix<T>& SMat_ref;
+    //typedef TIrrepBasisSet<T> bs_t; 
+    typedef IrrepBasisSet bs_t; 
+    typedef  Vector<T>  Vec;
+    typedef  Matrix<T>  Mat;
+    typedef SMatrix<T> SMat;
+    typedef const  Vec&  Vec_ref;
+    typedef const  Mat&  Mat_ref;
+    typedef const SMat& SMat_ref;
+};
+
+
+template <class T> class Integrals_1E : public virtual Integrals_Base<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+public:
+    
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual SMat_ref Overlap() const=0;
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
@@ -94,10 +110,13 @@ public:
     virtual SMat_ref Nuclear(const Cluster*) const=0;   
 };
 
-template <class T> class Integrals_2E
+template <class T> class Integrals_2E : public virtual Integrals_Base<T>
 {
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::bs_t bs_t;
+
 public:
-    typedef const TIrrepBasisSet<T> bs_t;
+   
     virtual ERI4 Direct  (const bs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
     virtual ERI4 Exchange(const bs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
 
@@ -147,15 +166,20 @@ public:
     virtual SMat_ref RestMass() const=0;
 };
 
-template <class T> class FitIntegrals_1E
+template <class T> class FitIntegrals_1E  : public virtual Integrals_Base<T>
 {
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+    typedef typename Base::Vec_ref  Vec_ref;
+    typedef typename Base::Mat_ref  Mat_ref;
+    typedef typename Base::bs_t bs_t;
 public:
-    typedef const SMatrix<T>& SMat_ref;
-    typedef const Vector<double>& Vec_ref;
+    
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual Vec_ref  Charge   () const=0;   
     virtual SMat_ref Overlap  () const=0;
     virtual SMat_ref Repulsion() const=0;
+    virtual  Mat_ref Repulsion(const bs_t&) const=0;
     virtual SMat_ref InvOverlap(const LAParams&) const=0;
     virtual SMat_ref InvRepulsion(const LAParams&) const=0;
 };

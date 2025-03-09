@@ -17,10 +17,10 @@ template <class T> class IntegralEngine
     , public DB_1E<T>
     , public DB_RKB<T>
 {
-public:
-    typedef DB_1E<T> Base;
+    typedef Integrals_Base<T> Base;
     typedef typename Base::SMat SMat;
-    typedef typename DB_2E<T>::bs_t bs_t;
+    typedef typename Base::bs_t bs_t;
+public:
     IntegralEngine() {};
     IntegralEngine(const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
 

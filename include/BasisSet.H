@@ -78,7 +78,7 @@ public:
     // virtual SMat GetInverseRepulsion(const LAParams&) const=0;
     // virtual SMat GetInverseOverlap  (const LAParams&) const=0;
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const=0;
-    virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
+    // virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
     virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const=0;
     virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const=0;
     virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
@@ -128,7 +128,7 @@ public:
 
     size_t GetVectorSize() const {return GetNumFunctions();}
 
-    virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0; //unhide
+    // virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0; //unhide
     virtual RVec GetRepulsion(const Mesh*,     const ScalarFunction<double>* sf) const=0; //unhide
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;

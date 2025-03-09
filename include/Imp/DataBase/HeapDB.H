@@ -62,7 +62,7 @@ public:
     // virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&);
     //virtual const SMat&    GetRestMass        (iec_t* a);
     
-    virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) ; //<a(1)|1/r12|b(2)>
+    // virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) ; //<a(1)|1/r12|b(2)>
     virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) ; //<ab|c>
     virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) ; //<a(1)b(1)|1/r12|c(2)>
 
@@ -94,15 +94,15 @@ private:
 template <class T> class DB_1E :
     virtual public Integrals_1E<T>
 {    
-public:
-    typedef Integrals_1E<T> Base;
+    typedef Integrals_Base<T> Base;
     typedef typename Base::SMat_ref SMat_ref;
+public:
     //  This is all buffered.
     virtual SMat_ref Overlap() const;
     virtual SMat_ref Kinetic() const;
     virtual SMat_ref Nuclear(const Cluster*) const;
 protected:
-    typedef SMatrix<T> SMat;
+    typedef typename Base::SMat SMat;
 private:
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
@@ -137,10 +137,10 @@ private:
 
 template <class T> class DB_2E :  virtual public Integrals_2E<T>
 {
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::bs_t bs_t;
 public:
     typedef UniqueID::IDtype IDType;
-    typedef Integrals_2E<T> Base;
-    typedef typename Base::bs_t bs_t;
     virtual ERI4 Direct  (const bs_t& c) const;
     virtual ERI4 Exchange(const bs_t& b) const;
 protected:
@@ -153,18 +153,21 @@ private:
 
 class DB_Fit : public virtual FitIntegrals_1E<double>
 {
-public:
-    typedef FitIntegrals_1E<double> Base;
+    typedef Integrals_Base<double> Base;
+    typedef typename Base::Mat_ref Mat_ref;
     typedef typename Base::SMat_ref SMat_ref;
     typedef typename Base::Vec_ref Vec_ref;
+    typedef typename Base::bs_t bs_t;
+public:
     virtual Vec_ref  Charge   () const;   
     virtual SMat_ref Overlap  () const;
     virtual SMat_ref Repulsion() const;
+    virtual  Mat_ref Repulsion(const bs_t&) const;
     virtual SMat_ref InvOverlap(const LAParams&) const;
     virtual SMat_ref InvRepulsion(const LAParams&) const;
-    protected:
-    typedef SMatrix<double> SMat;
-    typedef Vector<double> Vec;
+protected:
+    typedef Base::SMat SMat;
+    typedef Base::Mat  Mat;
 private:
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
@@ -172,13 +175,16 @@ private:
     virtual Vec  MakeCharge() const=0;
     virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
+    virtual  Mat MakeRepulsion(const bs_t&) const=0;
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
 
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
     mutable std::map<id2c_t ,SMat> itsBuffer; 
     mutable std::map<id2c_t ,Vec> itsVBuffer; 
+    mutable std::map<idx_t ,Mat> itsMBuffer; 
 };
 
 template <class T> class DB_RKB :

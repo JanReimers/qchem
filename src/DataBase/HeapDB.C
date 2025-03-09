@@ -139,15 +139,15 @@ template <class T> const typename HeapDB<T>::Vec HeapDB<T>::GetRepulsion(const M
 }
 
 
-template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(iec_t* a,iec_t* b)
-{
-    assert(itsAnalyticIE);
-    id2cx_t key=std::make_tuple(qchem::Repulsion2C,a->GetID(),b->GetID());
-    if (auto i = its2Cx.find(key); i==its2Cx.end())
-        return its2Cx[key] = itsAnalyticIE->MakeRepulsion(a,b);
-    else
-        return i->second;
-}
+// template <class T> const typename HeapDB<T>::Mat& HeapDB<T>::GetRepulsion(iec_t* a,iec_t* b)
+// {
+//     assert(itsAnalyticIE);
+//     id2cx_t key=std::make_tuple(qchem::Repulsion2C,a->GetID(),b->GetID());
+//     if (auto i = its2Cx.find(key); i==its2Cx.end())
+//         return its2Cx[key] = itsAnalyticIE->MakeRepulsion(a,b);
+//     else
+//         return i->second;
+// }
 
 // template <class T> const typename HeapDB<T>::SMat& HeapDB<T>::GetKinetic(iec_t* a)
 // {
@@ -394,6 +394,17 @@ DB_Fit::SMat_ref DB_Fit::Repulsion() const
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
     {
         return itsBuffer[key] = MakeRepulsion();
+    }
+    else
+        return i->second;
+}
+
+DB_Fit::Mat_ref DB_Fit::Repulsion(const bs_t& b) const
+{
+    idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
+    if (auto i = itsMBuffer.find(key); i==itsMBuffer.end())
+    {
+        return itsMBuffer[key] = MakeRepulsion(b);
     }
     else
         return i->second;

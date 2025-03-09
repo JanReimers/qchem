@@ -4,6 +4,7 @@
 #include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/Containers/ERI4.H"
 #include <Cluster.H>
+#include <BasisSet.H>
 
 using std::cout;
 using std::endl;
@@ -398,6 +399,21 @@ AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
 {
     return MakeIntegrals(qchem::Repulsion1);
 }
+AtomIE_Fit::Mat AtomIE_Fit::MakeRepulsion(const bs_t& _b) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(&_b);
+    assert(a);
+    assert(b);
+    size_t Na=a->es.size(), Nb=b->es.size();
+    Mat s(Na,Nb);
+    for (auto i:s.rows())
+        for (auto j:s.cols())
+            s(i,j)=Repulsion(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*a->ns(j);
+
+    return s;
+}
+
 AtomIE_Fit::SMat AtomIE_Fit::MakeIntegrals(qchem::IType t,const Cluster* cl) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
