@@ -165,11 +165,12 @@ DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
     return merge(cl,cs);
 }
 
-DiracIntegralEngine::SMat DiracIntegralEngine::MakeRepulsion  (iec_t* a) const
-{
-    assert(false);
-    return SMat();
-}
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeRepulsion  (iec_t* a) const
+// {
+//     assert(false);
+//     return SMat();
+// }
+
 DiracIntegralEngine::Mat DiracIntegralEngine::MakeRepulsion  (iec_t*,iec_t*) const
 {
     assert(false);

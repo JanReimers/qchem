@@ -60,9 +60,9 @@ public:
 //
     virtual const RVec&    GetCharge          (iec_t* a)=0;
    // virtual const SMat&    GetOverlap         (iec_t* a)=0; 
-    virtual const SMat&    GetRepulsion       (iec_t* a)=0;
+    // virtual const SMat&    GetRepulsion       (iec_t* a)=0;
     // virtual const SMat&    GetInverseOverlap  (iec_t* a,const LAParams&)=0; //uses analytic overlap
-    virtual const SMat&    GetInverseRepulsion(iec_t* a,const LAParams&)=0; //Uses analytic overlap
+    // virtual const SMat&    GetInverseRepulsion(iec_t* a,const LAParams&)=0; //Uses analytic overlap
     // virtual const SMat&    GetKinetic         (iec_t* a)=0;
     // virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&)=0;
     // virtual const SMat&    GetRestMass        (iec_t* a)=0;

@@ -66,11 +66,11 @@ GetCharge() const
 //     return GetDataBase()->GetOverlap(this);
 // }
 
-template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
-GetInverseRepulsion(const LAParams& lap) const
-{
-    return GetDataBase()->GetInverseRepulsion(this,lap);
-}
+// template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
+// GetInverseRepulsion(const LAParams& lap) const
+// {
+//     return GetDataBase()->GetInverseRepulsion(this,lap);
+// }
 
 // template <class T> typename TIrrepBasisSetCommon<T>::SMat TIrrepBasisSetCommon<T>::
 // GetInverseOverlap(const LAParams& lap) const

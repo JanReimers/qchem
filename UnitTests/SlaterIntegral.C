@@ -231,18 +231,20 @@ TEST_F(SlaterRadialIntegralTests, Overlap3C)
     }
 }
 
-TEST_F(SlaterRadialIntegralTests, Repulsion)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        SMatrix<double> S=ie->MakeRepulsion(*i);
-        for (auto j=i;j!=bs->end();j++)
-        {
-            Matrix<double> Sx=ie->MakeRepulsion(*i,*j);
+// TEST_F(SlaterRadialIntegralTests, Repulsion)
+// {
+//     for (auto i=bs->beginT();i!=bs->end();i++)
+//     {
+//         auto fi=dynamic_cast<const Fit_IBS*>(*i);
+
+//         SMatrix<double> S=fi->Repulsion();
+//         for (auto j=i;j!=bs->end();j++)
+//         {
+//             Matrix<double> Sx=ie->MakeRepulsion(*i,*j);
             
-        }
-    }
-}
+//         }
+//     }
+// }
 
 TEST_F(SlaterRadialIntegralTests, Repulsion3C)
 {

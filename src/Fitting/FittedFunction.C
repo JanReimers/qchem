@@ -29,7 +29,7 @@ FittedFunctionImp(bs_t& theFitBasisSet,mesh_t& m)
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
     itsInvOvlp=itsBasisSet->InvOverlap(itsLAParams);
-    itsInvRepl=itsBasisSet->GetInverseRepulsion(itsLAParams);
+    itsInvRepl=itsBasisSet->InvRepulsion(itsLAParams);
 };
 
 template <class T> FittedFunctionImp<T>::FittedFunctionImp()

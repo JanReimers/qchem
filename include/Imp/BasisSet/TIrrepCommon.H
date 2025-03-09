@@ -36,7 +36,7 @@ public:
 //  Used by fitting routines.
 // 
     virtual RVec GetCharge          () const;
-    virtual SMat GetInverseRepulsion(const LAParams&) const;
+    // virtual SMat GetInverseRepulsion(const LAParams&) const;
     // virtual SMat GetInverseOverlap  (const LAParams&) const;
     virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const;
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
