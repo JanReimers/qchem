@@ -12,27 +12,41 @@
 
 namespace Slater_m
 {
-   
+// Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
-    : public virtual TOrbital_HF_IBS<double>
+    : public virtual ::IrrepBasisSet
     , public         IrrepBasisSetCommon
-    , public         Orbital_IBS_Common<double>
-    , public         Slater::IntegralEngine1
     , public         IrrepIEClient
 {
 public:
-    //IrrepBasisSet();
-    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L,int m);
+    IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
+    virtual std::ostream&  Write(std::ostream&    ) const;
+};
+
+class Orbital_IBS
+    : public virtual TOrbital_HF_IBS<double>
+    // , public virtual TOrbital_DFT_IBS<double>
+    , public         IrrepBasisSet
+    , public         Orbital_IBS_Common<double>
+    // , public         Orbital_DFT_IBS_Common<double>
+    , public         Slater::IntegralEngine1
+
+{
+public:
+    Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
+    : IrrepBasisSet(exponents,L,m)
+    , Orbital_IBS_Common<double>(lap,theDB)
+    , Slater::IntegralEngine1(db)
+    {};
+
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
-
-    virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
 };
+ 
 
 } //namespace Slater_m
 

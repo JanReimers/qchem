@@ -9,19 +9,9 @@
 
 namespace Slater_m
 {
-//
-//  Concrete  Slater basis set.
-//
-// IrrepBasisSet::IrrepBasisSet()
-//     :  IrrepBasisSetCommon        ()
-//     , Orbital_IBS_Common<double>()
-// {};
 
-IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,
-        const Vector<double>& exponents,size_t L, int m)
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
-    , Orbital_IBS_Common<double>(lap,theDB)
-    , IntegralEngine1(db)
     , IrrepIEClient(exponents.size())
 {
     IrrepIEClient::Init(exponents,L,m);
@@ -31,14 +21,14 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
 
 };
 
-::Fit_IBS* IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
+::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster*) const
 {
     // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0,0);
     assert(false);
     return 0;
 }
 
-::Fit_IBS* IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
+::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster*) const
 {
     // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0,0);
     assert(false);
@@ -47,13 +37,7 @@ IrrepBasisSet::IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
-    if (!Pretty())
-    {
-        WriteBasisFunctions(os);
-        IrrepBasisSetCommon::Write(os);
-        TIrrepBasisSetCommon<double>::Write(os);
-    }
-    else
+    if (Pretty())
     {
         os << "Slater functions l,m=" << GetQuantumNumber()
         << " with " << GetNumFunctions() << " basis functions, alpha={";
@@ -63,23 +47,12 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-std::istream&  IrrepBasisSet::Read (std::istream& is)
-{
-    ReadBasisFunctions(is);
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
-}
 
-::IrrepBasisSet* IrrepBasisSet::Clone() const
-{
-    return new IrrepBasisSet(*this);
-}
 
-::IrrepBasisSet* IrrepBasisSet::Clone(const RVec3&) const
+::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    return 0;
 }
 
 
