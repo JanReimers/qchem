@@ -68,8 +68,8 @@ public:
     // virtual const SMat&    GetRestMass        (iec_t* a)=0;
 
     // virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) =0; //<a(1)|1/r12|b(2)>
-    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
-    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
+    // virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) =0; //<ab|c>
+    // virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) =0; //<a(1)b(1)|1/r12|c(2)>
 
     // virtual    ERI4        GetDirect__4C(bs_t& a,bs_t& b)=0;
     // virtual    ERI4        GetExchange4C(bs_t& a,bs_t& b)=0;

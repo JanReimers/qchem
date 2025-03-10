@@ -42,10 +42,10 @@ public:
     virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
     virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const;
     virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const;
-    virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
-    virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
-    virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const;
-    virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const;
+    //virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
+    // virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
+    // virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const;
+    // virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const;
 //
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //
@@ -89,6 +89,18 @@ template <class T> class Orbital_IBS_Common
     virtual LASolver<double>* CreateSolver() const;
 
     using TIrrepBasisSetCommon<T>::GetDataBase;
+};
+
+template <class T> class Orbital_DFT_IBS_Common
+    : public virtual TOrbital_DFT_IBS<T>
+{
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_DFT<T>::Vec  Vec;
+public:
+    using Integrals_DFT<T>::Overlap3C; //Unhide
+    using Integrals_DFT<T>::Repulsion3C; //Unhide
+    virtual Vec Overlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
+    virtual Vec Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
 };
 
 #endif //_TIrrepCommon_H_

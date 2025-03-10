@@ -89,7 +89,9 @@ template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<
 template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const IrrepBasisSet* fbs) const
 {
     if (IsZero()) return ZeroV(fbs);
-    return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
+    auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<T>*>(itsBasisSet);
+    assert(dftbs);
+    return dftbs->Repulsion3C(itsDensityMatrix,fbs);
 }
 
 

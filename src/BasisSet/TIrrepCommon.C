@@ -178,37 +178,37 @@ GetExchange(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
 //
 //  Charge density repulsion calculations.
 //
-template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
-GetOverlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
-{
-    RVec ret(ff->size());
-    const ERI3& S=GetDataBase()->GetOverlap3C(this,ff);
-    for(auto i:ret.indices())
-        ret(i)=Dot(Dcd,S[i-1]);
-    return ret;
-}
+// template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+// GetOverlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+// {
+//     RVec ret(ff->size());
+//     const ERI3& S=GetDataBase()->GetOverlap3C(this,ff);
+//     for(auto i:ret.indices())
+//         ret(i)=Dot(Dcd,S[i-1]);
+//     return ret;
+// }
 
-template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
-GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
-{
-    RVec ret(ff->size());
-    const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ff);
-    for(auto i:ret.indices())
-        ret(i)=Dot(Dcd,repulsion[i-1]);
-    return ret;
-}
+// template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+// GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+// {
+//     RVec ret(ff->size());
+//     const ERI3& repulsion=GetDataBase()->GetRepulsion3C(this,ff);
+//     for(auto i:ret.indices())
+//         ret(i)=Dot(Dcd,repulsion[i-1]);
+//     return ret;
+// }
 
-template <class T> const typename TIrrepBasisSetCommon<T>::ERI3& TIrrepBasisSetCommon<T>::
-GetOverlap3C(const IrrepBasisSet* ff) const
-{
-    return GetDataBase()->GetOverlap3C(this,ff);
-}
+// template <class T> const typename TIrrepBasisSetCommon<T>::ERI3& TIrrepBasisSetCommon<T>::
+// GetOverlap3C(const IrrepBasisSet* ff) const
+// {
+//     return GetDataBase()->GetOverlap3C(this,ff);
+// }
 
-template <class T> const typename TIrrepBasisSetCommon<T>::ERI3& TIrrepBasisSetCommon<T>::
-GetRepulsion3C(const IrrepBasisSet* ff) const
-{
-    return GetDataBase()->GetRepulsion3C(this,ff);
-}
+// template <class T> const typename TIrrepBasisSetCommon<T>::ERI3& TIrrepBasisSetCommon<T>::
+// GetRepulsion3C(const IrrepBasisSet* ff) const
+// {
+//     return GetDataBase()->GetRepulsion3C(this,ff);
+// }
 
 //-----------------------------------------------------------------------------
 //
@@ -255,7 +255,29 @@ Gradient(const RVec3& r) const
 //     return is;
 // };
 
+template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
+Overlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+{
+    Vec ret(ff->size());
+    const typename Integrals_DFT<T>::ERI3& S=this->Overlap3C(*ff);
+    for(auto i:ret.indices())
+        ret(i)=Dot(Dcd,S[i-1]);
+    return ret;
+}
+
+template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
+Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+{
+    Vec ret(ff->size());
+    const typename Integrals_DFT<T>::ERI3& repulsion=this->Repulsion3C(*ff);
+    for(auto i:ret.indices())
+        ret(i)=Dot(Dcd,repulsion[i-1]);
+    return ret;
+}
+
+
 template class TIrrepBasisSetCommon<double>;
 template class Orbital_IBS_Common<double>;
+template class Orbital_DFT_IBS_Common<double>;
 //template class TBasisSetImplementation<std::complex<double> >;
 

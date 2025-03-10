@@ -215,21 +215,21 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
     }
 }
 
-TEST_F(SlaterRadialIntegralTests, Overlap3C)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
+// TEST_F(SlaterRadialIntegralTests, Overlap3C)
+// {
+//     for (auto i=bs->beginT();i!=bs->end();i++)
+//     {
+//         ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
         
-        auto c=i->beginT();
-        for (auto sab:Sabc)
-        {
-            SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
-            EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
-            c++;
-        }
-    }
-}
+//         auto c=i->beginT();
+//         for (auto sab:Sabc)
+//         {
+//             SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
+//             EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
+//             c++;
+//         }
+//     }
+// }
 
 // TEST_F(SlaterRadialIntegralTests, Repulsion)
 // {
@@ -246,13 +246,13 @@ TEST_F(SlaterRadialIntegralTests, Overlap3C)
 //     }
 // }
 
-TEST_F(SlaterRadialIntegralTests, Repulsion3C)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
-    }
-}
+// TEST_F(SlaterRadialIntegralTests, Repulsion3C)
+// {
+//     for (auto i=bs->beginT();i!=bs->end();i++)
+//     {
+//         ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
+//     }
+// }
 
 struct Vf : public VectorFunction<double>
 {

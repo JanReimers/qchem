@@ -57,9 +57,9 @@ public:
     // virtual   Mat MakeRepulsion(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for charge and Vxc fitting.
 
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$
-    virtual ERI3 MakeOverlap3C  (const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
+    // virtual ERI3 MakeOverlap3C  (const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
     //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
-    virtual ERI3 MakeRepulsion3C(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
+    // virtual ERI3 MakeRepulsion3C(const IrrepIEClient* g,const IrrepIEClient* f) const=0; //Used for DFT
     //! \brief 4 center Coulomb and exchange used for Hartree-Fock.
     //! \f$ J_{ab,cd}=\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)d\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{d}\left(\vec{r}_{2}\right) \f$.
     //! \f$ K_{ab,cd}=\left\langle a\left(1\right)d\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)b\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{d}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}g_{c}\left(\vec{r}_{2}\right)g_{b}\left(\vec{r}_{2}\right) \f$. \n

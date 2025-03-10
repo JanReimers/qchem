@@ -81,8 +81,8 @@ public:
     // virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
     virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const=0;
     virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const=0;
-    virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-    virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+    // virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+    // virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
     //virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const=0;
     //virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const=0;
 //
@@ -150,9 +150,7 @@ class Orbital_IBS
 {
     public:
     virtual LASolver<double>* CreateSolver() const=0;
-    // TODO move to DFT IBS
-    virtual Fit_IBS*    CreateCDFitBasisSet(const Cluster*) const=0;
-    virtual Fit_IBS*    CreateVxcFitBasisSet(const Cluster*) const=0;
+    
 };
 
 template <class T> class TOrbital_IBS
@@ -169,7 +167,15 @@ template <class T> class TOrbital_DFT_IBS
     , public virtual Integrals_DFT<T> //DFT integrals
     
 {
-    
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef Vector<T> Vec;
+public:
+    virtual Fit_IBS*    CreateCDFitBasisSet(const Cluster*) const=0;
+    virtual Fit_IBS*    CreateVxcFitBasisSet(const Cluster*) const=0;
+    using Integrals_DFT<T>::Overlap3C; //Unhide
+    using Integrals_DFT<T>::Repulsion3C; //Unhide
+    virtual Vec Overlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+    virtual Vec Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
 };
 
 template <class T> class TOrbital_HF_IBS
@@ -192,7 +198,7 @@ template <class T> class Orbital_RKBL_IBS
     , public virtual Integrals_RKBL<T> //One electron integrals used for everything
 {
 public:
-    int GetKappa() const;
+    //int GetKappa() const;
 };
 
 template <class T> class Orbital_RKBS_IBS
@@ -200,15 +206,12 @@ template <class T> class Orbital_RKBS_IBS
     , public virtual Integrals_RKBS<T> //One electron integrals used for everything
 {
 public:
-    int GetKappa() const;
+    //int GetKappa() const;
 };
 
 class Fit_IBS
     : public virtual TIrrepBasisSet<double>
-    , public virtual FitIntegrals_1E<double> //One electron integrals used for everything
-    // , public virtual Integrals_2E<T> //Two electron integrals used for HF
-    // , public virtual Integrals_DFT<T> //DFT integrals
-    
+    , public virtual FitIntegrals_1E<double> 
 {
     public:
     virtual Fit_IBS* Clone  (const RVec3&) const=0;  
@@ -248,12 +251,16 @@ public:
     const_Titerator beginT() const {return const_Titerator(begin());};
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const
-    {
-        return (*begin())->CreateCDFitBasisSet(cl);
+    {   
+        const TOrbital_DFT_IBS<double>* dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(*begin());
+        assert(dft);
+        return dft->CreateCDFitBasisSet(cl);
     }
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const
     {
-        return (*begin())->CreateVxcFitBasisSet(cl);
+        const TOrbital_DFT_IBS<double>* dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(*begin());
+        assert(dft);
+        return dft->CreateVxcFitBasisSet(cl);
     }
     
     static  BasisSet*  Factory(std::istream&    )      ;
