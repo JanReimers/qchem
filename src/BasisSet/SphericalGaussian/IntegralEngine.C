@@ -86,6 +86,11 @@ double IntegralEngine1::Charge(double ea, size_t l) const
     return GaussianIntegral(ea,l);
 }
 
+double IntegralEngine1::Overlap(double ea, double eb,size_t l) const
+{
+    return GaussianIntegral(ea+eb,l);
+}
+
 double IntegralEngine1::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     SphericalGaussianCD cd(eab,ec,std::max(la,lc));

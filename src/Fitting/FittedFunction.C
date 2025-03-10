@@ -91,7 +91,9 @@ FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
 template <class T> typename FittedFunctionImp<T>::SMat FittedFunctionImp<T>::
 FitGet3CenterOverlap(const IrrepBasisSet* bs) const
 {
-    const std::vector<SMat>& O3=bs->GetOverlap3C(itsBasisSet.get());
+    auto bs_dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    assert(bs_dft);
+    const std::vector<SMat>& O3=bs_dft->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);

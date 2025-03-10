@@ -44,7 +44,7 @@ class IntegralEngine1
 public:
     virtual double Integral(qchem::IType,double ea , double eb,size_t l) const;
     virtual double Charge  (double ea ,           size_t l) const;
-    virtual double Overlap (double ea , double eb,size_t l) const {return Integral(qchem::Overlap1,ea,eb,l);}
+    virtual double Overlap (double ea , double eb,size_t l) const;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
 protected:
     IntegralEngine1(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};

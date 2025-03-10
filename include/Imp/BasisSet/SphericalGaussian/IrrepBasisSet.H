@@ -26,6 +26,7 @@ public:
 
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
+    , public virtual TOrbital_DFT_IBS<double>
     , public         IrrepBasisSet
     , public         Orbital_IBS_Common<double>
     , public         IntegralEngine1

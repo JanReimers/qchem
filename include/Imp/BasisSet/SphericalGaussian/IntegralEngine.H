@@ -41,11 +41,13 @@ class IntegralEngine1
     , public AtomIE_1E<double>
     , public DB_2E<double>
     , public AtomIE_Fit
+    , public AtomIE_DFT<double>
 {
 public:
     virtual double Integral(qchem::IType,double ea , double eb,size_t l) const;
     virtual double Charge  (double ea ,           size_t l) const;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
+    virtual double Overlap (double ea , double eb,size_t l) const;
 protected:
     IntegralEngine1(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};
     

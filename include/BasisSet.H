@@ -83,8 +83,8 @@ public:
     virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const=0;
     virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
     virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-    virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const=0;
-    virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const=0;
+    //virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const=0;
+    //virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const=0;
 //
 //  Used by HamiltonianTerm::CalculateHamiltonianMatrix
 //

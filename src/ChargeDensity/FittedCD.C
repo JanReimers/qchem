@@ -67,19 +67,23 @@ template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
 //
 template <class T> ChargeDensity::SMat FittedCDImp<T>::GetOverlap  (const IrrepBasisSet* bs) const
 {
-    const std::vector<SMat>& overlap=bs->GetOverlap3C(itsBasisSet.get());
+    auto bs_dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    assert(bs_dft);
+    const std::vector<SMat>& O3=bs_dft->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);
     size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMat(c*overlap[i++]);
+    for (auto c:itsFitCoeff) J+=SMat(c*O3[i++]);
     assert(!isnan(J));
     return J;
 }
 
 template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_IBS<double>* bs) const
 {
-    const std::vector<SMat>& repulsions=bs->GetRepulsion3C(itsBasisSet.get());
+    auto bs_dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    assert(bs_dft);
+    const std::vector<SMat>& repulsions=bs_dft->Repulsion3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);

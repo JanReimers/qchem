@@ -97,6 +97,11 @@ double IntegralEngine1::Charge(double ea, size_t l) const
     return SlaterIntegral(ea,l+2);
 }
 
+double IntegralEngine1::Overlap(double ea, double eb,size_t l) const
+{
+    return SlaterIntegral(ea+eb,l+2); //Already has 4*Pi
+}
+
 double IntegralEngine1::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     SlaterCD cd(eab,ec,std::max(la,lc));

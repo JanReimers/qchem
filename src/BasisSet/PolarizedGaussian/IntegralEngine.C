@@ -129,8 +129,6 @@ IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
     } 
     return s3;   
 }
-
-
 IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
 {
     auto c=dcast(iec);
@@ -286,6 +284,46 @@ IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cl
 
     return s;
 }
+
+IntegralEngine1::ERI3 IntegralEngine1::MakeOverlap3C(const bs_t& _c) const
+{
+    auto c=dynamic_cast<const IrrepIEClient*>(&_c);
+    int Nc=c->size();
+    ERI3 s3;
+    for (index_t ic=0;ic<Nc;ic++)
+    {
+        SMat s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
+        s*=c->ns(ic+1);
+        s3.push_back(s);
+    } 
+    return s3;   
+}
+IntegralEngine1::ERI3 IntegralEngine1::MakeRepulsion3C(const bs_t& _c) const
+{
+    auto c=dynamic_cast<const IrrepIEClient*>(&_c);
+    int Nc=c->size();
+    ERI3 s3;
+    for (index_t ic=0;ic<Nc;ic++)
+    {
+        SMat s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
+        s*=c->ns(ic+1);
+        s3.push_back(s);
+    }    
+    return s3;
+}
+IntegralEngine1::SMat IntegralEngine1::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
+{
+    auto ab=dynamic_cast<const IrrepIEClient*>(this);
+    int N=ab->size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns(ia+1)*ab->ns(ib+1);
+        
+    return s;    
+}
+
+
 
 ERI4 IntegralEngine1::MakeDirect  (const bs_t& _c) const
 {
