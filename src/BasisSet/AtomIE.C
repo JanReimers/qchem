@@ -287,6 +287,57 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
 
 template class AtomIE_1E<double>;
 
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C(const bs_t& _c) const
+{
+    const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
+    assert(c);
+    ERI3 s3;
+    for (auto i:c.indices()) s3.push_back(MakeOverlap(c(i)));
+    return s3;
+}
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(const bs_t& _c) const
+{
+    const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
+    assert(c);
+    ERI3 s3;
+    for (auto i:c.indices()) s3.push_back(MakeRepulsion(c(i)));
+    return s3;
+}
+template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap(const bf_tuple& c) const
+{    
+    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(ab);
+    size_t N=ab->size();
+    int Nc,Lc,Mc;
+    double ec,nc;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
+    SMat s(N);
+    for (auto i:s.rows())
+        for (auto j:s.cols(i))
+            s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+
+    return s;
+}
+template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeRepulsion(const bf_tuple& c) const
+{    
+    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(ab);
+    size_t N=ab->size();
+    int Nc,Lc,Mc;
+    double ec,nc;
+    std::tie(Nc,Lc,Mc,ec,nc)=c;
+    SMat s(N,N);
+    for (auto i:s.rows())
+        for (auto j:s.cols(i))
+            s(i,j)=Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
+
+    return s;
+}
+
+template class AtomIE_DFT<double>;
+
+
+
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {
     assert(ciec);

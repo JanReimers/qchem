@@ -150,6 +150,7 @@ class Orbital_IBS
 {
     public:
     virtual LASolver<double>* CreateSolver() const=0;
+    // TODO move to DFT IBS
     virtual Fit_IBS*    CreateCDFitBasisSet(const Cluster*) const=0;
     virtual Fit_IBS*    CreateVxcFitBasisSet(const Cluster*) const=0;
 };
@@ -157,13 +158,20 @@ class Orbital_IBS
 template <class T> class TOrbital_IBS
     : public virtual Orbital_IBS
     , public virtual TIrrepBasisSet<T>
-    , public virtual Integrals_1E<T> //One electron integrals used for everything
-    // , public virtual Integrals_DFT<T> //DFT integrals
-    
+    , public virtual Integrals_1E<T> 
 {
     public:
     
 };
+
+template <class T> class TOrbital_DFT_IBS
+    : public virtual TOrbital_IBS<T>
+    , public virtual Integrals_DFT<T> //DFT integrals
+    
+{
+    
+};
+
 template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_2E<T> //Two electron integrals used for HF

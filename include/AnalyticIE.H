@@ -110,13 +110,25 @@ public:
     virtual SMat_ref Nuclear(const Cluster*) const=0;   
 };
 
+template <class T> class Integrals_DFT : public virtual Integrals_Base<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::bs_t bs_t;
+    typedef typename Base::SMat SMat;
+public:
+    typedef std::vector<SMat> ERI3;
+    //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$
+    virtual const ERI3& Overlap3C  (const bs_t& c) const=0; 
+    //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
+    virtual const ERI3& Repulsion3C(const bs_t& c) const=0; 
+
+};
+
 template <class T> class Integrals_2E : public virtual Integrals_Base<T>
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::bs_t bs_t;
-
 public:
-   
     virtual ERI4 Direct  (const bs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
     virtual ERI4 Exchange(const bs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
 

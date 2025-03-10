@@ -115,6 +115,25 @@ private:
     mutable std::map<id2c_t ,SMat> itsBuffer; 
 };
 
+template <class T> class DB_DFT :
+    virtual public Integrals_DFT<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::bs_t bs_t;
+    typedef typename Base::SMat SMat;
+    typedef typename Integrals_DFT<T>::ERI3 ERI3;
+public:
+    virtual const ERI3& Overlap3C  (const bs_t& c) const; //<ab|c>
+    virtual const ERI3& Repulsion3C(const bs_t& c) const; //<a(1)b(1)|1/r12|c(2)>
+private:
+    typedef UniqueID::IDtype IDType;
+    virtual IDType GetID() const=0;
+    virtual ERI3 MakeOverlap3C  (const bs_t& c) const=0;
+    virtual ERI3 MakeRepulsion3C(const bs_t& c) const=0;
+    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
+    mutable std::map<id3c_t ,ERI3> itsBuffer; 
+};
+
 template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>
 {
     typedef UniqueID::IDtype IDType;    

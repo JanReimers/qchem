@@ -398,7 +398,6 @@ DB_Fit::SMat_ref DB_Fit::Repulsion() const
     else
         return i->second;
 }
-
 DB_Fit::Mat_ref DB_Fit::Repulsion(const bs_t& b) const
 {
     idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
@@ -409,7 +408,6 @@ DB_Fit::Mat_ref DB_Fit::Repulsion(const bs_t& b) const
     else
         return i->second;
 }
-
 DB_Fit::SMat_ref DB_Fit::InvOverlap(const LAParams& lap) const
 {
     id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
@@ -440,6 +438,27 @@ DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap)
     return Sinv;
 }
 
+template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const bs_t& c) const
+{
+    id3c_t key=std::make_tuple(qchem::Overlap3C,GetID(),c.GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeOverlap3C(c);
+    }
+    else
+        return i->second;
+}
+template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const bs_t& c) const
+{
+    id3c_t key=std::make_tuple(qchem::Repulsion3C,GetID(),c.GetID());
+    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    {
+        return itsBuffer[key] = MakeRepulsion3C(c);
+    }
+    else
+        return i->second;
+}
+template class DB_DFT<double>;
 
 template <class T> ERI4 DB_2E<T>::Direct(const bs_t& c) const
 {

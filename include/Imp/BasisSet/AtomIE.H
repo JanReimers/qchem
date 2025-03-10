@@ -94,6 +94,23 @@ private:
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
 
+template <class T> class AtomIE_DFT : public DB_DFT<T>
+{
+public:
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::bs_t bs_t;
+    typedef typename Base::SMat SMat;
+    typedef typename Integrals_DFT<T>::ERI3 ERI3;
+    virtual ERI3 MakeOverlap3C  (const bs_t& c) const;
+    virtual ERI3 MakeRepulsion3C(const bs_t& c) const;
+private:
+    typedef std::tuple<int,int,int,double,double> bf_tuple;
+    SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
+    SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
+    virtual double Overlap  (double ea , double eb,size_t l) const=0;
+    virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
+};
+
 template <class T> class AtomIE_BS_2E 
     : public virtual Cache4
     , public DB_BS_2E<T>
