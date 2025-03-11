@@ -412,9 +412,7 @@ DB_Fit::SMat_ref DB_Fit::InvOverlap(const LAParams& lap) const
 {
     id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
-    {
         return itsBuffer[key] = MakeInverse(Overlap(),lap);
-    }
     else
         return i->second;
 }
@@ -422,12 +420,37 @@ DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
 {
     id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
-    {
         return itsBuffer[key] = MakeInverse(Repulsion(),lap);
-    }
     else
         return i->second;
 }
+DB_Fit::Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
+{
+    id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
+    if (auto i = itsVBuffer.find(key); i==itsVBuffer.end())
+        return itsVBuffer[key] = MakeNorm(m);
+    else
+        return i->second;
+}
+DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
+{
+    id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
+    if (auto i = itsVBuffer.find(key); i==itsVBuffer.end())
+        return itsVBuffer[key] = MakeCharge(m);
+    else
+        return i->second;
+
+}
+DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,bs_t& b) const
+{
+    idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
+    if (auto i = itsMBuffer.find(key); i==itsMBuffer.end())
+        return itsMBuffer[key] = MakeOverlap(m,b);
+    else
+        return i->second;
+}
+
+
 #include <LASolver.H>
 #include <LAParams.H>
 DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 

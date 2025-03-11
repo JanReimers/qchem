@@ -25,18 +25,18 @@ public:
 
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
-    // , public virtual TOrbital_DFT_IBS<double>
+    , public virtual TOrbital_DFT_IBS<double>
     , public         IrrepBasisSet
     , public         Orbital_IBS_Common<double>
-    // , public         Orbital_DFT_IBS_Common<double>
-    , public         Slater::IntegralEngine1
+    , public         Orbital_DFT_IBS_Common<double>
+    , public         Slater::Orbital_IE
 
 {
 public:
     Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>(lap,theDB)
-    , Slater::IntegralEngine1(db)
+    , Slater::Orbital_IE(db)
     {};
 
 

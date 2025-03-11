@@ -92,12 +92,12 @@ Vector<double> IntegralEngine::loop_4_exchange(size_t id, size_t la, size_t lc) 
     return cd->ExchangeRk(la,lc);
 }
 
-double IntegralEngine1::Charge(double ea, size_t l) const
+double Fit_IE::Charge(double ea, size_t l) const
 {
     return SlaterIntegral(ea,l+2);
 }
 
-double IntegralEngine1::Overlap(double ea, double eb,size_t l) const
+double Orbital_IE::Overlap(double ea, double eb,size_t l) const
 {
     return SlaterIntegral(ea+eb,l+2); //Already has 4*Pi
 }

@@ -103,4 +103,18 @@ public:
     virtual Vec Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
 };
 
+class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals_1E<double>
+{
+    typedef Integrals_Base<double>::Vec Vec;
+    typedef Integrals_Base<double>::Mat Mat;
+    typedef Integrals_Base<double>::bs_t bs_t;
+    public:
+    virtual  Vec MakeNorm   (const Mesh*        ) const; //Numerical .
+    virtual  Vec MakeCharge (const Mesh*        ) const; //Numerical .
+    virtual  Mat MakeOverlap(const Mesh*,bs_t& b) const; //Numerical X overlap.
+
+    virtual const Vec Overlap  (const Mesh*,Sf&) const; //Numerical  
+    virtual const Vec Repulsion(const Mesh*,Sf&) const; //Numerical 
+};
+
 #endif //_TIrrepCommon_H_

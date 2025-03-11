@@ -26,18 +26,16 @@ public:
 
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
-    , public virtual TOrbital_DFT_IBS<double>
     , public         IrrepBasisSet
     , public         Orbital_IBS_Common<double>
     , public         Orbital_DFT_IBS_Common<double>
-    , public         IntegralEngine1
-
+    , public         Orbital_IE
 {
 public:
     Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
     , Orbital_IBS_Common<double>(lap,theDB)
-    , IntegralEngine1(db)
+    , Orbital_IE(db)
     {};
 
 
@@ -52,13 +50,13 @@ class Fit_IBS
 : public virtual ::Fit_IBS
 , public         IrrepBasisSet
 , public         TIrrepBasisSetCommon<double>
-, public         IntegralEngine1
+, public Fit_IBS_Common
+, public Fit_IE
 {
 public:
     Fit_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
     , TIrrepBasisSetCommon<double>(lap,theDB)
-    , IntegralEngine1(0)
     {};
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;

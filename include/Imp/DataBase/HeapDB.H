@@ -184,17 +184,25 @@ public:
     virtual  Mat_ref Repulsion(const bs_t&) const;
     virtual SMat_ref InvOverlap(const LAParams&) const;
     virtual SMat_ref InvRepulsion(const LAParams&) const;
+    virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
+    virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
+    virtual  Mat_ref Overlap(const Mesh*,bs_t& b) const; //Numerical X overlap.
+
 protected:
     typedef Base::SMat SMat;
     typedef Base::Mat  Mat;
+    typedef Base::Vec  Vec;
 private:
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
     // One time calls to un-buffered integral calculations.
+    using FitIntegrals_1E<double>::MakeOverlap;
+    using FitIntegrals_1E<double>::MakeCharge;
     virtual Vec  MakeCharge() const=0;
     virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
     virtual  Mat MakeRepulsion(const bs_t&) const=0;
+    
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.

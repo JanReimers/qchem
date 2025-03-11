@@ -60,22 +60,24 @@ class IntegralEngine1
     : public virtual Integrals_1E<double>
     , public DB_1E<double>
     , public DB_2E<double>
-    , public DB_Fit
     , public DB_DFT<double>
+ 
 {
 public:
 protected:
     IntegralEngine1() {};
     IntegralEngine1(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};
-private:
+protected:
+    virtual Vec  MakeCharge() const;
+
+
     typedef Integrals_Base<double> Base;
-    typedef DB_Fit::Vec Vec;
+    //typedef DB_Fit::Vec Vec;
     typedef Base::SMat SMat;
     typedef Base::bs_t bs_t;
     typedef Base::Mat Mat;
     typedef Integrals_DFT<double>::ERI3 ERI3;
 
-    virtual Vec  MakeCharge() const;
     virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
     virtual SMat MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
     virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);}

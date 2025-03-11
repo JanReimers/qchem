@@ -275,6 +275,36 @@ Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
     return ret;
 }
 
+#include "Imp/Integrals/MeshIntegrator.H"
+
+Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const
+{
+    MeshIntegrator<double> mintegrator(m);
+    return mintegrator.Normalize(*this);
+}
+
+Fit_IBS_Common::Vec Fit_IBS_Common::MakeCharge (const Mesh*  m) const
+{
+    assert(false);
+    return *new Vec();
+}
+Fit_IBS_Common::Mat Fit_IBS_Common::MakeOverlap(const Mesh* m,bs_t& b) const
+{
+    assert(false);
+    return *new Mat();
+}
+const Fit_IBS_Common::Vec Fit_IBS_Common::Overlap  (const Mesh* m,Sf& f) const
+{
+    const Vec& n=Norm(m);
+    MeshIntegrator<double> mintegrator(m);
+    return DirectMultiply(mintegrator.Overlap(f,*this),n);
+}  
+const Fit_IBS_Common::Vec Fit_IBS_Common::Repulsion(const Mesh* m,Sf& f) const
+{
+    const Vec& n=Norm(m);
+    MeshIntegrator<double> mintegrator(m);
+    return DirectMultiply(mintegrator.Repulsion(f,*this),n);
+}
 
 template class TIrrepBasisSetCommon<double>;
 template class Orbital_IBS_Common<double>;

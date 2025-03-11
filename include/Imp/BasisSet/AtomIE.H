@@ -57,7 +57,15 @@ private:
 
 #include "Imp/DataBase/HeapDB.H"
 
-template <class T> class AtomIE_1E : public DB_1E<T>
+class AtomIE_1EFit_Common
+{
+    public:
+    virtual double  Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+};
+
+template <class T> class AtomIE_1E 
+: public virtual  AtomIE_1EFit_Common
+, public DB_1E<T>
 {
 public:
     typedef typename DB_1E<T>::SMat SMat;
@@ -66,12 +74,22 @@ public:
     virtual SMat MakeNuclear(const Cluster*) const;
 private:
     // Derived classes must provide the actual integral calculations.
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    //virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
 
-class AtomIE_Fit : public DB_Fit
+
+//  This common base allows implementation sharing of common integral routines
+class AtomIE_FitDFT_Common
+{
+    public:
+    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
+};
+class AtomIE_Fit 
+: public virtual AtomIE_FitDFT_Common
+, public virtual AtomIE_1EFit_Common
+, public DB_Fit
 {
     typedef Integrals_Base<double> Base;
     typedef typename Base::Mat_ref Mat_ref;
@@ -87,14 +105,14 @@ private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
-    virtual double Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    using AtomIE_FitDFT_Common::Repulsion; //un hide
+    // virtual double Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     virtual double Charge   (double ea ,           size_t l) const=0;
-    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
 };
 
-template <class T> class AtomIE_DFT : public DB_DFT<T>
+template <class T> class AtomIE_DFT : public virtual AtomIE_FitDFT_Common, public DB_DFT<T>
 {
 public:
     typedef Integrals_Base<T> Base;
@@ -108,7 +126,6 @@ private:
     SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
     SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
     virtual double Overlap  (double ea , double eb,size_t l) const=0;
-    virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
 };
 
 template <class T> class AtomIE_BS_2E 

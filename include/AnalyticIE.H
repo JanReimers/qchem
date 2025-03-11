@@ -184,9 +184,10 @@ template <class T> class FitIntegrals_1E  : public virtual Integrals_Base<T>
     typedef typename Base::SMat_ref SMat_ref;
     typedef typename Base::Vec_ref  Vec_ref;
     typedef typename Base::Mat_ref  Mat_ref;
+    typedef typename Base::Vec  Vec;
+    typedef typename Base::Mat  Mat;
     typedef typename Base::bs_t bs_t;
 public:
-    
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual Vec_ref  Charge   () const=0;   
     virtual SMat_ref Overlap  () const=0;
@@ -194,6 +195,22 @@ public:
     virtual  Mat_ref Repulsion(const bs_t&) const=0;
     virtual SMat_ref InvOverlap(const LAParams&) const=0;
     virtual SMat_ref InvRepulsion(const LAParams&) const=0;
+    // Pure numerial versions
+    virtual  Vec_ref Norm   (const Mesh*        ) const=0; //Numerical .
+    virtual  Vec_ref Charge (const Mesh*        ) const=0; //Numerical .
+    virtual  Mat_ref Overlap(const Mesh*,bs_t& b) const=0; //Numerical X overlap.
+
+//
+//  These are used for charge and Vxc fitting.  They change with iterations
+//  So they MUST not be cached.
+//
+    typedef ScalarFunction<T> Sf;
+    virtual const Vec Overlap    (const Mesh*,Sf&) const=0; //Numerical  
+    virtual const Vec Repulsion  (const Mesh*,Sf&) const=0; //Numerical 
+protected:
+    virtual  Vec MakeNorm   (const Mesh*        ) const=0; //Numerical .
+    virtual  Vec MakeCharge (const Mesh*        ) const=0; //Numerical .
+    virtual  Mat MakeOverlap(const Mesh*,bs_t& b) const=0; //Numerical X overlap.
 };
 
 #endif //_AnalyticIE_H_

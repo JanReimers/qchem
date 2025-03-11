@@ -33,20 +33,20 @@ class Orbital_IBS
 , public         IrrepBasisSet
 , public         Orbital_IBS_Common<double>
 // , public         Orbital_DFT_IBS_Common<double>
-, public         SphericalGaussian::IntegralEngine1
+, public         SphericalGaussian::Orbital_IE
 
 {
 public:
 Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>(lap,theDB)
-    , SphericalGaussian::IntegralEngine1(db)
+    , SphericalGaussian::Orbital_IE(db)
 {};
 
 Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const std::set<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>(lap,theDB)
-    , SphericalGaussian::IntegralEngine1(db)
+    , SphericalGaussian::Orbital_IE(db)
 {};
 
 
