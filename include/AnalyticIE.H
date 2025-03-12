@@ -72,7 +72,7 @@ public:
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
-    static  RSMat MakeInverse  (const RSMat&,const LAParams&); //Numerically stable algo required.
+    // static  RSMat MakeInverse  (const RSMat&,const LAParams&); //Numerically stable algo required.
 // private:
 //     std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
 

@@ -36,20 +36,20 @@ public:
     virtual ~HeapDB();
     HeapDB(AnalyticIE<T>* ie);
 
-#ifndef UT_COVERAGE_ONLY
-    virtual const RVec&    GetNormalization(bs_t& a);
-    virtual const SMat&    GetOverlap      (bs_t& a);
-    virtual const Mat&     GetRepulsion    (bs_t& ,bs_t& b);
-#endif
+// #ifndef UT_COVERAGE_ONLY
+//     virtual const RVec&    GetNormalization(bs_t& a);
+//     virtual const SMat&    GetOverlap      (bs_t& a);
+//     virtual const Mat&     GetRepulsion    (bs_t& ,bs_t& b);
+// #endif
 
   //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (const Mesh*,bs_t&,Rf&   f); //Numerical .
-    virtual const Vec      GetRepulsion  (const Mesh*,bs_t&,Rf&   f); //Numerical .
-    virtual const RVec&    GetCharge     (const Mesh*,bs_t&        ); //Numerical .
-    virtual const Mat&     GetOverlap    (const Mesh*,bs_t&,bs_t& b); //Numerical .
+    // virtual const Vec      GetOverlap    (const Mesh*,bs_t&,Rf&   f); //Numerical .
+    // virtual const Vec      GetRepulsion  (const Mesh*,bs_t&,Rf&   f); //Numerical .
+    // virtual const RVec&    GetCharge     (const Mesh*,bs_t&        ); //Numerical .
+    // virtual const Mat&     GetOverlap    (const Mesh*,bs_t&,bs_t& b); //Numerical .
 //
 //  These are all done analytically.
 //
@@ -72,7 +72,7 @@ public:
     virtual void Report(std::ostream&) const;
 
 private:
-    const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
+    // const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
 
 
     AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.

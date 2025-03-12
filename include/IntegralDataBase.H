@@ -19,7 +19,7 @@ class IrrepIEClient;
 //
 //  only build functions the have UT coverage.
 //
-#define UT_COVERAGE_ONLY
+// #define UT_COVERAGE_ONLY
 
 template <class T> class IntegralDataBase
 {
@@ -42,19 +42,19 @@ public:
 //
 //  Integrals that get calculated once and then cached.
 //
-#ifndef UT_COVERAGE_ONLY
-    virtual const RVec&    GetNormalization(bs_t& a);
-    virtual const RVec&    GetNormalization(bs_t& a         )=0;
-    virtual const SMat&    GetOverlap    (bs_t& a  )=0; //Numerical
-#endif
+// #ifndef UT_COVERAGE_ONLY
+    // virtual const RVec&    GetNormalization(bs_t& a);
+    // virtual const RVec&    GetNormalization(bs_t& a         )=0;
+    // virtual const SMat&    GetOverlap    (bs_t& a  )=0; //Numerical
+// #endif
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    virtual const Vec      GetOverlap    (const Mesh*,bs_t& a,Rf&  f )=0; //Numerical 
-    virtual const Vec      GetRepulsion  (const Mesh*,bs_t& a,Rf&  f )=0; //Numerical 
-    virtual const RVec&    GetCharge     (const Mesh*,bs_t& a        )=0; //Numerical .
-    virtual const Mat&     GetOverlap    (const Mesh*,bs_t& a,bs_t& b)=0; //Numerical .
+    // virtual const Vec      GetOverlap    (const Mesh*,bs_t& a,Rf&  f )=0; //Numerical 
+    // virtual const Vec      GetRepulsion  (const Mesh*,bs_t& a,Rf&  f )=0; //Numerical 
+    // virtual const RVec&    GetCharge     (const Mesh*,bs_t& a        )=0; //Numerical .
+    // virtual const Mat&     GetOverlap    (const Mesh*,bs_t& a,bs_t& b)=0; //Numerical .
 //
 //  These are all done analytically.
 //

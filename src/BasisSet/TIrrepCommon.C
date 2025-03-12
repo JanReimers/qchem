@@ -103,24 +103,24 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
 //     return GetDataBase()->GetRepulsion(this,tff);
 //  }
  
- template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
- GetOverlap(const Mesh* m,const IrrepBasisSet* ff) const
- {
-    const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
-    assert(tff);
-    return GetDataBase()->GetOverlap(m,*this,*tff);
- }
+//  template <class T> typename TIrrepBasisSetCommon<T>::Mat TIrrepBasisSetCommon<T>::
+//  GetOverlap(const Mesh* m,const IrrepBasisSet* ff) const
+//  {
+//     const TIrrepBasisSet<T>* tff=dynamic_cast<const TIrrepBasisSet<T>*>(ff);
+//     assert(tff);
+//     return Overlap(m,*tff);
+//  }
 
- template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
- GetOverlap(const Mesh* m,const ScalarFunction<double>* sf) const
- {
-    return GetDataBase()->GetOverlap(m,*this,*sf);
- }
- template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
- GetRepulsion(const Mesh* m,const ScalarFunction<double>* sf) const
- {
-    return GetDataBase()->GetRepulsion(m,*this,*sf);
- }
+//  template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+//  GetOverlap(const Mesh* m,const ScalarFunction<double>* sf) const
+//  {
+//     return GetDataBase()->GetOverlap(m,*this,*sf);
+//  }
+//  template <class T> typename TIrrepBasisSetCommon<T>::RVec TIrrepBasisSetCommon<T>::
+//  GetRepulsion(const Mesh* m,const ScalarFunction<double>* sf) const
+//  {
+//     return GetDataBase()->GetRepulsion(m,*this,*sf);
+//  }
 
  using std::cout;
  using std::endl;

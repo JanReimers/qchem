@@ -39,9 +39,9 @@ public:
     // virtual SMat GetInverseRepulsion(const LAParams&) const;
     // virtual SMat GetInverseOverlap  (const LAParams&) const;
     //virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const;
-    virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
-    virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const;
-    virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const;
+    //virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
+    // virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const;
+    // virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const;
     //virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
     // virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
     // virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const;

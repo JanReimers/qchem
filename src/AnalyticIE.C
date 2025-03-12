@@ -11,14 +11,14 @@
 //     itsIrreps.push_back(iec);
 // }
 
-template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
-    MakeInverse(const RSMat& S,const LAParams& lap) 
-{
-    LASolver<double>* las=LASolver<double>::Factory(lap);
-    RSMat Sinv=las->Inverse(S);
-    delete las;
-    return Sinv;
-}
+// template <class T> typename AnalyticIE<T>::RSMat AnalyticIE<T>::
+//     MakeInverse(const RSMat& S,const LAParams& lap) 
+// {
+//     LASolver<double>* las=LASolver<double>::Factory(lap);
+//     RSMat Sinv=las->Inverse(S);
+//     delete las;
+//     return Sinv;
+// }
 
 // template <class T> void AnalyticIE<T>::MakeDirect(erij_t& Jac) const
 // {
