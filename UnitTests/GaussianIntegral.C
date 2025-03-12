@@ -35,7 +35,6 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , ie(new SphericalGaussian::IntegralEngine())
     , bs(new SphericalGaussian::BasisSet(lap,5,.01,100.0,Lmax))
     , cl(new Molecule())
     , mintegrator()
@@ -49,7 +48,6 @@ public:
     
     int Lmax, Z;
     LAParams lap;
-    AnalyticIE<double>* ie;
     SphericalGaussian::BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;

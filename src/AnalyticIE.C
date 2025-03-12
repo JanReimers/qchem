@@ -46,4 +46,3 @@
 
 
 
-template class AnalyticIE<double>;

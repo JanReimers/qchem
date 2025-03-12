@@ -55,7 +55,6 @@ public:
     bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     double R0(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     
-    typedef AnalyticIE<double>::ERI3 ERI3;
     
     int Lmax, Z;
     LAParams lap;

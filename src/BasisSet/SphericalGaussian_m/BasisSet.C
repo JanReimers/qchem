@@ -2,7 +2,6 @@
 
 #include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/GaussianScaler.H"

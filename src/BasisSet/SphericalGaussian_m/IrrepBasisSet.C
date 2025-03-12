@@ -2,7 +2,6 @@
 
 #include "Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian_m/BasisFunction.H"
-#include "Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H"
 #include "Imp/Symmetry/YlmQN.H"
 #include <iostream>
 #include <cassert>
