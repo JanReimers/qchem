@@ -71,28 +71,6 @@ public:
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
     virtual       QuantumNumber* GetQuantumNumber(int index      ) const=0;
 
-//
-//  Used by fitting routines.
-//
-    // virtual RVec GetCharge          () const=0;
-    // virtual SMat GetInverseRepulsion(const LAParams&) const=0;
-    // virtual SMat GetInverseOverlap  (const LAParams&) const=0;
-    // virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const=0;
-    // virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const=0;
-    // virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const=0;
-    // virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const=0;
-    // virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-    // virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-    //virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const=0;
-    //virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const=0;
-//
-//  Used by HamiltonianTerm::CalculateHamiltonianMatrix
-//
-    //virtual SMat GetOverlap (              ) const=0;
-    //virtual SMat GetKinetic (              ) const=0;
-    //virtual SMat GetNuclear (const Cluster*) const=0;
-    //virtual SMat GetRestMass(              ) const=0;
-     
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
     virtual       iterator begin()      =0;
@@ -102,9 +80,6 @@ public:
 //
 //  StreamableObject stuff.
 //
-    // virtual std::ostream&  Write(std::ostream&    ) const=0;
-//    virtual std::istream&  Read (std::istream&    )      =0;
-//    virtual IrrepBasisSet* Clone  (            ) const=0; //TODO do we need this?  It prevent usage of IDs.
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
     static  IrrepBasisSet* Factory(std::istream&    )        ;
 private:
@@ -128,8 +103,6 @@ public:
 
     size_t GetVectorSize() const {return GetNumFunctions();}
 
-    // virtual  Mat GetRepulsion(const IrrepBasisSet* ff) const=0; //unhide
-    // virtual RVec GetRepulsion(const Mesh*,     const ScalarFunction<double>* sf) const=0; //unhide
     virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
     virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
 
@@ -182,7 +155,13 @@ template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_2E<T> //Two electron integrals used for HF
 {
-    
+    typedef typename Integrals_Base<T>::SMat SMat;
+public:
+    using Integrals_2E<T>::Direct;
+    using Integrals_2E<T>::Exchange;
+    virtual SMat Direct  (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const=0;
+    virtual SMat Exchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const=0;
+
 };
 
 template <class T> class Orbital_RKB_IBS

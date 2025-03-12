@@ -103,6 +103,15 @@ public:
     virtual Vec Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
 };
 
+template <class T> class Orbital_HF_IBS_Common
+    : public virtual TOrbital_HF_IBS<T>
+{
+    typedef typename Integrals_Base<T>::SMat SMat;
+public:
+    virtual SMat Direct  (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
+    virtual SMat Exchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
+};
+
 class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals_1E<double>
 {
     typedef Integrals_Base<double>::Vec Vec;

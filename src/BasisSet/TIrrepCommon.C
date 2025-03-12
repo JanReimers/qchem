@@ -275,6 +275,58 @@ Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
     return ret;
 }
 
+template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
+Direct(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
+{
+    assert(!isnan(Dcd));
+    assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
+    const TIrrepBasisSet<T>* ab=this;
+    
+    if (ab->GetID()<=cd->GetID())
+    {
+        //ERI4 Jabcd=GetDataBase()->GetDirect__4C(*ab,*cd);
+        const TOrbital_HF_IBS<T>* abhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(ab);
+        assert(abhf);   
+        ERI4 Jabcd=abhf->Direct(*cd);
+        return Jabcd*Dcd;
+    }
+    else
+    {
+        //ERI4 Jcdab=GetDataBase()->GetDirect__4C(*cd,*ab);
+        const TOrbital_HF_IBS<T>* cdhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(cd);
+        assert(cdhf);
+        ERI4 Jcdab=cdhf->Direct(*ab);
+        return Dcd*Jcdab;        
+    }
+}
+
+#include <iomanip>
+template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
+Exchange(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
+{
+    assert(!isnan(Dcd));
+    assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
+    const TIrrepBasisSet<T>* ab=this;
+
+    if (ab->GetID()<=cd->GetID())
+    {
+        //ERI4 Kabcd=GetDataBase()->GetExchange4C(*ab,*cd);
+        const TOrbital_HF_IBS<T>* abhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(ab);
+        assert(abhf);   
+        ERI4 Kabcd=abhf->Exchange(*cd);
+        return Kabcd*Dcd;
+    }
+    else
+    {
+        //ERI4 Kcdab=GetDataBase()->GetExchange4C(*cd,*ab);
+        const TOrbital_HF_IBS<T>* cdhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(cd);
+        assert(cdhf);
+        ERI4 Kcdab=cdhf->Exchange(*ab);
+        return Dcd*Kcdab;        
+    }
+
+}
+
 #include "Imp/Integrals/MeshIntegrator.H"
 
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const
@@ -309,5 +361,6 @@ const Fit_IBS_Common::Vec Fit_IBS_Common::Repulsion(const Mesh* m,const Sf& f) c
 template class TIrrepBasisSetCommon<double>;
 template class Orbital_IBS_Common<double>;
 template class Orbital_DFT_IBS_Common<double>;
+template class Orbital_HF_IBS_Common<double>;
 //template class TBasisSetImplementation<std::complex<double> >;
 
