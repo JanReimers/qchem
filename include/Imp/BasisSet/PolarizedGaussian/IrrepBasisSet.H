@@ -21,11 +21,11 @@ namespace PolarizedGaussian
           public IrrepIEClient
     {
     public:
-        typedef typename ::IrrepBasisSet::RVec RVec;
+        typedef Vector<double> RVec;
         // IrrepBasisSet();
         IrrepBasisSet(Reader *, const Cluster *);
-        IrrepBasisSet(const Vector<double> &exponents, size_t L, const Cluster *);
-        IrrepBasisSet(const Vector<double> &exponents, size_t L);
+        IrrepBasisSet(const RVec &exponents, size_t L, const Cluster *);
+        IrrepBasisSet(const RVec &exponents, size_t L);
 
         virtual std::ostream &Write(std::ostream &) const;
 
@@ -47,9 +47,9 @@ namespace PolarizedGaussian
 
     {
     public:
-        Orbital_IBS(const LAParams &, IntegralDataBase<double> *, const DB_BS_2E<double> *db, Reader *, const Cluster *);
-        Orbital_IBS(const LAParams &, IntegralDataBase<double> *, const DB_BS_2E<double> *db, const Vector<double> &exponents, size_t L, const Cluster *);
-        Orbital_IBS(const LAParams &, IntegralDataBase<double> *, const DB_BS_2E<double> *db, const Vector<double> &exponents, size_t L);
+        Orbital_IBS(const LAParams &, const DB_BS_2E<double> *db, Reader *, const Cluster *);
+        Orbital_IBS(const LAParams &, const DB_BS_2E<double> *db, const Vector<double> &exponents, size_t L, const Cluster *);
+        Orbital_IBS(const LAParams &, const DB_BS_2E<double> *db, const Vector<double> &exponents, size_t L);
 
         virtual UniqueID::IDtype GetID() const { return UniqueID::GetID(); }
         virtual ::Fit_IBS *CreateCDFitBasisSet(const Cluster *) const;
@@ -71,7 +71,7 @@ namespace PolarizedGaussian
         typedef Integrals_Base::Mat Mat;
         typedef Integrals_Base::bs_t bs_t;
     public:
-        Fit_IBS(const LAParams &, IntegralDataBase<double> *, Reader *, const Cluster *);
+        Fit_IBS(const LAParams &, Reader *, const Cluster *);
 
         virtual Vec MakeCharge() const { return IntegralEngine1::MakeCharge(); }
         virtual SMat MakeOverlap() const { return IntegralEngine1::MakeOverlap(); }

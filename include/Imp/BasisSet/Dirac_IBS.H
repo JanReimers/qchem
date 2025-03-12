@@ -49,8 +49,8 @@ template <class T> class IrrepBasisSet
 {
     public:
     IrrepBasisSet() {}; 
-    IrrepBasisSet(const LAParams&,IntegralDataBase<T>*,::Orbital_RKBL_IBS<T>* rkbl,int kappa);
-    IrrepBasisSet(const LAParams&,IntegralDataBase<T>*,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs,int kappa);
+    IrrepBasisSet(const LAParams&,::Orbital_RKBL_IBS<T>* rkbl,int kappa);
+    IrrepBasisSet(const LAParams&,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs,int kappa);
     virtual std::ostream&  Write(std::ostream& os   ) const {return os;}
     virtual std::istream&  Read (std::istream& is   )       {return is;}
 

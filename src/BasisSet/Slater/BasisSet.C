@@ -17,7 +17,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
 {
     SlaterScaler ss(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
-        Insert(new Orbital_IBS(lap,GetDataBase(),this,ss.Get_es(L),L));
+        Insert(new Orbital_IBS(lap,this,ss.Get_es(L),L));
         
 }
 

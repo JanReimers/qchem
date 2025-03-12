@@ -43,12 +43,12 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster*) const
 {
-    return new Fit_IBS(itsLAParams,GetDataBase(),es*2,0);
+    return new Fit_IBS(itsLAParams,es*2,0);
 }
 
 ::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster*) const
 {
-    return new Fit_IBS(itsLAParams,GetDataBase(),es*2.0/3.0,0);    
+    return new Fit_IBS(itsLAParams,es*2.0/3.0,0);    
 }
 
 ::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const

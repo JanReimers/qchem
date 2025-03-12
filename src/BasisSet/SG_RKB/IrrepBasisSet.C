@@ -13,10 +13,10 @@ using std::endl;
 
 namespace SphericalGaussian_RKB
 {
-    template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const LAParams& lap,IntegralDataBase<T>* db,
+    template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const LAParams& lap,
         const Vector<T>& exponents,int kappa)
         : IrrepBasisSetCommon(new Omega_kQN(kappa))
-        , TIrrepBasisSetCommon<T>(lap,db)
+        , TIrrepBasisSetCommon<T>(lap)
         , IrrepIEClient(exponents.size(),kappa)
     {
         IrrepIEClient::Init(exponents);
@@ -25,10 +25,10 @@ namespace SphericalGaussian_RKB
             IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,ns(i++))); //ns from Slater_mj::IEClient
     };
 
-template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,IntegralDataBase<T>* db
+template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap
     ,const Large_Orbital_IBS<T>* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
-    , TIrrepBasisSetCommon<T>(lap,db)
+    , TIrrepBasisSetCommon<T>(lap)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
     IrrepIEClient::Init(lbs->es);
@@ -125,13 +125,13 @@ template <class T> T Small_Orbital_IBS<T>::Integral(qchem::IType it,double ea , 
 }
 
   
-Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
+Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,
         const Vector<double>& exponents,int kappa)
-    : Dirac::IrrepBasisSet<double>(lap,theDB,new Large_Orbital_IBS<double>(lap,theDB,exponents, kappa),kappa )
+    : Dirac::IrrepBasisSet<double>(lap,new Large_Orbital_IBS<double>(lap,exponents, kappa),kappa )
 {
     auto rkbl=dynamic_cast<Large_Orbital_IBS<double>*>(itsRKBL);
     assert(rkbl);
-    auto rkbs=new Small_Orbital_IBS<double>(lap,theDB,rkbl);
+    auto rkbs=new Small_Orbital_IBS<double>(lap,rkbl);
     itsRKBS=rkbs;
     assert(itsRKBS);
     IntegralEngine::itsRKBS=rkbs;

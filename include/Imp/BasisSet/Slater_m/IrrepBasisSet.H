@@ -34,9 +34,9 @@ class Orbital_IBS
 
 {
 public:
-    Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
+    Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
-    , Orbital_IBS_Common<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap)
     , Slater::Orbital_IE(db)
     {};
 

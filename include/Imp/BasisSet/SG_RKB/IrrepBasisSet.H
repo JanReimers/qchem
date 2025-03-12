@@ -26,7 +26,7 @@ template <class T> class Large_Orbital_IBS
 {
     public:
     Large_Orbital_IBS() {};
-    Large_Orbital_IBS(const LAParams&,IntegralDataBase<T>*,
+    Large_Orbital_IBS(const LAParams&,
         const Vector<T>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
@@ -45,7 +45,7 @@ template <class T> class Small_Orbital_IBS
 {
 public:
     Small_Orbital_IBS() {};
-    Small_Orbital_IBS(const LAParams&,IntegralDataBase<T>*,const Large_Orbital_IBS<T>*);
+    Small_Orbital_IBS(const LAParams&,const Large_Orbital_IBS<T>*);
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
@@ -61,7 +61,7 @@ class Dirac_IrrepBasisSet
     typedef DB_1E<double>::SMat SMat;
 public:
     Dirac_IrrepBasisSet() {};
-    Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
+    Dirac_IrrepBasisSet(const LAParams&,const Vector<double>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;

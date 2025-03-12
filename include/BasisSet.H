@@ -60,11 +60,6 @@ public:
     typedef std::vector<BasisFunction*>::      iterator       iterator;
     typedef std::vector<BasisFunction*>::const_iterator const_iterator;
 
-    typedef Vector <double> RVec;
-    typedef SMatrix<double> SMat;
-    typedef  Matrix<double>  Mat;
-    typedef std::vector<SMat> ERI3;
-    
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual size_t               GetNumFunctions (               ) const=0;
@@ -97,18 +92,9 @@ template <class T> class TIrrepBasisSet
     , public virtual VectorFunction<T>
 {
 public:
-    typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
-    typedef std::vector<SMat> ERI3;
-    typedef Vector<double> RVec;
-
     size_t GetVectorSize() const {return GetNumFunctions();}
 
-    // virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
-    // virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet* bs_cd) const=0;
-
-    // Only used by IntegralConstrainedFF!
-    virtual IntegralDataBase<T>* GetDataBase() const=0;
-    
+    typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
     const_iterator beginT() const {return const_iterator(begin());};
 };
 

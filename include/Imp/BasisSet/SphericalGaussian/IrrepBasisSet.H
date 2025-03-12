@@ -33,9 +33,9 @@ class Orbital_IBS
     , public         Orbital_IE
 {
 public:
-    Orbital_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
+    Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common<double>(lap,theDB)
+    , Orbital_IBS_Common<double>(lap)
     , Orbital_IE(db)
     {};
 
@@ -55,9 +55,9 @@ class Fit_IBS
 , public Fit_IE
 {
 public:
-    Fit_IBS(const LAParams& lap,IntegralDataBase<double>* theDB,const Vector<double>& exponents, size_t L)
+    Fit_IBS(const LAParams& lap,const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , TIrrepBasisSetCommon<double>(lap)
     {};
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;

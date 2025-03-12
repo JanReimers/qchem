@@ -13,7 +13,7 @@ namespace PolarizedGaussian
 BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Cluster* cl)
 : BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
-    Insert(new Orbital_IBS(lap,GetDataBase(),this,reader,cl));
+    Insert(new Orbital_IBS(lap,this,reader,cl));
 }
 
 BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
@@ -21,12 +21,12 @@ BasisSet::BasisSet(const LAParams& lap, size_t N, double emin, double emax, size
 {
     GaussianScaler gs(N,emin,emax,LMax);
     if (cl->GetNumAtoms()>1)
-        Insert(new Orbital_IBS(lap,GetDataBase(),this,gs.Get_es(0),LMax,cl));        
+        Insert(new Orbital_IBS(lap,this,gs.Get_es(0),LMax,cl));        
     else
     {
         assert(cl->GetNumAtoms()==1);
         for (size_t L=0;L<=LMax;L++)
-            Insert(new Orbital_IBS(lap,GetDataBase(),this,gs.Get_es(L),L));  
+            Insert(new Orbital_IBS(lap,this,gs.Get_es(L),L));  
             
     }
 }

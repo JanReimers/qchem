@@ -94,20 +94,20 @@ template <class T> ERI4 IntegralEngine<T>::MakeExchange(const bs_t& b) const
     return ERI4();
 }
 
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,IntegralDataBase<T>* db
+template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap
     ,::Orbital_RKBL_IBS<T>* rkbl, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , Orbital_IBS_Common<T>(lap,db)
+    , Orbital_IBS_Common<T>(lap)
     , itsRKBL(rkbl)
     , itsRKBS(0)
 {
     assert(itsRKBL);
     IntegralEngine<T>::itsRKBL=rkbl;
 }
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,IntegralDataBase<T>* db
+template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap
     ,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , Orbital_IBS_Common<T>(lap,db)
+    , Orbital_IBS_Common<T>(lap)
     , itsRKBL(rkbl)
     , itsRKBS(rkbs)
 {

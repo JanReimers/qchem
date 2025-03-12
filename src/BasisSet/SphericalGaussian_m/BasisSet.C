@@ -20,7 +20,7 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
     const DB_BS_2E<double>* db=this;
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(lap,GetDataBase(),db,gs.Get_es(L),L,m));            
+            Insert(new Orbital_IBS(lap,db,gs.Get_es(L),L,m));            
         
 }
 
@@ -56,7 +56,7 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
     {
         size_t L=le.first;
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(lap,GetDataBase(),this,le.second,L,m));   
+            Insert(new Orbital_IBS(lap,this,le.second,L,m));   
     }
 }
 
