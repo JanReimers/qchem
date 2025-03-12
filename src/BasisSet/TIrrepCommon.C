@@ -288,18 +288,18 @@ Fit_IBS_Common::Vec Fit_IBS_Common::MakeCharge (const Mesh*  m) const
     assert(false);
     return *new Vec();
 }
-Fit_IBS_Common::Mat Fit_IBS_Common::MakeOverlap(const Mesh* m,bs_t& b) const
+Fit_IBS_Common::Mat Fit_IBS_Common::MakeOverlap(const Mesh* m,const bs_t& b) const
 {
     assert(false);
     return *new Mat();
 }
-const Fit_IBS_Common::Vec Fit_IBS_Common::Overlap  (const Mesh* m,Sf& f) const
+const Fit_IBS_Common::Vec Fit_IBS_Common::Overlap  (const Mesh* m,const Sf& f) const
 {
     const Vec& n=Norm(m);
     MeshIntegrator<double> mintegrator(m);
     return DirectMultiply(mintegrator.Overlap(f,*this),n);
 }  
-const Fit_IBS_Common::Vec Fit_IBS_Common::Repulsion(const Mesh* m,Sf& f) const
+const Fit_IBS_Common::Vec Fit_IBS_Common::Repulsion(const Mesh* m,const Sf& f) const
 {
     const Vec& n=Norm(m);
     MeshIntegrator<double> mintegrator(m);

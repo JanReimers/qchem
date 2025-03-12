@@ -441,7 +441,7 @@ DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
         return i->second;
 
 }
-DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,bs_t& b) const
+DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,const bs_t& b) const
 {
     idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
     if (auto i = itsMBuffer.find(key); i==itsMBuffer.end())

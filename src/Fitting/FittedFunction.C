@@ -62,7 +62,7 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvOvlp*itsBasisSet->GetOverlap(&*itsMesh,ffc.GetScalarFunction());;
+    itsFitCoeff=itsInvOvlp*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
     return 0;
 }
 
@@ -79,7 +79,7 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFCli
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterOverlap(const IrrepBasisSet* bs) const
 {
-    return itsFitCoeff * (itsBasisSet->GetOverlap(&*itsMesh,bs));
+    return itsFitCoeff * (itsBasisSet->Overlap(itsMesh.get(),*bs));
 }
 
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
@@ -113,7 +113,7 @@ FitGetOverlap(const FittedFunctionImp<T>* ffi) const
 {
     return
         itsFitCoeff *
-        itsBasisSet->GetOverlap(&*itsMesh,ffi->itsBasisSet.get()) *
+        itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
         ffi->itsFitCoeff;
 }
 

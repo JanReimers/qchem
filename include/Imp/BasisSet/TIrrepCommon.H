@@ -111,10 +111,10 @@ class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals_1E<do
     public:
     virtual  Vec MakeNorm   (const Mesh*        ) const; //Numerical .
     virtual  Vec MakeCharge (const Mesh*        ) const; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,bs_t& b) const; //Numerical X overlap.
+    virtual  Mat MakeOverlap(const Mesh*,const bs_t& b) const; //Numerical X overlap.
 
-    virtual const Vec Overlap  (const Mesh*,Sf&) const; //Numerical  
-    virtual const Vec Repulsion(const Mesh*,Sf&) const; //Numerical 
+    virtual const Vec Overlap  (const Mesh*,const Sf&) const; //Numerical  
+    virtual const Vec Repulsion(const Mesh*,const Sf&) const; //Numerical 
 };
 
 #endif //_TIrrepCommon_H_

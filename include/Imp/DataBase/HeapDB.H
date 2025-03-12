@@ -186,7 +186,7 @@ public:
     virtual SMat_ref InvRepulsion(const LAParams&) const;
     virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
     virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,bs_t& b) const; //Numerical X overlap.
+    virtual  Mat_ref Overlap(const Mesh*,const bs_t& b) const; //Numerical X overlap.
 
 protected:
     typedef Base::SMat SMat;

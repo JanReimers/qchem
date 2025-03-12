@@ -198,19 +198,19 @@ public:
     // Pure numerial versions
     virtual  Vec_ref Norm   (const Mesh*        ) const=0; //Numerical .
     virtual  Vec_ref Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,bs_t& b) const=0; //Numerical X overlap.
+    virtual  Mat_ref Overlap(const Mesh*,const bs_t& b) const=0; //Numerical X overlap.
 
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
     typedef ScalarFunction<T> Sf;
-    virtual const Vec Overlap    (const Mesh*,Sf&) const=0; //Numerical  
-    virtual const Vec Repulsion  (const Mesh*,Sf&) const=0; //Numerical 
+    virtual const Vec Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
+    virtual const Vec Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
 protected:
     virtual  Vec MakeNorm   (const Mesh*        ) const=0; //Numerical .
     virtual  Vec MakeCharge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,bs_t& b) const=0; //Numerical X overlap.
+    virtual  Mat MakeOverlap(const Mesh*,const bs_t& b) const=0; //Numerical X overlap.
 };
 
 #endif //_AnalyticIE_H_
