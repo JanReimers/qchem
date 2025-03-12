@@ -14,7 +14,6 @@ namespace SphericalGaussian_m
 
 
 BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
-: SphericalGaussian::BasisSet(new IntegralEngine) // this makes a integral DB
 {
     GaussianScaler gs(N,emin,emax,LMax);
     const DB_BS_2E<double>* db=this;
@@ -28,7 +27,6 @@ using PolarizedGaussian::Reader;
 using PolarizedGaussian::RadialFunction;
 
 BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
-: SphericalGaussian::BasisSet(new IntegralEngine) // this makes a integral DB
 {
     std::map<int,std::set<double> > Lexponents;
     reader->FindAtom(*atom);

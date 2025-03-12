@@ -41,7 +41,6 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
-    , ie(bs->itsIE)
     , cl(new Molecule())
     {
         StreamableObject::SetToPretty();
@@ -61,8 +60,6 @@ public:
     int Lmax, Z;
     LAParams lap;
     Slater::BasisSet* bs;
-    AnalyticIE<double>* ie;
-//    Slater_m::BasisSet* bsm;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;

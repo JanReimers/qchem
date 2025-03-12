@@ -12,6 +12,7 @@
 #include "Imp/BasisSet/SG_RKB/BasisFunction.H"
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
 #include "Imp/Symmetry/OkmjQN.H"
+#include "Imp/BasisSet/Dirac_IBS.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
@@ -45,8 +46,6 @@ public:
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , sbs(new Slater_mj::DiracBasisSet(lap,3,0.1,10,Lmax))
     , gbs(new SphericalGaussian_RKB::DiracBasisSet(lap,3,0.1,10,Lmax))
-    , sie(sbs->itsIE)
-    , gie(gbs->itsIE)
     , cl(new Molecule())
     {
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
@@ -86,20 +85,18 @@ public:
     
     static SMat merge_diag(const SMat& l,const SMat& s)
     {
-        return Slater_mj::DiracIntegralEngine::merge_diag(l,s);
+        return Dirac::IntegralEngine<double>::merge_diag(l,s);
     }
 
     static SMat merge_off_diag(const Mat& l)
     {
-        return Slater_mj::DiracIntegralEngine::merge_off_diag(l);
+        return Dirac::IntegralEngine<double>::merge_off_diag(l);
     }
 
     int Lmax, Z;
     LAParams lap;
     Slater_mj::DiracBasisSet* sbs;
     SphericalGaussian_RKB::DiracBasisSet* gbs;
-    AnalyticIE<double>* sie;
-    AnalyticIE<double>* gie;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

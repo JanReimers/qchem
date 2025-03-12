@@ -8,7 +8,6 @@ class DiracIntegralTests;
 
 class BasisSetImp
     : public virtual BasisSet
-   // , public virtual Integrals_BS_2E<double>
 {
 public:
     typedef BasisSet Base;
@@ -16,7 +15,6 @@ public:
     typedef Base::const_iterator const_iterator;
 
     BasisSetImp();
-    BasisSetImp(AnalyticIE<double>*);
     
     virtual ~BasisSetImp();
     virtual size_t GetNumFunctions() const;
@@ -33,7 +31,6 @@ protected:
     friend class SlaterRadialIntegralTests;
     friend class DiracIntegralTests;
 
-    AnalyticIE<double>* itsIE;
     optr_vector1<bs_t*> itsBasisSets;
 };
 

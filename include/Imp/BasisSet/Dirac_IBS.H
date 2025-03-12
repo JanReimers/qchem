@@ -7,11 +7,12 @@
 #include "IrrepCommon.H"
 #include "TIrrepCommon.H"
 
+class DiracIntegralTests;
+
 namespace Dirac
 {
     
-
-    
+   
 template <class T> class IntegralEngine
     : public virtual Integrals_1E<T>
     , public DB_1E<T>
@@ -31,6 +32,7 @@ public:
     virtual ERI4 MakeDirect  (const bs_t& c) const;
     virtual ERI4 MakeExchange(const bs_t& b) const;
 private:
+    friend DiracIntegralTests;
     typedef Matrix<T> Mat;
     static SMat merge_diag(const SMat& l,const SMat& s);
     static SMat merge_off_diag(const Mat& ls);

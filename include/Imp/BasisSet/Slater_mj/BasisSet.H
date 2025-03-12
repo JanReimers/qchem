@@ -4,7 +4,6 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
-#include "Imp/Containers/ERI4.H"
 
 namespace Slater_mj
 {

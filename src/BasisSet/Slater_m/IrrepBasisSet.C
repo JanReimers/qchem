@@ -2,7 +2,6 @@
 
 #include "Imp/BasisSet/Slater_m/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater_m/BasisFunction.H"
-#include "Imp/BasisSet/Slater_m/IntegralEngine.H"
 #include "Imp/Symmetry/YlmQN.H"
 #include <iostream>
 #include <cassert>

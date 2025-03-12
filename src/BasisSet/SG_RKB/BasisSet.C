@@ -2,14 +2,12 @@
 
 #include "Imp/BasisSet/SG_RKB/BasisSet.H"
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
-#include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
 #include "Imp/BasisSet/GaussianScaler.H"
 
 namespace SphericalGaussian_RKB
 {
 
 DiracBasisSet::DiracBasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t lMax)
-: BasisSetImp(new DiracIntegralEngine()) // this makes a integral DB
 {
     GaussianScaler gs(N,emin,emax,lMax);
     for (int l=0;l<=(int)lMax;l++)

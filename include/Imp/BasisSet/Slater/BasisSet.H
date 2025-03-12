@@ -19,7 +19,6 @@ protected:
     typedef Base::bs_t bs_t;
 public:
     BasisSet() {};
-    BasisSet(AnalyticIE<double>* ie) : BasisSetImp(ie) {};
     BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
     virtual void Insert(bs_t* bs);
 

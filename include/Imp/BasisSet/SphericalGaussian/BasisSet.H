@@ -2,7 +2,6 @@
 #ifndef _SphericalGaussian_BasisSet_H_
 #define _SphericalGaussian_BasisSet_H_
 
-#include "IEClient.H"
 #include "../TCommon.H"
 #include "Imp/BasisSet/AtomIE.H"
 
@@ -19,7 +18,6 @@ protected:
     typedef Base::bs_t bs_t;
 public:
     BasisSet() {};
-    BasisSet(AnalyticIE<double>* ie) : BasisSetImp(ie) {};
     BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
     virtual void Insert(bs_t* bs);
 

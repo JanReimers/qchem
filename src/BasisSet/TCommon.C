@@ -1,8 +1,6 @@
 // File: BasisSetImp/TCommon.H
 
 #include "Imp/BasisSet/TCommon.H"
-
-#include "Imp/DataBase/HeapDB.H"
 #include "Imp/Containers/ptr_vector_io.h"
 
 BasisSetImp::BasisSetImp()
@@ -10,11 +8,6 @@ BasisSetImp::BasisSetImp()
 {
 }
 
-BasisSetImp::BasisSetImp(AnalyticIE<double>* ie)
-: itsIE(ie)
-, itsBasisSets()
-{
-}
 
 BasisSetImp::~BasisSetImp() 
 {
@@ -32,7 +25,6 @@ size_t BasisSetImp::GetNumFunctions() const
 void BasisSetImp::Insert(bs_t* bs)
 {
     assert(bs);
-    //itsIE->Append(bs);
     itsBasisSets.push_back(bs);
 }
 
