@@ -71,15 +71,15 @@ template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS
 {
     if (IsZero()) return ZeroM(bs_ab);
     const TOrbital_IBS<double>* tbs_cd=dynamic_cast<const TOrbital_IBS<double>*>(itsBasisSet);
-    const TOrbital_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_IBS<double>*>(bs_ab);
-    return tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
+    const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
+    return tbs_ab->Direct(itsDensityMatrix,tbs_cd);
 }
 
 template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab);
-    const TOrbital_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_IBS<double>*>(bs_ab);
-    return tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
+    const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
+    return tbs_ab->Exchange(itsDensityMatrix,itsBasisSet);
 }
 
 //------------------------------------------------------------------------------
