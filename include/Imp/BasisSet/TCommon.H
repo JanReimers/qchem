@@ -24,7 +24,6 @@ public:
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}
-    virtual IntegralDataBase<double>* GetDataBase() const {return itsDB;}
 //
 //  StreamableObject stuff.
 //
@@ -35,7 +34,6 @@ protected:
     friend class DiracIntegralTests;
 
     AnalyticIE<double>* itsIE;
-    mutable IntegralDataBase<double>* itsDB;
     optr_vector1<bs_t*> itsBasisSets;
 };
 

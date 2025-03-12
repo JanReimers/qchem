@@ -210,7 +210,6 @@ public:
 
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
-    virtual IntegralDataBase<double>* GetDataBase() const =0;
 
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     const_Titerator beginT() const {return const_Titerator(begin());};

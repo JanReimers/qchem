@@ -6,7 +6,6 @@
 #include <BasisSet.H>
 #include <QuantumNumber.H>
 #include <AnalyticIE.H>
-#include <IntegralDataBase.H>
 #include <LASolver.H>
 #include <Hamiltonian.H>
 #include "oml/vector.h"

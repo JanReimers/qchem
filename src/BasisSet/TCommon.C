@@ -6,21 +6,19 @@
 #include "Imp/Containers/ptr_vector_io.h"
 
 BasisSetImp::BasisSetImp()
-: itsDB(new HeapDB<double>())
-, itsBasisSets()
+: itsBasisSets()
 {
 }
 
 BasisSetImp::BasisSetImp(AnalyticIE<double>* ie)
 : itsIE(ie)
-, itsDB(new HeapDB<double>(ie))
 , itsBasisSets()
 {
 }
 
 BasisSetImp::~BasisSetImp() 
 {
-    delete itsDB;
+    
 };
 
 size_t BasisSetImp::GetNumFunctions() const

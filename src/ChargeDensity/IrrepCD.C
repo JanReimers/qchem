@@ -6,7 +6,6 @@
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "Imp/Fitting/FittedFunction.H"
 #include <BasisSet.H>
-#include <IntegralDataBase.H>
 #include <QuantumNumber.H>
 #include <ChargeDensity.H>
 #include "oml/vector3d.h"
