@@ -53,16 +53,47 @@ public:
     MeshIntegrator<double>* mintegrator;
 };
 
+template <class T> class BS_iterator
+{
+    typedef BasisSet::const_iterator it_t;
+public:
+    BS_iterator(const it_t& c) : current(c) {};
+    it_t operator++() {return ++current;} //Prefix only.
+    const T* operator*() const
+    {
+        const T* ret(dynamic_cast<const T*>(*current));
+        assert(ret);
+        return ret;
+    }
+    friend bool operator!=(const BS_iterator& a, const BS_iterator& b)
+    {
+        return a.current!=b.current;
+    }
+private:
+    it_t current;
+};
+
+template <class T> class BS_iterator_proxy
+{
+    typedef BS_iterator<T> it_t;
+public:
+    BS_iterator_proxy(const BasisSet& bs) : ib(bs.begin()), ie(bs.end()) {};
+    it_t begin() const {return ib;}
+    it_t end  () const {return ie;}
+private:
+    it_t ib,ie;
+};
+
+
 TEST_F(GaussianRadialIntegralTests, Overlap)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:BS_iterator_proxy<TOrbital_IBS<double> >(*bs))
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S=oi->Overlap();
 
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         //cout << S << endl;
-        SMatrix<double> Snum = mintegrator->Overlap(**i);
+        SMatrix<double> Snum = mintegrator->Overlap(*oi);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
        
     }
@@ -70,12 +101,11 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 
 TEST_F(GaussianRadialIntegralTests, Nuclear)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:BS_iterator_proxy<TOrbital_IBS<double> >(*bs))
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Hn=oi->Nuclear(cl);
         //cout << S << endl;
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
 
     }
@@ -84,19 +114,18 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
 TEST_F(GaussianRadialIntegralTests, Kinetic)
 {
     
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:BS_iterator_proxy<TOrbital_IBS<double> >(*bs))
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i); //This give the wrong answer for l>0
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi); //This give the wrong answer for l>0
 
         // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const QuantumNumber& qn=i->GetQuantumNumber();
+        const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(*i);
+        const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(oi);
         assert(sg);
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
