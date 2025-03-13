@@ -1,0 +1,158 @@
+// File: Irrep_BS.H
+#ifndef _Irrep_BS_H_
+#define _Irrep_BS_H_
+
+#include <IEClient.H>
+#include <types.H>
+#include "Imp/Misc/UniqueID/UniqueID.H"
+#include <vector>
+
+//----------------------------------------------------------------------------
+//
+//  Interface for an irreducible representation basis sets.  H is block diagonal with one
+//  block for  IrrepBasisSet,  For atoms each L get.s an IrrepBasisSet and an H  block. 
+//  All matrices of integrals are supplied by the
+//  IntegralDataBase, which only calculates the integrals once and buffers them.
+//  The Factory allows one to read basis sets from a stream polymorphically.
+//  Clone(RVec&) creates a similar set with a new center.
+//  The quantum number could be L for atoms, Irreducable rep for molecules, or
+//  the wave vector k for solids.
+//
+
+class IrrepBasisSet
+    : public virtual IrrepIEClient
+    , public UniqueID
+{
+public:
+    typedef std::vector<BasisFunction*>::      iterator       iterator;
+    typedef std::vector<BasisFunction*>::const_iterator const_iterator;
+
+    virtual bool                 operator==      (const IrrepBasisSet&) const=0;
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
+    virtual size_t               GetNumFunctions (               ) const=0;
+    virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
+    virtual       QuantumNumber* GetQuantumNumber(int index      ) const=0;
+
+    virtual const_iterator begin() const=0;
+    virtual const_iterator end  () const=0;
+    virtual       iterator begin()      =0;
+    virtual       iterator end  ()      =0;
+    
+    
+//
+//  StreamableObject stuff.
+//
+    virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
+    static  IrrepBasisSet* Factory(std::istream&    )        ;
+private:
+    friend class BasisSetImp;
+};
+
+#include <VectorFunction.H>
+#include "Imp/Containers/ptr_vector.h"
+//----------------------------------------------------------------------------
+//
+//  Extend basis to be a set of real or complex valued functions
+//
+template <class T> class TIrrepBasisSet
+    : public virtual IrrepBasisSet
+    , public virtual VectorFunction<T>
+{
+public:
+    size_t GetVectorSize() const {return GetNumFunctions();}
+
+    typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
+    const_iterator beginT() const {return const_iterator(begin());};
+};
+
+#include "AnalyticIE.H"
+//
+// Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
+// Mix-in the integral interfaces required for an orbital basis. 
+//
+class Fit_IBS;
+class Orbital_IBS
+    : public virtual IrrepBasisSet
+{
+    public:
+    virtual LASolver<double>* CreateSolver() const=0;
+    
+};
+
+template <class T> class TOrbital_IBS
+    : public virtual Orbital_IBS
+    , public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_1E<T> 
+{
+    public:
+    
+};
+
+template <class T> class TOrbital_DFT_IBS
+    : public virtual TOrbital_IBS<T>
+    , public virtual Integrals_DFT<T> //DFT integrals
+    
+{
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::fbs_t fbs_t;
+    typedef Vector<T> Vec;
+public:
+    virtual fbs_t*    CreateCDFitBasisSet(const Cluster*) const=0;
+    virtual fbs_t*    CreateVxcFitBasisSet(const Cluster*) const=0;
+    using Integrals_DFT<T>::Overlap3C; //Unhide
+    using Integrals_DFT<T>::Repulsion3C; //Unhide
+    virtual Vec Overlap3C  (const SMat& Dcd, const fbs_t* ff) const=0;
+    virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const=0;
+};
+
+template <class T> class TOrbital_HF_IBS
+    : public virtual TOrbital_IBS<T>
+    , public virtual Integrals_2E<T> //Two electron integrals used for HF
+{
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::obs_t obs_t;
+public:
+    using Integrals_2E<T>::Direct;
+    using Integrals_2E<T>::Exchange;
+    virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const=0;
+    virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const=0;
+
+};
+
+template <class T> class Orbital_RKB_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_RKB<T> 
+{
+public:
+    
+};
+
+template <class T> class Orbital_RKBL_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_RKBL<T> //One electron integrals used for everything
+{
+public:
+    //int GetKappa() const;
+};
+
+template <class T> class Orbital_RKBS_IBS
+    : public virtual TIrrepBasisSet<T>
+    , public virtual Integrals_RKBS<T> //One electron integrals used for everything
+{
+public:
+    //int GetKappa() const;
+};
+
+class Fit_IBS
+    : public virtual TIrrepBasisSet<double>
+    , public virtual FitIntegrals_1E<double> 
+{
+    public:
+    virtual Fit_IBS* Clone  (const RVec3&) const=0;  
+
+};
+
+
+
+
+#endif //_Irrep_BS_H_

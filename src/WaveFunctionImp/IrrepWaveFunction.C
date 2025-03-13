@@ -7,6 +7,7 @@
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
+#include <Irrep_BS.H>
 #include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <cassert>

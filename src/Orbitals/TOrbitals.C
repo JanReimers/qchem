@@ -6,6 +6,7 @@
 #include "Imp/Orbitals/TOrbital.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Misc/DFTDefines.H"
+#include <Irrep_BS.H>
 #include <Hamiltonian.H>
 #include <QuantumNumber.H>
 #include <LASolver.H>

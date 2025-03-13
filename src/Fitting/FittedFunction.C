@@ -2,7 +2,7 @@
 
 #include "Imp/Fitting/FittedFunction.H"
 #include <ChargeDensity.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <Mesh.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"

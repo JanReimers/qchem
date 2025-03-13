@@ -5,7 +5,7 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"

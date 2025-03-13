@@ -4,7 +4,6 @@
 
 
 
-#include <BasisSet.H>
 #include <ChargeDensity.H>
 #include <Spin.H>
 #include "oml/smatrix.h"

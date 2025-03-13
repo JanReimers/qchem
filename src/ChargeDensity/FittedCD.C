@@ -2,8 +2,9 @@
 
 
 
-#include "Imp/ChargeDensity//FittedCD.H"
+#include "Imp/ChargeDensity/FittedCD.H"
 #include <Mesh.H>
+#include <Irrep_BS.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include <cmath>

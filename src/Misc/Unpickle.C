@@ -2,6 +2,7 @@
 
 #include "Imp/Cluster/UnitCell.H"
 #include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <Hamiltonian.H>
 #include <ChargeDensity.H>
 #include <Cluster.H>

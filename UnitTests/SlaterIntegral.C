@@ -19,7 +19,6 @@
 
 #include <MeshParams.H>
 #include <Cluster.H>
-#include <BasisSet.H>
 #include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>

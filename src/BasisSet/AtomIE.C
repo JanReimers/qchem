@@ -4,7 +4,7 @@
 #include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/Containers/ERI4.H"
 #include <Cluster.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 
 using std::cout;
 using std::endl;

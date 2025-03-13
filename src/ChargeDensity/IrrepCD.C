@@ -5,7 +5,7 @@
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "Imp/Fitting/FittedFunction.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <QuantumNumber.H>
 #include <ChargeDensity.H>
 #include "oml/vector3d.h"

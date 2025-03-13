@@ -2,7 +2,7 @@
 
 #include "Imp/DataBase/HeapDB.H"
 #include "Imp/Integrals/MeshIntegrator.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <Cluster.H>
 #include <AnalyticIE.H>
 #include "oml/vector.h"

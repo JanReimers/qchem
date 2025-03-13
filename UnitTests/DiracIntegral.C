@@ -23,7 +23,6 @@
 
 #include <MeshParams.H>
 #include <Cluster.H>
-#include <BasisSet.H>
 #include <iostream>
 
 using std::cout;

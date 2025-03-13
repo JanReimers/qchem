@@ -4,7 +4,6 @@
 
 #include "Imp/Hamiltonian/LDAVxc.H"
 #include "Imp/Fitting/FittedFunction.H"
-#include <BasisSet.H>
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>

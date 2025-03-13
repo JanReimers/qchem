@@ -2,7 +2,7 @@
 
 #include "Imp/Hamiltonian/DiracKinetic.H"
 #include "Imp/Misc/DFTDefines.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 
 DiracKinetic::DiracKinetic()

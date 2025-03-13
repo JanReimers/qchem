@@ -2,7 +2,6 @@
 
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include <BasisSet.H>
 #include <ChargeDensity.H>
 #include <QuantumNumber.H>
 #include <iostream>

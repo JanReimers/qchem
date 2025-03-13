@@ -2,7 +2,6 @@
 #ifndef _Dirac_IBS_H_
 #define _Dirac_IBS_H_
 //
-#include <BasisSet.H>
 #include "Imp/DataBase/HeapDB.H"
 #include "IrrepCommon.H"
 #include "TIrrepCommon.H"

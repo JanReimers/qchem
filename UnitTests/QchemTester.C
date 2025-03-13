@@ -6,6 +6,7 @@
 #include <Hamiltonian.H>
 #include <Cluster.H>
 #include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 #include <Orbital.H>
 #include <ChargeDensity.H>

@@ -4,7 +4,6 @@
 
 
 
-#include <BasisSet.H>
 #include <FittedFunction.H>
 #include <Mesh.H>
 #include <LAParams.H>

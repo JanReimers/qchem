@@ -3,7 +3,8 @@
 
 
 #include "ChargeDensity.H"
-#include "BasisSet.H"
+#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/ChargeDensity/CompositeCD.H"

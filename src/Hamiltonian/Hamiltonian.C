@@ -8,7 +8,7 @@
 #include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
 #include <cassert>

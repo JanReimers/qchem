@@ -3,7 +3,7 @@
 
 #include "Imp/BasisSet/PolarizedGaussian/IEClient.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"

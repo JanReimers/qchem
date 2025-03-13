@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/TCommon.H"
 #include "Imp/Containers/ptr_vector_io.h"
+#include <Irrep_BS.H>
 
 BasisSetImp::BasisSetImp()
 : itsBasisSets()

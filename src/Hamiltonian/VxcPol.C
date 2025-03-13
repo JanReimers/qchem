@@ -6,7 +6,6 @@
 #include "Imp/Hamiltonian/Vxc.H"
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
-#include <BasisSet.H>
 #include <Spin.H>
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"

@@ -2,7 +2,7 @@
 #ifndef _TIrrepCommon_H_
 #define _TIrrepCommon_H_
 
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <LAParams.H>
 //---------------------------------------------------------------------
 //

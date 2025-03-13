@@ -4,7 +4,7 @@
 
 
 
-#include "BasisSet.H"
+#include <Irrep_BS.H>
 #include "Imp/Containers/ptr_vector.h"
 
 //---------------------------------------------------------------------
