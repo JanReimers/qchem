@@ -1,4 +1,7 @@
 Priority 1:
+    -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
+    -PG::Fit_BS do we need all that function forwarding?
+    -Make Atom_BS which handles and angular integrals for all atom basis sets.
     -Need more iterators for BasisSet where dyn casting is done by the iterator.
         -Use proxy classes 
             for (auto b:bs->Irreps<TOrbital_IBS<double> >()) 

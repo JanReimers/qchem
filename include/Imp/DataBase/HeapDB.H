@@ -175,17 +175,17 @@ class DB_Fit : public virtual FitIntegrals_1E<double>
     typedef typename Base::Mat_ref Mat_ref;
     typedef typename Base::SMat_ref SMat_ref;
     typedef typename Base::Vec_ref Vec_ref;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::fbs_t fbs_t;
 public:
     virtual Vec_ref  Charge   () const;   
     virtual SMat_ref Overlap  () const;
     virtual SMat_ref Repulsion() const;
-    virtual  Mat_ref Repulsion(const bs_t&) const;
+    virtual  Mat_ref Repulsion(const fbs_t&) const;
     virtual SMat_ref InvOverlap(const LAParams&) const;
     virtual SMat_ref InvRepulsion(const LAParams&) const;
     virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
     virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,const bs_t& b) const; //Numerical X overlap.
+    virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
 
 protected:
     typedef Base::SMat SMat;
@@ -200,7 +200,7 @@ private:
     virtual Vec  MakeCharge() const=0;
     virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
-    virtual  Mat MakeRepulsion(const bs_t&) const=0;
+    virtual  Mat MakeRepulsion(const fbs_t&) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

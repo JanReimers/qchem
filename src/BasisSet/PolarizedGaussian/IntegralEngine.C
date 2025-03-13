@@ -28,7 +28,7 @@ IntegralEngine1::Vec IntegralEngine1::MakeCharge() const
     return c;
 }
 
-IntegralEngine1::Mat IntegralEngine1::MakeRepulsion(const bs_t& _b) const
+IntegralEngine1::Mat IntegralEngine1::MakeRepulsion(const fbs_t& _b) const
 {   
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
@@ -97,7 +97,7 @@ IntegralEngine1::SMat IntegralEngine1::Integrate(qchem::IType3C type , const Rad
 
 
 
-ERI4 IntegralEngine1::MakeDirect  (const bs_t& _c) const
+ERI4 IntegralEngine1::MakeDirect  (const obs_t& _c) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
     const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(&_c);
@@ -122,7 +122,7 @@ ERI4 IntegralEngine1::MakeDirect  (const bs_t& _c) const
     return J;
 }
 
-ERI4 IntegralEngine1::MakeExchange(const bs_t& _b) const
+ERI4 IntegralEngine1::MakeExchange(const obs_t& _b) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(&_b);

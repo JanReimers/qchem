@@ -20,7 +20,7 @@ template <class T> class IntegralEngine
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat SMat;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::obs_t obs_t;
 public:
     IntegralEngine() {};
     IntegralEngine(const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
@@ -29,8 +29,8 @@ public:
     virtual SMat MakeKinetic() const;
     virtual SMat MakeNuclear(const Cluster*) const;
     virtual SMat MakeRestMass() const;
-    virtual ERI4 MakeDirect  (const bs_t& c) const;
-    virtual ERI4 MakeExchange(const bs_t& b) const;
+    virtual ERI4 MakeDirect  (const obs_t& c) const;
+    virtual ERI4 MakeExchange(const obs_t& b) const;
 private:
     friend DiracIntegralTests;
     typedef Matrix<T> Mat;

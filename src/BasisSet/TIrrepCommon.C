@@ -156,7 +156,7 @@ Fit_IBS_Common::Vec Fit_IBS_Common::MakeCharge (const Mesh*  m) const
     assert(false);
     return *new Vec();
 }
-Fit_IBS_Common::Mat Fit_IBS_Common::MakeOverlap(const Mesh* m,const bs_t& b) const
+Fit_IBS_Common::Mat Fit_IBS_Common::MakeOverlap(const Mesh* m,const fbs_t& b) const
 {
     assert(false);
     return *new Mat();

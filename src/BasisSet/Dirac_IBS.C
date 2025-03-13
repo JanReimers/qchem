@@ -74,7 +74,7 @@ template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeRestM
 }
 
 
-template <class T> ERI4 IntegralEngine<T>::MakeDirect  (const bs_t& c) const
+template <class T> ERI4 IntegralEngine<T>::MakeDirect  (const obs_t& c) const
 {
     return ERI4();
     // auto da=this;
@@ -89,7 +89,7 @@ template <class T> ERI4 IntegralEngine<T>::MakeDirect  (const bs_t& c) const
     // return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
 
 }
-template <class T> ERI4 IntegralEngine<T>::MakeExchange(const bs_t& b) const
+template <class T> ERI4 IntegralEngine<T>::MakeExchange(const obs_t& b) const
 {
     return ERI4();
 }

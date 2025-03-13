@@ -50,12 +50,12 @@ class AtomIE_Fit
     typedef typename Base::Mat_ref Mat_ref;
     typedef typename Base::SMat_ref SMat_ref;
     typedef typename Base::Vec_ref Vec_ref;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::fbs_t fbs_t;
 public:
     virtual Vec  MakeCharge() const;
     virtual SMat MakeOverlap() const;
     virtual SMat MakeRepulsion() const;
-    virtual  Mat MakeRepulsion(const bs_t&) const;
+    virtual  Mat MakeRepulsion(const fbs_t&) const;
 private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
@@ -90,7 +90,6 @@ template <class T> class AtomIE_BS_2E
 {
 public:
     typedef Vector<double> RVec;
-    typedef typename Integrals_Base<T>::bs_t bs_t;
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;

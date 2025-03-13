@@ -29,8 +29,6 @@ class IrrepIEClient;
 template <class T> class Integrals_Base
 {
 public:
-    //typedef TIrrepBasisSet<T> bs_t; 
-    typedef IrrepBasisSet bs_t; 
     typedef TOrbital_IBS<T> obs_t;
     typedef TOrbital_HF_IBS<T> hf_obs_t;
     typedef TOrbital_DFT_IBS<T> dft_obs_t;
@@ -135,19 +133,19 @@ template <class T> class FitIntegrals_1E  : public virtual Integrals_Base<T>
     typedef typename Base::Mat_ref  Mat_ref;
     typedef typename Base::Vec  Vec;
     typedef typename Base::Mat  Mat;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::fbs_t fbs_t;
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual Vec_ref  Charge   () const=0;   
     virtual SMat_ref Overlap  () const=0;
     virtual SMat_ref Repulsion() const=0;
-    virtual  Mat_ref Repulsion(const bs_t&) const=0;
+    virtual  Mat_ref Repulsion(const fbs_t&) const=0;
     virtual SMat_ref InvOverlap(const LAParams&) const=0;
     virtual SMat_ref InvRepulsion(const LAParams&) const=0;
     // Pure numerial versions
     virtual  Vec_ref Norm   (const Mesh*        ) const=0; //Numerical .
     virtual  Vec_ref Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,const bs_t& b) const=0; //Numerical X overlap.
+    virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.
 
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
@@ -159,7 +157,7 @@ public:
 protected:
     virtual  Vec MakeNorm   (const Mesh*        ) const=0; //Numerical .
     virtual  Vec MakeCharge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,const bs_t& b) const=0; //Numerical X overlap.
+    virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.
 };
 
 #endif //_AnalyticIE_H_

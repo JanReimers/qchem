@@ -77,11 +77,11 @@ class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals_1E<do
 {
     typedef Integrals_Base<double>::Vec Vec;
     typedef Integrals_Base<double>::Mat Mat;
-    typedef Integrals_Base<double>::bs_t bs_t;
+    typedef Integrals_Base<double>::fbs_t fbs_t;
     public:
     virtual  Vec MakeNorm   (const Mesh*        ) const; //Numerical .
     virtual  Vec MakeCharge (const Mesh*        ) const; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,const bs_t& b) const; //Numerical X overlap.
+    virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
 
     virtual const Vec Overlap  (const Mesh*,const Sf&) const; //Numerical  
     virtual const Vec Repulsion(const Mesh*,const Sf&) const; //Numerical 

@@ -205,7 +205,7 @@ AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
 {
     return MakeIntegrals(qchem::Repulsion1);
 }
-AtomIE_Fit::Mat AtomIE_Fit::MakeRepulsion(const bs_t& _b) const
+AtomIE_Fit::Mat AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(&_b);

@@ -69,14 +69,14 @@ namespace PolarizedGaussian
         typedef DB_Fit::SMat SMat;
         typedef Integrals_Base::Vec Vec;
         typedef Integrals_Base::Mat Mat;
-        typedef Integrals_Base::bs_t bs_t;
+        typedef Integrals_Base::fbs_t fbs_t;
     public:
         Fit_IBS(const LAParams &, Reader *, const Cluster *);
 
         virtual Vec MakeCharge() const { return IntegralEngine1::MakeCharge(); }
         virtual SMat MakeOverlap() const { return IntegralEngine1::MakeOverlap(); }
         virtual SMat MakeRepulsion() const { return IntegralEngine1::MakeRepulsion(); }
-        virtual Mat MakeRepulsion(const bs_t &b) const { return IntegralEngine1::MakeRepulsion(b); }
+        virtual Mat MakeRepulsion(const fbs_t &b) const { return IntegralEngine1::MakeRepulsion(b); }
 
         virtual ::Fit_IBS *Clone(const RVec3 &) const;
         virtual UniqueID::IDtype GetID() const { return UniqueID::GetID(); }

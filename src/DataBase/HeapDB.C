@@ -135,7 +135,7 @@ DB_Fit::SMat_ref DB_Fit::Repulsion() const
     else
         return i->second;
 }
-DB_Fit::Mat_ref DB_Fit::Repulsion(const bs_t& b) const
+DB_Fit::Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
 {
     idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
     if (auto i = itsMBuffer.find(key); i==itsMBuffer.end())
@@ -178,7 +178,7 @@ DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
         return i->second;
 
 }
-DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,const bs_t& b) const
+DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
 {
     idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
     if (auto i = itsMBuffer.find(key); i==itsMBuffer.end())
