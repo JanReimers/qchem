@@ -13,7 +13,7 @@ class IrrepWaveFunction
 {
 public:
     IrrepWaveFunction();
-    IrrepWaveFunction(const IrrepBasisSet*, const Spin&);
+    IrrepWaveFunction(const TOrbital_IBS<double>*, const Spin&);
     virtual ~IrrepWaveFunction();
 
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;

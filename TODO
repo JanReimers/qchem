@@ -1,10 +1,19 @@
 Priority 1:
+    -Need more iterators for BasisSet where dyn casting is done by the iterator.
+        -Use proxy classes 
+            for (auto b:bs->Irreps<TOrbital_IBS<double> >()) 
+    -Survey use of IrrepBS, Can we use more specific interfaces?
+    -Survey use of dynamic cast
+        -SHould only be casting between interfaces
+        -Can we pass around ore specific interfaces?
+    -We need separate interface for ExactCD as compared to FittedCD.
+        i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
     -Move all Hamilton constants out of integral engines
         factor of 1/2 for kinetic
         factor of Z (and R) for Ven
             -This is inefficenet, we only need the sum over centers
         factos of c for H_Dirac
-    -Break down interal engines
+    Done: -Break down integral engines
         -OneElectron_IE:
             Overlap
             Nuclear
@@ -19,15 +28,10 @@ Priority 1:
         -DHF_IE
             ?
         -Can add more later for observables opertors.
-        Now what about the Database or Buffer Functionality?
-            -The interfaces are almost the same except DB returns refences to cached
-            Matrices.
-            -As long as COW semantics are working as designed the overhead of returning
-            matrix objects should almost un-measurable,
-        -COnjunction with:
+        Done: -COnjunction with:
             1) Simplify integral call chain
             2) Separate FitBasisSet idea.
-    -Simplify integral call chain
+    Done: -Simplify integral call chain
         -Adding RestMass integral calculation was very labourious.  Call Chain:
         HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
         -Should we at least get the basis set out of the call chain?

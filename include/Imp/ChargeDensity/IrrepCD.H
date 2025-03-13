@@ -46,8 +46,8 @@ public:
 
 private:
     bool IsZero() const;
-    SMat ZeroM(const IrrepBasisSet* bs_ab) const;
-    RVec ZeroV(const IrrepBasisSet* bs_ab) const;
+    SMat ZeroM(size_t N) const;
+    RVec ZeroV(size_t N) const;
 
     DenSMat                itsDensityMatrix;
     const TOrbital_IBS<T>* itsBasisSet;

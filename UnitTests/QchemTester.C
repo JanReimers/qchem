@@ -123,15 +123,15 @@ std::vector<const QuantumNumber*> QchemTester::GetQuantumNumbers() const
     return qns;
 }
 
-IrrepBasisSet* QchemTester::GetCBasisSet() const
-{
-    return itsBasisSet->CreateCDFitBasisSet(itsCluster.get());
-}
+// Fit_IBS* QchemTester::GetCBasisSet() const
+// {
+//     return itsBasisSet->CreateCDFitBasisSet(itsCluster.get());
+// }
 
-IrrepBasisSet* QchemTester::GetXBasisSet() const
-{
-    return itsBasisSet->CreateVxcFitBasisSet(itsCluster.get());    
-}
+// Fit_IBS* QchemTester::GetXBasisSet() const
+// {
+//     return itsBasisSet->CreateVxcFitBasisSet(itsCluster.get());    
+// }
 
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"

@@ -45,19 +45,15 @@ template <> bool IrrepCD<double>::IsZero() const
     return Max(fabs(itsDensityMatrix))==0.0;
 }
 
-template <> ChargeDensity::SMat IrrepCD<double>::ZeroM(const IrrepBasisSet* bs_ab) const
+template <> ChargeDensity::SMat IrrepCD<double>::ZeroM(size_t N) const
 {
-    assert(bs_ab);
-    size_t N=bs_ab->size();
     SMat S(N);
     Fill(S,0.0);
     return S;
 }
 
-template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(const IrrepBasisSet* bs_ab) const
+template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
 {
-    assert(bs_ab);
-    size_t N=bs_ab->size();
     RVec V(N);
     Fill(V,0.0);
     return V;
@@ -68,14 +64,14 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(const IrrepBasisSet* bs
 //
 template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab);
+    if (IsZero()) return ZeroM(bs_ab->size());
     auto* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
     return tbs_ab->Direct(itsDensityMatrix,itsBasisSet);
 }
 
 template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab);
+    if (IsZero()) return ZeroM(bs_ab->size());
     const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
     return tbs_ab->Exchange(itsDensityMatrix,itsBasisSet);
 }
@@ -86,7 +82,7 @@ template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<
 //
 template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    if (IsZero()) return ZeroV(fbs);
+    if (IsZero()) return ZeroV(fbs->size());
     auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<T>*>(itsBasisSet);
     assert(dftbs);
     return dftbs->Repulsion3C(itsDensityMatrix,fbs);
