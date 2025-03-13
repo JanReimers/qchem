@@ -2,7 +2,7 @@
 #ifndef _SphericalGaussianBF_H_
 #define _SphericalGaussianBF_H_
 
-#include <BasisSet.H>
+#include <BasisFunction.H>
 
 namespace SphericalGaussian
 {

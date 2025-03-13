@@ -3,7 +3,7 @@
 #define _PolarizedGaussianBF_H_
 
 
-
+#include <BasisFunction.H>
 #include "RadialFunction.H"
 #include "Polarization.H"
 #include <BasisSet.H>

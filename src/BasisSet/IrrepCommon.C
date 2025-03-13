@@ -4,6 +4,7 @@
 
 #include "Imp/BasisSet/IrrepCommon.H"
 #include <QuantumNumber.H>
+#include <BasisFunction.H>
 #include "Imp/Containers/ptr_vector_io.h"
 
 #include <iostream>

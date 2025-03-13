@@ -3,6 +3,7 @@
 
 #include "Imp/BasisSet/TIrrepCommon.H"
 #include "Imp/Containers/ERI4.H"
+#include <BasisFunction.H>
 #include <BasisSet.H>
 #include <QuantumNumber.H>
 #include <AnalyticIE.H>

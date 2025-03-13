@@ -2,7 +2,7 @@
 #ifndef _SphericalGaussian_RKB_BF_H_
 #define _SphericalGaussian_RKB_BF_H_
 
-#include <BasisSet.H>
+#include <BasisFunction.H>
 
 namespace SphericalGaussian_RKB
 {

@@ -23,6 +23,7 @@ template <class T> class VectorFunction;
 //
 class Atom;
 class IrrepBasisSet;
+class BasisFunction;
 class BasisSet;
 class ChargeDensity;
 class Cluster;
