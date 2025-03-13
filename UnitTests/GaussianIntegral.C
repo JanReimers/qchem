@@ -53,41 +53,12 @@ public:
     MeshIntegrator<double>* mintegrator;
 };
 
-template <class T> class BS_iterator
-{
-    typedef BasisSet::const_iterator it_t;
-public:
-    BS_iterator(const it_t& c) : current(c) {};
-    it_t operator++() {return ++current;} //Prefix only.
-    const T* operator*() const
-    {
-        const T* ret(dynamic_cast<const T*>(*current));
-        assert(ret);
-        return ret;
-    }
-    friend bool operator!=(const BS_iterator& a, const BS_iterator& b)
-    {
-        return a.current!=b.current;
-    }
-private:
-    it_t current;
-};
 
-template <class T> class BS_iterator_proxy
-{
-    typedef BS_iterator<T> it_t;
-public:
-    BS_iterator_proxy(const BasisSet& bs) : ib(bs.begin()), ie(bs.end()) {};
-    it_t begin() const {return ib;}
-    it_t end  () const {return ie;}
-private:
-    it_t ib,ie;
-};
 
 
 TEST_F(GaussianRadialIntegralTests, Overlap)
 {
-    for (auto oi:BS_iterator_proxy<TOrbital_IBS<double> >(*bs))
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
         SMatrix<double> S=oi->Overlap();
 
@@ -101,7 +72,7 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 
 TEST_F(GaussianRadialIntegralTests, Nuclear)
 {
-    for (auto oi:BS_iterator_proxy<TOrbital_IBS<double> >(*bs))
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
         SMatrix<double> Hn=oi->Nuclear(cl);
         //cout << S << endl;
@@ -114,7 +85,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
 TEST_F(GaussianRadialIntegralTests, Kinetic)
 {
     
-    for (auto oi:BS_iterator_proxy<TOrbital_IBS<double> >(*bs))
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;

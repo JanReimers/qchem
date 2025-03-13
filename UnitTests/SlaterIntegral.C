@@ -163,23 +163,21 @@ double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slat
 
 TEST_F(SlaterRadialIntegralTests, Overlap)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        SMatrix<double> Snum = mintegrator->Overlap(**i);
+        SMatrix<double> Snum = mintegrator->Overlap(*oi);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
     }
 }
 
 TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Hn=oi->Nuclear(cl);
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
 
     }
@@ -187,18 +185,17 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 
 TEST_F(SlaterRadialIntegralTests, Kinetic)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi);
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const QuantumNumber& qn=i->GetQuantumNumber();
+        const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
+        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
         assert(sg);
         int n=2*l+2;
         for (auto i:Knum.rows())
@@ -214,8 +211,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
 // {
 //     for (auto i=bs->beginT();i!=bs->end();i++)
 //     {
-//         ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
-        
+//         ERI3 Sabc=ie->MakeOverlap3C(*i,*i);       
 //         auto c=i->beginT();
 //         for (auto sab:Sabc)
 //         {
@@ -225,22 +221,18 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
 //         }
 //     }
 // }
-
 // TEST_F(SlaterRadialIntegralTests, Repulsion)
 // {
 //     for (auto i=bs->beginT();i!=bs->end();i++)
 //     {
 //         auto fi=dynamic_cast<const Fit_IBS*>(*i);
-
 //         SMatrix<double> S=fi->Repulsion();
 //         for (auto j=i;j!=bs->end();j++)
 //         {
-//             Matrix<double> Sx=ie->MakeRepulsion(*i,*j);
-            
+//             Matrix<double> Sx=ie->MakeRepulsion(*i,*j);      
 //         }
 //     }
 // }
-
 // TEST_F(SlaterRadialIntegralTests, Repulsion3C)
 // {
 //     for (auto i=bs->beginT();i!=bs->end();i++)
@@ -277,13 +269,11 @@ struct Vf : public VectorFunction<double>
 
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
-    for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
-    for (auto icdt=iabt;icdt!=bs->end();icdt++)
+    for (auto iab:bs->Iterate<Slater::Orbital_IBS>())
+    for (auto icd:bs->Iterate<Slater::Orbital_IBS>(iab))
     {
-        const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
-        const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERI4 J=bs->Direct(iabt->GetID(),icdt->GetID());
+        ERI4 J=bs->Direct(iab->GetID(),icd->GetID());
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)

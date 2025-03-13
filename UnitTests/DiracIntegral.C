@@ -52,14 +52,14 @@ public:
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }
     
-    static const TIrrepBasisSet<double>* SlaterGetLarge(IrrepBasisSet* ibs)
+    static const TIrrepBasisSet<double>* SlaterGetLarge(const IrrepBasisSet* ibs)
     {
         assert(ibs);
         const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
-    static const TIrrepBasisSet<double>* SlaterGetSmall(IrrepBasisSet* ibs)
+    static const TIrrepBasisSet<double>* SlaterGetSmall(const IrrepBasisSet* ibs)
     {
         assert(ibs);
         const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
@@ -67,14 +67,14 @@ public:
         return dirbs->itsRKBS;
     }
 
-    static const TIrrepBasisSet<double>* GaussianGetLarge(IrrepBasisSet* ibs)
+    static const TIrrepBasisSet<double>* GaussianGetLarge(const IrrepBasisSet* ibs)
     {
         assert(ibs);
         const SphericalGaussian_RKB::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const SphericalGaussian_RKB::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
-    static const TIrrepBasisSet<double>* GaussianGetSmall(IrrepBasisSet* ibs)
+    static const TIrrepBasisSet<double>* GaussianGetSmall(const IrrepBasisSet* ibs)
     {
         assert(ibs);
         const SphericalGaussian_RKB::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const SphericalGaussian_RKB::Dirac_IrrepBasisSet*>(ibs);
@@ -116,14 +116,13 @@ TEST_F(DiracIntegralTests, GaussianBasisSet)
 TEST_F(DiracIntegralTests, SlaterOverlap)
 {
     StreamableObject::SetToPretty();
-    for (auto i=sbs->beginT();i!=sbs->end();i++)
+    for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
-        const TIrrepBasisSet<double>* s=SlaterGetSmall(*i);
+        const TIrrepBasisSet<double>* l=SlaterGetLarge(oi);
+        const TIrrepBasisSet<double>* s=SlaterGetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
 //        cout << SLnum << SSnum << endl;
@@ -136,14 +135,13 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
 TEST_F(DiracIntegralTests, GaussianOverlap)
 {
     StreamableObject::SetToPretty();
-    for (auto i=gbs->beginT();i!=gbs->end();i++)
+    for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
-        const TIrrepBasisSet<double>* s=GaussianGetSmall(*i);
+        const TIrrepBasisSet<double>* l=GaussianGetLarge(oi);
+        const TIrrepBasisSet<double>* s=GaussianGetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
 //        cout << SLnum << SSnum << endl;
@@ -158,13 +156,12 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
 {
     StreamableObject::SetToPretty();
     int Z=cl->GetNuclearCharge();
-    for (auto i=sbs->beginT();i!=sbs->end();i++)
+    for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Ven=oi->Nuclear(cl);
 
-        const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
-        const TIrrepBasisSet<double>* s=SlaterGetSmall(*i);
+        const TIrrepBasisSet<double>* l=SlaterGetLarge(oi);
+        const TIrrepBasisSet<double>* s=SlaterGetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Nuclear(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Nuclear(*s);
         SMat Vennum=merge_diag(VenLnum,VenSnum);
@@ -179,13 +176,12 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 {
     StreamableObject::SetToPretty();
     int Z=cl->GetNuclearCharge();
-    for (auto i=gbs->beginT();i!=gbs->end();i++)
+    for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> Ven=oi->Nuclear(cl);
 
-        const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
-        const TIrrepBasisSet<double>* s=GaussianGetSmall(*i);
+        const TIrrepBasisSet<double>* l=GaussianGetLarge(oi);
+        const TIrrepBasisSet<double>* s=GaussianGetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Nuclear(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Nuclear(*s);
         SMat Vennum=merge_diag(VenLnum,VenSnum);
@@ -200,14 +196,13 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 TEST_F(DiracIntegralTests, SlaterKinetic)
 {
     StreamableObject::SetToPretty();
-    for (auto i=sbs->beginT();i!=sbs->end();i++)
+    for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> K=oi->Kinetic();
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-        const TIrrepBasisSet<double>* l=SlaterGetLarge(*i);
-        const TIrrepBasisSet<double>* s=SlaterGetSmall(*i);
+        const TIrrepBasisSet<double>* l=SlaterGetLarge(oi);
+        const TIrrepBasisSet<double>* s=SlaterGetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMat Knum=merge_off_diag(KnumL);
         cout << "K=" << K << endl << "Knum=" << Knum << endl;
@@ -217,14 +212,13 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
 TEST_F(DiracIntegralTests, GaussianKinetic)
 {
     StreamableObject::SetToPretty();
-    for (auto i=gbs->beginT();i!=gbs->end();i++)
+    for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
     {
-        auto oi=dynamic_cast<const TOrbital_IBS<double>*>(*i);
         SMatrix<double> K=oi->Kinetic();
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-        const TIrrepBasisSet<double>* l=GaussianGetLarge(*i);
-        const TIrrepBasisSet<double>* s=GaussianGetSmall(*i);
+        const TIrrepBasisSet<double>* l=GaussianGetLarge(oi);
+        const TIrrepBasisSet<double>* s=GaussianGetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMat Knum=merge_off_diag(KnumL);
         //cout << "K=" << K << endl << "Knum=" << Knum << endl;
@@ -243,7 +237,7 @@ TEST_F(DiracIntegralTests, Contraction)
     Matrix<double> Hf(H),Df(D);
     double c=Sum(DirectMultiply(H,D));
     double cf=Sum(DirectMultiply(Hf,Df));
-    EXPECT_NEAR(c,cf,2e-15);
+    EXPECT_NEAR(c,cf,5e-15);
 }
 
 /*

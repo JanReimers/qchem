@@ -37,11 +37,56 @@ public:
     virtual const_iterator end  () const=0;
 
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
-    const_Titerator beginT() const {return const_Titerator(begin());};
+    // const_Titerator beginT() const {return const_Titerator(begin());};
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;
     static  BasisSet*  Factory(std::istream&    )      ;
+
+    template <class T> class BS_iterator
+    {
+        typedef BasisSet::const_iterator it_t;
+    public:
+        BS_iterator(const it_t& b) : current(b) {};
+        BS_iterator(const it_t& b, const bs_t* c) : current(b) //STL won't let us construct current(c).
+        {
+            while (*current!=c) ++current; //Clunky
+        };
+        it_t operator++() {return ++current;} //Prefix only.
+        const T* operator*() const
+        {
+            const T* ret(dynamic_cast<const T*>(*current));
+            assert(ret);
+            return ret;
+        }
+        friend bool operator!=(const BS_iterator& a, const BS_iterator& b)
+        {
+            return a.current!=b.current;
+        }
+    private:
+        it_t current;
+    };
+    template <class T> class BS_iterator_proxy
+    {
+        typedef BS_iterator<T> it_t;
+    public:
+        BS_iterator_proxy(const BasisSet& bs) : ib(bs.begin()), ie(bs.end()) {};
+        BS_iterator_proxy(const BasisSet& bs, const T* start) : ib(bs.begin(),start), ie(bs.end()) {};
+        it_t begin() const {return ib;}
+        it_t end  () const {return ie;}
+    private:
+        it_t ib,ie;
+    };
+
+    template <class T> BS_iterator_proxy<T> Iterate()
+    {
+        return BS_iterator_proxy<T>(*this);
+    }
+    template <class T> BS_iterator_proxy<T> Iterate(const T* start)
+    {
+        return BS_iterator_proxy<T>(*this,start);
+    }
+
 };
 
 
