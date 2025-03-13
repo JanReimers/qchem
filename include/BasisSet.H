@@ -143,11 +143,12 @@ template <class T> class TOrbital_HF_IBS
     , public virtual Integrals_2E<T> //Two electron integrals used for HF
 {
     typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::obs_t obs_t;
 public:
     using Integrals_2E<T>::Direct;
     using Integrals_2E<T>::Exchange;
-    virtual SMat Direct  (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const=0;
-    virtual SMat Exchange(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const=0;
+    virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const=0;
+    virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const=0;
 
 };
 

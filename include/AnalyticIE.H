@@ -76,10 +76,10 @@ public:
 template <class T> class Integrals_2E : public virtual Integrals_Base<T>
 {
     typedef Integrals_Base<T> Base;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::obs_t obs_t;
 public:
-    virtual ERI4 Direct  (const bs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
-    virtual ERI4 Exchange(const bs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
+    virtual ERI4 Direct  (const obs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
+    virtual ERI4 Exchange(const obs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
 
 };
 

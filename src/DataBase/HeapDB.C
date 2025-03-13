@@ -220,12 +220,12 @@ template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const 
 }
 template class DB_DFT<double>;
 
-template <class T> ERI4 DB_2E<T>::Direct(const bs_t& c) const
+template <class T> ERI4 DB_2E<T>::Direct(const obs_t& c) const
 {
     assert(itsDB_BS_2E);
     return itsDB_BS_2E->Direct(GetID(),c.GetID());
 }
-template <class T> ERI4 DB_2E<T>::Exchange(const bs_t& b) const
+template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
 {
     assert(itsDB_BS_2E);
     return itsDB_BS_2E->Exchange(GetID(),b.GetID()); 

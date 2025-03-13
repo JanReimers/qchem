@@ -99,18 +99,15 @@ Repulsion3C(const SMat& Dcd, const fbs_t* ff) const
 }
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
-Direct(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
+Direct(const SMat& Dcd, const obs_t* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    const TIrrepBasisSet<T>* ab=this;
+    const TOrbital_HF_IBS<T>* ab=this;
     
     if (ab->GetID()<=cd->GetID())
     {
-        //ERI4 Jabcd=GetDataBase()->GetDirect__4C(*ab,*cd);
-        const TOrbital_HF_IBS<T>* abhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(ab);
-        assert(abhf);   
-        ERI4 Jabcd=abhf->Direct(*cd);
+         ERI4 Jabcd=ab->Direct(*cd);
         return Jabcd*Dcd;
     }
     else
@@ -125,18 +122,15 @@ Direct(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
 
 #include <iomanip>
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
-Exchange(const SMat& Dcd, const TIrrepBasisSet<T>* cd) const
+Exchange(const SMat& Dcd, const obs_t* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    const TIrrepBasisSet<T>* ab=this;
+    const TOrbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())
     {
-        //ERI4 Kabcd=GetDataBase()->GetExchange4C(*ab,*cd);
-        const TOrbital_HF_IBS<T>* abhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(ab);
-        assert(abhf);   
-        ERI4 Kabcd=abhf->Exchange(*cd);
+        ERI4 Kabcd=ab->Exchange(*cd);
         return Kabcd*Dcd;
     }
     else
@@ -157,7 +151,6 @@ Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const
     MeshIntegrator<double> mintegrator(m);
     return mintegrator.Normalize(*this);
 }
-
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeCharge (const Mesh*  m) const
 {
     assert(false);

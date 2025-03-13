@@ -156,11 +156,11 @@ private:
 template <class T> class DB_2E :  virtual public Integrals_2E<T>
 {
     typedef Integrals_Base<T> Base;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::obs_t obs_t;
 public:
     typedef UniqueID::IDtype IDType;
-    virtual ERI4 Direct  (const bs_t& c) const;
-    virtual ERI4 Exchange(const bs_t& b) const;
+    virtual ERI4 Direct  (const obs_t& c) const;
+    virtual ERI4 Exchange(const obs_t& b) const;
 protected:
     DB_2E() : itsDB_BS_2E(0) {};
     DB_2E(const DB_BS_2E<T>* db);
