@@ -64,7 +64,7 @@ public:
     virtual double GetTotalCharge      (                     ) const;  // <ro>
     virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
 
-    virtual Vector<double> GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
 
     virtual bool   IsPolarized  (                           ) const;
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor

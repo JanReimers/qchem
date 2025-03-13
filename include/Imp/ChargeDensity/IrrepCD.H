@@ -28,7 +28,7 @@ public:
 
     virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
     virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
-    virtual RVec   GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
+    virtual RVec   GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double GetEnergy     (const HamiltonianTerm*) const;
     virtual double GetTotalCharge(                ) const;
@@ -49,9 +49,9 @@ private:
     SMat ZeroM(const IrrepBasisSet* bs_ab) const;
     RVec ZeroV(const IrrepBasisSet* bs_ab) const;
 
-    DenSMat                  itsDensityMatrix;
+    DenSMat                itsDensityMatrix;
     const TOrbital_IBS<T>* itsBasisSet;
-    Spin                     itsSpin;
+    Spin                   itsSpin;
 };
 
 #endif //_ExactIrrepCD_H_

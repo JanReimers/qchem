@@ -69,9 +69,8 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(const IrrepBasisSet* bs
 template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab);
-    const TOrbital_IBS<double>* tbs_cd=dynamic_cast<const TOrbital_IBS<double>*>(itsBasisSet);
-    const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
-    return tbs_ab->Direct(itsDensityMatrix,tbs_cd);
+    auto* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
+    return tbs_ab->Direct(itsDensityMatrix,itsBasisSet);
 }
 
 template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
@@ -85,7 +84,7 @@ template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<
 //
 //  Required by fitting routines.
 //
-template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const IrrepBasisSet* fbs) const
+template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
 {
     if (IsZero()) return ZeroV(fbs);
     auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<T>*>(itsBasisSet);

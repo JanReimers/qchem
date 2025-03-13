@@ -131,10 +131,10 @@ double FittedPolarizedCD::DoFit(const ScalarFFClient& ffc)
     return lam_bar/2.0;
 }
 
-Vector<double> FittedPolarizedCD::GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const
+Vector<double> FittedPolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(theFitBasisSet)
-        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(theFitBasisSet);
+    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
+        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
     
 }
 

@@ -51,7 +51,8 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 
 HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    return FitGet3CenterOverlap(bs);
+    auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    return FitGet3CenterOverlap(dftbs);
 }
 
 void FittedVxc::GetEnergy(TotalEnergy& te) const
