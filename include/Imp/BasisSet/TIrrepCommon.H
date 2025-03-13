@@ -54,12 +54,13 @@ template <class T> class Orbital_DFT_IBS_Common
     : public virtual TOrbital_DFT_IBS<T>
 {
     typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::fbs_t fbs_t;
     typedef typename Integrals_DFT<T>::Vec  Vec;
 public:
     using Integrals_DFT<T>::Overlap3C; //Unhide
     using Integrals_DFT<T>::Repulsion3C; //Unhide
-    virtual Vec Overlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
-    virtual Vec Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
+    virtual Vec Overlap3C  (const SMat& Dcd, const fbs_t* ff) const;
+    virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const;
 };
 
 template <class T> class Orbital_HF_IBS_Common

@@ -71,11 +71,11 @@ template <class T> class AtomIE_DFT : public virtual AtomIE_FitDFT_Common, publi
 {
 public:
     typedef Integrals_Base<T> Base;
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::fbs_t fbs_t;
     typedef typename Base::SMat SMat;
     typedef typename Integrals_DFT<T>::ERI3 ERI3;
-    virtual ERI3 MakeOverlap3C  (const bs_t& c) const;
-    virtual ERI3 MakeRepulsion3C(const bs_t& c) const;
+    virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
+    virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
 private:
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (const bf_tuple& c) const; //ab loops

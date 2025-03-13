@@ -44,14 +44,14 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
 
 template class AtomIE_1E<double>;
 
-template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C(const bs_t& _c) const
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C(const fbs_t& _c) const
 {
     const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
     ERI3 s3;
     for (auto i:c.indices()) s3.push_back(MakeOverlap(c(i)));
     return s3;
 }
-template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(const bs_t& _c) const
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(const fbs_t& _c) const
 {
     const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
     ERI3 s3;

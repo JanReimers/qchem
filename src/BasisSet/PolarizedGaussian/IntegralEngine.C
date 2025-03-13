@@ -57,7 +57,7 @@ IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cl
     return s;
 }
 
-IntegralEngine1::ERI3 IntegralEngine1::MakeOverlap3C(const bs_t& _c) const
+IntegralEngine1::ERI3 IntegralEngine1::MakeOverlap3C(const fbs_t& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
@@ -70,7 +70,7 @@ IntegralEngine1::ERI3 IntegralEngine1::MakeOverlap3C(const bs_t& _c) const
     } 
     return s3;   
 }
-IntegralEngine1::ERI3 IntegralEngine1::MakeRepulsion3C(const bs_t& _c) const
+IntegralEngine1::ERI3 IntegralEngine1::MakeRepulsion3C(const fbs_t& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();

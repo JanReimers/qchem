@@ -127,14 +127,15 @@ template <class T> class TOrbital_DFT_IBS
     
 {
     typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::fbs_t fbs_t;
     typedef Vector<T> Vec;
 public:
-    virtual Fit_IBS*    CreateCDFitBasisSet(const Cluster*) const=0;
-    virtual Fit_IBS*    CreateVxcFitBasisSet(const Cluster*) const=0;
+    virtual fbs_t*    CreateCDFitBasisSet(const Cluster*) const=0;
+    virtual fbs_t*    CreateVxcFitBasisSet(const Cluster*) const=0;
     using Integrals_DFT<T>::Overlap3C; //Unhide
     using Integrals_DFT<T>::Repulsion3C; //Unhide
-    virtual Vec Overlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const=0;
-    virtual Vec Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const=0;
+    virtual Vec Overlap3C  (const SMat& Dcd, const fbs_t* ff) const=0;
+    virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const=0;
 };
 
 template <class T> class TOrbital_HF_IBS

@@ -34,6 +34,7 @@ protected:
     //typedef DB_Fit::Vec Vec;
     typedef Base::SMat SMat;
     typedef Base::bs_t bs_t;
+    typedef Base::fbs_t fbs_t; //Fit basis
     typedef Base::Mat Mat;
     typedef Integrals_DFT<double>::ERI3 ERI3;
 
@@ -42,8 +43,8 @@ protected:
     virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);}
     virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
     virtual Mat  MakeRepulsion(const bs_t& b) const;
-    virtual ERI3 MakeOverlap3C  (const bs_t& c) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const bs_t& c) const; //Used for DFT
+    virtual ERI3 MakeOverlap3C  (const fbs_t& c) const; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(const fbs_t& c) const; //Used for DFT
     virtual ERI4 MakeDirect  (const bs_t& c) const;
     virtual ERI4 MakeExchange(const bs_t& b) const;
 

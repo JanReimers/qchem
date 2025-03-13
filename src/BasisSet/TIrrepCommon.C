@@ -79,7 +79,7 @@ Gradient(const RVec3& r) const
 }
 
 template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
-Overlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+Overlap3C(const SMat& Dcd, const fbs_t* ff) const
 {
     Vec ret(ff->size());
     const typename Integrals_DFT<T>::ERI3& S=this->Overlap3C(*ff);
@@ -89,7 +89,7 @@ Overlap3C(const SMat& Dcd, const IrrepBasisSet* ff) const
 }
 
 template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
-Repulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const
+Repulsion3C(const SMat& Dcd, const fbs_t* ff) const
 {
     Vec ret(ff->size());
     const typename Integrals_DFT<T>::ERI3& repulsion=this->Repulsion3C(*ff);
