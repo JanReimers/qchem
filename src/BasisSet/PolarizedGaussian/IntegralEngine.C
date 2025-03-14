@@ -11,7 +11,7 @@
 namespace PolarizedGaussian
 {
 
-IntegralEngine1::Vec IntegralEngine1::MakeCharge() const
+Fit_IE::Vec Fit_IE::MakeCharge() const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     assert(a);
@@ -28,7 +28,7 @@ IntegralEngine1::Vec IntegralEngine1::MakeCharge() const
     return c;
 }
 
-IntegralEngine1::Mat IntegralEngine1::MakeRepulsion(const fbs_t& _b) const
+Fit_IE::Mat Fit_IE::MakeRepulsion(const fbs_t& _b) const
 {   
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
@@ -44,7 +44,7 @@ IntegralEngine1::Mat IntegralEngine1::MakeRepulsion(const fbs_t& _b) const
     return s;
 }
 
-IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
+IE_Common::SMat IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
     assert(ab);
@@ -57,7 +57,7 @@ IntegralEngine1::SMat IntegralEngine1::MakeIntegrals(qchem::IType2C t2C,const Cl
     return s;
 }
 
-IntegralEngine1::ERI3 IntegralEngine1::MakeOverlap3C(const fbs_t& _c) const
+Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const fbs_t& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
@@ -70,7 +70,7 @@ IntegralEngine1::ERI3 IntegralEngine1::MakeOverlap3C(const fbs_t& _c) const
     } 
     return s3;   
 }
-IntegralEngine1::ERI3 IntegralEngine1::MakeRepulsion3C(const fbs_t& _c) const
+Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const fbs_t& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
@@ -83,7 +83,7 @@ IntegralEngine1::ERI3 IntegralEngine1::MakeRepulsion3C(const fbs_t& _c) const
     }    
     return s3;
 }
-IntegralEngine1::SMat IntegralEngine1::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
+Orbital_IE::SMat Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
 {
     auto ab=dynamic_cast<const IrrepIEClient*>(this);
     int N=ab->size();
@@ -97,7 +97,7 @@ IntegralEngine1::SMat IntegralEngine1::Integrate(qchem::IType3C type , const Rad
 
 
 
-ERI4 IntegralEngine1::MakeDirect  (const obs_t& _c) const
+ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
     const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(&_c);
@@ -122,7 +122,7 @@ ERI4 IntegralEngine1::MakeDirect  (const obs_t& _c) const
     return J;
 }
 
-ERI4 IntegralEngine1::MakeExchange(const obs_t& _b) const
+ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(&_b);

@@ -43,13 +43,14 @@ namespace PolarizedGaussian
           public Orbital_IBS_Common<double>,
           public Orbital_DFT_IBS_Common<double>,
           public Orbital_HF_IBS_Common<double>,
-          public IntegralEngine1
+          public Orbital_IE
 
     {
+        typedef DB_BS_2E<double> db_t;
     public:
-        Orbital_IBS(const LAParams &, const DB_BS_2E<double> *db, Reader *, const Cluster *);
-        Orbital_IBS(const LAParams &, const DB_BS_2E<double> *db, const Vector<double> &exponents, size_t L, const Cluster *);
-        Orbital_IBS(const LAParams &, const DB_BS_2E<double> *db, const Vector<double> &exponents, size_t L);
+        Orbital_IBS(const LAParams &, const db_t* db, Reader *, const Cluster *);
+        Orbital_IBS(const LAParams &, const db_t* db, const Vector<double>& exponents, size_t L, const Cluster *);
+        Orbital_IBS(const LAParams &, const db_t* db, const Vector<double>& exponents, size_t L);
 
         virtual UniqueID::IDtype GetID() const { return UniqueID::GetID(); }
         virtual ::Fit_IBS *CreateCDFitBasisSet(const Cluster *) const;
@@ -58,25 +59,15 @@ namespace PolarizedGaussian
     };
 
     class Fit_IBS
-        : public virtual ::Fit_IBS,
-          public virtual FitIntegrals_1E<double>, 
-          public IrrepBasisSet,
-          public TIrrepBasisSetCommon<double>,
-          public DB_Fit,
-          public Fit_IBS_Common,
-          public IntegralEngine1
+        : public virtual ::Fit_IBS
+        , public virtual FitIntegrals_1E<double>
+        , public IrrepBasisSet
+        , public TIrrepBasisSetCommon<double>
+        , public Fit_IBS_Common
+        , public Fit_IE
     {
-        typedef DB_Fit::SMat SMat;
-        typedef Integrals_Base::Vec Vec;
-        typedef Integrals_Base::Mat Mat;
-        typedef Integrals_Base::fbs_t fbs_t;
     public:
         Fit_IBS(const LAParams &, Reader *, const Cluster *);
-
-        virtual Vec MakeCharge() const { return IntegralEngine1::MakeCharge(); }
-        virtual SMat MakeOverlap() const { return IntegralEngine1::MakeOverlap(); }
-        virtual SMat MakeRepulsion() const { return IntegralEngine1::MakeRepulsion(); }
-        virtual Mat MakeRepulsion(const fbs_t &b) const { return IntegralEngine1::MakeRepulsion(b); }
 
         virtual ::Fit_IBS *Clone(const RVec3 &) const;
         virtual UniqueID::IDtype GetID() const { return UniqueID::GetID(); }

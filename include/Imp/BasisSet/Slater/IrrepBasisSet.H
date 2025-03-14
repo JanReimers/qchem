@@ -48,7 +48,9 @@ public:
 
 };
 
-class Fit_IBS : public virtual ::Fit_IBS, public virtual FitIntegrals_1E<double>
+class Fit_IBS 
+: public virtual ::Fit_IBS
+, public virtual FitIntegrals_1E<double>
 , public IrrepBasisSet
 , public TIrrepBasisSetCommon<double>
 , public Fit_IBS_Common
@@ -61,7 +63,6 @@ public:
     , TIrrepBasisSetCommon<double>(lap)
     {};
    
-    using Fit_IBS_Common::Norm;
     virtual ::Fit_IBS* Clone(const RVec3&) const;
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
 };

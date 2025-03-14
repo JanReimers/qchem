@@ -226,20 +226,20 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 //
 // Orbital PG basis set.
 //
-Orbital_IBS::Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db, Reader* bsr, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, Reader* bsr, const Cluster* cl)
     : IrrepBasisSet(bsr,cl)
     , Orbital_IBS_Common<double>(lap)
-    , IntegralEngine1(db)
+    , Orbital_IE(db)
 {};
-Orbital_IBS::Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
     : IrrepBasisSet(exponents,L,cl)
     , Orbital_IBS_Common<double>(lap)
-    , IntegralEngine1(db)
+    , Orbital_IE(db)
 {};
-Orbital_IBS::Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db, const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
     , Orbital_IBS_Common<double>(lap)
-    , IntegralEngine1(db)
+    , Orbital_IE(db)
 {};
     
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
@@ -257,10 +257,6 @@ Orbital_IBS::Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db, const V
 IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 {
     // No UT coverage
-//    optr_vector1<Block*> newBlocks;
-//    for (optr_vector1<Block*>::const_iterator b(itsBlocks.begin()); b!=itsBlocks.end(); b++)
-//        newBlocks.push_back((*b)->Clone(newCenter));
-//    return new BasisSet(this,GetDataBase()->Clone(),newBlocks);
     assert(false);
     return 0;
 }
