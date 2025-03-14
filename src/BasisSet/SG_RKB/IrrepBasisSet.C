@@ -136,8 +136,8 @@ Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,
     assert(itsRKBS);
     IntegralEngine::itsRKBS=rkbs;
     Dirac_IrrepIEClient::Init(rkbl,rkbs);
-    for (auto b:*itsRKBL) Insert(b);
-    for (auto b:*itsRKBS) Insert(b);
+    for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
+    for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
 };
 
 ::Fit_IBS* Dirac_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const

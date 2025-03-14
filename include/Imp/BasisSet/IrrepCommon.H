@@ -34,14 +34,14 @@ public:
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
-    virtual       iterator begin()       {return itsBasisFunctions.begin();}
-    virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
+    // virtual       iterator begin()       {return itsBasisFunctions.begin();}
+    // virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
 
     virtual std::ostream& Write(std::ostream&) const;
     //virtual std::istream& Read (std::istream&)      ;
 
 protected:
-    virtual void  Insert(BasisFunction* );
+    virtual void  Insert(const BasisFunction* );
     void  EmptyBasisFunctions();
     std::ostream& WriteBasisFunctions(std::ostream&) const;
     std::istream& ReadBasisFunctions (std::istream&)      ;
@@ -50,7 +50,7 @@ private:
     IrrepBasisSetCommon& operator=(const IrrepBasisSetCommon&);
 
     QuantumNumber*               itsQuantumNumber;
-    optr_vector1<BasisFunction*> itsBasisFunctions;
+    optr_vector1<const BasisFunction*> itsBasisFunctions;
 };
 
 #endif //_BasisSetImplementation_H_

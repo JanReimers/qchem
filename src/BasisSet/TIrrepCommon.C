@@ -62,7 +62,11 @@ operator() (const RVec3& r) const
 {
     Vec  ret(this->size());
     typename Vec::iterator i(ret.begin());
-    for(auto b=this->beginT();b!=this->end();i++,b++) *i=(**b)(r);
+    for(auto b:IrrepBasisSet::Iterate<TBasisFunction<T> >()) 
+    {
+        *i=(*b)(r);
+        i++;
+    }
 
     return ret;
 }
@@ -73,7 +77,11 @@ Gradient(const RVec3& r) const
     // No UT coverage
     Vec3Vec  ret(this->size());
     typename Vec3Vec::iterator i(ret.begin());
-    for(auto b=this->beginT(); b!=this->end(); i++,b++) *i=b->Gradient(r);
+    for(auto b:IrrepBasisSet::Iterate<TBasisFunction<T> >()) 
+    {
+        *i=b->Gradient(r);
+        i++;
+    }
 
     return ret;
 }

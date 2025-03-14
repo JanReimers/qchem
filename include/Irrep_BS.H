@@ -6,6 +6,7 @@
 #include <types.H>
 #include "Imp/Misc/UniqueID/UniqueID.H"
 #include <vector>
+#include <cassert>
 
 //----------------------------------------------------------------------------
 //
@@ -24,20 +25,66 @@ class IrrepBasisSet
     , public UniqueID
 {
 public:
-    typedef std::vector<BasisFunction*>::      iterator       iterator;
-    typedef std::vector<BasisFunction*>::const_iterator const_iterator;
+    typedef std::vector<const BasisFunction*>::      iterator       iterator;
+    typedef std::vector<const BasisFunction*>::const_iterator const_iterator;
 
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
     virtual       QuantumNumber* GetQuantumNumber(int index      ) const=0;
-
+private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
-    virtual       iterator begin()      =0;
-    virtual       iterator end  ()      =0;
+public:
+    // virtual       iterator begin()      =0;
+    // virtual       iterator end  ()      =0;
     
+    template <class T> class IBS_iterator
+    {
+        typedef IrrepBasisSet::const_iterator it_t;
+    public:
+        IBS_iterator(const it_t& b) : current(b) {};
+        IBS_iterator(const it_t& b, const BasisFunction* c) : current(b) //STL won't let us construct current(c).
+        {
+            while (*current!=c) 
+                ++current; //Clunky
+        };
+        it_t operator++() {return ++current;} //Prefix only.
+        const T* operator*() const
+        {
+            const T* ret(dynamic_cast<const T*>(*current));
+            assert(ret);
+            return ret;
+        }
+        friend bool operator!=(const IBS_iterator& a, const IBS_iterator& b)
+        {
+            return a.current!=b.current;
+        }
+    private:
+        it_t current;
+    };
+    template <class T> class IBS_iterator_proxy
+    {
+        typedef IBS_iterator<T> it_t;
+        typedef IrrepBasisSet::const_iterator cit_t;
+    public:
+        IBS_iterator_proxy(const cit_t& b, const cit_t& e) : ib(b), ie(e) {};
+        IBS_iterator_proxy(const cit_t& b, const cit_t& e, const T* start) : ib(b,start), ie(e) {};
+        it_t begin() const {return ib;}
+        it_t end  () const {return ie;}
+    private:
+        it_t ib,ie;
+    };
+
+    template <class T> IBS_iterator_proxy<T> Iterate() const
+    {
+        return IBS_iterator_proxy<T>(begin(),this->end());
+    }
+    template <class T> IBS_iterator_proxy<T> Iterate(const T* start) const
+    {
+        return IBS_iterator_proxy<T>(begin(),this->end(),start);
+    }
     
 //
 //  StreamableObject stuff.
