@@ -34,11 +34,8 @@ public:
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
-    // virtual       iterator begin()       {return itsBasisFunctions.begin();}
-    // virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
 
     virtual std::ostream& Write(std::ostream&) const;
-    //virtual std::istream& Read (std::istream&)      ;
 
 protected:
     virtual void  Insert(const BasisFunction* );

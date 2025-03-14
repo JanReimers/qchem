@@ -25,15 +25,11 @@ public:
     typedef Orbital_IBS bs_t;
     typedef TOrbital_IBS<double> tbs_t;
     typedef optr_vector1<bs_t*>::const_iterator const_iterator;
-    //typedef dynamic_cast_iterator<bs_t*,tbs_t* > const_Titerator;
-
+    
     BasisSet() {};
 
     virtual ~BasisSet() {}; 
     virtual size_t GetNumFunctions() const=0;
-//    virtual size_t GetNumIrreps() const=0;
-
-
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
@@ -43,7 +39,6 @@ public:
 private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
-public:
 
     template <class T> class BS_iterator
     {
@@ -81,6 +76,8 @@ public:
     private:
         it_t ib,ie;
     };
+    
+public:
 
     template <class T> BS_iterator_proxy<T> Iterate() const
     {

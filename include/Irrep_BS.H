@@ -36,9 +36,6 @@ public:
 private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
-public:
-    // virtual       iterator begin()      =0;
-    // virtual       iterator end  ()      =0;
     
     template <class T> class IBS_iterator
     {
@@ -76,7 +73,8 @@ public:
     private:
         it_t ib,ie;
     };
-
+    
+public:
     template <class T> IBS_iterator_proxy<T> Iterate() const
     {
         return IBS_iterator_proxy<T>(begin(),this->end());
@@ -107,9 +105,6 @@ template <class T> class TIrrepBasisSet
 {
 public:
     size_t GetVectorSize() const {return GetNumFunctions();}
-
-    typedef dynamic_cast_iterator<BasisFunction*,TBasisFunction<T>* > const_iterator;
-    const_iterator beginT() const {return const_iterator(begin());};
 };
 
 #include "AnalyticIE.H"

@@ -20,14 +20,14 @@ public:
     virtual size_t GetNumFunctions() const;
     virtual void Insert(bs_t*);
 
-    virtual const_iterator begin() const {return itsBasisSets.begin();}
-    virtual const_iterator end  () const {return itsBasisSets.end  ();}
 //
 //  StreamableObject stuff.
 //
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual std::istream&  Read (std::istream&    )      ;
 protected:
+    virtual const_iterator begin() const {return itsBasisSets.begin();}
+    virtual const_iterator end  () const {return itsBasisSets.end  ();}
     friend class SlaterRadialIntegralTests;
     friend class DiracIntegralTests;
 

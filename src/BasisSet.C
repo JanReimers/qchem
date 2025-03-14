@@ -5,13 +5,11 @@
 
 Fit_IBS* BasisSet::CreateCDFitBasisSet(const Cluster* cl) const
 {   
-    const TOrbital_DFT_IBS<double>* dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(*begin());
-    assert(dft);
+    auto dft=*Iterate<TOrbital_DFT_IBS<double>>().begin();
     return dft->CreateCDFitBasisSet(cl);
 }
 Fit_IBS* BasisSet::CreateVxcFitBasisSet(const Cluster* cl) const
 {
-    const TOrbital_DFT_IBS<double>* dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(*begin());
-    assert(dft);
+    auto dft=*Iterate<TOrbital_DFT_IBS<double>>().begin();
     return dft->CreateVxcFitBasisSet(cl);
 }

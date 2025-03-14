@@ -1,18 +1,19 @@
 Priority 1:
     -Break up the BasisSet.H header
-        -Break out BasisFunction.H
+        Done: -Break out BasisFunction.H
         -Break out IrrepBS.H
-            DFT: Put IE,DB,IBS inter faces in one header?
+            DFT: Put IE,DB,IBS interfaces in one header?
             HF: 
             Fit:
     -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
     -Stop using paramaterized Integral() calls.
     -PG::Fit_BS do we need all that function forwarding?
     -Make Atom_BS which handles and angular integrals for all atom basis sets.
-    -Need more iterators for BasisSet where dyn casting is done by the iterator.
+    Done: -Need more iterators for BasisSet where dyn casting is done by the iterator.
         -Use proxy classes 
             for (auto b:bs->Irreps<TOrbital_IBS<double> >()) 
-    -Survey use of IrrepBS, Can we use more specific interfaces?
+    TOrbital iterators?
+    Done: -Survey use of IrrepBS, Can we use more specific interfaces?
     -Survey use of dynamic cast
         -SHould only be casting between interfaces
         -Can we pass around ore specific interfaces?
