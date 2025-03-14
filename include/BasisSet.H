@@ -25,7 +25,7 @@ public:
     typedef Orbital_IBS bs_t;
     typedef TOrbital_IBS<double> tbs_t;
     typedef optr_vector1<bs_t*>::const_iterator const_iterator;
-    typedef dynamic_cast_iterator<bs_t*,tbs_t* > const_Titerator;
+    //typedef dynamic_cast_iterator<bs_t*,tbs_t* > const_Titerator;
 
     BasisSet() {};
 
@@ -33,15 +33,17 @@ public:
     virtual size_t GetNumFunctions() const=0;
 //    virtual size_t GetNumIrreps() const=0;
 
-    virtual const_iterator begin() const=0;
-    virtual const_iterator end  () const=0;
 
     virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
-    // const_Titerator beginT() const {return const_Titerator(begin());};
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;
     static  BasisSet*  Factory(std::istream&    )      ;
+
+private:
+    virtual const_iterator begin() const=0;
+    virtual const_iterator end  () const=0;
+public:
 
     template <class T> class BS_iterator
     {
@@ -50,7 +52,8 @@ public:
         BS_iterator(const it_t& b) : current(b) {};
         BS_iterator(const it_t& b, const bs_t* c) : current(b) //STL won't let us construct current(c).
         {
-            while (*current!=c) ++current; //Clunky
+            while (*current!=c) 
+                ++current; //Clunky
         };
         it_t operator++() {return ++current;} //Prefix only.
         const T* operator*() const
@@ -69,22 +72,23 @@ public:
     template <class T> class BS_iterator_proxy
     {
         typedef BS_iterator<T> it_t;
+        typedef BasisSet::const_iterator cit_t;
     public:
-        BS_iterator_proxy(const BasisSet& bs) : ib(bs.begin()), ie(bs.end()) {};
-        BS_iterator_proxy(const BasisSet& bs, const T* start) : ib(bs.begin(),start), ie(bs.end()) {};
+        BS_iterator_proxy(const cit_t& b, const cit_t& e) : ib(b), ie(e) {};
+        BS_iterator_proxy(const cit_t& b, const cit_t& e, const T* start) : ib(b,start), ie(e) {};
         it_t begin() const {return ib;}
         it_t end  () const {return ie;}
     private:
         it_t ib,ie;
     };
 
-    template <class T> BS_iterator_proxy<T> Iterate()
+    template <class T> BS_iterator_proxy<T> Iterate() const
     {
-        return BS_iterator_proxy<T>(*this);
+        return BS_iterator_proxy<T>(begin(),this->end());
     }
-    template <class T> BS_iterator_proxy<T> Iterate(const T* start)
+    template <class T> BS_iterator_proxy<T> Iterate(const T* start) const
     {
-        return BS_iterator_proxy<T>(*this,start);
+        return BS_iterator_proxy<T>(begin(),this->end(),start);
     }
 
 };

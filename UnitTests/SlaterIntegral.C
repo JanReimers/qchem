@@ -270,6 +270,9 @@ struct Vf : public VectorFunction<double>
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
     for (auto iab:bs->Iterate<Slater::Orbital_IBS>())
+    {
+        // const Orbital_IBS* iab1=iab;
+        // cout << (void*)iab << " " << (void*)iab1 << endl;
     for (auto icd:bs->Iterate<Slater::Orbital_IBS>(iab))
     {
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
@@ -301,6 +304,8 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
             }
         }
     }
+}
+
 }
 
 //

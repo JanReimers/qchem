@@ -117,7 +117,7 @@ int QchemTester::GetZ() const
 std::vector<const QuantumNumber*> QchemTester::GetQuantumNumbers() const
 {
     std::vector<const QuantumNumber*> qns;
-    for (const auto& b : *itsBasisSet)
+    for (const auto& b : itsBasisSet->Iterate<Orbital_IBS>())
     {
         qns.push_back(&(b->GetQuantumNumber()));
     }
