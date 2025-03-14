@@ -57,15 +57,6 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
     }
 }
 
-BasisSet::RVec BasisSet::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
-{
-    return AngularIntegrals::Coulomb(la,lc,ma,mc);
-}
-
-BasisSet::RVec BasisSet::ExchangeAngularIntegrals(size_t la, size_t lb, int ma, int mb) const
-{
-    return AngularIntegrals::Exchange(la,lb,ma,mb);
-}
 
 
 } //namespace

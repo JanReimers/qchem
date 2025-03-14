@@ -18,34 +18,24 @@ BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_
         Insert(new Orbital_IBS(lap,this,gs.Get_es(L),L)); //Common with optr_vector     
 }
 
-void BasisSet::Insert(bs_t* bs)
+void BS_Common::Insert(bs_t* bs)
 {
     BasisSetImp::Insert(bs);
     Append(bs);
 }
 
-BasisSet::RVec BasisSet::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
-{
-    return AngularIntegrals::Coulomb(la,lc);
-}
-
-BasisSet::RVec BasisSet::ExchangeAngularIntegrals(size_t la, size_t lb, int, int) const
-{
-    return AngularIntegrals::Exchange(la,lb);
-}
-
-const Cacheable* BasisSet::Create(size_t ia,size_t ic,size_t ib,size_t id) const
+const Cacheable* BS_Common::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
     return new SphericalGaussianCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax(ia,ib,ic,id));
 }
 
-Vector<double>  BasisSet::loop_4_direct(size_t id, size_t la, size_t lc)  const
+Vector<double>  BS_Common::loop_4_direct(size_t id, size_t la, size_t lc)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
     return cd->Coulomb_Rk(la,lc);
 }
-Vector<double>  BasisSet::loop_4_exchange(size_t id, size_t la, size_t lc)  const
+Vector<double>  BS_Common::loop_4_exchange(size_t id, size_t la, size_t lc)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);

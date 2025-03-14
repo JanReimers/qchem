@@ -10,16 +10,13 @@ namespace Slater_m
 {
 
 class BasisSet 
-    : public Slater::BasisSet
+    : public Slater::BS_Common
+    , public AtomIE_BS_2E_lm
 {
-    typedef Slater::BasisSet::RVec RVec;
 public:
     BasisSet() {};
     BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
     
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-
 };
 
 } //namespace Slater_m

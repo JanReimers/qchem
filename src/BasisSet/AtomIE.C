@@ -186,7 +186,28 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
 
     return K;
 };
+
 template class AtomIE_BS_2E<double>;
+
+#include "Imp/Integrals/AngularIntegrals.H"
+
+AtomIE_BS_2E_l::RVec AtomIE_BS_2E_l::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
+{
+    return AngularIntegrals::Coulomb(la,lc);
+}
+AtomIE_BS_2E_l::RVec AtomIE_BS_2E_l::ExchangeAngularIntegrals(size_t la, size_t lb, int, int) const
+{
+    return AngularIntegrals::Exchange(la,lb);
+}
+
+AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
+{
+    return AngularIntegrals::Coulomb(la,lc,ma,mc);
+}
+AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::ExchangeAngularIntegrals(size_t la, size_t lb, int ma, int mb) const
+{
+    return AngularIntegrals::Exchange(la,lb,ma,mb);
+}
 
 AtomIE_Fit::Vec AtomIE_Fit::MakeCharge() const
 {

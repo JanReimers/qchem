@@ -15,15 +15,13 @@ namespace SphericalGaussian_m
 {
 
 class BasisSet 
-    : public SphericalGaussian::BasisSet
+: public SphericalGaussian::BS_Common
+, public ::AtomIE_BS_2E_lm //Pick angular integrals.
 {
-    typedef SphericalGaussian::BasisSet::RVec RVec;
 public:
     BasisSet() {};
     BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
     BasisSet(const LAParams&,PolarizedGaussian::Reader*, const Atom*);
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
 };
 
 } //namespace SphericalGaussian_m
