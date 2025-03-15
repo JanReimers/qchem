@@ -37,9 +37,30 @@ template <class T> typename AtomIE_1E<T>::SMat AtomIE_1E<T>::MakeIntegrals(qchem
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Integral(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+            H(i,j)= Integral_internal(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
 
     return H;
+}
+
+template <class T> double AtomIE_1E<T>::Integral_internal(qchem::IType t,double ea , double eb,size_t l) const
+{
+    switch (t)
+    {
+    case qchem::Overlap1:
+        return Overlap(ea,eb,l);
+        break;
+    case qchem::Kinetic1:
+        return Kinetic(ea,eb,l);
+        break;
+    case qchem::Nuclear1:
+        return Nuclear(ea,eb,l);
+        break;
+    
+    default:
+        assert(false);
+        return 0;
+        break;
+    }
 }
 
 template class AtomIE_1E<double>;
@@ -69,7 +90,7 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap(const
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=DFTOverlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }

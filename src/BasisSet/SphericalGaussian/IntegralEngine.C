@@ -15,15 +15,34 @@ double Fit_IE::Charge(double ea, size_t l) const
     return GaussianIntegral(ea,l);
 }
 
-double Orbital_IE::Overlap(double ea, double eb,size_t l) const
+double Orbital_IE::DFTOverlap(double ea, double eb,size_t l) const
 {
     return GaussianIntegral(ea+eb,l);
 }
+double IntegralEngine1::Kinetic(double ea , double eb,size_t l) const
+{
+    double t=ea+eb;
+    size_t l1=l+1;
+    return 0.5*(
+            (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
+            -2*l1 * t      * GaussianIntegral(t,2*l  )
+            +4*ea*eb       * GaussianIntegral(t,2*l+2)
+        );
+}
 
+double IntegralEngine1::Nuclear(double ea , double eb,size_t l) const
+{
+    return GaussianIntegral(ea+eb,2*l-1); //Already has 4*Pi
+}
 double IntegralEngine1::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     SphericalGaussianCD cd(eab,ec,std::max(la,lc));
     return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
+}
+
+double  IntegralEngine1::Overlap(double ea , double eb,size_t l) const
+{
+    return GaussianIntegral(ea+eb,2*l); //Already has 4*Pi
 }
 
 double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l) const
@@ -52,32 +71,5 @@ double IntegralEngine1::Integral(qchem::IType type,double ea, double eb,size_t l
     return 0.0;
 }
 
-// IntegralEngine1::RVec IntegralEngine1::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
-// {
-//     return AngularIntegrals::Coulomb(la,lc);
-// }
-
-// IntegralEngine1::RVec IntegralEngine1::ExchangeAngularIntegrals(size_t la, size_t lb, int, int) const
-// {
-//     return AngularIntegrals::Exchange(la,lb);
-// }
-
-// const Cacheable* IntegralEngine1::Create(size_t ia,size_t ic,size_t ib,size_t id) const
-// {
-//     return new SphericalGaussianCD(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax(ia,ib,ic,id));
-// }
-
-// Vector<double>  IntegralEngine1::loop_4_direct(size_t id, size_t la, size_t lc)  const
-// {
-//     const Cacheable* c=Cache4::loop_4(id);
-//     const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
-//     return cd->Coulomb_Rk(la,lc);
-// }
-// Vector<double>  IntegralEngine1::loop_4_exchange(size_t id, size_t la, size_t lc)  const
-// {
-//     const Cacheable* c=Cache4::loop_4(id);
-//     const SphericalGaussianCD* cd = dynamic_cast<const SphericalGaussianCD*>(c);
-//     return cd->ExchangeRk(la,lc);
-// }
 
 } //namespace

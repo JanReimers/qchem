@@ -21,6 +21,9 @@ class IntegralEngine1
 {
 public:
 virtual double Integral(qchem::IType,double ea , double eb,size_t l) const;
+virtual double Overlap(double ea , double eb,size_t l) const;
+virtual double Kinetic(double ea , double eb,size_t l) const;
+virtual double Nuclear(double ea , double eb,size_t l) const;
 virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
 
 };
@@ -31,7 +34,7 @@ class Orbital_IE
 , public AtomIE_DFT<double>
 {
 public:
-virtual double Overlap (double ea , double eb,size_t l) const;
+virtual double DFTOverlap (double ea , double eb,size_t l) const;
 protected:
 Orbital_IE(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};
 
