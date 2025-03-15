@@ -13,10 +13,10 @@ class IE_Common
     , public AtomIE_1E<double>
 {
 public:
-    virtual double Integral(qchem::IType,double ea , double eb,size_t l) const;
     virtual double Overlap(double ea , double eb,size_t l) const;
     virtual double Kinetic(double ea , double eb,size_t l) const;
     virtual double Nuclear(double ea , double eb,size_t l) const;
+    virtual double Repulsion(double ea, double ec,size_t l) const;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
  
 };

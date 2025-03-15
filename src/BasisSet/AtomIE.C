@@ -271,8 +271,24 @@ AtomIE_Fit::SMat AtomIE_Fit::MakeIntegrals(qchem::IType t,const Cluster* cl) con
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Integral(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
+            H(i,j)= Integral_internal(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
 
     return H;
+}
+
+double AtomIE_Fit::Integral_internal(qchem::IType t,double ea , double eb,size_t l) const
+{
+    switch (t)
+    {
+    case qchem::Overlap1:
+        return Overlap(ea,eb,l);
+        break;
+    case qchem::Repulsion1:
+        return Repulsion(ea,eb,l);
+        break;
+    
+    default:
+        break;
+    }
 }
 

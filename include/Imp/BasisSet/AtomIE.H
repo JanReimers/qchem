@@ -15,11 +15,9 @@ class AtomIrrepIEClient;
 class AtomIE_1EFit_Common
 {
     public:
-    virtual double Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     virtual double Overlap(double ea , double eb,size_t l) const=0;
     virtual double Kinetic(double ea , double eb,size_t l) const=0;
     virtual double Nuclear(double ea , double eb,size_t l) const=0;
-    // virtual double Nuclear(double ea , double eb,size_t l) const=0;
 };
 
 template <class T> class AtomIE_1E 
@@ -44,6 +42,7 @@ private:
 class AtomIE_FitDFT_Common
 {
     public:
+    virtual double Repulsion(double ea, double ec,size_t l) const=0;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
 };
 class AtomIE_Fit 
@@ -66,10 +65,12 @@ private:
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
     using AtomIE_FitDFT_Common::Repulsion; //un hide
+    using AtomIE_1EFit_Common::Overlap;
     // virtual double Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     virtual double Charge   (double ea ,           size_t l) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
+    double Integral_internal(qchem::IType,double ea , double eb,size_t l) const;
 };
 
 template <class T> class AtomIE_DFT : public virtual AtomIE_FitDFT_Common, public DB_DFT<T>
@@ -113,7 +114,6 @@ public:
 protected:
     virtual void Append(const IrrepIEClient*);
 };
-
 class AtomIE_BS_2E_l : public virtual AtomIE_BS_2E_Angular
 {
 public:
@@ -121,8 +121,6 @@ public:
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
 };
-
-
 class AtomIE_BS_2E_lm : public virtual AtomIE_BS_2E_Angular
 {
 public:

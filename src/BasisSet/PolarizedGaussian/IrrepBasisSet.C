@@ -120,7 +120,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
     : IrrepBasisSetCommon(new UnitQN)
    // , Orbital_IBS_Common<double>(lap,theDB)
-   // , IntegralEngine1(db)
+   // , IE_Common(db)
 {
     int nbasis=1;
     for (auto atom:*cl)
@@ -155,7 +155,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
     : IrrepBasisSetCommon(new UnitQN())
     // , Orbital_IBS_Common<double>(lap,theDB) 
-    // , IntegralEngine1(db)
+    // , IE_Common(db)
 
 {
     int nbasis=1;
@@ -186,7 +186,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const optr_vector1<Block*>& theBlocks)
     : IrrepBasisSetCommon(*bs)
     // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
-    // , IntegralEngine1(db)
+    // , IE_Common(db)
     , itsBlocks(theBlocks)
 {
     // No UT coverage
