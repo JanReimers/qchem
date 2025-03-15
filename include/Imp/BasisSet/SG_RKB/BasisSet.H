@@ -12,7 +12,6 @@ class DiracBasisSet
     : public ::BasisSetImp
 {
 public:
-    DiracBasisSet() {};
     DiracBasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t lmax);
     
 };

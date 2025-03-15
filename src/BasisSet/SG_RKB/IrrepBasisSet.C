@@ -140,20 +140,6 @@ Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
 };
 
-::Fit_IBS* Dirac_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return 0;
-//    return new Dirac_IrrepBasisSet(itsLAParams,GetDataBase(),es*2,-1,0.5);
-}
-
-::Fit_IBS* Dirac_IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return 0;
-//    return new Dirac_IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,-1,0.5);    
-}
-
 std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
 {
     if (!Pretty())
@@ -169,46 +155,11 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-::IrrepBasisSet* Dirac_IrrepBasisSet::Clone() const
-{
-    return new Dirac_IrrepBasisSet(*this);
-}
-
 ::IrrepBasisSet* Dirac_IrrepBasisSet::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    return 0;
 }
-
-// Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeOverlap() const
-// {
-//     SMat ol=itsLargeBS->Overlap();
-//     SMat os=itsSmallBS->Overlap();
-//     return DiracIntegralEngine::merge_diag(ol,os);
-// }
-
-// Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeKinetic() const
-// {
-//     const Integrals_RKB<double>* irkb=itsSmallBS;
-//     Matrix<double> k=-irkb->Kinetic(itsLargeBS); 
-//     //std::cout << "k=" << k << std::endl;
-//     return DiracIntegralEngine::merge_off_diag(k);
-// }
-
-// Dirac_IrrepBasisSet::SMat Dirac_IrrepBasisSet::MakeNuclear(const Cluster* cl) const
-// {
-//     SMat ol=itsLargeBS->Nuclear(cl);
-//     SMat os=itsSmallBS->Nuclear(cl);
-//     return DiracIntegralEngine::merge_diag(ol,os);
-// }
-
-
-
-
-//         assert(false);
-//     }
-//     return SMat();
-// }
 
 
 } //namespace
