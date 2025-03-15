@@ -2,19 +2,11 @@
 
 
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
-#include "Imp/BasisSet/Slater/IEClient.H" 
 #include "Imp/Integrals/SlaterCD.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
-#include "Imp/Integrals/AngularIntegrals.H"
-#include "Imp/Containers/ERI4.H"
 
 namespace Slater
 {
-double IE_Common::Repulsion(double eab, double ec,size_t l) const
-{    
-    SlaterCD cd(eab,ec,std::max(l,l));
-    return 4*4*pi*pi*cd.Coulomb_R0(l,l);
-}
 
 double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
@@ -22,13 +14,14 @@ double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
     return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
 }
 
-double  IE_Common::Overlap(double ea , double eb,size_t l) const
+double  IE_Common::Overlap(double ea , double eb,size_t l_total) const
 {
-    return SlaterIntegral(ea+eb,2*l+2); //Already has 4*Pi
+    return SlaterIntegral(ea+eb,l_total+2); //Already has 4*Pi
 }
 
-double IE_Common::Kinetic(double ea , double eb,size_t l) const
+double IE_Common::Kinetic(double ea , double eb,size_t l, size_t lb) const
 {
+    assert(l==lb);
     double ab=ea+eb;
     int na=l+1,nb=l+1;
     size_t ll=l*(l+1);
@@ -41,18 +34,15 @@ double IE_Common::Kinetic(double ea , double eb,size_t l) const
     return Term1+Term2+Term3;
 }
 
-double IE_Common::Nuclear(double ea , double eb,size_t l) const
+double IE_Common::Nuclear(double ea , double eb,size_t l_total) const
 {
-    return SlaterIntegral(ea+eb,2*l+1); //Already has 4*Pi
+    return SlaterIntegral(ea+eb,l_total+1); //Already has 4*Pi
 }
 
 double Fit_IE::Charge(double ea, size_t l) const
 {
     return SlaterIntegral(ea,l+2);
 }
-double Orbital_IE::DFTOverlap(double ea, double eb,size_t l) const
-{
-    return SlaterIntegral(ea+eb,l+2); //Already has 4*Pi
-}
+
 
 } //namespace

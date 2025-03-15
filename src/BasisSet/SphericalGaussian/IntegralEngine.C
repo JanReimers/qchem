@@ -4,18 +4,18 @@
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/Integrals/SphericalGaussianCD.H"
-#include "Imp/Integrals/AngularIntegrals.H"
 
 namespace SphericalGaussian
 {
 
-double  IE_Common::Overlap(double ea , double eb,size_t l) const
+double  IE_Common::Overlap(double ea , double eb,size_t l_total) const
 {
-    return GaussianIntegral(ea+eb,2*l); //Already has 4*Pi
+    return GaussianIntegral(ea+eb,l_total); //Already has 4*Pi
 }
     
-double IE_Common::Kinetic(double ea , double eb,size_t l) const
+double IE_Common::Kinetic(double ea , double eb,size_t l, size_t lb) const
 {
+    assert(l==lb);
     double t=ea+eb;
     size_t l1=l+1;
     return 0.5*(
@@ -25,15 +25,11 @@ double IE_Common::Kinetic(double ea , double eb,size_t l) const
         );
 }
 
-double IE_Common::Nuclear(double ea , double eb,size_t l) const
+double IE_Common::Nuclear(double ea , double eb,size_t l_total) const
 {
-    return GaussianIntegral(ea+eb,2*l-1); //Already has 4*Pi
+    return GaussianIntegral(ea+eb,l_total-1); //Already has 4*Pi
 }
-double IE_Common::Repulsion(double eab, double ec,size_t l) const
-{    
-    SphericalGaussianCD cd(eab,ec,std::max(l,l));
-    return 4*4*pi*pi*cd.Coulomb_R0(l,l);
-}
+
 double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     SphericalGaussianCD cd(eab,ec,std::max(la,lc));
@@ -44,11 +40,6 @@ double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
 double Fit_IE::Charge(double ea, size_t l) const
 {
     return GaussianIntegral(ea,l);
-}
-
-double Orbital_IE::DFTOverlap(double ea, double eb,size_t l) const
-{
-    return GaussianIntegral(ea+eb,l);
 }
 
 

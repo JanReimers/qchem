@@ -15,9 +15,9 @@ class AtomIrrepIEClient;
 class AtomIE_1EFit_Common
 {
     public:
-    virtual double Overlap(double ea , double eb,size_t l) const=0;
-    virtual double Kinetic(double ea , double eb,size_t l) const=0;
-    virtual double Nuclear(double ea , double eb,size_t l) const=0;
+    virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+    virtual double Kinetic(double ea ,double eb,size_t la,size_t lb) const=0;
+    virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
 };
 
 template <class T> class AtomIE_1E 
@@ -34,7 +34,8 @@ private:
     //virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    double Integral_internal(qchem::IType,double ea , double eb,size_t l) const;
+    double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
+
 };
 
 
@@ -42,7 +43,7 @@ private:
 class AtomIE_FitDFT_Common
 {
     public:
-    virtual double Repulsion(double ea, double ec,size_t l) const=0;
+    virtual double Overlap  (double ea ,double eb,size_t l_total) const=0;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
 };
 class AtomIE_Fit 
@@ -86,7 +87,6 @@ private:
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
     SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
-    virtual double DFTOverlap  (double ea , double eb,size_t l) const=0;
 };
 
 class AtomIE_BS_2E_Angular
@@ -96,7 +96,6 @@ public:
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
 };
-
 template <class T> class AtomIE_BS_2E 
     : public virtual AtomIE_BS_2E_Angular
     , public virtual Cache4

@@ -3,7 +3,6 @@
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/GaussianScaler.H"
-#include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/Integrals/SphericalGaussianCD.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 
