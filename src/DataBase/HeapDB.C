@@ -68,8 +68,7 @@ using std::setw;
 
 using std::cout;
 using std::endl;
-
-template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Overlap() const
+template <class T> typename DB_Overlap<T>::SMat_ref DB_Overlap<T>::Overlap() const
 {
     assert(itsCache);
     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
@@ -80,7 +79,7 @@ template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Overlap() const
     else
         return i->second;
 }
-template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Kinetic() const
+template <class T> typename DB_Kinetic<T>::SMat_ref DB_Kinetic<T>::Kinetic() const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
@@ -90,7 +89,7 @@ template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Kinetic() const
     else
         return i->second;
 }
-template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* cl) const
+template <class T> typename DB_Nuclear<T>::SMat_ref DB_Nuclear<T>::Nuclear(const Cluster* cl) const
 {
     assert(cl);
     id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
@@ -101,6 +100,40 @@ template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* 
     else
         return i->second;
 }
+
+// template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Overlap() const
+// {
+//     assert(itsCache);
+//     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
+//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+//     {
+//         return itsCache->itsSMats[key] = MakeOverlap();
+//     }
+//     else
+//         return i->second;
+// }
+
+// template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Kinetic() const
+// {
+//     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+//     {
+//         return itsCache->itsSMats[key] = MakeKinetic();
+//     }
+//     else
+//         return i->second;
+// }
+// template <class T> typename Nuclear<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* cl) const
+// {
+//     assert(cl);
+//     id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
+//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+//     {
+//         return itsCache->itsSMats[key] = MakeNuclear(cl);
+//     }
+//     else
+//         return i->second;
+// }
 
 template class DB_1E<double>;
 
@@ -115,16 +148,16 @@ DB_Fit::Vec_ref DB_Fit::Charge() const
         return i->second;
 }
 
-DB_Fit::SMat_ref DB_Fit::Overlap() const
-{
-    id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-    {
-        return itsCache->itsSMats[key] = MakeOverlap();
-    }
-    else
-        return i->second;
-}
+// DB_Fit::SMat_ref DB_Fit::Overlap() const
+// {
+//     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
+//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+//     {
+//         return itsCache->itsSMats[key] = MakeOverlap();
+//     }
+//     else
+//         return i->second;
+// }
 
 DB_Fit::SMat_ref DB_Fit::Repulsion() const
 {

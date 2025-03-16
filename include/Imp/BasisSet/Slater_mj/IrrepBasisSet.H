@@ -57,7 +57,7 @@ class Dirac_IrrepBasisSet
     , public Dirac::IrrepBasisSet<double>
     , public         Dirac_IrrepIEClient
 {
-    typedef DB_1E<double>::SMat SMat;
+    typedef Integrals_Base<double>::SMat SMat;
 public:
     //Dirac_IrrepBasisSet() {};
     Dirac_IrrepBasisSet(const LAParams&,const DB_cache<double>* db,const Vector<double>& exponents, int kappa);

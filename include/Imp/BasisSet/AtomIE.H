@@ -25,7 +25,7 @@ template <class T> class AtomIE_1E
 , public DB_1E<T>
 {
 public:
-    typedef typename DB_1E<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::SMat SMat;
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
     virtual SMat MakeNuclear(const Cluster*) const;

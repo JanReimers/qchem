@@ -29,29 +29,77 @@ public:
     mutable erij_t Jac,Kab;
 };
  
-template <class T> class DB_1E :
-    virtual public Integrals_1E<T>
+
+template <class T> class DB_Overlap :
+    virtual public Integrals_Overlap<T>
 {    
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat_ref SMat_ref;
 public:
-    //  This is all buffered.
     virtual SMat_ref Overlap() const;
-    virtual SMat_ref Kinetic() const;
-    virtual SMat_ref Nuclear(const Cluster*) const;
 protected:
     typedef typename Base::SMat SMat;
-    DB_1E(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
+    DB_Overlap(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
 private:
     typedef typename DB_cache<T>::id2c_t id2c_t;
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
     // One time calls to un-buffered integral calculations.
     virtual SMat MakeOverlap() const=0;
+    const DB_cache<T>* itsCache;
+};
+template <class T> class DB_Kinetic :
+    virtual public Integrals_Kinetic<T>
+{    
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+public:
+    virtual SMat_ref Kinetic() const;
+protected:
+    typedef typename Base::SMat SMat;
+    DB_Kinetic(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
+private:
+    typedef typename DB_cache<T>::id2c_t id2c_t;
+    typedef UniqueID::IDtype IDType;
+    virtual IDType GetID() const=0;
+    // One time calls to un-buffered integral calculations.
     virtual SMat MakeKinetic() const=0;
+    const DB_cache<T>* itsCache;
+};
+template <class T> class DB_Nuclear :
+    virtual public Integrals_Nuclear<T>
+{    
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+public:
+    virtual SMat_ref Nuclear(const Cluster*) const;
+protected:
+    typedef typename Base::SMat SMat;
+    DB_Nuclear(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
+private:
+    typedef typename DB_cache<T>::id2c_t id2c_t;
+    typedef UniqueID::IDtype IDType;
+    virtual IDType GetID() const=0;
+    // One time calls to un-buffered integral calculations.
     virtual SMat MakeNuclear(const Cluster*) const=0;
     const DB_cache<T>* itsCache;
+};
 
+
+template <class T> class DB_1E :
+    virtual public Integrals_1E<T>
+    , public DB_Overlap<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
+{    
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+public:
+  
+protected:
+    DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
+private:
+    
 
 };
 
@@ -113,7 +161,8 @@ private:
     const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
 };
 
-class DB_Fit : public virtual FitIntegrals_1E<double>
+class DB_Fit 
+    : public virtual FitIntegrals_1E<double>
 {
     typedef Integrals_Base<double> Base;
     typedef typename Base::Mat_ref Mat_ref;
@@ -121,8 +170,8 @@ class DB_Fit : public virtual FitIntegrals_1E<double>
     typedef typename Base::Vec_ref Vec_ref;
     typedef typename Base::fbs_t fbs_t;
 public:
+    using Integrals_Overlap<double>::Overlap; 
     virtual Vec_ref  Charge   () const;   
-    virtual SMat_ref Overlap  () const;
     virtual SMat_ref Repulsion() const;
     virtual  Mat_ref Repulsion(const fbs_t&) const;
     virtual SMat_ref InvOverlap(const LAParams&) const;

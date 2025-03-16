@@ -43,19 +43,40 @@ public:
     typedef const SMat& SMat_ref;
 };
 
-
-template <class T> class Integrals_1E : public virtual Integrals_Base<T>
+template <class T> class Integrals_Overlap : public virtual Integrals_Base<T>
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat_ref SMat_ref;
 public:
-    
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual SMat_ref Overlap() const=0;
+};
+
+template <class T> class Integrals_Kinetic : public virtual Integrals_Base<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+public:
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
     virtual SMat_ref Kinetic() const=0;
+};
+
+template <class T> class Integrals_Nuclear : public virtual Integrals_Base<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat_ref SMat_ref;
+public:
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
     virtual SMat_ref Nuclear(const Cluster*) const=0;   
+};
+
+
+
+template <class T> class Integrals_1E 
+    : public virtual Integrals_Overlap<T>
+    , public virtual Integrals_Kinetic<T>
+    , public virtual Integrals_Nuclear<T>
+{
 };
 
 template <class T> class Integrals_DFT : public virtual Integrals_Base<T>
@@ -126,7 +147,8 @@ public:
     virtual SMat_ref RestMass() const=0;
 };
 
-template <class T> class FitIntegrals_1E  : public virtual Integrals_Base<T>
+template <class T> class FitIntegrals_1E  
+    : public virtual Integrals_Overlap<T>
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat_ref SMat_ref;
@@ -137,8 +159,8 @@ template <class T> class FitIntegrals_1E  : public virtual Integrals_Base<T>
     typedef typename Base::fbs_t fbs_t;
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+    using Integrals_Overlap<T>::Overlap;
     virtual Vec_ref  Charge   () const=0;   
-    virtual SMat_ref Overlap  () const=0;
     virtual SMat_ref Repulsion() const=0;
     virtual  Mat_ref Repulsion(const fbs_t&) const=0;
     virtual SMat_ref InvOverlap(const LAParams&) const=0;
