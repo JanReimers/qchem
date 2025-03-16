@@ -20,14 +20,14 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
 
 };
 
-::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster*) const
+::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const
 {
     // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2,0,0);
     assert(false);
     return 0;
 }
 
-::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster*) const
+::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const
 {
     // return new IrrepBasisSet(itsLAParams,GetDataBase(),0,es*2.0/3.0,0,0);
     assert(false);

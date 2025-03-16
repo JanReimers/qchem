@@ -42,8 +42,8 @@ public:
 
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
-    virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 
 };

@@ -11,6 +11,7 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Symmetry/UnitQN.H"
 #include "Imp/Symmetry/YlQN.H"
+#include <BasisSet.H>
 #include <Cluster.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include <cassert>
@@ -242,17 +243,19 @@ Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, const Vector<double
     , Orbital_IE(db)
 {};
     
-::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
+::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster* cl) const
 {
+    auto db=dynamic_cast<const DB_cache<double>*>(bs);
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_coul.bsd");
-    return new Fit_IBS(itsLAParams,&reader,cl);
+    return new Fit_IBS(itsLAParams,db,&reader,cl);
 }
-::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster* cl) const
 {
+    auto db=dynamic_cast<const DB_cache<double>*>(bs);
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
-    return new Fit_IBS(itsLAParams,&reader,cl);
+    return new Fit_IBS(itsLAParams,db,&reader,cl);
 }
 IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 {
@@ -265,9 +268,10 @@ IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 //
 //  Fit PG basis set.
 //
-Fit_IBS::Fit_IBS(const LAParams&lap , Reader* bsr, const Cluster* cl)
+Fit_IBS::Fit_IBS(const LAParams&lap,const DB_cache<double>* db , Reader* bsr, const Cluster* cl)
 : IrrepBasisSet(bsr,cl)
 , TIrrepBasisSetCommon<double>(lap)
+, Fit_IE(db)
 {};
 
 ::Fit_IBS*Fit_IBS::Clone(const RVec3&) const

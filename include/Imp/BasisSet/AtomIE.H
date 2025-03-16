@@ -29,9 +29,9 @@ public:
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
     virtual SMat MakeNuclear(const Cluster*) const;
+protected:
+    AtomIE_1E(const DB_cache<T>* db) : DB_1E<T>(db) {};
 private:
-    // Derived classes must provide the actual integral calculations.
-    //virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
     double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
@@ -61,6 +61,8 @@ public:
     virtual SMat MakeOverlap() const;
     virtual SMat MakeRepulsion() const;
     virtual  Mat MakeRepulsion(const fbs_t&) const;
+protected:
+    AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
 private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide

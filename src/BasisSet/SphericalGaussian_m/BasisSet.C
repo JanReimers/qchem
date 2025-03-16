@@ -15,10 +15,9 @@ namespace SphericalGaussian_m
 BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
 {
     GaussianScaler gs(N,emin,emax,LMax);
-    const DB_BS_2E<double>* db=this;
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(lap,db,gs.Get_es(L),L,m));            
+            Insert(new Orbital_IBS(lap,this,gs.Get_es(L),L,m));            
         
 }
 

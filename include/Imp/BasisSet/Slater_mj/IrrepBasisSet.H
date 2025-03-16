@@ -59,7 +59,7 @@ class Dirac_IrrepBasisSet
 {
     typedef DB_1E<double>::SMat SMat;
 public:
-    Dirac_IrrepBasisSet() {};
+    //Dirac_IrrepBasisSet() {};
     Dirac_IrrepBasisSet(const LAParams&,const Vector<double>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}

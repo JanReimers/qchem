@@ -234,7 +234,7 @@ template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
 template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db) 
     : itsDB_BS_2E(db) 
     {
-        //assert(itsDB_BS_2E);
+        assert(itsDB_BS_2E);
     };
 
 template <class T> void DB_BS_2E<T>::Append(const IrrepIEClient* iec)

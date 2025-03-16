@@ -23,6 +23,7 @@ class IE_Common
 public:
    
 protected:
+    IE_Common(const DB_cache<double>* db) : DB_1E<double>(db) {};
     typedef Integrals_Base<double> Base;
     typedef Base::SMat SMat;
     
@@ -51,7 +52,7 @@ public:
     virtual ERI4 MakeDirect  (const obs_t& c) const;
     virtual ERI4 MakeExchange(const obs_t& b) const;
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) : DB_2E<double>(db) {};
+    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common(db), DB_2E<double>(db) {};
     SMat Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
 
 };
@@ -71,6 +72,8 @@ public:
     virtual Vec  MakeCharge() const;
     virtual SMat MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
     virtual Mat  MakeRepulsion(const fbs_t& b) const;
+protected:
+    Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}
 };
 
 } //namespace PolarizedGaussian

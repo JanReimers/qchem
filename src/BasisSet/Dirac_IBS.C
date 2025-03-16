@@ -1,14 +1,14 @@
 // File: BasisSet/Dirac_IBS.H  Interface for Dirac basis sets with Restricted Kinetic Balance (RKB).
 
+#include "oml/vector.h"
 #include "Imp/BasisSet/Dirac_IBS.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Symmetry/OkmjQN.H"
-
 namespace Dirac
 {
     template <class T> IntegralEngine<T>
     ::IntegralEngine(const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs)
-    : itsRKBL(rkbl), itsRKBS(rkbs)
+    : DB_1E<T>(0), itsRKBL(rkbl), itsRKBS(rkbs)
     {
         assert(itsRKBL);
         assert(itsRKBS);
@@ -121,3 +121,4 @@ template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap
 
 template class Dirac::IntegralEngine<double>;
 template class Dirac::IrrepBasisSet<double>;
+

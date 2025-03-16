@@ -6,6 +6,7 @@
 #include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/Symmetry/YlQN.H"
+#include <BasisSet.H>
 #include <iostream>
 #include <cassert>
 
@@ -44,14 +45,16 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 // Orbital SG basis set.
 //
 
-::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster*) const
+::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
-    return new Fit_IBS(itsLAParams,es*2,0);
+    auto db=dynamic_cast<const DB_cache<double>*>(bs);
+    return new Fit_IBS(itsLAParams,db,es*2,0);
 }
 
-::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster*) const
+::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
-    return new Fit_IBS(itsLAParams,es*2.0/3.0,0);    
+    auto db=dynamic_cast<const DB_cache<double>*>(bs);
+    return new Fit_IBS(itsLAParams,db,es*2.0/3.0,0);    
 }
 
 ::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const

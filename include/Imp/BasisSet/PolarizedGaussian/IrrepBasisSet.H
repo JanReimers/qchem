@@ -53,8 +53,8 @@ namespace PolarizedGaussian
         Orbital_IBS(const LAParams &, const db_t* db, const Vector<double>& exponents, size_t L);
 
         virtual UniqueID::IDtype GetID() const { return UniqueID::GetID(); }
-        virtual ::Fit_IBS *CreateCDFitBasisSet(const Cluster *) const;
-        virtual ::Fit_IBS *CreateVxcFitBasisSet(const Cluster *) const;
+        virtual ::Fit_IBS *CreateCDFitBasisSet(const ::BasisSet*,const Cluster *) const;
+        virtual ::Fit_IBS *CreateVxcFitBasisSet(const ::BasisSet*,const Cluster *) const;
         virtual IrrepBasisSet *Clone(const RVec3 &) const;
     };
 
@@ -67,7 +67,7 @@ namespace PolarizedGaussian
         , public Fit_IE
     {
     public:
-        Fit_IBS(const LAParams &, Reader *, const Cluster *);
+        Fit_IBS(const LAParams &,const DB_cache<double>* db , Reader *, const Cluster *);
 
         virtual ::Fit_IBS *Clone(const RVec3 &) const;
         virtual UniqueID::IDtype GetID() const { return UniqueID::GetID(); }
