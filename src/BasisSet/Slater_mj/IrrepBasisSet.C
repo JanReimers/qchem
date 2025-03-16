@@ -17,9 +17,9 @@ namespace Slater_mj
 //  Concrete  Slater basis set.
 //
 
-Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,
+Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<double>* db,
     const Vector<double>& exponents,int kappa)
-: Dirac::IrrepBasisSet<double>(lap,new Large_Orbital_IBS<double>(lap,exponents, kappa),kappa )
+: Dirac::IrrepBasisSet<double>(lap,db,new Large_Orbital_IBS<double>(lap,exponents, kappa),kappa )
 {
     auto rkbl=dynamic_cast<Large_Orbital_IBS<double>*>(itsRKBL);
     assert(rkbl);

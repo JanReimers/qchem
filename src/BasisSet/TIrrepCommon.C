@@ -90,7 +90,7 @@ template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Commo
 Overlap3C(const SMat& Dcd, const fbs_t* ff) const
 {
     Vec ret(ff->size());
-    const typename Integrals_DFT<T>::ERI3& S=this->Overlap3C(*ff);
+    const typename Integrals_Base<T>::ERI3& S=this->Overlap3C(*ff);
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,S[i-1]);
     return ret;
@@ -100,7 +100,7 @@ template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Commo
 Repulsion3C(const SMat& Dcd, const fbs_t* ff) const
 {
     Vec ret(ff->size());
-    const typename Integrals_DFT<T>::ERI3& repulsion=this->Repulsion3C(*ff);
+    const typename Integrals_Base<T>::ERI3& repulsion=this->Repulsion3C(*ff);
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,repulsion[i-1]);
     return ret;

@@ -4,12 +4,14 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
+#include "Imp/DataBase/HeapDB.H"
 
 namespace SphericalGaussian_RKB
 {
 
 class DiracBasisSet 
     : public ::BasisSetImp
+    , public DB_cache<double>
 {
 public:
     DiracBasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t lmax);

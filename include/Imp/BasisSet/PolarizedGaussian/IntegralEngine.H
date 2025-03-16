@@ -43,7 +43,7 @@ class Orbital_IE
 {
     typedef Integrals_Base<double> Base;
     typedef Base::SMat SMat;
-    typedef Integrals_DFT<double>::ERI3 ERI3;
+    typedef Base::ERI3 ERI3;
     typedef Base::fbs_t fbs_t; //Fit basis
     typedef Base::obs_t obs_t; //Fit basis
 public:

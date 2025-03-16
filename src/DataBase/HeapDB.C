@@ -202,9 +202,9 @@ DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap)
 template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fbs_t& c) const
 {
     id3c_t key=std::make_tuple(qchem::Overlap3C,GetID(),c.GetID());
-    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    if (auto i = itsCache->itsERI3s.find(key); i==itsCache->itsERI3s.end())
     {
-        return itsBuffer[key] = MakeOverlap3C(c);
+        return itsCache->itsERI3s[key] = MakeOverlap3C(c);
     }
     else
         return i->second;
@@ -212,9 +212,9 @@ template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fb
 template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const fbs_t& c) const
 {
     id3c_t key=std::make_tuple(qchem::Repulsion3C,GetID(),c.GetID());
-    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
+    if (auto i = itsCache->itsERI3s.find(key); i==itsCache->itsERI3s.end())
     {
-        return itsBuffer[key] = MakeRepulsion3C(c);
+        return itsCache->itsERI3s[key] = MakeRepulsion3C(c);
     }
     else
         return i->second;

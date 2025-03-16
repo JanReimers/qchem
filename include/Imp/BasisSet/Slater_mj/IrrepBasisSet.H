@@ -60,14 +60,11 @@ class Dirac_IrrepBasisSet
     typedef DB_1E<double>::SMat SMat;
 public:
     //Dirac_IrrepBasisSet() {};
-    Dirac_IrrepBasisSet(const LAParams&,const Vector<double>& exponents, int kappa);
+    Dirac_IrrepBasisSet(const LAParams&,const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    // virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
-    // virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
-
+    
     virtual std::ostream&  Write(std::ostream&    ) const;
-    // virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 
 private:

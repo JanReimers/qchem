@@ -7,8 +7,8 @@
 namespace Dirac
 {
     template <class T> IntegralEngine<T>
-    ::IntegralEngine(const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs)
-    : DB_1E<T>(0), itsRKBL(rkbl), itsRKBS(rkbs)
+    ::IntegralEngine(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs)
+    : DB_1E<T>(db), itsRKBL(rkbl), itsRKBS(rkbs)
     {
         assert(itsRKBL);
         assert(itsRKBS);
@@ -94,20 +94,22 @@ template <class T> ERI4 IntegralEngine<T>::MakeExchange(const obs_t& b) const
     return ERI4();
 }
 
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap
+template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db
     ,::Orbital_RKBL_IBS<T>* rkbl, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>(lap)
+    , IntegralEngine<T>(db)
     , itsRKBL(rkbl)
     , itsRKBS(0)
 {
     assert(itsRKBL);
     IntegralEngine<T>::itsRKBL=rkbl;
 }
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap
+template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db
     ,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>(lap)
+    , IntegralEngine<T>(db)
     , itsRKBL(rkbl)
     , itsRKBS(rkbs)
 {

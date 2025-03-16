@@ -21,8 +21,8 @@ template <class T> class IntegralEngine
     typedef typename Base::SMat SMat;
     typedef typename Base::obs_t obs_t;
 public:
-    IntegralEngine() : DB_1E<T>(0) {};
-    IntegralEngine(const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
+    IntegralEngine(const DB_cache<T>* db) : DB_1E<T>(db) {};
+    IntegralEngine(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
 
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
@@ -50,8 +50,8 @@ template <class T> class IrrepBasisSet
 {
     public:
     //IrrepBasisSet() {}; 
-    IrrepBasisSet(const LAParams&,::Orbital_RKBL_IBS<T>* rkbl,int kappa);
-    IrrepBasisSet(const LAParams&,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs,int kappa);
+    IrrepBasisSet(const LAParams&,const DB_cache<T>* db,::Orbital_RKBL_IBS<T>* rkbl,int kappa);
+    IrrepBasisSet(const LAParams&,const DB_cache<T>* db,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs,int kappa);
     virtual std::ostream&  Write(std::ostream& os   ) const {return os;}
     virtual std::istream&  Read (std::istream& is   )       {return is;}
 

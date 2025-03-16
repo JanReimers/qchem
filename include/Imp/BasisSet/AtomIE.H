@@ -82,7 +82,7 @@ public:
     typedef Integrals_Base<T> Base;
     typedef typename Base::fbs_t fbs_t;
     typedef typename Base::SMat SMat;
-    typedef typename Integrals_DFT<T>::ERI3 ERI3;
+    typedef typename Base::ERI3 ERI3;
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
     protected:

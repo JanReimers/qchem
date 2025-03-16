@@ -15,14 +15,17 @@ template  <class T> class DB_cache  : virtual public Integrals_Base<T>
     typedef typename Base::SMat SMat;    
     typedef typename Base::Mat Mat;    
     typedef typename Base::Vec Vec;    
+    typedef typename Base::ERI3 ERI3;    
 public:
     typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
     typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
+    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
     
     mutable std::map<id2c_t ,SMat> itsSMats; 
     mutable std::map< idx_t , Mat> itsMats; 
     mutable std::map<id2c_t , Vec> itsVecs; 
+    mutable std::map<id3c_t ,ERI3> itsERI3s; 
     mutable erij_t Jac,Kab;
 };
  
@@ -58,7 +61,7 @@ template <class T> class DB_DFT :
     typedef Integrals_Base<T> Base;
     typedef typename Base::fbs_t fbs_t;
     typedef typename Base::SMat SMat;
-    typedef typename Integrals_DFT<T>::ERI3 ERI3;
+    typedef typename Base::ERI3 ERI3;
 public:
     virtual const ERI3& Overlap3C  (const fbs_t& c) const; //<ab|c>
     virtual const ERI3& Repulsion3C(const fbs_t& c) const; //<a(1)b(1)|1/r12|c(2)>
@@ -69,8 +72,7 @@ private:
     virtual IDType GetID() const=0;
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const=0;
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const=0;
-    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
-    mutable std::map<id3c_t ,ERI3> itsBuffer; 
+    typedef typename DB_cache<T>::id3c_t id3c_t;
     const DB_cache<T>* itsCache;
 };
 
