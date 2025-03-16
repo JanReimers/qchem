@@ -85,6 +85,8 @@ public:
     typedef typename Integrals_DFT<T>::ERI3 ERI3;
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
+    protected:
+    AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
 private:
     typedef std::tuple<int,int,int,double,double> bf_tuple;
     SMat MakeOverlap  (const bf_tuple& c) const; //ab loops

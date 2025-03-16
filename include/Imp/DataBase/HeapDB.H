@@ -8,11 +8,21 @@
 #include <AnalyticIE.H>
 #include "Imp/Containers/ERI4.H"
 #include <map>
-template  <class T> class DB_cache
+template  <class T> class DB_cache  : virtual public Integrals_Base<T>
 {
-    typedef UniqueID::IDtype IDType;    
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat SMat;    
+    typedef typename Base::Mat Mat;    
+    typedef typename Base::Vec Vec;    
 public:
     typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
+    
+    mutable std::map<id2c_t ,SMat> itsSMats; 
+    mutable std::map< idx_t , Mat> itsMats; 
+    mutable std::map<id2c_t , Vec> itsVecs; 
     mutable erij_t Jac,Kab;
 };
  
@@ -30,6 +40,7 @@ protected:
     typedef typename Base::SMat SMat;
     DB_1E(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
 private:
+    typedef typename DB_cache<T>::id2c_t id2c_t;
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
     // One time calls to un-buffered integral calculations.
@@ -38,8 +49,7 @@ private:
     virtual SMat MakeNuclear(const Cluster*) const=0;
     const DB_cache<T>* itsCache;
 
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    mutable std::map<id2c_t ,SMat> itsBuffer; 
+
 };
 
 template <class T> class DB_DFT :
@@ -52,6 +62,8 @@ template <class T> class DB_DFT :
 public:
     virtual const ERI3& Overlap3C  (const fbs_t& c) const; //<ab|c>
     virtual const ERI3& Repulsion3C(const fbs_t& c) const; //<a(1)b(1)|1/r12|c(2)>
+    protected:
+    DB_DFT(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
 private:
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
@@ -59,6 +71,7 @@ private:
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const=0;
     typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
     mutable std::map<id3c_t ,ERI3> itsBuffer; 
+    const DB_cache<T>* itsCache;
 };
 
 
@@ -78,8 +91,8 @@ private:
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
 
     std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
-    typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
-    mutable erij_t Jac,Kab;
+    using DB_cache<T>::Jac;
+    using DB_cache<T>::Kab;
 };
 
 template <class T> class DB_2E :  virtual public Integrals_2E<T>
@@ -137,11 +150,8 @@ private:
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
 
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
-    mutable std::map<id2c_t ,SMat> itsBuffer; 
-    mutable std::map<id2c_t ,Vec> itsVBuffer; 
-    mutable std::map<idx_t ,Mat> itsMBuffer; 
+    typedef typename DB_cache<double>::id2c_t id2c_t;
+    typedef typename DB_cache<double>::idx_t idx_t;
     const DB_cache<double>* itsCache;
 };
 

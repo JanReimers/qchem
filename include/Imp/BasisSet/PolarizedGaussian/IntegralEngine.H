@@ -52,7 +52,7 @@ public:
     virtual ERI4 MakeDirect  (const obs_t& c) const;
     virtual ERI4 MakeExchange(const obs_t& b) const;
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common(db), DB_2E<double>(db) {};
+    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common(db), DB_2E<double>(db), DB_DFT<double>(db) {};
     SMat Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
 
 };
