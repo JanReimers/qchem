@@ -45,11 +45,9 @@ public:
 
 template <class T> class Integrals_Overlap : public virtual Integrals_Base<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    virtual SMat_ref Overlap() const=0;
+    virtual typename Integrals_Base<T>::SMat_ref Overlap() const=0;
 };
 
 template <class T> class Integrals_Kinetic : public virtual Integrals_Base<T>
@@ -105,12 +103,10 @@ public:
 
 template <class T> class Integrals_BS_2E
 {
-    typedef UniqueID::IDtype IDType;   
 public:
-    virtual    ERI4 Direct  (IDType a,IDType c) const=0;
-    virtual    ERI4 Exchange(IDType a,IDType b) const=0;
-protected:
-    virtual void Append(const IrrepIEClient*)=0;
+    typedef UniqueID::IDtype IDType;   
+    virtual ERI4 Direct  (IDType a,IDType c) const=0;
+    virtual ERI4 Exchange(IDType a,IDType b) const=0;
 };
 
 template <class T> class Integrals_RKB
@@ -147,19 +143,13 @@ public:
     virtual SMat_ref RestMass() const=0;
 };
 
-template <class T> class FitIntegrals_1E  
-    : public virtual Integrals_Overlap<T>
+class FitIntegrals_1E  
+    : public virtual Integrals_Base<double>
+    , public virtual Integrals_Overlap<double>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-    typedef typename Base::Vec_ref  Vec_ref;
-    typedef typename Base::Mat_ref  Mat_ref;
-    typedef typename Base::Vec  Vec;
-    typedef typename Base::Mat  Mat;
-    typedef typename Base::fbs_t fbs_t;
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    using Integrals_Overlap<T>::Overlap;
+    using Integrals_Overlap<double>::Overlap;
     virtual Vec_ref  Charge   () const=0;   
     virtual SMat_ref Repulsion() const=0;
     virtual  Mat_ref Repulsion(const fbs_t&) const=0;
@@ -169,15 +159,15 @@ public:
     virtual  Vec_ref Norm   (const Mesh*        ) const=0; //Numerical .
     virtual  Vec_ref Charge (const Mesh*        ) const=0; //Numerical .
     virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.
-
 //
 //  These are used for charge and Vxc fitting.  They change with iterations
 //  So they MUST not be cached.
 //
-    typedef ScalarFunction<T> Sf;
+    typedef ScalarFunction<double> Sf;
     virtual const Vec Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
     virtual const Vec Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
-protected:
+
+    protected:
     virtual  Vec MakeNorm   (const Mesh*        ) const=0; //Numerical .
     virtual  Vec MakeCharge (const Mesh*        ) const=0; //Numerical .
     virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.

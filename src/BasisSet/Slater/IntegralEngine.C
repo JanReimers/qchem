@@ -5,13 +5,14 @@
 #include "Imp/Integrals/SlaterCD.H"
 #include "Imp/Integrals/SlaterIntegrals.H"
 
+
 namespace Slater
 {
 
 double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     SlaterCD cd(eab,ec,std::max(la,lc));
-    return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
+    return 4*4*Pi*Pi*cd.Coulomb_R0(la,lc);
 }
 
 double  IE_Common::Overlap(double ea , double eb,size_t l_total) const

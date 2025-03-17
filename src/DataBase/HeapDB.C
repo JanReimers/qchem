@@ -66,8 +66,6 @@ using std::setw;
 // }
 //---------------------------------------------------------------------------------
 
-using std::cout;
-using std::endl;
 template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap<T>::Overlap() const
 {
     auto cache(DB_Common<T>::itsCache);
@@ -98,144 +96,50 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear<T>::Nuclear(c
     else
         return i->second;
 }
-
-
-
 template class DB_1E<double>;
 
-DB_Fit::Vec_ref DB_Fit::Charge() const
-{
-    id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-    {
-        return itsCache->itsVecs[key] = MakeCharge();
-    }
-    else
-        return i->second;
-}
-
-// DB_Fit::SMat_ref DB_Fit::Overlap() const
-// {
-//     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-//     {
-//         return itsCache->itsSMats[key] = MakeOverlap();
-//     }
-//     else
-//         return i->second;
-// }
-
-DB_Fit::SMat_ref DB_Fit::Repulsion() const
-{
-    id2c_t key=std::make_tuple(qchem::Repulsion2C,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-    {
-        return itsCache->itsSMats[key] = MakeRepulsion();
-    }
-    else
-        return i->second;
-}
-DB_Fit::Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
-{
-    idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
-    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
-    {
-        return itsCache->itsMats[key] = MakeRepulsion(b);
-    }
-    else
-        return i->second;
-}
-DB_Fit::SMat_ref DB_Fit::InvOverlap(const LAParams& lap) const
-{
-    id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Overlap(),lap);
-    else
-        return i->second;
-}
-DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
-{
-    id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Repulsion(),lap);
-    else
-        return i->second;
-}
-DB_Fit::Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
-{
-    id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeNorm(m);
-    else
-        return i->second;
-}
-DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
-{
-    id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeCharge(m);
-    else
-        return i->second;
-
-}
-DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
-{
-    idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
-    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
-        return itsCache->itsMats[key] = MakeOverlap(m,b);
-    else
-        return i->second;
-}
-
-
-#include <LASolver.H>
-#include <LAParams.H>
-DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 
-{
-    LASolver<double>* las=LASolver<double>::Factory(lap);
-    SMat Sinv=las->Inverse(S);
-    delete las;
-    return Sinv;
-}
 
 template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fbs_t& c) const
-{
-    id3c_t key=std::make_tuple(qchem::Overlap3C,GetID(),c.GetID());
-    if (auto i = itsCache->itsERI3s.find(key); i==itsCache->itsERI3s.end())
+{ 
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id3c_t key=std::make_tuple(qchem::Overlap3C,this->GetID(),c.GetID());
+    if (auto i = cache->itsERI3s.find(key); i==cache->itsERI3s.end())
     {
-        return itsCache->itsERI3s[key] = MakeOverlap3C(c);
+        return cache->itsERI3s[key] = MakeOverlap3C(c);
     }
     else
         return i->second;
 }
 template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const fbs_t& c) const
 {
-    id3c_t key=std::make_tuple(qchem::Repulsion3C,GetID(),c.GetID());
-    if (auto i = itsCache->itsERI3s.find(key); i==itsCache->itsERI3s.end())
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id3c_t key=std::make_tuple(qchem::Repulsion3C,this->GetID(),c.GetID());
+    if (auto i = cache->itsERI3s.find(key); i==cache->itsERI3s.end())
     {
-        return itsCache->itsERI3s[key] = MakeRepulsion3C(c);
+        return cache->itsERI3s[key] = MakeRepulsion3C(c);
     }
     else
         return i->second;
 }
 template class DB_DFT<double>;
 
-template <class T> ERI4 DB_2E<T>::Direct(const obs_t& c) const
-{
-    assert(itsDB_BS_2E);
-    return itsDB_BS_2E->Direct(GetID(),c.GetID());
-}
-template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
-{
-    assert(itsDB_BS_2E);
-    return itsDB_BS_2E->Exchange(GetID(),b.GetID()); 
-}
-
 template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db) 
     : itsDB_BS_2E(db) 
     {
         assert(itsDB_BS_2E);
     };
+template <class T> ERI4 DB_2E<T>::Direct(const obs_t& c) const
+{
+    assert(itsDB_BS_2E);
+    return itsDB_BS_2E->Direct(this->GetID(),c.GetID());
+}
+template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
+{
+    assert(itsDB_BS_2E);
+    return itsDB_BS_2E->Exchange(this->GetID(),b.GetID()); 
+}
 
 template <class T> void DB_BS_2E<T>::Append(const IrrepIEClient* iec)
 {
@@ -283,12 +187,11 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
         }
     
 }
-
-
 template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
-template <class T> typename DB_RKB<T>::SMat_ref DB_RKB<T>::Kinetic() const
+
+template <class T> typename DB_RKB<T>::SMat_ref  DB_RKB <T>::Kinetic() const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
@@ -298,7 +201,7 @@ template <class T> typename DB_RKB<T>::SMat_ref DB_RKB<T>::Kinetic() const
     else
         return i->second;
 }
-template <class T> typename DB_RKB<T>::SMat_ref DB_RKB<T>::RestMass() const
+template <class T> typename DB_RKB<T>::SMat_ref  DB_RKB <T>::RestMass() const
 {
     id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
@@ -318,7 +221,7 @@ template <class T> typename DB_RKBL<T>::SMat_ref DB_RKBL<T>::Overlap() const
     else
         return i->second;
 }
-template <class T> typename DB_RKBL<T>::Mat_ref DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> typename DB_RKBL<T>::Mat_ref  DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
     if (auto i = itsBufferX.find(key); i==itsBufferX.end())
@@ -369,11 +272,11 @@ template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::RestMass() const
     else
         return i->second;
 }
-template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeOverlap() const
+template <class T> typename DB_RKBL<T>::SMat     DB_RKBL<T>::MakeOverlap() const
 {
     return this->MakeIntegrals(qchem::Overlap1);
 }
-template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeNuclear(const Cluster* cl) const
+template <class T> typename DB_RKBL<T>::SMat     DB_RKBL<T>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
     int Z=cl->GetNuclearCharge();
@@ -383,7 +286,7 @@ template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeNuclear(const Clust
 
 #include "Imp/BasisSet/AtomIEClient.H"
 
-template <class T> typename DB_RKBL<T>::SMat  DB_RKBL<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
+template <class T> typename DB_RKBL<T>::SMat DB_RKBL<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -423,7 +326,7 @@ template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeRestMass() const
 {
     return this->MakeIntegrals(qchem::RestMass1);
 }
-template <class T> typename DB_RKBS<T>::SMat  DB_RKBS<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
+template <class T> typename DB_RKBS<T>::SMat DB_RKBS<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -439,3 +342,82 @@ template <class T> typename DB_RKBS<T>::SMat  DB_RKBS<T>::MakeIntegrals(qchem::I
 template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;
+
+
+DB_Fit::Vec_ref DB_Fit::Charge() const
+{
+    assert(itsCache);
+    DB_cache<double>::id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
+    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
+        return itsCache->itsVecs[key] = MakeCharge();
+    else
+        return i->second;
+}
+DB_Fit::SMat_ref DB_Fit::Repulsion() const
+{
+    DB_cache<double>::id2c_t key=std::make_tuple(qchem::Repulsion2C,this->GetID());
+    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+        return itsCache->itsSMats[key] = MakeRepulsion();
+    else
+        return i->second;
+}
+DB_Fit::Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
+{
+    DB_cache<double>::idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
+    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
+        return itsCache->itsMats[key] = MakeRepulsion(b);
+    else
+        return i->second;
+}
+DB_Fit::SMat_ref DB_Fit::InvOverlap(const LAParams& lap) const
+{
+    DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
+    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+        return itsCache->itsSMats[key] = MakeInverse(Overlap(),lap);
+    else
+        return i->second;
+}
+DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
+{
+    DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
+    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
+        return itsCache->itsSMats[key] = MakeInverse(Repulsion(),lap);
+    else
+        return i->second;
+}
+DB_Fit::Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
+{
+    DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
+    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
+        return itsCache->itsVecs[key] = MakeNorm(m);
+    else
+        return i->second;
+}
+DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
+{
+    DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
+    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
+        return itsCache->itsVecs[key] = MakeCharge(m);
+    else
+        return i->second;
+
+}
+DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
+{
+    DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
+    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
+        return itsCache->itsMats[key] = MakeOverlap(m,b);
+    else
+        return i->second;
+}
+
+
+#include <LASolver.H>
+#include <LAParams.H>
+DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 
+{
+    LASolver<double>* las=LASolver<double>::Factory(lap);
+    SMat Sinv=las->Inverse(S);
+    delete las;
+    return Sinv;
+}

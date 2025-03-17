@@ -187,7 +187,7 @@ public:
 
 class Fit_IBS
     : public virtual TIrrepBasisSet<double>
-    , public virtual FitIntegrals_1E<double> 
+    , public virtual FitIntegrals_1E 
 {
     public:
     virtual Fit_IBS* Clone  (const RVec3&) const=0;  

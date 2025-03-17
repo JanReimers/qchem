@@ -69,48 +69,39 @@ protected:
     DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
 };
 
-template <class T> class DB_DFT :
-    virtual public Integrals_DFT<T>
+template <class T> class DB_DFT 
+    : virtual public Integrals_DFT<T>
+    , public DB_Common<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::fbs_t fbs_t;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::ERI3 ERI3;
-public:
+    typedef typename Integrals_Base<T>::fbs_t fbs_t;
+    typedef typename Integrals_Base<T>::ERI3 ERI3;
+protected:
+    DB_DFT(const DB_cache<T>* db) : DB_Common<T>(db) {}
     virtual const ERI3& Overlap3C  (const fbs_t& c) const; //<ab|c>
     virtual const ERI3& Repulsion3C(const fbs_t& c) const; //<a(1)b(1)|1/r12|c(2)>
-    protected:
-    DB_DFT(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
-private:
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const=0;
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const=0;
-    typedef typename DB_cache<T>::id3c_t id3c_t;
-    const DB_cache<T>* itsCache;
 };
 
 
 template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
 {
-    typedef UniqueID::IDtype IDType;    
-public:
-    virtual    ERI4 Direct  (IDType a,IDType c) const;
-    virtual    ERI4 Exchange(IDType a,IDType b) const;
+    typedef UniqueID::IDtype IDType;   
+public: 
+    virtual ERI4 Direct  (IDType a,IDType c) const;
+    virtual ERI4 Exchange(IDType a,IDType b) const;
 protected:
-    virtual void Append(const IrrepIEClient*);
+    void Append(const IrrepIEClient*);
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
 private:
     //! Internally called once to build direct and exchange supermatrix tables.
     virtual void MakeDirect  () const; 
     virtual void MakeExchange() const; 
-    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
-    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
-
     std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
     using DB_cache<T>::Jac;
     using DB_cache<T>::Kab;
 };
-
 template <class T> class DB_2E :  virtual public Integrals_2E<T>
 {
     typedef Integrals_Base<T> Base;
@@ -128,14 +119,12 @@ private:
 };
 
 class DB_Fit 
-    : public virtual FitIntegrals_1E<double>
+    : public virtual FitIntegrals_1E
+    , public DB_Common<double>
 {
-    typedef Integrals_Base<double> Base;
-    typedef typename Base::Mat_ref Mat_ref;
-    typedef typename Base::SMat_ref SMat_ref;
-    typedef typename Base::Vec_ref Vec_ref;
-    typedef typename Base::fbs_t fbs_t;
-public:
+protected:
+    DB_Fit(const DB_cache<double>* db) : DB_Common<double>(db) {};
+
     using Integrals_Overlap<double>::Overlap; 
     virtual Vec_ref  Charge   () const;   
     virtual SMat_ref Repulsion() const;
@@ -146,18 +135,11 @@ public:
     virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
     virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
 
-protected:
-    DB_Fit(const DB_cache<double>* db) : itsCache(db) {assert(itsCache);}
 
-    typedef Base::SMat SMat;
-    typedef Base::Mat  Mat;
-    typedef Base::Vec  Vec;
 private:
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
     // One time calls to un-buffered integral calculations.
-    using FitIntegrals_1E<double>::MakeOverlap;
-    using FitIntegrals_1E<double>::MakeCharge;
+    using FitIntegrals_1E::MakeOverlap;
+    using FitIntegrals_1E::MakeCharge;
     virtual Vec  MakeCharge() const=0;
     virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
@@ -167,9 +149,6 @@ private:
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
     static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
 
-    typedef typename DB_cache<double>::id2c_t id2c_t;
-    typedef typename DB_cache<double>::idx_t idx_t;
-    const DB_cache<double>* itsCache;
 };
 
 template <class T> class DB_RKB :
