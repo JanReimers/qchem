@@ -191,23 +191,13 @@ template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
 
-template <class T> typename DB_RKB<T>::SMat_ref  DB_RKB <T>::Kinetic() const
+template <class T> typename Integrals_Base<T>::SMat_ref  DB_RKB <T>::RestMass() const
 {
-    id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
-    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
-    {
-        return itsBuffer[key] = MakeKinetic();
-    }
-    else
-        return i->second;
-}
-template <class T> typename DB_RKB<T>::SMat_ref  DB_RKB <T>::RestMass() const
-{
-    id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
-    if (auto i = itsBuffer.find(key); i==itsBuffer.end())
-    {
-        return itsBuffer[key] = MakeRestMass();
-    }
+    auto cache(DB_Overlap<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
+    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
+        return cache->itsSMats[key] = MakeRestMass();
     else
         return i->second;
 }

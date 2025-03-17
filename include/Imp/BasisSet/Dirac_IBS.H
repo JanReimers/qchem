@@ -12,17 +12,16 @@ namespace Dirac
 {
     
    
-template <class T> class IntegralEngine
+template <class T> class RKB_IE
     : public virtual Integrals_1E<T>
-    , public DB_1E<T>
     , public DB_RKB<T>
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat SMat;
     typedef typename Base::obs_t obs_t;
 public:
-    IntegralEngine(const DB_cache<T>* db) : DB_1E<T>(db) {};
-    IntegralEngine(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
+    RKB_IE(const DB_cache<T>* db) : DB_RKB<T>(db) {};
+    RKB_IE(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
 
     virtual SMat MakeOverlap() const;
     virtual SMat MakeKinetic() const;
@@ -46,7 +45,7 @@ template <class T> class IrrepBasisSet
     : public virtual Orbital_RKB_IBS<T>
     , public IrrepBasisSetCommon
     , public Orbital_IBS_Common<T>
-    , public IntegralEngine<T>
+    , public RKB_IE<T>
 {
     public:
     //IrrepBasisSet() {}; 

@@ -26,7 +26,7 @@ Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<doub
     auto rkbs=new Small_Orbital_IBS<double>(lap,rkbl);
     itsRKBS=rkbs;
     assert(itsRKBS);
-    IntegralEngine::itsRKBS=rkbs;
+    RKB_IE::itsRKBS=rkbs;
     Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);

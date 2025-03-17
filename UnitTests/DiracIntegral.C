@@ -84,12 +84,12 @@ public:
     
     static SMat merge_diag(const SMat& l,const SMat& s)
     {
-        return Dirac::IntegralEngine<double>::merge_diag(l,s);
+        return Dirac::RKB_IE<double>::merge_diag(l,s);
     }
 
     static SMat merge_off_diag(const Mat& l)
     {
-        return Dirac::IntegralEngine<double>::merge_off_diag(l);
+        return Dirac::RKB_IE<double>::merge_off_diag(l);
     }
 
     int Lmax, Z;

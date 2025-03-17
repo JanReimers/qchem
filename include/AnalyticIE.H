@@ -52,20 +52,16 @@ public:
 
 template <class T> class Integrals_Kinetic : public virtual Integrals_Base<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
 public:
     //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual SMat_ref Kinetic() const=0;
+    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const=0;
 };
 
 template <class T> class Integrals_Nuclear : public virtual Integrals_Base<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
 public:
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
-    virtual SMat_ref Nuclear(const Cluster*) const=0;   
+    virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const=0;   
 };
 
 
@@ -110,13 +106,10 @@ public:
 };
 
 template <class T> class Integrals_RKB
+: public virtual Integrals_1E<T>
 {
 public:
-    typedef const Matrix<T>& Mat_ref;
-    typedef const SMatrix<T>& SMat_ref;
-    //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual SMat_ref Kinetic() const=0;
-    virtual SMat_ref RestMass() const=0;
+    virtual  typename Integrals_Base<T>::SMat_ref RestMass() const=0;
 };
 
 template <class T> class Integrals_RKBL 

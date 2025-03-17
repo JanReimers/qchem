@@ -151,24 +151,16 @@ private:
 
 };
 
-template <class T> class DB_RKB :
-    virtual public Integrals_RKB<T>
+template <class T> class DB_RKB 
+    : virtual public Integrals_RKB<T>
+    , public DB_1E<T>
 {    
-public:
+protected:
+    DB_RKB(const DB_cache<T>* db) :  DB_1E<T>(db) {};
     typedef UniqueID::IDtype IDType;
-    typedef Integrals_RKB<T> Base;
-    typedef Matrix<T> Mat;
-    typedef SMatrix<T> SMat;
-    typedef typename Base::Mat_ref Mat_ref;
-    typedef typename Base::SMat_ref SMat_ref;
-    virtual SMat_ref Kinetic() const;
-    virtual SMat_ref RestMass() const;
-private:
     virtual IDType GetID() const=0;
-    virtual SMat MakeKinetic() const=0;
-    virtual SMat MakeRestMass() const=0;
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    mutable std::map<id2c_t ,SMat> itsBuffer;
+    virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
+    virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
 };
 
 template <class T> class DB_RKBL :

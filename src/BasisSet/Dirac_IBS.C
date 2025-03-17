@@ -6,15 +6,15 @@
 #include "Imp/Symmetry/OkmjQN.H"
 namespace Dirac
 {
-    template <class T> IntegralEngine<T>
-    ::IntegralEngine(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs)
-    : DB_1E<T>(db), itsRKBL(rkbl), itsRKBS(rkbs)
+    template <class T> RKB_IE<T>
+    ::RKB_IE(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs)
+    : DB_RKB<T>(db), itsRKBL(rkbl), itsRKBS(rkbs)
     {
         assert(itsRKBL);
         assert(itsRKBS);
     }
 
-template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::merge_diag(const SMat& l,const SMat& s)
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_diag(const SMat& l,const SMat& s)
 {
     size_t Nl=l.GetNumRows();
     size_t Ns=s.GetNumRows();
@@ -29,7 +29,7 @@ template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::merge_dia
     return ls;
 }
 
-template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::merge_off_diag(const Mat& ls)
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_off_diag(const Mat& ls)
 
 {
     size_t Nl=ls.GetNumRows();
@@ -44,27 +44,27 @@ template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::merge_off
     return k;
 }    
 
-template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeOverlap() const
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeOverlap() const
 {
     SMat ol=itsRKBL->Overlap();
     SMat os=itsRKBS->Overlap();
     return merge_diag(ol,os);
 }
 
-template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeKinetic() const
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeKinetic() const
 {
     Mat kls=-2.0*itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);
 }
 
-template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeNuclear(const Cluster* c) const
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeNuclear(const Cluster* c) const
 {
     SMat nl=itsRKBL->Nuclear(c);
     SMat ns=itsRKBS->Nuclear(c);
     return merge_diag(nl,ns);
 }
 
-template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeRestMass() const
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeRestMass() const
 {
     static const double f=-2.0*c_light*c_light;
     SMat rl(itsRKBL->size());
@@ -74,7 +74,7 @@ template <class T> typename IntegralEngine<T>::SMat IntegralEngine<T>::MakeRestM
 }
 
 
-template <class T> ERI4 IntegralEngine<T>::MakeDirect  (const obs_t& c) const
+template <class T> ERI4 RKB_IE<T>::MakeDirect  (const obs_t& c) const
 {
     return ERI4();
     // auto da=this;
@@ -89,7 +89,7 @@ template <class T> ERI4 IntegralEngine<T>::MakeDirect  (const obs_t& c) const
     // return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
 
 }
-template <class T> ERI4 IntegralEngine<T>::MakeExchange(const obs_t& b) const
+template <class T> ERI4 RKB_IE<T>::MakeExchange(const obs_t& b) const
 {
     return ERI4();
 }
@@ -98,29 +98,29 @@ template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_
     ,::Orbital_RKBL_IBS<T>* rkbl, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>(lap)
-    , IntegralEngine<T>(db)
+    , RKB_IE<T>(db)
     , itsRKBL(rkbl)
     , itsRKBS(0)
 {
     assert(itsRKBL);
-    IntegralEngine<T>::itsRKBL=rkbl;
+    RKB_IE<T>::itsRKBL=rkbl;
 }
 template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db
     ,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>(lap)
-    , IntegralEngine<T>(db)
+    , RKB_IE<T>(db)
     , itsRKBL(rkbl)
     , itsRKBS(rkbs)
 {
     assert(itsRKBL);
     assert(itsRKBS);
-    IntegralEngine<T>::itsRKBL=rkbl;
-    IntegralEngine<T>::itsRKBS=rkbs;
+    RKB_IE<T>::itsRKBL=rkbl;
+    RKB_IE<T>::itsRKBS=rkbs;
 }
 
 } // namespace Dirac
 
-template class Dirac::IntegralEngine<double>;
+template class Dirac::RKB_IE<double>;
 template class Dirac::IrrepBasisSet<double>;
 
