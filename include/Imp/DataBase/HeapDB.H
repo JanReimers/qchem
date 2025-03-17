@@ -29,62 +29,35 @@ public:
     mutable erij_t Jac,Kab;
 };
  
-
-template <class T> class DB_Overlap :
-    virtual public Integrals_Overlap<T>
-{    
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-public:
-    virtual SMat_ref Overlap() const;
+template <class T> class DB_Common : virtual public Integrals_Base<T>
+{
 protected:
-    typedef typename Base::SMat SMat;
-    DB_Overlap(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
-private:
-    typedef typename DB_cache<T>::id2c_t id2c_t;
     typedef UniqueID::IDtype IDType;
     virtual IDType GetID() const=0;
-    // One time calls to un-buffered integral calculations.
-    virtual SMat MakeOverlap() const=0;
+    DB_Common(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
     const DB_cache<T>* itsCache;
 };
-template <class T> class DB_Kinetic :
-    virtual public Integrals_Kinetic<T>
+template <class T> class DB_Overlap : public DB_Common<T>, public virtual Integrals_Overlap<T>
 {    
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-public:
-    virtual SMat_ref Kinetic() const;
 protected:
-    typedef typename Base::SMat SMat;
-    DB_Kinetic(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
-private:
-    typedef typename DB_cache<T>::id2c_t id2c_t;
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
-    // One time calls to un-buffered integral calculations.
-    virtual SMat MakeKinetic() const=0;
-    const DB_cache<T>* itsCache;
+    DB_Overlap(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Overlap() const;
+    virtual typename Integrals_Base<T>::SMat MakeOverlap() const=0;
 };
-template <class T> class DB_Nuclear :
-    virtual public Integrals_Nuclear<T>
+template <class T> class DB_Kinetic : public DB_Common<T>, public virtual Integrals_Kinetic<T>
 {    
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-public:
-    virtual SMat_ref Nuclear(const Cluster*) const;
 protected:
-    typedef typename Base::SMat SMat;
-    DB_Nuclear(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
-private:
-    typedef typename DB_cache<T>::id2c_t id2c_t;
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
-    // One time calls to un-buffered integral calculations.
-    virtual SMat MakeNuclear(const Cluster*) const=0;
-    const DB_cache<T>* itsCache;
+    DB_Kinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const;
+    virtual typename Integrals_Base<T>::SMat MakeKinetic() const=0;
 };
-
+template <class T> class DB_Nuclear : public DB_Common<T>, public virtual Integrals_Nuclear<T>
+{    
+protected:
+    DB_Nuclear(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
+    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
+};
 
 template <class T> class DB_1E :
     virtual public Integrals_1E<T>
@@ -92,15 +65,8 @@ template <class T> class DB_1E :
     , public DB_Kinetic<T>
     , public DB_Nuclear<T>
 {    
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-public:
-  
 protected:
     DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
-private:
-    
-
 };
 
 template <class T> class DB_DFT :

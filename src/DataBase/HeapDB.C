@@ -68,72 +68,38 @@ using std::setw;
 
 using std::cout;
 using std::endl;
-template <class T> typename DB_Overlap<T>::SMat_ref DB_Overlap<T>::Overlap() const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap<T>::Overlap() const
 {
-    assert(itsCache);
-    id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-    {
-        return itsCache->itsSMats[key] = MakeOverlap();
-    }
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
+    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
+        return cache->itsSMats[key] = MakeOverlap();
     else
         return i->second;
 }
-template <class T> typename DB_Kinetic<T>::SMat_ref DB_Kinetic<T>::Kinetic() const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic<T>::Kinetic() const
 {
-    id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-    {
-        return itsCache->itsSMats[key] = MakeKinetic();
-    }
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
+        return cache->itsSMats[key] = MakeKinetic();
     else
         return i->second;
 }
-template <class T> typename DB_Nuclear<T>::SMat_ref DB_Nuclear<T>::Nuclear(const Cluster* cl) const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear<T>::Nuclear(const Cluster* cl) const
 {
-    assert(cl);
-    id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-    {
-        return itsCache->itsSMats[key] = MakeNuclear(cl);
-    }
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
+    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
+        return cache->itsSMats[key] = MakeNuclear(cl);
     else
         return i->second;
 }
 
-// template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Overlap() const
-// {
-//     assert(itsCache);
-//     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-//     {
-//         return itsCache->itsSMats[key] = MakeOverlap();
-//     }
-//     else
-//         return i->second;
-// }
 
-// template <class T> typename DB_1E<T>::SMat_ref DB_1E<T>::Kinetic() const
-// {
-//     id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
-//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-//     {
-//         return itsCache->itsSMats[key] = MakeKinetic();
-//     }
-//     else
-//         return i->second;
-// }
-// template <class T> typename Nuclear<T>::SMat_ref DB_1E<T>::Nuclear(const Cluster* cl) const
-// {
-//     assert(cl);
-//     id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
-//     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-//     {
-//         return itsCache->itsSMats[key] = MakeNuclear(cl);
-//     }
-//     else
-//         return i->second;
-// }
 
 template class DB_1E<double>;
 
