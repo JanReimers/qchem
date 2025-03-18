@@ -294,3 +294,65 @@ double AtomIE_Fit::Integral_internal(qchem::IType t,double ea , double eb,size_t
     }
 }
 
+
+template <class T> typename AtomIE_RKBL<T>::SMat     AtomIE_RKBL<T>::MakeOverlap() const
+{
+    return this->MakeIntegrals(qchem::Overlap1);
+}
+template <class T> typename AtomIE_RKBL<T>::SMat     AtomIE_RKBL<T>::MakeNuclear(const Cluster* cl) const
+{
+    assert(cl);
+    int Z=cl->GetNuclearCharge();
+    return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
+}
+
+template <class T> typename AtomIE_RKBL<T>::SMat AtomIE_RKBL<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Integral_internal(it,a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+
+    return H;
+}
+
+template <class T> double AtomIE_RKBL<T>::Integral_internal(qchem::IType t,double ea , double eb,size_t la, size_t lb) const
+{
+    switch (t)
+    {
+    case qchem::Overlap1:
+        return Overlap(ea,eb,la+lb);
+        break;
+    case qchem::Nuclear1:
+        return Nuclear(ea,eb,la+lb);
+        break;
+    
+    default:
+        assert(false);
+        return 0;
+        break;
+    }
+}
+
+
+template <class T> typename AtomIE_RKBL<T>::Mat  AtomIE_RKBL<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
+    assert(a->l==b->l);
+    size_t Na=a->size();
+    size_t Nb=b->size();
+    Matrix<double> Hk(Na,Nb);
+    for (auto i:Hk.rows())
+        for (auto j:Hk.cols())
+            Hk(i,j)=Kinetic(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*b->ns(j);
+
+    return Hk;
+}
+
+template class AtomIE_RKBL<double>;
+
+

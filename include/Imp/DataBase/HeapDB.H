@@ -37,6 +37,8 @@ protected:
     DB_Common(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
     const DB_cache<T>* itsCache;
 };
+
+// It would be nice use virtual inheretance from DB_Common<T>, but that opens a contructor hornets nest.
 template <class T> class DB_Overlap : public DB_Common<T>, public virtual Integrals_Overlap<T>
 {    
 protected:
@@ -67,6 +69,9 @@ template <class T> class DB_1E :
 {    
 protected:
     DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
+    // Resolve ambiguities.
+    typedef UniqueID::IDtype IDType;
+    virtual IDType GetID() const=0;
 };
 
 template <class T> class DB_DFT 
@@ -156,39 +161,33 @@ template <class T> class DB_RKB
     , public DB_1E<T>
 {    
 protected:
-    DB_RKB(const DB_cache<T>* db) :  DB_1E<T>(db) {};
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
+    DB_RKB(const DB_cache<T>* db) :  DB_1E<T>(db) {}; 
     virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
     virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
 };
 
-template <class T> class DB_RKBL :
-    virtual public Integrals_RKBL<T>
+template <class T> class DB_RKBL 
+    : virtual public Integrals_RKBL<T>
+    , public DB_Overlap<T>
+    , public DB_Nuclear<T>
 {
 public:
+    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Nuclear<T>(db) {};
     typedef UniqueID::IDtype IDType;
-    typedef Integrals_RKBL<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-    typedef typename Base::Mat_ref Mat_ref;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::Mat  Mat;
+    // typedef Integrals_RKBL<T> Base;
+    // typedef typename Base::SMat_ref SMat_ref;
+    // typedef typename Base::Mat_ref Mat_ref;
+    // typedef typename Base::SMat SMat;
+    // typedef typename Base::Mat  Mat;
 
-    virtual SMat_ref Overlap() const;
-    virtual Mat_ref  Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual SMat_ref Nuclear(const Cluster*) const;
+    virtual typename Integrals_Base<T>::Mat_ref  Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
 private:
-
     virtual IDType GetID() const=0;
-    virtual SMat MakeOverlap() const;
-    virtual Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual SMat MakeNuclear(const Cluster*) const;
-    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
+    virtual typename Integrals_Base<T>::Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    mutable std::map<id2c_t ,SMat> itsBuffer; 
-    mutable std::map<id2c_t ,Mat> itsBufferX; 
+    // typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    // mutable std::map<id2c_t ,SMat> itsBuffer; 
+    // mutable std::map<id2c_t ,Mat> itsBufferX; 
 };
 
 template <class T> class DB_RKBS :

@@ -112,17 +112,13 @@ public:
     virtual  typename Integrals_Base<T>::SMat_ref RestMass() const=0;
 };
 
-template <class T> class Integrals_RKBL 
+template <class T> class Integrals_RKBL
+: public virtual Integrals_Overlap<T>
+, public virtual Integrals_Nuclear<T>
 {
 public:
-    typedef SMatrix<T> SMat;
-    typedef  Matrix<T>  Mat;
-    typedef const SMat& SMat_ref;
-    typedef const  Mat&  Mat_ref;
-    virtual SMat_ref Overlap() const=0;
     //! L/S cross Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual  Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
-    virtual SMat_ref Nuclear(const Cluster*) const=0;   
+    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 
 template <class T> class Integrals_RKBS 

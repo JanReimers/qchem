@@ -119,5 +119,23 @@ public:
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
 };
 
+template <class T> class AtomIE_RKBL 
+: public virtual  AtomIE_1EFit_Common
+, public DB_RKBL<T>
+{
+public:
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::Mat Mat;
+    virtual SMat MakeOverlap() const;
+    virtual  Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual SMat MakeNuclear(const Cluster*) const;
+protected:
+    AtomIE_RKBL(const DB_cache<T>* db) : DB_RKBL<T>(db) {};
+private:
+    // Use a paramaterized function for the loops over basis functions.
+    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
+    double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
+
+};
 
 #endif // _AtomIE_H_
