@@ -6,10 +6,15 @@
 #include "Imp/Integrals/Cache4.H"
 #include "Imp/DataBase/HeapDB.H"
 
-class AtomIE_1EFit_Common
+class AtomIE_1EFit_Overlap
 {
 public:
     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+};
+
+class AtomIE_1EFit_Common : public virtual AtomIE_1EFit_Overlap
+{
+public:
     virtual double Kinetic(double ea ,double eb,size_t la,size_t lb) const=0;
     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
 };
@@ -40,10 +45,9 @@ private:
 };
 
 //  This common base allows implementation sharing of common integral routines
-class AtomIE_FitDFT_Common
+class AtomIE_FitDFT_Common  : public virtual AtomIE_1EFit_Overlap
 {
 public:
-    virtual double Overlap  (double ea ,double eb,size_t l_total) const=0;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
 };
 class AtomIE_Fit 

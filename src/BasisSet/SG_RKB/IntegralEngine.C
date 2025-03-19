@@ -29,7 +29,6 @@ namespace SphericalGaussian_RKB
 //             J(Nl+i,Nl+j)=merge_diag(SSLL(i,j),SSSS(i,j));
 //     return J;
 // }
-
 // ERI4 DiracIntegralEngine::merge_off_diag(const ERI4& LLLL,const M4& LSLS,const M4& SLSL,const ERI4& SSSS)
 // {
 //     size_t Nl=LLLL.Nab();
@@ -48,11 +47,9 @@ namespace SphericalGaussian_RKB
 //             K(i,Ns+j)=merge_off_diag(LSLS(i,j));   
 //     // for (auto i:SLSL.rows())
 //     //     for (auto j:SLSL.cols(i))
-//     //         K(Nl+i,j)=SLSL(i,j);        
-            
+//     //         K(Nl+i,j)=SLSL(i,j);                  
 //     return K;
 // }
-
 // DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
 // {
 //     auto da=dcast(a);
@@ -60,7 +57,6 @@ namespace SphericalGaussian_RKB
 //     SMat os=itsSmallIE->MakeOverlap(da->itsSmallIEC);
 //     return merge_diag(ol,os);
 // }
-
 // DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
 // {
 //     auto da=dcast(a);
@@ -68,13 +64,11 @@ namespace SphericalGaussian_RKB
 //     //std::cout << "kls=" << kls << std::endl;
 //     return merge_off_diag(kls);
 // }
-
 // DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
 // {
 //     assert(false);
 //     return Mat();
 // }
-
 // DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
 // {
 //     auto da=dcast(a);
@@ -91,7 +85,6 @@ namespace SphericalGaussian_RKB
 //     SMat rs=f*itsSmallIE->MakeOverlap(da->itsSmallIEC);
 //     return merge_diag(rl,rs);
 // }
-
 // DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
 // {
 //     auto da=dcast(a);
@@ -99,7 +92,6 @@ namespace SphericalGaussian_RKB
 //     RVec cs=itsSmallIE->MakeCharge(da->itsSmallIEC);
 //     return merge(cl,cs);
 // }
-
 // ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const
 // {
 //     auto da=dcast(a);
@@ -109,8 +101,7 @@ namespace SphericalGaussian_RKB
 //     ERI4 JLLLL=itsLargeIE->MakeDirect(da->itsLargeIEC,dc->itsLargeIEC);
 //     ERI4 JLLSS=itsSmallIE->MakeDirect(da->itsLargeIEC,dc->itsSmallIEC);
 //     ERI4 JSSLL=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsLargeIEC);
-//     ERI4 JSSSS=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsSmallIEC);
-    
+//     ERI4 JSSSS=itsSmallIE->MakeDirect(da->itsSmallIEC,dc->itsSmallIEC);  
 //     return merge_diag(JLLLL,JLLSS,JSSLL,JSSSS); 
 // }
 // ERI4 DiracIntegralEngine::MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
@@ -124,15 +115,12 @@ namespace SphericalGaussian_RKB
 //     M4   KLSLS=sie->MakeExchangeLS(da->itsLargeIEC,db->itsSmallIEC);
 //     M4   KSLSL=sie->MakeExchangeSL(da->itsSmallIEC,db->itsLargeIEC);
 //     ERI4 KSSSS=sie->MakeExchangeSS(da->itsSmallIEC,db->itsSmallIEC);
-
 //     // std::cout << "KLLLL(2,2)=" << KLLLL(2,2) << std::endl;
 //     // std::cout << "KLSLS(2,2)=" << KLSLS(2,2) << std::endl;
 //     // std::cout << "KSLSL(2,2)=" << KSLSL(2,2) << std::endl;
-//     // std::cout << "KSSSS(2,2)=" << KSSSS(2,2) << std::endl;
-    
+//     // std::cout << "KSSSS(2,2)=" << KSSSS(2,2) << std::endl;  
 //     return merge_off_diag(KLLLL,KLSLS,KSLSL,KSSSS);  
 // }
-
 // ERI4 Small_IntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const
 // {
 //     auto da=dcast(a);
@@ -146,7 +134,6 @@ namespace SphericalGaussian_RKB
 //     assert(false);
 //     return ERI4();
 // }
-
 // ERI4 Small_IntegralEngine::MakeDirectLS(const IrrepIEClient* a, const IrrepIEClient* c) const
 // {
 //     assert(a);
@@ -196,7 +183,6 @@ namespace SphericalGaussian_RKB
 //     }
 //     return J;
 // };
-
 // ERI4 Small_IntegralEngine::MakeDirectSL(const IrrepIEClient* a, const IrrepIEClient* c) const
 // {
 //     assert(a);
@@ -246,7 +232,6 @@ namespace SphericalGaussian_RKB
 //     }
 //     return J;
 // }
-
 // ERI4 Small_IntegralEngine::MakeDirectSS(const IrrepIEClient* a, const IrrepIEClient* c) const
 // {
 //     assert(a);
@@ -313,7 +298,6 @@ namespace SphericalGaussian_RKB
 //     }
 //     return J;
 // }
-
 // ERI4 Small_IntegralEngine::MakeExchange  (const ::IrrepIEClient* a, const ::IrrepIEClient* b) const
 // {
 //     auto da=dcast(a);
@@ -327,7 +311,6 @@ namespace SphericalGaussian_RKB
 //     assert(false);
 //     return ERI4();
 // }
-
 // M4 Small_IntegralEngine::MakeExchangeLS(const IrrepIEClient* a, const IrrepIEClient* c) const
 // {
 //     assert(a);
@@ -365,16 +348,13 @@ namespace SphericalGaussian_RKB
 //                         Rkac-=RVec((ec+ed)*k2*cd.ExchangeRk(la,lc-1));
 //                         Rkac+=RVec(k2*k2*cd.ExchangeRk(la,lc-2));
 //                     }
-//                     Kab(ic,id)=Akac*Rkac*norm; //THis whole block is off diagonal.
-                    
+//                     Kab(ic,id)=Akac*Rkac*norm; //THis whole block is off diagonal.                   
 //                 }
 //             }
 //         }
 //     }
-
 //     return K;
 // }
-
 // M4 Small_IntegralEngine::MakeExchangeSL(const IrrepIEClient* a, const IrrepIEClient* c) const
 // {
 //     assert(a);
@@ -419,7 +399,6 @@ namespace SphericalGaussian_RKB
 //     }
 //     return K;
 // }
-
 // ERI4 Small_IntegralEngine::MakeExchangeSS(const IrrepIEClient*a, const IrrepIEClient* c) const
 // {
 //     assert(a);
@@ -488,7 +467,6 @@ namespace SphericalGaussian_RKB
 //     }
 //     return K;
 // }
-
 // double Small_IntegralEngine1::Integral(qchem::IType t,double ea , double eb,size_t l) const
 // {
 //     if (t==qchem::Overlap1 || t==qchem::Kinetic1)
@@ -512,5 +490,7 @@ namespace SphericalGaussian_RKB
 //     return 0.0;
 // }
 
+
+// template class Orbital_RKBL_IE<double>;
 
 } //namespace

@@ -17,7 +17,7 @@ namespace SphericalGaussian_RKB
         const Vector<T>& exponents,int kappa)
         : IrrepBasisSetCommon(new Omega_kQN(kappa))
         , TIrrepBasisSetCommon<T>(lap)
-        , AtomIE_RKBL<T>(db)
+        , Orbital_RKBL_IE<T>(db)
         , IrrepIEClient(exponents.size(),kappa)
     {
         IrrepIEClient::Init(exponents);
@@ -42,25 +42,6 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,c
     };
 }
 
-template <class T>  double Large_Orbital_IBS<T>::Overlap(double ea , double eb,size_t l_total) const
-{
-    return GaussianIntegral(ea+eb,l_total);
-}
-template <class T>  double Large_Orbital_IBS<T>::Kinetic(double ea , double eb,size_t l,size_t lb) const
-{
-    assert(l==lb);
-    double t=ea+eb;
-    size_t l1=l+1;
-    return 0.5*(
-            (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
-            -2*l1 * t      * GaussianIntegral(t,2*l  )
-            +4*ea*eb       * GaussianIntegral(t,2*l+2)
-        );
-}
-template <class T>  double Large_Orbital_IBS<T>::Nuclear(double ea , double eb,size_t l_total) const
-{
-    return GaussianIntegral(ea+eb,l_total-1);
-}
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {

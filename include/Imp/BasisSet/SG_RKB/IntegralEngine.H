@@ -6,6 +6,7 @@
 #include <AnalyticIE.H>
 #include "IEClient.H"
 #include "Imp/BasisSet/AtomIE.H"
+#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "oml/vector.h"
 
 class DiracIntegralTests;
@@ -13,7 +14,15 @@ class DiracIntegralTests;
 namespace SphericalGaussian_RKB
 {
     
-class IrrepIEClient;
+template <class T> class Orbital_RKBL_IE
+    : public virtual AtomIE_1EFit_Common
+    , public     AtomIE_RKBL<T>
+    , public SphericalGaussian::IE_Primatives
+    {
+    protected:
+        Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
+    };
+
     
 // class Small_IntegralEngine1
 //     : public virtual Integrals_1E<double>
