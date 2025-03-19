@@ -47,7 +47,7 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_off_diag(const Mat&
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeOverlap() const
 {
     SMat ol=itsRKBL->Overlap();
-    SMat os=itsRKBS->Overlap();
+    SMat os=itsRKBS->Kinetic();
     return merge_diag(ol,os);
 }
 
@@ -69,7 +69,7 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeRestMass() const
     static const double f=-2.0*c_light*c_light;
     SMat rl(itsRKBL->size());
     Fill(rl,0.0);
-    SMat rs=f*itsRKBS->Overlap();
+    SMat rs=f*itsRKBS->Kinetic();
     return merge_diag(rl,rs);
 }
 

@@ -109,6 +109,7 @@ template <class T> class Integrals_RKB
 : public virtual Integrals_1E<T>
 {
 public:
+    //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
     virtual  typename Integrals_Base<T>::SMat_ref RestMass() const=0;
 };
 
@@ -122,15 +123,11 @@ public:
 };
 
 template <class T> class Integrals_RKBS 
+: public virtual Integrals_1E<T>
 {
 public:
-    typedef SMatrix<T> SMat;
-    typedef const SMat& SMat_ref;
-    virtual SMat_ref Overlap() const=0;
-    virtual SMat_ref Nuclear(const Cluster*) const=0;   
-    //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
-    virtual SMat_ref RestMass() const=0;
-};
+   
+ };
 
 class FitIntegrals_1E  
     : public virtual Integrals_Base<double>

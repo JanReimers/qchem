@@ -42,14 +42,17 @@ template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
     , public     IrrepBasisSetCommon
     , protected  TIrrepBasisSetCommon<T> 
-    , public     DB_RKBS<T>
+    , public     AtomIE_RKBS<T>
     , public     Small_IrrepIEClient
 {
 public:
     Small_Orbital_IBS() {};
-    Small_Orbital_IBS(const LAParams&,const Large_Orbital_IBS<T>*);
+    Small_Orbital_IBS(const LAParams&,const DB_cache<T>*,const Large_Orbital_IBS<T>*);
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
+    virtual double Overlap(double ea , double eb,size_t l_total) const;
+    virtual double Kinetic(double ea , double eb,size_t la,size_t lb) const;
+    virtual double Nuclear(double ea , double eb,size_t l_total) const;
+
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };

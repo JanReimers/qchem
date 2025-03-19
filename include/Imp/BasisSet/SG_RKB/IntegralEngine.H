@@ -15,14 +15,14 @@ namespace SphericalGaussian_RKB
     
 class IrrepIEClient;
     
-class Small_IntegralEngine1
-    : public virtual Integrals_1E<double>
-    , public AtomIE_1E<double>
-    , public DB_RKBS<double>
-{
-public:
-    virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
-};
+// class Small_IntegralEngine1
+//     : public virtual Integrals_1E<double>
+//     , public AtomIE_1E<double>
+//     , public DB_RKBS<double>
+// {
+// public:
+//     virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
+// };
 
 
 

@@ -171,47 +171,24 @@ template <class T> class DB_RKBL
     , public DB_Overlap<T>
     , public DB_Nuclear<T>
 {
-public:
+protected:
     DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Nuclear<T>(db) {};
     typedef UniqueID::IDtype IDType;
-    // typedef Integrals_RKBL<T> Base;
-    // typedef typename Base::SMat_ref SMat_ref;
-    // typedef typename Base::Mat_ref Mat_ref;
-    // typedef typename Base::SMat SMat;
-    // typedef typename Base::Mat  Mat;
-
-    virtual typename Integrals_Base<T>::Mat_ref  Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-private:
     virtual IDType GetID() const=0;
+    virtual typename Integrals_Base<T>::Mat_ref  Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
     virtual typename Integrals_Base<T>::Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
-
-    // typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    // mutable std::map<id2c_t ,SMat> itsBuffer; 
-    // mutable std::map<id2c_t ,Mat> itsBufferX; 
 };
 
-template <class T> class DB_RKBS :
-    virtual public Integrals_RKBS<T>
+template <class T> class DB_RKBS 
+    : virtual public Integrals_RKBS<T>
+    , public DB_1E<T>
 {
-public:
-    typedef UniqueID::IDtype IDType;
-    typedef Integrals_RKBS<T> Base;
-    typedef typename Base::SMat_ref SMat_ref;
-    typedef typename Base::SMat SMat;
+protected:
+    DB_RKBS(const DB_cache<T>* db) :  DB_1E<T>(db) {}; 
+    // typedef UniqueID::IDtype IDType;
+    // virtual IDType GetID() const=0;
    
-    virtual SMat_ref Overlap() const;
-    virtual SMat_ref Nuclear(const Cluster*) const;
-    virtual SMat_ref RestMass() const;
-private:
-    virtual IDType GetID() const=0;
-    virtual SMat MakeOverlap() const;
-    virtual SMat MakeNuclear(const Cluster*) const;
-    virtual SMat MakeRestMass() const;
-    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const=0;
-
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    mutable std::map<id2c_t ,SMat> itsBuffer; 
+   
 };
 
 #endif

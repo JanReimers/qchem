@@ -13,6 +13,14 @@ public:
     virtual double Kinetic(double ea ,double eb,size_t la,size_t lb) const=0;
     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
 };
+
+class AtomIE_1ERKBS_Common
+{
+public:
+    virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+    virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
+};
+
 template <class T> class AtomIE_1E 
 : public virtual  AtomIE_1EFit_Common
 , public DB_1E<T>
@@ -131,6 +139,24 @@ public:
     virtual SMat MakeNuclear(const Cluster*) const;
 protected:
     AtomIE_RKBL(const DB_cache<T>* db) : DB_RKBL<T>(db) {};
+private:
+    // Use a paramaterized function for the loops over basis functions.
+    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
+    double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
+
+};
+
+template <class T> class AtomIE_RKBS 
+: public virtual  AtomIE_1EFit_Common
+, public DB_RKBS<T>
+{
+public:
+    typedef typename Integrals_Base<T>::SMat SMat;
+    virtual SMat MakeOverlap() const;
+    virtual SMat MakeKinetic() const;
+    virtual SMat MakeNuclear(const Cluster*) const;
+protected:
+    AtomIE_RKBS(const DB_cache<T>* db) : DB_RKBS<T>(db) {};
 private:
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;

@@ -23,7 +23,7 @@ Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<doub
 {
     auto rkbl=dynamic_cast<Large_Orbital_IBS<double>*>(itsRKBL);
     assert(rkbl);
-    auto rkbs=new Small_Orbital_IBS<double>(lap,rkbl);
+    auto rkbs=new Small_Orbital_IBS<double>(lap,db,rkbl);
     itsRKBS=rkbs;
     assert(itsRKBS);
     RKB_IE::itsRKBS=rkbs;
@@ -143,9 +143,10 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 //
 //  Small sector
 //
-template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,const Large_Orbital_IBS<T>* lbs)
+template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,const DB_cache<double>* db,const Large_Orbital_IBS<T>* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
     , TIrrepBasisSetCommon<T>(lap)
+    , AtomIE_RKBS<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
   Small_IrrepIEClient::Init(lbs->es);
@@ -181,28 +182,50 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
     return 0;
 }
 
-template <class T> T Small_Orbital_IBS<T>::Integral(qchem::IType t,double ea , double eb,size_t l) const
-{
-    if (t==qchem::Overlap1 || t==qchem::Kinetic1)
-    {
-    double ab=ea+eb;
-            int na=l+1,nb=l+1;
-            size_t ll=(l*(l+1)+l*(l+1))/2;
-            int n=na+nb;
-            double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
-            double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-            double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
-            //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
+// template <class T> T Small_Orbital_IBS<T>::Integral(qchem::IType t,double ea , double eb,size_t l) const
+// {
+//     if (t==qchem::Overlap1 || t==qchem::Kinetic1)
+//     {
+//     double ab=ea+eb;
+//             int na=l+1,nb=l+1;
+//             size_t ll=(l*(l+1)+l*(l+1))/2;
+//             int n=na+nb;
+//             double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
+//             double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+//             double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+//             //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
 
-        return t==qchem::Overlap1 ? 2.0*(Term1+Term2+Term3) : -2.0*(Term1+Term2+Term3);
-    }
-    else if(t==qchem::Nuclear1)
-    {
-        return ea*eb*SlaterIntegral(ea+eb,2*l+1);
-    }
+//         return t==qchem::Overlap1 ? 2.0*(Term1+Term2+Term3) : -2.0*(Term1+Term2+Term3);
+//     }
+//     else if(t==qchem::Nuclear1)
+//     {
+//         return ea*eb*SlaterIntegral(ea+eb,2*l+1);
+//     }
+//     assert(false);
+//     return 0.0;
+// }
+
+template <class T> double Small_Orbital_IBS<T>::Overlap(double ea , double eb,size_t l_total) const
+{
     assert(false);
     return 0.0;
 }
+template <class T> double Small_Orbital_IBS<T>::Kinetic(double ea , double eb,size_t la, size_t lb) const
+{
+    double ab=ea+eb;
+    int na=l+1,nb=l+1;
+    size_t ll=(l*(l+1)+l*(l+1))/2;
+    int n=na+nb;
+    double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
+    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
 
+    return 2.0*(Term1+Term2+Term3);
+}
+template <class T> double Small_Orbital_IBS<T>::Nuclear(double ea , double eb,size_t l_total) const
+{
+    return ea*eb*SlaterIntegral(ea+eb,l_total+1);
+}
 
 } //namespace
