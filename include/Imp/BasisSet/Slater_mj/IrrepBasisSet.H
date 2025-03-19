@@ -22,7 +22,7 @@ template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
     , public     IrrepBasisSetCommon
     , protected  TIrrepBasisSetCommon<T> 
-    , public     AtomIE_RKBL<T>
+    , public     Orbital_RKBL_IE<T>
     , public     IrrepIEClient
 {
     public:
@@ -30,11 +30,7 @@ template <class T> class Large_Orbital_IBS
     Large_Orbital_IBS(const LAParams&,const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-    // virtual T    Integral(qchem::IType,double ea , double eb,size_t l) const;
-    virtual double Overlap(double ea , double eb,size_t l_total) const;
-    virtual double Kinetic(double ea , double eb,size_t la, size_t lb) const;
-    virtual double Nuclear(double ea , double eb,size_t l_total) const;
-
+    
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };

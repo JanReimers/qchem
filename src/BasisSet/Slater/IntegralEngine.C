@@ -15,12 +15,12 @@ double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
     return 4*4*Pi*Pi*cd.Coulomb_R0(la,lc);
 }
 
-double  IE_Common::Overlap(double ea , double eb,size_t l_total) const
+double  IE_Primatives::Overlap(double ea , double eb,size_t l_total) const
 {
     return SlaterIntegral(ea+eb,l_total+2); //Already has 4*Pi
 }
 
-double IE_Common::Kinetic(double ea , double eb,size_t l, size_t lb) const
+double IE_Primatives::Kinetic(double ea , double eb,size_t l, size_t lb) const
 {
     assert(l==lb);
     double ab=ea+eb;
@@ -35,7 +35,7 @@ double IE_Common::Kinetic(double ea , double eb,size_t l, size_t lb) const
     return Term1+Term2+Term3;
 }
 
-double IE_Common::Nuclear(double ea , double eb,size_t l_total) const
+double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const
 {
     return SlaterIntegral(ea+eb,l_total+1); //Already has 4*Pi
 }

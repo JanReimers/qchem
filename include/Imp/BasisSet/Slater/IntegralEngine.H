@@ -7,15 +7,19 @@
 namespace Slater
 {
 
-class IE_Common
-    : public virtual AtomIE_FitDFT_Common
-    , public virtual AtomIE_1EFit_Common
-    , public AtomIE_1E<double>
+class IE_Primatives : public virtual AtomIE_1EFit_Common
 {
-public:
     virtual double Overlap(double ea , double eb,size_t l_total) const;
     virtual double Kinetic(double ea , double eb,size_t la, size_t lb) const;
     virtual double Nuclear(double ea , double eb,size_t l_total) const;
+};
+
+class IE_Common
+    : public virtual AtomIE_FitDFT_Common
+    , public IE_Primatives
+    , public AtomIE_1E<double>
+{
+public:
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
 protected:
     IE_Common(const DB_cache<double>* db) : AtomIE_1E<double>(db) {};

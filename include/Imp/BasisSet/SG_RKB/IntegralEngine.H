@@ -23,17 +23,6 @@ template <class T> class Orbital_RKBL_IE
         Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
     };
 
-    
-// class Small_IntegralEngine1
-//     : public virtual Integrals_1E<double>
-//     , public AtomIE_1E<double>
-//     , public DB_RKBS<double>
-// {
-// public:
-//     virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
-// };
-
-
 
 } //namespace SphericalGaussian_RKB
 

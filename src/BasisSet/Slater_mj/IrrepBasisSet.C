@@ -61,7 +61,7 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const LAParams& lap,c
         const Vector<T>& exponents,int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , TIrrepBasisSetCommon<T>(lap)
-    , AtomIE_RKBL<T>(db)
+    , Orbital_RKBL_IE<T>(db)
     , IrrepIEClient(exponents.size(),kappa)
 {
     IrrepIEClient::Init(exponents);
@@ -70,55 +70,6 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const LAParams& lap,c
         IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
 
 };
-
-// template <class T> T Large_Orbital_IBS<T>::Integral(qchem::IType type,double ea, double eb,size_t l) const
-// {
-//     switch(type)
-//     {
-//         case qchem::Overlap1: return SlaterIntegral(ea+eb,2*l+2); //Already has 4*Pi
-//         case qchem::Kinetic1:
-//         {
-//             double ab=ea+eb;
-//             int na=l+1,nb=l+1;
-//             size_t ll=l*(l+1);
-//             int n=na+nb;
-//             double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
-//             double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-//             double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
-//             //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
-        
-//             return Term1+Term2+Term3;
-//         } 
-//         case qchem::Nuclear1:  return SlaterIntegral(ea+eb,2*l+1); //Already has 4*Pi
-//         default: assert(false);
-//     }
-//     return 0.0;
-// }
-
-template <class T>  double Large_Orbital_IBS<T>::Overlap(double ea , double eb,size_t l_total) const
-{
-    return SlaterIntegral(ea+eb,l_total+2); //Already has 4*Pi
-}
-template <class T>  double Large_Orbital_IBS<T>::Kinetic(double ea , double eb,size_t l,size_t lb) const
-{
-    assert(l==lb);
-    double ab=ea+eb;
-    int na=l+1,nb=l+1;
-    size_t ll=l*(l+1);
-    int n=na+nb;
-    double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
-    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
-    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
-
-    return Term1+Term2+Term3;
-}
-template <class T>  double Large_Orbital_IBS<T>::Nuclear(double ea , double eb,size_t l_total) const
-{
-    return SlaterIntegral(ea+eb,l_total+1); //Already has 4*Pi
-}
-
-
 
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const

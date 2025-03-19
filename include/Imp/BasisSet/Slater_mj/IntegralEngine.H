@@ -3,20 +3,24 @@
 #define _Slater_mj_IntegralEngine_H_
 
 #include "Imp/BasisSet/Dirac_IBS.H"
+#include "Imp/BasisSet/AtomIE.H"
+#include "Imp/BasisSet/Slater/IntegralEngine.H"
 
 class DiracIntegralTests;
 
 namespace Slater_mj
 {
     
+    template <class T> class Orbital_RKBL_IE
+    : public virtual AtomIE_1EFit_Common
+    , public     AtomIE_RKBL<T>
+    , public Slater::IE_Primatives
+    {
+    protected:
+        Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
+    };
 
-class Small_IntegralEngine1
-    : public virtual Integrals_RKBS<double>
-    , public DB_RKBS<double>
-{
-public:
-    virtual  double Integral(qchem::IType,double ea , double eb,size_t l) const;
-};
+
 
 } //namespace
 
