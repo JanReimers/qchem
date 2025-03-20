@@ -60,19 +60,32 @@ protected:
     virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
     virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
 };
-
-template <class T> class DB_1E :
-    virtual public Integrals_1E<T>
-    , public DB_Overlap<T>
-    , public DB_Kinetic<T>
-    , public DB_Nuclear<T>
+template <class T> class DB_XKinetic : public DB_Common<T>, public virtual Integrals_XKinetic<T>
 {    
 protected:
-    DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
-    // Resolve ambiguities.
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
+    DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
+template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
+{    
+protected:
+    DB_RestMass(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
+    virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
+};
+// template <class T> class DB_1E :
+//     virtual public Integrals_1E<T>
+//     , public DB_Overlap<T>
+//     , public DB_Kinetic<T>
+//     , public DB_Nuclear<T>
+// {    
+// protected:
+//     DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
+//     // Resolve ambiguities.
+//     typedef UniqueID::IDtype IDType;
+//     virtual IDType GetID() const=0;
+// };
 
 template <class T> class DB_DFT 
     : virtual public Integrals_DFT<T>
@@ -158,36 +171,33 @@ private:
 
 template <class T> class DB_RKB 
     : virtual public Integrals_RKB<T>
-    , public DB_1E<T>
+    , public DB_Overlap<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
+    , public DB_RestMass<T>
 {    
 protected:
-    DB_RKB(const DB_cache<T>* db) :  DB_1E<T>(db) {}; 
-    virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
-    virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
+    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Kinetic<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
+   
 };
 
 template <class T> class DB_RKBL 
     : virtual public Integrals_RKBL<T>
     , public DB_Overlap<T>
+    , public DB_XKinetic<T>
     , public DB_Nuclear<T>
 {
 protected:
-    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Nuclear<T>(db) {};
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
-    virtual typename Integrals_Base<T>::Mat_ref  Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual typename Integrals_Base<T>::Mat  MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XKinetic<T>(db), DB_Nuclear<T>(db) {};
 };
 
 template <class T> class DB_RKBS 
     : virtual public Integrals_RKBS<T>
-    , public DB_1E<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
 {
 protected:
-    DB_RKBS(const DB_cache<T>* db) :  DB_1E<T>(db) {}; 
-    // typedef UniqueID::IDtype IDType;
-    // virtual IDType GetID() const=0;
-   
+    DB_RKBS(const DB_cache<T>* db) :  DB_Kinetic<T>(db), DB_Nuclear<T>(db) {};  
    
 };
 

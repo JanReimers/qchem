@@ -13,23 +13,29 @@ namespace SphericalGaussian
     
 class IrrepIEClient;
     
-class IE_Primatives : public virtual AtomIE_1EFit_Common
+class IE_Primatives 
+    : public virtual  Primative_Overlap<double>
+    , public virtual  Primative_Kinetic<double>
+    , public virtual  Primative_Nuclear<double>
+    , public virtual Primative_Repulsion<double>
 {
     virtual double Overlap(double ea , double eb,size_t l_total) const;
     virtual double Kinetic(double ea , double eb,size_t la, size_t lb) const;
     virtual double Nuclear(double ea , double eb,size_t l_total) const;
+    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
 };
 
 class IE_Common
-: public virtual AtomIE_FitDFT_Common
-, public IE_Primatives
-, public AtomIE_1E<double>
+: public IE_Primatives
+, public AtomIE_Overlap<double>
+, public AtomIE_Kinetic<double>
+, public AtomIE_Nuclear<double>
 {
 public:
     
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
 protected:
-    IE_Common(const DB_cache<double>* db) : AtomIE_1E<double>(db) {};
+    IE_Common(const DB_cache<double>* db) : AtomIE_Overlap<double>(db), AtomIE_Kinetic<double>(db), AtomIE_Nuclear<double>(db) {};
 
 };
 
@@ -44,15 +50,13 @@ protected:
 };
 
 class Fit_IE
-: public virtual AtomIE_1EFit_Common
-, public IE_Common
-, public AtomIE_Fit
-
+: public AtomIE_Fit
+, public IE_Primatives
 {
 public:
     virtual double Charge  (double ea ,           size_t l) const;
 protected:
-    Fit_IE(const DB_cache<double>* db) : IE_Common(db), AtomIE_Fit(db) {};
+    Fit_IE(const DB_cache<double>* db) : AtomIE_Fit(db) {};
 };
 } //namespace
 

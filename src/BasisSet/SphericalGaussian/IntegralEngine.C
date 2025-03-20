@@ -29,6 +29,11 @@ double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const
 {
     return GaussianIntegral(ea+eb,l_total-1); //Already has 4*Pi
 }
+double IE_Primatives::Repulsion(double eab, double ec,size_t la,size_t lc) const
+{    
+    SphericalGaussianCD cd(eab,ec,std::max(la,lc));
+    return 4*4*pi*pi*cd.Coulomb_R0(la,lc);
+}
 
 double IE_Common::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    

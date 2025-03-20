@@ -15,8 +15,7 @@ namespace SphericalGaussian_RKB
 {
     
 template <class T> class Orbital_RKBL_IE
-    : public virtual AtomIE_1EFit_Common
-    , public     AtomIE_RKBL<T>
+    : public     AtomIE_RKBL<T>
     , public SphericalGaussian::IE_Primatives
     {
     protected:

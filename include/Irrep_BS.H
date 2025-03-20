@@ -124,7 +124,9 @@ class Orbital_IBS
 template <class T> class TOrbital_IBS
     : public virtual Orbital_IBS
     , public virtual TIrrepBasisSet<T>
-    , public virtual Integrals_1E<T> 
+    , public virtual Integrals_Overlap<T> 
+    , public virtual Integrals_Kinetic<T> 
+    , public virtual Integrals_Nuclear<T> 
 {
     public:
     

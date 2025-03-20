@@ -6,57 +6,100 @@
 #include "Imp/Integrals/Cache4.H"
 #include "Imp/DataBase/HeapDB.H"
 
-class AtomIE_1EFit_Overlap
+// class AtomIE_1EFit_Overlap
+// {
+// public:
+//     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+// };
+
+// class AtomIE_1EFit_Common : public virtual AtomIE_1EFit_Overlap
+// {
+// public:
+//     virtual double Kinetic(double ea ,double eb,size_t la,size_t lb) const=0;
+//     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
+// };
+
+// class AtomIE_1ERKBS_Common
+// {
+// public:
+//     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+//     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
+// };
+
+// template <class T, class f_t> typename Integrals_Base<T>::SMat Loop_ab(const AtomIrrepIEClient*);
+
+template <class T> class Primative_Overlap
 {
-public:
+    public:
     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
 };
-
-class AtomIE_1EFit_Common : public virtual AtomIE_1EFit_Overlap
+template <class T> class Primative_Kinetic
 {
-public:
-    virtual double Kinetic(double ea ,double eb,size_t la,size_t lb) const=0;
+    public:
+    virtual double Kinetic(double ea ,double eb,size_t la, size_t lb) const=0;
+};
+template <class T> class Primative_Nuclear
+{
+    public:
     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
 };
-
-class AtomIE_1ERKBS_Common
+template <class T> class Primative_Repulsion
 {
-public:
-    virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
-    virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
+    public:
+    virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
 };
 
-template <class T> class AtomIE_1E 
-: public virtual  AtomIE_1EFit_Common
-, public DB_1E<T>
+template <class T> class AtomIE_Overlap
+: public virtual Primative_Overlap<T>
+, public DB_Overlap<T>
 {
-public:
-    typedef typename Integrals_Base<T>::SMat SMat;
-    virtual SMat MakeOverlap() const;
-    virtual SMat MakeKinetic() const;
-    virtual SMat MakeNuclear(const Cluster*) const;
 protected:
-    AtomIE_1E(const DB_cache<T>* db) : DB_1E<T>(db) {};
-private:
-    // Use a paramaterized function for the loops over basis functions.
-    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
-
+    using Primative_Overlap<T>::Overlap;
+    virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
+    AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
 };
+template <class T> class AtomIE_Kinetic
+: public virtual Primative_Kinetic<T>
+, public DB_Kinetic<T>
+{
+protected:
+    using Primative_Kinetic<T>::Kinetic;
+    virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
+    AtomIE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+};
+template <class T> class AtomIE_Nuclear
+: public virtual Primative_Nuclear<T>
+, public DB_Nuclear<T>
+{
+protected:
+    using Primative_Nuclear<T>::Nuclear;
+    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
+    AtomIE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
+};
+template <class T> class AtomIE_XKinetic
+: public virtual Primative_Kinetic<T>
+, public DB_XKinetic<T>
+{
+protected:
+    using Primative_Kinetic<T>::Kinetic;
+    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    AtomIE_XKinetic(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
+};
+
 
 //  This common base allows implementation sharing of common integral routines
-class AtomIE_FitDFT_Common  : public virtual AtomIE_1EFit_Overlap
-{
-public:
-    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
-};
+// class AtomIE_FitDFT_Common  : public virtual AtomIE_1EFit_Overlap
+// {
+// public:
+//     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
+// };
 class AtomIE_Fit 
-: public virtual AtomIE_FitDFT_Common
-, public virtual AtomIE_1EFit_Common
+: public virtual Primative_Repulsion<double>
+, public AtomIE_Overlap<double>
 , public DB_Fit
 {
     protected:
-    AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
+    AtomIE_Fit(const DB_cache<double>* db) : AtomIE_Overlap<double>(db), DB_Fit(db) {};
 
     virtual Vec  MakeCharge() const;
     virtual SMat MakeOverlap() const;
@@ -66,16 +109,22 @@ private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
-    using AtomIE_FitDFT_Common::Repulsion; //un hide
-    using AtomIE_1EFit_Common::Overlap;
+    // using AtomIE_FitDFT_Common::Repulsion; //un hide
+    // using AtomIE_1EFit_Common::Overlap;
     virtual double Charge   (double ea ,           size_t l) const=0;
     
     // Use a paramaterized function for the loops over basis functions.
     SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
     double Integral_internal(qchem::IType,double ea , double eb,size_t l) const;
+    using Primative_Repulsion<double>::Repulsion;
+    using Primative_Overlap<double>::Overlap;
+    // virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
 };
 
-template <class T> class AtomIE_DFT : public virtual AtomIE_FitDFT_Common, public DB_DFT<T>
+template <class T> class AtomIE_DFT 
+: public virtual Primative_Overlap<T>
+, public virtual Primative_Repulsion<T>
+, public DB_DFT<T>
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::fbs_t fbs_t;
@@ -132,40 +181,21 @@ public:
 };
 
 template <class T> class AtomIE_RKBL 
-: public virtual  AtomIE_1EFit_Common
-, public DB_RKBL<T>
+    : public AtomIE_Overlap<T>
+    , public AtomIE_XKinetic<T>
+    , public AtomIE_Nuclear<T>
 {
-public:
-    typedef typename Integrals_Base<T>::SMat SMat;
-    typedef typename Integrals_Base<T>::Mat Mat;
-    virtual SMat MakeOverlap() const;
-    virtual  Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual SMat MakeNuclear(const Cluster*) const;
 protected:
-    AtomIE_RKBL(const DB_cache<T>* db) : DB_RKBL<T>(db) {};
-private:
-    // Use a paramaterized function for the loops over basis functions.
-    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
+    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XKinetic<T>(db),AtomIE_Nuclear<T>(db) {};
 
 };
 
 template <class T> class AtomIE_RKBS 
-: public virtual  AtomIE_1EFit_Common
-, public DB_RKBS<T>
+: public AtomIE_Kinetic<T>
+, public AtomIE_Nuclear<T>
 {
-public:
-    typedef typename Integrals_Base<T>::SMat SMat;
-    virtual SMat MakeOverlap() const;
-    virtual SMat MakeKinetic() const;
-    virtual SMat MakeNuclear(const Cluster*) const;
 protected:
-    AtomIE_RKBS(const DB_cache<T>* db) : DB_RKBS<T>(db) {};
-private:
-    // Use a paramaterized function for the loops over basis functions.
-    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    double Integral_internal(qchem::IType,double ea , double eb,size_t la, size_t lb) const;
-
+    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Kinetic<T>(db), AtomIE_Nuclear<T>(db) {};
 };
 
 #endif // _AtomIE_H_

@@ -13,7 +13,10 @@ namespace Dirac
     
    
 template <class T> class RKB_IE
-    : public virtual Integrals_1E<T>
+    : public virtual Integrals_Overlap<T>
+    , public virtual Integrals_Kinetic<T>
+    , public virtual Integrals_Nuclear<T>
+    , public virtual Integrals_RestMass<T>
     , public DB_RKB<T>
 {
     typedef Integrals_Base<T> Base;

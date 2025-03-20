@@ -96,8 +96,26 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear<T>::Nuclear(c
     else
         return i->second;
 }
-template class DB_1E<double>;
-
+template <class T> typename Integrals_Base<T>::Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+{
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Kinetic,this->GetID(),rkbs->GetID());
+    if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
+        return cache->itsMats[key] = MakeKinetic(rkbs);
+    else
+        return i->second;
+}
+template <class T> typename Integrals_Base<T>::SMat_ref DB_RestMass<T>::RestMass() const
+{
+    auto cache(DB_Common<T>::itsCache);
+    assert(cache);
+    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
+    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
+        return cache->itsSMats[key] = MakeRestMass();
+    else
+        return i->second;
+}
 
 template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fbs_t& c) const
 { 
@@ -191,26 +209,27 @@ template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
 
-template <class T> typename Integrals_Base<T>::SMat_ref  DB_RKB <T>::RestMass() const
-{
-    auto cache(DB_Overlap<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeRestMass();
-    else
-        return i->second;
-}
-template <class T> typename Integrals_Base<T>::Mat_ref  DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
-{
-    auto cache(DB_Overlap<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Kinetic,this->GetID(),rkbs->GetID());
-    if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
-        return cache->itsMats[key] = MakeKinetic(rkbs);
-    else
-        return i->second;
-}
+// template <class T> typename Integrals_Base<T>::SMat_ref  DB_RKB <T>::RestMass() const
+// {
+//     auto cache(DB_Overlap<T>::itsCache);
+//     assert(cache);
+//     typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
+//     if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
+//         return cache->itsSMats[key] = MakeRestMass();
+//     else
+//         return i->second;
+// }
+
+// template <class T> typename Integrals_Base<T>::Mat_ref  DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+// {
+//     auto cache(DB_Overlap<T>::itsCache);
+//     assert(cache);
+//     typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Kinetic,this->GetID(),rkbs->GetID());
+//     if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
+//         return cache->itsMats[key] = MakeKinetic(rkbs);
+//     else
+//         return i->second;
+// }
 // template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Overlap() const
 // {
 //     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
