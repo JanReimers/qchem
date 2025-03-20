@@ -74,18 +74,6 @@ protected:
     virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
     virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
 };
-// template <class T> class DB_1E :
-//     virtual public Integrals_1E<T>
-//     , public DB_Overlap<T>
-//     , public DB_Kinetic<T>
-//     , public DB_Nuclear<T>
-// {    
-// protected:
-//     DB_1E(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_Kinetic<T>(db),DB_Nuclear<T>(db) {};
-//     // Resolve ambiguities.
-//     typedef UniqueID::IDtype IDType;
-//     virtual IDType GetID() const=0;
-// };
 
 template <class T> class DB_DFT 
     : virtual public Integrals_DFT<T>
@@ -156,10 +144,9 @@ protected:
 
 private:
     // One time calls to un-buffered integral calculations.
-    using FitIntegrals_1E::MakeOverlap;
     using FitIntegrals_1E::MakeCharge;
     virtual Vec  MakeCharge() const=0;
-    virtual SMat MakeOverlap() const=0;
+    // virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
     virtual  Mat MakeRepulsion(const fbs_t&) const=0;
     
@@ -180,7 +167,6 @@ protected:
     DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Kinetic<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
    
 };
-
 template <class T> class DB_RKBL 
     : virtual public Integrals_RKBL<T>
     , public DB_Overlap<T>
@@ -190,7 +176,6 @@ template <class T> class DB_RKBL
 protected:
     DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XKinetic<T>(db), DB_Nuclear<T>(db) {};
 };
-
 template <class T> class DB_RKBS 
     : virtual public Integrals_RKBS<T>
     , public DB_Kinetic<T>

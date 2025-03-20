@@ -78,20 +78,11 @@ public:
     virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 
-template <class T> class Integrals_Repulsion : public virtual Integrals_Base<T>
-{
-public:
-    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    virtual typename Integrals_Base<T>::SMat_ref Repulsion() const=0;
-};
-
-
-
-// template <class T> class Integrals_1E 
-//     : public virtual Integrals_Overlap<T>
-//     , public virtual Integrals_Kinetic<T>
-//     , public virtual Integrals_Nuclear<T>
+// template <class T> class Integrals_Repulsion : public virtual Integrals_Base<T>
 // {
+// public:
+//     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+//     virtual typename Integrals_Base<T>::SMat_ref Repulsion() const=0;
 // };
 
 template <class T> class Integrals_DFT : public virtual Integrals_Base<T>
@@ -146,7 +137,7 @@ public:
 };
 
 template <class T> class Integrals_RKBS 
-: public virtual Integrals_Kinetic<T>
+: public virtual Integrals_Kinetic<T> //Serves as the overlap.
 , public virtual Integrals_Nuclear<T>
 {
 public:

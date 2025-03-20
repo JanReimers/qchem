@@ -6,11 +6,7 @@
 #include <Cluster.H>
 #include <Irrep_BS.H>
 
-using std::cout;
-using std::endl;
-
-
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap<T>::MakeOverlap() const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOverlap() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -23,7 +19,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap<T>::MakeOverl
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic<T>::MakeKinetic() const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKinetic() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -36,7 +32,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic<T>::MakeKinet
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear<T>::MakeNuclear(const Cluster* cl) const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
@@ -52,7 +48,6 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear<T>::MakeNucle
 
     return H;
 }
-
 template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
@@ -68,38 +63,7 @@ template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKine
     return Hk;
 }
 
-template class AtomIE_XKinetic<double>;
-
-// template <class T> typename Integrals_Base<T>::SMat AtomIE_1E<T>::MakeKinetic() const
-// {
-//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-//     assert(a);
-//     size_t N=a->size(),l=a->l;
-//     SMatrix<double> H(N);
-//     for (auto i:H.rows())
-//         for (auto j:H.cols(i))
-//             H(i,j)=Kinetic(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
-//     return H;
-// }
-// template <class T> typename Integrals_Base<T>::SMat AtomIE_1E<T>::MakeNuclear(const Cluster* cl) const
-// {
-//     assert(cl);
-//     assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
-//     int Z=-cl->GetNuclearCharge(); 
-//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-//     assert(a);
-//     size_t N=a->size(),l=a->l;
-//     SMatrix<double> H(N);
-//     for (auto i:H.rows())
-//         for (auto j:H.cols(i))
-//             H(i,j)= Z*Nuclear(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
-//     return H;
-// }
-
-
-
-
-template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C(const fbs_t& _c) const
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const fbs_t& _c) const
 {
     const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
     ERI3 s3;
@@ -113,7 +77,7 @@ template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(c
     for (auto i:c.indices()) s3.push_back(MakeRepulsion(c(i)));
     return s3;
 }
-template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap(const bf_tuple& c) const
+template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap  (const bf_tuple& c) const
 {    
     const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(ab);
@@ -157,7 +121,6 @@ template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
     assert(aiec);
     BFGrouper::Append(aiec);
 }
-
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     typedef SMatrix<T> SMat;
@@ -185,8 +148,8 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, c
                     if (id<ic) continue;
                     if (Jab(ic,id)!=0.0)
                     {
-                        cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-                        cout << Jab(ic,id) << endl;    
+                        std::cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        std::cout << Jab(ic,id) << std::endl;    
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
@@ -198,7 +161,6 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, c
     }
     return J;
 };
-
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     typedef SMatrix<T> SMat;
@@ -241,7 +203,6 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
 
     return K;
 };
-
 template class AtomIE_BS_2E<double>;
 
 #include "Imp/Integrals/AngularIntegrals.H"
@@ -264,7 +225,7 @@ AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::ExchangeAngularIntegrals(size_t la, size_
     return AngularIntegrals::Exchange(la,lb,ma,mb);
 }
 
-AtomIE_Fit::Vec AtomIE_Fit::MakeCharge() const
+AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -272,16 +233,20 @@ AtomIE_Fit::Vec AtomIE_Fit::MakeCharge() const
     for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
     return c;
 }
-
-AtomIE_Fit::SMat AtomIE_Fit::MakeOverlap() const
-{
-    return MakeIntegrals(qchem::Overlap1);
-}
 AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
 {
-    return MakeIntegrals(qchem::Repulsion1);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Repulsion(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+
+    return H;
 }
-AtomIE_Fit::Mat AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
+AtomIE_Fit::Mat  AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(&_b);
@@ -296,146 +261,6 @@ AtomIE_Fit::Mat AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
     return s;
 }
 
-AtomIE_Fit::SMat AtomIE_Fit::MakeIntegrals(qchem::IType t,const Cluster* cl) const
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-    assert(a);
-
-    size_t N=a->size(),l=a->l;
-    SMatrix<double> H(N);
-    for (auto i:H.rows())
-        for (auto j:H.cols(i))
-            H(i,j)= Integral_internal(t,a->es(i),a->es(j),l)*a->ns(i)*a->ns(j);
-
-    return H;
-}
-
-double AtomIE_Fit::Integral_internal(qchem::IType t,double ea , double eb,size_t l) const
-{
-    switch (t)
-    {
-    case qchem::Overlap1:
-        return Overlap(ea,eb,2*l);
-        break;
-    case qchem::Repulsion1:
-        return Repulsion(ea,eb,l,l);
-        break;
-    
-    default:
-        assert(false);
-        return 0.0;
-        break;
-    }
-}
-
-
-// template <class T> typename AtomIE_RKBL<T>::SMat     AtomIE_RKBL<T>::MakeOverlap() const
-// {
-//     return this->MakeIntegrals(qchem::Overlap1);
-// }
-// template <class T> typename AtomIE_RKBL<T>::SMat     AtomIE_RKBL<T>::MakeNuclear(const Cluster* cl) const
-// {
-//     assert(cl);
-//     int Z=cl->GetNuclearCharge();
-//     return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
-// }
-
-// template <class T> typename AtomIE_RKBL<T>::SMat AtomIE_RKBL<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
-// {
-//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-//     assert(a);
-//     size_t N=a->size(),l=a->l;
-//     SMatrix<double> H(N);
-//     for (auto i:H.rows())
-//         for (auto j:H.cols(i))
-//             H(i,j)= Integral_internal(it,a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
-
-//     return H;
-// }
-
-// template <class T> double AtomIE_RKBL<T>::Integral_internal(qchem::IType t,double ea , double eb,size_t la, size_t lb) const
-// {
-//     switch (t)
-//     {
-//     case qchem::Overlap1:
-//         return Overlap(ea,eb,la+lb);
-//         break;
-//     case qchem::Nuclear1:
-//         return Nuclear(ea,eb,la+lb);
-//         break;
-    
-//     default:
-//         assert(false);
-//         return 0;
-//         break;
-//     }
-// }
-
-
-// template <class T> typename AtomIE_RKBL<T>::Mat  AtomIE_RKBL<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
-// {
-//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-//     const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
-//     assert(a->l==b->l);
-//     size_t Na=a->size();
-//     size_t Nb=b->size();
-//     Matrix<double> Hk(Na,Nb);
-//     for (auto i:Hk.rows())
-//         for (auto j:Hk.cols())
-//             Hk(i,j)=Kinetic(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*b->ns(j);
-
-//     return Hk;
-// }
 
 template class AtomIE_RKBL<double>;
-
-// template <class T> typename AtomIE_RKBS<T>::SMat     AtomIE_RKBS<T>::MakeOverlap() const
-// {
-//     return this->MakeIntegrals(qchem::Overlap1);
-// }
-// template <class T> typename AtomIE_RKBS<T>::SMat     AtomIE_RKBS<T>::MakeKinetic() const
-// {
-//     return this->MakeIntegrals(qchem::Kinetic1);
-// }
-// template <class T> typename AtomIE_RKBS<T>::SMat     AtomIE_RKBS<T>::MakeNuclear(const Cluster* cl) const
-// {
-//     assert(cl);
-//     int Z=cl->GetNuclearCharge();
-//     return -Z*this->MakeIntegrals(qchem::Nuclear1,cl);
-// }
-
-// template <class T> typename AtomIE_RKBS<T>::SMat AtomIE_RKBS<T>::MakeIntegrals(qchem::IType it,const Cluster* cl)  const
-// {
-//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-//     assert(a);
-//     size_t N=a->size(),l=a->l;
-//     SMatrix<double> H(N);
-//     for (auto i:H.rows())
-//         for (auto j:H.cols(i))
-//             H(i,j)= Integral_internal(it,a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
-
-//     return H;
-// }
-
-// template <class T> double AtomIE_RKBS<T>::Integral_internal(qchem::IType t,double ea , double eb,size_t la, size_t lb) const
-// {
-//     switch (t)
-//     {
-//     case qchem::Overlap1:
-//         return Overlap(ea,eb,la+lb);
-//         break;
-//     case qchem::Kinetic1:
-//         return Kinetic(ea,eb,la,lb);
-//         break;
-//     case qchem::Nuclear1:
-//         return Nuclear(ea,eb,la+lb);
-//         break;
-    
-//     default:
-//         assert(false);
-//         return 0;
-//         break;
-//     }
-// }
-
 template class AtomIE_RKBS<double>;

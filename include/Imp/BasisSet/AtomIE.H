@@ -6,27 +6,6 @@
 #include "Imp/Integrals/Cache4.H"
 #include "Imp/DataBase/HeapDB.H"
 
-// class AtomIE_1EFit_Overlap
-// {
-// public:
-//     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
-// };
-
-// class AtomIE_1EFit_Common : public virtual AtomIE_1EFit_Overlap
-// {
-// public:
-//     virtual double Kinetic(double ea ,double eb,size_t la,size_t lb) const=0;
-//     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
-// };
-
-// class AtomIE_1ERKBS_Common
-// {
-// public:
-//     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
-//     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
-// };
-
-// template <class T, class f_t> typename Integrals_Base<T>::SMat Loop_ab(const AtomIrrepIEClient*);
 
 template <class T> class Primative_Overlap
 {
@@ -87,38 +66,22 @@ protected:
 };
 
 
-//  This common base allows implementation sharing of common integral routines
-// class AtomIE_FitDFT_Common  : public virtual AtomIE_1EFit_Overlap
-// {
-// public:
-//     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
-// };
 class AtomIE_Fit 
 : public virtual Primative_Repulsion<double>
-, public AtomIE_Overlap<double>
 , public DB_Fit
 {
     protected:
-    AtomIE_Fit(const DB_cache<double>* db) : AtomIE_Overlap<double>(db), DB_Fit(db) {};
+    AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
 
     virtual Vec  MakeCharge() const;
-    virtual SMat MakeOverlap() const;
     virtual SMat MakeRepulsion() const;
     virtual  Mat MakeRepulsion(const fbs_t&) const;
 private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
-    // using AtomIE_FitDFT_Common::Repulsion; //un hide
-    // using AtomIE_1EFit_Common::Overlap;
     virtual double Charge   (double ea ,           size_t l) const=0;
-    
-    // Use a paramaterized function for the loops over basis functions.
-    SMat MakeIntegrals(qchem::IType,const Cluster* cl=0) const;
-    double Integral_internal(qchem::IType,double ea , double eb,size_t l) const;
     using Primative_Repulsion<double>::Repulsion;
-    using Primative_Overlap<double>::Overlap;
-    // virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const=0;
 };
 
 template <class T> class AtomIE_DFT 
@@ -189,7 +152,6 @@ protected:
     AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XKinetic<T>(db),AtomIE_Nuclear<T>(db) {};
 
 };
-
 template <class T> class AtomIE_RKBS 
 : public AtomIE_Kinetic<T>
 , public AtomIE_Nuclear<T>

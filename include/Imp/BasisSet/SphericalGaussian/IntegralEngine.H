@@ -51,12 +51,13 @@ protected:
 
 class Fit_IE
 : public AtomIE_Fit
+, public AtomIE_Overlap<double>
 , public IE_Primatives
 {
 public:
     virtual double Charge  (double ea ,           size_t l) const;
 protected:
-    Fit_IE(const DB_cache<double>* db) : AtomIE_Fit(db) {};
+    Fit_IE(const DB_cache<double>* db) : AtomIE_Fit(db), AtomIE_Overlap<double>(db) {};
 };
 } //namespace
 

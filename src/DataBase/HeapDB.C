@@ -66,7 +66,7 @@ using std::setw;
 // }
 //---------------------------------------------------------------------------------
 
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap<T>::Overlap() const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap <T>::Overlap() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -76,7 +76,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap<T>::Overlap()
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic<T>::Kinetic() const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic <T>::Kinetic() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -86,7 +86,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic<T>::Kinetic()
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear<T>::Nuclear(const Cluster* cl) const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(const Cluster* cl) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -96,7 +96,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear<T>::Nuclear(c
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -208,70 +208,14 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
 template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
-
-// template <class T> typename Integrals_Base<T>::SMat_ref  DB_RKB <T>::RestMass() const
-// {
-//     auto cache(DB_Overlap<T>::itsCache);
-//     assert(cache);
-//     typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
-//     if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-//         return cache->itsSMats[key] = MakeRestMass();
-//     else
-//         return i->second;
-// }
-
-// template <class T> typename Integrals_Base<T>::Mat_ref  DB_RKBL<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
-// {
-//     auto cache(DB_Overlap<T>::itsCache);
-//     assert(cache);
-//     typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Kinetic,this->GetID(),rkbs->GetID());
-//     if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
-//         return cache->itsMats[key] = MakeKinetic(rkbs);
-//     else
-//         return i->second;
-// }
-// template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Overlap() const
-// {
-//     id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-//     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
-//     {
-//         return itsBuffer[key] = MakeOverlap();
-//     }
-//     else
-//         return i->second;
-// }
-// template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::Nuclear(const Cluster* cl) const
-// {
-//     assert(cl);
-//     id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
-//     if (auto i = itsBuffer.find(key); i==itsBuffer.end())
-//     {
-//         return itsBuffer[key] = MakeNuclear(cl);
-//     }
-//     else
-//         return i->second;
-// }
-// template <class T> typename DB_RKBS<T>::SMat_ref DB_RKBS<T>::RestMass() const
-// {
-//     auto cache(DB_Overlap<T>::itsCache);
-//     assert(cache);
-//     id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
-//     if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-//         return cache->itsSMats[key] = MakeRestMass();
-//     else
-//         return i->second;
-// }
-
 #include "Imp/BasisSet/AtomIEClient.H"
-
-
 
 template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
 
-DB_Fit::Vec_ref DB_Fit::Charge() const
+DB_Fit:: Vec_ref DB_Fit::Charge   () const
 {
     assert(itsCache);
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
@@ -288,7 +232,7 @@ DB_Fit::SMat_ref DB_Fit::Repulsion() const
     else
         return i->second;
 }
-DB_Fit::Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
+DB_Fit:: Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
     if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
@@ -296,7 +240,7 @@ DB_Fit::Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
     else
         return i->second;
 }
-DB_Fit::SMat_ref DB_Fit::InvOverlap(const LAParams& lap) const
+DB_Fit::SMat_ref DB_Fit::InvOverlap  (const LAParams& lap) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
@@ -312,7 +256,7 @@ DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
     else
         return i->second;
 }
-DB_Fit::Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
+DB_Fit:: Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
     if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
@@ -320,7 +264,7 @@ DB_Fit::Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
     else
         return i->second;
 }
-DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
+DB_Fit:: Vec_ref DB_Fit::Charge (const Mesh* m        ) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
     if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
@@ -329,7 +273,7 @@ DB_Fit::Vec_ref DB_Fit::Charge (const Mesh* m        ) const
         return i->second;
 
 }
-DB_Fit::Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
+DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
     if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
