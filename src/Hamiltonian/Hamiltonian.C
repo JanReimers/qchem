@@ -8,7 +8,7 @@
 #include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
 #include <cassert>
@@ -53,7 +53,7 @@ bool HamiltonianImp::IsPolarized() const
     return ret;
 }
 
-Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const IrrepBasisSet* bs,const Spin& S) const
+Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& S) const
 {
     int n=bs->GetNumFunctions();
     SMat H(n,n);

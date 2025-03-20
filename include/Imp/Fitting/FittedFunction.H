@@ -4,7 +4,6 @@
 
 
 
-#include <BasisSet.H>
 #include <FittedFunction.H>
 #include <Mesh.H>
 #include <LAParams.H>
@@ -25,8 +24,8 @@ template <class T> class FittedFunctionImp
 {
 public:
     typedef Vector<T> Vec;
-    typedef std::shared_ptr<const Mesh>          mesh_t;
-    typedef std::shared_ptr<const IrrepBasisSet> bs_t;
+    typedef std::shared_ptr<const Mesh>    mesh_t;
+    typedef std::shared_ptr<const Fit_IBS> bs_t;
     
     FittedFunctionImp(                                         );
     FittedFunctionImp(bs_t&, mesh_t&);
@@ -50,24 +49,18 @@ protected:
     virtual double DoFitInternal(const DensityFFClient&,double constraint=0);
 
 
-    virtual Vec    FitGet2CenterOverlap  (const IrrepBasisSet*) const;
-    virtual Vec    FitGet2CenterRepulsion(const IrrepBasisSet*) const;
-    virtual SMat   FitGet3CenterOverlap  (const IrrepBasisSet*) const;
+    virtual Vec    FitGet2CenterOverlap  (const Fit_IBS*) const;
+    virtual Vec    FitGet2CenterRepulsion(const Fit_IBS*) const;
+    virtual SMat   FitGet3CenterOverlap  (const TOrbital_DFT_IBS<double>*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
-    //SMat    GetInverseOverlap() const; //Inverse of the normalized fit basis overlap or repulsion.
-
 private:
     friend class FittedCDImp<T>;
     friend class ConstrainedFF<T>;
-    const TIrrepBasisSet<T>* CastBasisSet() const
-    {
-        return dynamic_cast<const TIrrepBasisSet<T>*>(itsBasisSet.get());
-    }
 
     bs_t     itsBasisSet;
     Vec      itsFitCoeff;

@@ -1,26 +1,18 @@
 // File: BasisSetImp/TCommon.H
 
 #include "Imp/BasisSet/TCommon.H"
-
-#include "Imp/DataBase/HeapDB.H"
 #include "Imp/Containers/ptr_vector_io.h"
+#include <Irrep_BS.H>
 
 BasisSetImp::BasisSetImp()
-: itsDB(new HeapDB<double>())
-, itsBasisSets()
+: itsBasisSets()
 {
 }
 
-BasisSetImp::BasisSetImp(AnalyticIE<double>* ie)
-: itsIE(ie)
-, itsDB(new HeapDB<double>(ie))
-, itsBasisSets()
-{
-}
 
 BasisSetImp::~BasisSetImp() 
 {
-    delete itsDB;
+    
 };
 
 size_t BasisSetImp::GetNumFunctions() const
@@ -31,10 +23,9 @@ size_t BasisSetImp::GetNumFunctions() const
     return ret;
 }
 
-void BasisSetImp::Insert(IrrepBasisSet* bs)
+void BasisSetImp::Insert(bs_t* bs)
 {
     assert(bs);
-    itsIE->Append(bs);
     itsBasisSets.push_back(bs);
 }
 

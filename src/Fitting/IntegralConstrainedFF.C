@@ -3,8 +3,7 @@
 
 
 #include "Imp/Fitting/IntegralConstrainedFF.H"
-#include <BasisSet.H>
-#include <IntegralDataBase.H>
+#include <Irrep_BS.H>
 #include "oml/matrix.h"
 
 template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
@@ -12,8 +11,8 @@ template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
 {};
 
 template <class T> IntegralConstrainedFF<T>::
-IntegralConstrainedFF(bs_t& theFitBasisSet, mesh_t&  m)
-    : ConstrainedFF<T>(theFitBasisSet,dynamic_cast<const TIrrepBasisSet<T>*>(theFitBasisSet.get())->GetDataBase()->GetCharge(theFitBasisSet.get()),m)
-{};
+IntegralConstrainedFF(bs_t& fbs, mesh_t&  m)
+    : ConstrainedFF<T>(fbs,fbs->Charge(),m)
+    {};
 
 template class IntegralConstrainedFF<double>;

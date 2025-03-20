@@ -4,7 +4,6 @@
 
 
 
-#include <BasisSet.H>
 #include <ChargeDensity.H>
 #include <Spin.H>
 #include "oml/smatrix.h"
@@ -24,11 +23,11 @@ public:
     typedef DensityFFClient::RVec RVec;
 
     IrrepCD();
-    IrrepCD(const DenSMat&,const TIrrepBasisSet<T>*, const Spin&);
+    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, const Spin&);
 
-    virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
-    virtual SMat   GetExchange (const IrrepBasisSet*) const;
-    virtual RVec   GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
+    virtual RVec   GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double GetEnergy     (const HamiltonianTerm*) const;
     virtual double GetTotalCharge(                ) const;
@@ -46,12 +45,12 @@ public:
 
 private:
     bool IsZero() const;
-    SMat ZeroM(const IrrepBasisSet* bs_ab) const;
-    RVec ZeroV(const IrrepBasisSet* bs_ab) const;
+    SMat ZeroM(size_t N) const;
+    RVec ZeroV(size_t N) const;
 
-    DenSMat                  itsDensityMatrix;
-    const TIrrepBasisSet<T>* itsBasisSet;
-    Spin                     itsSpin;
+    DenSMat                itsDensityMatrix;
+    const TOrbital_IBS<T>* itsBasisSet;
+    Spin                   itsSpin;
 };
 
 #endif //_ExactIrrepCD_H_

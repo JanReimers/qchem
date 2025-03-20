@@ -5,75 +5,67 @@
 
 
 #include "IEClient.H"
+#include "Imp/BasisSet/Dirac_IBS.H"
+
+#include "IntegralEngine.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
-#include "oml/vector.h"
 
 class DiracIntegralTests;
 
 namespace Slater_mj
 {
    
-class Large_IrrepBasisSet
-    : public virtual TIrrepBasisSet<double>
-    , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
-    , public         IrrepIEClient
+template <class T> class Large_Orbital_IBS
+    : public virtual ::Orbital_RKBL_IBS<T>
+    , public     IrrepBasisSetCommon
+    , protected  TIrrepBasisSetCommon<T> 
+    , public     Orbital_RKBL_IE<T>
+    , public     IrrepIEClient
 {
-public:
-    Large_IrrepBasisSet() {};
-    Large_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
+    public:
+    Large_Orbital_IBS() {};
+    Large_Orbital_IBS(const LAParams&,const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
-    virtual ::IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual ::IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
+    
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
 
-class Small_IrrepBasisSet
-    : public virtual TIrrepBasisSet<double>
-    , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
-    , public         Small_IrrepIEClient
+template <class T> class Small_Orbital_IBS
+    : public virtual ::Orbital_RKBS_IBS<T>
+    , public     IrrepBasisSetCommon
+    , protected  TIrrepBasisSetCommon<T> 
+    , public     Orbital_RKBS_IE<T>
+    , public     Small_IrrepIEClient
 {
 public:
-    Small_IrrepBasisSet() {};
-    Small_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Large_IrrepBasisSet*);
-
-    virtual ::IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual ::IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
+    Small_Orbital_IBS() {};
+    Small_Orbital_IBS(const LAParams&,const DB_cache<double>*,const Large_Orbital_IBS<T>*);
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
 
 class Dirac_IrrepBasisSet
-    : public virtual TIrrepBasisSet<double>
-    , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
+    : public virtual TOrbital_IBS<double>
+    , public Dirac::IrrepBasisSet<double>
     , public         Dirac_IrrepIEClient
 {
+    typedef Integrals_Base<double>::SMat SMat;
 public:
-    Dirac_IrrepBasisSet() {};
-    Dirac_IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, int kappa);
+    //Dirac_IrrepBasisSet() {};
+    Dirac_IrrepBasisSet(const LAParams&,const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
+    
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual ::IrrepBasisSet* Clone(            ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
 private:
     friend class ::DiracIntegralTests;
-    
-    Large_IrrepBasisSet* itsLargeBS;
-    Small_IrrepBasisSet* itsSmallBS;
+
 };
 
 

@@ -1,9 +1,9 @@
-// File: Slater_m/IrrepBasisSet.C  Spherical Slater basis set with orbital angular momentum l,m.
+// File: Slater_mj/IrrepBasisSet.C  Spherical Slater RKB basis set.
 
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater_mj/BasisFunction.H"
-#include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
 #include "Imp/Symmetry/OkmjQN.H"
+
 #include <iostream>
 #include <cassert>
 
@@ -15,31 +15,17 @@ namespace Slater_mj
 //  Concrete  Slater basis set.
 //
 
-Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
-        const Vector<double>& exponents,int kappa)
-    : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
-    , itsLargeBS(new Large_IrrepBasisSet(lap,theDB,exponents,kappa))
-    , itsSmallBS(new Small_IrrepBasisSet(lap,theDB,itsLargeBS))
+Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<double>* db,
+    const Vector<double>& exponents,int kappa)
+: Dirac::IrrepBasisSet<double>(lap,db,kappa )
 {
-    Dirac_IrrepIEClient::Init(itsLargeBS,itsSmallBS);
-    for (auto b:*itsLargeBS) Insert(b);
-    for (auto b:*itsSmallBS) Insert(b);
+    auto rkbl=new Large_Orbital_IBS<double>(lap,db,exponents, kappa);
+    auto rkbs=new Small_Orbital_IBS<double>(lap,db,rkbl);
+    Dirac::IrrepBasisSet<double>::Init(rkbl,rkbs);
+    Dirac_IrrepIEClient::Init(rkbl,rkbs);
+    for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
+    for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
 };
-
-IrrepBasisSet* Dirac_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return 0;
-//    return new Dirac_IrrepBasisSet(itsLAParams,GetDataBase(),es*2,-1,0.5);
-}
-
-IrrepBasisSet* Dirac_IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return 0;
-//    return new Dirac_IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,-1,0.5);    
-}
 
 std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
 {
@@ -51,38 +37,26 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
     }
     else
     {
-        os << "Dirac basis set." << endl << "    Large: " << *itsLargeBS << endl << "    Small: " << *itsSmallBS << endl;
+        os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
     }
     return os;
-}
-
-std::istream&  Dirac_IrrepBasisSet::Read (std::istream& is)
-{
-    ReadBasisFunctions(is);
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
-}
-
-::IrrepBasisSet* Dirac_IrrepBasisSet::Clone() const
-{
-    return new Dirac_IrrepBasisSet(*this);
 }
 
 ::IrrepBasisSet* Dirac_IrrepBasisSet::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    return 0;
 }
 
 //-----------------------------------------------------------------------------------------------
 //
 //  Large sector
 //
-Large_IrrepBasisSet::Large_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* theDB,
-        const Vector<double>& exponents,int kappa)
+template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const LAParams& lap,const DB_cache<T>* db,
+        const Vector<T>& exponents,int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , TIrrepBasisSetCommon<double>(lap,theDB)
+    , TIrrepBasisSetCommon<T>(lap)
+    , Orbital_RKBL_IE<T>(db)
     , IrrepIEClient(exponents.size(),kappa)
 {
     IrrepIEClient::Init(exponents);
@@ -92,25 +66,10 @@ Large_IrrepBasisSet::Large_IrrepBasisSet(const LAParams& lap,IntegralDataBase<do
 
 };
 
-::IrrepBasisSet* Large_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
-{
-    return new Large_IrrepBasisSet(itsLAParams,GetDataBase(),es*2,0);
-}
 
-::IrrepBasisSet* Large_IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
+template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    return new Large_IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,0);    
-}
-
-std::ostream&  Large_IrrepBasisSet::Write(std::ostream& os) const
-{
-    if (!Pretty())
-    {
-        WriteBasisFunctions(os);
-        IrrepBasisSetCommon::Write(os);
-        TIrrepBasisSetCommon<double>::Write(os);
-    }
-    else
+    if (Pretty())
     {
         os << "Slater     " << GetQuantumNumber()
         << "             r^" << l << "*exp(-e*r), e={";
@@ -120,32 +79,20 @@ std::ostream&  Large_IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-std::istream&  Large_IrrepBasisSet::Read (std::istream& is)
-{
-    ReadBasisFunctions(is);
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
-}
-
-::IrrepBasisSet* Large_IrrepBasisSet::Clone() const
-{
-    return new Large_IrrepBasisSet(*this);
-}
-
-::IrrepBasisSet* Large_IrrepBasisSet::Clone(const RVec3&) const
+template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    return 0;
 }
 
 //-----------------------------------------------------------------------------------------------
 //
 //  Small sector
 //
-Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<double>* db,const Large_IrrepBasisSet* lbs)
+template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,const DB_cache<double>* db,const Large_Orbital_IBS<T>* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
-    , TIrrepBasisSetCommon<double>(lap,db)
+    , TIrrepBasisSetCommon<T>(lap)
+    , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
   Small_IrrepIEClient::Init(lbs->es);
@@ -158,29 +105,9 @@ Small_IrrepBasisSet::Small_IrrepBasisSet(const LAParams& lap,IntegralDataBase<do
 
 };
 
-::IrrepBasisSet* Small_IrrepBasisSet::CreateCDFitBasisSet(const Cluster*) const
+template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    assert(false);
-    return 0;
-//    return new Small_IrrepBasisSet(itsLAParams,GetDataBase(),es*2,0,0);
-}
-
-::IrrepBasisSet* Small_IrrepBasisSet::CreateVxcFitBasisSet(const Cluster*) const
-{
-    assert(false);
-    return 0;
-//    return new Small_IrrepBasisSet(itsLAParams,GetDataBase(),es*2.0/3.0,0,0);    
-}
-
-std::ostream&  Small_IrrepBasisSet::Write(std::ostream& os) const
-{
-    if (!Pretty())
-    {
-        WriteBasisFunctions(os);
-        IrrepBasisSetCommon::Write(os);
-        TIrrepBasisSetCommon<double>::Write(os);
-    }
-    else
+    if (Pretty())
     {
         os << "Slater RKB " << GetQuantumNumber();
         if (kappa>0)
@@ -195,23 +122,10 @@ std::ostream&  Small_IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-std::istream&  Small_IrrepBasisSet::Read (std::istream& is)
-{
-    ReadBasisFunctions(is);
-    IrrepBasisSetCommon::Read(is);
-    TIrrepBasisSetCommon<double>::Read(is);
-    return is;
-}
-
-::IrrepBasisSet* Small_IrrepBasisSet::Clone() const
-{
-    return new Small_IrrepBasisSet(*this);
-}
-
-::IrrepBasisSet* Small_IrrepBasisSet::Clone(const RVec3&) const
+template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return Clone();
+    return 0;
 }
 
 } //namespace

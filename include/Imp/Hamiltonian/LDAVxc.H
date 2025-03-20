@@ -31,7 +31,7 @@ public:
     virtual std::istream&           Read (std::istream&)      ;
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     ex_t itsExchangeFunctional;
 };

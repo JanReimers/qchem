@@ -3,7 +3,7 @@
 
 
 #include "Imp/Hamiltonian/Ven.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include "oml/smatrix.h"
@@ -20,10 +20,10 @@ Ven::Ven(cl_t& cl)
 };
 
 
-HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    //std::cout << "Ven=" << bs->GetNuclear(&*theCluster) << std::endl;
-    return bs->GetNuclear(&*theCluster);
+    // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
+    return bs->Nuclear(&*theCluster);
 }
 
 void Ven::GetEnergy(TotalEnergy& te) const

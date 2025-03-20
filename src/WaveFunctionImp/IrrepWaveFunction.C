@@ -7,6 +7,7 @@
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
+#include <Irrep_BS.H>
 #include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <cassert>
@@ -17,8 +18,8 @@ IrrepWaveFunction::IrrepWaveFunction()
     , itsSpin    ( )
 {};
 
-IrrepWaveFunction::IrrepWaveFunction(const IrrepBasisSet* bs, const Spin& S)
-    : itsOrbitals(new  TOrbitalsImp<double>(dynamic_cast<const TIrrepBasisSet<double>*>(bs)))
+IrrepWaveFunction::IrrepWaveFunction(const TOrbital_IBS<double>* bs, const Spin& S)
+    : itsOrbitals(new  TOrbitalsImp<double>(bs))
     , itsSpin    (S )
     , itsQN      (&bs->GetQuantumNumber())
 {

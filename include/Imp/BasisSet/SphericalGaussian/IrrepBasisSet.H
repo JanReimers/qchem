@@ -5,6 +5,7 @@
 
 
 #include "IEClient.H"
+#include "IntegralEngine.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
 #include "oml/vector.h"
@@ -12,24 +13,58 @@
 namespace SphericalGaussian
 {
    
+// Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
-    : public virtual TIrrepBasisSet<double>
+    : public virtual ::IrrepBasisSet
     , public         IrrepBasisSetCommon
-    , public         TIrrepBasisSetCommon<double>
     , public         IrrepIEClient
 {
 public:
-    IrrepBasisSet();
-    IrrepBasisSet(const LAParams&,IntegralDataBase<double>*,const Vector<double>& exponents, size_t L);
-
-    virtual IrrepBasisSet* CreateCDFitBasisSet(const Cluster*) const;
-    virtual IrrepBasisSet* CreateVxcFitBasisSet(const Cluster*) const;
-
+    IrrepBasisSet(const Vector<double>& exponents, size_t L);
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual std::istream&  Read (std::istream&    )      ;
-    virtual ::IrrepBasisSet* Clone(            ) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
+
+class Orbital_IBS
+    : public virtual TOrbital_HF_IBS<double>
+    , public         IrrepBasisSet
+    , public         Orbital_IBS_Common<double>
+    , public         Orbital_DFT_IBS_Common<double>
+    , public         Orbital_HF_IBS_Common<double>
+    , public         Orbital_IE
+{
+public:
+    Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
+    : IrrepBasisSet(exponents,L)
+    , Orbital_IBS_Common<double>(lap)
+    , Orbital_IE(db)
+    {};
+
+
+    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
+    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
+};
+
+class Fit_IBS 
+: public virtual ::Fit_IBS
+, public         IrrepBasisSet
+, public         TIrrepBasisSetCommon<double>
+, public Fit_IBS_Common
+, public Fit_IE
+{
+public:
+    Fit_IBS(const LAParams& lap,const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
+    : IrrepBasisSet(exponents,L)
+    , TIrrepBasisSetCommon<double>(lap)
+    , Fit_IE(db)
+    {};
+   
+    virtual ::Fit_IBS* Clone(const RVec3&) const;
+    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
+};
+
 
 } //namespace
 

@@ -2,14 +2,10 @@
 #ifndef _TIrrepCommon_H_
 #define _TIrrepCommon_H_
 
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <LAParams.H>
 //---------------------------------------------------------------------
 //
-//  This class implements functionality common to
-//  all basis sets.  It stores a list of BasisFunction*'s.
-//  A basis set owns these BasisFunction*'s and deletes them in
-//  the destructor.  Hence copy operations are not allowed.
 //  This class also owns the IntegralDataBase.
 //
 template <class T> class TIrrepBasisSetCommon
@@ -17,63 +13,78 @@ template <class T> class TIrrepBasisSetCommon
 {
 protected:
     typedef IrrepBasisSet Base;
-    typedef typename Base::RVec    RVec;
-    typedef typename Base::Mat     Mat;  //Matrix.
-    typedef typename Base::SMat    SMat; //Symmetrix matrix.
-    typedef typename Base::ERI3 ERI3;
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    typedef typename VectorFunction<T>::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
+    //typedef typename VectorFunction<T>::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
   
 public:
     TIrrepBasisSetCommon(                              );
-    TIrrepBasisSetCommon(const LAParams& lap, IntegralDataBase<T>*);
+    TIrrepBasisSetCommon(const LAParams& lap);
     TIrrepBasisSetCommon(const TIrrepBasisSetCommon&);
     ~TIrrepBasisSetCommon(                              );
 
     using TIrrepBasisSet<T>::GetVectorSize;
-//
-//  Make a gen/ EV solver that already has the overlap S factorized.
-//
-    virtual LASolver<double>* CreateSolver() const;
-//
-//  Used by fitting routines.
-// 
-    virtual RVec GetCharge          () const;
-    virtual SMat GetInverseRepulsion(const LAParams&) const;
-    virtual SMat GetInverseOverlap  (const LAParams&) const;
-    virtual  Mat GetRepulsion  (                 const IrrepBasisSet* ff) const;
-    virtual  Mat GetOverlap    (const Mesh*,     const IrrepBasisSet* ff) const;
-    virtual RVec GetOverlap    (const Mesh*,     const ScalarFunction<double>* sf) const;
-    virtual RVec GetRepulsion  (const Mesh*,     const ScalarFunction<double>* sf) const;
-    virtual RVec GetOverlap3C  (const SMat& Dcd, const IrrepBasisSet* ff) const;
-    virtual RVec GetRepulsion3C(const SMat& Dcd, const IrrepBasisSet* ff) const;
-    virtual const ERI3& GetOverlap3C  (const IrrepBasisSet* ff) const;
-    virtual const ERI3& GetRepulsion3C  (const IrrepBasisSet* ff) const;
-//
-//  Used by HamiltonianTerm::CalculateHamiltonianMatrix
-//
-    virtual SMat GetOverlap () const;
-    virtual SMat GetKinetic (              ) const;
-    virtual SMat GetNuclear (const Cluster*) const;
-    virtual SMat GetRestMass(              ) const;
-    virtual SMat GetRepulsion(const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
-    virtual SMat GetExchange (const SMat& Dcd, const TIrrepBasisSet<T>* bs_cd) const;
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
-protected:
-    IntegralDataBase<T>* GetDataBase () const;
-   
-//    virtual void EvalGrad(const Mesh&, Vec3Mat&) const;
 protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
-private:
-    mutable IntegralDataBase<T>*  itsDataBase;
+};
+
+#include "Imp/DataBase/HeapDB.H"
+
+template <class T> class Orbital_IBS_Common
+    : public virtual TOrbital_IBS<T>
+    , public  TIrrepBasisSetCommon<T> 
+{
+    public:
+    Orbital_IBS_Common() {};
+    Orbital_IBS_Common(const LAParams& lap) 
+        : TIrrepBasisSetCommon<T>(lap) {};
+
+    //
+    //  Make a gen/ EV solver that already has the overlap S factorized.
+    //
+    virtual LASolver<double>* CreateSolver() const;
+
+};
+
+template <class T> class Orbital_DFT_IBS_Common
+    : public virtual TOrbital_DFT_IBS<T>
+{
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::fbs_t fbs_t;
+    typedef typename Integrals_DFT<T>::Vec  Vec;
+public:
+    using Integrals_DFT<T>::Overlap3C; //Unhide
+    using Integrals_DFT<T>::Repulsion3C; //Unhide
+    virtual Vec Overlap3C  (const SMat& Dcd, const fbs_t* ff) const;
+    virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const;
+};
+
+template <class T> class Orbital_HF_IBS_Common
+    : public virtual TOrbital_HF_IBS<T>
+{
+    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef typename Integrals_Base<T>::obs_t obs_t;
+public:
+    virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const;
+    virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const;
+};
+
+class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals_1E
+{
+    typedef Integrals_Base<double>::Vec Vec;
+    typedef Integrals_Base<double>::Mat Mat;
+    typedef Integrals_Base<double>::fbs_t fbs_t;
+    public:
+    virtual  Vec MakeNorm   (const Mesh*        ) const; //Numerical .
+    virtual  Vec MakeCharge (const Mesh*        ) const; //Numerical .
+    virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
+
+    virtual const Vec Overlap  (const Mesh*,const Sf&) const; //Numerical  
+    virtual const Vec Repulsion(const Mesh*,const Sf&) const; //Numerical 
 };
 
 #endif //_TIrrepCommon_H_

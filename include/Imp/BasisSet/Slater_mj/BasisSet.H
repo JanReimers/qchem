@@ -4,6 +4,7 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
+#include "Imp/DataBase/HeapDB.H"
 
 namespace Slater_mj
 {
@@ -11,9 +12,9 @@ namespace Slater_mj
 
 class DiracBasisSet 
     : public ::BasisSetImp
+    , public DB_cache<double>
 {
 public:
-    DiracBasisSet() {};
     DiracBasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t lMax);
     
 };

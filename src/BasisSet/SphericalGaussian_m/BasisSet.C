@@ -2,10 +2,10 @@
 
 #include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>
 
 namespace SphericalGaussian_m
@@ -13,12 +13,11 @@ namespace SphericalGaussian_m
 
 
 BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
-: BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
     GaussianScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new IrrepBasisSet(lap,GetDataBase(),gs.Get_es(L),L,m));            
+            Insert(new Orbital_IBS(lap,this,gs.Get_es(L),L,m));            
         
 }
 
@@ -26,7 +25,6 @@ using PolarizedGaussian::Reader;
 using PolarizedGaussian::RadialFunction;
 
 BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
-: BasisSetImp(new IntegralEngine) // this makes a integral DB
 {
     std::map<int,std::set<double> > Lexponents;
     reader->FindAtom(*atom);
@@ -52,11 +50,12 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
     }
     for (auto& le:Lexponents)
     {
-        int L=le.first;
-        for (int m=-L;m<=L;m++)
-            Insert(new IrrepBasisSet(lap,GetDataBase(),le.second,L,m)); //Common with optr_vector     
+        size_t L=le.first;
+        for (int m=-L;m<=(int)L;m++)
+            Insert(new Orbital_IBS(lap,this,le.second,L,m));   
     }
 }
+
 
 
 } //namespace

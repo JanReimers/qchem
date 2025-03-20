@@ -23,9 +23,8 @@ public:
     FittedCDImp(bs_t&, mesh_t&);
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
-    virtual SMat   GetOverlap  (const IrrepBasisSet*) const;
-    virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
-    virtual SMat   GetExchange (const IrrepBasisSet*) const; //makes no sense
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; //makes no sense
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
@@ -34,7 +33,7 @@ public:
     virtual double GetOverlap          (const FittedFunction*) const;  // <ro(1) | f(1)>
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual Vector<double> GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;

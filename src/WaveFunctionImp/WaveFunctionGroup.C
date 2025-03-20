@@ -3,7 +3,8 @@
 
 
 #include "ChargeDensity.H"
-#include "BasisSet.H"
+#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
@@ -22,12 +23,8 @@ WaveFunctionGroup::WaveFunctionGroup(const BasisSet* bg, const Spin& S)
 {
     assert(itsBasisSet);
     assert(itsBasisSet->GetNumFunctions()>0);
-    for (auto b:*itsBasisSet)
-    {
-        const TIrrepBasisSet<double>* tbs=dynamic_cast<const TIrrepBasisSet<double>*>(b); //TODO avoid casting here?
-        assert(tbs);
-        itsIrrepWFs.push_back(new IrrepWaveFunction(tbs,S));
-    }
+    for (auto b:itsBasisSet->Iterate<TOrbital_IBS<double> >())
+        itsIrrepWFs.push_back(new IrrepWaveFunction(b,S));
 };
 
 //----------------------------------------------------------------------------
@@ -51,7 +48,7 @@ Orbitals* WaveFunctionGroup::GetOrbitals(const QuantumNumber& qn, Spin s) const
 {
 
     auto w=itsIrrepWFs.begin();
-    for (auto b:*itsBasisSet)
+    for (auto b:itsBasisSet->Iterate<Orbital_IBS>())
     {
         if (qn==b->GetQuantumNumber()) 
             return (*w)->GetOrbitals(qn,s); 

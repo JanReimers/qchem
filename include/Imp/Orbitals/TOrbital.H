@@ -4,7 +4,6 @@
 
 #include "Imp/Orbitals/ElectronContainer.H"
 #include <Orbital.H>
-#include <BasisSet.H>
 #include "oml/vector.h"
 
 template <class T> class TOrbitalImp

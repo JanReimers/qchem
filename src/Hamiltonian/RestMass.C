@@ -1,7 +1,7 @@
 // File: RestMass.C  Reast mass c^2 term for the Dirac hamiltonian.
 
 #include "Imp/Hamiltonian/RestMass.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 
 RestMass::RestMass()
@@ -9,9 +9,12 @@ RestMass::RestMass()
 {};
 
 
-HamiltonianTerm::SMat RestMass::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat RestMass::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    return bs->GetRestMass();
+    // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;
+    auto sbs=dynamic_cast<const Orbital_RKB_IBS<double>*>(bs);
+    assert(sbs);
+    return sbs->RestMass();
 }
 
 void RestMass::GetEnergy(TotalEnergy& te) const

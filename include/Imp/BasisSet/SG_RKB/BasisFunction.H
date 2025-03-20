@@ -2,7 +2,7 @@
 #ifndef _SphericalGaussian_RKB_BF_H_
 #define _SphericalGaussian_RKB_BF_H_
 
-#include <BasisSet.H>
+#include <BasisFunction.H>
 
 namespace SphericalGaussian_RKB
 {
@@ -46,7 +46,7 @@ class Small_BasisFunction
 public:
     Small_BasisFunction();
     Small_BasisFunction(const Large_BasisFunction*,double norm);
-    
+
     virtual bool   operator==(const ::BasisFunction&) const;
 
     virtual std::ostream&       Write(std::ostream&) const;

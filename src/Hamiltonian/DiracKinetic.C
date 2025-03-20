@@ -2,7 +2,7 @@
 
 #include "Imp/Hamiltonian/DiracKinetic.H"
 #include "Imp/Misc/DFTDefines.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 
 DiracKinetic::DiracKinetic()
@@ -10,10 +10,10 @@ DiracKinetic::DiracKinetic()
 {};
 
 
-HamiltonianTerm::SMat DiracKinetic::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat DiracKinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    //    std::cout << "K_dirac/c=" << bs->GetKinetic() << std::endl;
-    return c_light*bs->GetKinetic();
+    // std::cout << "K_dirac/c=" << bs->Kinetic() << std::endl;
+    return c_light*bs->Kinetic();
 }
 
 void DiracKinetic::GetEnergy(TotalEnergy& te) const

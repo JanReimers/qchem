@@ -18,11 +18,11 @@ class FittedVxcPol
     : public virtual HamiltonianTerm
     , private        HamiltonianTermImp
 {
-    typedef std::shared_ptr<const Mesh>          mesh_t;
-    typedef std::shared_ptr<const IrrepBasisSet> bs_t;
-    typedef std::shared_ptr<      ExFunctional>  ex_t;
-
 public:
+    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const Fit_IBS>       bs_t;
+    typedef std::shared_ptr<      ExFunctional>  ex_t;
+    
     FittedVxcPol();
     FittedVxcPol(bs_t&, ex_t&, mesh_t& );
    ~FittedVxcPol();
@@ -36,7 +36,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     HamiltonianTerm* itsUpVxc  ; //Spin up.
     HamiltonianTerm* itsDownVxc; //Spin down.

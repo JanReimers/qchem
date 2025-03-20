@@ -35,9 +35,9 @@ protected:
     virtual const ElectronConfiguration* GetElectronConfiguration() const=0;
 
     // Orbital Basis Set functions SG, PG, Slater
-    virtual BasisSet*      GetBasisSet   () const=0;
-    virtual IrrepBasisSet* GetCBasisSet  () const;
-    virtual IrrepBasisSet* GetXBasisSet  () const;
+    virtual BasisSet* GetBasisSet   () const=0;
+    // virtual Fit_IBS*  GetCBasisSet  () const;
+    // virtual Fit_IBS*  GetXBasisSet  () const;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
     // Polarized or un-polarized

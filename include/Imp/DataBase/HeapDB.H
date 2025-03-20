@@ -4,91 +4,186 @@
 
 
 
-#include "IntegralDataBase.H"
 #include <IEClient.H>
 #include <AnalyticIE.H>
 #include "Imp/Containers/ERI4.H"
 #include <map>
-
-//-----------------------------------------------------------------------------
-//
-//  This class implements an IntegralDataBase that simply stores all integrals
-//  on the heap.  This means RAM and/or vitual memory in a real OS.
-//
-template <class T> class HeapDB :
-    virtual public IntegralDataBase<T>
+template  <class T> class DB_cache  : virtual public Integrals_Base<T>
+{
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat SMat;    
+    typedef typename Base::Mat Mat;    
+    typedef typename Base::Vec Vec;    
+    typedef typename Base::ERI3 ERI3;    
+public:
+    typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
+    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
+    
+    mutable std::map<id2c_t ,SMat> itsSMats; 
+    mutable std::map< idx_t , Mat> itsMats; 
+    mutable std::map<id2c_t , Vec> itsVecs; 
+    mutable std::map<id3c_t ,ERI3> itsERI3s; 
+    mutable erij_t Jac,Kab;
+};
+ 
+template <class T> class DB_Common : virtual public Integrals_Base<T>
 {
 protected:
-    typedef IntegralDataBase<T> Base;
-    typedef typename Base::Vec   Vec;
-    typedef typename Base::Mat   Mat;
-    typedef typename Base::RVec  RVec;
-    typedef typename Base::SMat  SMat;
-    typedef typename Base::ERI3 ERI3;
     typedef UniqueID::IDtype IDType;
-    typedef typename Base::bs_t bs_t;
-    typedef typename Base::iec_t iec_t;
-    typedef typename Base::Rf Rf;
-    typedef typename Base::Vf Vf;
+    virtual IDType GetID() const=0;
+    DB_Common(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
+    const DB_cache<T>* itsCache;
+};
+
+// It would be nice use virtual inheretance from DB_Common<T>, but that opens a contructor hornets nest.
+template <class T> class DB_Overlap : public DB_Common<T>, public virtual Integrals_Overlap<T>
+{    
+protected:
+    DB_Overlap(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Overlap() const;
+    virtual typename Integrals_Base<T>::SMat MakeOverlap() const=0;
+};
+template <class T> class DB_Kinetic : public DB_Common<T>, public virtual Integrals_Kinetic<T>
+{    
+protected:
+    DB_Kinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const;
+    virtual typename Integrals_Base<T>::SMat MakeKinetic() const=0;
+};
+template <class T> class DB_Nuclear : public DB_Common<T>, public virtual Integrals_Nuclear<T>
+{    
+protected:
+    DB_Nuclear(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
+    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
+};
+template <class T> class DB_XKinetic : public DB_Common<T>, public virtual Integrals_XKinetic<T>
+{    
+protected:
+    DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+};
+template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
+{    
+protected:
+    DB_RestMass(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
+    virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
+};
+
+template <class T> class DB_DFT 
+    : virtual public Integrals_DFT<T>
+    , public DB_Common<T>
+{
+    typedef typename Integrals_Base<T>::fbs_t fbs_t;
+    typedef typename Integrals_Base<T>::ERI3 ERI3;
+protected:
+    DB_DFT(const DB_cache<T>* db) : DB_Common<T>(db) {}
+    virtual const ERI3& Overlap3C  (const fbs_t& c) const; //<ab|c>
+    virtual const ERI3& Repulsion3C(const fbs_t& c) const; //<a(1)b(1)|1/r12|c(2)>
+    virtual ERI3 MakeOverlap3C  (const fbs_t& c) const=0;
+    virtual ERI3 MakeRepulsion3C(const fbs_t& c) const=0;
+};
+
+
+template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
+{
+    typedef UniqueID::IDtype IDType;   
+public: 
+    virtual ERI4 Direct  (IDType a,IDType c) const;
+    virtual ERI4 Exchange(IDType a,IDType b) const;
+protected:
+    void Append(const IrrepIEClient*);
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+private:
+    //! Internally called once to build direct and exchange supermatrix tables.
+    virtual void MakeDirect  () const; 
+    virtual void MakeExchange() const; 
+    std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
+    using DB_cache<T>::Jac;
+    using DB_cache<T>::Kab;
+};
+template <class T> class DB_2E :  virtual public Integrals_2E<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::obs_t obs_t;
 public:
+    typedef UniqueID::IDtype IDType;
+    virtual ERI4 Direct  (const obs_t& c) const;
+    virtual ERI4 Exchange(const obs_t& b) const;
+protected:
+    DB_2E() : itsDB_BS_2E(0) {};
+    DB_2E(const DB_BS_2E<T>* db);
+private:
+    virtual IDType GetID() const=0;
+    const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
+};
 
-    HeapDB();
-    virtual ~HeapDB();
-    HeapDB(AnalyticIE<T>* ie);
+class DB_Fit 
+    : public virtual FitIntegrals_1E
+    , public DB_Common<double>
+{
+protected:
+    DB_Fit(const DB_cache<double>* db) : DB_Common<double>(db) {};
 
-#ifndef UT_COVERAGE_ONLY
-    virtual const RVec&    GetNormalization(bs_t& a);
-    virtual const SMat&    GetOverlap      (bs_t& a);
-    virtual const Mat&     GetRepulsion    (bs_t& ,bs_t& b);
-#endif
+    using Integrals_Overlap<double>::Overlap; 
+    virtual Vec_ref  Charge   () const;   
+    virtual SMat_ref Repulsion() const;
+    virtual  Mat_ref Repulsion(const fbs_t&) const;
+    virtual SMat_ref InvOverlap(const LAParams&) const;
+    virtual SMat_ref InvRepulsion(const LAParams&) const;
+    virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
+    virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
+    virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
 
-  //
-//  These are used for charge and Vxc fitting.  They change with iterations
-//  So they MUST not be cached.
-//
-    virtual const Vec      GetOverlap    (const Mesh*,bs_t&,Rf&   f); //Numerical .
-    virtual const Vec      GetRepulsion  (const Mesh*,bs_t&,Rf&   f); //Numerical .
-    virtual const RVec&    GetCharge     (const Mesh*,bs_t&        ); //Numerical .
-    virtual const Mat&     GetOverlap    (const Mesh*,bs_t&,bs_t& b); //Numerical .
-//
-//  These are all done analytically.
-//
-    virtual const RVec&    GetCharge          (iec_t* a);
-    virtual const SMat&    GetOverlap         (iec_t* a); 
-    virtual const SMat&    GetRepulsion       (iec_t* a);
-    virtual const SMat&    GetInverseOverlap  (iec_t* a,const LAParams&); //uses analytic overlap
-    virtual const SMat&    GetInverseRepulsion(iec_t* a,const LAParams&); //Uses analytic overlap
-    virtual const SMat&    GetKinetic         (iec_t* a);
-    virtual const SMat&    GetNuclear         (iec_t* a,const Cluster&);
-    virtual const SMat&    GetRestMass        (iec_t* a);
-    
-    virtual const Mat&     GetRepulsion  (iec_t* a ,iec_t* b) ; //<a(1)|1/r12|b(2)>
-    virtual const ERI3&    GetOverlap3C  (iec_t* ab,iec_t* c) ; //<ab|c>
-    virtual const ERI3&    GetRepulsion3C(iec_t* ab,iec_t* c) ; //<a(1)b(1)|1/r12|c(2)>
-
-    virtual    ERI4      GetDirect__4C(bs_t& a,bs_t& b);
-    virtual    ERI4      GetExchange4C(bs_t& a,bs_t& b);
-
-    virtual void Report(std::ostream&) const;
 
 private:
-    const RVec& GetNumericalNormalization(const Mesh* m,bs_t& a);
-
-
-    AnalyticIE<T>*     itsAnalyticIE; //Integral engine for analytic integrals.
+    // One time calls to un-buffered integral calculations.
+    using FitIntegrals_1E::MakeCharge;
+    virtual Vec  MakeCharge() const=0;
+    // virtual SMat MakeOverlap() const=0;
+    virtual SMat MakeRepulsion() const=0;
+    virtual  Mat MakeRepulsion(const fbs_t&) const=0;
     
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    typedef std::tuple<qchem::IType2C,IDType,IDType> id2cx_t; //Cross basis set integrals.
-    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t; //Cross basis set integrals.
-    std::map<id2c_t ,RVec> its1C; //Norm, Charge 
-    std::map<id2c_t ,Vec> its1Cx; //Norm, Charge Overlap(function)
-    std::map<id2c_t ,SMat> its2C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
-    std::map<id2cx_t,SMat> its2CNuc; //Nuclear IDed by cluster
-    std::map<id2cx_t, Mat> its2Cx; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
-    std::map<id3c_t ,ERI3> its3C; //Overlap, Rep, Kinetic, InvOverlap, InvRepulsion
-    AnalyticIE<double>::erij_t Jac; //Index symmetries are different for J and K
-    AnalyticIE<double>::erij_t Kab;
+    //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
+    //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
+    static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
 
+};
+
+template <class T> class DB_RKB 
+    : virtual public Integrals_RKB<T>
+    , public DB_Overlap<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
+    , public DB_RestMass<T>
+{    
+protected:
+    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Kinetic<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
+   
+};
+template <class T> class DB_RKBL 
+    : virtual public Integrals_RKBL<T>
+    , public DB_Overlap<T>
+    , public DB_XKinetic<T>
+    , public DB_Nuclear<T>
+{
+protected:
+    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XKinetic<T>(db), DB_Nuclear<T>(db) {};
+};
+template <class T> class DB_RKBS 
+    : virtual public Integrals_RKBS<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
+{
+protected:
+    DB_RKBS(const DB_cache<T>* db) :  DB_Kinetic<T>(db), DB_Nuclear<T>(db) {};  
+   
 };
 
 #endif

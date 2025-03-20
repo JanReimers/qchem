@@ -35,7 +35,6 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , ie(new SphericalGaussian::IntegralEngine())
     , bs(new SphericalGaussian::BasisSet(lap,5,.01,100.0,Lmax))
     , cl(new Molecule())
     , mintegrator()
@@ -49,32 +48,35 @@ public:
     
     int Lmax, Z;
     LAParams lap;
-    AnalyticIE<double>* ie;
     SphericalGaussian::BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };
 
+
+
+
 TEST_F(GaussianRadialIntegralTests, Overlap)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> S=ie->MakeOverlap(*i);
+        SMatrix<double> S=oi->Overlap();
+
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         //cout << S << endl;
-        SMatrix<double> Snum = mintegrator->Overlap(**i);
+        SMatrix<double> Snum = mintegrator->Overlap(*oi);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
-
+       
     }
 }
 
 TEST_F(GaussianRadialIntegralTests, Nuclear)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
+        SMatrix<double> Hn=oi->Nuclear(cl);
         //cout << S << endl;
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
 
     }
@@ -83,24 +85,24 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
 TEST_F(GaussianRadialIntegralTests, Kinetic)
 {
     
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=ie->MakeKinetic(*i);
+        SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i); //This give the wrong answer for l>0
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi); //This give the wrong answer for l>0
 
         // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const QuantumNumber& qn=i->GetQuantumNumber();
+        const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(*i);
+        const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(oi);
         assert(sg);
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
                 Knum(i,j)+=0.5*((l)*(l+1))*GaussianIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
-
+        
     }
 }
 

@@ -2,7 +2,7 @@
 #ifndef _Slater_mj_BasisFunction_H_
 #define _Slater_mj_BasisFunction_H_
 
-#include <BasisSet.H>
+#include <BasisFunction.H>
 
 namespace Slater_mj
 {

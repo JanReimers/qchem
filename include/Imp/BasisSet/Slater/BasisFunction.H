@@ -2,7 +2,7 @@
 #ifndef _SlaterBF_H_
 #define _SlaterBF_H_
 
-#include <BasisSet.H>
+#include <BasisFunction.H>
 
 namespace Slater
 {

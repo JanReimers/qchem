@@ -4,7 +4,6 @@
 #include "BasisSet/TBasisSet.H"
 #include "BasisSet/TBasisFunction.H"
 #include "BasisSet/TBasisSetBrowser.H"
-#include "BasisSet/IntegralDataBase.H"
 #include "Cluster/Cluster.H"
 #include "DFTDataBase/DFTDataBase.H"
 #include "Misc/MatrixList.H"

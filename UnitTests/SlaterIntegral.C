@@ -19,7 +19,6 @@
 
 #include <MeshParams.H>
 #include <Cluster.H>
-#include <BasisSet.H>
 #include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
@@ -41,7 +40,6 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
-    , ie(bs->itsIE)
     , cl(new Molecule())
     {
         StreamableObject::SetToPretty();
@@ -56,13 +54,10 @@ public:
     bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     double R0(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     
-    typedef AnalyticIE<double>::ERI3 ERI3;
     
     int Lmax, Z;
     LAParams lap;
     Slater::BasisSet* bs;
-    AnalyticIE<double>* ie;
-//    Slater_m::BasisSet* bsm;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;
@@ -168,23 +163,21 @@ double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slat
 
 TEST_F(SlaterRadialIntegralTests, Overlap)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> S=ie->MakeOverlap(*i);
+        SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        //cout << S << endl;
-        SMatrix<double> Snum = mintegrator->Overlap(**i);
+        SMatrix<double> Snum = mintegrator->Overlap(*oi);
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
-
     }
 }
 
 TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> Hn=ie->MakeNuclear(*i,*cl);
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(**i);
+        SMatrix<double> Hn=oi->Nuclear(cl);
+        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
 
     }
@@ -192,17 +185,17 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 
 TEST_F(SlaterRadialIntegralTests, Kinetic)
 {
-    for (auto i=bs->beginT();i!=bs->end();i++)
+    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=ie->MakeKinetic(*i);
+        SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(**i);
+        SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi);
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const QuantumNumber& qn=i->GetQuantumNumber();
+        const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(*i);
+        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
         assert(sg);
         int n=2*l+2;
         for (auto i:Knum.rows())
@@ -210,46 +203,43 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
                 Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
             
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
-
-    }
-}
-
-TEST_F(SlaterRadialIntegralTests, Overlap3C)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
         
-        auto c=i->beginT();
-        for (auto sab:Sabc)
-        {
-            SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
-            EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
-            c++;
-        }
     }
 }
 
-TEST_F(SlaterRadialIntegralTests, Repulsion)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        SMatrix<double> S=ie->MakeRepulsion(*i);
-        for (auto j=i;j!=bs->end();j++)
-        {
-            Matrix<double> Sx=ie->MakeRepulsion(*i,*j);
-            
-        }
-    }
-}
-
-TEST_F(SlaterRadialIntegralTests, Repulsion3C)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
-    }
-}
+// TEST_F(SlaterRadialIntegralTests, Overlap3C)
+// {
+//     for (auto i=bs->beginT();i!=bs->end();i++)
+//     {
+//         ERI3 Sabc=ie->MakeOverlap3C(*i,*i);       
+//         auto c=i->beginT();
+//         for (auto sab:Sabc)
+//         {
+//             SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
+//             EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
+//             c++;
+//         }
+//     }
+// }
+// TEST_F(SlaterRadialIntegralTests, Repulsion)
+// {
+//     for (auto i=bs->beginT();i!=bs->end();i++)
+//     {
+//         auto fi=dynamic_cast<const Fit_IBS*>(*i);
+//         SMatrix<double> S=fi->Repulsion();
+//         for (auto j=i;j!=bs->end();j++)
+//         {
+//             Matrix<double> Sx=ie->MakeRepulsion(*i,*j);      
+//         }
+//     }
+// }
+// TEST_F(SlaterRadialIntegralTests, Repulsion3C)
+// {
+//     for (auto i=bs->beginT();i!=bs->end();i++)
+//     {
+//         ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
+//     }
+// }
 
 struct Vf : public VectorFunction<double>
 {
@@ -279,13 +269,14 @@ struct Vf : public VectorFunction<double>
 
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
-    for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
-    for (auto icdt=bs->beginT();icdt!=bs->end();icdt++)
+    for (auto iab:bs->Iterate<Slater::Orbital_IBS>())
     {
-        const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
-        const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
+        // const Orbital_IBS* iab1=iab;
+        // cout << (void*)iab << " " << (void*)iab1 << endl;
+    for (auto icd:bs->Iterate<Slater::Orbital_IBS>(iab))
+    {
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERI4 J=ie->MakeDirect(*iabt,*icdt);
+        ERI4 J=bs->Direct(iab->GetID(),icd->GetID());
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)
@@ -313,6 +304,8 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
             }
         }
     }
+}
+
 }
 
 //

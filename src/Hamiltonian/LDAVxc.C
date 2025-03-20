@@ -4,7 +4,6 @@
 
 #include "Imp/Hamiltonian/LDAVxc.H"
 #include "Imp/Fitting/FittedFunction.H"
-#include <BasisSet.H>
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
@@ -33,7 +32,7 @@ void LDAVxc::UseChargeDensity(const ChargeDensity* exact)
 //  Here Vxc is not fit to the exchange functional, so the Matrix and energy.
 //  cannot be calculated analytically.
 //
-HamiltonianTerm::SMat LDAVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat LDAVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     std::cerr << "LDAVxc::CalculateHamiltonianMatrix not implementated yet" << std::endl;
     exit(-1);

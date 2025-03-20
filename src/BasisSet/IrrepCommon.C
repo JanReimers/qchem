@@ -4,6 +4,7 @@
 
 #include "Imp/BasisSet/IrrepCommon.H"
 #include <QuantumNumber.H>
+#include <BasisFunction.H>
 #include "Imp/Containers/ptr_vector_io.h"
 
 #include <iostream>
@@ -22,6 +23,7 @@ IrrepBasisSetCommon::IrrepBasisSetCommon()
 IrrepBasisSetCommon::IrrepBasisSetCommon(QuantumNumber* theQN)
     : itsQuantumNumber(theQN)
 {
+    assert(itsQuantumNumber);
 };
 
 IrrepBasisSetCommon::IrrepBasisSetCommon(const IrrepBasisSetCommon& bs)
@@ -40,7 +42,7 @@ IrrepBasisSetCommon::~IrrepBasisSetCommon()
 //
 //  Post construction initializations called by dervied classes.
 //
-void IrrepBasisSetCommon::Insert(BasisFunction* bf)
+void IrrepBasisSetCommon::Insert(const BasisFunction* bf)
 {
     assert(bf);
     itsBasisFunctions.push_back(bf);
@@ -68,11 +70,11 @@ bool IrrepBasisSetCommon::operator==(const IrrepBasisSet& bs) const
     // No UT coverage
     if (GetNumFunctions() != bs.GetNumFunctions()) return false;
     bool ret=true;
-    auto b2=bs.begin(); 
-    for (auto b1:*this) 
+    auto b2=bs.Iterate<BasisFunction>().begin(); 
+    for (auto b1:Iterate<BasisFunction>()) 
     {
         ret=ret && (*b1)==(**b2);
-        b2++;
+        ++b2;
     }
     return ret;
 }
@@ -112,16 +114,16 @@ std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& IrrepBasisSetCommon::Read(std::istream& is)
-{
-    UniqueID::Read(is);
+// std::istream& IrrepBasisSetCommon::Read(std::istream& is)
+// {
+//     UniqueID::Read(is);
 
-    delete itsQuantumNumber;
-    itsQuantumNumber=QuantumNumber::Factory(is);
-    is >> *itsQuantumNumber;
+//     delete itsQuantumNumber;
+//     itsQuantumNumber=QuantumNumber::Factory(is);
+//     is >> *itsQuantumNumber;
 
-    return is;
-};
+//     return is;
+// };
 
 //-----------------------------------------------------------------------------
 //
@@ -135,7 +137,7 @@ std::ostream& IrrepBasisSetCommon::WriteBasisFunctions(std::ostream& os) const
 
 std::istream& IrrepBasisSetCommon::ReadBasisFunctions(std::istream& is)
 {
-    is >> itsBasisFunctions;
+    // is >> itsBasisFunctions;
     return is;
 }
 

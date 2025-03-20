@@ -4,6 +4,7 @@
 
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/LDAVxc.H"
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include "oml/smatrix.h"
@@ -49,9 +50,10 @@ void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat FittedVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    return FitGet3CenterOverlap(bs);
+    auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    return FitGet3CenterOverlap(dftbs);
 }
 
 void FittedVxc::GetEnergy(TotalEnergy& te) const

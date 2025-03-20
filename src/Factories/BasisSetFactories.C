@@ -1,6 +1,6 @@
 // File: BasisSetFactories.C
 
-#include "BasisSet.H"
+#include <BasisSet.H>
 #include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
@@ -61,8 +61,8 @@ Block* Block::Factory(std::istream& is)
 IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussian::IrrepBasisSet).name()) return new SphericalGaussian::IrrepBasisSet;
-    if (Name==typeid(PolarizedGaussian::IrrepBasisSet).name()) return new PolarizedGaussian::IrrepBasisSet;
+    //if (Name==typeid(SphericalGaussian::IrrepBasisSet).name()) return new SphericalGaussian::IrrepBasisSet;
+    //if (Name==typeid(PolarizedGaussian::IrrepBasisSet).name()) return new PolarizedGaussian::IrrepBasisSet;
 //    if (Name==typeid(        PlaneWaveBS).name()) return new         PlaneWaveBS;
 
     std::cout << "Unknown irrep basis set type :" << Name << std::endl;

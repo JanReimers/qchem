@@ -18,14 +18,14 @@ bool ChargeDensity::IsPolarized() const
 //
 //  Various integrals.
 //
-ChargeDensity::SMat PolarizedCD::GetRepulsion(const IrrepBasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetRepulsion(const TOrbital_IBS<double>* bs) const
 {
     SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
     SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
-ChargeDensity::SMat PolarizedCD::GetExchange(const IrrepBasisSet* bs) const
+ChargeDensity::SMat PolarizedCD::GetExchange(const TOrbital_IBS<double>* bs) const
 {
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
     SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
@@ -47,10 +47,10 @@ double PolarizedCD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-Vector<double> PolarizedCD::GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const
+Vector<double> PolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(theFitBasisSet)
-        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(theFitBasisSet);
+    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
+        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
 }
 
 //-----------------------------------------------------------------------

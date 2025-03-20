@@ -2,8 +2,9 @@
 
 
 
-#include "Imp/ChargeDensity//FittedCD.H"
+#include "Imp/ChargeDensity/FittedCD.H"
 #include <Mesh.H>
+#include <Irrep_BS.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include <cmath>
@@ -65,21 +66,12 @@ template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
 //
 //  Totale energy terms for a charge density.
 //
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetOverlap  (const IrrepBasisSet* bs) const
-{
-    const std::vector<SMat>& overlap=bs->GetOverlap3C(itsBasisSet.get());
-    int n=bs->GetNumFunctions();
-    SMat J(n,n);
-    Fill(J,0.0);
-    size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMat(c*overlap[i++]);
-    assert(!isnan(J));
-    return J;
-}
 
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const IrrepBasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_IBS<double>* bs) const
 {
-    const std::vector<SMat>& repulsions=bs->GetRepulsion3C(itsBasisSet.get());
+    auto bs_dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    assert(bs_dft);
+    const std::vector<SMat>& repulsions=bs_dft->Repulsion3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);
@@ -89,7 +81,7 @@ template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const IrrepB
     return J;
 }
 
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetExchange(const IrrepBasisSet* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetExchange(const TOrbital_IBS<double>* bs) const
 {
     std::cerr << "FittedCDImplementation<T>::AddExchange: Warning using four center ERIs from a fitted charge density !?!" << std::endl;
     return SMat();
@@ -131,9 +123,9 @@ template <class T> double FittedCDImp<T>::GetTotalCharge() const
 //  Required by fitting routines.
 //
 template <class T> Vector<double> FittedCDImp<T>::
-GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const
+GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    return FitGet2CenterRepulsion(theFitBasisSet);
+    return FitGet2CenterRepulsion(fbs);
 }
 
 //-------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"
@@ -21,7 +21,7 @@ Vnn::Vnn(cl_t& cl)
     , theCluster(cl)
 {};
 
-HamiltonianTerm::SMat Vnn::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Vnn::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMat ret(n,n);

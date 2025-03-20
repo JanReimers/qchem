@@ -3,7 +3,7 @@
 
 
 #include "Imp/ChargeDensity/CompositeCD.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
 #include "oml/vector.h"
@@ -27,7 +27,7 @@ typedef optr_vector1<ChargeDensity*>::const_iterator CITER;
 //
 //  Total energy terms for a charge density.
 //
-ChargeDensity::SMat CompositeCD::GetRepulsion(const IrrepBasisSet* bs_ab) const
+ChargeDensity::SMat CompositeCD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -36,7 +36,7 @@ ChargeDensity::SMat CompositeCD::GetRepulsion(const IrrepBasisSet* bs_ab) const
     return J;
 }
 
-ChargeDensity::SMat CompositeCD::GetExchange(const IrrepBasisSet* bs_ab) const
+ChargeDensity::SMat CompositeCD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
@@ -63,7 +63,7 @@ double CompositeCD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-Vector<double> CompositeCD::GetRepulsion3C(const IrrepBasisSet* fbs) const
+Vector<double> CompositeCD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
     Vector<double> ret(fbs->size());
     Fill(ret,0.0);

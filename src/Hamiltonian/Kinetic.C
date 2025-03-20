@@ -1,7 +1,7 @@
 // File: Kinetic.C  Kinetic energy term for the hamiltonian.
 
 #include "Imp/Hamiltonian/Kinetic.H"
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 
 Kinetic::Kinetic()
@@ -9,11 +9,9 @@ Kinetic::Kinetic()
 {};
 
 
-HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const IrrepBasisSet* bs,const Spin&) const
+HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    //std::cout << "K=" << bs->GetKinetic() << std::endl;
-    
-    return bs->GetKinetic();
+    return bs->Kinetic();
 }
 
 void Kinetic::GetEnergy(TotalEnergy& te) const

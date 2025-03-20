@@ -5,7 +5,7 @@
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "Imp/Fitting/FittedFunction.H"
-#include <IntegralDataBase.H>
+#include <Irrep_BS.H>
 #include <QuantumNumber.H>
 #include <ChargeDensity.H>
 #include "oml/vector3d.h"
@@ -31,7 +31,7 @@ template <class T> IrrepCD<T>::IrrepCD()
 {};
 
 template <class T> IrrepCD<T>::IrrepCD(const DenSMat& theDensityMatrix,
-                                                 const TIrrepBasisSet<T>* theBasisSet,
+                                                 const TOrbital_IBS<T>* theBasisSet,
                                                  const Spin& s)
     : itsDensityMatrix(theDensityMatrix)
     , itsBasisSet(theBasisSet)
@@ -45,19 +45,15 @@ template <> bool IrrepCD<double>::IsZero() const
     return Max(fabs(itsDensityMatrix))==0.0;
 }
 
-template <> ChargeDensity::SMat IrrepCD<double>::ZeroM(const IrrepBasisSet* bs_ab) const
+template <> ChargeDensity::SMat IrrepCD<double>::ZeroM(size_t N) const
 {
-    assert(bs_ab);
-    size_t N=bs_ab->size();
     SMat S(N);
     Fill(S,0.0);
     return S;
 }
 
-template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(const IrrepBasisSet* bs_ab) const
+template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
 {
-    assert(bs_ab);
-    size_t N=bs_ab->size();
     RVec V(N);
     Fill(V,0.0);
     return V;
@@ -66,29 +62,30 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(const IrrepBasisSet* bs
 //
 //  Total energy terms for a charge density.
 //
-template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const IrrepBasisSet* bs_ab) const
+template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab);
-    const TIrrepBasisSet<double>* tbs_cd=dynamic_cast<const TIrrepBasisSet<double>*>(itsBasisSet);
-    const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
-    return tbs_ab->GetRepulsion(itsDensityMatrix,tbs_cd);
+    if (IsZero()) return ZeroM(bs_ab->size());
+    auto* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
+    return tbs_ab->Direct(itsDensityMatrix,itsBasisSet);
 }
 
-template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const IrrepBasisSet* bs_ab) const
+template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab);
-    const TIrrepBasisSet<double>* tbs_ab=dynamic_cast<const TIrrepBasisSet<double>*>(bs_ab);
-    return tbs_ab->GetExchange(itsDensityMatrix,itsBasisSet);
+    if (IsZero()) return ZeroM(bs_ab->size());
+    const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
+    return tbs_ab->Exchange(itsDensityMatrix,itsBasisSet);
 }
 
 //------------------------------------------------------------------------------
 //
 //  Required by fitting routines.
 //
-template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const IrrepBasisSet* fbs) const
+template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    if (IsZero()) return ZeroV(fbs);
-    return itsBasisSet->GetRepulsion3C(itsDensityMatrix,fbs);
+    if (IsZero()) return ZeroV(fbs->size());
+    auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<T>*>(itsBasisSet);
+    assert(dftbs);
+    return dftbs->Repulsion3C(itsDensityMatrix,fbs);
 }
 
 
@@ -116,7 +113,7 @@ template <class T> double IrrepCD<T>::GetTotalCharge() const
     // SMat SSS=S.SubMatrix(MatLimits(NL+1,N, NL+1,N));
     // std::cout.precision(10);
     // std::cout << "Charge LL=" << real(Dot(DLL,SLL)) << " SS=" << real(Dot(DSS,SSS)) << std::endl;
-    return real(Dot(itsDensityMatrix,itsBasisSet->GetOverlap()));
+    return real(Dot(itsDensityMatrix,itsBasisSet->Overlap()));
 }
 
 
@@ -152,7 +149,7 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const ChargeDensity& cd) con
 template <class T> void IrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
 {
     std::cerr << "ExactIrrepCD::ShiftOrigin this is an odd thing to do for an exact charge density" << std::endl;
-    itsBasisSet=dynamic_cast<const TIrrepBasisSet<T>*>(itsBasisSet->Clone(newCenter));
+    itsBasisSet=dynamic_cast<const TOrbital_IBS<T>*>(itsBasisSet->Clone(newCenter));
 }
 
 template <class T> double IrrepCD<T>::operator()(const RVec3& r) const

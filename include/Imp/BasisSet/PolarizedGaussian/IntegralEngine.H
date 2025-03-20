@@ -5,6 +5,8 @@
 #include "RadialFunction.H"
 #include "CDCache.H"
 #include "Polarization.H"
+#include "Imp/DataBase/HeapDB.H"
+
 #include <AnalyticIE.H>
 #include "oml/vector.h"
 
@@ -13,44 +15,74 @@ namespace PolarizedGaussian
 
 class IrrepIEClient;
 
-class IntegralEngine
-    : public virtual AnalyticIE<double>
+class IE_Common
+    : public virtual Integrals_Overlap<double>
+    , public DB_Overlap<double>
+ 
 {
 public:
-    typedef ScalarFunction <double> SF;
-    typedef AnalyticIE<double>::Mat Mat;
-    typedef AnalyticIE<double>::SMat SMat;
-    typedef AnalyticIE<double>::RVec RVec;
-    typedef const ::IrrepIEClient iec_t;
-
-    IntegralEngine() {};
-    virtual ~IntegralEngine() {};
+   
+protected:
+    IE_Common(const DB_cache<double>* db) : DB_Overlap<double>(db) {};
+    typedef Integrals_Base<double> Base;
+    typedef Base::SMat SMat;
     
-    virtual RVec MakeNormalization(iec_t* a) const;
-    // One electron functions for DFT and HF    
-    virtual SMat MakeOverlap (iec_t* a) const;
-    virtual SMat MakeKinetic (iec_t* a) const;
-    virtual  Mat MakeKinetic (iec_t* a, iec_t* b) const;
-    virtual SMat MakeNuclear (iec_t* a, const Cluster&   ) const;
-    virtual SMat MakeRestMass(iec_t* a) const;
-    virtual RVec MakeCharge  (iec_t* a) const;
-    //  DFT Rho,Vac fitting functions
-    virtual SMat MakeRepulsion  (iec_t* a          ) const; //Used for charge and Vxc fitting.
-    virtual  Mat MakeRepulsion  (iec_t* a ,iec_t* b) const; //Used for charge and Vxc fitting.
-    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
-    // HF functions
-    virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
-    virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
+    virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
 
-    virtual AnalyticIE<double>* Clone() const;
-    virtual void Report(std::ostream&) const;
-private:
-    static const IrrepIEClient* dcast(iec_t*);
-    SMat Integrate(qchem::IType2C , iec_t* a, const Cluster* cl=0) const;
-    SMat Integrate(qchem::IType3C , iec_t* a, const RadialFunction* rc, const Polarization& pc) const;
-
+    SMat MakeIntegrals(qchem::IType2C,const Cluster*cl =0) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
+
+};
+
+class Orbital_IE
+: public IE_Common
+, public DB_Kinetic<double>
+, public DB_Nuclear<double>
+, public DB_2E<double>
+, public DB_DFT<double>
+{
+    typedef Integrals_Base<double> Base;
+    typedef Base::SMat SMat;
+    typedef Base::ERI3 ERI3;
+    typedef Base::fbs_t fbs_t; //Fit basis
+    typedef Base::obs_t obs_t; //Fit basis
+public:
+    virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);}
+    virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
+    virtual ERI3 MakeOverlap3C  (const fbs_t& c) const; //Used for DFT
+    virtual ERI3 MakeRepulsion3C(const fbs_t& c) const; //Used for DFT
+    virtual ERI4 MakeDirect  (const obs_t& c) const;
+    virtual ERI4 MakeExchange(const obs_t& b) const;
+protected:
+    Orbital_IE(const DB_BS_2E<double>* db) 
+        : IE_Common(db)
+        , DB_Kinetic<double>(db)
+        , DB_Nuclear<double>(db)
+        , DB_2E<double>(db)
+        , DB_DFT<double>(db) 
+        {};
+        
+    SMat Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
+
+};
+
+class Fit_IE
+: public IE_Common
+, public DB_Fit
+
+{
+    typedef Integrals_Base<double> Base;
+    typedef Base::fbs_t fbs_t; //Fit basis
+    typedef Base::SMat SMat;
+    typedef Base::Mat Mat;
+    typedef DB_Fit::Vec Vec;
+public:
+    virtual SMat MakeOverlap() const { return IE_Common::MakeOverlap(); } 
+    virtual Vec  MakeCharge() const;
+    virtual SMat MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
+    virtual Mat  MakeRepulsion(const fbs_t& b) const;
+protected:
+    Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}
 };
 
 } //namespace PolarizedGaussian

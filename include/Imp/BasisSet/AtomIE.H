@@ -2,58 +2,162 @@
 #ifndef _AtomIE_H_
 #define _AtomIE_H_
 
-#include <AnalyticIE.H>
 #include "Imp/BasisSet/BFGrouper.H"
 #include "Imp/Integrals/Cache4.H"
-#include "oml/vector.h"
-class IrrepIEClient;
-class AtomIrrepIEClient;
+#include "Imp/DataBase/HeapDB.H"
 
-class AtomIE 
-    : public virtual AnalyticIE<double>
-    , public virtual Cache4
-    , public BFGrouper
+
+template <class T> class Primative_Overlap
 {
-    virtual size_t size() const {return -1;}
+    public:
+    virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+};
+template <class T> class Primative_Kinetic
+{
+    public:
+    virtual double Kinetic(double ea ,double eb,size_t la, size_t lb) const=0;
+};
+template <class T> class Primative_Nuclear
+{
+    public:
+    virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
+};
+template <class T> class Primative_Repulsion
+{
+    public:
+    virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
+};
+
+template <class T> class AtomIE_Overlap
+: public virtual Primative_Overlap<T>
+, public DB_Overlap<T>
+{
+protected:
+    using Primative_Overlap<T>::Overlap;
+    virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
+    AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
+};
+template <class T> class AtomIE_Kinetic
+: public virtual Primative_Kinetic<T>
+, public DB_Kinetic<T>
+{
+protected:
+    using Primative_Kinetic<T>::Kinetic;
+    virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
+    AtomIE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+};
+template <class T> class AtomIE_Nuclear
+: public virtual Primative_Nuclear<T>
+, public DB_Nuclear<T>
+{
+protected:
+    using Primative_Nuclear<T>::Nuclear;
+    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
+    AtomIE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
+};
+template <class T> class AtomIE_XKinetic
+: public virtual Primative_Kinetic<T>
+, public DB_XKinetic<T>
+{
+protected:
+    using Primative_Kinetic<T>::Kinetic;
+    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    AtomIE_XKinetic(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
+};
+
+
+class AtomIE_Fit 
+: public virtual Primative_Repulsion<double>
+, public DB_Fit
+{
+    protected:
+    AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
+
+    virtual Vec  MakeCharge() const;
+    virtual SMat MakeRepulsion() const;
+    virtual  Mat MakeRepulsion(const fbs_t&) const;
+private:
+    // Derived classes must provide the actual integral calculations.
+    using DB_Fit::Charge; //un hide
+    using DB_Fit::Repulsion; //un hide
+    virtual double Charge   (double ea ,           size_t l) const=0;
+    using Primative_Repulsion<double>::Repulsion;
+};
+
+template <class T> class AtomIE_DFT 
+: public virtual Primative_Overlap<T>
+, public virtual Primative_Repulsion<T>
+, public DB_DFT<T>
+{
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::fbs_t fbs_t;
+    typedef typename Base::SMat SMat;
+    typedef typename Base::ERI3 ERI3;
+protected:
+    AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
+    
+    virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
+    virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
+private:
+    typedef std::tuple<int,int,int,double,double> bf_tuple;
+    SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
+    SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
+};
+
+class AtomIE_BS_2E_Angular
+{
 public:
     typedef Vector<double> RVec;
-    // One electron functions for DFT and HF
-    virtual SMat MakeOverlap  (iec_t* a) const;
-    virtual SMat MakeKinetic  (iec_t* a) const;
-    virtual  Mat MakeKinetic  (iec_t* g, const iec_t* f) const;
-    virtual SMat MakeNuclear  (iec_t* a, const Cluster&) const;
-    virtual SMat MakeRestMass (iec_t* a) const;
-    virtual RVec MakeCharge   (iec_t* a) const;
-    //  DFT Rho,Vac fitting functions
-    virtual SMat MakeRepulsion  (iec_t* a) const; //Used for charge and Vxc fitting.
-    virtual  Mat MakeRepulsion  (iec_t*,iec_t*) const; //Used for charge and Vxc fitting.
-    virtual ERI3 MakeOverlap3C  (iec_t* ab,iec_t* c) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(iec_t* ab,iec_t* c) const; //Used for DFT
-    // HF functions
-    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
-    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const;
     virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
     virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
+};
+template <class T> class AtomIE_BS_2E 
+    : public virtual AtomIE_BS_2E_Angular
+    , public virtual Cache4
+    , public DB_BS_2E<T>
+    , public BFGrouper
+{
+    typedef typename AtomIE_BS_2E_Angular::RVec RVec;
+public:
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
+
     // Cach4 functions
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
-
+protected:
     virtual void Append(const IrrepIEClient*);
-        
-private:
-    static const AtomIrrepIEClient* dcast(iec_t*);
-    typedef std::tuple<int,int,int,double,double> bf_tuple;
-    SMat MakeOverlap  (iec_t* ab,const bf_tuple& c) const;
-    SMat MakeRepulsion(iec_t* ab,const bf_tuple& c) const;
-    
-    virtual double Overlap  (double ea , double eb,size_t l) const=0;
-    virtual double Kinetic  (double ea , double eb,size_t l) const=0;
-    virtual double Kinetic  (double ea , double eb,size_t la,size_t lb) const=0;
-    virtual double Nuclear  (double ea , double eb,size_t l) const=0;
-    virtual double Charge   (double ea ,           size_t l) const=0;
-    virtual double Repulsion(double eab, double ec,size_t la,size_t lc) const=0;
-
+};
+class AtomIE_BS_2E_l : public virtual AtomIE_BS_2E_Angular
+{
+public:
+    typedef AtomIE_BS_2E_Angular::RVec RVec;
+    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
+    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
+};
+class AtomIE_BS_2E_lm : public virtual AtomIE_BS_2E_Angular
+{
+public:
+    typedef AtomIE_BS_2E_Angular::RVec RVec;
+    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
+    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
 };
 
+template <class T> class AtomIE_RKBL 
+    : public AtomIE_Overlap<T>
+    , public AtomIE_XKinetic<T>
+    , public AtomIE_Nuclear<T>
+{
+protected:
+    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XKinetic<T>(db),AtomIE_Nuclear<T>(db) {};
+
+};
+template <class T> class AtomIE_RKBS 
+: public AtomIE_Kinetic<T>
+, public AtomIE_Nuclear<T>
+{
+protected:
+    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Kinetic<T>(db), AtomIE_Nuclear<T>(db) {};
+};
 
 #endif // _AtomIE_H_

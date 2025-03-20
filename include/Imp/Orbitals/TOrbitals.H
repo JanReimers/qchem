@@ -6,8 +6,6 @@
 #include "Imp/Containers/ptr_vector.h"
 
 #include "Orbital.H"
-//#include "Imp/Orbitals/Orbitals.H"
-#include "BasisSet.H"
 
 template <class T> class TOrbitalsImp
     : public virtual Orbitals
@@ -25,7 +23,7 @@ template <class T> class TOrbitalsImp
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
     TOrbitalsImp();
-    TOrbitalsImp(const TIrrepBasisSet<T>*);
+    TOrbitalsImp(const TOrbital_IBS<T>*);
     virtual ~TOrbitalsImp() {};
 
     typedef Vector3D<T> TVec;
@@ -51,7 +49,7 @@ private:
     TOrbitalsImp(const TOrbitalsImp&);
     virtual SMat CalculateDensityMatrix() const;
 
-    const TIrrepBasisSet<T>* itsBasisSet;
+    const TOrbital_IBS<T>* itsBasisSet;
     optr_vector1<Orbital*>   itsOrbitals;
     LASolver<double>*        itsLASolver; //General eigen solver
 

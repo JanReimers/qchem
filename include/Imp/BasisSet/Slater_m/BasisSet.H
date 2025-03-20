@@ -4,12 +4,14 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
+#include "../Slater/BasisSet.H"
 
 namespace Slater_m
 {
 
 class BasisSet 
-    : public ::BasisSetImp
+    : public Slater::BS_Common
+    , public AtomIE_BS_2E_lm
 {
 public:
     BasisSet() {};

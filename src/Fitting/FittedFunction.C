@@ -1,9 +1,8 @@
 // File: FittedFunctionImp.C  Common imp for Fitted Functions.
 
 #include "Imp/Fitting/FittedFunction.H"
-#include <IntegralDataBase.H>
 #include <ChargeDensity.H>
-#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <Mesh.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
@@ -19,17 +18,17 @@
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FittedFunctionImp<T>::
-FittedFunctionImp(bs_t& theFitBasisSet,mesh_t& m)
-    : itsBasisSet(theFitBasisSet)
-    , itsFitCoeff(theFitBasisSet->GetNumFunctions())
+FittedFunctionImp(bs_t& fbs,mesh_t& m)
+    : itsBasisSet(fbs)
+    , itsFitCoeff(fbs->GetNumFunctions())
     , itsMesh    (m)
     , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/CastBasisSet()->GetCharge()(1);
-    itsInvOvlp=itsBasisSet->GetInverseOverlap(itsLAParams);
-    itsInvRepl=itsBasisSet->GetInverseRepulsion(itsLAParams);
+    itsFitCoeff(1)=1.0/itsBasisSet->Charge()(1); //Wild guess with the correct total charge.
+    itsInvOvlp=itsBasisSet->InvOverlap(itsLAParams);
+    itsInvRepl=itsBasisSet->InvRepulsion(itsLAParams);
 };
 
 template <class T> FittedFunctionImp<T>::FittedFunctionImp()
@@ -61,13 +60,13 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvOvlp*itsBasisSet->GetOverlap(&*itsMesh,ffc.GetScalarFunction());;
+    itsFitCoeff=itsInvOvlp*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
     return 0;
 }
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvRepl*ffc.GetRepulsion3C(&*itsBasisSet);
+    itsFitCoeff=itsInvRepl*ffc.GetRepulsion3C(itsBasisSet.get());
     return 0;
 }
 
@@ -76,21 +75,21 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFCli
 //  Provide Overlap and Repulsion matricies for derived classes.
 //
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
-FitGet2CenterOverlap(const IrrepBasisSet* bs) const
+FitGet2CenterOverlap(const Fit_IBS* bs) const
 {
-    return itsFitCoeff * (itsBasisSet->GetOverlap(&*itsMesh,bs));
+    return itsFitCoeff * (itsBasisSet->Overlap(itsMesh.get(),*bs));
 }
 
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
-FitGet2CenterRepulsion(const IrrepBasisSet* bs) const
+FitGet2CenterRepulsion(const Fit_IBS* bs) const
 {
-    return itsFitCoeff * (itsBasisSet->GetRepulsion(    bs));
+    return itsFitCoeff * (itsBasisSet->Repulsion(*bs));
 }
 
 template <class T> typename FittedFunctionImp<T>::SMat FittedFunctionImp<T>::
-FitGet3CenterOverlap(const IrrepBasisSet* bs) const
+FitGet3CenterOverlap(const TOrbital_DFT_IBS<double>* bs) const
 {
-    const std::vector<SMat>& O3=bs->GetOverlap3C(itsBasisSet.get());
+    const std::vector<SMat>& O3=bs->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);
@@ -110,7 +109,7 @@ FitGetOverlap(const FittedFunctionImp<T>* ffi) const
 {
     return
         itsFitCoeff *
-        itsBasisSet->GetOverlap(&*itsMesh,ffi->itsBasisSet.get()) *
+        itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
         ffi->itsFitCoeff;
 }
 
@@ -118,13 +117,13 @@ template <class T> double FittedFunctionImp<T>::
 FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 {
     return
-        itsFitCoeff * itsBasisSet->GetRepulsion(ffi->itsBasisSet.get()) *
+        itsFitCoeff * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
 }
 
 template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 {
-    return itsFitCoeff * itsBasisSet->GetCharge();
+    return itsFitCoeff * itsBasisSet->Charge();
 }
 
 //------------------------------------------------------------------------
@@ -163,17 +162,17 @@ template <class T> void FittedFunctionImp<T>::ReScale(double factor)
 //
 template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) const
 {
-    return itsFitCoeff * (*CastBasisSet())(r);
+    return itsFitCoeff * (*itsBasisSet)(r);
 }
 
 template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
 {
-    v += Vec(itsFitCoeff * (*CastBasisSet())(m));
+    v += Vec(itsFitCoeff * (*itsBasisSet)(m));
 }
 
 template <class T> typename FittedFunctionImp<T>::RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {
-    Vec3Vec br = CastBasisSet()->Gradient(r);
+    Vec3Vec br = itsBasisSet->Gradient(r);
     RVec3 ret(0,0,0);
     typename Vec    ::const_iterator c(itsFitCoeff.begin());
     typename Vec3Vec::const_iterator b(br.begin());
@@ -213,7 +212,7 @@ template <class T> std::istream& FittedFunctionImp<T>::Read (std::istream& is)
 //    else
 //        is >> itsCDFitFlag;
 
-    itsBasisSet.reset(IrrepBasisSet::Factory(is));
+    //itsBasisSet.reset(IrrepBasisSet::Factory(is));
     //is >> *itsBasisSet >> itsFitCoeff;
     return is;
 }

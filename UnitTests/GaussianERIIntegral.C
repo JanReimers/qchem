@@ -2,7 +2,6 @@
 
 
 #include "gtest/gtest.h"
-//#include "Imp/Integrals/SlaterIntegrals.H"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include "Imp/Integrals/Wigner3j.H"
 #include "Imp/Misc/DFTDefines.H"

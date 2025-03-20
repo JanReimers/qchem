@@ -5,6 +5,7 @@
 #include "Imp/Orbitals/TOrbital.H"
 #include <EnergyLevel.H>
 #include <QuantumNumber.H>
+#include <Irrep_BS.H>
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"

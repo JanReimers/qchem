@@ -4,55 +4,55 @@
 #include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/Containers/ERI4.H"
 #include <Cluster.H>
+#include <Irrep_BS.H>
 
-using std::cout;
-using std::endl;
-
-void AtomIE::Append(const IrrepIEClient* ciec)
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOverlap() const
 {
-    AnalyticIE<double>::Append(ciec);
-    IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
-    AtomIrrepIEClient* aiec=dynamic_cast<AtomIrrepIEClient*>(iec);
-    BFGrouper::Append(aiec);
-}
-
-
-const AtomIrrepIEClient* AtomIE::dcast(iec_t* iea)
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(iea);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
-    return a;
+
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= this->Overlap(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
+
+    return H;
 }
-
-
-AtomIE::SMat AtomIE::MakeOverlap(iec_t* iea ) const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKinetic() const
 {
-    auto  a=dcast(iea);
-    size_t N=a->size();
-    SMat s(N);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            s(i,j)=Overlap(a->es(i),a->es(j),2*a->l)*a->ns(i)*a->ns(j);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
 
-    return s;
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= this->Kinetic(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+
+    return H;
 }
-
-AtomIE::SMat AtomIE::MakeKinetic(iec_t* iea) const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNuclear(const Cluster* cl) const
 {
-    auto a=dcast(iea);;
-    size_t N=a->size();
-    SMatrix<double> Hk(N);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols(i))
-            Hk(i,j)=Kinetic(a->es(i),a->es(j),a->l)*a->ns(i)*a->ns(j);
+    assert(cl);
+        assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
+        int Z=-cl->GetNuclearCharge(); 
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
 
-    return Hk;
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Z*Nuclear(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
+
+    return H;
 }
-
-AtomIE::Mat AtomIE::MakeKinetic(iec_t* iea, iec_t* ieb) const
+template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
-    auto a=dcast(iea);;
-    auto b=dcast(ieb);;
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
+    assert(a->l==b->l);
     size_t Na=a->size();
     size_t Nb=b->size();
     Matrix<double> Hk(Na,Nb);
@@ -63,63 +63,24 @@ AtomIE::Mat AtomIE::MakeKinetic(iec_t* iea, iec_t* ieb) const
     return Hk;
 }
 
-AtomIE::SMat AtomIE::MakeNuclear(iec_t* iea,const Cluster& cl) const
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const fbs_t& _c) const
 {
-    auto a=dcast(iea);;
-    size_t N=a->size(),L=a->l;
-    SMatrix<double> Hn(N);
-    double Z=-cl.GetNuclearCharge();
-    for (auto i:Hn.rows())
-        for (auto j:Hn.cols(i))
-            Hn(i,j)= Z*Nuclear(a->es(i),a->es(j),L)*a->ns(i)*a->ns(j);
-
-    return Hn;
+    const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
+    ERI3 s3;
+    for (auto i:c.indices()) s3.push_back(MakeOverlap(c(i)));
+    return s3;
 }
-
-AtomIE::SMat AtomIE::MakeRestMass(iec_t* iea) const
+template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(const fbs_t& _c) const
 {
-    assert(false);
-    return SMat();
+    const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
+    ERI3 s3;
+    for (auto i:c.indices()) s3.push_back(MakeRepulsion(c(i)));
+    return s3;
 }
-
-AtomIE::RVec AtomIE::MakeCharge(iec_t* iea) const
-{
-    auto a=dcast(iea);;
-    RVec c(a->size());
-    for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
-    return c;
-}
-
-AtomIE::SMat AtomIE::MakeRepulsion(iec_t* iea ) const
-{
-    auto a=dcast(iea);;
-    assert(a);
-    size_t N=a->size();
-    SMat r(N,N);
-    for (auto i:r.rows())
-        for (auto j:r.cols(i))
-            r(i,j)=Repulsion(a->es(i),a->es(j),a->l,a->l)*a->ns(i)*a->ns(j);
-
-    return r;
-}
-
-AtomIE::Mat AtomIE::MakeRepulsion(iec_t* iea,iec_t* ieb) const
-{
-    auto a=dcast(iea);;
-    auto b=dcast(ieb);;
-    size_t Na=a->es.size(), Nb=b->es.size();
-    Mat s(Na,Nb);
-    for (auto i:s.rows())
-        for (auto j:s.cols())
-            s(i,j)=Repulsion(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*a->ns(j);
-
-    return s;
-}
-
-
-AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
+template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap  (const bf_tuple& c) const
 {    
-    auto ab=dcast(ieab);;
+    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(ab);
     size_t N=ab->size();
     int Nc,Lc,Mc;
     double ec,nc;
@@ -127,25 +88,14 @@ AtomIE::SMat AtomIE::MakeOverlap(iec_t* ieab, const bf_tuple& c) const
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=this->Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }
-
-
-AtomIE::ERI3 AtomIE::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
-{
-    auto c=dcast(iec);;
-   
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeOverlap(ieab,(*c)(i)));
-    return s3;
-}
-
-
-AtomIE::SMat AtomIE::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
+template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeRepulsion(const bf_tuple& c) const
 {    
-    auto ab=dcast(ieab);;
+    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(ab);
     size_t N=ab->size();
     int Nc,Lc,Mc;
     double ec,nc;
@@ -153,23 +103,27 @@ AtomIE::SMat AtomIE::MakeRepulsion(iec_t* ieab,const bf_tuple& c) const
     SMat s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=this->Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }
 
+template class AtomIE_DFT<double>;
 
-AtomIE::ERI3 AtomIE::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+
+
+template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {
-    auto c=dcast(iec);;
-    
-    ERI3 s3;
-    for (auto i:c->es.indices()) s3.push_back(MakeRepulsion(ieab,(*c)(i)));
-    return s3;
+    assert(ciec);
+    DB_BS_2E<T>::Append(ciec);
+    IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
+    AtomIrrepIEClient* aiec=dynamic_cast<AtomIrrepIEClient*>(iec);
+    assert(aiec);
+    BFGrouper::Append(aiec);
 }
-
-ERI4 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
+template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
+    typedef SMatrix<T> SMat;
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
     const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
@@ -194,8 +148,8 @@ ERI4 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) cons
                     if (id<ic) continue;
                     if (Jab(ic,id)!=0.0)
                     {
-                        cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-                        cout << Jab(ic,id) << endl;    
+                        std::cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        std::cout << Jab(ic,id) << std::endl;    
                         assert(false);
                     }
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
@@ -207,9 +161,9 @@ ERI4 AtomIE::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) cons
     }
     return J;
 };
-
-ERI4 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
+template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
+    typedef SMatrix<T> SMat;
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
     const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
     assert(a);
@@ -249,4 +203,64 @@ ERI4 AtomIE::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) cons
 
     return K;
 };
+template class AtomIE_BS_2E<double>;
 
+#include "Imp/Integrals/AngularIntegrals.H"
+
+AtomIE_BS_2E_l::RVec AtomIE_BS_2E_l::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
+{
+    return AngularIntegrals::Coulomb(la,lc);
+}
+AtomIE_BS_2E_l::RVec AtomIE_BS_2E_l::ExchangeAngularIntegrals(size_t la, size_t lb, int, int) const
+{
+    return AngularIntegrals::Exchange(la,lb);
+}
+
+AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const
+{
+    return AngularIntegrals::Coulomb(la,lc,ma,mc);
+}
+AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::ExchangeAngularIntegrals(size_t la, size_t lb, int ma, int mb) const
+{
+    return AngularIntegrals::Exchange(la,lb,ma,mb);
+}
+
+AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+    Vec c(a->size());
+    for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
+    return c;
+}
+AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    assert(a);
+
+    size_t N=a->size(),l=a->l;
+    SMatrix<double> H(N);
+    for (auto i:H.rows())
+        for (auto j:H.cols(i))
+            H(i,j)= Repulsion(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+
+    return H;
+}
+AtomIE_Fit::Mat  AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
+{
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(&_b);
+    assert(a);
+    assert(b);
+    size_t Na=a->es.size(), Nb=b->es.size();
+    Mat s(Na,Nb);
+    for (auto i:s.rows())
+        for (auto j:s.cols())
+            s(i,j)=this->Repulsion(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*a->ns(j);
+
+    return s;
+}
+
+
+template class AtomIE_RKBL<double>;
+template class AtomIE_RKBS<double>;

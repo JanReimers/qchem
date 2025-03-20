@@ -18,14 +18,14 @@ public:
     CompositeCD();
     void Insert(ChargeDensity*);
 
-    virtual SMat   GetRepulsion(const IrrepBasisSet*) const;
-    virtual SMat   GetExchange (const IrrepBasisSet*) const;
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual Vector<double> GetRepulsion3C(const IrrepBasisSet* theFitBasisSet) const;
+    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
 
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;

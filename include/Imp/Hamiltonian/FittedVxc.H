@@ -21,10 +21,11 @@ class FittedVxc
     , public         FittedFunctionImp<double>
 {
     typedef HamiltonianTerm::SMat SMat;
+public:
     typedef FittedFunctionImp<double>::mesh_t mesh_t;
     typedef FittedFunctionImp<double>::bs_t   bs_t;
     typedef std::shared_ptr<ExFunctional>     ex_t;
-public:
+
     FittedVxc();
     FittedVxc(bs_t& VxcFitBasisSet, ex_t&, mesh_t&);
     ~FittedVxc();
@@ -38,7 +39,7 @@ public:
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}
-    virtual SMat CalculateHamiltonianMatrix(const IrrepBasisSet*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
 };

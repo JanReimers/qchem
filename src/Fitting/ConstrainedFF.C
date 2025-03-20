@@ -2,8 +2,6 @@
 
 #include "Imp/Fitting/ConstrainedFF.H"
 #include <FittedFunctionClient.H>
-#include <BasisSet.H>
-#include <IntegralDataBase.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
@@ -19,8 +17,8 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 {}
 
 template <class T> ConstrainedFF<T>::
-ConstrainedFF(bs_t& theFitBasisSet, const Vec& theg, mesh_t&  m)
-    : FittedFunctionImp<T>(theFitBasisSet,m)
+ConstrainedFF(bs_t& fbs, const Vec& theg, mesh_t&  m)
+    : FittedFunctionImp<T>(fbs,m)
     , g  (theg)
     , gS (g*itsInvRepl)
     , gSg(gS*g)

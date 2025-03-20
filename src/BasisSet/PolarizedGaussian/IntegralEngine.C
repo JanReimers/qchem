@@ -3,6 +3,7 @@
 
 #include "Imp/BasisSet/PolarizedGaussian/IEClient.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
+#include <Irrep_BS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"
@@ -10,94 +11,29 @@
 namespace PolarizedGaussian
 {
 
-const IrrepIEClient* IntegralEngine::dcast(iec_t* iea)
+Fit_IE::Vec Fit_IE::MakeCharge() const
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(iea);
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     assert(a);
-    return a;
-}
-
-IntegralEngine::RVec IntegralEngine::MakeNormalization(iec_t* iea) const
-{
-    auto a=dcast(iea);
-    RVec n(a->size());
-    int i=0;
-    for (auto r:a->radials)
-    {
-        n(i+1)=r->Integrate(qchem::Overlap2C,r,a->pols[i],a->pols[i],cache);
-        i++;       
-    }
-    n=1.0/sqrt(n);
-    assert(!isnan(n));
-    return n;
-    
-}
-
-IntegralEngine::RVec IntegralEngine::MakeCharge(iec_t* iea) const
-{
-    auto a=dcast(iea);
-    RVec c(a->size());
+    Vec c(a->size());
     int i=0;
     for (auto r:a->radials)
     {
         c(i+1)=r->GetCharge(a->pols[i])*a->ns(i+1); 
         i++;       
     }
-    assert(!isnan(c));
+
+    // 1 line copilot version
+    //for (auto i:ab->ns.indices())  c(i)=ab->radials[i-1]->GetCharge(ab->pols[i-1])*ab->ns(i);
     return c;
 }
 
-
-
-//-----------------------------------------------------------------
-//
-//  Streamable Object stuff
-//
-AnalyticIE<double>* IntegralEngine::Clone() const
-{
-    return new IntegralEngine(*this);
-}
-
-//----------------------------------------------------------------------------------------
-//
-//  2 Center type integrals
-//
-IntegralEngine::SMat IntegralEngine::MakeOverlap(iec_t* a) const
-{
-    return Integrate(qchem::Overlap2C,a);
-}
-
-IntegralEngine::SMat IntegralEngine::MakeRepulsion(iec_t* iea ) const
-{
-    return Integrate(qchem::Repulsion2C,iea);
-}
-
-IntegralEngine::SMat IntegralEngine::MakeKinetic(iec_t* a) const
-{
-    return Integrate(qchem::Kinetic,a);
-}
-IntegralEngine::Mat IntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
-{
-    assert(false);
-    return Mat();
-}
-
-//
-IntegralEngine::SMat IntegralEngine::MakeNuclear(iec_t* a,const Cluster& cl) const
-{
-    return Integrate(qchem::Nuclear,a,&cl);
-}
-
-IntegralEngine::SMat IntegralEngine::MakeRestMass(iec_t* a) const
-{
-    assert(false);
-    return SMat();
-}
-
-IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
-{    
-    auto a=dcast(iea);
-    auto b=dcast(ieb);
+Fit_IE::Mat Fit_IE::MakeRepulsion(const fbs_t& _b) const
+{   
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
+    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
+    assert(a);
+    assert(b); 
     int Na=a->size(),Nb=b->size();
     Mat s(Na,Nb);
     for (index_t ia=0;ia<Na;ia++)
@@ -108,52 +44,63 @@ IntegralEngine::Mat IntegralEngine::MakeRepulsion(iec_t* iea,iec_t* ieb) const
     return s;
 }
 
-
-
-//------------------------------------------------------------------------------
-//
-//  3 Centre integrals.
-//
-
-IntegralEngine::ERI3 IntegralEngine::MakeOverlap3C(iec_t* ieab,iec_t* iec) const
+IE_Common::SMat IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
 {
-    auto c=dcast(iec);
+    const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
+    assert(ab);
+    int N=ab->size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns(ia+1)*ab->ns(ib+1);
+
+    return s;
+}
+
+Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const fbs_t& _c) const
+{
+    auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
     {
-        SMat s=Integrate(qchem::Overlap3C,ieab,c->radials[ic],c->pols[ic]);
+        SMat s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
         s*=c->ns(ic+1);
         s3.push_back(s);
     } 
     return s3;   
 }
-
-
-IntegralEngine::ERI3 IntegralEngine::MakeRepulsion3C(iec_t* ieab,iec_t* iec) const
+Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const fbs_t& _c) const
 {
-    auto c=dcast(iec);
+    auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
     ERI3 s3;
     for (index_t ic=0;ic<Nc;ic++)
     {
-        SMat s=Integrate(qchem::Repulsion3C,ieab,c->radials[ic],c->pols[ic]);
+        SMat s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
         s*=c->ns(ic+1);
         s3.push_back(s);
     }    
     return s3;
 }
-
-
-//-----------------------------------------------------------------------------------
-//
-//  4 centre integrals.
-//
-
-ERI4 IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
+Orbital_IE::SMat Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
-    const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(_c);
+    auto ab=dynamic_cast<const IrrepIEClient*>(this);
+    int N=ab->size();
+    SMat s(N);
+    for (index_t ia=0;ia<N;ia++)
+        for (index_t ib=ia;ib<N;ib++)
+            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns(ia+1)*ab->ns(ib+1);
+        
+    return s;    
+}
+
+
+
+ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
+{
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
+    const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(&_c);
     assert(a);
     assert(c);
     size_t Na=a->size(), Nc=c->size();
@@ -175,10 +122,10 @@ ERI4 IntegralEngine::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClie
     return J;
 }
 
-ERI4 IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
+ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
-    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(_b);
+    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
+    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(&_b);
     assert(a);
     assert(b);
     size_t Na=a->size(), Nb=b->size();
@@ -203,41 +150,6 @@ ERI4 IntegralEngine::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClie
                 }        
             }
     return K;
-}
-
-//-------------------------------------------------------------------------
-//
-//  Internal function for doing most of the double loops.
-//
-IntegralEngine::SMat IntegralEngine::Integrate(qchem::IType3C type ,iec_t* ieab, const RadialFunction* rc, const Polarization& pc) const
-{
-    auto ab=dcast(ieab);
-    int N=ab->size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns(ia+1)*ab->ns(ib+1);
-        
-    return s;    
-}
-
-
-IntegralEngine::SMat IntegralEngine::Integrate(qchem::IType2C type ,iec_t* ieab,  const Cluster* cl) const
-{
-    auto ab=dcast(ieab);
-    int N=ab->size();
-    SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=ab->radials[ia]->Integrate(type,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns(ia+1)*ab->ns(ib+1);
-
-    return s;
-}
-
-void IntegralEngine::Report(std::ostream& os) const
-{
-    os << "Polarized Gaussian integral engine cache:" << std::endl;
-    cache.Report(os);
 }
 
 } //namespace PolarizedGaussian
