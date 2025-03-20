@@ -7,6 +7,7 @@
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/MoleculeMesh.H"
 #include "oml/imp/binio.h"
+#include "oml/imp/stream.h"
 #include "oml/io3d.h"
 #include <iostream>
 #include <cassert>

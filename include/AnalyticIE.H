@@ -4,10 +4,8 @@
 
 
 #include "types.H"
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include <UniqueID.H> //Need IDType
 #include <vector>
-#include <map>
-#include <iosfwd>
 
 class IrrepIEClient;
 //--------------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 
 #include "Cluster.H"
 #include "Imp/Cluster/UnitCell.H"
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include "oml/vector3d.h"
 #include <vector>
 
@@ -22,6 +23,7 @@
 //
 class Lattice
     : public virtual Cluster
+    , public UniqueIDImp
 {
 public:
     Lattice();

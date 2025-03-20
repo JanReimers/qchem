@@ -3,12 +3,14 @@
 #define _Atom_H_
 
 #include "types.H"
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include "Imp/Misc/pmstream.h"
 #include "oml/vector3d.h"
 #include <string>
 
 class Atom
     : public virtual PMStreamableObject
+    , public UniqueIDImp
 {
 public:
     Atom();

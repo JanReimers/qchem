@@ -94,7 +94,7 @@ std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
     assert(itsQuantumNumber);
     if(!Pretty())
     {
-        UniqueID::Write(os);
+        UniqueIDImp::Write(os);
         if(!Binary()) os << std::endl;
         os << *itsQuantumNumber;
         if(!Binary()) os << std::endl;

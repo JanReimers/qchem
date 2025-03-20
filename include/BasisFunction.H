@@ -2,7 +2,8 @@
 #ifndef _BasisFunction_H_
 #define _BasisFunction_H_
 
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include "Imp/Misc/pmstream.h"
+#include <iosfwd>
 
 //--------------------------------------------------------------
 //
@@ -12,7 +13,7 @@
 //  be real.
 //
 class BasisFunction
-    : public UniqueID
+    : public virtual PMStreamableObject
 {
 public:
     virtual ~BasisFunction()  {};

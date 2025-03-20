@@ -10,7 +10,6 @@
 template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
-   // , private OrbitalsImp
 {
     typedef VectorFunction<T> Base;
     typedef typename Base::Mat     Mat;  //Matrix.

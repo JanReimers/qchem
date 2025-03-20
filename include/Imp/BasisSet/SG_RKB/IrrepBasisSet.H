@@ -26,10 +26,6 @@ template <class T> class Large_Orbital_IBS
     Large_Orbital_IBS() {};
     Large_Orbital_IBS(const LAParams&,const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
-    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-   
-    
-
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
@@ -44,8 +40,6 @@ template <class T> class Small_Orbital_IBS
 public:
     Small_Orbital_IBS() {};
     Small_Orbital_IBS(const LAParams&,const DB_cache<T>*,const Large_Orbital_IBS<T>*);
-    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-  
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
@@ -60,8 +54,6 @@ class Dirac_IrrepBasisSet
 public:
     Dirac_IrrepBasisSet(const LAParams&,const DB_cache<double>*, const Vector<double>& exponents, int kappa);
 
-    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
-   
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 

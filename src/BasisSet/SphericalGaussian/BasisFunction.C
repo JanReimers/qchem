@@ -39,7 +39,7 @@ bool BasisFunction::operator==(const ::BasisFunction& bf) const
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
-    UniqueID::Write(os);
+    // UniqueID::Write(os);
     if ( StreamableObject::Binary())
     {
         BinaryWrite(itsExponent     ,os);
@@ -59,7 +59,7 @@ std::ostream& BasisFunction::Write(std::ostream& os) const
 
 std::istream& BasisFunction::Read(std::istream& is)
 {
-    UniqueID::Read(is);
+    // UniqueID::Read(is);
     if (StreamableObject::Binary())
     {
         BinaryRead(itsExponent     ,is);

@@ -1,5 +1,5 @@
 Priority 1:
-    -Clean up Dirac/RKB code.
+    Done: -Clean up Dirac/RKB code.
     -We need a UniqueID pure interface   
     -Break up the BasisSet.H header
         Done: -Break out BasisFunction.H
@@ -7,7 +7,7 @@ Priority 1:
             DFT: Put IE,DB,IBS interfaces in one header?
             HF: 
             Fit:
-        -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
+        Done: -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
     -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
     Done: -Stop using paramaterized Integral() calls.
     Done: -PG::Fit_BS do we need all that function forwarding?
@@ -19,14 +19,15 @@ Priority 1:
     Done: -Survey use of IrrepBS, Can we use more specific interfaces?
     -Survey use of dynamic cast
         -SHould only be casting between interfaces
-        -Can we pass around ore specific interfaces?
+        -Can we pass around more specific interfaces?
     -We need separate interface for ExactCD as compared to FittedCD.
         i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
     -Move all Hamilton constants out of integral engines
         factor of 1/2 for kinetic
         factor of Z (and R) for Ven
-            -This is inefficenet, we only need the sum over centers
-        factos of c for H_Dirac
+            -Easy for atoms
+            -For molecules This is inefficenet, we only need the sum over centers
+        factors of c for H_Dirac
     Done: -Break down integral engines
         -OneElectron_IE:
             Overlap
@@ -45,7 +46,7 @@ Priority 1:
         Done: -COnjunction with:
             1) Simplify integral call chain
             2) Separate FitBasisSet idea.
-    -Use the DB_BS_2E to cache all integrals.
+    Done: -Use the DB_BS_2E to cache all integrals.
         -The reorg IE/DB/AtomIE classes so that we don't end up with Kinetic/Nuclear integrals
          poluting the FIT_IE interface.
     Done: -Simplify integral call chain

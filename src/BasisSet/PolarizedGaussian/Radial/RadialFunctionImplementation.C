@@ -61,7 +61,7 @@ const Hermite1& RadialCommon::GetH1() const
 
 std::ostream& RadialCommon::Write(std::ostream& os) const
 {
-    UniqueID::Write(os);
+    UniqueIDImp::Write(os);
     if ( StreamableObject::Binary())
     {
         os << itsCenter;
@@ -76,7 +76,7 @@ std::ostream& RadialCommon::Write(std::ostream& os) const
 
 std::istream& RadialCommon::Read(std::istream& is)
 {
-    UniqueID::Read(is);
+    UniqueIDImp::Read(is);
     if (StreamableObject::Binary())
     {
         is >> itsCenter;

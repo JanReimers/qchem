@@ -6,7 +6,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite2.H"
 #include "types.H"
 #include "Imp/Containers/ptr_vector.h"
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"
@@ -20,7 +20,7 @@ class GaussianRF;
 class RadialFunction;
 class Hermite1;
 
-class GaussianCD : public UniqueID
+class GaussianCD : public UniqueIDImp
 {
 public:
     GaussianCD(const GaussianRF&,const GaussianRF&);

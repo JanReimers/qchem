@@ -21,13 +21,11 @@ QuantumNumber* UnitQN::AddPrincipleQN(int index) const
 
 std::ostream& UnitQN::Write(std::ostream& os) const
 {
-    UniqueID::Write(os);
     return os;
 }
 
 std::istream& UnitQN::Read (std::istream& is)
 {
-    UniqueID::Read(is);
     return is;
 }
 

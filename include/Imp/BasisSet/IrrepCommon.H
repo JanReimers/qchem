@@ -5,6 +5,7 @@
 
 
 #include <Irrep_BS.H>
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include "Imp/Containers/ptr_vector.h"
 
 //---------------------------------------------------------------------
@@ -14,6 +15,7 @@
 //
 class IrrepBasisSetCommon
     : public virtual IrrepBasisSet
+    , private UniqueIDImp
 {
 public:
     IrrepBasisSetCommon(              );
@@ -35,6 +37,7 @@ public:
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
 
+    using UniqueIDImp::GetID;
     virtual std::ostream& Write(std::ostream&) const;
 
 protected:

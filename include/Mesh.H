@@ -3,21 +3,17 @@
 #define _Mesh_H_
 
 #include "types.H"
-#include "Imp/Misc/UniqueID/UniqueID.H"
 #include "oml/vector3d.h"
 #include <tuple>
 #include <vector>
 
-class Mesh : public virtual UniqueID
+class Mesh 
 { 
 public:
     virtual ~Mesh () {};
 
     virtual void    ShiftOrigin(const RVec3&);
     virtual Mesh*   Clone      () const;
-    virtual std::ostream& Write(std::ostream& os) const {return os;}
-    virtual std::istream& Read (std::istream& is)       {return is;}
-   // static  Mesh*   Factory  (std::istream&);
     
     typedef std::tuple<RVec3,double> rw_t;
     typedef std::vector<rw_t>         vec_t;

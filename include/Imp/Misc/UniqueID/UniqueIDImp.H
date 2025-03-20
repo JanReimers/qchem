@@ -1,9 +1,9 @@
-// File: UniqueID.H  Anything derived from this will have a unique ID.
-#ifndef _UniqueID_H_
-#define _UniqueID_H_
+// File: UniqueIDImp.H  Anything derived from this will have a unique ID.
+#ifndef _UniqueIDImp_H_
+#define _UniqueIDImp_H_
 
 
-
+#include <UniqueID.H>
 #include "Imp/Misc/pmstream.h"
 
 //#############################################################################
@@ -14,15 +14,17 @@
 //  the current count (NectID) is saved in a file on disk.  When a new
 //  process is started this file will be used to initialize the NextID.
 //
-class UniqueID :
-    public virtual PMStreamableObject
+class UniqueIDImp 
+    : public virtual UniqueID
+    , public virtual PMStreamableObject
 {
 public:
     typedef int IDtype;
 
-    UniqueID();
-    UniqueID(const UniqueID&);
-    virtual ~UniqueID();
+    UniqueIDImp();
+    UniqueIDImp(const UniqueIDImp&);
+    ~UniqueIDImp();
+    
     UniqueID& operator=(const UniqueID&);
 
     virtual std::ostream& Write(std::ostream&) const;
@@ -49,4 +51,4 @@ private:
     static const IDtype MaxID;
 };
 
-#endif
+#endif //_UniqueIDImp_H_

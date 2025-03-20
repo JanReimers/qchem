@@ -3,7 +3,8 @@
 #define _RadialFunction_H_
 
 #include "Polarization.H"
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include "Imp/Misc/pmstream.h"
+#include <UniqueID.H> 
 #include <ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>
@@ -30,6 +31,7 @@ class  Block;
 class RadialFunction
     : public virtual UniqueID
     , public virtual ScalarFunction<double>
+    , public virtual PMStreamableObject
 {
 public:
     typedef std::set   <double> sd_t;

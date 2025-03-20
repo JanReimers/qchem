@@ -3,11 +3,13 @@
 #define _BasisSet_TCommon_H_
 
 #include <BasisSet.H>
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 
 class BasisSetImp
     : public virtual BasisSet
+    , private UniqueIDImp
 {
 public:
     typedef BasisSet Base;

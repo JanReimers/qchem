@@ -3,7 +3,8 @@
 #define _BasisSet_H_
 
 #include <types.H>
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include <UniqueID.H>
+#include "Imp/Misc/pmstream.h"
 
 #include <vector>
 #include "IEClient.H"
@@ -19,7 +20,8 @@
 //  Persistent is derived from StreamableObject which has a virtual destructor
 //
 class BasisSet
-    : public UniqueID
+    : public virtual UniqueID
+    , public virtual PMStreamableObject
 {
 public:
     typedef Orbital_IBS bs_t;
@@ -30,7 +32,6 @@ public:
 
     virtual ~BasisSet() {}; 
     virtual size_t GetNumFunctions() const=0;
-    virtual UniqueID::IDtype GetID() const {return UniqueID::GetID();}
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;

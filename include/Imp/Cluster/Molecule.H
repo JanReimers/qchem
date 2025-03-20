@@ -4,10 +4,12 @@
 
 #include "Cluster.H"
 #include "Imp/Containers/ptr_vector.h"
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include <iostream>
 
-class Molecule :
-    public virtual Cluster
+class Molecule 
+    : public virtual Cluster
+    , public UniqueIDImp
 {
 public:
     Molecule();

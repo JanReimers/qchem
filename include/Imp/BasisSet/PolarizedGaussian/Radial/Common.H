@@ -5,6 +5,7 @@
 
 
 #include "../RadialFunction.H"
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 
 namespace PolarizedGaussian
 {
@@ -16,6 +17,7 @@ namespace PolarizedGaussian
 //
 class RadialCommon
     : public virtual RadialFunction
+    , private UniqueIDImp
 {
 public:
     RadialCommon(                         );
@@ -33,7 +35,8 @@ public:
         return itsL;
     }
     virtual const Hermite1& GetH1     (                     ) const;
-
+    
+    using UniqueIDImp::GetID;
     virtual std::ostream&           Write(std::ostream&) const;
     virtual std::istream&           Read (std::istream&)      ;
 

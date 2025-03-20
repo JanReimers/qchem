@@ -66,7 +66,6 @@ std::string SPDFG[]={"s","p","d","f","g"};
 
 std::ostream& YlQN::Write(std::ostream& os) const
 {
-    UniqueID::Write(os);
     if (StreamableObject::Binary())
         BinaryWrite(itsL,os);
     if (StreamableObject::Ascii())
@@ -78,7 +77,6 @@ std::ostream& YlQN::Write(std::ostream& os) const
 
 std::istream& YlQN::Read (std::istream& is)
 {
-    UniqueID::Read(is);
     if (StreamableObject::Binary())
         BinaryRead(itsL,is);
     else

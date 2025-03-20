@@ -1,8 +1,8 @@
-// File: UniqueID.C  Anything derived from this will have a unique ID.
+// File: UniqueIDImp.C  Anything derived from this will have a unique ID.
 
 
 
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include "oml/imp/binio.h"
 #include <fstream>
 #include <cassert>
@@ -10,10 +10,10 @@
 
 char ID_FILE[] = "/tmp/NextID.tmp";
 
-UniqueID::IDtype UniqueID::NextID = 0      ;
-const UniqueID::IDtype UniqueID::MaxID  = 0x20000;
+UniqueID::IDtype UniqueIDImp::NextID = 0      ;
+const UniqueID::IDtype UniqueIDImp::MaxID  = 0x20000;
 
-UniqueID::UniqueID()
+UniqueIDImp::UniqueIDImp()
 {
     if (!NextID)
     {
@@ -35,23 +35,23 @@ UniqueID::UniqueID()
     itsID=GetNextID();
 }
 
-UniqueID::IDtype UniqueID::GetNextID()
+UniqueID::IDtype UniqueIDImp::GetNextID()
 {
     if (++NextID >= GetMaxID()) NextID=1;
     return NextID;
 }
 
-UniqueID::UniqueID(const UniqueID&)
+UniqueIDImp::UniqueIDImp(const UniqueIDImp&)
     : itsID(GetNextID())
 {};
 
-UniqueID::~UniqueID()
+UniqueIDImp::~UniqueIDImp()
 {
     std::ofstream Next(ID_FILE);
     Next << NextID << std::endl;
 }
 
-UniqueID& UniqueID::operator=(const UniqueID&)
+UniqueID& UniqueIDImp::operator=(const UniqueID&)
 {
     itsID=GetNextID();
     return *this;
@@ -59,14 +59,14 @@ UniqueID& UniqueID::operator=(const UniqueID&)
 
 
 
-std::ostream& UniqueID::Write(std::ostream& os) const
+std::ostream& UniqueIDImp::Write(std::ostream& os) const
 {
     if (StreamableObject::Binary()) BinaryWrite(itsID,os);
     if (StreamableObject::Ascii ()) os << itsID << " ";
     return os;
 }
 
-std::istream& UniqueID::Read (std::istream& is)
+std::istream& UniqueIDImp::Read (std::istream& is)
 {
     if (StreamableObject::Binary()) BinaryRead(itsID,is);
     if (StreamableObject::Ascii ()) is >> itsID;

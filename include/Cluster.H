@@ -3,11 +3,14 @@
 #define _Cluster_H_
 
 #include "types.H"
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include <UniqueID.H> 
+#include "Imp/Misc/pmstream.h"
 #include <vector>
+#include <iosfwd>
 
 class Cluster
-    : public UniqueID
+    : public virtual UniqueID
+    , public virtual PMStreamableObject
 {
 public:
     typedef std::vector<Atom*>::      iterator       iterator;

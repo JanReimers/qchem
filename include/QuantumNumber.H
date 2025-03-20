@@ -2,14 +2,13 @@
 #ifndef _qnum_h_
 #define _qnum_h_
 
-
-
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include "Imp/Misc/pmstream.h"
 
 class QuantumNumber
-    : public virtual UniqueID
+    : public virtual PMStreamableObject
 {
 public:
+    virtual ~QuantumNumber() {};
     virtual bool Match(const QuantumNumber&) const=0;
     friend  bool operator==(const QuantumNumber& q1, const QuantumNumber& q2)
     {

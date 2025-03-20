@@ -3,9 +3,10 @@
 #define _CDCache_H_
 
 #include "types.H"
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include <UniqueID.H> 
 #include <tuple>
 #include <map>
+#include <iosfwd>
 
 namespace PolarizedGaussian
 {

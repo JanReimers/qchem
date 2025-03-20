@@ -5,6 +5,7 @@
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"
+#include "oml/imp/stream.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>

@@ -95,7 +95,6 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
     {
         WriteBasisFunctions(os);
         IrrepBasisSetCommon::Write(os);
-        TIrrepBasisSetCommon<double>::Write(os);
     }
     else
     {

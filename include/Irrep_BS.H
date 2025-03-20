@@ -4,9 +4,11 @@
 
 #include <IEClient.H>
 #include <types.H>
-#include "Imp/Misc/UniqueID/UniqueID.H"
+#include <UniqueID.H>
+#include "Imp/Misc/pmstream.h" 
 #include <vector>
 #include <cassert>
+#include <iosfwd>
 
 //----------------------------------------------------------------------------
 //
@@ -22,14 +24,14 @@
 
 class IrrepBasisSet
     : public virtual IrrepIEClient
-    , public UniqueID
+    , public virtual UniqueID
+    , public virtual PMStreamableObject
 {
 public:
     typedef std::vector<const BasisFunction*>::      iterator       iterator;
     typedef std::vector<const BasisFunction*>::const_iterator const_iterator;
 
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
-    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;
     virtual       QuantumNumber* GetQuantumNumber(int index      ) const=0;

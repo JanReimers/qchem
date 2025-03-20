@@ -61,7 +61,7 @@ std::ostream& Molecule::Write(std::ostream& os) const
 {
     if (!StreamableObject::Pretty())
     {
-        UniqueID::Write(os);
+        UniqueIDImp::Write(os);
         if (StreamableObject::Binary())
         {
             BinaryWrite(GetNumElectrons(),os);
@@ -88,7 +88,7 @@ std::ostream& Molecule::Write(std::ostream& os) const
 
 std::istream& Molecule::Read(std::istream& is)
 {
-    UniqueID::Read(is);
+    UniqueIDImp::Read(is);
     if (StreamableObject::Binary())
     {
         BinaryRead(itsNumElectrons,is);

@@ -29,11 +29,11 @@ public:
     mutable erij_t Jac,Kab;
 };
  
-template <class T> class DB_Common : virtual public Integrals_Base<T>
+template <class T> class DB_Common 
+    : virtual public Integrals_Base<T>
+    , virtual public UniqueID
 {
 protected:
-    typedef UniqueID::IDtype IDType;
-    virtual IDType GetID() const=0;
     DB_Common(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
     const DB_cache<T>* itsCache;
 };
@@ -108,19 +108,19 @@ private:
     using DB_cache<T>::Jac;
     using DB_cache<T>::Kab;
 };
-template <class T> class DB_2E :  virtual public Integrals_2E<T>
+template <class T> class DB_2E 
+    : virtual public Integrals_2E<T>
+    , virtual public UniqueID
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::obs_t obs_t;
 public:
-    typedef UniqueID::IDtype IDType;
     virtual ERI4 Direct  (const obs_t& c) const;
     virtual ERI4 Exchange(const obs_t& b) const;
 protected:
     DB_2E() : itsDB_BS_2E(0) {};
     DB_2E(const DB_BS_2E<T>* db);
 private:
-    virtual IDType GetID() const=0;
     const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
 };
 

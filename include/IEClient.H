@@ -2,16 +2,16 @@
 #ifndef _IEClient_H_
 #define _IEClient_H_
 
-#include "Imp/Misc/UniqueID/UniqueID.H" //Just need ID type.
+#include <UniqueID.H> 
+#include "oml/imp/index_t.h" //for size_t
 //
 //  Integral DB and engines only sees this
 //
 class IrrepIEClient //Client for and Irrep basis set.
+: public virtual UniqueID
 {
 public:
     virtual ~IrrepIEClient() {};
-    //virtual size_t GetIndex() const=0;
-    virtual UniqueID::IDtype GetID() const=0;
     virtual size_t size() const=0;
 };
 

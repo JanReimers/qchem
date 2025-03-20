@@ -50,9 +50,6 @@ Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db,const std::set<double
     , SphericalGaussian::Orbital_IE(db)
 {};
 
-
-
-    virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;

@@ -46,8 +46,7 @@ bool BasisFunction::operator==(const ::BasisFunction& bf) const
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
     assert(itsRadial);
-    UniqueID::Write(os);
-
+    
     if (StreamableObject::Pretty())
     {
         os.setf(std::ios::fixed,std::ios::floatfield);
@@ -59,7 +58,6 @@ std::ostream& BasisFunction::Write(std::ostream& os) const
 
 std::istream& BasisFunction::Read(std::istream& is)
 {
-    UniqueID::Read(is);
     return is;
 }
 
