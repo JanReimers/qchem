@@ -61,9 +61,7 @@ class Dirac_IrrepBasisSet
     , public Dirac::IrrepBasisSet<double>
     , public         Dirac_IrrepIEClient
 {
-    typedef Integrals_Base<double>::SMat SMat;
 public:
-    //Dirac_IrrepBasisSet() {};
     Dirac_IrrepBasisSet(const LAParams&,const DB_cache<double>*, const Vector<double>& exponents, int kappa);
 
     virtual UniqueID::IDtype     GetID() const {return UniqueID::GetID();}

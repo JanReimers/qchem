@@ -20,21 +20,21 @@ template <class T> class RKB_IE
     , public DB_RKB<T>
 {
     typedef Integrals_Base<T> Base;
+    typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
     typedef typename Base::obs_t obs_t;
 public:
     RKB_IE(const DB_cache<T>* db) : DB_RKB<T>(db) {};
     RKB_IE(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
 
-    virtual SMat MakeOverlap() const;
-    virtual SMat MakeKinetic() const;
-    virtual SMat MakeNuclear(const Cluster*) const;
+    virtual SMat MakeOverlap () const;
+    virtual SMat MakeKinetic () const;
+    virtual SMat MakeNuclear (const Cluster*) const;
     virtual SMat MakeRestMass() const;
     virtual ERI4 MakeDirect  (const obs_t& c) const;
     virtual ERI4 MakeExchange(const obs_t& b) const;
 private:
     friend DiracIntegralTests;
-    typedef Matrix<T> Mat;
     static SMat merge_diag(const SMat& l,const SMat& s);
     static SMat merge_off_diag(const Mat& ls);
 protected:
@@ -51,13 +51,10 @@ template <class T> class IrrepBasisSet
     , public RKB_IE<T>
 {
     public:
-    //IrrepBasisSet() {}; 
-    IrrepBasisSet(const LAParams&,const DB_cache<T>* db,::Orbital_RKBL_IBS<T>* rkbl,int kappa);
-    IrrepBasisSet(const LAParams&,const DB_cache<T>* db,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs,int kappa);
-    virtual std::ostream&  Write(std::ostream& os   ) const {return os;}
-    virtual std::istream&  Read (std::istream& is   )       {return is;}
-
+    IrrepBasisSet(const LAParams&,const DB_cache<T>* db,int kappa);
+    
 protected:
+    void Init(::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;
     ::Orbital_RKBS_IBS<T>* itsRKBS;
 };

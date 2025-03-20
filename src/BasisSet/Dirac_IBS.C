@@ -28,7 +28,6 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_diag(const SMat& l,
             ls(Nl+i,Nl+j)=s(i,j);
     return ls;
 }
-
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_off_diag(const Mat& ls)
 
 {
@@ -43,27 +42,23 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_off_diag(const Mat&
    
     return k;
 }    
-
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeOverlap() const
 {
     SMat ol=itsRKBL->Overlap();
     SMat os=itsRKBS->Kinetic();
     return merge_diag(ol,os);
 }
-
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeKinetic() const
 {
     Mat kls=-2.0*itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);
 }
-
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeNuclear(const Cluster* c) const
 {
     SMat nl=itsRKBL->Nuclear(c);
     SMat ns=itsRKBS->Nuclear(c);
     return merge_diag(nl,ns);
 }
-
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeRestMass() const
 {
     static const double f=-2.0*c_light*c_light;
@@ -72,8 +67,6 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeRestMass() const
     SMat rs=f*itsRKBS->Kinetic();
     return merge_diag(rl,rs);
 }
-
-
 template <class T> ERI4 RKB_IE<T>::MakeDirect  (const obs_t& c) const
 {
     return ERI4();
@@ -94,29 +87,25 @@ template <class T> ERI4 RKB_IE<T>::MakeExchange(const obs_t& b) const
     return ERI4();
 }
 
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db
-    ,::Orbital_RKBL_IBS<T>* rkbl, int kappa)
+template <class T> IrrepBasisSet<T>::IrrepBasisSet
+(const LAParams& lap,const DB_cache<T>* db, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>(lap)
     , RKB_IE<T>(db)
-    , itsRKBL(rkbl)
+    , itsRKBL(0)
     , itsRKBS(0)
 {
-    assert(itsRKBL);
-    RKB_IE<T>::itsRKBL=rkbl;
+   
 }
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db
-    ,::Orbital_RKBL_IBS<T>* rkbl,::Orbital_RKBS_IBS<T>* rkbs, int kappa)
-    : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , Orbital_IBS_Common<T>(lap)
-    , RKB_IE<T>(db)
-    , itsRKBL(rkbl)
-    , itsRKBS(rkbs)
+
+template <class T> void IrrepBasisSet<T>::Init(::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
 {
-    assert(itsRKBL);
-    assert(itsRKBS);
-    RKB_IE<T>::itsRKBL=rkbl;
-    RKB_IE<T>::itsRKBS=rkbs;
+    assert(l);
+    assert(s);
+    itsRKBL=l;
+    itsRKBS=s;
+    RKB_IE<T>::itsRKBL=l;
+    RKB_IE<T>::itsRKBS=s;
 }
 
 } // namespace Dirac

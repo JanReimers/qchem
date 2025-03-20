@@ -128,14 +128,11 @@ template <class T> double Small_Orbital_IBS<T>::Nuclear(double ea , double eb,si
 
   
 Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
-    : Dirac::IrrepBasisSet<double>(lap,db,new Large_Orbital_IBS<double>(lap,db,exponents, kappa),kappa )
+    : Dirac::IrrepBasisSet<double>(lap,db,kappa )
 {
-    auto rkbl=dynamic_cast<Large_Orbital_IBS<double>*>(itsRKBL);
-    assert(rkbl);
+    auto rkbl=new Large_Orbital_IBS<double>(lap,db,exponents, kappa);
     auto rkbs=new Small_Orbital_IBS<double>(lap,db,rkbl);
-    itsRKBS=rkbs;
-    assert(itsRKBS);
-    RKB_IE::itsRKBS=rkbs;
+    Dirac::IrrepBasisSet<double>::Init(rkbl,rkbs);
     Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
