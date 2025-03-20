@@ -25,24 +25,22 @@ template <class T> class RKB_IE
     typedef typename Base::obs_t obs_t;
 public:
     RKB_IE(const DB_cache<T>* db) : DB_RKB<T>(db) {};
-    RKB_IE(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs);
-
+    
     virtual SMat MakeOverlap () const;
     virtual SMat MakeKinetic () const;
     virtual SMat MakeNuclear (const Cluster*) const;
     virtual SMat MakeRestMass() const;
     virtual ERI4 MakeDirect  (const obs_t& c) const;
     virtual ERI4 MakeExchange(const obs_t& b) const;
+protected:
+    void Init(const ::Orbital_RKBL_IBS<T>*,const ::Orbital_RKBS_IBS<T>*);
 private:
     friend DiracIntegralTests;
     static SMat merge_diag(const SMat& l,const SMat& s);
     static SMat merge_off_diag(const Mat& ls);
-protected:
     const ::Orbital_RKBL_IBS<T>* itsRKBL;
     const ::Orbital_RKBS_IBS<T>* itsRKBS;
 };
-
-
 
 template <class T> class IrrepBasisSet
     : public virtual Orbital_RKB_IBS<T>

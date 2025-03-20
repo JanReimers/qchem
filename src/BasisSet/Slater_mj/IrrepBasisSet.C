@@ -1,10 +1,8 @@
-// File: Slater_m/IrrepBasisSet.C  Spherical Slater basis set with orbital angular momentum l,m.
+// File: Slater_mj/IrrepBasisSet.C  Spherical Slater RKB basis set.
 
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater_mj/BasisFunction.H"
-#include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
 #include "Imp/Symmetry/OkmjQN.H"
-#include "Imp/Integrals/SlaterIntegrals.H"
 
 #include <iostream>
 #include <cassert>
@@ -94,7 +92,7 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,const DB_cache<double>* db,const Large_Orbital_IBS<T>* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
     , TIrrepBasisSetCommon<T>(lap)
-    , AtomIE_RKBS<T>(db)
+    , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
   Small_IrrepIEClient::Init(lbs->es);
@@ -128,30 +126,6 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return 0;
-}
-
-
-template <class T> double Small_Orbital_IBS<T>::Overlap(double ea , double eb,size_t l_total) const
-{
-    assert(false);
-    return 0.0;
-}
-template <class T> double Small_Orbital_IBS<T>::Kinetic(double ea , double eb,size_t la, size_t lb) const
-{
-    double ab=ea+eb;
-    int na=l+1,nb=l+1;
-    size_t ll=(l*(l+1)+l*(l+1))/2;
-    int n=na+nb;
-    double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
-    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
-    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
-
-    return 2.0*(Term1+Term2+Term3);
-}
-template <class T> double Small_Orbital_IBS<T>::Nuclear(double ea , double eb,size_t l_total) const
-{
-    return ea*eb*SlaterIntegral(ea+eb,l_total+1);
 }
 
 } //namespace

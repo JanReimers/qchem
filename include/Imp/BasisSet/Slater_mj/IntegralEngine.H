@@ -11,13 +11,23 @@ class DiracIntegralTests;
 namespace Slater_mj
 {
     
-    template <class T> class Orbital_RKBL_IE
+template <class T> class Orbital_RKBL_IE
     : public     AtomIE_RKBL<T>
     , public Slater::IE_Primatives
-    {
-    protected:
-        Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
-    };
+{
+protected:
+    Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
+};
+
+template <class T> class Orbital_RKBS_IE
+    : public     AtomIE_RKBS<T>
+{
+protected:
+    Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
+    virtual double Kinetic(double ea , double eb,size_t la,size_t lb) const;
+    virtual double Nuclear(double ea , double eb,size_t l_total) const;
+};
+
 
 
 

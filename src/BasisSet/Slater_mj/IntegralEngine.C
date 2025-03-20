@@ -1,4 +1,31 @@
+#include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
+#include "Imp/Integrals/SlaterIntegrals.H"
 
+
+namespace Slater_mj
+{
+   
+template <class T> double Orbital_RKBS_IE<T>::Kinetic(double ea , double eb,size_t l, size_t lb) const
+{
+    assert(l==lb);
+    double ab=ea+eb;
+    int na=l+1,nb=l+1;
+    size_t ll=(l*(l+1)+l*(l+1))/2;
+    int n=na+nb;
+    double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
+    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
+    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
+    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
+
+    return 2.0*(Term1+Term2+Term3);
+}
+template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
+{
+    return ea*eb*SlaterIntegral(ea+eb,l_total+1);
+}
+
+template class Orbital_RKBS_IE<double>;
+    
 // ERI4 DiracIntegralEngine::merge_diag(const ERI4& LLLL,const ERI4& LLSS,const ERI4& SSLL,const ERI4& SSSS)
 // {
 //     size_t Nl=LLLL.Nab();
@@ -427,4 +454,4 @@
 // }
 
 
-// } //namespace
+} //namespace

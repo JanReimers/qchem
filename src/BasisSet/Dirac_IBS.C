@@ -6,14 +6,13 @@
 #include "Imp/Symmetry/OkmjQN.H"
 namespace Dirac
 {
-    template <class T> RKB_IE<T>
-    ::RKB_IE(const DB_cache<T>* db,const ::Orbital_RKBL_IBS<T>* rkbl, const ::Orbital_RKBS_IBS<T>* rkbs)
-    : DB_RKB<T>(db), itsRKBL(rkbl), itsRKBS(rkbs)
-    {
-        assert(itsRKBL);
-        assert(itsRKBS);
-    }
-
+template <class T> void RKB_IE<T>::Init(const ::Orbital_RKBL_IBS<T>* l,const ::Orbital_RKBS_IBS<T>* s)
+{
+    assert(l);
+    assert(s);
+    itsRKBL=l;
+    itsRKBS=s;
+}
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_diag(const SMat& l,const SMat& s)
 {
     size_t Nl=l.GetNumRows();
@@ -87,16 +86,13 @@ template <class T> ERI4 RKB_IE<T>::MakeExchange(const obs_t& b) const
     return ERI4();
 }
 
-template <class T> IrrepBasisSet<T>::IrrepBasisSet
-(const LAParams& lap,const DB_cache<T>* db, int kappa)
+template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>(lap)
     , RKB_IE<T>(db)
     , itsRKBL(0)
     , itsRKBS(0)
-{
-   
-}
+{}
 
 template <class T> void IrrepBasisSet<T>::Init(::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
 {
@@ -104,8 +100,7 @@ template <class T> void IrrepBasisSet<T>::Init(::Orbital_RKBL_IBS<T>* l,::Orbita
     assert(s);
     itsRKBL=l;
     itsRKBS=s;
-    RKB_IE<T>::itsRKBL=l;
-    RKB_IE<T>::itsRKBS=s;
+    RKB_IE<T>::Init(l,s);
 }
 
 } // namespace Dirac

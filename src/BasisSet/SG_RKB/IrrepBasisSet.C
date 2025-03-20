@@ -3,8 +3,6 @@
 
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
 #include "Imp/BasisSet/SG_RKB/BasisFunction.H"
-//#include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
-#include "Imp/Integrals/GaussianIntegrals.H"
 #include "Imp/Symmetry/OkmjQN.H"
 #include <iostream>
 #include <cassert>
@@ -30,7 +28,7 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,c
     const Large_Orbital_IBS<T>* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
     , TIrrepBasisSetCommon<T>(lap)
-    , AtomIE_RKBS<T>(db)
+    , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
     IrrepIEClient::Init(lbs->es);
@@ -78,53 +76,6 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
     return 0;
 }
 
-
-// template <class T> T Small_Orbital_IBS<T>::Integral(qchem::IType it,double ea , double eb,size_t l) const
-// {
-//     if (it==qchem::Overlap1)
-//     {
-//         assert(l==0);
-//         double eab=ea+eb;
-//         size_t l1=l+1;
-//         return 1.0*(
-//                 (l1*l1 + l*l1) * GaussianIntegral(eab,2*l-2)
-//                 -2*l1 * eab      * GaussianIntegral(eab,2*l  )
-//                 +4*ea*eb       * GaussianIntegral(eab,2*l+2)
-//             );
-//     }
-//     else if (it==qchem::Nuclear1)
-//     {
-//         assert(l==0);
-//         //int kappa = -l -1;
-//         return 4*ea*eb*GaussianIntegral(ea+eb,l+1); //Don't count the r^2 in dr^3
-//     }
-//     assert(false);
-//     return 0.0;
-// }
-
-template <class T> double Small_Orbital_IBS<T>::Overlap(double ea , double eb,size_t l_total) const
-{
-    assert(false);
-    return 0.0;
-}
-template <class T> double Small_Orbital_IBS<T>::Kinetic(double ea , double eb,size_t l,size_t lb) const
-{
-    assert(l==lb);
-    assert(l==0);
-        double eab=ea+eb;
-        size_t l1=l+1;
-        return 1.0*(
-                (l1*l1 + l*l1) * GaussianIntegral(eab,2*l-2)
-                -2*l1 * eab      * GaussianIntegral(eab,2*l  )
-                +4*ea*eb       * GaussianIntegral(eab,2*l+2)
-            );
-}
-template <class T> double Small_Orbital_IBS<T>::Nuclear(double ea , double eb,size_t l_total) const
-{
-    assert(l==0);
-    //int kappa = -l -1;
-    return 4*ea*eb*GaussianIntegral(ea+eb,l+1); //Don't count the r^2 in dr^3
-}
 
   
 Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<double>* db, const Vector<double>& exponents, int kappa)

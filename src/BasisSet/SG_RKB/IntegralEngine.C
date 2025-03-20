@@ -3,8 +3,6 @@
 
 #include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
 #include "Imp/Integrals/GaussianIntegrals.H"
-#include "Imp/Integrals/SphericalGaussianCD.H"
-#include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Containers/ERI4.H"
 #include <Imp/Symmetry/OkmjQN.H>
 #include <iostream>
@@ -490,7 +488,25 @@ namespace SphericalGaussian_RKB
 //     return 0.0;
 // }
 
+template <class T> double Orbital_RKBS_IE<T>::Kinetic(double ea , double eb,size_t l,size_t lb) const
+{
+    assert(l==lb);
+    assert(l==0);
+        double eab=ea+eb;
+        size_t l1=l+1;
+        return 1.0*(
+                (l1*l1 + l*l1) * GaussianIntegral(eab,2*l-2)
+                -2*l1 * eab      * GaussianIntegral(eab,2*l  )
+                +4*ea*eb       * GaussianIntegral(eab,2*l+2)
+            );
+}
+template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
+{
+    assert(l_total==0);
+    //int kappa = -l -1;
+    return 4*ea*eb*GaussianIntegral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
+}
 
-// template class Orbital_RKBL_IE<double>;
+template class Orbital_RKBS_IE<double>;
 
 } //namespace
