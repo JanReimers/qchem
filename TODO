@@ -1,6 +1,8 @@
 Priority 1:
+    RKBS_IE::Kinetic should call IE_Primatives::Kinetic
     Done: -Clean up Dirac/RKB code.
-    -We need a UniqueID pure interface   
+    Done: -We need a UniqueID pure interface   
+        Also separate from PMStreamable.
     -Break up the BasisSet.H header
         Done: -Break out BasisFunction.H
         -Break out IrrepBS.H
@@ -28,6 +30,11 @@ Priority 1:
             -Easy for atoms
             -For molecules This is inefficenet, we only need the sum over centers
         factors of c for H_Dirac
+    Done: -SlaterIntegral(alpha,n) includes r^2 in n
+        GaussianIntegral(alpha,n) does not 
+        Harmonize.
+    -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
+    
     Done: -Break down integral engines
         -OneElectron_IE:
             Overlap
@@ -70,9 +77,7 @@ Priority 1:
             -In order to key on an abstract base.
             https://stackoverflow.com/questions/50180978/how-to-build-a-map-where-the-key-is-an-abstract-base-class-not-value
         -Do we still need Pol and UnPol WFs?
-    -SlaterIntegral(alpha,n) includes r^2 in n
-        GaussianIntegral(alpha,n) does not 
-        Harmonize.
+    
     -Total energy
         -Calculated in  SCFIteratorImp::DisplayEnergies
             and then re-calculated in SCFIteratorImp::Iterate

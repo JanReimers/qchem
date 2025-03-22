@@ -5,23 +5,20 @@
 namespace Slater_mj
 {
    
-template <class T> double Orbital_RKBS_IE<T>::Kinetic(double ea , double eb,size_t l, size_t lb) const
+template <class T> double Orbital_RKBS_IE<T>::Kinetic(double ea , double eb,size_t la, size_t lb) const
 {
-    assert(l==lb);
+    assert(la==lb);
     double ab=ea+eb;
-    int na=l+1,nb=l+1;
-    size_t ll=(l*(l+1)+l*(l+1))/2;
-    int n=na+nb;
-    double Term1=0.5*(na*nb+ll)*SlaterIntegral(ab,n-2); //SlaterIntegral already has 4*Pi
-    double Term2=-0.5*(na*eb+nb*ea)* SlaterIntegral(ab,n-1);
-    double Term3=0.5*ea*eb*SlaterIntegral(ab,n);
-    //cout << "Slater::IntegralEngine::Kinetic Terms 1,2,3=" << Term1 << " " << Term2 << " " << Term3 << endl;
-
-    return 2.0*(Term1+Term2+Term3);
+    int l=la; //Safer to do formulas with int.
+    int ll=l*(l+1);
+    double Term1=((l+1)*(l+1)+ll)*SlaterIntegral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+    double Term2=-(l+1)*ab* SlaterIntegral(ab,2*l-1);
+    double Term3=ea*eb*SlaterIntegral(ab,2*l);
+    return (Term1+Term2+Term3);
 }
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
 {
-    return ea*eb*SlaterIntegral(ea+eb,l_total+1);
+    return ea*eb*SlaterIntegral(ea+eb,l_total-1);
 }
 
 template class Orbital_RKBS_IE<double>;

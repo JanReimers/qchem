@@ -7,14 +7,14 @@
 #include <cmath>
 #include <cassert>
 
-//--------------------------------------------------------------------
+//##############################################################################
 //      /
-//  4Pi |  r^n exp(-a*r) dr
+//  4Pi |  r^l exp(-a*r) r^2 dr
 //     /
-inline double SlaterIntegral(double a, int n)
+inline double SlaterIntegral(double a, int l)
 {
-    assert(n>=0);
-    return 4*Pi* qchem::Fact[n]/pow(a,n+1);
+    assert(l>=-2);
+    return 4*Pi* qchem::Fact[l+2]/pow(a,l+3);
 }
 
 //--------------------------------------------------------------------
@@ -23,7 +23,7 @@ inline double SlaterIntegral(double a, int n)
 //
 inline double SlaterNorm(double a, int n)
 {
-    return 1.0/std::sqrt(SlaterIntegral(2*a,2*n));
+    return 1.0/std::sqrt(SlaterIntegral(2*a,2*n-2));
 }
 
 

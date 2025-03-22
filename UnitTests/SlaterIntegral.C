@@ -200,7 +200,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
         int n=2*l+2;
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
-                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),n-2)*sg->ns(i)*sg->ns(j);
+                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
             
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
         

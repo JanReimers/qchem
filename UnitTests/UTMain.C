@@ -5,10 +5,10 @@
 int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
-     // testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.CoulombExchange";  
+     // testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";  
      // testing::GTEST_FLAG(filter) = "DiracIntegralTests.*";  
 //     testing::GTEST_FLAG(filter) = "DiracIntegralTests.*:Multiple/A_*_DHF.Multiple/*";
-     //    testing::GTEST_FLAG(filter) = "Multiple/A_S*_HF_*.Multiple/*";
+     //    testing::GTEST_FLAG(filter) = "Multiple/A_SL*_HF_*.Multiple/*";
      // testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/4";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/*";
      // testing::GTEST_FLAG(filter) = "Multiple/A_*_DHF.Multiple/*";
