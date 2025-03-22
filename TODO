@@ -1,5 +1,13 @@
 Priority 1:
-    RKBS_IE::Kinetic should call IE_Primatives::Kinetic
+    Done: -RKBS_IE::Kinetic should call IE_Primatives::Kinetic
+    -Set up IE_Primatives interface for each basis set radial type.
+        Use an IE_Primatives* at the AtomIE level for all integrals.
+        Then move more basis set code down to the AtomIE level.
+        How to make this work with something like BSpline basis which does not use
+            exponential/exponents?
+            - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
+    -Get LAParams out of all the constructors.
+        Use defaults, and have a optional Set() method.
     Done: -Clean up Dirac/RKB code.
     Done: -We need a UniqueID pure interface   
         Also separate from PMStreamable.

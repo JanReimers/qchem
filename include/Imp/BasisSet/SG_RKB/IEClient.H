@@ -2,6 +2,7 @@
 #ifndef _SphericalGaussian_RKB_IEClient_H_
 #define _SphericalGaussian_RKB_IEClient_H_
 
+#include "Imp/BasisSet/SphericalGaussian/IE_Primatives.H"
 #include "Imp/BasisSet/AtomIEClient.H"
 
 namespace SphericalGaussian_RKB
@@ -10,6 +11,7 @@ namespace SphericalGaussian_RKB
 struct IrrepIEClient //Use this for the large component.
     : public virtual ::IrrepIEClient
     , public AtomIrrepIEClient
+    , public virtual SphericalGaussian::IE_Primatives
 {
     IrrepIEClient() {};
     IrrepIEClient(size_t N, int kappa);
@@ -34,7 +36,6 @@ public:
 
 private:
     virtual double Norm(double e, size_t l) const;
-    static double Kinetic(double ea, double eb,size_t l);     
 };
 
 struct Dirac_IrrepIEClient

@@ -8,13 +8,7 @@ namespace Slater_mj
 template <class T> double Orbital_RKBS_IE<T>::Kinetic(double ea , double eb,size_t la, size_t lb) const
 {
     assert(la==lb);
-    double ab=ea+eb;
-    int l=la; //Safer to do formulas with int.
-    int ll=l*(l+1);
-    double Term1=((l+1)*(l+1)+ll)*SlaterIntegral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-    double Term2=-(l+1)*ab* SlaterIntegral(ab,2*l-1);
-    double Term3=ea*eb*SlaterIntegral(ab,2*l);
-    return (Term1+Term2+Term3);
+    return 2.0*Slater::IE_Primatives::Kinetic(ea,eb,la,lb);
 }
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
 {

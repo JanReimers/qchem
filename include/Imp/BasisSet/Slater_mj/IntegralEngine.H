@@ -4,7 +4,7 @@
 
 #include "Imp/BasisSet/Dirac_IBS.H"
 #include "Imp/BasisSet/AtomIE.H"
-#include "Imp/BasisSet/Slater/IntegralEngine.H"
+#include "../Slater/IE_Primatives.H"
 
 class DiracIntegralTests;
 
@@ -13,7 +13,7 @@ namespace Slater_mj
     
 template <class T> class Orbital_RKBL_IE
     : public     AtomIE_RKBL<T>
-    , public Slater::IE_Primatives
+    , public virtual Slater::IE_Primatives
 {
 protected:
     Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
@@ -21,6 +21,7 @@ protected:
 
 template <class T> class Orbital_RKBS_IE
     : public     AtomIE_RKBS<T>
+    , public virtual Slater::IE_Primatives
 {
 protected:
     Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};

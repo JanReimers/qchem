@@ -3,28 +3,15 @@
 #define _SphericalGaussianIE1_H_
 
 
-#include <AnalyticIE.H>
-#include "Imp/BasisSet/AtomIE.H"
+// #include <AnalyticIE.H>
+#include "IE_Primatives.H"
+#include "../AtomIE.H"
 #include "oml/vector.h"
 
 
 namespace SphericalGaussian
 {
     
-class IrrepIEClient;
-    
-class IE_Primatives 
-    : public virtual  Primative_Overlap<double>
-    , public virtual  Primative_Kinetic<double>
-    , public virtual  Primative_Nuclear<double>
-    , public virtual Primative_Repulsion<double>
-{
-    virtual double Overlap(double ea , double eb,size_t l_total) const;
-    virtual double Kinetic(double ea , double eb,size_t la, size_t lb) const;
-    virtual double Nuclear(double ea , double eb,size_t l_total) const;
-    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
-};
-
 class IE_Common
 : public IE_Primatives
 , public AtomIE_Overlap<double>

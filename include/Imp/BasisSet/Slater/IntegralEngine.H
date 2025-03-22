@@ -2,25 +2,14 @@
 #ifndef _SlaterIE_H_
 #define _SlaterIE_H_
 
-#include "Imp/BasisSet/AtomIE.H"
+#include "../AtomIE.H"
+#include "IE_Primatives.H"
 
 namespace Slater
 {
 
-class IE_Primatives 
-    : public virtual Primative_Overlap<double>
-    , public virtual Primative_Kinetic<double>
-    , public virtual Primative_Nuclear<double>
-    , public virtual Primative_Repulsion<double>
-{
-    virtual double Overlap(double ea , double eb,size_t l_total) const;
-    virtual double Kinetic(double ea , double eb,size_t la, size_t lb) const;
-    virtual double Nuclear(double ea , double eb,size_t l_total) const;
-    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
-};
-
 class IE_Common
-    : public IE_Primatives
+    : public virtual IE_Primatives
     , public AtomIE_Overlap<double>
     , public AtomIE_Kinetic<double>
     , public AtomIE_Nuclear<double>
@@ -44,7 +33,7 @@ protected:
 class Fit_IE
 : public AtomIE_Fit
 , public AtomIE_Overlap<double>
-, public IE_Primatives
+, public virtual IE_Primatives
 
 {
 public:

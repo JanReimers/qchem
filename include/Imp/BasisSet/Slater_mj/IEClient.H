@@ -2,6 +2,7 @@
 #ifndef _Slater_mj_IEClient_H_
 #define _Slater_mj_IEClient_H_
 
+#include "../Slater/IE_Primatives.H"
 #include "Imp/BasisSet/AtomIEClient.H"
     
 namespace Slater_mj
@@ -27,6 +28,7 @@ private:
 struct Small_IrrepIEClient
     : public virtual ::IrrepIEClient
     , public IrrepIEClient
+    , public virtual Slater::IE_Primatives
 {
 public:
     Small_IrrepIEClient() {}; 
@@ -35,7 +37,6 @@ public:
 
 private:
     virtual double Norm(double e, size_t l) const;
-    static double Kinetic(double ea, double eb,size_t l);     
 };
 
 struct Dirac_IrrepIEClient

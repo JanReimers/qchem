@@ -26,20 +26,10 @@ double IrrepIEClient::Norm(double e, size_t l) const
 double Small_IrrepIEClient::Norm(double e, size_t l) const
 {
     //return GaussianNorm(e,l)/1.0; 
-    return 1.0/sqrt(2.0*Kinetic(e,e,l));  //SlaterIntegral already has 4*Pi
+    return 1.0/sqrt(2.0*SphericalGaussian::IE_Primatives::Kinetic(e,e,l,l));  //SlaterIntegral already has 4*Pi
 }
 
-double Small_IrrepIEClient::Kinetic(double ea, double eb,size_t l)
-{
-    double t=ea+eb;
-    size_t l1=l+1;
-    return 0.5*(
-               (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
-               -2*l1 * t      * GaussianIntegral(t,2*l  )
-               +4*ea*eb       * GaussianIntegral(t,2*l+2)
-           );
-}
-  
+
 void Dirac_IrrepIEClient::Init(const SphericalGaussian_RKB::IrrepIEClient* liec,const SphericalGaussian_RKB::IrrepIEClient* siec)
 {
     itsLargeIEC=liec;

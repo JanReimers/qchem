@@ -14,7 +14,7 @@ namespace SphericalGaussian_RKB
     
 template <class T> class Orbital_RKBL_IE
     : public     AtomIE_RKBL<T>
-    , public SphericalGaussian::IE_Primatives
+    , public virtual SphericalGaussian::IE_Primatives
 {
 protected:
     Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
@@ -22,6 +22,7 @@ protected:
 
 template <class T> class Orbital_RKBS_IE
     : public     AtomIE_RKBS<T>
+    , public virtual SphericalGaussian::IE_Primatives
 {
 protected:
     Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
