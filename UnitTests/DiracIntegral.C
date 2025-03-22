@@ -43,10 +43,12 @@ public:
     : Lmax(0   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , sbs(new Slater_mj::DiracBasisSet(lap,3,0.1,10,Lmax))
-    , gbs(new SphericalGaussian_RKB::DiracBasisSet(lap,3,0.1,10,Lmax))
+    , sbs(new Slater_mj::DiracBasisSet(3,0.1,10,Lmax))
+    , gbs(new SphericalGaussian_RKB::DiracBasisSet(3,0.1,10,Lmax))
     , cl(new Molecule())
     {
+        sbs->Set(lap);
+        gbs->Set(lap);
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));

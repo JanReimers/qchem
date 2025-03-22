@@ -8,12 +8,12 @@ namespace Slater_m
 {
 
 
-BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
+BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
     SlaterScaler ss(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(lap,this,ss.Get_es(L),L,m));            
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,m));            
 
 }
 

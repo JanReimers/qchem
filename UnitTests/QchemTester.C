@@ -138,8 +138,9 @@ std::vector<const QuantumNumber*> QchemTester::GetQuantumNumbers() const
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 BasisSet* SG_OBasis::GetBasisSet () const
 {
-    SphericalGaussian::BasisSet* bs=new SphericalGaussian::BasisSet(lap,N,emin,emax,Lmax);
-    StreamableObject::SetToPretty();
+    BasisSet* bs=new SphericalGaussian::BasisSet(N,emin,emax,Lmax);
+    bs->Set(lap);
+    // StreamableObject::SetToPretty();
     //std::cout << *bs << std::endl;
     return  bs;
 }
@@ -147,7 +148,8 @@ BasisSet* SG_OBasis::GetBasisSet () const
 #include "Imp/BasisSet/Slater/BasisSet.H"
 BasisSet* SL_OBasis::GetBasisSet () const
 {
-    Slater::BasisSet* bs=new Slater::BasisSet(lap,N,emin,emax,Lmax);
+    BasisSet* bs=new Slater::BasisSet(N,emin,emax,Lmax);
+    bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;
     return bs;
@@ -156,7 +158,8 @@ BasisSet* SL_OBasis::GetBasisSet () const
 #include "Imp/BasisSet/Slater_m/BasisSet.H"
 BasisSet* SLm_OBasis::GetBasisSet () const
 {
-    Slater_m::BasisSet* bs=new Slater_m::BasisSet(lap,N,emin,emax,Lmax);
+    BasisSet* bs=new Slater_m::BasisSet(N,emin,emax,Lmax);
+    bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;
     return bs;
@@ -166,7 +169,8 @@ BasisSet* SLm_OBasis::GetBasisSet () const
 BasisSet* SLmj_OBasis::GetBasisSet () const
 {
     assert(N>0);
-    Slater_mj::DiracBasisSet* bs=new Slater_mj::DiracBasisSet(lap,N,emin,emax,Lmax);
+    BasisSet* bs=new Slater_mj::DiracBasisSet(N,emin,emax,Lmax);
+    bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;
     assert(bs->GetNumFunctions()>0);
@@ -177,7 +181,8 @@ BasisSet* SLmj_OBasis::GetBasisSet () const
 BasisSet* SG_RKB_OBasis::GetBasisSet () const
 {
     assert(N>0);
-    SphericalGaussian_RKB::DiracBasisSet* bs=new SphericalGaussian_RKB::DiracBasisSet(lap,N,emin,emax,Lmax);
+    BasisSet* bs=new SphericalGaussian_RKB::DiracBasisSet(N,emin,emax,Lmax);
+    bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;
     assert(bs->GetNumFunctions()>0);
@@ -193,7 +198,8 @@ BasisSet* SGm_OBasis::GetBasisSet () const
 //    const Cluster* cl=GetCluster();
 //    Atom* a=*cl->begin();
 //    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
-    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,N,emin,emax,Lmax);
+    BasisSet* bs=new SphericalGaussian_m::BasisSet(N,emin,emax,Lmax);
+    bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;
     return  bs;
@@ -207,7 +213,8 @@ BasisSet* PG_OBasis::GetBasisSet () const
     if (N==0)
     {
         PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
-        PolarizedGaussian::BasisSet* bs=new PolarizedGaussian::BasisSet(lap, &reader,GetCluster());  
+        BasisSet* bs=new PolarizedGaussian::BasisSet(&reader,GetCluster());  
+        bs->Set(lap);
         // StreamableObject::SetToPretty();
         //std::cout << *bs << std::endl;
         return bs;
@@ -215,7 +222,8 @@ BasisSet* PG_OBasis::GetBasisSet () const
     }
     else
     {
-        PolarizedGaussian::BasisSet* bs=new PolarizedGaussian::BasisSet(lap, N,emin,emax,LMax,GetCluster());  
+        BasisSet* bs=new PolarizedGaussian::BasisSet(N,emin,emax,LMax,GetCluster());
+        bs->Set(lap);
         // StreamableObject::SetToPretty();
         //std::cout << *bs << std::endl;
         return bs;

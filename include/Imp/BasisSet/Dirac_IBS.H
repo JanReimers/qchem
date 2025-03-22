@@ -49,7 +49,7 @@ template <class T> class IrrepBasisSet
     , public RKB_IE<T>
 {
     public:
-    IrrepBasisSet(const LAParams&,const DB_cache<T>* db,int kappa);
+    IrrepBasisSet(const DB_cache<T>* db,int kappa);
     
 protected:
     void Init(::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);

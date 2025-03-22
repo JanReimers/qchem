@@ -227,19 +227,19 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 //
 // Orbital PG basis set.
 //
-Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, Reader* bsr, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(const db_t* db, Reader* bsr, const Cluster* cl)
     : IrrepBasisSet(bsr,cl)
-    , Orbital_IBS_Common<double>(lap)
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
 {};
-Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
     : IrrepBasisSet(exponents,L,cl)
-    , Orbital_IBS_Common<double>(lap)
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
 {};
-Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common<double>(lap)
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
 {};
     
@@ -248,14 +248,14 @@ Orbital_IBS::Orbital_IBS(const LAParams& lap,const db_t* db, const Vector<double
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_coul.bsd");
-    return new Fit_IBS(itsLAParams,db,&reader,cl);
+    return new Fit_IBS(db,&reader,cl);
 }
 ::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster* cl) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/A1_exch.bsd");
-    return new Fit_IBS(itsLAParams,db,&reader,cl);
+    return new Fit_IBS(db,&reader,cl);
 }
 IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 {
@@ -268,9 +268,9 @@ IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 //
 //  Fit PG basis set.
 //
-Fit_IBS::Fit_IBS(const LAParams&lap,const DB_cache<double>* db , Reader* bsr, const Cluster* cl)
+Fit_IBS::Fit_IBS(const DB_cache<double>* db , Reader* bsr, const Cluster* cl)
 : IrrepBasisSet(bsr,cl)
-, TIrrepBasisSetCommon<double>(lap)
+, TIrrepBasisSetCommon<double>()
 , Fit_IE(db)
 {};
 

@@ -15,12 +15,12 @@ namespace Slater_mj
 //  Concrete  Slater basis set.
 //
 
-Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const LAParams& lap,const DB_cache<double>* db,
+Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const DB_cache<double>* db,
     const Vector<double>& exponents,int kappa)
-: Dirac::IrrepBasisSet<double>(lap,db,kappa )
+: Dirac::IrrepBasisSet<double>(db,kappa )
 {
-    auto rkbl=new Large_Orbital_IBS<double>(lap,db,exponents, kappa);
-    auto rkbs=new Small_Orbital_IBS<double>(lap,db,rkbl);
+    auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
+    auto rkbs=new Small_Orbital_IBS<double>(db,rkbl);
     Dirac::IrrepBasisSet<double>::Init(rkbl,rkbs);
     Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
@@ -51,10 +51,10 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
 //
 //  Large sector
 //
-template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const LAParams& lap,const DB_cache<T>* db,
+template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
         const Vector<T>& exponents,int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , TIrrepBasisSetCommon<T>(lap)
+    , TIrrepBasisSetCommon<T>()
     , Orbital_RKBL_IE<T>(db)
     , IrrepIEClient(exponents.size(),kappa)
 {
@@ -88,9 +88,9 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 //
 //  Small sector
 //
-template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const LAParams& lap,const DB_cache<double>* db,const Large_Orbital_IBS<T>* lbs)
+template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<double>* db,const Large_Orbital_IBS<T>* lbs)
     : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
-    , TIrrepBasisSetCommon<T>(lap)
+    , TIrrepBasisSetCommon<T>()
     , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {

@@ -14,7 +14,7 @@ class DiracBasisSet
     , public DB_cache<double>
 {
 public:
-    DiracBasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t lmax);
+    DiracBasisSet(size_t N, double minexp, double maxexp, size_t lmax);
     
 };
 

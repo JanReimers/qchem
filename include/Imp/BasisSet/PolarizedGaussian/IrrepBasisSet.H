@@ -48,9 +48,9 @@ namespace PolarizedGaussian
     {
         typedef DB_BS_2E<double> db_t;
     public:
-        Orbital_IBS(const LAParams &, const db_t* db, Reader *, const Cluster *);
-        Orbital_IBS(const LAParams &, const db_t* db, const Vector<double>& exponents, size_t L, const Cluster *);
-        Orbital_IBS(const LAParams &, const db_t* db, const Vector<double>& exponents, size_t L);
+        Orbital_IBS(const db_t* db, Reader *, const Cluster *);
+        Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster *);
+        Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L);
 
         virtual ::Fit_IBS *CreateCDFitBasisSet(const ::BasisSet*,const Cluster *) const;
         virtual ::Fit_IBS *CreateVxcFitBasisSet(const ::BasisSet*,const Cluster *) const;
@@ -66,7 +66,7 @@ namespace PolarizedGaussian
         , public Fit_IE
     {
     public:
-        Fit_IBS(const LAParams &,const DB_cache<double>* db , Reader *, const Cluster *);
+        Fit_IBS(const DB_cache<double>* db , Reader *, const Cluster *);
 
         virtual ::Fit_IBS *Clone(const RVec3 &) const;
     };

@@ -34,9 +34,9 @@ class Orbital_IBS
     , public         Orbital_IE
 {
 public:
-    Orbital_IBS(const LAParams& lap,const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common<double>(lap)
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
     {};
 
@@ -57,9 +57,9 @@ class Fit_IBS
 
 {
 public:
-    Fit_IBS(const LAParams& lap,const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
+    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , TIrrepBasisSetCommon<double>(lap)
+    , TIrrepBasisSetCommon<double>()
     , Fit_IE(db)
     {};
    

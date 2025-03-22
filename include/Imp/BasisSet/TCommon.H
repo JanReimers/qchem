@@ -16,9 +16,10 @@ public:
     typedef Base::bs_t bs_t;
     typedef Base::const_iterator const_iterator;
 
-    BasisSetImp();
-    
-    virtual ~BasisSetImp();
+    BasisSetImp() {};
+    virtual ~BasisSetImp() {};
+    virtual void Set(const LAParams&);
+
     virtual size_t GetNumFunctions() const;
     virtual void Insert(bs_t*);
 

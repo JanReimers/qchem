@@ -12,19 +12,19 @@ namespace SphericalGaussian_m
 {
 
 
-BasisSet::BasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t LMax)
+BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
     GaussianScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(lap,this,gs.Get_es(L),L,m));            
+            Insert(new Orbital_IBS(this,gs.Get_es(L),L,m));            
         
 }
 
 using PolarizedGaussian::Reader;
 using PolarizedGaussian::RadialFunction;
 
-BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
+BasisSet::BasisSet(Reader* reader, const Atom* atom)
 {
     std::map<int,std::set<double> > Lexponents;
     reader->FindAtom(*atom);
@@ -52,7 +52,7 @@ BasisSet::BasisSet(const LAParams& lap, Reader* reader, const Atom* atom)
     {
         size_t L=le.first;
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(lap,this,le.second,L,m));   
+            Insert(new Orbital_IBS(this,le.second,L,m));   
     }
 }
 

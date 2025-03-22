@@ -25,7 +25,7 @@ template <class T> class Large_Orbital_IBS
 {
     public:
     Large_Orbital_IBS() {};
-    Large_Orbital_IBS(const LAParams&,const DB_cache<T>*, const Vector<T>& exponents, int kappa);
+    Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
@@ -40,7 +40,7 @@ template <class T> class Small_Orbital_IBS
 {
 public:
     Small_Orbital_IBS() {};
-    Small_Orbital_IBS(const LAParams&,const DB_cache<double>*,const Large_Orbital_IBS<T>*);
+    Small_Orbital_IBS(const DB_cache<double>*,const Large_Orbital_IBS<T>*);
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 };
@@ -53,7 +53,7 @@ class Dirac_IrrepBasisSet
     typedef Integrals_Base<double>::SMat SMat;
 public:
     //Dirac_IrrepBasisSet() {};
-    Dirac_IrrepBasisSet(const LAParams&,const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
+    Dirac_IrrepBasisSet(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;

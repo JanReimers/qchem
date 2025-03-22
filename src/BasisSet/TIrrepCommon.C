@@ -12,15 +12,13 @@
 #include <cassert>
 #include <iostream>
 
+LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-4,1e-12});
 //-----------------------------------------------------------------------------
 //
 //  Construction zone
 //
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon()
-{};
-
-template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const LAParams& lap)
-    : itsLAParams      (lap)
+    : itsLAParams      (DefaultLAP)
 {};
 
 template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const TIrrepBasisSetCommon<T>& bs)
@@ -31,13 +29,10 @@ template <class T> TIrrepBasisSetCommon<T>::~TIrrepBasisSetCommon()
 {
 }
 
-// template <class T> IntegralDataBase<T>* TIrrepBasisSetCommon<T>::GetDataBase() const
-// {
-//     assert(&*itsDataBase);
-//     return itsDataBase;
-// }
-
- 
+template <class T> void TIrrepBasisSetCommon<T>::Set(const LAParams& lap)
+{
+    itsLAParams=lap;
+} 
 
 template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() const
 {

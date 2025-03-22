@@ -39,9 +39,10 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Slater::BasisSet(lap,6,0.1,10,Lmax))
+    , bs(new Slater::BasisSet(6,0.1,10,Lmax))
     , cl(new Molecule())
     {
+        bs->Set(lap);
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});

@@ -31,6 +31,7 @@ public:
     typedef std::vector<const BasisFunction*>::      iterator       iterator;
     typedef std::vector<const BasisFunction*>::const_iterator const_iterator;
 
+    virtual void Set(const LAParams&)=0;
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual size_t               GetNumFunctions (               ) const=0;
     virtual const QuantumNumber& GetQuantumNumber(               ) const=0;

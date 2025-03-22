@@ -19,9 +19,10 @@ protected:
   
 public:
     TIrrepBasisSetCommon(                              );
-    TIrrepBasisSetCommon(const LAParams& lap);
     TIrrepBasisSetCommon(const TIrrepBasisSetCommon&);
     ~TIrrepBasisSetCommon(                              );
+
+    virtual void Set(const LAParams&);
 
     using TIrrepBasisSet<T>::GetVectorSize;
 
@@ -40,9 +41,6 @@ template <class T> class Orbital_IBS_Common
 {
     public:
     Orbital_IBS_Common() {};
-    Orbital_IBS_Common(const LAParams& lap) 
-        : TIrrepBasisSetCommon<T>(lap) {};
-
     //
     //  Make a gen/ EV solver that already has the overlap S factorized.
     //

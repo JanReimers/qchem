@@ -6,7 +6,7 @@ Priority 1:
         How to make this work with something like BSpline basis which does not use
             exponential/exponents?
             - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
-    -Get LAParams out of all the constructors.
+    Done: -Get LAParams out of all the constructors.
         Use defaults, and have a optional Set() method.
     Done: -Clean up Dirac/RKB code.
     Done: -We need a UniqueID pure interface   

@@ -29,8 +29,8 @@ public:
     typedef optr_vector1<bs_t*>::const_iterator const_iterator;
     
     BasisSet() {};
-
     virtual ~BasisSet() {}; 
+    virtual void Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;

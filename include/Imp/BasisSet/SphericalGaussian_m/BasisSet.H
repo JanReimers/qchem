@@ -20,8 +20,8 @@ class BasisSet
 {
 public:
     BasisSet() {};
-    BasisSet(const LAParams&,size_t N, double minexp, double maxexp, size_t Lmax);
-    BasisSet(const LAParams&,PolarizedGaussian::Reader*, const Atom*);
+    BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);
+    BasisSet(PolarizedGaussian::Reader*, const Atom*);
 };
 
 } //namespace SphericalGaussian_m

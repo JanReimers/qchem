@@ -4,16 +4,10 @@
 #include "Imp/Containers/ptr_vector_io.h"
 #include <Irrep_BS.H>
 
-BasisSetImp::BasisSetImp()
-: itsBasisSets()
+void BasisSetImp::Set(const LAParams& lap)
 {
+    for (auto b:itsBasisSets) b->Set(lap);
 }
-
-
-BasisSetImp::~BasisSetImp() 
-{
-    
-};
 
 size_t BasisSetImp::GetNumFunctions() const
 {

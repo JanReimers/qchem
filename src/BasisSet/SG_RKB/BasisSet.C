@@ -7,7 +7,7 @@
 namespace SphericalGaussian_RKB
 {
 
-DiracBasisSet::DiracBasisSet(const LAParams& lap,size_t N, double emin, double emax, size_t lMax)
+DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 {
     GaussianScaler gs(N,emin,emax,lMax);
     for (int l=0;l<=(int)lMax;l++)
@@ -15,10 +15,10 @@ DiracBasisSet::DiracBasisSet(const LAParams& lap,size_t N, double emin, double e
         // j=l-0.5 sector, kappa = l > 0
         double j=l-0.5;
         if (j>0) //skip j=-0.5 for l=0;
-            Insert(new Dirac_IrrepBasisSet(lap,this,gs.Get_es(l),l));            
+            Insert(new Dirac_IrrepBasisSet(this,gs.Get_es(l),l));            
         // j=l+0.5 sector, kappa = -l -1 < 0
         j=l+0.5;
-            Insert(new Dirac_IrrepBasisSet(lap,this,gs.Get_es(l),-l-1));     
+            Insert(new Dirac_IrrepBasisSet(this,gs.Get_es(l),-l-1));     
     }
         
 }

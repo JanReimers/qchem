@@ -86,9 +86,9 @@ template <class T> ERI4 RKB_IE<T>::MakeExchange(const obs_t& b) const
     return ERI4();
 }
 
-template <class T> IrrepBasisSet<T>::IrrepBasisSet(const LAParams& lap,const DB_cache<T>* db, int kappa)
+template <class T> IrrepBasisSet<T>::IrrepBasisSet(const DB_cache<T>* db, int kappa)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , Orbital_IBS_Common<T>(lap)
+    , Orbital_IBS_Common<T>()
     , RKB_IE<T>(db)
     , itsRKBL(0)
     , itsRKBS(0)
