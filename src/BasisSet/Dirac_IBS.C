@@ -2,7 +2,6 @@
 
 #include "oml/vector.h"
 #include "Imp/BasisSet/Dirac_IBS.H"
-#include "Imp/Misc/DFTDefines.H"
 #include "Imp/Symmetry/OkmjQN.H"
 namespace Dirac
 {
@@ -60,10 +59,9 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeNuclear(const Cluster
 }
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeRestMass() const
 {
-    static const double f=-2.0*c_light*c_light;
     SMat rl(itsRKBL->size());
     Fill(rl,0.0);
-    SMat rs=f*itsRKBS->Grad2();
+    SMat rs=itsRKBS->Grad2();
     return merge_diag(rl,rs);
 }
 template <class T> ERI4 RKB_IE<T>::MakeDirect  (const obs_t& c) const

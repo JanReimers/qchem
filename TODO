@@ -21,12 +21,12 @@ Priority 1:
         -Can we pass around more specific interfaces?
     -We need separate interface for ExactCD as compared to FittedCD.
         i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
-    -Move all Hamilton constants out of integral engines
-        factor of 1/2 for kinetic
+    Done: -Move all Hamilton constants out of integral engines
+        Done: factor of 1/2 for kinetic
         factor of Z (and R) for Ven
             -Easy for atoms
             -For molecules This is inefficenet, we only need the sum over centers
-        factors of c for H_Dirac
+        Done: factors of c for H_Dirac
     -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
     
     
