@@ -48,48 +48,6 @@ namespace SphericalGaussian_RKB
 //     //         K(Nl+i,j)=SLSL(i,j);                  
 //     return K;
 // }
-// DiracIntegralEngine::SMat DiracIntegralEngine::MakeOverlap  (iec_t* a) const
-// {
-//     auto da=dcast(a);
-//     SMat ol=itsLargeIE->MakeOverlap(da->itsLargeIEC);
-//     SMat os=itsSmallIE->MakeOverlap(da->itsSmallIEC);
-//     return merge_diag(ol,os);
-// }
-// DiracIntegralEngine::SMat DiracIntegralEngine::MakeGrad2  (iec_t* a) const
-// {
-//     auto da=dcast(a);
-//     Mat kls=-2.0*itsLargeIE->MakeGrad2(da->itsLargeIEC,da->itsSmallIEC);
-//     //std::cout << "kls=" << kls << std::endl;
-//     return merge_off_diag(kls);
-// }
-// DiracIntegralEngine::Mat DiracIntegralEngine::MakeGrad2(iec_t* a,iec_t* b) const
-// {
-//     assert(false);
-//     return Mat();
-// }
-// DiracIntegralEngine::SMat DiracIntegralEngine::MakeNuclear  (iec_t* a, const Cluster& cl) const
-// {
-//     auto da=dcast(a);
-//     SMat vl=itsLargeIE->MakeNuclear(da->itsLargeIEC,cl);
-//     SMat vs=itsSmallIE->MakeNuclear(da->itsSmallIEC,cl);
-//     return merge_diag(vl,vs);
-// }
-// DiracIntegralEngine::SMat DiracIntegralEngine::MakeRestMass(iec_t* a) const
-// {
-//     static const double f=-2.0*c_light*c_light;
-//     auto da=dcast(a);
-//     SMat rl(da->itsLargeIEC->size());
-//     Fill(rl,0.0);
-//     SMat rs=f*itsSmallIE->MakeOverlap(da->itsSmallIEC);
-//     return merge_diag(rl,rs);
-// }
-// DiracIntegralEngine::RVec DiracIntegralEngine::MakeCharge  (iec_t* a) const
-// {
-//     auto da=dcast(a);
-//     RVec cl=itsLargeIE->MakeCharge(da->itsLargeIEC);
-//     RVec cs=itsSmallIE->MakeCharge(da->itsSmallIEC);
-//     return merge(cl,cs);
-// }
 // ERI4 DiracIntegralEngine::MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const
 // {
 //     auto da=dcast(a);
@@ -471,7 +429,7 @@ template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t
 {
     assert(la==lb);
     assert(la==0);
-    return 2.0*SphericalGaussian::IE_Primatives::Grad2(ea,eb,la,lb);
+    return SphericalGaussian::IE_Primatives::Grad2(ea,eb,la,lb);
 }
 
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const

@@ -18,11 +18,10 @@ double IE_Primatives::Grad2(double ea , double eb,size_t l, size_t lb) const
     assert(l==lb);
     double t=ea+eb;
     size_t l1=l+1;
-    return 0.5*(
-            (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
+    return (l1*l1 + l*l1) * GaussianIntegral(t,2*l-2)
             -2*l1 * t      * GaussianIntegral(t,2*l  )
-            +4*ea*eb       * GaussianIntegral(t,2*l+2)
-        );
+            +4*ea*eb       * GaussianIntegral(t,2*l+2);
+        
 }
 
 double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const

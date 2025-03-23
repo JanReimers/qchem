@@ -49,7 +49,7 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeOverlap() const
 }
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeGrad2() const
 {
-    Mat kls=-2.0*itsRKBL->Grad2(itsRKBS);
+    Mat kls=-itsRKBL->Grad2(itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeNuclear(const Cluster* c) const

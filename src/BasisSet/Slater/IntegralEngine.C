@@ -34,7 +34,7 @@ double IE_Primatives::Grad2(double ea , double eb,size_t la, size_t lb) const
     double Term1=((l+1)*(l+1)+ll)*SlaterIntegral(ab,2*l-2); //SlaterIntegral already has 4*Pi
     double Term2=-(l+1)*ab* SlaterIntegral(ab,2*l-1);
     double Term3=ea*eb*SlaterIntegral(ab,2*l);
-    return 0.5*(Term1+Term2+Term3);
+    return Term1+Term2+Term3;
 }
 
 double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const

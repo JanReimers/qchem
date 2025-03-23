@@ -8,7 +8,7 @@ namespace Slater_mj
 template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t la, size_t lb) const
 {
     assert(la==lb);
-    return 2.0*Slater::IE_Primatives::Grad2(ea,eb,la,lb);
+    return Slater::IE_Primatives::Grad2(ea,eb,la,lb);
 }
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
 {

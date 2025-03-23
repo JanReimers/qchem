@@ -124,7 +124,7 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
             break;
         case qchem::Grad2 :
             {
-                double factor=0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
+                double factor=pow(Pi/ab.AlphaP,1.5)*ab.Eij;
                 double h = GetGrad2(pa,pb,ab);
                 if (h!=0) s=factor*h;
                 break;

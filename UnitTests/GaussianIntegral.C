@@ -90,7 +90,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     {
         SMatrix<double> K=oi->Grad2();
         //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi); //This give the wrong answer for l>0
+        SMatrix<double> Knum = mintegrator->Grad(*oi); //This give the wrong answer for l>0
 
         // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
@@ -101,7 +101,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         assert(sg);
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
-                Knum(i,j)+=0.5*((l)*(l+1))*GaussianIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
+                Knum(i,j)+=((l)*(l+1))*GaussianIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
         
     }

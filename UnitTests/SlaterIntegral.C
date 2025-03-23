@@ -190,7 +190,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
     {
         SMatrix<double> K=oi->Grad2();
         //cout << S << endl;
-        SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi);
+        SMatrix<double> Knum = mintegrator->Grad(*oi);
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
         const QuantumNumber& qn=oi->GetQuantumNumber();
@@ -201,7 +201,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         int n=2*l+2;
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
-                Knum(i,j)+=0.5*(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
+                Knum(i,j)+=(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
             
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
         
