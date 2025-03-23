@@ -44,12 +44,12 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::merge_off_diag(const Mat&
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeOverlap() const
 {
     SMat ol=itsRKBL->Overlap();
-    SMat os=itsRKBS->Kinetic();
+    SMat os=itsRKBS->Grad2();
     return merge_diag(ol,os);
 }
-template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeKinetic() const
+template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeGrad2() const
 {
-    Mat kls=-2.0*itsRKBL->Kinetic(itsRKBS);
+    Mat kls=-2.0*itsRKBL->Grad2(itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeNuclear(const Cluster* c) const
@@ -63,7 +63,7 @@ template <class T> typename RKB_IE<T>::SMat RKB_IE<T>::MakeRestMass() const
     static const double f=-2.0*c_light*c_light;
     SMat rl(itsRKBL->size());
     Fill(rl,0.0);
-    SMat rs=f*itsRKBS->Kinetic();
+    SMat rs=f*itsRKBS->Grad2();
     return merge_diag(rl,rs);
 }
 template <class T> ERI4 RKB_IE<T>::MakeDirect  (const obs_t& c) const

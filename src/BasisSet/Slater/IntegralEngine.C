@@ -25,7 +25,7 @@ double  IE_Primatives::Overlap(double ea , double eb,size_t l_total) const
     return SlaterIntegral(ea+eb,l_total); //Already has 4*Pi and r^2 from dr.
 }
 
-double IE_Primatives::Kinetic(double ea , double eb,size_t la, size_t lb) const
+double IE_Primatives::Grad2(double ea , double eb,size_t la, size_t lb) const
 {
     assert(la==lb);
     double ab=ea+eb;

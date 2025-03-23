@@ -200,7 +200,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Kinetic();
+        SMatrix<double> K=oi->Grad2();
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=SlaterGetLarge(oi);
@@ -216,7 +216,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Kinetic();
+        SMatrix<double> K=oi->Grad2();
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=GaussianGetLarge(oi);

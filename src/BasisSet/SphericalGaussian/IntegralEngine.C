@@ -13,7 +13,7 @@ double  IE_Primatives::Overlap(double ea , double eb,size_t l_total) const
     return GaussianIntegral(ea+eb,l_total); //Already has 4*Pi
 }
     
-double IE_Primatives::Kinetic(double ea , double eb,size_t l, size_t lb) const
+double IE_Primatives::Grad2(double ea , double eb,size_t l, size_t lb) const
 {
     assert(l==lb);
     double t=ea+eb;

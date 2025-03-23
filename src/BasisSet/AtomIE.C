@@ -19,7 +19,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOver
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKinetic() const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Grad2 <T>::MakeGrad2() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -28,7 +28,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKine
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= this->Kinetic(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+            H(i,j)= this->Grad2(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -48,7 +48,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNucl
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> typename Integrals_Base<T>::Mat  AtomIE_XGrad2<T>::MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
@@ -58,7 +58,7 @@ template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKine
     Matrix<double> Hk(Na,Nb);
     for (auto i:Hk.rows())
         for (auto j:Hk.cols())
-            Hk(i,j)=Kinetic(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*b->ns(j);
+            Hk(i,j)=Grad2(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*b->ns(j);
 
     return Hk;
 }

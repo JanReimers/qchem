@@ -1,16 +1,11 @@
 Priority 1:
-    Done: -RKBS_IE::Kinetic should call IE_Primatives::Kinetic
     -Set up IE_Primatives interface for each basis set radial type.
         Use an IE_Primatives* at the AtomIE level for all integrals.
         Then move more basis set code down to the AtomIE level.
         How to make this work with something like BSpline basis which does not use
             exponential/exponents?
             - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
-    Done: -Get LAParams out of all the constructors.
-        Use defaults, and have a optional Set() method.
-    Done: -Clean up Dirac/RKB code.
-    Done: -We need a UniqueID pure interface   
-        Also separate from PMStreamable.
+            - Is this just the old IE interface re-appearing.
     -Break up the BasisSet.H header
         Done: -Break out BasisFunction.H
         -Break out IrrepBS.H
@@ -19,15 +14,9 @@ Priority 1:
             Fit:
         Done: -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
     -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
-    Done: -Stop using paramaterized Integral() calls.
-    Done: -PG::Fit_BS do we need all that function forwarding?
-    Done: -Make Atom_BS_IE which handles and angular integrals for all atom basis sets.
-    Done: -Need more iterators for BasisSet where dyn casting is done by the iterator.
-        -Use proxy classes 
-            for (auto b:bs->Irreps<TOrbital_IBS<double> >()) 
     TOrbital iterators?
-    Done: -Survey use of IrrepBS, Can we use more specific interfaces?
     -Survey use of dynamic cast
+        -Hunt for dynamic casts that can be removed using dynamic_cast iterator
         -SHould only be casting between interfaces
         -Can we pass around more specific interfaces?
     -We need separate interface for ExactCD as compared to FittedCD.
@@ -38,39 +27,14 @@ Priority 1:
             -Easy for atoms
             -For molecules This is inefficenet, we only need the sum over centers
         factors of c for H_Dirac
-    Done: -SlaterIntegral(alpha,n) includes r^2 in n
-        GaussianIntegral(alpha,n) does not 
-        Harmonize.
     -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
     
-    Done: -Break down integral engines
-        -OneElectron_IE:
-            Overlap
-            Nuclear
-            Kinetic
-        -DFT_IE->OneElectronIE Adds
-            Repulsion2
-            Overlap3
-            Repulsion3
-        -HF_IE->OneElectronIE Adds
-            Direct4
-            Exchange4
-        -Fit_IE
-            ?
-        -Can add more later for observables opertors.
-        Done: -COnjunction with:
-            1) Simplify integral call chain
-            2) Separate FitBasisSet idea.
-    Done: -Use the DB_BS_2E to cache all integrals.
-        -The reorg IE/DB/AtomIE classes so that we don't end up with Kinetic/Nuclear integrals
-         poluting the FIT_IE interface.
-    Done: -Simplify integral call chain
-        -Adding RestMass integral calculation was very labourious.  Call Chain:
-        HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
-        -Should we at least get the basis set out of the call chain?
-        -Reimagine in conjunction with Separate FitBasisSet idea.
     
     -QNs should contain spin.  Right?
+        Yes
+        -But need to check that exchange integrals work out properly when spin is folded
+        into the Irrep blocking system.
+            -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
             map<QN,IrrepWaveFunction*> All
@@ -146,10 +110,10 @@ Priority 1:
         -Make some tech notes
         -Start coding
             -BasisFunctions
-                -Large: Derive from SGm or SLm?
+                Done: -Large: Derive from SGm or SLm?
                     -Multiply by CG coeffs for spherical spinor components.
-                -Small: Construct from Large.
-                -Quantum number: kappa: can infer j,l.
+                Done: -Small: Construct from Large.
+                Done: -Quantum number: kappa: can infer j,l.
                     AtomQN = radial QN * Angular QNs
                     Done: -Right now AtomQN derived from YlmQN
                     DOne: -Try AtomQN {n,QN* Anglular}
@@ -158,35 +122,36 @@ Priority 1:
                         -LMax for basis sets/functions can be >3
                     Fix up GetN for O_kmj.
                 -BasisSet
-                    -Slater_mj,  SG_mj
-                    -Loop over kappa and mj
-                    -How to arrange L/S basis functions?
+                    Done: -Slater_mj,  SG_mj
+                    Done: -Loop over kappa
+                    Done: -How to arrange L/S basis functions?
                         Have Dirac::IrrepBasisSet hold 
                             Slater_mj::LargeBasisSet ={gL1,gL2,gL3...gLN}
                             Slater_mj::SmallBasisSet ={gS1,gS2...gSN}
                             Have Dirac::IntegralEngine manage the matrix build.
-                -IECLient
-                -Integral engine
+                Done: -IECLient
+                Done: -Integral engine
                     -Need a cross Kinetic integral calculator:  K(a,b) where a is a large BS, b is small.
             -Hamiltonian
-                -Dirac K, Ven
-                -How to enforce Basis set is correct for H?
-                    -bool Relativistc() const=0 member for BS and H interfaces?
-            -Wave function
-                    -DiracWF {PolaraizedWF itsLarge, itsSmall}
-                    -L^alpha and S^alpha need to interact for kinetic energy matrix.
+                Done: -Dirac K, Ven
+                Done: -How to enforce Basis set is correct for H?
+                    No: -bool Relativistc() const=0 member for BS and H interfaces?
+                    Done: -Dynamic cast from Orbital_IBS to Orbital_RKB_IBS
+            No: -Wave function
+                    No: -DiracWF {PolaraizedWF itsLarge, itsSmall}
+                    Done: -L^alpha and S^alpha need to interact for kinetic energy matrix.
             -Run H
             -Add support J/K 2ERIs, Dirac Vee, Vxc
             -Run He, Li, Be, B ....
             -DFT support.
             -Finite size nucleus,  Ven_fs
             TODO:
-            -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
+            Done: -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
         -Factors of 2
             -Exchange
                 K_LSLS should be Matrix, not SMatrix
                 We need a non symmetrix version of ERI4
-            -Don't renormalize gS, make gS=1/(2*c)*OP*gL
+            No: -Don't renormalize gS, make gS=1/(2*c)*OP*gL
                 Should be able to remove -2* for kinetic matrix, and 0.5* for energy.
                 This one could get messy. Commit first for easy back out.
             
@@ -227,7 +192,7 @@ oml:
     Handle SMatrix<complex<T>> return conj is i>j;
       
 Priority 2:
-    -Set up a CMake build.  Run from vscode.
+    Done: -Set up a CMake build.  Run from vscode.
     -ID, streaming
         1) Test boost::serialization, does it work for shared pointers???
             Looks like yes, can std::shared_ptr in the headers.
@@ -269,7 +234,6 @@ Priority 2:
             Talks about boost::shared_pointer ... too old for sdt::shared_ptr?
             Need to try.
             
-    -Hunt for dynamic casts that can be removed using dynamic_cast iterator
     -Do something about the oml/imp includes.
         -Include binio in stream.h?
         -Move stream up from imp.
@@ -313,6 +277,51 @@ Priority 3:
         -Polarized HF with m splitting basis works just well. Way less complicated.
     
 --------------------------------------------------------------------------------------
+    
+    
+    Done: -Survey use of IrrepBS, Can we use more specific interfaces?
+    Done: -RKBS_IE::Kinetic should call IE_Primatives::Kinetic
+    Done: -SlaterIntegral(alpha,n) includes r^2 in n
+        GaussianIntegral(alpha,n) does not 
+        Harmonize.
+    Done: -Break down integral engines
+        -OneElectron_IE:
+            Overlap
+            Nuclear
+            Kinetic
+        -DFT_IE->OneElectronIE Adds
+            Repulsion2
+            Overlap3
+            Repulsion3
+        -HF_IE->OneElectronIE Adds
+            Direct4
+            Exchange4
+        -Fit_IE
+            ?
+        -Can add more later for observables opertors.
+        Done: -COnjunction with:
+            1) Simplify integral call chain
+            2) Separate FitBasisSet idea.
+    Done: -Use the DB_BS_2E to cache all integrals.
+        -The reorg IE/DB/AtomIE classes so that we don't end up with Kinetic/Nuclear integrals
+         poluting the FIT_IE interface.
+    Done: -Simplify integral call chain
+        -Adding RestMass integral calculation was very labourious.  Call Chain:
+        HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
+        -Should we at least get the basis set out of the call chain?
+        -Reimagine in conjunction with Separate FitBasisSet idea.
+    
+    Done: -Get LAParams out of all the constructors.
+        Use defaults, and have a optional Set() method.
+    Done: -Clean up Dirac/RKB code.
+    Done: -We need a UniqueID pure interface   
+        Also separate from PMStreamable.
+    Done: -Stop using paramaterized Integral() calls.
+    Done: -PG::Fit_BS do we need all that function forwarding?
+    Done: -Make Atom_BS_IE which handles and angular integrals for all atom basis sets.
+    Done: -Need more iterators for BasisSet where dyn casting is done by the iterator.
+        -Use proxy classes 
+            for (auto b:bs->Irreps<TOrbital_IBS<double> >()) 
     Done: -1) Refactor atom IEs, lots of common code.
         Done: 2) Then propagate and new ERIJ ERIK code to all atom basis sets.
         Done: Oops: 3) Compare table sizes before removing old JK code.

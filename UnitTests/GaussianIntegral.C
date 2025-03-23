@@ -88,7 +88,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     
     for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Kinetic();
+        SMatrix<double> K=oi->Grad2();
         //cout << S << endl;
         SMatrix<double> Knum = 0.5*mintegrator->Grad(*oi); //This give the wrong answer for l>0
 

@@ -55,14 +55,14 @@ namespace SphericalGaussian_RKB
 //     SMat os=itsSmallIE->MakeOverlap(da->itsSmallIEC);
 //     return merge_diag(ol,os);
 // }
-// DiracIntegralEngine::SMat DiracIntegralEngine::MakeKinetic  (iec_t* a) const
+// DiracIntegralEngine::SMat DiracIntegralEngine::MakeGrad2  (iec_t* a) const
 // {
 //     auto da=dcast(a);
-//     Mat kls=-2.0*itsLargeIE->MakeKinetic(da->itsLargeIEC,da->itsSmallIEC);
+//     Mat kls=-2.0*itsLargeIE->MakeGrad2(da->itsLargeIEC,da->itsSmallIEC);
 //     //std::cout << "kls=" << kls << std::endl;
 //     return merge_off_diag(kls);
 // }
-// DiracIntegralEngine::Mat DiracIntegralEngine::MakeKinetic(iec_t* a,iec_t* b) const
+// DiracIntegralEngine::Mat DiracIntegralEngine::MakeGrad2(iec_t* a,iec_t* b) const
 // {
 //     assert(false);
 //     return Mat();
@@ -467,11 +467,11 @@ namespace SphericalGaussian_RKB
 // }
 // 
 
-template <class T> double Orbital_RKBS_IE<T>::Kinetic(double ea , double eb,size_t la,size_t lb) const
+template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t la,size_t lb) const
 {
     assert(la==lb);
     assert(la==0);
-    return 2.0*SphericalGaussian::IE_Primatives::Kinetic(ea,eb,la,lb);
+    return 2.0*SphericalGaussian::IE_Primatives::Grad2(ea,eb,la,lb);
 }
 
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const

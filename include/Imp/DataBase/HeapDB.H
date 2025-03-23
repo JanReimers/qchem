@@ -39,33 +39,33 @@ protected:
 };
 
 // It would be nice use virtual inheretance from DB_Common<T>, but that opens a contructor hornets nest.
-template <class T> class DB_Overlap : public DB_Common<T>, public virtual Integrals_Overlap<T>
+template <class T> class DB_Overlap  : public DB_Common<T>, public virtual Integrals_Overlap<T>
 {    
 protected:
     DB_Overlap(const DB_cache<T>* db) : DB_Common<T>(db) {};
     virtual typename Integrals_Base<T>::SMat_ref Overlap() const;
     virtual typename Integrals_Base<T>::SMat MakeOverlap() const=0;
 };
-template <class T> class DB_Kinetic : public DB_Common<T>, public virtual Integrals_Kinetic<T>
+template <class T> class DB_Grad2    : public DB_Common<T>, public virtual Integrals_Grad2<T>
 {    
 protected:
-    DB_Kinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const;
-    virtual typename Integrals_Base<T>::SMat MakeKinetic() const=0;
+    DB_Grad2(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Grad2() const;
+    virtual typename Integrals_Base<T>::SMat MakeGrad2() const=0;
 };
-template <class T> class DB_Nuclear : public DB_Common<T>, public virtual Integrals_Nuclear<T>
+template <class T> class DB_Nuclear  : public DB_Common<T>, public virtual Integrals_Nuclear<T>
 {    
 protected:
     DB_Nuclear(const DB_cache<T>* db) : DB_Common<T>(db) {};
     virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
     virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
 };
-template <class T> class DB_XKinetic : public DB_Common<T>, public virtual Integrals_XKinetic<T>
+template <class T> class DB_XGrad2   : public DB_Common<T>, public virtual Integrals_XGrad2<T>
 {    
 protected:
-    DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    DB_XGrad2(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::Mat_ref Grad2(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual typename Integrals_Base<T>::Mat MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
 {    
@@ -159,30 +159,30 @@ private:
 template <class T> class DB_RKB 
     : virtual public Integrals_RKB<T>
     , public DB_Overlap<T>
-    , public DB_Kinetic<T>
+    , public DB_Grad2<T>
     , public DB_Nuclear<T>
     , public DB_RestMass<T>
 {    
 protected:
-    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Kinetic<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
+    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Grad2<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
    
 };
 template <class T> class DB_RKBL 
     : virtual public Integrals_RKBL<T>
     , public DB_Overlap<T>
-    , public DB_XKinetic<T>
+    , public DB_XGrad2<T>
     , public DB_Nuclear<T>
 {
 protected:
-    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XKinetic<T>(db), DB_Nuclear<T>(db) {};
+    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XGrad2<T>(db), DB_Nuclear<T>(db) {};
 };
 template <class T> class DB_RKBS 
     : virtual public Integrals_RKBS<T>
-    , public DB_Kinetic<T>
+    , public DB_Grad2<T>
     , public DB_Nuclear<T>
 {
 protected:
-    DB_RKBS(const DB_cache<T>* db) :  DB_Kinetic<T>(db), DB_Nuclear<T>(db) {};  
+    DB_RKBS(const DB_cache<T>* db) :  DB_Grad2<T>(db), DB_Nuclear<T>(db) {};  
    
 };
 

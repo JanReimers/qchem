@@ -36,7 +36,7 @@ protected:
 
 class Orbital_IE
 : public IE_Common
-, public DB_Kinetic<double>
+, public DB_Grad2<double>
 , public DB_Nuclear<double>
 , public DB_2E<double>
 , public DB_DFT<double>
@@ -47,7 +47,7 @@ class Orbital_IE
     typedef Base::fbs_t fbs_t; //Fit basis
     typedef Base::obs_t obs_t; //Fit basis
 public:
-    virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Kinetic);}
+    virtual SMat MakeGrad2() const {return MakeIntegrals(qchem::Grad2);}
     virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const; //Used for DFT
@@ -56,7 +56,7 @@ public:
 protected:
     Orbital_IE(const DB_BS_2E<double>* db) 
         : IE_Common(db)
-        , DB_Kinetic<double>(db)
+        , DB_Grad2<double>(db)
         , DB_Nuclear<double>(db)
         , DB_2E<double>(db)
         , DB_DFT<double>(db) 

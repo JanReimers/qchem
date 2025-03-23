@@ -1,4 +1,4 @@
-// File: BasisSet/Dirac_IBS.H  Interface for Dirac basis sets with Restricted Kinetic Balance (RKB).
+// File: BasisSet/Dirac_IBS.H  Interface for Dirac basis sets with Restricted Grad2 Balance (RKB).
 #ifndef _Dirac_IBS_H_
 #define _Dirac_IBS_H_
 //
@@ -14,7 +14,7 @@ namespace Dirac
    
 template <class T> class RKB_IE
     : public virtual Integrals_Overlap<T>
-    , public virtual Integrals_Kinetic<T>
+    , public virtual Integrals_Grad2<T>
     , public virtual Integrals_Nuclear<T>
     , public virtual Integrals_RestMass<T>
     , public DB_RKB<T>
@@ -27,7 +27,7 @@ public:
     RKB_IE(const DB_cache<T>* db) : DB_RKB<T>(db) {};
     
     virtual SMat MakeOverlap () const;
-    virtual SMat MakeKinetic () const;
+    virtual SMat MakeGrad2 () const;
     virtual SMat MakeNuclear (const Cluster*) const;
     virtual SMat MakeRestMass() const;
     virtual ERI4 MakeDirect  (const obs_t& c) const;

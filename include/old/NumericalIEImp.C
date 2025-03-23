@@ -154,7 +154,7 @@ template <class T> void NumericalIEImp<T>::MakeRepulsion4C(ERIList& eris,ERIList
     std::cerr << "NumericalIE<T>::MakeRepulsion4C 4 center numerical integrals are not supported" << std::endl;
     exit(-1);
 }
-template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeKinetic() const
+template <class T> typename NumericalIEImp<T>::SMat NumericalIEImp<T>::MakeGrad2() const
 {
     //No UT coverage.
     CheckInitialized();

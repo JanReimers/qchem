@@ -30,7 +30,7 @@ public:
     virtual RVec MakeCharge       () const;
     
     virtual  SMat MakeOverlap  (                 ) const;
-    virtual  SMat MakeKinetic  (                 ) const;
+    virtual  SMat MakeGrad2  (                 ) const;
     virtual  SMat MakeNuclear  (const Cluster&   ) const;
     virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const; //Used for charge and Vxc fitting.

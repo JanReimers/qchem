@@ -11,7 +11,7 @@ Kinetic::Kinetic()
 
 HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    return bs->Kinetic();
+    return bs->Grad2();
 }
 
 void Kinetic::GetEnergy(TotalEnergy& te) const

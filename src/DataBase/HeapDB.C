@@ -76,13 +76,13 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap <T>::Overlap(
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic <T>::Kinetic() const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Grad2 <T>::Grad2() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
-    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Kinetic,this->GetID());
+    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Grad2,this->GetID());
     if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeKinetic();
+        return cache->itsSMats[key] = MakeGrad2();
     else
         return i->second;
 }
@@ -96,13 +96,13 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> typename Integrals_Base<T>:: Mat_ref DB_XGrad2<T>::Grad2(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
-    typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Kinetic,this->GetID(),rkbs->GetID());
+    typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Grad2,this->GetID(),rkbs->GetID());
     if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
-        return cache->itsMats[key] = MakeKinetic(rkbs);
+        return cache->itsMats[key] = MakeGrad2(rkbs);
     else
         return i->second;
 }

@@ -12,8 +12,8 @@ DiracKinetic::DiracKinetic()
 
 HamiltonianTerm::SMat DiracKinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    // std::cout << "K_dirac/c=" << bs->Kinetic() << std::endl;
-    return c_light*bs->Kinetic();
+    // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
+    return c_light*bs->Grad2();
 }
 
 void DiracKinetic::GetEnergy(TotalEnergy& te) const

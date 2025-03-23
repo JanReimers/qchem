@@ -26,7 +26,7 @@ double IrrepIEClient::Norm(double e, size_t l) const
 
 double Small_IrrepIEClient::Norm(double e, size_t l) const
 { 
-    return 1.0/sqrt(2.0*Slater::IE_Primatives::Kinetic(e,e,l,l));  //SlaterIntegral already has 4*Pi
+    return 1.0/sqrt(2.0*Slater::IE_Primatives::Grad2(e,e,l,l));  //SlaterIntegral already has 4*Pi
 }
     
 void Dirac_IrrepIEClient::Init(const Slater_mj::IrrepIEClient* liec,const Slater_mj::IrrepIEClient* siec)

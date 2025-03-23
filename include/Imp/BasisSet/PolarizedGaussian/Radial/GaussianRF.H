@@ -52,7 +52,7 @@ public:
     virtual RVec3       Gradient  (const RVec3&) const;
 
 private:
-    double GetKinetic(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const;
+    double GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const;
 
     friend class  GaussianCD;
     friend class PolarizedGaussianIE;

@@ -48,11 +48,11 @@ public:
     virtual typename Integrals_Base<T>::SMat_ref Overlap() const=0;
 };
 
-template <class T> class Integrals_Kinetic : public virtual Integrals_Base<T>
+template <class T> class Integrals_Grad2 : public virtual Integrals_Base<T>
 {
 public:
-    //! Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const=0;
+    //! Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    virtual typename Integrals_Base<T>::SMat_ref Grad2() const=0;
 };
 
 template <class T> class Integrals_Nuclear : public virtual Integrals_Base<T>
@@ -69,11 +69,11 @@ public:
     virtual typename Integrals_Base<T>::SMat_ref RestMass() const=0;   
 };
 
-template <class T> class Integrals_XKinetic : public virtual Integrals_Base<T>
+template <class T> class Integrals_XGrad2 : public virtual Integrals_Base<T>
 {
 public:
-    //! L/S cross Kinetic energy \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    //! L/S cross Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    virtual typename Integrals_Base<T>::Mat_ref Grad2(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 
 // template <class T> class Integrals_Repulsion : public virtual Integrals_Base<T>
@@ -117,7 +117,7 @@ public:
 
 template <class T> class Integrals_RKB
 : public virtual Integrals_Overlap<T>
-, public virtual Integrals_Kinetic<T>
+, public virtual Integrals_Grad2<T>
 , public virtual Integrals_Nuclear<T>
 , public virtual Integrals_RestMass<T>
 {
@@ -127,7 +127,7 @@ public:
 
 template <class T> class Integrals_RKBL
 : public virtual Integrals_Overlap<T>
-, public virtual Integrals_XKinetic<T>
+, public virtual Integrals_XGrad2<T>
 , public virtual Integrals_Nuclear<T>
 {
 public:
@@ -135,7 +135,7 @@ public:
 };
 
 template <class T> class Integrals_RKBS 
-: public virtual Integrals_Kinetic<T> //Serves as the overlap.
+: public virtual Integrals_Grad2<T> //Serves as the overlap.
 , public virtual Integrals_Nuclear<T>
 {
 public:

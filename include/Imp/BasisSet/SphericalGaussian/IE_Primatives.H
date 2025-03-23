@@ -9,13 +9,13 @@ namespace SphericalGaussian
    
 class IE_Primatives 
     : public virtual  Primative_Overlap<double>
-    , public virtual  Primative_Kinetic<double>
+    , public virtual  Primative_Grad2<double>
     , public virtual  Primative_Nuclear<double>
     , public virtual Primative_Repulsion<double>
 {
     protected:
     virtual double Overlap(double ea , double eb,size_t l_total) const;
-    virtual double Kinetic(double ea , double eb,size_t la, size_t lb) const;
+    virtual double Grad2(double ea , double eb,size_t la, size_t lb) const;
     virtual double Nuclear(double ea , double eb,size_t l_total) const;
     virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
 };

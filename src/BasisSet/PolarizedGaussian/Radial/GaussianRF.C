@@ -122,10 +122,10 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
                 s*=2*Pi52*factor;
             }  // case          
             break;
-        case qchem::Kinetic :
+        case qchem::Grad2 :
             {
                 double factor=0.5*pow(Pi/ab.AlphaP,1.5)*ab.Eij;
-                double h = GetKinetic(pa,pb,ab);
+                double h = GetGrad2(pa,pb,ab);
                 if (h!=0) s=factor*h;
                 break;
             }
@@ -339,7 +339,7 @@ double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc
 
 
 
-double GaussianRF::GetKinetic(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const
+double GaussianRF::GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const
 {
     static Polarization p0(0,0,0),x(1,0,0),y(0,1,0),z(0,0,1);
     const  Polarization& P1= p1;

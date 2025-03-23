@@ -12,10 +12,10 @@ template <class T> class Primative_Overlap
     public:
     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
 };
-template <class T> class Primative_Kinetic
+template <class T> class Primative_Grad2
 {
     public:
-    virtual double Kinetic(double ea ,double eb,size_t la, size_t lb) const=0;
+    virtual double Grad2(double ea ,double eb,size_t la, size_t lb) const=0;
 };
 template <class T> class Primative_Nuclear
 {
@@ -37,14 +37,14 @@ protected:
     virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
     AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
 };
-template <class T> class AtomIE_Kinetic
-: public virtual Primative_Kinetic<T>
-, public DB_Kinetic<T>
+template <class T> class AtomIE_Grad2
+: public virtual Primative_Grad2<T>
+, public DB_Grad2<T>
 {
 protected:
-    using Primative_Kinetic<T>::Kinetic;
-    virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
-    AtomIE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+    using Primative_Grad2<T>::Grad2;
+    virtual typename Integrals_Base<T>::SMat MakeGrad2() const;
+    AtomIE_Grad2(const DB_cache<T>* db) : DB_Grad2<T>(db) {};
 };
 template <class T> class AtomIE_Nuclear
 : public virtual Primative_Nuclear<T>
@@ -55,14 +55,14 @@ protected:
     virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
     AtomIE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
 };
-template <class T> class AtomIE_XKinetic
-: public virtual Primative_Kinetic<T>
-, public DB_XKinetic<T>
+template <class T> class AtomIE_XGrad2
+: public virtual Primative_Grad2<T>
+, public DB_XGrad2<T>
 {
 protected:
-    using Primative_Kinetic<T>::Kinetic;
-    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    AtomIE_XKinetic(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
+    using Primative_Grad2<T>::Grad2;
+    virtual typename Integrals_Base<T>::Mat MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const;
+    AtomIE_XGrad2(const DB_cache<T>* db) : DB_XGrad2<T>(db) {};
 };
 
 
@@ -145,19 +145,19 @@ public:
 
 template <class T> class AtomIE_RKBL 
     : public AtomIE_Overlap<T>
-    , public AtomIE_XKinetic<T>
+    , public AtomIE_XGrad2<T>
     , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XKinetic<T>(db),AtomIE_Nuclear<T>(db) {};
+    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XGrad2<T>(db),AtomIE_Nuclear<T>(db) {};
 
 };
 template <class T> class AtomIE_RKBS 
-: public AtomIE_Kinetic<T>
+: public AtomIE_Grad2<T>
 , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Kinetic<T>(db), AtomIE_Nuclear<T>(db) {};
+    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Grad2<T>(db), AtomIE_Nuclear<T>(db) {};
 };
 
 #endif // _AtomIE_H_
