@@ -13,6 +13,7 @@
 #include <cassert>
 #include <stdlib.h>
 #include <algorithm>
+#include <unistd.h>
 
 using std::ws;
 namespace PolarizedGaussian
@@ -30,6 +31,7 @@ Gaussian94Reader::Gaussian94Reader(std::string filename)
     if(!itsStream)
     {
         std::cerr << "Could not open Gaussian 94 format basis set data file :" << filename << std::endl;
+        std::cerr << "  current working directory = '" << get_current_dir_name() << "'" << std::endl;
         exit(-1);
     }
 };
