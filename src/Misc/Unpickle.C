@@ -35,8 +35,8 @@ template <class T> bool UnPickle(T*& pointer, const  char* filep, const char* na
 
 template bool UnPickle(Hamiltonian        *&,const char*,const char*);
 template bool UnPickle(IrrepBasisSet           *&,const char*,const char*);
-template bool UnPickle(ChargeDensity      *&,const char*,const char*);
-template bool UnPickle(FittedCD           *&,const char*,const char*);
+// template bool UnPickle(ChargeDensity      *&,const char*,const char*);
+// template bool UnPickle(FittedCD           *&,const char*,const char*);
 template bool UnPickle(Cluster            *&,const char*,const char*);
 template bool UnPickle(UnitCell           *&,const char*,const char*);
 //template bool UnPickle(Mesh               *&,const char*,const char*);

@@ -54,32 +54,4 @@ const Exact_CD* Polarized_Exact_CDImp::GetChargeDensity(const Spin& S) const
 
 
 
-//--------------------------------------------------------------------------
-//
-//  Streamable stuff.
-//
-std::ostream& Polarized_Exact_CDImp::Write(std::ostream& os) const
-{
-    assert(itsSpinUpCD);
-    assert(itsSpinDownCD);
-    return os << *itsSpinUpCD << *itsSpinDownCD;
-}
-
-std::istream& Polarized_Exact_CDImp::Read (std::istream& is)
-{
-    // delete itsSpinUpCD;
-    // itsSpinUpCD=ChargeDensity::Factory(is);
-    // assert(itsSpinUpCD);
-    // is >> *itsSpinUpCD;
-
-    // delete itsSpinDownCD;
-    // itsSpinDownCD=ChargeDensity::Factory(is);
-    // assert(itsSpinDownCD);
-    // is >> *itsSpinDownCD;
-
-    return is;
-}
-
-
-
 

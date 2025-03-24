@@ -4,7 +4,6 @@
 
 #include <ScalarFunction.H>
 #include <FittedFunctionClient.H>
-#include "Imp/Misc/pmstream.h"
 
 
 //----------------------------------------------------------------------------------
@@ -20,8 +19,7 @@
 //
 //
 class ChargeDensity
-    : public virtual PMStreamableObject
-    , public virtual ScalarFunction<double>
+    : public virtual ScalarFunction<double>
     , public virtual DensityFFClient //Fitted function can be fit to this.
 {
 public:
@@ -36,10 +34,6 @@ public:
     virtual double GetChangeFrom(const ChargeDensity&       ) const=0;  //Convergence check.
 
     virtual double FitGetConstraint(                        ) const;
-
-    virtual std::ostream&  Write(std::ostream&) const=0;
-    virtual std::istream&  Read (std::istream&)      =0;
-    static  ChargeDensity*  Factory(std::istream&)        ;
 };
 
 
@@ -63,7 +57,6 @@ public:
     virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const=0;
     //Required for creating a polarized CD from and un-polarized CD
     virtual FittedCD*  Clone  (        ) const=0;
-    static  FittedCD*  Factory(std::istream&)        ;
 };
 
 class Exact_CD : public virtual ChargeDensity

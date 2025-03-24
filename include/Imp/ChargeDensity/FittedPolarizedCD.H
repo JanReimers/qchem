@@ -35,8 +35,6 @@ public:
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
-    virtual std::ostream&  Write(std::ostream&) const;
-    virtual std::istream&  Read (std::istream&)      ;
     virtual FittedCD* Clone(        ) const;
 
 private:

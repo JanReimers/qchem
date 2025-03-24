@@ -104,12 +104,12 @@ Cluster*  DFTFiles::UnpickleCluster() const
 //    return ret;
 //}
 
-ChargeDensity* DFTFiles::UnpickleChargeDensity() const
-{
-    ChargeDensity* ret=0;
-    UnPickle(ret,GetChargeDensityFN().c_str(),"Charge density");
-    return ret;
-}
+// ChargeDensity* DFTFiles::UnpickleChargeDensity() const
+// {
+//     ChargeDensity* ret=0;
+//     UnPickle(ret,GetChargeDensityFN().c_str(),"Charge density");
+//     return ret;
+// }
 
 Hamiltonian* DFTFiles::UnpickleHamiltonian() const
 {

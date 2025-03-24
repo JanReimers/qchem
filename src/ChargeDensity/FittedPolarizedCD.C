@@ -160,32 +160,6 @@ double FittedPolarizedCD::FitGetChangeFrom(const FittedFunction& ff) const
            + itsSpinDownCD -> FitGetChangeFrom(ff);
 }
 
-//--------------------------------------------------------------------------
-//
-//  Streamable stuff.
-//
-std::ostream& FittedPolarizedCD::Write(std::ostream& os) const
-{
-    assert(itsSpinUpCD);
-    assert(itsSpinDownCD);
-    return os << itsSpinUpCD << itsSpinDownCD;
-}
-
-std::istream& FittedPolarizedCD::Read (std::istream& is)
-{
-    delete itsSpinUpCD;
-    itsSpinUpCD=FittedCD::Factory(is);
-    assert(itsSpinUpCD);
-    is >> *itsSpinUpCD;
-
-    delete itsSpinDownCD;
-    itsSpinDownCD=FittedCD::Factory(is);
-    assert(itsSpinDownCD);
-    is >> *itsSpinDownCD;
-
-    return is;
-}
-
 FittedCD* FittedPolarizedCD::Clone() const
 {
     return new FittedPolarizedCD(*this);

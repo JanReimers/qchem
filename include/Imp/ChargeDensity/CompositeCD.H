@@ -35,9 +35,6 @@ public:
     virtual double operator()(const RVec3&) const;
     virtual Vec3   Gradient  (const RVec3&) const;
 
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
-
 private:
     Composite_Exact_CD(const Composite_Exact_CD&);
 

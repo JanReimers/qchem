@@ -135,20 +135,3 @@ ChargeDensity::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
 }
 
 
-//-----------------------------------------------------------------------
-//
-//  Streamable stuff.
-//
-std::ostream& Composite_Exact_CD::Write(std::ostream& os) const
-{
-    os << itsCDs;
-    return os;
-}
-
-std::istream& Composite_Exact_CD::Read (std::istream& is)
-{
-    // is >> itsCDs;
-    return is;
-}
-
-

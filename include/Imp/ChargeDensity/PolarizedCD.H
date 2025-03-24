@@ -24,9 +24,6 @@ public:
           Exact_CD* GetChargeDensity(const Spin&)      ;
     const Exact_CD* GetChargeDensity(const Spin&) const;
 
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
 private:
     Exact_CD* itsSpinUpCD;
     Exact_CD* itsSpinDownCD;
