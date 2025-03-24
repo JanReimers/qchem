@@ -17,7 +17,7 @@ public:
     virtual Exact_CD*           GetChargeDensity(Spin=Spin::None   ) const=0;
     virtual Orbitals*           GetOrbitals     (const QuantumNumber&,Spin=Spin::None) const=0;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*)=0;
-    virtual SCFIterator*        MakeIterator    (Hamiltonian*, ChargeDensity* guess, double NElectrons)=0;
+    virtual SCFIterator*        MakeIterator    (Hamiltonian*, Exact_CD* guess, double NElectrons)=0;
     virtual void                DisplayEigen    (                  ) const=0;
 
     virtual std::ostream&   Write(std::ostream&) const=0;

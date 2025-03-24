@@ -51,7 +51,7 @@ Orbitals* MasterUnPolarizedWF::GetOrbitals(const QuantumNumber& qn,Spin s) const
     return itsGroup->GetOrbitals(qn,s);
 }
 
-SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
+SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
 {
     return new SCFIteratorUnPol(this, H, cd,nElectrons);
 }

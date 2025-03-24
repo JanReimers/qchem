@@ -25,14 +25,10 @@ public:
 
     virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const;
     
-    virtual double GetEnergy(const HamiltonianTerm*) const; // No UT coverage
+    // virtual double GetEnergy(const HamiltonianTerm*) const; // No UT coverage
 
     virtual double GetSelfRepulsion    (                     ) const;  //Does GetRepulsion(*this);
     
-    virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
-    virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage
-    virtual void   MixIn        (const ChargeDensity&,double)      ;  // No UT coverage//this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const ChargeDensity&       ) const;  // No UT coverage//MaxAbs(delta Fit coeff).
     virtual double DoFit        (const DensityFFClient&)      ;
     virtual double DoFit        (const Exact_CD&);
 

@@ -13,17 +13,17 @@ public:
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
 
-    virtual ChargeDensity* GetExactChargeDensity () const;
+    virtual Exact_CD* GetExactChargeDensity () const;
 
 protected:
-    void Initialize(ChargeDensity* cd);  //Does on iteration to set up the exact charge density.
+    void Initialize(Exact_CD* cd);  //Does on iteration to set up the exact charge density.
 
     WaveFunction*        itsWaveFunction;  //We don't own this guy!
 private:
     Hamiltonian*         itsHamiltonian;
 
-    ChargeDensity*       itsExactChargeDensity;
-    ChargeDensity*       itsOldExactChargeDensity;
+    Exact_CD*       itsExactChargeDensity;
+    Exact_CD*       itsOldExactChargeDensity;
 };
 
 #endif // _SCFIteratorImp_H_

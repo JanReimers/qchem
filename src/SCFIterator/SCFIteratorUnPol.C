@@ -12,7 +12,7 @@
 #include <cassert>
 
 
-SCFIteratorUnPol::SCFIteratorUnPol(WaveFunction* W, Hamiltonian* H,ChargeDensity* guess,
+SCFIteratorUnPol::SCFIteratorUnPol(WaveFunction* W, Hamiltonian* H,Exact_CD* guess,
                                                double nElectrons)
     : SCFIteratorImp(W,H)
     , itsTotalCharge(nElectrons)

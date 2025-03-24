@@ -10,7 +10,7 @@
 #include <iomanip>
 #include <cassert>
 
-SCFIteratorPol::SCFIteratorPol(PolarizedWF* W, Hamiltonian* H, ChargeDensity* guess,
+SCFIteratorPol::SCFIteratorPol(PolarizedWF* W, Hamiltonian* H, Exact_CD* guess,
                                            double nElectrons, double spin)
     : SCFIteratorImp(W,H)
 {

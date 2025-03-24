@@ -75,12 +75,12 @@ template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbit
     return J;
 }
 
-template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) const
-{
-    // No UT coverage
-    assert(itsExactRep);
-    return itsExactRep->GetEnergy(v);
-}
+// template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) const
+// {
+//     // No UT coverage
+//     assert(itsExactRep);
+//     return itsExactRep->GetEnergy(v);
+// }
 
 template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 {
@@ -91,38 +91,6 @@ template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 //
 //  SCF convergence stuff.
 //
-template <class T> void FittedCDImp<T>::MixIn(const ChargeDensity& cd,double c)
-{
-    // No UT coverage
-    const FittedCDImp<T>* fcd = dynamic_cast<const FittedCDImp<T>*>(&cd);
-    assert(fcd);
-    FitMixIn(*fcd,c);
-}
-
-template <class T> double FittedCDImp<T>::GetChangeFrom(const ChargeDensity& cd) const
-{
-    // No UT coverage
-    const FittedCDImp<T>* fcd = dynamic_cast<const FittedCDImp<T>*>(&cd);
-    assert(fcd);
-    return FitGetChangeFrom(*fcd);
-}
-
-//-------------------------------------------------------------------------
-//
-//  Real space function stuff.
-//
-template <class T> void   FittedCDImp<T>::ReScale (double factor)
-{
-    // No UT coverage
-    itsTotalCharge*=factor;
-    FittedFunctionImp<T>::ReScale(factor);
-}
-
-template <class T> void FittedCDImp<T>::ShiftOrigin(const RVec3& newCenter)
-{
-    // No UT coverage
-    FittedFunctionImp<T>::ShiftOrigin(newCenter);
-}
 
 template <class T> double FittedCDImp<T>::operator()(const RVec3& r) const
 {

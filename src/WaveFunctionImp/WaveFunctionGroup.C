@@ -67,7 +67,7 @@ const EnergyLevels& WaveFunctionGroup::FillOrbitals(const ElectronConfiguration*
 }
 
 
-SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double NElectrons)
+SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, Exact_CD* cd, double NElectrons)
 {
     return new SCFIteratorUnPol(this, H, cd,NElectrons);
 }

@@ -45,7 +45,7 @@ void QchemTester::Init(double eps)
     assert(itsHamiltonian);
     itsWaveFunction=GetWaveFunction(itsBasisSet); //Polarized or un-polarized
     assert(itsWaveFunction);
-    ChargeDensity* GuessCD=itsWaveFunction->GetChargeDensity();
+    Exact_CD* GuessCD=itsWaveFunction->GetChargeDensity();
     itsSCFIterator=itsWaveFunction->
                    MakeIterator(itsHamiltonian,GuessCD,itsCluster->GetNumElectrons()); //show plot flag.
 

@@ -23,7 +23,7 @@ SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H)
 }
 
 
-void SCFIteratorImp::Initialize(ChargeDensity* cd)
+void SCFIteratorImp::Initialize(Exact_CD* cd)
 {
     assert(cd);
 
@@ -88,7 +88,7 @@ bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
 }
 
 
-ChargeDensity* SCFIteratorImp::GetExactChargeDensity() const
+Exact_CD* SCFIteratorImp::GetExactChargeDensity() const
 {
     return itsExactChargeDensity;
 }

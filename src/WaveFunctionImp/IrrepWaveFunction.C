@@ -87,7 +87,7 @@ void  IrrepWaveFunction::DisplayEigen() const
    
 }
 
-SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
+SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
 {
     return new SCFIteratorUnPol(this, H, cd,nElectrons);
 }

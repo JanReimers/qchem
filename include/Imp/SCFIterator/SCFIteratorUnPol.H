@@ -9,7 +9,7 @@ class SCFIteratorUnPol
     : virtual public SCFIteratorImp
 {
 public:
-    SCFIteratorUnPol(WaveFunction*, Hamiltonian* ,ChargeDensity* guess, double nElectrons);
+    SCFIteratorUnPol(WaveFunction*, Hamiltonian* ,Exact_CD* guess, double nElectrons);
 
     virtual bool Iterate(const SCFIterationParams& ipar);
     virtual void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;

@@ -76,7 +76,7 @@ const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*
 }
 
 
-SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, ChargeDensity* cd, double nElectrons)
+SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
 {
     return new SCFIteratorPol(this,H,cd,nElectrons,0.0);
 }
