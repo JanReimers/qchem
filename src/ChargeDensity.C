@@ -6,12 +6,6 @@ double ChargeDensity::FitGetConstraint  () const
     return  GetTotalCharge();
 }
 
-bool ChargeDensity::IsPolarized() const
-{
-    // No UT coverage
-    return false;
-}
-
 #include "oml/smatrix.h"
 #include <Spin.H>
 #include "oml/vector.h"
@@ -96,13 +90,6 @@ void Polarized_CD::ReScale(double factor)
     // No UT coverage
     GetChargeDensity(Spin::Up)  ->ReScale(factor);
     GetChargeDensity(Spin::Down)->ReScale(factor);
-}
-
-
-bool Polarized_CD::IsPolarized() const
-{
-    // No UT coverage
-    return true;
 }
 
 //----------------------------------------------------------------------------------

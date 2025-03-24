@@ -28,7 +28,6 @@ public:
     virtual void   InjectOverlaps  (FittedFunction*, const BasisSet* theFitBasisSet) const;
     virtual void   InjectRepulsions(FittedFunction*, const BasisSet* theFitBasisSet) const;
 
-    virtual bool   IsPolarized  (                           ) const;
     virtual void   ReScale      (double factor              )      ;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  //Usefull for single atom charge densities.
     virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.

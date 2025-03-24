@@ -27,7 +27,6 @@ public:
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
     virtual double GetTotalCharge      (                     ) const=0;  // <ro>
 
-    virtual bool   IsPolarized  (                           ) const  ; // No UT coverage
     virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      =0;  //Usefull for single atom charge densities.
     virtual void   MixIn        (const ChargeDensity&,double)      =0;  //this = (1-c)*this + c*that.
@@ -87,7 +86,6 @@ public:
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
 
-    virtual bool   IsPolarized  (                           ) const; // No UT coverage
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
     virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
