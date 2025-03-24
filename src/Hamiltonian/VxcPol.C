@@ -47,7 +47,7 @@ HamiltonianTerm::SMat VxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<doub
         std::cerr << "PolarizedHartreeFockVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
     }
-    const Polarized_Exact_CD* PolExactCD =  dynamic_cast<const Polarized_Exact_CD*>(itsExactCD);
+    const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(itsExactCD);
     assert(PolExactCD);
     const Exact_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
     SMat Kab=SpinCD->GetExchange(bs)*-1.0;

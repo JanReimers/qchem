@@ -7,12 +7,12 @@
 //
 //  Construction zone.
 //
-Polarized_Exact_CDImp::Polarized_Exact_CDImp()
+Polarized_CDImp::Polarized_CDImp()
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
 {}; // No UT coverage
 
-Polarized_Exact_CDImp::Polarized_Exact_CDImp(Exact_CD* up, Exact_CD* down)
+Polarized_CDImp::Polarized_CDImp(Exact_CD* up, Exact_CD* down)
     : itsSpinUpCD  (up  )
     , itsSpinDownCD(down)
 {
@@ -20,7 +20,7 @@ Polarized_Exact_CDImp::Polarized_Exact_CDImp(Exact_CD* up, Exact_CD* down)
     assert(itsSpinDownCD);
 };
 
-Polarized_Exact_CDImp::~Polarized_Exact_CDImp()
+Polarized_CDImp::~Polarized_CDImp()
 {
     delete itsSpinUpCD;
     delete itsSpinDownCD;
@@ -30,7 +30,7 @@ Polarized_Exact_CDImp::~Polarized_Exact_CDImp()
 //
 //  Access to individual components.
 //
-Exact_CD* Polarized_Exact_CDImp::GetChargeDensity(const Spin& S)
+Exact_CD* Polarized_CDImp::GetChargeDensity(const Spin& S)
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
@@ -41,7 +41,7 @@ Exact_CD* Polarized_Exact_CDImp::GetChargeDensity(const Spin& S)
     return ret;
 }
 
-const Exact_CD* Polarized_Exact_CDImp::GetChargeDensity(const Spin& S) const
+const Exact_CD* Polarized_CDImp::GetChargeDensity(const Spin& S) const
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);

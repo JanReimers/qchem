@@ -28,10 +28,7 @@ public:
     virtual double GetEnergy(const HamiltonianTerm*) const; // No UT coverage
 
     virtual double GetSelfRepulsion    (                     ) const;  //Does GetRepulsion(*this);
-    virtual double GetTotalCharge      (                     ) const; // No UT coverage
-
-    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const; // No UT coverage
-
+    
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage
     virtual void   MixIn        (const ChargeDensity&,double)      ;  // No UT coverage//this = (1-c)*this + c*that.

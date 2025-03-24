@@ -87,24 +87,6 @@ template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
     return 0.5 * FittedFunctionImp<T>::FitGetRepulsion(this);
 }
 
-template <class T> double FittedCDImp<T>::GetTotalCharge() const
-{
-    // No UT coverage
-    if (itsTotalCharge==0) itsTotalCharge=FitGetCharge();
-    return itsTotalCharge;
-}
-
-//------------------------------------------------------------------------------
-//
-//  Required by fitting routines.
-//
-template <class T> Vector<double> FittedCDImp<T>::
-GetRepulsion3C(const Fit_IBS* fbs) const
-{
-    // No UT coverage
-    return FitGet2CenterRepulsion(fbs);
-}
-
 //-------------------------------------------------------------------------
 //
 //  SCF convergence stuff.

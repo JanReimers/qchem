@@ -22,7 +22,6 @@ class ChargeDensity
     : public virtual ScalarFunction<double>
 {
 public:
-    virtual double GetTotalCharge      (                     ) const=0;  // <ro>
 
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
 
@@ -62,6 +61,7 @@ class Exact_CD : public virtual ChargeDensity
 
 {
 public:
+    virtual double GetTotalCharge      (                     ) const=0;  // <ro>
     virtual double FitGetConstraint() const 
     {
         return  GetTotalCharge();
@@ -79,7 +79,7 @@ public:
 //  Generic: Could be fitted or exact.
 //
 class Polarized_CD
-    : public virtual ChargeDensity
+    : public virtual Exact_CD
 {
 public:
     virtual       Exact_CD* GetChargeDensity(const Spin&)      =0;
@@ -91,6 +91,8 @@ public:
     virtual double GetTotalSpin        (                     ) const;  // No UT coverage// <up>-<down>
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
+    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; // No UT coverage
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
@@ -101,15 +103,6 @@ public:
     virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
 };
 
-class Polarized_Exact_CD 
-    : public virtual Polarized_CD
-    , public virtual Exact_CD
-{
-public:
-    virtual       Exact_CD* GetChargeDensity(const Spin&)      =0;
-    virtual const Exact_CD* GetChargeDensity(const Spin&) const=0;
-    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; // No UT coverage
-};
+
 
 #endif //_ChargeDensity_H_
