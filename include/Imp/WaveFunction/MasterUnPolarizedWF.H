@@ -16,7 +16,7 @@ public:
     virtual ~MasterUnPolarizedWF();
 
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;
-    virtual ChargeDensity*      GetChargeDensity(Spin           ) const;
+    virtual Exact_CD*           GetChargeDensity(Spin           ) const;
     virtual Orbitals*           GetOrbitals     (const QuantumNumber&,Spin) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     virtual SCFIterator*        MakeIterator    (Hamiltonian*, ChargeDensity* guess, double nElectrons);

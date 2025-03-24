@@ -18,36 +18,36 @@ bool ChargeDensity::IsPolarized() const
 //
 //  Various integrals.
 //
-ChargeDensity::SMat PolarizedCD::GetRepulsion(const TOrbital_IBS<double>* bs) const
+ChargeDensity::SMat Polarized_Exact_CD::GetRepulsion(const TOrbital_IBS<double>* bs) const
 {
     SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
     SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
-ChargeDensity::SMat PolarizedCD::GetExchange(const TOrbital_IBS<double>* bs) const
+ChargeDensity::SMat Polarized_Exact_CD::GetExchange(const TOrbital_IBS<double>* bs) const
 {
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
     SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
     return Kab_up + Kab_down;
 }
 
-double PolarizedCD::GetEnergy(const HamiltonianTerm* v) const
+double Polarized_CD::GetEnergy(const HamiltonianTerm* v) const
 {
     return GetChargeDensity(Spin::Up  )->GetEnergy(v)+GetChargeDensity(Spin::Down)->GetEnergy(v);
 }
 
-double PolarizedCD::GetTotalCharge() const
+double Polarized_CD::GetTotalCharge() const
 {
     return GetChargeDensity(Spin::Up)->GetTotalCharge() + GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-double PolarizedCD::GetTotalSpin() const
+double Polarized_CD::GetTotalSpin() const
 {
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-Vector<double> PolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
+Vector<double> Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
     return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
         +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
@@ -57,15 +57,15 @@ Vector<double> PolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
 //
 //  Convergence and origin shifting.
 //
-void   PolarizedCD::ShiftOrigin(const RVec3& newcenter)
+void   Polarized_CD::ShiftOrigin(const RVec3& newcenter)
 {
     GetChargeDensity(Spin::Up)  ->ShiftOrigin(newcenter) ;
     GetChargeDensity(Spin::Down)->ShiftOrigin(newcenter) ;
 }
 
-void PolarizedCD::MixIn(const ChargeDensity& cd,double c)
+void Polarized_CD::MixIn(const ChargeDensity& cd,double c)
 {
-    const PolarizedCD* pcd = dynamic_cast<const PolarizedCD*>(&cd);
+    const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
     if (!pcd)
     {
         std::cerr << "PolarizedCD::MixIn could not cast cd" << std::endl;
@@ -75,9 +75,9 @@ void PolarizedCD::MixIn(const ChargeDensity& cd,double c)
     GetChargeDensity(Spin::Down)-> MixIn(*pcd->GetChargeDensity(Spin::Down),c);
 }
 
-double PolarizedCD::GetChangeFrom(const ChargeDensity& cd) const
+double Polarized_CD::GetChangeFrom(const ChargeDensity& cd) const
 {
-    const PolarizedCD* pcd = dynamic_cast<const PolarizedCD*>(&cd);
+    const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
     if (!pcd)
     {
         std::cerr << "PolarizedCD::GetChangeFrom could not cast cd" << std::endl;
@@ -87,14 +87,14 @@ double PolarizedCD::GetChangeFrom(const ChargeDensity& cd) const
            + GetChargeDensity(Spin::Down)->GetChangeFrom(*pcd->GetChargeDensity(Spin::Down)) ;
 }
 
-void PolarizedCD::ReScale(double factor)
+void Polarized_CD::ReScale(double factor)
 {
     GetChargeDensity(Spin::Up)  ->ReScale(factor);
     GetChargeDensity(Spin::Down)->ReScale(factor);
 }
 
 
-bool PolarizedCD::IsPolarized() const
+bool Polarized_CD::IsPolarized() const
 {
     return true;
 }
@@ -103,12 +103,12 @@ bool PolarizedCD::IsPolarized() const
 //
 //  Real space function stuff.
 //
-double PolarizedCD::operator()(const RVec3& r) const
+double Polarized_CD::operator()(const RVec3& r) const
 {
     return (*GetChargeDensity(Spin::Up))(r) + (*GetChargeDensity(Spin::Down))(r);
 }
 
-ChargeDensity::RVec3 PolarizedCD::Gradient  (const RVec3& r) const
+ChargeDensity::RVec3 Polarized_CD::Gradient  (const RVec3& r) const
 {
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
 }

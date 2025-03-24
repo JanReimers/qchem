@@ -15,7 +15,7 @@
 //  be a summation of these guys.
 //
 template <class T> class IrrepCD
-    : public virtual ChargeDensity
+    : public virtual Exact_CD
 {
 public:
     typedef Matrix<T>  DenMat;

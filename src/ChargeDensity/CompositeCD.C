@@ -13,21 +13,21 @@
 //
 //  Construction zone.
 //
-CompositeCD::CompositeCD()
+Composite_Exact_CD::Composite_Exact_CD()
 {};
 
-void CompositeCD::Insert(ChargeDensity* cd)
+void Composite_Exact_CD::Insert(Exact_CD* cd)
 {
     itsCDs.push_back(cd);
 }
 
-typedef optr_vector1<ChargeDensity*>::iterator ITER;
-typedef optr_vector1<ChargeDensity*>::const_iterator CITER;
+typedef optr_vector1<Exact_CD*>::iterator ITER;
+typedef optr_vector1<Exact_CD*>::const_iterator CITER;
 //-----------------------------------------------------------------------------
 //
 //  Total energy terms for a charge density.
 //
-ChargeDensity::SMat CompositeCD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
+ChargeDensity::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -36,7 +36,7 @@ ChargeDensity::SMat CompositeCD::GetRepulsion(const TOrbital_IBS<double>* bs_ab)
     return J;
 }
 
-ChargeDensity::SMat CompositeCD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
+ChargeDensity::SMat Composite_Exact_CD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
@@ -45,14 +45,14 @@ ChargeDensity::SMat CompositeCD::GetExchange(const TOrbital_IBS<double>* bs_ab) 
     return K;
 }
 
-double CompositeCD::GetEnergy(const HamiltonianTerm* v) const
+double Composite_Exact_CD::GetEnergy(const HamiltonianTerm* v) const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->GetEnergy(v);
     return ret;
 }
 
-double CompositeCD::GetTotalCharge() const
+double Composite_Exact_CD::GetTotalCharge() const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->GetTotalCharge();
@@ -63,7 +63,7 @@ double CompositeCD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-Vector<double> CompositeCD::GetRepulsion3C(const Fit_IBS* fbs) const
+Vector<double> Composite_Exact_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
     Vector<double> ret(fbs->size());
     Fill(ret,0.0);
@@ -75,21 +75,21 @@ Vector<double> CompositeCD::GetRepulsion3C(const Fit_IBS* fbs) const
 //
 //  SCF convergence stuff.
 //
-void CompositeCD::ReScale(double factor)
+void Composite_Exact_CD::ReScale(double factor)
 {
     // No UT coverage
     for (auto c:itsCDs) c->ReScale(factor);
 }
 
-void CompositeCD::ShiftOrigin(const RVec3& newCenter)
+void Composite_Exact_CD::ShiftOrigin(const RVec3& newCenter)
 {
     // No UT coverage
     for (auto c:itsCDs) c->ShiftOrigin(newCenter);
 }
 
-void CompositeCD::MixIn(const ChargeDensity& cd,double f)
+void Composite_Exact_CD::MixIn(const ChargeDensity& cd,double f)
 {
-    const CompositeCD* ecd = dynamic_cast<const CompositeCD*>(&cd);
+    const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
     assert(ecd);
     CITER  b(ecd->itsCDs.begin());
     for (auto c:itsCDs)
@@ -99,9 +99,9 @@ void CompositeCD::MixIn(const ChargeDensity& cd,double f)
     }
 }
 
-double CompositeCD::GetChangeFrom(const ChargeDensity& cd) const
+double Composite_Exact_CD::GetChangeFrom(const ChargeDensity& cd) const
 {
-    const CompositeCD* ecd = dynamic_cast<const CompositeCD*>(&cd);
+    const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
     assert(ecd);
     assert(itsCDs.size()==ecd->itsCDs.size());
     CITER b(ecd->itsCDs.begin());
@@ -119,14 +119,14 @@ double CompositeCD::GetChangeFrom(const ChargeDensity& cd) const
 //
 //  Real space function stuff.
 //
-double CompositeCD::operator()(const RVec3& r) const
+double Composite_Exact_CD::operator()(const RVec3& r) const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->operator()(r);
     return ret;
 }
 
-ChargeDensity::Vec3 CompositeCD::Gradient  (const RVec3& r) const
+ChargeDensity::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     Vec3 ret(0,0,0);
@@ -139,15 +139,15 @@ ChargeDensity::Vec3 CompositeCD::Gradient  (const RVec3& r) const
 //
 //  Streamable stuff.
 //
-std::ostream& CompositeCD::Write(std::ostream& os) const
+std::ostream& Composite_Exact_CD::Write(std::ostream& os) const
 {
     os << itsCDs;
     return os;
 }
 
-std::istream& CompositeCD::Read (std::istream& is)
+std::istream& Composite_Exact_CD::Read (std::istream& is)
 {
-    is >> itsCDs;
+    // is >> itsCDs;
     return is;
 }
 

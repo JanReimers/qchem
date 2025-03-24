@@ -31,6 +31,7 @@ class ElectronConfiguration;
 class EnergyLevel;
 class EnergyLevels;
 class ERI4;
+class Exact_CD;
 class M4;
 class ExFunctional;
 class Fit_IBS;

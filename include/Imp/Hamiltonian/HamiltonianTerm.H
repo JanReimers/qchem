@@ -58,7 +58,7 @@ protected:
     typedef std::map<CacheIndex,SMat> CacheMap;
     typedef std::map<CacheIndex,bool> DirtyMap;
 
-    const ChargeDensity*    itsExactCD;     //Exact charge density.
+    const Exact_CD*    itsExactCD;     //Exact charge density.
     mutable CacheMap        itsCache;       //Cache the H matricies for total energy calculations.
     mutable DirtyMap        itsDirtyCache;  //Is cache is older than charge density.
 };

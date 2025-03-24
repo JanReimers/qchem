@@ -37,7 +37,7 @@ void MasterUnPolarizedWF::DoSCFIteration(Hamiltonian& ham)
     itsGroup->DoSCFIteration(ham);
 }
 
-ChargeDensity* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
+Exact_CD* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
 {
     assert(itsGroup);
     assert(s==Spin::None);

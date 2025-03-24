@@ -47,14 +47,14 @@ void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
     itsSpinDnGroup->DoSCFIteration(ham);
 }
 
-ChargeDensity* MasterPolarizedWF::GetChargeDensity(Spin s) const
+Exact_CD* MasterPolarizedWF::GetChargeDensity(Spin s) const
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);
     assert(s==Spin::None);
-    ChargeDensity* up=itsSpinUpGroup->GetChargeDensity(Spin::Up);
-    ChargeDensity* dn=itsSpinDnGroup->GetChargeDensity(Spin::Down);
-    return new PolarizedCDImp(up,dn);
+    Exact_CD* up=itsSpinUpGroup->GetChargeDensity(Spin::Up);
+    Exact_CD* dn=itsSpinDnGroup->GetChargeDensity(Spin::Down);
+    return new Polarized_Exact_CDImp(up,dn);
 }
 
 Orbitals* MasterPolarizedWF::GetOrbitals(const QuantumNumber& qn,Spin s) const

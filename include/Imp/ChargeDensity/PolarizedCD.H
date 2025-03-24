@@ -12,24 +12,24 @@
 //  Store spin and spin down a ChargeDensity*'s to allow polymorphism.
 //  All member functions just return the unpolarized answer.
 //
-class PolarizedCDImp
-    : public virtual PolarizedCD
+class Polarized_Exact_CDImp
+    : public virtual Polarized_Exact_CD
 {
 public:
 
-    PolarizedCDImp();
-    PolarizedCDImp(ChargeDensity* up, ChargeDensity* down);
-    ~PolarizedCDImp();
+    Polarized_Exact_CDImp();
+    Polarized_Exact_CDImp(Exact_CD* up,Exact_CD* down);
+    ~Polarized_Exact_CDImp();
 
-    ChargeDensity*       GetChargeDensity(const Spin&)      ;
-    const ChargeDensity* GetChargeDensity(const Spin&) const;
+          Exact_CD* GetChargeDensity(const Spin&)      ;
+    const Exact_CD* GetChargeDensity(const Spin&) const;
 
-    virtual std::ostream&        Write(std::ostream&) const;
-    virtual std::istream&        Read (std::istream&)      ;
+    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::istream& Read (std::istream&)      ;
 
 private:
-    ChargeDensity* itsSpinUpCD;
-    ChargeDensity* itsSpinDownCD;
+    Exact_CD* itsSpinUpCD;
+    Exact_CD* itsSpinDownCD;
 };
 
 #endif //_PolarizedCDImp_H_

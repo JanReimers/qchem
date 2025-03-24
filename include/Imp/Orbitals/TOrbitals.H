@@ -32,7 +32,7 @@ public:
 
     virtual index_t        GetNumOrbitals     (               ) const;
     virtual double         GetEigenValueChange(const Orbitals&) const;
-    virtual ChargeDensity* GetChargeDensity   (Spin) const;
+    virtual Exact_CD*      GetChargeDensity   (Spin) const;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&);
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}

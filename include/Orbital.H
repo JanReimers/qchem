@@ -72,7 +72,7 @@ public:
     virtual ~Orbitals() {};
     virtual index_t        GetNumOrbitals     (                   ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
-    virtual ChargeDensity* GetChargeDensity   (Spin               ) const=0;
+    virtual Exact_CD*      GetChargeDensity   (Spin               ) const=0;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&)=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;

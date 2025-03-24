@@ -67,7 +67,7 @@ template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
 //  Totale energy terms for a charge density.
 //
 
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_IBS<double>* bs) const
+template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
 {
     auto bs_dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
     assert(bs_dft);
@@ -79,12 +79,6 @@ template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbit
     for (auto c:itsFitCoeff) J+=SMat(c*repulsions[i++]);
     assert(!isnan(J));
     return J;
-}
-
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetExchange(const TOrbital_IBS<double>* bs) const
-{
-    std::cerr << "FittedCDImplementation<T>::AddExchange: Warning using four center ERIs from a fitted charge density !?!" << std::endl;
-    return SMat();
 }
 
 template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) const

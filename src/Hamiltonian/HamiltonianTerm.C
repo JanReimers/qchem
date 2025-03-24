@@ -62,7 +62,7 @@ void HamiltonianTermImp::UseChargeDensity(const ChargeDensity* theExactCD)
 {
 //  TODO: SHould charge density have an unique ID?
 //    assert(!itsExactCD || itsExactCD->GetID()!=theExactCD->GetID());
-    itsExactCD =theExactCD;
+    itsExactCD =dynamic_cast<const Exact_CD*>(theExactCD);
     assert(itsExactCD);
     if (DependsOnChargeDensity()) MarkAllDirty();
 }

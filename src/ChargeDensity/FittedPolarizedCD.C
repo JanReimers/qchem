@@ -3,6 +3,8 @@
 #include "Imp/ChargeDensity/FittedPolarizedCD.H"
 #include <Spin.H>
 #include "oml/vector.h"
+#include "oml/smatrix.h"
+
 #include <iostream>
 #include <cassert>
 //---------------------------------------------------------------------------------
@@ -14,40 +16,26 @@ FittedPolarizedCD::FittedPolarizedCD()
     , itsSpinDownCD(0)
 {};
 
-FittedPolarizedCD::FittedPolarizedCD(const ChargeDensity* unpolcd, double Stotal)
+FittedPolarizedCD::FittedPolarizedCD(const FittedCD* fcd, double Stotal)
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
 {
-    const FittedCD* fcd=dynamic_cast<const FittedCD*>(unpolcd);
-    if (!fcd)
-    {
-        std::cerr << "FittedPolarizedCD::FittedPolarizedCD could cast input charge density" << std::endl;
-        exit(-1);
-    }
     itsSpinUpCD  =fcd->Clone();
     itsSpinDownCD=fcd->Clone();
 
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    double totalCharge=unpolcd->GetTotalCharge();
+    double totalCharge=fcd->GetTotalCharge();
     itsSpinUpCD  ->ReScale((totalCharge+Stotal)/(2*totalCharge));
     itsSpinDownCD->ReScale((totalCharge-Stotal)/(2*totalCharge));
 };
 
-FittedPolarizedCD::FittedPolarizedCD(ChargeDensity* up, ChargeDensity* down)
-    : itsSpinUpCD  (dynamic_cast<FittedCD*>(up  ))
-    , itsSpinDownCD(dynamic_cast<FittedCD*>(down))
+FittedPolarizedCD::FittedPolarizedCD(FittedCD* up, FittedCD* down)
+    : itsSpinUpCD  (up  )
+    , itsSpinDownCD(down)
 {
-    if (!itsSpinUpCD)
-    {
-        std::cerr << "FittedPolarizedCD::FittedPolarizedCD could cast up charge density" << std::endl;
-        exit(-1);
-    }
-    if (!itsSpinDownCD)
-    {
-        std::cerr << "FittedPolarizedCD::FittedPolarizedCD could cast down charge density" << std::endl;
-        exit(-1);
-    }
+    assert(itsSpinUpCD);
+    assert(itsSpinDownCD);
 };
 
 FittedPolarizedCD::FittedPolarizedCD(const FittedPolarizedCD& pcd)
@@ -69,23 +57,23 @@ FittedPolarizedCD::~FittedPolarizedCD()
 //
 //  Access to individual components.
 //
-ChargeDensity* FittedPolarizedCD::GetChargeDensity(const Spin& S)
+FittedCD* FittedPolarizedCD::GetChargeDensity(const Spin& S)
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    ChargeDensity* ret=0;
+    FittedCD* ret=0;
     if(S.itsState==Spin::Up  ) ret=itsSpinUpCD  ;
     if(S.itsState==Spin::Down) ret=itsSpinDownCD;
     return ret;
 }
 
-const ChargeDensity* FittedPolarizedCD::GetChargeDensity(const Spin& S) const
+const FittedCD* FittedPolarizedCD::GetChargeDensity(const Spin& S) const
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    const ChargeDensity* ret=0;
+    const FittedCD* ret=0;
     if(S.itsState==Spin::Up  ) ret=itsSpinUpCD  ;
     if(S.itsState==Spin::Down) ret=itsSpinDownCD;
     return ret;
@@ -113,7 +101,7 @@ double FittedPolarizedCD::DoFit(const DensityFFClient& ffc)
 {
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    const PolarizedCD* polcd=dynamic_cast<const PolarizedCD*>(&ffc);
+    const Polarized_CD* polcd=dynamic_cast<const Polarized_CD*>(&ffc);
     assert(polcd);
     double lam_bar=0;
     lam_bar += itsSpinUpCD  ->DoFit(*polcd->GetChargeDensity(Spin::Up  ));
@@ -137,6 +125,13 @@ Vector<double> FittedPolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
         +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
     
 }
+
+ChargeDensity::SMat FittedPolarizedCD::GetRepulsion(const TOrbital_DFT_IBS<double>* obs) const
+{
+    return    GetChargeDensity(Spin::Up  )->GetRepulsion(obs)
+            + GetChargeDensity(Spin::Down)->GetRepulsion(obs);
+}
+
 
 
 void FittedPolarizedCD::ReScale(double factor) //Fit *= factor

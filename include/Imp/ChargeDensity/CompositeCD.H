@@ -11,12 +11,12 @@
 //
 //  Full charge density represented Compositely as sum of density matricies.
 //
-class CompositeCD
-    : public virtual ChargeDensity
+class Composite_Exact_CD
+    : public virtual Exact_CD
 {
 public:
-    CompositeCD();
-    void Insert(ChargeDensity*);
+    Composite_Exact_CD();
+    void Insert(Exact_CD*);
 
     virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
     virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
@@ -39,9 +39,9 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
 
 private:
-    CompositeCD(const CompositeCD&);
+    Composite_Exact_CD(const Composite_Exact_CD&);
 
-    optr_vector1<ChargeDensity*> itsCDs;
+    optr_vector1<Exact_CD*> itsCDs;
 };
 
 #endif //_CompositeCD_H_

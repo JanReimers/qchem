@@ -37,9 +37,9 @@ void WaveFunctionGroup::DoSCFIteration(Hamiltonian& ham)
     for (auto w:itsIrrepWFs) w->DoSCFIteration(ham);
 }
 
-ChargeDensity* WaveFunctionGroup::GetChargeDensity(Spin s) const
+Exact_CD* WaveFunctionGroup::GetChargeDensity(Spin s) const
 {
-    CompositeCD* cd = new CompositeCD();
+    Composite_Exact_CD* cd = new Composite_Exact_CD();
     for (auto w:itsIrrepWFs) cd->Insert(w->GetChargeDensity(s));
     return cd;
 }

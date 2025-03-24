@@ -4,6 +4,7 @@
 
 #include "Imp/Hamiltonian/FittedVee.H"
 #include <ChargeDensity.H>
+#include <Irrep_BS.H>
 #include "Imp/ChargeDensity/FittedCD.H"
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"
@@ -39,8 +40,8 @@ void FittedVee::UseChargeDensity(const ChargeDensity* cd)
 
 HamiltonianTerm::SMat FittedVee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
-    const ChargeDensity* cd=itsFittedChargeDensity;
-    return cd->GetRepulsion(bs);
+    auto dft_bs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
+    return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 
 void FittedVee::GetEnergy(TotalEnergy& te) const

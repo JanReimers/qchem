@@ -41,7 +41,7 @@ void FittedVxcPol::UseChargeDensity(const ChargeDensity* exactCD)
 
     HamiltonianTermImp::UseChargeDensity(exactCD);
 
-    const PolarizedCD* PolExactCD =  dynamic_cast<const PolarizedCD*>(exactCD);
+    const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(exactCD);
     assert(PolExactCD);
 
     const ChargeDensity* upExactCD   = PolExactCD->GetChargeDensity(Spin::Up  );

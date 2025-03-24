@@ -23,9 +23,8 @@ public:
     FittedCDImp(bs_t&, mesh_t&);
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
-    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; //makes no sense
-
+    virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const;
+    
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
     virtual double GetSelfRepulsion    (                     ) const;  //Does GetRepulsion(*this);
