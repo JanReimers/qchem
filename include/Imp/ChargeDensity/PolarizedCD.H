@@ -6,6 +6,7 @@
 
 #include <ChargeDensity.H>
 #include <Spin.H>
+#include <oml/vector.h>
 
 //---------------------------------------------------------------------------------------
 //
@@ -23,6 +24,11 @@ public:
 
           Exact_CD* GetChargeDensity(const Spin&)      ;
     const Exact_CD* GetChargeDensity(const Spin&) const;
+    virtual Vector<double> GetRepulsion3C(const Fit_IBS* fbs) const
+    {
+        return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
+            +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
+    }
 
 private:
     Exact_CD* itsSpinUpCD;

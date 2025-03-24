@@ -40,7 +40,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 
 template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
 {
-    const ChargeDensity* cd=dynamic_cast<const ChargeDensity*>(&ffc);
+    const Exact_CD* cd=dynamic_cast<const Exact_CD*>(&ffc);
     if (!cd)
     {
         std::cerr << "FittedCDImplementation<T>::DoFit could not cast to charge density" << std::endl;
@@ -49,6 +49,12 @@ template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
     itsExactRep=cd;
     if  (itsTotalCharge==0) itsTotalCharge=itsExactRep->GetTotalCharge();
     return ConstrainedFF<double>::DoFit(ffc);
+}
+template <class T> double FittedCDImp<T>::DoFit(const Exact_CD& cd)
+{
+    itsExactRep=&cd;
+    if  (itsTotalCharge==0) itsTotalCharge=itsExactRep->GetTotalCharge();
+    return ConstrainedFF<double>::DoFit(cd);
 }
 //-----------------------------------------------------------------------------
 //

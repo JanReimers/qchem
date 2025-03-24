@@ -37,6 +37,7 @@ public:
     virtual void   MixIn        (const ChargeDensity&,double)      ;  // No UT coverage//this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const;  // No UT coverage//MaxAbs(delta Fit coeff).
     virtual double DoFit        (const DensityFFClient&)      ;
+    virtual double DoFit        (const Exact_CD&);
 
     virtual double operator()(const RVec3&) const; // No UT coverage
     virtual Vec3   Gradient  (const RVec3&) const; // No UT coverage
@@ -52,7 +53,7 @@ private:
     
     virtual void Eval(const Mesh&, Vector<double>&) const; // No UT coverage
 
-    const ChargeDensity* itsExactRep;
+    const Exact_CD* itsExactRep;
     mutable double       itsTotalCharge;
 };
 

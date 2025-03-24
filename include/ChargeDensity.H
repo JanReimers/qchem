@@ -20,11 +20,9 @@
 //
 class ChargeDensity
     : public virtual ScalarFunction<double>
-    , public virtual DensityFFClient //Fitted function can be fit to this.
 {
 public:
     virtual double GetTotalCharge      (                     ) const=0;  // <ro>
-    virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
 
@@ -47,20 +45,28 @@ class FittedCD
     , public virtual FittedFunction
 {
 public:
+    using FittedFunction::DoFit;
+    virtual double DoFit(const Exact_CD&)=0;
     typedef SMatrix<double> SMat;
     virtual void ReScale      (double factor)=0;  //Ro *= factor
     virtual void ShiftOrigin  (const RVec3& )=0;  //Usefull for single atom charge densities.
     
     virtual double GetSelfRepulsion    (                     ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>
-    // virtual double GetRepulsion        (const FittedFunction*) const=0;  // 1/2 <ro(1) | 1/r12 | ff(2)>
     virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const=0;
     //Required for creating a polarized CD from and un-polarized CD
     virtual FittedCD*  Clone  (        ) const=0;
 };
 
 class Exact_CD : public virtual ChargeDensity
+, public virtual DensityFFClient //Fitted function can be fit to this.
+
 {
 public:
+    virtual double FitGetConstraint() const 
+    {
+        return  GetTotalCharge();
+    }
+
     typedef SMatrix<double> SMat;
     virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const=0;
     virtual SMat   GetExchange (const TOrbital_IBS<double>*) const=0;
@@ -76,8 +82,8 @@ class Polarized_CD
     : public virtual ChargeDensity
 {
 public:
-    virtual       ChargeDensity* GetChargeDensity(const Spin&)      =0;
-    virtual const ChargeDensity* GetChargeDensity(const Spin&) const=0;
+    virtual       Exact_CD* GetChargeDensity(const Spin&)      =0;
+    virtual const Exact_CD* GetChargeDensity(const Spin&) const=0;
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
