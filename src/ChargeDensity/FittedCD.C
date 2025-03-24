@@ -19,13 +19,13 @@ template <class T> FittedCDImp<T>::FittedCDImp()
     : IntegralConstrainedFF<double>()
     , itsExactRep(0)
     , itsTotalCharge(0)
-{};
+{}; // No UT coverage
 
 template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
     , itsExactRep(0)
     , itsTotalCharge(0)
-{};
+{}; // No UT coverage
 
 template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
@@ -39,6 +39,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 
 template <class T> double FittedCDImp<T>::DoFit(const ScalarFFClient& ffc)
 {
+    // No UT coverage
     const FittedCD* cd=dynamic_cast<const FittedCD*>(&ffc);
     if (!cd)
     {
@@ -83,6 +84,7 @@ template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbit
 
 template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) const
 {
+    // No UT coverage
     assert(itsExactRep);
     return itsExactRep->GetEnergy(v);
 }
@@ -94,6 +96,7 @@ template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 
 template <class T> double FittedCDImp<T>::GetRepulsion(const FittedFunction* ff) const
 {
+    // No UT coverage
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(ff);
     assert(ffi);
     return FittedFunctionImp<T>::FitGetRepulsion(ffi); //Cross repulsion between to different fitted charge densities!!
@@ -101,6 +104,7 @@ template <class T> double FittedCDImp<T>::GetRepulsion(const FittedFunction* ff)
 
 template <class T> double FittedCDImp<T>::GetOverlap(const FittedFunction* ff) const
 {
+    // No UT coverage
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(ff);
     assert(ffi);
     return FittedFunctionImp<T>::FitGetOverlap(ffi); //Cross repulsion between to different fitted charge densities!!
@@ -108,6 +112,7 @@ template <class T> double FittedCDImp<T>::GetOverlap(const FittedFunction* ff) c
 
 template <class T> double FittedCDImp<T>::GetTotalCharge() const
 {
+    // No UT coverage
     if (itsTotalCharge==0) itsTotalCharge=FitGetCharge();
     return itsTotalCharge;
 }
@@ -119,6 +124,7 @@ template <class T> double FittedCDImp<T>::GetTotalCharge() const
 template <class T> Vector<double> FittedCDImp<T>::
 GetRepulsion3C(const Fit_IBS* fbs) const
 {
+    // No UT coverage
     return FitGet2CenterRepulsion(fbs);
 }
 
@@ -128,6 +134,7 @@ GetRepulsion3C(const Fit_IBS* fbs) const
 //
 template <class T> void FittedCDImp<T>::MixIn(const ChargeDensity& cd,double c)
 {
+    // No UT coverage
     const FittedCDImp<T>* fcd = dynamic_cast<const FittedCDImp<T>*>(&cd);
     assert(fcd);
     FitMixIn(*fcd,c);
@@ -135,6 +142,7 @@ template <class T> void FittedCDImp<T>::MixIn(const ChargeDensity& cd,double c)
 
 template <class T> double FittedCDImp<T>::GetChangeFrom(const ChargeDensity& cd) const
 {
+    // No UT coverage
     const FittedCDImp<T>* fcd = dynamic_cast<const FittedCDImp<T>*>(&cd);
     assert(fcd);
     return FitGetChangeFrom(*fcd);
@@ -146,27 +154,32 @@ template <class T> double FittedCDImp<T>::GetChangeFrom(const ChargeDensity& cd)
 //
 template <class T> void   FittedCDImp<T>::ReScale (double factor)
 {
+    // No UT coverage
     itsTotalCharge*=factor;
     FittedFunctionImp<T>::ReScale(factor);
 }
 
 template <class T> void FittedCDImp<T>::ShiftOrigin(const RVec3& newCenter)
 {
+    // No UT coverage
     FittedFunctionImp<T>::ShiftOrigin(newCenter);
 }
 
 template <class T> double FittedCDImp<T>::operator()(const RVec3& r) const
 {
+    // No UT coverage
     return FittedFunctionImp<T>::operator()(r);
 }
 
 template <class T> void FittedCDImp<T>::Eval(const Mesh& m, Vector<double>& v) const
 {
+    // No UT coverage
     FittedFunctionImp<T>::Eval(m,v);
 }
 
 template <class T> typename FittedCDImp<T>::Vec3 FittedCDImp<T>::Gradient(const RVec3& r) const
 {
+    // No UT coverage
     return FittedFunctionImp<T>::Gradient(r);
 }
 

@@ -14,12 +14,13 @@
 FittedPolarizedCD::FittedPolarizedCD()
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
-{};
+{}; // No UT coverage
 
 FittedPolarizedCD::FittedPolarizedCD(const FittedCD* fcd, double Stotal)
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
 {
+    // No UT coverage
     itsSpinUpCD  =fcd->Clone();
     itsSpinDownCD=fcd->Clone();
 
@@ -34,6 +35,7 @@ FittedPolarizedCD::FittedPolarizedCD(FittedCD* up, FittedCD* down)
     : itsSpinUpCD  (up  )
     , itsSpinDownCD(down)
 {
+    // No UT coverage
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
 };
@@ -42,6 +44,7 @@ FittedPolarizedCD::FittedPolarizedCD(const FittedPolarizedCD& pcd)
     : itsSpinUpCD  (pcd.itsSpinUpCD  ->Clone())
     , itsSpinDownCD(pcd.itsSpinDownCD->Clone())
 {
+    // No UT coverage
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
 };
@@ -59,6 +62,7 @@ FittedPolarizedCD::~FittedPolarizedCD()
 //
 FittedCD* FittedPolarizedCD::GetChargeDensity(const Spin& S)
 {
+    // No UT coverage
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
@@ -70,6 +74,7 @@ FittedCD* FittedPolarizedCD::GetChargeDensity(const Spin& S)
 
 const FittedCD* FittedPolarizedCD::GetChargeDensity(const Spin& S) const
 {
+    // No UT coverage
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
@@ -81,12 +86,14 @@ const FittedCD* FittedPolarizedCD::GetChargeDensity(const Spin& S) const
 
 double FittedPolarizedCD::GetSelfRepulsion() const
 {
+    // No UT coverage
     return GetRepulsion(this);
 }
 
 // <ro(1) | 1/r12 | ff(2)>
 double FittedPolarizedCD::GetRepulsion(const FittedFunction* ff) const
 {
+    // No UT coverage
     double Jup  =itsSpinUpCD  ->GetRepulsion(ff);
     double Jdown=itsSpinDownCD->GetRepulsion(ff);
 
@@ -99,6 +106,7 @@ double FittedPolarizedCD::GetRepulsion(const FittedFunction* ff) const
 //
 double FittedPolarizedCD::DoFit(const DensityFFClient& ffc)
 {
+    // No UT coverage
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
     const Polarized_CD* polcd=dynamic_cast<const Polarized_CD*>(&ffc);
@@ -111,6 +119,7 @@ double FittedPolarizedCD::DoFit(const DensityFFClient& ffc)
 
 double FittedPolarizedCD::DoFit(const ScalarFFClient& ffc)
 {
+    // No UT coverage
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
     double lam_bar=0;
@@ -121,6 +130,7 @@ double FittedPolarizedCD::DoFit(const ScalarFFClient& ffc)
 
 Vector<double> FittedPolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
+    // No UT coverage
     return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
         +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
     
@@ -128,6 +138,7 @@ Vector<double> FittedPolarizedCD::GetRepulsion3C(const Fit_IBS* fbs) const
 
 ChargeDensity::SMat FittedPolarizedCD::GetRepulsion(const TOrbital_DFT_IBS<double>* obs) const
 {
+    // No UT coverage
     return    GetChargeDensity(Spin::Up  )->GetRepulsion(obs)
             + GetChargeDensity(Spin::Down)->GetRepulsion(obs);
 }
@@ -136,18 +147,21 @@ ChargeDensity::SMat FittedPolarizedCD::GetRepulsion(const TOrbital_DFT_IBS<doubl
 
 void FittedPolarizedCD::ReScale(double factor) //Fit *= factor
 {
+    // No UT coverage
     itsSpinUpCD   -> ReScale(factor);
     itsSpinDownCD -> ReScale(factor);
 }
 
 void FittedPolarizedCD::ShiftOrigin(const RVec3& newCenter)
 {
+    // No UT coverage
     itsSpinUpCD   -> ShiftOrigin(newCenter);
     itsSpinDownCD -> ShiftOrigin(newCenter);
 }
 
 void FittedPolarizedCD::FitMixIn(const FittedFunction& ff,double c) // this = this*(1-c) + that*c.
 {
+    // No UT coverage
     const FittedPolarizedCD* polcd=dynamic_cast<const FittedPolarizedCD*>(&ff);
     assert(polcd);
     itsSpinUpCD   -> FitMixIn(*polcd->itsSpinUpCD  ,c);
@@ -156,6 +170,7 @@ void FittedPolarizedCD::FitMixIn(const FittedFunction& ff,double c) // this = th
 
 double FittedPolarizedCD::FitGetChangeFrom(const FittedFunction& ff) const
 {
+    // No UT coverage
     return itsSpinUpCD   -> FitGetChangeFrom(ff)
            + itsSpinDownCD -> FitGetChangeFrom(ff);
 }

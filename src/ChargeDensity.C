@@ -8,6 +8,7 @@ double ChargeDensity::FitGetConstraint  () const
 
 bool ChargeDensity::IsPolarized() const
 {
+    // No UT coverage
     return false;
 }
 
@@ -27,6 +28,7 @@ ChargeDensity::SMat Polarized_Exact_CD::GetRepulsion(const TOrbital_IBS<double>*
 
 ChargeDensity::SMat Polarized_Exact_CD::GetExchange(const TOrbital_IBS<double>* bs) const
 {
+    // No UT coverage
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
     SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
     return Kab_up + Kab_down;
@@ -44,6 +46,7 @@ double Polarized_CD::GetTotalCharge() const
 
 double Polarized_CD::GetTotalSpin() const
 {
+    // No UT coverage
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
@@ -59,6 +62,7 @@ Vector<double> Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 //
 void   Polarized_CD::ShiftOrigin(const RVec3& newcenter)
 {
+    // No UT coverage
     GetChargeDensity(Spin::Up)  ->ShiftOrigin(newcenter) ;
     GetChargeDensity(Spin::Down)->ShiftOrigin(newcenter) ;
 }
@@ -89,6 +93,7 @@ double Polarized_CD::GetChangeFrom(const ChargeDensity& cd) const
 
 void Polarized_CD::ReScale(double factor)
 {
+    // No UT coverage
     GetChargeDensity(Spin::Up)  ->ReScale(factor);
     GetChargeDensity(Spin::Down)->ReScale(factor);
 }
@@ -96,6 +101,7 @@ void Polarized_CD::ReScale(double factor)
 
 bool Polarized_CD::IsPolarized() const
 {
+    // No UT coverage
     return true;
 }
 
@@ -105,11 +111,13 @@ bool Polarized_CD::IsPolarized() const
 //
 double Polarized_CD::operator()(const RVec3& r) const
 {
+    // No UT coverage
     return (*GetChargeDensity(Spin::Up))(r) + (*GetChargeDensity(Spin::Down))(r);
 }
 
 ChargeDensity::RVec3 Polarized_CD::Gradient  (const RVec3& r) const
 {
+    // No UT coverage
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
 }
 

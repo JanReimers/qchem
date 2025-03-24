@@ -123,6 +123,7 @@ template <class T> double IrrepCD<T>::GetTotalCharge() const
 //
 template <class T> void IrrepCD<T>::ReScale(double factor)
 {
+    // No UT coverage
     itsDensityMatrix*=factor;
 }
 
@@ -148,6 +149,7 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const ChargeDensity& cd) con
 //
 template <class T> void IrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
 {
+    // No UT coverage
     std::cerr << "ExactIrrepCD::ShiftOrigin this is an odd thing to do for an exact charge density" << std::endl;
     itsBasisSet=dynamic_cast<const TOrbital_IBS<T>*>(itsBasisSet->Clone(newCenter));
 }
@@ -160,6 +162,7 @@ template <class T> double IrrepCD<T>::operator()(const RVec3& r) const
 
 template <class T> RVec3 IrrepCD<T>::Gradient(const RVec3& r) const
 {
+    // No UT coverage
     Vector<T> phir=(*itsBasisSet)(r);
     Vector<RVec3 > gphir=itsBasisSet->Gradient(r);
     return GradientContraction(gphir,phir,itsDensityMatrix);
@@ -195,6 +198,7 @@ template class IrrepCD<double>;
 
 RVec3 GradientContraction(const Vector<RVec3>& g, const Vector<double>& v, const SMatrix<double>& m)
 {
+    // No UT coverage
     assert(m.GetNumRows()==m.GetNumCols());
     assert(v.size      ()==m.GetNumCols());
     assert(g.size      ()==m.GetNumCols());
@@ -208,6 +212,7 @@ RVec3 GradientContraction(const Vector<RVec3>& g, const Vector<double>& v, const
 
 RVec3 GradientContraction(const Vector<Vec3>& g, const Vector<std::complex<double> >& v, const SMatrix<std::complex<double> >& m)
 {
+    // No UT coverage
     assert(m.GetNumRows()==m.GetNumCols());
     assert(v.size      ()==m.GetNumCols());
     assert(g.size      ()==m.GetNumCols());

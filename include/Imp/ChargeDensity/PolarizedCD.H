@@ -17,7 +17,7 @@ class Polarized_Exact_CDImp
 {
 public:
 
-    Polarized_Exact_CDImp();
+    Polarized_Exact_CDImp(); // No UT coverage
     Polarized_Exact_CDImp(Exact_CD* up,Exact_CD* down);
     ~Polarized_Exact_CDImp();
 

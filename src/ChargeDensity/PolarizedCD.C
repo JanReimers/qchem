@@ -10,7 +10,7 @@
 Polarized_Exact_CDImp::Polarized_Exact_CDImp()
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
-{};
+{}; // No UT coverage
 
 Polarized_Exact_CDImp::Polarized_Exact_CDImp(Exact_CD* up, Exact_CD* down)
     : itsSpinUpCD  (up  )

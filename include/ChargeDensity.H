@@ -27,7 +27,7 @@ public:
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
     virtual double GetTotalCharge      (                     ) const=0;  // <ro>
 
-    virtual bool   IsPolarized  (                           ) const  ;
+    virtual bool   IsPolarized  (                           ) const  ; // No UT coverage
     virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      =0;  //Usefull for single atom charge densities.
     virtual void   MixIn        (const ChargeDensity&,double)      =0;  //this = (1-c)*this + c*that.
@@ -83,18 +83,18 @@ public:
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
     virtual double GetTotalCharge      (                     ) const;  // <ro>
-    virtual double GetTotalSpin        (                     ) const;  // <up>-<down>
+    virtual double GetTotalSpin        (                     ) const;  // No UT coverage// <up>-<down>
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
 
-    virtual bool   IsPolarized  (                           ) const;
-    virtual void   ReScale      (double factor              )      ;  //Ro *= factor
-    virtual void   ShiftOrigin  (const RVec3&               )      ;  //Usefull for single atom charge densities.
+    virtual bool   IsPolarized  (                           ) const; // No UT coverage
+    virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
+    virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
     virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const;  //Convergence check.
 
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const;
+    virtual double operator()(const RVec3&) const; // No UT coverage
+    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
 };
 
 class Polarized_Exact_CD 
@@ -105,7 +105,7 @@ public:
     virtual       Exact_CD* GetChargeDensity(const Spin&)      =0;
     virtual const Exact_CD* GetChargeDensity(const Spin&) const=0;
     virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; // No UT coverage
 };
 
 #endif //_ChargeDensity_H_

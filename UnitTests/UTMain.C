@@ -15,7 +15,7 @@ int main(int argc, char **argv)
      // testing::GTEST_FLAG(filter) = "Multiple/A_*_DHF.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "A_SG_DHF_H.Phir";
 //     testing::GTEST_FLAG(filter) = "A_SG_HFP_H.Phir";
-     //   testing::GTEST_FLAG(filter) = "Multiple/A_*_DFT*.Multiple/*";
+       testing::GTEST_FLAG(filter) = "Multiple/A_*_DFT_P.Multiple/*";
 
 //     testing::GTEST_FLAG(filter) = "libCintTests.*"; 
 //     testing::GTEST_FLAG(filter) = "ERI4Tests.*"; 
@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*:Multiple/A_SG_HF_P.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SGm_HF_P.Multiple/*";
      //   testing::GTEST_FLAG(filter) = "Multiple/A_PG_HF*";
-//     testing::GTEST_FLAG(filter) = "M_*";
+     // testing::GTEST_FLAG(filter) = "M_*";
 
 //     testing::GTEST_FLAG(filter) = "MeshIntegralsTests.GObritals:M_PG_*:Multiple/A_PG*";
 //      testing::GTEST_FLAG(filter) = "Multiple/A_SG_HF_*.Multiple/*";

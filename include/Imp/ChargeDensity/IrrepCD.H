@@ -32,13 +32,13 @@ public:
     virtual double GetEnergy     (const HamiltonianTerm*) const;
     virtual double GetTotalCharge(                ) const;
 
-    virtual void   ReScale      (double factor              )      ;
-    virtual void   ShiftOrigin  (const RVec3&               )      ;
+    virtual void   ReScale      (double factor              )      ; // No UT coverage
+    virtual void   ShiftOrigin  (const RVec3&               )      ; // No UT coverage
     virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const RVec3&) const;
-    virtual Vec3   Gradient  (const RVec3&) const;
+    virtual Vec3   Gradient  (const RVec3&) const; // No UT coverage
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;
