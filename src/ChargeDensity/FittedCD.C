@@ -37,19 +37,6 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
     assert(abs(itsTotalCharge-FitGetCharge())<1e-10);
 };
 
-template <class T> double FittedCDImp<T>::DoFit(const ScalarFFClient& ffc)
-{
-    // No UT coverage
-    const FittedCD* cd=dynamic_cast<const FittedCD*>(&ffc);
-    if (!cd)
-    {
-        std::cerr << "FittedCDImplementation<T>::DoFit could not cast to charge density" << std::endl;
-        exit(-1);
-    }
-    itsExactRep=cd;
-    if  (itsTotalCharge==0) itsTotalCharge=itsExactRep->GetTotalCharge();
-    return ConstrainedFF<double>::DoFit(ffc);
-}
 
 template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
 {
@@ -92,22 +79,6 @@ template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) co
 template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 {
     return 0.5 * FittedFunctionImp<T>::FitGetRepulsion(this);
-}
-
-template <class T> double FittedCDImp<T>::GetRepulsion(const FittedFunction* ff) const
-{
-    // No UT coverage
-    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(ff);
-    assert(ffi);
-    return FittedFunctionImp<T>::FitGetRepulsion(ffi); //Cross repulsion between to different fitted charge densities!!
-}
-
-template <class T> double FittedCDImp<T>::GetOverlap(const FittedFunction* ff) const
-{
-    // No UT coverage
-    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(ff);
-    assert(ffi);
-    return FittedFunctionImp<T>::FitGetOverlap(ffi); //Cross repulsion between to different fitted charge densities!!
 }
 
 template <class T> double FittedCDImp<T>::GetTotalCharge() const
@@ -181,30 +152,6 @@ template <class T> typename FittedCDImp<T>::Vec3 FittedCDImp<T>::Gradient(const 
 {
     // No UT coverage
     return FittedFunctionImp<T>::Gradient(r);
-}
-
-//-----------------------------------------------------------------------
-//
-//  Streamable stuff.
-//
-template <class T> std::ostream& FittedCDImp<T>::Write(std::ostream& os) const
-{
-    ConstrainedFF<T>::Write(os);
-    if (StreamableObject::Binary())
-        BinaryWrite(itsTotalCharge,os);
-    else
-        os << itsTotalCharge << " ";
-    return os;
-}
-
-template <class T> std::istream& FittedCDImp<T>::Read(std::istream&is)
-{
-    ConstrainedFF<T>::Read(is);
-    if (StreamableObject::Binary())
-        BinaryRead(itsTotalCharge,is);
-    else
-        is >> itsTotalCharge;
-    return is;
 }
 
 template <class T> FittedCD* FittedCDImp<T>::Clone() const

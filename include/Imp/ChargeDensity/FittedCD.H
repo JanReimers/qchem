@@ -28,8 +28,6 @@ public:
     virtual double GetEnergy(const HamiltonianTerm*) const; // No UT coverage
 
     virtual double GetSelfRepulsion    (                     ) const;  //Does GetRepulsion(*this);
-    virtual double GetRepulsion        (const FittedFunction*) const;  // No UT coverage // <ro(1) | 1/r12 | f(2)>
-    virtual double GetOverlap          (const FittedFunction*) const;  // No UT coverage// <ro(1) | f(1)>
     virtual double GetTotalCharge      (                     ) const; // No UT coverage
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const; // No UT coverage
@@ -38,14 +36,11 @@ public:
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage
     virtual void   MixIn        (const ChargeDensity&,double)      ;  // No UT coverage//this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const;  // No UT coverage//MaxAbs(delta Fit coeff).
-    virtual double DoFit        (const ScalarFFClient&)      ; // No UT coverage
     virtual double DoFit        (const DensityFFClient&)      ;
 
     virtual double operator()(const RVec3&) const; // No UT coverage
     virtual Vec3   Gradient  (const RVec3&) const; // No UT coverage
 
-    virtual std::ostream&  Write(std::ostream&) const;
-    virtual std::istream&  Read (std::istream&)      ;
     virtual FittedCD* Clone(        ) const;
 
 private:

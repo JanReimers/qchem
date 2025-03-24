@@ -1,10 +1,10 @@
 // File: ChargeDensity.C  Interface for the charge density category.
 #include "ChargeDensity.H"
 
-double ChargeDensity::FitGetConstraint  () const
-{
-    return  GetTotalCharge();
-}
+// double ChargeDensity::FitGetConstraint  () const
+// {
+//     return  GetTotalCharge();
+// }
 
 #include "oml/smatrix.h"
 #include <Spin.H>

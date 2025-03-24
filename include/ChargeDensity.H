@@ -23,16 +23,16 @@ class ChargeDensity
     , public virtual DensityFFClient //Fitted function can be fit to this.
 {
 public:
+    virtual double GetTotalCharge      (                     ) const=0;  // <ro>
+    virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
-    virtual double GetTotalCharge      (                     ) const=0;  // <ro>
 
     virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      =0;  //Usefull for single atom charge densities.
     virtual void   MixIn        (const ChargeDensity&,double)      =0;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const ChargeDensity&       ) const=0;  //Convergence check.
 
-    virtual double FitGetConstraint(                        ) const;
 };
 
 
@@ -52,7 +52,7 @@ public:
     virtual void ShiftOrigin  (const RVec3& )=0;  //Usefull for single atom charge densities.
     
     virtual double GetSelfRepulsion    (                     ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>
-    virtual double GetRepulsion        (const FittedFunction*) const=0;  // 1/2 <ro(1) | 1/r12 | ff(2)>
+    // virtual double GetRepulsion        (const FittedFunction*) const=0;  // 1/2 <ro(1) | 1/r12 | ff(2)>
     virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const=0;
     //Required for creating a polarized CD from and un-polarized CD
     virtual FittedCD*  Clone  (        ) const=0;
