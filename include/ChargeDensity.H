@@ -18,15 +18,6 @@
 //    7) calculate the self repulsion = 1/2 <ro(1)|1/r12|ro(2)>
 //
 //
-class ChargeDensity
-    : public virtual ScalarFunction<double>
-{
-public:
-
-
-};
-
-
 
 #include <FittedFunction.H>
 
@@ -34,7 +25,7 @@ public:
 //
 //
 class FittedCD
-    : public virtual ChargeDensity
+    : public virtual ScalarFunction<double>
     , public virtual FittedFunction
 {
 public:
@@ -48,7 +39,8 @@ public:
     virtual FittedCD*  Clone  (        ) const=0;
 };
 
-class Exact_CD : public virtual ChargeDensity
+class Exact_CD 
+: public virtual ScalarFunction<double>
 , public virtual DensityFFClient //Fitted function can be fit to this.
 
 {
@@ -57,8 +49,8 @@ public:
 
     virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      =0;  //Usefull for single atom charge densities.
-    virtual void   MixIn        (const ChargeDensity&,double)      =0;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const ChargeDensity&       ) const=0;  //Convergence check.
+    virtual void   MixIn        (const Exact_CD&,double)      =0;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const Exact_CD&       ) const=0;  //Convergence check.
 
     virtual double GetTotalCharge      (                     ) const=0;  // <ro>
     virtual double FitGetConstraint() const 
@@ -95,8 +87,8 @@ public:
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
-    virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const ChargeDensity&       ) const;  //Convergence check.
+    virtual void   MixIn        (const Exact_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const Exact_CD&       ) const;  //Convergence check.
 
     virtual double operator()(const RVec3&) const; // No UT coverage
     virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage

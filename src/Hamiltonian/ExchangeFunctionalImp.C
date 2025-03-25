@@ -13,10 +13,10 @@ ExFunctionalImp::ExFunctionalImp()
 {};
 
 
-void ExFunctionalImp::InsertChargeDensity(const ChargeDensity* theChargeDensity)
+void ExFunctionalImp::InsertChargeDensity(const Exact_CD* cd)
 {
-    assert(theChargeDensity);
-    itsChargeDensity=theChargeDensity;
+    assert(cd);
+    itsChargeDensity=cd;
 }
 
 void ExFunctionalImp::Eval(const Mesh& m, Vector<double>& v) const

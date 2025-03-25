@@ -32,7 +32,7 @@ public:
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&               ) const;
     // Required by FittablePotential.
-    virtual void UseChargeDensity(const ChargeDensity* exact);
+    virtual void UseChargeDensity(const Exact_CD* exact);
 
     virtual std::ostream&   Write(std::ostream&) const;
     virtual std::istream&   Read (std::istream&)      ;

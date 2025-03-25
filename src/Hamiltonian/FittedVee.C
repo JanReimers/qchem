@@ -23,12 +23,11 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
     assert(itsFittedChargeDensity);
 };
 
-void FittedVee::UseChargeDensity(const ChargeDensity* cd)
+void FittedVee::UseChargeDensity(const Exact_CD* cd)
 {
+    assert(cd);
     HamiltonianTermImp::UseChargeDensity(cd);
-    const Exact_CD* ecd=dynamic_cast<const Exact_CD*>(cd);
-    assert(ecd);
-    itsFittedChargeDensity->DoFit(*ecd);
+    itsFittedChargeDensity->DoFit(*cd);
 }
 //########################################################################
 //

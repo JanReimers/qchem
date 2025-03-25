@@ -13,14 +13,14 @@
 //
 //  Various integrals.
 //
-ChargeDensity::SMat Polarized_CD::GetRepulsion(const TOrbital_IBS<double>* bs) const
+Exact_CD::SMat Polarized_CD::GetRepulsion(const TOrbital_IBS<double>* bs) const
 {
     SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
     SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
-ChargeDensity::SMat Polarized_CD::GetExchange(const TOrbital_IBS<double>* bs) const
+Exact_CD::SMat Polarized_CD::GetExchange(const TOrbital_IBS<double>* bs) const
 {
     // No UT coverage
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
@@ -61,7 +61,7 @@ void   Polarized_CD::ShiftOrigin(const RVec3& newcenter)
     GetChargeDensity(Spin::Down)->ShiftOrigin(newcenter) ;
 }
 
-void Polarized_CD::MixIn(const ChargeDensity& cd,double c)
+void Polarized_CD::MixIn(const Exact_CD& cd,double c)
 {
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
     if (!pcd)
@@ -73,7 +73,7 @@ void Polarized_CD::MixIn(const ChargeDensity& cd,double c)
     GetChargeDensity(Spin::Down)-> MixIn(*pcd->GetChargeDensity(Spin::Down),c);
 }
 
-double Polarized_CD::GetChangeFrom(const ChargeDensity& cd) const
+double Polarized_CD::GetChangeFrom(const Exact_CD& cd) const
 {
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
     if (!pcd)
@@ -102,7 +102,7 @@ double Polarized_CD::operator()(const RVec3& r) const
     return (*GetChargeDensity(Spin::Up))(r) + (*GetChargeDensity(Spin::Down))(r);
 }
 
-ChargeDensity::RVec3 Polarized_CD::Gradient  (const RVec3& r) const
+Exact_CD::RVec3 Polarized_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);

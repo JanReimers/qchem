@@ -58,11 +58,11 @@ double HamiltonianTermImp::CalculateEnergy() const
     return itsExactCD->GetEnergy(this);
 }
 
-void HamiltonianTermImp::UseChargeDensity(const ChargeDensity* theExactCD)
+void HamiltonianTermImp::UseChargeDensity(const Exact_CD* cd)
 {
 //  TODO: SHould charge density have an unique ID?
 //    assert(!itsExactCD || itsExactCD->GetID()!=theExactCD->GetID());
-    itsExactCD =dynamic_cast<const Exact_CD*>(theExactCD);
+    itsExactCD =cd;
     assert(itsExactCD);
     if (DependsOnChargeDensity()) MarkAllDirty();
 }

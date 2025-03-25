@@ -28,10 +28,10 @@ FittedVxc::~FittedVxc()
     delete itsLDAVxc;
 }
 
-void FittedVxc::UseChargeDensity(const ChargeDensity* exactCD)
+void FittedVxc::UseChargeDensity(const Exact_CD* cd)
 {
-    HamiltonianTermImp::UseChargeDensity(exactCD);
-    itsLDAVxc->UseChargeDensity(exactCD);
+    HamiltonianTermImp::UseChargeDensity(cd);
+    itsLDAVxc->UseChargeDensity(cd);
 
     DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
 }

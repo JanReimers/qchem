@@ -22,9 +22,9 @@ LDAVxc::LDAVxc(ex_t& lda)
     assert(&*itsExchangeFunctional);
 };
 
-void LDAVxc::UseChargeDensity(const ChargeDensity* exact)
+void LDAVxc::UseChargeDensity(const Exact_CD* cd)
 {
-    HamiltonianTermImp::UseChargeDensity(exact);
+    HamiltonianTermImp::UseChargeDensity(cd);
     itsExchangeFunctional->InsertChargeDensity(itsExactCD);
 }
 

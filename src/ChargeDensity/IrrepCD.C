@@ -45,7 +45,7 @@ template <> bool IrrepCD<double>::IsZero() const
     return Max(fabs(itsDensityMatrix))==0.0;
 }
 
-template <> ChargeDensity::SMat IrrepCD<double>::ZeroM(size_t N) const
+template <> Exact_CD::SMat IrrepCD<double>::ZeroM(size_t N) const
 {
     SMat S(N);
     Fill(S,0.0);
@@ -62,14 +62,14 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
 //
 //  Total energy terms for a charge density.
 //
-template <> ChargeDensity::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
+template <> Exact_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
     auto* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
     return tbs_ab->Direct(itsDensityMatrix,itsBasisSet);
 }
 
-template <> ChargeDensity::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
+template <> Exact_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
     const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
@@ -127,7 +127,7 @@ template <class T> void IrrepCD<T>::ReScale(double factor)
     itsDensityMatrix*=factor;
 }
 
-template <class T> void IrrepCD<T>::MixIn(const ChargeDensity& cd,double c)
+template <class T> void IrrepCD<T>::MixIn(const Exact_CD& cd,double c)
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
@@ -135,7 +135,7 @@ template <class T> void IrrepCD<T>::MixIn(const ChargeDensity& cd,double c)
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
 }
 
-template <class T> double IrrepCD<T>::GetChangeFrom(const ChargeDensity& cd) const
+template <class T> double IrrepCD<T>::GetChangeFrom(const Exact_CD& cd) const
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);

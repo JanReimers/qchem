@@ -14,7 +14,7 @@ class HamiltonianImp
 public:
     HamiltonianImp();
 
-    virtual void        UseChargeDensity(const ChargeDensity* exact   )      ;
+    virtual void        UseChargeDensity(const Exact_CD* exact   )      ;
     virtual void        Add             (      HamiltonianTerm*             )      ;
     virtual SMat        BuildHamiltonian(const TOrbital_IBS<double>*,const Spin& S) const;
     virtual TotalEnergy GetTotalEnergy  (                             ) const;
@@ -27,7 +27,7 @@ protected:
     typedef std::shared_ptr<const Cluster> cl_t;
     void InsertStandardTerms(cl_t & cl);
     optr_vector1<HamiltonianTerm*> itsHamiltonianTerms;
-    const ChargeDensity*    itsExactCD;    //Exact charge density.
+    const Exact_CD*    itsExactCD;    //Exact charge density.
 };
 
 #endif //_HamiltonianImp_H_

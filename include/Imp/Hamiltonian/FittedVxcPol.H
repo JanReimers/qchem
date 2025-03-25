@@ -27,7 +27,7 @@ public:
     FittedVxcPol(bs_t&, ex_t&, mesh_t& );
    ~FittedVxcPol();
     // Required by HamiltonianTerm
-    virtual void UseChargeDensity(const ChargeDensity* exact);
+    virtual void UseChargeDensity(const Exact_CD* exact);
     virtual void GetEnergy       (TotalEnergy&               ) const;
     virtual bool IsPolarized     (                           ) const;
 

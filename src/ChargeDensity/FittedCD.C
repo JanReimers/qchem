@@ -61,11 +61,10 @@ template <class T> double FittedCDImp<T>::DoFit(const Exact_CD& cd)
 //  Totale energy terms for a charge density.
 //
 
-template <class T> ChargeDensity::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
+template <class T> Exact_CD::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
 {
-    auto bs_dft=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
-    assert(bs_dft);
-    const std::vector<SMat>& repulsions=bs_dft->Repulsion3C(*itsBasisSet);
+    assert(bs);
+    const std::vector<SMat>& repulsions=bs->Repulsion3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMat J(n,n);
     Fill(J,0.0);

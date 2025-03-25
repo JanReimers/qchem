@@ -34,8 +34,8 @@ public:
 
     virtual void   ReScale      (double factor              )      ; // No UT coverage
     virtual void   ShiftOrigin  (const RVec3&               )      ; // No UT coverage
-    virtual void   MixIn        (const ChargeDensity&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const ChargeDensity&       ) const;  //MaxAbs(delta density matrix)
+    virtual void   MixIn        (const Exact_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const Exact_CD&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const RVec3&) const;
     virtual Vec3   Gradient  (const RVec3&) const; // No UT coverage

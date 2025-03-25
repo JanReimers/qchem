@@ -27,7 +27,7 @@ typedef optr_vector1<Exact_CD*>::const_iterator CITER;
 //
 //  Total energy terms for a charge density.
 //
-ChargeDensity::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
+Exact_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -36,7 +36,7 @@ ChargeDensity::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_IBS<double>*
     return J;
 }
 
-ChargeDensity::SMat Composite_Exact_CD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
+Exact_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
@@ -87,7 +87,7 @@ void Composite_Exact_CD::ShiftOrigin(const RVec3& newCenter)
     for (auto c:itsCDs) c->ShiftOrigin(newCenter);
 }
 
-void Composite_Exact_CD::MixIn(const ChargeDensity& cd,double f)
+void Composite_Exact_CD::MixIn(const Exact_CD& cd,double f)
 {
     const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
     assert(ecd);
@@ -99,7 +99,7 @@ void Composite_Exact_CD::MixIn(const ChargeDensity& cd,double f)
     }
 }
 
-double Composite_Exact_CD::GetChangeFrom(const ChargeDensity& cd) const
+double Composite_Exact_CD::GetChangeFrom(const Exact_CD& cd) const
 {
     const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
     assert(ecd);
@@ -126,7 +126,7 @@ double Composite_Exact_CD::operator()(const RVec3& r) const
     return ret;
 }
 
-ChargeDensity::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
+Exact_CD::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     Vec3 ret(0,0,0);

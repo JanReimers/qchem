@@ -22,7 +22,7 @@ public:
     LDAVxc();
     LDAVxc(ex_t& lda);
     // Required by HamiltonianTerm
-    virtual void UseChargeDensity(const ChargeDensity* exact);
+    virtual void UseChargeDensity(const Exact_CD* exact);
     virtual void GetEnergy       (TotalEnergy&               ) const;
     // Required by FittablePotential.
     virtual const ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
