@@ -1,5 +1,5 @@
 Priority 1:
-    -FittedFunctionImp should not be storing  
+    Done: -FittedFunctionImp should not be storing  
         SMat     itsInvOvlp;
         SMat     itsInvRepl; 
         Just use the DB caching mechanism.

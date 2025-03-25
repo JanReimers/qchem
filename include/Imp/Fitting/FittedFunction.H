@@ -64,9 +64,8 @@ private:
 
     bs_t     itsBasisSet;
     Vec      itsFitCoeff;
-    SMat     itsInvOvlp;
-    SMat     itsInvRepl;
     mesh_t   itsMesh;
+protected:
     LAParams itsLAParams; //Decides about matrix inversion.
 };
 

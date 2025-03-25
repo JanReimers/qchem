@@ -27,8 +27,6 @@ FittedFunctionImp(bs_t& fbs,mesh_t& m)
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
     itsFitCoeff(1)=1.0/itsBasisSet->Charge()(1); //Wild guess with the correct total charge.
-    itsInvOvlp=itsBasisSet->InvOverlap(itsLAParams);
-    itsInvRepl=itsBasisSet->InvRepulsion(itsLAParams);
 };
 
 template <class T> FittedFunctionImp<T>::FittedFunctionImp()
@@ -60,13 +58,15 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvOvlp*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
+    SMat Sinv=itsBasisSet->InvOverlap(itsLAParams);
+    itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
     return 0;
 }
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsInvRepl*ffc.GetRepulsion3C(itsBasisSet.get());
+    SMat Sinv=itsBasisSet->InvRepulsion(itsLAParams);
+    itsFitCoeff=Sinv*ffc.GetRepulsion3C(itsBasisSet.get());
     return 0;
 }
 

@@ -23,7 +23,7 @@ public:
     virtual std::istream& Read     (std::istream&)      ;
 
 private:
-    using FittedFunctionImp<T>::itsInvRepl;
+    using Base::itsLAParams;
     Vec g,gS;
     T   gSg;
 };
