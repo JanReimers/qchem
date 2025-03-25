@@ -14,22 +14,16 @@
 //
 template <class T> class FittedCDImp
     : public virtual FittedCD
-    , public         IntegralConstrainedFF<T>
+    , public         IntegralConstrainedFF<T> //Pick up the DoFit method.
 {
      typedef typename IntegralConstrainedFF<T>::mesh_t mesh_t;
      typedef typename IntegralConstrainedFF<T>::bs_t   bs_t;
 public:
-    FittedCDImp(); // No UT coverage
-    FittedCDImp(bs_t&, mesh_t&); // No UT coverage
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
-    virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const;
+    virtual SMat   GetRepulsion    (const TOrbital_DFT_IBS<double>*) const;
+    virtual double GetSelfRepulsion(                      ) const;  //Does GetRepulsion(*this);
     
-    virtual double GetSelfRepulsion    (                     ) const;  //Does GetRepulsion(*this);
-    
-    virtual double DoFit        (const DensityFFClient&)      ;
-    virtual double DoFit        (const Exact_CD&);
-
     virtual double operator()(const RVec3&) const; // No UT coverage
     virtual Vec3   Gradient  (const RVec3&) const; // No UT coverage
 
@@ -43,9 +37,6 @@ private:
     using FittedFunctionImp<T>::itsBasisSet;
     
     virtual void Eval(const Mesh&, Vector<double>&) const; // No UT coverage
-
-    const Exact_CD* itsExactRep;
-    mutable double       itsTotalCharge;
 };
 
 #endif //_FittedCDImp_H_

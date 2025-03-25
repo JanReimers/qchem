@@ -8,10 +8,12 @@
 //-------------------------------------------------------------------
 //
 //  Abstract interfaces used by the FittedFunction class.
+//  This is all the fitting routines needs to know in order
+//  to execute the LS fit.
 //
 
 //
-//  Fit so a simple scalar function.  Requires numerical integration.
+//  Fit to a simple scalar function.  Requires numerical integration.
 // 
 class ScalarFFClient
 {
@@ -21,7 +23,7 @@ public:
 };
 
 //
-//  Fit to a density matrix function ro(r)=a(r)*b(r)*Dab 
+//  Fit to a density matrix function like ro(r)=a(r)*b(r)*Dab 
 //
 class DensityFFClient
 {

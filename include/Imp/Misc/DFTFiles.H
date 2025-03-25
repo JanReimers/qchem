@@ -8,7 +8,6 @@
 class IrrepBasisSet;
 class Cluster;
 class Mesh;
-class ChargeDensity;
 class Hamiltonian;
 class WaveFunction;
 template <class T> class optr_vector1;
@@ -37,13 +36,12 @@ public:
 //
 //  Unpickle objects.
 //
-    void            UnpickleOBasisSet    (optr_vector1<IrrepBasisSet*>&) const;
-    IrrepBasisSet*       UnpickleCBasisSet    () const;
-    IrrepBasisSet*       UnpickleXBasisSet    () const;
-    Cluster*        UnpickleCluster      () const;
-    Mesh*           UnpickleMesh         () const;
-    ChargeDensity*  UnpickleChargeDensity() const;
-    Hamiltonian*    UnpickleHamiltonian  () const;
+    void             UnpickleOBasisSet    (optr_vector1<IrrepBasisSet*>&) const;
+    IrrepBasisSet*   UnpickleCBasisSet    () const;
+    IrrepBasisSet*   UnpickleXBasisSet    () const;
+    Cluster*         UnpickleCluster      () const;
+    Mesh*            UnpickleMesh         () const;
+    Hamiltonian*     UnpickleHamiltonian  () const;
     WaveFunction*    UnpickleWaveFunction() const;
 //
 //  Add file name extensions to the stub.

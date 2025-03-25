@@ -25,7 +25,6 @@ class Atom;
 class IrrepBasisSet;
 class BasisFunction;
 class BasisSet;
-class ChargeDensity;
 class Cluster;
 class ElectronConfiguration;
 class EnergyLevel;

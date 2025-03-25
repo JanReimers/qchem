@@ -16,47 +16,15 @@
 //
 //  Construction zone.
 //
-template <class T> FittedCDImp<T>::FittedCDImp()
-    : IntegralConstrainedFF<double>()
-    , itsExactRep(0)
-    , itsTotalCharge(0)
-{}; // No UT coverage
-
-template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m)
-    : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
-    , itsExactRep(0)
-    , itsTotalCharge(0)
-{}; // No UT coverage
-
 template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
     : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
-    , itsExactRep(0)
-    , itsTotalCharge(totalCharge)
 {
-    FittedFunctionImp<double>::ReScale(itsTotalCharge);
-    assert(itsTotalCharge>0);
-    assert(abs(itsTotalCharge-FitGetCharge())<1e-10);
+    FittedFunctionImp<double>::ReScale(totalCharge);
+    assert(totalCharge>0);
+    assert(abs(totalCharge-FitGetCharge())<1e-10);
 };
 
 
-template <class T> double FittedCDImp<T>::DoFit(const DensityFFClient& ffc)
-{
-    const Exact_CD* cd=dynamic_cast<const Exact_CD*>(&ffc);
-    if (!cd)
-    {
-        std::cerr << "FittedCDImplementation<T>::DoFit could not cast to charge density" << std::endl;
-        exit(-1);
-    }
-    itsExactRep=cd;
-    if  (itsTotalCharge==0) itsTotalCharge=itsExactRep->GetTotalCharge();
-    return ConstrainedFF<double>::DoFit(ffc);
-}
-template <class T> double FittedCDImp<T>::DoFit(const Exact_CD& cd)
-{
-    itsExactRep=&cd;
-    if  (itsTotalCharge==0) itsTotalCharge=itsExactRep->GetTotalCharge();
-    return ConstrainedFF<double>::DoFit(cd);
-}
 //-----------------------------------------------------------------------------
 //
 //  Totale energy terms for a charge density.

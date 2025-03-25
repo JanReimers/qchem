@@ -1,4 +1,8 @@
 Priority 1:
+    -FittedFunctionImp should not be storing  
+        SMat     itsInvOvlp;
+        SMat     itsInvRepl; 
+        Just use the DB caching mechanism.
     -Set up IE_Primatives interface for each basis set radial type.
         Use an IE_Primatives* at the AtomIE level for all integrals.
         Then move more basis set code down to the AtomIE level.
