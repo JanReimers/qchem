@@ -7,7 +7,7 @@ template <class T> class Orbital_HF_IBS_Common
     : public virtual TOrbital_HF_IBS<T>
 {
     typedef typename Integrals_Base<T>::SMat SMat;
-    typedef typename Integrals_Base<T>::obs_t obs_t;
+    typedef typename TOrbital_HF_IBS<T>::obs_t obs_t;
 public:
     virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const;
     virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const;

@@ -9,8 +9,9 @@ template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_HF<T> //Two electron integrals used for HF
 {
+protected:
     typedef typename Integrals_Base<T>::SMat SMat;
-    typedef typename Integrals_Base<T>::obs_t obs_t;
+    typedef TOrbital_HF_IBS obs_t;
 public:
     using Integrals_HF<T>::Direct;
     using Integrals_HF<T>::Exchange;

@@ -19,10 +19,7 @@ Direct(const SMat& Dcd, const obs_t* cd) const
     }
     else
     {
-        //ERI4 Jcdab=GetDataBase()->GetDirect__4C(*cd,*ab);
-        const TOrbital_HF_IBS<T>* cdhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(cd);
-        assert(cdhf);
-        ERI4 Jcdab=cdhf->Direct(*ab);
+        ERI4 Jcdab=cd->Direct(*ab);
         return Dcd*Jcdab;        
     }
 }
@@ -36,18 +33,9 @@ Exchange(const SMat& Dcd, const obs_t* cd) const
     const TOrbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())
-    {
-        ERI4 Kabcd=ab->Exchange(*cd);
-        return Kabcd*Dcd;
-    }
+        return ab->Exchange(*cd)*Dcd; // ERI4 Kabcd=ab->Exchange(*cd);
     else
-    {
-        //ERI4 Kcdab=GetDataBase()->GetExchange4C(*cd,*ab);
-        const TOrbital_HF_IBS<T>* cdhf=dynamic_cast<const TOrbital_HF_IBS<T>*>(cd);
-        assert(cdhf);
-        ERI4 Kcdab=cdhf->Exchange(*ab);
-        return Dcd*Kcdab;        
-    }
+        return Dcd*cd->Exchange(*ab); // ERI4 Kcdab=cd->Exchange(*ab);    
 
 }
 

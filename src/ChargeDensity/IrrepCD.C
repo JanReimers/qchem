@@ -67,13 +67,17 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
 template <> Exact_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
-    return bs_ab->Direct(itsDensityMatrix,itsBasisSet);
+    const TOrbital_HF_IBS<double>* bs_cd=dynamic_cast<const TOrbital_HF_IBS<double>*>(itsBasisSet);
+    assert(bs_cd);
+    return bs_ab->Direct(itsDensityMatrix,bs_cd);
 }
 
 template <> Exact_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
-    return bs_ab->Exchange(itsDensityMatrix,itsBasisSet);
+    const TOrbital_HF_IBS<double>* bs_cd=dynamic_cast<const TOrbital_HF_IBS<double>*>(itsBasisSet);
+    assert(bs_cd);
+    return bs_ab->Exchange(itsDensityMatrix,bs_cd);
 }
 
 //------------------------------------------------------------------------------
