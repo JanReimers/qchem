@@ -1,6 +1,7 @@
 // File: Vxc.C  Hartree-Fock exchange potential
 
 #include "Imp/Hamiltonian/Vxc.H"
+#include <Irrep_BS.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"
@@ -18,7 +19,9 @@ Vxc::Vxc() : HamiltonianTermImp( ) {};
 HamiltonianTerm::SMat Vxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     assert(itsExactCD);
-    SMat Kab=itsExactCD->GetExchange(bs);
+    auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
+    assert(hf_bs);
+    SMat Kab=itsExactCD->GetExchange(hf_bs);
     return Kab*-0.5;
 }
 void Vxc::GetEnergy(TotalEnergy& te) const

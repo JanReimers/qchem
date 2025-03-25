@@ -62,18 +62,16 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
 //
 //  Total energy terms for a charge density.
 //
-template <> Exact_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
+template <> Exact_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
-    auto* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
-    return tbs_ab->Direct(itsDensityMatrix,itsBasisSet);
+    return bs_ab->Direct(itsDensityMatrix,itsBasisSet);
 }
 
-template <> Exact_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_IBS<double>* bs_ab) const
+template <> Exact_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
-    const TOrbital_HF_IBS<double>* tbs_ab=dynamic_cast<const TOrbital_HF_IBS<double>*>(bs_ab);
-    return tbs_ab->Exchange(itsDensityMatrix,itsBasisSet);
+    return bs_ab->Exchange(itsDensityMatrix,itsBasisSet);
 }
 
 //------------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 
 #include "Imp/Hamiltonian/VxcPol.H"
 #include "Imp/Hamiltonian/Vxc.H"
+#include <Irrep_BS.H>
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include <Spin.H>
@@ -47,10 +48,13 @@ HamiltonianTerm::SMat VxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<doub
         std::cerr << "PolarizedHartreeFockVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
     }
+    auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
+    assert(hf_bs);
+
     const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(itsExactCD);
     assert(PolExactCD);
     const Exact_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
-    SMat Kab=SpinCD->GetExchange(bs)*-1.0;
+    SMat Kab=SpinCD->GetExchange(hf_bs)*-1.0;
     return Kab;
 }
 void VxcPol::GetEnergy(TotalEnergy& te) const

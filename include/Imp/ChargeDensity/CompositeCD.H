@@ -18,8 +18,8 @@ public:
     Composite_Exact_CD();
     void Insert(Exact_CD*);
 
-    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const; 
-    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; 
+    virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const; 
+    virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const; 
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 

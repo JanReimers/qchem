@@ -13,14 +13,14 @@
 //
 //  Various integrals.
 //
-Exact_CD::SMat Polarized_CD::GetRepulsion(const TOrbital_IBS<double>* bs) const
+Exact_CD::SMat Polarized_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs) const
 {
     SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
     SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
-Exact_CD::SMat Polarized_CD::GetExchange(const TOrbital_IBS<double>* bs) const
+Exact_CD::SMat Polarized_CD::GetExchange(const TOrbital_HF_IBS<double>* bs) const
 {
     // No UT coverage
     SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);

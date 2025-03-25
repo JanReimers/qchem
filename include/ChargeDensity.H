@@ -30,15 +30,12 @@ public:
     virtual void   MixIn        (const Exact_CD&,double)      =0;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const Exact_CD&       ) const=0;  //Convergence check.
 
-    virtual double GetTotalCharge      (                     ) const=0;  // <ro>
-    virtual double FitGetConstraint() const 
-    {
-        return  GetTotalCharge();
-    }
+    virtual double GetTotalCharge  () const=0;  // <ro>
+    virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
     typedef SMatrix<double> SMat;
-    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const=0;
-    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const=0;
+    virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const=0;
+    virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const=0;
 
 };
 
@@ -56,12 +53,12 @@ public:
 
     virtual double GetEnergy(const HamiltonianTerm*) const;
 
-    virtual double GetTotalCharge      (                     ) const;  // <ro>
-    virtual double GetTotalSpin        (                     ) const;  // No UT coverage// <up>-<down>
+    virtual double GetTotalCharge() const;  // <ro>
+    virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
-    virtual SMat   GetRepulsion(const TOrbital_IBS<double>*) const;
-    virtual SMat   GetExchange (const TOrbital_IBS<double>*) const; // No UT coverage
+    virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
+    virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const; 
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.

@@ -3,6 +3,7 @@
 
 
 #include "Imp/Hamiltonian/Vee.H"
+#include <Irrep_BS.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"
@@ -28,7 +29,9 @@ Vee::Vee()
 HamiltonianTerm::SMat Vee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     assert(itsExactCD);
-    return itsExactCD->GetRepulsion(bs);
+    auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
+    assert(hf_bs);
+    return itsExactCD->GetRepulsion(hf_bs);
 }
 
 void Vee::GetEnergy(TotalEnergy& te) const

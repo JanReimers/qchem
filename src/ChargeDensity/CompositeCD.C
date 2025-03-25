@@ -27,7 +27,7 @@ typedef optr_vector1<Exact_CD*>::const_iterator CITER;
 //
 //  Total energy terms for a charge density.
 //
-Exact_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_IBS<double>* bs_ab) const
+Exact_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -36,7 +36,7 @@ Exact_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_IBS<double>* bs_a
     return J;
 }
 
-Exact_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_IBS<double>* bs_ab) const
+Exact_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);

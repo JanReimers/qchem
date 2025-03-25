@@ -23,7 +23,7 @@ Priority 1:
         -Hunt for dynamic casts that can be removed using dynamic_cast iterator
         -SHould only be casting between interfaces
         -Can we pass around more specific interfaces?
-    -We need separate interface for ExactCD as compared to FittedCD.
+    Done: -We need separate interface for ExactCD as compared to FittedCD.
         i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
     Done: -Move all Hamilton constants out of integral engines
         Done: factor of 1/2 for kinetic
