@@ -2,7 +2,7 @@
 
 #include "Imp/Hamiltonian/RestMass.H"
 #include "Imp/Misc/DFTDefines.H"
-#include <Irrep_BS.H>
+#include <DHF_IBS.H>
 #include <TotalEnergy.H>
 
 RestMass::RestMass()

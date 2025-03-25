@@ -3,7 +3,8 @@
 
 
 #include "Imp/ChargeDensity/CompositeCD.H"
-#include <Irrep_BS.H>
+#include <HF_IBS.H>
+#include <Fit_IBS.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/smatrix.h"
 #include "oml/vector.h"

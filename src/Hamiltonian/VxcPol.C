@@ -4,7 +4,7 @@
 
 #include "Imp/Hamiltonian/VxcPol.H"
 #include "Imp/Hamiltonian/Vxc.H"
-#include <Irrep_BS.H>
+#include <HF_IBS.H>
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include <Spin.H>

@@ -1,7 +1,7 @@
 // File: Vxc.C  Hartree-Fock exchange potential
 
 #include "Imp/Hamiltonian/Vxc.H"
-#include <Irrep_BS.H>
+#include <HF_IBS.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"

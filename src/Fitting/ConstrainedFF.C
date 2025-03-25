@@ -2,7 +2,7 @@
 
 #include "Imp/Fitting/ConstrainedFF.H"
 #include <FittedFunctionClient.H>
-#include <Irrep_BS.H>
+#include <Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"

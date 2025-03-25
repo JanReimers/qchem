@@ -48,6 +48,9 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNucl
 
     return H;
 }
+
+#include <DHF_IBS.H>
+
 template <class T> typename Integrals_Base<T>::Mat  AtomIE_XGrad2<T>::MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
@@ -230,6 +233,7 @@ AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::ExchangeAngularIntegrals(size_t la, size_
 }
 
 #include "Imp/BasisSet/Atom_IE_Fit.H"
+#include <Fit_IBS.H>
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 {

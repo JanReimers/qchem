@@ -4,6 +4,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/IEClient.H"
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include <Irrep_BS.H>
+#include <Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "Imp/Containers/ERI4.H"

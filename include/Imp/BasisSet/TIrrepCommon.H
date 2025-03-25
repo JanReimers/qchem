@@ -48,6 +48,7 @@ template <class T> class Orbital_IBS_Common
 
 };
 
+#include <DFT_IBS.H>
 template <class T> class Orbital_DFT_IBS_Common
     : public virtual TOrbital_DFT_IBS<T>
 {
@@ -61,6 +62,7 @@ public:
     virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const;
 };
 
+#include <HF_IBS.H>
 template <class T> class Orbital_HF_IBS_Common
     : public virtual TOrbital_HF_IBS<T>
 {
@@ -71,6 +73,7 @@ public:
     virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const;
 };
 
+#include <Fit_IBS.H>
 class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
 {
     typedef Integrals_Base<double>::Vec Vec;

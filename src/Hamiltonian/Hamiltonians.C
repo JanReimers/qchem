@@ -4,7 +4,7 @@
 #include "Imp/Hamiltonian/Vee.H"
 #include "Imp/Hamiltonian/Vxc.H"
 #include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <Fit_IBS.H>
 #include <memory>
 
 Ham_HF_U::Ham_HF_U(cl_t& cl) 

@@ -96,6 +96,9 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(
     else
         return i->second;
 }
+
+#include <DHF_IBS.H>
+
 template <class T> typename Integrals_Base<T>:: Mat_ref DB_XGrad2<T>::Grad2(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     auto cache(DB_Common<T>::itsCache);
@@ -220,6 +223,7 @@ template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
 #include "Imp/DataBase/DB_Fit.H"
+#include <Fit_IBS.H>
 
 DB_Fit:: Vec_ref DB_Fit::Charge   () const
 {

@@ -3,6 +3,7 @@
 #define _Dirac_IBS_H_
 //
 #include "Imp/DataBase/DB_DHF.H"
+#include <DHF_IBS.H>
 #include "IrrepCommon.H"
 #include "TIrrepCommon.H"
 

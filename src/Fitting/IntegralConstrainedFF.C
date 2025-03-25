@@ -3,7 +3,7 @@
 
 
 #include "Imp/Fitting/IntegralConstrainedFF.H"
-#include <Irrep_BS.H>
+#include <Fit_IBS.H>
 #include "oml/matrix.h"
 
 template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()

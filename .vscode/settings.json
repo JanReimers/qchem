@@ -66,6 +66,7 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "irrep_bs,h": "cpp"
+        "irrep_bs,h": "cpp",
+        "hf_ibs_h": "cpp"
     }
 }
