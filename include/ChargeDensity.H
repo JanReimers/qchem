@@ -17,38 +17,16 @@
 //    6) Calculate the orbital repulsion integrals  < i(1) | ro(2)/r12 | j(1) > for orbitals i,j.
 //    7) calculate the self repulsion = 1/2 <ro(1)|1/r12|ro(2)>
 //
-//
-
-#include <FittedFunction.H>
-
-//----------------------------------------------------------------------------------
-//
-//
-class FittedCD
-    : public virtual ScalarFunction<double>
-    , public virtual FittedFunction
-{
-public:
-    using FittedFunction::DoFit;
-    virtual double DoFit(const Exact_CD&)=0;
-    typedef SMatrix<double> SMat;
-    
-    virtual double GetSelfRepulsion    (                     ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>
-    virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const=0;
-    //Required for creating a polarized CD from and un-polarized CD
-    virtual FittedCD*  Clone  (        ) const=0;
-};
-
+//  This is the interface for a charge density representation based on the density matrix.
 class Exact_CD 
 : public virtual ScalarFunction<double>
 , public virtual DensityFFClient //Fitted function can be fit to this.
-
 {
 public:
     virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
 
-    virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
-    virtual void   ShiftOrigin  (const RVec3&               )      =0;  //Usefull for single atom charge densities.
+    virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
+    virtual void   ShiftOrigin  (const RVec3&          )      =0;  //Usefull for single atom charge densities.
     virtual void   MixIn        (const Exact_CD&,double)      =0;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const Exact_CD&       ) const=0;  //Convergence check.
 

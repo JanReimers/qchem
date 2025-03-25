@@ -34,20 +34,20 @@ FittedVxcPol::~FittedVxcPol()
     delete itsDownVxc;
 }
 
-void FittedVxcPol::UseChargeDensity(const Exact_CD* exactCD)
+void FittedVxcPol::UseChargeDensity(const Exact_CD* cd)
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
 
-    HamiltonianTermImp::UseChargeDensity(exactCD);
+    HamiltonianTermImp::UseChargeDensity(cd);
 
-    const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(exactCD);
-    assert(PolExactCD);
+    const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
+    assert(pol_cd);
 
-    const Exact_CD* upExactCD   = PolExactCD->GetChargeDensity(Spin::Up  );
-    const Exact_CD* downExactCD = PolExactCD->GetChargeDensity(Spin::Down);
-    itsUpVxc  ->UseChargeDensity(upExactCD  );
-    itsDownVxc->UseChargeDensity(downExactCD);
+    const Exact_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    const Exact_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+    itsUpVxc  ->UseChargeDensity(ucd  );
+    itsDownVxc->UseChargeDensity(dcd);
 }
 
 bool FittedVxcPol::IsPolarized() const

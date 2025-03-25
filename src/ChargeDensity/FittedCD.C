@@ -3,6 +3,7 @@
 
 
 #include "Imp/ChargeDensity/FittedCD.H"
+#include <ChargeDensity.H>
 #include <Mesh.H>
 #include <Irrep_BS.H>
 #include "oml/smatrix.h"
@@ -73,13 +74,6 @@ template <class T> Exact_CD::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DF
     assert(!isnan(J));
     return J;
 }
-
-// template <class T> double FittedCDImp<T>::GetEnergy(const HamiltonianTerm* v) const
-// {
-//     // No UT coverage
-//     assert(itsExactRep);
-//     return itsExactRep->GetEnergy(v);
-// }
 
 template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 {

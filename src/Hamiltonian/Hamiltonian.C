@@ -33,9 +33,9 @@ void HamiltonianImp::InsertStandardTerms(cl_t & cl)
     Add(new Ven(cl));
 }
 
-void HamiltonianImp::UseChargeDensity(const Exact_CD* theExactCD)
+void HamiltonianImp::UseChargeDensity(const Exact_CD* cd)
 {
-    itsExactCD =theExactCD;
+    itsExactCD =cd;
     assert(itsExactCD);
     for (auto t:itsHamiltonianTerms) t->UseChargeDensity(itsExactCD);
 }

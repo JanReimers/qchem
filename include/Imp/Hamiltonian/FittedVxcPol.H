@@ -28,8 +28,8 @@ public:
    ~FittedVxcPol();
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const Exact_CD* exact);
-    virtual void GetEnergy       (TotalEnergy&               ) const;
-    virtual bool IsPolarized     (                           ) const;
+    virtual void GetEnergy       (TotalEnergy&         ) const;
+    virtual bool IsPolarized     (                     ) const;
 
     virtual std::ostream&   Write(std::ostream&) const;
     virtual std::istream&   Read (std::istream&)      ;

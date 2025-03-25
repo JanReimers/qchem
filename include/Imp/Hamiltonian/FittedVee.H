@@ -30,8 +30,8 @@ public:
     FittedVee();
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
     // Required by HamiltonianTerm
-    virtual void UseChargeDensity(const Exact_CD* cd    )       ;
-    virtual void GetEnergy       (TotalEnergy&               ) const;
+    virtual void UseChargeDensity(const Exact_CD* cd)       ;
+    virtual void GetEnergy       (TotalEnergy&      ) const;
 
 private:
     virtual bool DependsOnChargeDensity() const {return true;}

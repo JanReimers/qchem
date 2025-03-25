@@ -30,10 +30,10 @@ public:
     virtual RVec   GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double GetEnergy     (const HamiltonianTerm*) const;
-    virtual double GetTotalCharge(                ) const;
+    virtual double GetTotalCharge(                      ) const;
 
-    virtual void   ReScale      (double factor              )      ; // No UT coverage
-    virtual void   ShiftOrigin  (const RVec3&               )      ; // No UT coverage
+    virtual void   ReScale      (double factor         )      ; // No UT coverage
+    virtual void   ShiftOrigin  (const RVec3&          )      ; // No UT coverage
     virtual void   MixIn        (const Exact_CD&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const Exact_CD&       ) const;  //MaxAbs(delta density matrix)
 

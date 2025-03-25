@@ -4,7 +4,7 @@
 
 
 
-#include <ChargeDensity.H>
+#include <FittedCD.H>
 #include "Imp/Fitting/IntegralConstrainedFF.H"
 
 //---------------------------------------------------------------------------------
@@ -25,8 +25,6 @@ public:
 
     virtual SMat   GetRepulsion(const TOrbital_DFT_IBS<double>*) const;
     
-    // virtual double GetEnergy(const HamiltonianTerm*) const; // No UT coverage
-
     virtual double GetSelfRepulsion    (                     ) const;  //Does GetRepulsion(*this);
     
     virtual double DoFit        (const DensityFFClient&)      ;

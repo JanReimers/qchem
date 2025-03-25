@@ -14,8 +14,8 @@ class HamiltonianImp
 public:
     HamiltonianImp();
 
-    virtual void        UseChargeDensity(const Exact_CD* exact   )      ;
-    virtual void        Add             (      HamiltonianTerm*             )      ;
+    virtual void        UseChargeDensity(const Exact_CD*       )      ;
+    virtual void        Add             (      HamiltonianTerm*)      ;
     virtual SMat        BuildHamiltonian(const TOrbital_IBS<double>*,const Spin& S) const;
     virtual TotalEnergy GetTotalEnergy  (                             ) const;
     virtual bool        IsPolarized     (                             ) const;
