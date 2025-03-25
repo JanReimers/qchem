@@ -71,7 +71,7 @@ public:
     virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const;
 };
 
-class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals_1E
+class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
 {
     typedef Integrals_Base<double>::Vec Vec;
     typedef Integrals_Base<double>::Mat Mat;

@@ -49,7 +49,7 @@ public:
 
 class Fit_IBS 
 : public virtual ::Fit_IBS
-, public virtual FitIntegrals_1E
+, public virtual FitIntegrals
 , public IrrepBasisSet
 , public TIrrepBasisSetCommon<double>
 , public Fit_IBS_Common

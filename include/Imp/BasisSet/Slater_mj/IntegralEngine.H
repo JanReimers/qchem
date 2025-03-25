@@ -3,8 +3,8 @@
 #define _Slater_mj_IntegralEngine_H_
 
 #include "Imp/BasisSet/Dirac_IBS.H"
-#include "Imp/BasisSet/AtomIE.H"
 #include "../Slater/IE_Primatives.H"
+#include "../Atom_IE_DHF.H"
 
 class DiracIntegralTests;
 

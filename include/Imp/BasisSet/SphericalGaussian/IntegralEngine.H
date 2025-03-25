@@ -5,7 +5,10 @@
 
 // #include <AnalyticIE.H>
 #include "IE_Primatives.H"
-#include "../AtomIE.H"
+#include "../Atom_IE_HF.H"
+#include "../Atom_IE_DHF.H"
+#include "../Atom_IE_DFT.H"
+#include "../Atom_IE_Fit.H"
 #include "oml/vector.h"
 
 

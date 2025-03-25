@@ -3,7 +3,7 @@
 #define _SphericalGaussian_BasisSet_H_
 
 #include "../TCommon.H"
-#include "Imp/BasisSet/AtomIE.H"
+#include "../Atom_IE_HF.H"
 
 namespace SphericalGaussian
 {

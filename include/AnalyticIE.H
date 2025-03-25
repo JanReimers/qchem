@@ -7,7 +7,6 @@
 #include <UniqueID.H> //Need IDType
 #include <vector>
 
-class IrrepIEClient;
 //--------------------------------------------------------------------------------
 //
 //!  \brief This class is abstract interface used for calculating integrals over the basis functions.
@@ -24,6 +23,9 @@ class IrrepIEClient;
 // Interface for non-relativistic 1 electron integrals.  
 // The calls return matrix refrences which implies they are buffered behind the scenes.
 //
+
+
+//! \brief Define all commonly used typedefs in one place.
 template <class T> class Integrals_Base
 {
 public:
@@ -41,34 +43,35 @@ public:
     typedef const SMat& SMat_ref;
 };
 
+//! \brief Interface for overlap integrals.
 template <class T> class Integrals_Overlap : public virtual Integrals_Base<T>
 {
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     virtual typename Integrals_Base<T>::SMat_ref Overlap() const=0;
 };
-
+//! \brief Interface for Laplacian integrals using in kinetic energy calculations.
 template <class T> class Integrals_Grad2 : public virtual Integrals_Base<T>
 {
 public:
     //! Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
     virtual typename Integrals_Base<T>::SMat_ref Grad2() const=0;
 };
-
+//! \brief Interface for electron-nucleus attraction integrals.
 template <class T> class Integrals_Nuclear : public virtual Integrals_Base<T>
 {
 public:
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
     virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const=0;   
 };
-
+//! \brief Interface for rest mass matrix used to shift relativistic energies.
 template <class T> class Integrals_RestMass : public virtual Integrals_Base<T>
 {
 public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
     virtual typename Integrals_Base<T>::SMat_ref RestMass() const=0;   
 };
-
+//! \brief Interface for L-S cross kinetic matrix used in relativistic calculations.
 template <class T> class Integrals_XGrad2 : public virtual Integrals_Base<T>
 {
 public:
@@ -83,93 +86,6 @@ public:
 //     virtual typename Integrals_Base<T>::SMat_ref Repulsion() const=0;
 // };
 
-template <class T> class Integrals_DFT : public virtual Integrals_Base<T>
-{
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::fbs_t fbs_t;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::ERI3 ERI3;
-public:
-    //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$
-    virtual const ERI3& Overlap3C  (const fbs_t& c) const=0; 
-    //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
-    virtual const ERI3& Repulsion3C(const fbs_t& c) const=0; 
 
-};
-
-template <class T> class Integrals_2E : public virtual Integrals_Base<T>
-{
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::obs_t obs_t;
-public:
-    virtual ERI4 Direct  (const obs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
-    virtual ERI4 Exchange(const obs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
-
-};
-
-template <class T> class Integrals_BS_2E
-{
-public:
-    typedef UniqueID::IDtype IDType;   
-    virtual ERI4 Direct  (IDType a,IDType c) const=0;
-    virtual ERI4 Exchange(IDType a,IDType b) const=0;
-};
-
-template <class T> class Integrals_RKB
-: public virtual Integrals_Overlap<T>
-, public virtual Integrals_Grad2<T>
-, public virtual Integrals_Nuclear<T>
-, public virtual Integrals_RestMass<T>
-{
-public:
-    
-};
-
-template <class T> class Integrals_RKBL
-: public virtual Integrals_Overlap<T>
-, public virtual Integrals_XGrad2<T>
-, public virtual Integrals_Nuclear<T>
-{
-public:
-    
-};
-
-template <class T> class Integrals_RKBS 
-: public virtual Integrals_Grad2<T> //Serves as the overlap.
-, public virtual Integrals_Nuclear<T>
-{
-public:
-   
- };
-
-class FitIntegrals_1E  
-    : public virtual Integrals_Base<double>
-    , public virtual Integrals_Overlap<double>
-{
-public:
-    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    using Integrals_Overlap<double>::Overlap;
-    virtual Vec_ref  Charge   () const=0;   
-    virtual SMat_ref Repulsion() const=0;
-    virtual  Mat_ref Repulsion(const fbs_t&) const=0;
-    virtual SMat_ref InvOverlap(const LAParams&) const=0;
-    virtual SMat_ref InvRepulsion(const LAParams&) const=0;
-    // Pure numerial versions
-    virtual  Vec_ref Norm   (const Mesh*        ) const=0; //Numerical .
-    virtual  Vec_ref Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.
-//
-//  These are used for charge and Vxc fitting.  They change with iterations
-//  So they MUST not be cached.
-//
-    typedef ScalarFunction<double> Sf;
-    virtual const Vec Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
-    virtual const Vec Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
-
-    protected:
-    virtual  Vec MakeNorm   (const Mesh*        ) const=0; //Numerical .
-    virtual  Vec MakeCharge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.
-};
 
 #endif //_AnalyticIE_H_

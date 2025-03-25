@@ -4,7 +4,8 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
-#include "Imp/BasisSet/AtomIE.H"
+#include "../Atom_IE_HF.H"
+
 
 namespace Slater
 {

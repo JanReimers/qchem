@@ -72,6 +72,8 @@ Priority 1:
         3LAs: Occ,SGm,SLm,ERI,IE_CL,Rho(Charge density), Pol, UnP
         Conventions
             Underscore between acronyms: IR_BS
+
+        
     -Overlap3C La==Lb, but La==Lc is not always true how???
     -Need to tighten up/specialize allowed errors in HF energies for all UTs.
     -SVD truncation ... we need no know which L is getting truncated.

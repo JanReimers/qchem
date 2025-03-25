@@ -2,7 +2,10 @@
 #ifndef _SlaterIE_H_
 #define _SlaterIE_H_
 
-#include "../AtomIE.H"
+#include "../Atom_IE_HF.H"
+#include "../Atom_IE_DHF.H"
+#include "../Atom_IE_DFT.H"
+#include "../Atom_IE_Fit.H"
 #include "IE_Primatives.H"
 
 namespace Slater

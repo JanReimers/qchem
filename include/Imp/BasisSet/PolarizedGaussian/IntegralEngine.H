@@ -6,6 +6,9 @@
 #include "CDCache.H"
 #include "Polarization.H"
 #include "Imp/DataBase/HeapDB.H"
+#include "Imp/DataBase/DB_DFT.H"
+#include "Imp/DataBase/DB_HF.H"
+#include "Imp/DataBase/DB_Fit.H"
 
 #include <AnalyticIE.H>
 #include "oml/vector.h"

@@ -135,6 +135,7 @@ template <class T> class TOrbital_IBS
     
 };
 
+#include <DFT_IE.H>
 template <class T> class TOrbital_DFT_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_DFT<T> //DFT integrals
@@ -152,20 +153,22 @@ public:
     virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const=0;
 };
 
+#include <HF_IE.H>
 template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>
-    , public virtual Integrals_2E<T> //Two electron integrals used for HF
+    , public virtual Integrals_HF<T> //Two electron integrals used for HF
 {
     typedef typename Integrals_Base<T>::SMat SMat;
     typedef typename Integrals_Base<T>::obs_t obs_t;
 public:
-    using Integrals_2E<T>::Direct;
-    using Integrals_2E<T>::Exchange;
+    using Integrals_HF<T>::Direct;
+    using Integrals_HF<T>::Exchange;
     virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const=0;
     virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const=0;
 
 };
 
+#include <DHF_IE.H>
 template <class T> class Orbital_RKB_IBS
     : public virtual TIrrepBasisSet<T>
     , public virtual Integrals_RKB<T> 
@@ -190,9 +193,10 @@ public:
     //int GetKappa() const;
 };
 
+#include <Fit_IE.H>
 class Fit_IBS
     : public virtual TIrrepBasisSet<double>
-    , public virtual FitIntegrals_1E 
+    , public virtual FitIntegrals 
 {
     public:
     virtual Fit_IBS* Clone  (const RVec3&) const=0;  

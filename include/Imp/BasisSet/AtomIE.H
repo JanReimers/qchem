@@ -9,22 +9,22 @@
 
 template <class T> class Primative_Overlap
 {
-    public:
+public:
     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
 };
 template <class T> class Primative_Grad2
 {
-    public:
+public:
     virtual double Grad2(double ea ,double eb,size_t la, size_t lb) const=0;
 };
 template <class T> class Primative_Nuclear
 {
-    public:
+public:
     virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
 };
 template <class T> class Primative_Repulsion
 {
-    public:
+public:
     virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
 };
 
@@ -63,101 +63,6 @@ protected:
     using Primative_Grad2<T>::Grad2;
     virtual typename Integrals_Base<T>::Mat MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const;
     AtomIE_XGrad2(const DB_cache<T>* db) : DB_XGrad2<T>(db) {};
-};
-
-
-class AtomIE_Fit 
-: public virtual Primative_Repulsion<double>
-, public DB_Fit
-{
-    protected:
-    AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
-
-    virtual Vec  MakeCharge() const;
-    virtual SMat MakeRepulsion() const;
-    virtual  Mat MakeRepulsion(const fbs_t&) const;
-private:
-    // Derived classes must provide the actual integral calculations.
-    using DB_Fit::Charge; //un hide
-    using DB_Fit::Repulsion; //un hide
-    virtual double Charge   (double ea ,           size_t l) const=0;
-    using Primative_Repulsion<double>::Repulsion;
-};
-
-template <class T> class AtomIE_DFT 
-: public virtual Primative_Overlap<T>
-, public virtual Primative_Repulsion<T>
-, public DB_DFT<T>
-{
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::fbs_t fbs_t;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::ERI3 ERI3;
-protected:
-    AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
-    
-    virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
-    virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
-private:
-    typedef std::tuple<int,int,int,double,double> bf_tuple;
-    SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
-    SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
-};
-
-class AtomIE_BS_2E_Angular
-{
-public:
-    typedef Vector<double> RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
-};
-template <class T> class AtomIE_BS_2E 
-    : public virtual AtomIE_BS_2E_Angular
-    , public virtual Cache4
-    , public DB_BS_2E<T>
-    , public BFGrouper
-{
-    typedef typename AtomIE_BS_2E_Angular::RVec RVec;
-public:
-    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
-    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
-
-    // Cach4 functions
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
-protected:
-    virtual void Append(const IrrepIEClient*);
-};
-class AtomIE_BS_2E_l : public virtual AtomIE_BS_2E_Angular
-{
-public:
-    typedef AtomIE_BS_2E_Angular::RVec RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-};
-class AtomIE_BS_2E_lm : public virtual AtomIE_BS_2E_Angular
-{
-public:
-    typedef AtomIE_BS_2E_Angular::RVec RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-};
-
-template <class T> class AtomIE_RKBL 
-    : public AtomIE_Overlap<T>
-    , public AtomIE_XGrad2<T>
-    , public AtomIE_Nuclear<T>
-{
-protected:
-    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XGrad2<T>(db),AtomIE_Nuclear<T>(db) {};
-
-};
-template <class T> class AtomIE_RKBS 
-: public AtomIE_Grad2<T>
-, public AtomIE_Nuclear<T>
-{
-protected:
-    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Grad2<T>(db), AtomIE_Nuclear<T>(db) {};
 };
 
 #endif // _AtomIE_H_
