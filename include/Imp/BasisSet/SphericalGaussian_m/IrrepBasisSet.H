@@ -8,6 +8,7 @@
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
 #include "../SphericalGaussian/IntegralEngine.H"
+#include "../HF_IBS_Common.H"
 #include "oml/vector.h"
 #include <set>
 

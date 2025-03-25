@@ -48,44 +48,4 @@ template <class T> class Orbital_IBS_Common
 
 };
 
-#include <DFT_IBS.H>
-template <class T> class Orbital_DFT_IBS_Common
-    : public virtual TOrbital_DFT_IBS<T>
-{
-    typedef typename Integrals_Base<T>::SMat SMat;
-    typedef typename Integrals_Base<T>::fbs_t fbs_t;
-    typedef typename Integrals_DFT<T>::Vec  Vec;
-public:
-    using Integrals_DFT<T>::Overlap3C; //Unhide
-    using Integrals_DFT<T>::Repulsion3C; //Unhide
-    virtual Vec Overlap3C  (const SMat& Dcd, const fbs_t* ff) const;
-    virtual Vec Repulsion3C(const SMat& Dcd, const fbs_t* ff) const;
-};
-
-#include <HF_IBS.H>
-template <class T> class Orbital_HF_IBS_Common
-    : public virtual TOrbital_HF_IBS<T>
-{
-    typedef typename Integrals_Base<T>::SMat SMat;
-    typedef typename Integrals_Base<T>::obs_t obs_t;
-public:
-    virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const;
-    virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const;
-};
-
-#include <Fit_IBS.H>
-class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
-{
-    typedef Integrals_Base<double>::Vec Vec;
-    typedef Integrals_Base<double>::Mat Mat;
-    typedef Integrals_Base<double>::fbs_t fbs_t;
-    public:
-    virtual  Vec MakeNorm   (const Mesh*        ) const; //Numerical .
-    virtual  Vec MakeCharge (const Mesh*        ) const; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
-
-    virtual const Vec Overlap  (const Mesh*,const Sf&) const; //Numerical  
-    virtual const Vec Repulsion(const Mesh*,const Sf&) const; //Numerical 
-};
-
 #endif //_TIrrepCommon_H_

@@ -8,6 +8,9 @@
 #include "IntegralEngine.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
+#include "../DFT_IBS_Common.H"
+#include "../HF_IBS_Common.H"
+#include "../Fit_IBS_Common.H"
 #include "oml/vector.h"
 
 namespace SphericalGaussian

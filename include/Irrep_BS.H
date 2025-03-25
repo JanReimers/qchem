@@ -115,7 +115,6 @@ public:
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 
 //
-class Fit_IBS;
 class Orbital_IBS
     : public virtual IrrepBasisSet
 {
