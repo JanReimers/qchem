@@ -1,11 +1,13 @@
-// File SphericalGaussian/BasisSet.H
-#ifndef _SphericalGaussian_BasisSet_H_
-#define _SphericalGaussian_BasisSet_H_
+// File: Atom/l/Gaussian_BS.H
+#ifndef _Atom_l_Gaussian_BS_H_
+#define _Atom_l_Gaussian_BS_H_
 
-#include "../TCommon.H"
-#include "../Atom_IE_HF.H"
+#include "../../TCommon.H"
+#include "../../Atom_IE_HF.H"
 
-namespace SphericalGaussian
+namespace Atoml
+{
+namespace Gaussian
 {
 
 // Common base handles all the radial aspects.
@@ -35,5 +37,6 @@ public:
 };
 
 } //namespace
+} //namespace
 
-#endif // _SphericalGaussian_BasisSet_H_
+#endif // _Atom_l_Gaussian_BS_H_

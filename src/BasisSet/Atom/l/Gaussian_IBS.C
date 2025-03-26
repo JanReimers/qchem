@@ -1,16 +1,16 @@
-// File: SphericalGaussianBS.C  Spherical gaussian basis set.
+// File: Atom/l/Gaussian_IBS.H  Gaussian Irrep Basis Set (IBS) with orbital angular momentum l.
 
-
-
-#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/BasisFunction.H"
-#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/Atom/l/GaussianIE.H"
 #include "Imp/Symmetry/YlQN.H"
 #include <BasisSet.H>
 #include <iostream>
 #include <cassert>
 
-namespace SphericalGaussian
+namespace Atoml
+{
+namespace Gaussian
 {
   
 //----------------------------------------------------------------
@@ -24,7 +24,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     IrrepIEClient::Init(exponents,L);
     size_t i=1;
     for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new Gaussian::BasisFunction(e,L,ns(i++))); //ns from SlaterIEClient
+        IrrepBasisSetCommon::Insert(new ::Gaussian::BasisFunction(e,L,ns(i++))); //ns from SlaterIEClient
 
 };
 
@@ -73,4 +73,5 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 }
 
 
+} //namespace
 } //namespace

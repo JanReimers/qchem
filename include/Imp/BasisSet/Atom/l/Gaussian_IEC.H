@@ -1,10 +1,12 @@
-// File: SphericalGaussianIEClient.H
-#ifndef _SphericalGaussianIEClient_H_
-#define _SphericalGaussianIEClient_H_
+// File: Atom/l/Gaussian_IEC.H
+#ifndef _Atom_l_Gaussian_IEC_H_
+#define _Atom_l_Gaussian_IEC_H_
 
-#include "Imp/BasisSet/AtomIEClient.H"
+#include "../../AtomIEClient.H"
 
-namespace SphericalGaussian
+namespace Atoml
+{
+namespace Gaussian
 {
     
     
@@ -19,5 +21,6 @@ private:
 };
 
 } //namespace
+} //namespace
 
-#endif // _SphericalGaussianIEClient_H_
+#endif // _Atom_l_Gaussian_IEC_H_

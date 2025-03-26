@@ -7,7 +7,7 @@
 #include "IEClient.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
-#include "../SphericalGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/Atom/l/GaussianIE.H"
 #include "../HF_IBS_Common.H"
 #include "oml/vector.h"
 #include <set>
@@ -35,20 +35,20 @@ class Orbital_IBS
 , public         Orbital_IBS_Common<double>
 // , public         Orbital_DFT_IBS_Common<double>
 , public         Orbital_HF_IBS_Common<double>
-, public         SphericalGaussian::Orbital_IE
+, public         Atoml::Gaussian::Orbital_IE
 
 {
 public:
 Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>()
-    , SphericalGaussian::Orbital_IE(db)
+    , Atoml::Gaussian::Orbital_IE(db)
 {};
 
 Orbital_IBS(const DB_BS_2E<double>* db,const std::set<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>()
-    , SphericalGaussian::Orbital_IE(db)
+    , Atoml::Gaussian::Orbital_IE(db)
 {};
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;

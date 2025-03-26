@@ -2,8 +2,8 @@
 
 #include <BasisSet.H>
 #include "Imp/BasisSet/Atom/radial/Gaussian/BasisFunction.H"
-#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
@@ -73,7 +73,7 @@ IrrepBasisSet* IrrepBasisSet::Factory(std::istream& is)
 BasisSet* BasisSet::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(SphericalGaussian::BasisSet).name()) return new SphericalGaussian::BasisSet;
+    if (Name==typeid(Atoml::Gaussian::BasisSet).name()) return new Atoml::Gaussian::BasisSet;
     if (Name==typeid(PolarizedGaussian::BasisSet).name()) return new PolarizedGaussian::BasisSet;
 
     std::cout << "Unknown basis group type :" << Name << std::endl;

@@ -5,7 +5,7 @@
 
 #include "IEClient.H"
 #include "../AtomIE.H"
-#include "../SphericalGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/Atom/l/GaussianIE.H"
 
 class DiracIntegralTests;
 

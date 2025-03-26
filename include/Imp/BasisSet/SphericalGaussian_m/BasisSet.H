@@ -4,7 +4,7 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
-#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 
 namespace PolarizedGaussian
 {
@@ -15,7 +15,7 @@ namespace SphericalGaussian_m
 {
 
 class BasisSet 
-: public SphericalGaussian::BS_Common
+: public Atoml::Gaussian::BS_Common
 , public ::AtomIE_BS_2E_lm //Pick angular integrals.
 {
 public:

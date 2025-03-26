@@ -135,10 +135,10 @@ std::vector<const QuantumNumber*> QchemTester::GetQuantumNumbers() const
 // }
 
 
-#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 BasisSet* SG_OBasis::GetBasisSet () const
 {
-    BasisSet* bs=new SphericalGaussian::BasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atoml::Gaussian::BasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     //std::cout << *bs << std::endl;

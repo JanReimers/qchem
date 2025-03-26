@@ -3,9 +3,9 @@
 
 #include "gtest/gtest.h"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
-#include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/l/GaussianIE.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
+#include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/Symmetry/YlQN.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
@@ -35,7 +35,7 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new SphericalGaussian::BasisSet(5,.01,100.0,Lmax))
+    , bs(new Atoml::Gaussian::BasisSet(5,.01,100.0,Lmax))
     , cl(new Molecule())
     , mintegrator()
     {
@@ -49,7 +49,7 @@ public:
     
     int Lmax, Z;
     LAParams lap;
-    SphericalGaussian::BasisSet* bs;
+    Atoml::Gaussian::BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };
@@ -97,7 +97,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const SphericalGaussian::IrrepBasisSet* sg=dynamic_cast<const SphericalGaussian::IrrepBasisSet*>(oi);
+        const Atoml::Gaussian::IrrepBasisSet* sg=dynamic_cast<const Atoml::Gaussian::IrrepBasisSet*>(oi);
         assert(sg);
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))

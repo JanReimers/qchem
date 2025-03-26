@@ -1,22 +1,26 @@
-// File: SphericalGaussianIE1.H  Integral Engine for Spherical gaussians.
-#ifndef _SphericalGaussianIE1_H_
-#define _SphericalGaussianIE1_H_
+// File: Atom/l/Gaussian_IE.H  Integral Engine for Spherical gaussians.
+#ifndef _Atom_l_Gaussian_IE_H_
+#define _Atom_l_Gaussian_IE_H_
 
 
 // #include <AnalyticIE.H>
 #include "Imp/BasisSet/Atom/radial/Gaussian/IE_Primatives.H"
-#include "../Atom_IE_HF.H"
-#include "../Atom_IE_DHF.H"
-#include "../Atom_IE_DFT.H"
-#include "../Atom_IE_Fit.H"
+#include "Imp/BasisSet/Atom_IE_HF.H"
+#include "Imp/BasisSet/Atom_IE_DHF.H"
+#include "Imp/BasisSet/Atom_IE_DFT.H"
+#include "Imp/BasisSet/Atom_IE_Fit.H"
 #include "oml/vector.h"
 
 
-namespace SphericalGaussian
+    namespace Atoml
+    {
+        
+
+namespace Gaussian
 {
     
 class Orbital_IE
-: public Gaussian::IE_Primatives
+: public ::Gaussian::IE_Primatives
 , public AtomIE_Overlap<double>
 , public AtomIE_Grad2<double>
 , public AtomIE_Nuclear<double>
@@ -36,11 +40,15 @@ protected:
 class Fit_IE
 : public AtomIE_Fit
 , public AtomIE_Overlap<double>
-, public Gaussian::IE_Primatives
+, public ::Gaussian::IE_Primatives
 {
 protected:
     Fit_IE(const DB_cache<double>* db) : AtomIE_Fit(db), AtomIE_Overlap<double>(db) {};
 };
-} //namespace
+} //namespace Gaussian
 
-#endif //_SphericalGaussianIE1_H_
+  
+    
+} // namespace Atoml
+
+#endif //_Atom_l_Gaussian_IE_H_

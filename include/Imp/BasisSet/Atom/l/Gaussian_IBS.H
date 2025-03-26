@@ -1,19 +1,21 @@
-// File: SphericalGaussianBS.H  Sphericalic gaussian basis set with orbital angular momentum.
-#ifndef _SphericalGaussianBS_H_
-#define _SphericalGaussianBS_H_
+// File: Atom/l/Gaussian_IBS.H  Gaussian Irrep Basis Set (IBS) with orbital angular momentum l.
+#ifndef _Atom_l_Gaussian_IBS_H_
+#define _Atom_l_Gaussian_IBS_H_
 
 
 
-#include "IEClient.H"
-#include "IntegralEngine.H"
-#include "../IrrepCommon.H"
-#include "../TIrrepCommon.H"
-#include "../DFT_IBS_Common.H"
-#include "../HF_IBS_Common.H"
-#include "../Fit_IBS_Common.H"
+#include "Gaussian_IEC.H"
+#include "GaussianIE.H"
+#include "../../IrrepCommon.H"
+#include "../../TIrrepCommon.H"
+#include "../../DFT_IBS_Common.H"
+#include "../../HF_IBS_Common.H"
+#include "../../Fit_IBS_Common.H"
 #include "oml/vector.h"
 
-namespace SphericalGaussian
+namespace Atoml
+{
+namespace Gaussian
 {
    
 // Common implementation for orbital and fit basis sets.
@@ -67,5 +69,6 @@ public:
 
 
 } //namespace
+} //namespace
 
-#endif //_SphericalGaussianBS_H_
+#endif //_Atom_l_Gaussian_IBS_H_
