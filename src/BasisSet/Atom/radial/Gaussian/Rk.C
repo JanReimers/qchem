@@ -1,4 +1,4 @@
-// File: SphericalGaussianCD.C  2 electron Charge distribution of Gaussian orbitals. 
+// File: Gaussian::Rk.C  2 electron Charge distribution of Gaussian orbitals. 
 
 #include "Imp/BasisSet/Atom/radial/Gaussian/Rk.H"
 #include "Imp/Integrals/PascalTriangle.H"
@@ -6,6 +6,9 @@
 #include "oml/vector.h"
 using std::cout;
 using std::endl;
+
+namespace Gaussian
+{
 //
 //  Ranges:  
 //    0 <= k <= 2LMax  in steps of 2
@@ -16,10 +19,10 @@ using std::endl;
 //
 //  Build up the derivative look up tables.
 //
- SphericalGaussianCD::SphericalGaussianCD(double _eab, double _ecd, size_t _LMax)
+RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
  : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,LMax,1,2*LMax+1), Icd(0,LMax,1,2*LMax+1)
  {
- //   cout << "SphericalGaussianCD eab,ecd,LMax=" << eab << " " << ecd << " " << LMax << endl;
+ //   cout << "RkEngine eab,ecd,LMax=" << eab << " " << ecd << " " << LMax << endl;
     assert(Iab.GetLimits()==Icd.GetLimits());
     Fill(Iab,0.0);
     Fill(Icd,0.0);
@@ -54,7 +57,7 @@ using std::endl;
         
  }
  
- double SphericalGaussianCD::fk(double a, double ab, size_t k,size_t n)
+ double RkEngine::fk(double a, double ab, size_t k,size_t n)
 {
     assert(n>0);
     assert(k>=0);
@@ -62,7 +65,7 @@ using std::endl;
     return qchem::Fact[k]*((n+0.5)/pow(ab,k+1)+1/pow(a,k+1));
 }
 
-double SphericalGaussianCD::Coulomb_R0(size_t la,size_t lc) const
+double RkEngine::Coulomb_R0(size_t la,size_t lc) const
 {
     assert(la<=LMax);
     assert(lc<=LMax);
@@ -75,7 +78,7 @@ double SphericalGaussianCD::Coulomb_R0(size_t la,size_t lc) const
     return sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
-Vector<double> SphericalGaussianCD::Coulomb_Rk(size_t la,size_t lc) const
+Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
 {
     assert(la<=LMax);
     assert(lc<=LMax);
@@ -93,7 +96,7 @@ Vector<double> SphericalGaussianCD::Coulomb_Rk(size_t la,size_t lc) const
     return ret;
 }
 
-Vector<double> SphericalGaussianCD::ExchangeRk(size_t la,size_t lb) const
+Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
 {
     assert(la<=LMax);
     assert(lb<=LMax);
@@ -115,4 +118,5 @@ Vector<double> SphericalGaussianCD::ExchangeRk(size_t la,size_t lb) const
     return ret;
 }
 
+} //namespace
 

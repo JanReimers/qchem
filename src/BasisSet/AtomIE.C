@@ -137,7 +137,7 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, c
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
-        loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
         for (size_t ic:c->indices())
         {
             loop_2(c->es_indices[ic-1]);
@@ -177,7 +177,7 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
     ERI4 K(Na,Nc);
     for (size_t ia:a->indices())
     {
-        loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+        loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
         double na=a->ns(ia);
         for (size_t ic:c->indices())
         {

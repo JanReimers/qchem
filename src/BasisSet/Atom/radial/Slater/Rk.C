@@ -1,10 +1,12 @@
-// File: SlaterCD.C  4 electron Charge distribution of Slater orbitals. 
+// File: Slater::RkEngine.C  4 electron Charge distribution of Slater orbitals. 
 
 #include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
 #include "Imp/Integrals/PascalTriangle.H"
 #include "Imp/Integrals/Factorials.H"
 #include "oml/vector.h"
 
+namespace Slater
+{
 //
 //  Ranges:  
 //    0 <= k <= 2LMax  in steps of 2
@@ -15,7 +17,7 @@
 //
 //  Build up the derivative look up tables.
 //
- SlaterCD::SlaterCD(double _eab, double _ecd, size_t _LMax)
+RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
  : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,2*LMax+1,3,4*LMax+3), Icd(0,2*LMax+1,3,4*LMax+3)
  {
     assert(Iab.GetLimits()==Icd.GetLimits());
@@ -42,7 +44,7 @@
         
  }
  
- double SlaterCD::fk(double a, double ab, size_t k,size_t n)
+ double RkEngine::fk(double a, double ab, size_t k,size_t n)
 {
     assert(n>0);
     assert(k>=0);
@@ -50,7 +52,7 @@
     return qchem::Fact[k]*(n/pow(ab,k+1)+1/pow(a,k+1));
 }
 
-double SlaterCD::Coulomb_R0(size_t la,size_t lc) const
+double RkEngine::Coulomb_R0(size_t la,size_t lc) const
 {
     assert(la<=LMax);
     assert(lc<=LMax);
@@ -62,7 +64,7 @@ double SlaterCD::Coulomb_R0(size_t la,size_t lc) const
     return (Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
-Vector<double> SlaterCD::Coulomb_Rk(size_t la,size_t lc) const
+Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
 {
     assert(la>=0);
     assert(lc>=0);
@@ -82,7 +84,7 @@ Vector<double> SlaterCD::Coulomb_Rk(size_t la,size_t lc) const
     return ret;
 }
 
-Vector<double> SlaterCD::ExchangeRk(size_t la,size_t lb) const
+Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
 {
     assert(la>=0);
     assert(lb>=0);
@@ -104,7 +106,7 @@ Vector<double> SlaterCD::ExchangeRk(size_t la,size_t lb) const
     return ret;
 }
 
-Vector<double> SlaterCD::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const
+Vector<double> RkEngine::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const
 {
     assert (Ala>=la);
     assert (Alb>=lb);
@@ -121,7 +123,7 @@ Vector<double> SlaterCD::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) 
     {
         if (k>la+lb+1)
         {
-            //std::cerr << "SlaterCD::ExchangeRk: Divergent integral R_" << k << "(" << la << "," << lb << ")" << std::endl;
+            //std::cerr << "Slater::RkEngine::ExchangeRk: Divergent integral R_" << k << "(" << la << "," << lb << ")" << std::endl;
             ret(i++)=0.0;
             continue;
         }
@@ -134,3 +136,5 @@ Vector<double> SlaterCD::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) 
     }
     return ret;
 }
+
+} //namespace

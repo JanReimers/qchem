@@ -7,11 +7,13 @@
 #include <cmath>
 #include <cassert>
 
+namespace Slater
+{
 //##############################################################################
 //      /
 //  4Pi |  r^l exp(-a*r) r^2 dr
 //     /
-inline double SlaterIntegral(double a, int l)
+inline double Integral(double a, int l)
 {
     assert(l>=-2);
     return 4*Pi* qchem::Fact[l+2]/pow(a,l+3);
@@ -21,10 +23,11 @@ inline double SlaterIntegral(double a, int l)
 //
 //  1/sqrt(<a|a>)
 //
-inline double SlaterNorm(double a, int n)
+inline double Norm(double a, int n)
 {
-    return 1.0/std::sqrt(SlaterIntegral(2*a,2*n-2));
+    return 1.0/std::sqrt(Slater::Integral(2*a,2*n-2));
 }
 
+} //namespace
 
 #endif // SLATERINTEGRALS_H

@@ -157,7 +157,7 @@
 		<Unit filename="include/Imp/Integrals/GaussianIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/GaussianRadialIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/PascalTriangle.H" />
-		<Unit filename="include/Imp/Integrals/SlaterCD.H" />
+		<Unit filename="include/Imp/Integrals/Slater::RkEngine.H" />
 		<Unit filename="include/Imp/Integrals/SlaterIntegrals.H" />
 		<Unit filename="include/Imp/Integrals/SphericalGaussianCD.H" />
 		<Unit filename="include/Imp/Integrals/Wigner3j.H" />
@@ -532,7 +532,7 @@
 		<Unit filename="src/Integrals/PascalTriangle.C">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="src/Integrals/SlaterCD.C">
+		<Unit filename="src/Integrals/Slater::RkEngine.C">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="src/Integrals/SphericalGaussianCD.C">

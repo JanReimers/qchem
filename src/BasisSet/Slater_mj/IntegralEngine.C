@@ -12,7 +12,7 @@ template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t
 }
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
 {
-    return ea*eb*SlaterIntegral(ea+eb,l_total-1);
+    return ea*eb*Slater::Integral(ea+eb,l_total-1);
 }
 
 template class Orbital_RKBS_IE<double>;
@@ -113,7 +113,7 @@ template class Orbital_RKBS_IE<double>;
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         for (size_t ic:c->indices())
 //         {
 //             double ec=c->es_indices[ic-1];
@@ -138,7 +138,7 @@ template class Orbital_RKBS_IE<double>;
 //                     }
 //                     double ed=c->es[id-1];
 //                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Slater::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     double Rkac=ec*ed*cd.Coulomb_R0(la,lc);
 //                     if (c->kappa>0)
 //                     {
@@ -163,7 +163,7 @@ template class Orbital_RKBS_IE<double>;
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         for (size_t ic:c->indices())
 //         {
 //             double ec=c->es[ic-1];
@@ -188,7 +188,7 @@ template class Orbital_RKBS_IE<double>;
 //                     }
 //                     double ed=c->es[id-1];
 //                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Slater::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     double Rkac=ea*eb*cd.Coulomb_R0(la,lc);
 //                     if (a->kappa>0)
 //                     {
@@ -213,7 +213,7 @@ template class Orbital_RKBS_IE<double>;
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         for (size_t ic:c->indices())
 //         {
 //             double ec=c->es[ic-1];
@@ -238,7 +238,7 @@ template class Orbital_RKBS_IE<double>;
 //                     }
 //                     double ed=c->es[id-1];
 //                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Slater::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     double Rab0=ea*eb*cd.Coulomb_R0(la,lc);
 //                     if (a->kappa>0)
 //                     {
@@ -294,7 +294,7 @@ template class Orbital_RKBS_IE<double>;
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         double na=a->ns(ia);
 //         for (size_t ic:c->indices())
 //         {
@@ -313,7 +313,7 @@ template class Orbital_RKBS_IE<double>;
 //                 {
 //                     double ed=c->es[id-1];
 //                     double norm=nacb*c->ns(id);
-//                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Slater::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     RVec Rkac=ec*ed*cd.ExchangeRk(la,lc);
 //                     //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
 //                      if (c->kappa>0)
@@ -339,7 +339,7 @@ template class Orbital_RKBS_IE<double>;
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         double na=a->ns(ia);
 //         for (size_t ic:c->indices())
 //         {
@@ -358,7 +358,7 @@ template class Orbital_RKBS_IE<double>;
 //                 {
 //                     double ed=c->es[id-1];
 //                     double norm=nacb*c->ns(id);
-//                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Slater::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     RVec Rkac=ea*eb*cd.ExchangeRk(la,lc);
 //                     //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
 //                      if (a->kappa>0)
@@ -384,7 +384,7 @@ template class Orbital_RKBS_IE<double>;
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         double na=a->ns(ia);
 //         for (size_t ic:c->indices())
 //         {
@@ -404,7 +404,7 @@ template class Orbital_RKBS_IE<double>;
 //                 {
 //                     double ed=c->es[id-1];
 //                     double norm=nacb*c->ns(id);
-//                     SlaterCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Slater::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     RVec Rabk=ea*eb*cd.ExchangeRk(Ala,Alc,la,lc);
 //                     if (a->kappa>0)
 //                     {

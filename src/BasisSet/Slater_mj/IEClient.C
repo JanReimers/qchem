@@ -21,7 +21,7 @@ void IrrepIEClient::Init(const Vector  <double>& exponents)
 
 double IrrepIEClient::Norm(double e, size_t l) const
 {
-     return SlaterNorm(e,l+1);  //Already has 1/sqrt(4*Pi).
+     return Slater::Norm(e,l+1);  //Already has 1/sqrt(4*Pi).
 }
 
 double Small_IrrepIEClient::Norm(double e, size_t l) const

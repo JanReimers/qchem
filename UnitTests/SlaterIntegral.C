@@ -201,7 +201,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         int n=2*l+2;
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
-                Knum(i,j)+=(l*(l+1))*SlaterIntegral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
+                Knum(i,j)+=(l*(l+1))*Slater::Integral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
             
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
         

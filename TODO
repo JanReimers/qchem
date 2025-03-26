@@ -112,7 +112,7 @@ Priority 1:
     -Do we need to do an SCF iter in Initialize?
     
     -QchemTester: make show basis set an option.
-    -Common base for SlaterCD and SG_CD
+    -Common base for Slater::RkEngine and SG_CD
         -Make some unit tests first?
     -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?

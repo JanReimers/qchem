@@ -19,7 +19,7 @@ void IrrepIEClient::Init(const Vector  <double>& exponents)
 
 double IrrepIEClient::Norm(double e, size_t l) const
 {
-    return GaussianNorm(e,l);
+    return Gaussian::Norm(e,l);
 }
 
 double Small_IrrepIEClient::Norm(double e, size_t l) const

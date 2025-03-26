@@ -99,7 +99,7 @@ namespace SphericalGaussian_RKB
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         for (size_t ic:c->indices())
 //         {
 //             double ec=c->es_indices[ic-1];
@@ -124,7 +124,7 @@ namespace SphericalGaussian_RKB
 //                     }
 //                     double ed=c->es[id-1];
 //                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                     SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Gaussian::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     double Rkac=ec*ed*cd.Coulomb_R0(la,lc);
 //                     if (c->kappa>0)
 //                     {
@@ -148,7 +148,7 @@ namespace SphericalGaussian_RKB
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         for (size_t ic:c->indices())
 //         {
 //             double ec=c->es[ic-1];
@@ -173,7 +173,7 @@ namespace SphericalGaussian_RKB
 //                     }
 //                     double ed=c->es[id-1];
 //                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                     SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Gaussian::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     double Rkac=ea*eb*cd.Coulomb_R0(la,lc);
 //                     if (a->kappa>0)
 //                     {
@@ -197,7 +197,7 @@ namespace SphericalGaussian_RKB
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         for (size_t ic:c->indices())
 //         {
 //             double ec=c->es[ic-1];
@@ -222,7 +222,7 @@ namespace SphericalGaussian_RKB
 //                     }
 //                     double ed=c->es[id-1];
 //                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-//                     SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Gaussian::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     double Rab0=ea*eb*cd.Coulomb_R0(la,lc);
 //                     if (a->kappa>0)
 //                     {
@@ -276,7 +276,7 @@ namespace SphericalGaussian_RKB
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         double na=a->ns(ia);
 //         for (size_t ic:c->indices())
 //         {
@@ -295,7 +295,7 @@ namespace SphericalGaussian_RKB
 //                 {
 //                     double ed=c->es[id-1];
 //                     double norm=nacb*c->ns(id);
-//                     SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Gaussian::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     RVec Rkac=ec*ed*cd.ExchangeRk(la,lc);
 //                     //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
 //                      if (c->kappa>0)
@@ -320,7 +320,7 @@ namespace SphericalGaussian_RKB
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         double na=a->ns(ia);
 //         for (size_t ic:c->indices())
 //         {
@@ -339,7 +339,7 @@ namespace SphericalGaussian_RKB
 //                 {
 //                     double ed=c->es[id-1];
 //                     double norm=nacb*c->ns(id);
-//                     SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Gaussian::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     RVec Rkac=ea*eb*cd.ExchangeRk(la,lc);
 //                     //RVec RKac=loop_4_exchange(c->es_indices[id-1],la,lc);
 //                      if (a->kappa>0)
@@ -364,7 +364,7 @@ namespace SphericalGaussian_RKB
 //     for (size_t ia:a->indices())
 //     {
 //         double ea=a->es[ia-1];
-//         //loop_1(a->es_indices[ia-1]); //Start a cache for SphericalGaussianCD*
+//         //loop_1(a->es_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
 //         double na=a->ns(ia);
 //         for (size_t ic:c->indices())
 //         {
@@ -384,7 +384,7 @@ namespace SphericalGaussian_RKB
 //                 {
 //                     double ed=c->es[id-1];
 //                     double norm=nacb*c->ns(id);
-//                     SphericalGaussianCD cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
+//                     Gaussian::RkEngine cd(ea+eb,ec+ed,LMax(ia,ib,ic,id));
 //                     RVec Rabk=ea*eb*cd.ExchangeRk(la,lc);
 //                     if (a->kappa>0)
 //                     {
@@ -436,7 +436,7 @@ template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size
 {
     assert(l_total==0);
     //int kappa = -l -1;
-    return 4*ea*eb*GaussianIntegral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
+    return 4*ea*eb*Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
 }
 
 template class Orbital_RKBS_IE<double>;
