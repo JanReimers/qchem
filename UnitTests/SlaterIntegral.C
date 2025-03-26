@@ -6,7 +6,7 @@
 
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/BasisSet.H"
-#include "Imp/BasisSet/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
 #include "Imp/Symmetry/YlQN.H"
 
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"

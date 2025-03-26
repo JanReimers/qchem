@@ -1,10 +1,8 @@
-// File: Slater.C  r^(n-1) exp(-ar) type basis function for an atom.
+// File: Slater.C  r^l exp(-ar) type Slater basis function for an atom.
 
-#include "Imp/BasisSet/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
-#include "oml/imp/binio.h"
-#include <cmath>
 #include <iostream>
 #include <cassert>
 
@@ -35,41 +33,7 @@ bool BasisFunction::operator==(const ::BasisFunction& bf) const
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
-    // UniqueID::Write(os);
-    if ( StreamableObject::Binary())
-    {
-        BinaryWrite(itsExponent     ,os);
-        BinaryWrite(itsN            ,os);
-        BinaryWrite(itsL            ,os);
-        BinaryWrite(itsNormalization,os);
-    }
-    if (StreamableObject::Ascii ()) os << itsExponent << " " << itsN << " " << itsL << " " << itsNormalization << " ";
-    if (StreamableObject::Pretty())
-    {
-//    if (itsL >0) os << "r"; else os << " ";
-//    if (itsL >1) os << "^" << itsL; else os << "  ";
-//    os << " exp(-" << itsExponent << "*r)" << std::endl;
-        os << itsExponent << " ";
-    }
-    return os;
-}
-
-std::istream& BasisFunction::Read(std::istream& is)
-{
-    // UniqueID::Read(is);
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(itsExponent     ,is);
-        BinaryRead(itsN            ,is);
-        BinaryRead(itsL            ,is);
-        BinaryRead(itsNormalization,is);
-    }
-    else
-    {
-        is >> itsExponent >> itsN >> itsL >> itsNormalization ;
-        is.get();
-    }
-    return is;
+    return os << itsExponent << " ";
 }
 
 double BasisFunction::operator()(const Vec3& r) const

@@ -1,4 +1,4 @@
-// File: SlaterBF.H  r^l exp(-ar^2) type basis function for an Spherical.
+// File: SlaterBF.H  r^l exp(-a*r) type Slater basis function.
 #ifndef _SlaterBF_H_
 #define _SlaterBF_H_
 
@@ -17,7 +17,7 @@ public:
     virtual bool   operator==(const ::BasisFunction&) const;
 
     virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
+    virtual std::istream&       Read (std::istream& is) {return is;}
     virtual BasisFunction* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;

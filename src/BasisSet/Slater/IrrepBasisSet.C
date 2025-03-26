@@ -1,7 +1,7 @@
 // File: SlaterBS.C  Spherical Slater basis set.
 
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
-#include "Imp/BasisSet/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/Symmetry/YlQN.H"
 #include <BasisSet.H>

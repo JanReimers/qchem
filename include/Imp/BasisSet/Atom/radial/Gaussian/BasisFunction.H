@@ -1,10 +1,10 @@
-// File: SphericalGaussianBF.H  r^l exp(-ar^2) type basis function for an Spherical.
-#ifndef _SphericalGaussianBF_H_
-#define _SphericalGaussianBF_H_
+// File: Guassian/BasisFunction.H  r^l exp(-a*r^2) type Gaussian basis function.
+#ifndef _GaussianBF_H_
+#define _GaussianBF_H_
 
 #include <BasisFunction.H>
 
-namespace SphericalGaussian
+namespace Gaussian
 {
     
 class BasisFunction
@@ -32,4 +32,4 @@ private:
 
 } //namespace
 
-#endif //_SphericalGaussianBF_H_
+#endif //_GaussianBF_H_

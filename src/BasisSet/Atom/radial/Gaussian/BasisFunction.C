@@ -2,19 +2,17 @@
 
 
 
-#include "Imp/BasisSet/SphericalGaussian/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/BasisFunction.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
-#include "oml/imp/binio.h"
-#include <cmath>
 #include <iostream>
 #include <cassert>
 
-namespace SphericalGaussian
+namespace Gaussian
 {
 //#######################################################################
 //
-//  Spherical gaussian implementation, adds orbital AM Q#.
+//  Spherical gaussian function implementation.
 //
 
 BasisFunction::BasisFunction()
@@ -39,38 +37,11 @@ bool BasisFunction::operator==(const ::BasisFunction& bf) const
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
-    // UniqueID::Write(os);
-    if ( StreamableObject::Binary())
-    {
-        BinaryWrite(itsExponent     ,os);
-        BinaryWrite(itsL            ,os);
-        BinaryWrite(itsNormalization,os);
-    }
-    if (StreamableObject::Ascii ()) os << itsExponent << " " << itsL << " " << itsNormalization << " ";
-    if (StreamableObject::Pretty())
-    {
-//    if (itsL >0) os << "r"; else os << " ";
-//    if (itsL >1) os << "^" << itsL; else os << "  ";
-//    os << " exp(-" << itsExponent << " r^2)" << std::endl;
-        os << itsExponent << " ";
-    }
-    return os;
+    return os << itsExponent << " ";
 }
 
 std::istream& BasisFunction::Read(std::istream& is)
 {
-    // UniqueID::Read(is);
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(itsExponent     ,is);
-        BinaryRead(itsL            ,is);
-        BinaryRead(itsNormalization,is);
-    }
-    else
-    {
-        is >> itsExponent >> itsL >> itsNormalization ;
-        is.get();
-    }
     return is;
 }
 
