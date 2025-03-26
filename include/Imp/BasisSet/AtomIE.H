@@ -27,6 +27,11 @@ template <class T> class Primative_Repulsion
 public:
     virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
 };
+template <class T> class Primative_Charge
+{
+public:
+    virtual double Charge   (double ea, size_t l) const=0;
+};
 
 template <class T> class AtomIE_Overlap
 : public virtual Primative_Overlap<T>

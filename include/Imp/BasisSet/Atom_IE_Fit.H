@@ -7,6 +7,7 @@
 
 class AtomIE_Fit 
 : public virtual Primative_Repulsion<double>
+, public virtual Primative_Charge<double>
 , public DB_Fit
 {
     protected:
@@ -19,8 +20,8 @@ private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
-    virtual double Charge   (double ea ,           size_t l) const=0;
     using Primative_Repulsion<double>::Repulsion;
+    using Primative_Charge   <double>::Charge;
 };
 
 #endif //_Atom_IE_Fit_H_

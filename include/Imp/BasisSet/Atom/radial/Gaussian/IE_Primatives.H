@@ -1,0 +1,28 @@
+// File: Gaussian/IE_Primatives.H get all calculation of primative integrals in one place.
+#ifndef _Gaussian_IE_Primatives_H_
+#define _Gaussian_IE_Primatives_H_
+
+#include "../../../AtomIE.H"
+
+namespace Gaussian
+{
+   
+class IE_Primatives 
+    : public virtual Primative_Overlap  <double>
+    , public virtual Primative_Grad2    <double>
+    , public virtual Primative_Nuclear  <double>
+    , public virtual Primative_Repulsion<double>
+    , public virtual Primative_Charge   <double>
+{
+    protected:
+    virtual double Overlap  (double ea, double eb,size_t l_total) const;
+    virtual double Grad2    (double ea, double eb,size_t la, size_t lb) const;
+    virtual double Nuclear  (double ea, double eb,size_t l_total) const;
+    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
+    virtual double Charge   (double ea,           size_t l) const;
+
+};
+
+} //namespace
+
+#endif //_Gaussian_IE_Primatives_H_

@@ -429,7 +429,7 @@ template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t
 {
     assert(la==lb);
     assert(la==0);
-    return SphericalGaussian::IE_Primatives::Grad2(ea,eb,la,lb);
+    return Gaussian::IE_Primatives::Grad2(ea,eb,la,lb);
 }
 
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
