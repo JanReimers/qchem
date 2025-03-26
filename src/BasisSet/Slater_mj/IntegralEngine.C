@@ -1,5 +1,5 @@
 #include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
-#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
 
 namespace Slater_mj

@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Slater_mj/BasisSet.H"
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
-#include "Imp/BasisSet/SlaterScaler.H"
+#include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
 
 namespace Slater_mj
 {
@@ -10,7 +10,7 @@ namespace Slater_mj
 
 DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 {
-    SlaterScaler ss(N,emin,emax,lMax);
+    Slater::ExponentScaler ss(N,emin,emax,lMax);
     const DB_cache<double>* db=this;
     for (int l=0;l<=(int)lMax;l++)
     {

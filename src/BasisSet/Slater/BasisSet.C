@@ -2,8 +2,8 @@
 
 #include "Imp/BasisSet/Slater/BasisSet.H"
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
-#include "Imp/BasisSet/SlaterScaler.H"
-#include "Imp/Integrals/SlaterCD.H"
+#include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
 
 namespace Slater
 {
@@ -11,7 +11,7 @@ namespace Slater
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
-    SlaterScaler ss(N,emin,emax,LMax);
+    ExponentScaler ss(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,ss.Get_es(L),L));
         

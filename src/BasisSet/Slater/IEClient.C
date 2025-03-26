@@ -1,7 +1,6 @@
 
 #include "Imp/BasisSet/Slater/IEClient.H"
-#include "Imp/Integrals/SlaterIntegrals.H"
-#include "Imp/Integrals/SlaterCD.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
 
 

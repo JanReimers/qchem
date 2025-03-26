@@ -1,6 +1,7 @@
-// File: SlaterScaler.C  Rescale Slater exponents based in angular momentum L.
+// File: ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
 
-#include "Imp/BasisSet/SlaterScaler.H"
+#include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
+
 
 template <class T> void FillPower(Vector<T>& arr,T start, T stop)
 {
@@ -13,7 +14,12 @@ template <class T> void FillPower(Vector<T>& arr,T start, T stop)
 
 template void FillPower(Vector<double>& arr,double start, double stop);
 
-SlaterScaler::SlaterScaler(size_t N, double emin, double emax, size_t LMax)
+namespace Slater
+{
+
+
+
+ExponentScaler::ExponentScaler(size_t N, double emin, double emax, size_t LMax)
     : itsN(N)
     , itsLMax(LMax)
     , itsemin(emin)
@@ -23,7 +29,7 @@ SlaterScaler::SlaterScaler(size_t N, double emin, double emax, size_t LMax)
     FillPower(es,itsemin,itsemax);
 };
 
-SlaterScaler::RVec   SlaterScaler::Get_es(size_t L) const
+ExponentScaler::RVec   ExponentScaler::Get_es(size_t L) const
 {
     if (L==0) return es;
     int N=itsN-1*L;
@@ -33,3 +39,5 @@ SlaterScaler::RVec   SlaterScaler::Get_es(size_t L) const
     for (auto i:esL.indices()) esL(i)=es(i+L);
     return esL;
 }
+
+} //namespace

@@ -2,8 +2,9 @@
 
 
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
-#include "Imp/Integrals/SlaterCD.H"
-#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
+
 
 
 namespace Slater

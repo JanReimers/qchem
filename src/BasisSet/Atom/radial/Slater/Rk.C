@@ -1,6 +1,6 @@
 // File: SlaterCD.C  4 electron Charge distribution of Slater orbitals. 
 
-#include "Imp/Integrals/SlaterCD.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
 #include "Imp/Integrals/PascalTriangle.H"
 #include "Imp/Integrals/Factorials.H"
 #include "oml/vector.h"

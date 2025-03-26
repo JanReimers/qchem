@@ -1,7 +1,7 @@
 
 #include "Imp/BasisSet/Slater_mj/IEClient.H"
 #include "Imp/Symmetry/OkmjQN.H"
-#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 using std::cout;
 using std::endl;
 

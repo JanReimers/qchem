@@ -2,7 +2,7 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/Integrals/SlaterIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/BasisSet/Slater/BasisSet.H"
