@@ -14,10 +14,7 @@
 //
 //  Interface for an irreducible representation basis sets.  H is block diagonal with one
 //  block for  IrrepBasisSet,  For atoms each L get.s an IrrepBasisSet and an H  block. 
-//  All matrices of integrals are supplied by the
-//  IntegralDataBase, which only calculates the integrals once and buffers them.
-//  The Factory allows one to read basis sets from a stream polymorphically.
-//  Clone(RVec&) creates a similar set with a new center.
+//  
 //  The quantum number could be L for atoms, Irreducable rep for molecules, or
 //  the wave vector k for solids.
 //

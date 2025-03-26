@@ -4,10 +4,7 @@
 
 #include <Irrep_BS.H>
 #include <LAParams.H>
-//---------------------------------------------------------------------
-//
-//  This class also owns the IntegralDataBase.
-//
+
 template <class T> class TIrrepBasisSetCommon
     : public virtual TIrrepBasisSet<T>
 {
