@@ -9,6 +9,8 @@
 #include "../Dirac_IBS.H"
 #include "../IrrepCommon.H"
 #include "../TIrrepCommon.H"
+#include "../DHF_IBS_Common.H"
+
 class DiracIntegralTests;
 
 
@@ -17,10 +19,9 @@ namespace SphericalGaussian_RKB
 
 template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
-    , public     IrrepBasisSetCommon
-    , protected  TIrrepBasisSetCommon<T> 
-    , public     Orbital_RKBL_IE<T>
-    , public     IrrepIEClient
+    , public Orbital_RKBL_IBS_Common<T> 
+    , public Orbital_RKBL_IE<T>
+    , public IrrepIEClient
 {
     public:
     Large_Orbital_IBS() {};
@@ -32,8 +33,7 @@ template <class T> class Large_Orbital_IBS
 
 template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
-    , public     IrrepBasisSetCommon
-    , protected  TIrrepBasisSetCommon<T> 
+    , public     Orbital_RKBS_IBS_Common<T> 
     , public     Orbital_RKBS_IE<T>
     , public     Small_IrrepIEClient
 {
@@ -48,7 +48,7 @@ public:
 
 class Dirac_IrrepBasisSet
     : public virtual TOrbital_IBS<double>
-    , public Dirac::IrrepBasisSet<double>
+    , public Orbital_RKB_IBS_Common<double>
     , public         Dirac_IrrepIEClient
 {
 public:

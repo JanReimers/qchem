@@ -1,0 +1,88 @@
+// File: DHF_IBS_Common.H  Common implementation for all Dirac-Hartree-Fock (HF) Irrep Basis Sets.
+
+#include "Imp/BasisSet/DHF_IBS_Common.H"
+#include "Imp/Symmetry/OkmjQN.H"
+
+
+template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_cache<T>* db, int kappa)
+    : IrrepBasisSetCommon(new Omega_kQN(kappa))
+    , Orbital_IBS_Common<T>()
+    , DB_RKB<T>(db)
+    , itsRKBL(0)
+    , itsRKBS(0)
+{}
+
+
+template <class T> void Orbital_RKB_IBS_Common<T>::Init(const ::Orbital_RKBL_IBS<T>* l,const ::Orbital_RKBS_IBS<T>* s)
+{
+    assert(l);
+    assert(s);
+    itsRKBL=l;
+    itsRKBS=s;
+}
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::merge_diag(const SMat& l,const SMat& s)
+{
+    size_t Nl=l.GetNumRows();
+    size_t Ns=s.GetNumRows();
+    SMat ls(Nl+Ns);
+    Fill(ls,0.0);
+    for (auto i:l.rows())
+        for (auto j:l.cols(i))
+            ls(i,j)=l(i,j);
+    for (auto i:s.rows())
+        for (auto j:s.cols(i))
+            ls(Nl+i,Nl+j)=s(i,j);
+    return ls;
+}
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::merge_off_diag(const Mat& ls)
+
+{
+    size_t Nl=ls.GetNumRows();
+    size_t Ns=ls.GetNumCols();
+    assert(Nl==Ns);
+    SMat k(Nl+Ns);
+    Fill(k,0.0);
+    for (auto i:ls.rows())
+        for (auto j:ls.cols())
+            k(i,Ns+j)=ls(i,j);
+   
+    return k;
+}    
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeOverlap() const
+{
+    SMat ol=itsRKBL->Overlap();
+    SMat os=itsRKBS->Grad2();
+    return merge_diag(ol,os);
+}
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeGrad2() const
+{
+    Mat kls=-itsRKBL->Grad2(itsRKBS);
+    return merge_off_diag(kls);
+}
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeNuclear(const Cluster* c) const
+{
+    SMat nl=itsRKBL->Nuclear(c);
+    SMat ns=itsRKBS->Nuclear(c);
+    return merge_diag(nl,ns);
+}
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeRestMass() const
+{
+    SMat rl(itsRKBL->size());
+    Fill(rl,0.0);
+    SMat rs=itsRKBS->Grad2();
+    return merge_diag(rl,rs);
+}
+
+template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int kappa)
+    : IrrepBasisSetCommon(new Omega_kQN(kappa))
+    , TIrrepBasisSetCommon<T>()
+{}
+
+template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common(int kappa)
+    : IrrepBasisSetCommon(new Omega_kQN(-kappa))
+    , TIrrepBasisSetCommon<T>()
+{}
+
+template class Orbital_RKB_IBS_Common<double>;
+template class Orbital_RKBL_IBS_Common<double>;
+template class Orbital_RKBS_IBS_Common<double>;

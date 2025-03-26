@@ -13,8 +13,7 @@ namespace SphericalGaussian_RKB
 {
     template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
         const Vector<T>& exponents,int kappa)
-        : IrrepBasisSetCommon(new Omega_kQN(kappa))
-        , TIrrepBasisSetCommon<T>()
+        : Orbital_RKBL_IBS_Common<T>(kappa)
         , Orbital_RKBL_IE<T>(db)
         , IrrepIEClient(exponents.size(),kappa)
     {
@@ -26,8 +25,7 @@ namespace SphericalGaussian_RKB
 
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
     const Large_Orbital_IBS<T>* lbs)
-    : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
-    , TIrrepBasisSetCommon<T>()
+    : Orbital_RKBS_IBS_Common<T>(kappa)
     , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
@@ -43,9 +41,9 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (Pretty())
+    if (StreamableObject::Pretty())
     {
-        os << "Gaussian     " << GetQuantumNumber()
+        os << "Gaussian     " << this->GetQuantumNumber()
         << "               r^" << l << "*exp(-e*r^2), e={";
         for (auto b:*this) os << *b;
         os << "}";
@@ -61,9 +59,9 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 }
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (Pretty())
+    if (StreamableObject::Pretty())
     {
-        os << "Gaussian     " << GetQuantumNumber()
+        os << "Gaussian     " << this->GetQuantumNumber()
         << "               r^" << l << "*exp(-e*r^2), e={";
         for (auto b:*this) os << *b;
         os << "}";
@@ -79,11 +77,11 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
 
   
 Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
-    : Dirac::IrrepBasisSet<double>(db,kappa )
+    : Orbital_RKB_IBS_Common<double>(db,kappa )
 {
     auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
     auto rkbs=new Small_Orbital_IBS<double>(db,rkbl);
-    Dirac::IrrepBasisSet<double>::Init(rkbl,rkbs);
+    Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
     Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
