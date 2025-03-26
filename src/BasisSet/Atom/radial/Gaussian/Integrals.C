@@ -1,7 +1,7 @@
 // File: guass.cpp  General gaussian integral.
 
 
-#include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Integrals/Factorials.H"
 

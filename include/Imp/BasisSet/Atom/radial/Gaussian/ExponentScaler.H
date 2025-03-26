@@ -4,15 +4,21 @@
 
 #include "oml/vector.h"
 
-class GaussianScaler
+namespace Gaussian
+{
+
+class ExponentScaler
 {
 public:
     typedef Vector<double> RVec;
-    GaussianScaler(size_t N, double emin, double emax, size_t LMax);
+    ExponentScaler(size_t N, double emin, double emax, size_t LMax);
     RVec   Get_es (size_t L) const;
 private:        
     size_t itsN,itsLMax;
     double itsemin,itsemax;
     RVec es;
 };
+
+} //namespace
+
 #endif // _GaussianScaler_H_

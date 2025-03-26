@@ -2,8 +2,8 @@
 
 
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
-#include "Imp/Integrals/GaussianIntegrals.H"
-#include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Rk.H"
 
 namespace SphericalGaussian
 {

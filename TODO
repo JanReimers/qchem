@@ -3,7 +3,8 @@ Priority 1:
     -SL->SS
     -Break up BasisSet folder
         Atom
-            L
+            radial
+            l
                 Slater,Gaussian,BSpline
             ml 
                 Slater,Gaussian,BSpline
@@ -14,11 +15,7 @@ Priority 1:
         Lattice
             PlaneWave
 
-            
-    Done: -FittedFunctionImp should not be storing  
-        SMat     itsInvOvlp;
-        SMat     itsInvRepl; 
-        Just use the DB caching mechanism.
+
     -Set up IE_Primatives interface for each basis set radial type.
         Use an IE_Primatives* at the AtomIE level for all integrals.
         Then move more basis set code down to the AtomIE level.
@@ -45,14 +42,6 @@ Priority 1:
         -Hunt for dynamic casts that can be removed using dynamic_cast iterator
         -SHould only be casting between interfaces
         -Can we pass around more specific interfaces?
-    Done: -We need separate interface for ExactCD as compared to FittedCD.
-        i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
-    Done: -Move all Hamilton constants out of integral engines
-        Done: factor of 1/2 for kinetic
-        factor of Z (and R) for Ven
-            -Easy for atoms
-            -For molecules This is inefficenet, we only need the sum over centers
-        Done: factors of c for H_Dirac
     -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
     
     
@@ -61,6 +50,20 @@ Priority 1:
         -But need to check that exchange integrals work out properly when spin is folded
         into the Irrep blocking system.
             -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
+        Irrep QNs = IQNs
+            {n,l,ml,ms},    g=1         NR open shell spin-unpaired atom
+            {n,l,ml},       g=2         NR open shell spin paried atom
+            {n,l,ms},       g=2l+1      NR open shell spin-unpaired atom
+            {n,l},          g=2(2l+1)   NR closed shell atom
+            {n,kappa,mj,ms} g=1         Dirac atom
+            {n,kappa,ms}    g=2j+1      Dirac atom
+            {n,chi,ms}      g=1         Molecule
+            {n,chi}         g=2         Molecule
+        -Need < op for maps
+            This requires a hash value.
+        -Need == op
+        -Store j,mj,ms=n/2 QNs as double or some sort of frac class?
+
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
             map<QN,IrrepWaveFunction*> All
@@ -108,11 +111,6 @@ Priority 1:
     -Stream output to a separate log file?
     -Do we need to do an SCF iter in Initialize?
     
-    Fixed: -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
-        1) Check view blocks for all zeros.
-        Done: 2) Us a two way cache K[irrep1,irrep2]
-            Done: Need to deal with Diag (ir1==ir2) and non-diag K tables (ir1!=ir2) .
-    Done: -Another round of warning fixes.
     -QchemTester: make show basis set an option.
     -Common base for SlaterCD and SG_CD
         -Make some unit tests first?
@@ -305,8 +303,36 @@ Priority 3:
         -Polarized HF with m splitting basis works just well. Way less complicated.
     
 --------------------------------------------------------------------------------------
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Done: -FittedFunctionImp should not be storing  
+        SMat     itsInvOvlp;
+        SMat     itsInvRepl; 
+        Just use the DB caching mechanism.    
+    Done: -We need separate interface for ExactCD as compared to FittedCD.
+        i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
+    Done: -Move all Hamilton constants out of integral engines
+        Done: factor of 1/2 for kinetic
+        factor of Z (and R) for Ven
+            -Easy for atoms
+            -For molecules This is inefficenet, we only need the sum over centers
+        Done: factors of c for H_Dirac
+    Fixed: -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
+        1) Check view blocks for all zeros.
+        Done: 2) Us a two way cache K[irrep1,irrep2]
+            Done: Need to deal with Diag (ir1==ir2) and non-diag K tables (ir1!=ir2) .
+    Done: -Another round of warning fixes.
     Done: -Survey use of IrrepBS, Can we use more specific interfaces?
     Done: -RKBS_IE::Kinetic should call IE_Primatives::Kinetic
     Done: -SlaterIntegral(alpha,n) includes r^2 in n

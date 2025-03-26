@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
-#include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include <Cluster.H>
 
 namespace PolarizedGaussian
@@ -16,7 +16,7 @@ BasisSet::BasisSet( Reader* reader, const Cluster* cl)
 
 BasisSet::BasisSet( size_t N, double emin, double emax, size_t LMax, const Cluster* cl)
 {
-    GaussianScaler gs(N,emin,emax,LMax);
+    Gaussian::ExponentScaler gs(N,emin,emax,LMax);
     if (cl->GetNumAtoms()>1)
         Insert(new Orbital_IBS(this,gs.Get_es(0),LMax,cl));        
     else

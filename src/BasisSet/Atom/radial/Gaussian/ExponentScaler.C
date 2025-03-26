@@ -1,9 +1,14 @@
-// File: GaussianScaler.C  Rescale Gaussian exponents based in angular momentum L.
+// File: Gaussian/ExponentScaler.C  Rescale Gaussian exponents based in angular momentum L.
 
-#include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+
 template <class T> void FillPower(Vector<T>& arr,T start, T stop);
 
- GaussianScaler::GaussianScaler(size_t N, double emin, double emax, size_t LMax)
+namespace Gaussian
+{
+
+
+ ExponentScaler::ExponentScaler(size_t N, double emin, double emax, size_t LMax)
     : itsN(N)
     , itsLMax(LMax)
     , itsemin(emin)
@@ -13,7 +18,7 @@ template <class T> void FillPower(Vector<T>& arr,T start, T stop);
     FillPower(es,itsemin,itsemax);
 };
 
-GaussianScaler::RVec   GaussianScaler::Get_es(size_t L) const
+ExponentScaler::RVec   ExponentScaler::Get_es(size_t L) const
 {
     if (L==0) return es;
     int N=itsN-2*L;
@@ -22,3 +27,5 @@ GaussianScaler::RVec   GaussianScaler::Get_es(size_t L) const
     for (auto i:esL.indices()) esL(i)=es(i+L);
     return esL;
 }
+
+} //namespace

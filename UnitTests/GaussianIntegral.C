@@ -2,7 +2,7 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 #include "Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"

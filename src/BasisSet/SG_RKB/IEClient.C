@@ -1,8 +1,7 @@
 
 #include "Imp/BasisSet/SG_RKB/IEClient.H"
 #include "Imp/Symmetry/OkmjQN.H"
-#include "Imp/Integrals/GaussianIntegrals.H"
-#include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 
 namespace SphericalGaussian_RKB
 {

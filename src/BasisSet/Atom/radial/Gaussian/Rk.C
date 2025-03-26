@@ -1,6 +1,6 @@
 // File: SphericalGaussianCD.C  2 electron Charge distribution of Gaussian orbitals. 
 
-#include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Rk.H"
 #include "Imp/Integrals/PascalTriangle.H"
 #include "Imp/Integrals/Factorials.H"
 #include "oml/vector.h"

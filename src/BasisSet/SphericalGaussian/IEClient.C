@@ -1,7 +1,6 @@
 
 #include "Imp/BasisSet/SphericalGaussian/IEClient.H"
-#include "Imp/Integrals/GaussianIntegrals.H"
-#include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 
 namespace SphericalGaussian
 {

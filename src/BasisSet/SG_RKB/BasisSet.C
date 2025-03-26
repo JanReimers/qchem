@@ -2,14 +2,14 @@
 
 #include "Imp/BasisSet/SG_RKB/BasisSet.H"
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
-#include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 
 namespace SphericalGaussian_RKB
 {
 
 DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 {
-    GaussianScaler gs(N,emin,emax,lMax);
+    Gaussian::ExponentScaler gs(N,emin,emax,lMax);
     for (int l=0;l<=(int)lMax;l++)
     {
         // j=l-0.5 sector, kappa = l > 0

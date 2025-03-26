@@ -2,7 +2,7 @@
 
 
 #include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
-#include "Imp/Integrals/GaussianIntegrals.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 #include "Imp/Containers/ERI4.H"
 #include <Imp/Symmetry/OkmjQN.H>
 #include <iostream>

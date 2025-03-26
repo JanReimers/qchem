@@ -4,7 +4,7 @@
 #include "Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/RadialFunction.H"
-#include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>
 
@@ -14,7 +14,7 @@ namespace SphericalGaussian_m
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
-    GaussianScaler gs(N,emin,emax,LMax);
+    Gaussian::ExponentScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
             Insert(new Orbital_IBS(this,gs.Get_es(L),L,m));            

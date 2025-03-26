@@ -2,8 +2,8 @@
 
 #include "Imp/BasisSet/SphericalGaussian/BasisSet.H"
 #include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-#include "Imp/BasisSet/GaussianScaler.H"
-#include "Imp/Integrals/SphericalGaussianCD.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Rk.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 
 namespace SphericalGaussian
@@ -12,7 +12,7 @@ namespace SphericalGaussian
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
-    GaussianScaler gs(N,emin,emax,LMax);
+    Gaussian::ExponentScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,gs.Get_es(L),L)); //Common with optr_vector     
 }

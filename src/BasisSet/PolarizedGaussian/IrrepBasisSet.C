@@ -7,7 +7,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Imp/BasisSet/GaussianScaler.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Symmetry/UnitQN.H"
 #include "Imp/Symmetry/YlQN.H"
