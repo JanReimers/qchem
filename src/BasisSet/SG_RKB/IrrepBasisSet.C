@@ -3,7 +3,7 @@
 
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
 #include "Imp/BasisSet/SG_RKB/BasisFunction.H"
-#include "Imp/Symmetry/OkmjQN.H"
+#include <QuantumNumber.H>
 #include <iostream>
 #include <cassert>
 
@@ -25,7 +25,7 @@ namespace SphericalGaussian_RKB
 
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
     const Large_Orbital_IBS<T>* lbs)
-    : Orbital_RKBS_IBS_Common<T>(kappa)
+    : Orbital_RKBS_IBS_Common<T>(lbs->kappa)
     , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {

@@ -10,7 +10,10 @@ using std::cout;
 using std::endl;
 Omega_kQN::Omega_kQN(): kappa(0) {};
 
-Omega_kQN::Omega_kQN(int _kappa) : kappa(_kappa) {};
+Omega_kQN::Omega_kQN(int _kappa) : kappa(_kappa) 
+{
+    assert(abs(kappa)<10);
+};
 
 bool Omega_kQN::Match(const QuantumNumber& qn) const
 {

@@ -12,7 +12,6 @@
 #include "Imp/BasisSet/SG_RKB/BasisFunction.H"
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
 #include "Imp/Symmetry/OkmjQN.H"
-#include "Imp/BasisSet/Dirac_IBS.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
@@ -86,12 +85,12 @@ public:
     
     static SMat merge_diag(const SMat& l,const SMat& s)
     {
-        return Dirac::RKB_IE<double>::merge_diag(l,s);
+        return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
     }
 
     static SMat merge_off_diag(const Mat& l)
     {
-        return Dirac::RKB_IE<double>::merge_off_diag(l);
+        return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
     }
 
     int Lmax, Z;

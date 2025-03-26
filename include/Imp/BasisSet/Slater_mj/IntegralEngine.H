@@ -2,7 +2,6 @@
 #ifndef _Slater_mj_IntegralEngine_H_
 #define _Slater_mj_IntegralEngine_H_
 
-#include "Imp/BasisSet/Dirac_IBS.H"
 #include "../Slater/IE_Primatives.H"
 #include "../Atom_IE_DHF.H"
 

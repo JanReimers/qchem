@@ -2,8 +2,7 @@
 
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater_mj/BasisFunction.H"
-#include "Imp/Symmetry/OkmjQN.H"
-
+#include <QuantumNumber.H>
 #include <iostream>
 #include <cassert>
 
@@ -17,11 +16,11 @@ namespace Slater_mj
 
 Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const DB_cache<double>* db,
     const Vector<double>& exponents,int kappa)
-: Dirac::IrrepBasisSet<double>(db,kappa )
+: Orbital_RKB_IBS_Common<double>(db,kappa )
 {
     auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
     auto rkbs=new Small_Orbital_IBS<double>(db,rkbl);
-    Dirac::IrrepBasisSet<double>::Init(rkbl,rkbs);
+    Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
     Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
@@ -53,8 +52,7 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
 //
 template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
         const Vector<T>& exponents,int kappa)
-    : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , TIrrepBasisSetCommon<T>()
+    : Orbital_RKBL_IBS_Common<T>(kappa)
     , Orbital_RKBL_IE<T>(db)
     , IrrepIEClient(exponents.size(),kappa)
 {
@@ -68,9 +66,9 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (Pretty())
+    if (StreamableObject::Pretty())
     {
-        os << "Slater     " << GetQuantumNumber()
+        os << "Slater     " << this->GetQuantumNumber()
         << "             r^" << l << "*exp(-e*r), e={";
         for (auto b:*this) os << *b;
         os << "}";
@@ -89,8 +87,7 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 //  Small sector
 //
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<double>* db,const Large_Orbital_IBS<T>* lbs)
-    : IrrepBasisSetCommon(new Omega_kQN(-lbs->kappa))
-    , TIrrepBasisSetCommon<T>()
+    : Orbital_RKBS_IBS_Common<T>(lbs->kappa)
     , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
@@ -106,9 +103,9 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<double
 
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (Pretty())
+    if (StreamableObject::Pretty())
     {
-        os << "Slater RKB " << GetQuantumNumber();
+        os << "Slater RKB " << kappa << endl << this->GetQuantumNumber();
         if (kappa>0)
             os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
         else

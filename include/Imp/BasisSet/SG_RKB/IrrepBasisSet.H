@@ -6,9 +6,6 @@
 
 #include "IEClient.H"
 #include "IntegralEngine.H"
-#include "../Dirac_IBS.H"
-#include "../IrrepCommon.H"
-#include "../TIrrepCommon.H"
 #include "../DHF_IBS_Common.H"
 
 class DiracIntegralTests;

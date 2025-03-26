@@ -5,11 +5,8 @@
 
 
 #include "IEClient.H"
-#include "Imp/BasisSet/Dirac_IBS.H"
-
 #include "IntegralEngine.H"
-#include "../IrrepCommon.H"
-#include "../TIrrepCommon.H"
+#include "../DHF_IBS_Common.H"
 
 class DiracIntegralTests;
 
@@ -18,8 +15,7 @@ namespace Slater_mj
    
 template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
-    , public     IrrepBasisSetCommon
-    , protected  TIrrepBasisSetCommon<T> 
+    , public     Orbital_RKBL_IBS_Common<T> 
     , public     Orbital_RKBL_IE<T>
     , public     IrrepIEClient
 {
@@ -33,8 +29,7 @@ template <class T> class Large_Orbital_IBS
 
 template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
-    , public     IrrepBasisSetCommon
-    , protected  TIrrepBasisSetCommon<T> 
+    , public     Orbital_RKBS_IBS_Common<T> 
     , public     Orbital_RKBS_IE<T>
     , public     Small_IrrepIEClient
 {
@@ -47,12 +42,11 @@ public:
 
 class Dirac_IrrepBasisSet
     : public virtual TOrbital_IBS<double>
-    , public Dirac::IrrepBasisSet<double>
+    , public         Orbital_RKB_IBS_Common<double> 
     , public         Dirac_IrrepIEClient
 {
     typedef Integrals_Base<double>::SMat SMat;
 public:
-    //Dirac_IrrepBasisSet() {};
     Dirac_IrrepBasisSet(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
