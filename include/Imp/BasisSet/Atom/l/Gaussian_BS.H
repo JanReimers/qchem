@@ -2,29 +2,17 @@
 #ifndef _Atom_l_Gaussian_BS_H_
 #define _Atom_l_Gaussian_BS_H_
 
+#include "../radial/Gaussian/BS_Common.H"
 #include "../../TCommon.H"
-#include "../../Atom_IE_HF.H"
 
 namespace Atoml
 {
 namespace Gaussian
 {
 
-// Common base handles all the radial aspects.
-class BS_Common
-: public ::BasisSetImp
-, public ::AtomIE_BS_2E<double>
-{
-protected:
-    virtual void Insert(bs_t* bs);
-private:
-    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
-};
 
 class BasisSet 
-: public BS_Common
+: public ::Gaussian::BS_Common
 , public ::AtomIE_BS_2E_l //Pick angular integrals.
 {
 protected:

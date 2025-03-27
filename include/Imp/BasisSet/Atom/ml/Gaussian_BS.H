@@ -4,6 +4,7 @@
 
 #include "Gaussian_IEC.H"
 #include "../../TCommon.H"
+#include "../../AtomIE.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 
 namespace PolarizedGaussian
@@ -17,7 +18,7 @@ namespace Gaussian
 {
 
 class BasisSet 
-: public Atoml::Gaussian::BS_Common
+: public ::Gaussian::BS_Common
 , public ::AtomIE_BS_2E_lm //Pick angular integrals.
 {
 public:
