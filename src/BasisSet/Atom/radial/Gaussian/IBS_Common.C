@@ -4,6 +4,8 @@
 #include "Imp/BasisSet/Atom/radial/Gaussian/BasisFunction.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 #include "Imp/Symmetry/YlQN.H"
+#include "Imp/Symmetry/YlmQN.H"
+
 
 namespace Gaussian
 {
@@ -16,7 +18,19 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,l),l);
-    InsertBasisFunctions();
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new ::Gaussian::BasisFunction(e,l,ns(i++)));
+};
+
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l, int m)
+    : IrrepBasisSetCommon(new YlmQN(l,m))
+    , AtomIrrepIEClient(exponents.size())
+{
+    Init(exponents,Norms(exponents,l),l,m);
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new BasisFunction_ml(e,l+1,l,m,ns(i++))); 
 };
 
 Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
@@ -27,12 +41,6 @@ Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
     return ns;
 }
 
-void IrrepBasisSet::InsertBasisFunctions()
-{
-    size_t i=1;
-    for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new ::Gaussian::BasisFunction(e,l,ns(i++))); //ns from SlaterIEClient
-}
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
     if (Pretty())

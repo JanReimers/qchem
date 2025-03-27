@@ -68,4 +68,21 @@ BasisFunction* BasisFunction::Clone() const
     return new  BasisFunction(*this);
 }
 
+BasisFunction_ml::BasisFunction_ml(double e,int n, int l, int _ml, double norm)
+: BasisFunction(e,l,norm)
+, ml(_ml)
+{};
+
+bool BasisFunction_ml::operator==(const ::BasisFunction& bf) const
+{
+    const BasisFunction_ml& sgbf = dynamic_cast<const BasisFunction_ml&>(bf);
+    assert(&sgbf);
+    return  BasisFunction::operator==(bf) && (ml==sgbf.ml);
+}
+
+BasisFunction* BasisFunction_ml::Clone() const
+{
+    return new  BasisFunction_ml(*this);
+}
+
 } //namespace

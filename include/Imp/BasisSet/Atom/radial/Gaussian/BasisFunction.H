@@ -29,6 +29,18 @@ private:
     double itsNormalization;
 };
 
+class BasisFunction_ml : public BasisFunction
+{
+public:
+    BasisFunction_ml(double theExponent,int n, int l, int m, double norm);
+    
+    virtual bool   operator==(const ::BasisFunction&) const;
+
+    virtual BasisFunction* Clone(        ) const;
+private:
+    int ml;
+};
+
 
 } //namespace
 

@@ -21,9 +21,8 @@ class IrrepBasisSet
 {
 public:
     IrrepBasisSet(const Vector<double>& exponents, size_t l);
+    IrrepBasisSet(const Vector<double>& exponents, size_t l, int m);
     virtual std::ostream&  Write(std::ostream&    ) const;
-protected:
-    virtual void InsertBasisFunctions();
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
 };
