@@ -1,15 +1,17 @@
-// File: SphericalGaussian_m/BasisFunction.C  r^l exp(-ar^2)*Y_lm type basis function.
+// File: Atom/ml/Gaussian_BF.C  r^l exp(-ar^2)*Y_lm type basis function.
 
-#include "Imp/BasisSet/SphericalGaussian_m/BasisFunction.H"
+#include "Imp/BasisSet/Atom/ml/Gaussian_BF.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
-#include "oml/imp/binio.h"
-#include <cmath>
+// #include <cmath>
 #include <iostream>
 #include <cassert>
 
-namespace SphericalGaussian_m
+namespace Atom_ml
 {
+namespace Gaussian
+{
+    
 //#######################################################################
 //
 //  Spherical gaussian implementation, adds orbital AM Q#.
@@ -37,14 +39,7 @@ bool BasisFunction::operator==(const ::BasisFunction& bf) const
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-//    if (itsL >0) os << "r"; else os << " ";
-//    if (itsL >1) os << "^" << itsL; else os << "  ";
-//    os << " exp(-" << itsExponent << "*r)" << std::endl;
-        os << itsExponent << " ";
-    }
-    return os;
+    return os << itsExponent << " ";
 }
 
 std::istream& BasisFunction::Read(std::istream& is)
@@ -75,4 +70,5 @@ BasisFunction* BasisFunction::Clone() const
     return new  BasisFunction(*this);
 }
 
+} //namespace
 } //namespace

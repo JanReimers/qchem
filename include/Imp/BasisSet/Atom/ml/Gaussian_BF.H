@@ -1,10 +1,12 @@
-// File: SphericalGaussian_m/BasisFunction.H  r^l exp(-ar^2)*Y_lm type basis function.
-#ifndef _SphericalGaussian_m_BasisFunction_H_
-#define _SphericalGaussian_m_BasisFunction_H_
+// File: Atom/ml/Gaussian_BF.H  r^l exp(-ar^2)*Y_lm type basis function.
+#ifndef _Atom_ml_Gaussian_BF_H_
+#define _Atom_ml_Gaussian_BF_H_
 
 #include <BasisFunction.H>
 
-namespace SphericalGaussian_m
+namespace Atom_ml
+{
+namespace Gaussian
 {
     
 class BasisFunction
@@ -31,5 +33,6 @@ private:
 
 
 } //namespace
+} //namespace
 
-#endif //_SphericalGaussian_m_BasisFunction_H_
+#endif //_Atom_ml_Gaussian_BF_H_

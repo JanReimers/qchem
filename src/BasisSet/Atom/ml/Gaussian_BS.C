@@ -1,23 +1,25 @@
-// File SphericalGaussian_m/BasisSet.H
+// File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
 
-#include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
-#include "Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
+#include "Imp/BasisSet/Atom/ml/Gaussian_IBS.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>
 
-namespace SphericalGaussian_m
+namespace Atom_ml
+{
+namespace Gaussian
 {
 
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
-    Gaussian::ExponentScaler gs(N,emin,emax,LMax);
+    ::Gaussian::ExponentScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(this,gs.Get_es(L),L,m));            
+            Insert(new Orbital_IBS(this,gs.Get_es(L),L,m));
         
 }
 
@@ -58,4 +60,5 @@ BasisSet::BasisSet(Reader* reader, const Atom* atom)
 
 
 
+} //namespace
 } //namespace

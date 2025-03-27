@@ -1,9 +1,9 @@
-// File: SphericalGaussian_m/BasisSet.H
-#ifndef _SphericalGaussian_m_BasisSet_H_
-#define _SphericalGaussian_m_BasisSet_H_
+// File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
+#ifndef _Atom_ml_Gaussian_BS_H_
+#define _Atom_ml_Gaussian_BS_H_
 
-#include "IEClient.H"
-#include "../TCommon.H"
+#include "Gaussian_IEC.H"
+#include "../../TCommon.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 
 namespace PolarizedGaussian
@@ -11,7 +11,9 @@ namespace PolarizedGaussian
     class Reader;    
 }
 
-namespace SphericalGaussian_m
+namespace Atom_ml
+{
+namespace Gaussian
 {
 
 class BasisSet 
@@ -24,6 +26,7 @@ public:
     BasisSet(PolarizedGaussian::Reader*, const Atom*);
 };
 
-} //namespace SphericalGaussian_m
+} //namespace 
+} //namespace 
 
-#endif // _SphericalGaussian_m_BasisSet_H_
+#endif // _Atom_ml_Gaussian_BS_H_

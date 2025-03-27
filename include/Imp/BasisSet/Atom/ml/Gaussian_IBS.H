@@ -1,18 +1,19 @@
-// File: SphericalGaussian_m/IrrepBasisSet.H  Spherical Slater basis set with orbital angular momentum l,m.
-#ifndef _SphericalGaussian_m_IrrepBasisSet_H_
-#define _SphericalGaussian_m_IrrepBasisSet_H_
+// File: Atom/ml/Gaussian_IBS.H  r^l exp(-ar^2)*Y_lm type Irrep Basis set (IBS).
+#ifndef _Atom_ml_Gaussian_IBS_H_
+#define _Atom_ml_Gaussian_IBS_H_
 
 
-
-#include "IEClient.H"
-#include "../IrrepCommon.H"
-#include "../TIrrepCommon.H"
-#include "Imp/BasisSet/Atom/l/GaussianIE.H"
-#include "../HF_IBS_Common.H"
+#include "Gaussian_IEC.H"
+#include "../../IrrepCommon.H"
+#include "../../TIrrepCommon.H"
+#include "../l/GaussianIE.H"
+#include "../../HF_IBS_Common.H"
 #include "oml/vector.h"
 #include <set>
 
-namespace SphericalGaussian_m
+namespace Atom_ml
+{
+namespace Gaussian
 {
 
     // Common implementation for orbital and fit basis sets.
@@ -58,6 +59,7 @@ Orbital_IBS(const DB_BS_2E<double>* db,const std::set<double>& exponents, size_t
 };
 
 
-} //namespace SphericalGaussian_m
+} //namespace 
+} //namespace 
 
-#endif //_SphericalGaussian_m_IrrepBasisSet_H_
+#endif //_Atom_ml_Gaussian_IBS_H_

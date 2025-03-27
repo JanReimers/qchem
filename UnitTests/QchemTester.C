@@ -189,7 +189,7 @@ BasisSet* SG_RKB_OBasis::GetBasisSet () const
     return bs;
 }
 
-#include "Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
+#include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 
 BasisSet* SGm_OBasis::GetBasisSet () const
@@ -198,7 +198,7 @@ BasisSet* SGm_OBasis::GetBasisSet () const
 //    const Cluster* cl=GetCluster();
 //    Atom* a=*cl->begin();
 //    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
-    BasisSet* bs=new SphericalGaussian_m::BasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atom_ml::Gaussian::BasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;
