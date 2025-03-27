@@ -24,9 +24,9 @@ class IrrepBasisSet
 {
 public:
     IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
-    IrrepBasisSet(const std::set<double>& exponents, size_t L,int m);
     virtual std::ostream&  Write(std::ostream&    ) const;
-
+private:
+    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
 };
 
 class Orbital_IBS
@@ -41,12 +41,6 @@ class Orbital_IBS
 {
 public:
 Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
-    : IrrepBasisSet(exponents,L,m)
-    , Orbital_IBS_Common<double>()
-    , Atoml::Gaussian::Orbital_IE(db)
-{};
-
-Orbital_IBS(const DB_BS_2E<double>* db,const std::set<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>()
     , Atoml::Gaussian::Orbital_IE(db)

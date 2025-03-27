@@ -25,6 +25,9 @@ template <class T> class Large_Orbital_IBS
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+private:
+    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+
 };
 
 template <class T> class Small_Orbital_IBS
@@ -38,6 +41,9 @@ public:
     Small_Orbital_IBS(const DB_cache<double>*,const Large_Orbital_IBS<T>*);
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+private:
+    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+
 };
 
 class Dirac_IrrepBasisSet

@@ -3,23 +3,19 @@
 #include "Imp/BasisSet/AtomIEClient.H"
 
 
-void AtomIrrepIEClient::Init(const std::set<double>& exponents,size_t _l, int _m)
-{
-    n=_l+1;
-    l=_l;
-    m=_m;
-
-    int i=1;
-    for (auto& e:exponents) es(i++)=e;
-    for (auto i:es.indices())  ns(i)=Norm(es(i),l);
-}
-void AtomIrrepIEClient::Init(const Vector<double>& exponents,size_t _l, int _m)
+void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l, int _m)
 {
     n=_l+1;
     l=_l;
     m=_m;
 
     es=exponents;
-    for (auto i:es.indices())  ns(i)=Norm(es(i),l);
+    ns=norms;
+    for (auto i:ns.indices())  
+    {
+        // std::cout << l << " " << ns(i) << " " << Norm(es(i),l) << std::endl;
+        assert(ns(i)==Norm(es(i),l));
+
+    }
 }
 

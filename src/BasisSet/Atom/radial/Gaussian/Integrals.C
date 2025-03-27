@@ -20,6 +20,7 @@ double Evenl(double exp, int n);
 //     /
 double Integral(double a, int l)
 {
+    assert(l>=-2);
     return 4*Pi*( l%2 ? Oddl(a,(l+1)/2) : Evenl(a,(l+2)/2 ));
 }
 

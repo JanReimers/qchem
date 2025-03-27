@@ -3,6 +3,7 @@
 #include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/BasisFunction.H"
 #include "Imp/BasisSet/Atom/l/GaussianIE.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 #include "Imp/Symmetry/YlQN.H"
 #include <BasisSet.H>
 #include <iostream>
@@ -17,16 +18,23 @@ namespace Gaussian
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
-    : IrrepBasisSetCommon(new YlQN(L))
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l)
+    : IrrepBasisSetCommon(new YlQN(l))
     , IrrepIEClient(exponents.size())
 {
-    IrrepIEClient::Init(exponents,L);
+    IrrepIEClient::Init(exponents,Norms(exponents,l),l);
     size_t i=1;
     for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new ::Gaussian::BasisFunction(e,L,ns(i++))); //ns from SlaterIEClient
-
+        IrrepBasisSetCommon::Insert(new ::Gaussian::BasisFunction(e,l,ns(i++))); //ns from SlaterIEClient
 };
+
+Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=::Gaussian::Norm(e,l);
+    return ns;
+}
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {

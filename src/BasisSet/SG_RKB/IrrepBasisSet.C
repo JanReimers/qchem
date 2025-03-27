@@ -3,6 +3,9 @@
 
 #include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
 #include "Imp/BasisSet/SG_RKB/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
+
+#include "Imp/Symmetry/OkmjQN.H"
 #include <QuantumNumber.H>
 #include <iostream>
 #include <cassert>
@@ -11,25 +14,35 @@ using std::endl;
 
 namespace SphericalGaussian_RKB
 {
-    template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
-        const Vector<T>& exponents,int kappa)
-        : Orbital_RKBL_IBS_Common<T>(kappa)
-        , Orbital_RKBL_IE<T>(db)
-        , IrrepIEClient(exponents.size(),kappa)
-    {
-        IrrepIEClient::Init(exponents);
-        size_t i=1;
-        for (auto e:es) 
-            IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,ns(i++))); //ns from Slater_mj::IEClient
-    };
 
+template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
+    const Vector<T>& exponents,int kappa)
+    : Orbital_RKBL_IBS_Common<T>(kappa)
+    , Orbital_RKBL_IE<T>(db)
+    , IrrepIEClient(exponents.size(),kappa)
+{
+    size_t l=Omega_kmjQN::l(kappa);
+    AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);    
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,ns(i++))); //ns from Slater_mj::IEClient
+};
+
+template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=::Gaussian::Norm(e,l);
+    return ns;
+}
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
     const Large_Orbital_IBS<T>* lbs)
     : Orbital_RKBS_IBS_Common<T>(lbs->kappa)
     , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
-    IrrepIEClient::Init(lbs->es);
+    size_t l=Omega_kmjQN::l(kappa);
+    AtomIrrepIEClient::Init(lbs->es,Norms(lbs->es,l),l);  
     size_t i=1;
     for (auto b:*lbs) 
     {
@@ -38,6 +51,13 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db
     };
 }
 
+template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=1.0/sqrt(Gaussian::IE_Primatives::Grad2(e,e,l,l));
+    return ns;
+}
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {

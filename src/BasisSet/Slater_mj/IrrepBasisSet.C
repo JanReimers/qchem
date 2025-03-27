@@ -2,6 +2,9 @@
 
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater_mj/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
+
+#include "Imp/Symmetry/OkmjQN.H"
 #include <QuantumNumber.H>
 #include <iostream>
 #include <cassert>
@@ -56,12 +59,21 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
     , Orbital_RKBL_IE<T>(db)
     , IrrepIEClient(exponents.size(),kappa)
 {
-    IrrepIEClient::Init(exponents);
+    size_t l=Omega_kmjQN::l(kappa);
+    Init(exponents,Norms(exponents,l),l);
     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
 
 };
+
+template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=::Slater::Norm(e,l+1);
+    return ns;
+}
 
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
@@ -91,15 +103,24 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<double
     , Orbital_RKBS_IE<T>(db)
     , Small_IrrepIEClient(lbs->size(),lbs->kappa)
 {
-  Small_IrrepIEClient::Init(lbs->es);
-  size_t i=1;
-  for (auto b:*lbs) 
+    size_t l=Omega_kmjQN::l(kappa);
+    Init(lbs->es,Norms(lbs->es,l),l);
+    size_t i=1;
+    for (auto b:*lbs) 
     {
         const Large_BasisFunction* lb=dynamic_cast<const Large_BasisFunction*>(b);
         IrrepBasisSetCommon::Insert(new Small_BasisFunction(lb,ns(i++))); 
     }
 
 };
+
+template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=1.0/sqrt(Slater::IE_Primatives::Grad2(e,e,l,l));
+    return ns;
+}
 
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {

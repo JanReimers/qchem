@@ -17,8 +17,7 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     size_t n,l;
     int m;
     
-    void Init(const std::set<double>& exponents,size_t l, int m=0);
-    void Init(const Vector  <double>& exponents,size_t l, int m=0);
+    void Init(const Vector  <double>& exponents,const Vector<double>& norms, size_t l, int m=0);
     
     virtual size_t size() const {return es.size();}
     typedef std::tuple<int,int,int,double,double> bf_tuple;

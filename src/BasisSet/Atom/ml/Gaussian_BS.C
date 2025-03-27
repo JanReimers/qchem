@@ -53,8 +53,12 @@ BasisSet::BasisSet(Reader* reader, const Atom* atom)
     for (auto& le:Lexponents)
     {
         size_t L=le.first;
+        Vector<double> es(le.second.size());
+        int i=0;
+        for (auto e:le.second) es(++i)=e; //Convert to vector.
+
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(this,le.second,L,m));   
+            Insert(new Orbital_IBS(this,es,L,m));   
     }
 }
 

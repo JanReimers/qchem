@@ -19,7 +19,6 @@ struct IrrepIEClient //Use this for the large component.
     int kappa;
     double j;
     
-    void Init(const Vector<double>& exponents);
     virtual bool Large() const {return true;}
 private:
     virtual double Norm(double e, size_t l) const;

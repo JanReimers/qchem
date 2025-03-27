@@ -126,9 +126,9 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         const TIrrepBasisSet<double>* s=SlaterGetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
-//        cout << SLnum << SSnum << endl;
         SMat Snum=merge_diag(SLnum,SSnum);
-        // cout << Max(fabs(S-Snum)) << endl;
+        // cout << Snum << S << endl;
+
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }
 }

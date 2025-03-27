@@ -14,10 +14,7 @@ IrrepIEClient::IrrepIEClient(size_t N,int _kappa)
     , j(Omega_kmjQN::j(kappa))
     {};
     
-void IrrepIEClient::Init(const Vector  <double>& exponents)
-{
-    AtomIrrepIEClient::Init(exponents,Omega_kmjQN::l(kappa));
-}
+
 
 double IrrepIEClient::Norm(double e, size_t l) const
 {

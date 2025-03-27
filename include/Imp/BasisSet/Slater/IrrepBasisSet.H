@@ -26,6 +26,8 @@ class IrrepBasisSet
 public:
     IrrepBasisSet(const Vector<double>& exponents, size_t L);
     virtual std::ostream&  Write(std::ostream&    ) const;
+private:
+    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
 };
 
 class Orbital_IBS

@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 #include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/Symmetry/YlQN.H"
 #include <BasisSet.H>
@@ -18,12 +19,20 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     : IrrepBasisSetCommon(new YlQN(L))
     , IrrepIEClient(exponents.size())
 {
-    IrrepIEClient::Init(exponents,L);
+    IrrepIEClient::Init(exponents,Norms(exponents,L),L);
     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
 
 };
+
+Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=::Slater::Norm(e,l+1);
+    return ns;
+}
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {

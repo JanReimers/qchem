@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/Slater_m/IrrepBasisSet.H"
 #include "Imp/BasisSet/Slater_m/BasisFunction.H"
+#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 #include "Imp/Symmetry/YlmQN.H"
 #include <iostream>
 #include <cassert>
@@ -13,12 +14,20 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
     : IrrepBasisSetCommon(new YlmQN(L,m))
     , IrrepIEClient(exponents.size())
 {
-    IrrepIEClient::Init(exponents,L,m);
+    IrrepIEClient::Init(exponents,Norms(exponents,L),L,m);
     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,m,ns(i++))); //ns from SlaterIEClient
 
 };
+
+Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
+{
+    Vector<double> ns(es.size());
+    int i=0;
+    for (auto e:es) ns(++i)=::Slater::Norm(e,l+1);
+    return ns;
+}
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const
 {
