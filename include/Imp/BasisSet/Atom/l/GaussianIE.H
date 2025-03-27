@@ -12,8 +12,8 @@
 #include "oml/vector.h"
 
 
-    namespace Atoml
-    {
+namespace Atoml
+{
         
 
 namespace Gaussian

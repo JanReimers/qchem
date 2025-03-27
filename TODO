@@ -1,4 +1,5 @@
 Priority 1:
+    -DFT check for l>0 basis sets for fitting.
     -Slater norm takes n=l+1, Gaussian norm takes l.
     -Move Slatermj over to SS_RKB
     -SL->SS

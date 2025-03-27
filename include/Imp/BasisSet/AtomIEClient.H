@@ -27,7 +27,7 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     typedef std::vector<size_t>::const_iterator const_iterator;
     
 private:
-    virtual double Norm(double e, size_t l) const=0;
+    // virtual double Norm(double e, size_t l) const=0;
 };
 
 

@@ -97,7 +97,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const Atoml::Gaussian::IrrepBasisSet* sg=dynamic_cast<const Atoml::Gaussian::IrrepBasisSet*>(oi);
+        const ::Gaussian::IrrepBasisSet* sg=dynamic_cast<const Gaussian::IrrepBasisSet*>(oi);
         assert(sg);
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))

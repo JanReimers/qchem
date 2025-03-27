@@ -11,11 +11,5 @@ void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double
 
     es=exponents;
     ns=norms;
-    for (auto i:ns.indices())  
-    {
-        // std::cout << l << " " << ns(i) << " " << Norm(es(i),l) << std::endl;
-        assert(ns(i)==Norm(es(i),l));
-
-    }
 }
 

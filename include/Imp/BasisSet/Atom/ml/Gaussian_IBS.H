@@ -3,7 +3,7 @@
 #define _Atom_ml_Gaussian_IBS_H_
 
 
-#include "Gaussian_IEC.H"
+#include "../../AtomIEClient.H"
 #include "../../IrrepCommon.H"
 #include "../../TIrrepCommon.H"
 #include "../l/GaussianIE.H"
@@ -20,7 +20,7 @@ namespace Gaussian
 class IrrepBasisSet
 : public virtual ::IrrepBasisSet
 , public         IrrepBasisSetCommon
-, public         IrrepIEClient
+, public         AtomIrrepIEClient
 {
 public:
     IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
