@@ -43,7 +43,7 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , sbs(new Slater_mj::DiracBasisSet(3,0.1,10,Lmax))
-    , gbs(new Atom_kappa::Gaussian::DiracBasisSet(3,0.1,10,Lmax))
+    , gbs(new Atom_kappa::Gaussian::BasisSet(3,0.1,10,Lmax))
     , cl(new Molecule())
     {
         sbs->Set(lap);
@@ -71,14 +71,14 @@ public:
     static const TIrrepBasisSet<double>* GaussianGetLarge(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const Atom_kappa::Gaussian::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Atom_kappa::Gaussian::Dirac_IrrepBasisSet*>(ibs);
+        const Atom_kappa::Gaussian::Orbital_IBS* dirbs=dynamic_cast<const Atom_kappa::Gaussian::Orbital_IBS*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
     static const TIrrepBasisSet<double>* GaussianGetSmall(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const Atom_kappa::Gaussian::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Atom_kappa::Gaussian::Dirac_IrrepBasisSet*>(ibs);
+        const Atom_kappa::Gaussian::Orbital_IBS* dirbs=dynamic_cast<const Atom_kappa::Gaussian::Orbital_IBS*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBS;
     }
@@ -96,7 +96,7 @@ public:
     int Lmax, Z;
     LAParams lap;
     Slater_mj::DiracBasisSet* sbs;
-    Atom_kappa::Gaussian::DiracBasisSet* gbs;
+    Atom_kappa::Gaussian::BasisSet* gbs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

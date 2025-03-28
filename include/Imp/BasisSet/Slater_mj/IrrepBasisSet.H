@@ -55,6 +55,7 @@ class Dirac_IrrepBasisSet
 public:
     Dirac_IrrepBasisSet(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
+    virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 

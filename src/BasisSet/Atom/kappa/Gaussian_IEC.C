@@ -29,19 +29,5 @@ double Small_IrrepIEClient::Norm(double e, size_t l) const
 }
 
 
-void Dirac_IrrepIEClient::Init(const IrrepIEClient* liec,const IrrepIEClient* siec)
-{
-    itsLargeIEC=liec;
-    itsSmallIEC=siec;
-    assert(itsLargeIEC);
-    assert(itsSmallIEC);
-}
-
-size_t Dirac_IrrepIEClient::size() const
-{
-    assert(itsLargeIEC);
-    assert(itsSmallIEC);
-    return itsLargeIEC->size()+itsSmallIEC->size();
-}
 
 }} //namespace

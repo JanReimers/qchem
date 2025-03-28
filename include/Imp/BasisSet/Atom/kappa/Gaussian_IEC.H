@@ -39,18 +39,6 @@ private:
     virtual double Norm(double e, size_t l) const;
 };
 
-struct Dirac_IrrepIEClient
-    : public virtual ::IrrepIEClient
-{
-    Dirac_IrrepIEClient() : itsLargeIEC(0), itsSmallIEC(0) {};
-    virtual size_t size() const;
-
-    void Init(const IrrepIEClient* large,const IrrepIEClient* small);
-    
-    const IrrepIEClient* itsLargeIEC;
-    const IrrepIEClient* itsSmallIEC;
-        
-};
 
 
 }} //namespace

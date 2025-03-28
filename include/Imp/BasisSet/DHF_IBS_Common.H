@@ -17,6 +17,7 @@ template <class T> class Orbital_RKB_IBS_Common
     typedef typename Integrals_Base<T>::SMat SMat;
     typedef typename Integrals_Base<T>::Mat Mat;
 public:
+    virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
     virtual SMat MakeOverlap () const;
     virtual SMat MakeGrad2   () const;
     virtual SMat MakeNuclear (const Cluster*) const;

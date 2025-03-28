@@ -98,18 +98,18 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
 
 
   
-Dirac_IrrepBasisSet::Dirac_IrrepBasisSet(const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
+Orbital_IBS::Orbital_IBS(const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
     : Orbital_RKB_IBS_Common<double>(db,kappa )
 {
     auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
     auto rkbs=new Small_Orbital_IBS<double>(db,rkbl);
     Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
-    Dirac_IrrepIEClient::Init(rkbl,rkbs);
+    // Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
 };
 
-std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
+std::ostream&  Orbital_IBS::Write(std::ostream& os) const
 {
     if (!Pretty())
     {
@@ -123,7 +123,7 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
     return os;
 }
 
-::IrrepBasisSet* Dirac_IrrepBasisSet::Clone(const RVec3&) const
+::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return 0;

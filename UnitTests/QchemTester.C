@@ -181,7 +181,7 @@ BasisSet* SLmj_OBasis::GetBasisSet () const
 BasisSet* SG_RKB_OBasis::GetBasisSet () const
 {
     assert(N>0);
-    BasisSet* bs=new Atom_kappa::Gaussian::DiracBasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atom_kappa::Gaussian::BasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;

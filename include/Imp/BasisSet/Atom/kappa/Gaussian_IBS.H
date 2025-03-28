@@ -14,6 +14,21 @@ namespace Atom_kappa
 namespace Gaussian
 {
 
+    class Orbital_IBS
+    : public virtual TOrbital_IBS<double>
+    , public Orbital_RKB_IBS_Common<double>
+{
+public:
+    Orbital_IBS(const DB_cache<double>*, const Vector<double>& exponents, int kappa);
+
+    virtual std::ostream&  Write(std::ostream&    ) const;
+    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
+private:
+    friend class ::DiracIntegralTests;
+
+};
+
 template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
     , public Orbital_RKBL_IBS_Common<T> 
@@ -47,21 +62,6 @@ private:
 };
 
 
-class Dirac_IrrepBasisSet
-    : public virtual TOrbital_IBS<double>
-    , public Orbital_RKB_IBS_Common<double>
-    , public         Dirac_IrrepIEClient
-{
-public:
-    Dirac_IrrepBasisSet(const DB_cache<double>*, const Vector<double>& exponents, int kappa);
-
-    virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-
-private:
-    friend class ::DiracIntegralTests;
-
-};
 
 
 }} //namespace
