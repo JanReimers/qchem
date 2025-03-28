@@ -16,16 +16,18 @@ namespace Atom_kappa
 {
 namespace Gaussian
 {
-
-
   
-    Orbital_IBS::Orbital_IBS(const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
-    : Orbital_RKB_IBS_Common<double>(db,kappa )
+    Orbital_IBS::Orbital_IBS
+        (const DB_cache<double>* db
+            , const Vector<double>& exponents
+            , int kappa)
+    : Orbital_RKB_IBS_Common<double>
+        (db
+        , kappa
+        , new Large_Orbital_IBS<double>(db,exponents, kappa)
+        , new Small_Orbital_IBS<double>(db,exponents,kappa)
+        )
 {
-    auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
-    auto rkbs=new Small_Orbital_IBS<double>(db,exponents,kappa);
-    Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
-    rkbs->Insert(rkbl);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
     for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
 };
@@ -98,14 +100,11 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db
     
 }
 
-template <class T> void Small_Orbital_IBS<T>::Insert(const Large_Orbital_IBS<T>* lbs)
+template <class T> void Small_Orbital_IBS<T>::InsertBasisFunctions(const Orbital_RKBL_IBS<T>* lbs)
 {
     size_t i=1;
-    for (auto b:*lbs) 
-    {
-        const Large_BasisFunction* lb=dynamic_cast<const Large_BasisFunction*>(b);
+    for (auto lb:lbs->template Iterate<Large_BasisFunction>()) 
         IrrepBasisSetCommon::Insert(new Small_BasisFunction(lb,ns(i++))); 
-    };
 }
 
 template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const

@@ -27,6 +27,7 @@ template <class T> class Orbital_RKBS_IBS
 {
 public:
     //int GetKappa() const;
+    virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l)=0;
 };
 
 #endif //_DHF_IBS_H_
