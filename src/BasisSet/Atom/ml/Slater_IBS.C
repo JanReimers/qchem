@@ -11,8 +11,12 @@ namespace Atom_ml
 {
 namespace Slater
 {
-
-
+void Orbital_IBS::InsertBasisFunctions()
+{
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,l+1,l,m,ns(i++))); //ns from SlaterIEClient
+}
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const
 {

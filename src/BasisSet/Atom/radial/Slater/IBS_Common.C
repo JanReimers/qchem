@@ -19,9 +19,6 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,L),L);
-    size_t i=1;
-    for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new Atoml::Slater::BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
 
 };
 
@@ -30,10 +27,6 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,L),L,m);
-    size_t i=1;
-    for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new Atom_ml::Slater::BasisFunction(e,L+1,L,m,ns(i++))); //ns from SlaterIEClient
-
 };
 
 

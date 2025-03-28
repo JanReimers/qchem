@@ -31,13 +31,16 @@ public:
     : ::Slater::IrrepBasisSet(exponents,L)
     , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
-    {};
+    {
+        InsertBasisFunctions();
+    };
 
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-
+private:
+    void InsertBasisFunctions();
 };
 
 class Fit_IBS 
@@ -54,9 +57,13 @@ public:
     : ::Slater::IrrepBasisSet(exponents,L)
     , TIrrepBasisSetCommon<double>()
     , Fit_IE(db)
-    {};
+    {
+        InsertBasisFunctions();
+    };
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;
+private:
+    void InsertBasisFunctions();
 };
 
 }} //namespace Atom_l::Slater

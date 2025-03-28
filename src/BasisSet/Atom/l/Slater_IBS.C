@@ -17,6 +17,12 @@ namespace Slater
 //
 // Orbital SL basis set.
 //
+void Orbital_IBS::InsertBasisFunctions()
+{
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
+}
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
@@ -39,6 +45,13 @@ namespace Slater
 //
 //  Fit PG basis set.
 //
+void Fit_IBS::InsertBasisFunctions()
+{
+    size_t i=1;
+    for (auto e:es) 
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
+}
+
 ::Fit_IBS* Fit_IBS::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
