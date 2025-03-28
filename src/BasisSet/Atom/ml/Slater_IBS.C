@@ -12,24 +12,7 @@ namespace Atom_ml
 namespace Slater
 {
 
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
-    : IrrepBasisSetCommon(new YlmQN(L,m))
-    , AtomIrrepIEClient(exponents.size())
-{
-    Init(exponents,Norms(exponents,L),L,m);
-    size_t i=1;
-    for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,m,ns(i++))); //ns from SlaterIEClient
 
-};
-
-Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
-{
-    Vector<double> ns(es.size());
-    int i=0;
-    for (auto e:es) ns(++i)=::Slater::Norm(e,l+1);
-    return ns;
-}
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const
 {
@@ -45,17 +28,17 @@ Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
     return 0;
 }
 
-std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
-{
-    if (Pretty())
-    {
-        os << "Slater functions l,m=" << GetQuantumNumber()
-        << " with " << GetNumFunctions() << " basis functions, alpha={";
-        for (auto b:*this) os << *b;
-        os << "}" << std::endl;
-    }
-    return os;
-}
+// std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
+// {
+//     if (Pretty())
+//     {
+//         os << "Slater functions l,m=" << GetQuantumNumber()
+//         << " with " << GetNumFunctions() << " basis functions, alpha={";
+//         for (auto b:*this) os << *b;
+//         os << "}" << std::endl;
+//     }
+//     return os;
+// }
 
 
 

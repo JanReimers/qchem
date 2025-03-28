@@ -196,7 +196,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const Atoml::Slater::IrrepBasisSet* sg=dynamic_cast<const Atoml::Slater::IrrepBasisSet*>(oi);
+        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
         assert(sg);
         int n=2*l+2;
         for (auto i:Knum.rows())

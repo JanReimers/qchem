@@ -3,7 +3,7 @@
 #define _Atom_l_Slater_IBS_H_
 
 // #include "Slater_IEC.H"
-//#include "../radial/Slater/IBS_Common.H"
+#include "../radial/Slater/IBS_Common.H"
 #include "Slater_IE.H"
 #include "../../AtomIEClient.H"
 #include "../../IrrepCommon.H"
@@ -18,22 +18,9 @@ namespace Atoml
 namespace Slater
 {
    
-// Common implementation for orbital and fit basis sets.
-class IrrepBasisSet
-    : public virtual ::IrrepBasisSet
-    , public         IrrepBasisSetCommon
-    , public         AtomIrrepIEClient
-{
-public:
-    IrrepBasisSet(const Vector<double>& exponents, size_t L);
-    virtual std::ostream&  Write(std::ostream&    ) const;
-private:
-    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-};
-
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
-    , public         IrrepBasisSet
+    , public         ::Slater::IrrepBasisSet
     , public         Orbital_IBS_Common<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
@@ -41,7 +28,7 @@ class Orbital_IBS
 {
 public:
     Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
-    : IrrepBasisSet(exponents,L)
+    : ::Slater::IrrepBasisSet(exponents,L)
     , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
     {};
@@ -56,7 +43,7 @@ public:
 class Fit_IBS 
 : public virtual ::Fit_IBS
 , public virtual FitIntegrals
-, public IrrepBasisSet
+, public ::Slater::IrrepBasisSet
 , public TIrrepBasisSetCommon<double>
 , public Fit_IBS_Common
 , public Fit_IE
@@ -64,7 +51,7 @@ class Fit_IBS
 {
 public:
     Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : IrrepBasisSet(exponents,L)
+    : ::Slater::IrrepBasisSet(exponents,L)
     , TIrrepBasisSetCommon<double>()
     , Fit_IE(db)
     {};

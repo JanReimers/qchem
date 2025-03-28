@@ -11,29 +11,18 @@
 #include "../../HF_IBS_Common.H"
 #include "../../Fit_IBS_Common.H"
 #include "../l/Slater_IE.H"
+#include "../radial/Slater/IBS_Common.H"
 #include "oml/vector.h"
 
 namespace Atom_ml
 {
 namespace Slater
 {
-// Common implementation for orbital and fit basis sets.
-class IrrepBasisSet
-    : public virtual ::IrrepBasisSet
-    , public         IrrepBasisSetCommon
-    , public         AtomIrrepIEClient
-{
-public:
-    IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
-    virtual std::ostream&  Write(std::ostream&    ) const;
-private:
-    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-};
 
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     , public virtual TOrbital_DFT_IBS<double>
-    , public         IrrepBasisSet
+    , public         ::Slater::IrrepBasisSet
     , public         Orbital_IBS_Common<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
