@@ -2,7 +2,7 @@
 #ifndef _Slater_mj_IntegralEngine_H_
 #define _Slater_mj_IntegralEngine_H_
 
-#include "../Slater/IE_Primatives.H"
+#include "../Atom/radial//Slater/IE_Primatives.H"
 #include "../Atom_IE_DHF.H"
 
 class DiracIntegralTests;

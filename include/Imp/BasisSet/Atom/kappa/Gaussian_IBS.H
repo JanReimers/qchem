@@ -38,7 +38,6 @@ template <class T> class Large_Orbital_IBS
     , public AtomIrrepIEClient
 {
     public:
-    Large_Orbital_IBS() {};
     Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
@@ -54,7 +53,6 @@ template <class T> class Small_Orbital_IBS
     , public     AtomIrrepIEClient
 {
 public:
-    Small_Orbital_IBS() {};
     Small_Orbital_IBS(const DB_cache<T>*,const Vector<T>& exponents,int kappa);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l);
 

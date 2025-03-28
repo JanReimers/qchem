@@ -1,18 +1,20 @@
-// File: SlaterIE.H  Integral Engine for Spherical gaussians.
-#ifndef _SlaterIE_H_
-#define _SlaterIE_H_
+// File: Atom/l/Slater_IE.H Integral Engine for Slater atom basis functions.
+#ifndef _Atom_l_Slater_IE_H_
+#define _Atom_l_Slater_IE_H_
 
-#include "../Atom_IE_HF.H"
-#include "../Atom_IE_DHF.H"
-#include "../Atom_IE_DFT.H"
-#include "../Atom_IE_Fit.H"
-#include "IE_Primatives.H"
+#include "../../Atom_IE_HF.H"
+#include "../../Atom_IE_DHF.H"
+#include "../../Atom_IE_DFT.H"
+#include "../../Atom_IE_Fit.H"
+#include "../radial/Slater/IE_Primatives.H"
 
+namespace Atoml
+{
 namespace Slater
 {
 
 class IE_Common
-    : public virtual IE_Primatives
+    : public virtual ::Slater::IE_Primatives
     , public AtomIE_Overlap<double>
     , public AtomIE_Grad2<double>
     , public AtomIE_Nuclear<double>
@@ -36,7 +38,7 @@ protected:
 class Fit_IE
 : public AtomIE_Fit
 , public AtomIE_Overlap<double>
-, public virtual IE_Primatives
+, public virtual ::Slater::IE_Primatives
 
 {
 public:
@@ -47,6 +49,6 @@ protected:
 
 };
 
-} //namespace
+}} //namespace
 
-#endif //_SlaterIE_H_
+#endif //_Atom_l_Slater_IE_H_

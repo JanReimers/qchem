@@ -1,4 +1,4 @@
-// File: Atom/l/Gaussian_BS.H
+// File: Atom/l/Gaussian_BS.H Gaussian Basis Set for atoms.
 #ifndef _Atom_l_Gaussian_BS_H_
 #define _Atom_l_Gaussian_BS_H_
 

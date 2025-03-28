@@ -2,7 +2,7 @@
 #ifndef _Slater_mj_IEClient_H_
 #define _Slater_mj_IEClient_H_
 
-#include "../Slater/IE_Primatives.H"
+#include "../Atom/radial/Slater/IE_Primatives.H"
 #include "Imp/BasisSet/AtomIEClient.H"
     
 namespace Slater_mj

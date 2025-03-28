@@ -1,14 +1,16 @@
-// File: SlaterBS.C  Spherical Slater basis set.
+// File: Atom/l/Slater_IBS.H  Slater Irrep Basis Set (IBS) with orbital angular momentum l.
 
-#include "Imp/BasisSet/Slater/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/l/Slater_IBS.H"
+#include "Imp/BasisSet/Atom/l/Slater_IE.H"
 #include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
-#include "Imp/BasisSet/Slater/IntegralEngine.H"
 #include "Imp/Symmetry/YlQN.H"
 #include <BasisSet.H>
 #include <iostream>
 #include <cassert>
 
+namespace Atoml
+{
 namespace Slater
 {
 //----------------------------------------------------------------
@@ -22,7 +24,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     IrrepIEClient::Init(exponents,Norms(exponents,L),L);
     size_t i=1;
     for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
+        IrrepBasisSetCommon::Insert(new ::Slater::BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
 
 };
 
@@ -78,4 +80,4 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
     return 0;
 }
 
-} //namespace
+}} //namespace

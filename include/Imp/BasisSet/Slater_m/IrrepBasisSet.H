@@ -10,7 +10,7 @@
 #include "../DFT_IBS_Common.H"
 #include "../HF_IBS_Common.H"
 #include "../Fit_IBS_Common.H"
-#include "../Slater/IntegralEngine.H"
+#include "../Atom/l/Slater_IE.H"
 #include "oml/vector.h"
 
 namespace Slater_m
@@ -35,14 +35,14 @@ class Orbital_IBS
     , public         Orbital_IBS_Common<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
-    , public         Slater::Orbital_IE
+    , public         Atoml::Slater::Orbital_IE
 
 {
 public:
     Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
     : IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>()
-    , Slater::Orbital_IE(db)
+    , Atoml::Slater::Orbital_IE(db)
     {};
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;

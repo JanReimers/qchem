@@ -145,10 +145,10 @@ BasisSet* SG_OBasis::GetBasisSet () const
     return  bs;
 }
 
-#include "Imp/BasisSet/Slater/BasisSet.H"
+#include "Imp/BasisSet/Atom/l/Slater_BS.H"
 BasisSet* SL_OBasis::GetBasisSet () const
 {
-    BasisSet* bs=new Slater::BasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atoml::Slater::BasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;

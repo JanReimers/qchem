@@ -1,9 +1,11 @@
-// File: SlaterIEClient
-#ifndef _SlaterIEClient_H_
-#define _SlaterIEClient_H_
+// File: Atom/l/Slater_IEC.H Integral Engine Client for Slater atom basis functions.
+#ifndef _Atom_l_Slater_IEC_H_
+#define _Atom_l_Slater_IEC_H_
 
 #include "Imp/BasisSet/AtomIEClient.H"
 
+namespace Atoml
+{
 namespace Slater
 {
     
@@ -17,6 +19,6 @@ private:
     virtual double Norm(double e, size_t l) const;
 };
 
-} //namespace Slater
+}} //namespace Atom_l::Slater
 
-#endif // _SlaterIEClient_H_
+#endif // _Atom_l_Slater_IEC_H_

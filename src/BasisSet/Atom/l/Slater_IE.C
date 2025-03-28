@@ -1,10 +1,9 @@
-// File: SlaterIE.C  Here is where all the integral get calculated.
+// File: Atom/l/Slater_IE.H Integral Engine for Slater atom basis functions.
 
 
-#include "Imp/BasisSet/Slater/IntegralEngine.H"
+#include "Imp/BasisSet/Atom/l/Slater_IE.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
-
 
 
 namespace Slater
@@ -43,10 +42,14 @@ double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const
     return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-double Fit_IE::Charge(double ea, size_t l) const
+double IE_Primatives::Charge(double ea, size_t l) const
 {
-    return Slater::Integral(ea,l);
+    return ::Slater::Integral(ea,l);
 }
 
-
 } //namespace
+
+double Atoml::Slater::Fit_IE::Charge(double ea, size_t l) const
+{
+    return ::Slater::Integral(ea,l);
+}

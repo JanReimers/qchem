@@ -4,7 +4,7 @@
 
 #include "IEClient.H"
 #include "../TCommon.H"
-#include "../Slater/BasisSet.H"
+#include "../Atom/l/Slater_BS.H"
 
 namespace Slater_m
 {

@@ -4,12 +4,12 @@
 #include "gtest/gtest.h"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
-#include "Imp/BasisSet/Slater/IntegralEngine.H"
-#include "Imp/BasisSet/Slater/BasisSet.H"
+#include "Imp/BasisSet/Atom/l/Slater_IE.H"
+#include "Imp/BasisSet/Atom/l/Slater_BS.H"
+#include "Imp/BasisSet/Atom/l/Slater_IBS.H"
 #include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
 #include "Imp/Symmetry/YlQN.H"
 
-#include "Imp/BasisSet/Slater/IrrepBasisSet.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Atom.H"
@@ -39,7 +39,7 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Slater::BasisSet(6,0.1,10,Lmax))
+    , bs(new Atoml::Slater::BasisSet(6,0.1,10,Lmax))
     , cl(new Molecule())
     {
         bs->Set(lap);
@@ -52,19 +52,19 @@ public:
         //cout << *bs << endl;
     }
     
-    bool   supported(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
-    double R0(const Slater::IrrepIEClient&,const Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
+    bool   supported(const Atoml::Slater::IrrepIEClient&,const Atoml::Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
+    double R0(const Atoml::Slater::IrrepIEClient&,const Atoml::Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
     
     
     int Lmax, Z;
     LAParams lap;
-    Slater::BasisSet* bs;
+    Atoml::Slater::BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;
 };
 
-bool SlaterRadialIntegralTests::supported(const Slater::IrrepIEClient& ab, const Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
+bool SlaterRadialIntegralTests::supported(const Atoml::Slater::IrrepIEClient& ab, const Atoml::Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
     int nab=ab.n+ab.n;
     int ncd=cd.n+cd.n;
@@ -72,7 +72,7 @@ bool SlaterRadialIntegralTests::supported(const Slater::IrrepIEClient& ab, const
 }
 
 
-double SlaterRadialIntegralTests::R0(const Slater::IrrepIEClient& ab, const Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
+double SlaterRadialIntegralTests::R0(const Atoml::Slater::IrrepIEClient& ab, const Atoml::Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
     double a=ab.es(ia)+ab.es(ib);
     double b=cd.es(ic)+cd.es(id);
@@ -196,7 +196,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         const QuantumNumber& qn=oi->GetQuantumNumber();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
-        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
+        const Atoml::Slater::IrrepBasisSet* sg=dynamic_cast<const Atoml::Slater::IrrepBasisSet*>(oi);
         assert(sg);
         int n=2*l+2;
         for (auto i:Knum.rows())
@@ -270,11 +270,11 @@ struct Vf : public VectorFunction<double>
 
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
-    for (auto iab:bs->Iterate<Slater::Orbital_IBS>())
+    for (auto iab:bs->Iterate<Atoml::Slater::Orbital_IBS>())
     {
         // const Orbital_IBS* iab1=iab;
         // cout << (void*)iab << " " << (void*)iab1 << endl;
-    for (auto icd:bs->Iterate<Slater::Orbital_IBS>(iab))
+    for (auto icd:bs->Iterate<Atoml::Slater::Orbital_IBS>(iab))
     {
         int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
         ERI4 J=bs->Direct(iab->GetID(),icd->GetID());

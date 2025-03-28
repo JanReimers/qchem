@@ -1,19 +1,20 @@
-// File: SlaterBS.H  Spherical Slater basis set with orbital angular momentum l.
-#ifndef _SlaterBS_H_
-#define _SlaterBS_H_
+// File: Atom/l/Slater_IBS.H  Slater Irrep Basis Set (IBS) with orbital angular momentum l.
+#ifndef _Atom_l_Slater_IBS_H_
+#define _Atom_l_Slater_IBS_H_
 
-
-
-#include "IEClient.H"
-#include "IntegralEngine.H"
-#include "../IrrepCommon.H"
-#include "../TIrrepCommon.H"
-#include "../DFT_IBS_Common.H"
-#include "../HF_IBS_Common.H"
-#include "../Fit_IBS_Common.H"
+#include "Slater_IEC.H"
+//#include "../radial/Slater/IBS_Common.H"
+#include "Slater_IE.H"
+#include "../../AtomIEClient.H"
+#include "../../IrrepCommon.H"
+#include "../../TIrrepCommon.H"
+#include "../../DFT_IBS_Common.H"
+#include "../../HF_IBS_Common.H"
+#include "../../Fit_IBS_Common.H"
 #include "oml/vector.h"
 
-
+namespace Atoml
+{
 namespace Slater
 {
    
@@ -71,6 +72,6 @@ public:
     virtual ::Fit_IBS* Clone(const RVec3&) const;
 };
 
-} //namespace Slater
+}} //namespace Atom_l::Slater
 
-#endif //_SlaterBS_H_
+#endif //_Atom_l_Slater_IBS_H_
