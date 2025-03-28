@@ -2,33 +2,24 @@
 #ifndef _Atom_ml_Slater_BF_H_
 #define _Atom_ml_Slater_BF_H_
 
-#include <BasisFunction.H>
+#include "../l/Slater_BF.H"
 
 namespace Atom_ml
 {
 namespace Slater
 {
     
-class BasisFunction
-    : public virtual ::TBasisFunction<double>
+class BasisFunction : public Atoml::Slater::BasisFunction
 {
 public:
-    BasisFunction();
-    BasisFunction(double ex, int n, int l, int m, double norm);
+    BasisFunction(double ex, int n, int l, int ml, double norm);
     
     virtual bool   operator==(const ::BasisFunction&) const;
 
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
     virtual BasisFunction* Clone(        ) const;
-
-    virtual double operator()(const Vec3&) const;
-    virtual Vec3   Gradient  (const Vec3&) const;
-
 private:
-    double itsExponent;
-    int    n,l,m;
-    double itsNormalization;
+    typedef Atoml::Slater::BasisFunction Base;
+    int ml;
 };
 
 

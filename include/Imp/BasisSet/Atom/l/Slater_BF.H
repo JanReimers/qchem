@@ -1,9 +1,11 @@
-// File: SlaterBF.H  r^l exp(-a*r) type Slater basis function.
-#ifndef _SlaterBF_H_
-#define _SlaterBF_H_
+// File: Atom/l/Slater_BF.H  r^l exp(-a*r) type Slater basis function.
+#ifndef _Atom_l_Slater_BF_H_
+#define _Atom_l_Slater_BF_H_
 
 #include <BasisFunction.H>
 
+namespace Atoml
+{
 namespace Slater
 {
     
@@ -31,6 +33,6 @@ private:
 };
 
 
-} //namespace Slater
+}} //namespace Atom_l::Slater
 
-#endif //_SlaterBF_H_
+#endif //_Atom_l_Slater_BF_H_

@@ -1,11 +1,13 @@
-// File: Slater.C  r^l exp(-ar) type Slater basis function for an atom.
+// File: Atom/l/Slater_BF.H  r^l exp(-a*r) type Slater basis function.
 
-#include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/l/Slater_BF.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
 #include <iostream>
 #include <cassert>
 
+namespace Atoml
+{
 namespace Slater
 {
 
@@ -59,4 +61,4 @@ BasisFunction* BasisFunction::Clone() const
     return new  BasisFunction(*this);
 }
 
-} //namespace
+}} //namespace

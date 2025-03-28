@@ -7,7 +7,7 @@
 #include "Imp/BasisSet/Atom/l/Slater_IE.H"
 #include "Imp/BasisSet/Atom/l/Slater_BS.H"
 #include "Imp/BasisSet/Atom/l/Slater_IBS.H"
-#include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/l/Slater_BF.H"
 #include "Imp/Symmetry/YlQN.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"

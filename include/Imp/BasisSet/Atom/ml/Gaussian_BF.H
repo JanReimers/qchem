@@ -12,7 +12,7 @@ namespace Gaussian
     class BasisFunction : public Atoml::Gaussian::BasisFunction
     {
     public:
-        BasisFunction(double theExponent,int n, int l, int m, double norm);
+        BasisFunction(double theExponent,int n, int l, int ml, double norm);
         
         virtual bool   operator==(const ::BasisFunction&) const;
     

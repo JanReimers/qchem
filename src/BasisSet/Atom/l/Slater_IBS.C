@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/l/Slater_IBS.H"
 #include "Imp/BasisSet/Atom/l/Slater_IE.H"
-#include "Imp/BasisSet/Atom/radial/Slater/BasisFunction.H"
+#include "Imp/BasisSet/Atom/l/Slater_BF.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 #include "Imp/Symmetry/YlQN.H"
 #include <BasisSet.H>
@@ -24,7 +24,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     IrrepIEClient::Init(exponents,Norms(exponents,L),L);
     size_t i=1;
     for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new ::Slater::BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
+        IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient
 
 };
 
