@@ -3,7 +3,7 @@
 #define _Atom_ml_Gaussian_BS_H_
 
 #include "../../TCommon.H"
-#include "../../AtomIE.H"
+#include "../IE.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 
 namespace PolarizedGaussian

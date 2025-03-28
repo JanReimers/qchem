@@ -4,11 +4,11 @@
 
 
 // #include <AnalyticIE.H>
-#include "Imp/BasisSet/Atom/radial/Gaussian/IE_Primatives.H"
-#include "Imp/BasisSet/Atom_IE_HF.H"
-#include "Imp/BasisSet/Atom_IE_DHF.H"
-#include "Imp/BasisSet/Atom_IE_DFT.H"
-#include "Imp/BasisSet/Atom_IE_Fit.H"
+#include "../radial/Gaussian/IE_Primatives.H"
+#include "../IE_HF.H"
+#include "../IE_DHF.H"
+#include "../IE_DFT.H"
+#include "../IE_Fit.H"
 #include "oml/vector.h"
 
 

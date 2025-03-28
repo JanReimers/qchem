@@ -3,7 +3,7 @@
 #define _Atom_radial_Slater_BS_Common_H_
 
 #include "../../../TCommon.H"
-#include "../../../Atom_IE_HF.H"
+#include "../../IE_HF.H"
 
 namespace Slater
 {

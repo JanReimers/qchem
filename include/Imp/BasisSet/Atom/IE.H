@@ -2,7 +2,7 @@
 #ifndef _AtomIE_H_
 #define _AtomIE_H_
 
-#include "Imp/BasisSet/BFGrouper.H"
+#include "BFGrouper.H"
 #include "Imp/Integrals/Cache4.H"
 #include "Imp/DataBase/HeapDB.H"
 

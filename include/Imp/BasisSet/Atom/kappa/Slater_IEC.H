@@ -3,7 +3,7 @@
 #define _Atom_kappa_Slater_IEC_H_
 
 #include "../radial/Slater/IE_Primatives.H"
-#include "Imp/BasisSet/AtomIEClient.H"
+#include "../IEC.H"
     
 namespace Atom_kappa
 {
@@ -14,7 +14,6 @@ struct IrrepIEClient //Use this for the large component.
     : public virtual ::IrrepIEClient
     , public AtomIrrepIEClient
 {
-    IrrepIEClient() {}; 
     IrrepIEClient(size_t N,int _kappa);
 
     int kappa;
@@ -33,7 +32,6 @@ struct Small_IrrepIEClient
     , public virtual ::Slater::IE_Primatives
 {
 public:
-    Small_IrrepIEClient() {}; 
     Small_IrrepIEClient(size_t N,int kappa) : IrrepIEClient(N,kappa) {};
     virtual bool Large() const {return false;}
 

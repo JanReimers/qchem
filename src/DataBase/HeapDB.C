@@ -215,7 +215,6 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
 template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
-#include "Imp/BasisSet/AtomIEClient.H"
 #include "Imp/DataBase/DB_DHF.H"
 
 template class DB_RKB<double>;

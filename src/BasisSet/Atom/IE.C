@@ -1,7 +1,7 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
 
-#include "Imp/BasisSet/AtomIE.H"
-#include "Imp/BasisSet/AtomIEClient.H"
+#include "Imp/BasisSet/Atom/IE.H"
+#include "Imp/BasisSet/Atom/IEC.H"
 #include "Imp/Containers/ERI4.H"
 #include <Cluster.H>
 #include <Irrep_BS.H>
@@ -66,7 +66,7 @@ template <class T> typename Integrals_Base<T>::Mat  AtomIE_XGrad2<T>::MakeGrad2(
     return Hk;
 }
 
-#include "Imp/BasisSet/Atom_IE_DFT.H"
+#include "Imp/BasisSet/Atom/IE_DFT.H"
 template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const fbs_t& _c) const
 {
     const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
@@ -115,7 +115,7 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeRepulsion(con
 template class AtomIE_DFT<double>;
 
 
-#include "Imp/BasisSet/Atom_IE_HF.H"
+#include "Imp/BasisSet/Atom/IE_HF.H"
 
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {
@@ -211,7 +211,7 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
 template class AtomIE_BS_2E<double>;
 
 
-#include "Imp/BasisSet/Atom_IE_HF.H"
+#include "Imp/BasisSet/Atom/IE_HF.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 
 AtomIE_BS_2E_l::RVec AtomIE_BS_2E_l::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
@@ -232,7 +232,7 @@ AtomIE_BS_2E_lm::RVec AtomIE_BS_2E_lm::ExchangeAngularIntegrals(size_t la, size_
     return AngularIntegrals::Exchange(la,lb,ma,mb);
 }
 
-#include "Imp/BasisSet/Atom_IE_Fit.H"
+#include "Imp/BasisSet/Atom/IE_Fit.H"
 #include <Fit_IBS.H>
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
@@ -271,7 +271,7 @@ AtomIE_Fit::Mat  AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
     return s;
 }
 
-#include "Imp/BasisSet/Atom_IE_DHF.H"
+#include "Imp/BasisSet/Atom/IE_DHF.H"
 
 template class AtomIE_RKBL<double>;
 template class AtomIE_RKBS<double>;

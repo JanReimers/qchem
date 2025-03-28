@@ -2,7 +2,7 @@
 #ifndef _Atom_IE_HF_H_
 #define _Atom_IE_HF_H_
 
-#include "Imp/BasisSet/AtomIE.H"
+#include "IE.H"
 #include "Imp/DataBase/DB_HF.H"
 
 class AtomIE_BS_2E_Angular

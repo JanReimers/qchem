@@ -2,7 +2,7 @@
 #ifndef _Atom_IE_DHF_H_
 #define _Atom_IE_DHF_H_
 
-#include "Imp/BasisSet/AtomIE.H"
+#include "IE.H"
 #include "Imp/DataBase/DB_DHF.H"
 
 template <class T> class AtomIE_RKBL 

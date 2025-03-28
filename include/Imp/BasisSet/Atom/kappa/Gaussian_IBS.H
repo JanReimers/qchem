@@ -3,7 +3,7 @@
 #define _Atom_kappa_Gaussian_IBS_H_
 
 #include "Gaussian_IE.H"
-#include "../../AtomIEClient.H"
+#include "../IEC.H"
 #include "../../DHF_IBS_Common.H"
 
 class DiracIntegralTests;

@@ -2,7 +2,7 @@
 #ifndef _Atom_radial_Gaussian_IBS_Common_H_
 #define _Atom_radial_Gaussian_IBS_Common_H_
 
-#include "../../../AtomIEClient.H"
+#include "../../IEC.H"
 #include "../../../IrrepCommon.H"
 
 

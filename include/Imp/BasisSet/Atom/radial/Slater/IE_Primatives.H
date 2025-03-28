@@ -2,7 +2,7 @@
 #ifndef _Slater_IE_Primatives_H_
 #define _Slater_IE_Primatives_H_
 
-#include "../../../AtomIE.H"
+#include "../../IE.H"
 
 namespace Slater
 {

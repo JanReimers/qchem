@@ -2,7 +2,7 @@
 #ifndef _Atom_IE_Fit_H_
 #define _Atom_IE_Fit_H_
 
-#include "Imp/BasisSet/AtomIE.H"
+#include "IE.H"
 #include "Imp/DataBase/DB_Fit.H"
 
 class AtomIE_Fit 

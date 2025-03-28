@@ -2,7 +2,7 @@
 #ifndef _Gaussian_IE_Primatives_H_
 #define _Gaussian_IE_Primatives_H_
 
-#include "../../../AtomIE.H"
+#include "../../IE.H"
 
 namespace Gaussian
 {

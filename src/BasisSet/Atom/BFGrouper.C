@@ -1,7 +1,7 @@
 // File: BFGrouper.C  Group Slater or Gaussian basis functions by unique exponents.
 
-#include "Imp/BasisSet/BFGrouper.H"
-#include "Imp/BasisSet/AtomIEClient.H"
+#include "Imp/BasisSet/Atom/BFGrouper.H"
+#include "Imp/BasisSet/Atom/IEC.H"
 #include <cassert>
 #include <iostream>
 using std::cout;
