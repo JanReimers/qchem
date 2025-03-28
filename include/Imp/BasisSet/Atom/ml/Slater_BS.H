@@ -2,7 +2,6 @@
 #ifndef _Atom_ml_Slater_BS_H_
 #define _Atom_ml_Slater_BS_H_
 
-#include "Slater_IEC.H"
 #include "../../TCommon.H"
 #include "../l/Slater_BS.H"
 

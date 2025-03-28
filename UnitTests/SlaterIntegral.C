@@ -52,8 +52,8 @@ public:
         //cout << *bs << endl;
     }
     
-    bool   supported(const Atoml::Slater::IrrepIEClient&,const Atoml::Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
-    double R0(const Atoml::Slater::IrrepIEClient&,const Atoml::Slater::IrrepIEClient&,int ia, int ib, int ic, int id) const;
+    bool   supported(const AtomIrrepIEClient&,const AtomIrrepIEClient&,int ia, int ib, int ic, int id) const;
+    double R0(const AtomIrrepIEClient&,const AtomIrrepIEClient&,int ia, int ib, int ic, int id) const;
     
     
     int Lmax, Z;
@@ -64,7 +64,7 @@ public:
     MeshIntegrator<double>* rmintegrator;
 };
 
-bool SlaterRadialIntegralTests::supported(const Atoml::Slater::IrrepIEClient& ab, const Atoml::Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
+bool SlaterRadialIntegralTests::supported(const AtomIrrepIEClient& ab, const AtomIrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
     int nab=ab.n+ab.n;
     int ncd=cd.n+cd.n;
@@ -72,7 +72,7 @@ bool SlaterRadialIntegralTests::supported(const Atoml::Slater::IrrepIEClient& ab
 }
 
 
-double SlaterRadialIntegralTests::R0(const Atoml::Slater::IrrepIEClient& ab, const Atoml::Slater::IrrepIEClient& cd,int ia, int ib, int ic, int id) const
+double SlaterRadialIntegralTests::R0(const AtomIrrepIEClient& ab, const AtomIrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
     double a=ab.es(ia)+ab.es(ib);
     double b=cd.es(ic)+cd.es(id);

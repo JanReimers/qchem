@@ -19,9 +19,9 @@ namespace Slater
 //
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
     : IrrepBasisSetCommon(new YlQN(L))
-    , IrrepIEClient(exponents.size())
+    , AtomIrrepIEClient(exponents.size())
 {
-    IrrepIEClient::Init(exponents,Norms(exponents,L),L);
+    Init(exponents,Norms(exponents,L),L);
     size_t i=1;
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new BasisFunction(e,L+1,L,ns(i++))); //ns from SlaterIEClient

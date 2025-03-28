@@ -2,7 +2,7 @@
 #ifndef _Atom_l_Slater_IBS_H_
 #define _Atom_l_Slater_IBS_H_
 
-#include "Slater_IEC.H"
+// #include "Slater_IEC.H"
 //#include "../radial/Slater/IBS_Common.H"
 #include "Slater_IE.H"
 #include "../../AtomIEClient.H"
@@ -22,7 +22,7 @@ namespace Slater
 class IrrepBasisSet
     : public virtual ::IrrepBasisSet
     , public         IrrepBasisSetCommon
-    , public         IrrepIEClient
+    , public         AtomIrrepIEClient
 {
 public:
     IrrepBasisSet(const Vector<double>& exponents, size_t L);

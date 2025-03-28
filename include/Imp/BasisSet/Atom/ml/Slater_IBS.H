@@ -4,7 +4,7 @@
 
 
 
-#include "Slater_IEC.H"
+#include "../../AtomIEClient.H"
 #include "../../IrrepCommon.H"
 #include "../../TIrrepCommon.H"
 #include "../../DFT_IBS_Common.H"
@@ -21,7 +21,7 @@ namespace Slater
 class IrrepBasisSet
     : public virtual ::IrrepBasisSet
     , public         IrrepBasisSetCommon
-    , public         IrrepIEClient
+    , public         AtomIrrepIEClient
 {
 public:
     IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
