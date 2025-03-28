@@ -3,7 +3,6 @@
 #define _Atom_kappa_Gaussian_IE_H_
 
 
-#include "Gaussian_IEC.H"
 #include "../../AtomIE.H"
 #include "Imp/BasisSet/Atom/l/GaussianIE.H"
 

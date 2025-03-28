@@ -21,7 +21,7 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
     const Vector<T>& exponents,int kappa)
     : Orbital_RKBL_IBS_Common<T>(kappa)
     , Orbital_RKBL_IE<T>(db)
-    , IrrepIEClient(exponents.size(),kappa)
+    , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmjQN::l(kappa);
     AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);    
@@ -38,10 +38,10 @@ template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<doubl
     return ns;
 }
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
-    const Large_Orbital_IBS<T>* lbs)
-    : Orbital_RKBS_IBS_Common<T>(lbs->kappa)
+    const Large_Orbital_IBS<T>* lbs,int kappa)
+    : Orbital_RKBS_IBS_Common<T>(kappa)
     , Orbital_RKBS_IE<T>(db)
-    , Small_IrrepIEClient(lbs->size(),lbs->kappa)
+    , AtomIrrepIEClient(lbs->size())
 {
     size_t l=Omega_kmjQN::l(kappa);
     AtomIrrepIEClient::Init(lbs->es,Norms(lbs->es,l),l);  
@@ -102,7 +102,7 @@ Orbital_IBS::Orbital_IBS(const DB_cache<double>* db, const Vector<double>& expon
     : Orbital_RKB_IBS_Common<double>(db,kappa )
 {
     auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
-    auto rkbs=new Small_Orbital_IBS<double>(db,rkbl);
+    auto rkbs=new Small_Orbital_IBS<double>(db,rkbl,kappa);
     Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
     // Dirac_IrrepIEClient::Init(rkbl,rkbs);
     for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);

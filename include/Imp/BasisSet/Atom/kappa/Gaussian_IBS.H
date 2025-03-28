@@ -2,8 +2,8 @@
 #ifndef _Atom_kappa_Gaussian_IBS_H_
 #define _Atom_kappa_Gaussian_IBS_H_
 
-#include "Gaussian_IEC.H"
 #include "Gaussian_IE.H"
+#include "../../AtomIEClient.H"
 #include "../../DHF_IBS_Common.H"
 
 class DiracIntegralTests;
@@ -14,7 +14,9 @@ namespace Atom_kappa
 namespace Gaussian
 {
 
-    class Orbital_IBS
+// All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are no Gaussian
+// specific.
+class Orbital_IBS
     : public virtual TOrbital_IBS<double>
     , public Orbital_RKB_IBS_Common<double>
 {
@@ -33,7 +35,7 @@ template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
     , public Orbital_RKBL_IBS_Common<T> 
     , public Orbital_RKBL_IE<T>
-    , public IrrepIEClient
+    , public AtomIrrepIEClient
 {
     public:
     Large_Orbital_IBS() {};
@@ -49,11 +51,11 @@ template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
     , public     Orbital_RKBS_IBS_Common<T> 
     , public     Orbital_RKBS_IE<T>
-    , public     Small_IrrepIEClient
+    , public     AtomIrrepIEClient
 {
 public:
     Small_Orbital_IBS() {};
-    Small_Orbital_IBS(const DB_cache<T>*,const Large_Orbital_IBS<T>*);
+    Small_Orbital_IBS(const DB_cache<T>*,const Large_Orbital_IBS<T>*,int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
