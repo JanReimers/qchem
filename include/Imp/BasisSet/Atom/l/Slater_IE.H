@@ -41,12 +41,8 @@ class Fit_IE
 , public virtual ::Slater::IE_Primatives
 
 {
-public:
-    virtual double Charge  (double ea ,           size_t l) const;
 protected:
     Fit_IE(const DB_cache<double>* db) : AtomIE_Fit(db), AtomIE_Overlap<double>(db) {};
- 
-
 };
 
 }} //namespace
