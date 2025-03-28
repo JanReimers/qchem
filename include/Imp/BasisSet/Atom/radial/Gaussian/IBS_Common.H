@@ -27,23 +27,6 @@ private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
 };
 
-class Fit_IBS 
-: public virtual ::Fit_IBS
-, public         IrrepBasisSet
-, public         TIrrepBasisSetCommon<double>
-, public Fit_IBS_Common
-, public Atoml::Gaussian::Fit_IE
-{
-public:
-    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : IrrepBasisSet(exponents,L)
-    , TIrrepBasisSetCommon<double>()
-    , Atoml::Gaussian::Fit_IE(db)
-    {};
-   
-    virtual ::Fit_IBS* Clone(const RVec3&) const;
-};
-
 
 } //namespace
 

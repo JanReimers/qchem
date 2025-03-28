@@ -1,7 +1,6 @@
 // File: BasisSetFactories.C
 
 #include <BasisSet.H>
-#include "Imp/BasisSet/Atom/radial/Gaussian/BasisFunction.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
@@ -28,7 +27,7 @@
 BasisFunction* BasisFunction::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(Gaussian::BasisFunction).name()) return new Gaussian::BasisFunction;
+    // if (Name==typeid(Gaussian::BasisFunction).name()) return new Gaussian::BasisFunction;
     if (Name==typeid(PolarizedGaussian::BasisFunction).name()) return new PolarizedGaussian::BasisFunction;
 //    if (Name==typeid(PlaneWaveBF        ).name()) return new         PlaneWaveBF;
 

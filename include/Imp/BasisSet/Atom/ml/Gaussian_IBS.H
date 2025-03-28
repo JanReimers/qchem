@@ -27,11 +27,16 @@ Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L
     : ::Gaussian::IrrepBasisSet(exponents,L,m)
     , Orbital_IBS_Common<double>()
     , Atoml::Gaussian::Orbital_IE(db)
-{};
+{
+    InsertBasisFunctions();   
+
+};
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+private:
+    void InsertBasisFunctions();
 };
 
 
