@@ -4,7 +4,7 @@
 
 
 #include "../radial/Gaussian/IBS_Common.H"
-#include "../l/GaussianIE.H"
+#include "../l/Gaussian_IE.H"
 #include "../../HF_IBS_Common.H"
 #include "../../TIrrepCommon.H"
 
