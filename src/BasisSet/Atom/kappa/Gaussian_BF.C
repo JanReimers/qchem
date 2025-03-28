@@ -1,6 +1,6 @@
-// File: SphericalGaussian_RKB/BF.C  r^l exp(-ar^2) type basis function for an atom.
+// File: Atom/kappa/Gaussian_BF.C  Gaussians with Restricted Kinetic Balance (RKB).
 
-#include "Imp/BasisSet/SG_RKB/BasisFunction.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
 #include "Imp/Symmetry/OkmjQN.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
@@ -10,7 +10,9 @@
 #include <iostream>
 #include <cassert>
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
 //#######################################################################
 //
@@ -126,4 +128,4 @@ Large_BasisFunction::Vec3 Small_BasisFunction::Gradient(const Vec3& r) const
 }
 
 
-} //namespace
+}} //namespace

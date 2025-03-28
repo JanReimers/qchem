@@ -1,17 +1,19 @@
-// File: SphericalGaussian_RKB/IEClient.H
-#ifndef _SphericalGaussian_RKB_IEClient_H_
-#define _SphericalGaussian_RKB_IEClient_H_
+// File: Atom/kappa/Gaussian_IEC.H  Integral Engine Client (IEC) for RKB Gaussians.
+#ifndef _Atom_kappa_Gaussian_IEC_H_
+#define _Atom_kappa_Gaussian_IEC_H_
 
 #include "Imp/BasisSet/Atom/radial/Gaussian/IE_Primatives.H"
 #include "Imp/BasisSet/AtomIEClient.H"
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
     
 struct IrrepIEClient //Use this for the large component.
     : public virtual ::IrrepIEClient
     , public AtomIrrepIEClient
-    , public virtual Gaussian::IE_Primatives
+    , public virtual ::Gaussian::IE_Primatives
 {
     IrrepIEClient() {};
     IrrepIEClient(size_t N, int kappa);
@@ -43,14 +45,14 @@ struct Dirac_IrrepIEClient
     Dirac_IrrepIEClient() : itsLargeIEC(0), itsSmallIEC(0) {};
     virtual size_t size() const;
 
-    void Init(const SphericalGaussian_RKB::IrrepIEClient* large,const SphericalGaussian_RKB::IrrepIEClient* small);
+    void Init(const IrrepIEClient* large,const IrrepIEClient* small);
     
-    const SphericalGaussian_RKB::IrrepIEClient* itsLargeIEC;
-    const SphericalGaussian_RKB::IrrepIEClient* itsSmallIEC;
+    const IrrepIEClient* itsLargeIEC;
+    const IrrepIEClient* itsSmallIEC;
         
 };
 
 
-} //namespace
+}} //namespace
 
-#endif // _SphericalGaussian_RKB_IEClient_H_
+#endif // _Atom_kappa_Gaussian_IEC_H_

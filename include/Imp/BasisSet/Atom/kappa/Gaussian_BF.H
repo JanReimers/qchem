@@ -1,10 +1,12 @@
-// File: SphericalGaussian_RKB/BasisFunction.H  Gaussians with Restricted Kinetic Balance (RKB).
-#ifndef _SphericalGaussian_RKB_BF_H_
-#define _SphericalGaussian_RKB_BF_H_
+// File: Atom/kappa/Gaussian_BF.H  Gaussians with Restricted Kinetic Balance (RKB).
+#ifndef _Atom_kappa_Gaussian_BF_H_
+#define _Atom_kappa_Gaussian_BF_H_
 
 #include <BasisFunction.H>
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
 
 class Small_BasisFunction;
@@ -61,6 +63,6 @@ private:
 };
 
 
-} //namespace
+}} //namespace
 
-#endif //_SphericalGaussian_RKB_BF_H_
+#endif //_Atom_kappa_Gaussian_BF_H_

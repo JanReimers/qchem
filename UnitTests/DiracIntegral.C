@@ -7,10 +7,10 @@
 #include "Imp/BasisSet/Slater_mj/BasisSet.H"
 #include "Imp/BasisSet/Slater_mj/BasisFunction.H"
 #include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
-#include "Imp/BasisSet/SG_RKB/IntegralEngine.H"
-#include "Imp/BasisSet/SG_RKB/BasisSet.H"
-#include "Imp/BasisSet/SG_RKB/BasisFunction.H"
-#include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_IE.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_IBS.H"
 #include "Imp/Symmetry/OkmjQN.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
@@ -43,7 +43,7 @@ public:
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
     , sbs(new Slater_mj::DiracBasisSet(3,0.1,10,Lmax))
-    , gbs(new SphericalGaussian_RKB::DiracBasisSet(3,0.1,10,Lmax))
+    , gbs(new Atom_kappa::Gaussian::DiracBasisSet(3,0.1,10,Lmax))
     , cl(new Molecule())
     {
         sbs->Set(lap);
@@ -71,14 +71,14 @@ public:
     static const TIrrepBasisSet<double>* GaussianGetLarge(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const SphericalGaussian_RKB::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const SphericalGaussian_RKB::Dirac_IrrepBasisSet*>(ibs);
+        const Atom_kappa::Gaussian::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Atom_kappa::Gaussian::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
     static const TIrrepBasisSet<double>* GaussianGetSmall(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const SphericalGaussian_RKB::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const SphericalGaussian_RKB::Dirac_IrrepBasisSet*>(ibs);
+        const Atom_kappa::Gaussian::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Atom_kappa::Gaussian::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBS;
     }
@@ -96,7 +96,7 @@ public:
     int Lmax, Z;
     LAParams lap;
     Slater_mj::DiracBasisSet* sbs;
-    SphericalGaussian_RKB::DiracBasisSet* gbs;
+    Atom_kappa::Gaussian::DiracBasisSet* gbs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

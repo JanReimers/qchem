@@ -1,8 +1,8 @@
-// File: SphericalGaussian_RKB_IrrepBasisSet.C  Spherical gaussian basis set.
+// File: Atom/kappa/Gaussian_IBS.C  Restricted Kinetic Balance (RKB) Irrep Basis Set (IBS).
 
 
-#include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
-#include "Imp/BasisSet/SG_RKB/BasisFunction.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_IBS.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 
 #include "Imp/Symmetry/OkmjQN.H"
@@ -12,7 +12,9 @@
 
 using std::endl;
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
 
 template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
@@ -55,7 +57,7 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
 {
     Vector<double> ns(es.size());
     int i=0;
-    for (auto e:es) ns(++i)=1.0/sqrt(Gaussian::IE_Primatives::Grad2(e,e,l,l));
+    for (auto e:es) ns(++i)=1.0/sqrt(::Gaussian::IE_Primatives::Grad2(e,e,l,l));
     return ns;
 }
 
@@ -128,4 +130,4 @@ std::ostream&  Dirac_IrrepBasisSet::Write(std::ostream& os) const
 }
 
 
-} //namespace
+}} //namespace

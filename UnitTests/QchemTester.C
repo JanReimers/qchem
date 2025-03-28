@@ -177,11 +177,11 @@ BasisSet* SLmj_OBasis::GetBasisSet () const
     return bs;
 }
 
-#include "Imp/BasisSet/SG_RKB/BasisSet.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
 BasisSet* SG_RKB_OBasis::GetBasisSet () const
 {
     assert(N>0);
-    BasisSet* bs=new SphericalGaussian_RKB::DiracBasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atom_kappa::Gaussian::DiracBasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;

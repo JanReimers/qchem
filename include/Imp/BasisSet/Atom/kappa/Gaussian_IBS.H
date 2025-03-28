@@ -1,17 +1,17 @@
-// File: SphericalGaussian_RKB_IrrepBasisSet.H  .
-#ifndef _SphericalGaussian_RKB_BS_H_
-#define _SphericalGaussian_RKB_BS_H_
+// File: Atom/kappa/Gaussian_IBS.H  Restricted Kinetic Balance (RKB) Irrep Basis Set (IBS).
+#ifndef _Atom_kappa_Gaussian_IBS_H_
+#define _Atom_kappa_Gaussian_IBS_H_
 
-
-
-#include "IEClient.H"
-#include "IntegralEngine.H"
-#include "../DHF_IBS_Common.H"
+#include "Gaussian_IEC.H"
+#include "Gaussian_IE.H"
+#include "../../DHF_IBS_Common.H"
 
 class DiracIntegralTests;
 
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
 
 template <class T> class Large_Orbital_IBS
@@ -64,6 +64,6 @@ private:
 };
 
 
-} //namespace
+}} //namespace
 
-#endif //_SphericalGaussian_RKB_BS_H_
+#endif //_Atom_kappa_Gaussian_IBS_H_

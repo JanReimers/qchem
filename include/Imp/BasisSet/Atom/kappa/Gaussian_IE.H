@@ -1,20 +1,22 @@
-// File: SphericalGaussian_RKB_IE.H  Integral Engine for Spherical gaussians.
-#ifndef _SphericalGaussian_RKB_IE1_H_
-#define _SphericalGaussian_RKB_IE1_H_
+// File: Atom/kappa/Gaussian_IE.H  Integral Engine for RKB Gaussians.
+#ifndef _Atom_kappa_Gaussian_IE_H_
+#define _Atom_kappa_Gaussian_IE_H_
 
 
-#include "IEClient.H"
-#include "../AtomIE.H"
+#include "Gaussian_IEC.H"
+#include "../../AtomIE.H"
 #include "Imp/BasisSet/Atom/l/GaussianIE.H"
 
 class DiracIntegralTests;
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
     
 template <class T> class Orbital_RKBL_IE
     : public     AtomIE_RKBL<T>
-    , public virtual Gaussian::IE_Primatives
+    , public virtual ::Gaussian::IE_Primatives
 {
 protected:
     Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
@@ -22,7 +24,7 @@ protected:
 
 template <class T> class Orbital_RKBS_IE
     : public     AtomIE_RKBS<T>
-    , public virtual Gaussian::IE_Primatives
+    , public virtual ::Gaussian::IE_Primatives
 {
 protected:
     Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
@@ -31,7 +33,7 @@ protected:
 };
 
 
-} //namespace SphericalGaussian_RKB
+}} //namespace SphericalGaussian_RKB
 
 
-#endif //_SphericalGaussian_RKB_IE_H_
+#endif //_Atom_kappa_Gaussian_IE_H_

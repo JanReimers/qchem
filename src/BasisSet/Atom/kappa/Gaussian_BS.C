@@ -1,15 +1,17 @@
-// File SphericalGaussian/BasisSet.H
+// File: Atom/kappa/Gaussian_BS.C  Restricted Kinetic Balance (RKB) Basis Set (BS).
 
-#include "Imp/BasisSet/SG_RKB/BasisSet.H"
-#include "Imp/BasisSet/SG_RKB/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
+#include "Imp/BasisSet/Atom/kappa/Gaussian_IBS.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 
-namespace SphericalGaussian_RKB
+namespace Atom_kappa
+{
+namespace Gaussian
 {
 
 DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 {
-    Gaussian::ExponentScaler gs(N,emin,emax,lMax);
+    ::Gaussian::ExponentScaler gs(N,emin,emax,lMax);
     for (int l=0;l<=(int)lMax;l++)
     {
         // j=l-0.5 sector, kappa = l > 0
@@ -24,4 +26,4 @@ DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 }
 
 
-} //namespace
+}} //namespace
