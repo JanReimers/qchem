@@ -1,7 +1,7 @@
-// File: Slater_mj/IrrepBasisSet.C  Spherical Slater RKB basis set.
+// File: Atom/kappa/Slater_IBS.C  Slater Irrep Basis Set (IBS) with Restricted Kinetic Balance (RKB).
 
-#include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
-#include "Imp/BasisSet/Slater_mj/BasisFunction.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_IBS.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_BF.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
 #include "Imp/Symmetry/OkmjQN.H"
@@ -11,7 +11,9 @@
 
 using std::endl;
 
-namespace Slater_mj
+namespace Atom_kappa
+{
+namespace Slater
 {
 //
 //  Concrete  Slater basis set.
@@ -118,7 +120,7 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
 {
     Vector<double> ns(es.size());
     int i=0;
-    for (auto e:es) ns(++i)=1.0/sqrt(Slater::IE_Primatives::Grad2(e,e,l,l));
+    for (auto e:es) ns(++i)=1.0/sqrt(::Slater::IE_Primatives::Grad2(e,e,l,l));
     return ns;
 }
 
@@ -145,4 +147,4 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
     return 0;
 }
 
-} //namespace
+}} //namespace

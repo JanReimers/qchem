@@ -1,18 +1,21 @@
-#include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
+// File: Atom/kappa/Slater_IE.C  Inegral Engine (IE) for Slater basis set with Restricted Kinetic Balance (RKB).
+#include "Imp/BasisSet/Atom/kappa/Slater_IE.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
 
-namespace Slater_mj
+namespace Atom_kappa
+{
+namespace Slater
 {
    
 template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t la, size_t lb) const
 {
     assert(la==lb);
-    return Slater::IE_Primatives::Grad2(ea,eb,la,lb);
+    return ::Slater::IE_Primatives::Grad2(ea,eb,la,lb);
 }
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
 {
-    return ea*eb*Slater::Integral(ea+eb,l_total-1);
+    return ea*eb*::Slater::Integral(ea+eb,l_total-1);
 }
 
 template class Orbital_RKBS_IE<double>;
@@ -445,4 +448,4 @@ template class Orbital_RKBS_IE<double>;
 // }
 
 
-} //namespace
+}} //namespace

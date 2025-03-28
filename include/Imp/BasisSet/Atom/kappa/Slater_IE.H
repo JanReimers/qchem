@@ -1,18 +1,20 @@
-// File: Slater_mj/IntegralEngine.H  Integral Engine for Slater function with kappa,mj QNs.
-#ifndef _Slater_mj_IntegralEngine_H_
-#define _Slater_mj_IntegralEngine_H_
+// File: Atom/kappa/Slater_IE.H  Inegral Engine (IE) for Slater basis set with Restricted Kinetic Balance (RKB).
+#ifndef _Atom_kappa_Slater_IE_H_
+#define _Atom_kappa_Slater_IE_H_
 
-#include "../Atom/radial//Slater/IE_Primatives.H"
-#include "../Atom_IE_DHF.H"
+#include "../radial//Slater/IE_Primatives.H"
+#include "../../Atom_IE_DHF.H"
 
 class DiracIntegralTests;
 
-namespace Slater_mj
+namespace Atom_kappa
+{
+namespace Slater
 {
     
 template <class T> class Orbital_RKBL_IE
     : public     AtomIE_RKBL<T>
-    , public virtual Slater::IE_Primatives
+    , public virtual ::Slater::IE_Primatives
 {
 protected:
     Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
@@ -20,7 +22,7 @@ protected:
 
 template <class T> class Orbital_RKBS_IE
     : public     AtomIE_RKBS<T>
-    , public virtual Slater::IE_Primatives
+    , public virtual ::Slater::IE_Primatives
 {
 protected:
     Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
@@ -31,6 +33,6 @@ protected:
 
 
 
-} //namespace
+}} //namespace
 
-#endif //_Slater_m_IntegralEngine_H_
+#endif //_Atom_kappa_Slater_IE_H_

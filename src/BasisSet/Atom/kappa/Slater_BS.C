@@ -1,16 +1,17 @@
-// File Slater_mj/BasisSet.H
+// File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 
-#include "Imp/BasisSet/Slater_mj/BasisSet.H"
-#include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_IBS.H"
 #include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
 
-namespace Slater_mj
+namespace Atom_kappa
 {
-
+namespace Slater
+{
 
 DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 {
-    Slater::ExponentScaler ss(N,emin,emax,lMax);
+    ::Slater::ExponentScaler ss(N,emin,emax,lMax);
     const DB_cache<double>* db=this;
     for (int l=0;l<=(int)lMax;l++)
     {
@@ -28,4 +29,4 @@ DiracBasisSet::DiracBasisSet(size_t N, double emin, double emax, size_t lMax)
 
 }
 
-} //namespace
+}} //namespace

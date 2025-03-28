@@ -1,10 +1,12 @@
-// File: Slater_mj/BasisFunction.H  r^l exp(-ar)*Y_lm type basis function 
-#ifndef _Slater_mj_BasisFunction_H_
-#define _Slater_mj_BasisFunction_H_
+// File: Atom/kappa/Slater_BF.H  Slater basis function with Restricted Kinetic Balance (RKB).
+#ifndef _Atom_kappa_Slater_BF_H_
+#define _Atom_kappa_Slater_BF_H_
 
 #include <BasisFunction.H>
 
-namespace Slater_mj
+namespace Atom_kappa
+{
+namespace Slater
 {
 
 class Small_BasisFunction;
@@ -58,6 +60,6 @@ private:
     double itsNormalization;
 };
 
-} //namespace _Slater_mj_BasisFunction_H_
+}} //namespace _Atom_kappa::Slater_
 
-#endif //_Slater_mj_BasisFunction_H_
+#endif //_Atom_kappa_Slater_BF_H_

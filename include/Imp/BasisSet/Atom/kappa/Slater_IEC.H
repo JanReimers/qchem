@@ -1,11 +1,13 @@
-// File: Slater_mj/IEClient.H
-#ifndef _Slater_mj_IEClient_H_
-#define _Slater_mj_IEClient_H_
+// File: Atom/kappa/Slater_IEC.H  Inegral Engine Client (IEC) for Slater basis set with Restricted Kinetic Balance (RKB).
+#ifndef _Atom_kappa_Slater_IEC_H_
+#define _Atom_kappa_Slater_IEC_H_
 
-#include "../Atom/radial/Slater/IE_Primatives.H"
+#include "../radial/Slater/IE_Primatives.H"
 #include "Imp/BasisSet/AtomIEClient.H"
     
-namespace Slater_mj
+namespace Atom_kappa
+{
+namespace Slater
 {
  
 struct IrrepIEClient //Use this for the large component.
@@ -28,7 +30,7 @@ private:
 struct Small_IrrepIEClient
     : public virtual ::IrrepIEClient
     , public IrrepIEClient
-    , public virtual Slater::IE_Primatives
+    , public virtual ::Slater::IE_Primatives
 {
 public:
     Small_IrrepIEClient() {}; 
@@ -45,14 +47,14 @@ struct Dirac_IrrepIEClient
     Dirac_IrrepIEClient() : itsLargeIEC(0), itsSmallIEC(0) {};
     virtual size_t size() const;
 
-    void Init(const Slater_mj::IrrepIEClient* large,const Slater_mj::IrrepIEClient* small);
+    void Init(const IrrepIEClient* large,const IrrepIEClient* small);
     
-    const Slater_mj::IrrepIEClient* itsLargeIEC;
-    const Slater_mj::IrrepIEClient* itsSmallIEC;
+    const IrrepIEClient* itsLargeIEC;
+    const IrrepIEClient* itsSmallIEC;
         
 };
 
 
-} //namespace Slater_mj
+}} //namespace Atom_kappa::Slater
 
-#endif // _Slater_mj_IEClient_H_
+#endif // _Atom_kappa_Slater_IEC_H_

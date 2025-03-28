@@ -165,11 +165,11 @@ BasisSet* SLm_OBasis::GetBasisSet () const
     return bs;
 }
 
-#include "Imp/BasisSet/Slater_mj/BasisSet.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
 BasisSet* SLmj_OBasis::GetBasisSet () const
 {
     assert(N>0);
-    BasisSet* bs=new Slater_mj::DiracBasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atom_kappa::Slater::DiracBasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;

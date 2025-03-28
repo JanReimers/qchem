@@ -1,16 +1,18 @@
-// File: Slater_mj/IrrepBasisSet.H  Spherical Slater basis set with orbital angular momentum kappa,mj.
-#ifndef _Slater_mj_IrrepBasisSet_H_
-#define _Slater_mj_IrrepBasisSet_H_
+// File: Atom/kappa/Slater_IBS.H  Slater Irrep Basis Set (IBS) with Restricted Kinetic Balance (RKB).
+#ifndef _Atom_kappa_Slater_IBS_H_
+#define _Atom_kappa_Slater_IBS_H_
 
 
 
-#include "IEClient.H"
-#include "IntegralEngine.H"
-#include "../DHF_IBS_Common.H"
+#include "Slater_IEC.H"
+#include "Slater_IE.H"
+#include "../../DHF_IBS_Common.H"
 
 class DiracIntegralTests;
 
-namespace Slater_mj
+namespace Atom_kappa
+{
+namespace Slater
 {
    
 template <class T> class Large_Orbital_IBS
@@ -65,6 +67,6 @@ private:
 };
 
 
-} //namespace Slater_mj
+}} //namespace Slater_mj
 
-#endif //_Slater_mj_IrrepBasisSet_H_
+#endif //_Atom_kappa_Slater_IBS_H_

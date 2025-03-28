@@ -3,10 +3,10 @@
 
 #include "gtest/gtest.h"
 
-#include "Imp/BasisSet/Slater_mj/IntegralEngine.H"
-#include "Imp/BasisSet/Slater_mj/BasisSet.H"
-#include "Imp/BasisSet/Slater_mj/BasisFunction.H"
-#include "Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_IE.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_IBS.H"
+#include "Imp/BasisSet/Atom/kappa/Slater_BF.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_IE.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
@@ -42,7 +42,7 @@ public:
     : Lmax(0   )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , sbs(new Slater_mj::DiracBasisSet(3,0.1,10,Lmax))
+    , sbs(new Atom_kappa::Slater::DiracBasisSet(3,0.1,10,Lmax))
     , gbs(new Atom_kappa::Gaussian::BasisSet(3,0.1,10,Lmax))
     , cl(new Molecule())
     {
@@ -56,14 +56,14 @@ public:
     static const TIrrepBasisSet<double>* SlaterGetLarge(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
+        const Atom_kappa::Slater::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Atom_kappa::Slater::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
     static const TIrrepBasisSet<double>* SlaterGetSmall(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const Slater_mj::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Slater_mj::Dirac_IrrepBasisSet*>(ibs);
+        const Atom_kappa::Slater::Dirac_IrrepBasisSet* dirbs=dynamic_cast<const Atom_kappa::Slater::Dirac_IrrepBasisSet*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBS;
     }
@@ -95,7 +95,7 @@ public:
 
     int Lmax, Z;
     LAParams lap;
-    Slater_mj::DiracBasisSet* sbs;
+    Atom_kappa::Slater::DiracBasisSet* sbs;
     Atom_kappa::Gaussian::BasisSet* gbs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
