@@ -55,7 +55,8 @@ template <class T> class Small_Orbital_IBS
 {
 public:
     Small_Orbital_IBS() {};
-    Small_Orbital_IBS(const DB_cache<T>*,const Large_Orbital_IBS<T>*,int kappa);
+    Small_Orbital_IBS(const DB_cache<T>*,const Vector<T>& exponents,int kappa);
+    void Insert(const Large_Orbital_IBS<T>*);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;

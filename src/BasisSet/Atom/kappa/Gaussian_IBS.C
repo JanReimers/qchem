@@ -17,6 +17,39 @@ namespace Atom_kappa
 namespace Gaussian
 {
 
+
+  
+    Orbital_IBS::Orbital_IBS(const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
+    : Orbital_RKB_IBS_Common<double>(db,kappa )
+{
+    auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
+    auto rkbs=new Small_Orbital_IBS<double>(db,exponents,kappa);
+    Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
+    rkbs->Insert(rkbl);
+    for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
+    for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
+};
+
+std::ostream&  Orbital_IBS::Write(std::ostream& os) const
+{
+    if (!Pretty())
+    {
+        WriteBasisFunctions(os);
+        IrrepBasisSetCommon::Write(os);
+    }
+    else
+    {
+        os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
+    }
+    return os;
+}
+::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
+{
+    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
+    return 0;
+}
+
+
 template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
     const Vector<T>& exponents,int kappa)
     : Orbital_RKBL_IBS_Common<T>(kappa)
@@ -29,7 +62,6 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
     for (auto e:es) 
         IrrepBasisSetCommon::Insert(new Large_BasisFunction(e,kappa,ns(i++))); //ns from Slater_mj::IEClient
 };
-
 template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());
@@ -37,14 +69,37 @@ template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<doubl
     for (auto e:es) ns(++i)=::Gaussian::Norm(e,l);
     return ns;
 }
+template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
+{
+    if (StreamableObject::Pretty())
+    {
+        os << "Gaussian     " << this->GetQuantumNumber()
+        << "               r^" << l << "*exp(-e*r^2), e={";
+        for (auto b:*this) os << *b;
+        os << "}";
+    }
+    return os;
+}
+template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) const
+{
+    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
+    assert(false);
+    return 0;
+}
+
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
-    const Large_Orbital_IBS<T>* lbs,int kappa)
+    const Vector<T>& exponents,int kappa)
     : Orbital_RKBS_IBS_Common<T>(kappa)
     , Orbital_RKBS_IE<T>(db)
-    , AtomIrrepIEClient(lbs->size())
+    , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmjQN::l(kappa);
-    AtomIrrepIEClient::Init(lbs->es,Norms(lbs->es,l),l);  
+    AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);  
+    
+}
+
+template <class T> void Small_Orbital_IBS<T>::Insert(const Large_Orbital_IBS<T>* lbs)
+{
     size_t i=1;
     for (auto b:*lbs) 
     {
@@ -59,25 +114,6 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
     int i=0;
     for (auto e:es) ns(++i)=1.0/sqrt(::Gaussian::IE_Primatives::Grad2(e,e,l,l));
     return ns;
-}
-
-template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
-{
-    if (StreamableObject::Pretty())
-    {
-        os << "Gaussian     " << this->GetQuantumNumber()
-        << "               r^" << l << "*exp(-e*r^2), e={";
-        for (auto b:*this) os << *b;
-        os << "}";
-    }
-    return os;
-}
-
-template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    assert(false);
-    return 0;
 }
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
@@ -96,38 +132,6 @@ template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) co
     return 0;
 }
 
-
-  
-Orbital_IBS::Orbital_IBS(const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
-    : Orbital_RKB_IBS_Common<double>(db,kappa )
-{
-    auto rkbl=new Large_Orbital_IBS<double>(db,exponents, kappa);
-    auto rkbs=new Small_Orbital_IBS<double>(db,rkbl,kappa);
-    Orbital_RKB_IBS_Common<double>::Init(rkbl,rkbs);
-    // Dirac_IrrepIEClient::Init(rkbl,rkbs);
-    for (auto b:itsRKBL->Iterate<BasisFunction>()) Insert(b);
-    for (auto b:itsRKBS->Iterate<BasisFunction>()) Insert(b);
-};
-
-std::ostream&  Orbital_IBS::Write(std::ostream& os) const
-{
-    if (!Pretty())
-    {
-        WriteBasisFunctions(os);
-        IrrepBasisSetCommon::Write(os);
-    }
-    else
-    {
-        os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
-    }
-    return os;
-}
-
-::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return 0;
-}
 
 
 }} //namespace

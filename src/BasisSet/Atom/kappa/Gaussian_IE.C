@@ -3,12 +3,9 @@
 
 #include "Imp/BasisSet/Atom/kappa/Gaussian_IE.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/Containers/ERI4.H"
-#include <Imp/Symmetry/OkmjQN.H>
-#include <iostream>
-
-using std::cout;
-using std::endl;
+// #include "Imp/Containers/ERI4.H"
+// #include <Imp/Symmetry/OkmjQN.H>
+// #include <iostream>
 
 namespace Atom_kappa
 {
@@ -427,17 +424,10 @@ namespace Gaussian
 // }
 // 
 
-template <class T> double Orbital_RKBS_IE<T>::Grad2(double ea , double eb,size_t la,size_t lb) const
-{
-    assert(la==lb);
-    assert(la==0);
-    return ::Gaussian::IE_Primatives::Grad2(ea,eb,la,lb);
-}
-
 template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
 {
     assert(l_total==0);
-    //int kappa = -l -1;
+    // +2 from the d/dr and -1 from the 1/r potential = l_total+1
     return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
 }
 
