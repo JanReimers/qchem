@@ -4,13 +4,6 @@
 
 #include "../../../AtomIEClient.H"
 #include "../../../IrrepCommon.H"
-#include "../../../TIrrepCommon.H"
-#include "../../../DFT_IBS_Common.H"
-#include "../../../HF_IBS_Common.H"
-#include "../../../Fit_IBS_Common.H"
-#include "../../l/GaussianIE.H"
-
-#include "oml/vector.h"
 
 namespace Slater
 {
@@ -21,8 +14,8 @@ class IrrepBasisSet
     , public         AtomIrrepIEClient
 {
 public:
-IrrepBasisSet(const Vector<double>& exponents, size_t L);
-IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
+    IrrepBasisSet(const Vector<double>& exponents, size_t L);
+    IrrepBasisSet(const Vector<double>& exponents, size_t L, int m);
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;

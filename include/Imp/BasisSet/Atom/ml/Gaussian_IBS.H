@@ -6,6 +6,7 @@
 #include "../radial/Gaussian/IBS_Common.H"
 #include "../l/GaussianIE.H"
 #include "../../HF_IBS_Common.H"
+#include "../../TIrrepCommon.H"
 
 namespace Atom_ml
 {

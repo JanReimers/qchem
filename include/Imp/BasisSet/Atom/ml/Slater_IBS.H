@@ -2,17 +2,12 @@
 #ifndef _Atom_ml_Slater_IBS_H_
 #define _Atom_ml_Slater_IBS_H_
 
-
-
-#include "../../AtomIEClient.H"
-#include "../../IrrepCommon.H"
+#include "../l/Slater_IE.H"
+#include "../radial/Slater/IBS_Common.H"
 #include "../../TIrrepCommon.H"
 #include "../../DFT_IBS_Common.H"
 #include "../../HF_IBS_Common.H"
 #include "../../Fit_IBS_Common.H"
-#include "../l/Slater_IE.H"
-#include "../radial/Slater/IBS_Common.H"
-#include "oml/vector.h"
 
 namespace Atom_ml
 {

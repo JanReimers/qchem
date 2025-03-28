@@ -5,6 +5,8 @@
 #include "Imp/Symmetry/YlQN.H"
 #include "Imp/Symmetry/YlmQN.H"
 #include <BasisFunction.H>
+#include "oml/vector.h"
+
 
 
 namespace Gaussian
