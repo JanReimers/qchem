@@ -1,10 +1,12 @@
-// File: Slater_m/BasisFunction.H  r^l exp(-ar)*Y_lm type basis function 
-#ifndef _Slater_m_BasisFunction_H_
-#define _Slater_m_BasisFunction_H_
+// File: Atom/ml/Slater_BF.H  r^l exp(-ar)*Y_lm type basis function 
+#ifndef _Atom_ml_Slater_BF_H_
+#define _Atom_ml_Slater_BF_H_
 
 #include <BasisFunction.H>
 
-namespace Slater_m
+namespace Atom_ml
+{
+namespace Slater
 {
     
 class BasisFunction
@@ -30,6 +32,6 @@ private:
 };
 
 
-} //namespace _Slater_m_BasisFunction_H_
+}} //namespace _Atom_ml_Slater_BF_H_
 
 #endif //_SlaterBF_H_

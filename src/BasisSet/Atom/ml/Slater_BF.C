@@ -1,14 +1,14 @@
-// File: Slater_m/BasisFunction.C  r^l exp(-ar^2) type basis function for an Spherical, with m QN.
+// File: Atom/ml/Slater_BF.C  r^l exp(-ar)*Y_lm type basis function 
 
-#include "Imp/BasisSet/Slater_m/BasisFunction.H"
+#include "Imp/BasisSet/Atom/ml/Slater_BF.H"
 #include "Imp/Misc/IntPower.H"
 #include "oml/vector3d.h"
-#include "oml/imp/binio.h"
-#include <cmath>
 #include <iostream>
 #include <cassert>
 
-namespace Slater_m
+namespace Atom_ml
+{
+namespace Slater
 {
 
 BasisFunction::BasisFunction()
@@ -33,14 +33,7 @@ bool BasisFunction::operator==(const ::BasisFunction& bf) const
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-//    if (itsL >0) os << "r"; else os << " ";
-//    if (itsL >1) os << "^" << itsL; else os << "  ";
-//    os << " exp(-" << itsExponent << "*r)" << std::endl;
-        os << itsExponent << " ";
-    }
-    return os;
+    return os<< itsExponent << " ";
 }
 
 std::istream& BasisFunction::Read(std::istream& is)
@@ -74,4 +67,4 @@ BasisFunction* BasisFunction::Clone() const
     return new  BasisFunction(*this);
 }
 
-} //namespace
+}} //namespace

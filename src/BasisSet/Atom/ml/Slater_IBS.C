@@ -1,13 +1,15 @@
-// File: Slater_m/IrrepBasisSet.C  Spherical Slater basis set with orbital angular momentum l,m.
+// File: Atom/ml/Slater_IBS.C  Slater Irrep Basis Set (IBS) with orbital angular momentum l,m.
 
-#include "Imp/BasisSet/Slater_m/IrrepBasisSet.H"
-#include "Imp/BasisSet/Slater_m/BasisFunction.H"
+#include "Imp/BasisSet/Atom/ml/Slater_IBS.H"
+#include "Imp/BasisSet/Atom/ml/Slater_BF.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 #include "Imp/Symmetry/YlmQN.H"
 #include <iostream>
 #include <cassert>
 
-namespace Slater_m
+namespace Atom_ml
+{
+namespace Slater
 {
 
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
@@ -64,4 +66,4 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 }
 
 
-} //namespace
+}} //namespace
