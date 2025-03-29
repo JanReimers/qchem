@@ -23,9 +23,7 @@ public:
     virtual SMat MakeNuclear (const Cluster*) const;
     virtual SMat MakeRestMass() const;
 protected:
-    Orbital_RKB_IBS_Common(const DB_cache<T>* db,int kappa);
     Orbital_RKB_IBS_Common(const DB_cache<T>* db,int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
-    void Init(const ::Orbital_RKBL_IBS<T>*,const ::Orbital_RKBS_IBS<T>*);
     const ::Orbital_RKBL_IBS<T>* itsRKBL;
     const ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:
@@ -41,6 +39,8 @@ template <class T> class Orbital_RKBL_IBS_Common
 {
 protected:
     Orbital_RKBL_IBS_Common(int kappa);
+
+    int kappa;
 };
 
 template <class T> class Orbital_RKBS_IBS_Common
@@ -51,6 +51,8 @@ template <class T> class Orbital_RKBS_IBS_Common
 protected:
     Orbital_RKBS_IBS_Common(int kappa);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l) {};
+
+    int kappa;
 };
 
 

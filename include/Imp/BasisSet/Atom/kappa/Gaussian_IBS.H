@@ -14,7 +14,7 @@ namespace Atom_kappa
 namespace Gaussian
 {
 
-// All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are no Gaussian
+// All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Gaussian
 // specific.
 class Orbital_IBS
     : public virtual TOrbital_IBS<double>
@@ -44,6 +44,7 @@ template <class T> class Large_Orbital_IBS
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+    using Orbital_RKBL_IBS_Common<T>::kappa;
 };
 
 template <class T> class Small_Orbital_IBS
@@ -60,6 +61,7 @@ public:
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+    using Orbital_RKBS_IBS_Common<T>::kappa;
 };
 
 

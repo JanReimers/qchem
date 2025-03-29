@@ -11,12 +11,12 @@ namespace Slater
 {
 
 
-class DiracBasisSet 
+class BasisSet 
     : public ::BasisSetImp
     , public DB_cache<double>
 {
 public:
-    DiracBasisSet(size_t N, double minexp, double maxexp, size_t lMax);
+    BasisSet(size_t N, double minexp, double maxexp, size_t lMax);
     
 };
 

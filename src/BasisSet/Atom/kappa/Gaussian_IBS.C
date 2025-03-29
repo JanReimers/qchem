@@ -17,10 +17,10 @@ namespace Atom_kappa
 namespace Gaussian
 {
   
-    Orbital_IBS::Orbital_IBS
-        (const DB_cache<double>* db
-            , const Vector<double>& exponents
-            , int kappa)
+Orbital_IBS::Orbital_IBS
+    (const DB_cache<double>* db
+        , const Vector<double>& exponents
+        , int kappa)
     : Orbital_RKB_IBS_Common<double>
         (db
         , kappa

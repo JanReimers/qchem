@@ -2,10 +2,8 @@ Priority 1:
     -Use ml instead of m
     -DFT check for l>0 basis sets for fitting.
     -Slater norm takes n=l+1, Gaussian norm takes l.
-    -Move Slatermj over to SS_RKB
-    -SL->SS
     -Break up BasisSet folder
-        Atom
+        Done: Atom
             radial
             l
                 Slater,Gaussian,BSpline
@@ -35,7 +33,7 @@ Priority 1:
         Done: -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
         -Make AnalyticIE.H -> IE_common.H
         -Make IE.H which just includes all IE types.
-        -Make Atom folder under Basis set.
+        Done: -Make Atom folder under Basis set.
             AtomIE.H -> IE_Common.h
             IE.H which just includes all atom IE types.
 

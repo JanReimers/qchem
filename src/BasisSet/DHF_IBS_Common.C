@@ -4,14 +4,6 @@
 #include "Imp/Symmetry/OkmjQN.H"
 
 
-template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_cache<T>* db, int kappa)
-    : IrrepBasisSetCommon(new Omega_kQN(kappa))
-    , Orbital_IBS_Common<T>()
-    , DB_RKB<T>(db)
-    , itsRKBL(0)
-    , itsRKBS(0)
-{}
-
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_cache<T>* db,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
     : IrrepBasisSetCommon(new Omega_kQN(kappa))
     , Orbital_IBS_Common<T>()
@@ -24,13 +16,6 @@ template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_ca
     s->InsertBasisFunctions(itsRKBL);
 }
 
-template <class T> void Orbital_RKB_IBS_Common<T>::Init(const ::Orbital_RKBL_IBS<T>* l,const ::Orbital_RKBS_IBS<T>* s)
-{
-    assert(l);
-    assert(s);
-    itsRKBL=l;
-    itsRKBS=s;
-}
 template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::merge_diag(const SMat& l,const SMat& s)
 {
     size_t Nl=l.GetNumRows();
@@ -83,15 +68,21 @@ template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::M
     return merge_diag(rl,rs);
 }
 
-template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int kappa)
-    : IrrepBasisSetCommon(new Omega_kQN(kappa))
+template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int _kappa)
+    : IrrepBasisSetCommon(new Omega_kQN(_kappa))
     , TIrrepBasisSetCommon<T>()
-{}
+    , kappa(_kappa)
+{
+    assert(kappa!=0);
+}
 
-template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common(int kappa)
-    : IrrepBasisSetCommon(new Omega_kQN(-kappa))
+template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common(int _kappa)
+    : IrrepBasisSetCommon(new Omega_kQN(-_kappa))
     , TIrrepBasisSetCommon<T>()
-{}
+    , kappa(_kappa)
+{
+    assert(kappa!=0);
+}
 
 template class Orbital_RKB_IBS_Common<double>;
 template class Orbital_RKBL_IBS_Common<double>;
