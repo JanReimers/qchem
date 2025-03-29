@@ -62,7 +62,7 @@
 		<Unit filename="include/Imp/BasisSet/AtomIEClient.H" />
 		<Unit filename="include/Imp/BasisSet/BFGrouper.H" />
 		<Unit filename="include/Imp/BasisSet/GaussianScaler.H" />
-		<Unit filename="include/Imp/BasisSet/IrrepCommon.H" />
+		<Unit filename="include/Imp/BasisSet/IBS_Common.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisFunction.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/BasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/PolarizedGaussian/Block.H" />
@@ -111,7 +111,7 @@
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/IntegralEngine.H" />
 		<Unit filename="include/Imp/BasisSet/SphericalGaussian_m/IrrepBasisSet.H" />
 		<Unit filename="include/Imp/BasisSet/TCommon.H" />
-		<Unit filename="include/Imp/BasisSet/TIrrepCommon.H" />
+		<Unit filename="include/Imp/BasisSet/TIBS_Common.H" />
 		<Unit filename="include/Imp/ChargeDensity/CompositeCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/FittedCD.H" />
 		<Unit filename="include/Imp/ChargeDensity/FittedPolarizedCD.H" />

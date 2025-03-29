@@ -1,7 +1,7 @@
 // File: TBasisSetImplementation.C
 
 
-#include "Imp/BasisSet/TIrrepCommon.H"
+#include "Imp/BasisSet/TIBS_Common.H"
 #include "Imp/BasisSet/DFT_IBS_Common.H"
 #include <Fit_IBS.H>
 #include "oml/vector.h"

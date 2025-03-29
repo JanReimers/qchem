@@ -16,14 +16,14 @@ namespace Gaussian
 //  Common implementation for orbital and fit basis sets.
 //
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l)
-    : IrrepBasisSetCommon(new YlQN(l))
+    : IBS_Common(new YlQN(l))
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,l),l);
 };
 
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l, int m)
-    : IrrepBasisSetCommon(new YlmQN(l,m))
+    : IBS_Common(new YlmQN(l,m))
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,l),l,m);

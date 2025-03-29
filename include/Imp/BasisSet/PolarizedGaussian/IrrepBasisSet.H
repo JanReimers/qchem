@@ -2,8 +2,8 @@
 #ifndef _PolarizedGaussian_IrrepBasisSet_H_
 #define _PolarizedGaussian_IrrepBasisSet_H_
 
-#include "../IrrepCommon.H"
-#include "../TIrrepCommon.H"
+#include "../IBS_Common.H"
+#include "../TIBS_Common.H"
 #include "../DFT_IBS_Common.H"
 #include "../HF_IBS_Common.H"
 #include "../Fit_IBS_Common.H"
@@ -20,7 +20,7 @@ namespace PolarizedGaussian
     // Common implementation for orbital and fit basis sets.
     class IrrepBasisSet
         : public virtual ::IrrepBasisSet,
-          public IrrepBasisSetCommon,
+          public IBS_Common,
           public IrrepIEClient
     {
     public:
@@ -64,7 +64,7 @@ namespace PolarizedGaussian
         : public virtual ::Fit_IBS
         , public virtual FitIntegrals
         , public IrrepBasisSet
-        , public TIrrepBasisSetCommon<double>
+        , public TIBS_Common<double>
         , public Fit_IBS_Common
         , public Fit_IE
     {

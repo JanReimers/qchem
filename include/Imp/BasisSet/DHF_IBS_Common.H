@@ -4,13 +4,13 @@
 
 #include <DHF_IBS.H>
 #include "Imp/DataBase/DB_DHF.H"
-#include "TIrrepCommon.H"
-#include "IrrepCommon.H"
+#include "TIBS_Common.H"
+#include "IBS_Common.H"
 
 class DiracIntegralTests;
 template <class T> class Orbital_RKB_IBS_Common
     : public virtual Orbital_RKB_IBS<T>
-    , public IrrepBasisSetCommon
+    , public IBS_Common
     , public Orbital_IBS_Common<T>
     , public DB_RKB<T>
 {
@@ -34,8 +34,8 @@ private:
 
 template <class T> class Orbital_RKBL_IBS_Common
     : public virtual Orbital_RKBL_IBS<T>
-    , public  IrrepBasisSetCommon
-    , public TIrrepBasisSetCommon<T> 
+    , public  IBS_Common
+    , public TIBS_Common<T> 
 {
 protected:
     Orbital_RKBL_IBS_Common(int kappa);
@@ -45,8 +45,8 @@ protected:
 
 template <class T> class Orbital_RKBS_IBS_Common
     : public virtual Orbital_RKBS_IBS<T>
-    , public  IrrepBasisSetCommon
-    , public TIrrepBasisSetCommon<T> 
+    , public  IBS_Common
+    , public TIBS_Common<T> 
 {
 protected:
     Orbital_RKBS_IBS_Common(int kappa);

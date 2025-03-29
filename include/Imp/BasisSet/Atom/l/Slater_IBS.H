@@ -4,7 +4,7 @@
 
 #include "../radial/Slater/IBS_Common.H"
 #include "Slater_IE.H"
-#include "../../TIrrepCommon.H"
+#include "../../TIBS_Common.H"
 #include "../../DFT_IBS_Common.H"
 #include "../../HF_IBS_Common.H"
 #include "../../Fit_IBS_Common.H"
@@ -43,7 +43,7 @@ class Fit_IBS
 : public virtual ::Fit_IBS
 , public virtual FitIntegrals
 , public ::Slater::IrrepBasisSet
-, public TIrrepBasisSetCommon<double>
+, public TIBS_Common<double>
 , public Fit_IBS_Common
 , public Fit_IE
 
@@ -51,7 +51,7 @@ class Fit_IBS
 public:
     Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
     : ::Slater::IrrepBasisSet(exponents,L)
-    , TIrrepBasisSetCommon<double>()
+    , TIBS_Common<double>()
     , Fit_IE(db)
     {
         InsertBasisFunctions();

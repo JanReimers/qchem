@@ -1,6 +1,6 @@
-// File: BasisSetImplementation.H  Basis set implementation.
-#ifndef _BasisSetImplementation_H_
-#define _BasisSetImplementation_H_
+// File: IBS_Common.H  Basis set implementation.
+#ifndef _IBS_Common_H_
+#define _IBS_Common_H_
 
 
 
@@ -13,16 +13,16 @@
 //  This class implements functionality common to all real/complex irrep basis sets.  
 //  It stores a list of BasisFunction*'s and Quantum number.
 //
-class IrrepBasisSetCommon
+class IBS_Common
     : public virtual IrrepBasisSet
     , private UniqueIDImp
 {
 public:
-    IrrepBasisSetCommon(              );
-    IrrepBasisSetCommon(QuantumNumber*);
-    IrrepBasisSetCommon(const IrrepBasisSetCommon&);
+    IBS_Common(              );
+    IBS_Common(QuantumNumber*);
+    IBS_Common(const IBS_Common&);
 
-    virtual ~IrrepBasisSetCommon();
+    virtual ~IBS_Common();
 
     virtual size_t  GetNumFunctions(               ) const;
     virtual bool    operator==     (const IrrepBasisSet&) const;
@@ -47,10 +47,10 @@ protected:
     std::istream& ReadBasisFunctions (std::istream&)      ;
 
 private:
-    IrrepBasisSetCommon& operator=(const IrrepBasisSetCommon&);
+    IBS_Common& operator=(const IBS_Common&);
 
     QuantumNumber*               itsQuantumNumber;
     optr_vector1<const BasisFunction*> itsBasisFunctions;
 };
 
-#endif //_BasisSetImplementation_H_
+#endif //_IBS_Common_H_

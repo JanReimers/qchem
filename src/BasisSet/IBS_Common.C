@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/BasisSet/IrrepCommon.H"
+#include "Imp/BasisSet/IBS_Common.H"
 #include <QuantumNumber.H>
 #include <BasisFunction.H>
 #include "Imp/Containers/ptr_vector_io.h"
@@ -15,25 +15,25 @@
 //
 //  Construction zone
 //
-IrrepBasisSetCommon::IrrepBasisSetCommon()
+IBS_Common::IBS_Common()
     : itsQuantumNumber(0)
 {
 };
 
-IrrepBasisSetCommon::IrrepBasisSetCommon(QuantumNumber* theQN)
+IBS_Common::IBS_Common(QuantumNumber* theQN)
     : itsQuantumNumber(theQN)
 {
     assert(itsQuantumNumber);
 };
 
-IrrepBasisSetCommon::IrrepBasisSetCommon(const IrrepBasisSetCommon& bs)
+IBS_Common::IBS_Common(const IBS_Common& bs)
   : itsQuantumNumber (bs.itsQuantumNumber->Clone())
   , itsBasisFunctions(bs.itsBasisFunctions)
   {
     assert(itsQuantumNumber);
   };
 
-IrrepBasisSetCommon::~IrrepBasisSetCommon()
+IBS_Common::~IBS_Common()
 {
     delete itsQuantumNumber;
 }
@@ -42,13 +42,13 @@ IrrepBasisSetCommon::~IrrepBasisSetCommon()
 //
 //  Post construction initializations called by dervied classes.
 //
-void IrrepBasisSetCommon::Insert(const BasisFunction* bf)
+void IBS_Common::Insert(const BasisFunction* bf)
 {
     assert(bf);
     itsBasisFunctions.push_back(bf);
 }
 
-void IrrepBasisSetCommon::EmptyBasisFunctions()
+void IBS_Common::EmptyBasisFunctions()
 {
     itsBasisFunctions.clear();
 }
@@ -60,12 +60,12 @@ void IrrepBasisSetCommon::EmptyBasisFunctions()
 //
 
 
-size_t IrrepBasisSetCommon::GetNumFunctions() const
+size_t IBS_Common::GetNumFunctions() const
 {
     return itsBasisFunctions.size();
 }
 
-bool IrrepBasisSetCommon::operator==(const IrrepBasisSet& bs) const
+bool IBS_Common::operator==(const IrrepBasisSet& bs) const
 {
     // No UT coverage
     if (GetNumFunctions() != bs.GetNumFunctions()) return false;
@@ -79,7 +79,7 @@ bool IrrepBasisSetCommon::operator==(const IrrepBasisSet& bs) const
     return ret;
 }
 
-QuantumNumber*  IrrepBasisSetCommon::GetQuantumNumber(int index) const
+QuantumNumber*  IBS_Common::GetQuantumNumber(int index) const
 {
     return itsQuantumNumber->AddPrincipleQN(index);
 }
@@ -89,7 +89,7 @@ QuantumNumber*  IrrepBasisSetCommon::GetQuantumNumber(int index) const
 //
 //  Streamable stuff.
 //
-std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
+std::ostream& IBS_Common::Write(std::ostream& os) const
 {
     assert(itsQuantumNumber);
     if(!Pretty())
@@ -129,13 +129,13 @@ std::ostream& IrrepBasisSetCommon::Write(std::ostream& os) const
 //
 //  Controlled by derived class for IO.
 //
-std::ostream& IrrepBasisSetCommon::WriteBasisFunctions(std::ostream& os) const
+std::ostream& IBS_Common::WriteBasisFunctions(std::ostream& os) const
 {
     os << itsBasisFunctions;
     return os;
 }
 
-std::istream& IrrepBasisSetCommon::ReadBasisFunctions(std::istream& is)
+std::istream& IBS_Common::ReadBasisFunctions(std::istream& is)
 {
     // is >> itsBasisFunctions;
     return is;

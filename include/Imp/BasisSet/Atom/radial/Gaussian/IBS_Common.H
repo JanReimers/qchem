@@ -3,7 +3,7 @@
 #define _Atom_radial_Gaussian_IBS_Common_H_
 
 #include "../../IEC.H"
-#include "../../../IrrepCommon.H"
+#include "../../../IBS_Common.H"
 
 
 namespace Gaussian
@@ -11,7 +11,7 @@ namespace Gaussian
     // Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
 : public virtual ::IrrepBasisSet
-, public         IrrepBasisSetCommon
+, public         IBS_Common
 , public         AtomIrrepIEClient
 {
 public:

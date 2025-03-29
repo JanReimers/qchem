@@ -1,11 +1,11 @@
-// File: TIrrepCommon.H
-#ifndef _TIrrepCommon_H_
-#define _TIrrepCommon_H_
+// File: TIBS_Common.H
+#ifndef _TIBS_Common_H_
+#define _TIBS_Common_H_
 
 #include <Irrep_BS.H>
 #include <LAParams.H>
 
-template <class T> class TIrrepBasisSetCommon
+template <class T> class TIBS_Common
     : public virtual TIrrepBasisSet<T>
 {
 protected:
@@ -15,9 +15,9 @@ protected:
     //typedef typename VectorFunction<T>::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
   
 public:
-    TIrrepBasisSetCommon(                              );
-    TIrrepBasisSetCommon(const TIrrepBasisSetCommon&);
-    ~TIrrepBasisSetCommon(                              );
+    TIBS_Common(                              );
+    TIBS_Common(const TIBS_Common&);
+    ~TIBS_Common(                              );
 
     virtual void Set(const LAParams&);
 
@@ -34,7 +34,7 @@ protected:
 
 template <class T> class Orbital_IBS_Common
     : public virtual TOrbital_IBS<T>
-    , public  TIrrepBasisSetCommon<T> 
+    , public  TIBS_Common<T> 
 {
     public:
     Orbital_IBS_Common() {};
@@ -45,4 +45,4 @@ template <class T> class Orbital_IBS_Common
 
 };
 
-#endif //_TIrrepCommon_H_
+#endif //_TIBS_Common_H_

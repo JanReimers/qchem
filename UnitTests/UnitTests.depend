@@ -906,8 +906,8 @@
 
 1732199299 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H
 	"IEClient.H"
-	"../IrrepCommon.H"
-	"../TIrrepCommon.H"
+	"../IBS_Common.H"
+	"../TIBS_Common.H"
 	"oml/vector.h"
 
 1731941903 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/IEClient.H
@@ -1008,18 +1008,18 @@
 	"../TCommon.H"
 
 1729724060 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H
-	"../IrrepCommon.H"
-	"../TIrrepCommon.H"
+	"../IBS_Common.H"
+	"../TIBS_Common.H"
 	"Polarization.H"
 	"IEClient.H"
 	"Block.H"
 	"Imp/Containers/ptr_vector.h"
 
-1732210922 /home/janr/Code/qchem/include/Imp/BasisSet/IrrepCommon.H
+1732210922 /home/janr/Code/qchem/include/Imp/BasisSet/IBS_Common.H
 	"BasisSet.H"
 	"Imp/Containers/ptr_vector.h"
 
-1732197866 /home/janr/Code/qchem/include/Imp/BasisSet/TIrrepCommon.H
+1732197866 /home/janr/Code/qchem/include/Imp/BasisSet/TIBS_Common.H
 	<BasisSet.H>
 	<LAParams.H>
 
@@ -1057,8 +1057,8 @@
 
 1732199193 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IrrepBasisSet.H
 	"IEClient.H"
-	"../IrrepCommon.H"
-	"../TIrrepCommon.H"
+	"../IBS_Common.H"
+	"../TIBS_Common.H"
 	"oml/vector.h"
 
 1731941859 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/IEClient.H
@@ -1534,8 +1534,8 @@
 
 1734387873 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/IrrepBasisSet.H
 	"IEClient.H"
-	"../IrrepCommon.H"
-	"../TIrrepCommon.H"
+	"../IBS_Common.H"
+	"../TIBS_Common.H"
 	"oml/vector.h"
 
 1734358967 /home/janr/Code/qchem/include/Imp/Symmetry/OkmjQN.H

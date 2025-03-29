@@ -1,7 +1,7 @@
 // File: TBasisSetImplementation.C
 
 
-#include "Imp/BasisSet/TIrrepCommon.H"
+#include "Imp/BasisSet/TIBS_Common.H"
 #include "Imp/Containers/ERI4.H"
 #include <BasisFunction.H>
 #include <QuantumNumber.H>
@@ -17,19 +17,19 @@ LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-4,1e-12});
 //
 //  Construction zone
 //
-template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon()
+template <class T> TIBS_Common<T>::TIBS_Common()
     : itsLAParams      (DefaultLAP)
 {};
 
-template <class T> TIrrepBasisSetCommon<T>::TIrrepBasisSetCommon(const TIrrepBasisSetCommon<T>& bs)
+template <class T> TIBS_Common<T>::TIBS_Common(const TIBS_Common<T>& bs)
     : itsLAParams      (bs.itsLAParams)
 {};
 
-template <class T> TIrrepBasisSetCommon<T>::~TIrrepBasisSetCommon()
+template <class T> TIBS_Common<T>::~TIBS_Common()
 {
 }
 
-template <class T> void TIrrepBasisSetCommon<T>::Set(const LAParams& lap)
+template <class T> void TIBS_Common<T>::Set(const LAParams& lap)
 {
     itsLAParams=lap;
 } 
@@ -39,7 +39,7 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
     StreamableObject::SetToPretty();
     // std::cout << "S_old=" << this->GetOverlap() << std::endl;
     // std::cout << "S_new=" << this->Integrals(qchem::Overlap1,this) << std::endl;
-    LASolver<double>* las=LASolver<double>::Factory(TIrrepBasisSetCommon<T>::itsLAParams);
+    LASolver<double>* las=LASolver<double>::Factory(TIBS_Common<T>::itsLAParams);
     //las->SetBasisOverlap(this->GetOverlap());
     las->SetBasisOverlap(this->Overlap());
     return las;
@@ -52,7 +52,7 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
 //
 //  VectorFunction stuff.
 //
-template <class T> typename TIrrepBasisSetCommon<T>::Vec TIrrepBasisSetCommon<T>::
+template <class T> typename TIBS_Common<T>::Vec TIBS_Common<T>::
 operator() (const RVec3& r) const
 {
     Vec  ret(this->size());
@@ -66,7 +66,7 @@ operator() (const RVec3& r) const
     return ret;
 }
 
-template <class T> typename TIrrepBasisSetCommon<T>::Vec3Vec TIrrepBasisSetCommon<T>::
+template <class T> typename TIBS_Common<T>::Vec3Vec TIBS_Common<T>::
 Gradient(const RVec3& r) const
 {
     // No UT coverage
@@ -81,6 +81,6 @@ Gradient(const RVec3& r) const
     return ret;
 }
 
-template class TIrrepBasisSetCommon<double>;
+template class TIBS_Common<double>;
 template class Orbital_IBS_Common<double>;
 

@@ -3,14 +3,14 @@
 #define _Atom_radial_Slater_IBS_Common_H_
 
 #include "../../IEC.H"
-#include "../../../IrrepCommon.H"
+#include "../../../IBS_Common.H"
 
 namespace Slater
 {
     // Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
     : public virtual ::IrrepBasisSet
-    , public         IrrepBasisSetCommon
+    , public         IBS_Common
     , public         AtomIrrepIEClient
 {
 public:

@@ -50,7 +50,7 @@ std::vector<Polarization> MakePolarizations(int L)
 //  Common implementation for orbital and fit basis sets.
 //
 IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
-    : IrrepBasisSetCommon(new UnitQN)
+    : IBS_Common(new UnitQN)
 {
     //
     //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
@@ -119,7 +119,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 };
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
-    : IrrepBasisSetCommon(new UnitQN)
+    : IBS_Common(new UnitQN)
    // , Orbital_IBS_Common<double>(lap,theDB)
    // , IE_Common(db)
 {
@@ -154,7 +154,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
 }
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
-    : IrrepBasisSetCommon(new UnitQN())
+    : IBS_Common(new UnitQN())
     // , Orbital_IBS_Common<double>(lap,theDB) 
     // , IE_Common(db)
 
@@ -185,7 +185,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
 //  This contructor is used by Clone(RVec); only.
 //
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const optr_vector1<Block*>& theBlocks)
-    : IrrepBasisSetCommon(*bs)
+    : IBS_Common(*bs)
     // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
     // , IE_Common(db)
     , itsBlocks(theBlocks)
@@ -199,7 +199,7 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const optr_vector1<Block*>
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
-    IrrepBasisSetCommon::Write(os);
+    IBS_Common::Write(os);
     //TIrrepBasisSetCommon<double>::Write(os);
     if (!Pretty())
     {
@@ -220,7 +220,7 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
     size_t i=1;
     for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
         for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
-            IrrepBasisSetCommon::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
+            IBS_Common::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
 }//Compiler says these calls are ambiguous.  BUG
 
 //----------------------------------------------------------------
@@ -270,7 +270,7 @@ IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 //
 Fit_IBS::Fit_IBS(const DB_cache<double>* db , Reader* bsr, const Cluster* cl)
 : IrrepBasisSet(bsr,cl)
-, TIrrepBasisSetCommon<double>()
+, TIBS_Common<double>()
 , Fit_IE(db)
 {};
 

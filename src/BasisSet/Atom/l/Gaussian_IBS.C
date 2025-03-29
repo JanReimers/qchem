@@ -23,7 +23,7 @@ void Orbital_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new BasisFunction(e,l,ns(i++)));
+        IBS_Common::Insert(new BasisFunction(e,l,ns(i++)));
 }
 
 
@@ -49,7 +49,7 @@ void Fit_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IrrepBasisSetCommon::Insert(new BasisFunction(e,l,ns(i++)));
+        IBS_Common::Insert(new BasisFunction(e,l,ns(i++)));
 }
 
 ::Fit_IBS* Fit_IBS::Clone(const RVec3&) const
