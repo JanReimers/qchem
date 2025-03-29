@@ -4,7 +4,7 @@
 
 
 #include "types.H"
-#include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite3.H"
 #include "Imp/Containers/ptr_vector.h"
 
 namespace PolarizedGaussian

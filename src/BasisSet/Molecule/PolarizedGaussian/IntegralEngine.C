@@ -1,8 +1,8 @@
 // File: IntegralEngine.C  Here is where all the integral get calculated.
 
 
-#include "Imp/BasisSet/PolarizedGaussian/IEClient.H"
-#include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/IEClient.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/IntegralEngine.H"
 #include <Irrep_BS.H>
 #include <Fit_IBS.H>
 #include "oml/matrix.h"

@@ -3,10 +3,10 @@
 #include <BasisSet.H>
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
-#include "Imp/BasisSet/PolarizedGaussian/BasisFunction.H"
-#include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
-#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-#include "Imp/BasisSet/PolarizedGaussian/Block.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/BasisFunction.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/IrrepBasisSet.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/BasisSet.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Block.H"
 
 #include "Imp/Symmetry/YlmQN.H"
 #include "Imp/Symmetry/YlQN.H"

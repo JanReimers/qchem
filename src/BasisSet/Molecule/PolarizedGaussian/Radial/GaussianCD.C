@@ -2,12 +2,12 @@
 
 
 #include "oml/smatrix.h"
-#include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite1.H"
-#include "Imp/BasisSet/PolarizedGaussian/MnD/Hermite3.H"
-#include "Imp/BasisSet/PolarizedGaussian/MnD/RNLM.H"
-#include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianCD.H"
-#include "Imp/BasisSet/PolarizedGaussian/Block.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite1.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite3.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/RNLM.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianRF.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianCD.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Block.H"
 #include <Cluster.H>
 #include "Imp/Misc/DFTDefines.H"
 #include "oml/matrix.h"

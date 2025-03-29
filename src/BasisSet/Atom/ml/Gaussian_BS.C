@@ -2,8 +2,8 @@
 
 #include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/ml/Gaussian_IBS.H"
-#include "Imp/BasisSet/PolarizedGaussian/Readers/Reader.H"
-#include "Imp/BasisSet/PolarizedGaussian/RadialFunction.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>

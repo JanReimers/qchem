@@ -1,7 +1,7 @@
 // File: RadialFunctionFactories.C
 
-#include "Imp/BasisSet/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Imp/BasisSet/PolarizedGaussian/Radial/ContractedGaussianRF.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianRF.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/ContractedGaussianRF.H"
 
 #include <string>
 #include <iostream>

@@ -190,7 +190,7 @@ BasisSet* SG_RKB_OBasis::GetBasisSet () const
 }
 
 #include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
-#include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Gaussian94.H"
 
 BasisSet* SGm_OBasis::GetBasisSet () const
 {
@@ -206,7 +206,7 @@ BasisSet* SGm_OBasis::GetBasisSet () const
 }
 
 
-#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/BasisSet.H"
 
 BasisSet* PG_OBasis::GetBasisSet () const
 {

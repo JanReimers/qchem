@@ -3,7 +3,7 @@
 #define _PolarizedGaussian_BasisSet_H_
 
 #include "IEClient.H"
-#include "../BS_Common.H"
+#include "../../BS_Common.H"
 #include "Imp/DataBase/DB_HF.H"
 #include "CDCache.H"
 
