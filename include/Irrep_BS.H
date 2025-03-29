@@ -90,7 +90,7 @@ public:
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
     static  IrrepBasisSet* Factory(std::istream&    )        ;
 private:
-    friend class BasisSetImp;
+    friend class BS_Common;
 };
 
 #include <VectorFunction.H>

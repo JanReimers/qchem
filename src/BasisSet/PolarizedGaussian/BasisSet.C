@@ -30,7 +30,7 @@ BasisSet::BasisSet( size_t N, double emin, double emax, size_t LMax, const Clust
 
 void BasisSet::Insert(bs_t* bs)
 {
-    BasisSetImp::Insert(bs);
+    BS_Common::Insert(bs);
     Append(bs);
 }
 

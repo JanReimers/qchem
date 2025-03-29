@@ -9,8 +9,8 @@ namespace Slater
 {
     void BS_Common::Insert(bs_t* bs)
     {
-        BasisSetImp::Insert(bs);
-        Append(bs);
+        ::BS_Common::Insert(bs);
+        Append(bs); 
     }
     
     const Cacheable* BS_Common::Create(size_t ia,size_t ic,size_t ib,size_t id) const

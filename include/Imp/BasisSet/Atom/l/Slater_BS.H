@@ -3,7 +3,7 @@
 #define _Atom_l_Slater_BS_H_
 
 #include "../radial/Slater/BS_Common.H"
-#include "../../TCommon.H"
+#include "../../BS_Common.H"
 
 namespace Atoml
 {

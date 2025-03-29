@@ -10,7 +10,7 @@ namespace Gaussian
 
 void BS_Common::Insert(bs_t* bs)
 {
-    BasisSetImp::Insert(bs);
+    ::BS_Common::Insert(bs);
     Append(bs);
 }
 

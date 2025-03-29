@@ -3,7 +3,7 @@
 #define _PolarizedGaussian_BasisSet_H_
 
 #include "IEClient.H"
-#include "../TCommon.H"
+#include "../BS_Common.H"
 #include "Imp/DataBase/DB_HF.H"
 #include "CDCache.H"
 
@@ -13,7 +13,7 @@ namespace PolarizedGaussian
 class Reader;
 
 class BasisSet 
-    : public BasisSetImp
+    : public BS_Common
     , public DB_BS_2E<double>
 {
 public:

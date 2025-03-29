@@ -2,7 +2,7 @@
 #ifndef _Atom_radial_Slater_BS_Common_H_
 #define _Atom_radial_Slater_BS_Common_H_
 
-#include "../../../TCommon.H"
+#include "../../../BS_Common.H"
 #include "../../IE_HF.H"
 
 namespace Slater
@@ -10,7 +10,7 @@ namespace Slater
 
 // Common base handles all the radial aspects.
 class BS_Common
-: public ::BasisSetImp
+: public ::BS_Common
 , public ::AtomIE_BS_2E<double>
 {
 protected:

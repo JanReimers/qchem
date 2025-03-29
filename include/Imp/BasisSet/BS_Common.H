@@ -7,7 +7,7 @@
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 
-class BasisSetImp
+class BS_Common
     : public virtual BasisSet
     , private UniqueIDImp
 {
@@ -16,8 +16,8 @@ public:
     typedef Base::bs_t bs_t;
     typedef Base::const_iterator const_iterator;
 
-    BasisSetImp() {};
-    virtual ~BasisSetImp() {};
+    BS_Common() {};
+    virtual ~BS_Common() {};
     virtual void Set(const LAParams&);
 
     virtual size_t GetNumFunctions() const;

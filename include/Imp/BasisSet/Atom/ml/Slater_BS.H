@@ -2,7 +2,7 @@
 #ifndef _Atom_ml_Slater_BS_H_
 #define _Atom_ml_Slater_BS_H_
 
-#include "../../TCommon.H"
+#include "../../BS_Common.H"
 #include "../l/Slater_BS.H"
 
 namespace Atom_ml

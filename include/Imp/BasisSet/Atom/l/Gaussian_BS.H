@@ -3,7 +3,7 @@
 #define _Atom_l_Gaussian_BS_H_
 
 #include "../radial/Gaussian/BS_Common.H"
-#include "../../TCommon.H"
+#include "../../BS_Common.H"
 
 namespace Atoml
 {

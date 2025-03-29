@@ -2,7 +2,7 @@
 #ifndef _Atom_kappa_Gaussian_BS_H_
 #define _Atom_kappa_Gaussian_BS_H_
 
-#include "../../TCommon.H"
+#include "../../BS_Common.H"
 #include "Imp/DataBase/HeapDB.H"
 
 namespace Atom_kappa
@@ -11,7 +11,7 @@ namespace Gaussian
 {
 
 class BasisSet 
-    : public ::BasisSetImp
+    : public ::BS_Common
     , public DB_cache<double>
 {
 public:
