@@ -17,13 +17,13 @@ public:
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
     double TotalCharge() const;
-    Orbitals* GetOrbitals(const QuantumNumber&,Spin) const;
-    Orbital* GetOrbital(size_t index, const QuantumNumber&,Spin) const;
+    Orbitals* GetOrbitals(const QNs&,Spin) const;
+    Orbital* GetOrbital(size_t index, const QNs&,Spin) const;
     double RelativeError(double expected,bool quiet=false) const;
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
-    std::vector<const QuantumNumber*> GetQuantumNumbers() const;
+    std::vector<const QNs*> GetQuantumNumbers() const;
     
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;

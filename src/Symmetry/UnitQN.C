@@ -13,7 +13,7 @@ int UnitQN::GetDegeneracy() const
     return 1;
 }
 
-QuantumNumber* UnitQN::AddPrincipleQN(int index) const
+QNs* UnitQN::AddPrincipleQN(int index) const
 {
     return new UnitnQN(index);
 }
@@ -29,7 +29,7 @@ std::istream& UnitQN::Read (std::istream& is)
     return is;
 }
 
-QuantumNumber* UnitQN::Clone() const
+QNs* UnitQN::Clone() const
 {
     return new UnitQN;
 }
@@ -43,7 +43,7 @@ std::ostream& UnitnQN::Write(std::ostream& os) const
     return UnitQN::Write(os);
 }
 
-QuantumNumber* UnitnQN::Clone() const
+QNs* UnitnQN::Clone() const
 {
     return new UnitnQN(*this);
 }

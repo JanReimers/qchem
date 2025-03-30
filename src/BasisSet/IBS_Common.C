@@ -20,7 +20,7 @@ IBS_Common::IBS_Common()
 {
 };
 
-IBS_Common::IBS_Common(QuantumNumber* theQN)
+IBS_Common::IBS_Common(QNs* theQN)
     : itsQuantumNumber(theQN)
 {
     assert(itsQuantumNumber);
@@ -79,7 +79,7 @@ bool IBS_Common::operator==(const IrrepBasisSet& bs) const
     return ret;
 }
 
-QuantumNumber*  IBS_Common::GetQuantumNumber(int index) const
+QNs*  IBS_Common::GetQuantumNumber(int index) const
 {
     return itsQuantumNumber->AddPrincipleQN(index);
 }

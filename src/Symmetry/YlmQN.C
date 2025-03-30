@@ -15,7 +15,7 @@ YlmQN::YlmQN(): YlQN(0),m(0) {};
 
 YlmQN::YlmQN(int _l, int _m) : YlQN(_l), m(_m) {};
 
-bool YlmQN::Match(const QuantumNumber& qn) const
+bool YlmQN::Match(const QNs& qn) const
 {
     const YlmQN* yqn = dynamic_cast<const YlmQN*>(&qn);
     assert(yqn);
@@ -27,7 +27,7 @@ int YlmQN::GetDegeneracy() const
     return 1; 
 }
 
-QuantumNumber* YlmQN::AddPrincipleQN(int index) const
+QNs* YlmQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }

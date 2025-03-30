@@ -253,7 +253,7 @@ The shorthand notation for
 
 \begin_inset Formula 
 \[
-=-\frac{1}{2}\left[\left[n_{a}n_{b}+l(l+1)\right]S_{n-2}\left(\alpha\right)-\left(\alpha_{a}n_{b}+\alpha_{b}n_{a}\right)S_{n-1}\left(\alpha\right)+\alpha_{a}\alpha_{b}S_{n}\left(\alpha\right)\right]
+=-\frac{1}{2}\left[\left[n_{a}n_{b}+l(l+1)\right]S_{n-2}\left(\alpha_{ab}\right)-\left(\alpha_{a}n_{b}+\alpha_{b}n_{a}\right)S_{n-1}\left(\alpha_{ab}\right)+\alpha_{a}\alpha_{b}S_{n}\left(\alpha_{ab}\right)\right]
 \]
 
 \end_inset
@@ -261,7 +261,7 @@ The shorthand notation for
 and the nuclear attraction is
 \begin_inset Formula 
 \[
-\int d^{3}r\:g_{a}(\overrightarrow{r})\frac{-Z}{r}g_{b}(\overrightarrow{r})=-Z\frac{\left(n-1\right)!}{\alpha^{n}}
+\int d^{3}r\:g_{a}(\overrightarrow{r})\frac{-Z}{r}g_{b}(\overrightarrow{r})=-Z\frac{\left(n-1\right)!}{\alpha_{ab}^{n}}
 \]
 
 \end_inset

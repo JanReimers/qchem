@@ -69,12 +69,12 @@ double QchemTester::TotalCharge() const
     return itsWaveFunction->GetChargeDensity()->GetTotalCharge();
 }
 
-Orbitals* QchemTester::GetOrbitals(const QuantumNumber& qn,Spin s) const
+Orbitals* QchemTester::GetOrbitals(const QNs& qn,Spin s) const
 {
     return itsWaveFunction->GetOrbitals(qn,s);
 }
 
-Orbital* QchemTester::GetOrbital(size_t index, const QuantumNumber& qn,Spin s) const
+Orbital* QchemTester::GetOrbital(size_t index, const QNs& qn,Spin s) const
 {
     Orbitals* orbs=GetOrbitals(qn,s);
     assert(index<orbs->GetNumOrbitals());
@@ -114,9 +114,9 @@ int QchemTester::GetZ() const
     return GetCluster()->GetNuclearCharge();
 }
 
-std::vector<const QuantumNumber*> QchemTester::GetQuantumNumbers() const
+std::vector<const QNs*> QchemTester::GetQuantumNumbers() const
 {
-    std::vector<const QuantumNumber*> qns;
+    std::vector<const QNs*> qns;
     for (const auto& b : itsBasisSet->Iterate<Orbital_IBS>())
     {
         qns.push_back(&(b->GetQuantumNumber()));

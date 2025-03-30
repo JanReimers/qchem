@@ -44,7 +44,7 @@ Exact_CD* WaveFunctionGroup::GetChargeDensity(Spin s) const
     return cd;
 }
 
-Orbitals* WaveFunctionGroup::GetOrbitals(const QuantumNumber& qn, Spin s) const
+Orbitals* WaveFunctionGroup::GetOrbitals(const QNs& qn, Spin s) const
 {
 
     auto w=itsIrrepWFs.begin();

@@ -39,10 +39,12 @@ public:
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&);
-
+    size_t SequenceIndex() const //Used for op<
+    {
+        return static_cast<int>(itsState);
+    }
+    
     State itsState;
 };
 
 #endif //_Spin_H_
-
-

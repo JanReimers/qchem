@@ -246,7 +246,7 @@ these are known as the polarized Hartree-Fock equations.
  The Coulomb and exchange operator are defined as follows
 \begin_inset Formula 
 \[
-\hat{J^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})}=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
+\hat{J^{\alpha}}\left(\overrightarrow{r_{1}}\right)\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
 \]
 
 \end_inset
@@ -254,7 +254,15 @@ these are known as the polarized Hartree-Fock equations.
 
 \begin_inset Formula 
 \[
-K_{i}^{\alpha}\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{i}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
+\hat{J^{\beta}}\left(\overrightarrow{r_{1}}\right)\phi_{i}^{\alpha}(\overrightarrow{r_{1}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\dagger\beta}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{i}^{\alpha}(\overrightarrow{r_{1}})\phi_{j}^{\beta}(\overrightarrow{r_{2}})d^{3}r_{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{i}^{\alpha}\left(\overrightarrow{r_{1}}\right)\phi_{i}^{\alpha}(\overrightarrow{r_{2}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{i}^{\alpha}(\overrightarrow{r_{2}})d^{3}r_{2}
 \]
 
 \end_inset
@@ -271,15 +279,33 @@ Notice that
  cannot,
  i.e.
  
-\begin_inset Formula $K_{i}^{\alpha}\phi_{i}^{\beta}(\overrightarrow{r_{1}})=0$
+\begin_inset Formula 
+\[
+K_{i}^{\alpha}\phi_{i}^{\beta}(\overrightarrow{r_{2}})=\sum_{j=1}^{n^{\alpha}}\int\phi_{j}^{\dagger\alpha}(\overrightarrow{r_{2}})\left|\frac{1}{r_{12}}\right|\phi_{j}^{\alpha}(\overrightarrow{r_{1}})\phi_{i}^{\beta}(\overrightarrow{r_{2}})d^{3}r_{2}=0
+\]
+
 \end_inset
 
-.
+because 
+\begin_inset Formula $\phi_{j}^{\dagger\alpha}(\overrightarrow{r_{2}})\phi_{i}^{\beta}(\overrightarrow{r_{2}})=0$
+\end_inset
+
+ from the spin space contraction:
+\begin_inset Formula 
+\[
+\chi^{\dagger\alpha}\chi^{\beta}=\begin{bmatrix}1 & 0\end{bmatrix}\begin{bmatrix}0\\
+1
+\end{bmatrix}=0
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
 One can question the accuracy of the spin polarized as compared to the full open-shell techniques commonly employed for atomic and molecular systems.
- Here we just show some ground stat energies for open shell atoms and compare them to literature values from 
+ Here we just show some ground state energies for open shell atoms and compare them to literature values from 
 \begin_inset CommandInset citation
 LatexCommand citet
 key "Saito_2009"
@@ -519,7 +545,7 @@ H_{ab}=\left\langle g_{a}\left|\hat{h}\right|g_{b}\right\rangle
 
 \begin_inset Formula 
 \[
-J_{ab}==\sum_{cd}D_{cd}\left\langle ab||cd\right\rangle 
+J_{ab}=\sum_{cd}D_{cd}\left\langle ab||cd\right\rangle 
 \]
 
 \end_inset
@@ -569,6 +595,227 @@ E=E_{NN}+\sum_{ab}D_{ab}H_{ab}+\frac{1}{2}\sum_{ab}D_{ab}J_{ab}-\frac{1}{2}\sum_
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection
+Using Symmetry
+\end_layout
+
+\begin_layout Standard
+For atoms we can using irreducible representations (irreps) of the rotation group to block diagonalize the Fock matrix.
+ These irreps are characterized by the quantum numbers 
+\begin_inset Formula $l,m_{l}$
+\end_inset
+
+.
+ In the literature irreps are often labelled with in index 
+\begin_inset Formula $\kappa$
+\end_inset
+
+.
+ Unfortunately this same symbol is also to characterize the spherical spinors 
+\begin_inset Formula $\Omega_{\kappa}\left(\theta,\phi\right)$
+\end_inset
+
+ that arise in a relativistic treatment of atoms.
+ In both cases,
+ 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ is a symmetry index,
+ it just that in the relativistic case it has a well defined,
+ specific integer value.
+ For molecules 
+\begin_inset Formula $\kappa$
+\end_inset
+
+ would label in irrep from the molecular point group.
+\end_layout
+
+\begin_layout Standard
+Using this idea we find that there are 
+\begin_inset Formula $2k$
+\end_inset
+
+ secular equations to solve:
+\begin_inset Formula 
+\[
+F^{\kappa\alpha}C^{\kappa\alpha}=\varepsilon^{\kappa\alpha}S^{\kappa}C^{\kappa\alpha},\;\kappa\in\left\{ 1\ldots k\right\} 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F^{\kappa\beta}C^{\kappa\beta}=\varepsilon^{\kappa\beta}S^{\kappa}C^{\kappa\beta},\;\kappa\in\left\{ 1\ldots k\right\} 
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula 
+\[
+F^{\kappa\alpha}=H_{ab}^{\kappa}+J_{ab}^{\alpha\kappa}+J_{ab}^{\beta\kappa}-K_{ab}^{\kappa\alpha}=H_{ab}^{\kappa}+J_{ab}^{\kappa}-K_{ab}^{\kappa\alpha}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+H_{ab}^{\kappa}=\left\langle g_{a}^{\kappa}\left|\hat{h}\right|g_{b}^{\kappa}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{ab}^{\kappa}=J_{ab}^{\alpha\kappa}+J_{ab}^{\beta\kappa}=\sum_{cd\kappa^{\prime}}\left(D_{cd}^{\kappa^{\prime}\alpha}+D_{cd}^{\kappa^{\prime}\beta}\right)\left\langle g_{a}^{\kappa}\left(1\right)g_{c}^{\kappa^{\prime}}\left(2\right)|\frac{1}{r_{12}}|g_{b}^{\kappa}\left(1\right)g_{d}^{\kappa^{\prime}}\left(2\right)\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{cd\kappa^{\prime}}\left(D_{cd}^{\kappa^{\prime}\alpha}+D_{cd}^{\kappa^{\prime}\beta}\right)J_{ac,bd}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{cd\kappa^{\prime}}\left(\sum_{m_{s}^{\prime}}D_{cd}^{\kappa^{\prime}m_{s}^{\prime}}\right)J_{ac,bd}^{\kappa\kappa^{\prime}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{\kappa\alpha}=\sum_{cd\kappa^{\prime}}D_{cd}^{\kappa^{\prime}\alpha}\left\langle g_{a}^{\kappa}\left(1\right)g_{b}^{\kappa}\left(2\right)|\frac{1}{r_{12}}|g_{c}^{\kappa^{\prime}}\left(1\right)g_{d}^{\kappa^{\prime}}\left(2\right)\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{cd\kappa^{\prime}}D_{cd}^{\kappa^{\prime}\alpha}K_{ab,cd}^{\kappa\kappa^{\prime}}
+\]
+
+\end_inset
+
+Now we can ask what happens if the simply fold the spin and irrep into one parameter 
+\begin_inset Formula $\lambda=\left\{ \kappa,m_{s}\right\} $
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F^{\lambda}C^{\lambda}=\varepsilon^{\lambda}S^{\lambda}C^{\lambda},\;\lambda\in\left\{ 1\ldots2k\right\} 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F^{\lambda}=H_{ab}^{\lambda}+J_{ab}^{\lambda}+K_{ab}^{\lambda}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{ab}^{\lambda}=\sum_{m_{s}}J_{ab}^{m_{s}\kappa}=\sum_{cd\kappa^{\prime}}\left(\sum_{m_{s}^{\prime}}D_{cd}^{\kappa^{\prime}m_{s}^{\prime}}\right)J_{ac,bd}^{\kappa\kappa^{\prime}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+J_{ab}^{\lambda}=\sum_{cd\lambda^{\prime}}D_{cd}^{\lambda^{\prime}}J_{ac,bd}^{\lambda\lambda^{\prime}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+K_{ab}^{\lambda}=K_{ab}^{m_{s}\kappa}=\sum_{cd\kappa^{\prime}}D_{cd}^{\kappa^{\prime}m_{s}}K_{ab,cd}^{\kappa\kappa^{\prime}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{cd\lambda^{\prime}}\delta_{m_{s},m_{s}^{\prime}}D_{cd}^{\lambda^{\prime}}K_{ac,bd}^{\lambda\lambda^{\prime}}
+\]
+
+\end_inset
+
+We should remember that the overlap 
+\begin_inset Formula $S^{\left\{ \kappa,\alpha\right\} }=S^{\left\{ \kappa,\beta\right\} }$
+\end_inset
+
+ is spin independent.
+ The same is true for 
+\begin_inset Formula $H_{ab}^{\lambda}$
+\end_inset
+
+ and 
+\begin_inset Formula $J_{ab}^{\lambda}$
+\end_inset
+
+.
+ So we reach the following conclusions:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $S,H,J$
+\end_inset
+
+ are all spin independent.
+\end_layout
+
+\begin_layout Itemize
+Calculating 
+\begin_inset Formula $J$
+\end_inset
+
+ is just a blind sum of all spinor-irreps 
+\begin_inset Formula $\lambda$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $K$
+\end_inset
+
+ is spin dependent and requires a restricted sum over all spinor-irreps 
+\begin_inset Formula $\lambda$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+In software we should make sure we only call the contraction 
+\begin_inset Formula $J_{ab}^{\lambda}=\sum_{cd\lambda^{\prime}}D_{cd}^{\lambda^{\prime}}J_{ac,bd}^{\lambda\lambda^{\prime}}$
+\end_inset
+
+ once per cycle.
+ 
 \end_layout
 
 \begin_layout Subsection

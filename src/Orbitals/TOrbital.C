@@ -47,7 +47,7 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     }
 }
 
-template <class T> QuantumNumber* TOrbitalImp<T>::GetQuantumNumber() const
+template <class T> QNs* TOrbitalImp<T>::GetQuantumNumber() const
 {
     return itsBasisSet->GetQuantumNumber(itsIndex);
 }

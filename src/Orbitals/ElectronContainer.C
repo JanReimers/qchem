@@ -9,7 +9,7 @@
 #include <cassert>
 #include <stdlib.h>
 
-ElectronContainerImp::ElectronContainerImp(const Spin& S,const QuantumNumber& qn)
+ElectronContainerImp::ElectronContainerImp(const Spin& S,const QNs& qn)
     : itsOccupation       (0)
     , itsSpin             (S)
     , itsOrbitalDegeneracy(qn.GetDegeneracy())

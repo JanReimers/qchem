@@ -1,8 +1,9 @@
 Priority 1:
+    -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m
     -DFT check for l>0 basis sets for fitting.
     -Slater norm takes n=l+1, Gaussian norm takes l.
-    -Break up BasisSet folder
+    Done: -Break up BasisSet folder
         Done: Atom
             radial
             l
@@ -11,9 +12,9 @@ Priority 1:
                 Slater,Gaussian,BSpline
             RKB
                 Slater,Gaussian,BSpline
-        Molecule
+        Done: Molecule
             PG
-        Lattice
+        Done: Lattice
             PlaneWave
 
 
@@ -23,7 +24,7 @@ Priority 1:
         How to make this work with something like BSpline basis which does not use
             exponential/exponents?
             - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
-            - Is this just the old IE interface re-appearing.
+            - Is this just the old IE interface re-appearing?
     -Break up the BasisSet.H header
         Done: -Break out BasisFunction.H
         Done: -Break out IrrepBS.H
@@ -49,6 +50,7 @@ Priority 1:
     -QNs should contain spin.  Right?
         Yes
         -But need to check that exchange integrals work out properly when spin is folded
+            -Exchange requires a restricted sum over spinor-irreps
         into the Irrep blocking system.
             -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
         Irrep QNs = IQNs
@@ -60,11 +62,27 @@ Priority 1:
             {n,kappa,ms}    g=2j+1      Dirac atom
             {n,chi,ms}      g=1         Molecule
             {n,chi}         g=2         Molecule
-        -Need < op for maps
-            This requires a hash value.
-        -Need == op
+        -There are three concepts here:
+            1) principle QN: n
+            2) symmetry: Yl, Ylm, Point group
+            3) spin.
+            -For relativistic calculations the spherical spinor combines Ylm and spin.
+             but I think we can still separate out spin.
+        -Basis sets can be characterized by the symmetry part, but no by n,ms
+        -Orbitals are of course characterized by all four QNs for polarized calculations
+            and by n,sym for un polarized calculations.
+        -We only need polymorphism for #2.
+        -Need < op for std::maps<>
+            This requires a hash value. (((n-1)*Nmax+l)*lmax+(ml+l))*lmax+(ms+0.5)
+        -Need op== and MatchType(IQNs_a,IQNs_b)
         -Store j,mj,ms=n/2 QNs as double or some sort of frac class?
-
+        -Plan:
+            -QuantumNumber -> QNs for brevity and plurality
+            -Make a IrrepSymmetry interface for Yl, Ylm, Omega_kappa
+            -Make an OrbitalQNs class for {IrrepSymmetry,n,ms}
+            -Use OrbitalQNs->ms() instead of Spin s in WF,CD etc.
+            -Git rid of PolarizedCD
+            -Get rid of PolarizedWF.
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
             map<QN,IrrepWaveFunction*> All

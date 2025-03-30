@@ -44,7 +44,7 @@ Exact_CD* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
     return itsGroup->GetChargeDensity(s);
 }
 
-Orbitals* MasterUnPolarizedWF::GetOrbitals(const QuantumNumber& qn,Spin s) const
+Orbitals* MasterUnPolarizedWF::GetOrbitals(const QNs& qn,Spin s) const
 {
     assert(itsGroup);
     assert(s==Spin::None);

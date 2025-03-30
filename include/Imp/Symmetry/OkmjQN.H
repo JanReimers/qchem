@@ -17,9 +17,9 @@ public:
     Omega_kQN(         );
     Omega_kQN(int kappa);
 
-    virtual bool Match(const QuantumNumber&) const;
+    virtual bool Match(const QNs&) const;
     virtual int GetDegeneracy() const;
-    QuantumNumber* AddPrincipleQN(int index) const;
+    QNs* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
@@ -50,9 +50,9 @@ public:
     Omega_kmjQN(                 );
     Omega_kmjQN(int kappa, double mj);
 
-    virtual bool Match(const QuantumNumber&) const;
+    virtual bool Match(const QNs&) const;
     virtual int GetDegeneracy() const;
-    QuantumNumber* AddPrincipleQN(int index) const;
+    QNs* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
     virtual std::ostream&  Write(std::ostream&) const;

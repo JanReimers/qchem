@@ -72,7 +72,7 @@ int AtomElectronConfiguration::GetN(const Spin& s) const
     return s==Spin::Up ? (ne+NUnpaired)/2 : (ne-NUnpaired)/2;
 }
 
-int AtomElectronConfiguration::GetN(const QuantumNumber& qn) const
+int AtomElectronConfiguration::GetN(const QNs& qn) const
 {
     const AngularQN& sqn=dynamic_cast<const AngularQN&>(qn);
     int nl,nlu;
@@ -80,7 +80,7 @@ int AtomElectronConfiguration::GetN(const QuantumNumber& qn) const
     assert(nlu==0);
     return nl;    
 }
-int AtomElectronConfiguration::GetN(const QuantumNumber& qn, const Spin& s) const
+int AtomElectronConfiguration::GetN(const QNs& qn, const Spin& s) const
 {
     if (s==Spin::None) return GetN(qn);
     

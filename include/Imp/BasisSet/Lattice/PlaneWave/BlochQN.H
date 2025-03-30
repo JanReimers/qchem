@@ -16,18 +16,18 @@ typedef Vector3D<double> RVec3;
 //
 
 class BlochQN
-    : public QuantumNumber
+    : public QNs
 {
 public:
     BlochQN(         );
     BlochQN(RVec3 theK);
 
-    virtual bool Match(const QuantumNumber&) const;
+    virtual bool Match(const QNs&) const;
     virtual int GetDegeneracy() const;
 
     virtual std::ostream&       Write(std::ostream&) const;
     virtual std::istream&       Read (std::istream&)      ;
-    virtual QuantumNumber* Clone(        ) const;
+    virtual QNs* Clone(        ) const;
 
     RVec3   GetK() const
     {

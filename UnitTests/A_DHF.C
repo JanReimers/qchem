@@ -98,7 +98,7 @@ TEST_P(A_SLmj_DHF,Multiple)
     Init(N,Z/200.,Z*200.,GetLMax(1));
     Iterate({1,Z*1e-4,1.0,0.0,false});
 
-    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    std::vector<const QNs*> qns=GetQuantumNumbers();
     Orbital* orb0=GetOrbital(0,*qns[0],Spin::Up);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
@@ -168,7 +168,7 @@ TEST_P(A_SG_DHF,Multiple)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1.0,0.0,true});
 
-    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    std::vector<const QNs*> qns=GetQuantumNumbers();
     cout << "QN=" << *qns[0] << endl;
     Orbital* orb0=GetOrbital(0,*qns[0],Spin::Up);
     double e0=orb0->GetEigenEnergy();
@@ -257,7 +257,7 @@ TEST_F(A_SG_HFP_H,Phir)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    std::vector<const QNs*> qns=GetQuantumNumbers();
     Orbital* orb0=GetOrbital(0,*qns[0],Spin::Up);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),0.0);
@@ -274,7 +274,7 @@ TEST_F(A_SG_DHF_H,Phir)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    std::vector<const QNs*> qns=GetQuantumNumbers();
     Orbital* orb0=GetOrbital(0,*qns[0],Spin::Up);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
@@ -290,7 +290,7 @@ TEST_F(A_SL_DHF_H,Phir)
     Init(N,1./100.,100.0,GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const QuantumNumber*> qns=GetQuantumNumbers();
+    std::vector<const QNs*> qns=GetQuantumNumbers();
     Orbital* orb0=GetOrbital(0,*qns[0],Spin::Up);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);

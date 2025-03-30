@@ -3,7 +3,7 @@
 #define _ElectronConfiguration_H_
 
 class Spin;
-class QuantumNumber;
+class QNs;
 
 class ElectronConfiguration
 {
@@ -13,9 +13,9 @@ public:
     //! Number of electrons in the spin up/dn sector 
     virtual int GetN(                      const Spin&) const=0;
     //! Number of electrons in one symmetry/irrep sector 
-    virtual int GetN(const QuantumNumber&             ) const=0;
+    virtual int GetN(const QNs&             ) const=0;
     //! Number of electrons in one {symmetry/irrep,spin up/dn} sector
-    virtual int GetN(const QuantumNumber&, const Spin&) const=0;
+    virtual int GetN(const QNs&, const Spin&) const=0;
 
     virtual void Display() const=0;
 };
@@ -32,8 +32,8 @@ public:
     
     virtual int GetN(                                 ) const;
     virtual int GetN(                      const Spin&) const;
-    virtual int GetN(const QuantumNumber&             ) const;
-    virtual int GetN(const QuantumNumber&, const Spin&) const;
+    virtual int GetN(const QNs&             ) const;
+    virtual int GetN(const QNs&, const Spin&) const;
     virtual void Display() const;
 
 private:
@@ -54,8 +54,8 @@ public:
     
     virtual int GetN(                                 ) const {return Ne;}
     virtual int GetN(                      const Spin&) const;
-    virtual int GetN(const QuantumNumber&             ) const {return Ne;}
-    virtual int GetN(const QuantumNumber&, const Spin& s) const {return GetN(s);}
+    virtual int GetN(const QNs&             ) const {return Ne;}
+    virtual int GetN(const QNs&, const Spin& s) const {return GetN(s);}
     virtual void Display() const;
 private:
     int Ne;

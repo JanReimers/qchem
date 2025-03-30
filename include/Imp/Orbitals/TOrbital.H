@@ -20,7 +20,7 @@ public:
     TOrbitalImp(const TIrrepBasisSet<T>*,const Vec&, double, const Spin&, int i);
 
     virtual double GetEigenEnergy() const;
-    virtual QuantumNumber* GetQuantumNumber() const;
+    virtual QNs* GetQuantumNumber() const;
     virtual EnergyLevel MakeEnergyLevel(const Spin& s);
     virtual void   AddDensityMatrix(SMat&) const;
 

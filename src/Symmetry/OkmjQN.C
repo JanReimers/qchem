@@ -15,7 +15,7 @@ Omega_kQN::Omega_kQN(int _kappa) : kappa(_kappa)
     assert(abs(kappa)<10);
 };
 
-bool Omega_kQN::Match(const QuantumNumber& qn) const
+bool Omega_kQN::Match(const QNs& qn) const
 {
     const Omega_kQN* oqn = dynamic_cast<const Omega_kQN*>(&qn);
     assert(oqn);
@@ -27,7 +27,7 @@ int Omega_kQN::GetDegeneracy() const
     return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
 }
 
-QuantumNumber* Omega_kQN::AddPrincipleQN(int index) const
+QNs* Omega_kQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }
@@ -92,7 +92,7 @@ Omega_kmjQN::Omega_kmjQN(): kappa(0), mj(0) {};
 
 Omega_kmjQN::Omega_kmjQN(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
 
-bool Omega_kmjQN::Match(const QuantumNumber& qn) const
+bool Omega_kmjQN::Match(const QNs& qn) const
 {
     const Omega_kmjQN* oqn = dynamic_cast<const Omega_kmjQN*>(&qn);
     assert(oqn);
@@ -104,7 +104,7 @@ int Omega_kmjQN::GetDegeneracy() const
     return 1;
 }
 
-QuantumNumber* Omega_kmjQN::AddPrincipleQN(int index) const
+QNs* Omega_kmjQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }

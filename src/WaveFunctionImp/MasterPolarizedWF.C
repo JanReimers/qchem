@@ -57,7 +57,7 @@ Exact_CD* MasterPolarizedWF::GetChargeDensity(Spin s) const
     return new Polarized_CDImp(up,dn);
 }
 
-Orbitals* MasterPolarizedWF::GetOrbitals(const QuantumNumber& qn,Spin s) const
+Orbitals* MasterPolarizedWF::GetOrbitals(const QNs& qn,Spin s) const
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);

@@ -47,7 +47,7 @@ Exact_CD* IrrepWaveFunction::GetChargeDensity(Spin s) const
     return itsOrbitals->GetChargeDensity(s);
 }
 
-Orbitals* IrrepWaveFunction::GetOrbitals(const QuantumNumber& qn, Spin s) const
+Orbitals* IrrepWaveFunction::GetOrbitals(const QNs& qn, Spin s) const
 {
     assert(itsOrbitals);
     assert(qn==*itsQN);

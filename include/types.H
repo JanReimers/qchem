@@ -86,7 +86,7 @@ class MeshParams;
 class Orbital_IBS;
 class Orbital;
 class Orbitals;
-class QuantumNumber;
+class QNs;
 class RadialMesh;
 class SCFIterator;
 class Spin;

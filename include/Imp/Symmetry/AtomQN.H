@@ -13,19 +13,19 @@ class AngularQN;
 //
 
 class AtomQN
-    : public virtual QuantumNumber
+    : public virtual QNs
 {
 public:
     AtomQN(            );
     AtomQN(int n, const AngularQN&);
 
-    virtual bool Match(const QuantumNumber&) const;
+    virtual bool Match(const QNs&) const;
     virtual int GetDegeneracy() const;
-    virtual QuantumNumber* AddPrincipleQN(int index) const;
+    virtual QNs* AddPrincipleQN(int index) const;
  
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
-    virtual QuantumNumber* Clone(        ) const;
+    virtual QNs* Clone(        ) const;
 private:
     int l,n;
     AngularQN* itsAngularQN; //Yl Ylml, or relativistic Ok, Okmj

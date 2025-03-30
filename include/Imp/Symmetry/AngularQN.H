@@ -10,7 +10,7 @@
 //
 
 class AngularQN
-    : public virtual QuantumNumber
+    : public virtual QNs
 {
 public:
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;

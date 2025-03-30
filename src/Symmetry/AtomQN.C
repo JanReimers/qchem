@@ -22,7 +22,7 @@ AtomQN::AtomQN(): l(0),n(0),itsAngularQN(0) {};
 AtomQN::AtomQN(int _n, const AngularQN& aqn)
 : l(aqn.GetL()), n(_n+l), itsAngularQN(aqn.Clone()) {};
 
-bool AtomQN::Match(const QuantumNumber& qn) const
+bool AtomQN::Match(const QNs& qn) const
 {
     const AtomQN* yqn = dynamic_cast<const AtomQN*>(&qn);
     assert(yqn);
@@ -34,7 +34,7 @@ int AtomQN::GetDegeneracy() const
     return itsAngularQN->GetDegeneracy();
 }
 
-QuantumNumber* AtomQN::AddPrincipleQN(int index) const
+QNs* AtomQN::AddPrincipleQN(int index) const
 {
     return itsAngularQN->AddPrincipleQN(index);
 }
@@ -50,7 +50,7 @@ std::istream& AtomQN::Read (std::istream& is)
     return is;
 }
 
-QuantumNumber* AtomQN::Clone() const
+QNs* AtomQN::Clone() const
 {
     return new AtomQN(*this);
 }
