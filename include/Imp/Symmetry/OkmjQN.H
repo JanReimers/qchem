@@ -36,7 +36,7 @@ public:
     static double l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
 protected:
     int kappa;
-    static const int LMax=3;
+    static const int LMax=4;
 };
 
 

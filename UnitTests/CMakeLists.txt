@@ -5,8 +5,8 @@ link_directories(
     $<$<CONFIG:Debug>: ../../oml/Debug>
     $<$<CONFIG:Release>: ../../oml/Release>
 )
-add_executable(UTMain UTMain.C M_PG_U.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C)
-#add_executable(UTMain UTMain.C DiracIntegral.C A_DHF.C QchemTester.C)
+#add_executable(UTMain UTMain.C M_PG_U.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C)
+add_executable(UTMain UTMain.C SymQN.C)
 
 target_link_options(UTMain PRIVATE -fopenmp)
 target_include_directories(UTMain PRIVATE ../include ../../oml/include)

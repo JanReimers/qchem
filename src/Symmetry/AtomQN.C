@@ -10,7 +10,7 @@
 
 using std::cout;
 using std::endl;
-const size_t n_max=20;
+const int n_max=20;
 
 AtomQN::AtomQN(): l(0),n(0),itsAngularQN(0) {};
 

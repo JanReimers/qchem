@@ -106,7 +106,7 @@ Omega_kmjQN::Omega_kmjQN(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
 size_t Omega_kmjQN::SequenceIndex() const //Used for op<
  {
     assert(abs(kappa)<=LMax+1);
-    return (mj+0.5)+LMax+(kappa+LMax+1)*(2*LMax+1);
+    return (mj+Getj())*(2*LMax+3)+(kappa+LMax+1);
  }
 
 bool Omega_kmjQN::MatchType(const QNs& b) const

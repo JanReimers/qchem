@@ -12,6 +12,8 @@ class Orbital_QNs
 {   
 public:
     Orbital_QNs(size_t n, Spin ms,const QNs* sym);
+    Orbital_QNs(const Orbital_QNs&);
+
     virtual ~Orbital_QNs();
     virtual bool Match(const Orbital_QNs&) const;
     virtual bool MatchType(const Orbital_QNs&) const;
@@ -26,9 +28,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream& is)      {return is;}
     virtual Orbital_QNs* Clone() const;
-private:
     size_t SequenceIndex() const; //Used for op<
-
+private:
     size_t     n;
     Spin       ms;
     const QNs* sym;
