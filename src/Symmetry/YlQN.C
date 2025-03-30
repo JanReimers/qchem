@@ -16,6 +16,16 @@ YlQN::YlQN(int theL)
     : itsL(theL)
 {};
 
+ size_t YlQN::SequenceIndex() const //Used for op<
+ {
+    return itsL;
+ }
+
+bool YlQN::MatchType(const QNs& b) const
+{
+    return dynamic_cast<const YlQN*>(&b)!=0;
+}
+
 bool YlQN::Match(const QNs& qn) const
 {
     const YlQN* aqn = dynamic_cast<const YlQN*>(&qn);

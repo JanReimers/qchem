@@ -9,10 +9,12 @@ class QNs
 {
 public:
     virtual ~QNs() {};
+    virtual size_t SequenceIndex() const=0; //Used for op<
     virtual bool Match(const QNs&) const=0;
-    friend  bool operator==(const QNs& q1, const QNs& q2)
+    virtual bool MatchType(const QNs& b) const=0;
+    friend  bool operator==(const QNs& a, const QNs& b)
     {
-        return q1.Match(q2);
+        return a.Match(b);
     }
     //! Does not include spin degeneracy which is handles separately
     virtual int GetDegeneracy() const=0;

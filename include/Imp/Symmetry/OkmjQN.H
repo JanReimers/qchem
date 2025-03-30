@@ -17,6 +17,8 @@ public:
     Omega_kQN(         );
     Omega_kQN(int kappa);
 
+    virtual size_t SequenceIndex() const; //Used for op<
+    virtual bool MatchType(const QNs&) const;
     virtual bool Match(const QNs&) const;
     virtual int GetDegeneracy() const;
     QNs* AddPrincipleQN(int index) const;
@@ -50,6 +52,8 @@ public:
     Omega_kmjQN(                 );
     Omega_kmjQN(int kappa, double mj);
 
+    virtual size_t SequenceIndex() const; //Used for op<
+    virtual bool MatchType(const QNs&) const;
     virtual bool Match(const QNs&) const;
     virtual int GetDegeneracy() const;
     QNs* AddPrincipleQN(int index) const;

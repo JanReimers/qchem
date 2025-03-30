@@ -11,6 +11,8 @@ class UnitQN
 {
 public:
     UnitQN();
+    virtual size_t SequenceIndex() const {return 1;} //Used for op<
+    virtual bool MatchType(const QNs&) const;
     virtual bool Match(const QNs&) const
     {
         return true;

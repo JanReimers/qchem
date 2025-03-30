@@ -8,6 +8,11 @@
 UnitQN::UnitQN()
 {};
 
+bool UnitQN::MatchType(const QNs& b) const
+{
+    return dynamic_cast<const UnitQN*>(&b)!=0;
+}
+
 int UnitQN::GetDegeneracy() const
 {
     return 1;

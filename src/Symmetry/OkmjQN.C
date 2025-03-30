@@ -15,6 +15,17 @@ Omega_kQN::Omega_kQN(int _kappa) : kappa(_kappa)
     assert(abs(kappa)<10);
 };
 
+size_t Omega_kQN::SequenceIndex() const //Used for op<
+ {
+    assert(abs(kappa)<=LMax+1);
+    return kappa+LMax+1;
+ }
+
+bool Omega_kQN::MatchType(const QNs& b) const
+{
+    return dynamic_cast<const Omega_kQN*>(&b)!=0;
+}
+
 bool Omega_kQN::Match(const QNs& qn) const
 {
     const Omega_kQN* oqn = dynamic_cast<const Omega_kQN*>(&qn);
@@ -91,6 +102,17 @@ AngularQN* Omega_kQN::Clone() const
 Omega_kmjQN::Omega_kmjQN(): kappa(0), mj(0) {};
 
 Omega_kmjQN::Omega_kmjQN(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
+
+size_t Omega_kmjQN::SequenceIndex() const //Used for op<
+ {
+    assert(abs(kappa)<=LMax+1);
+    return (mj+0.5)+LMax+(kappa+LMax+1)*(2*LMax+1);
+ }
+
+bool Omega_kmjQN::MatchType(const QNs& b) const
+{
+    return dynamic_cast<const Omega_kmjQN*>(&b)!=0;
+}
 
 bool Omega_kmjQN::Match(const QNs& qn) const
 {

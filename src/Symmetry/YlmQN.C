@@ -11,9 +11,20 @@
 using std::cout;
 using std::endl;
 
+const int LMAX=4;
 YlmQN::YlmQN(): YlQN(0),m(0) {};
 
 YlmQN::YlmQN(int _l, int _m) : YlQN(_l), m(_m) {};
+
+size_t YlmQN::SequenceIndex() const //Used for op<
+ {
+    return m+itsL+itsL*(2*LMAX+1);
+ }
+
+bool YlmQN::MatchType(const QNs& b) const
+{
+    return dynamic_cast<const YlmQN*>(&b)!=0;
+}
 
 bool YlmQN::Match(const QNs& qn) const
 {

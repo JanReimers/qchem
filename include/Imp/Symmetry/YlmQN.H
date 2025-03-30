@@ -18,6 +18,8 @@ public:
     YlmQN(            );
     YlmQN(int l, int m);
 
+    virtual size_t SequenceIndex() const; //Used for op<
+    virtual bool MatchType(const QNs&) const;
     virtual bool   Match(const QNs&) const;
     virtual int    GetDegeneracy() const;
     QNs* AddPrincipleQN(int index) const;

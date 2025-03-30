@@ -10,6 +10,7 @@
 
 using std::cout;
 using std::endl;
+const size_t n_max=20;
 
 AtomQN::AtomQN(): l(0),n(0),itsAngularQN(0) {};
 
@@ -21,6 +22,17 @@ AtomQN::AtomQN(): l(0),n(0),itsAngularQN(0) {};
 
 AtomQN::AtomQN(int _n, const AngularQN& aqn)
 : l(aqn.GetL()), n(_n+l), itsAngularQN(aqn.Clone()) {};
+
+size_t AtomQN::SequenceIndex() const //Used for op<
+ {
+    assert(n<=n_max);
+    return itsAngularQN->SequenceIndex()*n_max+(n-1);
+ }
+
+bool AtomQN::MatchType(const QNs& b) const
+{
+    return dynamic_cast<const AtomQN*>(&b)!=0;
+}
 
 bool AtomQN::Match(const QNs& qn) const
 {
