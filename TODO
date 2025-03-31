@@ -49,7 +49,7 @@ Priority 1:
     
     -QNs should contain spin.  Right?
         Yes
-        -But need to check that exchange integrals work out properly when spin is folded
+        Done: -But need to check that exchange integrals work out properly when spin is folded
             -Exchange requires a restricted sum over spinor-irreps
         into the Irrep blocking system.
             -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
@@ -71,6 +71,7 @@ Priority 1:
         -Basis sets can be characterized by the symmetry part, but no by n,ms
         -Orbitals are of course characterized by all four QNs for polarized calculations
             and by n,sym for un polarized calculations.
+            Orbitals should have a Spin.
         -We only need polymorphism for #2.
         -Need < op for std::maps<>
             This requires a hash value. (((n-1)*Nmax+l)*lmax+(ml+l))*lmax+(ms+0.5)

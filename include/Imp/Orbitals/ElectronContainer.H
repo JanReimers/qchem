@@ -15,7 +15,7 @@ public:
     ElectronContainerImp();
     ElectronContainerImp(const Spin&,const QNs&);
 
-    virtual double GetSpin      (       ) const;
+    virtual Spin   GetSpin      (       ) const;
     virtual int    GetDegeneracy(       ) const;
     virtual bool   IsOccupied   (       ) const;
     virtual double GetOccupation(       ) const;

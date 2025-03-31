@@ -48,9 +48,9 @@ private:
     TOrbitalsImp(const TOrbitalsImp&);
     virtual SMat CalculateDensityMatrix() const;
 
-    const TOrbital_IBS<T>* itsBasisSet;
-    optr_vector1<Orbital*>   itsOrbitals;
-    LASolver<double>*        itsLASolver; //General eigen solver
+    const TOrbital_IBS<T>*  itsBasisSet;
+    optr_vector1<Orbital*>  itsOrbitals;
+    LASolver<double>*       itsLASolver; //General eigen solver
 
 };
 

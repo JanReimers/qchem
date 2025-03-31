@@ -11,7 +11,7 @@ public:
     virtual ~ElectronContainer() {};
     virtual bool   IsOccupied   (       ) const=0;
     virtual double GetOccupation(       ) const=0;
-    virtual double GetSpin      (       ) const=0;
+    virtual Spin   GetSpin      (       ) const=0;
     virtual void   Empty        (       )      =0;
     virtual double TakeElectrons(double )      =0;
     virtual int    GetDegeneracy(       ) const=0;
@@ -33,6 +33,8 @@ public:
     virtual ~Orbital() {};
     virtual double   GetEigenEnergy(        ) const=0;
     virtual QNs* GetQuantumNumber() const=0;
+    virtual Orbital_QNs GetQNs() const=0;
+    
     virtual EnergyLevel MakeEnergyLevel(const Spin& s)=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;

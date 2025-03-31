@@ -6,6 +6,7 @@
 #include <EnergyLevel.H>
 #include <QuantumNumber.H>
 #include <Irrep_BS.H>
+#include <Orbital_QNs.H>
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
@@ -18,7 +19,7 @@
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const TIrrepBasisSet<T>* bs,const Vec& c,double e, const Spin& S, int i)
+TOrbitalImp(const TOrbital_IBS<T>* bs,const Vec& c,double e, const Spin& S, int i)
     : ElectronContainerImp(S,bs->GetQuantumNumber())
     , itsEigenEnergy(e)
     , itsCoeff      (c)
@@ -50,6 +51,11 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
 template <class T> QNs* TOrbitalImp<T>::GetQuantumNumber() const
 {
     return itsBasisSet->GetQuantumNumber(itsIndex);
+}
+
+template <class T> Orbital_QNs TOrbitalImp<T>::GetQNs() const
+{
+    return Orbital_QNs(itsIndex,GetSpin(),&itsBasisSet->GetQuantumNumber());
 }
 
 template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)

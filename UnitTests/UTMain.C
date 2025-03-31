@@ -5,13 +5,13 @@
 int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
-     testing::GTEST_FLAG(filter) = "SymQNTests.*";  
+     // testing::GTEST_FLAG(filter) = "SymQNTests.*";  
      // testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";  
      // testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
      // testing::GTEST_FLAG(filter) = "DiracIntegralTests.*";  
 //     testing::GTEST_FLAG(filter) = "DiracIntegralTests.*:Multiple/A_*_DHF.Multiple/*";
      //    testing::GTEST_FLAG(filter) = "Multiple/A_*_DHF.Multiple/*:DiracIntegralTests.*";
-     // testing::GTEST_FLAG(filter) = "Multiple/A_SL*_*_*.Multiple/*:SlaterRadialIntegralTests.*";
+     testing::GTEST_FLAG(filter) = "Multiple/A_SL*_*_*.Multiple/*:SlaterRadialIntegralTests.*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/*";
      // testing::GTEST_FLAG(filter) = "Multiple/A_*_DHF.Multiple/*";
 //     testing::GTEST_FLAG(filter) = "A_SG_DHF_H.Phir";

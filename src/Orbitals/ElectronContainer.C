@@ -23,22 +23,9 @@ ElectronContainerImp::ElectronContainerImp()
     , itsOrbitalDegeneracy(1)
 {};
 
-double ElectronContainerImp::GetSpin() const
+Spin ElectronContainerImp::GetSpin() const
 {
-    double ret=0;
-    switch (itsSpin.itsState)
-    {
-    case Spin::Down :
-        ret=-0.5;
-        break;
-    case Spin::None :
-        ret= 0.0;
-        break;
-    case Spin::Up   :
-        ret= 0.5;
-        break;
-    };
-    return ret;
+    return itsSpin;
 }
 
 int ElectronContainerImp::GetDegeneracy() const
