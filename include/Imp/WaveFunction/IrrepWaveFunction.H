@@ -7,12 +7,12 @@
 #include <WaveFunction.H>
 #include <Spin.H>
 #include <EnergyLevel.H>
+#include <Orbital_QNs.H>
 
 class IrrepWaveFunction
     : public virtual WaveFunction
 {
 public:
-    IrrepWaveFunction();
     IrrepWaveFunction(const TOrbital_IBS<double>*, const Spin&);
     virtual ~IrrepWaveFunction();
 
@@ -29,10 +29,11 @@ public:
 private:
     IrrepWaveFunction(const IrrepWaveFunction&);
 
-    Orbitals*            itsOrbitals;
-    Spin                 itsSpin;
-    const QNs* itsQN;
-    EnergyLevels         itsELevels;
+    Orbitals*     itsOrbitals;
+    Spin          itsSpin;
+    const QNs*    itsQN;
+    Orbital_QNs   itsQNs;
+    EnergyLevels  itsELevels;
 
 }; 
 

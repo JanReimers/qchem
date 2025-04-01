@@ -9,6 +9,7 @@
 #include <Irrep_BS.H>
 #include <Hamiltonian.H>
 #include <QuantumNumber.H>
+#include <Orbital_QNs.H>
 #include <LASolver.H>
 #include "Imp/Containers/ptr_vector_io.h"
 #include "oml/vector.h"
@@ -20,13 +21,11 @@
 //
 //  Construction zone
 //
-template <class T> TOrbitalsImp<T>::TOrbitalsImp()
-{};
-
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const TOrbital_IBS<T>* bs)
+TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
+    , itsQNs(ms,&bs->GetQuantumNumber())
 {
     assert(itsBasisSet->GetNumFunctions()>0);
 };
@@ -87,6 +86,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 
 template <class T> Exact_CD* TOrbitalsImp<T>::GetChargeDensity(Spin s) const
 {
+    assert(s==GetQNs().GetSpin());
     return new IrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,s);
 }
 
@@ -100,6 +100,10 @@ CalculateDensityMatrix() const
     return d;
 }
 
+template <class T>  Orbital_QNs    TOrbitalsImp<T>::GetQNs() const
+{
+    return itsQNs;
+}
 //-----------------------------------------------------------------
 //
 //  VectorFunction stuff.

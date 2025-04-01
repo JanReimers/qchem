@@ -19,7 +19,6 @@
 WaveFunction* WaveFunction::Factory(std::istream& is)
 {
     std::string Name=PeekAtName(is);
-    if (Name==typeid(IrrepWaveFunction).name()) return new IrrepWaveFunction;
     if (Name==typeid(WaveFunctionGroup).name()) return new WaveFunctionGroup;
     if (Name==typeid(MasterPolarizedWF).name()) return new MasterPolarizedWF;
     if (Name==typeid(MasterUnPolarizedWF).name()) return new MasterUnPolarizedWF;

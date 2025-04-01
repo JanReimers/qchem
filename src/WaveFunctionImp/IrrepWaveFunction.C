@@ -13,15 +13,13 @@
 #include <cassert>
 #include <iomanip>
 
-IrrepWaveFunction::IrrepWaveFunction()
-    : itsOrbitals(0)
-    , itsSpin    ( )
-{};
 
-IrrepWaveFunction::IrrepWaveFunction(const TOrbital_IBS<double>* bs, const Spin& S)
-    : itsOrbitals(new  TOrbitalsImp<double>(bs))
-    , itsSpin    (S )
+
+IrrepWaveFunction::IrrepWaveFunction(const TOrbital_IBS<double>* bs, const Spin& ms)
+    : itsOrbitals(new  TOrbitalsImp<double>(bs,ms))
+    , itsSpin    (ms )
     , itsQN      (&bs->GetQuantumNumber())
+    , itsQNs     (ms,&bs->GetQuantumNumber())
 {
     assert(itsOrbitals);
 };
@@ -44,6 +42,8 @@ void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
 Exact_CD* IrrepWaveFunction::GetChargeDensity(Spin s) const
 {
     assert(itsOrbitals);
+    assert(s==itsSpin);
+    assert(s==itsQNs.GetSpin());
     return itsOrbitals->GetChargeDensity(s);
 }
 

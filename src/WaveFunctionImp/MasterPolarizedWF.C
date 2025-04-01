@@ -43,7 +43,7 @@ void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);
-    itsSpinUpGroup  ->DoSCFIteration(ham);
+    itsSpinUpGroup->DoSCFIteration(ham);
     itsSpinDnGroup->DoSCFIteration(ham);
 }
 

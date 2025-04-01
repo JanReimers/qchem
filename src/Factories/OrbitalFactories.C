@@ -33,7 +33,6 @@ Orbital* Orbital::Factory(std::istream& is)
 Orbitals* Orbitals::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(TOrbitalsImp<double>).name()) return new TOrbitalsImp<double>;
 
     std::cout << "Unknown orbital group type :" << Name << std::endl;
     exit(-1);

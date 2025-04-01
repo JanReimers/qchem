@@ -4,8 +4,8 @@
 
 
 #include "Imp/Containers/ptr_vector.h"
-
 #include "Orbital.H"
+#include <Orbital_QNs.H>
 
 template <class T> class TOrbitalsImp
     : public virtual Orbitals
@@ -21,8 +21,7 @@ template <class T> class TOrbitalsImp
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
-    TOrbitalsImp();
-    TOrbitalsImp(const TOrbital_IBS<T>*);
+    TOrbitalsImp(const TOrbital_IBS<T>*, Spin s);
     virtual ~TOrbitalsImp() {};
 
     typedef Vector3D<T> TVec;
@@ -34,6 +33,7 @@ public:
     virtual double         GetEigenValueChange(const Orbitals&) const;
     virtual Exact_CD*      GetChargeDensity   (Spin) const;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&);
+    virtual Orbital_QNs    GetQNs() const;
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}
     virtual const_iterator end  () const {return itsOrbitals.end  ();} 
@@ -51,7 +51,7 @@ private:
     const TOrbital_IBS<T>*  itsBasisSet;
     optr_vector1<Orbital*>  itsOrbitals;
     LASolver<double>*       itsLASolver; //General eigen solver
-
+    Orbital_QNs             itsQNs;
 };
 
 

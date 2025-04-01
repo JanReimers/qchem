@@ -76,6 +76,8 @@ public:
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual Exact_CD*      GetChargeDensity   (Spin               ) const=0;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&)=0;
+    //! This will hold spin and symmetry QNs, without the principle QN.
+    virtual Orbital_QNs    GetQNs() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;

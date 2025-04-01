@@ -15,6 +15,11 @@ Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const QNs* _sym)
     assert(sym);
     assert(n<=n_max);
 }
+Orbital_QNs::Orbital_QNs(Spin _ms,const QNs* _sym)
+: n(0), ms(_ms), sym(_sym->Clone())
+{
+    assert(sym);
+}
 
 Orbital_QNs::Orbital_QNs(const Orbital_QNs& qns)
 : n(qns.n)
@@ -53,6 +58,11 @@ bool operator<(const Orbital_QNs& a, const Orbital_QNs& b)
 size_t Orbital_QNs::GetDegeneracy() const
 {
     return sym->GetDegeneracy()*ms.GetDegeneracy();
+}
+
+void Orbital_QNs::ClearPrincipleQN()
+{
+    n=0;
 }
 
 std::ostream& Orbital_QNs::Write(std::ostream& os) const
