@@ -24,13 +24,15 @@ Orbital_QNs::Orbital_QNs(Spin _ms,const QNs* _sym)
 Orbital_QNs::Orbital_QNs(const Orbital_QNs& qns)
 : n(qns.n)
 , ms(qns.ms)
-, sym(qns.sym->Clone())
-{}
+, sym(qns.sym ? qns.sym->Clone() : 0)
+{
+    assert(sym);
+}
 
 
 Orbital_QNs::~Orbital_QNs()
 {
-    delete sym;
+    if (sym) delete sym;
 }
 
 size_t Orbital_QNs::SequenceIndex() const

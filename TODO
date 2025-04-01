@@ -1,4 +1,5 @@
 Priority 1:
+    -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m
     -DFT check for l>0 basis sets for fitting.

@@ -32,12 +32,14 @@ RVec3  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<doubl
 template <class T> IrrepCD<T>::IrrepCD()
 {};
 
-template <class T> IrrepCD<T>::IrrepCD(const DenSMat& theDensityMatrix,
-                                                 const TOrbital_IBS<T>* theBasisSet,
-                                                 const Spin& s)
-    : itsDensityMatrix(theDensityMatrix)
+template <class T> IrrepCD<T>::IrrepCD
+    (const DenSMat& D,
+    const TOrbital_IBS<T>* theBasisSet,
+    Orbital_QNs qns)
+    : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)
-    , itsSpin(s)
+    , itsSpin(qns.GetSpin())
+    , itsQNs(qns)
 {
     assert(itsBasisSet);
 };

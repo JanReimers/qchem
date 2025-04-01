@@ -11,6 +11,7 @@ class Orbital_QNs
     : public virtual PMStreamableObject
 {   
 public:
+    Orbital_QNs() : n(0), ms(Spin::None), sym(0) {};
     Orbital_QNs(size_t n, Spin ms,const QNs* sym);
     Orbital_QNs(Spin ms,const QNs* sym);
     Orbital_QNs(const Orbital_QNs&);

@@ -6,6 +6,7 @@
 
 #include <ChargeDensity.H>
 #include <Spin.H>
+#include <Orbital_QNs.H>
 #include "oml/smatrix.h"
 
 //------------------------------------------------------------------------------------
@@ -23,7 +24,7 @@ public:
     typedef DensityFFClient::RVec RVec;
 
     IrrepCD();
-    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, const Spin&);
+    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Orbital_QNs);
 
     virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
     virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const;
@@ -51,6 +52,7 @@ private:
     DenSMat                itsDensityMatrix;
     const TOrbital_IBS<T>* itsBasisSet;
     Spin                   itsSpin;
+    Orbital_QNs            itsQNs;
 };
 
 #endif //_ExactIrrepCD_H_
