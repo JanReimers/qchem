@@ -87,22 +87,22 @@ void  IrrepWaveFunction::DisplayEigen() const
    
 }
 
-SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
-{
-    return new SCFIteratorUnPol(this, H, cd,nElectrons);
-}
+// SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
+// {
+//     return new SCFIteratorUnPol(this, H, cd,nElectrons);
+// }
 
 std::string spin_strs[]={"Down","None","Up"};
 std::ostream& IrrepWaveFunction::Write(std::ostream& os) const
 {
     assert(itsOrbitals);
-    if (Pretty()) 
+    if (StreamableObject::Pretty()) 
         os << "    Irreducible rep. Wave finction, spin=" << spin_strs[itsSpin.itsState] << std::endl;
     else
         os << itsSpin;
         
     os << *itsOrbitals;
-    if (Pretty()) os << "        ";
+    if (StreamableObject::Pretty()) os << "        ";
 
     return os;
 }

@@ -5,6 +5,7 @@
 
 
 #include "WaveFunction.H"
+#include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include <EnergyLevel.H>
 #include "Imp/Containers/ptr_vector.h"
 #include <unordered_map>
@@ -27,7 +28,7 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
 
 private:
-    optr_vector1<WaveFunction*>  itsIrrepWFs;
+    optr_vector1<IrrepWaveFunction*>  itsIrrepWFs;
     const BasisSet* itsBasisSet; //Union of all irrep basis sets.  used for managing 4 center ERIs.
     EnergyLevels itsELevels;
 };

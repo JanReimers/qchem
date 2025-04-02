@@ -16,6 +16,15 @@
 //  class and make a new object using the default constructor.
 //
 
+IrrepWaveFunction* IrrepWaveFunction::Factory(std::istream& is)
+{
+    std::string Name=PeekAtName(is);
+    // if (Name==typeid(IrrepWaveFunction).name()) return new IrrepWaveFunction;
+
+    std::cout << "Unknown IrrepWaveFunction type :" << Name << std::endl;
+    exit(-1);
+    return NULL;
+}
 WaveFunction* WaveFunction::Factory(std::istream& is)
 {
     std::string Name=PeekAtName(is);
