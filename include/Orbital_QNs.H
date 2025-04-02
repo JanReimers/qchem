@@ -27,6 +27,7 @@ public:
     //! Does not include spin degeneracy which is handles separately
     virtual size_t GetDegeneracy() const;
     virtual Spin   GetSpin() const {return ms;}
+    virtual const QNs& GetSymmetry() const {return *sym;}
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream& is)      {return is;}

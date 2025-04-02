@@ -69,14 +69,14 @@ double QchemTester::TotalCharge() const
     return itsWaveFunction->GetChargeDensity()->GetTotalCharge();
 }
 
-Orbitals* QchemTester::GetOrbitals(const QNs& qn,Spin s) const
+Orbitals* QchemTester::GetOrbitals(const Orbital_QNs& qns) const
 {
-    return itsWaveFunction->GetOrbitals(qn,s);
+    return itsWaveFunction->GetOrbitals(qns);
 }
 
-Orbital* QchemTester::GetOrbital(size_t index, const QNs& qn,Spin s) const
+Orbital* QchemTester::GetOrbital(size_t index, const Orbital_QNs& qns) const
 {
-    Orbitals* orbs=GetOrbitals(qn,s);
+    Orbitals* orbs=GetOrbitals(qns);
     assert(index<orbs->GetNumOrbitals());
     return *(orbs->begin()+index);
 }

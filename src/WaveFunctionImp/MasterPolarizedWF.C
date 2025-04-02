@@ -9,6 +9,7 @@
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include <ChargeDensity.H>
 #include <Spin.H>
+#include <Orbital_QNs.H>
 #include <QuantumNumber.H>
 #include "oml/imp/binio.h"
 #include <cassert>
@@ -57,11 +58,11 @@ Exact_CD* MasterPolarizedWF::GetChargeDensity(Spin s) const
     return new Polarized_CDImp(up,dn);
 }
 
-Orbitals* MasterPolarizedWF::GetOrbitals(const QNs& qn,Spin s) const
+Orbitals* MasterPolarizedWF::GetOrbitals(const Orbital_QNs& qns) const
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);
-    return s==Spin::Up ? itsSpinUpGroup->GetOrbitals(qn,s) : itsSpinDnGroup->GetOrbitals(qn,s);
+    return qns.GetSpin()==Spin::Up ? itsSpinUpGroup->GetOrbitals(qns) : itsSpinDnGroup->GetOrbitals(qns);
 }
 
 

@@ -19,6 +19,34 @@ Priority 1:
             PlaneWave
 
 
+    -Make a UI app with plotting
+        -wxPython + matplotlib (python)
+            -I hate wx only becuse I spent 90% of my time trying to get the stupid
+             sizers to do what I want.
+            -Need to make a python binding using
+                1) SIP https://github.com/Python-SIP/sip
+                    -Used this before
+                    https://www.itopen.it/python-sip-c-bindings-experiments/
+                    https://wiki.python.org/moin/SIP
+                2) https://github.com/pybind/pybind11
+                -Python bindings might be of interest anyway.
+        -Matplot++ just does popup windows, hard to embbed ... which seems bizzare.
+        -Gtkmm-PLplot https://tschoonj.github.io/gtkmm-plplot/index.html
+            Looks primising,  workinside a GTK-C++ (gtkmm) app
+            https://www.gtk.org/docs/language-bindings/cpp/
+            Need to worry about GTK3 or GTK4 support
+            GTK 2,3,4 comes with ubuntu linux
+            -no windows support
+            -Use GLADE to generate UI code.
+        -Gnuplot has a c++ interface.
+        -XMGrace
+        -Use own PLotting which has an XMGrace driver.
+            Would need to make Gtkmm-PLplot driver.
+            -The multigraph support got complex and buggy.  Maybe refactoring would fix it?
+        -FLTK https://www.fltk.org/doc-1.4/basics.html
+
+        
+
     -Set up IE_Primatives interface for each basis set radial type.
         Use an IE_Primatives* at the AtomIE level for all integrals.
         Then move more basis set code down to the AtomIE level.

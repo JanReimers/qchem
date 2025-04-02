@@ -16,7 +16,7 @@ public:
 
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;
     virtual Exact_CD*           GetChargeDensity(Spin           ) const;
-    virtual Orbitals*           GetOrbitals     (const QNs&,Spin) const;
+    virtual Orbitals*           GetOrbitals     (const Orbital_QNs&) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     virtual SCFIterator*        MakeIterator    (Hamiltonian*, Exact_CD* guess, double nElectrons);
     virtual WaveFunction*       GetWaveFunction (const Spin&    );

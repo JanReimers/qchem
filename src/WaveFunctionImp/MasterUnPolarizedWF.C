@@ -6,6 +6,7 @@
 #include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include <Spin.H>
+#include <Orbital_QNs.H>
 #include <cassert>
 #include <iostream>
 
@@ -44,11 +45,11 @@ Exact_CD* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
     return itsGroup->GetChargeDensity(s);
 }
 
-Orbitals* MasterUnPolarizedWF::GetOrbitals(const QNs& qn,Spin s) const
+Orbitals* MasterUnPolarizedWF::GetOrbitals(const Orbital_QNs& qns) const
 {
     assert(itsGroup);
-    assert(s==Spin::None);
-    return itsGroup->GetOrbitals(qn,s);
+    assert(qns.GetSpin()==Spin::None);
+    return itsGroup->GetOrbitals(qns);
 }
 
 SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
