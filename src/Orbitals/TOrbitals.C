@@ -60,7 +60,7 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,const Spin& spin)
 {
     assert(itsBasisSet);
-    assert(spin==itsQNs.GetSpin());
+    assert(spin==itsQNs.ms);
     SMatrix<T> H=ham.BuildHamiltonian(itsBasisSet,spin);
     //std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
     //std::cout << "H=" << H << std::endl;
@@ -87,7 +87,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 
 template <class T> Exact_CD* TOrbitalsImp<T>::GetChargeDensity(Spin s) const
 {
-    assert(s==GetQNs().GetSpin());
+    assert(s==GetQNs().ms);
     return new IrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,GetQNs());
 }
 
@@ -101,7 +101,7 @@ CalculateDensityMatrix() const
     return d;
 }
 
-template <class T>  Orbital_QNs    TOrbitalsImp<T>::GetQNs() const
+template <class T>  Irrep_QNs    TOrbitalsImp<T>::GetQNs() const
 {
     return itsQNs;
 }

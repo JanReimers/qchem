@@ -35,10 +35,10 @@ template <class T> IrrepCD<T>::IrrepCD()
 template <class T> IrrepCD<T>::IrrepCD
     (const DenSMat& D,
     const TOrbital_IBS<T>* theBasisSet,
-    Orbital_QNs qns)
+    Irrep_QNs qns)
     : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)
-    , itsSpin(qns.GetSpin())
+    , itsSpin(qns.ms)
     , itsQNs(qns)
 {
     assert(itsBasisSet);

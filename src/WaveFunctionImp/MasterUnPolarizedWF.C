@@ -45,10 +45,11 @@ Exact_CD* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
     return itsGroup->GetChargeDensity(s);
 }
 
-Orbitals* MasterUnPolarizedWF::GetOrbitals(const Orbital_QNs& qns) const
+Orbitals* MasterUnPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 {
+    // No UT coverage
     assert(itsGroup);
-    assert(qns.GetSpin()==Spin::None);
+    assert(qns.ms==Spin::None);
     return itsGroup->GetOrbitals(qns);
 }
 

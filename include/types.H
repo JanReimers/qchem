@@ -26,6 +26,7 @@
  * IE       | Integral Engine   | Calculates tables of integrals. |
  * DB       | DataBase          | Caches integral tables. |
  * CD       | Charge Density    | |
+ * DM       | Density Matrix    | |
  * HF       | Hartree-Fock      | |
  * DHF      | Dirac-Hartree-Fock      | |
  * DFT      | Density Functional Theory | |
@@ -35,6 +36,7 @@
  * PG       | Polarized Gaussian | Polarized (x,y,z,xx,xy,xz,..) Gaussians used for molecular calculations
  * QN       | Quantum Number    | Usually a group of QNs like {n,l,ml,ms}
  * EL       | Energy level      | Eigen energies for orbitals.
+ * EC       | Electron Configuration | Specifies occupied orbitals, i.e. [Xe]6s^2 4f^1 5d^1 |
  * ERI      | Electron Repulsion Integral   | |
  * Occ      | Occupation        | |
  * RKB      | Restricted Kinetic Balance | Used for relativistic Basis Sets |
@@ -80,6 +82,7 @@ class FittedFunction;
 class FittedFunctionClient;
 class Hamiltonian;
 class HamiltonianTerm;
+class Irrep_QNs;
 class Molecule;
 class Mesh;
 class MeshParams;

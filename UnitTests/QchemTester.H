@@ -17,8 +17,8 @@ public:
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
     double TotalCharge() const;
-    Orbitals* GetOrbitals(const Orbital_QNs& qns) const;
-    Orbital* GetOrbital(size_t index, const Orbital_QNs& qns) const;
+    Orbitals* GetOrbitals(const Irrep_QNs& qns) const;
+    Orbital* GetOrbital(size_t index, const Irrep_QNs& qns) const;
     double RelativeError(double expected,bool quiet=false) const;
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;

@@ -44,13 +44,13 @@ Exact_CD* WaveFunctionGroup::GetChargeDensity(Spin s) const
     return cd;
 }
 
-Orbitals* WaveFunctionGroup::GetOrbitals(const Orbital_QNs& qns) const
+Orbitals* WaveFunctionGroup::GetOrbitals(const Irrep_QNs& qns) const
 {
 
     auto w=itsIrrepWFs.begin();
     for (auto b:itsBasisSet->Iterate<Orbital_IBS>())
     {
-        if (qns.GetSymmetry()==b->GetQuantumNumber()) 
+        if (*qns.sym==b->GetQuantumNumber()) 
             return (*w)->GetOrbitals(qns); 
         w++;
     }
@@ -69,6 +69,7 @@ const EnergyLevels& WaveFunctionGroup::FillOrbitals(const ElectronConfiguration*
 
 SCFIterator* WaveFunctionGroup::MakeIterator(Hamiltonian* H, Exact_CD* cd, double NElectrons)
 {
+    // No UT coverage
     return new SCFIteratorUnPol(this, H, cd,NElectrons);
 }
 

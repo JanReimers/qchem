@@ -33,7 +33,7 @@ public:
     virtual double         GetEigenValueChange(const Orbitals&) const;
     virtual Exact_CD*      GetChargeDensity   (Spin) const;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&);
-    virtual Orbital_QNs    GetQNs() const;
+    virtual Irrep_QNs      GetQNs() const;
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}
     virtual const_iterator end  () const {return itsOrbitals.end  ();} 
@@ -51,7 +51,7 @@ private:
     const TOrbital_IBS<T>*  itsBasisSet;
     optr_vector1<Orbital*>  itsOrbitals;
     LASolver<double>*       itsLASolver; //General eigen solver
-    Orbital_QNs             itsQNs;
+    Irrep_QNs               itsQNs;
 };
 
 

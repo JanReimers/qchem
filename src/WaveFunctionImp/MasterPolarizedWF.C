@@ -58,11 +58,11 @@ Exact_CD* MasterPolarizedWF::GetChargeDensity(Spin s) const
     return new Polarized_CDImp(up,dn);
 }
 
-Orbitals* MasterPolarizedWF::GetOrbitals(const Orbital_QNs& qns) const
+Orbitals* MasterPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 {
     assert(itsSpinUpGroup  );
     assert(itsSpinDnGroup);
-    return qns.GetSpin()==Spin::Up ? itsSpinUpGroup->GetOrbitals(qns) : itsSpinDnGroup->GetOrbitals(qns);
+    return qns.ms==Spin::Up ? itsSpinUpGroup->GetOrbitals(qns) : itsSpinDnGroup->GetOrbitals(qns);
 }
 
 
@@ -84,6 +84,7 @@ SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, doubl
 
 WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
 {
+    // No UT coverage
     assert(S.itsState!=Spin::None);
     WaveFunction* ret=0;
     if (S.itsState==Spin::Up  ) ret=itsSpinUpGroup  ;

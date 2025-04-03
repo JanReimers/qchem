@@ -74,6 +74,7 @@ Priority 1:
         -SHould only be casting between interfaces
         -Can we pass around more specific interfaces?
     -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
+        Can we use constexpr features here?
     
     
     -QNs should contain spin.  Right?
@@ -113,6 +114,16 @@ Priority 1:
             -Use OrbitalQNs->ms() instead of Spin s in WF,CD etc.
             -Git rid of PolarizedCD
             -Get rid of PolarizedWF.
+        -I think we need the following associations:
+            -Orbital_IBS has Symmetry = {l,ml} or {kappa} or {chi}
+            -IrrepOrbitals has IrrepQNs = {ms,Symmetry}
+            -Orbital has Orbital_QNs = {n,ms,Symmetry}
+            -Could do IrrepQNs is just and Orbital_QNs with n=0.  But it would be better to
+             use the type system to distinguish.
+            -Are these related by containment or inheritance?
+                Symmetry is polymorphic whihc suggest containment
+                Irrep_QNs is not and Orbital_QNs, so again containment.
+
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
             map<QN,IrrepWaveFunction*> All
@@ -127,7 +138,11 @@ Priority 1:
             -In order to key on an abstract base.
             https://stackoverflow.com/questions/50180978/how-to-build-a-map-where-the-key-is-an-abstract-base-class-not-value
         -Do we still need Pol and UnPol WFs?
-    
+            Yes, but they are ~contructor only classes.
+        -Do we need to do an SCF iter in Initialize?
+            -We should support new orbitals with charge density
+                Results in Hydrogen like orbitals as an initial guess.
+
     -Total energy
         -Calculated in  SCFIteratorImp::DisplayEnergies
             and then re-calculated in SCFIteratorImp::Iterate
@@ -158,12 +173,11 @@ Priority 1:
                 call qn->Append(os);  just output m?
             Handled cases where Up (col 1) is degenerate and Dn (col 2) is less/non degen.
     -Stream output to a separate log file?
-    -Do we need to do an SCF iter in Initialize?
     
     -QchemTester: make show basis set an option.
     -Common base for Slater::RkEngine and SG_CD
         -Make some unit tests first?
-    -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
+    Done: -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
         PG can be a typedef so SG::ExponentScaler?
     -Point group symmtery
         https://www.mantidproject.org/
