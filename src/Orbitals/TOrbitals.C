@@ -8,7 +8,7 @@
 #include "Imp/Misc/DFTDefines.H"
 #include <Irrep_BS.H>
 #include <Hamiltonian.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <Orbital_QNs.H>
 #include <LASolver.H>
 #include "Imp/Containers/ptr_vector_io.h"

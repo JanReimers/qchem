@@ -3,7 +3,7 @@
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include <ChargeDensity.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <iostream>
 #include <cassert>
 

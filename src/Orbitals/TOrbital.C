@@ -4,7 +4,7 @@
 
 #include "Imp/Orbitals/TOrbital.H"
 #include <EnergyLevel.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <Irrep_BS.H>
 #include <Orbital_QNs.H>
 #include "oml/vector.h"
@@ -48,7 +48,7 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     }
 }
 
-template <class T> QNs* TOrbitalImp<T>::GetQuantumNumber() const
+template <class T> Symmetry* TOrbitalImp<T>::GetQuantumNumber() const
 {
     return itsBasisSet->GetQuantumNumber(itsIndex);
 }

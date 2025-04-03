@@ -21,12 +21,12 @@ size_t YlmQN::SequenceIndex() const //Used for op<
     return m+itsL+itsL*(2*LMAX+1);
  }
 
-bool YlmQN::MatchType(const QNs& b) const
+bool YlmQN::MatchType(const Symmetry& b) const
 {
     return dynamic_cast<const YlmQN*>(&b)!=0;
 }
 
-bool YlmQN::Match(const QNs& qn) const
+bool YlmQN::Match(const Symmetry& qn) const
 {
     const YlmQN* yqn = dynamic_cast<const YlmQN*>(&qn);
     assert(yqn);
@@ -38,7 +38,7 @@ int YlmQN::GetDegeneracy() const
     return 1; 
 }
 
-QNs* YlmQN::AddPrincipleQN(int index) const
+Symmetry* YlmQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }

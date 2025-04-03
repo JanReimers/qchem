@@ -29,12 +29,12 @@ size_t AtomQN::SequenceIndex() const //Used for op<
     return itsAngularQN->SequenceIndex()*n_max+(n-1);
  }
 
-bool AtomQN::MatchType(const QNs& b) const
+bool AtomQN::MatchType(const Symmetry& b) const
 {
     return dynamic_cast<const AtomQN*>(&b)!=0;
 }
 
-bool AtomQN::Match(const QNs& qn) const
+bool AtomQN::Match(const Symmetry& qn) const
 {
     const AtomQN* yqn = dynamic_cast<const AtomQN*>(&qn);
     assert(yqn);
@@ -46,7 +46,7 @@ int AtomQN::GetDegeneracy() const
     return itsAngularQN->GetDegeneracy();
 }
 
-QNs* AtomQN::AddPrincipleQN(int index) const
+Symmetry* AtomQN::AddPrincipleQN(int index) const
 {
     return itsAngularQN->AddPrincipleQN(index);
 }
@@ -62,7 +62,7 @@ std::istream& AtomQN::Read (std::istream& is)
     return is;
 }
 
-QNs* AtomQN::Clone() const
+Symmetry* AtomQN::Clone() const
 {
     return new AtomQN(*this);
 }

@@ -2,7 +2,7 @@
 #ifndef _Symmetry_AngularQN_H_
 #define _Symmetry_AngularQN_H_
 
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <tuple>
 //---------------------------------------------------------------------------------
 //
@@ -10,7 +10,7 @@
 //
 
 class AngularQN
-    : public virtual QNs
+    : public virtual Symmetry
 {
 public:
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;

@@ -8,7 +8,7 @@
 #include <HF_IBS.H>
 #include <Fit_IBS.H>
 #include <DFT_IBS.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <ChargeDensity.H>
 #include "oml/vector3d.h"
 #include "oml/vector.h"

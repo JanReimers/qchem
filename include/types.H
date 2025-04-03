@@ -90,7 +90,7 @@ class Orbital_IBS;
 class Orbital;
 class Orbitals;
 class Orbital_QNs;
-class QNs;
+class Symmetry;
 class RadialMesh;
 class SCFIterator;
 class Spin;

@@ -1,7 +1,7 @@
 // File: EnergyLevel.H  Energy level with degeneracy and orbital list.
 
 #include <EnergyLevel.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <cassert>
 #include <iostream>
 #include <iomanip>

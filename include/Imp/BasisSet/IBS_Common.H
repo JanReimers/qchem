@@ -19,7 +19,7 @@ class IBS_Common
 {
 public:
     IBS_Common(              );
-    IBS_Common(QNs*);
+    IBS_Common(Symmetry*);
     IBS_Common(const IBS_Common&);
 
     virtual ~IBS_Common();
@@ -27,12 +27,12 @@ public:
     virtual size_t  GetNumFunctions(               ) const;
     virtual bool    operator==     (const IrrepBasisSet&) const;
 
-    virtual const QNs&  GetQuantumNumber() const
+    virtual const Symmetry&  GetQuantumNumber() const
     {
         assert(itsQuantumNumber);
         return *itsQuantumNumber;
     }
-    virtual QNs*  GetQuantumNumber(int index) const;
+    virtual Symmetry*  GetQuantumNumber(int index) const;
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
@@ -49,7 +49,7 @@ protected:
 private:
     IBS_Common& operator=(const IBS_Common&);
 
-    QNs*               itsQuantumNumber;
+    Symmetry*               itsQuantumNumber;
     optr_vector1<const BasisFunction*> itsBasisFunctions;
 };
 

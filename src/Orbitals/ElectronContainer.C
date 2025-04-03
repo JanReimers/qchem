@@ -3,13 +3,13 @@
 
 
 #include "Imp/Orbitals/ElectronContainer.H"
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>
 
-ElectronContainerImp::ElectronContainerImp(const Spin& S,const QNs& qn)
+ElectronContainerImp::ElectronContainerImp(const Spin& S,const Symmetry& qn)
     : itsOccupation       (0)
     , itsSpin             (S)
     , itsOrbitalDegeneracy(qn.GetDegeneracy())

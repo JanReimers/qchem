@@ -10,7 +10,7 @@
 #include "Imp/Cluster/Atom.H"
 #include <LAParams.H>
 #include <MeshParams.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include <iomanip>

@@ -4,7 +4,7 @@
 #include "Imp/BasisSet/TIBS_Common.H"
 #include "Imp/Containers/ERI4.H"
 #include <BasisFunction.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <AnalyticIE.H>
 #include <LASolver.H>
 #include <Hamiltonian.H>

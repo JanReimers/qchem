@@ -7,7 +7,7 @@
 
 struct EnergyLevel
 {
-    EnergyLevel(double _e, double _occ, double _g,QNs* _qn,const Spin& _s, Orbital* _o)
+    EnergyLevel(double _e, double _occ, double _g,Symmetry* _qn,const Spin& _s, Orbital* _o)
         : e(_e), occ(_occ), degen(_g), qn(_qn), s(_s), orbital(_o) 
         {};
 
@@ -16,7 +16,7 @@ struct EnergyLevel
     
     double         e,occ;
     int            degen;
-    QNs* qn;
+    Symmetry* qn;
     Spin           s;
     Orbital*       orbital;
 };

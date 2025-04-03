@@ -21,12 +21,12 @@ YlQN::YlQN(int theL)
     return itsL;
  }
 
-bool YlQN::MatchType(const QNs& b) const
+bool YlQN::MatchType(const Symmetry& b) const
 {
     return dynamic_cast<const YlQN*>(&b)!=0;
 }
 
-bool YlQN::Match(const QNs& qn) const
+bool YlQN::Match(const Symmetry& qn) const
 {
     const YlQN* aqn = dynamic_cast<const YlQN*>(&qn);
     assert(aqn);
@@ -38,7 +38,7 @@ int YlQN::GetDegeneracy() const
     return 2*itsL+1;
 }
 
-QNs* YlQN::AddPrincipleQN(int index) const
+Symmetry* YlQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }

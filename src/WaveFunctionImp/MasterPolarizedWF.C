@@ -10,7 +10,7 @@
 #include <ChargeDensity.H>
 #include <Spin.H>
 #include <Orbital_QNs.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include "oml/imp/binio.h"
 #include <cassert>
 

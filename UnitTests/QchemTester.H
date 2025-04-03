@@ -23,7 +23,7 @@ public:
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
-    std::vector<const QNs*> GetQuantumNumbers() const;
+    std::vector<const Symmetry*> GetQuantumNumbers() const;
     
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;

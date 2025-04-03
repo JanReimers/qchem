@@ -31,7 +31,7 @@ private:
 
     Orbitals*     itsOrbitals;
     Spin          itsSpin;
-    const QNs*    itsQN;
+    const Symmetry*    itsQN;
     Irrep_QNs     itsQNs;
     EnergyLevels  itsELevels;
 

@@ -6,7 +6,7 @@
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 
 #include "Imp/Symmetry/OkmjQN.H"
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <iostream>
 #include <cassert>
 

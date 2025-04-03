@@ -8,7 +8,7 @@
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
 #include <Irrep_BS.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include "oml/imp/binio.h"
 #include <cassert>
 #include <iomanip>

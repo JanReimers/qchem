@@ -21,12 +21,12 @@ size_t Omega_kQN::SequenceIndex() const //Used for op<
     return kappa+LMax+1;
  }
 
-bool Omega_kQN::MatchType(const QNs& b) const
+bool Omega_kQN::MatchType(const Symmetry& b) const
 {
     return dynamic_cast<const Omega_kQN*>(&b)!=0;
 }
 
-bool Omega_kQN::Match(const QNs& qn) const
+bool Omega_kQN::Match(const Symmetry& qn) const
 {
     const Omega_kQN* oqn = dynamic_cast<const Omega_kQN*>(&qn);
     assert(oqn);
@@ -38,7 +38,7 @@ int Omega_kQN::GetDegeneracy() const
     return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
 }
 
-QNs* Omega_kQN::AddPrincipleQN(int index) const
+Symmetry* Omega_kQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }
@@ -109,12 +109,12 @@ size_t Omega_kmjQN::SequenceIndex() const //Used for op<
     return (mj+Getj())*(2*LMax+3)+(kappa+LMax+1);
  }
 
-bool Omega_kmjQN::MatchType(const QNs& b) const
+bool Omega_kmjQN::MatchType(const Symmetry& b) const
 {
     return dynamic_cast<const Omega_kmjQN*>(&b)!=0;
 }
 
-bool Omega_kmjQN::Match(const QNs& qn) const
+bool Omega_kmjQN::Match(const Symmetry& qn) const
 {
     const Omega_kmjQN* oqn = dynamic_cast<const Omega_kmjQN*>(&qn);
     assert(oqn);
@@ -126,7 +126,7 @@ int Omega_kmjQN::GetDegeneracy() const
     return 1;
 }
 
-QNs* Omega_kmjQN::AddPrincipleQN(int index) const
+Symmetry* Omega_kmjQN::AddPrincipleQN(int index) const
 {
     return new AtomQN(index,*this);
 }

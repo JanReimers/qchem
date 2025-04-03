@@ -7,7 +7,7 @@
 #include <Orbital.H>
 #include <Spin.H>
 #include <Orbital_QNs.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <iostream>
 #include <Imp/Misc/DFTDefines.H>
 #include "oml/io3d.h"
@@ -99,7 +99,7 @@ TEST_P(A_SLmj_DHF,Multiple)
     Init(N,Z/200.,Z*200.,GetLMax(1));
     Iterate({1,Z*1e-4,1.0,0.0,false});
 
-    std::vector<const QNs*> qns=GetQuantumNumbers();
+    std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     Orbital* orb0=GetOrbital(0,oqns);
     double e0=orb0->GetEigenEnergy();
@@ -170,7 +170,7 @@ TEST_P(A_SG_DHF,Multiple)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1.0,0.0,true});
 
-    std::vector<const QNs*> qns=GetQuantumNumbers();
+    std::vector<const Symmetry*> qns=GetQuantumNumbers();
     cout << "QN=" << *qns[0] << endl;
     Irrep_QNs oqns(Spin::Up,qns[0]);
     Orbital* orb0=GetOrbital(0,oqns);
@@ -260,7 +260,7 @@ TEST_F(A_SG_HFP_H,Phir)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const QNs*> qns=GetQuantumNumbers();
+    std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
@@ -278,7 +278,7 @@ TEST_F(A_SG_DHF_H,Phir)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const QNs*> qns=GetQuantumNumbers();
+    std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
@@ -295,7 +295,7 @@ TEST_F(A_SL_DHF_H,Phir)
     Init(N,1./100.,100.0,GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const QNs*> qns=GetQuantumNumbers();
+    std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;

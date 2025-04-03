@@ -1,14 +1,14 @@
 // File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
 
 #include <Orbital_QNs.H>
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <cassert>
 #include <iostream>
 
 const size_t n_max=20;
 const size_t ms_max=3; //three states Up/Down and None.
 
-Irrep_QNs::Irrep_QNs(Spin _ms,const QNs* _sym) 
+Irrep_QNs::Irrep_QNs(Spin _ms,const Symmetry* _sym) 
     : ms(_ms)
     , sym(_sym->Clone()) 
 {
@@ -46,7 +46,7 @@ std::ostream& Irrep_QNs::Write(std::ostream& os) const
     return os << " ms=" << ms << " sym=" << *sym;
 }
 
-Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const QNs* _sym)
+Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const Symmetry* _sym)
 : n(_n), ms(_ms), sym(_sym->Clone())
 {
     assert(sym);

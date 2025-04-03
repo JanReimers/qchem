@@ -18,10 +18,10 @@ public:
     Omega_kQN(int kappa);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual bool MatchType(const QNs&) const;
-    virtual bool Match(const QNs&) const;
+    virtual bool MatchType(const Symmetry&) const;
+    virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
-    QNs* AddPrincipleQN(int index) const;
+    Symmetry* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
@@ -53,10 +53,10 @@ public:
     Omega_kmjQN(int kappa, double mj);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual bool MatchType(const QNs&) const;
-    virtual bool Match(const QNs&) const;
+    virtual bool MatchType(const Symmetry&) const;
+    virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
-    QNs* AddPrincipleQN(int index) const;
+    Symmetry* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
 
     virtual std::ostream&  Write(std::ostream&) const;

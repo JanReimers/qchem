@@ -86,7 +86,7 @@ BasisSet* BasisSet::Factory(std::istream& is)
 //  Quantum Number factory, reads in name or BasisFunction derived
 //  class and make a new object using the default constructor.
 //
-QNs* QNs::Factory(std::istream& is)
+Symmetry* Symmetry::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(YlQN).name()) return new YlQN;

@@ -11,7 +11,7 @@
 #include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Containers/ptr_vector_io.h"
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <cassert>
 
 

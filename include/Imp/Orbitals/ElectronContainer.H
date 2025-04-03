@@ -13,7 +13,7 @@ class ElectronContainerImp
 {
 public:
     ElectronContainerImp();
-    ElectronContainerImp(const Spin&,const QNs&);
+    ElectronContainerImp(const Spin&,const Symmetry&);
 
     virtual Spin   GetSpin      (       ) const;
     virtual int    GetDegeneracy(       ) const;

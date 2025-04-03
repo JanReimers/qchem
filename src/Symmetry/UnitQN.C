@@ -8,7 +8,7 @@
 UnitQN::UnitQN()
 {};
 
-bool UnitQN::MatchType(const QNs& b) const
+bool UnitQN::MatchType(const Symmetry& b) const
 {
     return dynamic_cast<const UnitQN*>(&b)!=0;
 }
@@ -18,7 +18,7 @@ int UnitQN::GetDegeneracy() const
     return 1;
 }
 
-QNs* UnitQN::AddPrincipleQN(int index) const
+Symmetry* UnitQN::AddPrincipleQN(int index) const
 {
     return new UnitnQN(index);
 }
@@ -34,7 +34,7 @@ std::istream& UnitQN::Read (std::istream& is)
     return is;
 }
 
-QNs* UnitQN::Clone() const
+Symmetry* UnitQN::Clone() const
 {
     return new UnitQN;
 }
@@ -48,7 +48,7 @@ std::ostream& UnitnQN::Write(std::ostream& os) const
     return UnitQN::Write(os);
 }
 
-QNs* UnitnQN::Clone() const
+Symmetry* UnitnQN::Clone() const
 {
     return new UnitnQN(*this);
 }

@@ -3,7 +3,7 @@
 
 
 #include "Imp/BasisSet/IBS_Common.H"
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 #include <BasisFunction.H>
 #include "Imp/Containers/ptr_vector_io.h"
 
@@ -20,7 +20,7 @@ IBS_Common::IBS_Common()
 {
 };
 
-IBS_Common::IBS_Common(QNs* theQN)
+IBS_Common::IBS_Common(Symmetry* theQN)
     : itsQuantumNumber(theQN)
 {
     assert(itsQuantumNumber);
@@ -79,7 +79,7 @@ bool IBS_Common::operator==(const IrrepBasisSet& bs) const
     return ret;
 }
 
-QNs*  IBS_Common::GetQuantumNumber(int index) const
+Symmetry*  IBS_Common::GetQuantumNumber(int index) const
 {
     return itsQuantumNumber->AddPrincipleQN(index);
 }

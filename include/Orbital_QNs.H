@@ -5,13 +5,13 @@
 #include "Imp/Misc/pmstream.h"
 #include <Spin.H>
 
-class QNs;
+class Symmetry;
 
 struct Irrep_QNs
     : public virtual PMStreamableObject
 {   
     Irrep_QNs() : ms(Spin::None), sym(0) {};
-    Irrep_QNs(Spin _ms,const QNs* _sym);
+    Irrep_QNs(Spin _ms,const Symmetry* _sym);
     Irrep_QNs(const Irrep_QNs&);
     ~Irrep_QNs();
 
@@ -33,7 +33,7 @@ struct Irrep_QNs
     // Irrep_QNs* Clone() const;
     
     Spin       ms;
-    const QNs* sym;
+    const Symmetry* sym;
 };
 
 
@@ -41,7 +41,7 @@ struct Orbital_QNs
     : public virtual PMStreamableObject
 {   
     Orbital_QNs() : n(0), ms(Spin::None), sym(0) {};
-    Orbital_QNs(size_t n, Spin ms,const QNs* sym);
+    Orbital_QNs(size_t n, Spin ms,const Symmetry* sym);
     Orbital_QNs(size_t n, const Irrep_QNs&);
     Orbital_QNs(const Orbital_QNs&);
     ~Orbital_QNs();
@@ -64,7 +64,7 @@ struct Orbital_QNs
 
     size_t     n;
     Spin       ms;
-    const QNs* sym;
+    const Symmetry* sym;
 };
 
 

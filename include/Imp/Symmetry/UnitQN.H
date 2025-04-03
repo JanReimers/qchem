@@ -4,41 +4,41 @@
 
 
 
-#include <QuantumNumber.H>
+#include <Symmetry.H>
 
 class UnitQN
-    : public virtual QNs
+    : public virtual Symmetry
 {
 public:
     UnitQN();
     virtual size_t SequenceIndex() const {return 1;} //Used for op<
-    virtual bool MatchType(const QNs&) const;
-    virtual bool Match(const QNs&) const
+    virtual bool MatchType(const Symmetry&) const;
+    virtual bool Match(const Symmetry&) const
     {
         return true;
     }
     virtual int GetDegeneracy() const;
-    virtual QNs* AddPrincipleQN(int index) const;
+    virtual Symmetry* AddPrincipleQN(int index) const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
-    virtual QNs* Clone() const;
+    virtual Symmetry* Clone() const;
 };
 
 class UnitnQN
-    : public virtual QNs
+    : public virtual Symmetry
     , UnitQN
 {
 public:
     UnitnQN() ;
     UnitnQN(int n);
 
-    virtual bool Match(const QNs&) const
+    virtual bool Match(const Symmetry&) const
     {
         return true;
     }
     virtual std::ostream& Write(std::ostream&) const;
-    virtual QNs* Clone() const;
+    virtual Symmetry* Clone() const;
 private:
     int n; //Principle QN
 };

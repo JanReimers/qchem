@@ -1081,7 +1081,7 @@
 	"Imp/Misc/DFTDefines.H"
 
 1732205786 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
-	<QuantumNumber.H>
+	<Symmetry.H>
 	<tuple>
 
 1732210500 /home/janr/Code/qchem/include/QuantumNumber.H
@@ -1391,7 +1391,7 @@
 	"Imp/Cluster/Atom.H"
 	<LAParams.H>
 	<MeshParams.H>
-	<QuantumNumber.H>
+	<Symmetry.H>
 	"oml/smatrix.h"
 	"oml/matrix.h"
 	<iomanip>
@@ -1481,7 +1481,7 @@
 	"Imp/Symmetry/YlQN.H"
 
 1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/YlQN.H
-	<QuantumNumber.H>
+	<Symmetry.H>
 	<tuple>
 
 1732800168 source:/home/janr/Code/qchem/UnitTests/libCint.C
@@ -1539,7 +1539,7 @@
 	"oml/vector.h"
 
 1734358967 /home/janr/Code/qchem/include/Imp/Symmetry/OkmjQN.H
-	<QuantumNumber.H>
+	<Symmetry.H>
 	<utility>
 
 1732133738 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IntegralEngine.H

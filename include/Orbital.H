@@ -32,7 +32,7 @@ class Orbital
 public:
     virtual ~Orbital() {};
     virtual double   GetEigenEnergy(        ) const=0;
-    virtual QNs* GetQuantumNumber() const=0;
+    virtual Symmetry* GetQuantumNumber() const=0;
     virtual Orbital_QNs GetQNs() const=0;
     
     virtual EnergyLevel MakeEnergyLevel(const Spin& s)=0;
