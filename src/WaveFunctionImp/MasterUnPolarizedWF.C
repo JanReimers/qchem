@@ -3,29 +3,39 @@
 
 
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
-#include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/SCFIteratorUnPol.H"
+#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/ChargeDensity/CompositeCD.H"
+#include "Imp/Orbitals/TOrbitals.H"
+#include <BasisSet.H>
+#include <Irrep_BS.H>
+// #include <Symmetry.H>
+#include <cassert>
 #include <Spin.H>
 #include <Orbital_QNs.H>
-#include <cassert>
 #include <iostream>
 
 MasterUnPolarizedWF::MasterUnPolarizedWF()
-    : itsGroup(0)
-    , itsEC(0)
+    : itsEC(0)
 {};
 
-MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bg,const ElectronConfiguration* ec)
-    :itsGroup(new WaveFunctionGroup(bg,Spin(Spin::None)))
-    ,itsEC(ec)
+MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec)
+    : itsBS(bs)
+    , itsEC(ec)
 {
-    assert(itsGroup);
+    assert(itsBS);
     assert(itsEC);
+    assert(itsBS->GetNumFunctions()>0);
+    for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
+    {
+        uiwf_t wfp(new IrrepWaveFunction(b,Spin(Spin::None)));
+        itsIWFs.push_back(std::move(wfp));
+    }
 };
 
 MasterUnPolarizedWF::~MasterUnPolarizedWF()
 {
-    delete itsGroup;
+    
 }
 //----------------------------------------------------------------------------
 //
@@ -34,23 +44,26 @@ MasterUnPolarizedWF::~MasterUnPolarizedWF()
 //
 void MasterUnPolarizedWF::DoSCFIteration(Hamiltonian& ham)
 {
-    assert(itsGroup);
-    itsGroup->DoSCFIteration(ham);
+    for (auto& w:itsIWFs) w->DoSCFIteration(ham);
 }
 
 Exact_CD* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
 {
-    assert(itsGroup);
     assert(s==Spin::None);
-    return itsGroup->GetChargeDensity(s);
+    // return itsGroup->GetChargeDensity(s);
+    
+    Composite_Exact_CD* cd = new Composite_Exact_CD();
+    for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity(s));
+    return cd;
 }
 
 Orbitals* MasterUnPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 {
     // No UT coverage
-    assert(itsGroup);
     assert(qns.ms==Spin::None);
-    return itsGroup->GetOrbitals(qns);
+    auto i=itsQN_WFs.find(qns);
+    assert(i!=itsQN_WFs.end());
+    return i->second->GetOrbitals(qns);
 }
 
 SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
@@ -60,30 +73,26 @@ SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, dou
 
 const EnergyLevels& MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
-    assert(itsGroup);
-    return itsGroup->FillOrbitals(itsEC);
+    itsELevels.clear();
+    for (auto& w:itsIWFs) 
+        itsELevels.merge(w->FillOrbitals(itsEC),0.0001);
+    return itsELevels;
 }
 
 void MasterUnPolarizedWF::DisplayEigen() const
 {
     std::cout << "Alpha+Beta spin :" << std::endl;
-    itsGroup->DisplayEigen();
+    itsELevels.Report(std::cout);
 }
 
 
 std::ostream& MasterUnPolarizedWF::Write(std::ostream& os) const
 {
-    assert(itsGroup);
-    os << *itsGroup;
     return os;
 }
 
 std::istream& MasterUnPolarizedWF::Read (std::istream& is)
 {
-    delete itsGroup;
-    itsGroup=WaveFunction::Factory(is);
-    assert(itsGroup);
-    is >> *itsGroup;
     return is;
 }
 

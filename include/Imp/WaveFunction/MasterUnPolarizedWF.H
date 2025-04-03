@@ -6,6 +6,11 @@
 
 #include "WaveFunction.H"
 #include <EnergyLevel.H>
+#include <vector>
+#include <map>
+#include <memory>
+
+class IrrepWaveFunction;
 
 class MasterUnPolarizedWF
     : public virtual WaveFunction
@@ -27,9 +32,12 @@ public:
     virtual std::istream&       Read (std::istream&)      ;
 
 private:
-    WaveFunction* itsGroup;
+    typedef std::unique_ptr<IrrepWaveFunction> uiwf_t;
+    const BasisSet* itsBS; 
     const ElectronConfiguration* itsEC;
     EnergyLevels itsELevels;
+    std::vector<uiwf_t> itsIWFs;
+    std::map<Irrep_QNs,const IrrepWaveFunction*> itsQN_WFs;
 };
 
 #endif //_MasterUnPolarizedWF_H_
