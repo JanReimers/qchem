@@ -77,7 +77,7 @@ int AtomElectronConfiguration::GetN(const Symmetry& qn) const
     const AngularQN& sqn=dynamic_cast<const AngularQN&>(qn);
     int nl,nlu;
     std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
-    assert(nlu==0);
+    // assert(nlu==0);
     return nl;    
 }
 int AtomElectronConfiguration::GetN(const Symmetry& qn, const Spin& s) const

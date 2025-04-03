@@ -51,7 +51,7 @@ TEST_F(ElectronConfigurationTests, SumL)
     for (int Z=1;Z<=94;Z++)
     {
         AtomElectronConfiguration ec(Z);
-//        cout << "Z=" << Z << endl;
+        // cout << "Z=" << Z << endl;
         int Nl=0;
         for (int l=0;l<=3;l++)
         {

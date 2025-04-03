@@ -123,6 +123,10 @@ Priority 1:
             -Are these related by containment or inheritance?
                 Symmetry is polymorphic whihc suggest containment
                 Irrep_QNs is not and Orbital_QNs, so again containment.
+        -Do we still need AngularQN and AtomQN?
+        -Need a more elegent version of
+            std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
+            Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
 
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
