@@ -16,9 +16,7 @@ HamiltonianTermImp::HamiltonianTermImp()
 
 void HamiltonianTermImp::MarkAllDirty()
 {
-    typedef DirtyMap::iterator DITER;
-    for (DITER i=itsDirtyCache.begin(); i!=itsDirtyCache.end(); i++)
-        i->second=true;
+    
 
 }
 
@@ -26,15 +24,8 @@ HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const TOrbital_IBS<do
 {
     assert(bs);
     CacheIndex i(bs,s);
-    bool notfound=itsDirtyCache.find(i)==itsDirtyCache.end();
-    if (notfound || itsDirtyCache[i]==true)
-    {
-        itsCache[i]=CalculateHamiltonianMatrix(bs,s);
-        itsDirtyCache[i]=false;
-        StreamableObject::SetToPretty();
-//        std::cout << "Recalculation H matrix for Qn=" << bs->GetQuantumNumber() << std::endl;
-    }
-
+    itsCache[i]=CalculateHamiltonianMatrix(bs,s);
+ 
     assert(itsCache.find(i)!=itsCache.end());
     return itsCache[i];
 }
@@ -43,16 +34,15 @@ double HamiltonianTermImp::CalculateEnergy() const
 {
     if (DependsOnChargeDensity())
     {
-        typedef DirtyMap::const_iterator DITER;
-        for (DITER i=itsDirtyCache.begin(); i!=itsDirtyCache.end(); i++)
+        typedef CacheMap::const_iterator DITER;
+        for (DITER i=itsCache.begin(); i!=itsCache.end(); i++)
         {
-            if (i->second)
-            {
-                const TOrbital_IBS<double>* bs=i->first.itsBasisSet;
-                Spin s=i->first.itsSpin;
-                assert(bs);
-                BuildHamiltonian(bs,s);
-            }
+            
+            const TOrbital_IBS<double>* bs=i->first.itsBasisSet;
+            Spin s=i->first.itsSpin;
+            assert(bs);
+            BuildHamiltonian(bs,s);
+            
         }
     }
     return itsExactCD->GetEnergy(this);

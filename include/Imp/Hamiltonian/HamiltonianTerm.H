@@ -60,7 +60,6 @@ protected:
 
     const Exact_CD*    itsExactCD;     //Exact charge density.
     mutable CacheMap        itsCache;       //Cache the H matricies for total energy calculations.
-    mutable DirtyMap        itsDirtyCache;  //Is cache is older than charge density.
 };
 
 
