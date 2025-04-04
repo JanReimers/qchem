@@ -3,7 +3,6 @@
 
 
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
-#include "Imp/SCFIterator/SCFIteratorPol.H"
 #include "Imp/ChargeDensity/PolarizedCD.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
@@ -64,7 +63,7 @@ Orbitals* MasterPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 }
 
 
-const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
+void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
     itsUpELevels.clear();
     itsDnELevels.clear();
@@ -73,14 +72,8 @@ const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*
          itsUpELevels.merge(w->FillOrbitals(itsEC),0.0001);
     for (auto& w:itsSpinDnIWFs) 
          itsDnELevels.merge(w->FillOrbitals(itsEC),0.0001);
-    return itsUpELevels;
 }
 
-
-SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
-{
-    return new SCFIteratorPol(this,H,cd,nElectrons,0.0);
-}
 
 void MasterPolarizedWF::DisplayEigen() const
 {

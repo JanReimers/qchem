@@ -12,12 +12,11 @@ class WaveFunction
 public:
     virtual ~WaveFunction() {};
 
-    virtual void                DoSCFIteration  (Hamiltonian&      )      =0;
-    virtual Exact_CD*           GetChargeDensity() const=0;
-    virtual Orbitals*           GetOrbitals     (const Irrep_QNs&) const=0;
-    virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*)=0;
-    virtual SCFIterator*        MakeIterator    (Hamiltonian*, Exact_CD* guess, double NElectrons)=0;
-    virtual void                DisplayEigen    (                  ) const=0;
+    virtual void          DoSCFIteration  (Hamiltonian&      )      =0;
+    virtual Exact_CD*     GetChargeDensity() const=0;
+    virtual Orbitals*     GetOrbitals     (const Irrep_QNs&) const=0;
+    virtual void          FillOrbitals    (const ElectronConfiguration*)=0;
+    virtual void          DisplayEigen    (                  ) const=0;
 
 
 private:

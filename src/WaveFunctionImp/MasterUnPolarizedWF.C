@@ -3,7 +3,6 @@
 
 
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
-#include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/Orbitals/TOrbitals.H"
@@ -63,17 +62,12 @@ Orbitals* MasterUnPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
     return i->second->GetOrbitals(qns);
 }
 
-SCFIterator* MasterUnPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
-{
-    return new SCFIteratorUnPol(this, H, cd,nElectrons);
-}
 
-const EnergyLevels& MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*)
+void MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
     itsELevels.clear();
     for (auto& w:itsIWFs) 
         itsELevels.merge(w->FillOrbitals(itsEC),0.0001);
-    return itsELevels;
 }
 
 void MasterUnPolarizedWF::DisplayEigen() const

@@ -4,7 +4,6 @@
 
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
 #include "Imp/WaveFunction/ElectronConfiguration.H"
-#include "Imp/SCFIterator/SCFIteratorUnPol.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Hamiltonian.H>
 #include <Irrep_BS.H>

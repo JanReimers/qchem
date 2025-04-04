@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/SCFIterator/SCFIterator.H"
+#include <SCFIterator.H>
 #include <WaveFunction.H>
 #include <IterationParams.H>
 #include <Hamiltonian.H>
@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <cassert>
 
-SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H)
+SCFIterator::SCFIterator(WaveFunction* W,Hamiltonian* H,Exact_CD* cd)
     : itsWaveFunction         (W )
     , itsHamiltonian          (H )
     , itsExactChargeDensity   (0)
@@ -20,10 +20,11 @@ SCFIteratorImp::SCFIteratorImp(WaveFunction* W,Hamiltonian* H)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
+    Initialize(cd);
 }
 
 
-void SCFIteratorImp::Initialize(Exact_CD* cd)
+void SCFIterator::Initialize(Exact_CD* cd)
 {
     assert(cd);
 
@@ -40,18 +41,24 @@ void SCFIteratorImp::Initialize(Exact_CD* cd)
 //  Recall that the wavefunction is not owned buy this.
 //
 
-SCFIteratorImp::~SCFIteratorImp()
+SCFIterator::~SCFIterator()
 {
     delete itsHamiltonian;
     delete itsExactChargeDensity;
     delete itsOldExactChargeDensity;
 }
 
-bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
+bool SCFIterator::Iterate(const SCFIterationParams& ipar)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsExactChargeDensity);
+    if (ipar.Verbose)
+    {
+        std::cout << std::endl << std::endl;
+        std::cout << " #       Etotal        Virial       K        V       Ven       Vee       Vxc    Del(Ro)" << std::endl;
+        std::cout << "----------------------------------------------------------------------------------------" << std::endl;
+    }
 
     double ChargeDensityChange=1;
     double Eold=0;
@@ -84,11 +91,22 @@ bool SCFIteratorImp::Iterate(const SCFIterationParams& ipar)
         Eold=E;
     }
 
+    if (ipar.Verbose)
+    {
+        std::cout << "------------------------------------------------------------------------------------------" << std::endl;
+        DisplayEigen();
+    }
+
     return ChargeDensityChange <= ipar.MinDeltaRo;
 }
 
 
-Exact_CD* SCFIteratorImp::GetExactChargeDensity() const
+void SCFIterator::DisplayEigen() const
+{
+    itsWaveFunction->DisplayEigen();
+}
+
+Exact_CD* SCFIterator::GetExactChargeDensity() const
 {
     return itsExactChargeDensity;
 }
@@ -98,7 +116,7 @@ using std::setw;
 using std::setprecision;
 using std::ios;
 
-void SCFIteratorImp::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
+void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
 {
     TotalEnergy te = itsHamiltonian->GetTotalEnergy();
 
@@ -115,5 +133,6 @@ void SCFIteratorImp::DisplayEnergies(int i, double lam, double ChargeDensityChan
     cout << setw(8) << setprecision(2) << ChargeDensityChange << " ";
 //    cout << setw(8) << setprecision(2) << fitError << " ";
 //    cout << setw(9) << setprecision(2) << lam << " ";
+    cout << std::endl;
 }
 
