@@ -12,20 +12,17 @@
 class IrrepWaveFunction;
 
 class MasterPolarizedWF
-    : public virtual PolarizedWF
+    : public virtual WaveFunction
 {
 public:
     MasterPolarizedWF(const BasisSet*,const ElectronConfiguration*);
     
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;
-    virtual Exact_CD*           GetChargeDensity(Spin           ) const;
+    virtual Exact_CD*           GetChargeDensity() const;
     virtual Orbitals*           GetOrbitals     (const Irrep_QNs&) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     virtual SCFIterator*        MakeIterator    (Hamiltonian*, Exact_CD* guess, double nElectrons);
     virtual void                DisplayEigen    (               ) const;
-
-    virtual std::ostream&     Write(std::ostream&) const;
-    virtual std::istream&     Read (std::istream&)      ;
 
 private:
     typedef std::unique_ptr<IrrepWaveFunction> uiwf_t;

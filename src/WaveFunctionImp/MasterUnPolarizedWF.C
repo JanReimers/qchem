@@ -47,13 +47,10 @@ void MasterUnPolarizedWF::DoSCFIteration(Hamiltonian& ham)
     for (auto& w:itsIWFs) w->DoSCFIteration(ham);
 }
 
-Exact_CD* MasterUnPolarizedWF::GetChargeDensity(Spin s) const
+Exact_CD* MasterUnPolarizedWF::GetChargeDensity() const
 {
-    assert(s==Spin::None);
-    // return itsGroup->GetChargeDensity(s);
-    
     Composite_Exact_CD* cd = new Composite_Exact_CD();
-    for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity(s));
+    for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity());
     return cd;
 }
 
@@ -86,13 +83,4 @@ void MasterUnPolarizedWF::DisplayEigen() const
 }
 
 
-std::ostream& MasterUnPolarizedWF::Write(std::ostream& os) const
-{
-    return os;
-}
-
-std::istream& MasterUnPolarizedWF::Read (std::istream& is)
-{
-    return is;
-}
 

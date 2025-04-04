@@ -10,22 +10,18 @@
 #include <Orbital_QNs.H>
 
 class IrrepWaveFunction
-: public virtual PMStreamableObject
 {
 public:
     IrrepWaveFunction(const TOrbital_IBS<double>*, const Spin&);
     virtual ~IrrepWaveFunction();
 
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;
-    virtual Exact_CD*           GetChargeDensity(Spin           ) const;
+    virtual Exact_CD*           GetChargeDensity(           ) const;
     virtual Orbitals*           GetOrbitals     (const Irrep_QNs&) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     virtual void                DisplayEigen    (               ) const;
     Irrep_QNs GetQNs() const {return itsQNs;}
-    virtual std::ostream&      Write(std::ostream&) const;
-    virtual std::istream&      Read (std::istream&)      ;
-    static  IrrepWaveFunction* Factory(std::istream&)        ;
-private:
+ private:
     IrrepWaveFunction(const IrrepWaveFunction&);
 
     Orbitals*     itsOrbitals;

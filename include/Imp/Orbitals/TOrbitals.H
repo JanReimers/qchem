@@ -31,7 +31,7 @@ public:
 
     virtual index_t        GetNumOrbitals     (               ) const;
     virtual double         GetEigenValueChange(const Orbitals&) const;
-    virtual Exact_CD*      GetChargeDensity   (Spin) const;
+    virtual Exact_CD*      GetChargeDensity   () const;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&);
     virtual Irrep_QNs      GetQNs() const;
 

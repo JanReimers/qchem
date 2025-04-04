@@ -39,12 +39,10 @@ void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
     itsOrbitals->UpdateOrbitals(ham,itsSpin);
 }
 
-Exact_CD* IrrepWaveFunction::GetChargeDensity(Spin s) const
+Exact_CD* IrrepWaveFunction::GetChargeDensity() const
 {
     assert(itsOrbitals);
-    assert(s==itsSpin);
-    assert(s==itsQNs.ms);
-    return itsOrbitals->GetChargeDensity(s);
+    return itsOrbitals->GetChargeDensity();
 }
 
 Orbitals* IrrepWaveFunction::GetOrbitals(const Irrep_QNs& qns) const
@@ -85,37 +83,5 @@ void  IrrepWaveFunction::DisplayEigen() const
 {
     itsELevels.Report(std::cout);
    
-}
-
-// SCFIterator* IrrepWaveFunction::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
-// {
-//     return new SCFIteratorUnPol(this, H, cd,nElectrons);
-// }
-
-std::string spin_strs[]={"Down","None","Up"};
-std::ostream& IrrepWaveFunction::Write(std::ostream& os) const
-{
-    assert(itsOrbitals);
-    if (StreamableObject::Pretty()) 
-        os << "    Irreducible rep. Wave finction, spin=" << spin_strs[itsSpin.itsState] << std::endl;
-    else
-        os << itsSpin;
-        
-    os << *itsOrbitals;
-    if (StreamableObject::Pretty()) os << "        ";
-
-    return os;
-}
-
-std::istream& IrrepWaveFunction::Read (std::istream& is)
-{
-    is >> itsSpin;
-
-    delete itsOrbitals;
-    itsOrbitals = Orbitals::Factory(is);
-    assert(itsOrbitals);
-    is >> *itsOrbitals;
-
-    return is;
 }
 

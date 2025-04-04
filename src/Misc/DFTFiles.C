@@ -118,10 +118,10 @@ Hamiltonian* DFTFiles::UnpickleHamiltonian() const
     return ret;
 }
 
-WaveFunction* DFTFiles::UnpickleWaveFunction() const
-{
-    WaveFunction* ret=0;
-    UnPickle(ret,GetWaveFunctionFN().c_str(),"WaveFunction");
-    return ret;
-}
+// WaveFunction* DFTFiles::UnpickleWaveFunction() const
+// {
+//     WaveFunction* ret=0;
+//     UnPickle(ret,GetWaveFunctionFN().c_str(),"WaveFunction");
+//     return ret;
+// }
 
