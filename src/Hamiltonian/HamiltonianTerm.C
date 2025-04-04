@@ -3,6 +3,7 @@
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include <ChargeDensity.H>
+#include <Irrep_BS.H>
 #include <Symmetry.H>
 #include <iostream>
 #include <cassert>
@@ -10,40 +11,26 @@
 HamiltonianTermImp::HamiltonianTermImp()
     : itsExactCD(0)
 {
-    MarkAllDirty();
-};
-
-
-void HamiltonianTermImp::MarkAllDirty()
-{
     
-
-}
+};
 
 HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& s) const
 {
     assert(bs);
-    CacheIndex i(bs,s);
-    itsCache[i]=CalculateHamiltonianMatrix(bs,s);
+    Irrep_QNs qns(s,&bs->GetQuantumNumber());
+    itsCache[qns]=CalculateHamiltonianMatrix(bs,s);
+    itsBSs[qns]=bs;
  
-    assert(itsCache.find(i)!=itsCache.end());
-    return itsCache[i];
+    assert(itsCache.find(qns)!=itsCache.end());
+    return itsCache[qns];
 }
 
 double HamiltonianTermImp::CalculateEnergy() const
 {
     if (DependsOnChargeDensity())
     {
-        typedef CacheMap::const_iterator DITER;
-        for (DITER i=itsCache.begin(); i!=itsCache.end(); i++)
-        {
-            
-            const TOrbital_IBS<double>* bs=i->first.itsBasisSet;
-            Spin s=i->first.itsSpin;
-            assert(bs);
-            BuildHamiltonian(bs,s);
-            
-        }
+        for (auto b:itsBSs)
+            BuildHamiltonian(b.second,b.first.ms);
     }
     return itsExactCD->GetEnergy(this);
 }
@@ -54,14 +41,14 @@ void HamiltonianTermImp::UseChargeDensity(const Exact_CD* cd)
 //    assert(!itsExactCD || itsExactCD->GetID()!=theExactCD->GetID());
     itsExactCD =cd;
     assert(itsExactCD);
-    if (DependsOnChargeDensity()) MarkAllDirty();
+    
 }
 
 const HamiltonianTermImp::SMat& HamiltonianTermImp::GetCachedMatrix(const TOrbital_IBS<double>* bs, const Spin& s) const
 {
     assert(bs);
-    CacheIndex index(bs,s);
-    CacheMap::const_iterator i=itsCache.find(index);
+    Irrep_QNs qns(s,&bs->GetQuantumNumber());
+    CacheMap::const_iterator i=itsCache.find(qns);
     assert(i!=itsCache.end());
     return i->second;
 }
