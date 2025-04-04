@@ -3,38 +3,39 @@
 
 
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
-#include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/SCFIterator/SCFIteratorPol.H"
 #include "Imp/ChargeDensity/PolarizedCD.H"
-#include "Imp/WaveFunction/ElectronConfiguration.H"
-#include <ChargeDensity.H>
+#include "Imp/ChargeDensity/CompositeCD.H"
+#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/Orbitals/TOrbitals.H"
+#include <BasisSet.H>
+#include <Symmetry.H>
+#include <Irrep_BS.H>
+#include <cassert>
 #include <Spin.H>
 #include <Orbital_QNs.H>
-#include <Symmetry.H>
-#include "oml/imp/binio.h"
-#include <cassert>
+#include <iostream>
 
-MasterPolarizedWF::MasterPolarizedWF()
-    : itsSpinUpGroup  (0)
-    , itsSpinDnGroup(0)
-    , itsEC      (0)
-{};
 
-MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bg,const ElectronConfiguration* ec)
-    : itsSpinUpGroup  (new WaveFunctionGroup(bg,Spin(Spin::Up  )))
-    , itsSpinDnGroup(new WaveFunctionGroup(bg,Spin(Spin::Down)))
-    , itsEC           (ec) //Electron cofiguration
+
+MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec)
+    : itsBS(bs) //Basis set
+    , itsEC(ec) //Electron cofiguration
 {
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDnGroup);
     assert(itsEC);
+    assert(itsBS->GetNumFunctions()>0);
+    for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
+    {
+        uiwf_t wfup(new IrrepWaveFunction(b,Spin(Spin::Up)));
+        uiwf_t wfdn(new IrrepWaveFunction(b,Spin(Spin::Down)));
+        itsQN_WFs[wfup->GetQNs()]=wfup.get();
+        itsQN_WFs[wfdn->GetQNs()]=wfdn.get();
+        // Do tte move last.
+        itsSpinUpIWFs.push_back(std::move(wfup));
+        itsSpinDnIWFs.push_back(std::move(wfdn));
+    }
 };
 
-MasterPolarizedWF::~MasterPolarizedWF()
-{
-    delete itsSpinUpGroup;
-    delete itsSpinDnGroup;
-}
 //----------------------------------------------------------------------------
 //
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
@@ -42,37 +43,36 @@ MasterPolarizedWF::~MasterPolarizedWF()
 //
 void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
 {
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDnGroup);
-    itsSpinUpGroup->DoSCFIteration(ham);
-    itsSpinDnGroup->DoSCFIteration(ham);
+    for (auto& w:itsSpinUpIWFs) w->DoSCFIteration(ham);
+    for (auto& w:itsSpinDnIWFs) w->DoSCFIteration(ham);
 }
 
 Exact_CD* MasterPolarizedWF::GetChargeDensity(Spin s) const
 {
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDnGroup);
-    assert(s==Spin::None);
-    Exact_CD* up=itsSpinUpGroup->GetChargeDensity(Spin::Up);
-    Exact_CD* dn=itsSpinDnGroup->GetChargeDensity(Spin::Down);
+    Composite_Exact_CD* up = new Composite_Exact_CD();
+    Composite_Exact_CD* dn = new Composite_Exact_CD();
+    for (auto& w:itsSpinUpIWFs) up->Insert(w->GetChargeDensity(s));
+    for (auto& w:itsSpinDnIWFs) dn->Insert(w->GetChargeDensity(s));
     return new Polarized_CDImp(up,dn);
 }
 
 Orbitals* MasterPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 {
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDnGroup);
-    return qns.ms==Spin::Up ? itsSpinUpGroup->GetOrbitals(qns) : itsSpinDnGroup->GetOrbitals(qns);
+    auto i=itsQN_WFs.find(qns);
+    assert(i!=itsQN_WFs.end());
+    return i->second->GetOrbitals(qns);
 }
 
 
 const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 {
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDnGroup);
-    //itsEC->Display();
-    itsUpELevels=itsSpinUpGroup->FillOrbitals(itsEC);
-    itsDnELevels=itsSpinDnGroup->FillOrbitals(itsEC);
+    itsUpELevels.clear();
+    itsDnELevels.clear();
+
+    for (auto& w:itsSpinUpIWFs) 
+         itsUpELevels.merge(w->FillOrbitals(itsEC),0.0001);
+    for (auto& w:itsSpinDnIWFs) 
+         itsDnELevels.merge(w->FillOrbitals(itsEC),0.0001);
     return itsUpELevels;
 }
 
@@ -80,16 +80,6 @@ const EnergyLevels& MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*
 SCFIterator* MasterPolarizedWF::MakeIterator(Hamiltonian* H, Exact_CD* cd, double nElectrons)
 {
     return new SCFIteratorPol(this,H,cd,nElectrons,0.0);
-}
-
-WaveFunction* MasterPolarizedWF::GetWaveFunction(const Spin& S)
-{
-    // No UT coverage
-    assert(S.itsState!=Spin::None);
-    WaveFunction* ret=0;
-    if (S.itsState==Spin::Up  ) ret=itsSpinUpGroup  ;
-    if (S.itsState==Spin::Down) ret=itsSpinDnGroup;
-    return ret;
 }
 
 void MasterPolarizedWF::DisplayEigen() const
@@ -125,27 +115,11 @@ void MasterPolarizedWF::DisplayEigen() const
 
 std::ostream& MasterPolarizedWF::Write(std::ostream& os) const
 {
-    assert(itsSpinUpGroup  );
-    assert(itsSpinDnGroup);
-    if (Pretty())
-        os << "Polarized wave function :" << std::endl;
-    os << *itsSpinUpGroup << *itsSpinDnGroup;
-    
     return os;
 }
 
 std::istream& MasterPolarizedWF::Read (std::istream& is)
 {
-    delete itsSpinUpGroup;
-    itsSpinUpGroup=WaveFunction::Factory(is);
-    assert(itsSpinUpGroup  );
-    is >> *itsSpinUpGroup;
-
-    delete itsSpinDnGroup;
-    itsSpinDnGroup=WaveFunction::Factory(is);
-    assert(itsSpinDnGroup  );
-    is >> *itsSpinDnGroup;
-
     return is;
 }
 

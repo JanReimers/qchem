@@ -1,7 +1,6 @@
 // File: WaveFunctionFactories.C  Interface for a wave function.
 
 #include "Imp/WaveFunction/IrrepWaveFunction.H"
-#include "Imp/WaveFunction/WaveFunctionGroup.H"
 #include "Imp/WaveFunction/MasterPolarizedWF.H"
 #include "Imp/WaveFunction/MasterUnPolarizedWF.H"
 
@@ -28,10 +27,7 @@ IrrepWaveFunction* IrrepWaveFunction::Factory(std::istream& is)
 WaveFunction* WaveFunction::Factory(std::istream& is)
 {
     std::string Name=PeekAtName(is);
-    if (Name==typeid(WaveFunctionGroup).name()) return new WaveFunctionGroup;
-    if (Name==typeid(MasterPolarizedWF).name()) return new MasterPolarizedWF;
-    if (Name==typeid(MasterUnPolarizedWF).name()) return new MasterUnPolarizedWF;
-
+    
     std::cout << "Unknown WaveFunction type :" << Name << std::endl;
     exit(-1);
     return NULL;

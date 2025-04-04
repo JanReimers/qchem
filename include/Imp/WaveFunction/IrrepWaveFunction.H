@@ -20,9 +20,8 @@ public:
     virtual Exact_CD*           GetChargeDensity(Spin           ) const;
     virtual Orbitals*           GetOrbitals     (const Irrep_QNs&) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
-    // virtual SCFIterator*        MakeIterator    (Hamiltonian*, Exact_CD* guess, double nElectrons);
     virtual void                DisplayEigen    (               ) const;
-
+    Irrep_QNs GetQNs() const {return itsQNs;}
     virtual std::ostream&      Write(std::ostream&) const;
     virtual std::istream&      Read (std::istream&)      ;
     static  IrrepWaveFunction* Factory(std::istream&)        ;

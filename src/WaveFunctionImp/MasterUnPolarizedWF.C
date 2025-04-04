@@ -9,7 +9,6 @@
 #include "Imp/Orbitals/TOrbitals.H"
 #include <BasisSet.H>
 #include <Irrep_BS.H>
-// #include <Symmetry.H>
 #include <cassert>
 #include <Spin.H>
 #include <Orbital_QNs.H>
@@ -28,8 +27,9 @@ MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bs,const ElectronConfig
     assert(itsBS->GetNumFunctions()>0);
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wfp(new IrrepWaveFunction(b,Spin(Spin::None)));
-        itsIWFs.push_back(std::move(wfp));
+        uiwf_t wf(new IrrepWaveFunction(b,Spin(Spin::None)));
+        itsQN_WFs[wf->GetQNs()]=wf.get();
+        itsIWFs.push_back(std::move(wf)); //Do the move last.
     }
 };
 

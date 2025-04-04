@@ -32,7 +32,7 @@ class PolarizedWF
     : public virtual WaveFunction
 {
 public:
-    virtual WaveFunction* GetWaveFunction (const Spin&)=0;
+    // virtual WaveFunction* GetWaveFunction (const Spin&)=0;
     static  PolarizedWF*  Factory(std::istream&);
 };
 
