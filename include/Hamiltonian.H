@@ -17,6 +17,7 @@ class Static_HT
 public:
     typedef SMatrix<double> SMat;
 
+    virtual void UseChargeDensity(const Exact_CD* exact)       =0;
     virtual SMat BuildHamiltonian(const TOrbital_IBS<double>*,const Spin&) const=0;
     virtual void GetEnergy       (TotalEnergy&,  const Exact_CD*) const=0;
     virtual bool IsPolarized     (                           ) const  {return false;}

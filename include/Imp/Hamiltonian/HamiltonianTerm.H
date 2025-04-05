@@ -24,6 +24,7 @@ public:
 
     const SMat& GetCachedMatrix(const TOrbital_IBS<double>* bs, const Spin& s) const;
 protected:
+    virtual void UseChargeDensity(const Exact_CD* exact);
     
     // Unconditional calculation, does no use cache.
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
@@ -34,7 +35,7 @@ protected:
     typedef std::map<Irrep_QNs,const TOrbital_IBS<double>*> BSMap;
    
 
-    // const Exact_CD*    itsExactCD;     //Exact charge density.
+    const Exact_CD*    itsExactCD;     //Exact charge density.
     mutable CacheMap   itsCache;       //Cache the H matricies for total energy calculations.
     mutable BSMap      itsBSs;
 };
@@ -48,7 +49,7 @@ public:
     
 protected:
     virtual double CalculateEnergy(const Exact_CD* cd) const;
-    const Exact_CD*    itsExactCD;     //Exact charge density.
+    // const Exact_CD*    itsExactCD;     //Exact charge density.
    
 };
 
