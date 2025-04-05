@@ -10,8 +10,8 @@
 #include <memory>
 
 class Ven
-    : public virtual HamiltonianTerm
-    , private        HamiltonianTermImp
+    : public virtual Static_HT
+    , private        Static_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Cluster> cl_t;

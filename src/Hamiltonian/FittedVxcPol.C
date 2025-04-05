@@ -14,14 +14,12 @@
 #include <stdlib.h>
 
 FittedVxcPol::FittedVxcPol()
-    : HamiltonianTermImp     ( )
-    , itsUpVxc                    (0)
+    : itsUpVxc                    (0)
     , itsDownVxc                  (0)
 {};
 
 FittedVxcPol::FittedVxcPol(bs_t& bs, ex_t& lda, mesh_t& m)
-    : HamiltonianTermImp(   )
-    , itsUpVxc               (new FittedVxc(bs,lda,m))
+    : itsUpVxc               (new FittedVxc(bs,lda,m))
     , itsDownVxc             (new FittedVxc(bs,lda,m))
 {
     assert(itsUpVxc);
@@ -39,7 +37,7 @@ void FittedVxcPol::UseChargeDensity(const Exact_CD* cd)
     assert(itsUpVxc);
     assert(itsDownVxc);
 
-    HamiltonianTermImp::UseChargeDensity(cd);
+    Dynamic_HT_Imp::UseChargeDensity(cd);
 
     const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
     assert(pol_cd);
@@ -68,7 +66,7 @@ bool FittedVxcPol::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat FittedVxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
+Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -103,14 +101,7 @@ std::ostream& FittedVxcPol::Write(std::ostream& os) const
 
 std::istream& FittedVxcPol::Read (std::istream& is)
 {
-    delete itsUpVxc;
-    itsUpVxc = HamiltonianTerm::Factory(is);
-    is >> *itsUpVxc;
-
-    delete itsDownVxc;
-    itsDownVxc = HamiltonianTerm::Factory(is);
-    is >> *itsDownVxc;
-
+   
     return is;
 }
 

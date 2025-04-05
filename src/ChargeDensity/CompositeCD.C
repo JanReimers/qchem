@@ -46,7 +46,7 @@ Exact_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs
     return K;
 }
 
-double Composite_Exact_CD::GetEnergy(const HamiltonianTerm* v) const
+double Composite_Exact_CD::GetEnergy(const Static_HT* v) const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->GetEnergy(v);

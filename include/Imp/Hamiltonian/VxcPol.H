@@ -14,8 +14,8 @@
 //  does not get deleted by ~FittedVee.  The LDA function is owned by Vxc.
 //
 class VxcPol
-    : public virtual HamiltonianTerm
-    , private        HamiltonianTermImp
+    : public virtual Dynamic_HT
+    , private        Dynamic_HT_Imp
 {
 public:
     VxcPol();

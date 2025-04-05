@@ -31,6 +31,7 @@
  * DHF      | Dirac-Hartree-Fock      | |
  * DFT      | Density Functional Theory | |
  * WF       | Wave Function     | |
+ * HT       | Hamiltonian Term  | i.e. Kinetic, Ven, Vee, Vxc etc |
  * SG       | Spherical Gaussian | spdfg gaussian functions used for atom calculations.
  * SS       | Spherical Slater   | spdfg Slater functions used for atom calculations.
  * PG       | Polarized Gaussian | Polarized (x,y,z,xx,xy,xz,..) Gaussians used for molecular calculations
@@ -81,7 +82,7 @@ class FittedCD;
 class FittedFunction;
 class FittedFunctionClient;
 class Hamiltonian;
-class HamiltonianTerm;
+class Static_HT;
 class Irrep_QNs;
 class Molecule;
 class Mesh;

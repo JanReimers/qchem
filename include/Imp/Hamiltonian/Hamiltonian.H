@@ -15,7 +15,8 @@ public:
     HamiltonianImp();
 
     virtual void        UseChargeDensity(const Exact_CD*       )      ;
-    virtual void        Add             (      HamiltonianTerm*)      ;
+    virtual void        Add             (      Static_HT*)      ;
+    virtual void        Add             (      Dynamic_HT*)      ;
     virtual SMat        BuildHamiltonian(const TOrbital_IBS<double>*,const Spin& S) const;
     virtual TotalEnergy GetTotalEnergy  (                             ) const;
     virtual bool        IsPolarized     (                             ) const;
@@ -26,7 +27,8 @@ public:
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;
     void InsertStandardTerms(cl_t & cl);
-    optr_vector1<HamiltonianTerm*> itsHamiltonianTerms;
+    optr_vector1<Static_HT*> itsSHTs;
+    optr_vector1<Dynamic_HT*> itsDHTs;
     const Exact_CD*    itsExactCD;    //Exact charge density.
 };
 

@@ -15,7 +15,7 @@
 class LDAVxc
     : public virtual FittablePotential
     , public virtual ScalarFFClient
-    , private        HamiltonianTermImp
+    , private        Dynamic_HT_Imp
 {
     typedef std::shared_ptr<ExFunctional> ex_t;
 public:

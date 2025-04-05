@@ -14,16 +14,20 @@
 #include <cassert>
 #include <iostream>
 
-typedef optr_vector1<HamiltonianTerm*>::iterator        ITER;
-typedef optr_vector1<HamiltonianTerm*>::const_iterator CITER;
+typedef optr_vector1<Static_HT*>::iterator        ITER;
+typedef optr_vector1<Static_HT*>::const_iterator CITER;
 
 HamiltonianImp::HamiltonianImp()
     : itsExactCD(0)
 {};
 
-void HamiltonianImp::Add(HamiltonianTerm* p)
+void HamiltonianImp::Add(Static_HT* p)
 {
-    itsHamiltonianTerms.push_back(p);
+    itsSHTs.push_back(p);
+}
+void HamiltonianImp::Add(Dynamic_HT* p)
+{
+    itsDHTs.push_back(p);
 }
 
 void HamiltonianImp::InsertStandardTerms(cl_t & cl)
@@ -37,7 +41,8 @@ void HamiltonianImp::UseChargeDensity(const Exact_CD* cd)
 {
     itsExactCD =cd;
     assert(itsExactCD);
-    for (auto t:itsHamiltonianTerms) t->UseChargeDensity(itsExactCD);
+    for (auto t:itsSHTs) t->UseChargeDensity(itsExactCD);
+    for (auto t:itsDHTs) t->UseChargeDensity(itsExactCD);
 }
 
 //
@@ -47,7 +52,8 @@ bool HamiltonianImp::IsPolarized() const
 {
     //No UT coverage
     bool ret=false;
-    for (auto t:itsHamiltonianTerms) ret = ret || t->IsPolarized();
+    for (auto t:itsSHTs) ret = ret || t->IsPolarized();
+    for (auto t:itsDHTs) ret = ret || t->IsPolarized();
     return ret;
 }
 
@@ -56,7 +62,8 @@ Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const TOrbital_IBS<double>* b
     int n=bs->GetNumFunctions();
     SMat H(n,n);
     Fill(H,0.0);
-    for (auto t:itsHamiltonianTerms) H+=t->BuildHamiltonian(bs,S);
+    for (auto t:itsSHTs) H+=t->BuildHamiltonian(bs,S);
+    for (auto t:itsDHTs) H+=t->BuildHamiltonian(bs,S);
     return H;
 }
 
@@ -65,22 +72,23 @@ TotalEnergy HamiltonianImp::GetTotalEnergy() const
 {
     assert(itsExactCD);
     TotalEnergy e;
-    for (auto t:itsHamiltonianTerms)  t->GetEnergy(e);
+    for (auto t:itsSHTs)  t->GetEnergy(e);
+    for (auto t:itsDHTs)  t->GetEnergy(e);
     return e;
 }
 
 
 std::ostream& HamiltonianImp::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "Hamiltonian with " << itsHamiltonianTerms.size() << " terms:" << std::endl;
-    os << itsHamiltonianTerms;
+    os << "Hamiltonian with " << itsSHTs.size() << " static terms:" << std::endl;
+    os << itsSHTs;
+    os << "Hamiltonian with " << itsDHTs.size() << " dynamic terms:" << std::endl;
+    os << itsDHTs;
     return os;
 }
 
 std::istream& HamiltonianImp::Read(std::istream& is)
 {
-    is >> itsHamiltonianTerms;
     return is;
 }
 

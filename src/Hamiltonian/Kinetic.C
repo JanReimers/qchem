@@ -5,11 +5,11 @@
 #include <TotalEnergy.H>
 
 Kinetic::Kinetic()
-    : HamiltonianTermImp()
+    : Static_HT_Imp()
 {};
 
 
-HamiltonianTerm::SMat Kinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat Kinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     return 0.5*bs->Grad2();
 }

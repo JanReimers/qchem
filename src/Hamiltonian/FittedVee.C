@@ -13,12 +13,11 @@
 #include <stdlib.h>
 
 FittedVee::FittedVee()
-    : HamiltonianTermImp()
+  
 {};
 
 FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElectrons)
-    : HamiltonianTermImp()
-    , itsFittedChargeDensity(new FittedCDImp<double>(chargeDensityFitBasisSet,m,numElectrons))
+    : itsFittedChargeDensity(new FittedCDImp<double>(chargeDensityFitBasisSet,m,numElectrons))
 {
     assert(itsFittedChargeDensity);
 };
@@ -26,7 +25,7 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
 void FittedVee::UseChargeDensity(const Exact_CD* cd)
 {
     assert(cd);
-    HamiltonianTermImp::UseChargeDensity(cd);
+    Dynamic_HT_Imp::UseChargeDensity(cd);
     itsFittedChargeDensity->DoFit(*cd);
 }
 //########################################################################
@@ -39,7 +38,7 @@ void FittedVee::UseChargeDensity(const Exact_CD* cd)
 //  Where ro is the fitted charge density.
 //
 
-HamiltonianTerm::SMat FittedVee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat FittedVee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     auto dft_bs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
     return itsFittedChargeDensity->GetRepulsion(dft_bs);

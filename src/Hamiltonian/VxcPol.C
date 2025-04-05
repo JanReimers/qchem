@@ -15,7 +15,6 @@
 #include <stdlib.h>
 
 VxcPol::VxcPol()
-    : HamiltonianTermImp     ( )
 {
 };
 
@@ -41,7 +40,7 @@ bool VxcPol::IsPolarized() const
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-HamiltonianTerm::SMat VxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
+Static_HT::SMat VxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
 {
     if  (s.itsState==Spin::None)
     {

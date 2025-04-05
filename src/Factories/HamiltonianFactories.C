@@ -41,7 +41,7 @@ Hamiltonian* Hamiltonian::Factory(std::istream& is)
 //  class and make a new object using the default constructor.
 //
 
-HamiltonianTerm* HamiltonianTerm::Factory(std::istream& is)
+Static_HT* Static_HT::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(Kinetic  ).name()) return new Kinetic ();

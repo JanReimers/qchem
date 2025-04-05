@@ -28,7 +28,7 @@ Exact_CD::SMat Polarized_CD::GetExchange(const TOrbital_HF_IBS<double>* bs) cons
     return Kab_up + Kab_down;
 }
 
-double Polarized_CD::GetEnergy(const HamiltonianTerm* v) const
+double Polarized_CD::GetEnergy(const Static_HT* v) const
 {
     return GetChargeDensity(Spin::Up  )->GetEnergy(v)+GetChargeDensity(Spin::Down)->GetEnergy(v);
 }

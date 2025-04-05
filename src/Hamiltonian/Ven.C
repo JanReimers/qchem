@@ -10,17 +10,17 @@
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 
-Ven::Ven() : HamiltonianTermImp() , theCluster() {};
+Ven::Ven() : Static_HT_Imp() , theCluster() {};
 
 Ven::Ven(cl_t& cl)
-    : HamiltonianTermImp()
+    : Static_HT_Imp()
     , theCluster(cl)
 {
     assert(cl->GetNumAtoms()>0);
 };
 
 
-HamiltonianTerm::SMat Ven::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat Ven::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
     return bs->Nuclear(&*theCluster);

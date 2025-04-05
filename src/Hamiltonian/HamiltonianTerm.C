@@ -8,13 +8,13 @@
 #include <iostream>
 #include <cassert>
 
-HamiltonianTermImp::HamiltonianTermImp()
+Static_HT_Imp::Static_HT_Imp()
     : itsExactCD(0)
 {
     
 };
 
-HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& s) const
+Static_HT::SMat Static_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -25,9 +25,15 @@ HamiltonianTerm::SMat HamiltonianTermImp::BuildHamiltonian(const TOrbital_IBS<do
     return itsCache[qns];
 }
 
-double HamiltonianTermImp::CalculateEnergy() const
+double Static_HT_Imp::CalculateEnergy() const
 {
-    if (DependsOnChargeDensity())
+    assert(itsExactCD);
+    return itsExactCD->GetEnergy(this);
+}
+
+double Dynamic_HT_Imp::CalculateEnergy() const
+{
+    if (true)
     {
         for (auto b:itsBSs)
             BuildHamiltonian(b.second,b.first.ms);
@@ -35,16 +41,20 @@ double HamiltonianTermImp::CalculateEnergy() const
     return itsExactCD->GetEnergy(this);
 }
 
-void HamiltonianTermImp::UseChargeDensity(const Exact_CD* cd)
+void Static_HT_Imp::UseChargeDensity(const Exact_CD* cd)
 {
-//  TODO: SHould charge density have an unique ID?
-//    assert(!itsExactCD || itsExactCD->GetID()!=theExactCD->GetID());
+    itsExactCD =cd;
+    assert(itsExactCD);
+    
+}
+void Dynamic_HT_Imp::UseChargeDensity(const Exact_CD* cd)
+{
     itsExactCD =cd;
     assert(itsExactCD);
     
 }
 
-const HamiltonianTermImp::SMat& HamiltonianTermImp::GetCachedMatrix(const TOrbital_IBS<double>* bs, const Spin& s) const
+const Static_HT_Imp::SMat& Static_HT_Imp::GetCachedMatrix(const TOrbital_IBS<double>* bs, const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -53,12 +63,12 @@ const HamiltonianTermImp::SMat& HamiltonianTermImp::GetCachedMatrix(const TOrbit
     return i->second;
 }
 
-std::ostream&  HamiltonianTermImp::Write(std::ostream& os) const
+std::ostream&  Static_HT_Imp::Write(std::ostream& os) const
 {
     return os;
 }
 
-std::istream&  HamiltonianTermImp::Read (std::istream& is)
+std::istream&  Static_HT_Imp::Read (std::istream& is)
 {
     return is;
 }

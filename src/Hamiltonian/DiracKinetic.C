@@ -6,11 +6,11 @@
 #include <TotalEnergy.H>
 
 DiracKinetic::DiracKinetic()
-    : HamiltonianTermImp()
+    : Static_HT_Imp()
 {};
 
 
-HamiltonianTerm::SMat DiracKinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat DiracKinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
     return c_light*bs->Grad2();

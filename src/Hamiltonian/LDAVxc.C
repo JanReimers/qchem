@@ -11,20 +11,18 @@
 #include <stdlib.h>
 
 LDAVxc::LDAVxc()
-    : HamiltonianTermImp( )
-    , itsExchangeFunctional  (0)
+    : itsExchangeFunctional  (0)
 {};
 
 LDAVxc::LDAVxc(ex_t& lda)
-    : HamiltonianTermImp(   )
-    , itsExchangeFunctional  (lda)
+    : itsExchangeFunctional  (lda)
 {
     assert(&*itsExchangeFunctional);
 };
 
 void LDAVxc::UseChargeDensity(const Exact_CD* cd)
 {
-    HamiltonianTermImp::UseChargeDensity(cd);
+    Dynamic_HT_Imp::UseChargeDensity(cd);
     itsExchangeFunctional->InsertChargeDensity(itsExactCD);
 }
 
@@ -33,7 +31,7 @@ void LDAVxc::UseChargeDensity(const Exact_CD* cd)
 //  Here Vxc is not fit to the exchange functional, so the Matrix and energy.
 //  cannot be calculated analytically.
 //
-HamiltonianTerm::SMat LDAVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat LDAVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     std::cerr << "LDAVxc::CalculateHamiltonianMatrix not implementated yet" << std::endl;
     exit(-1);

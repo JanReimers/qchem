@@ -15,8 +15,8 @@
 //  does not get deleted by ~FittedVee.  The LDA function is owned by Vxc.
 //
 class FittedVxcPol
-    : public virtual HamiltonianTerm
-    , private        HamiltonianTermImp
+    : public virtual Dynamic_HT
+    , private        Dynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Mesh>          mesh_t;
@@ -38,8 +38,8 @@ private:
     virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
-    HamiltonianTerm* itsUpVxc  ; //Spin up.
-    HamiltonianTerm* itsDownVxc; //Spin down.
+    Dynamic_HT* itsUpVxc  ; //Spin up.
+    Dynamic_HT* itsDownVxc; //Spin down.
 
 };
 

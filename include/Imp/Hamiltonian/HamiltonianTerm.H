@@ -11,35 +11,46 @@
 #include "oml/smatrix.h"
 #include <map>
 
-class HamiltonianTermImp
-    : public virtual HamiltonianTerm
+class Static_HT_Imp
+    : public virtual Static_HT
 {
 public:
-    HamiltonianTermImp();
+    Static_HT_Imp();
 
     virtual SMat BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin&) const;
-
-    virtual void UseChargeDensity(const Exact_CD*);
 
     virtual std::ostream&   Write(std::ostream&) const;
     virtual std::istream&   Read (std::istream&)      ;
 
     const SMat& GetCachedMatrix(const TOrbital_IBS<double>* bs, const Spin& s) const;
 protected:
+    virtual void UseChargeDensity(const Exact_CD* exact);
     
-    virtual bool DependsOnChargeDensity() const=0;
     // Unconditional calculation, does no use cache.
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
     // Calculation assumes that the cache is up to date. And E=Sum(Dab*Hab);
-    double CalculateEnergy() const;
+    virtual double CalculateEnergy() const;
    
     typedef std::map<Irrep_QNs,SMat> CacheMap;
     typedef std::map<Irrep_QNs,const TOrbital_IBS<double>*> BSMap;
    
 
     const Exact_CD*    itsExactCD;     //Exact charge density.
-    mutable CacheMap        itsCache;       //Cache the H matricies for total energy calculations.
-    mutable BSMap     itsBSs;
+    mutable CacheMap   itsCache;       //Cache the H matricies for total energy calculations.
+    mutable BSMap      itsBSs;
+};
+
+class Dynamic_HT_Imp
+: public virtual Dynamic_HT
+, public Static_HT_Imp
+{
+public:
+    virtual void UseChargeDensity(const Exact_CD* exact);
+    
+protected:
+    virtual double CalculateEnergy() const;
+    // const Exact_CD*    itsExactCD;     //Exact charge density.
+   
 };
 
 

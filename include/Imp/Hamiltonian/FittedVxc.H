@@ -16,11 +16,11 @@
 //
 class FittedVxc
     : public virtual FittedFunction
-    , public virtual HamiltonianTerm
-    , private        HamiltonianTermImp
+    , public virtual Dynamic_HT
+    , private        Dynamic_HT_Imp
     , public         FittedFunctionImp<double>
 {
-    typedef HamiltonianTerm::SMat SMat;
+    typedef Static_HT::SMat SMat;
 public:
     typedef FittedFunctionImp<double>::mesh_t mesh_t;
     typedef FittedFunctionImp<double>::bs_t   bs_t;

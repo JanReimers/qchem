@@ -5,8 +5,8 @@
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 
 class RestMass
-    : public virtual HamiltonianTerm
-    , private        HamiltonianTermImp
+    : public virtual Static_HT
+    , private        Static_HT_Imp
 {
 public:
     RestMass(                         );

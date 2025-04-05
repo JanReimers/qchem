@@ -23,7 +23,7 @@ class Exact_CD
 , public virtual DensityFFClient //Fitted function can be fit to this.
 {
 public:
-    virtual double GetEnergy(const HamiltonianTerm*) const=0; //Amounts to Integral(ro*V*d3r);
+    virtual double GetEnergy(const Static_HT*) const=0; //Amounts to Integral(ro*V*d3r);
 
     virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&          )      =0;  //Usefull for single atom charge densities.
@@ -51,7 +51,7 @@ public:
     virtual       Exact_CD* GetChargeDensity(const Spin&)      =0;
     virtual const Exact_CD* GetChargeDensity(const Spin&) const=0;
 
-    virtual double GetEnergy(const HamiltonianTerm*) const;
+    virtual double GetEnergy(const Static_HT*) const;
 
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>

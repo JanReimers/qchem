@@ -17,8 +17,8 @@
 // claculations.
 //
 class Vee
-    : public virtual HamiltonianTerm
-    , private HamiltonianTermImp
+    : public virtual Dynamic_HT
+    , private Dynamic_HT_Imp
 {
 public:
     Vee();

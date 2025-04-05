@@ -12,16 +12,16 @@
 #include <cassert>
 
 Vnn::Vnn()
-    : HamiltonianTermImp()
+    : Static_HT_Imp()
     , theCluster()
 {};
 
 Vnn::Vnn(cl_t& cl)
-    : HamiltonianTermImp()
+    : Static_HT_Imp()
     , theCluster(cl)
 {};
 
-HamiltonianTerm::SMat Vnn::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat Vnn::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMat ret(n,n);

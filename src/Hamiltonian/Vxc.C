@@ -9,14 +9,14 @@
 #include <cassert>
 #include <stdlib.h>
 
-Vxc::Vxc() : HamiltonianTermImp( ) {};
+Vxc::Vxc() {};
 
 //########################################################################
 //
 //  Let the charge density do the work.
 //
 
-HamiltonianTerm::SMat Vxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat Vxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
 {
     assert(itsExactCD);
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
