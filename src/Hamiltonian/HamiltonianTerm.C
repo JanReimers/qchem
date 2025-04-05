@@ -9,6 +9,11 @@
 #include <cassert>
 
 Static_HT_Imp::Static_HT_Imp()
+    
+{
+    
+};
+Dynamic_HT_Imp::Dynamic_HT_Imp()
     : itsExactCD(0)
 {
     
@@ -27,12 +32,12 @@ Static_HT::SMat Static_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,c
 
 double Static_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
 {
-    assert(itsExactCD);
-    return itsExactCD->GetEnergy(this);
+    return cd->GetEnergy(this);
 }
 
 double Dynamic_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
 {
+    assert(itsExactCD);
     if (true)
     {
         for (auto b:itsBSs)
@@ -41,12 +46,7 @@ double Dynamic_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
     return itsExactCD->GetEnergy(this);
 }
 
-void Static_HT_Imp::UseChargeDensity(const Exact_CD* cd)
-{
-    itsExactCD =cd;
-    assert(itsExactCD);
-    
-}
+
 void Dynamic_HT_Imp::UseChargeDensity(const Exact_CD* cd)
 {
     itsExactCD =cd;
