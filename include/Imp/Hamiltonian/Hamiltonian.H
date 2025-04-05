@@ -18,7 +18,7 @@ public:
     virtual void        Add             (      Static_HT*)      ;
     virtual void        Add             (      Dynamic_HT*)      ;
     virtual SMat        BuildHamiltonian(const TOrbital_IBS<double>*,const Spin& S) const;
-    virtual TotalEnergy GetTotalEnergy  (                             ) const;
+    virtual TotalEnergy GetTotalEnergy  (   const Exact_CD*                            ) const;
     virtual bool        IsPolarized     (                             ) const;
 
     virtual std::ostream&     Write(std::ostream&) const;

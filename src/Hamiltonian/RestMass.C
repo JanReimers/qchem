@@ -19,9 +19,9 @@ Static_HT::SMat RestMass::CalculateHamiltonianMatrix(const TOrbital_IBS<double>*
     return f*sbs->RestMass();
 }
 
-void RestMass::GetEnergy(TotalEnergy& te) const
+void RestMass::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
-    te.RestMass=CalculateEnergy();
+    te.RestMass=CalculateEnergy(cd);
 }
 
 std::ostream& RestMass::Write(std::ostream& os) const

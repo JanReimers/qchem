@@ -33,10 +33,10 @@ Static_HT::SMat Vee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,c
     return itsExactCD->GetRepulsion(hf_bs);
 }
 
-void Vee::GetEnergy(TotalEnergy& te) const
+void Vee::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
     assert(itsExactCD);
-    te.Eee=0.5*CalculateEnergy();
+    te.Eee=0.5*CalculateEnergy(cd);
     te.EeeFit    = 0.0;
     te.EeeFitFit = 0.0;
 }

@@ -79,8 +79,8 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         // std::cout << "Total charge=" << itsExactChargeDensity->GetTotalCharge() << std::endl;
         itsHamiltonian->UseChargeDensity(itsExactChargeDensity);      //Set all the potentials for this charge denisty distribution.
 
-        if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0);
-        double E=itsHamiltonian->GetTotalEnergy().GetTotalEnergy();
+        if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0,itsExactChargeDensity);
+        double E=itsHamiltonian->GetTotalEnergy(itsExactChargeDensity).GetTotalEnergy();
         if (E>Eold && Eold<Eoldold) relax*=0.5;
         if (E<Eold && Eold>Eoldold) relax*=0.5;
         if (E<Eold && Eold<Eoldold) relax*=1.2;
@@ -116,9 +116,9 @@ using std::setw;
 using std::setprecision;
 using std::ios;
 
-void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError) const
+void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError,const Exact_CD* cd) const
 {
-    TotalEnergy te = itsHamiltonian->GetTotalEnergy();
+    TotalEnergy te = itsHamiltonian->GetTotalEnergy(cd);
 
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(2)  << i << " "

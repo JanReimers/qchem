@@ -9,7 +9,7 @@ public:
     SCFIterator(WaveFunction*, Hamiltonian*,Exact_CD*);
     ~SCFIterator();
     bool Iterate(const SCFIterationParams& ipar);
-    void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError) const;
+    void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError,const Exact_CD* cd) const;
     void DisplayEigen   () const;
 
     Exact_CD* GetExactChargeDensity () const;

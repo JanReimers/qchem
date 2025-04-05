@@ -56,9 +56,9 @@ Static_HT::SMat VxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* b
     SMat Kab=SpinCD->GetExchange(hf_bs)*-1.0;
     return Kab;
 }
-void VxcPol::GetEnergy(TotalEnergy& te) const
+void VxcPol::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
-    te.Exc += 0.5*CalculateEnergy(); //This should sum K^alpha and K^beta.
+    te.Exc += 0.5*CalculateEnergy(cd); //This should sum K^alpha and K^beta.
 }
 
 std::ostream& VxcPol::Write(std::ostream& os) const

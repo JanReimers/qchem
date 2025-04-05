@@ -54,9 +54,9 @@ Static_HT::SMat FittedVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>
     return FitGet3CenterOverlap(dftbs);
 }
 
-void FittedVxc::GetEnergy(TotalEnergy& te) const
+void FittedVxc::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
-    te.Exc += 3.0/4.0 *CalculateEnergy();
+    te.Exc += 3.0/4.0 *CalculateEnergy(cd);
 
 //    double HFExc=-0.25*itsExactCD->GetExchangeEnergy();
 //    std::cout.precision(4);

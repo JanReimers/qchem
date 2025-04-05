@@ -37,7 +37,7 @@ Static_HT::SMat LDAVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* b
     exit(-1);
     return SMat();
 }
-void LDAVxc::GetEnergy(TotalEnergy&) const
+void LDAVxc::GetEnergy(TotalEnergy&,const Exact_CD* cd) const
 {
     std::cerr << "LDAVxc::GetEnergy(const BasisSet&,TotalEnergy&) not implementated yet" << std::endl;
     exit(-1);

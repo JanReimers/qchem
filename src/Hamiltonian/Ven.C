@@ -26,9 +26,9 @@ Static_HT::SMat Ven::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,c
     return bs->Nuclear(&*theCluster);
 }
 
-void Ven::GetEnergy(TotalEnergy& te) const
+void Ven::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
-    te.Een=CalculateEnergy();
+    te.Een=CalculateEnergy(cd);
 }
 
 std::ostream& Ven::Write(std::ostream& os) const

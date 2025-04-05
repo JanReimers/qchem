@@ -44,11 +44,11 @@ Static_HT::SMat FittedVee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 
-void FittedVee::GetEnergy(TotalEnergy& te) const
+void FittedVee::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
     assert(itsFittedChargeDensity);
     assert(itsExactCD);
-    te.EeeFit    = 0.5*CalculateEnergy();
+    te.EeeFit    = 0.5*CalculateEnergy(cd);
     te.EeeFitFit = itsFittedChargeDensity->GetSelfRepulsion();
     te.Eee = 2*te.EeeFit - te.EeeFitFit;
 }

@@ -81,14 +81,14 @@ Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<doub
 }
 
 
-void FittedVxcPol::GetEnergy(TotalEnergy& te) const
+void FittedVxcPol::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
 
     te.Exc = 0.0;
-    itsUpVxc  ->GetEnergy(te);
-    itsDownVxc->GetEnergy(te);
+    itsUpVxc  ->GetEnergy(te,cd);
+    itsDownVxc->GetEnergy(te,cd);
 }
 
 std::ostream& FittedVxcPol::Write(std::ostream& os) const

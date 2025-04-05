@@ -25,13 +25,13 @@ Static_HT::SMat Static_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,c
     return itsCache[qns];
 }
 
-double Static_HT_Imp::CalculateEnergy() const
+double Static_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
 {
     assert(itsExactCD);
     return itsExactCD->GetEnergy(this);
 }
 
-double Dynamic_HT_Imp::CalculateEnergy() const
+double Dynamic_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
 {
     if (true)
     {

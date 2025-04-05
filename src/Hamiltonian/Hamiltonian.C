@@ -68,12 +68,12 @@ Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const TOrbital_IBS<double>* b
 }
 
 
-TotalEnergy HamiltonianImp::GetTotalEnergy() const
+TotalEnergy HamiltonianImp::GetTotalEnergy( const Exact_CD* cd ) const
 {
     assert(itsExactCD);
     TotalEnergy e;
-    for (auto t:itsSHTs)  t->GetEnergy(e);
-    for (auto t:itsDHTs)  t->GetEnergy(e);
+    for (auto t:itsSHTs)  t->GetEnergy(e,cd);
+    for (auto t:itsDHTs)  t->GetEnergy(e,cd);
     return e;
 }
 

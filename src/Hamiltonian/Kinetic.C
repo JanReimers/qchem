@@ -14,9 +14,9 @@ Static_HT::SMat Kinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* 
     return 0.5*bs->Grad2();
 }
 
-void Kinetic::GetEnergy(TotalEnergy& te) const
+void Kinetic::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
-    te.Kinetic=CalculateEnergy();
+    te.Kinetic=CalculateEnergy(cd);
 }
 
 std::ostream& Kinetic::Write(std::ostream& os) const

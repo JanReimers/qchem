@@ -24,10 +24,10 @@ Static_HT::SMat Vxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,c
     SMat Kab=itsExactCD->GetExchange(hf_bs);
     return Kab*-0.5;
 }
-void Vxc::GetEnergy(TotalEnergy& te) const
+void Vxc::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
 {
     assert(itsExactCD);
-    te.Exc+=0.5*CalculateEnergy();
+    te.Exc+=0.5*CalculateEnergy(cd);
 }
 
 std::ostream& Vxc::Write(std::ostream& os) const

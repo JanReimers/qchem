@@ -59,7 +59,8 @@ void QchemTester::Iterate(const SCFIterationParams& ipar)
 double QchemTester::TotalEnergy() const
 {
     assert(itsHamiltonian);
-    return itsHamiltonian->GetTotalEnergy().GetTotalEnergy();
+    Exact_CD* cd=itsWaveFunction->GetChargeDensity();
+    return itsHamiltonian->GetTotalEnergy(cd).GetTotalEnergy();
 }
 
 double QchemTester::TotalCharge() const

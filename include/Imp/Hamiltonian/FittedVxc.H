@@ -30,7 +30,7 @@ public:
     FittedVxc(bs_t& VxcFitBasisSet, ex_t&, mesh_t&);
     ~FittedVxc();
     // Required by HamiltonianTerm
-    virtual void GetEnergy       (TotalEnergy&               ) const;
+    virtual void GetEnergy       (TotalEnergy&,const Exact_CD* cd              ) const;
     // Required by FittablePotential.
     virtual void UseChargeDensity(const Exact_CD* exact);
 
