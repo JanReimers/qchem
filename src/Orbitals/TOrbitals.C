@@ -30,6 +30,10 @@ TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
     assert(itsBasisSet->GetNumFunctions()>0);
 };
 
+template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
+{
+    delete itsLASolver;
+}
 
 //-----------------------------------------------------------------
 //

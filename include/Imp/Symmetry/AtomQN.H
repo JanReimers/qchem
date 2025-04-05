@@ -18,6 +18,9 @@ class AtomQN
 public:
     AtomQN(            );
     AtomQN(int n, const AngularQN&);
+    AtomQN(const AtomQN&);
+    virtual ~AtomQN();
+    
     virtual size_t SequenceIndex() const; //Used for op<
     virtual bool MatchType(const Symmetry&) const;
     

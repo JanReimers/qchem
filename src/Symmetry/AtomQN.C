@@ -23,6 +23,14 @@ AtomQN::AtomQN(): l(0),n(0),itsAngularQN(0) {};
 AtomQN::AtomQN(int _n, const AngularQN& aqn)
 : l(aqn.GetL()), n(_n+l), itsAngularQN(aqn.Clone()) {};
 
+AtomQN::AtomQN(const AtomQN& aqn)
+: l(aqn.l), n(aqn.n), itsAngularQN(aqn.itsAngularQN->Clone()) {};
+
+AtomQN::~AtomQN()
+{
+    if (itsAngularQN) delete itsAngularQN;
+}
+
 size_t AtomQN::SequenceIndex() const //Used for op<
  {
     assert(n<=n_max);

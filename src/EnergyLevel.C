@@ -6,6 +6,18 @@
 #include <iostream>
 #include <iomanip>
 
+EnergyLevel::EnergyLevel(const EnergyLevel& el) 
+: e(el.e), occ(el.occ), degen(el.degen), qn(el.qn->Clone()), s(el.s), orbital(el.orbital)
+{
+
+}
+
+EnergyLevel::~EnergyLevel() 
+{
+    assert(qn);
+    delete qn; 
+}
+
 void EnergyLevel::merge(const EnergyLevel& el)
 {
     occ+=el.occ;

@@ -60,7 +60,9 @@ double QchemTester::TotalEnergy() const
 {
     assert(itsHamiltonian);
     Exact_CD* cd=itsWaveFunction->GetChargeDensity();
-    return itsHamiltonian->GetTotalEnergy(cd).GetTotalEnergy();
+    double e=itsHamiltonian->GetTotalEnergy(cd).GetTotalEnergy();
+    delete cd;
+    return e;
 }
 
 double QchemTester::TotalCharge() const

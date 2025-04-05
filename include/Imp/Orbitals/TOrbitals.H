@@ -22,7 +22,7 @@ template <class T> class TOrbitalsImp
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
     TOrbitalsImp(const TOrbital_IBS<T>*, Spin s);
-    virtual ~TOrbitalsImp() {};
+    virtual ~TOrbitalsImp();
 
     typedef Vector3D<T> TVec;
 
