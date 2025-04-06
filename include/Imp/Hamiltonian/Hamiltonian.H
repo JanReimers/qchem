@@ -28,7 +28,7 @@ protected:
     void InsertStandardTerms(cl_t & cl);
     optr_vector1<Static_HT*> itsSHTs;
     optr_vector1<Dynamic_HT*> itsDHTs;
-    const DM_CD*    itsCD;    //Exact charge density.
+    mutable const DM_CD*    itsCD;    //Exact charge density.
 };
 
 #endif //_HamiltonianImp_H_

@@ -61,6 +61,7 @@ TotalEnergy HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
     HamiltonianImp* h=const_cast<HamiltonianImp*>(this);
     h->UseChargeDensity(cd);
+    // itsCD=cd;
     assert(itsCD);
     TotalEnergy e;
     for (auto t:itsSHTs)  t->GetEnergy(e,cd);
