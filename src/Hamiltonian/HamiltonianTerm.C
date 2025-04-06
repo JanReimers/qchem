@@ -23,6 +23,20 @@ Static_HT::SMat Static_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,c
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
+    auto i=itsCache.find(qns);
+    if (i==itsCache.end())
+    {
+        itsBSs[qns]=bs;    
+        return itsCache[qns]=CalculateHamiltonianMatrix(bs,s);
+    }
+    else
+        return i->second;
+}
+
+Dynamic_HT_Imp::SMat Dynamic_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& s) const
+{
+    assert(bs);
+    Irrep_QNs qns(s,&bs->GetQuantumNumber());
     itsCache[qns]=CalculateHamiltonianMatrix(bs,s);
     itsBSs[qns]=bs;
  

@@ -45,6 +45,7 @@ class Dynamic_HT_Imp
 public:
     Dynamic_HT_Imp();
     virtual void UseChargeDensity(const Exact_CD* exact);
+    virtual SMat BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin&) const;
     
 protected:
     virtual double CalculateEnergy(const Exact_CD* cd) const;
