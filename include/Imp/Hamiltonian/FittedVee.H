@@ -34,7 +34,6 @@ public:
     virtual void GetEnergy       (TotalEnergy&,const Exact_CD* cd      ) const;
 
 private:
-    virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     FittedCD* itsFittedChargeDensity;

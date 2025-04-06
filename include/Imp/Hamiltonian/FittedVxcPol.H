@@ -29,13 +29,11 @@ public:
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const Exact_CD* exact);
     virtual void GetEnergy       (TotalEnergy&,const Exact_CD* cd         ) const;
-    virtual bool IsPolarized     (                     ) const;
 
     virtual std::ostream&   Write(std::ostream&) const;
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     Dynamic_HT* itsUpVxc  ; //Spin up.

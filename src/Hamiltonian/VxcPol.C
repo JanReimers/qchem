@@ -22,10 +22,6 @@ VxcPol::~VxcPol()
 {
 }
 
-bool VxcPol::IsPolarized() const
-{
-    return true;
-}
 
 //########################################################################
 //

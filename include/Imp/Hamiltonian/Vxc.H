@@ -22,7 +22,6 @@ public:
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 };
 

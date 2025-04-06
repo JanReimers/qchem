@@ -23,10 +23,8 @@ public:
     // Required by HamiltonianTerm
     virtual void           GetEnergy(TotalEnergy&,const Exact_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
-    virtual bool           IsPolarized(           ) const;
 
 private:
-    virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
 };

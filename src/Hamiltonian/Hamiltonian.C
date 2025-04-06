@@ -44,17 +44,6 @@ void HamiltonianImp::UseChargeDensity(const Exact_CD* cd)
     for (auto t:itsDHTs) t->UseChargeDensity(itsExactCD);
 }
 
-//
-//  If any of the HamiltonianTerm terms is polarized, then Hamiltonian is considered polarized.
-//
-bool HamiltonianImp::IsPolarized() const
-{
-    //No UT coverage
-    bool ret=false;
-    for (auto t:itsSHTs) ret = ret || t->IsPolarized();
-    for (auto t:itsDHTs) ret = ret || t->IsPolarized();
-    return ret;
-}
 
 Hamiltonian::SMat HamiltonianImp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& S) const
 {

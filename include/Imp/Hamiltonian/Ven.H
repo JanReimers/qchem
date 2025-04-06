@@ -25,7 +25,6 @@ public:
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual bool DependsOnChargeDensity() const {return false;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     cl_t theCluster;

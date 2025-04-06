@@ -38,7 +38,6 @@ public:
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual bool DependsOnChargeDensity() const {return true;}
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.

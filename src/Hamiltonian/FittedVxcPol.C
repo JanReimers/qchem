@@ -48,11 +48,6 @@ void FittedVxcPol::UseChargeDensity(const Exact_CD* cd)
     itsDownVxc->UseChargeDensity(dcd);
 }
 
-bool FittedVxcPol::IsPolarized() const
-{
-    return true;
-}
-
 //########################################################################
 //
 //  This is where we calculate the overlap of the fit basis functions with
