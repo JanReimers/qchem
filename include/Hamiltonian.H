@@ -32,8 +32,9 @@ class Dynamic_HT
     : public virtual Static_HT
 {
 public:
-     virtual void UseChargeDensity(const DM_CD* exact)       =0;
- 
+    using Static_HT::GetMatrix;
+    virtual void UseChargeDensity(const DM_CD*)       =0;
+    virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
 private:
     Dynamic_HT& operator=(const Dynamic_HT&);
 };

@@ -52,7 +52,7 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const 
     SMat H(n,n);
     Fill(H,0.0);
     for (auto t:itsSHTs) H+=t->GetMatrix(bs,S);
-    for (auto t:itsDHTs) H+=t->GetMatrix(bs,S);
+    for (auto t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
     return H;
 }
 

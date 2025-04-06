@@ -38,6 +38,16 @@ Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) co
     assert(itsCache.find(qns)!=itsCache.end());
     return itsCache[qns];
 }
+Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+{
+    assert(bs);
+    Irrep_QNs qns(s,&bs->GetQuantumNumber());
+    itsCache[qns]=CalculateHamiltonianMatrix(bs,s,cd);
+    itsBSs[qns]=bs;
+ 
+    assert(itsCache.find(qns)!=itsCache.end());
+    return itsCache[qns];
+}
 
 double Static_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 {
@@ -61,6 +71,18 @@ void Dynamic_HT_Imp::UseChargeDensity(const DM_CD* cd)
     itsCD =cd;
     assert(itsCD);
     
+}
+
+bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const
+{
+    if (cd==itsCD) 
+        return false;
+    else
+    {
+        itsCD=cd;
+        return true;
+    }
+
 }
 
 
