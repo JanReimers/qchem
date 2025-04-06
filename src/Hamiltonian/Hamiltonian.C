@@ -59,6 +59,8 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const 
 
 TotalEnergy HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
+    HamiltonianImp* h=const_cast<HamiltonianImp*>(this);
+    h->UseChargeDensity(cd);
     assert(itsCD);
     TotalEnergy e;
     for (auto t:itsSHTs)  t->GetEnergy(e,cd);

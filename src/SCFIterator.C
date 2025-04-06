@@ -75,7 +75,6 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
         itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
         // std::cout << "Total charge=" << itsCD->GetTotalCharge() << std::endl;
-        itsHamiltonian->UseChargeDensity(itsCD);      //Set all the potentials for this charge denisty distribution.
 
         if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0,itsCD);
         double E=itsHamiltonian->GetTotalEnergy(itsCD).GetTotalEnergy();

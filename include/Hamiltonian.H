@@ -55,7 +55,6 @@ public:
     typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;
 
-    virtual void          UseChargeDensity(const DM_CD*       )      =0;
     virtual void          Add             (      Static_HT*)      =0;
     virtual void          Add             (      Dynamic_HT*)      =0;
     virtual SMat          GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;

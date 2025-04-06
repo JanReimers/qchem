@@ -23,7 +23,7 @@ public:
     virtual std::istream&     Read (std::istream&)      ;
 
 protected:
-    virtual void        UseChargeDensity(const DM_CD*  )      ;
+    void        UseChargeDensity(const DM_CD*  )      ;
     typedef std::shared_ptr<const Cluster> cl_t;
     void InsertStandardTerms(cl_t & cl);
     optr_vector1<Static_HT*> itsSHTs;
