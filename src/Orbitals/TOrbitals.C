@@ -65,7 +65,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 {
     assert(itsBasisSet);
     assert(spin==itsQNs.ms);
-    SMatrix<T> H=ham.BuildHamiltonian(itsBasisSet,spin);
+    SMatrix<T> H=ham.GetMatrix(itsBasisSet,spin);
     //std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
     //std::cout << "H=" << H << std::endl;
     assert(!isnan(H));

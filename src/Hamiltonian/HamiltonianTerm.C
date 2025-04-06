@@ -8,18 +8,13 @@
 #include <iostream>
 #include <cassert>
 
-Static_HT_Imp::Static_HT_Imp()
-    
-{
-    
-};
 Dynamic_HT_Imp::Dynamic_HT_Imp()
     : itsExactCD(0)
 {
     
 };
 
-Static_HT::SMat Static_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& s) const
+Static_HT::SMat Static_HT_Imp::GetMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -33,7 +28,7 @@ Static_HT::SMat Static_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,c
         return i->second;
 }
 
-Dynamic_HT_Imp::SMat Dynamic_HT_Imp::BuildHamiltonian(const TOrbital_IBS<double>* bs,const Spin& s) const
+Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -55,7 +50,7 @@ double Dynamic_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
     if (true)
     {
         for (auto b:itsBSs)
-            BuildHamiltonian(b.second,b.first.ms);
+            GetMatrix(b.second,b.first.ms);
     }
     return itsExactCD->GetEnergy(this);
 }
@@ -66,15 +61,6 @@ void Dynamic_HT_Imp::UseChargeDensity(const Exact_CD* cd)
     itsExactCD =cd;
     assert(itsExactCD);
     
-}
-
-const Static_HT_Imp::SMat& Static_HT_Imp::GetCachedMatrix(const TOrbital_IBS<double>* bs, const Spin& s) const
-{
-    assert(bs);
-    Irrep_QNs qns(s,&bs->GetQuantumNumber());
-    CacheMap::const_iterator i=itsCache.find(qns);
-    assert(i!=itsCache.end());
-    return i->second;
 }
 
 std::ostream&  Static_HT_Imp::Write(std::ostream& os) const

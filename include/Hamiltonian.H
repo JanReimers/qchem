@@ -17,7 +17,7 @@ class Static_HT
 public:
     typedef SMatrix<double> SMat;
 
-    virtual SMat BuildHamiltonian(const TOrbital_IBS<double>*,const Spin&) const=0;
+    virtual SMat GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
     virtual void GetEnergy       (TotalEnergy&,  const Exact_CD*) const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
@@ -58,7 +58,7 @@ public:
     virtual void          UseChargeDensity(const Exact_CD*       )      =0;
     virtual void          Add             (      Static_HT*)      =0;
     virtual void          Add             (      Dynamic_HT*)      =0;
-    virtual SMat          BuildHamiltonian(const TOrbital_IBS<double>*,const Spin&) const=0;
+    virtual SMat          GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
     virtual TotalEnergy   GetTotalEnergy  (  const Exact_CD*    ) const=0;
     
     virtual std::ostream&   Write(std::ostream&) const=0;

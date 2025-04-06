@@ -71,7 +71,7 @@ Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<doub
         std::cerr << "PolarizedFittedVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
     }
-    SMat Kab= s.itsState==Spin::Up ? itsUpVxc  ->BuildHamiltonian(bs,s) : itsDownVxc->BuildHamiltonian(bs,s);
+    SMat Kab= s.itsState==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s) : itsDownVxc->GetMatrix(bs,s);
     return Kab;
 }
 
