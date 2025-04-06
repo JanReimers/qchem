@@ -16,9 +16,10 @@ class Static_HT
 {
 public:
     typedef SMatrix<double> SMat;
+    typedef TOrbital_IBS<double> ibs_t;
 
-    virtual SMat GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
-    virtual void GetEnergy       (TotalEnergy&,  const Exact_CD*) const=0;
+    virtual SMat GetMatrix(const ibs_t*,const Spin&) const=0;
+    virtual void GetEnergy(TotalEnergy&,  const Exact_CD*) const=0;
 
     static  Static_HT*    Factory(std::istream&);
 
@@ -52,11 +53,12 @@ class Hamiltonian
 {
 public:
     typedef SMatrix<double> SMat;
+    typedef TOrbital_IBS<double> ibs_t;
 
     virtual void          UseChargeDensity(const Exact_CD*       )      =0;
     virtual void          Add             (      Static_HT*)      =0;
     virtual void          Add             (      Dynamic_HT*)      =0;
-    virtual SMat          GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
+    virtual SMat          GetMatrix(const ibs_t*,const Spin&) const=0;
     virtual TotalEnergy   GetTotalEnergy  (  const Exact_CD*    ) const=0;
     
     static  Hamiltonian*  Factory(std::istream&)        ;

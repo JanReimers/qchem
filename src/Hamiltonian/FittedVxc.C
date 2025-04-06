@@ -48,7 +48,7 @@ void FittedVxc::UseChargeDensity(const Exact_CD* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-Static_HT::SMat FittedVxc::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat FittedVxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
     auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
     return FitGet3CenterOverlap(dftbs);

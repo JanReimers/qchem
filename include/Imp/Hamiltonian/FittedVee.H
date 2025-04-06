@@ -34,7 +34,7 @@ public:
     virtual void GetEnergy       (TotalEnergy&,const Exact_CD* cd      ) const;
     virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
-    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const;
 
     FittedCD* itsFittedChargeDensity;
 };

@@ -25,7 +25,7 @@ Vee::Vee()
 //  Where ro is the charge density.
 //
 
-Static_HT::SMat Vee::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat Vee::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
     assert(itsExactCD);
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);

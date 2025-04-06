@@ -61,7 +61,7 @@ void FittedVxcPol::UseChargeDensity(const Exact_CD* cd)
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
+Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

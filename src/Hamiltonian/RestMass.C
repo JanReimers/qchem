@@ -10,7 +10,7 @@ RestMass::RestMass()
 {};
 
 
-Static_HT::SMat RestMass::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat RestMass::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
     static const double f=-2.0*c_light*c_light;
     // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;

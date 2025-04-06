@@ -10,7 +10,7 @@ DiracKinetic::DiracKinetic()
 {};
 
 
-Static_HT::SMat DiracKinetic::CalculateHamiltonianMatrix(const TOrbital_IBS<double>* bs,const Spin&) const
+Static_HT::SMat DiracKinetic::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
     return c_light*bs->Grad2();

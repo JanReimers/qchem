@@ -45,7 +45,7 @@ void HamiltonianImp::UseChargeDensity(const Exact_CD* cd)
 }
 
 
-Hamiltonian::SMat HamiltonianImp::GetMatrix(const TOrbital_IBS<double>* bs,const Spin& S) const
+Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S) const
 {
     int n=bs->GetNumFunctions();
     SMat H(n,n);

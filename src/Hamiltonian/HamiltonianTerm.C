@@ -14,7 +14,7 @@ Dynamic_HT_Imp::Dynamic_HT_Imp()
     
 };
 
-Static_HT::SMat Static_HT_Imp::GetMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
+Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -28,7 +28,7 @@ Static_HT::SMat Static_HT_Imp::GetMatrix(const TOrbital_IBS<double>* bs,const Sp
         return i->second;
 }
 
-Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const TOrbital_IBS<double>* bs,const Spin& s) const
+Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -63,12 +63,4 @@ void Dynamic_HT_Imp::UseChargeDensity(const Exact_CD* cd)
     
 }
 
-// std::ostream&  Static_HT_Imp::Write(std::ostream& os) const
-// {
-//     return os;
-// }
 
-// std::istream&  Static_HT_Imp::Read (std::istream& is)
-// {
-//     return is;
-// }

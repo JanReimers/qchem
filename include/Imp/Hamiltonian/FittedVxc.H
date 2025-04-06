@@ -38,7 +38,7 @@ public:
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
 };

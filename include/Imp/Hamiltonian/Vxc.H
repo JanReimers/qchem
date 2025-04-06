@@ -22,7 +22,7 @@ public:
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
+    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const;
 };
 
 #endif //_Vxc_H_
