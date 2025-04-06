@@ -18,15 +18,15 @@ Vxc::Vxc() {};
 
 Static_HT::SMat Vxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
-    assert(itsCD);
+    assert(cd);
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
-    SMat Kab=itsCD->GetExchange(hf_bs);
+    SMat Kab=cd->GetExchange(hf_bs);
     return Kab*-0.5;
 }
 void Vxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    assert(itsCD);
+    assert(cd);
     te.Exc+=0.5*CalculateEnergy(cd);
 }
 
