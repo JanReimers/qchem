@@ -28,13 +28,11 @@ void SCFIterator::Initialize(DM_CD* cd)
 {
     assert(cd);
 
-    itsHamiltonian->UseChargeDensity(cd);
     itsWaveFunction->DoSCFIteration(*itsHamiltonian,cd);
     itsWaveFunction->FillOrbitals(0);
 
     itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
     assert(itsCD);
-    itsHamiltonian->UseChargeDensity(itsCD);
     itsOldCD=cd;
 }
 //
