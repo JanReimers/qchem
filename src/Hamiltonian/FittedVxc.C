@@ -50,6 +50,12 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
 
 Static_HT::SMat FittedVxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
+    if (newCD(cd))
+    {
+        itsLDAVxc->UseChargeDensity(cd);
+        FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
+        cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
+    }
     auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
     return FitGet3CenterOverlap(dftbs);
 }

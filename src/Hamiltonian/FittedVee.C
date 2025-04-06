@@ -40,6 +40,8 @@ void FittedVee::UseChargeDensity(const DM_CD* cd)
 
 Static_HT::SMat FittedVee::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
+    if (newCD(cd))
+       itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }

@@ -71,7 +71,13 @@ Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const ibs_t* bs,const S
         std::cerr << "PolarizedFittedVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
     }
-    SMat Kab= s.itsState==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s) : itsDownVxc->GetMatrix(bs,s);
+    const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
+    assert(pol_cd);
+
+    const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+
+    SMat Kab= s.itsState==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
     return Kab;
 }
 
