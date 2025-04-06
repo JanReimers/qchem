@@ -40,10 +40,10 @@ MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bs,const ElectronConfigurat
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham)
+void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
-    for (auto& w:itsSpinUpIWFs) w->DoSCFIteration(ham);
-    for (auto& w:itsSpinDnIWFs) w->DoSCFIteration(ham);
+    for (auto& w:itsSpinUpIWFs) w->DoSCFIteration(ham,cd);
+    for (auto& w:itsSpinDnIWFs) w->DoSCFIteration(ham,cd);
 }
 
 DM_CD* MasterPolarizedWF::GetChargeDensity() const

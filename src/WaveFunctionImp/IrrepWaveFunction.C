@@ -32,10 +32,10 @@ IrrepWaveFunction::~IrrepWaveFunction()
 //
 //  This function will creat EMPTY orbtials.  
 //
-void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
+void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
-    itsOrbitals->UpdateOrbitals(ham,itsSpin);
+    itsOrbitals->UpdateOrbitals(ham,itsSpin,cd);
 }
 
 DM_CD* IrrepWaveFunction::GetChargeDensity() const

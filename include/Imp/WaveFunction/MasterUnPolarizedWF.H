@@ -20,7 +20,7 @@ public:
     MasterUnPolarizedWF(const BasisSet*,const ElectronConfiguration*);
     virtual ~MasterUnPolarizedWF();
 
-    virtual void         DoSCFIteration  (Hamiltonian&   )      ;
+    virtual void         DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
     virtual DM_CD*    GetChargeDensity(  ) const;
     virtual Orbitals*    GetOrbitals     (const Irrep_QNs&) const;
     virtual void         FillOrbitals    (const ElectronConfiguration*);

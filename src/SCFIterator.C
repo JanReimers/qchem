@@ -29,7 +29,7 @@ void SCFIterator::Initialize(DM_CD* cd)
     assert(cd);
 
     itsHamiltonian->UseChargeDensity(cd);
-    itsWaveFunction->DoSCFIteration(*itsHamiltonian);
+    itsWaveFunction->DoSCFIteration(*itsHamiltonian,cd);
     itsWaveFunction->FillOrbitals(0);
 
     itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
@@ -68,7 +68,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
 
     for (size_t i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
     {
-        itsWaveFunction->DoSCFIteration(*itsHamiltonian); //Just gets a set of eigen orbitals from the Hamiltonian
+        itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD); //Just gets a set of eigen orbitals from the Hamiltonian
         itsWaveFunction->FillOrbitals(0);
 
         delete itsOldCD;

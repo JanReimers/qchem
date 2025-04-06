@@ -61,11 +61,11 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 //
 //  This is where the real SCF work gets done.
 //
-template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,const Spin& spin)
+template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const Spin& spin,const DM_CD* cd)
 {
     assert(itsBasisSet);
     assert(spin==itsQNs.ms);
-    SMatrix<T> H=ham.GetMatrix(itsBasisSet,spin);
+    SMatrix<T> H=ham.GetMatrix(itsBasisSet,spin,cd);
     //std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
     //std::cout << "H=" << H << std::endl;
     assert(!isnan(H));

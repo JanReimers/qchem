@@ -15,7 +15,7 @@ public:
     IrrepWaveFunction(const TOrbital_IBS<double>*, const Spin&);
     virtual ~IrrepWaveFunction();
 
-    virtual void                DoSCFIteration  (Hamiltonian&   )      ;
+    virtual void                DoSCFIteration  (Hamiltonian&,const DM_CD*)      ;
     virtual DM_CD*           GetChargeDensity(           ) const;
     virtual Orbitals*           GetOrbitals     (const Irrep_QNs&) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
