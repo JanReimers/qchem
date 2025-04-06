@@ -74,7 +74,7 @@ public:
     virtual ~Orbitals() {};
     virtual index_t        GetNumOrbitals     (                   ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
-    virtual Exact_CD*      GetChargeDensity   (               ) const=0;
+    virtual DM_CD*      GetChargeDensity   (               ) const=0;
     virtual void           UpdateOrbitals     (const Hamiltonian&, const Spin&)=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep_QNs      GetQNs() const=0;

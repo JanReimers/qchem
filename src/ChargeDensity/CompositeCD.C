@@ -17,18 +17,18 @@
 Composite_Exact_CD::Composite_Exact_CD()
 {};
 
-void Composite_Exact_CD::Insert(Exact_CD* cd)
+void Composite_Exact_CD::Insert(DM_CD* cd)
 {
     itsCDs.push_back(cd);
 }
 
-typedef optr_vector1<Exact_CD*>::iterator ITER;
-typedef optr_vector1<Exact_CD*>::const_iterator CITER;
+typedef optr_vector1<DM_CD*>::iterator ITER;
+typedef optr_vector1<DM_CD*>::const_iterator CITER;
 //-----------------------------------------------------------------------------
 //
 //  Total energy terms for a charge density.
 //
-Exact_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
+DM_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -37,7 +37,7 @@ Exact_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_HF_IBS<double>* b
     return J;
 }
 
-Exact_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
+DM_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
@@ -88,7 +88,7 @@ void Composite_Exact_CD::ShiftOrigin(const RVec3& newCenter)
     for (auto c:itsCDs) c->ShiftOrigin(newCenter);
 }
 
-void Composite_Exact_CD::MixIn(const Exact_CD& cd,double f)
+void Composite_Exact_CD::MixIn(const DM_CD& cd,double f)
 {
     const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
     assert(ecd);
@@ -100,7 +100,7 @@ void Composite_Exact_CD::MixIn(const Exact_CD& cd,double f)
     }
 }
 
-double Composite_Exact_CD::GetChangeFrom(const Exact_CD& cd) const
+double Composite_Exact_CD::GetChangeFrom(const DM_CD& cd) const
 {
     const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
     assert(ecd);
@@ -127,7 +127,7 @@ double Composite_Exact_CD::operator()(const RVec3& r) const
     return ret;
 }
 
-Exact_CD::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
+DM_CD::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     Vec3 ret(0,0,0);

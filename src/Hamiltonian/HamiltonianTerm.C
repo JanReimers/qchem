@@ -9,7 +9,7 @@
 #include <cassert>
 
 Dynamic_HT_Imp::Dynamic_HT_Imp()
-    : itsExactCD(0)
+    : itsCD(0)
 {
     
 };
@@ -39,27 +39,27 @@ Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) co
     return itsCache[qns];
 }
 
-double Static_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
+double Static_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 {
     return cd->GetEnergy(this);
 }
 
-double Dynamic_HT_Imp::CalculateEnergy(const Exact_CD* cd) const
+double Dynamic_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 {
-    assert(itsExactCD);
+    assert(itsCD);
     if (true)
     {
         for (auto b:itsBSs)
             GetMatrix(b.second,b.first.ms);
     }
-    return itsExactCD->GetEnergy(this);
+    return itsCD->GetEnergy(this);
 }
 
 
-void Dynamic_HT_Imp::UseChargeDensity(const Exact_CD* cd)
+void Dynamic_HT_Imp::UseChargeDensity(const DM_CD* cd)
 {
-    itsExactCD =cd;
-    assert(itsExactCD);
+    itsCD =cd;
+    assert(itsCD);
     
 }
 

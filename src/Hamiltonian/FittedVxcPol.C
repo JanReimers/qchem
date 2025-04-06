@@ -32,7 +32,7 @@ FittedVxcPol::~FittedVxcPol()
     delete itsDownVxc;
 }
 
-void FittedVxcPol::UseChargeDensity(const Exact_CD* cd)
+void FittedVxcPol::UseChargeDensity(const DM_CD* cd)
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -42,8 +42,8 @@ void FittedVxcPol::UseChargeDensity(const Exact_CD* cd)
     const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
     assert(pol_cd);
 
-    const Exact_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    const Exact_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+    const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
     itsUpVxc  ->UseChargeDensity(ucd  );
     itsDownVxc->UseChargeDensity(dcd);
 }
@@ -76,7 +76,7 @@ Static_HT::SMat FittedVxcPol::CalculateHamiltonianMatrix(const ibs_t* bs,const S
 }
 
 
-void FittedVxcPol::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void FittedVxcPol::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

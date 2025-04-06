@@ -22,7 +22,7 @@ protected:
     // Unconditional calculation, does no use cache.
     virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const=0;
     // Calculation assumes that the cache is up to date. And E=Sum(Dab*Hab);
-    virtual double CalculateEnergy(const Exact_CD* cd) const;
+    virtual double CalculateEnergy(const DM_CD* cd) const;
    
     typedef std::map<Irrep_QNs,SMat> CacheMap;
     typedef std::map<Irrep_QNs,const ibs_t*> BSMap;
@@ -38,12 +38,12 @@ class Dynamic_HT_Imp
 {
 public:
     Dynamic_HT_Imp();
-    virtual void UseChargeDensity(const Exact_CD* exact);
+    virtual void UseChargeDensity(const DM_CD* exact);
     virtual SMat GetMatrix(const ibs_t* bs,const Spin&) const;
     
 protected:
-    virtual double CalculateEnergy(const Exact_CD* cd) const;
-    const Exact_CD*    itsExactCD;     //Exact charge density.
+    virtual double CalculateEnergy(const DM_CD* cd) const;
+    const DM_CD*    itsCD;     //Exact charge density.
    
 };
 

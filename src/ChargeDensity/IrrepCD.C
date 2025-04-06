@@ -49,7 +49,7 @@ template <> bool IrrepCD<double>::IsZero() const
     return Max(fabs(itsDensityMatrix))==0.0;
 }
 
-template <> Exact_CD::SMat IrrepCD<double>::ZeroM(size_t N) const
+template <> DM_CD::SMat IrrepCD<double>::ZeroM(size_t N) const
 {
     SMat S(N);
     Fill(S,0.0);
@@ -66,7 +66,7 @@ template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
 //
 //  Total energy terms for a charge density.
 //
-template <> Exact_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
+template <> DM_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
     const TOrbital_HF_IBS<double>* bs_cd=dynamic_cast<const TOrbital_HF_IBS<double>*>(itsBasisSet);
@@ -74,7 +74,7 @@ template <> Exact_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<d
     return bs_ab->Direct(itsDensityMatrix,bs_cd);
 }
 
-template <> Exact_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
+template <> DM_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->size());
     const TOrbital_HF_IBS<double>* bs_cd=dynamic_cast<const TOrbital_HF_IBS<double>*>(itsBasisSet);
@@ -133,7 +133,7 @@ template <class T> void IrrepCD<T>::ReScale(double factor)
     itsDensityMatrix*=factor;
 }
 
-template <class T> void IrrepCD<T>::MixIn(const Exact_CD& cd,double c)
+template <class T> void IrrepCD<T>::MixIn(const DM_CD& cd,double c)
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
@@ -141,7 +141,7 @@ template <class T> void IrrepCD<T>::MixIn(const Exact_CD& cd,double c)
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
 }
 
-template <class T> double IrrepCD<T>::GetChangeFrom(const Exact_CD& cd) const
+template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);

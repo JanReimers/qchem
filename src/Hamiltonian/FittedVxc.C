@@ -26,7 +26,7 @@ FittedVxc::~FittedVxc()
     delete itsLDAVxc;
 }
 
-void FittedVxc::UseChargeDensity(const Exact_CD* cd)
+void FittedVxc::UseChargeDensity(const DM_CD* cd)
 {
     Dynamic_HT_Imp::UseChargeDensity(cd);
     itsLDAVxc->UseChargeDensity(cd);
@@ -54,11 +54,11 @@ Static_HT::SMat FittedVxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin
     return FitGet3CenterOverlap(dftbs);
 }
 
-void FittedVxc::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void FittedVxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     te.Exc += 3.0/4.0 *CalculateEnergy(cd);
 
-//    double HFExc=-0.25*itsExactCD->GetExchangeEnergy();
+//    double HFExc=-0.25*itsCD->GetExchangeEnergy();
 //    std::cout.precision(4);
 //    std::cout.width(7);
 //    std::cout.setf(std::ios::fixed,std::ios::floatfield);

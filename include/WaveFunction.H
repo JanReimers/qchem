@@ -13,7 +13,7 @@ public:
     virtual ~WaveFunction() {};
 
     virtual void          DoSCFIteration  (Hamiltonian&      )      =0;
-    virtual Exact_CD*     GetChargeDensity() const=0;
+    virtual DM_CD*     GetChargeDensity() const=0;
     virtual Orbitals*     GetOrbitals     (const Irrep_QNs&) const=0;
     virtual void          FillOrbitals    (const ElectronConfiguration*)=0;
     virtual void          DisplayEigen    (                  ) const=0;

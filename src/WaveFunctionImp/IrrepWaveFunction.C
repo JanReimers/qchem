@@ -38,7 +38,7 @@ void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham)
     itsOrbitals->UpdateOrbitals(ham,itsSpin);
 }
 
-Exact_CD* IrrepWaveFunction::GetChargeDensity() const
+DM_CD* IrrepWaveFunction::GetChargeDensity() const
 {
     assert(itsOrbitals);
     return itsOrbitals->GetChargeDensity();

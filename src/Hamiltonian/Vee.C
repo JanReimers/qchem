@@ -27,15 +27,15 @@ Vee::Vee()
 
 Static_HT::SMat Vee::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
-    assert(itsExactCD);
+    assert(itsCD);
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
-    return itsExactCD->GetRepulsion(hf_bs);
+    return itsCD->GetRepulsion(hf_bs);
 }
 
-void Vee::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void Vee::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    assert(itsExactCD);
+    assert(itsCD);
     te.Eee=0.5*CalculateEnergy(cd);
     te.EeeFit    = 0.0;
     te.EeeFitFit = 0.0;

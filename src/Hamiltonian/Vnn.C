@@ -29,7 +29,7 @@ Static_HT::SMat Vnn::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) con
     return ret;
 }
 
-void Vnn::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void Vnn::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     double vnn=0.0;
     for(auto atom1:*theCluster)

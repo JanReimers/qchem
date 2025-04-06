@@ -16,7 +16,7 @@ Static_HT::SMat DiracKinetic::CalculateHamiltonianMatrix(const ibs_t* bs,const S
     return c_light*bs->Grad2();
 }
 
-void DiracKinetic::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void DiracKinetic::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     te.Kinetic=0.5*CalculateEnergy(cd);
 }

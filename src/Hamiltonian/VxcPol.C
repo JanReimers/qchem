@@ -46,13 +46,13 @@ Static_HT::SMat VxcPol::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin& s
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
 
-    const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(itsExactCD);
+    const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(itsCD);
     assert(PolExactCD);
-    const Exact_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
+    const DM_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
     SMat Kab=SpinCD->GetExchange(hf_bs)*-1.0;
     return Kab;
 }
-void VxcPol::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void VxcPol::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     te.Exc += 0.5*CalculateEnergy(cd); //This should sum K^alpha and K^beta.
 }

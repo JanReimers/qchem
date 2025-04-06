@@ -14,11 +14,11 @@ class HamiltonianImp
 public:
     HamiltonianImp();
 
-    virtual void        UseChargeDensity(const Exact_CD*  )      ;
+    virtual void        UseChargeDensity(const DM_CD*  )      ;
     virtual void        Add             (      Static_HT* )      ;
     virtual void        Add             (      Dynamic_HT*)      ;
     virtual SMat        GetMatrix(const ibs_t*,const Spin& S) const;
-    virtual TotalEnergy GetTotalEnergy  (const Exact_CD* ) const;
+    virtual TotalEnergy GetTotalEnergy  (const DM_CD* ) const;
     
     virtual std::ostream&     Write(std::ostream&) const;
     virtual std::istream&     Read (std::istream&)      ;
@@ -28,7 +28,7 @@ protected:
     void InsertStandardTerms(cl_t & cl);
     optr_vector1<Static_HT*> itsSHTs;
     optr_vector1<Dynamic_HT*> itsDHTs;
-    const Exact_CD*    itsExactCD;    //Exact charge density.
+    const DM_CD*    itsCD;    //Exact charge density.
 };
 
 #endif //_HamiltonianImp_H_

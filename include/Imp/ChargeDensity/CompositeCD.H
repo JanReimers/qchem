@@ -12,11 +12,11 @@
 //  Full charge density represented Compositely as sum of density matricies.
 //
 class Composite_Exact_CD
-    : public virtual Exact_CD
+    : public virtual DM_CD
 {
 public:
     Composite_Exact_CD();
-    void Insert(Exact_CD*);
+    void Insert(DM_CD*);
 
     virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const; 
     virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const; 
@@ -29,8 +29,8 @@ public:
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&          )      ;  // No UT coverage
-    virtual void   MixIn        (const Exact_CD&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const Exact_CD&       ) const;  //MaxAbs(delta density matrix)
+    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const RVec3&) const;
     virtual Vec3   Gradient  (const RVec3&) const;
@@ -38,7 +38,7 @@ public:
 private:
     Composite_Exact_CD(const Composite_Exact_CD&);
 
-    optr_vector1<Exact_CD*> itsCDs;
+    optr_vector1<DM_CD*> itsCDs;
 };
 
 #endif //_CompositeCD_H_

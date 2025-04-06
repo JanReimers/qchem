@@ -12,7 +12,7 @@ Polarized_CDImp::Polarized_CDImp()
     , itsSpinDownCD(0)
 {}; // No UT coverage
 
-Polarized_CDImp::Polarized_CDImp(Exact_CD* up, Exact_CD* down)
+Polarized_CDImp::Polarized_CDImp(DM_CD* up, DM_CD* down)
     : itsSpinUpCD  (up  )
     , itsSpinDownCD(down)
 {
@@ -30,23 +30,23 @@ Polarized_CDImp::~Polarized_CDImp()
 //
 //  Access to individual components.
 //
-Exact_CD* Polarized_CDImp::GetChargeDensity(const Spin& S)
+DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& S)
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    Exact_CD* ret=0;
+    DM_CD* ret=0;
     if(S.itsState==Spin::Up  ) ret=itsSpinUpCD  ;
     if(S.itsState==Spin::Down) ret=itsSpinDownCD;
     return ret;
 }
 
-const Exact_CD* Polarized_CDImp::GetChargeDensity(const Spin& S) const
+const DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& S) const
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    const Exact_CD* ret=0;
+    const DM_CD* ret=0;
     if(S.itsState==Spin::Up  ) ret=itsSpinUpCD  ;
     if(S.itsState==Spin::Down) ret=itsSpinDownCD;
     return ret;

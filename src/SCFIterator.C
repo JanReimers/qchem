@@ -12,11 +12,11 @@
 #include <iomanip>
 #include <cassert>
 
-SCFIterator::SCFIterator(WaveFunction* W,Hamiltonian* H,Exact_CD* cd)
+SCFIterator::SCFIterator(WaveFunction* W,Hamiltonian* H,DM_CD* cd)
     : itsWaveFunction         (W )
     , itsHamiltonian          (H )
-    , itsExactChargeDensity   (0)
-    , itsOldExactChargeDensity(0)
+    , itsCD   (0)
+    , itsOldCD(0)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
@@ -24,7 +24,7 @@ SCFIterator::SCFIterator(WaveFunction* W,Hamiltonian* H,Exact_CD* cd)
 }
 
 
-void SCFIterator::Initialize(Exact_CD* cd)
+void SCFIterator::Initialize(DM_CD* cd)
 {
     assert(cd);
 
@@ -32,10 +32,10 @@ void SCFIterator::Initialize(Exact_CD* cd)
     itsWaveFunction->DoSCFIteration(*itsHamiltonian);
     itsWaveFunction->FillOrbitals(0);
 
-    itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
-    assert(itsExactChargeDensity);
-    itsHamiltonian->UseChargeDensity(itsExactChargeDensity);
-    itsOldExactChargeDensity=cd;
+    itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
+    assert(itsCD);
+    itsHamiltonian->UseChargeDensity(itsCD);
+    itsOldCD=cd;
 }
 //
 //  Recall that the wavefunction is not owned buy this.
@@ -44,15 +44,15 @@ void SCFIterator::Initialize(Exact_CD* cd)
 SCFIterator::~SCFIterator()
 {
     delete itsHamiltonian;
-    delete itsExactChargeDensity;
-    delete itsOldExactChargeDensity;
+    delete itsCD;
+    delete itsOldCD;
 }
 
 bool SCFIterator::Iterate(const SCFIterationParams& ipar)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
-    assert(itsExactChargeDensity);
+    assert(itsCD);
     if (ipar.Verbose)
     {
         std::cout << std::endl << std::endl;
@@ -71,16 +71,16 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         itsWaveFunction->DoSCFIteration(*itsHamiltonian); //Just gets a set of eigen orbitals from the Hamiltonian
         itsWaveFunction->FillOrbitals(0);
 
-        delete itsOldExactChargeDensity;
-        itsOldExactChargeDensity=itsExactChargeDensity;
-        itsExactChargeDensity=itsWaveFunction->GetChargeDensity(); //Get new charge density.
-        ChargeDensityChange = itsExactChargeDensity->GetChangeFrom(*itsOldExactChargeDensity); //Get MaxAbs of change.
-        itsExactChargeDensity->MixIn(*itsOldExactChargeDensity,1.0-relax);                           //relaxation.
-        // std::cout << "Total charge=" << itsExactChargeDensity->GetTotalCharge() << std::endl;
-        itsHamiltonian->UseChargeDensity(itsExactChargeDensity);      //Set all the potentials for this charge denisty distribution.
+        delete itsOldCD;
+        itsOldCD=itsCD;
+        itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
+        ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
+        itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
+        // std::cout << "Total charge=" << itsCD->GetTotalCharge() << std::endl;
+        itsHamiltonian->UseChargeDensity(itsCD);      //Set all the potentials for this charge denisty distribution.
 
-        if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0,itsExactChargeDensity);
-        double E=itsHamiltonian->GetTotalEnergy(itsExactChargeDensity).GetTotalEnergy();
+        if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0,itsCD);
+        double E=itsHamiltonian->GetTotalEnergy(itsCD).GetTotalEnergy();
         if (E>Eold && Eold<Eoldold) relax*=0.5;
         if (E<Eold && Eold>Eoldold) relax*=0.5;
         if (E<Eold && Eold<Eoldold) relax*=1.2;
@@ -106,9 +106,9 @@ void SCFIterator::DisplayEigen() const
     itsWaveFunction->DisplayEigen();
 }
 
-Exact_CD* SCFIterator::GetExactChargeDensity() const
+DM_CD* SCFIterator::GetExactChargeDensity() const
 {
-    return itsExactChargeDensity;
+    return itsCD;
 }
 
 using std::cout;
@@ -116,7 +116,7 @@ using std::setw;
 using std::setprecision;
 using std::ios;
 
-void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError,const Exact_CD* cd) const
+void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError,const DM_CD* cd) const
 {
     TotalEnergy te = itsHamiltonian->GetTotalEnergy(cd);
 

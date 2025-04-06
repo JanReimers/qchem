@@ -6,20 +6,20 @@
 class SCFIterator
 {
 public:
-    SCFIterator(WaveFunction*, Hamiltonian*,Exact_CD*);
+    SCFIterator(WaveFunction*, Hamiltonian*,DM_CD*);
     ~SCFIterator();
     bool Iterate(const SCFIterationParams& ipar);
-    void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError,const Exact_CD* cd) const;
+    void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError,const DM_CD* cd) const;
     void DisplayEigen   () const;
 
-    Exact_CD* GetExactChargeDensity () const;
+    DM_CD* GetExactChargeDensity () const;
 
 private:
-    void Initialize(Exact_CD* cd);  //Does on iteration to set up the exact charge density.
+    void Initialize(DM_CD* cd);  //Does on iteration to set up the exact charge density.
 
     WaveFunction*   itsWaveFunction;  //We don't own this guy!
     Hamiltonian*    itsHamiltonian;
-    Exact_CD*       itsExactChargeDensity;
-    Exact_CD*       itsOldExactChargeDensity;
+    DM_CD*       itsCD;
+    DM_CD*       itsOldCD;
 };
 

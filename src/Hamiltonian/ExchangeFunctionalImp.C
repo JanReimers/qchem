@@ -13,7 +13,7 @@ ExFunctionalImp::ExFunctionalImp()
 {};
 
 
-void ExFunctionalImp::InsertChargeDensity(const Exact_CD* cd)
+void ExFunctionalImp::InsertChargeDensity(const DM_CD* cd)
 {
     assert(cd);
     itsChargeDensity=cd;

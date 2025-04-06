@@ -22,7 +22,7 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
     assert(itsFittedChargeDensity);
 };
 
-void FittedVee::UseChargeDensity(const Exact_CD* cd)
+void FittedVee::UseChargeDensity(const DM_CD* cd)
 {
     assert(cd);
     Dynamic_HT_Imp::UseChargeDensity(cd);
@@ -44,10 +44,10 @@ Static_HT::SMat FittedVee::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 
-void FittedVee::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void FittedVee::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
-    assert(itsExactCD);
+    assert(itsCD);
     te.EeeFit    = 0.5*CalculateEnergy(cd);
     te.EeeFitFit = itsFittedChargeDensity->GetSelfRepulsion();
     te.Eee = 2*te.EeeFit - te.EeeFitFit;

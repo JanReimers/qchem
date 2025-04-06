@@ -46,7 +46,7 @@ void MasterUnPolarizedWF::DoSCFIteration(Hamiltonian& ham)
     for (auto& w:itsIWFs) w->DoSCFIteration(ham);
 }
 
-Exact_CD* MasterUnPolarizedWF::GetChargeDensity() const
+DM_CD* MasterUnPolarizedWF::GetChargeDensity() const
 {
     Composite_Exact_CD* cd = new Composite_Exact_CD();
     for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity());

@@ -11,7 +11,7 @@ class RestMass
 public:
     RestMass(                         );
     // Required by HamiltonianTerm
-    virtual void          GetEnergy(TotalEnergy&,const Exact_CD* cd ) const;
+    virtual void          GetEnergy(TotalEnergy&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:

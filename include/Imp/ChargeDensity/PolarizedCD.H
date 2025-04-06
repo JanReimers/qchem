@@ -19,15 +19,15 @@ class Polarized_CDImp
 public:
 
     Polarized_CDImp(); // No UT coverage
-    Polarized_CDImp(Exact_CD* up,Exact_CD* down);
+    Polarized_CDImp(DM_CD* up,DM_CD* down);
     ~Polarized_CDImp();
 
-          Exact_CD* GetChargeDensity(const Spin&)      ;
-    const Exact_CD* GetChargeDensity(const Spin&) const;
+          DM_CD* GetChargeDensity(const Spin&)      ;
+    const DM_CD* GetChargeDensity(const Spin&) const;
     
 private:
-    Exact_CD* itsSpinUpCD;
-    Exact_CD* itsSpinDownCD;
+    DM_CD* itsSpinUpCD;
+    DM_CD* itsSpinDownCD;
 };
 
 #endif //_PolarizedCDImp_H_

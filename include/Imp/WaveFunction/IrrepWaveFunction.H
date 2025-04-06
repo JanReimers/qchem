@@ -16,7 +16,7 @@ public:
     virtual ~IrrepWaveFunction();
 
     virtual void                DoSCFIteration  (Hamiltonian&   )      ;
-    virtual Exact_CD*           GetChargeDensity(           ) const;
+    virtual DM_CD*           GetChargeDensity(           ) const;
     virtual Orbitals*           GetOrbitals     (const Irrep_QNs&) const;
     virtual const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     virtual void                DisplayEigen    (               ) const;

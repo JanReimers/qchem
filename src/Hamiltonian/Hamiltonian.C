@@ -18,7 +18,7 @@ typedef optr_vector1<Static_HT*>::iterator        ITER;
 typedef optr_vector1<Static_HT*>::const_iterator CITER;
 
 HamiltonianImp::HamiltonianImp()
-    : itsExactCD(0)
+    : itsCD(0)
 {};
 
 void HamiltonianImp::Add(Static_HT* p)
@@ -37,11 +37,11 @@ void HamiltonianImp::InsertStandardTerms(cl_t & cl)
     Add(new Ven(cl));
 }
 
-void HamiltonianImp::UseChargeDensity(const Exact_CD* cd)
+void HamiltonianImp::UseChargeDensity(const DM_CD* cd)
 {
-    itsExactCD =cd;
-    assert(itsExactCD);
-    for (auto t:itsDHTs) t->UseChargeDensity(itsExactCD);
+    itsCD =cd;
+    assert(itsCD);
+    for (auto t:itsDHTs) t->UseChargeDensity(itsCD);
 }
 
 
@@ -56,9 +56,9 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S) const
 }
 
 
-TotalEnergy HamiltonianImp::GetTotalEnergy( const Exact_CD* cd ) const
+TotalEnergy HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
-    assert(itsExactCD);
+    assert(itsCD);
     TotalEnergy e;
     for (auto t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto t:itsDHTs)  t->GetEnergy(e,cd);

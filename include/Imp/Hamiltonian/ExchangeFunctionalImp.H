@@ -12,14 +12,14 @@ class ExFunctionalImp
 public:
     ExFunctionalImp(               );
 
-    virtual void           InsertChargeDensity(const Exact_CD*);
+    virtual void           InsertChargeDensity(const DM_CD*);
     virtual Vector<double> GetVxcs(const Vector<double>& ChargeDensities) const;
     virtual void           SetPolarized(bool p) {isPolarized=p;}
 
 protected:
     virtual void  Eval    (const Mesh&, Vector<double>&) const;
 
-    const Exact_CD* itsChargeDensity;
+    const DM_CD* itsChargeDensity;
     bool            isPolarized;
 };
 

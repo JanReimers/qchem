@@ -45,7 +45,7 @@ void QchemTester::Init(double eps)
     assert(itsHamiltonian);
     itsWaveFunction=GetWaveFunction(itsBasisSet); //Polarized or un-polarized
     assert(itsWaveFunction);
-    Exact_CD* GuessCD=itsWaveFunction->GetChargeDensity();
+    DM_CD* GuessCD=itsWaveFunction->GetChargeDensity();
     itsSCFIterator=new SCFIterator(itsWaveFunction,itsHamiltonian,GuessCD);
 }
 
@@ -59,7 +59,7 @@ void QchemTester::Iterate(const SCFIterationParams& ipar)
 double QchemTester::TotalEnergy() const
 {
     assert(itsHamiltonian);
-    Exact_CD* cd=itsWaveFunction->GetChargeDensity();
+    DM_CD* cd=itsWaveFunction->GetChargeDensity();
     double e=itsHamiltonian->GetTotalEnergy(cd).GetTotalEnergy();
     delete cd;
     return e;

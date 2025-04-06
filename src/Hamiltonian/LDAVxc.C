@@ -20,10 +20,10 @@ LDAVxc::LDAVxc(ex_t& lda)
     assert(&*itsExchangeFunctional);
 };
 
-void LDAVxc::UseChargeDensity(const Exact_CD* cd)
+void LDAVxc::UseChargeDensity(const DM_CD* cd)
 {
     Dynamic_HT_Imp::UseChargeDensity(cd);
-    itsExchangeFunctional->InsertChargeDensity(itsExactCD);
+    itsExchangeFunctional->InsertChargeDensity(itsCD);
 }
 
 //########################################################################
@@ -37,7 +37,7 @@ Static_HT::SMat LDAVxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) 
     exit(-1);
     return SMat();
 }
-void LDAVxc::GetEnergy(TotalEnergy&,const Exact_CD* cd) const
+void LDAVxc::GetEnergy(TotalEnergy&,const DM_CD* cd) const
 {
     std::cerr << "LDAVxc::GetEnergy(const BasisSet&,TotalEnergy&) not implementated yet" << std::endl;
     exit(-1);

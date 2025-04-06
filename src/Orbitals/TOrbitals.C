@@ -89,7 +89,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Hamiltonian& ham,c
 }
 
 
-template <class T> Exact_CD* TOrbitalsImp<T>::GetChargeDensity() const
+template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 {
     return new IrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,GetQNs());
 }

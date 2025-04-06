@@ -12,7 +12,7 @@ class ExFunctional
     , public virtual ScalarFunction<double>
 {
 public:
-    virtual void            InsertChargeDensity(const Exact_CD*)      =0;
+    virtual void            InsertChargeDensity(const DM_CD*)      =0;
     virtual Vector<double>  GetVxcs(const Vector<double>& ChargeDensities) const=0;
     virtual double          GetVxc(                double ChargeDensity) const=0;
     virtual void            SetPolarized(bool)=0;

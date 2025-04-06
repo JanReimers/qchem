@@ -19,7 +19,7 @@ Static_HT::SMat RestMass::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&
     return f*sbs->RestMass();
 }
 
-void RestMass::GetEnergy(TotalEnergy& te,const Exact_CD* cd) const
+void RestMass::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     te.RestMass=CalculateEnergy(cd);
 }

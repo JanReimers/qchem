@@ -18,7 +18,8 @@
 //    7) calculate the self repulsion = 1/2 <ro(1)|1/r12|ro(2)>
 //
 //  This is the interface for a charge density representation based on the density matrix.
-class Exact_CD 
+//
+class DM_CD 
 : public virtual ScalarFunction<double>
 , public virtual DensityFFClient //Fitted function can be fit to this.
 {
@@ -27,8 +28,8 @@ public:
 
     virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&          )      =0;  //Usefull for single atom charge densities.
-    virtual void   MixIn        (const Exact_CD&,double)      =0;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const Exact_CD&       ) const=0;  //Convergence check.
+    virtual void   MixIn        (const DM_CD&,double)      =0;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const DM_CD&       ) const=0;  //Convergence check.
 
     virtual double GetTotalCharge  () const=0;  // <ro>
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
@@ -45,11 +46,11 @@ public:
 //  Generic: Could be fitted or exact.
 //
 class Polarized_CD
-    : public virtual Exact_CD
+    : public virtual DM_CD
 {
 public:
-    virtual       Exact_CD* GetChargeDensity(const Spin&)      =0;
-    virtual const Exact_CD* GetChargeDensity(const Spin&) const=0;
+    virtual       DM_CD* GetChargeDensity(const Spin&)      =0;
+    virtual const DM_CD* GetChargeDensity(const Spin&) const=0;
 
     virtual double GetEnergy(const Static_HT*) const;
 
@@ -62,8 +63,8 @@ public:
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
-    virtual void   MixIn        (const Exact_CD&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const Exact_CD&       ) const;  //Convergence check.
+    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const DM_CD&       ) const;  //Convergence check.
 
     virtual double operator()(const RVec3&) const; // No UT coverage
     virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
