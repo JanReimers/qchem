@@ -63,12 +63,12 @@ void Dynamic_HT_Imp::UseChargeDensity(const Exact_CD* cd)
     
 }
 
-std::ostream&  Static_HT_Imp::Write(std::ostream& os) const
-{
-    return os;
-}
+// std::ostream&  Static_HT_Imp::Write(std::ostream& os) const
+// {
+//     return os;
+// }
 
-std::istream&  Static_HT_Imp::Read (std::istream& is)
-{
-    return is;
-}
+// std::istream&  Static_HT_Imp::Read (std::istream& is)
+// {
+//     return is;
+// }

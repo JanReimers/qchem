@@ -20,8 +20,6 @@ public:
     virtual SMat GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
     virtual void GetEnergy       (TotalEnergy&,  const Exact_CD*) const=0;
 
-    virtual std::ostream& Write  (std::ostream&) const=0;
-    virtual std::istream& Read   (std::istream&)      =0;
     static  Static_HT*    Factory(std::istream&);
 
 private:
@@ -61,8 +59,6 @@ public:
     virtual SMat          GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;
     virtual TotalEnergy   GetTotalEnergy  (  const Exact_CD*    ) const=0;
     
-    virtual std::ostream&   Write(std::ostream&) const=0;
-    virtual std::istream&   Read (std::istream&)      =0;
     static  Hamiltonian*  Factory(std::istream&)        ;
 };
 

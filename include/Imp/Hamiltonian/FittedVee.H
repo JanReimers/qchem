@@ -32,7 +32,7 @@ public:
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const Exact_CD* cd)       ;
     virtual void GetEnergy       (TotalEnergy&,const Exact_CD* cd      ) const;
-
+    virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
     virtual SMat CalculateHamiltonianMatrix(const TOrbital_IBS<double>*,const Spin&) const;
 

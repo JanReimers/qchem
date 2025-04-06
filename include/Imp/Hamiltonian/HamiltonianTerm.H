@@ -17,9 +17,6 @@ class Static_HT_Imp
 public:
     virtual SMat GetMatrix(const TOrbital_IBS<double>* bs,const Spin&) const;
 
-    virtual std::ostream&   Write(std::ostream&) const;
-    virtual std::istream&   Read (std::istream&)      ;
-
 protected:
     
     // Unconditional calculation, does no use cache.

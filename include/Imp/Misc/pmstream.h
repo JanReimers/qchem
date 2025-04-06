@@ -13,7 +13,7 @@ class PMStreamableObject : public StreamableObject
         virtual ~PMStreamableObject();
 
         virtual std::ostream& Write(std::ostream&) const=0;
-        virtual std::istream& Read (std::istream&)      =0;
+        virtual std::istream& Read (std::istream& is) {return is;}
 };
 
 std::ostream& operator<<(std::ostream& os, const PMStreamableObject& o);
