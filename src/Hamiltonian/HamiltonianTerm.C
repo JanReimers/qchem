@@ -39,21 +39,6 @@ Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,con
     return itsCache[qns];
 }
 
-double Dynamic_HT_Imp::CalculateEnergy(const DM_CD* cd) const
-{
-    assert(cd);
-    itsCD=cd;
-    // if (itsCD!=cd)
-    //     std::cout << " ??? " << std::endl;
-    // if (true)
-    // {
-    //     for (auto b:itsBSs)
-    //         GetMatrix(b.second,b.first.ms);
-    // }
-    return cd->GetEnergy(this,cd);
-}
-
-
 bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const
 {
     if (cd==itsCD) 
