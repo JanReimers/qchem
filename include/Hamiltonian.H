@@ -34,7 +34,7 @@ class Dynamic_HT
 public:
     typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;    
-    virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
+    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
     virtual void GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
 private:
     Dynamic_HT& operator=(const Dynamic_HT&);

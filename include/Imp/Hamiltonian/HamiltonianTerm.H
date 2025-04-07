@@ -39,7 +39,7 @@ class Dynamic_HT_Imp
 {
 public:
     Dynamic_HT_Imp();
-    virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
+    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
     // Unconditional calculation, does no use cache.
