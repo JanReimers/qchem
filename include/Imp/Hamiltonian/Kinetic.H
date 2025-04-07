@@ -15,7 +15,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const;
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&) const;
 };
 
 #endif //_Kinetic_H_

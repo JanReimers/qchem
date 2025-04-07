@@ -2,17 +2,10 @@
 
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include <ChargeDensity.H>
 #include <Irrep_BS.H>
-#include <Symmetry.H>
 #include <iostream>
 #include <cassert>
 
-Dynamic_HT_Imp::Dynamic_HT_Imp()
-    : itsCD(0)
-{
-    
-};
 
 Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
@@ -22,7 +15,7 @@ Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
     if (i==itsCache.end())
     {
         itsBSs[qns]=bs;    
-        return itsCache[qns]=CalculateHamiltonianMatrix(bs,s);
+        return itsCache[qns]=CalcMatrix(bs,s);
     }
     else
         return i->second;
@@ -32,11 +25,15 @@ Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,con
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
-    itsCache[qns]=CalculateHamiltonianMatrix(bs,s,cd);
-    itsBSs[qns]=bs;
+    auto i=itsCache.find(qns);
+    if (itsCD!=cd || i==itsCache.end())
+    {
+        itsBSs[qns]=bs;  
+        return itsCache[qns]=CalcMatrix(bs,s,cd);
+    }
+    else
+        return i->second;
  
-    assert(itsCache.find(qns)!=itsCache.end());
-    return itsCache[qns];
 }
 
 bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const

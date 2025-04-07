@@ -2,12 +2,8 @@
 #ifndef _HamiltonianTermImp_H_
 #define _HamiltonianTermImp_H_
 
-
-
 #include <Hamiltonian.H>
-#include <Spin.H>
 #include <Orbital_QNs.H>
-
 #include "oml/smatrix.h"
 #include <map>
 
@@ -23,27 +19,27 @@ protected:
 
 class Static_HT_Imp
     : public virtual Static_HT
-    , protected HT_Common
+    , private HT_Common
 {
 public:
     virtual SMat GetMatrix(const ibs_t* bs,const Spin&) const;
 
 protected:
     // Unconditional calculation, does no use cache.
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const=0;
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&) const=0;
 };
 
 class Dynamic_HT_Imp
 : public virtual Dynamic_HT
-, protected HT_Common
+, private HT_Common
 {
 public:
-    Dynamic_HT_Imp();
+    Dynamic_HT_Imp() : itsCD(0) {};
     virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
     // Unconditional calculation, does no use cache.
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     bool newCD(const DM_CD*) const;
 
     mutable const DM_CD*    itsCD;     //Density matrix charge density.

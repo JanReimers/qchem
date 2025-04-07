@@ -30,7 +30,7 @@ public:
     virtual std::ostream&           Write(std::ostream&) const;
     virtual std::istream&           Read (std::istream&)      ;
 private:
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     ex_t itsExchangeFunctional;
 };
