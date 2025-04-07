@@ -28,18 +28,6 @@ Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
         return i->second;
 }
 
-Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
-{
-    //No UT coverage.
-    assert(bs);
-    assert(itsCD);
-    Irrep_QNs qns(s,&bs->GetQuantumNumber());
-    itsCache[qns]=CalculateHamiltonianMatrix(bs,s,itsCD);
-    itsBSs[qns]=bs;
- 
-    assert(itsCache.find(qns)!=itsCache.end());
-    return itsCache[qns];
-}
 Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(bs);

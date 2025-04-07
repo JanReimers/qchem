@@ -29,11 +29,13 @@ private:
 };
 
 class Dynamic_HT
-    : public virtual Static_HT
+: public virtual PMStreamableObject
 {
 public:
-    using Static_HT::GetMatrix;
+    typedef SMatrix<double> SMat;
+    typedef TOrbital_IBS<double> ibs_t;    
     virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
+    virtual void GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
 private:
     Dynamic_HT& operator=(const Dynamic_HT&);
 };

@@ -45,15 +45,15 @@ Static_HT* Static_HT::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
     if (Name==typeid(Kinetic  ).name()) return new Kinetic ();
-    if (Name==typeid(Vee ).name()) return new Vee();
+    // if (Name==typeid(Vee ).name()) return new Vee();
     if (Name==typeid(Ven ).name()) return new Ven();
     if (Name==typeid(Vnn ).name()) return new Vnn();
-    if (Name==typeid(LDAVxc   ).name()) return new LDAVxc();
-    if (Name==typeid(Vxc).name()) return new Vxc();
-    if (Name==typeid(FittedVee).name()) return new  FittedVee();
-    if (Name==typeid(FittedVxc).name()) return new FittedVxc();
-    if (Name==typeid(FittedVxcPol).name()) return new FittedVxcPol();
-    if (Name==typeid(VxcPol).name()) return new VxcPol();
+    // if (Name==typeid(LDAVxc   ).name()) return new LDAVxc();
+    // if (Name==typeid(Vxc).name()) return new Vxc();
+    // if (Name==typeid(FittedVee).name()) return new  FittedVee();
+    // if (Name==typeid(FittedVxc).name()) return new FittedVxc();
+    // if (Name==typeid(FittedVxcPol).name()) return new FittedVxcPol();
+    // if (Name==typeid(VxcPol).name()) return new VxcPol();
 
     std::cout << "Unknown HamiltonianTerm type :" << Name << std::endl;
     exit(-1);

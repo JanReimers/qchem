@@ -44,7 +44,6 @@ class Dynamic_HT_Imp
 {
 public:
     Dynamic_HT_Imp();
-    virtual SMat GetMatrix(const ibs_t* bs,const Spin&) const;
     virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
