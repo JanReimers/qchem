@@ -24,9 +24,9 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
 
 void FittedVee::UseChargeDensity(const DM_CD* cd)
 {
-    assert(cd);
-    Dynamic_HT_Imp::UseChargeDensity(cd);
-    itsFittedChargeDensity->DoFit(*cd);
+    // assert(cd);
+    //  Dynamic_HT_Imp::UseChargeDensity(cd);
+    // itsFittedChargeDensity->DoFit(*cd);
 }
 //########################################################################
 //
@@ -50,6 +50,8 @@ void FittedVee::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
     assert(itsCD);
+    if (newCD(cd))
+       itsFittedChargeDensity->DoFit(*cd);
     te.EeeFit    = 0.5*CalculateEnergy(cd);
     te.EeeFitFit = itsFittedChargeDensity->GetSelfRepulsion();
     te.Eee = 2*te.EeeFit - te.EeeFitFit;
