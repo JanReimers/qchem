@@ -28,7 +28,7 @@ Static_HT::SMat Ven::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) con
 
 void Ven::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    te.Een=cd->GetEnergy(this);
+    te.Een=cd->DM_Contract(this);
 }
 
 std::ostream& Ven::Write(std::ostream& os) const

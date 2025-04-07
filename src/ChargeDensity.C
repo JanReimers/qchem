@@ -28,14 +28,14 @@ DM_CD::SMat Polarized_CD::GetExchange(const TOrbital_HF_IBS<double>* bs) const
     return Kab_up + Kab_down;
 }
 
-double Polarized_CD::GetEnergy(const Static_HT* v) const
+double Polarized_CD::DM_Contract(const Static_HT* v) const
 {
-    return GetChargeDensity(Spin::Up  )->GetEnergy(v)+GetChargeDensity(Spin::Down)->GetEnergy(v);
+    return GetChargeDensity(Spin::Up  )->DM_Contract(v)+GetChargeDensity(Spin::Down)->DM_Contract(v);
 }
 
-double Polarized_CD::GetEnergy(const Dynamic_HT* v,const DM_CD* cd) const
+double Polarized_CD::DM_Contract(const Dynamic_HT* v,const DM_CD* cd) const
 {
-    return GetChargeDensity(Spin::Up  )->GetEnergy(v,cd)+GetChargeDensity(Spin::Down)->GetEnergy(v,cd);
+    return GetChargeDensity(Spin::Up  )->DM_Contract(v,cd)+GetChargeDensity(Spin::Down)->DM_Contract(v,cd);
 }
 
 

@@ -95,14 +95,14 @@ template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs)
 }
 
 
-template <class T> double IrrepCD<T>::GetEnergy(const Static_HT* v) const
+template <class T> double IrrepCD<T>::DM_Contract(const Static_HT* v) const
 {
     T ComplexE=Sum(DirectMultiply(itsDensityMatrix,v->GetMatrix(itsBasisSet,itsSpin)));
     assert(fabs(imag(ComplexE))<1e-8);
     return real(ComplexE);
 }
 
-template <class T> double IrrepCD<T>::GetEnergy(const Dynamic_HT* v,const DM_CD* cd) const
+template <class T> double IrrepCD<T>::DM_Contract(const Dynamic_HT* v,const DM_CD* cd) const
 {
     T ComplexE=Sum(DirectMultiply(itsDensityMatrix,v->GetMatrix(itsBasisSet,itsSpin,cd)));
     assert(fabs(imag(ComplexE))<1e-8);

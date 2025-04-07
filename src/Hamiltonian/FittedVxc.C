@@ -65,7 +65,7 @@ void FittedVxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
         FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
         cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
     }
-    te.Exc += 3.0/4.0 *cd->GetEnergy(this,cd);
+    te.Exc += 3.0/4.0 *cd->DM_Contract(this,cd);
 
 //    double HFExc=-0.25*itsCD->GetExchangeEnergy();
 //    std::cout.precision(4);

@@ -46,17 +46,17 @@ DM_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab
     return K;
 }
 
-double Composite_Exact_CD::GetEnergy(const Static_HT* v) const
+double Composite_Exact_CD::DM_Contract(const Static_HT* v) const
 {
     double ret=0.0;
-    for (auto c:itsCDs) ret+=c->GetEnergy(v);
+    for (auto c:itsCDs) ret+=c->DM_Contract(v);
     return ret;
 }
 
-double Composite_Exact_CD::GetEnergy(const Dynamic_HT* v,const DM_CD* cd) const
+double Composite_Exact_CD::DM_Contract(const Dynamic_HT* v,const DM_CD* cd) const
 {
     double ret=0.0;
-    for (auto c:itsCDs) ret+=c->GetEnergy(v,cd);
+    for (auto c:itsCDs) ret+=c->DM_Contract(v,cd);
     return ret;
 }
 

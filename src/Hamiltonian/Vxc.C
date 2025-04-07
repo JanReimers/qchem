@@ -27,7 +27,7 @@ Static_HT::SMat Vxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,cons
 void Vxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(cd);
-    te.Exc+=0.5*cd->GetEnergy(this,cd);
+    te.Exc+=0.5*cd->DM_Contract(this,cd);
 }
 
 std::ostream& Vxc::Write(std::ostream& os) const

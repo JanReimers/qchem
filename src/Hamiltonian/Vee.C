@@ -36,7 +36,7 @@ Static_HT::SMat Vee::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,cons
 void Vee::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(cd);
-    te.Eee=0.5*cd->GetEnergy(this,cd);
+    te.Eee=0.5*cd->DM_Contract(this,cd);
     te.EeeFit    = 0.0;
     te.EeeFitFit = 0.0;
 }

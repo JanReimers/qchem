@@ -22,7 +22,7 @@ Static_HT::SMat RestMass::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&
 
 void RestMass::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    te.RestMass=cd->GetEnergy(this);
+    te.RestMass=cd->DM_Contract(this);
 }
 
 std::ostream& RestMass::Write(std::ostream& os) const

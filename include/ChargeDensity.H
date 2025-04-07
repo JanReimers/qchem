@@ -24,8 +24,8 @@ class DM_CD
 , public virtual DensityFFClient //Fitted function can be fit to this.
 {
 public:
-    virtual double GetEnergy(const Static_HT*) const=0; //Amounts to Integral(ro*V*d3r);
-    virtual double GetEnergy(const Dynamic_HT*,const DM_CD*) const=0; //Amounts to Integral(ro*V(ro)*d3r);
+    virtual double DM_Contract(const Static_HT*) const=0; //Amounts to Integral(ro*V*d3r);
+    virtual double DM_Contract(const Dynamic_HT*,const DM_CD*) const=0; //Amounts to Integral(ro*V(ro)*d3r);
 
     virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&          )      =0;  //Usefull for single atom charge densities.
@@ -53,8 +53,8 @@ public:
     virtual       DM_CD* GetChargeDensity(const Spin&)      =0;
     virtual const DM_CD* GetChargeDensity(const Spin&) const=0;
 
-    virtual double GetEnergy(const Static_HT*) const;
-    virtual double GetEnergy(const Dynamic_HT*,const DM_CD*) const;
+    virtual double DM_Contract(const Static_HT*) const;
+    virtual double DM_Contract(const Dynamic_HT*,const DM_CD*) const;
 
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
