@@ -56,24 +56,18 @@ double Static_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 
 double Dynamic_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 {
-    assert(itsCD);
-    if (itsCD!=cd)
-        std::cout << " ??? " << std::endl;
+    assert(cd);
+    itsCD=cd;
+    // if (itsCD!=cd)
+    //     std::cout << " ??? " << std::endl;
     // if (true)
     // {
     //     for (auto b:itsBSs)
     //         GetMatrix(b.second,b.first.ms);
     // }
-    return itsCD->GetEnergy(this);
+    return cd->GetEnergy(this);
 }
 
-
-void Dynamic_HT_Imp::UseChargeDensity(const DM_CD* cd)
-{
-    itsCD =cd;
-    assert(itsCD);
-    
-}
 
 bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const
 {

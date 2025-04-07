@@ -41,7 +41,7 @@ void HamiltonianImp::UseChargeDensity(const DM_CD* cd)
 {
     itsCD =cd;
     assert(itsCD);
-    for (auto t:itsDHTs) t->UseChargeDensity(itsCD);
+    // for (auto t:itsDHTs) t->UseChargeDensity(itsCD);
 }
 
 

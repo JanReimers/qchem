@@ -28,10 +28,7 @@ FittedVxc::~FittedVxc()
 
 void FittedVxc::UseChargeDensity(const DM_CD* cd)
 {
-    // Dynamic_HT_Imp::UseChargeDensity(cd);
-    // itsLDAVxc->UseChargeDensity(cd);
-
-    // DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
+   
 }
 
 //########################################################################

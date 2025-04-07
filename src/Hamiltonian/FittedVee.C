@@ -22,12 +22,6 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
     assert(itsFittedChargeDensity);
 };
 
-void FittedVee::UseChargeDensity(const DM_CD* cd)
-{
-    // assert(cd);
-    //  Dynamic_HT_Imp::UseChargeDensity(cd);
-    // itsFittedChargeDensity->DoFit(*cd);
-}
 //########################################################################
 //
 //  This is where we calculate the overlap of the fit basis functions with

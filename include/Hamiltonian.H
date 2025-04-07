@@ -33,7 +33,6 @@ class Dynamic_HT
 {
 public:
     using Static_HT::GetMatrix;
-    virtual void UseChargeDensity(const DM_CD*)       =0;
     virtual SMat GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
 private:
     Dynamic_HT& operator=(const Dynamic_HT&);
@@ -46,6 +45,7 @@ class FittablePotential
     , public virtual ScalarFFClient
 {
 public:
+    virtual void UseChargeDensity(const DM_CD*)       =0;
     static  FittablePotential* Factory(std::istream&);
 };
 

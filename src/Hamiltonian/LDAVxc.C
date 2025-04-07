@@ -22,8 +22,7 @@ LDAVxc::LDAVxc(ex_t& lda)
 
 void LDAVxc::UseChargeDensity(const DM_CD* cd)
 {
-    Dynamic_HT_Imp::UseChargeDensity(cd);
-    itsExchangeFunctional->InsertChargeDensity(itsCD);
+    itsExchangeFunctional->InsertChargeDensity(cd);
 }
 
 //########################################################################

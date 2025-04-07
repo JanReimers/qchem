@@ -32,21 +32,6 @@ FittedVxcPol::~FittedVxcPol()
     delete itsDownVxc;
 }
 
-void FittedVxcPol::UseChargeDensity(const DM_CD* cd)
-{
-    // assert(itsUpVxc);
-    // assert(itsDownVxc);
-
-    // Dynamic_HT_Imp::UseChargeDensity(cd);
-
-    // const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
-    // assert(pol_cd);
-
-    // const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    // const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
-    // itsUpVxc  ->UseChargeDensity(ucd  );
-    // itsDownVxc->UseChargeDensity(dcd);
-}
 
 //########################################################################
 //
