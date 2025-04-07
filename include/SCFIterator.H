@@ -6,7 +6,7 @@
 class SCFIterator
 {
 public:
-    SCFIterator(WaveFunction*, Hamiltonian*,DM_CD*);
+    SCFIterator(WaveFunction*, Hamiltonian*,DM_CD* cd=0);
     ~SCFIterator();
     bool Iterate(const SCFIterationParams& ipar);
     void DisplayEnergies(int i, double lam, double chargeDensityChange, double fitError,const DM_CD* cd) const;

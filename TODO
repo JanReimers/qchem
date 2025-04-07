@@ -1,6 +1,12 @@
 Priority 1:
     -Try making a separate libqcbasis.a to enforce some modularity.
         Try making a C++20 module
+    -Ham reorg
+        -Fix Dynamic_HT caching bug for DFT with >1 irrep.
+        -Vxc->LDAxc->ExchangeFunctional  
+            Can we get rid of LDAxc?
+        Done: -Support no cd guess to init SCF proc.
+    -Get rid of AtomQN.
     -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m

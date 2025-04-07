@@ -43,7 +43,6 @@ Static_HT::SMat FittedVee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* c
 void FittedVee::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
-    assert(itsCD);
     if (itsCD!=cd)
        itsFittedChargeDensity->DoFit(*cd);
     te.EeeFit    = 0.5*cd->DM_Contract(this,cd);

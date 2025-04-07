@@ -42,13 +42,16 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const 
     SMat H(n,n);
     Fill(H,0.0);
     for (auto t:itsSHTs) H+=t->GetMatrix(bs,S);
-    for (auto t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
+    // Leave these terms out if we don't have guess for the charge density.
+    if (cd)
+        for (auto t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
     return H;
 }
 
 
 TotalEnergy HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
+    assert(cd);
     TotalEnergy e;
     for (auto t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto t:itsDHTs)  t->GetEnergy(e,cd);

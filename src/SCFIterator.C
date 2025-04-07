@@ -26,8 +26,6 @@ SCFIterator::SCFIterator(WaveFunction* W,Hamiltonian* H,DM_CD* cd)
 
 void SCFIterator::Initialize(DM_CD* cd)
 {
-    assert(cd);
-
     itsWaveFunction->DoSCFIteration(*itsHamiltonian,cd);
     itsWaveFunction->FillOrbitals(0);
 
