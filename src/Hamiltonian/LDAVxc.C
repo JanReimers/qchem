@@ -30,9 +30,9 @@ void LDAVxc::UseChargeDensity(const DM_CD* cd)
 //  Here Vxc is not fit to the exchange functional, so the Matrix and energy.
 //  cannot be calculated analytically.
 //
-Static_HT::SMat LDAVxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+Static_HT::SMat LDAVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
-    std::cerr << "LDAVxc::CalculateHamiltonianMatrix not implementated yet" << std::endl;
+    std::cerr << "LDAVxc::CalcMatrix not implementated yet" << std::endl;
     exit(-1);
     return SMat();
 }

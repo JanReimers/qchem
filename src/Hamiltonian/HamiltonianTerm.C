@@ -32,7 +32,7 @@ Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,con
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
-    itsCache[qns]=CalculateHamiltonianMatrix(bs,s,cd);
+    itsCache[qns]=CalcMatrix(bs,s,cd);
     itsBSs[qns]=bs;
  
     assert(itsCache.find(qns)!=itsCache.end());

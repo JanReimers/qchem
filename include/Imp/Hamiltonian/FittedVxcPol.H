@@ -33,7 +33,7 @@ public:
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     Dynamic_HT* itsUpVxc  ; //Spin up.
     Dynamic_HT* itsDownVxc; //Spin down.

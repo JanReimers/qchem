@@ -43,7 +43,7 @@ public:
 
 protected:
     // Unconditional calculation, does no use cache.
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     bool newCD(const DM_CD*) const;
 
     mutable const DM_CD*    itsCD;     //Density matrix charge density.

@@ -32,7 +32,7 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
 //  Where ro is the fitted charge density.
 //
 
-Static_HT::SMat FittedVee::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+Static_HT::SMat FittedVee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
     if (newCD(cd))
        itsFittedChargeDensity->DoFit(*cd);
