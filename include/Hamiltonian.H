@@ -20,12 +20,7 @@ public:
     typedef TOrbital_IBS<double> ibs_t;
 
     virtual const SMat& GetMatrix(const ibs_t*,const Spin&) const=0;
-    virtual void GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
-
-    static  Static_HT*    Factory(std::istream&);
-
-private:
-    Static_HT& operator=(const Static_HT&);
+    virtual void        GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
 };
 
 class Dynamic_HT
