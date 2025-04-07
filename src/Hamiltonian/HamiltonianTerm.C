@@ -30,6 +30,7 @@ Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 
 Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
+    //No UT coverage.
     assert(bs);
     assert(itsCD);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
@@ -66,7 +67,7 @@ double Dynamic_HT_Imp::CalculateEnergy(const DM_CD* cd) const
     //     for (auto b:itsBSs)
     //         GetMatrix(b.second,b.first.ms);
     // }
-    return cd->GetEnergy(this);
+    return cd->GetEnergy(this,cd);
 }
 
 
