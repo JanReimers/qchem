@@ -5,7 +5,7 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 
-bool verbose=false;
+bool verbose=true;
 
 class HF_U : public virtual QchemTester
 {

@@ -79,12 +79,6 @@ bool IBS_Common::operator==(const IrrepBasisSet& bs) const
     return ret;
 }
 
-Symmetry*  IBS_Common::GetQuantumNumber(int index) const
-{
-    return itsQuantumNumber->AddPrincipleQN(index);
-}
-
-
 //-----------------------------------------------------------------------------
 //
 //  Streamable stuff.

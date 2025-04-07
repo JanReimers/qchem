@@ -52,11 +52,6 @@ Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const Symmetry* _sym)
     assert(sym);
     assert(n<=n_max);
 }
-// Orbital_QNs::Orbital_QNs(Spin _ms,const QNs* _sym)
-// : n(0), ms(_ms), sym(_sym->Clone())
-// {
-//     assert(sym);
-// }
 Orbital_QNs::Orbital_QNs(const Orbital_QNs& qns)
 : n(qns.n)
 , ms(qns.ms)
@@ -79,10 +74,10 @@ bool Orbital_QNs::Match(const Orbital_QNs& b) const
 {
     return n==b.n && ms==b.ms && (*sym==*b.sym);
 }
-// bool Orbital_QNs::MatchType(const Orbital_QNs& b) const
-// {
-//     return sym->MatchType(*b.sym);
-// }
+bool Orbital_QNs::MatchNoSpin(const Orbital_QNs& b) const
+{
+    return n==b.n && (*sym==*b.sym);
+}
 size_t Orbital_QNs::GetDegeneracy() const
 {
     return sym->GetDegeneracy()*ms.GetDegeneracy();
@@ -90,7 +85,7 @@ size_t Orbital_QNs::GetDegeneracy() const
 
 std::ostream& Orbital_QNs::Write(std::ostream& os) const
 {
-    return os << "n=" << n << " ms=" << ms << " sym=" << *sym;
+    return os << n << *sym;
 }
     
 // Orbital_QNs* Orbital_QNs::Clone() const

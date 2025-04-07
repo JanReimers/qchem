@@ -48,11 +48,6 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     }
 }
 
-template <class T> Symmetry* TOrbitalImp<T>::GetQuantumNumber() const
-{
-    return itsBasisSet->GetQuantumNumber(itsIndex);
-}
-
 template <class T> Orbital_QNs TOrbitalImp<T>::GetQNs() const
 {
     return Orbital_QNs(itsIndex,GetSpin(),&itsBasisSet->GetQuantumNumber());
@@ -65,8 +60,8 @@ template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
         GetEigenEnergy(),
         GetOccupation(),
         GetDegeneracy(),
-        GetQuantumNumber(),
-        s,this
+        GetQNs(),
+        this
     );    
 }
 //----------------------------------------------------------------------------

@@ -47,6 +47,7 @@ struct Orbital_QNs
     ~Orbital_QNs();
 
     bool Match(const Orbital_QNs&) const;
+    bool MatchNoSpin(const Orbital_QNs&) const;
     size_t  SequenceIndex() const; //Used for op<
     friend  bool operator==(const Orbital_QNs& a, const Orbital_QNs& b)
     {

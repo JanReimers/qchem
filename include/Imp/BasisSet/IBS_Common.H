@@ -32,7 +32,6 @@ public:
         assert(itsQuantumNumber);
         return *itsQuantumNumber;
     }
-    virtual Symmetry*  GetQuantumNumber(int index) const;
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 

@@ -7,15 +7,14 @@
 #include <iomanip>
 
 EnergyLevel::EnergyLevel(const EnergyLevel& el) 
-: e(el.e), occ(el.occ), degen(el.degen), qn(el.qn->Clone()), s(el.s), orbital(el.orbital)
+: e(el.e), occ(el.occ), degen(el.degen), qns(el.qns), orbital(el.orbital)
 {
 
 }
 
 EnergyLevel::~EnergyLevel() 
 {
-    assert(qn);
-    delete qn; 
+    
 }
 
 void EnergyLevel::merge(const EnergyLevel& el)
@@ -26,7 +25,7 @@ void EnergyLevel::merge(const EnergyLevel& el)
     // if (occ >1)
     //     std::cout << "occ=" << occ << std::endl;
     degen+=el.degen;
-    assert(s==el.s);
+    assert(qns.ms==el.qns.ms);
     // Should we had lists of QNs and Orbitals?
 }
 
@@ -36,7 +35,7 @@ void EnergyLevel::Report(std::ostream& os) const
     os << std::setw(14) << std::setprecision(8) << e 
        << " (" << std::setw(2) << std::setprecision(0) << occ 
        << "/"  << std::setw(2) << degen 
-       << ") " << *qn;
+       << ") " << qns;
 }
 
 

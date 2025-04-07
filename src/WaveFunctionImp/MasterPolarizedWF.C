@@ -86,8 +86,7 @@ void MasterPolarizedWF::DisplayEigen() const
         bool valid_dn = idn!=itsDnELevels.end();
         bool print_up = valid_up && iup->first<=0.0;
         bool print_dn = valid_dn && idn->first<=0.0;
-        bool qn_match = valid_up && valid_dn && *iup->second.qn==*idn->second.qn;
-        
+        bool qn_match = valid_up && valid_dn && iup->second.qns.MatchNoSpin(idn->second.qns);
         if (print_up)
             iup->second.Report(std::cout);
         else

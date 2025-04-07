@@ -4,11 +4,12 @@
 
 #include <types.H>
 #include <Spin.H>
+#include <Orbital_QNs.H>
 
 struct EnergyLevel
 {
-    EnergyLevel(double _e, double _occ, double _g,Symmetry* _qn,const Spin& _s, Orbital* _o)
-        : e(_e), occ(_occ), degen(_g), qn(_qn), s(_s), orbital(_o) 
+    EnergyLevel(double _e, double _occ, double _g,const Orbital_QNs& _qns, Orbital* _o)
+        : e(_e), occ(_occ), degen(_g), qns(_qns), orbital(_o) 
         {};
     EnergyLevel(const EnergyLevel&);
     ~EnergyLevel();
@@ -18,8 +19,7 @@ struct EnergyLevel
     
     double         e,occ;
     int            degen;
-    Symmetry* qn;
-    Spin           s;
+    Orbital_QNs    qns;
     Orbital*       orbital;
   
 };
