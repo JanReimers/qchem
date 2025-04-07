@@ -59,7 +59,7 @@ Static_HT::SMat FittedVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* c
 
 void FittedVxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    if (newCD(cd))
+    if (itsCD!=cd)
     {
         itsLDAVxc->UseChargeDensity(cd);
         FittedVxc* cfvxc=const_cast<FittedVxc*>(this);

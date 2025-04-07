@@ -17,6 +17,7 @@ int main(int argc, char **argv)
 //     testing::GTEST_FLAG(filter) = "A_SG_DHF_H.Phir";
      // testing::GTEST_FLAG(filter) = "A_SG_HFP_H.Phir";
      //   testing::GTEST_FLAG(filter) = "Multiple/A_*_DFT_*.Multiple/*:Multiple/A_SLm_HF_P.Multiple/*";
+     //   testing::GTEST_FLAG(filter) = "Multiple/A_SG_DFT_U.Multiple/2";
 
 //     testing::GTEST_FLAG(filter) = "libCintTests.*"; 
 //     testing::GTEST_FLAG(filter) = "ERI4Tests.*"; 

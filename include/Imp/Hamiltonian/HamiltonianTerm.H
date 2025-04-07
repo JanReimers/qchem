@@ -50,6 +50,16 @@ protected:
    
 };
 
+class Dynamic_HT_Imp_NoCache
+: public virtual Dynamic_HT
+{
+public:
+    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
+
+protected:
+    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    mutable SMat itsMat;
+};
 
 
 #endif

@@ -15,7 +15,7 @@
 //
 class VxcPol
     : public virtual Dynamic_HT
-    , private        Dynamic_HT_Imp
+    , private        Dynamic_HT_Imp_NoCache
 {
 public:
     VxcPol();

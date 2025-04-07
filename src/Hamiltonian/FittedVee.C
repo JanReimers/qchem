@@ -44,7 +44,7 @@ void FittedVee::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
     assert(itsCD);
-    if (newCD(cd))
+    if (itsCD!=cd)
        itsFittedChargeDensity->DoFit(*cd);
     te.EeeFit    = 0.5*cd->DM_Contract(this,cd);
     te.EeeFitFit = itsFittedChargeDensity->GetSelfRepulsion();
