@@ -14,7 +14,7 @@ Dynamic_HT_Imp::Dynamic_HT_Imp()
     
 };
 
-Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
+const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());

@@ -26,7 +26,7 @@ class Static_HT_Imp
     , protected HT_Common
 {
 public:
-    virtual SMat GetMatrix(const ibs_t* bs,const Spin&) const;
+    virtual const SMat& GetMatrix(const ibs_t* bs,const Spin&) const;
 
 protected:
     // Unconditional calculation, does no use cache.

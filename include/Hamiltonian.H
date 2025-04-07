@@ -19,7 +19,7 @@ public:
     typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;
 
-    virtual SMat GetMatrix(const ibs_t*,const Spin&) const=0;
+    virtual const SMat& GetMatrix(const ibs_t*,const Spin&) const=0;
     virtual void GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
 
     static  Static_HT*    Factory(std::istream&);
