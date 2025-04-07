@@ -10,7 +10,7 @@ Kinetic::Kinetic()
 {};
 
 
-Static_HT::SMat Kinetic::CalcMatrix(const ibs_t* bs,const Spin&) const
+Static_HT::SMat Kinetic::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
     return 0.5*bs->Grad2();
 }

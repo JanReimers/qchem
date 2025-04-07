@@ -21,7 +21,7 @@ Vnn::Vnn(cl_t& cl)
     , theCluster(cl)
 {};
 
-Static_HT::SMat Vnn::CalcMatrix(const ibs_t* bs,const Spin&) const
+Static_HT::SMat Vnn::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMat ret(n,n);

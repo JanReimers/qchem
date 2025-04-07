@@ -36,7 +36,7 @@ VxcPol::~VxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-Static_HT::SMat VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+Static_HT::SMat VxcPol::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if  (s.itsState==Spin::None)
     {
