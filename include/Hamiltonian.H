@@ -30,9 +30,7 @@ public:
     typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;    
     virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
-    virtual void GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
-private:
-    Dynamic_HT& operator=(const Dynamic_HT&);
+    virtual void        GetEnergy(TotalEnergy&,  const DM_CD*) const=0;
 };
 
 #include <FittedFunctionClient.H>
@@ -43,7 +41,6 @@ class FittablePotential
 {
 public:
     virtual void UseChargeDensity(const DM_CD*)       =0;
-    static  FittablePotential* Factory(std::istream&);
 };
 
 

@@ -81,12 +81,4 @@ std::ostream& FittedVxc::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& FittedVxc::Read (std::istream& is)
-{
-    FittedFunctionImp<double>::Read(is);
-    delete itsLDAVxc;
-    itsLDAVxc = FittablePotential::Factory(is);
-    is >> itsLDAVxc;
-    return is;
-}
 

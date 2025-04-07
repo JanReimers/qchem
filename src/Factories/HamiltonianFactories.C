@@ -42,12 +42,3 @@ Hamiltonian* Hamiltonian::Factory(std::istream& is)
 //
 
 
-FittablePotential* FittablePotential::Factory(std::istream& is)
-{
-    std::string Name=StreamableObject::PeekAtName(is);
-
-    std::cout << "Unknown potential type :" << Name << std::endl;
-    exit(-1);
-    return NULL;
-}
-
