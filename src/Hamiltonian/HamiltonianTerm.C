@@ -57,11 +57,13 @@ double Static_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 double Dynamic_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 {
     assert(itsCD);
-    if (true)
-    {
-        for (auto b:itsBSs)
-            GetMatrix(b.second,b.first.ms);
-    }
+    if (itsCD!=cd)
+        std::cout << " ??? " << std::endl;
+    // if (true)
+    // {
+    //     for (auto b:itsBSs)
+    //         GetMatrix(b.second,b.first.ms);
+    // }
     return itsCD->GetEnergy(this);
 }
 

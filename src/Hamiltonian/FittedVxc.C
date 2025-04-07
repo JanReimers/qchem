@@ -28,10 +28,10 @@ FittedVxc::~FittedVxc()
 
 void FittedVxc::UseChargeDensity(const DM_CD* cd)
 {
-    Dynamic_HT_Imp::UseChargeDensity(cd);
-    itsLDAVxc->UseChargeDensity(cd);
+    // Dynamic_HT_Imp::UseChargeDensity(cd);
+    // itsLDAVxc->UseChargeDensity(cd);
 
-    DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
+    // DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
 }
 
 //########################################################################
@@ -62,6 +62,12 @@ Static_HT::SMat FittedVxc::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin
 
 void FittedVxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
+    if (newCD(cd))
+    {
+        itsLDAVxc->UseChargeDensity(cd);
+        FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
+        cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
+    }
     te.Exc += 3.0/4.0 *CalculateEnergy(cd);
 
 //    double HFExc=-0.25*itsCD->GetExchangeEnergy();

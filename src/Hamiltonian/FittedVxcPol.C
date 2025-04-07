@@ -34,18 +34,18 @@ FittedVxcPol::~FittedVxcPol()
 
 void FittedVxcPol::UseChargeDensity(const DM_CD* cd)
 {
-    assert(itsUpVxc);
-    assert(itsDownVxc);
+    // assert(itsUpVxc);
+    // assert(itsDownVxc);
 
-    Dynamic_HT_Imp::UseChargeDensity(cd);
+    // Dynamic_HT_Imp::UseChargeDensity(cd);
 
-    const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
-    assert(pol_cd);
+    // const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
+    // assert(pol_cd);
 
-    const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
-    itsUpVxc  ->UseChargeDensity(ucd  );
-    itsDownVxc->UseChargeDensity(dcd);
+    // const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    // const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+    // itsUpVxc  ->UseChargeDensity(ucd  );
+    // itsDownVxc->UseChargeDensity(dcd);
 }
 
 //########################################################################
@@ -86,10 +86,14 @@ void FittedVxcPol::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
+    const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
+    assert(pol_cd);
 
+    const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
     te.Exc = 0.0;
-    itsUpVxc  ->GetEnergy(te,cd);
-    itsDownVxc->GetEnergy(te,cd);
+    itsUpVxc  ->GetEnergy(te,ucd);
+    itsDownVxc->GetEnergy(te,dcd);
 }
 
 std::ostream& FittedVxcPol::Write(std::ostream& os) const
