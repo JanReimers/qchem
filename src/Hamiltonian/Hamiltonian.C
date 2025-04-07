@@ -18,7 +18,6 @@ typedef optr_vector1<Static_HT*>::iterator        ITER;
 typedef optr_vector1<Static_HT*>::const_iterator CITER;
 
 HamiltonianImp::HamiltonianImp()
-    : itsCD(0)
 {};
 
 void HamiltonianImp::Add(Static_HT* p)
@@ -37,17 +36,8 @@ void HamiltonianImp::InsertStandardTerms(cl_t & cl)
     Add(new Ven(cl));
 }
 
-void HamiltonianImp::UseChargeDensity(const DM_CD* cd)
-{
-    itsCD =cd;
-    assert(itsCD);
-    // for (auto t:itsDHTs) t->UseChargeDensity(itsCD);
-}
-
-
 Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
 {
-    UseChargeDensity(cd);
     int n=bs->GetNumFunctions();
     SMat H(n,n);
     Fill(H,0.0);
@@ -59,10 +49,6 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const 
 
 TotalEnergy HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
-    HamiltonianImp* h=const_cast<HamiltonianImp*>(this);
-    h->UseChargeDensity(cd);
-    // itsCD=cd;
-    assert(itsCD);
     TotalEnergy e;
     for (auto t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto t:itsDHTs)  t->GetEnergy(e,cd);
@@ -78,10 +64,3 @@ std::ostream& HamiltonianImp::Write(std::ostream& os) const
     os << itsDHTs;
     return os;
 }
-
-std::istream& HamiltonianImp::Read(std::istream& is)
-{
-    return is;
-}
-
-
