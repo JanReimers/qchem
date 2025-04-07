@@ -31,6 +31,7 @@ Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(bs);
+    assert(itsCD);
     Irrep_QNs qns(s,&bs->GetQuantumNumber());
     itsCache[qns]=CalculateHamiltonianMatrix(bs,s,itsCD);
     itsBSs[qns]=bs;

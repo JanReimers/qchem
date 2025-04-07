@@ -70,6 +70,7 @@ class IrrepBasisSet;
 class BasisFunction;
 class BasisSet;
 class Cluster;
+class Dynamic_HT;
 class ElectronConfiguration;
 class EnergyLevel;
 class EnergyLevels;

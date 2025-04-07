@@ -22,6 +22,7 @@ public:
     virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const; 
 
     virtual double GetEnergy(const Static_HT*) const;
+    virtual double GetEnergy(const Dynamic_HT*,const DM_CD*) const;
 
     virtual double GetTotalCharge      (                     ) const;
 

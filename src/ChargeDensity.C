@@ -33,6 +33,12 @@ double Polarized_CD::GetEnergy(const Static_HT* v) const
     return GetChargeDensity(Spin::Up  )->GetEnergy(v)+GetChargeDensity(Spin::Down)->GetEnergy(v);
 }
 
+double Polarized_CD::GetEnergy(const Dynamic_HT* v,const DM_CD* cd) const
+{
+    return GetChargeDensity(Spin::Up  )->GetEnergy(v,cd)+GetChargeDensity(Spin::Down)->GetEnergy(v,cd);
+}
+
+
 double Polarized_CD::GetTotalCharge() const
 {
     return GetChargeDensity(Spin::Up)->GetTotalCharge() + GetChargeDensity(Spin::Down)->GetTotalCharge() ;

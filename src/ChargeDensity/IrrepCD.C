@@ -102,6 +102,12 @@ template <class T> double IrrepCD<T>::GetEnergy(const Static_HT* v) const
     return real(ComplexE);
 }
 
+template <class T> double IrrepCD<T>::GetEnergy(const Dynamic_HT* v,const DM_CD* cd) const
+{
+    T ComplexE=Sum(DirectMultiply(itsDensityMatrix,v->GetMatrix(itsBasisSet,itsSpin,cd)));
+    assert(fabs(imag(ComplexE))<1e-8);
+    return real(ComplexE);
+}
 
 template <class T> double IrrepCD<T>::GetTotalCharge() const
 {

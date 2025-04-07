@@ -53,6 +53,13 @@ double Composite_Exact_CD::GetEnergy(const Static_HT* v) const
     return ret;
 }
 
+double Composite_Exact_CD::GetEnergy(const Dynamic_HT* v,const DM_CD* cd) const
+{
+    double ret=0.0;
+    for (auto c:itsCDs) ret+=c->GetEnergy(v,cd);
+    return ret;
+}
+
 double Composite_Exact_CD::GetTotalCharge() const
 {
     double ret=0.0;
