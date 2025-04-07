@@ -30,7 +30,7 @@ public:
 
 protected:
     // Unconditional calculation, does no use cache.
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const=0;
+    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const=0;
 };
 
 class Dynamic_HT_Imp

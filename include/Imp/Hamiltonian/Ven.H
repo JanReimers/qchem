@@ -25,7 +25,7 @@ public:
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const;
+    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
 
     cl_t theCluster;
 };

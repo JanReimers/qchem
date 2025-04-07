@@ -22,7 +22,7 @@ Static_HT::SMat Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
     if (i==itsCache.end())
     {
         itsBSs[qns]=bs;    
-        return itsCache[qns]=CalculateHamiltonianMatrix(bs,s);
+        return itsCache[qns]=CalculateMatrix(bs,s);
     }
     else
         return i->second;
