@@ -3,6 +3,7 @@
 #include "Imp/Hamiltonian/RestMass.H"
 #include "Imp/Misc/DFTDefines.H"
 #include <DHF_IBS.H>
+#include <ChargeDensity.H>
 #include <TotalEnergy.H>
 
 RestMass::RestMass()
@@ -21,7 +22,7 @@ Static_HT::SMat RestMass::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&
 
 void RestMass::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    te.RestMass=CalculateEnergy(cd);
+    te.RestMass=cd->GetEnergy(this);
 }
 
 std::ostream& RestMass::Write(std::ostream& os) const

@@ -29,13 +29,8 @@ public:
     virtual SMat GetMatrix(const ibs_t* bs,const Spin&) const;
 
 protected:
-    
     // Unconditional calculation, does no use cache.
     virtual SMat CalculateHamiltonianMatrix(const ibs_t*,const Spin&) const=0;
-    // Calculation assumes that the cache is up to date. And E=Sum(Dab*Hab);
-    virtual double CalculateEnergy(const DM_CD* cd) const;
-   
-  
 };
 
 class Dynamic_HT_Imp

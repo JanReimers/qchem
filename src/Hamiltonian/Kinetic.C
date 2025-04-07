@@ -2,6 +2,7 @@
 
 #include "Imp/Hamiltonian/Kinetic.H"
 #include <Irrep_BS.H>
+#include <ChargeDensity.H>
 #include <TotalEnergy.H>
 
 Kinetic::Kinetic()
@@ -16,7 +17,7 @@ Static_HT::SMat Kinetic::CalculateHamiltonianMatrix(const ibs_t* bs,const Spin&)
 
 void Kinetic::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
 {
-    te.Kinetic=CalculateEnergy(cd);
+    te.Kinetic=cd->GetEnergy(this);
 }
 
 std::ostream& Kinetic::Write(std::ostream& os) const

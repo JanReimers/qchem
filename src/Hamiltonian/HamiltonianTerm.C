@@ -39,11 +39,6 @@ Dynamic_HT_Imp::SMat Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,con
     return itsCache[qns];
 }
 
-double Static_HT_Imp::CalculateEnergy(const DM_CD* cd) const
-{
-    return cd->GetEnergy(this);
-}
-
 double Dynamic_HT_Imp::CalculateEnergy(const DM_CD* cd) const
 {
     assert(cd);
