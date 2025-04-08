@@ -20,7 +20,7 @@
 //
 template <class T> TOrbitalImp<T>::
 TOrbitalImp(const TOrbital_IBS<T>* bs,const Vec& c,double e, const Spin& S, int i)
-    : ElectronContainerImp(S,bs->GetQuantumNumber())
+    : ElectronContainerImp(S,bs->GetSymmetry())
     , itsEigenEnergy(e)
     , itsCoeff      (c)
     , itsBasisSet   (bs)
@@ -43,14 +43,14 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
     if (IsOccupied()) 
     {
     //    std::cout << "Orbital occ=" << GetOccupation() << std::fixed << " E=" << GetEigenEnergy() 
-    //    << " QN=" << itsBasisSet->GetQuantumNumber() << std::endl;
+    //    << " QN=" << itsBasisSet->GetSymmetry() << std::endl;
         d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
     }
 }
 
 template <class T> Orbital_QNs TOrbitalImp<T>::GetQNs() const
 {
-    return Orbital_QNs(itsIndex,GetSpin(),&itsBasisSet->GetQuantumNumber());
+    return Orbital_QNs(itsIndex,GetSpin(),&itsBasisSet->GetSymmetry());
 }
 
 template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)

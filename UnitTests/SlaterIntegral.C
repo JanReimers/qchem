@@ -193,7 +193,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         SMatrix<double> Knum = mintegrator->Grad(*oi);
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const Symmetry& qn=oi->GetQuantumNumber();
+        const Symmetry& qn=oi->GetSymmetry();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
         const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
@@ -294,7 +294,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
                     if (fabs(jv-r0)/jv>1e-12)
                     {
                         cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
-                        cout << iab->GetQuantumNumber() << " " << icd->GetQuantumNumber() << endl; 
+                        cout << iab->GetSymmetry() << " " << icd->GetSymmetry() << endl; 
                         cout << "j,r=" << jv << " " << r0 << endl;
                         assert(false);                 
                     }

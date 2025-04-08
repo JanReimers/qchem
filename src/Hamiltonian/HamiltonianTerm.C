@@ -17,7 +17,7 @@ Dynamic_HT_Imp::Dynamic_HT_Imp()
 const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(bs);
-    Irrep_QNs qns(s,&bs->GetQuantumNumber());
+    Irrep_QNs qns(s,&bs->GetSymmetry());
     auto i=itsCache.find(qns);
     if (i==itsCache.end())
     {
@@ -31,7 +31,7 @@ const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) c
 const Dynamic_HT::SMat& Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(bs);
-    Irrep_QNs qns(s,&bs->GetQuantumNumber());
+    Irrep_QNs qns(s,&bs->GetSymmetry());
     auto i=itsCache.find(qns);
     // BUG:  Using that cache fails for DFT with multiple irreps.  Unpol or Pol.
     if (itsCD!=cd || i==itsCache.end() || true)

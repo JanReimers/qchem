@@ -6,26 +6,12 @@ Priority 1:
         -Vxc->LDAxc->ExchangeFunctional  
             Can we get rid of LDAxc?
         Done: -Support no cd guess to init SCF proc.
-    -Get rid of AtomQN.
+    Done: -Get rid of AtomQN.
     -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m
     -DFT check for l>0 basis sets for fitting.
     -Slater norm takes n=l+1, Gaussian norm takes l.
-    Done: -Break up BasisSet folder
-        Done: Atom
-            radial
-            l
-                Slater,Gaussian,BSpline
-            ml 
-                Slater,Gaussian,BSpline
-            RKB
-                Slater,Gaussian,BSpline
-        Done: Molecule
-            PG
-        Done: Lattice
-            PlaneWave
-
 
     -Make a UI app with plotting
         -wxPython + matplotlib (python)
@@ -44,14 +30,17 @@ Priority 1:
             https://www.gtk.org/docs/language-bindings/cpp/
             Need to worry about GTK3 or GTK4 support
             GTK 2,3,4 comes with ubuntu linux
-            -no windows support
-            -Use GLADE to generate UI code.
+            -Use GLADE to generate UI code. Or Cambalache https://gitlab.gnome.org/jpu/cambalache
+            -Read in ui files: https://gnome.pages.gitlab.gnome.org/gtkmm-documentation/chapter-builder.html
+
         -Gnuplot has a c++ interface.
         -XMGrace
         -Use own PLotting which has an XMGrace driver.
             Would need to make Gtkmm-PLplot driver.
             -The multigraph support got complex and buggy.  Maybe refactoring would fix it?
         -FLTK https://www.fltk.org/doc-1.4/basics.html
+        -QT has many plotting widgets.
+            -Has a designer like GLADE.
 
         
 
@@ -85,56 +74,10 @@ Priority 1:
         Can we use constexpr features here?
     
     
-    -QNs should contain spin.  Right?
-        Yes
-        Done: -But need to check that exchange integrals work out properly when spin is folded
-            -Exchange requires a restricted sum over spinor-irreps
-        into the Irrep blocking system.
-            -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
-        Irrep QNs = IQNs
-            {n,l,ml,ms},    g=1         NR open shell spin-unpaired atom
-            {n,l,ml},       g=2         NR open shell spin paried atom
-            {n,l,ms},       g=2l+1      NR open shell spin-unpaired atom
-            {n,l},          g=2(2l+1)   NR closed shell atom
-            {n,kappa,mj,ms} g=1         Dirac atom
-            {n,kappa,ms}    g=2j+1      Dirac atom
-            {n,chi,ms}      g=1         Molecule
-            {n,chi}         g=2         Molecule
-        -There are three concepts here:
-            1) principle QN: n
-            2) symmetry: Yl, Ylm, Point group
-            3) spin.
-            -For relativistic calculations the spherical spinor combines Ylm and spin.
-             but I think we can still separate out spin.
-        -Basis sets can be characterized by the symmetry part, but no by n,ms
-        -Orbitals are of course characterized by all four QNs for polarized calculations
-            and by n,sym for un polarized calculations.
-            Orbitals should have a Spin.
-        -We only need polymorphism for #2.
-        -Need < op for std::maps<>
-            This requires a hash value. (((n-1)*Nmax+l)*lmax+(ml+l))*lmax+(ms+0.5)
-        -Need op== and MatchType(IQNs_a,IQNs_b)
-        -Store j,mj,ms=n/2 QNs as double or some sort of frac class?
-        -Plan:
-            -QuantumNumber -> QNs for brevity and plurality
-            -Make a IrrepSymmetry interface for Yl, Ylm, Omega_kappa
-            -Make an OrbitalQNs class for {IrrepSymmetry,n,ms}
-            -Use OrbitalQNs->ms() instead of Spin s in WF,CD etc.
-            -Git rid of PolarizedCD
-            -Get rid of PolarizedWF.
-        -I think we need the following associations:
-            -Orbital_IBS has Symmetry = {l,ml} or {kappa} or {chi}
-            -IrrepOrbitals has IrrepQNs = {ms,Symmetry}
-            -Orbital has Orbital_QNs = {n,ms,Symmetry}
-            -Could do IrrepQNs is just and Orbital_QNs with n=0.  But it would be better to
-             use the type system to distinguish.
-            -Are these related by containment or inheritance?
-                Symmetry is polymorphic whihc suggest containment
-                Irrep_QNs is not and Orbital_QNs, so again containment.
-        -Do we still need AngularQN and AtomQN?
-        -Need a more elegent version of
-            std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
-            Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
+
+    -Need a more elegent version of
+        std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
+        Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
 
     -Rethink WaveFunctions
         -WaveFunctionGroup should have 
@@ -386,7 +329,68 @@ Priority 3:
 
 
 
+    Done: -QNs should contain spin.  Right?
+        Yes
+        Done: -But need to check that exchange integrals work out properly when spin is folded
+            -Exchange requires a restricted sum over spinor-irreps
+        into the Irrep blocking system.
+            -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
+        Irrep QNs = IQNs
+            {n,l,ml,ms},    g=1         NR open shell spin-unpaired atom
+            {n,l,ml},       g=2         NR open shell spin paried atom
+            {n,l,ms},       g=2l+1      NR open shell spin-unpaired atom
+            {n,l},          g=2(2l+1)   NR closed shell atom
+            {n,kappa,mj,ms} g=1         Dirac atom
+            {n,kappa,ms}    g=2j+1      Dirac atom
+            {n,chi,ms}      g=1         Molecule
+            {n,chi}         g=2         Molecule
+        -There are three concepts here:
+            1) principle QN: n
+            2) symmetry: Yl, Ylm, Point group
+            3) spin.
+            -For relativistic calculations the spherical spinor combines Ylm and spin.
+             but I think we can still separate out spin.
+        -Basis sets can be characterized by the symmetry part, but no by n,ms
+        -Orbitals are of course characterized by all four QNs for polarized calculations
+            and by n,sym for un polarized calculations.
+            Orbitals should have a Spin.
+        -We only need polymorphism for #2.
+        -Need < op for std::maps<>
+            This requires a hash value. (((n-1)*Nmax+l)*lmax+(ml+l))*lmax+(ms+0.5)
+        -Need op== and MatchType(IQNs_a,IQNs_b)
+        -Store j,mj,ms=n/2 QNs as double or some sort of frac class?
+        -Plan:
+            Done -QuantumNumber -> Symmetryfor brevity and plurality
+            Done -Make a Irrep_QNs {ms,l,ml}
+            Done -Make an Orbital_QNs class for {n,IrrepSymmetry}
+            Done -Use OrbitalQNs->ms() instead of Spin s in WF,CD etc.
+            No -Git rid of PolarizedCD
+            No -Get rid of PolarizedWF.
+        Done -I think we need the following associations:
+            -Orbital_IBS has Symmetry = {l,ml} or {kappa} or {chi}
+            -IrrepOrbitals has IrrepQNs = {ms,Symmetry}
+            -Orbital has Orbital_QNs = {n,ms,Symmetry}
+            -Could do IrrepQNs is just and Orbital_QNs with n=0.  But it would be better to
+             use the type system to distinguish.
+            -Are these related by containment or inheritance?
+                Symmetry is polymorphic whihc suggest containment
+                Irrep_QNs is not and Orbital_QNs, so again containment.
+        -Do we still need AngularQN (Yes) and AtomQN (No)?
 
+
+    Done: -Break up BasisSet folder
+        Done: Atom
+            radial
+            l
+                Slater,Gaussian,BSpline
+            ml 
+                Slater,Gaussian,BSpline
+            RKB
+                Slater,Gaussian,BSpline
+        Done: Molecule
+            PG
+        Done: Lattice
+            PlaneWave
 
 
 

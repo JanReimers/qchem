@@ -1,29 +1,24 @@
-// File: IrrepWaveFunction.C  Wave function for an unpolarized atom.
+// File: Irrep_WF.C  Wave function for an unpolarized atom.
 
 
 
-#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/Orbitals/TOrbitals.H"
-#include <Hamiltonian.H>
 #include <Irrep_BS.H>
-#include <Symmetry.H>
-#include "oml/imp/binio.h"
 #include <cassert>
-#include <iomanip>
+#include <iostream>
 
 
 
-IrrepWaveFunction::IrrepWaveFunction(const TOrbital_IBS<double>* bs, const Spin& ms)
+Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms)
     : itsOrbitals(new  TOrbitalsImp<double>(bs,ms))
-    , itsSpin    (ms )
-    , itsQN      (&bs->GetQuantumNumber())
-    , itsQNs     (ms,&bs->GetQuantumNumber())
+    , itsQNs     (ms,&bs->GetSymmetry())
 {
     assert(itsOrbitals);
 };
 
-IrrepWaveFunction::~IrrepWaveFunction()
+Irrep_WF::~Irrep_WF()
 {
     delete itsOrbitals;
 }
@@ -32,19 +27,19 @@ IrrepWaveFunction::~IrrepWaveFunction()
 //
 //  This function will creat EMPTY orbtials.  
 //
-void IrrepWaveFunction::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
+void Irrep_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
-    itsOrbitals->UpdateOrbitals(ham,itsSpin,cd);
+    itsOrbitals->UpdateOrbitals(ham,itsQNs.ms,cd);
 }
 
-DM_CD* IrrepWaveFunction::GetChargeDensity() const
+DM_CD* Irrep_WF::GetChargeDensity() const
 {
     assert(itsOrbitals);
     return itsOrbitals->GetChargeDensity();
 }
 
-Orbitals* IrrepWaveFunction::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* Irrep_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
     assert(itsOrbitals);
     assert(qns==itsQNs);
@@ -54,10 +49,10 @@ Orbitals* IrrepWaveFunction::GetOrbitals(const Irrep_QNs& qns) const
 //
 //  There are three steps here:
 //
-const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration* ec)
+const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
 {
     // Step one: How many electron for this Irrep(qn,spin) ?
-    double ne=ec->GetN(*itsQN,itsSpin);
+    double ne=ec->GetN(*itsQNs.sym,itsQNs.ms);
     //std::cout << "ne=" << ne << " QN=" << *itsQN << std::endl;
     //  Loop over orbitals and consume the electrons quota.
     for (auto& o:*itsOrbitals)
@@ -68,7 +63,7 @@ const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration*
     //  Now update the list of energy levels.
     itsELevels.clear();
     for (auto o:*itsOrbitals)
-        itsELevels.insert(o->MakeEnergyLevel(itsSpin));
+        itsELevels.insert(o->MakeEnergyLevel(itsQNs.ms));
     
     //  Display the occupied orbitals with eigen vectors.
     // for (auto o:*itsOrbitals)
@@ -78,7 +73,7 @@ const EnergyLevels& IrrepWaveFunction::FillOrbitals(const ElectronConfiguration*
     return itsELevels;
 }
 
-void  IrrepWaveFunction::DisplayEigen() const
+void  Irrep_WF::DisplayEigen() const
 {
     itsELevels.Report(std::cout);
    

@@ -18,8 +18,6 @@ public:
     }
     //! Does not include spin degeneracy which is handles separately
     virtual int GetDegeneracy() const=0;
-    //! Combine with a principle QN from eigen levels with this Irrep.
-    virtual Symmetry* AddPrincipleQN(int index) const=0;
     
     virtual Symmetry* Clone() const=0;
     static  Symmetry* Factory(std::istream&);

@@ -85,6 +85,7 @@ class FittedFunctionClient;
 class Hamiltonian;
 class Static_HT;
 class Irrep_QNs;
+class Irrep_WF;
 class Molecule;
 class Mesh;
 class MeshParams;

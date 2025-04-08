@@ -86,7 +86,7 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
 {
     if (StreamableObject::Pretty())
     {
-        os << "Slater     " << this->GetQuantumNumber()
+        os << "Slater     " << this->GetSymmetry()
         << "             r^" << l << "*exp(-e*r), e={";
         for (auto b:*this) os << *b;
         os << "}";
@@ -135,7 +135,7 @@ template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) 
 {
     if (StreamableObject::Pretty())
     {
-        os << "Slater RKB " << this->GetQuantumNumber();
+        os << "Slater RKB " << this->GetSymmetry();
         if (kappa>0)
             os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
         else

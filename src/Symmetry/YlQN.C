@@ -3,8 +3,6 @@
 
 
 #include "Imp/Symmetry/YlQN.H"
-#include "Imp/Symmetry/AtomQN.H"
-#include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>
 
@@ -36,11 +34,6 @@ bool YlQN::Match(const Symmetry& qn) const
 int YlQN::GetDegeneracy() const
 {
     return 2*itsL+1;
-}
-
-Symmetry* YlQN::AddPrincipleQN(int index) const
-{
-    return new AtomQN(index,*this);
 }
 
 std::pair<int,int> YlQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
@@ -76,24 +69,7 @@ std::string SPDFG[]={"s","p","d","f","g"};
 
 std::ostream& YlQN::Write(std::ostream& os) const
 {
-    if (StreamableObject::Binary())
-        BinaryWrite(itsL,os);
-    if (StreamableObject::Ascii())
-        os << itsL << " ";
-    if (StreamableObject::Pretty())
-        os << SPDFG[itsL] << " ";
-    return os;
-}
-
-std::istream& YlQN::Read (std::istream& is)
-{
-    if (StreamableObject::Binary())
-        BinaryRead(itsL,is);
-    else
-    {
-        is >> itsL;
-    }
-    return is;
+    return os << SPDFG[itsL] << " ";
 }
 
 AngularQN* YlQN::Clone() const

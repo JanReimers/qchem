@@ -305,7 +305,7 @@ TEST_F(DiracIntegralTests, CoulombExchange)
                     if (fabs(jv-r0)/jv>1e-12)
                     {
                         cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
-                        cout << iab->GetQuantumNumber() << " " << icd->GetQuantumNumber() << endl; 
+                        cout << iab->GetSymmetry() << " " << icd->GetSymmetry() << endl; 
                         cout << "j,r=" << jv << " " << r0 << endl;
                         assert(false);                 
                     }

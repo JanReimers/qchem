@@ -41,7 +41,7 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
     if (Pretty())
     {
-        os << "Spherical Gaussian L=" << GetQuantumNumber()
+        os << "Spherical Gaussian L=" << GetSymmetry()
         << " with " << GetNumFunctions() << " basis functions, alpha={";
         for (auto b:*this) os << *b;
         os << "}" << std::endl;

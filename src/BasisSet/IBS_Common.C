@@ -16,26 +16,26 @@
 //  Construction zone
 //
 IBS_Common::IBS_Common()
-    : itsQuantumNumber(0)
+    : itsSymmetry(0)
 {
 };
 
 IBS_Common::IBS_Common(Symmetry* theQN)
-    : itsQuantumNumber(theQN)
+    : itsSymmetry(theQN)
 {
-    assert(itsQuantumNumber);
+    assert(itsSymmetry);
 };
 
 IBS_Common::IBS_Common(const IBS_Common& bs)
-  : itsQuantumNumber (bs.itsQuantumNumber->Clone())
+  : itsSymmetry (bs.itsSymmetry->Clone())
   , itsBasisFunctions(bs.itsBasisFunctions)
   {
-    assert(itsQuantumNumber);
+    assert(itsSymmetry);
   };
 
 IBS_Common::~IBS_Common()
 {
-    delete itsQuantumNumber;
+    delete itsSymmetry;
 }
 
 //-----------------------------------------------------------------------------
@@ -85,18 +85,18 @@ bool IBS_Common::operator==(const IrrepBasisSet& bs) const
 //
 std::ostream& IBS_Common::Write(std::ostream& os) const
 {
-    assert(itsQuantumNumber);
+    assert(itsSymmetry);
     if(!Pretty())
     {
         UniqueIDImp::Write(os);
         if(!Binary()) os << std::endl;
-        os << *itsQuantumNumber;
+        os << *itsSymmetry;
         if(!Binary()) os << std::endl;
     }
     else
     {
         os << "IrrepBasisSet " << " with " << GetNumFunctions() << " basis functions"
-        << ", Quantum number=" << *itsQuantumNumber <<  std::endl;
+        << ", Quantum number=" << *itsSymmetry <<  std::endl;
         os << "   #          Center      Pol     Radial     Exponents" << std::endl;
         // No UT coverage
         int i=1;

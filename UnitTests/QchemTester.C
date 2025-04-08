@@ -69,14 +69,14 @@ double QchemTester::TotalCharge() const
     return itsWaveFunction->GetChargeDensity()->GetTotalCharge();
 }
 
-Orbitals* QchemTester::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* QchemTester::GetOrbitals(const Irrep_QNs& qns) const
 {
     return itsWaveFunction->GetOrbitals(qns);
 }
 
-Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const
+const Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const
 {
-    Orbitals* orbs=GetOrbitals(qns);
+    const Orbitals* orbs=GetOrbitals(qns);
     assert(index<orbs->GetNumOrbitals());
     return *(orbs->begin()+index);
 }
@@ -119,7 +119,7 @@ std::vector<const Symmetry*> QchemTester::GetQuantumNumbers() const
     std::vector<const Symmetry*> qns;
     for (const auto& b : itsBasisSet->Iterate<Orbital_IBS>())
     {
-        qns.push_back(&(b->GetQuantumNumber()));
+        qns.push_back(&(b->GetSymmetry()));
     }
     return qns;
 }
@@ -260,17 +260,17 @@ MeshParams TestMolecule::GetMeshParams() const
 
     
 
-#include "Imp/WaveFunction/MasterUnPolarizedWF.H"
+#include "Imp/WaveFunction/UnPolarized_WF.H"
 WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const
 {
-    return new MasterUnPolarizedWF(bs,GetElectronConfiguration());
+    return new UnPolarized_WF(bs,GetElectronConfiguration());
 }
 
-#include "Imp/WaveFunction/MasterPolarizedWF.H"
+#include "Imp/WaveFunction/Polarized_WF.H"
 
 WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
 {   
     assert(bs->GetNumFunctions()>0);
-    return new MasterPolarizedWF(bs,GetElectronConfiguration() );
+    return new Polarized_WF(bs,GetElectronConfiguration() );
 }
 

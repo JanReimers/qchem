@@ -1,11 +1,11 @@
-// File: MasterPolarizedWF.C  Wave function for an unpolarized atom.
+// File: Polarized_WF.C  Wave function for an unpolarized atom.
 
 
 
-#include "Imp/WaveFunction/MasterPolarizedWF.H"
+#include "Imp/WaveFunction/Polarized_WF.H"
 #include "Imp/ChargeDensity/PolarizedCD.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
-#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <BasisSet.H>
 #include <Symmetry.H>
@@ -17,7 +17,7 @@
 
 
 
-MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec)
+Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec)
     : itsBS(bs) //Basis set
     , itsEC(ec) //Electron cofiguration
 {
@@ -25,8 +25,8 @@ MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bs,const ElectronConfigurat
     assert(itsBS->GetNumFunctions()>0);
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wfup(new IrrepWaveFunction(b,Spin(Spin::Up)));
-        uiwf_t wfdn(new IrrepWaveFunction(b,Spin(Spin::Down)));
+        uiwf_t wfup(new Irrep_WF(b,Spin(Spin::Up)));
+        uiwf_t wfdn(new Irrep_WF(b,Spin(Spin::Down)));
         itsQN_WFs[wfup->GetQNs()]=wfup.get();
         itsQN_WFs[wfdn->GetQNs()]=wfdn.get();
         // Do tte move last.
@@ -40,13 +40,13 @@ MasterPolarizedWF::MasterPolarizedWF(const BasisSet* bs,const ElectronConfigurat
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-void MasterPolarizedWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
+void Polarized_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     for (auto& w:itsSpinUpIWFs) w->DoSCFIteration(ham,cd);
     for (auto& w:itsSpinDnIWFs) w->DoSCFIteration(ham,cd);
 }
 
-DM_CD* MasterPolarizedWF::GetChargeDensity() const
+DM_CD* Polarized_WF::GetChargeDensity() const
 {
     Composite_Exact_CD* up = new Composite_Exact_CD();
     Composite_Exact_CD* dn = new Composite_Exact_CD();
@@ -55,7 +55,7 @@ DM_CD* MasterPolarizedWF::GetChargeDensity() const
     return new Polarized_CDImp(up,dn);
 }
 
-Orbitals* MasterPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* Polarized_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
     auto i=itsQN_WFs.find(qns);
     assert(i!=itsQN_WFs.end());
@@ -63,7 +63,7 @@ Orbitals* MasterPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 }
 
 
-void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
+void Polarized_WF::FillOrbitals(const ElectronConfiguration*)
 {
     itsUpELevels.clear();
     itsDnELevels.clear();
@@ -75,7 +75,7 @@ void MasterPolarizedWF::FillOrbitals(const ElectronConfiguration*)
 }
 
 
-void MasterPolarizedWF::DisplayEigen() const
+void Polarized_WF::DisplayEigen() const
 {
     std::cout << "Spin:         up                 down            avg" << std::endl;
     auto iup=itsUpELevels.begin();

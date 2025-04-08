@@ -18,7 +18,6 @@ public:
         return true;
     }
     virtual int GetDegeneracy() const;
-    virtual Symmetry* AddPrincipleQN(int index) const;
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;

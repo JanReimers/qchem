@@ -36,7 +36,7 @@ void Orbital_IBS::InsertBasisFunctions()
 // {
 //     if (Pretty())
 //     {
-//         os << "Slater functions l,m=" << GetQuantumNumber()
+//         os << "Slater functions l,m=" << GetSymmetry()
 //         << " with " << GetNumFunctions() << " basis functions, alpha={";
 //         for (auto b:*this) os << *b;
 //         os << "}" << std::endl;

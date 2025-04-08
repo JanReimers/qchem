@@ -27,10 +27,10 @@ public:
     virtual size_t  GetNumFunctions(               ) const;
     virtual bool    operator==     (const IrrepBasisSet&) const;
 
-    virtual const Symmetry&  GetQuantumNumber() const
+    virtual const Symmetry&  GetSymmetry() const
     {
-        assert(itsQuantumNumber);
-        return *itsQuantumNumber;
+        assert(itsSymmetry);
+        return *itsSymmetry;
     }
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
@@ -48,7 +48,7 @@ protected:
 private:
     IBS_Common& operator=(const IBS_Common&);
 
-    Symmetry*               itsQuantumNumber;
+    Symmetry*               itsSymmetry;
     optr_vector1<const BasisFunction*> itsBasisFunctions;
 };
 

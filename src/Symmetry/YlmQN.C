@@ -3,7 +3,6 @@
 
 
 #include "Imp/Symmetry/YlmQN.H"
-#include "Imp/Symmetry/AtomQN.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -36,11 +35,6 @@ bool YlmQN::Match(const Symmetry& qn) const
 int YlmQN::GetDegeneracy() const
 {
     return 1; 
-}
-
-Symmetry* YlmQN::AddPrincipleQN(int index) const
-{
-    return new AtomQN(index,*this);
 }
 
 std::pair<int,int> YlmQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
@@ -94,14 +88,7 @@ extern std::string SPDFG[];
 
 std::ostream& YlmQN::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << SPDFG[itsL] << " " << std::setw(2) << m << " ";
-    return os;
-}
-
-std::istream& YlmQN::Read (std::istream& is)
-{
-    return is;
+    return os << SPDFG[itsL] << " " << std::setw(2) << m << " ";
 }
 
 AngularQN* YlmQN::Clone() const

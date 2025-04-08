@@ -101,7 +101,7 @@ TEST_P(A_SLmj_DHF,Multiple)
 
     std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
-    Orbital* orb0=GetOrbital(0,oqns);
+    const Orbital* orb0=GetOrbital(0,oqns);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
     double e0_nr=Enk(1,-1,Z,0.0); // Non relativistic energy
@@ -173,11 +173,11 @@ TEST_P(A_SG_DHF,Multiple)
     std::vector<const Symmetry*> qns=GetQuantumNumbers();
     cout << "QN=" << *qns[0] << endl;
     Irrep_QNs oqns(Spin::Up,qns[0]);
-    Orbital* orb0=GetOrbital(0,oqns);
+    const Orbital* orb0=GetOrbital(0,oqns);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
     double e0_rel=(e0_expected-e0)/e0_expected;
-    Orbital* orb1=GetOrbital(1,oqns);
+    const Orbital* orb1=GetOrbital(1,oqns);
     double e1=orb1->GetEigenEnergy();
     double e1_expected=Enk(2,-1,Z,1.0/c_light);
     double e1_rel=(e1_expected-e1)/e1_expected;
@@ -225,9 +225,9 @@ double S12g(double r,double alpha)
     return pow(r,g-1.0)*exp(-r)/sqrt(n);
 }
 
-std::tuple<double,double,double> Integrate(Orbital* o,const Cluster*  cl, double alpha)
+std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, double alpha)
 {
-    TOrbital<double>* to=dynamic_cast<TOrbital<double>*>(o);
+    const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
     MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
     Mesh* m=cl->CreateMesh(mp);
     double a2=alpha*alpha;
@@ -262,7 +262,7 @@ TEST_F(A_SG_HFP_H,Phir)
 
     std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
-    Orbital* orb0=GetOrbital(0,oqns);
+    const Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),0.0);
     EXPECT_NEAR(n1,1,1e-14);
@@ -280,7 +280,7 @@ TEST_F(A_SG_DHF_H,Phir)
 
     std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
-    Orbital* orb0=GetOrbital(0,oqns);
+    const Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
     EXPECT_NEAR(n1,1,1e-14);
@@ -297,7 +297,7 @@ TEST_F(A_SL_DHF_H,Phir)
 
     std::vector<const Symmetry*> qns=GetQuantumNumbers();
     Irrep_QNs oqns(Spin::Up,qns[0]);
-    Orbital* orb0=GetOrbital(0,oqns);
+    const Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
     EXPECT_NEAR(n1,1,1e-14);

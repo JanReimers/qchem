@@ -1,9 +1,7 @@
-// File: MasterUnPolarizedWF.C  Wave function for an unpolarized atom.
+// File: UnPolarized_WF.C  Wave function for an unpolarized atom.
 
-
-
-#include "Imp/WaveFunction/MasterUnPolarizedWF.H"
-#include "Imp/WaveFunction/IrrepWaveFunction.H"
+#include "Imp/WaveFunction/UnPolarized_WF.H"
+#include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/Orbitals/TOrbitals.H"
 #include <BasisSet.H>
@@ -13,11 +11,11 @@
 #include <Orbital_QNs.H>
 #include <iostream>
 
-MasterUnPolarizedWF::MasterUnPolarizedWF()
+UnPolarized_WF::UnPolarized_WF()
     : itsEC(0)
 {};
 
-MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec)
+UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec)
     : itsBS(bs)
     , itsEC(ec)
 {
@@ -26,13 +24,13 @@ MasterUnPolarizedWF::MasterUnPolarizedWF(const BasisSet* bs,const ElectronConfig
     assert(itsBS->GetNumFunctions()>0);
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wf(new IrrepWaveFunction(b,Spin(Spin::None)));
+        uiwf_t wf(new Irrep_WF(b,Spin(Spin::None)));
         itsQN_WFs[wf->GetQNs()]=wf.get();
         itsIWFs.push_back(std::move(wf)); //Do the move last.
     }
 };
 
-MasterUnPolarizedWF::~MasterUnPolarizedWF()
+UnPolarized_WF::~UnPolarized_WF()
 {
     
 }
@@ -41,19 +39,19 @@ MasterUnPolarizedWF::~MasterUnPolarizedWF()
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-void MasterUnPolarizedWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
+void UnPolarized_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     for (auto& w:itsIWFs) w->DoSCFIteration(ham,cd);
 }
 
-DM_CD* MasterUnPolarizedWF::GetChargeDensity() const
+DM_CD* UnPolarized_WF::GetChargeDensity() const
 {
     Composite_Exact_CD* cd = new Composite_Exact_CD();
     for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity());
     return cd;
 }
 
-Orbitals* MasterUnPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
     // No UT coverage
     assert(qns.ms==Spin::None);
@@ -63,14 +61,14 @@ Orbitals* MasterUnPolarizedWF::GetOrbitals(const Irrep_QNs& qns) const
 }
 
 
-void MasterUnPolarizedWF::FillOrbitals(const ElectronConfiguration*)
+void UnPolarized_WF::FillOrbitals(const ElectronConfiguration*)
 {
     itsELevels.clear();
     for (auto& w:itsIWFs) 
         itsELevels.merge(w->FillOrbitals(itsEC),0.0001);
 }
 
-void MasterUnPolarizedWF::DisplayEigen() const
+void UnPolarized_WF::DisplayEigen() const
 {
     std::cout << "Alpha+Beta spin :" << std::endl;
     itsELevels.Report(std::cout);

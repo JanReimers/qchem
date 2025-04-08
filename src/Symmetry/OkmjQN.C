@@ -1,7 +1,6 @@
 // File: Symmetry/OkmjQN.C  Spherical Spinor Omega_kmj symmetry.
 
 #include "Imp/Symmetry/OkmjQN.H"
-#include "Imp/Symmetry/AtomQN.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -36,11 +35,6 @@ bool Omega_kQN::Match(const Symmetry& qn) const
 int Omega_kQN::GetDegeneracy() const
 {
     return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
-}
-
-Symmetry* Omega_kQN::AddPrincipleQN(int index) const
-{
-    return new AtomQN(index,*this);
 }
 
 std::pair<int,int> Omega_kQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
@@ -87,11 +81,6 @@ std::ostream& Omega_kQN::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& Omega_kQN::Read (std::istream& is)
-{
-    return is;
-}
-
 AngularQN* Omega_kQN::Clone() const
 {
     return new Omega_kQN(*this);
@@ -124,11 +113,6 @@ bool Omega_kmjQN::Match(const Symmetry& qn) const
 int Omega_kmjQN::GetDegeneracy() const
 {
     return 1;
-}
-
-Symmetry* Omega_kmjQN::AddPrincipleQN(int index) const
-{
-    return new AtomQN(index,*this);
 }
 
 //

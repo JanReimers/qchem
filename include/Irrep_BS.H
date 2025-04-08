@@ -31,7 +31,7 @@ public:
     virtual void Set(const LAParams&)=0;
     virtual bool                 operator==      (const IrrepBasisSet&) const=0;
     virtual size_t               GetNumFunctions (               ) const=0;
-    virtual const Symmetry& GetQuantumNumber(               ) const=0;
+    virtual const Symmetry& GetSymmetry(               ) const=0;
 private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;

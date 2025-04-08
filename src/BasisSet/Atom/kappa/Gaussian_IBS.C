@@ -75,7 +75,7 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
 {
     if (StreamableObject::Pretty())
     {
-        os << "Gaussian     " << this->GetQuantumNumber()
+        os << "Gaussian     " << this->GetSymmetry()
         << "               r^" << l << "*exp(-e*r^2), e={";
         for (auto b:*this) os << *b;
         os << "}";
@@ -118,7 +118,7 @@ template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) 
 {
     if (StreamableObject::Pretty())
     {
-        os << "Gaussian     " << this->GetQuantumNumber()
+        os << "Gaussian     " << this->GetSymmetry()
         << "               r^" << l << "*exp(-e*r^2), e={";
         for (auto b:*this) os << *b;
         os << "}";

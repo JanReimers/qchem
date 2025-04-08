@@ -18,11 +18,6 @@ int UnitQN::GetDegeneracy() const
     return 1;
 }
 
-Symmetry* UnitQN::AddPrincipleQN(int index) const
-{
-    return new UnitnQN(index);
-}
-
 
 std::ostream& UnitQN::Write(std::ostream& os) const
 {

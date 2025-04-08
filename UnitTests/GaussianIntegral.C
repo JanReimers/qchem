@@ -94,7 +94,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
 
         // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const Symmetry& qn=oi->GetQuantumNumber();
+        const Symmetry& qn=oi->GetSymmetry();
         const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
         int l=sqn.GetL();
         const ::Gaussian::IrrepBasisSet* sg=dynamic_cast<const Gaussian::IrrepBasisSet*>(oi);

@@ -25,7 +25,7 @@ template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
-    , itsQNs(ms,&bs->GetQuantumNumber())
+    , itsQNs(ms,&bs->GetSymmetry())
 {
     assert(itsBasisSet->GetNumFunctions()>0);
 };
@@ -66,7 +66,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const S
     assert(itsBasisSet);
     assert(spin==itsQNs.ms);
     SMatrix<T> H=ham.GetMatrix(itsBasisSet,spin,cd);
-    //std::cout << "UpdateOrbitals " << itsBasisSet->GetQuantumNumber() << " spin=" << spin << std::endl;
+    //std::cout << "UpdateOrbitals " << itsBasisSet->GetSymmetry() << " spin=" << spin << std::endl;
     //std::cout << "H=" << H << std::endl;
     assert(!isnan(H));
     auto [U,e]=itsLASolver->Solve(H);
@@ -145,7 +145,7 @@ template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
     }
     else
     {
-        os << "        Orbital group with " << GetNumOrbitals() << " " << itsBasisSet->GetQuantumNumber() << "orbitals:" << std::endl;
+        os << "        Orbital group with " << GetNumOrbitals() << " " << itsBasisSet->GetSymmetry() << "orbitals:" << std::endl;
         os << "            Occupation      Energy      Eigenvector" << std::endl;
         os << itsOrbitals;
     }
