@@ -250,7 +250,7 @@ void TestMolecule::Init(Molecule* m)
 {
     assert(m);
     itsCluster=cl_t(m);
-    ec=MoleculeElectronConfiguration(m->GetNumElectrons());
+    ec=Molecule_EC(m->GetNumElectrons());
 }
 
 MeshParams TestMolecule::GetMeshParams() const

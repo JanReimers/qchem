@@ -29,7 +29,7 @@ TEST_F(ElectronConfigurationTests, Ntotal)
 //    int Z=44;
     for (int Z=1;Z<=94;Z++)
     {
-        AtomElectronConfiguration ec(Z);
+        Atom_EC ec(Z);
         EXPECT_EQ(ec.GetN(),Z);
     }
 }
@@ -39,7 +39,7 @@ TEST_F(ElectronConfigurationTests, SumSpin)
 //    int Z=89;
     for (int Z=1;Z<=94;Z++)
     {
-        AtomElectronConfiguration ec(Z);
+        Atom_EC ec(Z);
 //        cout << "Z=" << Z << endl;
         EXPECT_EQ(ec.GetN(),ec.GetN(Spin::Up)+ec.GetN(Spin::Down));
     }
@@ -50,7 +50,7 @@ TEST_F(ElectronConfigurationTests, SumL)
 //    int Z=89;
     for (int Z=1;Z<=94;Z++)
     {
-        AtomElectronConfiguration ec(Z);
+        Atom_EC ec(Z);
         // cout << "Z=" << Z << endl;
         int Nl=0;
         for (int l=0;l<=3;l++)
@@ -66,7 +66,7 @@ TEST_F(ElectronConfigurationTests, SumLAndSpin)
 //    int Z=58;
     for (int Z=1;Z<=94;Z++)
     {
-        AtomElectronConfiguration ec(Z);
+        Atom_EC ec(Z);
 //        cout << "Z=" << Z << endl;
         int Nlu=0;
         int Nld=0;
@@ -89,7 +89,7 @@ TEST_F(ElectronConfigurationTests, SumLAndSpin)
 TEST_F(ElectronConfigurationTests, SPconfigs)
 {
     { //N
-        AtomElectronConfiguration ec(7);
+        Atom_EC ec(7);
         EXPECT_EQ(ec.GetN(Spin::Up  ),5);
         EXPECT_EQ(ec.GetN(Spin::Down),2);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),2);
@@ -98,7 +98,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(1),Spin::Down),0);
     }
     { //Flourine
-        AtomElectronConfiguration ec(9);
+        Atom_EC ec(9);
         EXPECT_EQ(ec.GetN(Spin::Up  ),5);
         EXPECT_EQ(ec.GetN(Spin::Down),4);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),2);
@@ -107,7 +107,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(1),Spin::Down),2);
     }
     { //Sodium
-        AtomElectronConfiguration ec(11);
+        Atom_EC ec(11);
         EXPECT_EQ(ec.GetN(Spin::Up  ),6);
         EXPECT_EQ(ec.GetN(Spin::Down),5);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),3);
@@ -116,7 +116,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(1),Spin::Down),3);
     }
     { //Mg
-        AtomElectronConfiguration ec(12);
+        Atom_EC ec(12);
         EXPECT_EQ(ec.GetN(Spin::Up  ),6);
         EXPECT_EQ(ec.GetN(Spin::Down),6);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),3);
@@ -125,7 +125,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(1),Spin::Down),3);
     }
     { //P
-        AtomElectronConfiguration ec(15);
+        Atom_EC ec(15);
         EXPECT_EQ(ec.GetN(Spin::Up  ),9);
         EXPECT_EQ(ec.GetN(Spin::Down),6);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),3);
@@ -134,7 +134,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(1),Spin::Down),3);
     }
     { //As
-        AtomElectronConfiguration ec(33);
+        Atom_EC ec(33);
         EXPECT_EQ(ec.GetN(Spin::Up  ),18);
         EXPECT_EQ(ec.GetN(Spin::Down),15);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -145,7 +145,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(2),Spin::Down),5);
     }
     { //Sb
-        AtomElectronConfiguration ec(51);
+        Atom_EC ec(51);
         EXPECT_EQ(ec.GetN(Spin::Up  ),27);
         EXPECT_EQ(ec.GetN(Spin::Down),24);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),5);
@@ -156,7 +156,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
         EXPECT_EQ(ec.GetN(qn(2),Spin::Down),10);
     }
     { //Bi
-        AtomElectronConfiguration ec(83);
+        Atom_EC ec(83);
         EXPECT_EQ(ec.GetN(Spin::Up  ),43);
         EXPECT_EQ(ec.GetN(Spin::Down),40);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),6);
@@ -173,7 +173,7 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
 TEST_F(ElectronConfigurationTests, Dconfigs)
 {
     { //Sc
-        AtomElectronConfiguration ec(21);
+        Atom_EC ec(21);
         EXPECT_EQ(ec.GetN(Spin::Up  ),11);
         EXPECT_EQ(ec.GetN(Spin::Down),10);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -186,7 +186,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Ti
-        AtomElectronConfiguration ec(22);
+        Atom_EC ec(22);
         EXPECT_EQ(ec.GetN(Spin::Up  ),12);
         EXPECT_EQ(ec.GetN(Spin::Down),10);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -199,7 +199,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //V
-        AtomElectronConfiguration ec(23);
+        Atom_EC ec(23);
         EXPECT_EQ(ec.GetN(Spin::Up  ),13);
         EXPECT_EQ(ec.GetN(Spin::Down),10);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -212,7 +212,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Cr
-        AtomElectronConfiguration ec(24);
+        Atom_EC ec(24);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),9);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -225,7 +225,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Mn
-        AtomElectronConfiguration ec(25);
+        Atom_EC ec(25);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),10);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -238,7 +238,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Fe
-        AtomElectronConfiguration ec(26);
+        Atom_EC ec(26);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),11);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -251,7 +251,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Co
-        AtomElectronConfiguration ec(27);
+        Atom_EC ec(27);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),12);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -264,7 +264,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Ni
-        AtomElectronConfiguration ec(28);
+        Atom_EC ec(28);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),13);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -277,7 +277,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Cu
-        AtomElectronConfiguration ec(29);
+        Atom_EC ec(29);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),14);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -290,7 +290,7 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
         EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
     }
     { //Zn
-        AtomElectronConfiguration ec(30);
+        Atom_EC ec(30);
         EXPECT_EQ(ec.GetN(Spin::Up  ),15);
         EXPECT_EQ(ec.GetN(Spin::Down),15);
         EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
@@ -310,7 +310,7 @@ TEST_F(ElectronConfigurationTests, Ylm_SP)
     for (int Z=1;Z<=94;Z++)
     {
 //        cout << "Z=" << Z << endl;
-        AtomElectronConfiguration ec(Z);
+        Atom_EC ec(Z);
         for (int l=0;l<=3;l++)
         {
 //            cout << "  l=" << l << endl;
@@ -331,7 +331,7 @@ TEST_F(ElectronConfigurationTests, Ylm_SP)
 
 //TEST_F(ElectronConfigurationTests, Ylm_D)
 //{
-//    AtomElectronConfiguration ec(41);
+//    Atom_EC ec(41);
 //    for (int l=0;l<=2;l++)
 //    {
 //        for (int m=-l;m<=l;m++)

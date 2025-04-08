@@ -152,7 +152,7 @@ public:
     virtual MeshParams GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
-    AtomElectronConfiguration ec;
+    Atom_EC ec;
 };
 
 class TestMolecule : public virtual QchemTester
@@ -163,7 +163,7 @@ public:
     virtual MeshParams  GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
-    MoleculeElectronConfiguration ec;
+    Molecule_EC ec;
 };
 
 
