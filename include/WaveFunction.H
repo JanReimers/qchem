@@ -15,8 +15,8 @@ public:
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*      )      =0;
     virtual DM_CD*          GetChargeDensity() const=0;
     virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const=0;
-    virtual void            FillOrbitals    (const ElectronConfiguration*)=0;
-    virtual void            DisplayEigen    (                  ) const=0;
+    virtual void            FillOrbitals    ()=0;
+    virtual void            DisplayEigen    () const=0;
 
 
 private:

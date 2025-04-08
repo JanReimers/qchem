@@ -39,11 +39,9 @@ DM_CD* Irrep_WF::GetChargeDensity() const
     return itsOrbitals->GetChargeDensity();
 }
 
-const Orbitals* Irrep_WF::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* Irrep_WF::GetOrbitals() const
 {
     assert(itsOrbitals);
-    assert(qns==itsQNs);
-
     return itsOrbitals;
 }
 //

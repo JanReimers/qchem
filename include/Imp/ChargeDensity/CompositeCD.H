@@ -11,11 +11,11 @@
 //
 //  Full charge density represented Compositely as sum of density matricies.
 //
-class Composite_Exact_CD
+class Composite_CD
     : public virtual DM_CD
 {
 public:
-    Composite_Exact_CD();
+    Composite_CD();
     void Insert(DM_CD*);
 
     virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const; 
@@ -37,7 +37,7 @@ public:
     virtual Vec3   Gradient  (const RVec3&) const;
 
 private:
-    Composite_Exact_CD(const Composite_Exact_CD&);
+    Composite_CD(const Composite_CD&);
 
     optr_vector1<DM_CD*> itsCDs;
 };

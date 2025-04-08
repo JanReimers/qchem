@@ -13,7 +13,7 @@ public:
 
     void                DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
     DM_CD*              GetChargeDensity(                            ) const;
-    const Orbitals*     GetOrbitals     (const Irrep_QNs&            ) const;
+    const Orbitals*     GetOrbitals     (           ) const;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     void                DisplayEigen    (                            ) const;
     const Irrep_QNs&    GetQNs          () const {return itsQNs;}

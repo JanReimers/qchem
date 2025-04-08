@@ -14,10 +14,10 @@
 //
 //  Construction zone.
 //
-Composite_Exact_CD::Composite_Exact_CD()
+Composite_CD::Composite_CD()
 {};
 
-void Composite_Exact_CD::Insert(DM_CD* cd)
+void Composite_CD::Insert(DM_CD* cd)
 {
     itsCDs.push_back(cd);
 }
@@ -28,7 +28,7 @@ typedef optr_vector1<DM_CD*>::const_iterator CITER;
 //
 //  Total energy terms for a charge density.
 //
-DM_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
+DM_CD::SMat Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat J(n,n);
@@ -37,7 +37,7 @@ DM_CD::SMat Composite_Exact_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_a
     return J;
 }
 
-DM_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
+DM_CD::SMat Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMat K(n,n);
@@ -46,21 +46,21 @@ DM_CD::SMat Composite_Exact_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab
     return K;
 }
 
-double Composite_Exact_CD::DM_Contract(const Static_HT* v) const
+double Composite_CD::DM_Contract(const Static_HT* v) const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->DM_Contract(v);
     return ret;
 }
 
-double Composite_Exact_CD::DM_Contract(const Dynamic_HT* v,const DM_CD* cd) const
+double Composite_CD::DM_Contract(const Dynamic_HT* v,const DM_CD* cd) const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->DM_Contract(v,cd);
     return ret;
 }
 
-double Composite_Exact_CD::GetTotalCharge() const
+double Composite_CD::GetTotalCharge() const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->GetTotalCharge();
@@ -71,7 +71,7 @@ double Composite_Exact_CD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-Vector<double> Composite_Exact_CD::GetRepulsion3C(const Fit_IBS* fbs) const
+Vector<double> Composite_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
     Vector<double> ret(fbs->size());
     Fill(ret,0.0);
@@ -83,21 +83,21 @@ Vector<double> Composite_Exact_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 //
 //  SCF convergence stuff.
 //
-void Composite_Exact_CD::ReScale(double factor)
+void Composite_CD::ReScale(double factor)
 {
     // No UT coverage
     for (auto c:itsCDs) c->ReScale(factor);
 }
 
-void Composite_Exact_CD::ShiftOrigin(const RVec3& newCenter)
+void Composite_CD::ShiftOrigin(const RVec3& newCenter)
 {
     // No UT coverage
     for (auto c:itsCDs) c->ShiftOrigin(newCenter);
 }
 
-void Composite_Exact_CD::MixIn(const DM_CD& cd,double f)
+void Composite_CD::MixIn(const DM_CD& cd,double f)
 {
-    const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
+    const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);
     assert(ecd);
     CITER  b(ecd->itsCDs.begin());
     for (auto c:itsCDs)
@@ -107,9 +107,9 @@ void Composite_Exact_CD::MixIn(const DM_CD& cd,double f)
     }
 }
 
-double Composite_Exact_CD::GetChangeFrom(const DM_CD& cd) const
+double Composite_CD::GetChangeFrom(const DM_CD& cd) const
 {
-    const Composite_Exact_CD* ecd = dynamic_cast<const Composite_Exact_CD*>(&cd);
+    const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);
     assert(ecd);
     assert(itsCDs.size()==ecd->itsCDs.size());
     CITER b(ecd->itsCDs.begin());
@@ -127,14 +127,14 @@ double Composite_Exact_CD::GetChangeFrom(const DM_CD& cd) const
 //
 //  Real space function stuff.
 //
-double Composite_Exact_CD::operator()(const RVec3& r) const
+double Composite_CD::operator()(const RVec3& r) const
 {
     double ret=0.0;
     for (auto c:itsCDs) ret+=c->operator()(r);
     return ret;
 }
 
-DM_CD::Vec3 Composite_Exact_CD::Gradient  (const RVec3& r) const
+DM_CD::Vec3 Composite_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     Vec3 ret(0,0,0);

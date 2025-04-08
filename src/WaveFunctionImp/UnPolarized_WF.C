@@ -46,7 +46,7 @@ void UnPolarized_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 
 DM_CD* UnPolarized_WF::GetChargeDensity() const
 {
-    Composite_Exact_CD* cd = new Composite_Exact_CD();
+    Composite_CD* cd = new Composite_CD();
     for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity());
     return cd;
 }
@@ -57,11 +57,11 @@ const Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns) const
     assert(qns.ms==Spin::None);
     auto i=itsQN_WFs.find(qns);
     assert(i!=itsQN_WFs.end());
-    return i->second->GetOrbitals(qns);
+    return i->second->GetOrbitals();
 }
 
 
-void UnPolarized_WF::FillOrbitals(const ElectronConfiguration*)
+void UnPolarized_WF::FillOrbitals()
 {
     itsELevels.clear();
     for (auto& w:itsIWFs) 
