@@ -3,6 +3,7 @@
 #define _Symmetry_AngularQN_H_
 
 #include <Symmetry.H>
+#include <Spin.H>
 #include <tuple>
 
 class ElCounts;
@@ -10,6 +11,7 @@ struct ElCounts_l
 {
     int n;  //# valance electrons for a given l
     int nu; //# of un paired electrons (for a given l)
+    int GetN(Spin s) {return s==Spin::Up ? (n+nu)/2 : (n-nu)/2;  }
 };
 
 //---------------------------------------------------------------------------------

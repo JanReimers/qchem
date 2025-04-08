@@ -5,7 +5,7 @@
 #include <cassert>
 #include <iostream>
 
-const size_t n_max=20;
+const size_t n_max=300; //Max principle QN.
 const size_t ms_max=3; //three states Up/Down and None.
 
 Irrep_QNs::Irrep_QNs(Spin _ms,const Symmetry* _sym) 
