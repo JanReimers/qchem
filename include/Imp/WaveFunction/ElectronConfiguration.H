@@ -7,21 +7,22 @@
 class ElectronConfiguration
 {
 public:
-    // //! Total number of electrons    
-    // virtual int GetN(                            ) const=0;
-    // //! Number of electrons in the spin up/dn sector 
-    // virtual int GetN(                 const Spin&) const=0;
-    // //! Number of electrons in one symmetry/irrep sector 
-    // virtual int GetN(const Symmetry&             ) const=0;
-    //! Number of electrons in one {symmetry/irrep,spin up/dn} sector
     virtual int GetN(const Irrep_QNs&) const=0;
-
     virtual void Display() const=0;
 };
 
 
 const int Nshell=8;
 const int LMax=3;
+
+struct ElCounts
+{
+    ElCounts() : N{0,0,0,0} {};
+    int N [LMax+1]; //Total N[l]
+    int Nf[LMax+1]; //Full shell N[l]
+    int Nv[LMax+1]; //Valance shell N[l]
+    int NUnpaired;
+};
 
 class Atom_EC : public virtual ElectronConfiguration
 {
@@ -38,10 +39,7 @@ private:
     int  GetN(const Symmetry&) const;
 
     static const int FullShells[Nshell][LMax+2];
-    int N [LMax+1]; //Total N[l]
-    int Nf[LMax+1]; //Full shell N[l]
-    int Nv[LMax+1]; //Valance shell N[l]
-    int NUnpaired;
+    ElCounts itsNs; //Total,core, valance and unpaired counts.
     double charge;
 };
 

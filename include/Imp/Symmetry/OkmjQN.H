@@ -22,7 +22,8 @@ public:
     virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
-
+    virtual ElCounts_l GetN(const ElCounts&) const;
+    
     virtual std::ostream&  Write(std::ostream&) const;
     virtual AngularQN* Clone         () const;
 
@@ -56,6 +57,7 @@ public:
     virtual int GetDegeneracy() const;
     Symmetry* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
+    virtual ElCounts_l GetN(const ElCounts&) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;

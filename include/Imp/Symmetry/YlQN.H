@@ -27,7 +27,7 @@ public:
 
     virtual int     GetL() const {return itsL;}
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;
-
+    virtual ElCounts_l GetN(const ElCounts&) const;
 protected:
     int itsL;
     static const int LMax=3;

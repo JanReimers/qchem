@@ -1,6 +1,7 @@
 // File: Symmetry/OkmjQN.C  Spherical Spinor Omega_kmj symmetry.
 
 #include "Imp/Symmetry/OkmjQN.H"
+#include "Imp/WaveFunction/ElectronConfiguration.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -64,6 +65,35 @@ std::pair<int,int> Omega_kQN::GetN(const int (&N)[4], const int (&Nv)[4], int NU
         assert(nlu>=0);
     }
     return std::make_pair(nl,nlu);
+}
+
+ElCounts_l Omega_kQN::GetN(const ElCounts& ec) const
+{
+    int l=GetL();
+    int nl=ec.N[l];
+    if (ec.Nv[l]==0) return ElCounts_l{nl,0};//::make_pair(nl,0);
+    assert(nl!=0);
+    // Handle partial shells
+    int nlu=1; //# unpaired in shell l. 
+    if (l==1) // p is partial.
+    {
+        assert(ec.Nv[2]==0); //No partial D orbital
+        nlu=ec.NUnpaired-ec.Nv[0];
+    }
+    else if (l==2) // d is partial.
+    {
+        assert(ec.Nv[1]==0); //p better be full
+        if (ec.Nv[l]>1) nlu=ec.NUnpaired-ec.Nv[0];            
+    }
+    else if(l==3) // f is partial.
+    {
+        
+        assert(ec.Nv[0]==0); //If f is Partial s must be full.
+        assert(ec.Nv[1]==0); //If f is Partial p must be full.
+        nlu=ec.NUnpaired-ec.Nv[2];
+        assert(nlu>=0);
+    }
+    return ElCounts_l{nl,nlu};// std::make_pair(nl,nlu);
 }
 
 extern std::string SPDFG[];
@@ -148,6 +178,7 @@ std::pair<int,int> Omega_kmjQN::GetNk(const int (&N)[4], const int (&Nv)[4], int
 }
 
 
+
 std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
 {
     //assert(itsL<=LMax);
@@ -196,7 +227,53 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
     return std::make_pair(nlc+nlv,nlu);
 }
 
+ElCounts_l Omega_kmjQN::GetN(const ElCounts& ec) const
+{
+    //assert(itsL<=LMax);
+    int nl,nlu;
+    std::tie(nl,nlu)=GetNk(ec.N,ec.Nv,ec.NUnpaired);
+    assert((nl+nlu)%2==0);
+    double j=Getj();
+    int g=2*j+1;
+    int l=GetL();
+    int nlc=ec.N[l]-ec.Nv[l];
+    assert(nlc%(2*g)==0);
+    nlc/=g;
+    int nlv=ec.Nv[l];
+    
+    int nlmv[2*LMax+1]={0,0,0,0,0,0,0};
+    int nlmu[2*LMax+1]={0,0,0,0,0,0,0};
 
+    if (l>0)
+    {
+        //cout << "Start v,u=" << nlv << " " << nlu << endl;
+
+        bool less_than_half = nlv<=g;
+        for (int m1=-l;m1<=l&&nlv>0&&nlu>=0;m1++)
+        {
+            nlmv[m1+l]++;
+            nlmu[m1+l]++;
+            nlv--;
+            if (less_than_half) nlu--;
+            //cout << "Up v,u=" << nlv << " " << nlu << endl;
+        }
+        for (int m1=-l;m1<=l&&nlv>0;m1++)
+        {
+            nlmv[m1+l]++;
+            nlmu[m1+l]--;
+            nlv--;
+            if (!less_than_half) nlu--;
+            //cout << "Down v,u=" << nlv << " " << nlu << endl;
+        }
+        int ml=Getml();
+        nlv=nlmv[ml+l];
+        
+        nlu=nlmu[ml+l];
+        //cout << "(" << " " << nlmv << " " << nlmu << ") ";
+    }
+    assert(nlv%2==nlu);
+    return ElCounts_l{nlc+nlv,nlu};//::make_pair(nlc+nlv,nlu);
+}
 
 std::ostream& Omega_kmjQN::Write(std::ostream& os) const
 {

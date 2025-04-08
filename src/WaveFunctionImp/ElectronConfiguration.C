@@ -26,9 +26,8 @@ const int Atom_EC::FullShells[Nshell][LMax+2]=
 };
 
 Atom_EC::Atom_EC(int Z)
-: N{0,0,0,0}
-, NUnpaired(pt.GetNumUnpairedElectrons(Z))
 {
+    itsNs.NUnpaired=pt.GetNumUnpairedElectrons(Z);
     assert(Z>0);
     assert(Z<=N_Elements);
     int* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
@@ -48,14 +47,14 @@ Atom_EC::Atom_EC(int Z)
     for (int l=0;l<=LMax;l++) 
     {
         int g=2*(2*l+1); //degeneracy
-        Nf[l]=FullShells[ns][l+1]*g;
-        Nv[l]=vc[l];
-        if (Nv[l]>0 && Nv[l]%g==0) //Check of valance shell is full.
+        itsNs.Nf[l]=FullShells[ns][l+1]*g;
+        itsNs.Nv[l]=vc[l];
+        if (itsNs.Nv[l]>0 && itsNs.Nv[l]%g==0) //Check of valance shell is full.
         {   
-            Nv[l]-=g;
-            Nf[l]+=g;
+            itsNs.Nv[l]-=g;
+            itsNs.Nf[l]+=g;
         }
-        N[l]=Nf[l]+Nv[l]; //Total electrons for s,p,d,f
+        itsNs.N[l]=itsNs.Nf[l]+itsNs.Nv[l]; //Total electrons for s,p,d,f
         //cout << N[l] << ",";
     }
     //cout << endl;
@@ -64,7 +63,7 @@ Atom_EC::Atom_EC(int Z)
 int Atom_EC::GetN() const
 {
     int ne=0;
-    for (auto n:N) ne+=n; //Sum over l
+    for (auto n:itsNs.N) ne+=n; //Sum over l
     return ne;
 }
 
@@ -73,14 +72,14 @@ int Atom_EC::GetN(const Spin& s) const
     if (s==Spin::None) return GetN();
     int ne=GetN();
     assert((ne+NUnpaired)%2==0);
-    return s==Spin::Up ? (ne+NUnpaired)/2 : (ne-NUnpaired)/2;
+    return s==Spin::Up ? (ne+itsNs.NUnpaired)/2 : (ne-itsNs.NUnpaired)/2;
 }
 
 int Atom_EC::GetN(const Symmetry& qn) const
 {
     const AngularQN& sqn=dynamic_cast<const AngularQN&>(qn);
     int nl,nlu;
-    std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
+    std::tie(nl,nlu)=sqn.GetN(itsNs.N,itsNs.Nv,itsNs.NUnpaired);
     return nl;    
 }
 int Atom_EC::GetN(const Irrep_QNs& qns) const
@@ -89,7 +88,7 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
     
     const AngularQN& sqn=dynamic_cast<const AngularQN&>(*qns.sym);
     int nl,nlu;
-    std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
+    std::tie(nl,nlu)=sqn.GetN(itsNs.N,itsNs.Nv,itsNs.NUnpaired);
     assert((nl+nlu)%2==0);
     return qns.ms==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;            
 }
@@ -97,15 +96,15 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
 void Atom_EC::Display() const
 {
     cout << "N: ";
-    for (auto n:N) cout << n << ",";
+    for (auto n:itsNs.N) cout << n << ",";
     cout << endl;
     cout << "Nf: ";
-    for (auto n:Nf) cout << n << ",";
+    for (auto n:itsNs.Nf) cout << n << ",";
     cout << endl;
     cout << "Nv: ";
-    for (auto n:Nv) cout << n << ",";
+    for (auto n:itsNs.Nv) cout << n << ",";
     cout << endl;
-    cout << "NUnpaired: " << NUnpaired << endl;
+    cout << "NUnpaired: " << itsNs.NUnpaired << endl;
 }
     
 int Molecule_EC::GetN(const Irrep_QNs& qns) const
