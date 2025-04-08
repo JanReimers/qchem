@@ -3,7 +3,7 @@
 #define _Symmetry_AngularQN_H_
 
 #include <Symmetry.H>
-#include <Spin.H>
+#include <Spin.H>   
 #include <tuple>
 
 class ElCounts;
@@ -22,7 +22,6 @@ class AngularQN
     : public virtual Symmetry
 {
 public:
-    virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
     virtual ElCounts_l GetN(const ElCounts&) const {return {0,0};}
 
     virtual int GetL() const=0;

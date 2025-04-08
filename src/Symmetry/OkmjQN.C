@@ -38,35 +38,6 @@ int Omega_kQN::GetDegeneracy() const
     return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
 }
 
-std::pair<int,int> Omega_kQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
-{
-    int l=GetL();
-    int nl=N[l];
-    if (Nv[l]==0) return std::make_pair(nl,0);
-    assert(nl!=0);
-    // Handle partial shells
-    int nlu=1; //# unpaired in shell l. 
-    if (l==1) // p is partial.
-    {
-        assert(Nv[2]==0); //No partial D orbital
-        nlu=NUnpaired-Nv[0];
-    }
-    else if (l==2) // d is partial.
-    {
-        assert(Nv[1]==0); //p better be full
-        if (Nv[l]>1) nlu=NUnpaired-Nv[0];            
-    }
-    else if(l==3) // f is partial.
-    {
-        
-        assert(Nv[0]==0); //If f is Partial s must be full.
-        assert(Nv[1]==0); //If f is Partial p must be full.
-        nlu=NUnpaired-Nv[2];
-        assert(nlu>=0);
-    }
-    return std::make_pair(nl,nlu);
-}
-
 ElCounts_l Omega_kQN::GetN(const ElCounts& ec) const
 {
     int l=GetL();

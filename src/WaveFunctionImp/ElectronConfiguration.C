@@ -78,11 +78,7 @@ int Atom_EC::GetN(const Spin& s) const
 int Atom_EC::GetN(const Symmetry& qn) const
 {
     const AngularQN& sqn=dynamic_cast<const AngularQN&>(qn);
-    int nl,nlu;
-    std::tie(nl,nlu)=sqn.GetN(itsNs.N,itsNs.Nv,itsNs.NUnpaired);
     ElCounts_l ecl=sqn.GetN(itsNs);
-    assert(nl==ecl.n);
-    assert(nlu==ecl.nu);
     return ecl.n;    
 }
 int Atom_EC::GetN(const Irrep_QNs& qns) const
@@ -90,13 +86,8 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
     if (qns.ms==Spin::None) return GetN(*qns.sym);
     
     const AngularQN& sqn=dynamic_cast<const AngularQN&>(*qns.sym);
-    int nl,nlu;
-    std::tie(nl,nlu)=sqn.GetN(itsNs.N,itsNs.Nv,itsNs.NUnpaired);
-    assert((nl+nlu)%2==0);
     ElCounts_l ecl=sqn.GetN(itsNs);
-    assert(nl==ecl.n);
-    assert(nlu==ecl.nu);
-    // return qns.ms==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;     
+    assert((ecl.n+ecl.nu)%2==0);
     return ecl.GetN(qns.ms);       
 }
 
