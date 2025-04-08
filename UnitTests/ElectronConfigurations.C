@@ -5,7 +5,7 @@
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/Symmetry/YlmQN.H"
-#include <Spin.H>
+#include <Orbital_QNs.H>
 #include <iostream>
 
 using std::cout;
@@ -22,6 +22,15 @@ public:
     ElectronConfigurationTests() {}
     YlQN qn(int l) const {return YlQN(l);}
     YlmQN qn(int l, int m) const {return YlmQN(l,m);}
+
+    static int GetN(const Atom_EC& ac) {return ac.GetN();}
+    static int GetN(const Atom_EC& ac, Spin s) {return ac.GetN(s);}
+    static int GetN(const Atom_EC& ac, const Symmetry& s) {return ac.GetN(s);}
+    static int GetN(const Atom_EC& ac, const Symmetry& sym, Spin s) 
+    {
+        Irrep_QNs qns(s,sym.Clone());
+        return ac.GetN(qns);
+    }
 };
 
 TEST_F(ElectronConfigurationTests, Ntotal)
@@ -30,7 +39,7 @@ TEST_F(ElectronConfigurationTests, Ntotal)
     for (int Z=1;Z<=94;Z++)
     {
         Atom_EC ec(Z);
-        EXPECT_EQ(ec.GetN(),Z);
+        EXPECT_EQ(GetN(ec),Z);
     }
 }
 
@@ -41,7 +50,7 @@ TEST_F(ElectronConfigurationTests, SumSpin)
     {
         Atom_EC ec(Z);
 //        cout << "Z=" << Z << endl;
-        EXPECT_EQ(ec.GetN(),ec.GetN(Spin::Up)+ec.GetN(Spin::Down));
+        EXPECT_EQ(GetN(ec),GetN(ec,Spin::Up)+GetN(ec,Spin::Down));
     }
 }
 
@@ -55,9 +64,9 @@ TEST_F(ElectronConfigurationTests, SumL)
         int Nl=0;
         for (int l=0;l<=3;l++)
         {
-            Nl+=ec.GetN(qn(l));
+            Nl+=GetN(ec,qn(l));
         }
-        EXPECT_EQ(ec.GetN(),Nl);
+        EXPECT_EQ(GetN(ec),Nl);
     }
 }
 
@@ -73,16 +82,16 @@ TEST_F(ElectronConfigurationTests, SumLAndSpin)
         for (int l=0;l<=3;l++)
         {
             YlQN qn(l);
-            int nlu=ec.GetN(qn,Spin::Up);
-            int nld=ec.GetN(qn,Spin::Down);
+            int nlu=GetN(ec,qn,Spin::Up);
+            int nld=GetN(ec,qn,Spin::Down);
 //            cout << "l,nu,nd = " << l << " " << nlu << " " << nld << endl;
-            EXPECT_EQ(ec.GetN(qn),nlu+nld);
+            EXPECT_EQ(GetN(ec,qn),nlu+nld);
             Nlu+=nlu;
             Nld+=nld;
         }
-        EXPECT_EQ(ec.GetN(Spin::Up),Nlu);
-        EXPECT_EQ(ec.GetN(Spin::Down),Nld);
-        EXPECT_EQ(ec.GetN(),Nlu+Nld);
+        EXPECT_EQ(GetN(ec,Spin::Up),Nlu);
+        EXPECT_EQ(GetN(ec,Spin::Down),Nld);
+        EXPECT_EQ(GetN(ec),Nlu+Nld);
     }
 }
 
@@ -90,83 +99,83 @@ TEST_F(ElectronConfigurationTests, SPconfigs)
 {
     { //N
         Atom_EC ec(7);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(Spin::Down),2);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),2);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),2);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,Spin::Down),2);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),2);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),2);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),0);
     }
     { //Flourine
         Atom_EC ec(9);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),2);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),2);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),2);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),2);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),2);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),2);
     }
     { //Sodium
         Atom_EC ec(11);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(Spin::Down),5);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),2);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,Spin::Down),5);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),2);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),3);
     }
     { //Mg
         Atom_EC ec(12);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),3);
     }
     { //P
         Atom_EC ec(15);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),9);
-        EXPECT_EQ(ec.GetN(Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),9);
+        EXPECT_EQ(GetN(ec,Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),3);
     }
     { //As
         Atom_EC ec(33);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),18);
-        EXPECT_EQ(ec.GetN(Spin::Down),15);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),9);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),5);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),18);
+        EXPECT_EQ(GetN(ec,Spin::Down),15);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),9);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),5);
     }
     { //Sb
         Atom_EC ec(51);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),27);
-        EXPECT_EQ(ec.GetN(Spin::Down),24);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),5);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),12);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),9);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),10);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),10);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),27);
+        EXPECT_EQ(GetN(ec,Spin::Down),24);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),5);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),12);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),9);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),10);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),10);
     }
     { //Bi
         Atom_EC ec(83);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),43);
-        EXPECT_EQ(ec.GetN(Spin::Down),40);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),12);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),15);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),7);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),7);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),43);
+        EXPECT_EQ(GetN(ec,Spin::Down),40);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),12);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),15);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),7);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),7);
     }
 }
 
@@ -174,133 +183,133 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
 {
     { //Sc
         Atom_EC ec(21);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),11);
-        EXPECT_EQ(ec.GetN(Spin::Down),10);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),1);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),11);
+        EXPECT_EQ(GetN(ec,Spin::Down),10);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),1);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Ti
         Atom_EC ec(22);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),12);
-        EXPECT_EQ(ec.GetN(Spin::Down),10);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),2);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),12);
+        EXPECT_EQ(GetN(ec,Spin::Down),10);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),2);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //V
         Atom_EC ec(23);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),13);
-        EXPECT_EQ(ec.GetN(Spin::Down),10);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),3);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),13);
+        EXPECT_EQ(GetN(ec,Spin::Down),10);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),3);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Cr
         Atom_EC ec(24);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),9);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),9);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Mn
         Atom_EC ec(25);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),10);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),10);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Fe
         Atom_EC ec(26);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),11);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),1);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),11);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),1);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Co
         Atom_EC ec(27);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),12);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),2);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),12);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),2);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Ni
         Atom_EC ec(28);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),13);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),3);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),13);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Cu
         Atom_EC ec(29);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),14);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),3);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),5);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),14);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),3);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),5);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
     { //Zn
         Atom_EC ec(30);
-        EXPECT_EQ(ec.GetN(Spin::Up  ),15);
-        EXPECT_EQ(ec.GetN(Spin::Down),15);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Up  ),4);
-        EXPECT_EQ(ec.GetN(qn(0),Spin::Down),4);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Up  ),6);
-        EXPECT_EQ(ec.GetN(qn(1),Spin::Down),6);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Up  ),5);
-        EXPECT_EQ(ec.GetN(qn(2),Spin::Down),5);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Up  ),0);
-        EXPECT_EQ(ec.GetN(qn(3),Spin::Down),0);
+        EXPECT_EQ(GetN(ec,Spin::Up  ),15);
+        EXPECT_EQ(GetN(ec,Spin::Down),15);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Up  ),4);
+        EXPECT_EQ(GetN(ec,qn(0),Spin::Down),4);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Up  ),6);
+        EXPECT_EQ(GetN(ec,qn(1),Spin::Down),6);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Up  ),5);
+        EXPECT_EQ(GetN(ec,qn(2),Spin::Down),5);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Up  ),0);
+        EXPECT_EQ(GetN(ec,qn(3),Spin::Down),0);
     }
 
 }
@@ -314,13 +323,13 @@ TEST_F(ElectronConfigurationTests, Ylm_SP)
         for (int l=0;l<=3;l++)
         {
 //            cout << "  l=" << l << endl;
-            int nlu=ec.GetN(qn(l),Spin::Up);
-            int nld=ec.GetN(qn(l),Spin::Down);
+            int nlu=GetN(ec,qn(l),Spin::Up);
+            int nld=GetN(ec,qn(l),Spin::Down);
             int nlu1=0,nld1=0;
             for (int m=-l;m<=l;m++)
             {
-                nlu1+=ec.GetN(qn(l,m),Spin::Up);
-                nld1+=ec.GetN(qn(l,m),Spin::Down);
+                nlu1+=GetN(ec,qn(l,m),Spin::Up);
+                nld1+=GetN(ec,qn(l,m),Spin::Down);
             }
             EXPECT_EQ(nlu,nlu1);
             EXPECT_EQ(nld,nld1);
@@ -336,8 +345,8 @@ TEST_F(ElectronConfigurationTests, Ylm_SP)
 //    {
 //        for (int m=-l;m<=l;m++)
 //        {
-//            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Up) << endl;
-//            cout << l << " " << m << " " << ec.GetN(qn(l,m),Spin::Down) << endl;      
+//            cout << l << " " << m << " " << GetN(ec,qn(l,m),Spin::Up) << endl;
+//            cout << l << " " << m << " " << GetN(ec,qn(l,m),Spin::Down) << endl;      
 //        }        
 //    }
 //    

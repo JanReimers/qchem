@@ -50,7 +50,7 @@ const Orbitals* Irrep_WF::GetOrbitals() const
 const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
 {
     // Step one: How many electron for this Irrep(qn,spin) ?
-    double ne=ec->GetN(*itsQNs.sym,itsQNs.ms);
+    double ne=ec->GetN(itsQNs);
     //std::cout << "ne=" << ne << " QN=" << *itsQN << std::endl;
     //  Loop over orbitals and consume the electrons quota.
     for (auto& o:*itsOrbitals)

@@ -3,7 +3,7 @@
 #include "Imp/WaveFunction/ElectronConfiguration.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/Symmetry/AngularQN.H"
-#include <Spin.H>
+#include <Orbital_QNs.H>
 #include <cassert>
 #include <iostream>
 #include <initializer_list>
@@ -83,15 +83,15 @@ int Atom_EC::GetN(const Symmetry& qn) const
     std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
     return nl;    
 }
-int Atom_EC::GetN(const Symmetry& qn, const Spin& s) const
+int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
-    if (s==Spin::None) return GetN(qn);
+    if (qns.ms==Spin::None) return GetN(*qns.sym);
     
-    const AngularQN& sqn=dynamic_cast<const AngularQN&>(qn);
+    const AngularQN& sqn=dynamic_cast<const AngularQN&>(*qns.sym);
     int nl,nlu;
     std::tie(nl,nlu)=sqn.GetN(N,Nv,NUnpaired);
     assert((nl+nlu)%2==0);
-    return s==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;            
+    return qns.ms==Spin::Up ? (nl+nlu)/2 : (nl-nlu)/2;            
 }
 
 void Atom_EC::Display() const
@@ -108,7 +108,10 @@ void Atom_EC::Display() const
     cout << "NUnpaired: " << NUnpaired << endl;
 }
     
-
+int Molecule_EC::GetN(const Irrep_QNs& qns) const
+{
+    return GetN(qns.ms);
+}
 int Molecule_EC::GetN(const Spin& s) const
 {
     if (s==Spin::None) return GetN();
