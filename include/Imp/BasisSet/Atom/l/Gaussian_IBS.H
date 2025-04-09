@@ -24,14 +24,7 @@ class Orbital_IBS
     , public         Orbital_IE
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
-    : ::Gaussian::IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common<double>()
-    , Orbital_IE(db)
-    {
-        InsertBasisFunctions();   
-    };
-
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
@@ -47,13 +40,7 @@ class Fit_IBS
 , public Atoml::Gaussian::Fit_IE
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : ::Gaussian::IrrepBasisSet(exponents,L)
-    , TIBS_Common<double>()
-    , Fit_IE(db)
-    {
-        InsertBasisFunctions();   
-    };
+    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;
 private:

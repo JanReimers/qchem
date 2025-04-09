@@ -2,9 +2,8 @@
 
 #include "Imp/BasisSet/Atom/radial/Slater/IBS_Common.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
-#include "Imp/Symmetry/Yl.H"
-#include "Imp/Symmetry/Ylm.H"
 #include <BasisFunction.H>
+#include <Symmetry.H>
 #include "oml/vector.h"
 
 
@@ -14,21 +13,20 @@ namespace Slater
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L)
-    : IBS_Common(new Yl_Sym(L))
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym,size_t L)
+    : IBS_Common(sym)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,L),L);
 
 };
 
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t L, int m)
-    : IBS_Common(new Ylm_Sym(L,m))
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym, size_t L, int m)
+    : IBS_Common(sym)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,L),L,m);
 };
-
 
 Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
 {

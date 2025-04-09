@@ -11,6 +11,15 @@ namespace Atom_ml
 {
 namespace Slater
 {
+
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
+    : IrrepBasisSet(exponents,new Ylm_Sym(L,m),L,m)
+    , Orbital_IBS_Common<double>()
+    , Atoml::Slater::Orbital_IE(db)
+    {
+        InsertBasisFunctions();
+    };
+
 void Orbital_IBS::InsertBasisFunctions()
 {
     size_t i=1;
@@ -51,6 +60,7 @@ void Orbital_IBS::InsertBasisFunctions()
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return 0;
 }
+
 
 
 }} //namespace

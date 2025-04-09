@@ -25,13 +25,7 @@ class Orbital_IBS
 
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
-    : IrrepBasisSet(exponents,L,m)
-    , Orbital_IBS_Common<double>()
-    , Atoml::Slater::Orbital_IE(db)
-    {
-        InsertBasisFunctions();
-    };
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;

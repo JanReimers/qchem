@@ -15,8 +15,8 @@ class IrrepBasisSet
 , public         AtomIrrepIEClient
 {
 public:
-    IrrepBasisSet(const Vector<double>& exponents, size_t l);
-    IrrepBasisSet(const Vector<double>& exponents, size_t l, int m);
+    IrrepBasisSet(const Vector<double>& exponents, Symmetry*, size_t l);
+    IrrepBasisSet(const Vector<double>& exponents, Symmetry*, size_t l, int m);
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;

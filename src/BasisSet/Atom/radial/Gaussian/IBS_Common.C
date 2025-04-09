@@ -2,9 +2,8 @@
 
 #include "Imp/BasisSet/Atom/radial/Gaussian/IBS_Common.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/Symmetry/Yl.H"
-#include "Imp/Symmetry/Ylm.H"
 #include <BasisFunction.H>
+#include <Symmetry.H>
 #include "oml/vector.h"
 
 
@@ -15,15 +14,15 @@ namespace Gaussian
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l)
-    : IBS_Common(new Yl_Sym(l))
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents, Symmetry* sym,size_t l)
+    : IBS_Common(sym)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,l),l);
 };
 
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,size_t l, int m)
-    : IBS_Common(new Ylm_Sym(l,m))
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents, Symmetry* sym,size_t l, int m)
+    : IBS_Common(sym)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,l),l,m);
