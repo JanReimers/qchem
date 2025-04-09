@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "Imp/WaveFunction/Atom_EC.H"
 #include "Imp/Misc/PeriodicTable.H"
-#include "Imp/Symmetry/YlmQN.H"
+#include "Imp/Symmetry/Ylm.H"
 #include <Orbital_QNs.H>
 #include <iostream>
 

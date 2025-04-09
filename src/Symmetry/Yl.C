@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/Symmetry/YlQN.H"
+#include "Imp/Symmetry/Yl.H"
 #include "Imp/WaveFunction/Atom_EC.H"
 #include <iostream>
 #include <cassert>

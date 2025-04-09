@@ -8,9 +8,9 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Block.H"
 
-#include "Imp/Symmetry/YlmQN.H"
-#include "Imp/Symmetry/YlQN.H"
-#include "Imp/Symmetry/UnitQN.H"
+#include "Imp/Symmetry/Ylm.H"
+#include "Imp/Symmetry/Yl.H"
+#include "Imp/Symmetry/Unit.H"
 //#include "BasisSetImplementation/PlaneWave/BlochQN.H"
 
 #include <string>

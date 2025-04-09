@@ -1,7 +1,7 @@
 // File: DHF_IBS_Common.H  Common implementation for all Dirac-Hartree-Fock (HF) Irrep Basis Sets.
 
 #include "Imp/BasisSet/DHF_IBS_Common.H"
-#include "Imp/Symmetry/OkmjQN.H"
+#include "Imp/Symmetry/Okmj.H"
 
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_cache<T>* db,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)

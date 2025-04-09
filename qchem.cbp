@@ -182,10 +182,10 @@
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorPol.H" />
 		<Unit filename="include/Imp/SCFIterator/SCFIteratorUnPol.H" />
 		<Unit filename="include/Imp/Symmetry/AtomQN.H" />
-		<Unit filename="include/Imp/Symmetry/OkmjQN.H" />
+		<Unit filename="include/Imp/Symmetry/Okmj.H" />
 		<Unit filename="include/Imp/Symmetry/UnitQN.H" />
-		<Unit filename="include/Imp/Symmetry/YlQN.H" />
-		<Unit filename="include/Imp/Symmetry/YlmQN.H" />
+		<Unit filename="include/Imp/Symmetry/Yl.H" />
+		<Unit filename="include/Imp/Symmetry/Ylm.H" />
 		<Unit filename="include/Imp/WaveFunction/ElectronConfiguration.H" />
 		<Unit filename="include/Imp/WaveFunction/IrrepWaveFunction.H" />
 		<Unit filename="include/Imp/WaveFunction/MasterPolarizedWF.H" />

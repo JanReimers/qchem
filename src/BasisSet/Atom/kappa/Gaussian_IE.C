@@ -4,7 +4,7 @@
 #include "Imp/BasisSet/Atom/kappa/Gaussian_IE.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 // #include "Imp/Containers/ERI4.H"
-// #include <Imp/Symmetry/OkmjQN.H>
+// #include <Imp/Symmetry/Okmj.H>
 // #include <iostream>
 
 namespace Atom_kappa

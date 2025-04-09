@@ -11,7 +11,7 @@
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_IBS.H"
-#include "Imp/Symmetry/OkmjQN.H"
+#include "Imp/Symmetry/Okmj.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"

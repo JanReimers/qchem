@@ -1,9 +1,9 @@
 // File: SymQN.C  Unite tests for symmetrys and QN classes
 
 #include "gtest/gtest.h"
-#include "Imp/Symmetry/YlQN.H"
-#include "Imp/Symmetry/YlmQN.H"
-#include "Imp/Symmetry/OkmjQN.H"
+#include "Imp/Symmetry/Yl.H"
+#include "Imp/Symmetry/Ylm.H"
+#include "Imp/Symmetry/Okmj.H"
 #include <Orbital_QNs.H>
 #include <set>
 #include <iostream>

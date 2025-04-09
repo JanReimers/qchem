@@ -3,7 +3,7 @@
 #include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BF.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/Symmetry/YlQN.H"
+#include "Imp/Symmetry/Yl.H"
 #include <BasisSet.H>
 #include <iostream>
 #include <cassert>

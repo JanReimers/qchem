@@ -2,8 +2,8 @@
 
 #include "Imp/BasisSet/Atom/radial/Gaussian/IBS_Common.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/Symmetry/YlQN.H"
-#include "Imp/Symmetry/YlmQN.H"
+#include "Imp/Symmetry/Yl.H"
+#include "Imp/Symmetry/Ylm.H"
 #include <BasisFunction.H>
 #include "oml/vector.h"
 

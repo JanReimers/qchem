@@ -601,7 +601,7 @@
 	"Imp/BasisSet/Slater/IntegralEngine.H"
 	"Imp/BasisSet/Slater/BasisSet.H"
 	"Imp/BasisSet/Slater/BasisFunction.H"
-	"Imp/Symmetry/YlQN.H"
+	"Imp/Symmetry/Yl.H"
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
 	"Imp/Integrals/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
@@ -1036,7 +1036,7 @@
 	"Imp/BasisSet/SphericalGaussian/IntegralEngine.H"
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-	"Imp/Symmetry/YlQN.H"
+	"Imp/Symmetry/Yl.H"
 	"Imp/Integrals/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Molecule.H"
@@ -1446,7 +1446,7 @@
 	"gtest/gtest.h"
 	"Imp/WaveFunction/ElectronConfiguration.H"
 	"Imp/Misc/PeriodicTable.H"
-	"Imp/Symmetry/YlmQN.H"
+	"Imp/Symmetry/Ylm.H"
 	<Spin.H>
 	<iostream>
 
@@ -1477,10 +1477,10 @@
 	"Imp/Integrals/Cache4.H"
 	"oml/vector.h"
 
-1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/YlmQN.H
-	"Imp/Symmetry/YlQN.H"
+1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/Ylm.H
+	"Imp/Symmetry/Yl.H"
 
-1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/YlQN.H
+1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/Yl.H
 	<Symmetry.H>
 	<tuple>
 
@@ -1506,7 +1506,7 @@
 	"Imp/BasisSet/Slater_mj/BasisSet.H"
 	"Imp/BasisSet/Slater_mj/BasisFunction.H"
 	"Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
-	"Imp/Symmetry/OkmjQN.H"
+	"Imp/Symmetry/Okmj.H"
 	"Imp/Integrals/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Atom.H"
@@ -1538,7 +1538,7 @@
 	"../TIBS_Common.H"
 	"oml/vector.h"
 
-1734358967 /home/janr/Code/qchem/include/Imp/Symmetry/OkmjQN.H
+1734358967 /home/janr/Code/qchem/include/Imp/Symmetry/Okmj.H
 	<Symmetry.H>
 	<utility>
 
