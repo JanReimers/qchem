@@ -2,7 +2,7 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/WaveFunction/Atom_EC.H"
+#include "Imp/BasisSet/Atom/EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/ml/Ylm.H"
 #include <Orbital_QNs.H>

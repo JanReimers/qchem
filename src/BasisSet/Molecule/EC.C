@@ -1,6 +1,6 @@
 // File: ElectronConfiguration.C
 
-#include "Imp/WaveFunction/Molecule_EC.H"
+#include "Imp/BasisSet/Molecule/EC.H"
 #include <Orbital_QNs.H>
 #include <cassert>
 #include <iostream>

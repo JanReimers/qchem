@@ -1,6 +1,6 @@
 // File: Atom_EC.C
 
-#include "Imp/WaveFunction/Atom_EC.H"
+#include "Imp/BasisSet/Atom/EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/Angular.H"
 #include <Orbital_QNs.H>

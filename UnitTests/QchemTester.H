@@ -140,7 +140,7 @@ class SG_RKB_OBasis : public SG_OBasis
 };
 
 
-#include "Imp/WaveFunction/Atom_EC.H"
+#include "Imp/BasisSet/Atom/EC.H"
 //----------------------------------------------------------------------------------
 //
 //  Atoms and Molecules
@@ -155,7 +155,7 @@ private:
     Atom_EC ec;
 };
 
-#include "Imp/WaveFunction/Molecule_EC.H"
+#include "Imp/BasisSet/Molecule/EC.H"
 
 class TestMolecule : public virtual QchemTester
 {

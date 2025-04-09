@@ -1,7 +1,7 @@
 // File: Symmetry/OkmjQN.C  Spherical Spinor Omega_kmj symmetry.
 
 #include "Imp/BasisSet/Atom/kappa/Okmj.H"
-#include "Imp/WaveFunction/Atom_EC.H"
+#include "Imp/BasisSet/Atom/EC.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
