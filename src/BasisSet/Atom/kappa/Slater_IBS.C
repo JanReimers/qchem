@@ -25,6 +25,7 @@ Orbital_IBS::Orbital_IBS
         , int kappa)
     : Orbital_RKB_IBS_Common<double>
         (db
+        , new Omega_k_Sym(kappa)
         , kappa
         , new Large_Orbital_IBS<double>(db,exponents, kappa)
         , new Small_Orbital_IBS<double>(db,exponents,kappa)
@@ -61,7 +62,7 @@ std::ostream&  Orbital_IBS::Write(std::ostream& os) const
 //
 template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
         const Vector<T>& exponents,int kappa)
-    : Orbital_RKBL_IBS_Common<T>(kappa)
+    : Orbital_RKBL_IBS_Common<T>(new Omega_k_Sym(kappa),kappa)
     , Orbital_RKBL_IE<T>(db)
     , AtomIrrepIEClient(exponents.size())
 {
@@ -108,7 +109,7 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS
     (const DB_cache<double>* db,
         const Vector<T>& exponents
         , int kappa)
-    : Orbital_RKBS_IBS_Common<T>(kappa)
+    : Orbital_RKBS_IBS_Common<T>(new Omega_k_Sym(-kappa),kappa)
     , Orbital_RKBS_IE<T>(db)
     , AtomIrrepIEClient(exponents.size())
 {

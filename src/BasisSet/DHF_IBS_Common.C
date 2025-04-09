@@ -1,11 +1,11 @@
 // File: DHF_IBS_Common.H  Common implementation for all Dirac-Hartree-Fock (HF) Irrep Basis Sets.
 
 #include "Imp/BasisSet/DHF_IBS_Common.H"
-#include "Imp/Symmetry/Okmj.H"
 
 
-template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_cache<T>* db,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
-    : IBS_Common(new Omega_k_Sym(kappa))
+template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
+(const DB_cache<T>* db, Symmetry* sym,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
+    : IBS_Common(sym)
     , Orbital_IBS_Common<T>()
     , DB_RKB<T>(db)
     , itsRKBL(l)
@@ -68,16 +68,18 @@ template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::M
     return merge_diag(rl,rs);
 }
 
-template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int _kappa)
-    : IBS_Common(new Omega_k_Sym(_kappa))
+template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common
+(Symmetry* sym,int _kappa)
+    : IBS_Common(sym)
     , TIBS_Common<T>()
     , kappa(_kappa)
 {
     assert(kappa!=0);
 }
 
-template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common(int _kappa)
-    : IBS_Common(new Omega_k_Sym(-_kappa))
+template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common
+(Symmetry* sym,int _kappa)
+    : IBS_Common(sym)
     , TIBS_Common<T>()
     , kappa(_kappa)
 {
