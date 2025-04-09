@@ -2,7 +2,7 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/WaveFunction/ElectronConfiguration.H"
+#include "Imp/WaveFunction/Atom_EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/Symmetry/YlmQN.H"
 #include <Orbital_QNs.H>
@@ -20,8 +20,8 @@ class ElectronConfigurationTests : public ::testing::Test
 {
 public:
     ElectronConfigurationTests() {}
-    YlQN qn(int l) const {return YlQN(l);}
-    YlmQN qn(int l, int m) const {return YlmQN(l,m);}
+    Yl_Sym qn(int l) const {return Yl_Sym(l);}
+    Ylm_Sym qn(int l, int m) const {return Ylm_Sym(l,m);}
 
     static int GetN(const Atom_EC& ac) {return ac.GetN();}
     static int GetN(const Atom_EC& ac, Spin s) {return ac.GetN(s);}
@@ -81,7 +81,7 @@ TEST_F(ElectronConfigurationTests, SumLAndSpin)
         int Nld=0;
         for (int l=0;l<=3;l++)
         {
-            YlQN qn(l);
+            Yl_Sym qn(l);
             int nlu=GetN(ec,qn,Spin::Up);
             int nld=GetN(ec,qn,Spin::Down);
 //            cout << "l,nu,nd = " << l << " " << nlu << " " << nld << endl;

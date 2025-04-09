@@ -89,7 +89,7 @@ BasisSet* BasisSet::Factory(std::istream& is)
 Symmetry* Symmetry::Factory(std::istream& is)
 {
     std::string Name=StreamableObject::PeekAtName(is);
-    if (Name==typeid(YlQN).name()) return new YlQN;
+    if (Name==typeid(Yl_Sym).name()) return new Yl_Sym;
     if (Name==typeid(     UnitQN).name()) return new      UnitQN;
 //    if (Name==typeid(            BlochQN).name()) return new             BlochQN;
 

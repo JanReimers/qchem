@@ -1,10 +1,9 @@
-// File: AngularQN.H A Quantum Number for atomic (spherical) symmetry
-#ifndef _Symmetry_AngularQN_H_
-#define _Symmetry_AngularQN_H_
+// File: Angular_Sym.H Common interface for various atomic (spherical) symmetries.
+#ifndef _Angular_Sym_H_
+#define _Angular_Sym_H_
 
 #include <Symmetry.H>
 #include <Spin.H>   
-#include <tuple>
 
 class ElCounts;
 struct ElCounts_l
@@ -16,16 +15,16 @@ struct ElCounts_l
 
 //---------------------------------------------------------------------------------
 //
-// AngularQN for atoms
+// Angular_Sym for atoms
 //
-class AngularQN
+class Angular_Sym
     : public virtual Symmetry
 {
 public:
     virtual ElCounts_l GetN(const ElCounts&) const {return {0,0};}
 
     virtual int GetL() const=0;
-    virtual AngularQN* Clone() const=0;
+    virtual Angular_Sym* Clone() const=0;
 };
 
-#endif //_Symmetry_AngularQN_H_
+#endif //_Angular_Sym_H_

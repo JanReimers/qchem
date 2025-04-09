@@ -3,7 +3,7 @@
 
 
 #include "Imp/WaveFunction/Irrep_WF.H"
-#include "Imp/WaveFunction/ElectronConfiguration.H"
+#include <ElectronConfiguration.H>
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Irrep_BS.H>
 #include <cassert>

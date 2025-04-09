@@ -79,7 +79,9 @@ Priority 1:
     Done:-Need a more elegent version of
         std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
         Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
-    Move symmetries and EC classes into Atom and Molecule sections of Basis Set?
+    No: Move symmetries and EC classes into Atom and Molecule sections of Basis Set?
+        Not sure where to put these.  Outside of basis sets we have:
+            Atom_CL, Atom_EC Angular_Sym
 
     -Total energy
         -Calculated in  SCFIteratorImp::DisplayEnergies

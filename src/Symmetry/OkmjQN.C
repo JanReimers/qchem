@@ -1,44 +1,44 @@
 // File: Symmetry/OkmjQN.C  Spherical Spinor Omega_kmj symmetry.
 
 #include "Imp/Symmetry/OkmjQN.H"
-#include "Imp/WaveFunction/ElectronConfiguration.H"
+#include "Imp/WaveFunction/Atom_EC.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 
 using std::cout;
 using std::endl;
-Omega_kQN::Omega_kQN(): kappa(0) {};
+Omega_k_Sym::Omega_k_Sym(): kappa(0) {};
 
-Omega_kQN::Omega_kQN(int _kappa) : kappa(_kappa) 
+Omega_k_Sym::Omega_k_Sym(int _kappa) : kappa(_kappa) 
 {
     assert(abs(kappa)<10);
 };
 
-size_t Omega_kQN::SequenceIndex() const //Used for op<
+size_t Omega_k_Sym::SequenceIndex() const //Used for op<
  {
     assert(abs(kappa)<=LMax+1);
     return kappa+LMax+1;
  }
 
-bool Omega_kQN::MatchType(const Symmetry& b) const
+bool Omega_k_Sym::MatchType(const Symmetry& b) const
 {
-    return dynamic_cast<const Omega_kQN*>(&b)!=0;
+    return dynamic_cast<const Omega_k_Sym*>(&b)!=0;
 }
 
-bool Omega_kQN::Match(const Symmetry& qn) const
+bool Omega_k_Sym::Match(const Symmetry& qn) const
 {
-    const Omega_kQN* oqn = dynamic_cast<const Omega_kQN*>(&qn);
+    const Omega_k_Sym* oqn = dynamic_cast<const Omega_k_Sym*>(&qn);
     assert(oqn);
     return kappa==oqn->kappa;
 }
 
-int Omega_kQN::GetDegeneracy() const
+int Omega_k_Sym::GetDegeneracy() const
 {
     return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
 }
 
-ElCounts_l Omega_kQN::GetN(const ElCounts& ec) const
+ElCounts_l Omega_k_Sym::GetN(const ElCounts& ec) const
 {
     int l=GetL();
     int nl=ec.N[l];
@@ -71,7 +71,7 @@ extern std::string SPDFG[];
 std::string j2s[]={"1/2","3/2","5/2","7/2","9/2"};
 
 
-std::ostream& Omega_kQN::Write(std::ostream& os) const
+std::ostream& Omega_k_Sym::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
     {
@@ -82,36 +82,36 @@ std::ostream& Omega_kQN::Write(std::ostream& os) const
     return os;
 }
 
-AngularQN* Omega_kQN::Clone() const
+Angular_Sym* Omega_k_Sym::Clone() const
 {
-    return new Omega_kQN(*this);
+    return new Omega_k_Sym(*this);
 }
 
 
 
-Omega_kmjQN::Omega_kmjQN(): kappa(0), mj(0) {};
+Omega_kmj_Sym::Omega_kmj_Sym(): kappa(0), mj(0) {};
 
-Omega_kmjQN::Omega_kmjQN(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
+Omega_kmj_Sym::Omega_kmj_Sym(int _kappa, double _mj) : kappa(_kappa), mj(_mj) {};
 
-size_t Omega_kmjQN::SequenceIndex() const //Used for op<
+size_t Omega_kmj_Sym::SequenceIndex() const //Used for op<
  {
     assert(abs(kappa)<=LMax+1);
     return (mj+Getj())*(2*LMax+3)+(kappa+LMax+1);
  }
 
-bool Omega_kmjQN::MatchType(const Symmetry& b) const
+bool Omega_kmj_Sym::MatchType(const Symmetry& b) const
 {
-    return dynamic_cast<const Omega_kmjQN*>(&b)!=0;
+    return dynamic_cast<const Omega_kmj_Sym*>(&b)!=0;
 }
 
-bool Omega_kmjQN::Match(const Symmetry& qn) const
+bool Omega_kmj_Sym::Match(const Symmetry& qn) const
 {
-    const Omega_kmjQN* oqn = dynamic_cast<const Omega_kmjQN*>(&qn);
+    const Omega_kmj_Sym* oqn = dynamic_cast<const Omega_kmj_Sym*>(&qn);
     assert(oqn);
     return kappa==oqn->kappa && mj==oqn->mj;
 }
 
-int Omega_kmjQN::GetDegeneracy() const
+int Omega_kmj_Sym::GetDegeneracy() const
 {
     return 1;
 }
@@ -119,7 +119,7 @@ int Omega_kmjQN::GetDegeneracy() const
 //
 // Get the electron config assuming all mj states for a given k are degenerate.
 //
-std::pair<int,int> Omega_kmjQN::GetNk(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
+std::pair<int,int> Omega_kmj_Sym::GetNk(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
 {
     int l=GetL();
     int nl=N[l];
@@ -150,7 +150,7 @@ std::pair<int,int> Omega_kmjQN::GetNk(const int (&N)[4], const int (&Nv)[4], int
 
 
 
-std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
+std::pair<int,int> Omega_kmj_Sym::GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const
 {
     //assert(itsL<=LMax);
     int nl,nlu;
@@ -198,7 +198,7 @@ std::pair<int,int> Omega_kmjQN::GetN(const int (&N)[4], const int (&Nv)[4], int 
     return std::make_pair(nlc+nlv,nlu);
 }
 
-ElCounts_l Omega_kmjQN::GetN(const ElCounts& ec) const
+ElCounts_l Omega_kmj_Sym::GetN(const ElCounts& ec) const
 {
     //assert(itsL<=LMax);
     int nl,nlu;
@@ -246,7 +246,7 @@ ElCounts_l Omega_kmjQN::GetN(const ElCounts& ec) const
     return ElCounts_l{nlc+nlv,nlu};//::make_pair(nlc+nlv,nlu);
 }
 
-std::ostream& Omega_kmjQN::Write(std::ostream& os) const
+std::ostream& Omega_kmj_Sym::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
     {
@@ -257,13 +257,13 @@ std::ostream& Omega_kmjQN::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& Omega_kmjQN::Read (std::istream& is)
+std::istream& Omega_kmj_Sym::Read (std::istream& is)
 {
     return is;
 }
 
-AngularQN* Omega_kmjQN::Clone() const
+Angular_Sym* Omega_kmj_Sym::Clone() const
 {
-    return new Omega_kmjQN(*this);
+    return new Omega_kmj_Sym(*this);
 }
 

@@ -194,7 +194,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
         const Symmetry& qn=oi->GetSymmetry();
-        const YlQN& sqn=dynamic_cast<const YlQN& >(qn);
+        const Yl_Sym& sqn=dynamic_cast<const Yl_Sym& >(qn);
         int l=sqn.GetL();
         const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
         assert(sg);

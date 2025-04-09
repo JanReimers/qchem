@@ -3,41 +3,41 @@
 
 
 #include "Imp/Symmetry/YlQN.H"
-#include "Imp/WaveFunction/ElectronConfiguration.H"
+#include "Imp/WaveFunction/Atom_EC.H"
 #include <iostream>
 #include <cassert>
 
-YlQN::YlQN()
+Yl_Sym::Yl_Sym()
     : itsL(0)
 {};
 
-YlQN::YlQN(int theL)
+Yl_Sym::Yl_Sym(int theL)
     : itsL(theL)
 {};
 
- size_t YlQN::SequenceIndex() const //Used for op<
+ size_t Yl_Sym::SequenceIndex() const //Used for op<
  {
     return itsL;
  }
 
-bool YlQN::MatchType(const Symmetry& b) const
+bool Yl_Sym::MatchType(const Symmetry& b) const
 {
-    return dynamic_cast<const YlQN*>(&b)!=0;
+    return dynamic_cast<const Yl_Sym*>(&b)!=0;
 }
 
-bool YlQN::Match(const Symmetry& qn) const
+bool Yl_Sym::Match(const Symmetry& qn) const
 {
-    const YlQN* aqn = dynamic_cast<const YlQN*>(&qn);
+    const Yl_Sym* aqn = dynamic_cast<const Yl_Sym*>(&qn);
     assert(aqn);
     return itsL==aqn->itsL;
 }
 
-int YlQN::GetDegeneracy() const
+int Yl_Sym::GetDegeneracy() const
 {
     return 2*itsL+1;
 }
 
-ElCounts_l YlQN::GetN(const ElCounts& ec) const
+ElCounts_l Yl_Sym::GetN(const ElCounts& ec) const
 {
     int nl=ec.N[itsL];
     if (ec.Nv[itsL]==0) return ElCounts_l{nl,0};//std::make_pair(nl,0);
@@ -68,13 +68,13 @@ ElCounts_l YlQN::GetN(const ElCounts& ec) const
 
 std::string SPDFG[]={"s","p","d","f","g"};
 
-std::ostream& YlQN::Write(std::ostream& os) const
+std::ostream& Yl_Sym::Write(std::ostream& os) const
 {
     return os << SPDFG[itsL] << " ";
 }
 
-AngularQN* YlQN::Clone() const
+Angular_Sym* Yl_Sym::Clone() const
 {
-    return new YlQN(*this);
+    return new Yl_Sym(*this);
 }
 

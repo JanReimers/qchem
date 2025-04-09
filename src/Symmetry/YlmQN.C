@@ -3,7 +3,7 @@
 
 
 #include "Imp/Symmetry/YlmQN.H"
-#include "Imp/WaveFunction/ElectronConfiguration.H"
+#include "Imp/WaveFunction/Atom_EC.H"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -12,36 +12,36 @@ using std::cout;
 using std::endl;
 
 const int LMAX=4;
-YlmQN::YlmQN(): YlQN(0),m(0) {};
+Ylm_Sym::Ylm_Sym(): Yl_Sym(0),m(0) {};
 
-YlmQN::YlmQN(int _l, int _m) : YlQN(_l), m(_m) {};
+Ylm_Sym::Ylm_Sym(int _l, int _m) : Yl_Sym(_l), m(_m) {};
 
-size_t YlmQN::SequenceIndex() const //Used for op<
+size_t Ylm_Sym::SequenceIndex() const //Used for op<
  {
     return m+itsL+itsL*(2*LMAX+1);
  }
 
-bool YlmQN::MatchType(const Symmetry& b) const
+bool Ylm_Sym::MatchType(const Symmetry& b) const
 {
-    return dynamic_cast<const YlmQN*>(&b)!=0;
+    return dynamic_cast<const Ylm_Sym*>(&b)!=0;
 }
 
-bool YlmQN::Match(const Symmetry& qn) const
+bool Ylm_Sym::Match(const Symmetry& qn) const
 {
-    const YlmQN* yqn = dynamic_cast<const YlmQN*>(&qn);
+    const Ylm_Sym* yqn = dynamic_cast<const Ylm_Sym*>(&qn);
     assert(yqn);
     return itsL==yqn->itsL && m==yqn->m;
 }
 
-int YlmQN::GetDegeneracy() const
+int Ylm_Sym::GetDegeneracy() const
 {
     return 1; 
 }
 
-ElCounts_l YlmQN::GetN(const ElCounts& ec) const
+ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
 {
     assert(itsL<=LMax);
-    ElCounts_l ecl=YlQN::GetN(ec);
+    ElCounts_l ecl=Yl_Sym::GetN(ec);
     int nlu=ecl.nu;
     assert((ecl.n+ecl.nu)%2==0);
     int l=itsL;
@@ -87,13 +87,13 @@ ElCounts_l YlmQN::GetN(const ElCounts& ec) const
 
 extern std::string SPDFG[];
 
-std::ostream& YlmQN::Write(std::ostream& os) const
+std::ostream& Ylm_Sym::Write(std::ostream& os) const
 {
     return os << SPDFG[itsL] << " " << std::setw(2) << m << " ";
 }
 
-AngularQN* YlmQN::Clone() const
+Angular_Sym* Ylm_Sym::Clone() const
 {
-    return new YlmQN(*this);
+    return new Ylm_Sym(*this);
 }
 

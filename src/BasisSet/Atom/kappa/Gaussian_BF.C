@@ -29,7 +29,7 @@ Large_BasisFunction::Large_BasisFunction()
 Large_BasisFunction::Large_BasisFunction(double theExponent, int _kappa, double norm)
     : itsExponent     (theExponent)
     , kappa           (_kappa)
-    , l               (Omega_kmjQN::l(kappa))       
+    , l               (Omega_kmj_Sym::l(kappa))       
     , itsNormalization(norm)
 {
 };

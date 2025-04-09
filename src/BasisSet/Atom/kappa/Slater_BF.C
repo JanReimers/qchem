@@ -14,7 +14,7 @@ namespace Slater
 
 Large_BasisFunction::Large_BasisFunction(double ex, int _kappa, int _mj, double norm)
     : itsExponent     (ex)
-    , kappa(_kappa), mj(_mj), l(Omega_kmjQN::l(kappa))
+    , kappa(_kappa), mj(_mj), l(Omega_kmj_Sym::l(kappa))
     , itsNormalization(norm)
 {
 };

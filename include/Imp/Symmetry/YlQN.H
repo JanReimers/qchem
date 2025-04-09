@@ -1,6 +1,6 @@
-// File: Symmetry/YlmQN.H  A Quantum Number for atomic (spherical) symmetry
-#ifndef _Symmetry_YlQN_H_
-#define _Symmetry_YlQN_H_
+// File: Yl_Sym.H  Non magnetic (m-degenerate) spherical harmonic Y_l(theta,phi) symmetry
+#ifndef _Yl_Sym_H_
+#define _Yl_Sym_H_
 
 #include "Imp/Symmetry/AngularQN.H"
 
@@ -10,12 +10,12 @@
 //  orbital angular momentum L.
 //
 
-class YlQN
-    : public virtual AngularQN
+class Yl_Sym
+    : public virtual Angular_Sym
 {
 public:
-    YlQN(        );
-    YlQN(int theL);
+    Yl_Sym(        );
+    Yl_Sym(int theL);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual bool MatchType(const Symmetry&) const;
@@ -23,7 +23,7 @@ public:
     virtual int GetDegeneracy() const;
     
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual AngularQN* Clone(        ) const;
+    virtual Angular_Sym* Clone(        ) const;
 
     virtual int     GetL() const {return itsL;}
     virtual ElCounts_l GetN(const ElCounts&) const;
@@ -32,4 +32,4 @@ protected:
     static const int LMax=3;
 };
 
-#endif //_Symmetry_YlQN_H_
+#endif //_Yl_Sym_H_

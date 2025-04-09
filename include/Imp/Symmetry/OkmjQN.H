@@ -1,6 +1,6 @@
-// File: Symmetry/OkmjQN.H  Spherical Spinor Omega_kmj symmetry.
-#ifndef _Symmetry_OkmjQN_H_
-#define _Symmetry_OkmjQN_H_
+// File: Symmetry/Omega_k_Sym.H  Spherical Spinor Omega_kmj symmetry.
+#ifndef _Symmetry_Omega_k_Sym_H_
+#define _Symmetry_Omega_k_Sym_H_
 
 #include "Imp/Symmetry/AngularQN.H"
 #include <utility>
@@ -9,13 +9,13 @@
 //
 //  Spherical Spinor with total AM J=L+S.  QNs are kappa (mj gets averaged over).
 //
-class Omega_kQN
-    : public virtual AngularQN
+class Omega_k_Sym
+    : public virtual Angular_Sym
 
 {
 public:
-    Omega_kQN(         );
-    Omega_kQN(int kappa);
+    Omega_k_Sym(         );
+    Omega_k_Sym(int kappa);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual bool MatchType(const Symmetry&) const;
@@ -24,7 +24,7 @@ public:
     virtual ElCounts_l GetN(const ElCounts&) const;
     
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual AngularQN* Clone         () const;
+    virtual Angular_Sym* Clone         () const;
 
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}
@@ -42,13 +42,13 @@ protected:
 //
 //  Spherical Spinor with total AM J=L+S.  QNs are kappa and mj.
 //
-class Omega_kmjQN
-    : public virtual AngularQN
+class Omega_kmj_Sym
+    : public virtual Angular_Sym
 
 {
 public:
-    Omega_kmjQN(                 );
-    Omega_kmjQN(int kappa, double mj);
+    Omega_kmj_Sym(                 );
+    Omega_kmj_Sym(int kappa, double mj);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual bool MatchType(const Symmetry&) const;
@@ -60,7 +60,7 @@ public:
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
-    virtual AngularQN* Clone(        ) const;
+    virtual Angular_Sym* Clone(        ) const;
 
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}
@@ -81,4 +81,4 @@ protected:
 };
 
 
-#endif //_Symmetry_OkmjQN_H_
+#endif //_Symmetry_Omega_k_Sym_H_

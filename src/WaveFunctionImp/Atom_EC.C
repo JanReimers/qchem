@@ -1,6 +1,6 @@
-// File: ElectronConfiguration.C
+// File: Atom_EC.C
 
-#include "Imp/WaveFunction/ElectronConfiguration.H"
+#include "Imp/WaveFunction/Atom_EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/Symmetry/AngularQN.H"
 #include <Orbital_QNs.H>
@@ -77,7 +77,7 @@ int Atom_EC::GetN(const Spin& s) const
 
 int Atom_EC::GetN(const Symmetry& qn) const
 {
-    const AngularQN& sqn=dynamic_cast<const AngularQN&>(qn);
+    const Angular_Sym& sqn=dynamic_cast<const Angular_Sym&>(qn);
     ElCounts_l ecl=sqn.GetN(itsNs);
     return ecl.n;    
 }
@@ -85,7 +85,7 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
     if (qns.ms==Spin::None) return GetN(*qns.sym);
     
-    const AngularQN& sqn=dynamic_cast<const AngularQN&>(*qns.sym);
+    const Angular_Sym& sqn=dynamic_cast<const Angular_Sym&>(*qns.sym);
     ElCounts_l ecl=sqn.GetN(itsNs);
     assert((ecl.n+ecl.nu)%2==0);
     return ecl.GetN(qns.ms);       
@@ -104,21 +104,4 @@ void Atom_EC::Display() const
     cout << endl;
     cout << "NUnpaired: " << itsNs.NUnpaired << endl;
 }
-    
-int Molecule_EC::GetN(const Irrep_QNs& qns) const
-{
-    return GetN(qns.ms);
-}
-int Molecule_EC::GetN(const Spin& s) const
-{
-    if (s==Spin::None) return GetN();
-    if (Ne%2==0)
-        return Ne/2;
-    else
-        return s==Spin::Up ? (Ne+1)/2 : (Ne-1)/2;
-}
-
-void Molecule_EC::Display() const
-{
-    cout << "Ne: " << Ne << endl;
-}
+   

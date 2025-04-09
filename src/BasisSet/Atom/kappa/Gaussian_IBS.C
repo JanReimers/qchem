@@ -58,7 +58,7 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
     , Orbital_RKBL_IE<T>(db)
     , AtomIrrepIEClient(exponents.size())
 {
-    size_t l=Omega_kmjQN::l(kappa);
+    size_t l=Omega_kmj_Sym::l(kappa);
     AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);    
     size_t i=1;
     for (auto e:es) 
@@ -95,7 +95,7 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db
     , Orbital_RKBS_IE<T>(db)
     , AtomIrrepIEClient(exponents.size())
 {
-    size_t l=Omega_kmjQN::l(kappa);
+    size_t l=Omega_kmj_Sym::l(kappa);
     AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);  
     
 }

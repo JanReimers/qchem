@@ -5,7 +5,7 @@
 
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common(const DB_cache<T>* db,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
-    : IBS_Common(new Omega_kQN(kappa))
+    : IBS_Common(new Omega_k_Sym(kappa))
     , Orbital_IBS_Common<T>()
     , DB_RKB<T>(db)
     , itsRKBL(l)
@@ -69,7 +69,7 @@ template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::M
 }
 
 template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int _kappa)
-    : IBS_Common(new Omega_kQN(_kappa))
+    : IBS_Common(new Omega_k_Sym(_kappa))
     , TIBS_Common<T>()
     , kappa(_kappa)
 {
@@ -77,7 +77,7 @@ template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int _kapp
 }
 
 template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common(int _kappa)
-    : IBS_Common(new Omega_kQN(-_kappa))
+    : IBS_Common(new Omega_k_Sym(-_kappa))
     , TIBS_Common<T>()
     , kappa(_kappa)
 {
