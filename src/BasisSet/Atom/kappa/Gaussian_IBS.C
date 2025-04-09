@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 
-#include "Imp/Symmetry/Okmj.H"
+#include "Imp/BasisSet/Atom/kappa/Okmj.H"
 #include <Symmetry.H>
 #include <iostream>
 #include <cassert>

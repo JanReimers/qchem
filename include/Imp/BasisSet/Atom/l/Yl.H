@@ -2,7 +2,7 @@
 #ifndef _Yl_Sym_H_
 #define _Yl_Sym_H_
 
-#include "Imp/Symmetry/Angular.H"
+#include "Imp/BasisSet/Atom/Angular.H"
 
 //---------------------------------------------------------------------------------
 //

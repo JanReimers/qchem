@@ -2,7 +2,7 @@
 
 #include "Imp/WaveFunction/Atom_EC.H"
 #include "Imp/Misc/PeriodicTable.H"
-#include "Imp/Symmetry/Angular.H"
+#include "Imp/BasisSet/Atom/Angular.H"
 #include <Orbital_QNs.H>
 #include <cassert>
 #include <iostream>

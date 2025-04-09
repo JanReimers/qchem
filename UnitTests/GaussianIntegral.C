@@ -6,7 +6,7 @@
 #include "Imp/BasisSet/Atom/l/Gaussian_IE.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
-#include "Imp/Symmetry/Yl.H"
+#include "Imp/BasisSet/Atom/l/Yl.H"
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"

@@ -2,7 +2,7 @@
 #ifndef _Symmetry_Ylm_Sym_H_
 #define _Symmetry_Ylm_Sym_H_
 
-#include "Imp/Symmetry/Yl.H"
+#include "Imp/BasisSet/Atom/l/Yl.H"
 
 
 //---------------------------------------------------------------------------------
