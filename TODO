@@ -8,6 +8,9 @@ Priority 1:
             Can we get rid of LDAxc?
         Done: -Support no cd guess to init SCF proc.
     Done: -Get rid of AtomQN.
+    -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
+        Most code except Norms can move up to the radial level.
+        Minor consolidaton.
     -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m

@@ -22,4 +22,5 @@ target_compile_definitions(qchem PRIVATE
 target_include_directories(qchem PRIVATE include ../oml/include)
 target_link_libraries(qchem oml lapack gtest pthread wignerSymbols)
 add_subdirectory(./UnitTests)
+add_subdirectory(./gtkapp)
 

@@ -1,0 +1,280 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.94.1 -->
+<interface>
+  <!-- interface-name qchme3.ui -->
+  <requires lib="gtk" version="4.14"/>
+  <object class="GtkApplicationWindow" id="main">
+    <child>
+      <object class="GtkPaned">
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkFrame">
+                <property name="label">Atom</property>
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Z</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Charge</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton"/>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="label">Hamiltonian</property>
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkDropDown">
+                        <property name="model">
+                          <object class="GtkStringList">
+                            <property name="strings">1-Electron (1E)
+Hatree-Fock (HF)
+Density-Functional (DFT)
+Dirac 1E
+Dirac HF</property>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="label">Basis Set</property>
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkDropDown">
+                        <property name="model">
+                          <object class="GtkStringList">
+                            <property name="strings">Slater Yl
+Slater Ylm
+Gaussian Yl
+Gaussian Ylm</property>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="label">Overlap Linear Algebra</property>
+                <child>
+                  <object class="GtkFrame">
+                    <child>
+                      <object class="GtkBox">
+                        <child>
+                          <object class="GtkDropDown">
+                            <property name="model">
+                              <object class="GtkStringList">
+                                <property name="strings">LAPack
+OML</property>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkDropDown">
+                            <property name="model">
+                              <object class="GtkStringList">
+                                <property name="strings">Cholsky
+Eigen
+SVD</property>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkFrame">
+                            <property name="label">Truncation Tolerance</property>
+                            <child>
+                              <object class="GtkEntry">
+                                <property name="input-purpose">number</property>
+                                <property name="placeholder-text">1e-6</property>
+                                <property name="text">1e-6</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkFrame">
+                            <property name="label">Absolute Tolerance</property>
+                            <child>
+                              <object class="GtkEntry">
+                                <property name="input-purpose">number</property>
+                                <property name="placeholder-text">1e-6</property>
+                                <property name="text">1e-6</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="label">Eigen Linear Algebra</property>
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkDropDown">
+                        <property name="model">
+                          <object class="GtkStringList">
+                            <property name="strings">LAPack
+OML</property>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkDropDown">
+                        <property name="model">
+                          <object class="GtkStringList">
+                            <property name="strings">Cholsky
+Eigen
+SVD</property>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Truncation Tolerance</property>
+                        <child>
+                          <object class="GtkEntry">
+                            <property name="input-purpose">number</property>
+                            <property name="placeholder-text">1e-6</property>
+                            <property name="text">1e-6</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Absolute Tolerance</property>
+                        <child>
+                          <object class="GtkEntry">
+                            <property name="input-purpose">number</property>
+                            <property name="placeholder-text">1e-6</property>
+                            <property name="text">1e-6</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="label">Mesh</property>
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Radial Type</property>
+                        <child>
+                          <object class="GtkDropDown">
+                            <property name="model">
+                              <object class="GtkStringList">
+                                <property name="strings">MHL
+Log</property>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Angular Type</property>
+                        <child>
+                          <object class="GtkDropDown">
+                            <property name="model">
+                              <object class="GtkStringList">
+                                <property name="strings">Gauss
+Gauss Legendre
+Eular Mclaren</property>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label"># Radial Points</property>
+                        <child>
+                          <object class="GtkSpinButton">
+                            <property name="text">50</property>
+                            <property name="value">50.0</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label"># Directions</property>
+                        <child>
+                          <object class="GtkFrame">
+                            <child>
+                              <object class="GtkSpinButton">
+                                <property name="text">1</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkNotebook">
+            <property name="group-name">Plots</property>
+            <property name="name">Plots</property>
+            <property name="page">3</property>
+            <child>
+              <object class="GtkDrawingArea" id="phir">
+                <property name="name">Phi(r)</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkDrawingArea"/>
+            </child>
+            <child>
+              <object class="GtkDrawingArea"/>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
