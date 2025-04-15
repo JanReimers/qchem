@@ -3,6 +3,7 @@
 #define _BasisSet_TCommon_H_
 
 #include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Imp/Misc/UniqueID/UniqueIDImp.H"
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;

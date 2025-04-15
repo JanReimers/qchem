@@ -23,7 +23,7 @@ public:
  
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;
-    void InsertStandardTerms(cl_t & cl);
+    void InsertStandardTerms(const cl_t & cl);
     optr_vector1< Static_HT*> itsSHTs;
     optr_vector1<Dynamic_HT*> itsDHTs;
 };

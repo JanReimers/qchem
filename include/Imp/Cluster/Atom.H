@@ -14,6 +14,7 @@ class Atom
 {
 public:
     Atom();
+    Atom(int Z, double charge);
     Atom(int Z, double charge, const RVec3& R);
 
     virtual double GetNumElectrons      () const;

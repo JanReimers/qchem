@@ -16,7 +16,7 @@ class Ven
 public:
     typedef std::shared_ptr<const Cluster> cl_t;
     Ven(                         );
-    Ven(cl_t& cl);
+    Ven(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&,const DM_CD* cd               ) const;
 

@@ -67,6 +67,11 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "irrep_bs,h": "cpp",
-        "hf_ibs_h": "cpp"
+        "hf_ibs_h": "cpp",
+        "charconv": "cpp",
+        "list": "cpp",
+        "format": "cpp",
+        "valarray": "cpp",
+        "text_encoding": "cpp"
     }
 }

@@ -1,4 +1,7 @@
 Priority 1:
+    -BasisSet:
+        Use tempered definition for exponents:
+            e=alpha*beta^i i = 0 ... n-1
     -Try making a separate libqc_basis.a to enforce some modularity.
         -Porabaly need to make a libqc_base.a  with some common stuff.
         Try making a C++20 module

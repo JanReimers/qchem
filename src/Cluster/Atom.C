@@ -25,6 +25,15 @@ Atom::Atom()
     , itsR( )
 {};
 
+Atom::Atom(int Z, double charge)
+    : itsZ(Z)
+    , itsCharge(charge)
+    , itsR(0,0,0)
+{
+    assert(itsZ>0);
+    assert(itsZ<150); //Maybe there is an island of stability at Z=140!!!!
+};
+
 Atom::Atom(int Z, double charge, const RVec3& R)
     : itsZ(Z)
     , itsCharge(charge)

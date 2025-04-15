@@ -10,37 +10,66 @@
           <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="atom_frame">
                 <property name="label">Atom</property>
                 <child>
                   <object class="GtkBox">
                     <child>
                       <object class="GtkLabel">
                         <property name="label">Z</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-start">5</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkSpinButton"/>
+                      <object class="GtkSpinButton" id="z_spin">
+                        <property name="adjustment">
+                          <object class="GtkAdjustment" id="Z_adjust">
+                            <property name="lower">1.0</property>
+                            <property name="page-increment">10.0</property>
+                            <property name="step-increment">1.0</property>
+                            <property name="upper">118.0</property>
+                            <property name="value">1.0</property>
+                          </object>
+                        </property>
+                        <property name="climb-rate">1.0</property>
+                        <property name="numeric">True</property>
+                        <property name="snap-to-ticks">True</property>
+                        <property name="text">1</property>
+                        <property name="value">1.0</property>
+                      </object>
                     </child>
                     <child>
                       <object class="GtkLabel">
                         <property name="label">Charge</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-start">10</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkSpinButton"/>
+                      <object class="GtkSpinButton" id="charge_spin">
+                        <property name="adjustment">
+                          <object class="GtkAdjustment" id="charge_adjust">
+                            <property name="lower">-2.0</property>
+                            <property name="step-increment">1.0</property>
+                            <property name="upper">117.0</property>
+                          </object>
+                        </property>
+                        <property name="climb-rate">1.0</property>
+                        <property name="numeric">True</property>
+                      </object>
                     </child>
                   </object>
                 </child>
               </object>
             </child>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="ham_frame">
                 <property name="label">Hamiltonian</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkDropDown">
+                      <object class="GtkDropDown" id="ham_dropdown">
                         <property name="model">
                           <object class="GtkStringList">
                             <property name="strings">1-Electron (1E)
@@ -57,12 +86,12 @@ Dirac HF</property>
               </object>
             </child>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="basisset_frame">
                 <property name="label">Basis Set</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkDropDown">
+                      <object class="GtkDropDown" id="basisset_dropdown">
                         <property name="model">
                           <object class="GtkStringList">
                             <property name="strings">Slater Yl
@@ -73,19 +102,59 @@ Gaussian Ylm</property>
                         </property>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Emin</property>
+                        <child>
+                          <object class="GtkEntry" id="basisset_emin">
+                            <property name="input-purpose">number</property>
+                            <property name="text">0.1</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Emax</property>
+                        <child>
+                          <object class="GtkEntry" id="basisset_emax">
+                            <property name="input-purpose">number</property>
+                            <property name="text">10</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label"># functions</property>
+                        <child>
+                          <object class="GtkSpinButton" id="basisset_N">
+                            <property name="adjustment">
+                              <object class="GtkAdjustment">
+                                <property name="lower">1.0</property>
+                                <property name="page-increment">5.0</property>
+                                <property name="step-increment">1.0</property>
+                                <property name="upper">500.0</property>
+                                <property name="value">10.0</property>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>
             </child>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="overlap_LAP_frame">
                 <property name="label">Overlap Linear Algebra</property>
                 <child>
                   <object class="GtkFrame">
                     <child>
                       <object class="GtkBox">
                         <child>
-                          <object class="GtkDropDown">
+                          <object class="GtkDropDown" id="overlap_pkg">
                             <property name="model">
                               <object class="GtkStringList">
                                 <property name="strings">LAPack
@@ -95,7 +164,7 @@ OML</property>
                           </object>
                         </child>
                         <child>
-                          <object class="GtkDropDown">
+                          <object class="GtkDropDown" id="overlap_algo">
                             <property name="model">
                               <object class="GtkStringList">
                                 <property name="strings">Cholsky
@@ -109,7 +178,7 @@ SVD</property>
                           <object class="GtkFrame">
                             <property name="label">Truncation Tolerance</property>
                             <child>
-                              <object class="GtkEntry">
+                              <object class="GtkEntry" id="overlap_trunc">
                                 <property name="input-purpose">number</property>
                                 <property name="placeholder-text">1e-6</property>
                                 <property name="text">1e-6</property>
@@ -121,7 +190,7 @@ SVD</property>
                           <object class="GtkFrame">
                             <property name="label">Absolute Tolerance</property>
                             <child>
-                              <object class="GtkEntry">
+                              <object class="GtkEntry" id="overlap_abs">
                                 <property name="input-purpose">number</property>
                                 <property name="placeholder-text">1e-6</property>
                                 <property name="text">1e-6</property>
@@ -136,12 +205,12 @@ SVD</property>
               </object>
             </child>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="eigen_LAP_frame">
                 <property name="label">Eigen Linear Algebra</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkDropDown">
+                      <object class="GtkDropDown" id="eigen_pkg">
                         <property name="model">
                           <object class="GtkStringList">
                             <property name="strings">LAPack
@@ -151,30 +220,7 @@ OML</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkDropDown">
-                        <property name="model">
-                          <object class="GtkStringList">
-                            <property name="strings">Cholsky
-Eigen
-SVD</property>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkFrame">
-                        <property name="label">Truncation Tolerance</property>
-                        <child>
-                          <object class="GtkEntry">
-                            <property name="input-purpose">number</property>
-                            <property name="placeholder-text">1e-6</property>
-                            <property name="text">1e-6</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkFrame">
+                      <object class="GtkFrame" id="eigen_abs">
                         <property name="label">Absolute Tolerance</property>
                         <child>
                           <object class="GtkEntry">
@@ -190,12 +236,12 @@ SVD</property>
               </object>
             </child>
             <child>
-              <object class="GtkFrame">
+              <object class="GtkFrame" id="mesh_frame">
                 <property name="label">Mesh</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkFrame">
+                      <object class="GtkFrame" id="mesh_radial">
                         <property name="label">Radial Type</property>
                         <child>
                           <object class="GtkDropDown">
@@ -210,7 +256,7 @@ Log</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame">
+                      <object class="GtkFrame" id="mesh_angular">
                         <property name="label">Angular Type</property>
                         <child>
                           <object class="GtkDropDown">
@@ -226,7 +272,7 @@ Eular Mclaren</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame">
+                      <object class="GtkFrame" id="mesh_nr">
                         <property name="label"># Radial Points</property>
                         <child>
                           <object class="GtkSpinButton">
@@ -237,7 +283,7 @@ Eular Mclaren</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame">
+                      <object class="GtkFrame" id="mesh_na">
                         <property name="label"># Directions</property>
                         <child>
                           <object class="GtkFrame">
@@ -257,24 +303,51 @@ Eular Mclaren</property>
           </object>
         </child>
         <child>
-          <object class="GtkNotebook">
-            <property name="group-name">Plots</property>
-            <property name="name">Plots</property>
-            <property name="page">3</property>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkDrawingArea" id="phir">
-                <property name="name">Phi(r)</property>
+              <object class="GtkNotebook">
+                <property name="group-name">Plots</property>
+                <property name="name">Plots</property>
+                <property name="page">3</property>
+                <child>
+                  <object class="GtkDrawingArea" id="phir">
+                    <property name="content-height">355</property>
+                    <property name="name">Phi(r)</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkDrawingArea"/>
+                </child>
+                <child>
+                  <object class="GtkDrawingArea"/>
+                </child>
               </object>
             </child>
             <child>
-              <object class="GtkDrawingArea"/>
-            </child>
-            <child>
-              <object class="GtkDrawingArea"/>
+              <object class="GtkBox">
+                <child>
+                  <object class="GtkButton" id="start">
+                    <property name="label">Start</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="step">
+                    <property name="label">Step</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="pause">
+                    <property name="label">Pause</property>
+                  </object>
+                </child>
+              </object>
             </child>
           </object>
         </child>
       </object>
     </child>
   </object>
+  <object class="GtkAdjustment"/>
+  <object class="GtkAdjustment"/>
 </interface>

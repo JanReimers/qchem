@@ -15,7 +15,7 @@ class Vnn
 public:
     typedef std::shared_ptr<const Cluster> cl_t;
     Vnn(                         );
-    Vnn(cl_t& cl);
+    Vnn(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (TotalEnergy&,const DM_CD* cd               ) const;
     // Required by PMStreamableObject

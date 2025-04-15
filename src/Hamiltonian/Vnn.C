@@ -16,7 +16,7 @@ Vnn::Vnn()
     , theCluster()
 {};
 
-Vnn::Vnn(cl_t& cl)
+Vnn::Vnn(const cl_t& cl)
     : Static_HT_Imp()
     , theCluster(cl)
 {};

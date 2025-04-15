@@ -7,7 +7,12 @@
 #include <Fit_IBS.H>
 #include <memory>
 
-Ham_HF_U::Ham_HF_U(cl_t& cl) 
+Ham_1E::Ham_1E(const cl_t& cl) 
+{
+    InsertStandardTerms(cl);
+}
+
+Ham_HF_U::Ham_HF_U(const cl_t& cl) 
 {
     InsertStandardTerms(cl);
     Add(new Vee);
@@ -18,11 +23,11 @@ Ham_HF_U::Ham_HF_U(cl_t& cl)
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/ExchangeFunctional.H" 
 #include <Cluster.H>
-Ham_SHF_U::Ham_SHF_U(cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
+Ham_SHF_U::Ham_SHF_U(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
     : Ham_SHF_U(cl,new SlaterExchange(alpha_ex),mp,bs)
 {};
 
-Ham_SHF_U::Ham_SHF_U(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
+Ham_SHF_U::Ham_SHF_U(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
 {
     InsertStandardTerms(cl);
     Add(new Vee);
@@ -36,11 +41,11 @@ Ham_SHF_U::Ham_SHF_U(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const Basi
 #include "Imp/Hamiltonian/FittedVee.H"
 #include <Cluster.H>
 
-Ham_DFT_U::Ham_DFT_U(cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_U::Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
     : Ham_DFT_U(cl,new SlaterExchange(alpha_ex),mp,bs)
 {};
 
-Ham_DFT_U::Ham_DFT_U(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_U::Ham_DFT_U(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
 {
     InsertStandardTerms(cl);
        
@@ -54,7 +59,7 @@ Ham_DFT_U::Ham_DFT_U(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const Basi
 }
 
 #include "Imp/Hamiltonian/VxcPol.H"
-Ham_HF_P::Ham_HF_P(cl_t& cl)
+Ham_HF_P::Ham_HF_P(const cl_t& cl)
 {
     InsertStandardTerms(cl);
     Add(new Vee);
@@ -63,11 +68,11 @@ Ham_HF_P::Ham_HF_P(cl_t& cl)
 
 #include "Imp/Hamiltonian/FittedVxcPol.H"
 
-Ham_SHF_P::Ham_SHF_P(cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
+Ham_SHF_P::Ham_SHF_P(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
     : Ham_SHF_P(cl,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
 {};
 
-Ham_SHF_P::Ham_SHF_P(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
+Ham_SHF_P::Ham_SHF_P(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
 {
     InsertStandardTerms(cl);
     Add(new Vee);
@@ -78,11 +83,11 @@ Ham_SHF_P::Ham_SHF_P(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const Basi
     Add(new FittedVxcPol(XFitBasis, XcFunct,m));
 }
 
-Ham_DFT_P::Ham_DFT_P(cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_P::Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
     : Ham_DFT_P(cl,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
 {};
 
-Ham_DFT_P::Ham_DFT_P(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_P::Ham_DFT_P(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
 {
     InsertStandardTerms(cl);
     FittedVee::bs_t CFitBasis(bs->CreateCDFitBasisSet(cl.get()));
@@ -100,7 +105,14 @@ Ham_DFT_P::Ham_DFT_P(cl_t& cl,ExFunctional* ex, const MeshParams& mp, const Basi
 #include "Imp/Hamiltonian/Vnn.H"
 #include "Imp/Hamiltonian/Ven.H"
 
-Ham_DHF::Ham_DHF(cl_t& cl)
+Ham_DHF_1E::Ham_DHF_1E(const cl_t& cl)
+{
+    Add(new DiracKinetic());
+    Add(new RestMass());
+    //Add(new Vnn(cl));
+}
+
+Ham_DHF::Ham_DHF(const cl_t& cl)
 {
     Add(new DiracKinetic());
     Add(new RestMass());

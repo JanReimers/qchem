@@ -29,7 +29,7 @@ void HamiltonianImp::Add(Dynamic_HT* p)
     itsDHTs.push_back(p);
 }
 
-void HamiltonianImp::InsertStandardTerms(cl_t & cl)
+void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
 {
     Add(new Kinetic);
     Add(new Vnn(cl));

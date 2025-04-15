@@ -8,6 +8,8 @@
 #include <AnalyticIE.H>
 #include "Imp/Containers/ERI4.H"
 #include <map>
+#include "oml/vector.h"
+
 template  <class T> class DB_cache  : virtual public Integrals_Base<T>
 {
     typedef UniqueID::IDtype IDType;

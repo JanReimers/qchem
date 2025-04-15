@@ -12,7 +12,7 @@
 
 Ven::Ven() : Static_HT_Imp() , theCluster() {};
 
-Ven::Ven(cl_t& cl)
+Ven::Ven(const cl_t& cl)
     : Static_HT_Imp()
     , theCluster(cl)
 {
