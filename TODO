@@ -1,4 +1,5 @@
 Priority 1:
+    -Get rid of SCFIterationParams::kT
     -It would be nice Atom derivd from Cluster.
     -BasisSet:
         Use tempered definition for exponents:

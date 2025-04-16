@@ -4,6 +4,7 @@
   <!-- interface-name qchme3.ui -->
   <requires lib="gtk" version="4.14"/>
   <object class="GtkApplicationWindow" id="main">
+    <property name="title">Atom SCF Solver</property>
     <child>
       <object class="GtkPaned">
         <child>
@@ -100,7 +101,12 @@ Dirac HF</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkDropDown" id="basisset_dropdown"/>
+                      <object class="GtkFrame">
+                        <property name="label">Type</property>
+                        <child>
+                          <object class="GtkDropDown" id="basisset_dropdown"/>
+                        </child>
+                      </object>
                     </child>
                     <child>
                       <object class="GtkFrame">
@@ -147,55 +153,53 @@ Dirac HF</property>
               </object>
             </child>
             <child>
-              <object class="GtkFrame" id="overlap_LAP_frame">
-                <property name="label">Overlap Linear Algebra</property>
+              <object class="GtkFrame" id="laparams_frame">
+                <property name="label">Linear Algebra</property>
+                <property name="tooltip-text">Paramaters for controling the two linear algebra steps: 1) Orthogonalization of the  overlap matrix, 2) Solveing the eigen systems.</property>
                 <child>
-                  <object class="GtkFrame">
+                  <object class="GtkBox">
                     <child>
-                      <object class="GtkBox">
+                      <object class="GtkFrame">
+                        <property name="label">Package</property>
                         <child>
-                          <object class="GtkDropDown" id="overlap_pkg">
-                            <property name="model">
-                              <object class="GtkStringList">
-                                <property name="strings">LAPack
-OML</property>
-                              </object>
-                            </property>
+                          <object class="GtkDropDown" id="la_pkg">
+                            <property name="tooltip-markup">Package used for solving the ortho and eigen systems.</property>
                           </object>
                         </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Ortho. Method</property>
                         <child>
-                          <object class="GtkDropDown" id="overlap_algo">
-                            <property name="model">
-                              <object class="GtkStringList">
-                                <property name="strings">Cholsky
-Eigen
-SVD</property>
-                              </object>
-                            </property>
+                          <object class="GtkDropDown" id="la_ortho">
+                            <property name="tooltip-text">Linear algebra method used for orthogonalizing the overlap matrix.</property>
                           </object>
                         </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Truncation Tolerance</property>
+                        <property name="tooltip-text">If SVD is selected for orthogonalizing the overlap matrix, Singlaur values below tol will be truncated.</property>
                         <child>
-                          <object class="GtkFrame">
-                            <property name="label">Truncation Tolerance</property>
-                            <child>
-                              <object class="GtkEntry" id="overlap_trunc">
-                                <property name="input-purpose">number</property>
-                                <property name="placeholder-text">1e-6</property>
-                                <property name="text">1e-6</property>
-                              </object>
-                            </child>
+                          <object class="GtkEntry" id="la_trunc">
+                            <property name="input-purpose">number</property>
+                            <property name="placeholder-text">1e-6</property>
+                            <property name="text">1e-6</property>
                           </object>
                         </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Absolute Tolerance</property>
+                        <property name="tooltip-text">Tolerance used for eigen solver iterations.</property>
                         <child>
-                          <object class="GtkFrame">
-                            <property name="label">Absolute Tolerance</property>
-                            <child>
-                              <object class="GtkEntry" id="overlap_abs">
-                                <property name="input-purpose">number</property>
-                                <property name="placeholder-text">1e-6</property>
-                                <property name="text">1e-6</property>
-                              </object>
-                            </child>
+                          <object class="GtkEntry" id="la_abstol">
+                            <property name="input-purpose">number</property>
+                            <property name="placeholder-text">1e-6</property>
+                            <property name="text">1e-6</property>
                           </object>
                         </child>
                       </object>
@@ -205,29 +209,60 @@ SVD</property>
               </object>
             </child>
             <child>
-              <object class="GtkFrame" id="eigen_LAP_frame">
-                <property name="label">Eigen Linear Algebra</property>
+              <object class="GtkFrame" id="Iteration_frame">
+                <property name="label">SCF Iteration paramaters</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkDropDown" id="eigen_pkg">
-                        <property name="model">
-                          <object class="GtkStringList">
-                            <property name="strings">LAPack
-OML</property>
+                      <object class="GtkFrame">
+                        <property name="label">Max Iterations</property>
+                        <child>
+                          <object class="GtkSpinButton" id="SCF_max_iter">
+                            <property name="adjustment">
+                              <object class="GtkAdjustment">
+                                <property name="lower">1.0</property>
+                                <property name="page-increment">5.0</property>
+                                <property name="step-increment">1.0</property>
+                                <property name="upper">10000.0</property>
+                                <property name="value">40.0</property>
+                              </object>
+                            </property>
                           </object>
-                        </property>
+                        </child>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="eigen_abs">
-                        <property name="label">Absolute Tolerance</property>
+                      <object class="GtkFrame">
+                        <property name="label">Min. delta Ro</property>
+                        <property name="tooltip-text">Charge density convergence criteria</property>
                         <child>
-                          <object class="GtkEntry">
+                          <object class="GtkEntry" id="SCF_delta_ro">
                             <property name="input-purpose">number</property>
                             <property name="placeholder-text">1e-6</property>
-                            <property name="text">1e-6</property>
+                            <property name="text">1e-4</property>
                           </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Ro relax</property>
+                        <property name="tooltip-text">Startingrelaxation factor for the charge density.</property>
+                        <child>
+                          <object class="GtkEntry" id="SCF_ro_relax">
+                            <property name="input-purpose">number</property>
+                            <property name="placeholder-text">1.0</property>
+                            <property name="text">1e-4</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkFrame">
+                        <property name="label">Verbose</property>
+                        <property name="tooltip-text">Startingrelaxation factor for the charge density.</property>
+                        <child>
+                          <object class="GtkCheckButton" id="SCF_verbose"/>
                         </child>
                       </object>
                     </child>
@@ -241,10 +276,10 @@ OML</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkFrame" id="mesh_radial">
+                      <object class="GtkFrame">
                         <property name="label">Radial Type</property>
                         <child>
-                          <object class="GtkDropDown">
+                          <object class="GtkDropDown" id="mesh_radial">
                             <property name="model">
                               <object class="GtkStringList">
                                 <property name="strings">MHL
@@ -256,10 +291,10 @@ Log</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="mesh_angular">
+                      <object class="GtkFrame">
                         <property name="label">Angular Type</property>
                         <child>
-                          <object class="GtkDropDown">
+                          <object class="GtkDropDown" id="mesh_angular">
                             <property name="model">
                               <object class="GtkStringList">
                                 <property name="strings">Gauss
@@ -272,10 +307,10 @@ Eular Mclaren</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="mesh_nr">
+                      <object class="GtkFrame">
                         <property name="label"># Radial Points</property>
                         <child>
-                          <object class="GtkSpinButton">
+                          <object class="GtkSpinButton" id="mesh_nr">
                             <property name="text">50</property>
                             <property name="value">50.0</property>
                           </object>
@@ -283,12 +318,12 @@ Eular Mclaren</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="mesh_na">
+                      <object class="GtkFrame">
                         <property name="label"># Directions</property>
                         <child>
                           <object class="GtkFrame">
                             <child>
-                              <object class="GtkSpinButton">
+                              <object class="GtkSpinButton" id="mesh_na">
                                 <property name="text">1</property>
                               </object>
                             </child>
