@@ -81,6 +81,15 @@ Dirac HF</property>
                         </property>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Polarized:</property>
+                        <property name="margin-start">5</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="ham_polarized"/>
+                    </child>
                   </object>
                 </child>
               </object>
@@ -91,16 +100,7 @@ Dirac HF</property>
                 <child>
                   <object class="GtkBox">
                     <child>
-                      <object class="GtkDropDown" id="basisset_dropdown">
-                        <property name="model">
-                          <object class="GtkStringList">
-                            <property name="strings">Slater Yl
-Slater Ylm
-Gaussian Yl
-Gaussian Ylm</property>
-                          </object>
-                        </property>
-                      </object>
+                      <object class="GtkDropDown" id="basisset_dropdown"/>
                     </child>
                     <child>
                       <object class="GtkFrame">

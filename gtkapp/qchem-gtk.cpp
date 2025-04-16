@@ -63,7 +63,7 @@ private:
 
   const Glib::RefPtr<Gtk::Builder> itsBuilder;
   Gtk::DropDown* itsType;
-  Gtk::StringList* itsTypes;
+  Glib::RefPtr<Gtk::StringList> itsTypes; 
   Gtk::Entry* itsEmin;
   Gtk::Entry* itsEmax;
   Gtk::SpinButton* itsN;
@@ -84,12 +84,16 @@ BasisSetFrame::BasisSetFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Bu
   , Gtk::Frame(cobject)
   , itsBuilder(refBuilder)
   , itsType(refBuilder->get_widget<Gtk::DropDown>("basisset_dropdown"))
-  , itsTypes(refBuilder->get_widget<Gtk::StringList>("basisset_types"))
   , itsEmin(refBuilder->get_widget<Gtk::Entry>("basisset_emin"))
   , itsEmax(refBuilder->get_widget<Gtk::Entry>("basisset_emax"))
   , itsN(refBuilder->get_widget<Gtk::SpinButton>("basisset_N"))
 {
-  
+  std::vector<Glib::ustring> strings;
+  for (const auto& [key, _] : bstype_map) strings.push_back(key);
+
+  itsTypes = Gtk::StringList::create(strings);
+  itsType->set_model(itsTypes);
+  itsType->set_selected(0);
 }
   
 BasisSetFrame::~BasisSetFrame() {};
@@ -108,7 +112,7 @@ BasisSetFrame::bstypes BasisSetFrame::find(Glib::ustring s)
 BasisSet* BasisSetFrame::create() const
 {
   guint it=itsType->get_selected();
-  Glib::ustring bs_stype=itsTypes->get_string(it);
+  Glib::ustring bs_stype=itsTypes->get_string(it);  
   bstypes bs_type=find(bs_stype);
   double emin=Glib::Ascii::strtod(itsEmin->get_text());
   double emax=Glib::Ascii::strtod(itsEmax->get_text());
@@ -150,7 +154,7 @@ private:
 
   const Glib::RefPtr<Gtk::Builder> itsBuilder;
   Gtk::DropDown* itsType;
-  Gtk::StringList* itsTypes;
+  Glib::RefPtr<Gtk::StringList> itsTypes; 
   Gtk::CheckButton* itsPolarized;
 };
 
@@ -160,9 +164,15 @@ HamiltonianFrame::HamiltonianFrame(BaseObjectType* cobject, const Glib::RefPtr<G
   , Gtk::Frame(cobject)
   , itsBuilder(refBuilder)
   , itsType(refBuilder->get_widget<Gtk::DropDown>("ham_dropdown"))
-  , itsTypes(refBuilder->get_widget<Gtk::StringList>("ham_types"))
   , itsPolarized(refBuilder->get_widget<Gtk::CheckButton>("ham_polarized"))
-  {}
+{
+  std::vector<Glib::ustring> strings;
+  for (const auto& [key, _] : htype_map) strings.push_back(key);
+
+  itsTypes = Gtk::StringList::create(strings);
+  itsType->set_model(itsTypes);
+  itsType->set_selected(0);
+}
 
 HamiltonianFrame::~HamiltonianFrame() {};
 
@@ -175,7 +185,7 @@ const std::map<Glib::ustring,HamiltonianFrame::htypes> HamiltonianFrame::htype_m
     {"Dirac HF",DHF},
   };
 
-  HamiltonianFrame::htypes HamiltonianFrame::find(Glib::ustring s)
+HamiltonianFrame::htypes HamiltonianFrame::find(Glib::ustring s)
   {
       auto i=htype_map.find(s);
       if (i==htype_map.end())
@@ -189,7 +199,7 @@ const std::map<Glib::ustring,HamiltonianFrame::htypes> HamiltonianFrame::htype_m
 Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams& m, const BasisSet* bs) const
 {
   guint it=itsType->get_selected();
-  Glib::ustring h_stype=itsTypes->get_string(it);
+  Glib::ustring h_stype=itsTypes->get_string(it);  
   htypes h_type=find(h_stype);
   bool polarized=itsPolarized->get_active();
   Hamiltonian* h=0;
@@ -215,7 +225,26 @@ Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams& m, const 
 }
 
 
+class Controller
+{
+public:
+  Controller(const Glib::RefPtr<Gtk::Builder>& refBuilder)
+  : itsStartButton(refBuilder->get_widget<Gtk::Button>("start"))
+  , itsStepButton(refBuilder->get_widget<Gtk::Button>("step"))
+  , itsStopButton(refBuilder->get_widget<Gtk::Button>("pause"))
+  , itsAtom(Gtk::Builder::get_widget_derived<AtomFrame>(refBuilder, "atom_frame"))
+  , itsBasisSet(Gtk::Builder::get_widget_derived<BasisSetFrame>(refBuilder, "basisset_frame"))
+  , itsHamiltonian(Gtk::Builder::get_widget_derived<HamiltonianFrame>(refBuilder, "ham_frame"))
+  {};
 
+private:
+  Gtk::Button* itsStartButton;
+  Gtk::Button* itsStepButton;
+  Gtk::Button* itsStopButton;
+  AtomFrame* itsAtom;
+  BasisSetFrame* itsBasisSet;
+  HamiltonianFrame* itsHamiltonian;
+};
 
 
 
@@ -248,6 +277,7 @@ void on_app_activate()
       return;
     }
   
+    Controller c(refBuilder);
     auto main = refBuilder->get_widget<Gtk::Window>("main");
     app->add_window(*main);
     main->set_visible(true);
