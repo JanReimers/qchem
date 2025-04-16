@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "Imp/Cluster/Atom.H"
+#include "Imp/Cluster/Molecule.H"
 #include "Imp/BasisSet/Atom/l/Slater_BS.H"
 #include "Imp/BasisSet/Atom/ml/Slater_BS.H"
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
@@ -15,7 +16,7 @@ public:
   AtomFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
   virtual ~AtomFrame();
 
-  Atom* create() const;
+  Molecule* create() const;
 
 private:
   const Glib::RefPtr<Gtk::Builder> itsBuilder;
@@ -40,11 +41,13 @@ AtomFrame::AtomFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& 
 AtomFrame::~AtomFrame()
 { 
 }
-Atom* AtomFrame::create() const
+Molecule* AtomFrame::create() const
 {
     int Z=itsZ_spin->get_value_as_int();
     int charge=itsCharge_spin->get_value_as_int();
-    return new Atom(Z,charge);
+    Molecule* m=new Molecule();
+    m->Insert(new Atom(Z,charge));
+    return m;
 }
 
 class BasisSetFrame : public Gtk::Frame
@@ -145,7 +148,7 @@ public:
   HamiltonianFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
   virtual ~HamiltonianFrame();
 
-  Hamiltonian* create(const cl_t& cl,const MeshParams& m, const BasisSet* bs) const;
+  Hamiltonian* create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const;
 
 private:
   enum htypes {H1E,HF,DFT,D1E,DHF};
@@ -196,7 +199,7 @@ HamiltonianFrame::htypes HamiltonianFrame::find(Glib::ustring s)
       return i->second;
   }
   
-Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams& m, const BasisSet* bs) const
+Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const
 {
   guint it=itsType->get_selected();
   Glib::ustring h_stype=itsTypes->get_string(it);  
@@ -212,7 +215,8 @@ Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams& m, const 
       h= polarized ? (Hamiltonian*)new Ham_HF_P(cl) : (Hamiltonian*)new Ham_HF_U(cl);
       break;
     case DFT : 
-      h= polarized ? (Hamiltonian*)new Ham_DFT_P(cl,0.7,m,bs) : (Hamiltonian*)new Ham_DFT_U(cl,0.7,m,bs);
+      assert(m);
+      h= polarized ? (Hamiltonian*)new Ham_DFT_P(cl,0.7,*m,bs) : (Hamiltonian*)new Ham_DFT_U(cl,0.7,*m,bs);
       break;
     case D1E : 
       h= new Ham_DHF_1E(cl);
@@ -225,17 +229,24 @@ Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams& m, const 
 }
 
 
-class Controller
+class ControllerWindow : public Gtk::Window
 {
 public:
-  Controller(const Glib::RefPtr<Gtk::Builder>& refBuilder)
-  : itsStartButton(refBuilder->get_widget<Gtk::Button>("start"))
+  ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gtk::Builder>& refBuilder)
+  : Glib::ObjectBase("main")
+  , Gtk::Window(cobject)
+  , itsStartButton(refBuilder->get_widget<Gtk::Button>("start"))
   , itsStepButton(refBuilder->get_widget<Gtk::Button>("step"))
   , itsStopButton(refBuilder->get_widget<Gtk::Button>("pause"))
   , itsAtom(Gtk::Builder::get_widget_derived<AtomFrame>(refBuilder, "atom_frame"))
   , itsBasisSet(Gtk::Builder::get_widget_derived<BasisSetFrame>(refBuilder, "basisset_frame"))
   , itsHamiltonian(Gtk::Builder::get_widget_derived<HamiltonianFrame>(refBuilder, "ham_frame"))
-  {};
+  {
+    itsStartButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
+    itsStepButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
+  };
+
+  void new_model();
 
 private:
   Gtk::Button* itsStartButton;
@@ -247,7 +258,13 @@ private:
 };
 
 
-
+void ControllerWindow::new_model()
+{
+  std::cout << "New model!!" << std::endl;
+  HamiltonianFrame::cl_t a(itsAtom->create());
+  BasisSet* bs=itsBasisSet->create();
+  Hamiltonian* h=itsHamiltonian->create(a,0,bs);
+}
 
 
 
@@ -277,8 +294,9 @@ void on_app_activate()
       return;
     }
   
-    Controller c(refBuilder);
-    auto main = refBuilder->get_widget<Gtk::Window>("main");
+    // Controller c(refBuilder);
+    // auto main = refBuilder->get_widget<Gtk::Window>("main");
+    auto main= Gtk::Builder::get_widget_derived<ControllerWindow>(refBuilder, "main");
     app->add_window(*main);
     main->set_visible(true);
 }

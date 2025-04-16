@@ -1,4 +1,5 @@
 Priority 1:
+    -It would be nice Atom derivd from Cluster.
     -BasisSet:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
