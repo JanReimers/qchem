@@ -10,6 +10,7 @@
 #include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Imp/Containers/stl_io.h"
 #include <LAParams.H>
+#include <IterationParams.H>
 
 class AtomFrame : public Gtk::Frame
 {
@@ -324,6 +325,42 @@ LAParams LAParamsFrame::create() const
   return {pkg_type,ortho_type,trunctol,abstol};
 }
 
+class SCFIterationParamsFrame : public Gtk::Frame
+{
+public:
+SCFIterationParamsFrame() {};
+SCFIterationParamsFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
+  virtual ~SCFIterationParamsFrame() {};
+
+  SCFIterationParams create() const;
+private:
+    
+  Gtk::SpinButton*  itsNIter;
+  Gtk::Entry*       itsMinDeltaRo;
+  Gtk::Entry*       itsRoRelax;
+  Gtk::CheckButton* itsVerbose;
+};
+
+SCFIterationParamsFrame::SCFIterationParamsFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder) 
+  : Glib::ObjectBase("iteration_frame")
+  , Gtk::Frame(cobject)
+  , itsNIter(refBuilder->get_widget<Gtk::SpinButton>("SCF_max_iter"))
+  , itsMinDeltaRo(refBuilder->get_widget<Gtk::Entry>("SCF_delta_ro"))
+  , itsRoRelax(refBuilder->get_widget<Gtk::Entry>("SCF_ro_relax"))
+  , itsVerbose(refBuilder->get_widget<Gtk::CheckButton>("SCF_verbose"))
+{
+  
+}
+
+SCFIterationParams SCFIterationParamsFrame::create() const
+{
+  guint N_iter=itsNIter->get_value_as_int();
+  double min_delta_ro=Glib::Ascii::strtod(itsMinDeltaRo->get_text());
+  double ro_relax=Glib::Ascii::strtod(itsRoRelax->get_text());
+  bool verbose=itsVerbose->get_active();
+  return {N_iter,min_delta_ro,ro_relax,0.0,verbose};
+}
+
 
 class ControllerWindow : public Gtk::Window
 {
@@ -338,6 +375,7 @@ public:
   , itsBasisSet(Gtk::Builder::get_widget_derived<BasisSetFrame>(refBuilder, "basisset_frame"))
   , itsHamiltonian(Gtk::Builder::get_widget_derived<HamiltonianFrame>(refBuilder, "ham_frame"))
   , itsLAParams(Gtk::Builder::get_widget_derived<LAParamsFrame>(refBuilder, "laparams_frame"))
+  , itsIterationParams(Gtk::Builder::get_widget_derived<SCFIterationParamsFrame>(refBuilder, "Iteration_frame"))
   {
     itsStartButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
     itsStepButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
@@ -353,6 +391,7 @@ private:
   BasisSetFrame*    itsBasisSet;
   HamiltonianFrame* itsHamiltonian;
   LAParamsFrame*    itsLAParams;
+  SCFIterationParamsFrame* itsIterationParams;
 };
 
 
