@@ -9,7 +9,8 @@ file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 # set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/debug)
 # set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/release)
 
-add_library(qchem ${qchem_SOURCES}) 
+add_library(qchem) 
+target_sources(qchem PRIVATE ${qchem_SOURCES})
 
 target_compile_options(qchem PRIVATE -Wall -pg -fopenmp
     $<$<CONFIG:Debug>:-g -O0>
@@ -20,7 +21,7 @@ target_compile_definitions(qchem PRIVATE
     $<$<CONFIG:Release>:-DNDEBUG>
 )
 target_include_directories(qchem PRIVATE include ../oml/include)
-target_link_libraries(qchem oml lapack gtest pthread wignerSymbols)
+target_link_libraries(qchem oml lapack gtest wignerSymbols)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 
