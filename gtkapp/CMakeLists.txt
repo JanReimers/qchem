@@ -10,7 +10,7 @@ link_directories(
     $<$<CONFIG:Debug>: ../../oml/Debug>
     $<$<CONFIG:Release>: ../../oml/Release>
 )
-add_executable(qchem-gtk qchem-gtk.cpp qchem-gtk.ui)
+add_executable(qchem-gtk qchem-gtk.cpp qchem-gtk.ui ControllerWindow.cpp AtomFrame.cpp BasisSetFrame.cpp HamiltonianFrame.cpp LAParamsFrame.cpp SCFFrame.cpp MeshFrame.cpp)
 
 target_compile_options(qchem-gtk PRIVATE -Wall -pg -fopenmp ${GTKMM_CFLAGS_OTHER}
     $<$<CONFIG:Debug>:-g -O0>
