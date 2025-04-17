@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.5.0)
 
-#find_package(PkgConfig REQUIRED)
-#pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
+pkg_check_modules(PLPlot REQUIRED gtkmm-plplot-3.0)
 
 #install(FILES qchem-gtk.ui DESTINATION bin)
 
@@ -11,14 +12,14 @@ link_directories(
     $<$<CONFIG:Release>: ../../oml/Release>
 )
 add_executable(qchem-gtk)
-target_sources(qchem-gtk PRIVATE qchem-gtk.cpp qchem-gtk.ui ControllerWindow.cpp AtomFrame.cpp BasisSetFrame.cpp HamiltonianFrame.cpp LAParamsFrame.cpp SCFFrame.cpp MeshFrame.cpp)
-target_compile_options(qchem-gtk PRIVATE -Wall -pg -fopenmp ${GTKMM_CFLAGS_OTHER}
+target_sources(qchem-gtk PRIVATE qchem-gtk.cpp qchem-gtk.ui ControllerWindow.cpp AtomFrame.cpp BasisSetFrame.cpp HamiltonianFrame.cpp LAParamsFrame.cpp SCFFrame.cpp MeshFrame.cpp PlotWindow.cpp)
+target_compile_options(qchem-gtk PRIVATE -Wall -pg -fopenmp ${GTKMM_CFLAGS_OTHER} ${PLPlot_CFLAGS_OTHER}
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )
-target_link_options(qchem-gtk PRIVATE -fopenmp -Wl,--export-dynamic ${GTKMM_LDFLAGS_OTHER})
-target_include_directories(qchem-gtk PRIVATE ../include ../../oml/include ${GTKMM_INCLUDE_DIRS})
-target_link_libraries(qchem-gtk qchem ${GTKMM_LIBRARIES})
+target_link_options(qchem-gtk PRIVATE -fopenmp -Wl,--export-dynamic ${GTKMM_LDFLAGS_OTHER} ${PLPlot_LDFLAGS_OTHER})
+target_include_directories(qchem-gtk PRIVATE ../include ../../oml/include ${GTKMM_INCLUDE_DIRS} ${PLPlot_INCLUDE_DIRS})
+target_link_libraries(qchem-gtk qchem ${GTKMM_LIBRARIES} ${PLPlot_LIBRARIES})
 
 add_custom_command(TARGET qchem-gtk POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy

@@ -34,7 +34,9 @@
                 "/usr/lib/x86_64-linux-gnu/cairomm-1.16/include",
                 "/usr/include/pangomm-2.48",
                 "/usr/lib/x86_64-linux-gnu/pangomm-2.48/include",
-                "/usr/include/gtk-4.0/unix-print"
+                "/usr/include/gtk-4.0/unix-print",
+                "/usr/local/include/gtkmm-plplot-3.0",
+                "/usr/local/lib/x86_64-linux-gnu/gtkmm-plplot-3.0/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

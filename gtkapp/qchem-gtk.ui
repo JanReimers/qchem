@@ -341,22 +341,10 @@ Eular Mclaren</property>
           <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkNotebook">
+              <object class="GtkNotebook" id="notebook">
                 <property name="group-name">Plots</property>
                 <property name="name">Plots</property>
                 <property name="page">3</property>
-                <child>
-                  <object class="GtkDrawingArea" id="phir">
-                    <property name="content-height">355</property>
-                    <property name="name">Phi(r)</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkDrawingArea"/>
-                </child>
-                <child>
-                  <object class="GtkDrawingArea"/>
-                </child>
               </object>
             </child>
             <child>

@@ -8,10 +8,12 @@
 #include "SCFFrame.H"
 #include "MeshFrame.H"
 #include "Imp/BasisSet/Atom/EC.H"
+#include "PlotWindow.H"
 
 ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gtk::Builder>& refBuilder)
 : Glib::ObjectBase("main")
 , Gtk::Window(cobject)
+, itsNotebook(refBuilder->get_widget<Gtk::Notebook>("notebook"))
 , itsStartButton(refBuilder->get_widget<Gtk::Button>("start"))
 , itsStepButton(refBuilder->get_widget<Gtk::Button>("step"))
 , itsPauseButton(refBuilder->get_widget<Gtk::Button>("pause"))
@@ -24,6 +26,14 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
 {
   itsStartButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
   itsStepButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
+ 
+    itsNotebook->set_margin(10);
+    itsNotebook->set_expand();
+
+    auto plotw=new PlotWindow();
+    // auto plotw=new Gtk::Label("asdfasd");
+    itsNotebook->append_page(*plotw,"plot1");
+
 };
 
 #include "Imp/Cluster/Molecule.H"

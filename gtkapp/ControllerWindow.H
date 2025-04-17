@@ -19,6 +19,7 @@ public:
   void new_model();
 
 private:
+  Gtk::Notebook* itsNotebook;
   Gtk::Button* itsStartButton;
   Gtk::Button* itsStepButton;
   Gtk::Button* itsPauseButton;
@@ -30,6 +31,7 @@ private:
   SCFIterationParamsFrame* itsIterationParams;
   MeshFrame*               itsMeshFrame;
   SCFIterator*             itsSCFIterator;
+
 };
 
 #endif //_ControllerWindow_H_
