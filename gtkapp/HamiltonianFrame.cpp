@@ -72,3 +72,15 @@ Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams* m, const 
   return h;
 }
 
+#include "Imp/WaveFunction/UnPolarized_WF.H"
+#include "Imp/WaveFunction/Polarized_WF.H"
+
+WaveFunction* HamiltonianFrame::create(BasisSet* bs, ElectronConfiguration* ec ) const
+{
+    assert(bs);
+    assert(ec);
+    if (itsPolarized->get_active())
+        return new Polarized_WF(bs,ec);
+    else
+        return new UnPolarized_WF(bs,ec);
+}

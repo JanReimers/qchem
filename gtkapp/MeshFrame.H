@@ -13,7 +13,7 @@ public:
   MeshFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
   virtual ~MeshFrame() {};
 
-  Mesh* create() const;
+  MeshParams create() const;
 private:
   
   static const std::map<Glib::ustring,qchem::RadialType> radial_type_map;

@@ -14,6 +14,7 @@ public:
   virtual ~HamiltonianFrame();
 
   Hamiltonian* create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const;
+  WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
 
 private:
   enum htypes {H1E,HF,DFT,D1E,DHF};

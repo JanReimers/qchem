@@ -7,6 +7,7 @@
 #include "LAParamsFrame.H"
 #include "SCFFrame.H"
 #include "MeshFrame.H"
+#include "Imp/BasisSet/Atom/EC.H"
 
 ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gtk::Builder>& refBuilder)
 : Glib::ObjectBase("main")
@@ -27,13 +28,26 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
 
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
+#include <MeshParams.H>
+#include <SCFIterator.H>
+#include <IterationParams.H>
+#include <BasisSet.H>
+
 void ControllerWindow::new_model()
 {
   std::cout << "New model!!" << std::endl;
+  LAParams lap=itsLAParams->create();
+
   HamiltonianFrame::cl_t a(itsAtom->create());
   BasisSet* bs=itsBasisSet->create();
-  //Hamiltonian* h=
-  itsHamiltonian->create(a,0,bs);
+  bs->Set(lap);
+  MeshParams m=itsMeshFrame->create();
+  Hamiltonian* h=itsHamiltonian->create(a,&m,bs);
+  Atom_EC ec(a->GetNumElectrons());
+  WaveFunction* wf=itsHamiltonian->create(bs,&ec);
+  SCFIterationParams scfip=itsIterationParams->create();
+  itsSCFIterator=new SCFIterator(wf,h);
+  itsSCFIterator->Iterate(scfip);
 }
 
 

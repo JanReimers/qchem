@@ -10,6 +10,7 @@ class HamiltonianFrame;
 class LAParamsFrame;
 class SCFIterationParamsFrame;
 class MeshFrame;
+class SCFIterator;
 
 class ControllerWindow : public Gtk::Window
 {
@@ -21,12 +22,14 @@ private:
   Gtk::Button* itsStartButton;
   Gtk::Button* itsStepButton;
   Gtk::Button* itsPauseButton;
-  AtomFrame*        itsAtom;
-  BasisSetFrame*    itsBasisSet;
-  HamiltonianFrame* itsHamiltonian;
-  LAParamsFrame*    itsLAParams;
+
+  AtomFrame*               itsAtom;
+  BasisSetFrame*           itsBasisSet;
+  HamiltonianFrame*        itsHamiltonian;
+  LAParamsFrame*           itsLAParams;
   SCFIterationParamsFrame* itsIterationParams;
-  MeshFrame* itsMeshFrame;
+  MeshFrame*               itsMeshFrame;
+  SCFIterator*             itsSCFIterator;
 };
 
 #endif //_ControllerWindow_H_

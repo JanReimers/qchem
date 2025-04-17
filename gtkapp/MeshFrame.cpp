@@ -65,7 +65,7 @@ qchem::AngleType MeshFrame::find_angular(Glib::ustring s)
     return i->second;
 }
 
-Mesh* MeshFrame::create() const
+MeshParams MeshFrame::create() const
 {
   guint it=itsRadialType->get_selected();
   Glib::ustring r_stype=itsRadialTypes->get_string(it);  
@@ -77,31 +77,8 @@ Mesh* MeshFrame::create() const
   guint Nr=itsNRadial->get_value_as_int();
   guint Na=itsNAngular->get_value_as_int();
   int m=2,L=Na;
-  double alpha=2.0,start=0.01,stop=40.0;
+  double alpha=2.0;
 
-  RadialMesh* mr=0;
-  switch (r_type)
-  {
-    case qchem::MHL : 
-      mr=new MHLRadialMesh(Nr,m,alpha);
-      break;
-    case qchem::Log : 
-      mr=new LogRadialMesh(start,stop,Nr);
-      break;
-  } 
-
-  Mesh* ma=0;
-  switch (a_type)
-  {
-    case qchem::Gauss :
-      ma= new GaussAngularMesh(Na);
-      break;
-    case qchem::GaussLegendre :
-      ma= new GaussLegendreAngularMesh(L,m);
-      break;
-    case qchem::EulerMclaren :
-      ma= new EulerMaclarenAngularMesh(L,m);
-  }
-  return new AtomMesh(*mr,*ma,RVec3(0,0,0));
+  return {r_type,Nr,m,alpha,a_type,Na,1,1,1};
 }
 
