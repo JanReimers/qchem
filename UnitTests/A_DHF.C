@@ -99,7 +99,7 @@ TEST_P(A_SLmj_DHF,Multiple)
     Init(N,Z/200.,Z*200.,GetLMax(1));
     Iterate({1,Z*1e-4,1.0,0.0,false});
 
-    std::vector<const Symmetry*> qns=GetQuantumNumbers();
+    BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     const Orbital* orb0=GetOrbital(0,oqns);
     double e0=orb0->GetEigenEnergy();
@@ -170,7 +170,7 @@ TEST_P(A_SG_DHF,Multiple)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1.0,0.0,true});
 
-    std::vector<const Symmetry*> qns=GetQuantumNumbers();
+    BasisSet::symv_t qns=GetSymmetries();
     cout << "QN=" << *qns[0] << endl;
     Irrep_QNs oqns(Spin::Up,qns[0]);
     const Orbital* orb0=GetOrbital(0,oqns);
@@ -260,7 +260,7 @@ TEST_F(A_SG_HFP_H,Phir)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const Symmetry*> qns=GetQuantumNumbers();
+    BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     const Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
@@ -278,7 +278,7 @@ TEST_F(A_SG_DHF_H,Phir)
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const Symmetry*> qns=GetQuantumNumbers();
+    BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     const Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;
@@ -295,7 +295,7 @@ TEST_F(A_SL_DHF_H,Phir)
     Init(N,1./100.,100.0,GetLMax(1));
     Iterate({1,1e-4,1.0,0.0,true});
 
-    std::vector<const Symmetry*> qns=GetQuantumNumbers();
+    BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
     const Orbital* orb0=GetOrbital(0,oqns);
     double n1,n_expected,idphi;

@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 #include <types.H>
+#include <BasisSet.H>
 #include <IterationParams.H>
 #include <LAParams.H>
 #include "Imp/Misc/PeriodicTable.H"
@@ -11,6 +12,7 @@
 class QchemTester
 {
 public:
+    typedef BasisSet::symv_t symv_t;
     QchemTester();
     virtual ~QchemTester();
     void   Init(double eps);
@@ -23,7 +25,7 @@ public:
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
-    std::vector<const Symmetry*> GetQuantumNumbers() const;
+    symv_t GetSymmetries() const;
     
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;

@@ -4,6 +4,12 @@
 #include "Imp/Containers/ptr_vector_io.h"
 #include <Irrep_BS.H>
 
+void BS_Common::Insert(bs_t* bs)
+{
+    assert(bs);
+    itsBasisSets.push_back(bs);
+}
+
 void BS_Common::Set(const LAParams& lap)
 {
     for (auto b:itsBasisSets) b->Set(lap);
@@ -17,11 +23,14 @@ size_t BS_Common::GetNumFunctions() const
     return ret;
 }
 
-void BS_Common::Insert(bs_t* bs)
+BasisSet::symv_t BS_Common::GetSymmetries  () const
 {
-    assert(bs);
-    itsBasisSets.push_back(bs);
+    symv_t symv;
+    for (auto b:itsBasisSets) symv.push_back(&b->GetSymmetry());
+    return symv;
 }
+
+
 
 
 //
@@ -32,7 +41,3 @@ std::ostream&  BS_Common::Write(std::ostream&  os  ) const
     return os << itsBasisSets;
 }
 
-std::istream&  BS_Common::Read (std::istream&  is  )
-{
-    return is;
-}

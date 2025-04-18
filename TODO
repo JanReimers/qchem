@@ -1,4 +1,32 @@
 Priority 1:
+    -Plotting
+        Use ScalerFunction interface.
+            Add valarray op()(valarray x)
+        Use VectorFunction interface for TOrbitals.
+            Add vector<valarray> op()(valarray x)
+        TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
+            We need a way to get a vector<Irrep_QNs> of allowed Irrep_QNs
+            BS can supply a vector<const Symmetry*> which is spin agnostic.
+                Pol_WF and UnPol-WF would need to add the spin aspect.
+        How to plot orbitals
+            For UnPol plot
+                1) Change line colour based on symmetry/Irrep_QNs
+                2) Change line style (dashed dots etc) based principle QN
+            For Pol orbitals
+                -Easy solution is to just make two separate charts, but that hides the delta
+                -Three charts {up,dn,up-down} (Seomtimes the HOMO orbtial will occ for spin up and un occupied for spin down)
+                -Two charts {0.5*(up+dn),0.5*(up-down)}
+                -Use lines for spin up and dots for spin down.
+            Steps
+                1) Get vector<const Symmetry*> from BS
+                2) Request orbitals using 
+                    UnPol Irrep_QNs(Spin::None,sym)
+                    Pol Irrep_QNs(Spin::Up,sym) Irrep_QNs(Spin::Down,sym)
+                3) Choose a x (really r) mesh: Linear or Log valarray<double> 
+                4) Use VectorFunction vector<valarray> op()(valarray x)
+                5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
+                6) HamFrame has Pol check box, so it can return correct type?
+
     -Support LAPack::Cholsky.
     -Clean up naming for IterationParams.
         SCFParams

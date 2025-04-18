@@ -21,11 +21,13 @@ public:
     typedef Orbital_IBS bs_t;
     typedef TOrbital_IBS<double> tbs_t;
     typedef optr_vector1<bs_t*>::const_iterator const_iterator;
+    typedef std::vector<const Symmetry*> symv_t;
     
     BasisSet() {};
     virtual ~BasisSet() {}; 
     virtual void Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
+    virtual symv_t GetSymmetries() const=0;
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;

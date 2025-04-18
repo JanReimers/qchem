@@ -114,14 +114,9 @@ int QchemTester::GetZ() const
     return GetCluster()->GetNuclearCharge();
 }
 
-std::vector<const Symmetry*> QchemTester::GetQuantumNumbers() const
+QchemTester::symv_t QchemTester::GetSymmetries() const
 {
-    std::vector<const Symmetry*> qns;
-    for (const auto& b : itsBasisSet->Iterate<Orbital_IBS>())
-    {
-        qns.push_back(&(b->GetSymmetry()));
-    }
-    return qns;
+    return itsBasisSet->GetSymmetries();
 }
 
 // Fit_IBS* QchemTester::GetCBasisSet() const
