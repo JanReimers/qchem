@@ -31,7 +31,11 @@ template <class T> class LASolverCommon
     typedef typename Base::RVec RVec;
     typedef typename Base::Mat  Mat;
     typedef typename Base::SMat SMat;
+    typedef typename Base::RSMat RSMat;
     typedef DiagonalMatrix<T>  DMat;
+
+    virtual RSMat  Transform(const RSMat& M) const;
+
 protected:
     LASolverCommon(const LAParams& lap) : itsParams(lap) {};
     //

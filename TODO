@@ -1,10 +1,10 @@
 Priority 1:
     -Plotting
-        Use ScalerFunction interface.
+        Done: Use ScalerFunction interface.
             Add valarray op()(valarray x)
-        Use VectorFunction interface for TOrbitals.
+        No: Use VectorFunction interface for TOrbitals.
             Add vector<valarray> op()(valarray x)
-        TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
+        Done: TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
             We need a way to get a vector<Irrep_QNs> of allowed Irrep_QNs
             BS can supply a vector<const Symmetry*> which is spin agnostic.
                 Pol_WF and UnPol-WF would need to add the spin aspect.
@@ -17,17 +17,27 @@ Priority 1:
                 -Three charts {up,dn,up-down} (Seomtimes the HOMO orbtial will occ for spin up and un occupied for spin down)
                 -Two charts {0.5*(up+dn),0.5*(up-down)}
                 -Use lines for spin up and dots for spin down.
-            Steps
-                1) Get vector<const Symmetry*> from BS
-                2) Request orbitals using 
+            Done: Steps
+                Done: 1) Get vector<const Symmetry*> from BS
+                Done: 2) Request orbitals using 
                     UnPol Irrep_QNs(Spin::None,sym)
                     Pol Irrep_QNs(Spin::Up,sym) Irrep_QNs(Spin::Down,sym)
-                3) Choose a x (really r) mesh: Linear or Log valarray<double> 
+                Done: 3) Choose a x (really r) mesh: Linear or Log valarray<double> 
                 4) Use VectorFunction vector<valarray> op()(valarray x)
                 5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
                 6) HamFrame has Pol check box, so it can return correct type?
-
+        Clear Notebook
+    -Get LMax out of periodic table.
     -Support LAPack::Cholsky.
+        **DPPTRF packed format (symmetric storage)
+        These are all for full storage:
+            DPOTRF This is the block version of the algorithm, calling Level 3 BLAS.
+            DPOTRF2 using the recursive algorithm.
+            DPOTF2 This is the unblocked version of the algorithm, calling Level 2 BLAS.
+            DPSTRF with complete pivoting calls level 3 BLAS
+            DPSTF2 with complete pivoting calls level 2 BLAS
+            DPORFS improves the computed solution to a system of linear equations
+
     -Clean up naming for IterationParams.
         SCFParams
     -Get rid of SCFIterationParams::kT

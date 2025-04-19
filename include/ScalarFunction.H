@@ -28,11 +28,14 @@ public:
     typedef Vector<Vec3>     Vec3Vec;//vector of 3 space vectors.
     typedef Vector3D<double> RVec3;  //Real space vector.
     typedef Vector<double>   RVec;
+    typedef std::valarray<T> va_t;
+    typedef std::valarray<double> rva_t;
 
     virtual ~ScalarFunction()  {};
 
     virtual T        operator()(const RVec3&      ) const=0;
     virtual Vec      operator()(const Mesh&       ) const  ;
+    virtual va_t     operator()(const rva_t& r,RVec3 dir=Vec3(1,0,0)) const  ;
 
     virtual Vec3    Gradient   (const RVec3&         ) const=0;
     virtual Vec3Vec Gradient   (const Mesh&          ) const  ;

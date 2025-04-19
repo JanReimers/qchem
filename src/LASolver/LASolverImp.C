@@ -10,6 +10,13 @@
 //
 //  Common level.
 //
+
+template <class T> typename LASolver<T>::RSMat  LASolverCommon<T>::Transform(const RSMat& M) const
+{
+    Mat Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
+    return MakeSymmetric(Mprime,"Test matrix");
+}
+
 template <class T> void LASolverCommon<T>::Rescale(Mat& V,const RVec& w)
 {
     for (auto j:V.cols())

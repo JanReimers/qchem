@@ -12,7 +12,7 @@
 #include <cassert>
 #include <iostream>
 
-LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-4,1e-12});
+LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
 //-----------------------------------------------------------------------------
 //
 //  Construction zone

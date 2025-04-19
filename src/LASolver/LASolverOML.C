@@ -19,6 +19,7 @@ template <class T> typename LASolver<T>::UdType LASolverOMLCommon<T>::Solve(cons
 }
 
 
+
 template <class T> void LASolverOMLEigen<T>::SetBasisOverlap(const SMat& S)
 {
     auto [U,w] =Diagonalize(S);

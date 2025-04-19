@@ -58,7 +58,14 @@ template <class T> class Vector3D;
 
 typedef Vector3D<double> RVec3;
 //
-//  Forward declarations for functions types.
+//  Some stuff in std::
+//
+namespace std 
+{
+    template <typename T> class valarray;
+}
+//
+//  Forward declarations for function types.
 //
 template <class T> class ScalarFunction;
 template <class T> class VectorFunction;

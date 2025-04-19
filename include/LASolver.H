@@ -45,6 +45,8 @@ public:
     virtual void   SetBasisOverlap(const SMat& S)=0;
     virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.
     virtual RSMat  Inverse(const RSMat& S) const=0;
+    // For unit testing
+    virtual RSMat  Transform(const RSMat& M) const=0; // M' = Vd * M * V, where S = V * Vd
 };
 
 

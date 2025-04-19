@@ -1,101 +1,90 @@
 // file: EigenSolverUT.C  Unit test for the eigen solver
 
 #include "gtest/gtest.h"
-#include "HartreeFockTester.H"
-#include "Cluster/Atom.H"
-
-#include "DFTDataBase/HeapDB/HeapDB.H"
-#include "Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
-
-#include "Misc/PeriodicTable.H"
-#include "types.H"
-#include "oml/numeric/LapackSVDSolver.H"
-#include "oml/diagonalmatrix.h"
-#include "oml/numeric.h"
+#include "Imp/BasisSet/Atom/l/Slater_BS.H"
+#include <LAParams.H>
+#include <LASolver.H>
+// #include "oml/numeric/LapackSVDSolver.H"
+// #include "oml/diagonalmatrix.h"
+// #include "oml/numeric.h"
 #include <iostream> 
 #include <cassert>
 
 using std::cout;
 using std::endl;
 
-extern PeriodicTable thePeriodicTable;
-
 //----------------------------------------------------------------------------------------------
 //
 //  Testing class
 //
-class qchem_EigenSolverTests 
-    : public ::testing::TestWithParam<LinearAlgebraParams>
+class OrthogonalizeTests : public ::testing::Test
 {
 public:
-    
-    qchem_EigenSolverTests() 
-        : itsDB(0)
-        , itsBasisSet(0)
-         {}
-    void Init(size_t NBasis, double minexp, double maxexp, size_t L,const LinearAlgebraParams& lap)
+    OrthogonalizeTests()
+    : Lmax(0) //Higher L gets easier to orthogonalize
+    , bs(0)
     {
-        if (itsBasisSet) 
-        {
-            assert(itsDB);
-            delete itsDB;   
-            delete itsBasisSet;
-        }
-        itsDB=new HeapDB<double>();
-        itsBasisSet=new SphericalGaussian::IrrepBasisSet(lap,itsDB, NBasis, minexp, maxexp,L);
-        
+        StreamableObject::SetToPretty();
     }
-
-    
-    SMatrix<double> GetOverlap() const
+    void Set(int N, LAParams lap)
     {
-        return itsDB->GetOverlap(itsBasisSet);
-    }
-//    void OutIn(const PMStreamableObject* pout,PMStreamableObject* pin,StreamableObject::Mode);
-    IntegralDataBase<double>* itsDB;
-    IrrepBasisSet* itsBasisSet;
-};
+        if (bs) delete bs;
+        bs=new Atoml::Slater::BasisSet(N,0.1,10,Lmax);
+        bs->Set(lap);
+    }    
+    
+    int Lmax;
+    Atoml::Slater::BasisSet* bs;
+ };
 
-TEST_F(qchem_EigenSolverTests,MinSVEVTests)
-{
-    StreamableObject::SetToPretty();
-    LinearAlgebraParams lap={qchem::Lapack,qchem::SVD,1e-6,1e-12};
-//    for (size_t L=0;L<=10;L++)
-//    {
-//        Init(20,.01,100.0,L,lap);    
-//        SMatrix<double> S=GetOverlap();
-//        auto [U,w]=Diagonalize(S);
-//        
-//        auto [U1,s,V]=SVD(S);
-//        cout << "L=" << L << "   w=" << Min(w) << " min(s)=" << Min(s) << endl;;
-//    }
-}
+ const double trunc_tol=1e-12;
+ const double alg_tol=1e-15;
 
-LinearAlgebraParams laps[] = { 
-    {qchem::Lapack,qchem::SVD  ,1e-2,1e-10},
-    {qchem::Lapack,qchem::Eigen,1e-2,1e-10},
-    {qchem::OML   ,qchem::SVD  ,1e-2,1e-10},
-    {qchem::OML   ,qchem::Eigen,1e-2,1e-10},
+LAParams laps[] = { 
+    {qchem::Lapack,qchem::SVD  ,trunc_tol,alg_tol},
+    {qchem::Lapack,qchem::Eigen,trunc_tol,alg_tol},
+    {qchem::OML   ,qchem::SVD  ,trunc_tol,alg_tol},
+    {qchem::OML   ,qchem::Eigen,trunc_tol,alg_tol},
+    {qchem::OML   ,qchem::Cholsky,trunc_tol,alg_tol},
     };
 
-TEST_F(HartreeFockAtomTester, AtomsHFEigenSolvers)
+
+double Norm(const SMatrix<double>& s)
 {
-    double eps_e=2e-4; //Since we are truncating the BS we get higher errors.
-    SCFIterationParams ipar={40,1e-2,1.0,0.0};
-    int Z=25,NBasis=20; //Mn with some D valance electrons
-    int L=thePeriodicTable.GetMaxL(Z);
-    double spin=thePeriodicTable.GetNumUnpairedElectrons(Z);
-    Atom* atom=new Atom(Z,0,Vector3D<double>(0,0,0));
-    Init(atom);
-    for (auto lap:laps)
+    return sqrt(Sum(DirectMultiply(s,s)));
+}
+
+TEST_F(OrthogonalizeTests, Types)
+{
+    typedef LASolver<double>::RSMat SMat;
+    int NMax=21;
+    for (int N=3;N<=NMax;N++)
     {
-        std::cout << "Testing atom " << thePeriodicTable.GetSymbol(Z)  << " " << lap << std::endl;
-        Init(NBasis,L,spin,lap);
-        Iterate(ipar);
-        double E_HF=thePeriodicTable.GetEnergyHF(Z);
-        double error=fabs((E_HF-TotalEnergy())/E_HF);
-        std::cout.precision(7);
-        std::cout << "E_HF relative error=" << error*100.0 << "%" << std::endl;
-        EXPECT_LT(error,eps_e);        
+        for (auto lap:laps)
+        {
+            Set(N,lap);
+            for (auto ibs:bs->Iterate<TOrbital_IBS<double>>())
+            {
+                LASolver<double>* las=ibs->CreateSolver();
+                const SMat& S=ibs->Overlap();
+                SMat I=las->Transform(S);
+                SMat I1(ibs->GetNumFunctions());
+                Unit(I1);
+                double eps=1e-15*pow(N,3);
+                cout << N << " " << Max(fabs(I-I1)) << " " << Norm(I-I1) << " " << eps << endl;
+                if (N<9)
+                {
+                    EXPECT_NEAR(Max(fabs(I-I1)),0.0,eps);
+                    EXPECT_NEAR(Norm(I-I1),0.0,eps);
+                }
+                else if (N<12)
+                {
+                    EXPECT_NEAR(Max(fabs(I-I1)),0.0,N*eps);
+                    EXPECT_NEAR(Norm(I-I1),0.0,N*eps);
+                }
+            }
+
+        }
+        cout << "--------------------------------------------------" << endl;
     }
 };
