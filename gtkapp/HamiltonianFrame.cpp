@@ -84,3 +84,14 @@ WaveFunction* HamiltonianFrame::create(BasisSet* bs, ElectronConfiguration* ec )
     else
         return new UnPolarized_WF(bs,ec);
 }
+
+#include "PlotWindow.H"
+PlotWindow* HamiltonianFrame::create_pw(BasisSet* bs,WaveFunction* wf) const
+{
+  assert(bs);
+  assert(wf);
+  if (itsPolarized->get_active())
+        return new Polarized_Orbital_PW(bs,wf);
+    else
+        return new UnPolarized_Orbital_PW(bs,wf);
+}

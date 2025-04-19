@@ -30,9 +30,9 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
     itsNotebook->set_margin(10);
     itsNotebook->set_expand();
 
-    auto plotw=new PlotWindow();
+    // auto plotw=new PlotWindow();
     // auto plotw=new Gtk::Label("asdfasd");
-    itsNotebook->append_page(*plotw,"plot1");
+    // itsNotebook->append_page(*plotw,"plot1");
 
 };
 
@@ -58,6 +58,9 @@ void ControllerWindow::new_model()
   SCFIterationParams scfip=itsIterationParams->create();
   itsSCFIterator=new SCFIterator(wf,h);
   itsSCFIterator->Iterate(scfip);
+  auto plotw=itsHamiltonian->create_pw(bs,wf);
+  itsNotebook->append_page(*plotw,"Orbitals");
+  
 }
 
 
