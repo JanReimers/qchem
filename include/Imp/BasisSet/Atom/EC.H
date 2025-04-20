@@ -21,8 +21,9 @@ class Atom_EC : public virtual ElectronConfiguration
 public: 
     Atom_EC(int Z);
     
-    virtual int  GetN(const Irrep_QNs&) const;
-    virtual void Display() const;
+    virtual int    GetN(const Irrep_QNs&) const;
+    virtual size_t GetLMax() const {return itsLMax;}
+    virtual void   Display() const;
 
 private:
     friend class ElectronConfigurationTests;
@@ -33,6 +34,7 @@ private:
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.
     double charge;
+    size_t itsLMax;
 };
 
 #endif // _Atom_EC_H_

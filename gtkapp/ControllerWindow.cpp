@@ -49,11 +49,11 @@ void ControllerWindow::new_model()
   LAParams lap=itsLAParams->create();
 
   HamiltonianFrame::cl_t a(itsAtom->create());
-  BasisSet* bs=itsBasisSet->create();
+  Atom_EC ec(a->GetNumElectrons());
+  BasisSet* bs=itsBasisSet->create(ec.GetLMax());
   bs->Set(lap);
   MeshParams m=itsMeshFrame->create();
   Hamiltonian* h=itsHamiltonian->create(a,&m,bs);
-  Atom_EC ec(a->GetNumElectrons());
   WaveFunction* wf=itsHamiltonian->create(bs,&ec);
   SCFIterationParams scfip=itsIterationParams->create();
   itsSCFIterator=new SCFIterator(wf,h);

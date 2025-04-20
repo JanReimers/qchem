@@ -26,6 +26,7 @@ const int Atom_EC::FullShells[Nshell][LMax+2]=
 };
 
 Atom_EC::Atom_EC(int Z)
+: itsLMax(0)
 {
     itsNs.NUnpaired=pt.GetNumUnpairedElectrons(Z);
     assert(Z>0);
@@ -44,7 +45,7 @@ Atom_EC::Atom_EC(int Z)
     // Load up arrays 
     //   Nf=# of {s,p,d,f} electrons in the full shells.
     //   Nv=# of {s,p,d,f} valance electrons
-    for (int l=0;l<=LMax;l++) 
+    for (size_t l=0;l<=LMax;l++) 
     {
         int g=2*(2*l+1); //degeneracy
         itsNs.Nf[l]=FullShells[ns][l+1]*g;
@@ -56,6 +57,7 @@ Atom_EC::Atom_EC(int Z)
         }
         itsNs.N[l]=itsNs.Nf[l]+itsNs.Nv[l]; //Total electrons for s,p,d,f
         //cout << N[l] << ",";
+        if (l>itsLMax && itsNs.N[l]>0) itsLMax=l;
     }
     //cout << endl;
 }

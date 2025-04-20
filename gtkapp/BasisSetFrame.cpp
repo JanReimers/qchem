@@ -46,7 +46,7 @@ BasisSetFrame::bstypes BasisSetFrame::find(Glib::ustring s)
     return i->second;
 }
 
-BasisSet* BasisSetFrame::create() const
+BasisSet* BasisSetFrame::create(size_t LMax) const
 {
   guint it=itsType->get_selected();
   Glib::ustring bs_stype=itsTypes->get_string(it);  
@@ -54,7 +54,6 @@ BasisSet* BasisSetFrame::create() const
   double emin=Glib::Ascii::strtod(itsEmin->get_text());
   double emax=Glib::Ascii::strtod(itsEmax->get_text());
   guint N=itsN->get_value_as_int();
-  size_t LMax=0;
   BasisSet* bs=0;
   switch (bs_type)
   {

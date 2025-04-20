@@ -12,7 +12,7 @@ public:
   BasisSetFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
   virtual ~BasisSetFrame();
 
-  BasisSet* create() const;
+  BasisSet* create(size_t LMax) const;
 
 private:
   enum bstypes {SlaterYl,SlaterYlm,GaussianYl,GaussianYlm};
