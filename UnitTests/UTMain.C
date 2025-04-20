@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 //    testing::GTEST_FLAG(filter) = "GaussianRadialERITests.*";
 //      testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";
 //    testing::GTEST_FLAG(filter) = "PersistanceTests.*";
-   testing::GTEST_FLAG(filter) = "OrthogonalizeTests.*";
+//    testing::GTEST_FLAG(filter) = "OrthogonalizeTests.*";
 
     return RUN_ALL_TESTS();
 }

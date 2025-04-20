@@ -41,10 +41,11 @@ public:
  const double alg_tol=1e-15;
 
 LAParams laps[] = { 
-    {qchem::Lapack,qchem::SVD  ,trunc_tol,alg_tol},
-    {qchem::Lapack,qchem::Eigen,trunc_tol,alg_tol},
-    {qchem::OML   ,qchem::SVD  ,trunc_tol,alg_tol},
-    {qchem::OML   ,qchem::Eigen,trunc_tol,alg_tol},
+    {qchem::Lapack,qchem::SVD    ,trunc_tol,alg_tol},
+    {qchem::OML   ,qchem::SVD    ,trunc_tol,alg_tol},
+    {qchem::Lapack,qchem::Eigen  ,trunc_tol,alg_tol},
+    {qchem::OML   ,qchem::Eigen  ,trunc_tol,alg_tol},
+    {qchem::Lapack,qchem::Cholsky,trunc_tol,alg_tol},
     {qchem::OML   ,qchem::Cholsky,trunc_tol,alg_tol},
     };
 

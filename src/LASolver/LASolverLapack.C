@@ -4,6 +4,7 @@
 #include "Imp/LASolver/LASolverLapack.H"
 #include "oml/numeric/LapackEigenSolver.H"
 #include "oml/numeric/LapackSVDSolver.H"
+#include "oml/numeric/LapackCholsky.H"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include "oml/diagonalmatrix.h"
@@ -79,14 +80,14 @@ template <class T> typename LASolverLapackSVD<T>::RSMat LASolverLapackSVD<T>::In
 
 template <class T> void LASolverLapackCholsky<T>::SetBasisOverlap(const SMat& S)
 {
-    std::cerr << "General Eigen solver Lapack Cholsky is not implemented yet" << std::endl;
-    exit(-1);
+    Mat U=oml::LapackCholsky(S);
+    Mat Uinv=oml::LapackInvertTriangular(U); 
+    LASolverCommon<T>::AssignVs(Uinv,~Uinv);
 }
 
 template <class T> typename LASolver<T>::RSMat LASolverLapackCholsky<T>::Inverse(const RSMat& S) const
 {
-    std::cerr << "General Eigen solver Lapack Cholsky is not implemented yet" << std::endl;
-    exit(-1);
+    return oml::LapackInvertSymmetric(S);
 }
 
 
