@@ -22,6 +22,7 @@ class Angular_Sym
 {
 public:
     virtual ElCounts_l GetN(const ElCounts&) const {return {0,0};}
+    virtual int GetPrincipleOffset() const {return GetL();} //Add to principle QN.  For atoms this is just l.
 
     virtual int GetL() const=0;
     virtual Angular_Sym* Clone() const=0;

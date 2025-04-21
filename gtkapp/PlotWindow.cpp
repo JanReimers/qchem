@@ -46,14 +46,33 @@ UnPolarized_Orbital_PW::UnPolarized_Orbital_PW(const BasisSet* bs, const WaveFun
 {
   std::valarray<double> x(100);
   FillPower(x,0.1,10.0);
+  BasisSet::symv_t Irreps=bs->GetSymmetries();
+ 
+  int line=Gtk::PLplot::LineStyle::CONTINUOUS;
   for (auto sym:bs->GetSymmetries())
   {
     Irrep_QNs qns(Spin::None,sym);
+    int num_unocc=1; //How many un=occupied orbitals to show?
     const TOrbitals<double>* tos=dynamic_cast<const TOrbitals<double>*>(wf->GetOrbitals(qns));
+    int N_to_plot=tos->GetNumOccOrbitals()+num_unocc-1;
+    if (N_to_plot==0) N_to_plot=1;
+    float r=1.0,g=0.0,b=0.0,dr=1.0/N_to_plot;
     for (auto o=tos->beginT();o!=tos->end();o++)
     {
-      plot.add_data(*Gtk::manage(new Gtk::PLplot::PlotData2D(x,(**o)(x), Gdk::RGBA("blue"), Gtk::PLplot::LineStyle::LONG_DASH_LONG_GAP, 1.0)));
+      double alpha = o->IsOccupied() ? 1.0 : 0.4;
+      double thickness = o->IsOccupied() ? 2.0 : 1.0;
+      auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(x,(**o)(x), Gdk::RGBA(r,g,b,alpha), (Gtk::PLplot::LineStyle)line, thickness));
+      data->set_name(o->GetLabel());
+      plot.add_data(*data);
+      r-=dr;
+      b+=dr;
+      if (!o->IsOccupied())
+      {
+        num_unocc--;
+        if (num_unocc==0) break;
+      }
     }
+    line++;
   }
   plot.set_axis_logarithmic_x();
 }

@@ -85,7 +85,7 @@ size_t Orbital_QNs::GetDegeneracy() const
 
 std::ostream& Orbital_QNs::Write(std::ostream& os) const
 {
-    return os << n << *sym;
+    return os << n+sym->GetPrincipleOffset() << *sym;
 }
     
 // Orbital_QNs* Orbital_QNs::Clone() const

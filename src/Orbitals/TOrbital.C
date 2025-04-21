@@ -53,6 +53,14 @@ template <class T> Orbital_QNs TOrbitalImp<T>::GetQNs() const
     return Orbital_QNs(itsIndex,GetSpin(),&itsBasisSet->GetSymmetry());
 }
 
+template <class T> std::string TOrbitalImp<T>::GetLabel() const
+{
+    std::ostringstream oss;
+    oss << GetQNs();
+    std::string s(oss.str());
+    return s;
+}
+
 template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
 {
     return EnergyLevel

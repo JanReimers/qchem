@@ -31,9 +31,9 @@ class Orbital
 {
 public:
     virtual ~Orbital() {};
-    virtual double   GetEigenEnergy(        ) const=0;
-    virtual Orbital_QNs GetQNs() const=0;
-    
+    virtual double      GetEigenEnergy() const=0;
+    virtual Orbital_QNs GetQNs        () const=0; //Should have principle QN + spin QN + any symmetry QNs.
+    virtual std::string GetLabel      () const=0; //A text version of the QNs.
     virtual EnergyLevel MakeEnergyLevel(const Spin& s)=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
@@ -71,9 +71,10 @@ public:
     typedef std::vector<Orbital*>::const_iterator const_iterator;
 
     virtual ~Orbitals() {};
-    virtual index_t        GetNumOrbitals     (                   ) const=0;
+    virtual index_t        GetNumOrbitals     (               ) const=0;
+    virtual index_t        GetNumOccOrbitals  (               ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
-    virtual DM_CD*      GetChargeDensity   (               ) const=0;
+    virtual DM_CD*         GetChargeDensity   (               ) const=0;
     virtual void           UpdateOrbitals     (Hamiltonian&, const Spin&,const DM_CD*)=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep_QNs      GetQNs() const=0;

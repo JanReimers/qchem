@@ -44,6 +44,16 @@ template <class T> index_t TOrbitalsImp<T>::GetNumOrbitals() const
     return itsOrbitals.size();
 }
 
+template <class T> index_t TOrbitalsImp<T>::GetNumOccOrbitals() const
+{
+    index_t n=0;
+    for (auto o:*this)
+        if (o->IsOccupied()) 
+            n++;
+
+    return n;
+}
+
 template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& og) const
 {
     // No UT coverage

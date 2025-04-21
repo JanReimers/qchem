@@ -1,4 +1,6 @@
 Priority 1:
+    -Fix orbital phases to 1s, 2p , 3d are always >0?
+    -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
     -Plotting
         Done: Use ScalerFunction interface.
             Add valarray op()(valarray x)
@@ -27,8 +29,9 @@ Priority 1:
                 5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
                 6) HamFrame has Pol check box, so it can return correct type?
         Clear Notebook
-    Done: -Get LMax out of periodic table.
-        Used the Atom_EC
+    -Get LMax out of periodic table.
+        Done: Used the Atom_EC
+        Add unti test.
     Done: -Support LAPack::Cholsky.
 
     -Clean up naming for IterationParams.

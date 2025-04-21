@@ -18,6 +18,7 @@ public:
         return true;
     }
     virtual int GetDegeneracy() const;
+    virtual int GetPrincipleOffset() const {return 0;}
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
