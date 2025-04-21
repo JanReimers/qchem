@@ -40,18 +40,20 @@ template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
 #include <BasisSet.H>
 #include <Orbital.H>
 #include <Orbital_QNs.H>
-
-UnPolarized_Orbital_PW::UnPolarized_Orbital_PW(const BasisSet* bs, const WaveFunction* wf)
-: PlotWindow()
+void Orbital_PW::AddLines(const BasisSet* bs, const WaveFunction* wf, Spin s, Glib::ustring symbol)
 {
   std::valarray<double> x(100);
   FillPower(x,0.1,10.0);
   BasisSet::symv_t Irreps=bs->GetSymmetries();
- 
-  int line=Gtk::PLplot::LineStyle::CONTINUOUS;
+  bool use_symbols=symbol!="";
+  Glib::ustring spin_symbol="";
+  if (s==Spin::Up) spin_symbol="↑";
+  if (s==Spin::Down) spin_symbol="↓";
+
+  int line=use_symbols ? Gtk::PLplot::LineStyle::NONE : Gtk::PLplot::LineStyle::CONTINUOUS;
   for (auto sym:bs->GetSymmetries())
   {
-    Irrep_QNs qns(Spin::None,sym);
+    Irrep_QNs qns(s,sym);
     int num_unocc=1; //How many un=occupied orbitals to show?
     const TOrbitals<double>* tos=dynamic_cast<const TOrbitals<double>*>(wf->GetOrbitals(qns));
     int N_to_plot=tos->GetNumOccOrbitals()+num_unocc-1;
@@ -62,7 +64,15 @@ UnPolarized_Orbital_PW::UnPolarized_Orbital_PW(const BasisSet* bs, const WaveFun
       double alpha = o->IsOccupied() ? 1.0 : 0.4;
       double thickness = o->IsOccupied() ? 2.0 : 1.0;
       auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(x,(**o)(x), Gdk::RGBA(r,g,b,alpha), (Gtk::PLplot::LineStyle)line, thickness));
-      data->set_name(o->GetLabel());
+      
+      if (use_symbols) 
+      {
+        
+        data->set_symbol(symbol);
+        data->set_symbol_color(Gdk::RGBA(r,g,b,alpha));
+        data->set_symbol_height_scale_factor(0.8);
+      }
+      data->set_name(o->GetLabel()+spin_symbol); //No to keep out of legend.
       plot.add_data(*data);
       r-=dr;
       b+=dr;
@@ -72,23 +82,22 @@ UnPolarized_Orbital_PW::UnPolarized_Orbital_PW(const BasisSet* bs, const WaveFun
         if (num_unocc==0) break;
       }
     }
-    line++;
+    if (!use_symbols) line++;
+    if (line>8) line=1;
   }
   plot.set_axis_logarithmic_x();
 }
 
-Polarized_Orbital_PW::Polarized_Orbital_PW(const BasisSet* bs, const WaveFunction* wf)
-: PlotWindow()
+UnPolarized_Orbital_PW::UnPolarized_Orbital_PW(const BasisSet* bs, const WaveFunction* wf)
+: Orbital_PW()
 {
-  std::valarray<double> x(100);
-  FillPower(x,0.01,40.0);
-  for (auto sym:bs->GetSymmetries())
-  {
-    Irrep_QNs qns(Spin::Up,sym);
-    const TOrbitals<double>* tos=dynamic_cast<const TOrbitals<double>*>(wf->GetOrbitals(qns));
-    for (auto o=tos->beginT();o!=tos->end();o++)
-    {
-      plot.add_data(*Gtk::manage(new Gtk::PLplot::PlotData2D(x,(**o)(x), Gdk::RGBA("blue"), Gtk::PLplot::LineStyle::LONG_DASH_LONG_GAP, 1.0)));
-    }
-  }
+  AddLines(bs,wf,Spin::None);
+}
+
+
+Polarized_Orbital_PW::Polarized_Orbital_PW(const BasisSet* bs, const WaveFunction* wf)
+: Orbital_PW()
+{
+  AddLines(bs,wf,Spin::Up);
+  AddLines(bs,wf,Spin::Down,"•");
 }

@@ -46,6 +46,8 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
 void ControllerWindow::new_model()
 {
   std::cout << "New model!!" << std::endl;
+  for (int i=0;i<itsNotebook->get_n_pages();i++)
+    itsNotebook->remove_page(i);
   LAParams lap=itsLAParams->create();
 
   HamiltonianFrame::cl_t a(itsAtom->create());

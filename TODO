@@ -1,45 +1,27 @@
 Priority 1:
+    -ro relax starts at 0.5
+        Show ro relax in output
+    -Plotting:
+        Orbitals:
+            swap colour and line increments.
+            Too many line Ylm basis sets!
+                Just plot distince eigen energies?
+        Charge density
+            r^2*ro(r)
+            r^2*{ro_up-ro_down}
+        Energy level diagram
+    -Energy levels:  Show unocc eigen values for spin down.
     -ElectronContainer just adds confusion.  Merge into Orbital
     -Some Orbital functions can be implemented at the Orbital level ... they just call virtual functions.
     -Fix orbital phases to 1s, 2p , 3d are always >0?
-    Done: -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
-    -Plotting
-        Done: Use ScalerFunction interface.
-            Add valarray op()(valarray x)
-        No: Use VectorFunction interface for TOrbitals.
-            Add vector<valarray> op()(valarray x)
-        Done: TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
-            We need a way to get a vector<Irrep_QNs> of allowed Irrep_QNs
-            BS can supply a vector<const Symmetry*> which is spin agnostic.
-                Pol_WF and UnPol-WF would need to add the spin aspect.
-        How to plot orbitals
-            For UnPol plot
-                1) Change line colour based on symmetry/Irrep_QNs
-                2) Change line style (dashed dots etc) based principle QN
-            For Pol orbitals
-                -Easy solution is to just make two separate charts, but that hides the delta
-                -Three charts {up,dn,up-down} (Seomtimes the HOMO orbtial will occ for spin up and un occupied for spin down)
-                -Two charts {0.5*(up+dn),0.5*(up-down)}
-                -Use lines for spin up and dots for spin down.
-            Done: Steps
-                Done: 1) Get vector<const Symmetry*> from BS
-                Done: 2) Request orbitals using 
-                    UnPol Irrep_QNs(Spin::None,sym)
-                    Pol Irrep_QNs(Spin::Up,sym) Irrep_QNs(Spin::Down,sym)
-                Done: 3) Choose a x (really r) mesh: Linear or Log valarray<double> 
-                4) Use VectorFunction vector<valarray> op()(valarray x)
-                5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
-                6) HamFrame has Pol check box, so it can return correct type?
-        Clear Notebook
-    -Get LMax out of periodic table.
+    -Get LMax from the periodic table.
         Done: Used the Atom_EC
         Add unti test.
-    Done: -Support LAPack::Cholsky.
 
     -Clean up naming for IterationParams.
         SCFParams
     -Get rid of SCFIterationParams::kT
-    -It would be nice Atom derivd from Cluster.
+    -It would be nice if Atom derivd from Cluster.
     -BasisSet:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
@@ -51,7 +33,6 @@ Priority 1:
         -Vxc->LDAxc->ExchangeFunctional  
             Can we get rid of LDAxc?
         Done: -Support no cd guess to init SCF proc.
-    Done: -Get rid of AtomQN.
     -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
         Most code except Norms can move up to the radial level.
         Minor consolidaton.
@@ -123,12 +104,6 @@ Priority 1:
     
     
 
-    Done:-Need a more elegent version of
-        std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
-        Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
-    No: Move symmetries and EC classes into Atom and Molecule sections of Basis Set?
-        Not sure where to put these.  Outside of basis sets we have:
-            Atom_CL, Atom_EC Angular_Sym
 
     -Total energy
         -Calculated in  SCFIteratorImp::DisplayEnergies
@@ -358,6 +333,56 @@ Priority 3:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+    Done: -Get rid of AtomQN.
+    Done: -Support LAPack::Cholsky.
+    Done:-Need a more elegent version of
+        std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
+        Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
+    No: Move symmetries and EC classes into Atom and Molecule sections of Basis Set?
+        Not sure where to put these.  Outside of basis sets we have:
+            Atom_CL, Atom_EC Angular_Sym
+
+    Done: -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
+    Done: -Plot Orbitals
+        Done: Use ScalerFunction interface.
+            Add valarray op()(valarray x)
+        No: Use VectorFunction interface for TOrbitals.
+            Add vector<valarray> op()(valarray x)
+        Done: TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
+            We need a way to get a vector<Irrep_QNs> of allowed Irrep_QNs
+            BS can supply a vector<const Symmetry*> which is spin agnostic.
+                Pol_WF and UnPol-WF would need to add the spin aspect.
+        How to plot orbitals
+            Done: For UnPol plot
+                1) Change line colour based on symmetry/Irrep_QNs
+                2) Change line style (dashed dots etc) based principle QN
+                3) Make unocc orbital 40% transparant
+            Done: For Pol orbitals
+                No -Easy solution is to just make two separate charts, but that hides the delta
+                No-Three charts {up,dn,up-down} (Seomtimes the HOMO orbtial will occ for spin up and un occupied for spin down)
+                No -Two charts {0.5*(up+dn),0.5*(up-down)}
+                Done: -Use lines for spin up and dots for spin down.
+            Done: Steps
+                Done: 1) Get vector<const Symmetry*> from BS
+                Done: 2) Request orbitals using 
+                    UnPol Irrep_QNs(Spin::None,sym)
+                    Pol Irrep_QNs(Spin::Up,sym) Irrep_QNs(Spin::Down,sym)
+                Done: 3) Choose a x (really r) mesh: Linear or Log valarray<double> 
+                Done: 4) Use VectorFunction vector<valarray> op()(valarray x)
+                Done: 5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
+                Done: 6) HamFrame has Pol check box, so it can return correct type?
+        Done: Clear Notebook
 
 
     Done:-Rethink WaveFunctions

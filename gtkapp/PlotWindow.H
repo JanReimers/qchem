@@ -24,13 +24,20 @@ protected:
 
 #include <types.H>
 
-class UnPolarized_Orbital_PW : public PlotWindow
+class Orbital_PW : public PlotWindow
+{
+public:
+    void AddLines(const BasisSet*, const WaveFunction*,Spin s, Glib::ustring symbol="");
+};
+
+class UnPolarized_Orbital_PW : public Orbital_PW
 {
 public:
     UnPolarized_Orbital_PW(const BasisSet*, const WaveFunction*);
+    
 };
 
-class Polarized_Orbital_PW : public PlotWindow
+class Polarized_Orbital_PW : public Orbital_PW
 {
 public:
     Polarized_Orbital_PW(const BasisSet*, const WaveFunction*);
