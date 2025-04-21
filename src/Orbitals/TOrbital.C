@@ -61,7 +61,7 @@ template <class T> std::string TOrbitalImp<T>::GetLabel() const
     return s;
 }
 
-template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel(const Spin& s)
+template <class T> EnergyLevel TOrbitalImp<T>::MakeEnergyLevel() const
 {
     return EnergyLevel
     (

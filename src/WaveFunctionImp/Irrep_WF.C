@@ -61,7 +61,7 @@ const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
     //  Now update the list of energy levels.
     itsELevels.clear();
     for (auto o:*itsOrbitals)
-        itsELevels.insert(o->MakeEnergyLevel(itsQNs.ms));
+        itsELevels.insert(o->MakeEnergyLevel());
     
     //  Display the occupied orbitals with eigen vectors.
     // for (auto o:*itsOrbitals)

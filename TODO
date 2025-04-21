@@ -1,6 +1,8 @@
 Priority 1:
+    -ElectronContainer just adds confusion.  Merge into Orbital
+    -Some Orbital functions can be implemented at the Orbital level ... they just call virtual functions.
     -Fix orbital phases to 1s, 2p , 3d are always >0?
-    -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
+    Done: -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
     -Plotting
         Done: Use ScalerFunction interface.
             Add valarray op()(valarray x)
