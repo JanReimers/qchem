@@ -88,6 +88,13 @@ void Orbital_PW::AddLines(const BasisSet* bs, const WaveFunction* wf, Spin s, Gl
   plot.set_axis_logarithmic_x();
 }
 
+void PlotWindow::AddLabels(Glib::ustring x_label, Glib::ustring y_label,Glib::ustring title)
+{
+  plot.set_axis_title_y(y_label);
+  plot.set_axis_title_x(x_label);
+  plot.set_plot_title(title);
+}
+
 UnPolarized_Orbital_PW::UnPolarized_Orbital_PW(const BasisSet* bs, const WaveFunction* wf)
 : Orbital_PW()
 {
@@ -102,7 +109,7 @@ Polarized_Orbital_PW::Polarized_Orbital_PW(const BasisSet* bs, const WaveFunctio
   AddLines(bs,wf,Spin::Down,"•");
 }
 
-SF_PW::SF_PW(const ScalarFunction<double>* sf)
+SF_PW::SF_PW(const ScalarFunction<double>* sf,Glib::ustring x_label, Glib::ustring y_label,Glib::ustring title)
 {
   std::valarray<double> r(100);
   FillPower(r,0.1,10.0);
@@ -112,4 +119,7 @@ SF_PW::SF_PW(const ScalarFunction<double>* sf)
   plot.set_axis_logarithmic_x();
   auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(r,y, Gdk::RGBA("Red"), Gtk::PLplot::LineStyle::CONTINUOUS, 2.0));
   plot.add_data(*data);
+  plot.set_axis_title_y(y_label);
+  plot.set_axis_title_x(x_label);
+  plot.set_plot_title(title);
 }

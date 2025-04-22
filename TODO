@@ -10,14 +10,14 @@ Priority 1:
         Orbitals:
             swap colour and line increments.
             Too many line Ylm basis sets!
-                Just plot distince eigen energies?
+                Just plot distinct eigen energies?
         Done: Charge density
             r^2*ro(r)
             r^2*{ro_up-ro_down}
         Energy level diagram
-        Y and X axis labels. + graph title.
+        Done: Y and X axis labels. + graph title.
             Use UTF
-            Put electron config in title.
+        Put Atom name and electron config in title.
         NO legend if only one line.
 
     -Energy levels:  Show unocc eigen values for spin down.
@@ -215,6 +215,10 @@ Priority 1:
             No: -Don't renormalize gS, make gS=1/(2*c)*OP*gL
                 Should be able to remove -2* for kinetic matrix, and 0.5* for energy.
                 This one could get messy. Commit first for easy back out.
+            -Confirm (debunk) theory:
+                the so call centrifugal part of the kinetic enegry l*(l+1)*(d/dr)*2
+                should use the l corresponding to -kappa not the radial l.
+
             
     -use map hints for caches
         No such thing as map::hint for finding iterators.

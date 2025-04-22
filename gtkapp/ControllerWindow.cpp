@@ -63,14 +63,15 @@ void ControllerWindow::new_model()
   itsSCFIterator=new SCFIterator(wf,h);
   itsSCFIterator->Iterate(scfip);
   auto orbital_plotw=itsHamiltonian->create_orbital_pw(bs,wf);
-  itsNotebook->append_page(*orbital_plotw,"Orbitals");
+  orbital_plotw->AddLabels("#fir (a.u.)","#fi#gf(r)","Radial Orbital Profiles");
+  itsNotebook->append_page(*orbital_plotw,"φ(r)");
 
   typedef ScalarFunction<double> sf_t;
 
   sf_t* cd=wf->GetChargeDensity();
   sf_t* sd=wf->GetSpinDensity();
-  itsNotebook->append_page(*new SF_PW(cd),"Charge Density");
-  if (sd) itsNotebook->append_page(*new SF_PW(sd),"Spin Density");
+  itsNotebook->append_page(*new SF_PW(cd,"#fir (a.u.)","#fir#u2#d ρ(r) (a.u.)","Radial Charge Density"),"ρ(r)");
+  if (sd) itsNotebook->append_page(*new SF_PW(sd,"#fir (a.u.)","#fir#u2#d(ρ#d↑#u-ρ#d↓#u) (a.u.)","Radial Spin Density"),"ρ↑-ρ↓");
   
 }
 

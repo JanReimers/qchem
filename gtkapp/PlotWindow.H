@@ -12,6 +12,7 @@ class PlotWindow : public Gtk::Box
 public:
     PlotWindow();
     virtual ~PlotWindow() {};
+    void AddLabels(Glib::ustring x_label, Glib::ustring y_label,Glib::ustring title);
 
 protected:
 
@@ -48,7 +49,7 @@ public:
 class SF_PW : public PlotWindow 
 {
 public:
-    SF_PW(const ScalarFunction<double>*);
+    SF_PW(const ScalarFunction<double>*,Glib::ustring x_label, Glib::ustring y_label,Glib::ustring title);
 
 };
 
