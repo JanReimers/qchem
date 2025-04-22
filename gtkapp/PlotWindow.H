@@ -44,5 +44,13 @@ public:
 
 };
 
+// Scalar function plot window
+class SF_PW : public PlotWindow 
+{
+public:
+    SF_PW(const ScalarFunction<double>*);
+
+};
+
 
 #endif //_PlotWindow123_H_

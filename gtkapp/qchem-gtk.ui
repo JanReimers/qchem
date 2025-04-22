@@ -80,6 +80,7 @@ Dirac 1E
 Dirac HF</property>
                           </object>
                         </property>
+                        <property name="selected">1</property>
                       </object>
                     </child>
                     <child>
@@ -185,8 +186,8 @@ Dirac HF</property>
                         <child>
                           <object class="GtkEntry" id="la_trunc">
                             <property name="input-purpose">number</property>
-                            <property name="placeholder-text">1e-6</property>
-                            <property name="text">1e-6</property>
+                            <property name="placeholder-text">1e-9</property>
+                            <property name="text">1e-9</property>
                           </object>
                         </child>
                       </object>
@@ -198,8 +199,8 @@ Dirac HF</property>
                         <child>
                           <object class="GtkEntry" id="la_abstol">
                             <property name="input-purpose">number</property>
-                            <property name="placeholder-text">1e-6</property>
-                            <property name="text">1e-6</property>
+                            <property name="placeholder-text">1e-9</property>
+                            <property name="text">1e-9</property>
                           </object>
                         </child>
                       </object>
@@ -252,7 +253,7 @@ Dirac HF</property>
                           <object class="GtkEntry" id="SCF_ro_relax">
                             <property name="input-purpose">number</property>
                             <property name="placeholder-text">1.0</property>
-                            <property name="text">1e-4</property>
+                            <property name="text">0.5</property>
                           </object>
                         </child>
                       </object>

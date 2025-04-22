@@ -42,6 +42,8 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
 #include <SCFIterator.H>
 #include <IterationParams.H>
 #include <BasisSet.H>
+#include <WaveFunction.H>
+#include <ChargeDensity.H>
 
 void ControllerWindow::new_model()
 {
@@ -60,8 +62,15 @@ void ControllerWindow::new_model()
   SCFIterationParams scfip=itsIterationParams->create();
   itsSCFIterator=new SCFIterator(wf,h);
   itsSCFIterator->Iterate(scfip);
-  auto plotw=itsHamiltonian->create_pw(bs,wf);
-  itsNotebook->append_page(*plotw,"Orbitals");
+  auto orbital_plotw=itsHamiltonian->create_orbital_pw(bs,wf);
+  itsNotebook->append_page(*orbital_plotw,"Orbitals");
+
+  typedef ScalarFunction<double> sf_t;
+
+  sf_t* cd=wf->GetChargeDensity();
+  sf_t* sd=wf->GetSpinDensity();
+  itsNotebook->append_page(*new SF_PW(cd),"Charge Density");
+  if (sd) itsNotebook->append_page(*new SF_PW(sd),"Spin Density");
   
 }
 

@@ -86,7 +86,7 @@ WaveFunction* HamiltonianFrame::create(BasisSet* bs, ElectronConfiguration* ec )
 }
 
 #include "PlotWindow.H"
-PlotWindow* HamiltonianFrame::create_pw(BasisSet* bs,WaveFunction* wf) const
+PlotWindow* HamiltonianFrame::create_orbital_pw(BasisSet* bs,WaveFunction* wf) const
 {
   assert(bs);
   assert(wf);

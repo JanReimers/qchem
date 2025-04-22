@@ -17,7 +17,8 @@ public:
 
   Hamiltonian*  create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const;
   WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
-  PlotWindow*   create_pw(BasisSet*,WaveFunction*) const; //Decides polarized or un-polarized
+  PlotWindow*   create_orbital_pw(BasisSet*,WaveFunction*) const; //Decides polarized or un-polarized
+  
 private:
   enum htypes {H1E,HF,DFT,D1E,DHF};
   static const std::map<Glib::ustring,htypes> htype_map;

@@ -55,6 +55,16 @@ DM_CD* Polarized_WF::GetChargeDensity() const
     return new Polarized_CDImp(up,dn);
 }
 
+WaveFunction::sf_t* Polarized_WF::GetSpinDensity() const
+{
+    Composite_CD* up = new Composite_CD();
+    Composite_CD* dn = new Composite_CD();
+    for (auto& w:itsSpinUpIWFs) up->Insert(w->GetChargeDensity());
+    for (auto& w:itsSpinDnIWFs) dn->Insert(w->GetChargeDensity());
+    return new SpinDensity(up,dn);
+}
+
+
 const Orbitals* Polarized_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
     auto i=itsQN_WFs.find(qns);

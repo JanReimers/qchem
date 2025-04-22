@@ -101,3 +101,15 @@ Polarized_Orbital_PW::Polarized_Orbital_PW(const BasisSet* bs, const WaveFunctio
   AddLines(bs,wf,Spin::Up);
   AddLines(bs,wf,Spin::Down,"•");
 }
+
+SF_PW::SF_PW(const ScalarFunction<double>* sf)
+{
+  std::valarray<double> r(100);
+  FillPower(r,0.1,10.0);
+  std::valarray<double> y=(*sf)(r);
+  y*=r;
+  y*=r;
+  plot.set_axis_logarithmic_x();
+  auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(r,y, Gdk::RGBA("Red"), Gtk::PLplot::LineStyle::CONTINUOUS, 2.0));
+  plot.add_data(*data);
+}

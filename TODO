@@ -1,4 +1,9 @@
 Priority 1:
+    -Atom app needs to save state.
+        auto save to .qchem
+        Also suport save as
+        open
+        Open recent
     -ro relax starts at 0.5
         Show ro relax in output
     -Plotting:
@@ -6,10 +11,15 @@ Priority 1:
             swap colour and line increments.
             Too many line Ylm basis sets!
                 Just plot distince eigen energies?
-        Charge density
+        Done: Charge density
             r^2*ro(r)
             r^2*{ro_up-ro_down}
         Energy level diagram
+        Y and X axis labels. + graph title.
+            Use UTF
+            Put electron config in title.
+        NO legend if only one line.
+
     -Energy levels:  Show unocc eigen values for spin down.
     -ElectronContainer just adds confusion.  Merge into Orbital
     -Some Orbital functions can be implemented at the Orbital level ... they just call virtual functions.
