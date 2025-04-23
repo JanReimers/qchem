@@ -9,6 +9,10 @@
 #include "MeshFrame.H"
 #include "Imp/BasisSet/Atom/EC.H"
 #include "PlotWindow.H"
+#include <fstream>
+#include <cereal/archives/json.hpp>
+
+std::string ControllerWindow::defaultFilename=getenv("HOME")+std::string("/.qchem");
 
 ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gtk::Builder>& refBuilder)
 : Glib::ObjectBase("main")
@@ -26,15 +30,38 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
 {
   itsStartButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
   itsStepButton->signal_clicked().connect(sigc::mem_fun(*this,&ControllerWindow::new_model));
+  this->signal_close_request().connect(sigc::mem_fun(*this,&ControllerWindow::close_request),false);
  
     itsNotebook->set_margin(10);
     itsNotebook->set_expand();
 
-    // auto plotw=new PlotWindow();
-    // auto plotw=new Gtk::Label("asdfasd");
-    // itsNotebook->append_page(*plotw,"plot1");
-
+  {
+    
+    std::ifstream fs(defaultFilename);
+    if (fs)
+    {
+      // std::cout << "Reading archive" << std::endl;
+      cereal::JSONInputArchive iarchive(fs); 
+      iarchive(*itsHamiltonian);
+      itsHamiltonian->init(); 
+    }
+  }
 };
+
+
+ControllerWindow::~ControllerWindow()
+{
+  // std::cout << "~ControllerWindow" << std::endl;
+}
+
+bool ControllerWindow::close_request()
+{
+  // std::cout << "Dumping archive: '" << defaultFilename << "'" << std::endl;
+  std::ofstream fs(defaultFilename);
+  cereal::JSONOutputArchive oarchive(fs); 
+  oarchive(*itsHamiltonian);
+  return false;
+}
 
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
@@ -44,6 +71,7 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
 #include <BasisSet.H>
 #include <WaveFunction.H>
 #include <ChargeDensity.H>
+
 
 void ControllerWindow::new_model()
 {

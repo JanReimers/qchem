@@ -16,8 +16,9 @@ class ControllerWindow : public Gtk::Window
 {
 public:
   ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gtk::Builder>& refBuilder);
+  ~ControllerWindow();
   void new_model();
-
+  bool close_request();
 private:
   Gtk::Notebook* itsNotebook;
   Gtk::Button* itsStartButton;
@@ -31,7 +32,7 @@ private:
   SCFIterationParamsFrame* itsIterationParams;
   MeshFrame*               itsMeshFrame;
   SCFIterator*             itsSCFIterator;
-
+  static std::string defaultFilename;
 };
 
 #endif //_ControllerWindow_H_

@@ -16,21 +16,36 @@ HamiltonianFrame::HamiltonianFrame(BaseObjectType* cobject, const Glib::RefPtr<G
   std::vector<Glib::ustring> strings;
   for (const auto& [key, _] : htype_map) strings.push_back(key);
 
-  itsTypes = Gtk::StringList::create(strings);
+  itsTypes = Gtk::StringList::create(strings); //This auto sorts alphabetically.
+  htype_invmap.clear();
+  for (guint i=0;i<itsTypes->get_n_items();i++)
+  {
+    htypes ht=find(itsTypes->get_string(i));
+    htype_invmap[ht]=i;
+  }
   itsType->set_model(itsTypes);
   itsType->set_selected(0);
 }
 
 HamiltonianFrame::~HamiltonianFrame() {};
 
-const std::map<Glib::ustring,HamiltonianFrame::htypes> HamiltonianFrame::htype_map=
+void HamiltonianFrame::init()
 {
+  // std::cout << "h_type=" << h_type << " " << htype_invmap[h_type] << std::endl;
+  itsType->set_selected(htype_invmap[h_type]); //implicit conversion of enum to int .. one off problem?
+  itsPolarized->set_active(is_polarized);
+}
+
+const std::map<Glib::ustring,HamiltonianFrame::htypes> HamiltonianFrame::htype_map=
+{ 
 {"1-Electron (1E)",H1E},
 {"Hatree-Fock (HF)",HF},
 {"Density-Functional (DFT)",DFT},
 {"Dirac 1E",D1E},
 {"Dirac HF",DHF},
 };
+
+std::map<HamiltonianFrame::htypes,guint> HamiltonianFrame::htype_invmap;
 
 HamiltonianFrame::htypes HamiltonianFrame::find(Glib::ustring s)
 {
@@ -43,12 +58,17 @@ HamiltonianFrame::htypes HamiltonianFrame::find(Glib::ustring s)
     return i->second;
 }
   
-Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const
+HamiltonianFrame::htypes HamiltonianFrame::GetType() const
 {
   guint it=itsType->get_selected();
   Glib::ustring h_stype=itsTypes->get_string(it);  
-  htypes h_type=find(h_stype);
-  bool polarized=itsPolarized->get_active();
+  return find(h_stype);
+}
+
+Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const
+{
+  h_type=GetType();
+  is_polarized=itsPolarized->get_active();
   Hamiltonian* h=0;
   switch (h_type)
   {
@@ -56,11 +76,11 @@ Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams* m, const 
       h=new Ham_1E(cl);
       break;
     case HF : 
-      h= polarized ? (Hamiltonian*)new Ham_HF_P(cl) : (Hamiltonian*)new Ham_HF_U(cl);
+      h= is_polarized ? (Hamiltonian*)new Ham_HF_P(cl) : (Hamiltonian*)new Ham_HF_U(cl);
       break;
     case DFT : 
       assert(m);
-      h= polarized ? (Hamiltonian*)new Ham_DFT_P(cl,0.7,*m,bs) : (Hamiltonian*)new Ham_DFT_U(cl,0.7,*m,bs);
+      h= is_polarized ? (Hamiltonian*)new Ham_DFT_P(cl,0.7,*m,bs) : (Hamiltonian*)new Ham_DFT_U(cl,0.7,*m,bs);
       break;
     case D1E : 
       h= new Ham_DHF_1E(cl);

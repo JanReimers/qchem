@@ -1,9 +1,11 @@
 Priority 1:
     -Atom app needs to save state.
+        Done: install cereal
         auto save to .qchem
         Also suport save as
         open
         Open recent
+
     -ro relax starts at 0.5
         Show ro relax in output
     -Plotting:
@@ -262,7 +264,7 @@ Priority 2:
         1) Test boost::serialization, does it work for shared pointers???
             Looks like yes, can std::shared_ptr in the headers.
         -We need a non-streamable UniqueID for caching GaussianCD amd RNLM objects.
-        -Separate UniquesID from streaming
+        Done: -Separate UniquesID from streaming
         -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
         -What about pretty output?
         -boost::serialization of OML objects.

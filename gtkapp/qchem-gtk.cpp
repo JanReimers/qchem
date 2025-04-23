@@ -3,7 +3,8 @@
 #include <iostream>
 
 Glib::RefPtr<Gtk::Application> app;
-   
+ControllerWindow* controller;
+
 void on_app_activate()
 {
     auto refBuilder = Gtk::Builder::create();
@@ -29,9 +30,14 @@ void on_app_activate()
   
     // Controller c(refBuilder);
     // auto main = refBuilder->get_widget<Gtk::Window>("main");
-    auto main= Gtk::Builder::get_widget_derived<ControllerWindow>(refBuilder, "main");
-    app->add_window(*main);
-    main->set_visible(true);
+    controller= Gtk::Builder::get_widget_derived<ControllerWindow>(refBuilder, "main");
+    app->add_window(*controller);
+    controller->set_visible(true);
+}
+
+void on_app_shutdown()
+{
+  delete controller;
 }
 
 int main(int argc, char** argv)
@@ -39,6 +45,7 @@ int main(int argc, char** argv)
     app = Gtk::Application::create("org.gtkmm.example");
 
     app->signal_activate().connect([] () { on_app_activate(); });
+    app->signal_shutdown().connect([] () { on_app_shutdown(); });
 
   return app->run(argc, argv);
 }
