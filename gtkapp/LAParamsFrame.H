@@ -2,6 +2,7 @@
 #ifndef _LAParamsFrame_H_
 #define _LAParamsFrame_H_
 
+#include "enumDropDown.H"
 #include <gtkmm.h>
 #include <types.H>
 #include <LAParams.H>
@@ -14,20 +15,34 @@ public:
   virtual ~LAParamsFrame() {};
 
   LAParams create() const;
+
+  template<class Archive>  void save(Archive & archive) const
+  {
+    pkg=itsPkg->GetType();
+    ortho=itsOrtho->GetType();
+    trunc_tol=Glib::Ascii::strtod(itsTruncationTolerance->get_text());
+    abs_tol=Glib::Ascii::strtod(itsAbsTol->get_text());
+    archive( pkg,ortho, trunc_tol, abs_tol); // serialize things by passing them to the archive
+  }
+  template<class Archive>  void load(Archive & archive)
+  {
+    archive( pkg,ortho, trunc_tol, abs_tol); 
+    itsPkg->set_selected(pkg);
+    itsOrtho->set_selected(ortho);
+    itsTruncationTolerance->set_text(Glib::Ascii::dtostr(trunc_tol));
+    itsAbsTol->set_text(Glib::Ascii::dtostr(abs_tol));
+  }
+
 private:
-  
-  static const std::map<Glib::ustring,qchem::Pkg> pkgtype_map;
-  static const std::map<Glib::ustring,qchem::Ortho> orthotype_map;
-  static qchem::Pkg   find_pkg(Glib::ustring);
-  static qchem::Ortho find_ortho(Glib::ustring);
-
-  Glib::RefPtr<Gtk::StringList> itsPkgTypes; 
-  Glib::RefPtr<Gtk::StringList> itsOrthoTypes; 
-
-  Gtk::DropDown* itsPkgType;
-  Gtk::DropDown* itsOrthoType;
+  enumDropDown<qchem::Pkg  >* itsPkg;
+  enumDropDown<qchem::Ortho>* itsOrtho;
   Gtk::Entry*    itsTruncationTolerance;
   Gtk::Entry*    itsAbsTol;
+
+  mutable qchem::Pkg pkg;
+  mutable qchem::Ortho ortho;
+  mutable double trunc_tol;
+  mutable double abs_tol;
 };
 
 #endif //_LAParamsFrame_H_

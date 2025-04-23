@@ -2,6 +2,7 @@
 #ifndef _MeshFrame_H_
 #define _MeshFrame_H_
 
+#include "enumDropDown.H"
 #include <gtkmm.h>
 #include <types.H>
 #include <MeshParams.H>
@@ -14,20 +15,33 @@ public:
   virtual ~MeshFrame() {};
 
   MeshParams create() const;
+
+  template<class Archive>  void save(Archive & archive) const
+  {
+    rtype=itsRadial ->GetType();
+    atype=itsAngular->GetType();
+    nr=itsNRadial ->get_value_as_int();
+    na=itsNAngular->get_value_as_int();
+    archive( rtype,atype,nr,na); // serialize things by passing them to the archive
+  }
+  template<class Archive>  void load(Archive & archive)
+  {
+    archive( rtype,atype,nr,na); 
+    itsRadial  ->set_selected(rtype);
+    itsAngular ->set_selected(atype);
+    itsNRadial ->set_value(nr);
+    itsNAngular->set_value(na);
+  }
 private:
-  
-  static const std::map<Glib::ustring,qchem::RadialType> radial_type_map;
-  static const std::map<Glib::ustring,qchem::AngleType> angular_type_map;
-  static qchem::RadialType find_radial(Glib::ustring);
-  static qchem::AngleType  find_angular(Glib::ustring);
-
-  Glib::RefPtr<Gtk::StringList> itsRadialTypes; 
-  Glib::RefPtr<Gtk::StringList> itsAngularTypes; 
-
-  Gtk::DropDown* itsRadialType;
-  Gtk::DropDown* itsAngularType;
+ 
+  enumDropDown<qchem::RadialType>* itsRadial;
+  enumDropDown<qchem::AngleType>* itsAngular;
   Gtk::SpinButton* itsNRadial;
   Gtk::SpinButton* itsNAngular;
+
+  mutable qchem::RadialType rtype;
+  mutable qchem::AngleType  atype;
+  mutable guint nr,na;
 };
 
 #endif //_MeshFrame_H_

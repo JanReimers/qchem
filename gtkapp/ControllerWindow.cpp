@@ -40,10 +40,9 @@ ControllerWindow::ControllerWindow(BaseObjectType* cobject,const Glib::RefPtr<Gt
     std::ifstream fs(defaultFilename);
     if (fs)
     {
-      // std::cout << "Reading archive" << std::endl;
+      std::cout << "Reading archive" << std::endl;
       cereal::JSONInputArchive iarchive(fs); 
-      iarchive(*itsHamiltonian);
-      itsHamiltonian->init(); 
+      iarchive(*this);
     }
   }
 };
@@ -59,7 +58,7 @@ bool ControllerWindow::close_request()
   // std::cout << "Dumping archive: '" << defaultFilename << "'" << std::endl;
   std::ofstream fs(defaultFilename);
   cereal::JSONOutputArchive oarchive(fs); 
-  oarchive(*itsHamiltonian);
+  oarchive(*this);
   return false;
 }
 

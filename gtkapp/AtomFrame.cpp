@@ -23,8 +23,8 @@ AtomFrame::~AtomFrame()
 }
 Molecule* AtomFrame::create() const
 {
-    int Z=itsZ_spin->get_value_as_int();
-    int charge=itsCharge_spin->get_value_as_int();
+    Z=itsZ_spin->get_value_as_int();
+    charge=itsCharge_spin->get_value_as_int();
     Molecule* m=new Molecule();
     m->Insert(new Atom(Z,charge));
     return m;

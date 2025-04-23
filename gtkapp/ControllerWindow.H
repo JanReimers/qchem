@@ -19,6 +19,11 @@ public:
   ~ControllerWindow();
   void new_model();
   bool close_request();
+  template<class Archive>  void serialize(Archive & archive)
+  {
+    archive(*itsAtom,*itsHamiltonian,*itsBasisSet,*itsLAParams,*itsIterationParams,*itsMeshFrame); 
+  }
+
 private:
   Gtk::Notebook* itsNotebook;
   Gtk::Button* itsStartButton;
@@ -31,6 +36,7 @@ private:
   LAParamsFrame*           itsLAParams;
   SCFIterationParamsFrame* itsIterationParams;
   MeshFrame*               itsMeshFrame;
+  
   SCFIterator*             itsSCFIterator;
   static std::string defaultFilename;
 };
