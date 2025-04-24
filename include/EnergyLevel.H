@@ -3,16 +3,12 @@
 #define _EnergyLevel_H_
 
 #include <types.H>
-#include <Spin.H>
 #include <Orbital_QNs.H>
 
 struct EnergyLevel
 {
-    EnergyLevel(double _e, double _occ, double _g,const Orbital_QNs& _qns, const Orbital* _o)
-        : e(_e), occ(_occ), degen(_g), qns(_qns), orbital(_o) 
-        {};
+    EnergyLevel(const Orbital* o);
     EnergyLevel(const EnergyLevel&);
-    ~EnergyLevel();
 
     void merge(const EnergyLevel&);
     void Report(std::ostream&) const;
@@ -20,7 +16,6 @@ struct EnergyLevel
     double         e,occ;
     int            degen;
     Orbital_QNs    qns;
-    const Orbital* orbital;
   
 };
 

@@ -1,21 +1,19 @@
 // File: EnergyLevel.H  Energy level with degeneracy and orbital list.
 
 #include <EnergyLevel.H>
-#include <Symmetry.H>
+#include <Orbital.H>
 #include <cassert>
 #include <iostream>
 #include <iomanip>
 
+EnergyLevel::EnergyLevel(const Orbital* o)
+    : e(o->GetEigenEnergy()), occ(o->GetOccupation()), degen(o->GetDegeneracy()), qns(o->GetQNs())
+{};
+
 EnergyLevel::EnergyLevel(const EnergyLevel& el) 
-: e(el.e), occ(el.occ), degen(el.degen), qns(el.qns), orbital(el.orbital)
-{
+: e(el.e), occ(el.occ), degen(el.degen), qns(el.qns)//, orbital(el.orbital)
+{}
 
-}
-
-EnergyLevel::~EnergyLevel() 
-{
-    
-}
 
 void EnergyLevel::merge(const EnergyLevel& el)
 {

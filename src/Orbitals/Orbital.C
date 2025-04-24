@@ -37,18 +37,6 @@ std::string OrbitalImp::GetLabel() const
     return s;
 }
 
-EnergyLevel OrbitalImp::MakeEnergyLevel() const
-{
-    return EnergyLevel
-    (
-        GetEigenEnergy(),
-        GetOccupation(),
-        GetDegeneracy(),
-        GetQNs(),
-        this
-    );    
-}
-
 int OrbitalImp::GetDegeneracy() const
 {
     return itsQNs.GetDegeneracy();

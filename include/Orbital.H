@@ -26,7 +26,6 @@ public:
     virtual double      GetEigenEnergy () const=0;
     virtual Orbital_QNs GetQNs         () const=0; //Should have principle QN + spin QN + any symmetry QNs.
     virtual std::string GetLabel       () const=0; //A text version of the QNs.
-    virtual EnergyLevel MakeEnergyLevel() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     static  Orbital* Factory     (std::istream&)        ;

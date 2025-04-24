@@ -21,7 +21,6 @@ public:
     virtual double TakeElectrons(double )      ;
     virtual double GetEigenEnergy () const;
     virtual Orbital_QNs GetQNs         () const;
-    virtual EnergyLevel MakeEnergyLevel() const;
     virtual std::string GetLabel       () const; //A text version of the QNs.
 
     virtual std::ostream& Write(std::ostream&) const;
