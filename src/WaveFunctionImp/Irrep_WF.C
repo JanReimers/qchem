@@ -13,7 +13,7 @@
 
 Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms)
     : itsOrbitals(new  TOrbitalsImp<double>(bs,ms))
-    , itsQNs     (ms,&bs->GetSymmetry())
+    , itsIrrep     (ms,&bs->GetSymmetry())
 {
     assert(itsOrbitals);
 };
@@ -30,7 +30,7 @@ Irrep_WF::~Irrep_WF()
 void Irrep_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
-    itsOrbitals->UpdateOrbitals(ham,itsQNs.ms,cd);
+    itsOrbitals->UpdateOrbitals(ham,cd);
 }
 
 DM_CD* Irrep_WF::GetChargeDensity() const
@@ -50,7 +50,7 @@ const Orbitals* Irrep_WF::GetOrbitals() const
 const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
 {
     // Step one: How many electron for this Irrep(qn,spin) ?
-    double ne=ec->GetN(itsQNs);
+    double ne=ec->GetN(itsIrrep);
     //std::cout << "ne=" << ne << " QN=" << *itsQN << std::endl;
     //  Loop over orbitals and consume the electrons quota.
     for (auto& o:*itsOrbitals)

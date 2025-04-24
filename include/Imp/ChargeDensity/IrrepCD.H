@@ -53,7 +53,7 @@ private:
     DenSMat                itsDensityMatrix;
     const TOrbital_IBS<T>* itsBasisSet;
     Spin                   itsSpin;
-    Irrep_QNs              itsQNs;
+    Irrep_QNs              itsIrrep;
 };
 
 #endif //_ExactIrrepCD_H_

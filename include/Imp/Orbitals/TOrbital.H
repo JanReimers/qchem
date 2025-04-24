@@ -2,13 +2,39 @@
 #ifndef _TOrbitalImplementation_H_
 #define _TOrbitalImplementation_H_
 
-#include "Imp/Orbitals/ElectronContainer.H"
 #include <Orbital.H>
+#include <Spin.H>
 #include "oml/vector.h"
+#include <Orbital_QNs.H>
+
+class OrbitalImp
+    : public virtual Orbital
+{
+public:
+    OrbitalImp();
+    OrbitalImp(double e,const Orbital_QNs&);
+
+    virtual int    GetDegeneracy(       ) const;
+    virtual bool   IsOccupied   (       ) const;
+    virtual double GetOccupation(       ) const;
+    virtual void   Empty        (       )      ;
+    virtual double TakeElectrons(double )      ;
+    virtual double GetEigenEnergy () const;
+    virtual Orbital_QNs GetQNs         () const;
+    virtual EnergyLevel MakeEnergyLevel() const;
+    virtual std::string GetLabel       () const; //A text version of the QNs.
+
+    virtual std::ostream& Write(std::ostream&) const;
+
+private:
+    double itsEigenEnergy;
+    double itsOccupation;
+    Orbital_QNs itsQNs;
+};
 
 template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
-    , protected      ElectronContainerImp  //BUG should be private
+    , protected      OrbitalImp  
 {
     typedef ScalarFunction<T> Base;
     typedef typename Base::SMat SMat;
@@ -16,15 +42,11 @@ template <class T> class TOrbitalImp
     typedef typename Base::Vec3 Vec3;
     typedef typename Base::Vec3Vec Vec3Vec;
 public:
-    TOrbitalImp();
-    TOrbitalImp(const TOrbital_IBS<T>*,const Vec&, double, const Spin&, int i);
+    TOrbitalImp() {};
+    TOrbitalImp(const TOrbital_IBS<T>*,const Vec&, double e, const Orbital_QNs&);
 //
 //  These are indepentent of the template parameter and could therrefore be refactored.
 //
-    virtual double      GetEigenEnergy () const;
-    virtual Orbital_QNs GetQNs         () const;
-    virtual EnergyLevel MakeEnergyLevel() const;
-    virtual std::string GetLabel       () const; //A text version of the QNs.
 //
 //  These are dependent on the template parameter
 //
@@ -34,13 +56,10 @@ public:
     virtual Vec3   Gradient        (const RVec3&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
+   
 private:
-    double                   itsEigenEnergy;
     Vec                      itsCoeff;
     const TOrbital_IBS<T>* itsBasisSet;
-    int                      itsIndex; //Index with Irrep ... could help determine a principle QN
 };
 
 #endif  //_TOrbitalImplementation_H_

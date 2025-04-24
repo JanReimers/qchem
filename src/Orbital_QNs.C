@@ -22,6 +22,8 @@ Irrep_QNs::Irrep_QNs(const Irrep_QNs& qns)
     assert(sym);
 }
 
+
+
 Irrep_QNs::~Irrep_QNs()
 {
     assert(sym);
@@ -52,6 +54,15 @@ Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const Symmetry* _sym)
     assert(sym);
     assert(n<=n_max);
 }
+
+Orbital_QNs::Orbital_QNs(size_t _n, const Irrep_QNs& irr)
+: n(_n)
+, ms(irr.ms)
+, sym(irr.sym ? irr.sym->Clone() : 0)
+{
+    assert(sym);
+}
+
 Orbital_QNs::Orbital_QNs(const Orbital_QNs& qns)
 : n(qns.n)
 , ms(qns.ms)

@@ -39,7 +39,7 @@ template <class T> IrrepCD<T>::IrrepCD
     : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)
-    , itsQNs(qns)
+    , itsIrrep(qns)
 {
     assert(itsBasisSet);
 };

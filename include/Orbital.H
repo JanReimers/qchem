@@ -5,19 +5,6 @@
 #include "types.H"
 #include "Imp/Misc/pmstream.h"
 
-class ElectronContainer
-{
-public:
-    virtual ~ElectronContainer() {};
-    virtual bool   IsOccupied   (       ) const=0;
-    virtual double GetOccupation(       ) const=0;
-    virtual Spin   GetSpin      (       ) const=0;
-    virtual void   Empty        (       )      =0;
-    virtual double TakeElectrons(double )      =0;
-    virtual int    GetDegeneracy(       ) const=0;
-};
-
-
 //#############################################################
 //
 //  An orbital is 1) a real space function, 2) it holds some number
@@ -27,17 +14,21 @@ public:
 //
 class Orbital
     : public virtual PMStreamableObject
-    , public virtual ElectronContainer
 {
 public:
     virtual ~Orbital() {};
+    virtual bool   IsOccupied   (       ) const=0;
+    virtual double GetOccupation(       ) const=0;
+    virtual void   Empty        (       )      =0;
+    virtual double TakeElectrons(double )      =0;
+    virtual int    GetDegeneracy(       ) const=0;
+    
     virtual double      GetEigenEnergy () const=0;
     virtual Orbital_QNs GetQNs         () const=0; //Should have principle QN + spin QN + any symmetry QNs.
     virtual std::string GetLabel       () const=0; //A text version of the QNs.
     virtual EnergyLevel MakeEnergyLevel() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
-    virtual std::istream& Read   (std::istream&)      =0;
     static  Orbital* Factory     (std::istream&)        ;
 };
 
@@ -75,7 +66,7 @@ public:
     virtual index_t        GetNumOccOrbitals  (               ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual DM_CD*         GetChargeDensity   (               ) const=0;
-    virtual void           UpdateOrbitals     (Hamiltonian&, const Spin&,const DM_CD*)=0;
+    virtual void           UpdateOrbitals     (Hamiltonian&, const DM_CD*)=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep_QNs      GetQNs() const=0;
 

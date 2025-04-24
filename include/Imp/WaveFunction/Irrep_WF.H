@@ -16,12 +16,12 @@ public:
     const Orbitals*     GetOrbitals     (           ) const;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     void                DisplayEigen    (                            ) const;
-    const Irrep_QNs&    GetQNs          () const {return itsQNs;}
+    const Irrep_QNs&    GetQNs          () const {return itsIrrep;}
  private:
     Irrep_WF(const Irrep_WF&);
 
     Orbitals*     itsOrbitals; //Owned
-    Irrep_QNs     itsQNs;
+    Irrep_QNs     itsIrrep;
     EnergyLevels  itsELevels;
 
 }; 

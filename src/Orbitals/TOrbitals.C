@@ -71,11 +71,11 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 //
 //  This is where the real SCF work gets done.
 //
-template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const Spin& spin,const DM_CD* cd)
+template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsBasisSet);
     assert(spin==itsQNs.ms);
-    SMatrix<T> H=ham.GetMatrix(itsBasisSet,spin,cd);
+    SMatrix<T> H=ham.GetMatrix(itsBasisSet,itsQNs.ms,cd);
     //std::cout << "UpdateOrbitals " << itsBasisSet->GetSymmetry() << " spin=" << spin << std::endl;
     //std::cout << "H=" << H << std::endl;
     assert(!isnan(H));
@@ -87,13 +87,13 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const S
     //
     //  Strip out all the positron orbitals.
     //
-    static const double emin=-c_light*c_light;
+    static const double e_positron=-c_light*c_light; //Max positron energy = -2mc^2.
     size_t index=1;
     for (index_t i=1; i<=n; i++)
     {
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
-        if (e(i)<=emin) continue;
-        itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),spin, index++));
+        if (e(i)<=e_positron) continue; //Strip out all the positron orbitals.
+        itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),Orbital_QNs(index++,itsQNs)));
 
     }
 }
