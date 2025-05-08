@@ -1,6 +1,6 @@
-// File: QNs.h  Abstract interface for collection of Quantum Numbers.
-#ifndef _QNs_H_
-#define _QNs_H_
+// File: Symmetry.H  Abstract interface for symmetries that do not include spin.
+#ifndef _Symmetry_H_
+#define _Symmetry_H_
 
 #include "Imp/Misc/pmstream.h"
 
@@ -19,10 +19,11 @@ public:
     //! Does not include spin degeneracy which is handled separately
     virtual int GetDegeneracy     () const=0;
     virtual int GetPrincipleOffset() const=0; //Add to principle QN.  For atoms this is just l.
+    std::string GetLabel          () const;
     virtual Symmetry* Clone() const=0;
     static  Symmetry* Factory(std::istream&);
 };
 
 
 
-#endif //_QNs_H_
+#endif //_Symmetry_H_

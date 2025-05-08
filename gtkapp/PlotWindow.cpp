@@ -1,6 +1,8 @@
 // File: PlotWindow.cpp Define a window for PLPlot.
 
 #include "PlotWindow.H"
+#include <gtkmm-plplot/plotobject2dtext.h>
+#include <gtkmm-plplot/plotobject2dline.h>
 
 PlotWindow::PlotWindow()
 : plot("X")
@@ -188,13 +190,8 @@ void EnergyLevel_PW::DrawLevels(const EnergyLevels& els,double _dx_spin)
   {
     EnergyLevel el=iel.second;
     double x_center=findx(el)+_dx_spin;
-    auto data=Gtk::manage(
-      new Gtk::PLplot::PlotData2D(
-        std::valarray<double>({x_center-dx_arrow,x_center+dx_arrow}),
-        std::valarray<double>({el.e,el.e}),
-        Gdk::RGBA("black"), Gtk::PLplot::LineStyle::CONTINUOUS)
-      );
-    plot.add_data(*data);
+    auto line=Gtk::manage(new Gtk::PLplot::PlotObject2DLine(x_center-dx_arrow,el.e,x_center+dx_arrow,el.e));
+    plot.add_object(*line);
   }  
 }
 double EnergyLevel_PW::findx(const EnergyLevel& el) const
@@ -209,6 +206,7 @@ double EnergyLevel_PW::findx(const EnergyLevel& el) const
 //
 void EnergyLevel_PW::LoadSymmetries(const EnergyLevels& els)
 {
+  double e_scale=fabs(els.begin()->first);
   double x=0.0;
   Nocc=0,Nup=0,Ndn=0;
   StreamableObject::SetToPretty();
@@ -233,6 +231,8 @@ void EnergyLevel_PW::LoadSymmetries(const EnergyLevels& els)
     if (is==its_x_map.end())
     {
        its_x_map[sw]=x;
+       auto text=Gtk::manage(new Gtk::PLplot::PlotObject2DText(el.qns.sym->GetLabel(),x-dx_spin,e_scale*0.1 ));
+       plot.add_object(*text);
        x+=dx_sym;
       //  std::cout << "Adding x,sym = " << x << " " << *sw.sym << std::endl;
     }

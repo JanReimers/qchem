@@ -1,6 +1,7 @@
 Priority 1:
     -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
-    -UnpolarizedWF list all oritals.  Don;t list so many un-occ orbitals.
+    -WF list all oritals.  Don;t list so many un-occ orbitals.
+        Only in DEBUG mode!?!
     -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
     -Atom app needs to save state.
         Done: install cereal
@@ -19,7 +20,8 @@ Priority 1:
         Done: Charge density
             r^2*ro(r)
             r^2*{ro_up-ro_down}
-        Energy level diagram
+        Done: Energy level diagram
+            Use PlotObject2DLine for el lines.
         Diagonal values plot for BS
             -SVD: plot SVs
             -Eigen: plot eigen values
@@ -28,6 +30,10 @@ Priority 1:
             Use UTF
         Put Atom name and electron config in title.
         NO legend if only one line.
+        Missing features:
+            1) Hide one axis (or set colour for one axis)
+            2) Disable legend entries.
+
 
     -Energy levels:  Show unocc eigen values for spin down.
     Done: -ElectronContainer just adds confusion.  Merge into Orbital
