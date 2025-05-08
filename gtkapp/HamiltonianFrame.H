@@ -23,6 +23,7 @@ public:
   Hamiltonian*  create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const;
   WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
   PlotWindow*   create_orbital_pw(BasisSet*,WaveFunction*) const; //Decides polarized or un-polarized
+  PlotWindow*   create_el_pw(WaveFunction*) const; //Decides polarized or un-polarized
   
   template<class Archive>  void save(Archive & archive) const
   {

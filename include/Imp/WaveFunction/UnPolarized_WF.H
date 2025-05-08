@@ -24,6 +24,7 @@ public:
     virtual DM_CD*          GetChargeDensity() const;
     virtual sf_t*           GetSpinDensity  () const {return 0;}
     virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
+    virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;} 
     virtual void            FillOrbitals    ();
     virtual void            DisplayEigen    (               ) const;
 

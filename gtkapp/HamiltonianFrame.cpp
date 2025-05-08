@@ -70,3 +70,12 @@ PlotWindow* HamiltonianFrame::create_orbital_pw(BasisSet* bs,WaveFunction* wf) c
     else
         return new UnPolarized_Orbital_PW(bs,wf);
 }
+
+PlotWindow* HamiltonianFrame::create_el_pw(WaveFunction* wf) const
+{
+  assert(wf);
+  if (itsPolarized->get_active())
+        return new Polarized_EnergyLevel_PW(wf);
+    else
+        return new EnergyLevel_PW(wf);
+}

@@ -53,5 +53,48 @@ public:
 
 };
 
+#include <Symmetry.H>
+#include <Spin.H>
+#include <EnergyLevel.H>
+class EnergyLevel_PW : public PlotWindow
+{
+public:
+    EnergyLevel_PW();
+    EnergyLevel_PW(const WaveFunction*);
+
+    void LoadSymmetries(const EnergyLevels&);
+    void DrawArrows(const EnergyLevels&,double dx_spin,Glib::ustring symbol);
+    void DrawLevels(const EnergyLevels&,double dx_spin);
+    double findx(const EnergyLevel&) const;
+
+
+    struct Symmetry_Wrap
+    {
+        Symmetry_Wrap(const Symmetry* _sym) : sym(_sym) {};
+        Symmetry_Wrap(const Symmetry_Wrap& sw) : sym(sw.sym->Clone()) {};
+        const Symmetry_Wrap& operator=(const Symmetry_Wrap& sw)
+        {
+            delete sym;
+            sym=sw.sym->Clone();
+            return *this;
+        }
+        friend bool operator<(const Symmetry_Wrap& a, const Symmetry_Wrap& b)
+        {
+            return a.sym->SequenceIndex() < b.sym->SequenceIndex();
+        }
+        const Symmetry* sym;
+    };
+    std::map<Symmetry_Wrap,double> its_x_map;
+    std::map<Spin::State,EnergyLevels> its_els;
+    size_t Nocc,Nup,Ndn;
+};
+
+class Polarized_EnergyLevel_PW : public EnergyLevel_PW
+{
+public:
+    Polarized_EnergyLevel_PW(const WaveFunction*);
+
+};
+
 
 #endif //_PlotWindow123_H_

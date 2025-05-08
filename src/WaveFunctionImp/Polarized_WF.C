@@ -72,6 +72,12 @@ const Orbitals* Polarized_WF::GetOrbitals(const Irrep_QNs& qns) const
     return i->second->GetOrbitals();
 }
 
+EnergyLevels  Polarized_WF::GetEnergyLevels () const
+{
+    EnergyLevels ret(itsUpELevels);
+    ret.merge(itsDnELevels);
+    return ret;
+} 
 
 void Polarized_WF::FillOrbitals()
 {

@@ -1,4 +1,7 @@
 Priority 1:
+    -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
+    -UnpolarizedWF list all oritals.  Don;t list so many un-occ orbitals.
+    -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
     -Atom app needs to save state.
         Done: install cereal
         Done auto save to .qchem
@@ -17,6 +20,10 @@ Priority 1:
             r^2*ro(r)
             r^2*{ro_up-ro_down}
         Energy level diagram
+        Diagonal values plot for BS
+            -SVD: plot SVs
+            -Eigen: plot eigen values
+            -Cholsky: plot diagonal.
         Done: Y and X axis labels. + graph title.
             Use UTF
         Put Atom name and electron config in title.

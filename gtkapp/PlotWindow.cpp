@@ -123,3 +123,133 @@ SF_PW::SF_PW(const ScalarFunction<double>* sf,Glib::ustring x_label, Glib::ustri
   plot.set_axis_title_x(x_label);
   plot.set_plot_title(title);
 }
+
+const double dx_sym=1.0;
+const double dx_arrow=0.1;
+const double dx_spin=dx_arrow+0.001;
+
+#include <EnergyLevel.H>
+
+//
+//  Common construction
+//
+EnergyLevel_PW::EnergyLevel_PW()
+: its_els({
+  {Spin::None,EnergyLevels()},
+  {Spin::Up  ,EnergyLevels()},
+  {Spin::Down,EnergyLevels()}
+})
+{
+  plot.set_axis_title_y("Energy (a.u.)");
+  plot.set_axis_title_x("Angular Momentum l");
+  plot.set_plot_title("Occupied Orbital Energies");
+  plot.hide_legend();
+}
+
+
+//
+//  Specific to un-polarized
+//
+EnergyLevel_PW::EnergyLevel_PW(const WaveFunction* wf)
+  : EnergyLevel_PW()
+{
+  EnergyLevels els=wf->GetEnergyLevels();
+  LoadSymmetries(els);
+  // std::cout << "Nocc,Nup,Ndn=" << Nocc << " " << Nup << " " << Ndn << std::endl;
+  assert(Nup==Ndn);
+  DrawArrows(its_els[Spin::None],-0.01,"↑");
+  DrawArrows(its_els[Spin::None], 0.01,"↓");
+  DrawLevels(its_els[Spin::None], 0.0);
+ 
+}
+
+void EnergyLevel_PW::DrawArrows(const EnergyLevels& els,double _dx_spin,Glib::ustring symbol) 
+{
+  std::vector<double> x,y;
+  auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(x,y, Gdk::RGBA("black"), Gtk::PLplot::LineStyle::NONE));
+
+  for (auto iel:els)
+  {
+    EnergyLevel el=iel.second;
+    size_t occ=el.occ;
+    assert(occ!=0);
+    double x_left=findx(el)-dx_arrow+_dx_spin;
+    double dx=2.0*dx_arrow/(2*occ);
+    for (size_t n=0;n<occ;n++)
+      data->add_datapoint(x_left+(2*n+1)*dx,el.e);
+  }
+  data->set_symbol(symbol);
+  data->set_symbol_color(Gdk::RGBA("blue"));
+  plot.add_data(*data);
+}
+void EnergyLevel_PW::DrawLevels(const EnergyLevels& els,double _dx_spin)
+{
+  for (auto iel:els)
+  {
+    EnergyLevel el=iel.second;
+    double x_center=findx(el)+_dx_spin;
+    auto data=Gtk::manage(
+      new Gtk::PLplot::PlotData2D(
+        std::valarray<double>({x_center-dx_arrow,x_center+dx_arrow}),
+        std::valarray<double>({el.e,el.e}),
+        Gdk::RGBA("black"), Gtk::PLplot::LineStyle::CONTINUOUS)
+      );
+    plot.add_data(*data);
+  }  
+}
+double EnergyLevel_PW::findx(const EnergyLevel& el) const
+{
+  Symmetry_Wrap sw(el.qns.sym);
+  auto i=its_x_map.find(sw);
+  assert(i!=its_x_map.end());
+  return i->second;
+}
+//
+//  Assign x values for each symmetry (without spin).
+//
+void EnergyLevel_PW::LoadSymmetries(const EnergyLevels& els)
+{
+  double x=0.0;
+  Nocc=0,Nup=0,Ndn=0;
+  StreamableObject::SetToPretty();
+  for (auto i:els)
+  {
+    EnergyLevel el=i.second;
+    if (el.occ==0) continue;
+    if (el.qns.ms==Spin::None) el.occ/=2; //This akes subsequent arrow drawing code much simpler.
+    its_els[el.qns.ms.itsState].insert(el); //Dis-aggregate energy levels by spin state.
+    Nocc++;
+    if (el.qns.ms==Spin::Up  ) Nup+=el.occ;
+    if (el.qns.ms==Spin::Down) Ndn+=el.occ;
+    if (el.qns.ms==Spin::None) 
+    {
+      Nup+=el.occ;
+      Ndn+=el.occ;
+    }
+    
+    Symmetry_Wrap sw(el.qns.sym);
+    // std::cout << "x,sym = " << x << " " << sw.sym->SequenceIndex() << " " << *sw.sym << std::endl;
+    auto is=its_x_map.find(sw);
+    if (is==its_x_map.end())
+    {
+       its_x_map[sw]=x;
+       x+=dx_sym;
+      //  std::cout << "Adding x,sym = " << x << " " << *sw.sym << std::endl;
+    }
+
+  }
+}
+
+Polarized_EnergyLevel_PW::Polarized_EnergyLevel_PW(const WaveFunction* wf)
+: EnergyLevel_PW()
+{
+  EnergyLevels els=wf->GetEnergyLevels();
+  LoadSymmetries(els);
+  // std::cout << "Nocc,Nup,Ndn=" << Nocc << " " << Nup << " " << Ndn << std::endl;
+  DrawArrows(its_els[Spin::Up  ],-dx_spin,"↑");
+  DrawArrows(its_els[Spin::Down], dx_spin,"↓");
+  DrawLevels(its_els[Spin::Up  ],-dx_spin);
+  DrawLevels(its_els[Spin::Down], dx_spin);
+
+
+}

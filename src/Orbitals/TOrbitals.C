@@ -74,7 +74,6 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsBasisSet);
-    assert(spin==itsQNs.ms);
     SMatrix<T> H=ham.GetMatrix(itsBasisSet,itsQNs.ms,cd);
     //std::cout << "UpdateOrbitals " << itsBasisSet->GetSymmetry() << " spin=" << spin << std::endl;
     //std::cout << "H=" << H << std::endl;

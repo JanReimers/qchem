@@ -99,6 +99,9 @@ void ControllerWindow::new_model()
   sf_t* sd=wf->GetSpinDensity();
   itsNotebook->append_page(*new SF_PW(cd,"#fir (a.u.)","#fir#u2#d ρ(r) (a.u.)","Radial Charge Density"),"ρ(r)");
   if (sd) itsNotebook->append_page(*new SF_PW(sd,"#fir (a.u.)","#fir#u2#d(ρ#d↑#u-ρ#d↓#u) (a.u.)","Radial Spin Density"),"ρ↑-ρ↓");
+
+  auto el_plotw=itsHamiltonian->create_el_pw(wf);
+  itsNotebook->append_page(*el_plotw,"Eₙₗₘ");
   
 }
 

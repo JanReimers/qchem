@@ -38,7 +38,7 @@ public:
     iterator       end  ()       {return itsELevels.end  ();}
     const_iterator begin() const {return itsELevels.begin();}
     const_iterator end  () const {return itsELevels.end  ();}
-    
+    size_t         size () const {return itsELevels.size ();}
     void Report(std::ostream&) const;
 
 private:
