@@ -33,6 +33,8 @@ public:
     itsAbsTol->set_text(Glib::Ascii::dtostr(abs_tol));
   }
 
+  qchem::Ortho GetOrtho() const;
+
 private:
   enumDropDown<qchem::Pkg  >* itsPkg;
   enumDropDown<qchem::Ortho>* itsOrtho;

@@ -25,3 +25,8 @@ LAParams LAParamsFrame::create() const
   return {pkg,ortho,trunc_tol,abs_tol};
 }
 
+qchem::Ortho LAParamsFrame::GetOrtho() const
+{
+  ortho=itsOrtho->GetType();
+  return ortho;
+}

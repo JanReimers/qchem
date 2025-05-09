@@ -35,6 +35,7 @@ template <class T> class LASolverCommon
     typedef DiagonalMatrix<T>  DMat;
 
     virtual RSMat  Transform(const RSMat& M) const;
+    virtual RVec   Get_BS_Diagonal() const {return Diag;}
 
 protected:
     LASolverCommon(const LAParams& lap) : itsParams(lap) {};
@@ -51,6 +52,7 @@ protected:
 
     LAParams itsParams;
     Mat  V,Vd;  //Basis Overlap S = V*Vd
+    RVec Diag; //s for SVD, e for eigen, diag for Cholsky.
 };
 
 

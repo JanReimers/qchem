@@ -79,3 +79,9 @@ PlotWindow* HamiltonianFrame::create_el_pw(WaveFunction* wf) const
     else
         return new EnergyLevel_PW(wf);
 }
+
+PlotWindow*   HamiltonianFrame::create_diag_pw(BasisSet* bs,WaveFunction* wf, qchem::Ortho ortho) const
+{
+  Spin s = itsPolarized->get_active() ? Spin::Up : Spin::None;
+  return new Diagonal_PW(bs,wf,ortho,s);
+}

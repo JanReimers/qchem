@@ -113,9 +113,15 @@ CalculateDensityMatrix() const
     return d;
 }
 
-template <class T>  Irrep_QNs    TOrbitalsImp<T>::GetQNs() const
+template <class T>  Irrep_QNs TOrbitalsImp<T>::GetQNs() const
 {
     return itsQNs;
+}
+
+template <class T>  typename TOrbitalsImp<T>::RVec TOrbitalsImp<T>::Get_BS_Diagonal() const
+{
+    assert(itsLASolver);
+    return itsLASolver->Get_BS_Diagonal();
 }
 //-----------------------------------------------------------------
 //

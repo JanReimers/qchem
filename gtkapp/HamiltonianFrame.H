@@ -2,6 +2,7 @@
 #ifndef _HamiltonianFrame_H_
 #define _HamiltonianFrame_H_
 
+#include <LAParams.H>
 #include "enumDropDown.H"
 #include <gtkmm.h>
 #include <types.H>
@@ -24,6 +25,7 @@ public:
   WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
   PlotWindow*   create_orbital_pw(BasisSet*,WaveFunction*) const; //Decides polarized or un-polarized
   PlotWindow*   create_el_pw(WaveFunction*) const; //Decides polarized or un-polarized
+  PlotWindow*   create_diag_pw(BasisSet*,WaveFunction*, qchem::Ortho) const; //Decide spin and diag type: SVD,Eigen,Cholsky
   
   template<class Archive>  void save(Archive & archive) const
   {

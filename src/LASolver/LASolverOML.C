@@ -26,6 +26,7 @@ template <class T> void LASolverOMLEigen<T>::SetBasisOverlap(const SMat& S)
     LASolverCommon<T>::Truncate(U,w,itsParams.TruncationTolerance);
     LASolverCommon<T>::Rescale(U,w);
     LASolverCommon<T>::AssignVs(U,~U);
+    LASolverCommon<T>::Diag=w; //Preserve eigend values.
 }
 
 template <class T> typename LASolver<T>::RSMat LASolverOMLEigen<T>::Inverse(const RSMat& S) const
@@ -45,6 +46,7 @@ template <class T> void LASolverOMLSVD<T>::SetBasisOverlap(const SMat& S)
     LASolverCommon<T>::Truncate(U,s,Vt,itsParams.TruncationTolerance);
     LASolverCommon<T>::Rescale(U,s,Vt);
     LASolverCommon<T>::AssignVs(U,Vt);
+    LASolverCommon<T>::Diag=s; //Preserve SVs.
 }
 
 template <class T> typename LASolver<T>::RSMat LASolverOMLSVD<T>::Inverse(const RSMat& S) const
@@ -64,6 +66,7 @@ template <class T> void LASolverOMLCholsky<T>::SetBasisOverlap(const SMat& S)
     Mat Uinv=U; //Copy
     InvertTriangular(Uinv); //
     LASolverCommon<T>::AssignVs(~Uinv,Uinv);
+    LASolverCommon<T>::Diag=U.GetDiagonal();
 }
 
 template <class T> typename LASolver<T>::RSMat LASolverOMLCholsky<T>::Inverse(const RSMat& S) const

@@ -96,5 +96,12 @@ public:
 
 };
 
+#include <LAParams.H>
+class Diagonal_PW : public PlotWindow
+{
+public:
+    Diagonal_PW(const BasisSet*,const WaveFunction*, qchem::Ortho,Spin);
+
+};
 
 #endif //_PlotWindow123_H_

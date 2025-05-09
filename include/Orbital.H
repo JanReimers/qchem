@@ -56,6 +56,7 @@ public:
 //
 class Orbitals : public virtual PMStreamableObject
 {
+    typedef Vector<double> RVec;
 public:
     typedef std::vector<Orbital*>::      iterator       iterator;
     typedef std::vector<Orbital*>::const_iterator const_iterator;
@@ -68,6 +69,7 @@ public:
     virtual void           UpdateOrbitals     (Hamiltonian&, const DM_CD*)=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep_QNs      GetQNs() const=0;
+    virtual RVec           Get_BS_Diagonal() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::istream& Read   (std::istream&)      =0;

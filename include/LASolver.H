@@ -43,6 +43,7 @@ public:
     static  LASolver* Factory(const LAParams&);  
       
     virtual void   SetBasisOverlap(const SMat& S)=0;
+    virtual RVec   Get_BS_Diagonal() const=0;
     virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.
     virtual RSMat  Inverse(const RSMat& S) const=0;
     // For unit testing

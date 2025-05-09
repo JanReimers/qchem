@@ -89,6 +89,7 @@ void ControllerWindow::new_model()
   SCFIterationParams scfip=itsIterationParams->create();
   itsSCFIterator=new SCFIterator(wf,h);
   itsSCFIterator->Iterate(scfip);
+  
   auto orbital_plotw=itsHamiltonian->create_orbital_pw(bs,wf);
   orbital_plotw->AddLabels("#fir (a.u.)","#fi#gf(r)","Radial Orbital Profiles");
   itsNotebook->append_page(*orbital_plotw,"φ(r)");
@@ -102,6 +103,9 @@ void ControllerWindow::new_model()
 
   auto el_plotw=itsHamiltonian->create_el_pw(wf);
   itsNotebook->append_page(*el_plotw,"Eₙₗₘ");
+  
+  auto diag_pw=itsHamiltonian->create_diag_pw(bs,wf,itsLAParams->GetOrtho());
+  itsNotebook->append_page(*diag_pw,"Diag");
   
 }
 

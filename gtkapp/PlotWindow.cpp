@@ -253,3 +253,42 @@ Polarized_EnergyLevel_PW::Polarized_EnergyLevel_PW(const WaveFunction* wf)
 
 
 }
+
+#include "oml/vector.h"
+
+template <class T> std::valarray<T> to_valarray(const Vector<T>& v)
+{
+  std::valarray<T> ret(v.size());
+  for (int i:v.arr_indices()) ret[i]=v[i];
+  return ret;
+}
+
+const std::string ortho_titles[3]={"Cholsky Decomposition Diagonals","Eigen Values","Singlar Values"};
+const std::string ortho_ynames[3]={"Cholsky Diagonals","Eigen Values","Singular Values"};
+
+
+Diagonal_PW::Diagonal_PW(const BasisSet* bs,const WaveFunction* wf, qchem::Ortho ortho, Spin s)
+{
+  Glib::ustring symbol("•");
+  BasisSet::symv_t syms=bs->GetSymmetries();
+  int N=syms.size();
+  float r=1.0,g=0.0,b=0.0,dr= N==1 ? 1.0 : 1.0/(N-1);
+  for (auto sym:syms)
+  {
+    Irrep_QNs qns(s,sym);
+    const TOrbitals<double>* tos=dynamic_cast<const TOrbitals<double>*>(wf->GetOrbitals(qns));
+    std::valarray<double> diag=to_valarray(tos->Get_BS_Diagonal());
+    auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(diag, Gdk::RGBA("black"), Gtk::PLplot::LineStyle::NONE));
+    data->set_symbol(symbol);
+    data->set_symbol_color(Gdk::RGBA(r,g,b,1.0));
+    data->set_symbol_height_scale_factor(0.8);
+    data->set_name(sym->GetLabel()); 
+    plot.add_data(*data);
+    r-=dr;
+    b+=dr;
+  }
+  plot.set_axis_logarithmic_y();
+  plot.set_axis_title_x("Diagonal Index");
+  plot.set_axis_title_y(ortho_ynames[ortho]);
+  plot.set_plot_title("Basis Set Overlap Matrix "+ortho_titles[ortho]);
+}
