@@ -1,0 +1,3 @@
+[submodule "BSplinebasis"]
+	path = BSplinebasis
+	url = https://github.com/okruz/BSplinebasis
