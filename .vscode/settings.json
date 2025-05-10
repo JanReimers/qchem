@@ -74,6 +74,11 @@
         "valarray": "cpp",
         "text_encoding": "cpp",
         "unordered_set": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "*.ipp": "cpp",
+        "strstream": "cpp",
+        "cfenv": "cpp",
+        "future": "cpp",
+        "stdfloat": "cpp"
     }
 }
