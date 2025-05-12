@@ -1,5 +1,6 @@
 Priority 1:
     -For kinetic energy split up grad^2 and centrifugal parts.
+        -This is atom specific, does not ally to pol. Gaussians.
         Rename primative interals:
             Inv_r2 <a|1/r^2|b>
             Inv_r1 <a|1/r|b>

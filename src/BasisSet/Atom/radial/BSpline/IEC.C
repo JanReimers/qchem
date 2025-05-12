@@ -14,7 +14,7 @@ template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin,
 
 template <size_t K> IrrepIEClient<K>::~IrrepIEClient()
 {
-    std::cout << "BSpline::IrrepIEClient<K>::~IrrepIEClient()" << std::endl;
+    
 }
 
 template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)

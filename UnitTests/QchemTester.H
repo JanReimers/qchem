@@ -141,6 +141,25 @@ class SG_RKB_OBasis : public SG_OBasis
     virtual BasisSet*      GetBasisSet () const;   
 };
 
+class BS_OBasis : public virtual QchemTester
+{
+public:
+    void Init(int _N, double _rmin, double _rmax, int _LMax, const LAParams& _lap)
+    {
+        N=_N;LMax=_LMax;rmin=_rmin;rmax=_rmax;
+        lap=_lap;
+    }
+    void Init(int _N, double _rmin, double _rmax, int _LMax) 
+    {
+        Init(_N,_rmin,_rmax,_LMax,LAParams({qchem::Lapack,qchem::Cholsky,1e-9,1e-12}));
+    }
+ protected:
+    virtual BasisSet*      GetBasisSet () const;   
+    LAParams lap;
+    int N,LMax;
+    double rmin,rmax;
+};
+
 
 #include "Imp/BasisSet/Atom/EC.H"
 //----------------------------------------------------------------------------------

@@ -226,6 +226,17 @@ BasisSet* PG_OBasis::GetBasisSet () const
     }
 }
 
+#include "Imp/BasisSet/Atom/l/BSpline_BS.H"
+BasisSet* BS_OBasis::GetBasisSet () const
+{
+    BasisSet* bs=new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
+    bs->Set(lap);
+    // StreamableObject::SetToPretty();
+    //std::cout << *bs << std::endl;
+    return  bs;
+}
+
+
 
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"

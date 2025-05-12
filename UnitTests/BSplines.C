@@ -183,3 +183,36 @@ TEST_F(BSplineTests, Kinetic)
         // cout << "Tnum=" << Tnum << endl;
     }
 }
+
+
+#include "QchemTester.H"
+#include "Imp/Hamiltonian/Hamiltonians.H"
+
+bool verbose=true;
+
+class HF_1E : public virtual QchemTester
+{
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return new Ham_1E(cluster);
+    }
+};
+
+class A_BS_1E_U : public ::testing::Test
+, public TestAtom, BS_OBasis, HF_1E, TestPolarized
+{
+public:
+    A_BS_1E_U() : TestAtom(1) {};
+    void Init(int N, double rmin, double rmax, int LMax)
+    {
+        BS_OBasis::Init(N,rmin,rmax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_F(A_BS_1E_U,Hydrogen)
+{
+    Init(30,0.01,40.0,0);
+    Iterate({2,1e-4,1.0,0.0,verbose});
+    EXPECT_LT(RelativeHFError(),1e-4);
+}
