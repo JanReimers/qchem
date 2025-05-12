@@ -70,8 +70,6 @@ bool SlaterRadialIntegralTests::supported(const AtomIrrepIEClient& ab, const Ato
     int ncd=cd.n+cd.n;
     return nab<=6 && ncd<=6;
 }
-
-
 double SlaterRadialIntegralTests::R0(const AtomIrrepIEClient& ab, const AtomIrrepIEClient& cd,int ia, int ib, int ic, int id) const
 {
     double a=ab.es(ia)+ab.es(ib);

@@ -2,9 +2,17 @@
 
 
 #include "gtest/gtest.h"
-#include <bspline/Core.h>
+#include "Imp/BasisSet/Atom/l/BSpline_BS.H"
+#include "Imp/BasisSet/Atom/l/BSpline_IBS.H"
 #include "Imp/Containers/stl_io.h"
+#include "Imp/Integrals/MeshIntegrator.H"
+#include "Imp/Cluster/Atom.H"
+#include "Imp/Cluster/Molecule.H"
+#include <MeshParams.H>
+#include <Cluster.H>
+
 #include "oml/smatrix.h"
+#include <bspline/Core.h>
 #include <iostream>
 
 using std::cout;
@@ -13,10 +21,27 @@ using std::endl;
 class BSplineTests : public ::testing::Test
 {
 public:
-    BSplineTests() {};
+    BSplineTests() 
+        : LMax(0)
+        , cl(new Molecule())
+    {
+        StreamableObject::SetToPretty();
+        cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
+        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
+        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
+    }
+    void Init(int N, double rmin, double rmax)
+    {
+        bs=new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
+    }
 
     std::vector<double> MakeLogKnots(double rmin, double rmax, size_t SPLINE_ORDER, size_t numberOfGridPoints);
     template <class S,class B> SMatrix<double> MakeSMat(const std::vector<S>& splines, const B&);
+   
+    size_t LMax;
+    BasisSet* bs;
+    Cluster* cl;
+    MeshIntegrator<double>* mintegrator;
 };
 
 std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t k, size_t Ngrid)
@@ -62,19 +87,65 @@ using namespace bspline::integration;
 
 TEST_F(BSplineTests, Knots)
 {
-    StreamableObject::SetToPretty();
+    
     static constexpr size_t SPLINE_ORDER = 3;
     std::vector<double> knots=MakeLogKnots(0.01,2000.0,SPLINE_ORDER,10);
-    cout << knots << endl;
+    // cout << knots << endl;
     using Spline = bspline::Spline<double, SPLINE_ORDER>;
     std::vector<Spline> splines=bspline::generateBSplines<SPLINE_ORDER>(knots);
-    for (double r=0.01;r<2000;r*=2.0)
-        cout << r << " " << splines[5](r) << endl;
+    // for (double r=0.01;r<2000;r*=2.0)
+    //     cout << r << " " << splines[5](r) << endl;
 
     const BilinearForm bilinearForm{IdentityOperator{}};
-    double S11=bilinearForm(splines[0],splines[0]);
-    cout << "overlap=" << S11 << endl;
-
     SMatrix<double> S=MakeSMat(splines,bilinearForm);
-    cout << "overlap=" << S << endl;
+    // cout << "overlap=" << S << endl;
+}
+
+#include <map>
+template <class T, size_t K> struct cmpSplines {
+    bool operator()(const bspline::Spline<T,K>& a, const bspline::Spline<T,K>& b) const
+    {
+        return a.getSupport().getStartIndex()<b.getSupport().getStartIndex();
+    }
+};
+
+TEST_F(BSplineTests, SplineMap)
+{
+    static constexpr size_t K = 3;
+    std::vector<double> knots=MakeLogKnots(0.01,2000.0,K,10);
+    using Spline = bspline::Spline<double, K>;
+    std::vector<Spline> splines=bspline::generateBSplines<K>(knots);
+    std::map<Spline,size_t,cmpSplines<double,K>> smap;
+    size_t index=0;
+    for (auto& s:splines)
+    {
+        auto i=smap.find(s);
+        if (i==smap.end())
+        {
+            smap[s]=index;
+        }
+        index++;
+    }
+}
+
+TEST_F(BSplineTests, Overlap)
+{
+    size_t K=6;
+    cout.precision(3);
+    Init(10,.1,10.);
+    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<6> >())
+    {
+        const TOrbital_IBS<double>* ibs1=ibs;
+        SMatrix<double> S=ibs1->Overlap();
+        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
+        auto sp=&(ibs->splines[0]);
+        SMatrix<double> Snum = mintegrator->Overlap(*ibs);
+
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+
+        // cout << "S=" << S << endl;
+        // cout << "Snum=" << Snum << endl;
+        for (auto i:S.rows()) 
+            for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
+    }
 }

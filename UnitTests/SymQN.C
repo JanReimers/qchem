@@ -146,5 +146,6 @@ TEST_F(SymQNTests, Orbital_QNs_set)
         // delete yl1;
     }
     StreamableObject::SetToPretty();
-    for (auto qn:qns) cout << qn << endl;
+    for (auto qn:qns) cout << qn << " ";
+    cout << endl;
 }

@@ -1,39 +1,41 @@
-// File: BFGrouper.C  Group Slater or Gaussian basis functions by unique exponents.
+// File: BSpline/BFGrouper.C  Group BSpline basis functions by support start positions.
 
-#include "Imp/BasisSet/Atom/BFGrouper.H"
-#include "Imp/BasisSet/Atom/IEC.H"
+#include "Imp/BasisSet/Atom/radial/BSpline/BFGrouper.H"
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 #include <cassert>
 #include <iostream>
 using std::cout;
 using std::endl;
 
-void BFGrouper::Append(AtomIrrepIEClient* aiec)
+namespace BSpline
 {
-    for (auto e:aiec->es)
+
+template <size_t K> void BFGrouper<K>::Append(IrrepIEClient<K>* iec)
+{
+    for (auto s:iec->splines)
     {
-        size_t index=unique_es.size();
-        if (const auto &ie =unique_es.find(e);ie==unique_es.end())
+        size_t index=unique_sp.size();
+        if (const auto &ie =unique_sp.find(s);ie==unique_sp.end())
         {
-            unique_esv.push_back(e);
-            maxls.push_back(aiec->l);
-            unique_es[e]=index;
+            unique_spv.push_back(s);
+            maxls.push_back(iec->l);
+            unique_sp[s]=index;
 //            for (auto e:unique_esv) cout << e << " ";
 //            cout << endl;
         }
         else 
             index=ie->second;
 
-        if (aiec->l>maxls[index]) maxls[index]=aiec->l;
+        if (iec->l>maxls[index]) maxls[index]=iec->l;
 //        cout << "BFGrouper index,l,maxl=" << index << " " << aiec->l << " " << maxls[index] << endl;
-        aiec->es_indices.push_back(index);  
+        iec->sp_indices.push_back(index);  
     }        
 }
  
 
 
 //  indices should already be zero based.
-size_t BFGrouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
+template <size_t K> size_t BFGrouper<K>::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
 {
     size_t lmax_ab=std::max(maxls[ia],maxls[ib]);
     size_t lmax_cd=std::max(maxls[ic],maxls[id]);
@@ -41,4 +43,6 @@ size_t BFGrouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
     return std::max(lmax_ab,lmax_cd);
 }
 
+template class BFGrouper<6>;
 
+} // namespace

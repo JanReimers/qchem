@@ -1,0 +1,33 @@
+// File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
+#ifndef _BSpline_RkEngine_H_
+#define _BSpline_RkEngine_H_
+
+#include "Imp/Integrals/Cache4.H"
+#include "oml/matrix.h"
+
+namespace BSpline
+{
+//
+// Store exponents and derivative tables for a 4 electron charge distribution ab|cd
+// formed from a product of slater orbitals.
+// eab = ea + eb
+// ecd = ec + ed
+//
+class RkEngine : public virtual Cacheable
+{
+public:
+    RkEngine(double eab, double ecd, size_t LMax);
+    double Coulomb_R0(size_t la,size_t lc) const; //R_0(la,la,lc,lc);
+    Vector<double> Coulomb_Rk(size_t la,size_t lc) const; //R_k(la,la,lc,lc);
+    Vector<double> ExchangeRk(size_t la,size_t lb) const; //R_k(la,lb,la,lb);
+    //! R_k(la,lb,la,lb) with |Ala-Alb| <= k <= Ala+Alb
+    Vector<double> ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const; 
+    
+private:
+    double eab, ecd;
+    size_t LMax;
+};
+
+} //namespace
+
+#endif // _BSpline_RkEngine_H_

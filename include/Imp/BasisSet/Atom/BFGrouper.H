@@ -13,11 +13,16 @@
 // THis class should be working together with the charge distribution caching mechanism.
 //  
 class AtomIrrepIEClient;
+namespace BSpline
+{
+    template <size_t K> class IrrepIEClient;
+}
 
 class BFGrouper
 {
 protected:
     void Append(AtomIrrepIEClient*);
+    template <size_t K> void Append(BSpline::IrrepIEClient<K>*);
     size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 

@@ -1,4 +1,30 @@
 Priority 1:
+    -For kinetic energy split up grad^2 and centrifugal parts.
+        Rename primative interals:
+            Inv_r2 <a|1/r^2|b>
+            Inv_r1 <a|1/r|b>
+        centrifugal =l*(l+1)*Inv_r2(a,b)
+        nuclear = -Z*Inv_r1(a,b)
+        grad2=<a|d^2/dr^2|b>
+    -Add BSpline basis sets.
+        https://okruz.github.io/BSplinebasis does everything we need ...
+            except that the spine order is hard coded.
+                std::vector<std::array<T, ARRAY_SIZE>> _coefficients;
+                This is that the package can do compile time recusron for efficiency
+            May have to hard code k=5,6,7,8,9
+                Instance in one file
+                If we instance K=9, does this automatically create instances for K=8,7,...,0 ?
+                    Inside BSplinebasis maybe yes.
+                    But qchem template would not recurse unless we set up that way.
+                        Specialize K=0 to stop recusrion.
+        IE.C
+            fix loop ranges to exclude splines that do not overlap.
+            Need another BFGrouper for splines, can we make an op< for splines?
+                Could properly sort based on 
+        BF how to take derivative of spline?
+        Need to make a static list of H kinetic operators for L=0,1,2,3,4
+        BSplines should use banded matricies for space/time efficiency.
+
     -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
         Only in DEBUG mode!?!
@@ -270,6 +296,7 @@ oml:
     -Subvector why in imp?
         Also infinite recursion:  VecLimits GetLimits() const {return static_cast<const Derived*>(this)->GetLimits();}
     Handle SMatrix<complex<T>> return conj is i>j;
+    Banded matrices for BSplines.
       
 Priority 2:
     Done: -Set up a CMake build.  Run from vscode.
