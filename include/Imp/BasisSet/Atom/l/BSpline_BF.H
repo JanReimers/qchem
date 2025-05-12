@@ -28,6 +28,7 @@ public:
 
 private:
     spline_t itsSpline;
+    bspline::Spline<double, K-1> itsDxSpline;
     int      itsL;
     double   itsNormalization;
 };

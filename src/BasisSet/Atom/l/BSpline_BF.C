@@ -20,6 +20,7 @@ namespace BSpline
 
 template <size_t K> BasisFunction<K>::BasisFunction(const spline_t& sp, int l, double norm)
     : itsSpline       (sp)
+    , itsDxSpline     (transformSpline(bspline::operators::Dx<1>{},sp))
     , itsL            (l)
     , itsNormalization(norm)
 {
@@ -53,8 +54,9 @@ template <size_t K> typename BasisFunction<K>::Vec3 BasisFunction<K>::Gradient(c
     if (r==ret) return ret; //Cusp at the origin so grad is undefined.
     double mr=norm(r);
     assert(mr>0);
-    assert(false);
-    return Vec3(0,0,0);
+    if (mr<itsSpline.front() || mr>itsSpline.back()) return ret;
+    Vec3 rhat=r/mr;
+    return rhat*itsNormalization*itsDxSpline(mr);
 }
 
 template <size_t K> ::BasisFunction* BasisFunction<K>::Clone() const

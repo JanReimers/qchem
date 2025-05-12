@@ -17,7 +17,8 @@ template <size_t K> class IE_Primatives
 protected:
     virtual double Overlap  (const spline_t& a , const spline_t& b,size_t l_total) const;
     virtual double Grad2    (const spline_t& a , const spline_t& b,size_t la, size_t lb) const;
-    virtual double Nuclear  (const spline_t& a , const spline_t& b,size_t l_total) const;
+    virtual double Nuclear  (const spline_t& a , const spline_t& b,size_t l_total) const; //! <a|1/r^1|b>
+    virtual double InvR2    (const spline_t& a , const spline_t& b,size_t l_total) const; //! <a|1/r^2|b>
     virtual double Repulsion(const spline_t& a , const spline_t& b,size_t la,size_t lc) const;
     virtual double Charge   (const spline_t& a ,                   size_t l) const;
 };

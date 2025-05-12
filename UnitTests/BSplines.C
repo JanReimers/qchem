@@ -32,12 +32,13 @@ public:
     }
     void Init(int N, double rmin, double rmax)
     {
-        bs=new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
+        bs=new Atoml::BSpline::BasisSet<K>(N,rmin,rmax,LMax);
     }
 
     std::vector<double> MakeLogKnots(double rmin, double rmax, size_t SPLINE_ORDER, size_t numberOfGridPoints);
     template <class S,class B> SMatrix<double> MakeSMat(const std::vector<S>& splines, const B&);
    
+    static constexpr size_t K=6;
     size_t LMax;
     BasisSet* bs;
     Cluster* cl;
@@ -127,25 +128,58 @@ TEST_F(BSplineTests, SplineMap)
         index++;
     }
 }
-
 TEST_F(BSplineTests, Overlap)
 {
-    size_t K=6;
     cout.precision(3);
-    Init(10,.1,10.);
-    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<6> >())
+    Init(10,.1,40.);
+    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> S=ibs1->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        auto sp=&(ibs->splines[0]);
+        for (auto i:S.rows()) //Check banded
+            for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
+        
         SMatrix<double> Snum = mintegrator->Overlap(*ibs);
-
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
 
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
-        for (auto i:S.rows()) 
-            for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
+    }
+}
+TEST_F(BSplineTests, Nuclear)
+{
+    cout.precision(3);
+    Init(10,.1,40.);
+    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
+    {
+        const TOrbital_IBS<double>* ibs1=ibs;
+        SMatrix<double> Ven=ibs1->Nuclear(cl);
+        for (auto i:Ven.rows()) //Check banded
+            for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
+        
+        SMatrix<double> Vennum = -cl->GetNuclearCharge()*mintegrator->Nuclear(*ibs);
+        EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-7);
+
+        // cout << "Ven=" << Ven << endl;
+        // cout << "Vennum=" << Vennum << endl;
+    }
+}
+TEST_F(BSplineTests, Kinetic)
+{
+    cout.precision(3);
+    Init(10,.1,40.);
+    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
+    {
+        const TOrbital_IBS<double>* ibs1=ibs;
+        SMatrix<double> T=ibs1->Grad2();
+        for (auto i:T.rows()) //Check banded
+            for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
+        
+        SMatrix<double> Tnum = mintegrator->Grad(*ibs);
+        EXPECT_NEAR(Max(fabs(T-Tnum)),0.0,3e-5);
+
+        // cout << "T=" << T << endl;
+        // cout << "Tnum=" << Tnum << endl;
     }
 }

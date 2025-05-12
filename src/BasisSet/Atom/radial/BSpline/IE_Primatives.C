@@ -29,12 +29,16 @@ template <size_t K> double IE_Primatives<K>::Grad2(const spline_t& a , const spl
     assert(la==lb);
     assert(la==L);
     
-    return BilinearForm{T}(a,b);
+    return BilinearForm{T}(a,b)*4*Pi;
 }
 
 template <size_t K> double IE_Primatives<K>::Nuclear(const spline_t& a , const spline_t& b,size_t l_total) const
 {
-    return BilinearForm{X<1>{}}(a,b); //Already has 4*Pi
+    return BilinearForm{X<1>{}}(a,b)*4*Pi; 
+}
+template <size_t K> double IE_Primatives<K>::InvR2(const spline_t& a , const spline_t& b,size_t l_total) const
+{
+    return BilinearForm{IdentityOperator{}}(a,b)*4*Pi; 
 }
 
 template <size_t K> double IE_Primatives<K>::Charge(const spline_t& a , size_t l) const

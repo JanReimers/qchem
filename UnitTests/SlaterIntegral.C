@@ -196,7 +196,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         int l=sqn.GetL();
         const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
         assert(sg);
-        int n=2*l+2;
+        //int n=2*l+2;
         for (auto i:Knum.rows())
             for (auto j:Knum.cols(i))
                 Knum(i,j)+=(l*(l+1))*Slater::Integral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
