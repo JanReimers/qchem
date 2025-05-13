@@ -21,6 +21,10 @@ using std::endl;
 class BSplineTests : public ::testing::Test
 {
 public:
+    static constexpr size_t K=6; //Spline order.
+    typedef bspline::Spline<double, K> spline_t;
+    typedef TOrbital_IBS<double> ibs_t;
+    typedef SMatrix<double> smat_t;
     BSplineTests() 
         : LMax(0)
         , cl(new Molecule())
@@ -33,16 +37,22 @@ public:
     void Init(int N, double rmin, double rmax)
     {
         bs=new Atoml::BSpline::BasisSet<K>(N,rmin,rmax,LMax);
+        for (auto io:bs->Iterate<ibs_t>()) itsIBSs.push_back(io);
+
+        std::vector<double> knots=MakeLogKnots(0.01,2000.0,K,10);
+        splines=bspline::generateBSplines<K>(knots);
     }
 
     std::vector<double> MakeLogKnots(double rmin, double rmax, size_t SPLINE_ORDER, size_t numberOfGridPoints);
     template <class S,class B> SMatrix<double> MakeSMat(const std::vector<S>& splines, const B&);
    
-    static constexpr size_t K=6;
     size_t LMax;
     BasisSet* bs;
+    std::vector<const ibs_t*> itsIBSs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
+    std::vector<double> knots;
+    std::vector<spline_t> splines;
 };
 
 std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t k, size_t Ngrid)
@@ -215,4 +225,29 @@ TEST_F(A_BS_1E_U,Hydrogen)
     Init(30,0.01,40.0,0);
     Iterate({2,1e-4,1.0,0.0,verbose});
     EXPECT_LT(RelativeHFError(),1e-4);
+}
+
+#include <valarray>
+extern "C"
+{
+    void gauleg_(const double* rmin, const double* rmax, double* x, double* w, const int* n);
+}
+TEST_F(BSplineTests,Repulsion)
+{
+    Init(10,.1,10);
+    spline_t sp=splines[5];
+    int N=K+1;
+    std::valarray<double> ws(N),xs(N);
+    double S55=0.0;
+    for (size_t is=1;is<=sp.getSupport().numberOfIntervals();is++)
+    {
+        gauleg_(&sp.getSupport()[is-1],&sp.getSupport()[is],&xs[0],&ws[0],&N);
+        for (size_t i=0;i<N;i++)
+            S55+=ws[i]*sp(xs[i])*sp(xs[i]);
+    }
+
+    double S55a=BilinearForm{IdentityOperator{}}(sp,sp);
+    EXPECT_NEAR(S55,S55a,1e-14);
+    
+
 }

@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 
+enable_language (Fortran)
 file (GLOB_RECURSE qchem_SOURCES CONFIGURE_DEPENDS "src/*.C")
+file (GLOB_RECURSE qchem_FORTRAN CONFIGURE_DEPENDS "src/*.f")
 file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/debug)
@@ -10,7 +12,7 @@ file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 # set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/release)
 
 add_library(qchem) 
-target_sources(qchem PRIVATE ${qchem_SOURCES})
+target_sources(qchem PRIVATE ${qchem_SOURCES} ${qchem_FORTRAN})
 
 target_compile_options(qchem PRIVATE -Wall -pg -fopenmp
     $<$<CONFIG:Debug>:-g -O0>
