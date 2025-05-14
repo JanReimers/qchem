@@ -67,7 +67,7 @@ Static_HT::SMat FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_
 }
 
 
-void FittedVxcPol::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
+void FittedVxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

@@ -23,7 +23,7 @@ class Vee
 public:
     Vee();
     // Required by HamiltonianTerm
-    virtual void          GetEnergy(TotalEnergy&,const DM_CD* cd ) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:

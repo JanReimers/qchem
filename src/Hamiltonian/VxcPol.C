@@ -52,7 +52,7 @@ Static_HT::SMat VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd
     SMat Kab=SpinCD->GetExchange(hf_bs)*-1.0;
     return Kab;
 }
-void VxcPol::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
+void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     te.Exc += 0.5*cd->DM_Contract(this,cd); //This should sum K^alpha and K^beta.
 }

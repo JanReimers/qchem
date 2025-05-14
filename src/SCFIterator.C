@@ -113,7 +113,7 @@ using std::ios;
 
 void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError,const DM_CD* cd) const
 {
-    TotalEnergy te = itsHamiltonian->GetTotalEnergy(cd);
+    EnergyBreakdown te = itsHamiltonian->GetTotalEnergy(cd);
 
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(2)  << i << " "

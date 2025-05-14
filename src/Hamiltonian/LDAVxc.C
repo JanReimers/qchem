@@ -36,7 +36,7 @@ Static_HT::SMat LDAVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) 
     exit(-1);
     return SMat();
 }
-void LDAVxc::GetEnergy(TotalEnergy&,const DM_CD* cd) const
+void LDAVxc::GetEnergy(EnergyBreakdown&,const DM_CD* cd) const
 {
     std::cerr << "LDAVxc::GetEnergy(const BasisSet&,TotalEnergy&) not implementated yet" << std::endl;
     exit(-1);

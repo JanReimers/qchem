@@ -17,7 +17,7 @@ public:
     virtual void Add(Dynamic_HT*);
 
     virtual SMat        GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
-    virtual TotalEnergy GetTotalEnergy  (const DM_CD* ) const;
+    virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
     
     virtual std::ostream&     Write(std::ostream&) const;
  

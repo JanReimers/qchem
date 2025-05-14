@@ -4,10 +4,10 @@
 
 
 
-class TotalEnergy
+class EnergyBreakdown
 {
 public:
-    TotalEnergy();
+    EnergyBreakdown();
 
     double GetPotentialEnergy() const
     {
@@ -20,7 +20,7 @@ public:
     double GetVirial         () const;
     void   Display           () const;
 
-    TotalEnergy& operator+=  (const TotalEnergy&);
+    EnergyBreakdown& operator+=  (const EnergyBreakdown&);
 
     double Kinetic;
     double Enn;

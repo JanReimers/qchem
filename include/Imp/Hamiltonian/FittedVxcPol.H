@@ -27,7 +27,7 @@ public:
     FittedVxcPol(bs_t&, ex_t&, mesh_t& );
    ~FittedVxcPol();
     // Required by HamiltonianTerm
-    virtual void GetEnergy       (TotalEnergy&,const DM_CD* cd         ) const;
+    virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd         ) const;
 
     virtual std::ostream&   Write(std::ostream&) const;
     virtual std::istream&   Read (std::istream&)      ;

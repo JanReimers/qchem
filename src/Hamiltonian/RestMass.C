@@ -20,7 +20,7 @@ Static_HT::SMat RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
     return f*sbs->RestMass();
 }
 
-void RestMass::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
+void RestMass::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     te.RestMass=cd->DM_Contract(this);
 }

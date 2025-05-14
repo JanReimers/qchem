@@ -24,7 +24,7 @@ Static_HT::SMat Vxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) con
     SMat Kab=cd->GetExchange(hf_bs);
     return Kab*-0.5;
 }
-void Vxc::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
+void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     assert(cd);
     te.Exc+=0.5*cd->DM_Contract(this,cd);

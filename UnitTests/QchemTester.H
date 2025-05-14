@@ -7,6 +7,8 @@
 #include <IterationParams.H>
 #include <LAParams.H>
 #include "Imp/Misc/PeriodicTable.H"
+#include <TotalEnergy.H>
+
 #include <memory>
 
 class QchemTester
@@ -18,6 +20,7 @@ public:
     void   Init(double eps);
     void   Iterate(const SCFIterationParams&);
     double TotalEnergy() const;
+    EnergyBreakdown GetEnergyBreakdown() const;
     double TotalCharge() const;
     const Orbitals* GetOrbitals(const Irrep_QNs& qns) const;
     const Orbital* GetOrbital(size_t index, const Irrep_QNs& qns) const;

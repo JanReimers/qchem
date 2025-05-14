@@ -30,7 +30,7 @@ public:
     FittedVee();
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
     // Required by HamiltonianTerm
-    virtual void GetEnergy       (TotalEnergy&,const DM_CD* cd      ) const;
+    virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd      ) const;
     virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
     virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;

@@ -104,7 +104,7 @@ class Symmetry;
 class RadialMesh;
 class SCFIterator;
 class Spin;
-class TotalEnergy;
+class EnergyBreakdown;
 class WaveFunction;
 
 struct LAParams;

@@ -225,6 +225,13 @@ TEST_F(A_BS_1E_U,Hydrogen)
     Init(30,0.01,40.0,0);
     Iterate({2,1e-4,1.0,0.0,verbose});
     EXPECT_LT(RelativeHFError(),1e-4);
+    EnergyBreakdown e=GetEnergyBreakdown();
+    EXPECT_NEAR(e.Kinetic,0.5,1e-9);
+    EXPECT_NEAR(e.GetVirial(),-2.0,1e-11);
+    EXPECT_NEAR(e.Een,-1.0,2e-9);
+    EXPECT_NEAR(e.GetPotentialEnergy(),-1.0,2e-9);
+    EXPECT_NEAR(e.GetTotalEnergy(),-0.5,1e-9);
+    
 }
 
 

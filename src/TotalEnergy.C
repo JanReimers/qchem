@@ -5,7 +5,7 @@
 #include "TotalEnergy.H"
 #include <iostream>
 
-TotalEnergy::TotalEnergy()
+EnergyBreakdown::EnergyBreakdown()
     : Kinetic  (0)
     , Enn      (0)
     , Een      (0)
@@ -17,13 +17,13 @@ TotalEnergy::TotalEnergy()
     , ExcFitFit(0)
 {};
 
-double TotalEnergy::GetVirial() const
+double EnergyBreakdown::GetVirial() const
 {
     double V=GetPotentialEnergy();
     return V/Kinetic;
 }
 
-TotalEnergy& TotalEnergy::operator+=(const TotalEnergy& e1)
+EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
 {
     Kinetic    += e1.Kinetic;
     Enn        += e1.Enn;
@@ -40,7 +40,7 @@ TotalEnergy& TotalEnergy::operator+=(const TotalEnergy& e1)
 using std::cout;
 using std::endl;
 
-void TotalEnergy::Display() const
+void EnergyBreakdown::Display() const
 {
     cout << endl;
     cout << "Total energy breakdown :" << endl;

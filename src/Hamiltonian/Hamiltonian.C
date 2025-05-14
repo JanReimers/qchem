@@ -49,10 +49,10 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const 
 }
 
 
-TotalEnergy HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
+EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
     assert(cd);
-    TotalEnergy e;
+    EnergyBreakdown e;
     for (auto t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto t:itsDHTs)  t->GetEnergy(e,cd);
     return e;

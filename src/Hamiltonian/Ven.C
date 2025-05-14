@@ -26,7 +26,7 @@ Static_HT::SMat Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
     return bs->Nuclear(&*theCluster);
 }
 
-void Ven::GetEnergy(TotalEnergy& te,const DM_CD* cd) const
+void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     te.Een=cd->DM_Contract(this);
 }
