@@ -1253,6 +1253,72 @@ R_{0}(1,1,1,1)=D_{\beta}\frac{\sqrt{\pi}}{4\alpha\sqrt{\alpha+\beta}}+D_{\alpha}
 
 \end_layout
 
+\begin_layout Subsection
+B-Spline radial functions
+\end_layout
+
+\begin_layout Standard
+There are a number of options for expanding orbital radial functions using B-Spline radial functions 
+\begin_inset Formula $B_{a,K}\left(r\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $R_{i}=\sum_{a}c_{ia}B_{i,K}\left(r\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $R_{i}=\frac{1}{r}\sum_{a}c_{ia}B_{i,K}\left(r\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $R_{il}=\frac{r^{l}}{r}\sum_{a}c_{ia}B_{i,K}\left(r\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Saito2003"
+literal "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Bachau2001"
+literal "false"
+
+\end_inset
+
+ use option 2 and removes the first and last splines from the set.
+ Gaussian Quadrature is used for integration
+\begin_inset Formula 
+\[
+\int_{r_{min}}^{r_{max}}B_{a,K}\left(r\right)B_{b,K}\left(r\right)dr\sim\sum_{i}w_{i}B_{a,K}\left(r_{i}\right)B_{b,K}\left(r_{i}\right)
+\]
+
+\end_inset
+
+where and 
+\begin_inset Formula $w_{i},r_{i}$
+\end_inset
+
+ can calculated using the numerical recipes routine gauleg(rmin,rmax,r[n],w[n],K) which is exact for the polynomial or order 2K.
+ 
+\end_layout
+
 \begin_layout Section
 Molecular Basis Functions
 \end_layout

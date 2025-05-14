@@ -3,29 +3,28 @@
 #define _BSpline_RkEngine_H_
 
 #include "Imp/Integrals/Cache4.H"
-#include "oml/matrix.h"
+#include <bspline/Core.h>
+#include "oml/vector.h"
 
 namespace BSpline
 {
 //
-// Store exponents and derivative tables for a 4 electron charge distribution ab|cd
-// formed from a product of slater orbitals.
-// eab = ea + eb
-// ecd = ec + ed
+// Store Slater repulsions integral for 0 <= k <= 2*LMax.
 //
-class RkEngine : public virtual Cacheable
+template <size_t K> class RkEngine : public virtual Cacheable
 {
+    typedef bspline::Spline<double,K> sp_t;
 public:
-    RkEngine(double eab, double ecd, size_t LMax);
-    double Coulomb_R0(size_t la,size_t lc) const; //R_0(la,la,lc,lc);
-    Vector<double> Coulomb_Rk(size_t la,size_t lc) const; //R_k(la,la,lc,lc);
-    Vector<double> ExchangeRk(size_t la,size_t lb) const; //R_k(la,lb,la,lb);
+    RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d,size_t LMax);
+    double Coulomb_R0() const; //R_0(la,la,lc,lc);
+    Vector<double> Coulomb_Rk() const; //R_k(la,la,lc,lc);
+    Vector<double> ExchangeRk() const; //R_k(la,lb,la,lb);
     //! R_k(la,lb,la,lb) with |Ala-Alb| <= k <= Ala+Alb
-    Vector<double> ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const; 
+    // Vector<double> ExchangeRk() const; 
     
 private:
-    double eab, ecd;
     size_t LMax;
+    Vector<double> Rabcd_k;
 };
 
 } //namespace

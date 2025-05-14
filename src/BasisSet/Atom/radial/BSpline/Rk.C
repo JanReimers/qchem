@@ -15,60 +15,26 @@ namespace BSpline
 //
 //  Build up the derivative look up tables.
 //
-RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
- : eab(_eab), ecd(_ecd), LMax(_LMax)
+template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d, size_t _LMax)
+ : LMax(_LMax)
  {
+    assert(c.getSupport().hasSameGrid(d));
+    assert(a.getSupport().hasSameGrid(b));
+    for (size_t k=0;k<2*LMax;k++)
+    {
+        // GLCache glcd1(c.getSupport().getGrid(),K+1+k);
+        // GLCache glcd2(c.getSupport().getGrid(),K+1);
+        // std::function< double (double)> wcd1 = [k](double r2){return pow(r2,k);};
+        // std::function< double (double)> wcd2 = [k](double r2){return pow(r2,-(k+1));};
+        // // std::function< double (double)> Yk1 = [glcd1,c,d](double r1)
+        // {
+        //     // return 
+        // }
+
         
+    }
  }
  
  
-double RkEngine::Coulomb_R0(size_t la,size_t lc) const
-{
-    assert(la<=LMax);
-    assert(lc<=LMax);
-   
-    return 0.0;
-}
-
-Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
-{
-    assert(la>=0);
-    assert(lc>=0);
-    assert(la<=LMax);
-    assert(lc<=LMax);
-    Vector<double> ret(la+lc+1,0.0);
-    
-    return ret;
-}
-
-Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
-{
-    assert(la>=0);
-    assert(lb>=0);
-    assert(la<=LMax);
-    assert(lb<=LMax);
-    size_t kmin=std::abs((int)la-(int)lb);
-    size_t kmax=la+lb;
-    size_t N=(kmax-kmin)/2+1;
-    Vector<double> ret(N,0.0);
-    
-    return ret;
-}
-
-Vector<double> RkEngine::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const
-{
-    assert (Ala>=la);
-    assert (Alb>=lb);
-    assert(la>=0);
-    assert(lb>=0);
-    assert(la<=LMax);
-    assert(lb<=LMax);
-    size_t kmin=std::abs((int)Ala-(int)Alb);
-    size_t kmax=Ala+Alb;
-    size_t N=(kmax-kmin)/2+1;
-    Vector<double> ret(N,0.0);
-    
-    return ret;
-}
 
 } //namespace

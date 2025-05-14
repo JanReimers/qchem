@@ -227,64 +227,8 @@ TEST_F(A_BS_1E_U,Hydrogen)
     EXPECT_LT(RelativeHFError(),1e-4);
 }
 
-#include <valarray>
-extern "C"
-{
-    void gauleg_(const double* rmin, const double* rmax, double* x, double* w, const int* n);
-}
 
-class GLQuadrature
-{
-public:
-    GLQuadrature(const double& rmin, const double& rmax,int N) : xs(N), ws(N) 
-    {
-        gauleg_(&rmin,&rmax,&xs[0],&ws[0],&N); //Numerical recipes.
-    };
-
-    double Integrate(std::function< double (double)>& f) const
-    {
-        double ret=0.0;
-        for (size_t i=0;i<xs.size();i++)
-            ret+=ws[i]*f(xs[i]);
-        return ret;
-    }
-private:
-    std::valarray<double> xs,ws;
-};
-
-class GLCache
-{
-public:
-    GLCache(const bspline::support::Grid<double>& g,size_t N)
-    {
-        for (size_t i=1;i<g.size();i++)
-            itsGLs.push_back(GLQuadrature(g[i-1],g[i],N));
-    }
-
-    typedef bspline::Support<double> sup_t;
-    double Integrate(std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
-    {
-        double ret=0;
-        sup_t sab=a.calcIntersection(b);
-        for (size_t i=0;i<sab.numberOfIntervals();i++)
-        {
-            size_t ia=sab.absoluteFromRelative(i);
-            ret+=itsGLs[ia].Integrate(f);
-        }
-        return ret;
-    }
-
-    template <size_t K> double Integrate(std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b) const
-    {
-        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-        return Integrate(fwab,a.getSupport(),b.getSupport());
-    }
-
-private:
-    std::vector<GLQuadrature> itsGLs;
-};
-
-
+#include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
 TEST_F(BSplineTests,Repulsion)
 {
     Init(10,.1,10);
@@ -293,7 +237,9 @@ TEST_F(BSplineTests,Repulsion)
 
     std::function< double (double)> w0 = [](double x){return 1.0;};
     std::function< double (double)> w2 = [](double x){return x*x;};
-    
+//
+//  Test all combos of indefinite integrals.
+//    
     double max_error0=0.0,max_error2=0.0;
     for (auto spa:splines)
         for (auto spb:splines)
@@ -317,5 +263,24 @@ TEST_F(BSplineTests,Repulsion)
         }
     
     // cout << "max_error 0,2=" << max_error0 << "," << max_error2 << endl;
+
+    // Now try some Definite integrals.
+    cout.precision(3);
+    cout << "Grid = ";
+    auto& grid=splines[0].getSupport().getGrid();
+    for (auto r:grid) cout << r << ",";
+    cout << endl;
+    size_t Nsp=splines.size(), Ng=grid.size();
+    size_t imin=2,imax=Ng-4;
+    for (int ia=0;ia<Nsp;ia++)
+        for (int ib=0;ib<Nsp;ib++)
+        {
+            auto spa=splines[ia];
+            auto spb=splines[ib];
+            double Sdef=cache0.Integrate(w0,spa,spb,imin,imax);
+            double Sind=cache0.Integrate(w0,spa,spb);
+            EXPECT_LE(Sdef,Sind);
+
+        }
 
 }
