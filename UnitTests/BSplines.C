@@ -236,12 +236,11 @@ TEST_F(A_BS_1E_U,Hydrogen)
 
 
 #include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
-TEST_F(BSplineTests,Repulsion)
+TEST_F(BSplineTests,GLQIntegration)
 {
     Init(10,.1,10);
     GLCache cache0(splines[0].getSupport().getGrid(),K+1);
     GLCache cache2(splines[0].getSupport().getGrid(),K+3);
-
     std::function< double (double)> w0 = [](double x){return 1.0;};
     std::function< double (double)> w2 = [](double x){return x*x;};
 //
@@ -258,7 +257,6 @@ TEST_F(BSplineTests,Repulsion)
             else
                 EXPECT_NEAR(Sab2,0.0,1e-16);
             max_error0=std::max(max_error0,fabs(Sab2-Sab3)/Sab2);
-            
             Sab2=BilinearForm{X<2>{}}(spa,spb);
             Sab3=cache2.Integrate(w2,spa,spb);
             if (Sab3!=0)
@@ -266,11 +264,8 @@ TEST_F(BSplineTests,Repulsion)
             else
                 EXPECT_NEAR(Sab2,0.0,1e-16);
             max_error2=std::max(max_error2,fabs(Sab2-Sab3)/Sab2);
-
         }
-    
     // cout << "max_error 0,2=" << max_error0 << "," << max_error2 << endl;
-
     // Now try some Definite integrals.
     cout.precision(3);
     cout << "Grid = ";
@@ -278,16 +273,35 @@ TEST_F(BSplineTests,Repulsion)
     for (auto r:grid) cout << r << ",";
     cout << endl;
     size_t Nsp=splines.size(), Ng=grid.size();
-    size_t imin=2,imax=Ng-4;
-    for (int ia=0;ia<Nsp;ia++)
-        for (int ib=0;ib<Nsp;ib++)
+    double rmin=0.5,rmax=5.0;
+    for (auto spa:splines)
+        for (auto spb:splines)
         {
-            auto spa=splines[ia];
-            auto spb=splines[ib];
-            double Sdef=cache0.Integrate(w0,spa,spb,imin,imax);
+            double Sdef=cache0.Integrate(w0,spa,spb,rmin,rmax);
             double Sind=cache0.Integrate(w0,spa,spb);
             EXPECT_LE(Sdef,Sind);
-
         }
+}
+
+#include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
+
+TEST_F(BSplineTests,Repulsion)
+{
+    Init(10,.1,10);
+    size_t lmax=4;
+    for (auto spa:splines)
+        for (auto spb:splines)
+        {
+            auto Rk=BSpline::RkEngine(spa,spb,spa,spb,lmax).Coulomb_Rk();
+            if (spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals())
+            {
+                EXPECT_GT(Min(Rk),0.0);
+            }
+            else
+            {
+                EXPECT_TRUE(Rk==0.0);
+            }
+        }
+           
 
 }

@@ -1,6 +1,9 @@
 // File: GLQuadrature.H Perform Gauss-Legendre quadrature integration over B-Splines.
 #include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
 #include <cassert>
+#include <iostream>
+using std::cout;
+using std::endl;
 
 // see gauleg.f 
 extern "C"
@@ -9,7 +12,7 @@ extern "C"
 }
 
 GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N) 
-: xs(N), ws(N) 
+: its_xmin(rmin), its_xmax(rmax), xs(N), ws(N) 
 {
     gauleg_(&rmin,&rmax,&xs[0],&ws[0],&N); //Numerical recipes.
 };
@@ -22,7 +25,7 @@ GLCache::GLCache(const bspline::support::Grid<double>& g,size_t N)
         itsGLs.push_back(GLQuadrature(g[i-1],g[i],N));
 }
 
-double GLCache::Integrate(std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
+double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
 {
     assert(a.getGrid()==grid);
     assert(b.getGrid()==grid);
@@ -36,17 +39,31 @@ double GLCache::Integrate(std::function< double (double)>& f, const sup_t& a, co
     return ret;
 }
 
-double GLCache::Integrate(std::function< double (double)>& f, const sup_t& a, const sup_t& b, size_t imin, size_t imax) const
+double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const
 {
-    assert(imin<imax);
+    assert(rmin<rmax);
     assert(a.getGrid()==grid);
     assert(b.getGrid()==grid);
+    assert(std::isfinite(f(rmin)));
+    assert(std::isfinite(f(rmax)));
     sup_t sab=a.calcIntersection(b);
-    if (!sab.containsIntervals()) return 0.0;
+    if (!sab.containsIntervals()) return 0.0; //No support overlap, so interal=0;
+    if (rmin<=sab.front() && rmax>=sab.back()) return Integrate(f,a,b); //Integration falls outside support so return full integral.
+    auto it_min= std::lower_bound(grid.begin(),grid.end(), rmin); //Get iterator to first grid point *after* rmin
+    auto it_max= std::lower_bound(grid.begin(),grid.end(), rmax); //Get iterator to first grid point *after* rmax
+    assert(it_min!=grid.end());
+    assert(it_max!=grid.end());
+    if(it_min!=grid.begin()) it_min--; //Go back one segment
+    // cout << grid.front() << " " << *it_min << " " << rmin << " " << rmax << " " << *it_max << " " << grid.back() << endl;
+    
+    size_t imin= std::distance(grid.begin(), it_min); //These are already absolute.
+    size_t imax= std::distance(grid.begin(), it_max);
+
     size_t iab_min=sab.absoluteFromRelative(0);
     size_t iab_max=sab.absoluteFromRelative(sab.numberOfIntervals());
     double ret=0;
+    // cout << iab_min << " " << imin << " " << imax << " " << iab_max << endl;
     for (size_t i=std::max(imin,iab_min);i<std::min(imax,iab_max);i++)
-        ret+=itsGLs[i].Integrate(f);
+        ret+=itsGLs[i].Integrate(f,rmin,rmax);
     return ret;
 }
