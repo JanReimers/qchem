@@ -6,7 +6,6 @@
 #include <functional>
 #include <bspline/Core.h>
 #include <cassert>
-#include <iostream>
 
 class GLQuadrature
 {
@@ -22,7 +21,6 @@ public:
     }
     double Integrate(const std::function< double (double)>& f, double xmin, double xmax) const
     {
-        // std::cout << "Xmin,max(xs) = " << xmin << " " << xs[xs.size()-1] << std::endl;
         assert(xmax>=its_xmin); //Make sure caller did thier homework and checked the ranges.
         assert(xmin<=its_xmax);
         double ret=0.0;

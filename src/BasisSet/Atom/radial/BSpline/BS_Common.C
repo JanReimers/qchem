@@ -7,32 +7,31 @@
 
 namespace BSpline
 {
-    void BS_Common::Insert(bs_t* bs)
+    template <size_t K> void BS_Common<K>::Insert(bs_t* bs)
     {
         ::BS_Common::Insert(bs);
-        //Append(bs); BFGrouper not set up yet
+        this->Append(bs); 
     }
     
-    const Cacheable* BS_Common::Create(size_t ia,size_t ic,size_t ib,size_t id) const
+    template <size_t K> const Cacheable* BS_Common<K>::Create(size_t ia,size_t ic,size_t ib,size_t id) const
     {
-        // return new BSpline::RkEngine(unique_esv[ia]+unique_esv[ib],unique_esv[ic]+unique_esv[id],LMax(ia,ib,ic,id));
-        return 0;
+        return new BSpline::RkEngine(unique_spv[ia],unique_spv[ib],unique_spv[ic],unique_spv[id],LMax(ia,ib,ic,id));
+
     }
     
     
-    Vector<double> BS_Common::loop_4_direct(size_t id, size_t la, size_t lc)  const
+    template <size_t K> Vector<double> BS_Common<K>::loop_4_direct(size_t id, size_t la, size_t lc)  const
     {
-        // const Cacheable* c=Cache4::loop_4(id);
-        // const BSpline::RkEngine* cd = dynamic_cast<const BSpline::RkEngine*>(c);
-        // return cd->Coulomb_Rk(la,lc);
-        return Vector<double>();
+        const Cacheable* c=Cache4::loop_4(id);
+        const BSpline::RkEngine<K>* cd = dynamic_cast<const BSpline::RkEngine<K>*>(c);
+        return cd->Coulomb_Rk(la,lc);
     }
-    Vector<double> BS_Common::loop_4_exchange(size_t id, size_t la, size_t lc)  const
+    template <size_t K> Vector<double> BS_Common<K>::loop_4_exchange(size_t id, size_t la, size_t lc)  const
     {
-        // const Cacheable* c=Cache4::loop_4(id);
-        // const BSpline::RkEngine* cd = dynamic_cast<const BSpline::RkEngine*>(c);
-        // return cd->ExchangeRk(la,lc);
-        return Vector<double>();
+        const Cacheable* c=Cache4::loop_4(id);
+        const BSpline::RkEngine<K>* cd = dynamic_cast<const BSpline::RkEngine<K>*>(c);
+        return cd->ExchangeRk(la,lc);
     }
     
+    template class BS_Common<6>;
 }

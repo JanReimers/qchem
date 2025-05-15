@@ -198,7 +198,6 @@ TEST_F(BSplineTests, Kinetic)
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
 
-bool verbose=true;
 
 class HF_1E : public virtual QchemTester
 {
@@ -223,7 +222,7 @@ public:
 TEST_F(A_BS_1E_U,Hydrogen)
 {
     Init(30,0.01,40.0,0);
-    Iterate({2,1e-4,1.0,0.0,verbose});
+    Iterate({2,1e-4,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),1e-4);
     EnergyBreakdown e=GetEnergyBreakdown();
     EXPECT_NEAR(e.Kinetic,0.5,1e-9);
@@ -292,15 +291,25 @@ TEST_F(BSplineTests,Repulsion)
     for (auto spa:splines)
         for (auto spb:splines)
         {
-            auto Rk=BSpline::RkEngine(spa,spb,spa,spb,lmax).Coulomb_Rk();
-            if (spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals())
-            {
-                EXPECT_GT(Min(Rk),0.0);
-            }
-            else
-            {
-                EXPECT_TRUE(Rk==0.0);
-            }
+            BSpline::RkEngine Rk(spa,spb,spa,spb,lmax);
+            for (size_t la=0;la<=lmax;la++)
+                for (size_t lb=0;lb<=lmax;lb++)
+                {
+                    auto Rkc=Rk.Coulomb_Rk(la,lb);
+                    auto Rkx=Rk.ExchangeRk(la,lb);
+                    if (spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals())
+                    {
+                        EXPECT_GT(Min(Rkc),0.0);
+                        EXPECT_GT(Min(Rkx),0.0);
+                    }
+                    else
+                    {
+                        EXPECT_TRUE(Rkc==0.0);
+                        EXPECT_TRUE(Rkx==0.0);
+                    }
+
+                   
+                }
         }
            
 

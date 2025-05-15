@@ -17,8 +17,8 @@ template <size_t K> class RkEngine : public virtual Cacheable
 public:
     RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d,size_t LMax);
     double Coulomb_R0() const; //R_0(la,la,lc,lc);
-    Vector<double> Coulomb_Rk() const; //R_k(la,la,lc,lc);
-    Vector<double> ExchangeRk() const; //R_k(la,lb,la,lb);
+    Vector<double> Coulomb_Rk(size_t la,size_t lc) const; 
+    Vector<double> ExchangeRk(size_t la,size_t lb) const; 
     //! R_k(la,lb,la,lb) with |Ala-Alb| <= k <= Ala+Alb
     // Vector<double> ExchangeRk() const; 
     
