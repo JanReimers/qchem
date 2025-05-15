@@ -2,9 +2,11 @@
 #ifndef _Atom_ml_Gaussian_BS_H_
 #define _Atom_ml_Gaussian_BS_H_
 
+#include "IE_HF_Angular.H"
 #include "../../BS_Common.H"
 #include "../IE.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
+#include "../radial/Gaussian/BS_Common.H"
+
 
 namespace PolarizedGaussian
 {
@@ -18,7 +20,7 @@ namespace Gaussian
 
 class BasisSet 
 : public ::Gaussian::BS_Common
-, public ::AtomIE_BS_2E_lm //Pick angular integrals.
+, public IE_BS_2E_Angular //Pick angular integrals.
 {
 public:
     BasisSet() {};

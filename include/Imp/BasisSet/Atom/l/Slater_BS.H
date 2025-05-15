@@ -2,6 +2,7 @@
 #ifndef _Atom_l_Slater_BS_H_
 #define _Atom_l_Slater_BS_H_
 
+#include "IE_HF_Angular.H"
 #include "../radial/Slater/BS_Common.H"
 #include "../../BS_Common.H"
 
@@ -12,7 +13,7 @@ namespace Slater
 
 class BasisSet 
     : public ::Slater::BS_Common
-    , public ::AtomIE_BS_2E_l //Pick angular integrals.
+    , public IE_BS_2E_Angular //Pick angular integrals.
 {
 public:
     BasisSet() {};

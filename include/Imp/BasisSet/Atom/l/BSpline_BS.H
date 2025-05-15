@@ -3,6 +3,7 @@
 #define _Atom_l_BSpline_BS_H_
 
 #include "../radial/BSpline/BS_Common.H"
+#include "IE_HF_Angular.H"
 #include "../../BS_Common.H"
 
 namespace Atoml
@@ -11,8 +12,8 @@ namespace BSpline
 {
 
 template <size_t K> class BasisSet 
-    : public ::BSpline::BS_Common
-    , public ::AtomIE_BS_2E_l //Pick angular integrals.
+    : public ::BSpline::BS_Common<K>
+    , public IE_BS_2E_Angular //Pick angular integrals.
 {
 public:
     // BasisSet() {};

@@ -2,6 +2,7 @@
 #ifndef _Atom_l_Gaussian_BS_H_
 #define _Atom_l_Gaussian_BS_H_
 
+#include "IE_HF_Angular.H"
 #include "../radial/Gaussian/BS_Common.H"
 #include "../../BS_Common.H"
 
@@ -13,12 +14,8 @@ namespace Gaussian
 
 class BasisSet 
 : public ::Gaussian::BS_Common
-, public ::AtomIE_BS_2E_l //Pick angular integrals.
+, public IE_BS_2E_Angular //Pick angular integrals.
 {
-protected:
-    typedef ::AtomIE_BS_2E_Angular::RVec RVec;
-    typedef ::BasisSet Base;
-    typedef Base::bs_t bs_t;
 public:
     BasisSet() {};
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);

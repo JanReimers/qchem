@@ -4,7 +4,8 @@
 
 #include "IE.H"
 #include "IEC.H"
-#include "../../IE_HF.H" //For angular interfactes
+#include "BFGrouper.H"
+#include "../../IE_HF_Angular.H" //For angular interfactes
 #include "Imp/DataBase/DB_HF.H"
 // #include "Imp/Integrals/Cache4.H"
 
@@ -15,7 +16,7 @@ template <class T, size_t K> class IE_BS_2E
     : public virtual ::AtomIE_BS_2E_Angular
     , public virtual Cache4
     , public DB_BS_2E<T>
-    , public BFGrouper
+    , public BFGrouper<K>
 {
     typedef typename ::AtomIE_BS_2E_Angular::RVec RVec;
 public:

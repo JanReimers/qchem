@@ -3,15 +3,10 @@
 #define _Atom_IE_HF_H_
 
 #include "IE.H"
+#include "IE_HF_Angular.H"
 #include "Imp/DataBase/DB_HF.H"
 
-class AtomIE_BS_2E_Angular
-{
-public:
-    typedef Vector<double> RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
-};
+
 template <class T> class AtomIE_BS_2E 
     : public virtual AtomIE_BS_2E_Angular
     , public virtual Cache4
@@ -29,19 +24,6 @@ public:
 protected:
     virtual void Append(const IrrepIEClient*);
 };
-class AtomIE_BS_2E_l : public virtual AtomIE_BS_2E_Angular
-{
-public:
-    typedef AtomIE_BS_2E_Angular::RVec RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-};
-class AtomIE_BS_2E_lm : public virtual AtomIE_BS_2E_Angular
-{
-public:
-    typedef AtomIE_BS_2E_Angular::RVec RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-};
+
 
 #endif //_Atom_IE_HF_H_

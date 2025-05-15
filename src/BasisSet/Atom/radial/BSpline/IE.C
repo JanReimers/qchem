@@ -122,10 +122,10 @@ template <class T,size_t K> void IE_BS_2E<T,K>::Append(const ::IrrepIEClient* ci
 {
     assert(ciec);
     DB_BS_2E<T>::Append(ciec);
-    // ::IrrepIEClient* iec=const_cast<::IrrepIEClient*>(ciec);
-    // IrrepIEClient<K>* aiec=dynamic_cast<IrrepIEClient<K>*>(iec);
-    // assert(aiec);
-    // BFGrouper::Append(aiec);
+    ::IrrepIEClient* iec=const_cast<::IrrepIEClient*>(ciec);
+    IrrepIEClient<K>* bsiec=dynamic_cast<IrrepIEClient<K>*>(iec);
+    assert(bsiec);
+    BFGrouper<K>::Append(bsiec);
 }
 template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const 
 {
