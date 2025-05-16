@@ -138,14 +138,65 @@ TEST_F(BSplineTests, SplineMap)
         index++;
     }
 }
+
+#include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
+TEST_F(BSplineTests,GLQIntegration)
+{
+    Init(10,.1,10);
+    GLCache cache0(splines[0].getSupport().getGrid(),K+1);
+    GLCache cache2(splines[0].getSupport().getGrid(),K+3);
+    std::function< double (double)> w0 = [](double x){return 1.0;};
+    std::function< double (double)> w2 = [](double x){return x*x;};
+//
+//  Test all combos of indefinite integrals.
+//    
+    double max_error0=0.0,max_error2=0.0;
+    for (auto spa:splines)
+        for (auto spb:splines)
+        {
+            double Sab2=BilinearForm{IdentityOperator{}}(spa,spb);
+            double Sab3=cache0.Integrate(w0,spa,spb);
+            if (Sab3!=0)
+                EXPECT_NEAR(Sab2/Sab3,1.0,3e-14);
+            else
+                EXPECT_NEAR(Sab2,0.0,1e-16);
+            max_error0=std::max(max_error0,fabs(Sab2-Sab3)/Sab2);
+            Sab2=BilinearForm{X<2>{}}(spa,spb);
+            Sab3=cache2.Integrate(w2,spa,spb);
+            if (Sab3!=0)
+                EXPECT_NEAR(Sab2/Sab3,1.0,2e-13);
+            else
+                EXPECT_NEAR(Sab2,0.0,1e-16);
+            max_error2=std::max(max_error2,fabs(Sab2-Sab3)/Sab2);
+        }
+    // cout << "max_error 0,2=" << max_error0 << "," << max_error2 << endl;
+    // Now try some Definite integrals.
+    cout.precision(3);
+    cout << "Grid = ";
+    auto& grid=splines[0].getSupport().getGrid();
+    for (auto r:grid) cout << r << ",";
+    cout << endl;
+    size_t Nsp=splines.size(), Ng=grid.size();
+    double rmin=0.5,rmax=5.0;
+    for (auto spa:splines)
+        for (auto spb:splines)
+        {
+            double Sdef=cache0.Integrate(w0,spa,spb,rmin,rmax);
+            double Sind=cache0.Integrate(w0,spa,spb);
+            EXPECT_LE(Sdef,Sind);
+        }
+}
+
+
+
 TEST_F(BSplineTests, Overlap)
 {
     cout.precision(3);
     Init(10,.1,40.);
-    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
+    for (auto ibs:bs->Iterate<TOrbital_IBS<double> >())
     {
-        const TOrbital_IBS<double>* ibs1=ibs;
-        SMatrix<double> S=ibs1->Overlap();
+        
+        SMatrix<double> S=ibs->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:S.rows()) //Check banded
             for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
@@ -155,6 +206,28 @@ TEST_F(BSplineTests, Overlap)
 
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
+        // Now try GLQ integration.
+        const BSpline::IrrepIEClient<K>* iec=dynamic_cast<const BSpline::IrrepIEClient<K>*>(ibs);
+        auto grid=iec->splines[0].getSupport().getGrid();
+        GLCache cache2(grid,K+3);
+        std::function< double (double)> w2 = [](double x){return x*x;};
+        for (auto ia:S.rows())
+            for (auto ib:S.cols(ia)) 
+            {
+                double nab=iec->ns(ia)*iec->ns(ib)*4*M_PI;
+                auto a=iec->splines[ia-1],b=iec->splines[ib-1];
+                double Sab=cache2.Integrate(w2,a,b)*nab;
+                EXPECT_NEAR(Sab,S(ia,ib),1e-14);
+                Sab=cache2.Integrate(w2,a,b,grid.front(),grid.back())*nab;
+                EXPECT_NEAR(Sab,S(ia,ib),1e-14);
+                Sab=0.0;
+                for (size_t ig=1;ig<grid.size();ig++)
+                    Sab+=cache2.Integrate(w2,a,b,grid[ig-1],grid[ig]);
+                Sab*=nab;
+                EXPECT_NEAR(Sab,S(ia,ib),1e-14);
+            }
+        
+        
     }
 }
 TEST_F(BSplineTests, Nuclear)
@@ -240,54 +313,6 @@ TEST_F(A_BS_1E_U,Hydrogen)
     cout << std::defaultfloat << "Eee,Exc=" << e.Eee << " " << e.Exc << endl;
 }
 
-
-#include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
-TEST_F(BSplineTests,GLQIntegration)
-{
-    Init(10,.1,10);
-    GLCache cache0(splines[0].getSupport().getGrid(),K+1);
-    GLCache cache2(splines[0].getSupport().getGrid(),K+3);
-    std::function< double (double)> w0 = [](double x){return 1.0;};
-    std::function< double (double)> w2 = [](double x){return x*x;};
-//
-//  Test all combos of indefinite integrals.
-//    
-    double max_error0=0.0,max_error2=0.0;
-    for (auto spa:splines)
-        for (auto spb:splines)
-        {
-            double Sab2=BilinearForm{IdentityOperator{}}(spa,spb);
-            double Sab3=cache0.Integrate(w0,spa,spb);
-            if (Sab3!=0)
-                EXPECT_NEAR(Sab2/Sab3,1.0,3e-14);
-            else
-                EXPECT_NEAR(Sab2,0.0,1e-16);
-            max_error0=std::max(max_error0,fabs(Sab2-Sab3)/Sab2);
-            Sab2=BilinearForm{X<2>{}}(spa,spb);
-            Sab3=cache2.Integrate(w2,spa,spb);
-            if (Sab3!=0)
-                EXPECT_NEAR(Sab2/Sab3,1.0,2e-13);
-            else
-                EXPECT_NEAR(Sab2,0.0,1e-16);
-            max_error2=std::max(max_error2,fabs(Sab2-Sab3)/Sab2);
-        }
-    // cout << "max_error 0,2=" << max_error0 << "," << max_error2 << endl;
-    // Now try some Definite integrals.
-    cout.precision(3);
-    cout << "Grid = ";
-    auto& grid=splines[0].getSupport().getGrid();
-    for (auto r:grid) cout << r << ",";
-    cout << endl;
-    size_t Nsp=splines.size(), Ng=grid.size();
-    double rmin=0.5,rmax=5.0;
-    for (auto spa:splines)
-        for (auto spb:splines)
-        {
-            double Sdef=cache0.Integrate(w0,spa,spb,rmin,rmax);
-            double Sind=cache0.Integrate(w0,spa,spb);
-            EXPECT_LE(Sdef,Sind);
-        }
-}
 
 #include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
 

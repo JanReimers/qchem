@@ -11,14 +11,7 @@ using std::endl;
 namespace BSpline
 {
 //
-//  Ranges:  
-//    0 <= k <= 2LMax  in steps of 2
-//    3 <= Lab_p=la+lb+3+k <= 4LMax+3
-//    1 <= Lcd_m=lc+ld+1-k <= 2LMax+1
-//    3 <= Lab_m=la+lb+1-k <= 4LMax+3
-//    1 <= Lcd_p=lc+ld+3+k <= 2LMax+1
-//
-//  Build up the derivative look up tables.
+//  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
 
 
