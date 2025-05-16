@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
 #include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
+#include "Imp/Misc/IntPower.H"
 #include "oml/vector.h"
 
 using std::cout;
@@ -19,6 +20,8 @@ namespace BSpline
 //
 //  Build up the derivative look up tables.
 //
+
+
 template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d, size_t _LMax)
  : LMax(_LMax), Rabcd_k(VecLimits(0,2*LMax))
  {
@@ -33,17 +36,16 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
     size_t rmin=grid.front(),rmax=grid.back();
     for (size_t k=0;k<=2*LMax;k++)
     {
-        GLCache glcd1(sc.getGrid(),K+1+k);
-        GLCache glcd2(sc.getGrid(),K+1);
+        GLCache glcd1(sc.getGrid(),K+1+k+2);
+        GLCache glcd2(sc.getGrid(),K+2);
         std::function< double (double)> wcd1 = [k](double r2)
         {
-            return pow(r2,k);
+            return intpow(r2,k+2);
         };
         std::function< double (double)> wcd2 = [k](double r2)
         {
             assert(r2>0);
-            assert(std::isfinite(pow(1.0/r2,k+1)));
-            return pow(1.0/r2,k+1);
+            return intpow(r2,1-k);
         };
         std::function< double (double)> Yk1 = [glcd1,wcd1,c,d,rmin](double r1)
         {
@@ -54,10 +56,10 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
             return glcd2.Integrate(wcd2,c,d,r1,rmax);
         };
 
-        std::function< double (double)> wab = [k,grid,Yk1,Yk2] (double r1)
+        std::function< double (double)> wab = [k,Yk1,Yk2] (double r1)
         {
             assert(r1>0);
-            return pow(1.0/r1,k+1)*Yk1(r1)+pow(r1,k)*Yk2(r1);
+            return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+1)*Yk2(r1);
         };
 
         Rabcd_k(k)=glcd1.Integrate(wab,a,b);

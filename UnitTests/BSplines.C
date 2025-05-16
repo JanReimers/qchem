@@ -197,7 +197,8 @@ TEST_F(BSplineTests, Kinetic)
 
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
-
+#include <WaveFunction.H>
+#include <ChargeDensity.H>
 
 class HF_1E : public virtual QchemTester
 {
@@ -221,7 +222,7 @@ public:
 
 TEST_F(A_BS_1E_U,Hydrogen)
 {
-    Init(30,0.01,40.0,0);
+    Init(30,0.1,40.0,0);
     Iterate({2,1e-4,1.0,0.0,false});
     EXPECT_LT(RelativeHFError(),1e-4);
     EnergyBreakdown e=GetEnergyBreakdown();
@@ -231,6 +232,12 @@ TEST_F(A_BS_1E_U,Hydrogen)
     EXPECT_NEAR(e.GetPotentialEnergy(),-1.0,2e-9);
     EXPECT_NEAR(e.GetTotalEnergy(),-0.5,1e-9);
     
+    Hamiltonian* hf=new Ham_HF_P(std::shared_ptr<const Cluster>(GetCluster()));
+    DM_CD* cd=itsWaveFunction->GetChargeDensity();
+    EXPECT_NEAR(cd->GetTotalCharge(),1.0,1e-14);
+    e= hf->GetTotalEnergy(cd);
+    cout.precision(10);
+    cout << std::defaultfloat << "Eee,Exc=" << e.Eee << " " << e.Exc << endl;
 }
 
 
@@ -284,7 +291,7 @@ TEST_F(BSplineTests,GLQIntegration)
 
 #include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
 
-TEST_F(BSplineTests,Repulsion)
+TEST_F(BSplineTests,Repulsion1)
 {
     Init(10,.1,10);
     size_t lmax=4;
@@ -313,4 +320,15 @@ TEST_F(BSplineTests,Repulsion)
         }
            
 
+}
+
+TEST_F(BSplineTests,Repulsion2)
+{
+    Init(10,.1,10);
+    for (auto a:bs->Iterate<TOrbital_HF_IBS<double>>())
+    for (auto b:bs->Iterate<TOrbital_HF_IBS<double>>())
+    {
+        a->Direct(*b);
+        a->Exchange(*b);
+    }
 }
