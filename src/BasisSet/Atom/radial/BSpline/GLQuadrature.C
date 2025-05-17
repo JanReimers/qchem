@@ -15,6 +15,7 @@ GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N)
 : its_xmin(rmin), its_xmax(rmax), xs(N), ws(N) 
 {
     gauleg_(&rmin,&rmax,&xs[0],&ws[0],&N); //Numerical recipes.
+    // cout << "GLQuadrature xmin,xmax,N = " << its_xmin << " " << its_xmax << " " << N << endl;
 };
 
 
@@ -41,6 +42,7 @@ double GLCache::Integrate(const std::function< double (double)>& f, const sup_t&
 
 double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const
 {
+    if (!(rmin<rmax)) cout << "rmin,rmax=" << rmin << " " << rmax << endl;
     assert(rmin<rmax);
     assert(a.getGrid()==grid);
     assert(b.getGrid()==grid);

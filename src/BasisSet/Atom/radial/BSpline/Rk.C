@@ -26,7 +26,7 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
     bspline::Grid grid=sa.getGrid();
-    size_t rmin=grid.front(),rmax=grid.back();
+    double rmin=grid.front(),rmax=grid.back();
     for (size_t k=0;k<=2*LMax;k++)
     {
         GLCache glcd1(sc.getGrid(),K+1+k+2);
@@ -52,7 +52,7 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
         std::function< double (double)> wab = [k,Yk1,Yk2] (double r1)
         {
             assert(r1>0);
-            return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+1)*Yk2(r1);
+            return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+2)*Yk2(r1);
         };
 
         Rabcd_k(k)=glcd1.Integrate(wab,a,b);

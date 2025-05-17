@@ -19,8 +19,9 @@ namespace BSpline
 template <class T, size_t K> struct cmpSplines {
     bool operator()(const bspline::Spline<T,K>& a, const bspline::Spline<T,K>& b) const
     {
-        a.getSupport().getGrid().front();
-        return a.getSupport().getGrid().front()<b.getSupport().getGrid().front();
+        double af=a.getSupport().front(), bf=b.getSupport().front();
+        if (af!=bf) return af<bf;
+        return a.getSupport().back()<b.getSupport().back();
     }
 };
 

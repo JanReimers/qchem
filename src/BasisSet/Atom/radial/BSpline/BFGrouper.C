@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/Atom/radial/BSpline/BFGrouper.H"
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
+#include "Imp/Containers/stl_io.h"
 #include <cassert>
 #include <iostream>
 using std::cout;
@@ -29,7 +30,8 @@ template <size_t K> void BFGrouper<K>::Append(IrrepIEClient<K>* iec)
         if (iec->l>maxls[index]) maxls[index]=iec->l;
 //        cout << "BFGrouper index,l,maxl=" << index << " " << aiec->l << " " << maxls[index] << endl;
         iec->sp_indices.push_back(index);  
-    }        
+    }     
+    cout << "iec->sp_indices = " <<    iec->sp_indices << endl;
 }
  
 

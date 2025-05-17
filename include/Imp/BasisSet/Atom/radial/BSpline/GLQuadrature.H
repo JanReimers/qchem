@@ -6,6 +6,7 @@
 #include <functional>
 #include <bspline/Core.h>
 #include <cassert>
+#include <iostream>
 
 class GLQuadrature
 {
@@ -50,10 +51,41 @@ public:
         return Integrate(fwab,a.getSupport(),b.getSupport(),rmin,rmax);
     }
 
+    template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab);
+    }
+    template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b, double rmin, double rmax) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab,rmin,rmax);
+    }
+
 private:
     typedef bspline::Support<double> sup_t;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
+    double Integrate(const std::function< double (double)>& f) const
+    {
+        double ret=0.0;
+        for (auto gl:itsGLs)
+            ret+=gl.Integrate(f);
+        return ret;
+    }
+    double Integrate(const std::function< double (double)>& f, double rmin, double rmax) const
+    {
+        double ret=0.0;
+        // std::cout << grid.size() << " " << itsGLs.size() << std::endl;
+        for (size_t i=1;i<grid.size();i++)
+        {
+            // std::cout << "rmin,grid[i-1],grid[i],rmax=" << rmin << "   " <<  grid[i-1] << "   " << grid[i] << "   " << rmax << std::endl;
+            if (rmin<=grid[i] && rmax>=grid[i-1])
+                ret+=itsGLs[i-1].Integrate(f,rmin,rmax);
+
+        }
+        return ret;
+    }
     const bspline::support::Grid<double>& grid;
     std::vector<GLQuadrature> itsGLs;
 };
