@@ -97,21 +97,20 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
             return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+2)*Yk2(r1);
         };
 
-        Rabcd_k(k)=gl.Integrate(wab,a,b,sab.front(),sab.back());
-        if (!sab.calcIntersection(scd).containsIntervals() && ic>ia)
+        if (sab.calcIntersection(scd).containsIntervals())
+            Rabcd_k(k)=gl.Integrate(wab,a,b,sab.front(),sab.back()); //Diagonal
+        else if (sab.back()<=scd.front())
         {
-            assert(ic>ia);
             std::vector<double> mp=rkcache.find_plus(ia,ib);
             std::vector<double> mm=rkcache.find_minus(ic,id);
-            cout.precision(16);
-            double err=fabs(Rabcd_k(k)-mp[k]*mm[k]);
-            if (err>1e-12)
-            {
-                cout << ia << " " << ib << " " << ic << " " << id << " " << err << endl;
-                cout << sab.front() << " " << sab.back() << " " << scd.front() << " " << scd.back() << endl;
-            }
-                // cout << std::fixed << "Rabcd_k(k)=" << Rabcd_k(k) << "   mp[k]*mm[k]=" << mp[k]*mm[k] << "  "  << std::scientific <<  err << endl;
-            assert(err<1e-5);
+            Rabcd_k(k)=mp[k]*mm[k];
+        }
+        else
+        {
+            assert(sab.front()>=scd.back());
+            std::vector<double> mm=rkcache.find_minus(ia,ib);
+            std::vector<double> mp=rkcache.find_plus(ic,id);
+            Rabcd_k(k)=mp[k]*mm[k];
         }
     }
  }
