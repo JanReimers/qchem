@@ -9,10 +9,10 @@ template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin,
 : rmin(_rmin), rmax(_rmax), l(_l), m(_m), itsGL(0)
 {
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
-    std::cout << "Knots=" << knots << std::endl;
+    // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     auto grid=splines[0].getSupport().getGrid();
-    std::cout << "Grid = ";
+    std::cout << "Grid = " << grid.size() << "    ";
     for (auto r:grid) std::cout << r << ",";
     std::cout << std::endl;
     ns.SetLimits(splines.size());
@@ -37,7 +37,7 @@ template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ng
 
     // logarithmic step
     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
-    for (size_t i = 0; i <= Ngrid; i++) 
+    for (size_t i = 0; i < Ngrid; i++) 
         knots.push_back(rmin * pow(step, i));
     return knots;
 }

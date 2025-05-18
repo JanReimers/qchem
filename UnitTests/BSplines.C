@@ -67,7 +67,7 @@ std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t 
 
     // logarithmic step
     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
-    for (int i = 0; i <= Ngrid; i++) 
+    for (int i = 0; i < Ngrid; i++) 
         knots.push_back(rmin * pow(step, i));
     return knots;
 }
@@ -281,10 +281,8 @@ TEST_F(BSplineTests, Kinetic)
 //     }
 //     double Integrate(const B& a,const B& b,const B& c,const B& d) const
 //     {
-//         GLCache glcd1(grid,K+1+k+2);
-       
-//         double rmin=grid.front(),rmax=grid.back();
-        
+//         GLCache glcd1(grid,K+1+k+2);  
+//         double rmin=grid.front(),rmax=grid.back();   
 //         std::function< double (double)> Yk1 = [glcd1,c,d,rmin](double r1)
 //         {
 //             std::function< double (double)> wcd1 = [](double r2)
@@ -325,9 +323,7 @@ TEST_F(BSplineTests, Kinetic)
 //     }
 //     size_t k;
 //     bspline::Grid<double> grid;
-   
 // };
-
 // TEST_F(BSplineTests, SlaterRk)
 // {
 //     Init(0.1,10,10);
@@ -389,8 +385,8 @@ TEST_F(A_BS_1E_U,Hydrogen)
     e= hf->GetTotalEnergy(cd);
     cout.precision(10);
     cout << std::defaultfloat << "Eee,Exc=" << e.Eee << " " << e.Exc << endl;
-    EXPECT_NEAR(e.Eee, 0.33366623656477451,1e-14); //for Init(10,0.1,20.0,0);
-    EXPECT_NEAR(e.Exc,-0.33366623656477457,1e-14); //for Init(10,0.1,20.0,0);
+    EXPECT_NEAR(e.Eee, 0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
+    EXPECT_NEAR(e.Exc,-0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
    
     // EXPECT_NEAR(e.Eee,5./16.,1e-14);
     // EXPECT_NEAR(e.Exc,-5./16.,1e-14);
