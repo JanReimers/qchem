@@ -23,19 +23,21 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
     auto& sc=c.getSupport();
     auto& sd=d.getSupport();
 
-    // auto sab=sa.calcIntersection(sb);
-    // auto scd=sc.calcIntersection(sd);
-    // assert(sab.containsIntervals());
-    // assert(scd.containsIntervals());
-    
+    auto sab=sa.calcIntersection(sb);
+    auto scd=sc.calcIntersection(sd);
+    assert(sab.containsIntervals());
+    assert(scd.containsIntervals());
+    //
+    //  THis is not the right condition
+    // auto sabcd=sab.calcIntersection(scd);
+    // assert(sabcd.containsIntervals());
+
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
     bspline::Grid grid=sa.getGrid();
     double rmin=grid.front(),rmax=grid.back();
     for (size_t k=0;k<=2*LMax;k++)
     {
-        // GLCache glcd1(sc.getGrid(),K+1+k+2);
-        // GLCache glcd2(sc.getGrid(),K+2);
         std::function< double (double)> wcd1 = [k](double r2)
         {
             return intpow(r2,k+2);
@@ -61,7 +63,6 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
         };
 
         Rabcd_k(k)=gl.Integrate(wab,a,b);
-
         
     }
  }
