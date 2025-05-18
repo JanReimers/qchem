@@ -35,7 +35,7 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
     bspline::Grid grid=sa.getGrid();
-    double rmin=grid.front(),rmax=grid.back();
+    // double rmin=std::max(sab.front(),scd.front()),rmax=std::min(sab.back(),scd.back());
     for (size_t k=0;k<=2*LMax;k++)
     {
         std::function< double (double)> wcd1 = [k](double r2)
@@ -44,26 +44,29 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
         };
         std::function< double (double)> wcd2 = [k](double r2)
         {
-            assert(r2>0);
+            assert(r2>=0);
             return intpow(r2,1-k);
         };
-        std::function< double (double)> Yk1 = [gl,wcd1,c,d,rmin](double r1)
+        std::function< double (double)> Yk1 = [gl,wcd1,c,d,scd](double r1)
         {
-            return gl.Integrate(wcd1,c,d,rmin,r1);
+            if (r1<scd.front()) return 0.0; 
+            double rmax=std::min(r1,scd.back());
+            return gl.Integrate(wcd1,c,d,scd.front(),rmax);
         };
-        std::function< double (double)> Yk2 = [gl,wcd2,c,d,rmax](double r1)
+        std::function< double (double)> Yk2 = [gl,wcd2,c,d,scd](double r1)
         {
-            return gl.Integrate(wcd2,c,d,r1,rmax);
+            if (r1>scd.back()) return 0.0;
+            double rmin=std::max(r1,scd.front());
+            return gl.Integrate(wcd2,c,d,rmin,scd.back());
         };
 
         std::function< double (double)> wab = [k,Yk1,Yk2] (double r1)
         {
-            assert(r1>0);
+            assert(r1>=0);
             return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+2)*Yk2(r1);
         };
 
-        Rabcd_k(k)=gl.Integrate(wab,a,b);
-        
+        Rabcd_k(k)=gl.Integrate(wab,a,b,sab.front(),sab.back());
     }
  }
 

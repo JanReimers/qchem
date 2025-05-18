@@ -43,6 +43,7 @@ double GLCache::Integrate(const std::function< double (double)>& f, const sup_t&
 
 double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const
 {
+    if (rmin==rmax) return 0.0;
     if (!(rmin<rmax)) cout << "rmin,rmax=" << rmin << " " << rmax << endl;
     assert(rmin<rmax);
     assert(a.getGrid()==grid);

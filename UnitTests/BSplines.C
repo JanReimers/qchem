@@ -387,6 +387,8 @@ TEST_F(A_BS_1E_U,Hydrogen)
     cout << std::defaultfloat << "Eee,Exc=" << e.Eee << " " << e.Exc << endl;
     EXPECT_NEAR(e.Eee, 0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
     EXPECT_NEAR(e.Exc,-0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
+    // EXPECT_NEAR(e.Eee, 0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
+    // EXPECT_NEAR(e.Exc,-0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
    
     // EXPECT_NEAR(e.Eee,5./16.,1e-14);
     // EXPECT_NEAR(e.Exc,-5./16.,1e-14);
