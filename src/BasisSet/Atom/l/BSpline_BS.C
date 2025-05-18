@@ -13,7 +13,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
 {
     for (size_t L=0;L<=LMax;L++)
         this->Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L));
-        
+    this->BuildCache(LMax);
 }
 
 template class BasisSet<6>;

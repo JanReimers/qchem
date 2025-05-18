@@ -369,7 +369,8 @@ public:
 
 TEST_F(A_BS_1E_U,Hydrogen)
 {
-    Init(10,0.1,20.0,0);
+    size_t N=10;
+    Init(N,0.1,20.0,0);
     Iterate({2,1e-4,1.0,0.0,true});
     EnergyBreakdown e=GetEnergyBreakdown();
     // EXPECT_LT(RelativeHFError(),1e-10);
@@ -385,10 +386,16 @@ TEST_F(A_BS_1E_U,Hydrogen)
     e= hf->GetTotalEnergy(cd);
     cout.precision(10);
     cout << std::defaultfloat << "Eee,Exc=" << e.Eee << " " << e.Exc << endl;
-    EXPECT_NEAR(e.Eee, 0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
-    EXPECT_NEAR(e.Exc,-0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
-    // EXPECT_NEAR(e.Eee, 0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
-    // EXPECT_NEAR(e.Exc,-0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
+    if (N==10)
+    {
+        EXPECT_NEAR(e.Eee, 0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
+        EXPECT_NEAR(e.Exc,-0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
+    }
+    if (N==20)
+    {
+        EXPECT_NEAR(e.Eee, 0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
+        EXPECT_NEAR(e.Exc,-0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
+    }
    
     // EXPECT_NEAR(e.Eee,5./16.,1e-14);
     // EXPECT_NEAR(e.Exc,-5./16.,1e-14);
@@ -397,37 +404,37 @@ TEST_F(A_BS_1E_U,Hydrogen)
 
 #include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
 
-TEST_F(BSplineTests,Repulsion1)
-{
-    Init(10,.1,10);
-    size_t lmax=4;
-    GLCache gl(splines[0].getSupport().getGrid(),0);
-    for (auto spa:splines)
-        for (auto spb:splines)
-        {
-            BSpline::RkEngine Rk(spa,spb,spa,spb,lmax,gl);
-            for (size_t la=0;la<=lmax;la++)
-                for (size_t lb=0;lb<=lmax;lb++)
-                {
-                    auto Rkc=Rk.Coulomb_Rk(la,lb);
-                    auto Rkx=Rk.ExchangeRk(la,lb);
-                    if (spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals())
-                    {
-                        EXPECT_GT(Min(Rkc),0.0);
-                        EXPECT_GT(Min(Rkx),0.0);
-                    }
-                    else
-                    {
-                        EXPECT_TRUE(Rkc==0.0);
-                        EXPECT_TRUE(Rkx==0.0);
-                    }
+// TEST_F(BSplineTests,Repulsion1)
+// {
+//     Init(10,.1,10);
+//     size_t lmax=4;
+//     GLCache gl(splines[0].getSupport().getGrid(),0);
+//     for (auto spa:splines)
+//         for (auto spb:splines)
+//         {
+//             BSpline::RkEngine Rk(spa,spb,spa,spb,lmax,gl);
+//             for (size_t la=0;la<=lmax;la++)
+//                 for (size_t lb=0;lb<=lmax;lb++)
+//                 {
+//                     auto Rkc=Rk.Coulomb_Rk(la,lb);
+//                     auto Rkx=Rk.ExchangeRk(la,lb);
+//                     if (spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals())
+//                     {
+//                         EXPECT_GT(Min(Rkc),0.0);
+//                         EXPECT_GT(Min(Rkx),0.0);
+//                     }
+//                     else
+//                     {
+//                         EXPECT_TRUE(Rkc==0.0);
+//                         EXPECT_TRUE(Rkx==0.0);
+//                     }
 
                    
-                }
-        }
+//                 }
+//         }
            
 
-}
+// }
 
 TEST_F(BSplineTests,Repulsion2)
 {

@@ -10,14 +10,45 @@ using std::endl;
 
 namespace BSpline
 {
+template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache& gl, size_t lmax)
+{
+    for (size_t ia=0;ia<splines.size();ia++)
+        for (size_t ib=ia;ib<splines.size();ib++)
+        {
+            std::vector<double> mp,mm;
+            for (size_t k=0;k<=2*lmax;k++)
+            {
+                std::function< double (double)> wp = [k](double r) {return intpow(r,k+2);};
+                std::function< double (double)> wm = [k](double r) {return intpow(r,1-k);};
+                mp.push_back(gl.Integrate(wp,splines[ia],splines[ib]));
+                mm.push_back(gl.Integrate(wm,splines[ia],splines[ib]));
+
+            }
+            itsMomentsPlus [std::make_pair(ia,ib)]=mp;
+            itsMomentsMinus[std::make_pair(ia,ib)]=mm;
+        }
+
+}
+
+template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,size_t ib,const moment_t& mm)
+{
+    if (ia>ib) std::swap(ia,ib);
+    auto i=mm.find(std::make_pair(ia,ib));
+    assert(i!=mm.end());
+    return i->second;
+}
+
+template class RkCache<6>;
 //
 //  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
-
-
-template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d, size_t _LMax, const GLCache& gl)
+template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax, const GLCache& gl, const RkCache<K>& rkcache)
  : LMax(_LMax), Rabcd_k(VecLimits(0,2*LMax))
  {
+    sp_t a=splines[ia];
+    sp_t b=splines[ib];
+    sp_t c=splines[ic];
+    sp_t d=splines[id];
     auto& sa=a.getSupport();
     auto& sb=b.getSupport();
     auto& sc=c.getSupport();
@@ -67,6 +98,21 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
         };
 
         Rabcd_k(k)=gl.Integrate(wab,a,b,sab.front(),sab.back());
+        if (!sab.calcIntersection(scd).containsIntervals() && ic>ia)
+        {
+            assert(ic>ia);
+            std::vector<double> mp=rkcache.find_plus(ia,ib);
+            std::vector<double> mm=rkcache.find_minus(ic,id);
+            cout.precision(16);
+            double err=fabs(Rabcd_k(k)-mp[k]*mm[k]);
+            if (err>1e-12)
+            {
+                cout << ia << " " << ib << " " << ic << " " << id << " " << err << endl;
+                cout << sab.front() << " " << sab.back() << " " << scd.front() << " " << scd.back() << endl;
+            }
+                // cout << std::fixed << "Rabcd_k(k)=" << Rabcd_k(k) << "   mp[k]*mm[k]=" << mp[k]*mm[k] << "  "  << std::scientific <<  err << endl;
+            assert(err<1e-5);
+        }
     }
  }
 
