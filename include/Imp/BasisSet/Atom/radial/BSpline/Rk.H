@@ -6,6 +6,7 @@
 #include <bspline/Core.h>
 #include "oml/vector.h"
 
+class GLCache;
 namespace BSpline
 {
 //
@@ -15,7 +16,7 @@ template <size_t K> class RkEngine : public virtual Cacheable
 {
     typedef bspline::Spline<double,K> sp_t;
 public:
-    RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d,size_t LMax);
+    RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d,size_t LMax, const GLCache& gl);
     double Coulomb_R0() const; //R_0(la,la,lc,lc);
     Vector<double> Coulomb_Rk(size_t la,size_t lc) const; 
     Vector<double> ExchangeRk(size_t la,size_t lb) const; 

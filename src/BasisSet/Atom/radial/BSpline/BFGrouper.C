@@ -32,6 +32,7 @@ template <size_t K> void BFGrouper<K>::Append(IrrepIEClient<K>* iec)
         iec->sp_indices.push_back(index);  
     }     
     cout << "iec->sp_indices = " <<    iec->sp_indices << endl;
+    itsGLs[iec->l]=iec->itsGL;
 }
  
 
@@ -43,6 +44,13 @@ template <size_t K> size_t BFGrouper<K>::LMax(size_t ia, size_t ib, size_t ic, s
     size_t lmax_cd=std::max(maxls[ic],maxls[id]);
 //    cout << "(abcd)=(" << ia << " "  << ib << " "  << ic << " "  << id << ") max(ab)=" << lmax_ab << " max(cd)=" << lmax_cd <<endl;
     return std::max(lmax_ab,lmax_cd);
+}
+
+template <size_t K> const GLCache* BFGrouper<K>::GetGL(size_t l) const
+{
+    auto i=itsGLs.find(l);
+    assert(i!=itsGLs.end());
+    return i->second;
 }
 
 template class BFGrouper<6>;

@@ -38,7 +38,7 @@ template <template<class> class V,class T> std::ostream& Write(std::ostream& os,
         BinaryWrite(v.size(),os);
         for (auto i:v) BinaryWrite(i,os);
     }
-    if (StreamableObject::Ascii())  
+    else 
     {   
         os << v.size() << " ";
         for (auto i:v) os << i << " ";

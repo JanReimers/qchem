@@ -62,7 +62,7 @@ public:
         return Integrate(fwab,rmin,rmax);
     }
 
-private:
+// private:
     typedef bspline::Support<double> sup_t;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
@@ -86,7 +86,8 @@ private:
         }
         return ret;
     }
-    const bspline::support::Grid<double>& grid;
+   
+    const bspline::support::Grid<double> grid;
     std::vector<GLQuadrature> itsGLs;
 };
 

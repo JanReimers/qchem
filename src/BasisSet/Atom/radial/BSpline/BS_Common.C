@@ -15,7 +15,10 @@ namespace BSpline
     
     template <size_t K> const Cacheable* BS_Common<K>::Create(size_t ia,size_t ic,size_t ib,size_t id) const
     {
-        return new BSpline::RkEngine(unique_spv[ia],unique_spv[ib],unique_spv[ic],unique_spv[id],LMax(ia,ib,ic,id));
+        // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
+        size_t lmax=LMax(ia,ib,ic,id);
+        const GLCache* gl=this->GetGL(lmax);
+        return new BSpline::RkEngine(unique_spv[ia],unique_spv[ib],unique_spv[ic],unique_spv[id],lmax,*gl);
 
     }
     

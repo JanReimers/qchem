@@ -15,13 +15,18 @@ namespace BSpline
 //
 
 
-template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d, size_t _LMax)
+template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t& c,const sp_t& d, size_t _LMax, const GLCache& gl)
  : LMax(_LMax), Rabcd_k(VecLimits(0,2*LMax))
  {
     auto& sa=a.getSupport();
     auto& sb=b.getSupport();
     auto& sc=c.getSupport();
     auto& sd=d.getSupport();
+
+    // auto sab=sa.calcIntersection(sb);
+    // auto scd=sc.calcIntersection(sd);
+    // assert(sab.containsIntervals());
+    // assert(scd.containsIntervals());
     
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
@@ -29,8 +34,8 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
     double rmin=grid.front(),rmax=grid.back();
     for (size_t k=0;k<=2*LMax;k++)
     {
-        GLCache glcd1(sc.getGrid(),K+1+k+2);
-        GLCache glcd2(sc.getGrid(),K+2);
+        // GLCache glcd1(sc.getGrid(),K+1+k+2);
+        // GLCache glcd2(sc.getGrid(),K+2);
         std::function< double (double)> wcd1 = [k](double r2)
         {
             return intpow(r2,k+2);
@@ -40,13 +45,13 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
             assert(r2>0);
             return intpow(r2,1-k);
         };
-        std::function< double (double)> Yk1 = [glcd1,wcd1,c,d,rmin](double r1)
+        std::function< double (double)> Yk1 = [gl,wcd1,c,d,rmin](double r1)
         {
-            return glcd1.Integrate(wcd1,c,d,rmin,r1);
+            return gl.Integrate(wcd1,c,d,rmin,r1);
         };
-        std::function< double (double)> Yk2 = [glcd2,wcd2,c,d,rmax](double r1)
+        std::function< double (double)> Yk2 = [gl,wcd2,c,d,rmax](double r1)
         {
-            return glcd2.Integrate(wcd2,c,d,r1,rmax);
+            return gl.Integrate(wcd2,c,d,r1,rmax);
         };
 
         std::function< double (double)> wab = [k,Yk1,Yk2] (double r1)
@@ -55,7 +60,7 @@ template <size_t K> RkEngine<K>::RkEngine(const sp_t& a,const sp_t& b,const sp_t
             return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+2)*Yk2(r1);
         };
 
-        Rabcd_k(k)=glcd1.Integrate(wab,a,b);
+        Rabcd_k(k)=gl.Integrate(wab,a,b);
 
         
     }

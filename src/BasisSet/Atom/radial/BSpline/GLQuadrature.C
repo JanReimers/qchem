@@ -22,13 +22,14 @@ GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N)
 GLCache::GLCache(const bspline::support::Grid<double>& g,size_t N)
 : grid(g)
 {
-    for (size_t i=1;i<g.size();i++)
-        itsGLs.push_back(GLQuadrature(g[i-1],g[i],N));
+    for (size_t i=1;i<grid.size();i++)
+        itsGLs.push_back(GLQuadrature(grid[i-1],grid[i],N));
 }
 
 double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
 {
-    assert(a.getGrid()==grid);
+
+    assert(a.getGrid()==grid); //Check shared pointers.
     assert(b.getGrid()==grid);
     double ret=0;
     sup_t sab=a.calcIntersection(b);

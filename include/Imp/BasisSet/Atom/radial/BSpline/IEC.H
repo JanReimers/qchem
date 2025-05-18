@@ -4,6 +4,7 @@
 
 #include <IEClient.H> // <> prevents file search on this folder.
 #include <bspline/Core.h>
+#include "GLQuadrature.H"
 #include "oml/vector.h"
 
 namespace BSpline
@@ -29,6 +30,8 @@ template <size_t K> struct IrrepIEClient : public virtual ::IrrepIEClient
 
     typedef std::tuple<int,int,const spline_t*,double> bf_tuple;
     bf_tuple tuple(index_t i) const {return std::make_tuple(l,m,&splines[i-1],ns(i));}
+    GLCache* itsGL;
+
 private:
     IrrepIEClient(const IrrepIEClient<K>&) =delete;
     IrrepIEClient<K>& operator=(const IrrepIEClient<K>&) =delete;
