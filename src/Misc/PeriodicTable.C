@@ -23,8 +23,8 @@ double PeriodicTable::EnergyHF   [N_Elements]=
     -2.861679993  , //He
     -7.432726924  , //Li
     -14.57302313  , //Be
-    -24.52906073, //B ROHF Pol Gaus can get this
-//    -24.41460752  , //B SG and SL only get this far.
+    -24.52906073, //B ROHF Pol Gauss, Ylm basis sets can get this.  m levels split.
+//    -24.41460752  , //If you assume all m in Ylm are degenerate you get this.
     -37.68861890  , //C
     -54.40093415  , //N
     -74.80939840  , //O

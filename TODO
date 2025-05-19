@@ -7,6 +7,7 @@ Priority 1:
         centrifugal =l*(l+1)*Inv_r2(a,b)
         nuclear = -Z*Inv_r1(a,b)
         grad2=<a|d^2/dr^2|b>
+        Also need a MeshIntegrator::Inv_r2 for the centrifugal term for 
     -Add BSpline basis sets.
         https://okruz.github.io/BSplinebasis does everything we need ...
             except that the spine order is hard coded.

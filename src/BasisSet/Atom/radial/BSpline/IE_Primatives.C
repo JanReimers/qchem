@@ -24,12 +24,10 @@ template <size_t K> double  IE_Primatives<K>::Overlap(const spline_t& a , const 
 
 template <size_t K> double IE_Primatives<K>::Grad2(const spline_t& a , const spline_t& b,size_t la, size_t lb) const
 {
-    static const size_t L=0;
-    static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{} + L*(L+1);
+    static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
     assert(la==lb);
-    assert(la==L);
-    
-    return BilinearForm{T}(a,b)*4*Pi;
+    double ll=la*(la+1);
+    return ( BilinearForm{T}(a,b) + ll*BilinearForm{IdentityOperator{}}(a,b)  )*4*Pi;
 }
 
 template <size_t K> double IE_Primatives<K>::Nuclear(const spline_t& a , const spline_t& b,size_t l_total) const

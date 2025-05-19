@@ -10,6 +10,7 @@
 #include "Imp/Cluster/Molecule.H"
 #include <MeshParams.H>
 #include <Cluster.H>
+#include <Symmetry.H>
 
 #include "oml/smatrix.h"
 #include <bspline/Core.h>
@@ -26,7 +27,7 @@ public:
     typedef TOrbital_IBS<double> ibs_t;
     typedef SMatrix<double> smat_t;
     BSplineTests() 
-        : LMax(0)
+        : LMax(1)
         , cl(new Molecule())
     {
         StreamableObject::SetToPretty();
@@ -196,7 +197,7 @@ TEST_F(BSplineTests, Overlap)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<TOrbital_IBS<double> >())
     {
-        
+        cout << ibs->GetSymmetry() << endl;
         SMatrix<double> S=ibs->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:S.rows()) //Check banded
@@ -237,6 +238,7 @@ TEST_F(BSplineTests, Nuclear)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
+        cout << ibs->GetSymmetry() << endl;
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> Ven=ibs1->Nuclear(cl);
         for (auto i:Ven.rows()) //Check banded
@@ -255,6 +257,7 @@ TEST_F(BSplineTests, Kinetic)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
+        cout << ibs->GetSymmetry() << endl;
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> T=ibs1->Grad2();
         for (auto i:T.rows()) //Check banded
@@ -263,8 +266,8 @@ TEST_F(BSplineTests, Kinetic)
         SMatrix<double> Tnum = mintegrator->Grad(*ibs);
         EXPECT_NEAR(Max(fabs(T-Tnum)),0.0,3e-5);
 
-        // cout << "T=" << T << endl;
-        // cout << "Tnum=" << Tnum << endl;
+        cout << "T=" << T << endl;
+        cout << "Tnum=" << Tnum << endl;
     }
 }
 

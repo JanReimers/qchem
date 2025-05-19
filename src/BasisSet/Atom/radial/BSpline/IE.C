@@ -138,22 +138,27 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeDirect  (const ::IrrepIEClie
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
     {
+        size_t iau=a->sp_indices[ia-1]; //Absolute unique radial function index.
         loop_1(a->sp_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
         for (size_t ic:c->indices())
         {
+            size_t icu=c->sp_indices[ic-1]; //Absolute unique radial function index.
             loop_2(c->sp_indices[ic-1]);
             int la=a->l, lc=c->l;
             RVec Akac=Coulomb_AngularIntegrals(la,lc,a->m,c->m);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
-                if (ib>ia+K) continue;
+                size_t ibu=a->sp_indices[ib-1]; //Absolute unique radial function index.
+                if (ibu>iau+K) continue;
                 SMat& Jab=J(ia,ib);
                 loop_3(a->sp_indices[ib-1]);
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
-                    if (id>ic+K) continue;
+                    size_t idu=c->sp_indices[id-1]; //Absolute unique radial function index.
+
+                    if (idu>icu+K) continue;
                     if (Jab(ic,id)!=0.0)
                     {
                         std::cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
@@ -181,23 +186,27 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
     ERI4 Kex(Na,Nc);
     for (size_t ia:a->indices())
     {
+        size_t iau=a->sp_indices[ia-1]; //Absolute unique radial function index.
         loop_1(a->sp_indices[ia-1]); //Start a cache for Gaussian::RkEngine*
         double na=a->ns(ia);
         for (size_t ic:c->indices())
         {
-            if (ia>ic+K || ic>ia+K) continue;
+            size_t icu=c->sp_indices[ic-1]; //Absolute unique radial function index.
+            if (iau>icu+K || icu>iau+K) continue;
             int la=a->l, lc=c->l;
             RVec Akac=ExchangeAngularIntegrals(la,lc,a->m,c->m);
             double nac=na*c->ns(ic);
             for (size_t ib:a->indices(ia))
             {
+                size_t ibu=a->sp_indices[ib-1]; //Absolute unique radial function index.
                 SMat& Kab=Kex(ia,ib);
                 loop_2(a->sp_indices[ib-1]);
                 loop_3(c->sp_indices[ic-1]);
                 double nacb=nac*a->ns(ib);
                 for (size_t id:c->indices())
                 {
-                    if (id>ib+K || ib>id+K) continue;
+                    size_t idu=c->sp_indices[id-1]; //Absolute unique radial function index.
+                    if (idu>ibu+K || ibu>idu+K) continue;
                     // std::cout << "exchange ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
                     double norm=nacb*c->ns(id);
                     RVec RKac=loop_4_exchange(c->sp_indices[id-1],la,lc);
