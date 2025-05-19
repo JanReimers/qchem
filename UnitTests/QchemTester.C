@@ -92,10 +92,13 @@ double QchemTester::RelativeError(double E,bool quiet) const
     double error=(E-TotalEnergy())/E;
     if (!quiet)
     {
-        std::cout.precision(6);
+        std::cout.precision(9);
         std::cout << "E relative error=" << error*100.0 << "%, ";
         std::cout.precision(2);
-        std::cout << error*1e6 << "(ppm)" << std::endl;            
+        if (fabs(error)>1e-7)
+            std::cout << error*1e6 << "(ppm)" << std::endl;
+        else
+            std::cout << error*1e9 << "(ppb)" << std::endl;
     }
     return fabs(error);
 }

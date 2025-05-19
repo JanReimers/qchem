@@ -136,6 +136,28 @@ TEST_P(A_PG_HF_U,Multiple)
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
 
+class A_BS_HF_U : public ::testing::TestWithParam<int>
+, public TestAtom, BS_OBasis, HF_U, TestUnPolarized
+{
+public:
+    A_BS_HF_U() : TestAtom(GetParam()) {};
+    void Init(int N, double rmin, double rmax, int LMax)
+    {
+        BS_OBasis::Init(N,rmin,rmax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_P(A_BS_HF_U,Multiple)
+{
+    int Z=GetParam();
+    int N=50;
+    Init(N,0.1,40,GetLMax(Z));
+    Iterate({40,Z*1e-9,1.0,0.0,true});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+
+INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_U,::testing::Values(2,4)); 
 
 
 class HF_P : public virtual QchemTester
@@ -200,6 +222,30 @@ TEST_P(A_SL_HF_P,Multiple)
 
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
+
+class A_BS_HF_P : public ::testing::TestWithParam<int>
+, public TestAtom, BS_OBasis, HF_P, TestPolarized
+{
+public:
+    A_BS_HF_P() : TestAtom(GetParam()) {};
+    void Init(int N, double rmin, double rmax, int LMax)
+    {
+        BS_OBasis::Init(N,rmin,rmax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_P(A_BS_HF_P,Multiple)
+{
+    int Z=GetParam();
+    int N=50;
+    Init(N,0.1,40,GetLMax(Z));
+    Iterate({40,Z*1e-9,1.0,0.0,true});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+
+INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_P,::testing::Values(1,2,3,4,5)); 
+//INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
 
 class A_SLm_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SLm_OBasis, HF_P, TestPolarized
