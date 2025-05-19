@@ -31,7 +31,7 @@ template <size_t K> void BFGrouper<K>::Append(IrrepIEClient<K>* iec)
 //        cout << "BFGrouper index,l,maxl=" << index << " " << aiec->l << " " << maxls[index] << endl;
         iec->sp_indices.push_back(index);  
     }     
-    cout << "iec->sp_indices = " <<    iec->sp_indices << endl;
+    // cout << "iec->sp_indices = " <<    iec->sp_indices << endl;
     itsGLs[iec->l]=iec->itsGL;
 }
  

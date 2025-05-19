@@ -12,9 +12,9 @@ template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin,
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     auto grid=splines[0].getSupport().getGrid();
-    std::cout << "Grid = " << grid.size() << "    ";
-    for (auto r:grid) std::cout << r << ",";
-    std::cout << std::endl;
+    // std::cout << "Grid = " << grid.size() << "    ";
+    // for (auto r:grid) std::cout << r << ",";
+    // std::cout << std::endl;
     ns.SetLimits(splines.size());
     itsGL=new GLCache(grid,K+2*l);
     assert(itsGL);

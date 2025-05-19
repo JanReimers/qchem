@@ -15,6 +15,7 @@ template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const G
     for (size_t ia=0;ia<splines.size();ia++)
         for (size_t ib=ia;ib<splines.size();ib++)
         {
+            // TODO skip for zero overlap
             std::vector<double> mp,mm;
             for (size_t k=0;k<=2*lmax;k++)
             {
@@ -34,7 +35,7 @@ template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,
 {
     if (ia>ib) std::swap(ia,ib);
     auto i=mm.find(std::make_pair(ia,ib));
-    assert(i!=mm.end());
+    assert(i!=mm.end()); //If not found return zero, there was no support overlap.
     return i->second;
 }
 
@@ -54,51 +55,70 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     auto& sc=c.getSupport();
     auto& sd=d.getSupport();
 
-    auto sab=sa.calcIntersection(sb);
-    auto scd=sc.calcIntersection(sd);
+    bspline::Support<double> sab=sa.calcIntersection(sb);
+    bspline::Support<double> scd=sc.calcIntersection(sd);
     assert(sab.containsIntervals());
     assert(scd.containsIntervals());
-    //
-    //  THis is not the right condition
-    // auto sabcd=sab.calcIntersection(scd);
-    // assert(sabcd.containsIntervals());
-
+    auto Sabcd=sab.calcIntersection(scd);
+    
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
     bspline::Grid grid=sa.getGrid();
+    // cout << "grid = ";
+    // for (auto r:grid) cout << r << ", ";
+    // cout << endl;
+    size_t lmax=LMax;
     // double rmin=std::max(sab.front(),scd.front()),rmax=std::min(sab.back(),scd.back());
     for (size_t k=0;k<=2*LMax;k++)
     {
-        std::function< double (double)> wcd1 = [k](double r2)
+        std::function< double (double)> wp = [k](double r2)
         {
             return intpow(r2,k+2);
         };
-        std::function< double (double)> wcd2 = [k](double r2)
+        std::function< double (double)> wm = [k](double r2)
         {
             assert(r2>=0);
             return intpow(r2,1-k);
         };
-        std::function< double (double)> Yk1 = [gl,wcd1,c,d,scd](double r1)
+        
+        if (Sabcd.containsIntervals())
         {
-            if (r1<scd.front()) return 0.0; 
-            double rmax=std::min(r1,scd.back());
-            return gl.Integrate(wcd1,c,d,scd.front(),rmax);
-        };
-        std::function< double (double)> Yk2 = [gl,wcd2,c,d,scd](double r1)
-        {
-            if (r1>scd.back()) return 0.0;
-            double rmin=std::max(r1,scd.front());
-            return gl.Integrate(wcd2,c,d,rmin,scd.back());
-        };
+            cout.precision(6);
+            // cout << sab.getStartIndex() << " " << sab.getEndIndex() << " " << sab.numberOfIntervals() << " " << scd.getStartIndex() << " " << scd.getEndIndex() << endl;
+            double RkOff=0.0, RkDiag=0.0;
+            for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
+            {
+                double rab=grid[iab],rab1=grid[iab+1];
+                double Iab_p=gl.IntegrateIndex(wp,a,b,iab);
+                double Iab_m=gl.IntegrateIndex(wm,a,b,iab);
+                double Icd_p=gl.IntegrateIndex(wp,c,d,scd.getStartIndex(),iab);
+                double Icd_m=gl.IntegrateIndex(wm,c,d,iab+1,scd.getEndIndex()-1);
+                std::function< double (double)> Yk1_diag = [lmax,wp,c,d,rab](double r1)
+                {
+                    assert(rab<=r1);
+                    GLQuadrature gl1(rab,r1,K+2*lmax); //K-2+2*lmax also seems to work!
+                    std::function< double (double)> f=[wp,c,d](double r) {return wp(r)*c(r)*d(r);};
+                    return gl1.Integrate(f);
+                };
+                std::function< double (double)> Yk2_diag = [lmax,wm,c,d,rab1](double r1)
+                {
+                    assert(r1<=rab1);
+                    GLQuadrature gl1(r1,rab1,K+2*lmax); //K-2+2*lmax also seems to work!
+                    std::function< double (double)> f=[wm,c,d](double r) {return wm(r)*c(r)*d(r);};
+                    return gl1.Integrate(f);
+                };
 
-        std::function< double (double)> wab = [k,Yk1,Yk2] (double r1)
-        {
-            assert(r1>=0);
-            return intpow(r1,1-k)*Yk1(r1)+intpow(r1,k+2)*Yk2(r1);
-        };
-
-        if (sab.calcIntersection(scd).containsIntervals())
-            Rabcd_k(k)=gl.Integrate(wab,a,b,sab.front(),sab.back()); //Diagonal
+                std::function< double (double)> wab_diag = [k,Yk1_diag,Yk2_diag] (double r1)
+                {
+                    assert(r1>=0);
+                    return intpow(r1,1-k)*Yk1_diag(r1)+intpow(r1,k+2)*Yk2_diag(r1);
+                };
+                double Idiag=gl.IntegrateIndex(wab_diag,a,b,iab);
+                RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
+                RkDiag+=Idiag;
+            }
+            Rabcd_k(k)=RkDiag + RkOff;
+        }
         else if (sab.back()<=scd.front())
         {
             std::vector<double> mp=rkcache.find_plus(ia,ib);

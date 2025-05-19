@@ -369,16 +369,16 @@ public:
 
 TEST_F(A_BS_1E_U,Hydrogen)
 {
-    size_t N=10;
-    Init(N,0.1,20.0,0);
+    size_t N=50;
+    Init(N,0.09,100,0);
     Iterate({2,1e-4,1.0,0.0,true});
     EnergyBreakdown e=GetEnergyBreakdown();
-    // EXPECT_LT(RelativeHFError(),1e-10);
-    // EXPECT_NEAR(e.Kinetic,0.5,1e-9);
-    // EXPECT_NEAR(e.GetVirial(),-2.0,1e-11);
-    // EXPECT_NEAR(e.Een,-1.0,2e-9);
-    // EXPECT_NEAR(e.GetPotentialEnergy(),-1.0,2e-9);
-    // EXPECT_NEAR(e.GetTotalEnergy(),-0.5,1e-9);
+    EXPECT_LT(RelativeHFError(),1e-10);
+    EXPECT_NEAR(e.Kinetic,0.5,1e-9);
+    EXPECT_NEAR(e.GetVirial(),-2.0,1e-11);
+    EXPECT_NEAR(e.Een,-1.0,2e-9);
+    EXPECT_NEAR(e.GetPotentialEnergy(),-1.0,2e-9);
+    EXPECT_NEAR(e.GetTotalEnergy(),-0.5,1e-9);
     
     Hamiltonian* hf=new Ham_HF_P(std::shared_ptr<const Cluster>(GetCluster()));
     DM_CD* cd=itsWaveFunction->GetChargeDensity();
@@ -388,15 +388,20 @@ TEST_F(A_BS_1E_U,Hydrogen)
     cout << std::defaultfloat << "Eee,Exc=" << e.Eee << " " << e.Exc << endl;
     if (N==10)
     {
-        EXPECT_NEAR(e.Eee, 0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
-        EXPECT_NEAR(e.Exc,-0.33363216206247426,1e-14); //for Init(10,0.1,20.0,0);
+        EXPECT_NEAR(e.Eee, 0.31238563057357399,1e-14); //for Init(10,0.1,20.0,0);
+        EXPECT_NEAR(e.Exc,-0.31238563056433954,1e-14); //for Init(10,0.1,20.0,0);
     }
     if (N==20)
     {
-        EXPECT_NEAR(e.Eee, 0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
-        EXPECT_NEAR(e.Exc,-0.323228414945217,1e-14); //for Init(20,0.1,30.0,0);
+        EXPECT_NEAR(e.Eee, 0.31249999569887493,1e-14); //for Init(20,0.1,30.0,0);
+        EXPECT_NEAR(e.Exc,-0.31249999569982323,1e-14); //for Init(20,0.1,30.0,0);
     }
-   
+    if (N==30)
+    {
+        EXPECT_NEAR(e.Eee, 0.31249999997137928,1e-14); //for Init(30,0.1,40.0,0);
+        EXPECT_NEAR(e.Exc,-0.3124999999716907,1e-14); //for Init(30,0.1,40.0,0);
+    }
+    cout << "Absolute Errors Eee,Exc = " << std::scientific << e.Eee-5./16. << " " <<  e.Exc+5./16. << endl;
     // EXPECT_NEAR(e.Eee,5./16.,1e-14);
     // EXPECT_NEAR(e.Exc,-5./16.,1e-14);
 }

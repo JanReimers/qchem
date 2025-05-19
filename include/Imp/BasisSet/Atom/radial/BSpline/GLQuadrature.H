@@ -50,6 +50,17 @@ public:
         std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
         return Integrate(fwab,a.getSupport(),b.getSupport(),rmin,rmax);
     }
+    template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0, size_t i1) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return IntegrateIndex(fwab,i0,i1);
+    }
+    template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        assert(i0<itsGLs.size());
+        return itsGLs[i0].Integrate(fwab);
+    }
 
     template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b) const
     {
@@ -66,6 +77,15 @@ public:
     typedef bspline::Support<double> sup_t;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
+    double IntegrateIndex(const std::function< double (double)>& f,  size_t i0, size_t i1) const
+    {
+        if (i0>=i1) return 0.0;
+        assert(i0<itsGLs.size());
+        assert(i1<=itsGLs.size());
+        double ret=0.0;
+        for (size_t i=i0;i<i1;i++) ret+=itsGLs[i].Integrate(f);
+        return ret;
+    }
     double Integrate(const std::function< double (double)>& f) const
     {
         double ret=0.0;
