@@ -81,12 +81,12 @@ protected:
 };
 template <class T, size_t K> class IE_XGrad2
 : public virtual Primative_Grad2<T,K>
-, public DB_XGrad2<T>
+, public DB_XKinetic<T>
 {
 protected:
     using Primative_Grad2<T,K>::Grad2;
     virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    IE_XGrad2(const DB_cache<T>* db) : DB_XGrad2<T>(db) {};
+    IE_XGrad2(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
 };
 
 } //namespace

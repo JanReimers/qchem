@@ -19,11 +19,11 @@ protected:
 template <class T> class DB_RKBL 
     : virtual public Integrals_RKBL<T>
     , public DB_Overlap<T>
-    , public DB_XGrad2<T>
+    , public DB_XKinetic<T>
     , public DB_Nuclear<T>
 {
 protected:
-    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XGrad2<T>(db), DB_Nuclear<T>(db) {};
+    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XKinetic<T>(db), DB_Nuclear<T>(db) {};
 };
 template <class T> class DB_RKBS 
     : virtual public Integrals_RKBS<T>

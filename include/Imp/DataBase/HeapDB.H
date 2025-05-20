@@ -62,10 +62,10 @@ protected:
     virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
     virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
 };
-template <class T> class DB_XGrad2   : public DB_Common<T>, public virtual Integrals_XKinetic<T>
+template <class T> class DB_XKinetic   : public DB_Common<T>, public virtual Integrals_XKinetic<T>
 {    
 protected:
-    DB_XGrad2(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
     virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
     virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };

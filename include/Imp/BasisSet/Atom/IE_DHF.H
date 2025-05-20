@@ -7,11 +7,11 @@
 
 template <class T> class AtomIE_RKBL 
     : public AtomIE_Overlap<T>
-    , public AtomIE_XGrad2<T>
+    , public AtomIE_XKinetic<T>
     , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XGrad2<T>(db),AtomIE_Nuclear<T>(db) {};
+    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XKinetic<T>(db),AtomIE_Nuclear<T>(db) {};
 
 };
 template <class T> class AtomIE_RKBS 
