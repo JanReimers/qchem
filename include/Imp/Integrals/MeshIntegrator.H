@@ -36,6 +36,7 @@ public:
     virtual SMat Repulsion3C(const Vf& a,const Sf& b) const; // <aiaj|1/r12|b>
 
     virtual SMat Nuclear    (const Vf& a            ) const; // <ai|1/r|aj>
+    virtual SMat Inv_r2     (const Vf& a            ) const; // <ai|1/r^2|aj>
     virtual SMat Grad       (const Vf& a            ) const; // <grad(ai)|grad(aj)>
     virtual  Mat Grada_b    (const Vf& a,const Vf& b) const; // <grad(ai)|bj> 
     virtual  Mat a_Gradb    (const Vf& a,const Vf& b) const; // <ai|grad(bj)> 

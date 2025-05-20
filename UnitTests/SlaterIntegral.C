@@ -191,9 +191,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
         SMatrix<double> Knum = mintegrator->Grad(*oi);
             // We need to add the l*(l+1) term that comes from the angular integrals.
         // Lost of dynamic cast just to get at L!
-        const Symmetry& qn=oi->GetSymmetry();
-        const Yl_Sym& sqn=dynamic_cast<const Yl_Sym& >(qn);
-        int l=sqn.GetL();
+        int l=dynamic_cast<const Angular_Sym& >(oi->GetSymmetry()).GetL();
         const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
         assert(sg);
         //int n=2*l+2;

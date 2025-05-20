@@ -27,7 +27,7 @@ public:
     typedef TOrbital_IBS<double> ibs_t;
     typedef SMatrix<double> smat_t;
     BSplineTests() 
-        : LMax(1)
+        : LMax(4)
         , cl(new Molecule())
     {
         StreamableObject::SetToPretty();
@@ -142,6 +142,7 @@ TEST_F(BSplineTests, SplineMap)
 }
 
 #include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
+#include <Imp/BasisSet/Atom/Angular.H>
 TEST_F(BSplineTests,GLQIntegration)
 {
     Init(10,.1,10);
@@ -193,11 +194,12 @@ TEST_F(BSplineTests,GLQIntegration)
 
 TEST_F(BSplineTests, Overlap)
 {
+    cout << "Overlap ";
     cout.precision(3);
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<TOrbital_IBS<double> >())
     {
-        cout << ibs->GetSymmetry() << endl;
+        cout << ibs->GetSymmetry();
         SMatrix<double> S=ibs->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:S.rows()) //Check banded
@@ -231,14 +233,16 @@ TEST_F(BSplineTests, Overlap)
         
         
     }
+     cout << endl;
 }
 TEST_F(BSplineTests, Nuclear)
 {
+    cout << "Nuclear ";
     cout.precision(3);
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
-        cout << ibs->GetSymmetry() << endl;
+        cout << ibs->GetSymmetry();
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> Ven=ibs1->Nuclear(cl);
         for (auto i:Ven.rows()) //Check banded
@@ -250,25 +254,31 @@ TEST_F(BSplineTests, Nuclear)
         // cout << "Ven=" << Ven << endl;
         // cout << "Vennum=" << Vennum << endl;
     }
+    cout << endl;
 }
 TEST_F(BSplineTests, Kinetic)
 {
+    cout << "Kinetic ";
     cout.precision(3);
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
-        cout << ibs->GetSymmetry() << endl;
+        cout << ibs->GetSymmetry();
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> T=ibs1->Grad2();
         for (auto i:T.rows()) //Check banded
             for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
         
+        int l=dynamic_cast<const Angular_Sym& >(ibs->GetSymmetry()).GetL();
         SMatrix<double> Tnum = mintegrator->Grad(*ibs);
+        SMatrix<double> Cen = mintegrator->Inv_r2(*ibs);
+        Tnum+=l*(l+1)*Cen;
         EXPECT_NEAR(Max(fabs(T-Tnum)),0.0,3e-5);
-
-        cout << "T=" << T << endl;
-        cout << "Tnum=" << Tnum << endl;
+        
+        // cout << "T=" << T << endl;
+        // cout << "Tnum=" << Tnum << endl;
     }
+    cout << endl;
 }
 
 #include "Imp/Misc/IntPower.H"

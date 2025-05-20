@@ -303,6 +303,27 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Nuclear(c
         }
     return ret;
 }
+template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r2(const Vf& f) const
+{
+    index_t n=f.GetVectorSize();
+    SMat ret(n,n);
+    Fill(ret,T(0.0));
+
+    const Mat& sf(f(*itsMesh));
+
+    for (index_t i=1; i<=n; i++)
+        for (index_t j=i; j<=n; j++)
+        {
+            int wi=1;
+            for (auto rw:*itsMesh)
+            {
+                double mr=norm(r(rw));
+                if (mr!=0) ret(i,j)+=conj(sf(i,wi))*sf(j,wi)*w(rw)/(mr*mr);
+                wi++;
+            }
+        }
+    return ret;
+}
 
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Grad(const Vf& f) const
 {

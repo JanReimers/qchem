@@ -12,7 +12,7 @@ Priority 1:
         https://okruz.github.io/BSplinebasis does everything we need ...
             except that the spine order is hard coded.
                 std::vector<std::array<T, ARRAY_SIZE>> _coefficients;
-                This is that the package can do compile time recusron for efficiency
+                This is so that the package can do compile time recusron for efficiency
             May have to hard code k=5,6,7,8,9
                 Instance in one file
                 If we instance K=9, does this automatically create instances for K=8,7,...,0 ?
@@ -20,12 +20,25 @@ Priority 1:
                     But qchem template would not recurse unless we set up that way.
                         Specialize K=0 to stop recusrion.
         IE.C
-            fix loop ranges to exclude splines that do not overlap.
-            Need another BFGrouper for splines, can we make an op< for splines?
+            Done: fix loop ranges to exclude splines that do not overlap.
+            Done: Need another BFGrouper for splines, can we make an op< for splines?
                 Could properly sort based on 
-        BF how to take derivative of spline?
-        Need to make a static list of H kinetic operators for L=0,1,2,3,4
-        BSplines should use banded matricies for space/time efficiency.
+        Done: BF how to take derivative of spline?
+        No: Need to make a static list of H kinetic operators for L=0,1,2,3,4
+            Separate out centrifugal term instead.
+        BSplines should use (symmetric) banded matricies for space/time efficiency.
+        Ylm BSplines
+        Use radial mesh interface for knot generation
+            Implement Qiu's mesh
+            1+1/h where h=2^m for exact float representation,  Now Rmax is not fixed.
+        Multiple knots at Rmax?
+        Rk
+            Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
+            Cache diagonal grid cells.  Lots of them ... how often would they get reused?
+                Try on demand and count cache hits.
+            Try using scaling relations
+        Add DFT support.
+        
 
     -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
@@ -50,7 +63,7 @@ Priority 1:
             r^2*{ro_up-ro_down}
         Done: Energy level diagram
             Use PlotObject2DLine for el lines.
-        Diagonal values plot for BS
+        Done: Diagonal values plot for BS
             -SVD: plot SVs
             -Eigen: plot eigen values
             -Cholsky: plot diagonal.
@@ -74,7 +87,7 @@ Priority 1:
     -Clean up naming for IterationParams.
         SCFParams
     -Get rid of SCFIterationParams::kT
-    -It would be nice if Atom derivd from Cluster.
+    -It would be nice if Atom derived from Cluster.
     -BasisSet:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
