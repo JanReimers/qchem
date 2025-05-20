@@ -239,8 +239,8 @@ TEST_P(A_BS_HF_P,Multiple)
 {
     int Z=GetParam();
     int N=30;
-    Init(N,0.1,40,GetLMax(Z));
-    Iterate({40,Z*1e-9,1.0,0.0,true});
+    Init(N,1.0/Z,30,GetLMax(Z));
+    Iterate({40,Z*1e-9,0.5,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 

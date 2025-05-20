@@ -1401,7 +1401,7 @@ R_{k}\left(abcd\right)=\intop_{0}^{\infty}r_{1}^{2}dr_{1}\intop_{0}^{\infty}r_{2
 
 \begin_inset Formula 
 \[
-Y^{k}\left(r_{1},c,d\right)=\frac{1}{r_{1}^{k-1}}\intop_{0}^{r_{1}}dr_{2}\;r_{2}^{k+2}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{k+1}\intop_{r_{1}}^{r_{max}}dr_{2}\;\frac{1}{r_{2}^{k-1}}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+Y^{k}\left(r_{1},c,d\right)=\frac{1}{r_{1}^{k-1}}\intop_{0}^{r_{1}}dr_{2}\;r_{2}^{k+2}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{k+2}\intop_{r_{1}}^{r_{max}}dr_{2}\;\frac{1}{r_{2}^{k-1}}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
 \]
 
 \end_inset
@@ -1409,7 +1409,217 @@ Y^{k}\left(r_{1},c,d\right)=\frac{1}{r_{1}^{k-1}}\intop_{0}^{r_{1}}dr_{2}\;r_{2}
 
 \begin_inset Formula 
 \[
-=r_{1}^{1-k}\intop_{0}^{r_{1}}dr_{2}\;r_{2}^{k+2}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{k+1}\intop_{r_{1}}^{r_{max}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+=r_{1}^{1-k}\intop_{0}^{r_{1}}dr_{2}\;r_{2}^{k+2}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{k+2}\intop_{r_{1}}^{r_{max}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+for 
+\begin_inset Formula $k=0$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+R_{0}\left(abcd\right)=\intop_{0}^{\infty}r_{1}^{2}dr_{1}\intop_{0}^{\infty}r_{2}^{2}dr_{2}\;\frac{1}{r_{>}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\intop_{0}^{r_{max}}dr_{1}Y^{o}\left(r_{1},c,d\right)\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+Y^{0}\left(r_{1},c,d\right)=r_{1}\intop_{0}^{r_{1}}dr_{2}\;r_{2}^{2}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{2}\intop_{r_{1}}^{r_{max}}dr_{2}\;r_{2}^{1}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Support
+\end_layout
+
+\begin_layout Standard
+Defining 
+\begin_inset Formula $s_{ab}$
+\end_inset
+
+ the support overlap for splines 
+\begin_inset Formula $a$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+R_{k}\left(abcd\right)=\intop_{0}^{\infty}dr_{1}\intop_{0}^{\infty}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\intop_{s_{ab}}dr_{1}\intop_{s_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+=\intop_{s_{ab-}}^{s_{ab+}}dr_{1}Y^{k}\left(r_{1},c,d\right)\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+Y^{0}\left(r_{1},c,d\right)=r_{1}^{1-k}\intop_{s_{cd-}}^{r_{1}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{2+k}\intop_{r_{1}}^{s_{cd+}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now we can consider t1o cases
+\end_layout
+
+\begin_layout Paragraph
+Case 1 
+\begin_inset Formula $s_{abcd}=s_{ab}\cap s_{cd}=\left\{ \right\} $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Qiu calls this the off diagonal case,
+ in which 
+\begin_inset Formula $r_{1}$
+\end_inset
+
+is either 
+\begin_inset Formula $r_{1}>s_{cd+}$
+\end_inset
+
+ or 
+\begin_inset Formula $r_{1}<s_{cd-}$
+\end_inset
+
+.
+ The we get 
+\begin_inset Formula 
+\[
+Y^{k}\left(r_{1},c,d\right)=\begin{cases}
+r_{1}^{1-k}\intop_{s_{cd}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & r_{1}>s_{cd+}\\
+r_{1}^{2+k}\intop_{S_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & r_{1}<s_{cd-}
+\end{cases}
+\]
+
+\end_inset
+
+And now we see that the two integrals decouple.
+\begin_inset Formula 
+\[
+R_{k}\left(abcd\right)=\begin{cases}
+\left[\intop_{s_{ab}}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\intop_{s_{cd}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & s_{ab}>s_{cd}\\
+\left[\intop_{s_{ab}}dr_{1}r_{1}^{2+k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\intop_{s_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & s_{ab}<s_{cd}
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+So we can calculate and cache all these 1-D off integrals,
+ and just take products.
+ These integrals are over support cells,
+ which will contain one ore grid cells.
+\end_layout
+
+\begin_layout Paragraph
+Case 2 
+\begin_inset Formula $s_{abcd}=s_{ab}\cap s_{cd}\neq\left\{ \right\} $
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+These are the so called diagonal elements.
+ If each support cell is divided into many grid cells,
+ then within the diagonal support cell there will be a combination of off diagonal (factorable) grid cells and non factorable diagonal grid cells.
+ The grid cells are labeld by indices 
+\begin_inset Formula $I_{ab}$
+\end_inset
+
+ and 
+\begin_inset Formula $I_{cd}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D_{k}=\intop_{s_{ab}}dr_{1}\intop_{s_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{I_{ab-}}^{I_{ab+}}\sum_{I_{cd-}}^{I_{cd+}}\intop_{I_{ab}}dr_{1}\intop_{I_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+\]
+
+\end_inset
+
+When 
+\begin_inset Formula $I_{ab}\neq I_{cd}$
+\end_inset
+
+ the integrals should factor
+\begin_inset Formula 
+\[
+\intop_{I_{ab}}dr_{1}\intop_{I_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)=\begin{cases}
+\intop_{I_{ab}}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\intop_{I_{sc}}dr_{2}r_{2}^{k+2}B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & I_{sc}<I_{ab}\\
+\intop_{I_{ab}}dr_{1}r_{1}^{k+2}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\intop_{I_{sc}}dr_{2}r_{2}^{1-k}B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & I_{sc}>I_{ab}
+\end{cases}
 \]
 
 \end_inset
