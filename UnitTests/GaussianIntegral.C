@@ -77,7 +77,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
     {
         SMatrix<double> Hn=oi->Nuclear(cl);
         //cout << S << endl;
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(*oi);
+        SMatrix<double> Hnnum = -1*mintegrator->Inv_r1(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
 
     }
@@ -88,7 +88,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     
     for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Grad2();
+        SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
         SMatrix<double> Knum = mintegrator->Grad(*oi); //This give the wrong answer for l>0
 

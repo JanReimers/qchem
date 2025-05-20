@@ -8,7 +8,7 @@
 //! \brief Interface for one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.
 template <class T> class Integrals_RKB
 : public virtual Integrals_Overlap<T>
-, public virtual Integrals_Grad2<T>
+, public virtual Integrals_Kinetic<T>
 , public virtual Integrals_Nuclear<T>
 , public virtual Integrals_RestMass<T>
 {
@@ -19,7 +19,7 @@ public:
 //! \brief Interface for Large-Component one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.
 template <class T> class Integrals_RKBL
 : public virtual Integrals_Overlap<T>
-, public virtual Integrals_XGrad2<T>
+, public virtual Integrals_XKinetic<T>
 , public virtual Integrals_Nuclear<T>
 {
 public:
@@ -28,7 +28,7 @@ public:
 
 //! \brief Interface for Small-Component one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.
 template <class T> class Integrals_RKBS 
-: public virtual Integrals_Grad2<T> //Serves as the overlap.
+: public virtual Integrals_Kinetic<T> //Serves as the overlap.
 , public virtual Integrals_Nuclear<T>
 {
 public:

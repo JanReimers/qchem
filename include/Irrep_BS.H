@@ -123,7 +123,7 @@ template <class T> class TOrbital_IBS
     : public virtual Orbital_IBS
     , public virtual TIrrepBasisSet<T>
     , public virtual Integrals_Overlap<T> 
-    , public virtual Integrals_Grad2<T> 
+    , public virtual Integrals_Kinetic<T> 
     , public virtual Integrals_Nuclear<T> 
 {
     public:

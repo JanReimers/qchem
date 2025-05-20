@@ -8,7 +8,7 @@ namespace Atom_kappa
 namespace Slater
 {
    
-template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
+template <class T> double Orbital_RKBS_IE<T>::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return ea*eb*::Slater::Integral(ea+eb,l_total-1);
 }

@@ -27,7 +27,7 @@ template <class T> class Orbital_RKBS_IE
 {
 protected:
     Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
-    virtual double Nuclear(double ea , double eb,size_t l_total) const;
+    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
 };
 
 

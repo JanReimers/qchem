@@ -176,7 +176,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
         SMatrix<double> Hn=oi->Nuclear(cl);
-        SMatrix<double> Hnnum = -1*mintegrator->Nuclear(*oi);
+        SMatrix<double> Hnnum = -1*mintegrator->Inv_r1(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
 
     }
@@ -186,7 +186,7 @@ TEST_F(SlaterRadialIntegralTests, Grad2)
 {
     for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Grad2();
+        SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
         SMatrix<double> Knum = mintegrator->Grad(*oi);
             // We need to add the l*(l+1) term that comes from the angular integrals.

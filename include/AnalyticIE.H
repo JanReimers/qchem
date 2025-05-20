@@ -51,11 +51,11 @@ public:
     virtual typename Integrals_Base<T>::SMat_ref Overlap() const=0;
 };
 //! \brief Interface for Laplacian integrals using in kinetic energy calculations.
-template <class T> class Integrals_Grad2 : public virtual Integrals_Base<T>
+template <class T> class Integrals_Kinetic : public virtual Integrals_Base<T>
 {
 public:
     //! Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual typename Integrals_Base<T>::SMat_ref Grad2() const=0;
+    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const=0;
 };
 //! \brief Interface for electron-nucleus attraction integrals.
 template <class T> class Integrals_Nuclear : public virtual Integrals_Base<T>
@@ -72,11 +72,11 @@ public:
     virtual typename Integrals_Base<T>::SMat_ref RestMass() const=0;   
 };
 //! \brief Interface for L-S cross kinetic matrix used in relativistic calculations.
-template <class T> class Integrals_XGrad2 : public virtual Integrals_Base<T>
+template <class T> class Integrals_XKinetic : public virtual Integrals_Base<T>
 {
 public:
     //! L/S cross Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual typename Integrals_Base<T>::Mat_ref Grad2(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 
 // template <class T> class Integrals_Repulsion : public virtual Integrals_Base<T>

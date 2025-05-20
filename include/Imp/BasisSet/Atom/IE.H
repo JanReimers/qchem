@@ -17,10 +17,10 @@ template <class T> class Primative_Grad2
 public:
     virtual double Grad2(double ea ,double eb,size_t la, size_t lb) const=0;
 };
-template <class T> class Primative_Nuclear
+template <class T> class Primative_Inv_r1
 {
 public:
-    virtual double Nuclear(double ea ,double eb,size_t l_total) const=0;
+    virtual double Inv_r1(double ea ,double eb,size_t l_total) const=0;
 };
 template <class T> class Primative_Repulsion
 {
@@ -52,11 +52,11 @@ protected:
     AtomIE_Grad2(const DB_cache<T>* db) : DB_Grad2<T>(db) {};
 };
 template <class T> class AtomIE_Nuclear
-: public virtual Primative_Nuclear<T>
+: public virtual Primative_Inv_r1<T>
 , public DB_Nuclear<T>
 {
 protected:
-    using Primative_Nuclear<T>::Nuclear;
+    using Primative_Inv_r1<T>::Inv_r1;
     virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
     AtomIE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
 };

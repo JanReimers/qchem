@@ -424,7 +424,7 @@ namespace Gaussian
 // }
 // 
 
-template <class T> double Orbital_RKBS_IE<T>::Nuclear(double ea , double eb,size_t l_total) const
+template <class T> double Orbital_RKBS_IE<T>::Inv_r1(double ea , double eb,size_t l_total) const
 {
     assert(l_total==0);
     // +2 from the d/dr and -1 from the 1/r potential = l_total+1

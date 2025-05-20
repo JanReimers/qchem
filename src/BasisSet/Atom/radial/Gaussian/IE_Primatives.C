@@ -23,7 +23,7 @@ double IE_Primatives::Grad2(double ea , double eb,size_t l, size_t lb) const
         
 }
 
-double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const
+double IE_Primatives::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return Gaussian::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }

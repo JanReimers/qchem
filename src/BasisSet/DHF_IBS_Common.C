@@ -46,12 +46,12 @@ template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::m
 template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeOverlap() const
 {
     SMat ol=itsRKBL->Overlap();
-    SMat os=itsRKBS->Grad2();
+    SMat os=itsRKBS->Kinetic();
     return merge_diag(ol,os);
 }
 template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeGrad2() const
 {
-    Mat kls=-itsRKBL->Grad2(itsRKBS);
+    Mat kls=-itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeNuclear(const Cluster* c) const
@@ -64,7 +64,7 @@ template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::M
 {
     SMat rl(itsRKBL->size());
     Fill(rl,0.0);
-    SMat rs=itsRKBS->Grad2();
+    SMat rs=itsRKBS->Kinetic();
     return merge_diag(rl,rs);
 }
 

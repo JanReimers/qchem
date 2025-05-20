@@ -12,7 +12,7 @@ Kinetic::Kinetic()
 
 Static_HT::SMat Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
-    return 0.5*bs->Grad2();
+    return 0.5*bs->Kinetic();
 }
 
 void Kinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

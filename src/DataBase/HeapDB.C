@@ -76,7 +76,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap <T>::Overlap(
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Grad2 <T>::Grad2() const
+template <class T> typename Integrals_Base<T>::SMat_ref DB_Grad2 <T>::Kinetic() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -99,7 +99,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(
 
 #include <DHF_IBS.H>
 
-template <class T> typename Integrals_Base<T>:: Mat_ref DB_XGrad2<T>::Grad2(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> typename Integrals_Base<T>:: Mat_ref DB_XGrad2<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);

@@ -283,7 +283,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
 }
 
 
-template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Nuclear(const Vf& f) const
+template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r1(const Vf& f) const
 {
     index_t n=f.GetVectorSize();
     SMat ret(n,n);

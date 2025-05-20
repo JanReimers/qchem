@@ -163,8 +163,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
 
         const TIrrepBasisSet<double>* l=SlaterGetLarge(oi);
         const TIrrepBasisSet<double>* s=SlaterGetSmall(oi);
-        SMatrix<double> VenLnum = -Z*mintegrator->Nuclear(*l);
-        SMatrix<double> VenSnum = -Z*mintegrator->Nuclear(*s);
+        SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
+        SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
         SMat Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -183,8 +183,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 
         const TIrrepBasisSet<double>* l=GaussianGetLarge(oi);
         const TIrrepBasisSet<double>* s=GaussianGetSmall(oi);
-        SMatrix<double> VenLnum = -Z*mintegrator->Nuclear(*l);
-        SMatrix<double> VenSnum = -Z*mintegrator->Nuclear(*s);
+        SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
+        SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
         SMat Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
@@ -199,14 +199,14 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Grad2();
+        SMatrix<double> K=oi->Kinetic();
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=SlaterGetLarge(oi);
         const TIrrepBasisSet<double>* s=SlaterGetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMat Knum=merge_off_diag(KnumL);
-        cout << "K=" << K << endl << "Knum=" << Knum << endl;
+        // cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
     }
 }
@@ -215,7 +215,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
     {
-        SMatrix<double> K=oi->Grad2();
+        SMatrix<double> K=oi->Kinetic();
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const TIrrepBasisSet<double>* l=GaussianGetLarge(oi);

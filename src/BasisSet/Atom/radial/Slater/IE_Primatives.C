@@ -29,7 +29,7 @@ double IE_Primatives::Grad2(double ea , double eb,size_t la, size_t lb) const
     return Term1+Term2+Term3;
 }
 
-double IE_Primatives::Nuclear(double ea , double eb,size_t l_total) const
+double IE_Primatives::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }

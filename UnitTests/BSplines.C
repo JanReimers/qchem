@@ -248,7 +248,7 @@ TEST_F(BSplineTests, Nuclear)
         for (auto i:Ven.rows()) //Check banded
             for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
         
-        SMatrix<double> Vennum = -cl->GetNuclearCharge()*mintegrator->Nuclear(*ibs);
+        SMatrix<double> Vennum = -cl->GetNuclearCharge()*mintegrator->Inv_r1(*ibs);
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
@@ -265,7 +265,7 @@ TEST_F(BSplineTests, Kinetic)
     {
         cout << ibs->GetSymmetry();
         const TOrbital_IBS<double>* ibs1=ibs;
-        SMatrix<double> T=ibs1->Grad2();
+        SMatrix<double> T=ibs1->Kinetic();
         for (auto i:T.rows()) //Check banded
             for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
         

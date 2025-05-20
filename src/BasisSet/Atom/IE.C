@@ -44,7 +44,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNucl
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Z*Nuclear(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
+            H(i,j)= Z*Inv_r1(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
 
     return H;
 }
