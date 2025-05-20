@@ -15,11 +15,11 @@ protected:
 
 };
 template <class T> class AtomIE_RKBS 
-: public AtomIE_Grad2<T>
+: public AtomIE_Kinetic<T>
 , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Grad2<T>(db), AtomIE_Nuclear<T>(db) {};
+    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Kinetic<T>(db), AtomIE_Nuclear<T>(db) {};
 };
 
 #endif //_Atom_IE_DHF_H_

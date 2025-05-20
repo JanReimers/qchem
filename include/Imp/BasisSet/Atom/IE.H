@@ -22,6 +22,11 @@ template <class T> class Primative_Inv_r1
 public:
     virtual double Inv_r1(double ea ,double eb,size_t l_total) const=0;
 };
+template <class T> class Primative_Inv_r2
+{
+public:
+    virtual double Inv_r2(double ea ,double eb,size_t l_total) const=0;
+};
 template <class T> class Primative_Repulsion
 {
 public:
@@ -42,14 +47,15 @@ protected:
     virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
     AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
 };
-template <class T> class AtomIE_Grad2
+template <class T> class AtomIE_Kinetic
 : public virtual Primative_Grad2<T>
+, public virtual Primative_Inv_r2<T> //for centrifugal term.
 , public DB_Kinetic<T>
 {
 protected:
     using Primative_Grad2<T>::Grad2;
     virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
-    AtomIE_Grad2(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+    AtomIE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
 };
 template <class T> class AtomIE_Nuclear
 : public virtual Primative_Inv_r1<T>

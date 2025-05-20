@@ -7,10 +7,10 @@ int main(int argc, char **argv)
      testing::InitGoogleTest(&argc, argv);
      //testing::GTEST_FLAG(filter) = "A_BS_1E_U.*";  
      // testing::GTEST_FLAG(filter) = "Multiple/A_BS_HF_P.Multiple/*";  
-     // testing::GTEST_FLAG(filter) = "BSplineTests.*";  
+     // testing::GTEST_FLAG(filter) = "BSplineTests.Kinetic";  
      // testing::GTEST_FLAG(filter) = "SymQNTests.*";  
-     // testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.*";  
-     // testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
+     // testing::GTEST_FLAG(filter) = "SlaterRadialIntegralTests.Kinetic";  
+     testing::GTEST_FLAG(filter) = "GaussianRadialIntegralTests.*";
      // testing::GTEST_FLAG(filter) = "DiracIntegralTests.*";  
 //     testing::GTEST_FLAG(filter) = "DiracIntegralTests.*:Multiple/A_*_DHF.Multiple/*";
      //    testing::GTEST_FLAG(filter) = "Multiple/A_*_DHF.Multiple/*:DiracIntegralTests.*";

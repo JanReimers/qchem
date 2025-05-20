@@ -182,25 +182,18 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     }
 }
 
-TEST_F(SlaterRadialIntegralTests, Grad2)
+TEST_F(SlaterRadialIntegralTests, Kinetic)
 {
     for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
     {
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
-        SMatrix<double> Knum = mintegrator->Grad(*oi);
-            // We need to add the l*(l+1) term that comes from the angular integrals.
-        // Lost of dynamic cast just to get at L!
         int l=dynamic_cast<const Angular_Sym& >(oi->GetSymmetry()).GetL();
-        const Slater::IrrepBasisSet* sg=dynamic_cast<const Slater::IrrepBasisSet*>(oi);
-        assert(sg);
-        //int n=2*l+2;
-        for (auto i:Knum.rows())
-            for (auto j:Knum.cols(i))
-                Knum(i,j)+=(l*(l+1))*Slater::Integral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
-            
+        SMatrix<double> Knum = mintegrator->Grad(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
         
+        // cout << "K=" << K << endl;
+        // cout << "Knum=" << Knum << endl;
     }
 }
 

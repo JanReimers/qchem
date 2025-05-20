@@ -90,18 +90,8 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     {
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
-        SMatrix<double> Knum = mintegrator->Grad(*oi); //This give the wrong answer for l>0
-
-        // We need to add the l*(l+1) term that comes from the angular integrals.
-        // Lost of dynamic cast just to get at L!
-        const Symmetry& qn=oi->GetSymmetry();
-        const Yl_Sym& sqn=dynamic_cast<const Yl_Sym& >(qn);
-        int l=sqn.GetL();
-        const ::Gaussian::IrrepBasisSet* sg=dynamic_cast<const Gaussian::IrrepBasisSet*>(oi);
-        assert(sg);
-        for (auto i:Knum.rows())
-            for (auto j:Knum.cols(i))
-                Knum(i,j)+=((l)*(l+1))*Gaussian::Integral(sg->es(i)+sg->es(j),2*l-2)*sg->ns(i)*sg->ns(j);
+        int l=dynamic_cast<const Angular_Sym& >(oi->GetSymmetry()).GetL();
+        SMatrix<double> Knum = mintegrator->Grad(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
         
     }

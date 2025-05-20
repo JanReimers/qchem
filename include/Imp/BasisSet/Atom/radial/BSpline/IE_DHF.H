@@ -11,18 +11,18 @@ namespace BSpline
 template <class T, size_t K> class IE_RKBL 
     : public IE_Overlap<T,K>
     , public IE_XGrad2 <T,K>
-    , public IE_Nuclear<T,K>
+    , public IE_Inv_r1<T,K>
 {
 protected:
-    IE_RKBL(const DB_cache<T>* db) : IE_Overlap<T,K>(db),IE_XGrad2<T,K>(db),IE_Nuclear<T,K>(db) {};
+    IE_RKBL(const DB_cache<T>* db) : IE_Overlap<T,K>(db),IE_XGrad2<T,K>(db),IE_Inv_r1<T,K>(db) {};
 
 };
 template <class T, size_t K> class IE_RKBS 
-: public IE_Grad2  <T,K>
-, public IE_Nuclear<T,K>
+: public IE_Kinetic  <T,K>
+, public IE_Inv_r1<T,K>
 {
 protected:
-    IE_RKBS(const DB_cache<T>* db) : IE_Grad2<T,K>(db), IE_Nuclear<T,K>(db) {};
+    IE_RKBS(const DB_cache<T>* db) : IE_Kinetic<T,K>(db), IE_Inv_r1<T,K>(db) {};
 };
 
 } //namespace

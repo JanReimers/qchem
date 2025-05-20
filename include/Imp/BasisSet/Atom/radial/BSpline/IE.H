@@ -24,11 +24,17 @@ template <class T, size_t K> class Primative_Grad2
 public:
     virtual double Grad2(const spline_t& a , const spline_t& b,size_t la, size_t lb) const=0;
 };
-template <class T, size_t K> class Primative_Nuclear
+template <class T, size_t K> class Primative_Inv_r1
 {
     typedef bspline::Spline<T, K> spline_t;
 public:
-    virtual double Nuclear(const spline_t& a , const spline_t& b,size_t l_total) const=0;
+    virtual double Inv_r1(const spline_t& a , const spline_t& b,size_t l_total) const=0;
+};
+template <class T, size_t K> class Primative_Inv_r2
+{
+    typedef bspline::Spline<T, K> spline_t;
+public:
+    virtual double Inv_r2(const spline_t& a , const spline_t& b,size_t l_total) const=0;
 };
 template <class T, size_t K> class Primative_Repulsion
 {
@@ -53,23 +59,25 @@ protected:
     virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
     IE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
 };
-template <class T, size_t K> class IE_Grad2
+template <class T, size_t K> class IE_Kinetic
 : public virtual Primative_Grad2<T,K>
+, public virtual Primative_Inv_r2<T,K>
 , public DB_Kinetic<T>
 {
 protected:
-    using Primative_Grad2<T,K>::Grad2;
+    using Primative_Grad2 <T,K>::Grad2;
+    using Primative_Inv_r2<T,K>::Inv_r2;
     virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
-    IE_Grad2(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+    IE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
 };
-template <class T, size_t K> class IE_Nuclear
-: public virtual Primative_Nuclear<T,K>
+template <class T, size_t K> class IE_Inv_r1
+: public virtual Primative_Inv_r1<T,K>
 , public DB_Nuclear<T>
 {
 protected:
-    using Primative_Nuclear<T,K>::Nuclear;
+    using Primative_Inv_r1<T,K>::Inv_r1;
     virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
-    IE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
+    IE_Inv_r1(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
 };
 template <class T, size_t K> class IE_XGrad2
 : public virtual Primative_Grad2<T,K>

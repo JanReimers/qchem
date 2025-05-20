@@ -19,7 +19,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOver
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Grad2 <T>::MakeKinetic() const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKinetic() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -28,7 +28,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Grad2 <T>::MakeKineti
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= this->Grad2(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+            H(i,j)= (this->Grad2(a->es(i),a->es(j),l,l) + l*(l+1)*this->Inv_r2(a->es(i),a->es(j),2*l))*a->ns(i)*a->ns(j);
 
     return H;
 }

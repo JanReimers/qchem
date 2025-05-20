@@ -22,7 +22,7 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Overlap<T,K>::Ma
 
     return H;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Grad2  <T,K>::MakeKinetic() const
+template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Kinetic  <T,K>::MakeKinetic() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);
@@ -31,11 +31,11 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Grad2  <T,K>::Ma
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= this->Grad2((*a)(i),(*a)(j),l,l)*a->ns(i)*a->ns(j);
+            H(i,j)= (Grad2((*a)(i),(*a)(j),l,l) + l*(l+1)*Inv_r2((*a)(i),(*a)(j),l))*a->ns(i)*a->ns(j);
 
     return H;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Nuclear<T,K>::MakeNuclear(const Cluster* cl) const
+template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Inv_r1<T,K>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
     assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
@@ -47,14 +47,14 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Nuclear<T,K>::Ma
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Z*Nuclear((*a)(i),(*a)(j),2*l)*a->ns(i)*a->ns(j);
+            H(i,j)= Z*Inv_r1((*a)(i),(*a)(j),2*l)*a->ns(i)*a->ns(j);
 
     return H;
 }
 
 template class IE_Overlap<double,6>;
-template class IE_Grad2  <double,6>;
-template class IE_Nuclear<double,6>;
+template class IE_Kinetic  <double,6>;
+template class IE_Inv_r1<double,6>;
 
 } //namespace
 

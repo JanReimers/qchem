@@ -22,8 +22,8 @@ double IE_Primatives::Grad2(double ea , double eb,size_t la, size_t lb) const
     assert(la==lb);
     double ab=ea+eb;
     int l=la; //Safer to do formulas with int.
-    int ll=l*(l+1);
-    double Term1=((l+1)*(l+1)+ll)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+    // int ll=l*(l+1);
+    double Term1=(l+1)*(l+1)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
     double Term2=-(l+1)*ab* Slater::Integral(ab,2*l-1);
     double Term3=ea*eb*Slater::Integral(ab,2*l);
     return Term1+Term2+Term3;
@@ -32,6 +32,10 @@ double IE_Primatives::Grad2(double ea , double eb,size_t la, size_t lb) const
 double IE_Primatives::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
+}
+double IE_Primatives::Inv_r2(double ea , double eb,size_t l_total) const
+{
+    return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
 }
 
 double IE_Primatives::Charge(double ea, size_t l) const

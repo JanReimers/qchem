@@ -22,7 +22,7 @@ namespace Gaussian
 class Orbital_IE
 : public ::Gaussian::IE_Primatives
 , public AtomIE_Overlap<double>
-, public AtomIE_Grad2<double>
+, public AtomIE_Kinetic<double>
 , public AtomIE_Nuclear<double>
 , public DB_2E<double>
 , public AtomIE_DFT<double>
@@ -30,7 +30,7 @@ class Orbital_IE
 protected:
     Orbital_IE(const DB_BS_2E<double>* db) 
         : AtomIE_Overlap<double>(db)
-        , AtomIE_Grad2<double>(db)
+        , AtomIE_Kinetic<double>(db)
         , AtomIE_Nuclear<double>(db)
         , DB_2E<double>(db)
         , AtomIE_DFT<double>(db) {};

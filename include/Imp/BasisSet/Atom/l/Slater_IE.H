@@ -16,12 +16,12 @@ namespace Slater
 class IE_Common
     : public virtual ::Slater::IE_Primatives
     , public AtomIE_Overlap<double>
-    , public AtomIE_Grad2<double>
+    , public AtomIE_Kinetic<double>
     , public AtomIE_Nuclear<double>
 {
 public:
 protected:
-    IE_Common(const DB_cache<double>* db) : AtomIE_Overlap<double>(db), AtomIE_Grad2<double>(db), AtomIE_Nuclear<double>(db) {};
+    IE_Common(const DB_cache<double>* db) : AtomIE_Overlap<double>(db), AtomIE_Kinetic<double>(db), AtomIE_Nuclear<double>(db) {};
 };
 
 class Orbital_IE

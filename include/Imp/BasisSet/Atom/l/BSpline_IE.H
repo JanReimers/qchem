@@ -16,12 +16,12 @@ namespace BSpline
 template <size_t K> class IE_Common
     : public virtual ::BSpline::IE_Primatives<K>
     , public ::BSpline::IE_Overlap<double,K>
-    , public ::BSpline::IE_Grad2  <double,K>
-    , public ::BSpline::IE_Nuclear<double,K>
+    , public ::BSpline::IE_Kinetic  <double,K>
+    , public ::BSpline::IE_Inv_r1<double,K>
 {
 public:
 protected:
-    IE_Common(const DB_cache<double>* db) : ::BSpline::IE_Overlap<double,K>(db), ::BSpline::IE_Grad2<double,K>(db), ::BSpline::IE_Nuclear<double,K>(db) {};
+    IE_Common(const DB_cache<double>* db) : ::BSpline::IE_Overlap<double,K>(db), ::BSpline::IE_Kinetic<double,K>(db), ::BSpline::IE_Inv_r1<double,K>(db) {};
 };
 
 template <size_t K> class Orbital_IE
