@@ -189,9 +189,6 @@ TEST_F(BSplineTests,GLQIntegration)
             EXPECT_LE(Sdef,Sind);
         }
 }
-
-
-
 TEST_F(BSplineTests, Overlap)
 {
     cout << "Overlap ";
@@ -281,80 +278,6 @@ TEST_F(BSplineTests, Kinetic)
     cout << endl;
 }
 
-#include "Imp/Misc/IntPower.H"
-
-// template <class B, size_t K> class Rk
-// {
-// public:
-//     Rk(const bspline::Grid<double>& _grid, size_t _k)
-//     : k(_k)
-//     , grid(_grid)
-//     {
-
-//     }
-//     double Integrate(const B& a,const B& b,const B& c,const B& d) const
-//     {
-//         GLCache glcd1(grid,K+1+k+2);  
-//         double rmin=grid.front(),rmax=grid.back();   
-//         std::function< double (double)> Yk1 = [glcd1,c,d,rmin](double r1)
-//         {
-//             std::function< double (double)> wcd1 = [](double r2)
-//             {
-//                 return r2*r2;
-//     //            return intpow(r2,k+2);
-//             };
-//             return glcd1.Integrate(wcd1,c,d,rmin,r1);
-//         };
-//         std::function< double (double)> Yk2 = [glcd1,c,d,rmax](double r1)
-//         {
-//             std::function< double (double)> wcd2 = [](double r2)
-//             {
-//                 assert(r2>0);
-//                 return r2;
-//     //            return intpow(r2,1-k);
-//             };
-//             return glcd1.Integrate(wcd2,c,d,r1,rmax);
-//         };
-//         std::function< double (double)> wab = [Yk1,Yk2] (double r1)
-//         {
-//             assert(r1>0);
-//             return r1*Yk1(r1)+r1*r1*Yk2(r1);
-// //            return intpow(r1,2-k)*Yk1(r1)+intpow(r1,k+2)*Yk2(r1);
-//         };
-//         // for (double r1:grid)
-//         //     cout << r1 << " " << Yk1(r1) << " " << Yk2(r1) << " " << Yk1(r1)+Yk2(r1) << endl;
-//         return glcd1.Integrate(wab,a,b);
-//     }
-//     double Integrate(const B& a,const B& b) const
-//     {
-//         GLCache glcd1(grid,K);
-//         std::function< double (double)> w = [] (double r)
-//         {
-//             return r*r;
-//         };
-//         return glcd1.Integrate(w,a,b);
-//     }
-//     size_t k;
-//     bspline::Grid<double> grid;
-// };
-// TEST_F(BSplineTests, SlaterRk)
-// {
-//     Init(0.1,10,10);
-//     auto grid=splines[0].getSupport().getGrid();
-//     std::function< double (double)> s = [] (double r)
-//     {
-//         assert(r>0);
-//         return 2.0*exp(-r);
-//     };
-//     Rk<decltype(s),500> rk(grid,0);
-//     double R0=rk.Integrate(s,s,s,s);
-//     cout << "Saa=" << rk.Integrate(s,s)-1.0 << "  R0=" << R0 << endl;
-//     EXPECT_NEAR(rk.Integrate(s,s),1.0,2e-8);
-//     EXPECT_NEAR(rk.Integrate(s,s,s,s),5.0/8.0,2e-14);
-// }
-
-
-
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
 #include <WaveFunction.H>
@@ -420,47 +343,4 @@ TEST_F(A_BS_1E_U,Hydrogen)
 }
 
 
-#include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
 
-// TEST_F(BSplineTests,Repulsion1)
-// {
-//     Init(10,.1,10);
-//     size_t lmax=4;
-//     GLCache gl(splines[0].getSupport().getGrid(),0);
-//     for (auto spa:splines)
-//         for (auto spb:splines)
-//         {
-//             BSpline::RkEngine Rk(spa,spb,spa,spb,lmax,gl);
-//             for (size_t la=0;la<=lmax;la++)
-//                 for (size_t lb=0;lb<=lmax;lb++)
-//                 {
-//                     auto Rkc=Rk.Coulomb_Rk(la,lb);
-//                     auto Rkx=Rk.ExchangeRk(la,lb);
-//                     if (spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals())
-//                     {
-//                         EXPECT_GT(Min(Rkc),0.0);
-//                         EXPECT_GT(Min(Rkx),0.0);
-//                     }
-//                     else
-//                     {
-//                         EXPECT_TRUE(Rkc==0.0);
-//                         EXPECT_TRUE(Rkx==0.0);
-//                     }
-
-                   
-//                 }
-//         }
-           
-
-// }
-
-TEST_F(BSplineTests,Repulsion2)
-{
-    Init(10,.1,10);
-    for (auto a:bs->Iterate<TOrbital_HF_IBS<double>>())
-    for (auto b:bs->Iterate<TOrbital_HF_IBS<double>>())
-    {
-        a->Direct(*b);
-        a->Exchange(*b);
-    }
-}

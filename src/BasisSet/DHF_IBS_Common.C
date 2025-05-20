@@ -49,7 +49,7 @@ template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::M
     SMat os=itsRKBS->Kinetic();
     return merge_diag(ol,os);
 }
-template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeGrad2() const
+template <class T> typename Integrals_Base<T>::SMat Orbital_RKB_IBS_Common<T>::MakeKinetic() const
 {
     Mat kls=-itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);

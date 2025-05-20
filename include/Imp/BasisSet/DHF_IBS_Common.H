@@ -19,7 +19,7 @@ template <class T> class Orbital_RKB_IBS_Common
 public:
     virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
     virtual SMat MakeOverlap () const;
-    virtual SMat MakeGrad2   () const;
+    virtual SMat MakeKinetic   () const;
     virtual SMat MakeNuclear (const Cluster*) const;
     virtual SMat MakeRestMass() const;
 protected:

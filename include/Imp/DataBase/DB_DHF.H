@@ -8,12 +8,12 @@
 template <class T> class DB_RKB 
     : virtual public Integrals_RKB<T>
     , public DB_Overlap<T>
-    , public DB_Grad2<T>
+    , public DB_Kinetic<T>
     , public DB_Nuclear<T>
     , public DB_RestMass<T>
 {    
 protected:
-    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Grad2<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
+    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Kinetic<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
    
 };
 template <class T> class DB_RKBL 
@@ -27,11 +27,11 @@ protected:
 };
 template <class T> class DB_RKBS 
     : virtual public Integrals_RKBS<T>
-    , public DB_Grad2<T>
+    , public DB_Kinetic<T>
     , public DB_Nuclear<T>
 {
 protected:
-    DB_RKBS(const DB_cache<T>* db) :  DB_Grad2<T>(db), DB_Nuclear<T>(db) {};  
+    DB_RKBS(const DB_cache<T>* db) :  DB_Kinetic<T>(db), DB_Nuclear<T>(db) {};  
    
 };
 

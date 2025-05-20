@@ -19,7 +19,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOver
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Grad2 <T>::MakeGrad2() const
+template <class T> typename Integrals_Base<T>::SMat AtomIE_Grad2 <T>::MakeKinetic() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(a);
@@ -51,7 +51,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNucl
 
 #include <DHF_IBS.H>
 
-template <class T> typename Integrals_Base<T>::Mat  AtomIE_XGrad2<T>::MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> typename Integrals_Base<T>::Mat  AtomIE_XGrad2<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
     const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);

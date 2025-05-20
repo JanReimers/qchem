@@ -22,7 +22,7 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Overlap<T,K>::Ma
 
     return H;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Grad2  <T,K>::MakeGrad2() const
+template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Grad2  <T,K>::MakeKinetic() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);
@@ -278,7 +278,7 @@ template class IE_Fit<6>;
 #include <DHF_IBS.H>
 namespace BSpline
 {
-template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     const IrrepIEClient<K>* b=dynamic_cast<const IrrepIEClient<K>*>(rkbs);

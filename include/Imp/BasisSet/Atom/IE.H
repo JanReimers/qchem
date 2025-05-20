@@ -44,12 +44,12 @@ protected:
 };
 template <class T> class AtomIE_Grad2
 : public virtual Primative_Grad2<T>
-, public DB_Grad2<T>
+, public DB_Kinetic<T>
 {
 protected:
     using Primative_Grad2<T>::Grad2;
-    virtual typename Integrals_Base<T>::SMat MakeGrad2() const;
-    AtomIE_Grad2(const DB_cache<T>* db) : DB_Grad2<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
+    AtomIE_Grad2(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
 };
 template <class T> class AtomIE_Nuclear
 : public virtual Primative_Inv_r1<T>
@@ -66,7 +66,7 @@ template <class T> class AtomIE_XGrad2
 {
 protected:
     using Primative_Grad2<T>::Grad2;
-    virtual typename Integrals_Base<T>::Mat MakeGrad2(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
     AtomIE_XGrad2(const DB_cache<T>* db) : DB_XGrad2<T>(db) {};
 };
 
