@@ -87,7 +87,6 @@ template <size_t K> ::Fit_IBS* Fit_IBS<K>::Clone(const RVec3&) const
     return 0;
 }
 
-template class Orbital_IBS<6>;
-template class Fit_IBS<6>;
+
 
 }} //namespace

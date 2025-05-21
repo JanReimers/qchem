@@ -64,6 +64,6 @@ template <size_t K> ::BasisFunction* BasisFunction<K>::Clone() const
     return new  BasisFunction<K>(*this);
 }
 
-template class BasisFunction<6>;
+
 
 }} //namespace

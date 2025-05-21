@@ -7,19 +7,20 @@
 #include "IE.Ci"
 #include "IEC.Ci"
 #include "Rk.Ci"
+#include "../../l/BSpline_BS.Ci"
+#include "../../l/BSpline_IBS.Ci"
+#include "../../l/BSpline_BF.Ci"
 
-namespace BSpline
+namespace Atoml::BSpline
 {
-template class BS_Common<6>;
-template class BFGrouper<6>;
-template class IrrepBasisSet<6>;
-template class IE_Primatives<6>;
-template class IE_Overlap<double,6>;
-template class IE_Kinetic  <double,6>;
-template class IE_Inv_r1<double,6>;
-template class IE_DFT<double,6>;
-template class IE_BS_2E<double,6>;
-template class IE_Fit<6>;
-template class IE_RKBL<double,6>;
-template class IE_RKBS<double,6>;
+    //Initial attempts to loop this with meta programming failed.
+    template class BasisSet<3>;
+    template class BasisSet<4>;
+    template class BasisSet<5>;
+    template class BasisSet<6>;
+    template class BasisSet<7>;
+    template class BasisSet<8>;
+    template class BasisSet<9>;
+    template class BasisSet<10>;
+    template class BasisSet<11>;
 }

@@ -39,7 +39,6 @@ template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,
     return i->second;
 }
 
-template class RkCache<6>;
 //
 //  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
@@ -168,8 +167,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     return Rk;
  }
  
- template class RkEngine<6>;
-
+ 
 } //namespace
 
 

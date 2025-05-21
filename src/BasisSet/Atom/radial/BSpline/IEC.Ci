@@ -42,6 +42,4 @@ template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ng
     return knots;
 }
 
-template class IrrepIEClient<6>;
-
 } //namespace

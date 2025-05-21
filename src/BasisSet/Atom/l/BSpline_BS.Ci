@@ -16,6 +16,5 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
     this->BuildCache(LMax);
 }
 
-template class BasisSet<6>;
 
 }} //namespace
