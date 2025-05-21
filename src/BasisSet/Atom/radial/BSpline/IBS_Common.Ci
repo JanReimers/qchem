@@ -34,6 +34,6 @@ template <size_t K> std::ostream&  IrrepBasisSet<K>::Write(std::ostream& os) con
     return os;
 }
 
-template class IrrepBasisSet<6>;
+
 
 } //namespace 

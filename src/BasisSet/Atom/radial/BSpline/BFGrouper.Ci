@@ -53,6 +53,6 @@ template <size_t K> const GLCache* BFGrouper<K>::GetGL(size_t l) const
     return i->second;
 }
 
-template class BFGrouper<6>;
+
 
 } // namespace

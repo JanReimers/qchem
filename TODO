@@ -28,15 +28,21 @@ Priority 1:
             Separate out centrifugal term instead.
         BSplines should use (symmetric) banded matricies for space/time efficiency.
         Ylm BSplines
-        Use radial mesh interface for knot generation
+        No: Use radial mesh interface for knot generation
             Implement Qiu's mesh
             1+1/h where h=2^m for exact float representation,  Now Rmax is not fixed.
-        Multiple knots at Rmax?
+            The radial mesh framework stores a weight for each node.  Spline breakpoins have no weight.
+        Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>
+            Make Log from N,Rmin,Rmax or N,Rmin,m  
+            Qiu's mesh, with linear for r<1.0 a.u.
+            bool SupportScaling(index).  
+            Option: Multiple knots at Rmax?
         Rk
             Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
             Cache diagonal grid cells.  Lots of them ... how often would they get reused?
                 Try on demand and count cache hits.
             Try using scaling relations
+        Instance a fixed list K values
         Add DFT support.
         
 

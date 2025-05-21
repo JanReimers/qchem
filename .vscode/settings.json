@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.C": "cpp",
+        "*.Ci": "cpp",
         "*.H": "cpp",
         "iosfwd": "cpp",
         "new": "cpp",

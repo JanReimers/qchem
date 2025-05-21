@@ -42,5 +42,5 @@ namespace BSpline
         return cd->ExchangeRk(la,lc);
     }
     
-    template class BS_Common<6>;
+    
 }
