@@ -15,7 +15,7 @@ namespace BSpline
 {
 //----------------------------------------------------------------
 //
-// Orbital SL basis set.
+// Orbital BSpline basis set.
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L)
 : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)

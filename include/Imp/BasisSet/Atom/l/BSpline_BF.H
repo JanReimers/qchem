@@ -13,6 +13,7 @@ namespace BSpline
 template <size_t K> class BasisFunction
     : public virtual ::TBasisFunction<double>
 {
+protected:
     typedef bspline::Spline<double, K> spline_t;
 public:
     // BasisFunction();

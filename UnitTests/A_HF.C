@@ -303,6 +303,29 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,21,37,53))
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(2,56)); //,53,57,64
 
+class A_BSm_HF_P : public ::testing::TestWithParam<int>
+, public TestAtom, BSm_OBasis, HF_P, TestPolarized
+{
+public:
+    A_BSm_HF_P() : TestAtom(GetParam()) {};
+    void Init(int N, double rmin, double rmax, int LMax)
+    {
+        BSm_OBasis::Init(N,rmin,rmax,LMax);
+        QchemTester::Init(1e-3);
+    }
+};
+
+TEST_P(A_BSm_HF_P,Multiple)
+{
+    int Z=GetParam();
+    int N=30;
+    Init(N,1.0/Z,30.,GetLMax(Z));
+    Iterate({40,1e-9,0.2,0.0,true});
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+
+INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37,53)); //,53,57,64
+
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
 , public TestMolecule, PG_OBasis, HF_P, TestPolarized

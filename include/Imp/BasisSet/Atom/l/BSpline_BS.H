@@ -16,7 +16,6 @@ template <size_t K> class BasisSet
     , public IE_BS_2E_Angular //Pick angular integrals.
 {
 public:
-    // BasisSet() {};
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
 };
 

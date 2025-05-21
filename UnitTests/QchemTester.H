@@ -163,6 +163,14 @@ public:
     double rmin,rmax;
 };
 
+class BSm_OBasis : public virtual BS_OBasis
+{
+ protected:
+    virtual BasisSet*      GetBasisSet () const;  
+
+};
+
+
 
 #include "Imp/BasisSet/Atom/EC.H"
 //----------------------------------------------------------------------------------
