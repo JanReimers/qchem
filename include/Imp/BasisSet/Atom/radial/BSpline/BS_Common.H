@@ -17,6 +17,7 @@ template <size_t K> class BS_Common
 {
 protected:
     BS_Common() : itsRkCache(0) {};
+    ~BS_Common();
     virtual void Insert(bs_t* bs);
     void BuildCache(size_t lmax);
 private:

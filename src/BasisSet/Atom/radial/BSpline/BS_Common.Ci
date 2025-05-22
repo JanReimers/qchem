@@ -7,6 +7,10 @@
 
 namespace BSpline
 {
+    template <size_t K> BS_Common<K>::~BS_Common()
+    {
+        delete itsRkCache;
+    }
     template <size_t K> void BS_Common<K>::Insert(bs_t* bs)
     {
         ::BS_Common::Insert(bs);
