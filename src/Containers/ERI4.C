@@ -27,6 +27,7 @@ ERI4::SMat operator*(const ERI4& gabcd,const ERI4::SMat& Scd)
     return Sab;
 }
 
+// Profiling hot loop
 ERI4::SMat operator*(const ERI4::SMat& Sab, const ERI4& gabcd)
 {
     ERI4::SMat Scd(gabcd(1,1).GetLimits());
