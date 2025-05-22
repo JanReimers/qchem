@@ -52,15 +52,15 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     if (ipar.Verbose)
     {
         std::cout << std::endl << std::endl;
-        std::cout << " #       Etotal        Virial       K        V       Ven       Vee       Vxc    Del(Ro)" << std::endl;
-        std::cout << "----------------------------------------------------------------------------------------" << std::endl;
+        std::cout << " #       Etotal        Virial       K        V       Ven       Vee       Vxc    Del(Ro)    relax" << std::endl;
+        std::cout << "------------------------------------------------------------------------------------------------" << std::endl;
     }
 
     double ChargeDensityChange=1;
     double Eold=0;
     double Eoldold=0;
-    double relax;
-    double relMax=relax=ipar.StartingRelaxRo;
+    double relax=ipar.StartingRelaxRo;
+    double relMax=1.0;
 
     for (size_t i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
     {
@@ -74,12 +74,12 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
         // std::cout << "Total charge=" << itsCD->GetTotalCharge() << std::endl;
 
-        if (ipar.Verbose) DisplayEnergies(i,0.0,ChargeDensityChange,0.0,itsCD);
+        if (ipar.Verbose) DisplayEnergies(i,relax,ChargeDensityChange,0.0,itsCD);
         double E=itsHamiltonian->GetTotalEnergy(itsCD).GetTotalEnergy();
         if (E>Eold && Eold<Eoldold) relax*=0.5;
         if (E<Eold && Eold>Eoldold) relax*=0.5;
-        if (E<Eold && Eold<Eoldold) relax*=1.2;
-        if (E>Eold && Eold>Eoldold) relax*=1.2;
+        if (E<Eold && Eold<Eoldold) relax*=1.5;
+        if (E>Eold && Eold>Eoldold) relax*=1.5;
         if (relax>relMax) relax=relMax;
 
         Eoldold=Eold;
@@ -111,7 +111,7 @@ using std::setw;
 using std::setprecision;
 using std::ios;
 
-void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange, double fitError,const DM_CD* cd) const
+void SCFIterator::DisplayEnergies(int i, double relax, double ChargeDensityChange, double fitError,const DM_CD* cd) const
 {
     EnergyBreakdown te = itsHamiltonian->GetTotalEnergy(cd);
 
@@ -125,7 +125,7 @@ void SCFIterator::DisplayEnergies(int i, double lam, double ChargeDensityChange,
          << setw(8)  << setprecision(8) << te.Eee << " "
          << setw(8)  << setprecision(8) << te.Exc << " ";
     cout.setf(ios::scientific,ios::floatfield);
-    cout << setw(8) << setprecision(2) << ChargeDensityChange << " ";
+    cout << setw(8) << setprecision(2) << ChargeDensityChange << " " << relax << " ";
 //    cout << setw(8) << setprecision(2) << fitError << " ";
 //    cout << setw(9) << setprecision(2) << lam << " ";
     cout << std::endl;
