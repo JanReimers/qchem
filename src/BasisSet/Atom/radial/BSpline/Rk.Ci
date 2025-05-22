@@ -140,7 +140,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     assert(lc>=0);
     assert(la<=LMax);
     assert(lc<=LMax);
-    Vector<double> Rk(std::min(la,lc)+1,0.0);
+    Vector<double> Rk(VecLimits(1,la+lc+1),0.0);
     size_t i=1;
     for (size_t k=0;k<=2*std::min(la,lc);k+=2)
     {

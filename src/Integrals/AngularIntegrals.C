@@ -84,7 +84,7 @@ RVec Exchange(int la,int lb)
 
 RVec Coulomb (int la,int lc,int ma,int mc)
 {    
-    RVec Ak(la+lc+1);
+    RVec Ak(la+lc+1,0.0);
     int kmax=2*std::min(la,lc);
     int phase=intpow(-1,ma+mc);
     int i=1;
@@ -110,7 +110,7 @@ RVec Exchange(int la,int lb,int ma,int mb)
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
     int N=(kmax-kmin)/2+1;
-    RVec Ak(N);
+    RVec Ak(N,0.0);
     int i=1;
     for (int k=kmin;k<=kmax;k+=2)
     {

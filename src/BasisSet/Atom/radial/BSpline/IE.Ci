@@ -166,7 +166,10 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeDirect  (const ::IrrepIEClie
                     // std::cout << "direct ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
                     double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
                     RVec Rkac=loop_4_direct(c->sp_indices[id-1],la,lc);
-                    Jab(ic,id)=Akac*Rkac*norm;
+                    // cout << la << " " << lc << " " << Akac << " " << Rkac << endl;
+                    assert(Akac.size()==Rkac.size());
+                    assert(Akac.GetLimits()==Rkac.GetLimits());
+                    Jab(ic,id)=(Akac*Rkac)*norm;
                 }
             }
         }
@@ -208,6 +211,9 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
                     // std::cout << "exchange ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
                     double norm=nacb*c->ns(id);
                     RVec RKac=loop_4_exchange(c->sp_indices[id-1],la,lc);
+                    assert(Akac.size()==RKac.size());
+                    assert(Akac.GetLimits()==RKac.GetLimits());
+                    
                     if (ic==id)
                         Kab(ic,id)=Akac*RKac*norm; 
                     else if (id<ic)
