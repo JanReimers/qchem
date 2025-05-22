@@ -1,4 +1,20 @@
 Priority 1:
+    -Valgrind reporting problems in TOrbitalsImp
+        Invalid read of size 8
+            ==150119==    at 0x4E7B5F: dynamic_cast_iterator<Orbital*, TOrbital<double>*>::operator++(int) (ptr_vector.h:97)
+            ==150119==    by 0x4E7780: TOrbitalsImp<double>::CalculateDensityMatrix() const (TOrbitals.C:112)
+        Address 0x6509e00 is 0 bytes after a block of size 32 alloc'd
+            ==150119==    at 0x4846FA3: operator new(unsigned long) (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+            ==150119==    by 0x4E8DDE: std::__new_allocator<Orbital*>::allocate(unsigned long, void const*) (new_allocator.h:151)
+            ==150119==    by 0x4E8B81: allocate (alloc_traits.h:478)
+            ==150119==    by 0x4E8B81: std::_Vector_base<Orbital*, std::allocator<Orbital*> >::_M_allocate(unsigned long) (stl_vector.h:380)
+            ==150119==    by 0x4E87D9: void std::vector<Orbital*, std::allocator<Orbital*> >::_M_realloc_append<Orbital*>(Orbital*&&) (vector.tcc:596)
+            ==150119==    by 0x4E842E: Orbital*& std::vector<Orbital*, std::allocator<Orbital*> >::emplace_back<Orbital*>(Orbital*&&) (vector.tcc:123)
+            ==150119==    by 0x4E7DD8: std::vector<Orbital*, std::allocator<Orbital*> >::push_back(Orbital*&&) (stl_vector.h:1301)
+            ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
+        1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
+        2) Make a proper dyn-cast iterator.
+    
     Done: -For kinetic energy split up grad^2 and centrifugal parts.
         -This is atom specific, does not ally to pol. Gaussians.
         Done: -Rename primative interals:
@@ -41,12 +57,17 @@ Priority 1:
             Cache diagonal grid cells.  Lots of them ... how often would they get reused?
                 Try on demand and count cache hits.
             Try using scaling relations
+            -Do some profiling.
         Done: Instance a fixed list K values
             How to make a map instances: https://softwareengineering.stackexchange.com/questions/390927/c-design-pattern-for-template-instantiation-based-on-run-time-information
         Add DFT support.
         
     -BSplines should use (symmetric) banded matricies for space/time efficiency.
-        
+    Fixed: -BSm basis fails for f-electrons (BS is fine)
+        Also struggles for Z=21,37,53 but these are history depenedent
+        Suggest a memory leak
+
+    -OpenMP can introduce errors
     -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
         Only in DEBUG mode!?!

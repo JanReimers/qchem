@@ -238,7 +238,7 @@ public:
 TEST_P(A_BS_HF_P,Multiple)
 {
     int Z=GetParam();
-    int N=30;
+    int N=20;
     Init(N,1.0/Z,30,GetLMax(Z));
     Iterate({40,Z*1e-9,0.5,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
@@ -318,13 +318,13 @@ public:
 TEST_P(A_BSm_HF_P,Multiple)
 {
     int Z=GetParam();
-    int N=30;
+    int N=20;
     Init(N,1.0/Z,30.,GetLMax(Z));
-    Iterate({40,1e-9,0.2,0.0,true});
+    Iterate({40,Z*1e-9,0.2,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37,53)); //,53,57,64
+INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37,53,57,64)); //,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
