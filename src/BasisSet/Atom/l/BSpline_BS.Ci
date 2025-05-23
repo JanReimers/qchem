@@ -2,6 +2,8 @@
 
 #include "Imp/BasisSet/Atom/l/BSpline_BS.H"
 #include "Imp/BasisSet/Atom/l/BSpline_IBS.H"
+#include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
+
 
 namespace Atoml
 {
@@ -15,6 +17,15 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
         this->Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L));
     this->BuildCache(LMax);
 }
+
+template <size_t K> Vector<double> BasisSet<K>::loop_4_direct(size_t id, size_t la, size_t lc)  const
+    {
+        Vector<double> rk(1);
+        const Cacheable* c=Cache4::loop_4(id);
+        const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
+        rk(1)= cd->Coulomb_R0();
+        return rk;
+    }
 
 
 }} //namespace

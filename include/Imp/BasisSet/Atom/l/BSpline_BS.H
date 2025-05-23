@@ -17,6 +17,8 @@ template <size_t K> class BasisSet
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
+    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
+   
 };
 
 }} //namespace Atoml::BSpline
