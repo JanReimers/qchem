@@ -6,8 +6,9 @@
 #include <types.H>
 #include <UniqueID.H>
 #include "Imp/Misc/pmstream.h" 
+#include <Iterators.H>
+
 #include <vector>
-#include <cassert>
 #include <iosfwd>
 
 //----------------------------------------------------------------------------
@@ -32,63 +33,27 @@ public:
     virtual bool   operator==      (const IrrepBasisSet&) const=0;
     virtual size_t GetNumFunctions (               ) const=0;
     virtual const  Symmetry& GetSymmetry(               ) const=0;
+//
+//  PMStreamableObject stuff.
+//
+    virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
+    static  IrrepBasisSet* Factory(std::istream&    )        ;
+
 private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
     
-    template <class T> class IBS_iterator
-    {
-        typedef IrrepBasisSet::const_iterator it_t;
-    public:
-        IBS_iterator(const it_t& b) : current(b) {};
-        IBS_iterator(const it_t& b, const BasisFunction* c) : current(b) //STL won't let us construct current(c).
-        {
-            while (*current!=c) 
-                ++current; //Clunky
-        };
-        it_t operator++() {return ++current;} //Prefix only.
-        const T* operator*() const
-        {
-            const T* ret(dynamic_cast<const T*>(*current));
-            assert(ret);
-            return ret;
-        }
-        friend bool operator!=(const IBS_iterator& a, const IBS_iterator& b)
-        {
-            return a.current!=b.current;
-        }
-    private:
-        it_t current;
-    };
-    template <class T> class IBS_iterator_proxy
-    {
-        typedef IBS_iterator<T> it_t;
-        typedef IrrepBasisSet::const_iterator cit_t;
-    public:
-        IBS_iterator_proxy(const cit_t& b, const cit_t& e) : ib(b), ie(e) {};
-        IBS_iterator_proxy(const cit_t& b, const cit_t& e, const T* start) : ib(b,start), ie(e) {};
-        it_t begin() const {return ib;}
-        it_t end  () const {return ie;}
-    private:
-        it_t ib,ie;
-    };
-    
 public:
-    template <class T> IBS_iterator_proxy<T> Iterate() const
+    // These facilutate iteration but return pointers dyn-cast'ed to derived types (D);
+    template <class D> auto Iterate() const
     {
-        return IBS_iterator_proxy<T>(begin(),this->end());
+        return D_iterator_proxy<const D,const_iterator>(begin(),end());
     }
-    template <class T> IBS_iterator_proxy<T> Iterate(const T* start) const
+    template <class D> auto Iterate(const D* start) const
     {
-        return IBS_iterator_proxy<T>(begin(),this->end(),start);
+        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
     }
     
-//
-//  StreamableObject stuff.
-//
-    virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
-    static  IrrepBasisSet* Factory(std::istream&    )        ;
-private:
     friend class BS_Common;
 };
 

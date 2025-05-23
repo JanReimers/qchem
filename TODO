@@ -1,14 +1,3 @@
-OpenMP
-    BSpline Yl/* 
-        with parallel for Rk integrals.           
-            real	0m48.343s
-            user	2m47.224s
-            sys	0m0.291s
-        without
-            real	0m39.021s
-            user	0m38.889s
-            sys	0m0.027s
-
 
 Priority 1:
     -Orbital_QNs
@@ -28,7 +17,7 @@ Priority 1:
             ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
         1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
         Done: 2) Make a proper dyn-cast iterator.
-    Refactor iteratorproxies for BasisSet ad Orbitals.
+    Done: Refactor iteratorproxies for BasisSet ad Orbitals.
         Inherit from a template?
 
     Done: -For kinetic energy split up grad^2 and centrifugal parts.
