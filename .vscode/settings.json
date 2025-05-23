@@ -81,5 +81,6 @@
         "cfenv": "cpp",
         "future": "cpp",
         "stdfloat": "cpp"
-    }
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}"
 }
