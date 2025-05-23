@@ -8,6 +8,7 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianH3.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/CDCache.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Block.H"
+#include "Imp/Misc/DFTDefines.H"
 #include "Imp/Cluster/Atom.H"
 #include <Cluster.H>
 #include "oml/smatrix.h"

@@ -41,6 +41,25 @@ ERI4::SMat operator*(const ERI4::SMat& Sab, const ERI4& gabcd)
     return Scd;
 }
 
+//  openmp version ... no speed improvement!!!
+
+// ERI4::SMat operator*(const ERI4::SMat& Sab, const ERI4& gabcd)
+// {
+//     ERI4::SMat Scd(gabcd(1,1).GetLimits());
+//     Fill(Scd,0.0);
+//     int N=Scd.GetNumRows();
+//     #pragma omp parallel for collapse(1) 
+//     for (int ia=1;ia<=N;ia++)
+//     {
+//         ERI4::SMat d=gabcd(ia,ia)*Sab(ia,ia);
+//         for (auto ib:Sab.cols(ia+1))
+//             d+=2*gabcd(ia,ib)*Sab(ia,ib);
+//         # pragma omp critical
+//         Scd+=d;
+//     }
+//     return Scd;
+// }
+
 double ERI4::contract(const ERI4::SMat& A,const ERI4::SMat& B)
 {
     //std::cout << "ERI4::contract " << A.GetLimits() << " " << B.GetLimits() << std::endl;

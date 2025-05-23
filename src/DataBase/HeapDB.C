@@ -193,13 +193,20 @@ template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
 template <class T> void DB_BS_2E<T>::MakeDirect() const
 {
     Jac.clear();
-    for (auto a: itsIrreps)
+    // This crashed at run time.  Possibly because of CDcache4 index state and some other cache.
+    // #pragma omp parallel for collapse(1)
+    // for (size_t ia=0;ia<itsIrreps.size();ia++)
+    // {
+    //     auto a=itsIrreps[ia];
+   for (auto a: itsIrreps)
         for (auto c: itsIrreps) //TODO run from ia n
         {
             if (a->GetID()>c->GetID()) continue;
-            Jac[a->GetID()][c->GetID()]=MakeDirect(a,c);
+            ERI4 jac=MakeDirect(a,c);
+            # pragma omp critical
+            Jac[a->GetID()][c->GetID()]=jac;
         }
-
+    // }
 }
 template <class T> void DB_BS_2E<T>::MakeExchange() const
 {

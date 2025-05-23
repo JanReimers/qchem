@@ -1,3 +1,15 @@
+OpenMP
+    BSpline Yl/* 
+        with parallel for Rk integrals.           
+            real	0m48.343s
+            user	2m47.224s
+            sys	0m0.291s
+        without
+            real	0m39.021s
+            user	0m38.889s
+            sys	0m0.027s
+
+
 Priority 1:
     -Orbital_QNs
         Use std::shared_ptr for sym.
@@ -57,6 +69,8 @@ Priority 1:
             bool SupportScaling(index).  
             Option: Multiple knots at Rmax?
         Rk
+            Done: Cache diagonal GLQ grids.
+            Optimize/inline intpow 
             Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
             Cache diagonal grid cells.  Lots of them ... how often would they get reused?
                 Try on demand and count cache hits.
