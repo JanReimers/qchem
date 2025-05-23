@@ -47,6 +47,7 @@ public:
 };
 
 #include <vector>
+#include <cassert>
 //---------------------------------------------------------------------------
 //
 //  A group of orbitals is usually for one irreducable representation.
@@ -76,10 +77,105 @@ public:
 
     static  Orbitals* Factory(std::istream&);  
     
+private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
     virtual       iterator begin()      =0;
     virtual       iterator end  ()      =0;
+
+    template <class T> class O_const_iterator
+    {
+        typedef Orbitals::const_iterator it_t;
+    public:
+        O_const_iterator(const it_t& b) : current(b) {};
+        O_const_iterator(const it_t& b, const Orbital* c) : current(b) //STL won't let us construct current(c).
+        {
+            while (*current!=c) 
+                ++current; //Clunky
+        };
+        it_t operator++() {return ++current;} //Prefix only.
+        const T* operator*() const
+        {
+            const T* ret(dynamic_cast<const T*>(*current));
+            assert(ret);
+            return ret;
+        }
+        friend bool operator!=(const O_const_iterator& a, const O_const_iterator& b)
+        {
+            return a.current!=b.current;
+        }
+    private:
+        it_t current;
+    };
+    
+    template <class T> class O_const_iterator_proxy
+    {
+        typedef O_const_iterator<T> it_t;
+        typedef Orbitals::const_iterator cit_t;
+    public:
+        O_const_iterator_proxy(const cit_t& b, const cit_t& e) : ib(b), ie(e) {};
+        O_const_iterator_proxy(const cit_t& b, const cit_t& e, const T* start) : ib(b,start), ie(e) {};
+        it_t begin() const {return ib;}
+        it_t end  () const {return ie;}
+    private:
+        it_t ib,ie;
+    };
+    template <class T> class O_iterator
+    {
+        typedef Orbitals::iterator it_t;
+    public:
+        O_iterator(const it_t& b) : current(b) {};
+        O_iterator(const it_t& b, const Orbital* c) : current(b) //STL won't let us construct current(c).
+        {
+            while (*current!=c) 
+                ++current; //Clunky
+        };
+        it_t operator++() {return ++current;} //Prefix only.
+        T* operator*() const
+        {
+            T* ret(dynamic_cast<T*>(*current));
+            assert(ret);
+            return ret;
+        }
+        friend bool operator!=(const O_iterator& a, const O_iterator& b)
+        {
+            return a.current!=b.current;
+        }
+    private:
+        it_t current;
+    };
+    template <class T> class O_iterator_proxy
+    {
+        typedef O_iterator<T> it_t;
+        typedef Orbitals::iterator cit_t;
+    public:
+        O_iterator_proxy(const cit_t& b, const cit_t& e) : ib(b), ie(e) {};
+        O_iterator_proxy(const cit_t& b, const cit_t& e, const T* start) : ib(b,start), ie(e) {};
+        it_t begin() const {return ib;}
+        it_t end  () const {return ie;}
+    private:
+        it_t ib,ie;
+    };
+    
+public:
+
+    template <class T> O_const_iterator_proxy<T> Iterate() const
+    {
+        return O_const_iterator_proxy<T>(begin(),this->end());
+    }
+    template <class T> O_const_iterator_proxy<T> Iterate(const T* start) const
+    {
+        return O_const_iterator_proxy<T>(begin(),this->end(),start);
+    }
+    template <class T> O_iterator_proxy<T> Iterate()
+    {
+        return O_iterator_proxy<T>(begin(),this->end());
+    }
+    template <class T> O_iterator_proxy<T> Iterate(const T* start)
+    {
+        return O_iterator_proxy<T>(begin(),this->end(),start);
+    }
+
 };
 
 #include <VectorFunction.H>

@@ -1,4 +1,6 @@
 Priority 1:
+    -Orbital_QNs
+        Use std::shared_ptr for sym.
     -Valgrind reporting problems in TOrbitalsImp
         Invalid read of size 8
             ==150119==    at 0x4E7B5F: dynamic_cast_iterator<Orbital*, TOrbital<double>*>::operator++(int) (ptr_vector.h:97)
@@ -13,8 +15,10 @@ Priority 1:
             ==150119==    by 0x4E7DD8: std::vector<Orbital*, std::allocator<Orbital*> >::push_back(Orbital*&&) (stl_vector.h:1301)
             ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
         1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
-        2) Make a proper dyn-cast iterator.
-    
+        Done: 2) Make a proper dyn-cast iterator.
+    Refactor iteratorproxies for BasisSet ad Orbitals.
+        Inherit from a template?
+
     Done: -For kinetic energy split up grad^2 and centrifugal parts.
         -This is atom specific, does not ally to pol. Gaussians.
         Done: -Rename primative interals:

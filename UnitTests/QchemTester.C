@@ -83,7 +83,17 @@ const Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const
 {
     const Orbitals* orbs=GetOrbitals(qns);
     assert(index<orbs->GetNumOrbitals());
-    return *(orbs->begin()+index);
+    const Orbital* o=0;
+    for (auto oi:orbs->Iterate<Orbital>())
+    {
+        if (index==0) 
+        {
+            o=oi;
+            break;
+        }
+        index--;
+    }
+    return o;
 }
 
 #include <cmath> //fabs

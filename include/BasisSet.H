@@ -5,10 +5,10 @@
 #include <types.H>
 #include <UniqueID.H>
 #include "Imp/Misc/pmstream.h"
+#include <IEClient.H>
 
 #include <vector>
-#include "IEClient.H"
-#include "Imp/Containers/ptr_vector.h"
+#include <cassert>
 //----------------------------------------------------------------------------
 //
 //  Interface for a BasisSet which is assumed to a list of Irrep Basis Sets.
@@ -19,8 +19,7 @@ class BasisSet
 {
 public:
     typedef Orbital_IBS bs_t;
-    typedef TOrbital_IBS<double> tbs_t;
-    typedef optr_vector1<bs_t*>::const_iterator const_iterator;
+    typedef std::vector<bs_t*>::const_iterator const_iterator;
     typedef std::vector<const Symmetry*> symv_t;
     
     BasisSet() {};

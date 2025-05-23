@@ -318,7 +318,7 @@ public:
 TEST_P(A_BSm_HF_P,Multiple)
 {
     int Z=GetParam();
-    int N=20;
+    int N=30;
     Init(N,1.0/Z,30.,GetLMax(Z));
     Iterate({40,Z*1e-9,0.2,0.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);

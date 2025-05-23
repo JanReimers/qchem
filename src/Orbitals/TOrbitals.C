@@ -32,6 +32,7 @@ TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
 {
+    for (auto o:itsOrbitals) delete o;
     delete itsLASolver;
 }
 
@@ -59,11 +60,12 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
     // No UT coverage
     // TODO: OrbitalGroup should return a vector of energies.
     double del=0;
-    auto b2=og.begin();
-    for (auto b1:*this)
+    auto b2=og.Iterate<Orbital>().begin();
+    for (auto b1:Iterate<Orbital>())
     {
-        del+=Square(b1->GetEigenEnergy()-(*b2)->GetEigenEnergy());
-        b2++;
+        const Orbital* o2=*b2;
+        del+=Square(b1->GetEigenEnergy()-o2->GetEigenEnergy());
+        ++b2;
     }
     return sqrt(del);
 }
@@ -79,6 +81,8 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const D
     //std::cout << "H=" << H << std::endl;
     assert(!isnan(H));
     auto [U,e]=itsLASolver->Solve(H);
+
+    for (auto o:itsOrbitals) delete o;
     itsOrbitals.clear();
     index_t n=e.size();
     //std::cout << "   Eigen values=" << e << std::endl;
@@ -109,7 +113,7 @@ CalculateDensityMatrix() const
 {
     SMat d(itsBasisSet->GetNumFunctions());
     Fill(d,T(0.0));
-    for (auto b=this->beginT();b!=this->end();b++) b->AddDensityMatrix(d);
+    for (auto b:Iterate<TOrbital<double>>()) b->AddDensityMatrix(d);
     return d;
 }
 
@@ -133,7 +137,11 @@ operator()(const RVec3& r) const
     Vec ret(GetNumOrbitals());
     typename Vec::iterator i(ret.begin());
     // No UT coverage
-    for (auto b=this->beginT();b!=this->end();i++,b++) *i=(**b)(r);
+    for (auto b:Iterate<TOrbital<double>>()) 
+    {
+        *i=(*b)(r);
+        i++;
+    }
     return ret;
 }
 
@@ -143,7 +151,11 @@ Gradient(const RVec3& r) const
     // No UT coverage
     Vec3Vec ret(GetNumOrbitals());
     typename Vec3Vec::iterator i(ret.begin());
-    for (auto b=this->beginT();b!=this->end();i++,b++) *i=b->Gradient(r);
+    for (auto b:Iterate<TOrbital<double>>()) 
+    {
+        *i=b->Gradient(r);
+        i++;
+    } 
     return ret;
 }
 

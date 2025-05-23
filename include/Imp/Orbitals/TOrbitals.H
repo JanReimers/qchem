@@ -3,9 +3,11 @@
 #define _TOrbitalGroupImplementation_H_
 
 
-#include "Imp/Containers/ptr_vector.h"
 #include "Orbital.H"
 #include <Orbital_QNs.H>
+#include <memory>
+#include <vector>
+
 
 template <class T> class TOrbitalsImp
     : public virtual Orbitals
@@ -49,7 +51,7 @@ private:
     virtual SMat CalculateDensityMatrix() const;
 
     const TOrbital_IBS<T>*  itsBasisSet;
-    optr_vector1<Orbital*>  itsOrbitals;
+    std::vector<Orbital*>   itsOrbitals;
     LASolver<double>*       itsLASolver; //General eigen solver
     Irrep_QNs               itsQNs;
 };

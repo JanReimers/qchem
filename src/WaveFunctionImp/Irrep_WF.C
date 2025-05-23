@@ -53,14 +53,14 @@ const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
     double ne=ec->GetN(itsIrrep);
     //std::cout << "ne=" << ne << " QN=" << *itsQN << std::endl;
     //  Loop over orbitals and consume the electrons quota.
-    for (auto& o:*itsOrbitals)
+    for (auto o:itsOrbitals->Iterate<Orbital>())
     {
         ne=o->TakeElectrons(ne);
         if (ne<=0.0) break;
     }
     //  Now update the list of energy levels.
     itsELevels.clear();
-    for (auto o:*itsOrbitals)
+    for (auto o:itsOrbitals->Iterate<Orbital>())
         itsELevels.insert(EnergyLevel(o));
     
     //  Display the occupied orbitals with eigen vectors.
