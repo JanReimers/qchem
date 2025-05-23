@@ -7,10 +7,14 @@
 #include <bspline/Core.h>
 #include <cassert>
 #include <iostream>
+#include <map>
+
+class GLCache;
 
 class GLQuadrature
 {
 public:
+    GLQuadrature() {}; //map needs a default constructor.
     GLQuadrature(const double& rmin, const double& rmax,int N);
 
     double Integrate(const std::function< double (double)>& f) const
@@ -31,6 +35,7 @@ public:
         return ret;
     }
 private:
+    friend class GLCache;
     double its_xmin, its_xmax;
     std::valarray<double> xs,ws;
 };
@@ -39,6 +44,8 @@ class GLCache
 {
 public:
     GLCache(const bspline::support::Grid<double>& g,size_t N);
+
+    const GLQuadrature& find(double rmin, double rmax) const;
     
     template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b) const
     {
@@ -73,7 +80,8 @@ public:
         return Integrate(fwab,rmin,rmax);
     }
 
-// private:
+private:
+    GLCache(const GLCache&)=delete;
     typedef bspline::Support<double> sup_t;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
     double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
@@ -109,6 +117,8 @@ public:
    
     const bspline::support::Grid<double> grid;
     std::vector<GLQuadrature> itsGLs;
+    std::map<double,std::map<double,GLQuadrature>> itsDiagGLs;
+
 };
 
 

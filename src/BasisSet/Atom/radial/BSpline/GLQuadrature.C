@@ -23,7 +23,27 @@ GLCache::GLCache(const bspline::support::Grid<double>& g,size_t N)
 : grid(g)
 {
     for (size_t i=1;i<grid.size();i++)
-        itsGLs.push_back(GLQuadrature(grid[i-1],grid[i],N));
+    {
+        double rmin=grid[i-1], rmax=grid[i];
+        itsGLs.push_back(GLQuadrature(rmin,rmax,N));
+        const GLQuadrature& gl=itsGLs.back();
+        for (double r:gl.xs)
+        {
+            itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,N);
+            itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,N);
+        }
+    }
+    
+}
+
+const GLQuadrature& GLCache::find(double rmin, double rmax) const
+{
+    assert(rmin<rmax);
+    auto i1=itsDiagGLs.find(rmin);
+    assert(i1!=itsDiagGLs.end());
+    auto i2=i1->second.find(rmax);
+    assert(i2!=i1->second.end());
+    return i2->second;
 }
 
 double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
