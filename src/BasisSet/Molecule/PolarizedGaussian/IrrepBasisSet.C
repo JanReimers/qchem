@@ -12,7 +12,7 @@
 #include "Imp/BasisSet/Molecule/Unit.H"
 #include <BasisSet.H>
 #include <Cluster.H>
-#include "Imp/Containers/ptr_vector_io.h"
+#include "Imp/Containers/stl_io.h"
 #include <cassert>
 #include <algorithm> //Need std::max
 
@@ -105,12 +105,12 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
             bfb->Add(p);
             nbasis++;
         }
-        itsBlocks.push_back(bfb);
+        itsBlocks.push_back(std::unique_ptr<Block>(bfb));
         i++;
     }
     
     std::vector<const Block*> bls;
-    for (auto bl:itsBlocks) bls.push_back(bl);
+    for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
 //
 //  Now insert the basis functions.
@@ -119,8 +119,6 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
 };
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
     : IBS_Common(new UnitQN)
-   // , Orbital_IBS_Common<double>(lap,theDB)
-   // , IE_Common(db)
 {
     int nbasis=1;
     for (auto& atom:*cl)
@@ -137,13 +135,13 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
                     bfb->Add(p);
                     nbasis++;
                 }
-                itsBlocks.push_back(bfb);
+                itsBlocks.push_back(std::unique_ptr<Block>(bfb));
             }
             
         }
     }
     std::vector<const Block*> bls;
-    for (auto bl:itsBlocks) bls.push_back(bl);
+    for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
 //
 //  Now insert the basis functions.
@@ -154,9 +152,6 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
     : IBS_Common(new UnitQN())
-    // , Orbital_IBS_Common<double>(lap,theDB) 
-    // , IE_Common(db)
-
 {
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
@@ -169,10 +164,10 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
             bfb->Add(p);
             nbasis++;
         }
-        itsBlocks.push_back(bfb);
+        itsBlocks.push_back(std::unique_ptr<Block>(bfb));
     }
     std::vector<const Block*> bls;
-    for (auto bl:itsBlocks) bls.push_back(bl);
+    for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
 //
 //  Now insert the basis functions.
@@ -183,12 +178,14 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
 //
 //  This contructor is used by Clone(RVec); only.
 //
-IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const optr_vector1<Block*>& theBlocks)
+IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
     : IBS_Common(*bs)
     // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
     // , IE_Common(db)
-    , itsBlocks(theBlocks)
+    //, itsBlocks(theBlocks) //Need to clone all the blocks.
 {
+    assert(false);
+    //Need to clone all the blocks.
     // No UT coverage
     //MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
 //    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
@@ -217,9 +214,9 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 {
     EmptyBasisFunctions();
     size_t i=1;
-    for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
-        for (std::vector<Polarization>::const_iterator p((*bl)->itsPols.begin()); p!=(*bl)->itsPols.end(); p++)
-            IBS_Common::Insert(new BasisFunction((*bl)->itsRadial,*p,norms(i++)));
+    for (auto& bl:itsBlocks)
+        for (std::vector<Polarization>::const_iterator p(bl->itsPols.begin()); p!=bl->itsPols.end(); p++)
+            IBS_Common::Insert(new BasisFunction(bl->itsRadial,*p,norms(i++)));
 }//Compiler says these calls are ambiguous.  BUG
 
 //----------------------------------------------------------------

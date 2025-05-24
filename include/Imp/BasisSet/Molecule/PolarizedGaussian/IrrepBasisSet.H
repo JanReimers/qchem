@@ -11,7 +11,8 @@
 #include "IntegralEngine.H"
 #include "IEClient.H"
 #include "Block.H"
-#include "Imp/Containers/ptr_vector.h"
+#include <vector>
+#include <memory>
 
 namespace PolarizedGaussian
 {
@@ -25,7 +26,8 @@ namespace PolarizedGaussian
     {
     public:
         typedef Vector<double> RVec;
-        // IrrepBasisSet();
+        typedef std::vector<std::unique_ptr<Block>> bv_t;
+    
         IrrepBasisSet(Reader *, const Cluster *);
         IrrepBasisSet(const RVec &exponents, size_t L, const Cluster *);
         IrrepBasisSet(const RVec &exponents, size_t L);
@@ -33,10 +35,11 @@ namespace PolarizedGaussian
         virtual std::ostream &Write(std::ostream &) const;
 
     private:
-        IrrepBasisSet(const IrrepBasisSet *bs, const optr_vector1<Block *> &);
+        
+        IrrepBasisSet(const IrrepBasisSet *bs, const bv_t&);
         void MakeBasisFunctions(const RVec &norms);
 
-        optr_vector1<Block *> itsBlocks;
+        bv_t itsBlocks;
     };
 
     class Orbital_IBS
