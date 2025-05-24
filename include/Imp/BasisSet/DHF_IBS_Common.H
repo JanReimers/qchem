@@ -24,8 +24,8 @@ public:
     virtual SMat MakeRestMass() const;
 protected:
     Orbital_RKB_IBS_Common(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
-    const ::Orbital_RKBL_IBS<T>* itsRKBL;
-    const ::Orbital_RKBS_IBS<T>* itsRKBS;
+    ::Orbital_RKBL_IBS<T>* itsRKBL;
+    ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:
     friend DiracIntegralTests;
     static SMat merge_diag(const SMat& l,const SMat& s);

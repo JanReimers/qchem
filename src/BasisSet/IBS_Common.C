@@ -5,11 +5,9 @@
 #include "Imp/BasisSet/IBS_Common.H"
 #include <Symmetry.H>
 #include <BasisFunction.H>
-#include "Imp/Containers/ptr_vector_io.h"
+#include "Imp/Containers/stl_io.h"
 
-#include <iostream>
 #include <iomanip>
-#include <cassert>
 
 //-----------------------------------------------------------------------------
 //
@@ -42,10 +40,10 @@ IBS_Common::~IBS_Common()
 //
 //  Post construction initializations called by dervied classes.
 //
-void IBS_Common::Insert(const BasisFunction* bf)
+void IBS_Common::Insert(bf_t* bf)
 {
     assert(bf);
-    itsBasisFunctions.push_back(bf);
+    itsBasisFunctions.push_back(std::shared_ptr<bf_t>(bf));
 }
 
 void IBS_Common::EmptyBasisFunctions()

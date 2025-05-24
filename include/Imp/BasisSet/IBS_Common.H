@@ -6,7 +6,6 @@
 
 #include <Irrep_BS.H>
 #include "Imp/Misc/UniqueID/UniqueIDImp.H"
-#include "Imp/Containers/ptr_vector.h"
 
 //---------------------------------------------------------------------
 //
@@ -35,12 +34,14 @@ public:
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
     virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
+    virtual       iterator begin()       {return itsBasisFunctions.begin();}
+    virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
 
     using UniqueIDImp::GetID;
     virtual std::ostream& Write(std::ostream&) const;
 
 protected:
-    virtual void  Insert(const BasisFunction* );
+    virtual void  Insert(bf_t* );
     void  EmptyBasisFunctions();
     std::ostream& WriteBasisFunctions(std::ostream&) const;
     std::istream& ReadBasisFunctions (std::istream&)      ;
@@ -48,8 +49,8 @@ protected:
 private:
     IBS_Common& operator=(const IBS_Common&);
 
-    Symmetry*               itsSymmetry;
-    optr_vector1<const BasisFunction*> itsBasisFunctions;
+    Symmetry*  itsSymmetry;
+    bfv_t      itsBasisFunctions;
 };
 
 #endif //_IBS_Common_H_

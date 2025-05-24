@@ -2,14 +2,14 @@
 #ifndef _Irrep_BS_H_
 #define _Irrep_BS_H_
 
-#include <IEClient.H>
 #include <types.H>
+#include <IEClient.H>
 #include <UniqueID.H>
-#include "Imp/Misc/pmstream.h" 
 #include <Iterators.H>
+#include "Imp/Misc/pmstream.h" 
 
 #include <vector>
-#include <iosfwd>
+#include <memory>
 
 //----------------------------------------------------------------------------
 //
@@ -26,13 +26,15 @@ class IrrepBasisSet
     , public virtual PMStreamableObject
 {
 public:
-    typedef std::vector<const BasisFunction*>::      iterator       iterator;
-    typedef std::vector<const BasisFunction*>::const_iterator const_iterator;
+    typedef BasisFunction bf_t;
+    typedef std::vector<std::shared_ptr<bf_t>> bfv_t;
+    typedef bfv_t::      iterator       iterator;
+    typedef bfv_t::const_iterator const_iterator;
 
-    virtual void Set(const LAParams&)=0;
-    virtual bool   operator==      (const IrrepBasisSet&) const=0;
-    virtual size_t GetNumFunctions (               ) const=0;
-    virtual const  Symmetry& GetSymmetry(               ) const=0;
+    virtual void   Set(const LAParams&)=0;
+    virtual bool   operator==(const IrrepBasisSet&) const=0;
+    virtual size_t GetNumFunctions() const=0;
+    virtual const  Symmetry& GetSymmetry() const=0;
 //
 //  PMStreamableObject stuff.
 //
@@ -42,16 +44,26 @@ public:
 private:
     virtual const_iterator begin() const=0;
     virtual const_iterator end  () const=0;
+    virtual       iterator begin()      =0;
+    virtual       iterator end  ()      =0;
     
 public:
     // These facilutate iteration but return pointers dyn-cast'ed to derived types (D);
     template <class D> auto Iterate() const
     {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end());
+        return D_iterator_proxy1<const D,const_iterator>(begin(),end());
     }
     template <class D> auto Iterate(const D* start) const
     {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
+        return D_iterator_proxy1<const D,const_iterator>(begin(),end(),start);
+    }
+    template <class D> auto Iterate() 
+    {
+        return D_iterator_proxy1<D,iterator>(begin(),end());
+    }
+    template <class D> auto Iterate(D* start) 
+    {
+        return D_iterator_proxy1<D,iterator>(begin(),end(),start);
     }
     
     friend class BS_Common;
