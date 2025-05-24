@@ -30,8 +30,6 @@ protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 };
 
-#include "Imp/DataBase/HeapDB.H"
-
 template <class T> class Orbital_IBS_Common
     : public virtual TOrbital_IBS<T>
     , public  TIBS_Common<T> 

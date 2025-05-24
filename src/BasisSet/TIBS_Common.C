@@ -2,15 +2,9 @@
 
 
 #include "Imp/BasisSet/TIBS_Common.H"
-#include "Imp/Containers/ERI4.H"
 #include <BasisFunction.H>
-#include <Symmetry.H>
-#include <AnalyticIE.H>
 #include <LASolver.H>
-#include <Hamiltonian.H>
 #include "oml/vector.h"
-#include <cassert>
-#include <iostream>
 
 LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
 //-----------------------------------------------------------------------------
@@ -36,18 +30,12 @@ template <class T> void TIBS_Common<T>::Set(const LAParams& lap)
 
 template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() const
 {
-    StreamableObject::SetToPretty();
-    // std::cout << "S_old=" << this->GetOverlap() << std::endl;
-    // std::cout << "S_new=" << this->Integrals(qchem::Overlap1,this) << std::endl;
     LASolver<double>* las=LASolver<double>::Factory(TIBS_Common<T>::itsLAParams);
-    //las->SetBasisOverlap(this->GetOverlap());
     las->SetBasisOverlap(this->Overlap());
     return las;
 }
 
 
- using std::cout;
- using std::endl;
 //-----------------------------------------------------------------------------
 //
 //  VectorFunction stuff.

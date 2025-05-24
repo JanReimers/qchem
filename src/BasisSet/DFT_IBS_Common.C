@@ -5,6 +5,7 @@
 #include "Imp/BasisSet/DFT_IBS_Common.H"
 #include <Fit_IBS.H>
 #include "oml/vector.h"
+#include "oml/smatrix.h"
 
 template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
 Overlap3C(const SMat& Dcd, const fbs_t* ff) const
