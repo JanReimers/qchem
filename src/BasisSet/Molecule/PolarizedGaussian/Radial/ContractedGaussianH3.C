@@ -25,7 +25,7 @@ double ContractedGaussianH3::operator()(const Polarization& Pa,const Polarizatio
     assert(itsH3s.size()==TheCoeff.size());
     double ret=0;
     int i=1;
-    for (auto b:itsH3s) 
+    for (auto& b:itsH3s) 
     {
         ret+=(*b)(Pa,Pb,Pc)*TheCoeff(i);
         i++;

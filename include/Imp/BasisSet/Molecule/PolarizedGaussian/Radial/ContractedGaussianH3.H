@@ -3,9 +3,11 @@
 #define _ContractedGaussianH3_H_
 
 
-#include "types.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite3.H"
-#include "Imp/Containers/ptr_vector.h"
+#include <types.H>
+#include <vector>
+#include <memory>
+
 
 namespace PolarizedGaussian
 {
@@ -26,10 +28,11 @@ private:
     friend class ContractedGaussianRF;
     void Insert(Hermite3* h3)
     {
-        itsH3s.push_back(h3);
+        itsH3s.push_back(std::unique_ptr<Hermite3>(h3));
     }
 
-    optr_vector1<Hermite3*> itsH3s;
+    typedef std::vector<std::unique_ptr<Hermite3>> h3v_t;
+    h3v_t itsH3s;
     const Vector<double>& TheCoeff; //Contraction coefficients.
 };
 
