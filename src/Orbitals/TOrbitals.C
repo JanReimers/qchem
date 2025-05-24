@@ -11,7 +11,7 @@
 #include <Symmetry.H>
 #include <Orbital_QNs.H>
 #include <LASolver.H>
-#include "Imp/Containers/ptr_vector_io.h"
+#include "Imp/Containers/stl_io.h"
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
@@ -32,7 +32,6 @@ TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
 {
-    for (auto o:itsOrbitals) delete o;
     delete itsLASolver;
 }
 
@@ -48,7 +47,7 @@ template <class T> index_t TOrbitalsImp<T>::GetNumOrbitals() const
 template <class T> index_t TOrbitalsImp<T>::GetNumOccOrbitals() const
 {
     index_t n=0;
-    for (auto o:*this)
+    for (auto& o:*this)
         if (o->IsOccupied()) 
             n++;
 
@@ -82,7 +81,6 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const D
     assert(!isnan(H));
     auto [U,e]=itsLASolver->Solve(H);
 
-    for (auto o:itsOrbitals) delete o;
     itsOrbitals.clear();
     index_t n=e.size();
     //std::cout << "   Eigen values=" << e << std::endl;
@@ -96,7 +94,8 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const D
     {
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
         if (e(i)<=e_positron) continue; //Strip out all the positron orbitals.
-        itsOrbitals.push_back(new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),Orbital_QNs(index++,itsQNs)));
+        Orbital* o=new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),Orbital_QNs(index++,itsQNs));
+        itsOrbitals.push_back(std::unique_ptr<Orbital>(o));
 
     }
 }
@@ -182,13 +181,6 @@ template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
         if (StreamableObject::Ascii()) os << std::endl;
     }
     return os;
-}
-
-template <class T> std::istream& TOrbitalsImp<T>::Read(std::istream& is)
-{
-    is >> itsOrbitals;
-    if (!StreamableObject::Binary()) is >> std::ws;
-    return is;
 }
 
 

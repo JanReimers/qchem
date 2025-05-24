@@ -44,14 +44,13 @@ public:
 
 
     virtual std::ostream&          Write(std::ostream&) const;
-    virtual std::istream&          Read (std::istream&)      ;
 
 private:
     TOrbitalsImp(const TOrbitalsImp&);
     virtual SMat CalculateDensityMatrix() const;
 
     const TOrbital_IBS<T>*  itsBasisSet;
-    std::vector<Orbital*>   itsOrbitals;
+    ov_t                    itsOrbitals;
     LASolver<double>*       itsLASolver; //General eigen solver
     Irrep_QNs               itsQNs;
 };

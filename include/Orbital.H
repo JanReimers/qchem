@@ -47,6 +47,7 @@ public:
 };
 
 #include <vector>
+#include <memory>
 #include <Iterators.H>
 //---------------------------------------------------------------------------
 //
@@ -59,8 +60,9 @@ class Orbitals : public virtual PMStreamableObject
 {
     typedef Vector<double> RVec;
 public:
-    typedef std::vector<Orbital*>::      iterator       iterator;
-    typedef std::vector<Orbital*>::const_iterator const_iterator;
+    typedef std::vector<std::unique_ptr<Orbital>> ov_t;
+    typedef ov_t::      iterator       iterator;
+    typedef ov_t::const_iterator const_iterator;
 
     virtual ~Orbitals() {};
     virtual index_t        GetNumOrbitals     (               ) const=0;
@@ -73,8 +75,7 @@ public:
     virtual RVec           Get_BS_Diagonal() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
-    virtual std::istream& Read   (std::istream&)      =0;
-
+   
     static  Orbitals* Factory(std::istream&);  
     
 private:

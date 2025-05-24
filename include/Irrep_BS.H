@@ -51,19 +51,19 @@ public:
     // These facilutate iteration but return pointers dyn-cast'ed to derived types (D);
     template <class D> auto Iterate() const
     {
-        return D_iterator_proxy1<const D,const_iterator>(begin(),end());
+        return D_iterator_proxy<const D,const_iterator>(begin(),end());
     }
     template <class D> auto Iterate(const D* start) const
     {
-        return D_iterator_proxy1<const D,const_iterator>(begin(),end(),start);
+        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
     }
     template <class D> auto Iterate() 
     {
-        return D_iterator_proxy1<D,iterator>(begin(),end());
+        return D_iterator_proxy<D,iterator>(begin(),end());
     }
     template <class D> auto Iterate(D* start) 
     {
-        return D_iterator_proxy1<D,iterator>(begin(),end(),start);
+        return D_iterator_proxy<D,iterator>(begin(),end(),start);
     }
     
     friend class BS_Common;
