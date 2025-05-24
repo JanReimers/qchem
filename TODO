@@ -1,5 +1,15 @@
 
 Priority 1:
+    -convert all enums into enum classes
+        General clean as well.
+    -Re-imagine Ylm basis sets.
+        Based on electron config only *two* Irreps one for occupied and one for unoccupied.
+        Each would be merge of Nocc or Nunocc m values.
+        Ak and Rk would need to be avaraged or summed accordingly.
+        For example for Boron
+            Y_{1,-1} for occupied
+            0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
+
     -openmp
         -Make some simple unit tests
         -Demostrate 3x real time improvement.
