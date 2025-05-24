@@ -8,6 +8,7 @@
 #include <cassert>
 #include <vector>
 #include <set>
+#include <memory>
 
 // Make some stl containers streamable in Pretty, Ascii and Binary modes.
 
@@ -42,6 +43,21 @@ template <template<class> class V,class T> std::ostream& Write(std::ostream& os,
     {   
         os << v.size() << " ";
         for (auto i:v) os << i << " ";
+    }
+    return os;
+}
+template <template<class> class V,class T> std::ostream& Write(std::ostream& os,const V<std::unique_ptr<T>>& v)
+{
+    WriteHeader(v,os);
+    if (StreamableObject::Binary()) 
+    {
+        BinaryWrite(v.size(),os);
+        for (auto& i:v) BinaryWrite(*i.get(),os);
+    }
+    else 
+    {   
+        os << v.size() << " ";
+        for (auto& i:v) os << *i.get() << " ";
     }
     return os;
 }

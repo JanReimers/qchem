@@ -5,6 +5,7 @@
 #include <BasisSet.H>
 #include <Irrep_BS.H>
 #include "Imp/Misc/UniqueID/UniqueIDImp.H"
+
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 
@@ -33,7 +34,7 @@ protected:
     friend class SlaterRadialIntegralTests;
     friend class DiracIntegralTests;
 
-    optr_vector1<bs_t*> itsBasisSets;
+    bsv_t itsBasisSets;
 };
 
 #endif // _BasisSet_TCommon_H_

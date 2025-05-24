@@ -9,6 +9,7 @@
 #include <Iterators.H>
 
 #include <vector>
+#include <memory>
 
 //----------------------------------------------------------------------------
 //
@@ -20,7 +21,8 @@ class BasisSet
 {
 public:
     typedef Orbital_IBS bs_t; 
-    typedef std::vector<bs_t*>::const_iterator const_iterator;
+    typedef std::vector<std::unique_ptr<bs_t>> bsv_t;
+    typedef bsv_t::const_iterator const_iterator;
     typedef std::vector<const Symmetry*> symv_t;
     
     BasisSet() {};
@@ -42,11 +44,11 @@ public:
     // These facilutate iteration but return pointers dyn-cast'ed to derived types (T);
     template <class D> auto Iterate() const
     {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end());
+        return D_iterator_proxy1<const D,const_iterator>(begin(),end());
     }
     template <class D> auto Iterate(const D* start) const
     {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
+        return D_iterator_proxy1<const D,const_iterator>(begin(),end(),start);
     }
 
 };
