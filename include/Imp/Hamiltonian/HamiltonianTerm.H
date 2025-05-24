@@ -5,9 +5,7 @@
 
 
 #include <Hamiltonian.H>
-#include <Spin.H>
 #include <Orbital_QNs.H>
-
 #include "oml/smatrix.h"
 #include <map>
 

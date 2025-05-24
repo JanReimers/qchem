@@ -1,5 +1,26 @@
 
 Priority 1:
+    -openmp
+        -Make some simple unit tests
+        -Demostrate 3x real time improvement.
+            -How to measure?  
+                gtest seems to give longer run times for parallel?!?
+                time command gives confusing output.
+                check how oml UT gets times.
+        -Try and get ERI4 contractions working
+        -Direct and Exchange functions (more difficult)
+            Need to use instance of cach4, rather then inherit?
+                Once ERI4 is stored, we can throw out cache 4?
+    -ptr_vector
+        -Stop using.
+        -Try std::vector<std::shared_ptr<T>>
+        -What about iterators?
+        -Retest with valgrind.
+    -Total energy
+        -Calculated in  SCFIteratorImp::DisplayEnergies
+            and then re-calculated in SCFIteratorImp::Iterate
+            DisplayEnergies should just return E_total
+        -Total energy should not redo ERI4 contractions.
     -Orbital_QNs
         Use std::shared_ptr for sym.
     -Valgrind reporting problems in TOrbitalsImp
@@ -59,12 +80,13 @@ Priority 1:
             Option: Multiple knots at Rmax?
         Rk
             Done: Cache diagonal GLQ grids.
-            Optimize/inline intpow 
+            Done: Optimize/inline intpow.  Not much effect.
             Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
             Cache diagonal grid cells.  Lots of them ... how often would they get reused?
                 Try on demand and count cache hits.
             Try using scaling relations
-            -Do some profiling.
+            Done: -Do some profiling.
+                spline::op(r) is the hot function.
         Done: Instance a fixed list K values
             How to make a map instances: https://softwareengineering.stackexchange.com/questions/390927/c-design-pattern-for-template-instantiation-based-on-run-time-information
         Add DFT support.
@@ -74,8 +96,7 @@ Priority 1:
         Also struggles for Z=21,37,53 but these are history depenedent
         Suggest a memory leak
 
-    -OpenMP can introduce errors
-    -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
+    Done: -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
         Only in DEBUG mode!?!
     -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
@@ -86,7 +107,7 @@ Priority 1:
         open
         Open recent
 
-    -ro relax starts at 0.5
+    Done: -ro relax starts at 0.5
         Show ro relax in output
     -Plotting:
         Orbitals:
@@ -174,9 +195,9 @@ Priority 1:
 
         
 
-    -Set up IE_Primatives interface for each basis set radial type.
-        Use an IE_Primatives* at the AtomIE level for all integrals.
-        Then move more basis set code down to the AtomIE level.
+    Done: -Set up IE_Primatives interface for each basis set radial type.
+        Done: Use an IE_Primatives* at the AtomIE level for all integrals.
+        Done: Then move more basis set code down to the AtomIE level.
         How to make this work with something like BSpline basis which does not use
             exponential/exponents?
             - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
@@ -195,7 +216,7 @@ Priority 1:
             IE.H which just includes all atom IE types.
 
     -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
-    TOrbital iterators?
+    Done: TOrbital iterators?
     -Survey use of dynamic cast
         -Hunt for dynamic casts that can be removed using dynamic_cast iterator
         -SHould only be casting between interfaces
@@ -206,10 +227,6 @@ Priority 1:
     
 
 
-    -Total energy
-        -Calculated in  SCFIteratorImp::DisplayEnergies
-            and then re-calculated in SCFIteratorImp::Iterate
-            DisplayEnergies should just return E_total
     
 
     -Make and atom app for testing basis sets

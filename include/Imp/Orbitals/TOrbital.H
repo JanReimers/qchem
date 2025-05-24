@@ -3,7 +3,6 @@
 #define _TOrbitalImplementation_H_
 
 #include <Orbital.H>
-#include <Spin.H>
 #include "oml/vector.h"
 #include <Orbital_QNs.H>
 

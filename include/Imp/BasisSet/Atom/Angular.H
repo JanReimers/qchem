@@ -3,14 +3,14 @@
 #define _Angular_Sym_H_
 
 #include <Symmetry.H>
-#include <Spin.H>   
 
 class ElCounts;
+enum class Spin;
 struct ElCounts_l
 {
     int n;  //# valance electrons for a given l
     int nu; //# of un paired electrons (for a given l)
-    int GetN(Spin s) {return s==Spin::Up ? (n+nu)/2 : (n-nu)/2;  }
+    int GetN(Spin s) const;
 };
 
 //---------------------------------------------------------------------------------

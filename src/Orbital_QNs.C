@@ -35,17 +35,17 @@ bool Irrep_QNs::Match(const Irrep_QNs& b) const
 }
 size_t Irrep_QNs::SequenceIndex() const
 {
-    assert(ms.SequenceIndex()<ms_max);
+    assert(::SequenceIndex(ms)<ms_max);
     size_t is=sym->SequenceIndex();
-    return is*ms_max+ms.SequenceIndex();
+    return is*ms_max+::SequenceIndex(ms);
 }
 size_t Irrep_QNs::GetDegeneracy() const
 {
-    return sym->GetDegeneracy()*ms.GetDegeneracy();
+    return sym->GetDegeneracy()*::GetDegeneracy(ms);
 }
 std::ostream& Irrep_QNs::Write(std::ostream& os) const
 {
-    return os << " ms=" << ms << " sym=" << *sym;
+    return os << " ms=" << static_cast<int>(ms) << " sym=" << *sym;
 }
 
 Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const Symmetry* _sym)
@@ -91,7 +91,7 @@ bool Orbital_QNs::MatchNoSpin(const Orbital_QNs& b) const
 }
 size_t Orbital_QNs::GetDegeneracy() const
 {
-    return sym->GetDegeneracy()*ms.GetDegeneracy();
+    return sym->GetDegeneracy()*::GetDegeneracy(ms);
 }
 
 std::ostream& Orbital_QNs::Write(std::ostream& os) const

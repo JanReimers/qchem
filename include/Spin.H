@@ -2,49 +2,18 @@
 #ifndef _Spin_H_
 #define _Spin_H_
 
-#include "Imp/Misc/pmstream.h"
-#include <iosfwd>
+#include "oml/imp/index_t.h"
 
-class Spin : public virtual PMStreamableObject
+enum class Spin {Down,None,Up};
+
+inline bool   IsPolarized  (Spin s) {return !(s==Spin::None);}
+inline int    GetDegeneracy(Spin s) {return IsPolarized(s) ? 1 : 2;}
+inline size_t SequenceIndex(Spin s) {return static_cast<size_t>(s);}
+inline bool operator<(const Spin& a,const Spin& b)
 {
-public:
-    enum State {Down,None,Up};
-
-    Spin(       ) : itsState(None) {};
-    Spin(State S) : itsState(S   ) {};
-
-    bool IsPolarized  () const
-    {
-        return !(itsState==None);
-    }
-    int  GetDegeneracy() const
-    {
-        return IsPolarized() ? 1 : 2;
-    }
-
-    friend bool operator<(const Spin& a,const Spin& b)
-    {
-        int ia=static_cast<int>(a.itsState);
-        int ib=static_cast<int>(b.itsState);
-        return ia<ib;
-    }
-    friend bool operator==(const Spin& a,const Spin& b)
-    {
-        return a.itsState==b.itsState;
-    }
-    friend bool operator!=(const Spin& a,const Spin& b)
-    {
-        return a.itsState!=b.itsState;
-    }
-
-    virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&);
-    size_t SequenceIndex() const //Used for op<
-    {
-        return static_cast<int>(itsState);
-    }
-    
-    State itsState;
-};
+    int ia=static_cast<int>(a);
+    int ib=static_cast<int>(b);
+    return ia<ib;
+}
 
 #endif //_Spin_H_

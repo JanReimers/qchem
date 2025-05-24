@@ -1,6 +1,7 @@
 // File: PolarizedCD.C  Interface for the charge density.
 
 #include "Imp/ChargeDensity/PolarizedCD.H"
+#include <Spin.H>
 #include <cassert>
 
 //---------------------------------------------------------------------------------
@@ -30,25 +31,25 @@ Polarized_CDImp::~Polarized_CDImp()
 //
 //  Access to individual components.
 //
-DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& S)
+DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s)
 {
     assert(S.itsState!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
     DM_CD* ret=0;
-    if(S.itsState==Spin::Up  ) ret=itsSpinUpCD  ;
-    if(S.itsState==Spin::Down) ret=itsSpinDownCD;
+    if(s==Spin::Up  ) ret=itsSpinUpCD  ;
+    if(s==Spin::Down) ret=itsSpinDownCD;
     return ret;
 }
 
-const DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& S) const
+const DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s) const
 {
-    assert(S.itsState!=Spin::None);
+    assert(s!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
     const DM_CD* ret=0;
-    if(S.itsState==Spin::Up  ) ret=itsSpinUpCD  ;
-    if(S.itsState==Spin::Down) ret=itsSpinDownCD;
+    if(s==Spin::Up  ) ret=itsSpinUpCD  ;
+    if(s==Spin::Down) ret=itsSpinDownCD;
     return ret;
 }
 

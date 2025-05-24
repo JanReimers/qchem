@@ -34,7 +34,7 @@ double SlaterExchange::operator()(const Vec3& r) const
 
 double SlaterExchange::GetVxc(double ro) const
 {
-    if (itsSpin.itsState==Spin::None) ro*=0.5;
+    if (itsSpin==Spin::None) ro*=0.5;
     double ret=0;
     if (ro > 0.0)
     {
@@ -46,7 +46,7 @@ double SlaterExchange::GetVxc(double ro) const
 SlaterExchange::Vec3 SlaterExchange::Gradient(const Vec3& r) const
 {
     double ro = (*itsChargeDensity)(r);
-    if (itsSpin.itsState==Spin::None) ro*=0.5;
+    if (itsSpin==Spin::None) ro*=0.5;
     Vec3 ret(0,0,0);
     if (ro > 0.0)
     {
@@ -66,7 +66,6 @@ std::ostream& SlaterExchange::Write(std::ostream& os) const
     {
         os << itsAlpha << " ";
     }
-    os << itsSpin;
     return os;
 }
 
@@ -81,7 +80,6 @@ std::istream& SlaterExchange::Read (std::istream& is)
         is >> itsAlpha;
         assert(is.get() == ' ');
     }
-    is >> itsSpin;
     return is;
 }
 

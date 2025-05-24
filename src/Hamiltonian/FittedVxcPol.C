@@ -51,7 +51,7 @@ Static_HT::SMat FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_
     assert(itsUpVxc);
     assert(itsDownVxc);
 
-    if  (s.itsState==Spin::None)
+    if  (s==Spin::None)
     {
         std::cerr << "PolarizedFittedVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
@@ -62,7 +62,7 @@ Static_HT::SMat FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_
     const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
     const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
 
-    SMat Kab= s.itsState==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
+    SMat Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
     return Kab;
 }
 

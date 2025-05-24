@@ -5,27 +5,27 @@
 #include "oml/imp/binio.h"
 #include <cassert>
 
-std::ostream& Spin::Write(std::ostream& os) const
-{
-    if (StreamableObject::Binary())
-    {
-        int temp=static_cast<int>(itsState);
-        BinaryWrite(temp,os);
-    }
-    else
-        os << itsState << " ";
+// std::ostream& Spin::Write(std::ostream& os) const
+// {
+//     if (StreamableObject::Binary())
+//     {
+//         int temp=static_cast<int>(itsState);
+//         BinaryWrite(temp,os);
+//     }
+//     else
+//         os << itsState << " ";
 
-    return os;
+//     return os;
 
-}
-std::istream& Spin::Read(std::istream& is)
-{
-    int temp;
-    if (StreamableObject::Binary())
-        BinaryRead(temp,is);
-    else
-        is >> temp;
-    assert(is);
-    itsState=static_cast<State>(temp);
-    return is;
-}
+// }
+// std::istream& Spin::Read(std::istream& is)
+// {
+//     int temp;
+//     if (StreamableObject::Binary())
+//         BinaryRead(temp,is);
+//     else
+//         is >> temp;
+//     assert(is);
+//     itsState=static_cast<State>(temp);
+//     return is;
+// }

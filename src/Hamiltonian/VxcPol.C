@@ -38,7 +38,7 @@ VxcPol::~VxcPol()
 //  This last part is carried out by the base class FitImplementation.
 Static_HT::SMat VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
-    if  (s.itsState==Spin::None)
+    if  (s==Spin::None)
     {
         std::cerr << "PolarizedHartreeFockVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);

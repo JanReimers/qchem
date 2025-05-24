@@ -3,9 +3,6 @@
 #define _WaveFunction_H_
 
 #include <types.H>
-#include <Spin.H>
-#include "Imp/Misc/pmstream.h"
-
 
 class WaveFunction 
 {
