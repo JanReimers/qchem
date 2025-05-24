@@ -9,24 +9,21 @@
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
 #include <Irrep_BS.H>
-#include "Imp/Containers/ptr_vector_io.h"
+#include "Imp/Containers/stl_io.h"
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>
-
-typedef optr_vector1<Static_HT*>::iterator        ITER;
-typedef optr_vector1<Static_HT*>::const_iterator CITER;
 
 HamiltonianImp::HamiltonianImp()
 {};
 
 void HamiltonianImp::Add(Static_HT* p)
 {
-    itsSHTs.push_back(p);
+    itsSHTs.push_back(std::unique_ptr<Static_HT>(p));
 }
 void HamiltonianImp::Add(Dynamic_HT* p)
 {
-    itsDHTs.push_back(p);
+    itsDHTs.push_back(std::unique_ptr<Dynamic_HT>(p));
 }
 
 void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
@@ -41,10 +38,10 @@ Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const 
     int n=bs->GetNumFunctions();
     SMat H(n,n);
     Fill(H,0.0);
-    for (auto t:itsSHTs) H+=t->GetMatrix(bs,S);
+    for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)
-        for (auto t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
+        for (auto& t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
     return H;
 }
 
@@ -53,8 +50,8 @@ EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 {
     assert(cd);
     EnergyBreakdown e;
-    for (auto t:itsSHTs)  t->GetEnergy(e,cd);
-    for (auto t:itsDHTs)  t->GetEnergy(e,cd);
+    for (auto& t:itsSHTs)  t->GetEnergy(e,cd);
+    for (auto& t:itsDHTs)  t->GetEnergy(e,cd);
     return e;
 }
 

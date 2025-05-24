@@ -5,7 +5,7 @@
 
 
 #include <Hamiltonian.H>
-#include "Imp/Containers/ptr_vector.h"
+#include <vector>
 #include <memory>
 
 class HamiltonianImp
@@ -16,16 +16,18 @@ public:
     virtual void Add(Static_HT* );
     virtual void Add(Dynamic_HT*);
 
-    virtual SMat        GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
+    virtual SMat            GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
     virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
-    
-    virtual std::ostream&     Write(std::ostream&) const;
+    virtual std::ostream&   Write(std::ostream&) const;
  
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;
     void InsertStandardTerms(const cl_t & cl);
-    optr_vector1< Static_HT*> itsSHTs;
-    optr_vector1<Dynamic_HT*> itsDHTs;
+    typedef std::vector<std::unique_ptr< Static_HT>> shtv_t;
+    typedef std::vector<std::unique_ptr<Dynamic_HT>> dhtv_t;
+
+    shtv_t itsSHTs;
+    dhtv_t itsDHTs;
 };
 
 #endif //_HamiltonianImp_H_
