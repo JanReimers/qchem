@@ -135,7 +135,7 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
                 assert(cl);
                 RNLM R; //Create and empty aux function.
                 //  Loop over nuclear centres and add the RNML contribution from each nucleus.
-                for (auto atom:*cl) 
+                for (auto& atom:*cl) 
                     R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ) );
 
                 auto NLMs=GaussianCD::GetNMLs(ab.Ltotal);

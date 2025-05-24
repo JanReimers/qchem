@@ -70,7 +70,6 @@ public:
 };
 
 #include <VectorFunction.H>
-#include "Imp/Containers/ptr_vector.h"
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions

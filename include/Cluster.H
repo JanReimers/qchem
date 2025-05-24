@@ -2,19 +2,21 @@
 #ifndef _Cluster_H_
 #define _Cluster_H_
 
-#include "types.H"
+#include <types.H>
 #include <UniqueID.H> 
 #include "Imp/Misc/pmstream.h"
 #include <vector>
-#include <iosfwd>
+#include <memory>
 
 class Cluster
     : public virtual UniqueID
     , public virtual PMStreamableObject
 {
 public:
-    typedef std::vector<Atom*>::      iterator       iterator;
-    typedef std::vector<Atom*>::const_iterator const_iterator;
+    typedef std::vector<std::unique_ptr<Atom>> av_t;
+
+    typedef av_t::      iterator       iterator;
+    typedef av_t::const_iterator const_iterator;
 
     virtual ~Cluster() {};
     virtual bool operator==(const Cluster&) const

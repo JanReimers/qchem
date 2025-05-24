@@ -16,7 +16,7 @@
 size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
 {
     size_t ret=0;
-    for (auto a:*this)
+    for (auto& a:*this)
     {
         if (norm(r-a->itsR)<=tol)
             break;
@@ -38,7 +38,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
 
     int natom=cl.GetNumAtoms();
     size_t ia=1;
-    for (auto a:cl) 
+    for (auto& a:cl) 
     {
         Mesh* mesh_a= a->CreateMesh(mp);
         for (auto rw: *mesh_a)
@@ -47,11 +47,11 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
             // Load up up matrix of cutoff profiles.
             Matrix<double> s(natom,natom);
             size_t ib=1;
-            for (auto b:cl)
+            for (auto& b:cl)
             {
                 double Rb=norm(r-b->itsR);
                 size_t ic=0;
-                for (auto c:cl)
+                for (auto& c:cl)
                 {
                     ic++;
                     if (ib==ic) continue;

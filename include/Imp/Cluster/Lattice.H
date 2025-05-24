@@ -79,10 +79,10 @@ private:
     std::vector<RVec3>  GetSuperCells(double MaxDistance) const;
     RVec3        GetBasisVector(size_t BasisNumber  ) const;
 
-    UnitCell      itsUnitCell;  //Unit cell dimensions, no atoms.
-    Vector3D<int> itsLimits;    //Number of unit cell in each direction.
-    Cluster*      itsAtoms;     //List of atoms in the unit cell.
-    double        itsTolerence; //Positions closer than this are considered the same.
+    UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
+    Vector3D<int>  itsLimits;    //Number of unit cell in each direction.
+    Cluster*       itsAtoms;     //List of atoms in the unit cell.
+    double         itsTolerence; //Positions closer than this are considered the same.
 };
 
 #endif // _Lattice_H_

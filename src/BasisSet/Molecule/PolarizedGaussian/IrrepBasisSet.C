@@ -57,7 +57,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     //
     std::vector<RadialFunction*> radials;
     std::vector<std::vector<int> >    Ls;
-    for (auto atom:*cl) //Loop over atoms.
+    for (auto& atom:*cl) //Loop over atoms.
     {
         bsr->FindAtom(*atom);
         RadialFunction* rf=0;
@@ -123,7 +123,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
    // , IE_Common(db)
 {
     int nbasis=1;
-    for (auto atom:*cl)
+    for (auto& atom:*cl)
     {
         for (size_t L=0;L<=LMax;L++)
         {

@@ -4,9 +4,8 @@
 
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
-//#include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/Cluster/MoleculeMesh.H"
-#include "Imp/Containers/ptr_vector_io.h"
+#include "Imp/Containers/stl_io.h"
 #include "oml/imp/binio.h"
 #include <iostream>
 #include <iomanip>
@@ -19,7 +18,7 @@ Molecule::Molecule()
 
 void Molecule::Insert(Atom* a)
 {
-    itsAtoms.push_back(a);
+    itsAtoms.push_back(std::unique_ptr<Atom>(a));
     itsNumElectrons+=a->GetNumElectrons();
 }
 
@@ -31,7 +30,7 @@ size_t Molecule::GetNumAtoms() const
 int Molecule::GetNuclearCharge() const
 {
     int chg=0;
-    for(auto b:*this) chg+=b->itsZ;
+    for(auto& b:*this) chg+=b->itsZ;
     return chg;
 }
 
@@ -49,13 +48,6 @@ Mesh*  Molecule::CreateMesh(const MeshParams& mp) const
 {
     return new MoleculeMesh(*this,mp);
 }
-
-//ChargeDensity* Molecule::GetChargeDensity() const
-//{
-//    CompositeCD* ret=new CompositeCD;
-//    for(auto b:*this) ret->Insert(b->GetChargeDensity());
-//    return ret;
-//}
 
 std::ostream& Molecule::Write(std::ostream& os) const
 {
@@ -79,26 +71,12 @@ std::ostream& Molecule::Write(std::ostream& os) const
         << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
         os << "Atom #  Element  Position vector     Mesh file    Charge density file" << std::endl;
         int i=1;
-        for (auto b:*this) os << std::setw(5) << i++ << "   " << *b;
+        for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b;
         os << std::endl;
     }
 
     return os;
 }
 
-std::istream& Molecule::Read(std::istream& is)
-{
-    UniqueIDImp::Read(is);
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(itsNumElectrons,is);
-    }
-    else
-    {
-        is >> itsNumElectrons >> std::ws;
-    }
-    is >> itsAtoms;
-    return is;
-}
 
 

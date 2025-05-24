@@ -18,7 +18,6 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Containers/ERI4.H"
-#include "Imp/Containers/ptr_vector.h"
 
 #include <MeshParams.H>
 #include <Cluster.H>

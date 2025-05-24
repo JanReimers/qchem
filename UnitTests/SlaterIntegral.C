@@ -15,7 +15,6 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Containers/ERI4.H"
-#include "Imp/Containers/ptr_vector.h"
 
 #include <MeshParams.H>
 #include <Cluster.H>
@@ -231,30 +230,6 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
 //     }
 // }
 
-struct Vf : public VectorFunction<double>
-{
-    typedef VectorFunction<double> Base;
-     virtual size_t  GetVectorSize() const
-     {
-         return bfs.size();
-     }
-    virtual Vec operator()(const RVec3& r) const
-    {
-        Vec ret(bfs.size());
-        int i=1;
-        for (auto bf:bfs) ret(i++)=(*bf)(r);
-        return ret;
-    }
-    virtual Vec3Vec  Gradient  (const RVec3&) const
-    {
-        return Vec3Vec();
-    }
-    typedef TBasisFunction<double> bf_t;
-    optr_vector1<bf_t*> bfs;
-};
-//            vfab.bfs.push_back(new Slater::BasisFunction(i->es(ia)+i->es(ib),i->Ns(ia)+i->Ns(ib),i->Ls(ia)+i->Ls(ib),i->ns(ia)*i->ns(ib)));
-//                vfcd.bfs.push_back(new Slater::BasisFunction(i->es(ic)+i->es(id),i->Ns(ic)+i->Ns(id),i->Ls(ic)+i->Ls(id),i->ns(ic)*i->ns(id)));
-//                Matrix<double> R=mintegrator->Repulsion(vfab,vfcd);
 
 
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)

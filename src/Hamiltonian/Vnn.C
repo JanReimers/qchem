@@ -32,8 +32,8 @@ Static_HT::SMat Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
 void Vnn::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     double vnn=0.0;
-    for(auto atom1:*theCluster)
-        for(auto atom2:*theCluster)
+    for(const auto& atom1:*theCluster)
+        for(const auto& atom2:*theCluster)
         {
             RVec3 r1=atom1->itsR, r2=atom2->itsR;
             if (r1!=r2) vnn += 0.5 * atom1->itsZ * atom2->itsZ / norm(r1-r2);

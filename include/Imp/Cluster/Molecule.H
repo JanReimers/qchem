@@ -3,9 +3,9 @@
 #define _Molecule_H_
 
 #include "Cluster.H"
-#include "Imp/Containers/ptr_vector.h"
 #include "Imp/Misc/UniqueID/UniqueIDImp.H"
 #include <iostream>
+
 
 class Molecule 
     : public virtual Cluster
@@ -27,12 +27,10 @@ public:
     virtual       iterator end  ()       {return itsAtoms.end  ();} 
 
     virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
 
 private:
-
     double       itsNumElectrons;
-    optr_vector1<Atom*> itsAtoms;
+    av_t         itsAtoms;
 };
 
 #endif

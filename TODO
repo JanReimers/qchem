@@ -23,6 +23,16 @@ Priority 1:
                 Once ERI4 is stored, we can throw out cache 4?
     -ptr_vector
         -Stop using.
+            Done: BasisSet
+            Done: Irrep_BS
+            Deon: Orbital
+            Polarized Gaussian
+                Irrep_BS::blocks
+                ContractedGaussianH3 H3s
+                GaussianCD
+                Composite_CD
+            Done: Molecule
+            Hamiltonian
         -Try std::vector<std::shared_ptr<T>>
         -What about iterators?
         -Retest with valgrind.

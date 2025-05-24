@@ -106,7 +106,6 @@ public:
 };
 
 #include <VectorFunction.H>
-#include "Imp/Containers/ptr_vector.h"
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or
@@ -117,12 +116,10 @@ template <class T> class TOrbitals
     , public virtual VectorFunction<T>
 {
 public:
-    typedef dynamic_cast_iterator<Orbital*,TOrbital<T>* > const_iterator;
     virtual size_t GetVectorSize() const
     {
         return GetNumOrbitals();
     }
-    const_iterator beginT() const {return const_iterator(begin());};
 
     static  TOrbitals* Factory(std::istream&)        ;
 };

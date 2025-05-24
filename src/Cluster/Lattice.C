@@ -209,8 +209,8 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
 
     std::vector<RVec3> super_cells=GetSuperCells(maxd);
 
-    for (auto a1:*itsAtoms)
-        for (auto a2:*itsAtoms)
+    for (auto& a1:*itsAtoms)
+        for (auto& a2:*itsAtoms)
             for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
             {
                 double d=itsUnitCell.GetDistance(*c + a2->itsR - a1->itsR);
@@ -230,7 +230,7 @@ std::vector<RVec3> Lattice::GetBonds(size_t BasisNumber, double Distance) const
     RVec3 rb=GetBasisVector(BasisNumber);
     std::vector<RVec3> super_cells=GetSuperCells(Distance);
 
-    for (auto a:*itsAtoms)
+    for (auto& a:*itsAtoms)
         for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
             RVec3 bond = a->itsR + *c - rb;
@@ -249,7 +249,7 @@ std::vector<RVec3> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance
     RVec3 rb=GetBasisVector(BasisNumber);
     std::vector<RVec3> super_cells=GetSuperCells(Distance);
 
-    for (auto a:*itsAtoms)
+    for (auto& a:*itsAtoms)
         for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
             RVec3 bond = a->itsR + *c - rb;
@@ -268,7 +268,7 @@ size_t  Lattice::Find(const RVec3& r) const //Search within the primary unit cel
 {
     size_t ret=GetNumBasisSites();
     size_t i=0;
-    for (auto a:*itsAtoms)
+    for (auto& a:*itsAtoms)
     {
         i++;
         if (itsUnitCell.GetDistance(r - a->itsR) < itsTolerence)
@@ -308,9 +308,15 @@ RVec3 Lattice::GetBasisVector(size_t BasisNumber) const
     assert(BasisNumber<GetNumBasisSites());
     RVec3 ret;
     {
-        auto b=itsAtoms->begin();
-        for (size_t ib=0; ib<BasisNumber; ib++,b++);
-        ret=(*b)->itsR;
+        for (auto& b:*this)
+        {
+            if (BasisNumber==0)
+            {
+                ret=b->itsR;
+                break;
+            }
+            BasisNumber--;
+        }
     }
     return ret;
 }
