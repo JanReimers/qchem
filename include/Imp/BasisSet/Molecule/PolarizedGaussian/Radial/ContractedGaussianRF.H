@@ -6,8 +6,9 @@
 
 #include "Common.H"
 #include "../Polarization.H"
-#include "Imp/Containers/ptr_vector.h"
 #include "oml/vector.h"
+#include <vector>
+#include <memory>
 
 namespace PolarizedGaussian
 {
@@ -42,7 +43,6 @@ public:
     virtual Hermite3*       GetH3 (const RadialFunction&, const RadialFunction&) const;
 
     virtual std::ostream&        Write(std::ostream&    ) const;
-    virtual std::istream&        Read (std::istream&    )      ;
     virtual RadialFunction* Clone(            ) const;
     virtual RadialFunction* Clone(const RVec3&) const;
 
@@ -56,9 +56,11 @@ private:
 
     void Check() const;
 
-    Vector<double>               cs;
-    Vector<double>               unormalized_cs;
-    optr_vector1<RadialFunction*> gs;
+    typedef std::vector<std::unique_ptr<RadialFunction>> rfv_t;
+
+    Vector<double> cs;
+    Vector<double> unormalized_cs;
+    rfv_t          gs;
 };
 
 } //namespace PolarizedGaussian
