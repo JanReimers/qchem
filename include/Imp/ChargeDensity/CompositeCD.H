@@ -5,7 +5,8 @@
 
 
 #include <ChargeDensity.H>
-#include "Imp/Containers/ptr_vector.h"
+#include <vector>
+#include <memory>
 
 //--------------------------------------------------------------------------
 //
@@ -39,7 +40,8 @@ public:
 private:
     Composite_CD(const Composite_CD&);
 
-    optr_vector1<DM_CD*> itsCDs;
+    typedef std::vector<std::unique_ptr<DM_CD>> cdv_t;
+    cdv_t itsCDs;
 };
 
 #endif //_CompositeCD_H_
