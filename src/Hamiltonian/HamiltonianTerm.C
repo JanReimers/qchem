@@ -28,21 +28,9 @@ const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) c
 const Dynamic_HT::SMat& Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(bs);
-    
     Irrep_QNs qns(s,&bs->GetSymmetry());
-    auto i=itsCache.find(qns);
-    auto id=itsDirtyMap.find(qns);
-    if (id==itsDirtyMap.end())
-    {
-        itsDirtyMap[qns]=true;
-        id=itsDirtyMap.find(qns);
-    }
-    if (id->second || i==itsCache.end())
-    {
-        const SMat& H=itsCache[qns]=CalcMatrix(bs,s,cd); //This could reset itsDirtyMap[*]=false.
-        itsDirtyMap[qns]=false; //Order it important for this line
-        return H;
-    }
+    if (auto i=itsCache.find(qns);i==itsCache.end())
+        return itsCache[qns]=CalcMatrix(bs,s,cd); //This could cler the cache if cd is new.
     else
         return i->second; //Cache version 
 }
@@ -55,16 +43,12 @@ bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const
     else
     {
         itsCD=cd;
-        setDirty();
+        itsCache.clear();
         return true;
     }
 
 }
 
-void Dynamic_HT_Imp::setDirty() const
-{
-    for (auto& d:itsDirtyMap) d.second=true;
-}
 const Dynamic_HT::SMat& Dynamic_HT_Imp_NoCache::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     return itsMat=CalcMatrix(bs,s,cd);

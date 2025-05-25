@@ -39,14 +39,11 @@ public:
     virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
-    // Unconditional calculation, does no use cache.
+    // Unconditional calculation, does not use cache.
     virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     bool newCD(const DM_CD*) const;
-    void setDirty() const;
-    typedef std::map<Irrep_QNs,bool> bm_t;
 
     mutable const DM_CD* itsCD;      //Density matrix charge density.
-    mutable       bm_t   itsDirtyMap; //Need to recalculat cached H matrix if dirty.
 };
 
 // Used for polarized potentials (Vxc) which each polarization will handle its own cache.
