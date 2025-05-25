@@ -2,7 +2,6 @@
 #ifndef _DFTFiles_H_
 #define _DFTFiles_H_
 
-//#include "Imp/Containers/ptr_vector.h" 
 #include <string>
 
 class IrrepBasisSet;
@@ -10,7 +9,6 @@ class Cluster;
 class Mesh;
 class Hamiltonian;
 class WaveFunction;
-template <class T> class optr_vector1;
 
 //-------------------------------------------------------------------
 //
@@ -33,16 +31,6 @@ public:
     bool ChargeDensityFile() const;
     bool HamiltonianFile() const;
     bool WaveFunctionFile() const;
-//
-//  Unpickle objects.
-//
-    void             UnpickleOBasisSet    (optr_vector1<IrrepBasisSet*>&) const;
-    IrrepBasisSet*   UnpickleCBasisSet    () const;
-    IrrepBasisSet*   UnpickleXBasisSet    () const;
-    Cluster*         UnpickleCluster      () const;
-    Mesh*            UnpickleMesh         () const;
-    Hamiltonian*     UnpickleHamiltonian  () const;
-    WaveFunction*    UnpickleWaveFunction() const;
 //
 //  Add file name extensions to the stub.
 //

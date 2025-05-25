@@ -21,21 +21,23 @@ Priority 1:
         -Direct and Exchange functions (more difficult)
             Need to use instance of cach4, rather then inherit?
                 Once ERI4 is stored, we can throw out cache4?
-    -ptr_vector
+    Done: -ptr_vector
         -Stop using.
             Done: BasisSet
             Done: Irrep_BS
             Deon: Orbital
-            Polarized Gaussian
+            Done: Polarized Gaussian
                 Done: Irrep_BS::blocks
-                ContractedGaussianH3 H3s
-                GaussianCD
-                Composite_CD
+                Done: ContractedGaussianH3 H3s
+                Done: GaussianCD
+                Done: Composite_CD
             Done: Molecule
             Done: Hamiltonian
         Done: -Try std::vector<std::shared_ptr<T>>
         Done: -What about iterators?
-        -Retest with valgrind.
+        Done: -Retest with valgrind.
+            -Perfectly clean with -pg and -fopenmp off
+            -with pg back on All leaks are from libfortran and gmon
     -Total energy
         -Calculated in  SCFIteratorImp::DisplayEnergies
             and then re-calculated in SCFIteratorImp::Iterate
@@ -56,7 +58,7 @@ Priority 1:
             ==150119==    by 0x4E842E: Orbital*& std::vector<Orbital*, std::allocator<Orbital*> >::emplace_back<Orbital*>(Orbital*&&) (vector.tcc:123)
             ==150119==    by 0x4E7DD8: std::vector<Orbital*, std::allocator<Orbital*> >::push_back(Orbital*&&) (stl_vector.h:1301)
             ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
-        1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
+        Done: 1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
         Done: 2) Make a proper dyn-cast iterator.
     Done: Refactor iteratorproxies for BasisSet ad Orbitals.
         Inherit from a template?
@@ -401,7 +403,7 @@ Priority 2:
         -Does UniqueID really need to enforce Read/Write?
         Tightly couple with PMStreamableObject which is tightly coupled with
         the Read/Write functions throughout.
-    -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
+    Done: -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
     -Try serializing with cereal.  
         -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
         -Need a mile high plan to io before doing anything.

@@ -196,18 +196,7 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
     IBS_Common::Write(os);
-    //TIrrepBasisSetCommon<double>::Write(os);
-    if (!Pretty())
-    {
-        os << itsBlocks;
-       
-    }
-    else
-    {
-//        for (optr_vector1<Block*>::const_iterator bl(itsBlocks.begin()); bl!=itsBlocks.end(); bl++)
-//            os << **bl;
-    }
-    return os;
+    return os << itsBlocks;
 }
 
 void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
@@ -217,7 +206,7 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
     for (auto& bl:itsBlocks)
         for (std::vector<Polarization>::const_iterator p(bl->itsPols.begin()); p!=bl->itsPols.end(); p++)
             IBS_Common::Insert(new BasisFunction(bl->itsRadial,*p,norms(i++)));
-}//Compiler says these calls are ambiguous.  BUG
+}
 
 //----------------------------------------------------------------
 //

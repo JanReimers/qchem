@@ -127,8 +127,6 @@
 		<Unit filename="include/Imp/Containers/ERI4.H" />
 		<Unit filename="include/Imp/Containers/Triangle2D.H" />
 		<Unit filename="include/Imp/Containers/Triangle3D.H" />
-		<Unit filename="include/Imp/Containers/ptr_vector.h" />
-		<Unit filename="include/Imp/Containers/ptr_vector_io.h" />
 		<Unit filename="include/Imp/Containers/stl_io.h" />
 		<Unit filename="include/Imp/DataBase/HeapDB.H" />
 		<Unit filename="include/Imp/Fitting/ConstrainedFF.H" />

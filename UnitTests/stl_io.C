@@ -5,8 +5,6 @@
 #include "oml/vector.h"
 #include "oml/imp/stream.h"
 #include "Imp/Containers/stl_io.h"
-#include "Imp/Containers/ptr_vector.h"
-#include "Imp/Containers/ptr_vector_io.h"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include <vector>
@@ -27,15 +25,11 @@ public:
     {
         Fill(a,3);
         for (int i=0;i<6;i++) s.insert(pow(0.5,i));
-        for (int i=0;i<6;i++) opvi.push_back(new int(i));
-        for (int i=0;i<6;i++) opvd.push_back(new double(sqrt(i)));
     }
 
     std::vector<int> v;
     std::set<double> s;
     Vector<int> a;
-    optr_vector1<int*> opvi;
-    optr_vector1<double*> opvd;
 };
 
 TEST_F(STLTesting,AsciiIO)
@@ -107,43 +101,5 @@ INSTANTIATE_TEST_CASE_P(FileIO,STLTesting,
                         ::testing::Values(StreamableObject::ascii,StreamableObject::binary));
 
                         
-
-                        
-TEST_F(STLTesting,RangeBasedLoops)
-{
-    for (auto p:opvi) {cout << p << " ";}
-    cout << endl;
-//    for (auto i:opvi.indices()) {cout << *opvi[i] << " " << *opvd[i] << endl;}
-    
-    StreamableObject::SetToPretty();
-    optr_vector1<Atom*> pa;
-    pa.push_back(new Atom(1 ,0.0,RVec3(0,0,0)));
-    pa.push_back(new Atom(47,0.0,RVec3(2,0,0)));
-    pa.push_back(new Atom(79,0.0,RVec3(0,6,0)));
-    cout << pa << endl;
-    
-    std::vector<Atom*> v=pa;
-    cout << v << endl;
-    
-    auto i1 =pa.begin();
-    i1++;
-    
-    //optr_vector1<Atom*>::iterator i2(i1);
-    for (auto i2(i1);i2!=pa.end();i2++)
-        cout << *i2;
-    
-    for (dynamic_cast_iterator<Atom*,Molecule*> id(pa);id!=pa.end();id++)
-        cout << typeid(*id).name() << endl;
-    
-    
-//    optr_vector1<Atom*> pa1(pa); Atom needs a Clone function
-//    Cluster* c=new Molecule();
-//    c->Insert(new Atom(1 ,0.0,RVec3(0,0,0)));
-//    c->Insert(new Atom(47,0.0,RVec3(2,0,0)));
-//    c->Insert(new Atom(79,0.0,RVec3(0,6,0)));
-//    for (auto a:*c)
-//        cout << *a;
-//    cout << *c << endl;
-}
 
 
