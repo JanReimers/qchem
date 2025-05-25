@@ -23,7 +23,7 @@ SlaterExchange::SlaterExchange(double theAlpha, const Spin& S)
     : itsAlpha(theAlpha)
     , itsSpin(S)
 {
-    assert(itsSpin.itsState!=Spin::None);
+    assert(itsSpin!=Spin::None);
 };
 
 double SlaterExchange::operator()(const Vec3& r) const

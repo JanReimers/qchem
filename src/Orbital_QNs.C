@@ -77,7 +77,7 @@ Orbital_QNs::~Orbital_QNs()
 size_t Orbital_QNs::SequenceIndex() const
 {
     assert(n-1<n_max);
-    assert(ms.SequenceIndex()<ms_max);
+    assert(::SequenceIndex(ms)<ms_max);
     Irrep_QNs iqns(ms,sym);
     return iqns.SequenceIndex()*n_max + (n-1);
 }

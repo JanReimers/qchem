@@ -33,7 +33,7 @@ Polarized_CDImp::~Polarized_CDImp()
 //
 DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s)
 {
-    assert(S.itsState!=Spin::None);
+    assert(s!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
     DM_CD* ret=0;
