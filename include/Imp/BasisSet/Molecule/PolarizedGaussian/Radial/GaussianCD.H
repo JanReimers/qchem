@@ -4,13 +4,8 @@
 
 
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite2.H"
-#include "types.H"
-#include "Imp/Containers/ptr_vector.h"
 #include "Imp/Misc/UniqueID/UniqueIDImp.H"
-#include "oml/matrix.h"
-#include "oml/vector.h"
-#include "oml/vector3d.h"
-#include <map>
+#include <types.H>
 
 namespace PolarizedGaussian
 {
@@ -49,10 +44,10 @@ private:
 //
     static const std::vector<Polarization>&  GetNMLs(int LMax)
     {
-        return *theNMLs[LMax];
+        return theNMLs[LMax];
     }
     static void MakeNMLs();
-    static optr_vector1<std::vector<Polarization>* > theNMLs; //A list of all NMLs for each LMax.
+    static std::vector<std::vector<Polarization>> theNMLs; //A list of all NMLs for each LMax.
 };
 
 } //namespace PolarizedGaussian

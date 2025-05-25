@@ -1,24 +1,13 @@
 // File: GaussianCD.C  Charge distribution for two  gaussians.
 
 
-#include "oml/smatrix.h"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite1.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite3.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/RNLM.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianCD.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Block.H"
-#include <Cluster.H>
-#include "Imp/Misc/DFTDefines.H"
-#include "oml/matrix.h"
-#include "oml/io3d.h"
-#include <cmath>
-#include <cassert>
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianRF.H"
 
 namespace PolarizedGaussian
 {
 
-optr_vector1<std::vector<Polarization>* > GaussianCD::theNMLs;
+std::vector<std::vector<Polarization>> GaussianCD::theNMLs;
 
 std::vector<Polarization> MakeAllPolarizations(int Lmax)
 {
@@ -32,7 +21,7 @@ std::vector<Polarization> MakeAllPolarizations(int Lmax)
 
 void GaussianCD::MakeNMLs()
 {
-    for (int L=0; L<=10; L++) theNMLs.push_back(new std::vector<Polarization>(MakeAllPolarizations(L)));
+    for (int L=0; L<=10; L++) theNMLs.push_back(MakeAllPolarizations(L));
 }
 
 //--------------------------------------------------------------------------------------
