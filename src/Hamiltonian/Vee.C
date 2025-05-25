@@ -27,7 +27,7 @@ Vee::Vee()
 
 Static_HT::SMat Vee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
-    assert(cd);
+    newCD(cd); //Set H matrix cache to dirty if cd really is new.
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
     return cd->GetRepulsion(hf_bs);
@@ -35,7 +35,7 @@ Static_HT::SMat Vee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) con
 
 void Vee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
-    assert(cd);
+    newCD(cd); //Set H matrix cache to dirty if cd really is new.
     te.Eee=0.5*cd->DM_Contract(this,cd);
     te.EeeFit    = 0.0;
     te.EeeFitFit = 0.0;

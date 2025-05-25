@@ -15,7 +15,6 @@ protected:
     typedef std::map<Irrep_QNs,Static_HT::SMat> CacheMap;
     typedef std::map<Irrep_QNs,const Static_HT::ibs_t*> BSMap;
     mutable CacheMap   itsCache;       //Cache the H matricies for total energy calculations.
-    mutable BSMap      itsBSs;
 };
 
 
@@ -43,11 +42,14 @@ protected:
     // Unconditional calculation, does no use cache.
     virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     bool newCD(const DM_CD*) const;
+    void setDirty() const;
+    typedef std::map<Irrep_QNs,bool> bm_t;
 
-    mutable const DM_CD*    itsCD;     //Density matrix charge density.
-   
+    mutable const DM_CD* itsCD;      //Density matrix charge density.
+    mutable       bm_t   itsDirtyMap; //Need to recalculat cached H matrix if dirty.
 };
 
+// Used for polarized potentials (Vxc) which each polarization will handle its own cache.
 class Dynamic_HT_Imp_NoCache
 : public virtual Dynamic_HT
 {

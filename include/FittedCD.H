@@ -13,7 +13,6 @@ class FittedCD
 {
 public:
     using FittedFunction::DoFit;
-    // virtual double DoFit(const Exact_CD&)=0;
     typedef SMatrix<double> SMat;
     
     virtual double GetSelfRepulsion    (                       ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>

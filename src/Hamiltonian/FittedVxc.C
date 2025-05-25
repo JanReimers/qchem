@@ -45,7 +45,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-Static_HT::SMat FittedVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+Static_HT::SMat FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if (newCD(cd))
     {
@@ -59,19 +59,13 @@ Static_HT::SMat FittedVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* c
 
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
-    if (itsCD!=cd)
+    if (newCD(cd))
     {
         itsLDAVxc->UseChargeDensity(cd);
         FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
         cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
     }
     te.Exc += 3.0/4.0 *cd->DM_Contract(this,cd);
-
-//    double HFExc=-0.25*itsCD->GetExchangeEnergy();
-//    std::cout.precision(4);
-//    std::cout.width(7);
-//    std::cout.setf(std::ios::fixed,std::ios::floatfield);
-//    std::cout << "  Exc DFT,HF=" << te.Exc << "," << HFExc << std::endl;
 }
 
 std::ostream& FittedVxc::Write(std::ostream& os) const

@@ -1,5 +1,7 @@
 
 Priority 1:
+    -Get rid of SCFIterationParams::kT
+    -It would be nice if Atom derived from Cluster.
     -convert all enums into enum classes
         General clean as well.
     -Re-imagine Ylm basis sets.
@@ -9,6 +11,7 @@ Priority 1:
         For example for Boron
             Y_{1,-1} for occupied
             0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
+        A simpler starting point is for all non-valance l's to be Yl
 
     -openmp
         -Make some simple unit tests
@@ -21,104 +24,26 @@ Priority 1:
         -Direct and Exchange functions (more difficult)
             Need to use instance of cach4, rather then inherit?
                 Once ERI4 is stored, we can throw out cache4?
-    Done: -ptr_vector
-        -Stop using.
-            Done: BasisSet
-            Done: Irrep_BS
-            Deon: Orbital
-            Done: Polarized Gaussian
-                Done: Irrep_BS::blocks
-                Done: ContractedGaussianH3 H3s
-                Done: GaussianCD
-                Done: Composite_CD
-            Done: Molecule
-            Done: Hamiltonian
-        Done: -Try std::vector<std::shared_ptr<T>>
-        Done: -What about iterators?
-        Done: -Retest with valgrind.
-            -Perfectly clean with -pg and -fopenmp off
-            -with pg back on All leaks are from libfortran and gmon
-    -Total energy
-        -Calculated in  SCFIteratorImp::DisplayEnergies
-            and then re-calculated in SCFIteratorImp::Iterate
-            DisplayEnergies should just return E_total
-        -Total energy should not redo ERI4 contractions.
+    
+    -Vxc->LDAxc->ExchangeFunctional  
+        Can we get rid of LDAxc?
+    
     -Orbital_QNs
         Use std::shared_ptr for sym.
-    -Valgrind reporting problems in TOrbitalsImp
-        Invalid read of size 8
-            ==150119==    at 0x4E7B5F: dynamic_cast_iterator<Orbital*, TOrbital<double>*>::operator++(int) (ptr_vector.h:97)
-            ==150119==    by 0x4E7780: TOrbitalsImp<double>::CalculateDensityMatrix() const (TOrbitals.C:112)
-        Address 0x6509e00 is 0 bytes after a block of size 32 alloc'd
-            ==150119==    at 0x4846FA3: operator new(unsigned long) (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
-            ==150119==    by 0x4E8DDE: std::__new_allocator<Orbital*>::allocate(unsigned long, void const*) (new_allocator.h:151)
-            ==150119==    by 0x4E8B81: allocate (alloc_traits.h:478)
-            ==150119==    by 0x4E8B81: std::_Vector_base<Orbital*, std::allocator<Orbital*> >::_M_allocate(unsigned long) (stl_vector.h:380)
-            ==150119==    by 0x4E87D9: void std::vector<Orbital*, std::allocator<Orbital*> >::_M_realloc_append<Orbital*>(Orbital*&&) (vector.tcc:596)
-            ==150119==    by 0x4E842E: Orbital*& std::vector<Orbital*, std::allocator<Orbital*> >::emplace_back<Orbital*>(Orbital*&&) (vector.tcc:123)
-            ==150119==    by 0x4E7DD8: std::vector<Orbital*, std::allocator<Orbital*> >::push_back(Orbital*&&) (stl_vector.h:1301)
-            ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
-        Done: 1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
-        Done: 2) Make a proper dyn-cast iterator.
-    Done: Refactor iteratorproxies for BasisSet ad Orbitals.
-        Inherit from a template?
-
-    Done: -For kinetic energy split up grad^2 and centrifugal parts.
-        -This is atom specific, does not ally to pol. Gaussians.
-        Done: -Rename primative interals:
-            Inv_r2 <a|1/r^2|b>
-            Inv_r1 <a|1/r|b>
-        centrifugal =l*(l+1)*Inv_r2(a,b)
-        nuclear = -Z*Inv_r1(a,b)
-        grad2=<a|d^2/dr^2|b>
-        Also need a MeshIntegrator::Inv_r2 for the centrifugal term for 
-    -Add BSpline basis sets.
-        https://okruz.github.io/BSplinebasis does everything we need ...
-            except that the spine order is hard coded.
-                std::vector<std::array<T, ARRAY_SIZE>> _coefficients;
-                This is so that the package can do compile time recusron for efficiency
-            May have to hard code k=5,6,7,8,9
-                Instance in one file
-                If we instance K=9, does this automatically create instances for K=8,7,...,0 ?
-                    Inside BSplinebasis maybe yes.
-                    But qchem template would not recurse unless we set up that way.
-                        Specialize K=0 to stop recusrion.
-        Done: IE.C
-            Done: fix loop ranges to exclude splines that do not overlap.
-            Done: Need another BFGrouper for splines, can we make an op< for splines?
-                Could properly sort based on 
-        Done: BF how to take derivative of spline?
-        No: Need to make a static list of H kinetic operators for L=0,1,2,3,4
-            Separate out centrifugal term instead.
-        Done: Ylm BSplines
-        No: Use radial mesh interface for knot generation
-            Implement Qiu's mesh
-            1+1/h where h=2^m for exact float representation,  Now Rmax is not fixed.
-            The radial mesh framework stores a weight for each node.  Spline breakpoins have no weight.
+    -BSpline basis sets.
         Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>
             Make Log from N,Rmin,Rmax or N,Rmin,m  
             Qiu's mesh, with linear for r<1.0 a.u.
             bool SupportScaling(index).  
             Option: Multiple knots at Rmax?
         Rk
-            Done: Cache diagonal GLQ grids.
-            Done: Optimize/inline intpow.  Not much effect.
             Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
             Cache diagonal grid cells.  Lots of them ... how often would they get reused?
                 Try on demand and count cache hits.
             Try using scaling relations
-            Done: -Do some profiling.
-                spline::op(r) is the hot function.
-        Done: Instance a fixed list K values
-            How to make a map instances: https://softwareengineering.stackexchange.com/questions/390927/c-design-pattern-for-template-instantiation-based-on-run-time-information
         Add DFT support.
         
     -BSplines should use (symmetric) banded matricies for space/time efficiency.
-    Fixed: -BSm basis fails for f-electrons (BS is fine)
-        Also struggles for Z=21,37,53 but these are history depenedent
-        Suggest a memory leak
-
-    Done: -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
         Only in DEBUG mode!?!
     -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
@@ -129,8 +54,6 @@ Priority 1:
         open
         Open recent
 
-    Done: -ro relax starts at 0.5
-        Show ro relax in output
     -Plotting:
         Orbitals:
             swap colour and line increments.
@@ -155,8 +78,6 @@ Priority 1:
 
 
     -Energy levels:  Show unocc eigen values for spin down.
-    Done: -ElectronContainer just adds confusion.  Merge into Orbital
-    Done: -Some Orbital functions can be implemented at the Orbital level ... they just call virtual functions.
     -Fix orbital phases to 1s, 2p , 3d are always >0?
     -Get LMax from the periodic table.
         Done: Used the Atom_EC
@@ -164,19 +85,12 @@ Priority 1:
 
     -Clean up naming for IterationParams.
         SCFParams
-    -Get rid of SCFIterationParams::kT
-    -It would be nice if Atom derived from Cluster.
     -BasisSet:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
     -Try making a separate libqc_basis.a to enforce some modularity.
         -Porabaly need to make a libqc_base.a  with some common stuff.
         Try making a C++20 module
-    -Ham reorg
-        -Fix Dynamic_HT caching bug for DFT with >1 irrep.
-        -Vxc->LDAxc->ExchangeFunctional  
-            Can we get rid of LDAxc?
-        Done: -Support no cd guess to init SCF proc.
     -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
         Most code except Norms can move up to the radial level.
         Minor consolidaton.
@@ -217,13 +131,6 @@ Priority 1:
 
         
 
-    Done: -Set up IE_Primatives interface for each basis set radial type.
-        Done: Use an IE_Primatives* at the AtomIE level for all integrals.
-        Done: Then move more basis set code down to the AtomIE level.
-        How to make this work with something like BSpline basis which does not use
-            exponential/exponents?
-            - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
-            - Is this just the old IE interface re-appearing?
     -Break up the BasisSet.H header
         Done: -Break out BasisFunction.H
         Done: -Break out IrrepBS.H
@@ -238,7 +145,6 @@ Priority 1:
             IE.H which just includes all atom IE types.
 
     -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
-    Done: TOrbital iterators?
     -Survey use of dynamic cast
         -Hunt for dynamic casts that can be removed using dynamic_cast iterator
         -SHould only be casting between interfaces
@@ -390,12 +296,10 @@ oml:
     
       
 Priority 2:
-    Done: -Set up a CMake build.  Run from vscode.
     -ID, streaming
         1) Test boost::serialization, does it work for shared pointers???
             Looks like yes, can std::shared_ptr in the headers.
         -We need a non-streamable UniqueID for caching GaussianCD amd RNLM objects.
-        Done: -Separate UniquesID from streaming
         -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
         -What about pretty output?
         -boost::serialization of OML objects.
@@ -403,7 +307,6 @@ Priority 2:
         -Does UniqueID really need to enforce Read/Write?
         Tightly couple with PMStreamableObject which is tightly coupled with
         the Read/Write functions throughout.
-    Done: -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
     -Try serializing with cereal.  
         -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
         -Need a mile high plan to io before doing anything.
@@ -443,10 +346,6 @@ Priority 3:
         Owns BS, H, WaveF, SCFIterator
         Lest important now that Ham, mash, aux basis handling is mostly automated.
     
-    -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
-        -This would require separate derived classes like FitSGIrrepBasis derived from both SGIrrepBasis
-        and FitBasisSet.
-        -It can have a separate DB since no 4C integrals are required.
 
     -Do we need to store both J and K,  PolG just stores one ERI4.
         With separate Vee and Vxc it seems we need to store J and K separatly.
@@ -457,7 +356,6 @@ Priority 3:
     -template <class T> T Max(const std::vector<T>& v) in one place
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     -If N_nucleus=1 (atom) leave out Vnn term.
-    -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
     -Support SMatrix for Lapack solvers.
         Lapack uses the extra space in the full matrix as working space.
         So we end up converting to full anyway.  THis is just a convenience for the user.
@@ -490,6 +388,114 @@ Priority 3:
 
 
 
+    Done: -Separate UniquesID from streaming
+    Done: -Set up a CMake build.  Run from vscode.
+    Done: -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
+    Done: -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
+        -This would require separate derived classes like FitSGIrrepBasis derived from both SGIrrepBasis
+        and FitBasisSet.
+        -It can have a separate DB since no 4C integrals are required.
+    Done: -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
+    -Total energy
+        Fixed -Calculated in  SCFIteratorImp::DisplayEnergies
+            and then re-calculated in SCFIteratorImp::Iterate
+            DisplayEnergies should just return E_total
+        Fixed: -Total energy should not redo ERI4 contractions.
+            Need to fix the bug below: Dynamic_HT caching bug for DFT with >1 irrep
+    -Ham reorg
+        Fixed: -Fix Dynamic_HT caching bug for DFT with >1 irrep.
+        Done: -Support no cd guess to init SCF proc.
+    Fixed: -BSm basis fails for f-electrons (BS is fine)
+        Also struggles for Z=21,37,53 but these are history depenedent
+        Suggest a memory leak
+
+    Done: -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
+    Done: -ro relax starts at 0.5
+        Show ro relax in output
+    Done: -ElectronContainer just adds confusion.  Merge into Orbital
+    Done: -Some Orbital functions can be implemented at the Orbital level ... they just call virtual functions.
+    Done: -Set up IE_Primatives interface for each basis set radial type.
+        Done: Use an IE_Primatives* at the AtomIE level for all integrals.
+        Done: Then move more basis set code down to the AtomIE level.
+        How to make this work with something like BSpline basis which does not use
+            exponential/exponents?
+            - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
+            - Is this just the old IE interface re-appearing?
+    Done: TOrbital iterators?
+    Done: -Add BSpline basis sets.
+        https://okruz.github.io/BSplinebasis does everything we need ...
+            except that the spine order is hard coded.
+                std::vector<std::array<T, ARRAY_SIZE>> _coefficients;
+                This is so that the package can do compile time recusron for efficiency
+            May have to hard code k=5,6,7,8,9
+                Instance in one file
+                If we instance K=9, does this automatically create instances for K=8,7,...,0 ?
+                    Inside BSplinebasis maybe yes.
+                    But qchem template would not recurse unless we set up that way.
+                        Specialize K=0 to stop recusrion.
+        Done: IE.C
+            Done: fix loop ranges to exclude splines that do not overlap.
+            Done: Need another BFGrouper for splines, can we make an op< for splines?
+                Could properly sort based on 
+        Done: BF how to take derivative of spline?
+        No: Need to make a static list of H kinetic operators for L=0,1,2,3,4
+            Separate out centrifugal term instead.
+        Done: Ylm BSplines
+        No: Use radial mesh interface for knot generation
+            Implement Qiu's mesh
+            1+1/h where h=2^m for exact float representation,  Now Rmax is not fixed.
+            The radial mesh framework stores a weight for each node.  Spline breakpoins have no weight.
+        Rk
+            Done: Cache diagonal GLQ grids.
+            Done: Optimize/inline intpow.  Not much effect.
+            Done: -Do some profiling.
+                spline::op(r) is the hot function.
+        Done: Instance a fixed list K values
+            How to make a map instances: https://softwareengineering.stackexchange.com/questions/390927/c-design-pattern-for-template-instantiation-based-on-run-time-information
+    Done: -ptr_vector
+        -Stop using.
+            Done: BasisSet
+            Done: Irrep_BS
+            Deon: Orbital
+            Done: Polarized Gaussian
+                Done: Irrep_BS::blocks
+                Done: ContractedGaussianH3 H3s
+                Done: GaussianCD
+                Done: Composite_CD
+            Done: Molecule
+            Done: Hamiltonian
+        Done: -Try std::vector<std::shared_ptr<T>>
+        Done: -What about iterators?
+        Done: -Retest with valgrind.
+            -Perfectly clean with -pg and -fopenmp off
+            -with pg back on All leaks are from libfortran and gmon
+    -Valgrind reporting problems in TOrbitalsImp
+        Invalid read of size 8
+            ==150119==    at 0x4E7B5F: dynamic_cast_iterator<Orbital*, TOrbital<double>*>::operator++(int) (ptr_vector.h:97)
+            ==150119==    by 0x4E7780: TOrbitalsImp<double>::CalculateDensityMatrix() const (TOrbitals.C:112)
+        Address 0x6509e00 is 0 bytes after a block of size 32 alloc'd
+            ==150119==    at 0x4846FA3: operator new(unsigned long) (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+            ==150119==    by 0x4E8DDE: std::__new_allocator<Orbital*>::allocate(unsigned long, void const*) (new_allocator.h:151)
+            ==150119==    by 0x4E8B81: allocate (alloc_traits.h:478)
+            ==150119==    by 0x4E8B81: std::_Vector_base<Orbital*, std::allocator<Orbital*> >::_M_allocate(unsigned long) (stl_vector.h:380)
+            ==150119==    by 0x4E87D9: void std::vector<Orbital*, std::allocator<Orbital*> >::_M_realloc_append<Orbital*>(Orbital*&&) (vector.tcc:596)
+            ==150119==    by 0x4E842E: Orbital*& std::vector<Orbital*, std::allocator<Orbital*> >::emplace_back<Orbital*>(Orbital*&&) (vector.tcc:123)
+            ==150119==    by 0x4E7DD8: std::vector<Orbital*, std::allocator<Orbital*> >::push_back(Orbital*&&) (stl_vector.h:1301)
+            ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
+        Done: 1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
+        Done: 2) Make a proper dyn-cast iterator.
+    Done: Refactor iteratorproxies for BasisSet ad Orbitals.
+        Inherit from a template?
+
+    Done: -For kinetic energy split up grad^2 and centrifugal parts.
+        -This is atom specific, does not ally to pol. Gaussians.
+        Done: -Rename primative interals:
+            Inv_r2 <a|1/r^2|b>
+            Inv_r1 <a|1/r|b>
+        centrifugal =l*(l+1)*Inv_r2(a,b)
+        nuclear = -Z*Inv_r1(a,b)
+        grad2=<a|d^2/dr^2|b>
+        Also need a MeshIntegrator::Inv_r2 for the centrifugal term for 
 
     Done: -Get rid of AtomQN.
     Done: -Support LAPack::Cholsky.

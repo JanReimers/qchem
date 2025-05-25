@@ -32,10 +32,9 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
 //  Where ro is the fitted charge density.
 //
 
-Static_HT::SMat FittedVee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+Static_HT::SMat FittedVee::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
-    if (newCD(cd))
-       itsFittedChargeDensity->DoFit(*cd);
+    if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const TOrbital_DFT_IBS<double>*>(bs);
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
@@ -43,8 +42,7 @@ Static_HT::SMat FittedVee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* c
 void FittedVee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
-    if (itsCD!=cd)
-       itsFittedChargeDensity->DoFit(*cd);
+    if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     te.EeeFit    = 0.5*cd->DM_Contract(this,cd);
     te.EeeFitFit = itsFittedChargeDensity->GetSelfRepulsion();
     te.Eee = 2*te.EeeFit - te.EeeFitFit;
