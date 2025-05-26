@@ -87,7 +87,7 @@ TEST_P(A_SG_HF_U,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,verbose});
+    Iterate({40,Z*1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
@@ -99,7 +99,7 @@ TEST_P(A_SGm_HF_U,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,verbose});
+    Iterate({40,Z*1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
@@ -111,7 +111,7 @@ TEST_P(A_SL_HF_U,Multiple)
     if (Z>15) N=14;
     if (Z>50) N=18;
     Init(N,0.3,5*Z,GetLMax(Z));
-    Iterate({40,1e-4,1.0,0.0,verbose});
+    Iterate({40,1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));
@@ -123,7 +123,7 @@ TEST_P(A_SLm_HF_U,Multiple)
     if (Z>15) N=15;
     if (Z>50) N=18;
     Init(N,0.3,5*Z,GetLMax(Z));
-    Iterate({40,1e-4,1.0,0.00,verbose});
+    Iterate({40,1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88));
@@ -131,7 +131,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_U,::testing::Values(2,4,10,12,18,20,30
 TEST_P(A_PG_HF_U,Multiple)
 {
     Init();
-    Iterate({40,1e-4,1.0,0.0,verbose});
+    Iterate({40,1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
@@ -153,7 +153,7 @@ TEST_P(A_BS_HF_U,Multiple)
     int Z=GetParam();
     int N=50;
     Init(N,0.1,40,GetLMax(Z));
-    Iterate({40,Z*1e-9,1.0,0.0,true});
+    Iterate({40,Z*1e-9,1.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -190,7 +190,7 @@ TEST_P(A_SG_HF_P,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;    
     Init(N,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,verbose});
+    Iterate({40,Z*1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -216,7 +216,7 @@ TEST_P(A_SL_HF_P,Multiple)
     if (Z>15) N=14;
     if (Z>50) N=18;
     Init(N,0.3,5*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,verbose});
+    Iterate({40,Z*1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -240,7 +240,7 @@ TEST_P(A_BS_HF_P,Multiple)
     int Z=GetParam();
     int N=20;
     Init(N,1.0/Z,30,GetLMax(Z));
-    Iterate({20,Z*1e-9,0.5,0.0,true});
+    Iterate({20,Z*1e-9,0.5,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -266,7 +266,7 @@ TEST_P(A_SLm_HF_P,Multiple)
     if (Z>12) N=14;
     if (Z>50) N=16;
     Init(N,0.125,8*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,verbose});
+    Iterate({40,Z*1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -295,7 +295,7 @@ TEST_P(A_SGm_HF_P,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,6000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,0.0,verbose});
+    Iterate({40,Z*1e-4,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -320,7 +320,7 @@ TEST_P(A_BSm_HF_P,Multiple)
     int Z=GetParam();
     int N=30;
     Init(N,1.0/Z,30.,GetLMax(Z));
-    Iterate({40,Z*1e-9,0.5,0.0,true});
+    Iterate({40,Z*1e-9,0.5,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -344,7 +344,7 @@ public:
 TEST_P(A_PG_HF_P,Multiple)
 {
     Init();
-    Iterate({40,1e-3,1.0,0.0,verbose});
+    Iterate({40,1e-3,1.0,verbose});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,21,37)); //7 fails Z=51 is slow

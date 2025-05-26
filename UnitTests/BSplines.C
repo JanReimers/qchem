@@ -307,7 +307,7 @@ TEST_F(A_BS_1E_U,Hydrogen)
 {
     size_t N=50;
     Init(N,0.09,100,0);
-    Iterate({2,1e-4,1.0,0.0,true});
+    Iterate({2,1e-4,1.0,true});
     EnergyBreakdown e=GetEnergyBreakdown();
     EXPECT_LT(RelativeHFError(),1e-10);
     EXPECT_NEAR(e.Kinetic,0.5,1e-9);

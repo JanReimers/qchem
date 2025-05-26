@@ -70,7 +70,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     Init(N,Z/100.,Z*100.,GetLMax(1));
-    Iterate({40,Z*1e-4,1.0,0.0,false});
+    Iterate({40,Z*1e-4,1.0,false});
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
 }
 
@@ -97,7 +97,7 @@ TEST_P(A_SLmj_DHF,Multiple)
     if (Z>12) N=15;
     if (Z>50) N=19;
     Init(N,Z/200.,Z*200.,GetLMax(1));
-    Iterate({1,Z*1e-4,1.0,0.0,false});
+    Iterate({1,Z*1e-4,1.0,false});
 
     BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
@@ -168,7 +168,7 @@ TEST_P(A_SG_DHF,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
-    Iterate({40,Z*1e-4,1.0,0.0,true});
+    Iterate({40,Z*1e-4,1.0,true});
 
     BasisSet::symv_t qns=GetSymmetries();
     cout << "QN=" << *qns[0] << endl;
@@ -258,7 +258,7 @@ TEST_F(A_SG_HFP_H,Phir)
     int N=22;
     double alpha=0.01024,beta=2.0;
     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
-    Iterate({1,1e-4,1.0,0.0,true});
+    Iterate({1,1e-4,1.0,true});
 
     BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);

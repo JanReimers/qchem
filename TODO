@@ -1,7 +1,8 @@
 
 Priority 1:
-    -Get rid of SCFIterationParams::kT
+    Done: -Get rid of SCFIterationParams::kT
     -It would be nice if Atom derived from Cluster.
+        Hard, we can't fake the iterator interface for typedef std::vector<std::unique_ptr<Atom>> av_t;
     -convert all enums into enum classes
         General clean as well.
     -Re-imagine Ylm basis sets.

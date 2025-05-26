@@ -10,7 +10,6 @@ struct SCFIterationParams
     size_t NMaxIter;         //Max allowed number of iterations
     double MinDeltaRo;       //Minimum delta in charge density for convergence.
     double StartingRelaxRo;  //relaxation for mixing Ro.  Dynamically adjusted during iterations.
-    double kT;               //Thermal smearing of electron occupations near fermi level.
     bool   Verbose;          //Display iteration details.        
 };
 
