@@ -310,14 +310,23 @@ Repulsion integrals are less trivial.
 
  looks like
 \begin_inset Formula 
-\[
-<ab\left|\frac{1}{r_{12}}\right|cd>=\left(4\pi\right)^{2}\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})
-\]
+\begin{equation}
+<ab\left|\frac{1}{r_{12}}\right|cd>=\left(4\pi\right)^{2}\int d^{3}\overrightarrow{r_{1}}\int d^{3}\overrightarrow{r_{2}}\;g_{a}^{*}(\overrightarrow{r_{1}})g_{b}(\overrightarrow{r_{1}})\frac{1}{r_{12}}g_{c}^{*}(\overrightarrow{r_{2}})g_{d}(\overrightarrow{r_{2}})\label{eq:ERI}
+\end{equation}
 
 \end_inset
 
-which cannot be directly factored into angular and radial parts.
- In order to proceed we need to do a multi-pole expansion of this term (See 
+however this too general.
+ The Condon-Slater rules derived from the Slater Determinant form of the wave function dictate the for direct integrals 
+\begin_inset Formula $l_{a}=l_{b},l_{c}=l_{d}$
+\end_inset
+
+ and for exchange integrals 
+\begin_inset Formula $l_{a}=l_{c},l_{b}=l_{d}$
+\end_inset
+
+.
+ The ERI can be factored into angular and radial parts using the multi-pole expansion of this term (See 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "Levine2009"
@@ -327,9 +336,9 @@ literal "false"
 
  )
 \begin_inset Formula 
-\[
-\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2k+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})
-\]
+\begin{equation}
+\frac{1}{r_{12}}=\frac{1}{r_{>}}\sum_{k=0}^{\infty}\frac{4\pi}{2k+1}\left(\frac{r_{<}}{r_{>}}\right)^{k}\sum_{m=-k}^{k}Y_{km}^{*}(\Omega_{1})Y_{km}(\Omega_{2})\label{eq:Multipole}
+\end{equation}
 
 \end_inset
 
@@ -347,6 +356,244 @@ where
 
 \begin_layout Subsection
 Angular Integration
+\end_layout
+
+\begin_layout Standard
+Upon substituting 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Multipole"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ into 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:ERI"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ we get a product of two angular integrals
+\begin_inset Formula 
+\[
+A_{1}=\int d\varOmega Y_{l_{a}m_{a}}^{*}Y_{l_{b}m_{b}}Y_{km}^{*}=\left(-1\right)^{m_{a}+m}\int d\varOmega Y_{l_{a},-m_{a}}Y_{l_{b}m_{b}}Y_{k,-m}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m_{a}+m}\sqrt{\frac{\left(2l_{a}+1\right)\left(2l_{b}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+-m_{a} & m_{b} & -m
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A_{2}=\int d\varOmega Y_{l_{c}m_{c}}^{*}Y_{l_{d}m_{d}}Y_{km}=\left(-1\right)^{m_{c}}\int d\varOmega Y_{l_{c}-m_{c}}Y_{l_{d}m_{d}}Y_{km}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(-1\right)^{m_{c}}\sqrt{\frac{\left(2l_{c}+1\right)\left(2l_{d}+1\right)\left(2k+1\right)}{4\pi}}\left(\begin{array}{ccc}
+l_{c} & l_{d} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{d} & k\\
+-m_{c} & m_{d} & m
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Direct 
+\begin_inset Formula $l_{a}=l_{b},l_{c}=l_{d}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+A=\sum_{km}A_{1}A_{2}=\sum_{km}\left(-1\right)^{m_{a}+m_{c}+m}\frac{\left(2l_{a}+1\right)\left(2l_{c}+1\right)\left(2k+1\right)}{4\pi}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+-m_{a} & m_{b} & -m
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+-m_{c} & m_{d} & m
+\end{array}\right)
+\]
+
+\end_inset
+
+we have two constraints on 
+\begin_inset Formula $k$
+\end_inset
+
+:
+ 
+\begin_inset Formula $2l_{a}+k=even,2l_{c}+k=even$
+\end_inset
+
+,
+ so 
+\begin_inset Formula $k$
+\end_inset
+
+ must be even.
+ Also the sum over 
+\begin_inset Formula $m$
+\end_inset
+
+ collapses 
+\begin_inset Formula $m=0=m_{b}-m_{a}=m_{d}-m_{c}$
+\end_inset
+
+.
+ Also we have 
+\begin_inset Formula $\left|l_{a}-l_{a}\right|=0\leq k\leq2l_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $0\leq k\leq2l_{c}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A\left(l_{a},l_{c},m_{a},m_{c}\right)=\left(-1\right)^{m_{a}+m_{c}}\left(2l_{a}+1\right)\left(2l_{c}+1\right)\sum_{k\,even}^{\min\left(2l_{a},2l_{c}\right)}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+m_{a} & -m_{a} & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+m_{c} & -m_{c} & 0
+\end{array}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Exchange 
+\begin_inset Formula $l_{a}=l_{c},l_{b}=l_{d}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+A\left(l_{a},l_{b},m_{a},m_{b}\right)=\sum_{km}A_{1}A_{2}=\left(2l_{a}+1\right)\left(2l_{b}+1\right)\sum_{k=\left|l_{a}-l_{b}\right|}^{l_{a}+l_{b}}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+0 & 0 & 0
+\end{array}\right)^{2}\left(\begin{array}{ccc}
+l_{a} & l_{b} & k\\
+m_{a} & -m_{b} & 0
+\end{array}\right)^{2}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Degenerate 
+\begin_inset Formula $Y_{l}$
+\end_inset
+
+ basis.
+\end_layout
+
+\begin_layout Standard
+If we assume all the magnetic states 
+\begin_inset Formula $m$
+\end_inset
+
+ are degenerate,
+ then we can sum over them.
+ For direct ERIs we get 
+\begin_inset Formula 
+\[
+\sum_{m_{a},m_{c}}A\left(l_{a},l_{c},m_{a},m_{c}\right)=\left(2l_{a}+1\right)\left(2l_{c}+1\right)\sum_{k\,even}^{\min\left(2l_{a},2l_{c}\right)}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)\left\{ \sum_{m_{a}}\left(-1\right)^{m_{a}}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+m_{a} & -m_{a} & 0
+\end{array}\right)\right\} \left\{ \sum_{m_{c}}\left(-1\right)^{m_{c}}\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+m_{c} & -m_{c} & 0
+\end{array}\right)\right\} 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{m_{a}}\left(-1\right)^{m_{a}}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+m_{a} & -m_{a} & 0
+\end{array}\right)=\sqrt{2l_{a}+1}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\sum_{m_{a},m_{c}}A\left(l_{a},l_{c},m_{a},m_{c}\right)=\left(2l_{a}+1\right)\left(2l_{c}+1\right)\sqrt{2l_{a}+1}\sqrt{2l_{c}+1}\sum_{k\,even}^{\min\left(2l_{a},2l_{c}\right)}\left(\begin{array}{ccc}
+l_{a} & l_{a} & k\\
+0 & 0 & 0
+\end{array}\right)\left(\begin{array}{ccc}
+l_{c} & l_{c} & k\\
+0 & 0 & 0
+\end{array}\right)
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsubsection
