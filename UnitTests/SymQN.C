@@ -29,7 +29,7 @@ public:
             return Spin::None;
         return Spin::Up;
     }
-    int LMax;
+    size_t LMax;
     int kappa_max;
     int n_max;
     bool quiet;
@@ -56,7 +56,7 @@ TEST_F(SymQNTests, Omega_k_Sym)
     for (int kappa1=-kappa_max;kappa1<=kappa_max;kappa1++)
     {
         Symmetry* Ol1=new Omega_k_Sym(kappa1);
-        for (size_t kappa2=-kappa_max;kappa2<kappa1;kappa2++)
+        for (int kappa2=-kappa_max;kappa2<kappa1;kappa2++)
         {
             Symmetry* Ol2=new Omega_k_Sym(kappa2);
             EXPECT_FALSE(*Ol1==*Ol2);
@@ -68,17 +68,19 @@ TEST_F(SymQNTests, Omega_k_Sym)
 }
 TEST_F(SymQNTests, Ylm_Sym)
 {
-    for (int l1=0;l1<=LMax;l1++)
-    for (int m1=-l1;m1<=l1;m1++)
+    for (size_t l1=0;l1<=LMax;l1++)
+    for (int m1=-(int)l1;m1<=(int)l1;m1++)
     {
         Symmetry* yl1=new Ylm_Sym(l1,m1);
-        for (int l2=0;l2<=l1;l2++)
-        for (int m2=-l2;m2<=l2;m2++)
+        for (size_t l2=0;l2<=l1;l2++)
+        for (int m2=-(int)l2;m2<=(int)l2;m2++)
         {
             if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
             Symmetry* yl2=new Ylm_Sym(l2,m2);
             if (!(*yl1==*yl2))
+            {
                 EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
+            }
             delete yl2;
         }
         delete yl1;
@@ -100,7 +102,9 @@ TEST_F(SymQNTests, Omega_kmj_Sym)
                     Symmetry* Ol2=new Omega_kmj_Sym(kappa2,mj2);
                     if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
                     if (!(*Ol1==*Ol2))
+                    {
                         EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
+                    }
                     delete Ol2;
                 }
             }

@@ -12,7 +12,7 @@ add_executable(UTMain UTMain.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfig
 
 target_compile_options(UTMain PRIVATE -fopenmp -Wall 
     $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2>
+    $<$<CONFIG:Release>: -O1>
 )
 
 target_link_options(UTMain PRIVATE -fopenmp)

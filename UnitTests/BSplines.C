@@ -68,7 +68,7 @@ std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t 
 
     // logarithmic step
     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
-    for (int i = 0; i < Ngrid; i++) 
+    for (size_t i = 0; i < Ngrid; i++) 
         knots.push_back(rmin * pow(step, i));
     return knots;
 }
@@ -179,7 +179,7 @@ TEST_F(BSplineTests,GLQIntegration)
     auto& grid=splines[0].getSupport().getGrid();
     for (auto r:grid) cout << r << ",";
     cout << endl;
-    size_t Nsp=splines.size(), Ng=grid.size();
+    // size_t Nsp=splines.size(), Ng=grid.size();
     double rmin=0.5,rmax=5.0;
     for (auto spa:splines)
         for (auto spb:splines)

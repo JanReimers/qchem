@@ -104,11 +104,11 @@ TEST_P(A_SLmj_DHF,Multiple)
     const Orbital* orb0=GetOrbital(0,oqns);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
-    double e0_nr=Enk(1,-1,Z,0.0); // Non relativistic energy
+    // double e0_nr=Enk(1,-1,Z,0.0); // Non relativistic energy
     double e0_rel=(e0_expected-e0)/e0_expected;
-    double E=TotalEnergy();
-    double E_rel=(E-e0)/e0;
-    double er=e0-e0_nr;
+    // double E=TotalEnergy();
+    // double E_rel=(E-e0)/e0;
+    // double er=e0-e0_nr;
    
     EXPECT_LT(e0_expected,e0);
     EXPECT_NEAR(e0_expected,e0,Z*Z*1e-5);
@@ -230,9 +230,9 @@ std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, 
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
     MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
     Mesh* m=cl->CreateMesh(mp);
-    double a2=alpha*alpha;
-    double g=sqrt(1.0-a2*1.0);
-    double norme=4.*Pi*tgamma(2*g+1.)/pow(2.,2.*g+1.); 
+    // double a2=alpha*alpha;
+    // double g=sqrt(1.0-a2*1.0);
+    // double norme=4.*Pi*tgamma(2*g+1.)/pow(2.,2.*g+1.); 
 
     double n1=0.0,n_expected=0.0,idphi=0.0;
     cout.precision(5);
@@ -240,7 +240,7 @@ std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, 
     {
         Vector3D<double> vr=r(rw);
         if (norm(vr)==0.0) continue;
-        double phir=-to->operator()(vr),phir_expected=S12g(vr.x,alpha),PhiNRL=S12g(vr.x,0.0);
+        double phir=-to->operator()(vr),phir_expected=S12g(vr.x,alpha);//,PhiNRL=S12g(vr.x,0.0);
         double dphir=phir-phir_expected;
 
         n1+=phir*phir*w(rw);
