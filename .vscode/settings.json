@@ -1,8 +1,8 @@
 {
     "files.associations": {
         "*.C": "cpp",
-        "*.Ci": "cpp",
         "*.H": "cpp",
+        "*.Ci": "cpp",
         "iosfwd": "cpp",
         "new": "cpp",
         "cctype": "cpp",
@@ -80,7 +80,8 @@
         "strstream": "cpp",
         "cfenv": "cpp",
         "future": "cpp",
-        "stdfloat": "cpp"
+        "stdfloat": "cpp",
+        "chrono": "cpp"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}"
 }

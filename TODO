@@ -3,6 +3,8 @@ Priority 1:
     Done: -Get rid of SCFIterationParams::kT
     -It would be nice if Atom derived from Cluster.
         Hard, we can't fake the iterator interface for typedef std::vector<std::unique_ptr<Atom>> av_t;
+        Ranges might solve this problem: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates.
+            Atom would be a std::single_view
     -convert all enums into enum classes
         General clean as well.
     -Re-imagine Ylm basis sets.
@@ -17,14 +19,13 @@ Priority 1:
     -openmp
         -Make some simple unit tests
         -Demostrate 3x real time improvement.
-            -How to measure?  
-                gtest seems to give longer run times for parallel?!?
-                time command gives confusing output.
-                check how oml UT gets times.
         -Try and get ERI4 contractions working
+            Need critical sections for Scd+=s
+            Need N>100 ro really see a benifit.
         -Direct and Exchange functions (more difficult)
             Need to use instance of cach4, rather then inherit?
                 Once ERI4 is stored, we can throw out cache4?
+        -Try unrolling the irrep loops in HeapDB.C
     
     -Vxc->LDAxc->ExchangeFunctional  
         Can we get rid of LDAxc?
@@ -294,6 +295,10 @@ oml:
         Also infinite recursion:  VecLimits GetLimits() const {return static_cast<const Derived*>(this)->GetLimits();}
     Handle SMatrix<complex<T>> return conj is i>j;
         Very tough C++ issue.
+    Use c++ lambda expressions instead of the preprosessor for overloaded ops.
+    Use ranges/views for exp templates: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates/
+        Use generators for co_yield?
+        
     
       
 Priority 2:

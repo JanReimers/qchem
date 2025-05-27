@@ -15,7 +15,8 @@ file (GLOB_RECURSE qchem_TEMPLATES CONFIGURE_DEPENDS "src/BasisSet/Atom/radial/B
 add_library(qchem) 
 target_sources(qchem PRIVATE ${qchem_SOURCES} ${qchem_FORTRAN})
 
-target_compile_options(qchem PRIVATE -pg -Wall -Wno-unknown-pragmas
+# -Wno-unknown-pragmas
+target_compile_options(qchem PRIVATE -fopenmp -Wall 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )
