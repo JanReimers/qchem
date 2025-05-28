@@ -4,12 +4,15 @@
 
 #include "oml/vector.h"
 
+class AtomIrrepIEClient;
+
 class AtomIE_BS_2E_Angular
 {
 public:
     typedef Vector<double> RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const=0;
+    typedef AtomIrrepIEClient iec_t;
+    virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const=0;
+    virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* c) const=0;
 };
 
 #endif //_Atom_IE_HF_Angular_H_

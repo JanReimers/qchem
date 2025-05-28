@@ -10,9 +10,8 @@ namespace Atoml
 class IE_BS_2E_Angular : public virtual ::AtomIE_BS_2E_Angular
 {
 public:
-    typedef ::AtomIE_BS_2E_Angular::RVec RVec;
-    virtual RVec Coulomb_AngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
-    virtual RVec ExchangeAngularIntegrals(size_t la, size_t lc, int ma, int mc) const;
+    virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const;
+    virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const;
 };
 
 } //namespace

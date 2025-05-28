@@ -143,7 +143,7 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeDirect  (const ::IrrepIEClie
             size_t icu=c->sp_indices[ic-1]; //Absolute unique radial function index.
             loop_2(c->sp_indices[ic-1]);
             int la=a->l, lc=c->l;
-            RVec Akac=Coulomb_AngularIntegrals(la,lc,a->m,c->m);
+            RVec Akac=Coulomb_AngularIntegrals(a,c);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
@@ -195,7 +195,7 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
             size_t icu=c->sp_indices[ic-1]; //Absolute unique radial function index.
             if (iau>icu+K || icu>iau+K) continue;
             int la=a->l, lc=c->l;
-            RVec Akac=ExchangeAngularIntegrals(la,lc,a->m,c->m);
+            RVec Akac=ExchangeAngularIntegrals(a,c);
             double nac=na*c->ns(ic);
             for (size_t ib:a->indices(ia))
             {

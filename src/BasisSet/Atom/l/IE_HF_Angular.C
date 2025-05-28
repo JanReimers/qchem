@@ -2,16 +2,18 @@
 
 #include "Imp/BasisSet/Atom/l/IE_HF_Angular.H"
 #include "Imp/Integrals/AngularIntegrals.H"
+#include "Imp/BasisSet/Atom/IEC.H"
 
 namespace Atoml
 {
-IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(size_t la, size_t lc, int, int) const
+
+ IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
+ {
+    return AngularIntegrals::Coulomb(a->l,c->l);
+ }
+IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
 {
-    return AngularIntegrals::Coulomb(la,lc);
-}
-IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(size_t la, size_t lb, int, int) const
-{
-    return AngularIntegrals::Exchange(la,lb);
+    return AngularIntegrals::Exchange(a->l,b->l);
 }
 
 }

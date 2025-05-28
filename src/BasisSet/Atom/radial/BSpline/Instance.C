@@ -17,15 +17,15 @@
 namespace Atoml::BSpline
 {
     //Initial attempts to loop this with meta programming failed.
-    template class BasisSet<3>;
-    template class BasisSet<4>;
-    template class BasisSet<5>;
+    // template class BasisSet<3>;
+    // template class BasisSet<4>;
+    // template class BasisSet<5>;
     template class BasisSet<6>;
-    template class BasisSet<7>;
-    template class BasisSet<8>;
-    template class BasisSet<9>;
-    template class BasisSet<10>;
-    template class BasisSet<11>;
+    // template class BasisSet<7>;
+    // template class BasisSet<8>;
+    // template class BasisSet<9>;
+    // template class BasisSet<10>;
+    // template class BasisSet<11>;
 }
 
 namespace Atom_ml::BSpline

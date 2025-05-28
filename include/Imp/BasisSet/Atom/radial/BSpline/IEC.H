@@ -3,22 +3,25 @@
 #define _BSplineIEClient_H_
 
 #include <IEClient.H> // <> prevents file search on this folder.
+#include "Imp/BasisSet/Atom/IEC.H"
 #include <bspline/Core.h>
 #include "GLQuadrature.H"
 #include "oml/vector.h"
 
 namespace BSpline
 {
-template <size_t K> struct IrrepIEClient : public virtual ::IrrepIEClient
+template <size_t K> struct IrrepIEClient 
+    : public virtual ::IrrepIEClient
+    , public AtomIrrepIEClient
 {
     typedef bspline::Spline<double, K> spline_t;
     std::vector<spline_t> splines;
-    Vector<double> ns; //Normalization constants
+    // Vector<double> ns; //Normalization constants
     std::vector<size_t> sp_indices; //Unique spline index
 
     double rmin,rmax; //This might be needed for creating fit basis sets.
-    size_t l;
-    int m;
+    // size_t l;
+    // int m;
     
     IrrepIEClient(size_t Ngrid, double rmin, double rmax, size_t l, int m=0);
     virtual ~IrrepIEClient();

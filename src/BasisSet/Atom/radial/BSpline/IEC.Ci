@@ -6,8 +6,11 @@
 namespace BSpline
 {
 template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin, double _rmax, size_t _l, int _m)
-: rmin(_rmin), rmax(_rmax), l(_l), m(_m), itsGL(0)
+: AtomIrrepIEClient(Ngrid)
+,rmin(_rmin), rmax(_rmax), itsGL(0)
 {
+    l=_l;
+    m=_m;
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
