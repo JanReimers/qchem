@@ -23,6 +23,8 @@ public:
     
     virtual int    GetN(const Irrep_QNs&) const;
     virtual size_t GetLMax() const {return itsLMax;}
+    virtual size_t GetNUnapired() const {return itsNs.NUnpaired;}
+    virtual size_t GetNval(size_t l) const {return itsNs.Nv[l];}
     virtual void   Display() const;
 
 private:

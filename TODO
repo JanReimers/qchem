@@ -1,6 +1,9 @@
 
 Priority 1:
+    Genreal AtomIrrepIECLient clean up.
     Done: -Get rid of SCFIterationParams::kT
+    -QChemTester move bs->Set(lap); to one spot
+        All check SV tol, set lower i.e. 1e-9
     -It would be nice if Atom derived from Cluster.
         Hard, we can't fake the iterator interface for typedef std::vector<std::unique_ptr<Atom>> av_t;
         Ranges might solve this problem: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates.
@@ -298,6 +301,12 @@ oml:
     Use c++ lambda expressions instead of the preprosessor for overloaded ops.
     Use ranges/views for exp templates: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates/
         Use generators for co_yield?
+template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
+{
+    if (a.size()==0) a.SetLimits(b.GetLimits());
+    return ArrayAdd(a,b);
+}
+
         
     
       

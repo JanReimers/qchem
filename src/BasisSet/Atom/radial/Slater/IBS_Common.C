@@ -28,6 +28,13 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym, size
     Init(exponents,Norms(exponents,L),L,m);
 };
 
+IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym, size_t L, const std::vector<int>& ml)
+    : IBS_Common(sym)
+    , AtomIrrepIEClient(exponents.size())
+{
+    Init(exponents,Norms(exponents,L),L,ml);
+};
+
 Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());

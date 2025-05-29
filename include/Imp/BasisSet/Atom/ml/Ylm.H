@@ -3,6 +3,7 @@
 #define _Symmetry_Ylm_Sym_H_
 
 #include "Imp/BasisSet/Atom/l/Yl.H"
+#include <vector>
 
 
 //---------------------------------------------------------------------------------
@@ -17,20 +18,22 @@ class Ylm_Sym
 public:
     Ylm_Sym(             );
     Ylm_Sym(int l, int ml);
+    Ylm_Sym(int l, const std::vector<int>& ml);
 
-    virtual size_t SequenceIndex() const; //Used for op<
-    virtual bool MatchType(const Symmetry&) const;
-    virtual bool   Match(const Symmetry&) const;
-    virtual int    GetDegeneracy() const;
+    virtual size_t     SequenceIndex() const; //Used for op<
+    virtual bool       MatchType(const Symmetry&) const;
+    virtual bool       Match    (const Symmetry&) const;
+    virtual int        GetDegeneracy() const;
     virtual ElCounts_l GetN(const ElCounts&) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual Angular_Sym* Clone(        ) const;
+    virtual Angular_Sym*   Clone(        ) const;
 
     int Getm() const {return m;}
     using Yl_Sym::GetL;
 protected:
     int m;
+    std::vector<int> ml;
 };
 
 #endif //_Symmetry_Ylm_Sym_H_

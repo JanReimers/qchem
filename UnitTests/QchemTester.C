@@ -82,7 +82,7 @@ const Orbitals* QchemTester::GetOrbitals(const Irrep_QNs& qns) const
 const Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const
 {
     const Orbitals* orbs=GetOrbitals(qns);
-    assert(index<orbs->GetNumOrbitals());
+    assert(index<(size_t)orbs->GetNumOrbitals());
     const Orbital* o=0;
     for (auto oi:orbs->Iterate<Orbital>())
     {
@@ -171,10 +171,12 @@ BasisSet* SL_OBasis::GetBasisSet () const
 #include "Imp/BasisSet/Atom/ml/Slater_BS.H"
 BasisSet* SLm_OBasis::GetBasisSet () const
 {
-    BasisSet* bs=new Atom_ml::Slater::BasisSet(N,emin,emax,Lmax);
+    // BasisSet* bs=new Atom_ml::Slater::BasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atom_ml::Slater::BasisSet(N,emin,emax,*GetElectronConfiguration());
+    
     bs->Set(lap);
-    // StreamableObject::SetToPretty();
-    // std::cout << *bs << std::endl;
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
     return bs;
 }
 

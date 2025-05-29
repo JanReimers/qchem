@@ -88,11 +88,22 @@ void Polarized_WF::FillOrbitals()
          itsUpELevels.merge(w->FillOrbitals(itsEC),0.0001);
     for (auto& w:itsSpinDnIWFs) 
          itsDnELevels.merge(w->FillOrbitals(itsEC),0.0001);
+
+    // std::cout << "FillOrbitals Up:" << std::endl;
+    // itsUpELevels.Report(std::cout);
+    // std::cout << "FillOrbitals Down:" << std::endl;
+    // itsDnELevels.Report(std::cout);
+
 }
 
 
 void Polarized_WF::DisplayEigen() const
 {
+    // std::cout << "DisplayEigen Up:" << std::endl;
+    // itsUpELevels.Report(std::cout);
+    // std::cout << "DisplayEigen Down:" << std::endl;
+    // itsDnELevels.Report(std::cout);
+    
     std::cout << "Spin:         up                 down            avg" << std::endl;
     auto iup=itsUpELevels.begin();
     auto idn=itsDnELevels.begin();
@@ -100,6 +111,8 @@ void Polarized_WF::DisplayEigen() const
     {
         bool valid_up = iup!=itsUpELevels.end();
         bool valid_dn = idn!=itsDnELevels.end();
+        assert(iup->first == iup->second.e);
+        assert(idn->first == idn->second.e);
         bool print_up = valid_up && iup->first<=0.0;
         bool print_dn = valid_dn && idn->first<=0.0;
         bool qn_match = valid_up && valid_dn && iup->second.qns.MatchNoSpin(idn->second.qns);

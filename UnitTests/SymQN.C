@@ -29,6 +29,12 @@ public:
             return Spin::None;
         return Spin::Up;
     }
+    static std::vector<int> make_mls(int m0, int m1)
+    {
+        std::vector<int> ms;
+        for (int m=m0;m<=m1;m++) ms.push_back(m);
+        return ms;
+    }
     size_t LMax;
     int kappa_max;
     int n_max;
@@ -77,6 +83,26 @@ TEST_F(SymQNTests, Ylm_Sym)
         {
             if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
             Symmetry* yl2=new Ylm_Sym(l2,m2);
+            if (!(*yl1==*yl2))
+            {
+                EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
+            }
+            delete yl2;
+        }
+        delete yl1;
+    }
+}
+TEST_F(SymQNTests, Ylm_Sym_multi)
+{
+    for (size_t l1=0;l1<=LMax;l1++)
+    for (int m1=-(int)l1;m1<=(int)l1;m1++)
+    {
+        Symmetry* yl1=new Ylm_Sym(l1,make_mls(-(int)l1,m1));
+        for (size_t l2=0;l2<=l1;l2++)
+        for (int m2=-(int)l2;m2<=(int)l2;m2++)
+        {
+            if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
+            Symmetry* yl2=new Ylm_Sym(l2,make_mls(-(int)l2,m2));
             if (!(*yl1==*yl2))
             {
                 EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());

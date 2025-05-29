@@ -44,26 +44,35 @@ void EnergyLevels::merge(const EnergyLevels& els)
 
 void EnergyLevels::merge(const EnergyLevels& els, double tol)
 {
+    // std::cout << "Existing levels" << std::endl;
+    // Report(std::cout);
+    // std::cout << "To merge levels" << std::endl;
+    // els.Report(std::cout);
+    
     for (auto& el:els) 
     {
         auto il=itsELevels.lower_bound(el.first-tol);
         auto iu=itsELevels.upper_bound(el.first+tol);
-        if (il==itsELevels.end() || il==iu)
+        bool symmatch = il->second.qns == el.second.qns;
+        if ((!symmatch) || il==itsELevels.end() || il==iu)
             itsELevels.insert(el);
         else
             il->second.merge(el.second);
         
     }
+    // std::cout << "Merged levels" << std::endl;
+    // Report(std::cout);
 }
 
 
 void EnergyLevels::Report(std::ostream& os) const
 {
     for (auto el:itsELevels) 
+    if (el.second.occ>0)
     {
         el.second.Report(os);
         os << std::endl;
-        if (el.first>0.0) break;
+        // if (el.first>0.0) break;
     }
 }
 
