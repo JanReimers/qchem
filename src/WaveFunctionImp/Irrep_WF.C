@@ -53,7 +53,7 @@ const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
     double ne=ec->GetN(itsIrrep);
     // if (ne>0)
     //     std::cout << "ne=" << ne << " QN=" << itsIrrep << std::endl;
-    //  Loop over orbitals and consume the electrons quota.
+    // //  Loop over orbitals and consume the electrons quota.
     for (auto o:itsOrbitals->Iterate<Orbital>())
     {
         ne=o->TakeElectrons(ne);

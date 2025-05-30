@@ -57,7 +57,11 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
     int g=2*l+1;
     int nlc=ec.N[l]-ec.Nv[l];
     assert(nlc%(2*g)==0);
-    nlc/=g;
+    // if (ml.size()==0)
+        nlc/=g;
+    if (ml.size()>0)
+        nlc*=ml.size();
+
     int nlv=ec.Nv[l];
     
     int nlmv[2*LMax+1]={0,0,0,0,0,0,0};
