@@ -15,7 +15,6 @@ class IrrepBasisSet
 {
 public:
     IrrepBasisSet(const Vector<double>& exponents, Symmetry*,size_t L);
-    IrrepBasisSet(const Vector<double>& exponents, Symmetry*,size_t L, int ml);
     IrrepBasisSet(const Vector<double>& exponents, Symmetry*,size_t L, const std::vector<int>& ml);
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:

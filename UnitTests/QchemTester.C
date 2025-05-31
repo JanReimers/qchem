@@ -213,7 +213,7 @@ BasisSet* SGm_OBasis::GetBasisSet () const
 //    const Cluster* cl=GetCluster();
 //    Atom* a=*cl->begin();
 //    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
-    BasisSet* bs=new Atom_ml::Gaussian::BasisSet(N,emin,emax,Lmax);
+    BasisSet* bs=new Atom_ml::Gaussian::BasisSet(N,emin,emax,*GetElectronConfiguration());
     bs->Set(lap);
     // StreamableObject::SetToPretty();
     // std::cout << *bs << std::endl;

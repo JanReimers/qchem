@@ -12,14 +12,6 @@ namespace Atom_ml
 namespace Slater
 {
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
-    : IrrepBasisSet(exponents,new Ylm_Sym(L,m),L,m)
-    , Orbital_IBS_Common<double>()
-    , Atoml::Slater::Orbital_IE(db)
-    {
-        InsertBasisFunctions();
-    };
-
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
     : IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
     , Orbital_IBS_Common<double>()

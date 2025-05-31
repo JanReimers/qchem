@@ -24,7 +24,7 @@ class Orbital_IBS
 
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m);
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;

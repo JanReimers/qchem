@@ -21,13 +21,6 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym,size_
 
 };
 
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym, size_t L, int m)
-    : IBS_Common(sym)
-    , AtomIrrepIEClient(exponents.size())
-{
-    Init(exponents,Norms(exponents,L),L,m);
-};
-
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym, size_t L, const std::vector<int>& ml)
     : IBS_Common(sym)
     , AtomIrrepIEClient(exponents.size())

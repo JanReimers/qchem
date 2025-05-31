@@ -16,7 +16,6 @@ class BasisSet
     , public IE_BS_2E_Angular
 {
 public:
-    BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);
     BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
     
 };

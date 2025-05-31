@@ -72,7 +72,7 @@ public:
     }
     void Init(int _N, double _emin, double _emax, int _Lmax) 
     {
-        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-4,1e-12}));
+        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-9,1e-12}));
     }
      
 protected:

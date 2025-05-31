@@ -11,8 +11,8 @@ namespace Atom_ml
 namespace Gaussian
 {
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, int m)
-    : ::Gaussian::IrrepBasisSet(exponents,new Ylm_Sym(L,m),L,m)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+    : ::Gaussian::IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
     , Orbital_IBS_Common<double>()
     , Atoml::Gaussian::Orbital_IE(db)
 {

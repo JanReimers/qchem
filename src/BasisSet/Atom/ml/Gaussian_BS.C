@@ -5,7 +5,8 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
-#include "Imp/Integrals/AngularIntegrals.H"
+#include "Imp/BasisSet/Atom/EC.H"
+// #include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>
 
 namespace Atom_ml
@@ -14,12 +15,22 @@ namespace Gaussian
 {
 
 
-BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
+BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
 {
-    ::Gaussian::ExponentScaler gs(N,emin,emax,LMax);
-    for (size_t L=0;L<=LMax;L++)
-        for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(this,gs.Get_es(L),L,m));
+    const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+    ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());
+    for (size_t L=0;L<=aec.GetLMax();L++)
+    {
+        auto mls=aec.GetBreadown(L);
+        if (mls.ml_paired.size()>0)   
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
+        if (mls.ml_unpaired.size()>0)   
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
+        if (mls.ml_unoccupied.size()>0)   
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
+
+    
+    }
         
 }
 
@@ -58,7 +69,10 @@ BasisSet::BasisSet(Reader* reader, const Atom* atom)
         for (auto e:le.second) es(++i)=e; //Convert to vector.
 
         for (int m=-L;m<=(int)L;m++)
-            Insert(new Orbital_IBS(this,es,L,m));   
+        {
+            Insert(new Orbital_IBS(this,es,L,{m}));   
+
+        }
     }
 }
 
