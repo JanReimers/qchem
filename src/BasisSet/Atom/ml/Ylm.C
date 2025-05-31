@@ -51,62 +51,63 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
 {
     assert(itsL<=LMax);
     ElCounts_l ecl=Yl_Sym::GetN(ec);
-    int nlu=ecl.nu;
-    assert((ecl.n+ecl.nu)%2==0);
     int l=itsL;
     int g=2*l+1;
-    int nlc=ec.N[l]-ec.Nv[l];
+
+    int nlv=ec.Nv[l]; //#valance for this l and all m
+    int nlu=ecl.nu; //# unpaired for this l and all m
+    int nlc=ec.N[l]-ec.Nv[l]; //#core for this l and all m
+    assert((ecl.n+ecl.nu)%2==0);
     assert(nlc%(2*g)==0);
-    // if (ml.size()==0)
-    nlc/=g;
-    if (ml.size()>0)
-        nlc*=ml.size();
 
-    int nlv=ec.Nv[l];
+ 
+
     
-    int nlmv[2*LMax+1]={0,0,0,0,0,0,0};
-    int nlmu[2*LMax+1]={0,0,0,0,0,0,0};
-
-    if (l>0)
-    {
+    int nlmvs[2*LMax+1]={0,0,0,0,0,0,0};
+    int nlmus[2*LMax+1]={0,0,0,0,0,0,0};
+    int nlmv=0,nlmu=0;
+   
         //cout << "Start v,u=" << nlv << " " << nlu << endl;
 
-        bool less_than_half = nlv<=g;
-        for (int m1=-l;m1<=l&&nlv>0&&nlu>=0;m1++)
-        {
-            nlmv[m1+l]++;
-            nlmu[m1+l]++;
-            nlv--;
-            if (less_than_half) nlu--;
-            //cout << "Up v,u=" << nlv << " " << nlu << endl;
-        }
-        for (int m1=-l;m1<=l&&nlv>0;m1++)
-        {
-            nlmv[m1+l]++;
-            nlmu[m1+l]--;
-            nlv--;
-            if (!less_than_half) nlu--;
-            //cout << "Down v,u=" << nlv << " " << nlu << endl;
-        }
-        if (ml.size()==0)
-        {
-            nlv=nlmv[m+l];
-            nlu=nlmu[m+l];
-            assert(nlv%2==nlu);
-        }
-        else
-        {
-            nlv=0;
-            nlu=0;
-            for (auto im:ml)
-            {
-                nlv+=nlmv[im+l];
-                nlu+=nlmu[im+l];
-            }
-        }
-        //cout << "(" << " " << nlmv << " " << nlmu << ") ";
+    bool less_than_half = nlv<=g;
+    for (int m1=-l;m1<=l && nlv>0 && nlu>=0;m1++)
+    {
+        nlmvs[m1+l]++;
+        nlmus[m1+l]++;
+        nlv--;
+        if (less_than_half) nlu--;
+        //cout << "Up v,u=" << nlv << " " << nlu << endl;
     }
-    return ElCounts_l{nlc+nlv,nlu};//::make_pair(nlc+nlv,nlu);
+    for (int m1=-l;m1<=l&&nlv>0;m1++)
+    {
+        nlmvs[m1+l]++;
+        nlmus[m1+l]--;
+        nlv--;
+        if (!less_than_half) nlu--;
+        //cout << "Down v,u=" << nlv << " " << nlu << endl;
+    }
+
+
+    if (ml.size()==0)
+    {
+        nlmv=nlmvs[m+l];
+        nlmu=nlmus[m+l];
+        assert(nlmv%2==nlmu);
+    }
+    else
+    {
+        for (auto im:ml)
+        {
+            nlmv+=nlmvs[im+l];
+            nlmu+=nlmus[im+l];
+        }
+    }
+        //cout << "(" << " " << nlmv << " " << nlmu << ") ";
+    int nlmc=nlc/g;  //# core electrons for this {l,m}
+    if (ml.size()>0)
+        nlmc=nlc/g*ml.size();
+
+    return ElCounts_l{nlmc+nlmv,nlmu};//::make_pair(nlc+nlv,nlu);
 }
 
 
