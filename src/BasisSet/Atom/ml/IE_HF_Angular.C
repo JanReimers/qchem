@@ -21,11 +21,21 @@ IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a
  {
     RVec Ak;
     size_t nac=a->ml.size()*c->ml.size();
-    
-    for (auto ma:a->ml)
-    for (auto mc:c->ml)
-        Ak+=AngularIntegrals::Coulomb(a->l,c->l,ma,mc);
-    return Ak/nac;
+    size_t g=(2*a->l+1)*(2*c->l+1); //degenracy
+    if (nac==g)
+    {
+        Ak+=AngularIntegrals::Coulomb(a->l,c->l);
+    }
+    else
+    {
+        // For direct integrals these actually factor.  But for exchange they do not.
+        // So it may not be worth while coding the factored version here.
+        for (auto ma:a->ml)
+        for (auto mc:c->ml)
+            Ak+=AngularIntegrals::Coulomb(a->l,c->l,ma,mc);
+        Ak/=nac;
+    }
+    return Ak;
     
  }
 IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
@@ -33,10 +43,20 @@ IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a
     
     RVec Ak;
     size_t nab=(a->ml.size())*(b->ml.size());
-    for (auto ma:a->ml)
-    for (auto mb:b->ml)
-        Ak+=AngularIntegrals::Exchange(a->l,b->l,ma,mb);
-    return Ak/nab;
+    size_t g=(2*a->l+1)*(2*b->l+1); //degenracy
+    if (nab==g)
+    {
+        Ak+=AngularIntegrals::Exchange(a->l,b->l);
+    }
+    else
+    {
+        for (auto ma:a->ml)
+        for (auto mb:b->ml)
+            Ak+=AngularIntegrals::Exchange(a->l,b->l,ma,mb);
+        Ak/=nab;
+    }
+
+    return Ak;
     
 }
 

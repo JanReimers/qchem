@@ -93,8 +93,6 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
         nlmu+=nlmus[im+l];
     }
         //cout << "(" << " " << nlmv << " " << nlmu << ") ";
-    // int nlmc=0/nlc/g;  //# core electrons for this {l,m}
-    // if (ml.size()>0)
     int nlmc=nlc/g*ml.size();
 
     return ElCounts_l{nlmc+nlmv,nlmu};//::make_pair(nlc+nlv,nlu);
