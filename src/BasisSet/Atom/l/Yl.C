@@ -39,32 +39,7 @@ int Yl_Sym::GetDegeneracy() const
 
 ElCounts_l Yl_Sym::GetN(const ElCounts& ec) const
 {
-    int nl=ec.N[itsL];
-    if (ec.Nv[itsL]==0) return ElCounts_l{nl,0};//std::make_pair(nl,0);
-    assert(nl!=0);
-    // Handle partial shells
-    int nlu=1; //# unpaired in shell l.
-    int NUnpaired=0;
-    for (auto nu:ec.Nu) NUnpaired+=nu;
-    if (itsL==1) // p is partial.
-    {
-        assert(ec.Nv[2]==0); //No partial D orbital
-        nlu=NUnpaired-ec.Nv[0];
-    }
-    else if (itsL==2) // d is partial.
-    {
-        assert(ec.Nv[1]==0); //p better be full
-        if (ec.Nv[itsL]>1) nlu=NUnpaired-ec.Nv[0];            
-    }
-    else if(itsL==3) // f is partial.
-    {
-        
-        assert(ec.Nv[0]==0); //If f is Partial s must be full.
-        assert(ec.Nv[1]==0); //If f is Partial p must be full.
-        nlu=NUnpaired-ec.Nv[2];
-        assert(nlu>=0);
-    }
-    return ElCounts_l{nl,nlu};//std::make_pair(nl,nlu);
+    return ElCounts_l{ec.N[itsL],ec.Nu[itsL]};
 }
 
 
