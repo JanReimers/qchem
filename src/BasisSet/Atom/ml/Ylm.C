@@ -44,7 +44,7 @@ bool Ylm_Sym::Match(const Symmetry& qn) const
 
 int Ylm_Sym::GetDegeneracy() const
 {
-    return ml.size()==0 ? 1 : ml.size(); 
+    return ml.size(); 
 }
 
 ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const

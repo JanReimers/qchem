@@ -24,9 +24,8 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap  (con
     assert(ab);
     size_t N=ab->size();
     int Nc,Lc;
-    std::vector<int> Mc;
     double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
+    std::tie(Nc,Lc,ec,nc)=c;
     SMat s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
@@ -40,9 +39,8 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeRepulsion(con
     assert(ab);
     size_t N=ab->size();
     int Nc,Lc;
-    std::vector<int> Mc;
     double ec,nc;
-    std::tie(Nc,Lc,Mc,ec,nc)=c;
+    std::tie(Nc,Lc,ec,nc)=c;
     SMat s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
