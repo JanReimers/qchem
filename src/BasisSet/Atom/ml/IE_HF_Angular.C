@@ -6,7 +6,11 @@
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {
-    if (a.size()==0) a.SetLimits(b.GetLimits());
+    if (a.size()==0) 
+    {
+        a.SetLimits(b.GetLimits());
+        Fill(a,0.0);
+    }
     return ArrayAdd(a,b);
 }
 
