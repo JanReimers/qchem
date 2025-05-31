@@ -249,8 +249,8 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     0.0,//St
     1.0,//Y
     2.0,//Zr
-    3.0,//Nb
-    4.0,//Mo
+    5.0,//Nb
+    6.0,//Mo
     5.0,//Tc
     4.0,//Ru
     3.0,//Rh

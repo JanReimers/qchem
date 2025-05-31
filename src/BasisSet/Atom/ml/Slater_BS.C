@@ -41,10 +41,12 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
         else
         {
             size_t g=(2*L+1); //degenracy
-            size_t Nunp=aec.GetNUnapired();
+            size_t Nunp=aec.GetNUnapired(L);
             size_t Nl=aec.GetNval(L);
-            assert((Nl-Nunp)%2==0);  //This fails Cr Z=24 which one 3s and 5 3d unpaired electrons.
+            // aec.Display();
+            // std::cout << "L,g,Nump,Nl = " << L << " " << g  << " " << Nunp  << " " <<  Nl << std::endl;
             assert(Nl>=Nunp);
+            assert((Nl-Nunp)%2==0);  //This fails Cr Z=24 which one 3s and 5 3d unpaired electrons.
             size_t Npaired= (Nl-Nunp)/2;
             assert(g>=Npaired+Nunp);
             size_t Nempty=g-Npaired-Nunp;
@@ -53,9 +55,9 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
             for (size_t i=0;i<Npaired;i++) ml_paired    .push_back(ml++);
             for (size_t i=0;i<Nunp   ;i++) ml_unpaired  .push_back(ml++);
             for (size_t i=0;i<Nempty ;i++) ml_unoccupied.push_back(ml++);
-            cout << "ml_paired    =" << ml_paired << endl;
-            cout << "ml_unpaired  =" << ml_unpaired << endl;
-            cout << "ml_unoccupied=" << ml_unoccupied << endl;
+            // cout << "ml_paired    =" << ml_paired << endl;
+            // cout << "ml_unpaired  =" << ml_unpaired << endl;
+            // cout << "ml_unoccupied=" << ml_unoccupied << endl;
             assert(ml==(int)(L+1));
             if (ml_paired.size()>0)   
                 Insert(new Orbital_IBS(this,ss.Get_es(L),L,ml_paired));            

@@ -272,7 +272,7 @@ TEST_P(A_SLm_HF_P,Multiple)
 
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,6,7,8,9,11,13,14,15,16,17,21,37,53,57)); //37,53
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(24)); //37,53
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(49,85)); //37,53
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(1,92)); //37,53
 
 class A_SGm_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom, SGm_OBasis, HF_P, TestPolarized

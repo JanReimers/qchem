@@ -28,7 +28,7 @@ const int Atom_EC::FullShells[Nshell][LMax+2]=
 Atom_EC::Atom_EC(int Z)
 : itsLMax(0)
 {
-    itsNs.NUnpaired=pt.GetNumUnpairedElectrons(Z);
+    int nup=pt.GetNumUnpairedElectrons(Z); //For all l.
     assert(Z>0);
     assert(Z<=N_Elements);
     int* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
@@ -58,8 +58,62 @@ Atom_EC::Atom_EC(int Z)
         itsNs.N[l]=itsNs.Nf[l]+itsNs.Nv[l]; //Total electrons for s,p,d,f
         //cout << N[l] << ",";
         if (l>itsLMax && itsNs.N[l]>0) itsLMax=l;
+        
     }
-    //cout << endl;
+   
+    size_t lv=0,l=0;
+    for (auto nv:itsNs.Nv)  //Find highest l for valance electrons.
+    {
+        if (nv>0) lv=l;
+        l++;
+    }
+   
+    int gv=2*lv+1;
+    if (itsNs.Nv[lv]<=gv)
+    { // <= half filled
+        if (nup<=itsNs.Nv[lv])
+        {
+            itsNs.Nu[lv]=nup; //take them all.
+            nup=0;
+        }
+        else
+        {
+            itsNs.Nu[lv]=itsNs.Nv[lv];  //Take as many as we can.
+            nup-=itsNs.Nv[lv];
+        }
+
+    }   
+    else
+    { //> half filled
+        int Nvu=2*gv-itsNs.Nv[lv]; //# of unpaird orbitals.
+        assert(Nvu<=gv);
+        if (nup<=Nvu)
+        {
+            itsNs.Nu[lv]=nup; //take them all.
+            nup=0;
+        }
+        else
+        {
+            itsNs.Nu[lv]=Nvu;  //Take as many as we can.
+            nup-=Nvu;
+        }
+
+    }
+    //  Put any remaining unpaired electrons into lower l
+    if (nup>0)
+    {
+        assert(nup==1); //There are no cases where lower gets more than one unpaired.
+        assert(lv>0);
+        for (int l=lv-1;l>=0 && nup>0;l--)
+            if (itsNs.Nv[l]>0)
+            {
+                assert(itsNs.Nv[l]==1);
+                itsNs.Nu[l]=nup;
+                nup--;
+            }
+    }
+    // Display();
+    assert(nup==0); //By now all unpaired electrons should have gobbled up.        
 }
 
 int Atom_EC::GetN() const
@@ -73,8 +127,10 @@ int Atom_EC::GetN(const Spin& s) const
 {
     if (s==Spin::None) return GetN();
     int ne=GetN();
-    assert((ne+itsNs.NUnpaired)%2==0);
-    return s==Spin::Up ? (ne+itsNs.NUnpaired)/2 : (ne-itsNs.NUnpaired)/2;
+    int NUnpaired=0;
+    for (auto& nu:itsNs.Nu) NUnpaired+=nu;
+    assert((ne+NUnpaired)%2==0);
+    return s==Spin::Up ? (ne+NUnpaired)/2 : (ne-NUnpaired)/2;
 }
 
 int Atom_EC::GetN(const Symmetry& qn) const
@@ -104,6 +160,8 @@ void Atom_EC::Display() const
     cout << "Nv: ";
     for (auto n:itsNs.Nv) cout << n << ",";
     cout << endl;
-    cout << "NUnpaired: " << itsNs.NUnpaired << endl;
+    cout << "Nu: ";
+    for (auto n:itsNs.Nu) cout << n << ",";
+    cout << endl;
 }
    

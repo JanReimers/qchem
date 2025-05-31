@@ -175,8 +175,8 @@ BasisSet* SLm_OBasis::GetBasisSet () const
     BasisSet* bs=new Atom_ml::Slater::BasisSet(N,emin,emax,*GetElectronConfiguration());
     
     bs->Set(lap);
-    StreamableObject::SetToPretty();
-    std::cout << *bs << std::endl;
+    // StreamableObject::SetToPretty();
+    // std::cout << *bs << std::endl;
     return bs;
 }
 

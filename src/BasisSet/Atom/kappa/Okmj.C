@@ -46,22 +46,24 @@ ElCounts_l Omega_k_Sym::GetN(const ElCounts& ec) const
     assert(nl!=0);
     // Handle partial shells
     int nlu=1; //# unpaired in shell l. 
+    int NUnpaired=0;
+    for (auto nu:ec.Nu) NUnpaired+=nu;
     if (l==1) // p is partial.
     {
         assert(ec.Nv[2]==0); //No partial D orbital
-        nlu=ec.NUnpaired-ec.Nv[0];
+        nlu=NUnpaired-ec.Nv[0];
     }
     else if (l==2) // d is partial.
     {
         assert(ec.Nv[1]==0); //p better be full
-        if (ec.Nv[l]>1) nlu=ec.NUnpaired-ec.Nv[0];            
+        if (ec.Nv[l]>1) nlu=NUnpaired-ec.Nv[0];            
     }
     else if(l==3) // f is partial.
     {
         
         assert(ec.Nv[0]==0); //If f is Partial s must be full.
         assert(ec.Nv[1]==0); //If f is Partial p must be full.
-        nlu=ec.NUnpaired-ec.Nv[2];
+        nlu=NUnpaired-ec.Nv[2];
         assert(nlu>=0);
     }
     return ElCounts_l{nl,nlu};// std::make_pair(nl,nlu);
@@ -201,8 +203,10 @@ std::pair<int,int> Omega_kmj_Sym::GetN(const int (&N)[4], const int (&Nv)[4], in
 ElCounts_l Omega_kmj_Sym::GetN(const ElCounts& ec) const
 {
     //assert(itsL<=LMax);
+    int NUnpaired=0;
+    for (auto nu:ec.Nu) NUnpaired+=nu;
     int nl,nlu;
-    std::tie(nl,nlu)=GetNk(ec.N,ec.Nv,ec.NUnpaired);
+    std::tie(nl,nlu)=GetNk(ec.N,ec.Nv,NUnpaired);
     assert((nl+nlu)%2==0);
     double j=Getj();
     int g=2*j+1;
