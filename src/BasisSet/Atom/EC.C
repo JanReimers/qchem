@@ -149,6 +149,30 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
     return ecl.GetN(qns.ms);       
 }
 
+ml_Breakdown Atom_EC::GetBreadown(size_t l) const
+{
+    ml_Breakdown mls;
+    size_t g=(2*l+1); //degenracy
+    size_t Nunp=GetNUnapired(l);
+    size_t Nl=GetNval(l);
+    // aec.Display();
+    // std::cout << "L,g,Nump,Nl = " << L << " " << g  << " " << Nunp  << " " <<  Nl << std::endl;
+    assert(Nl>=Nunp);
+    assert((Nl-Nunp)%2==0);  //This fails Cr Z=24 which one 3s and 5 3d unpaired electrons.
+    size_t Npaired= (Nl-Nunp)/2;
+    assert(g>=Npaired+Nunp);
+    size_t Nempty=g-Npaired-Nunp;
+    int ml=-(int)l;
+    for (size_t i=0;i<Npaired;i++) mls.ml_paired    .push_back(ml++);
+    for (size_t i=0;i<Nunp   ;i++) mls.ml_unpaired  .push_back(ml++);
+    for (size_t i=0;i<Nempty ;i++) mls.ml_unoccupied.push_back(ml++);
+    // cout << "ml_paired    =" << ml_paired << endl;
+    // cout << "ml_unpaired  =" << ml_unpaired << endl;
+    // cout << "ml_unoccupied=" << ml_unoccupied << endl;
+    assert(ml==(int)(l+1));
+    return mls;
+}
+
 void Atom_EC::Display() const
 {
     cout << "N: ";

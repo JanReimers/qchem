@@ -1,6 +1,7 @@
 
 Priority 1:
-    Genreal AtomIrrepIECLient clean up.
+
+    General AtomIrrepIECLient clean up.
     Done: -Get rid of SCFIterationParams::kT
     -QChemTester move bs->Set(lap); to one spot
         All check SV tol, set lower i.e. 1e-9
@@ -10,7 +11,7 @@ Priority 1:
             Atom would be a std::single_view
     -convert all enums into enum classes
         General clean as well.
-    -Re-imagine Ylm basis sets.
+    Done: -Re-imagine Ylm basis sets.
         Based on electron config only *two* Irreps one for occupied and one for unoccupied.
         Each would be merge of Nocc or Nunocc m values.
         Ak and Rk would need to be avaraged or summed accordingly.
@@ -18,6 +19,13 @@ Priority 1:
             Y_{1,-1} for occupied
             0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
         A simpler starting point is for all non-valance l's to be Yl
+    -Ylm  
+        Handle full m list more efficiently
+            Use (2*la+1)*(2*lc+1)*Ak(la,lc)
+        Put basisset build logic in common base class.
+    -Clean up Atom_EC and Ylm::GetN
+    -Decide H based on EC.
+    -Decide Yl or Ylm basis based on EC.
 
     -openmp
         -Make some simple unit tests

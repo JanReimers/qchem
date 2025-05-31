@@ -3,6 +3,7 @@
 #define _Atom_EC_H_
 
 #include <ElectronConfiguration.H>
+#include <vector>
 
 const int Nshell=8;
 const int LMax=3;
@@ -16,6 +17,13 @@ struct ElCounts
     int Nu[LMax+1]; //# of unpaired electrons for a given l.
 };
 
+struct ml_Breakdown
+{
+    std::vector<int> ml_paired;     //List of ml values for paired orbitals
+    std::vector<int> ml_unpaired;   //List of ml values for unpaired orbitals
+    std::vector<int> ml_unoccupied; //List of ml values for empty orbitals
+};
+
 class Atom_EC : public virtual ElectronConfiguration
 {
 public: 
@@ -26,6 +34,8 @@ public:
     virtual size_t GetNUnapired(size_t l) const {return itsNs.Nu[l];}
     virtual size_t GetNval(size_t l) const {return itsNs.Nv[l];}
     virtual void   Display() const;
+    
+    ml_Breakdown GetBreadown(size_t l) const;
 
 private:
     friend class ElectronConfigurationTests;
