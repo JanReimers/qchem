@@ -14,7 +14,8 @@ template <size_t K> class IrrepBasisSet
     , public         IrrepIEClient<K>
 {
 public:
-    IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L, int m=0);
+    IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L);
+    IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L, const std::vector<int>& ml);
     virtual std::ostream&  Write(std::ostream&    ) const;
 
 };

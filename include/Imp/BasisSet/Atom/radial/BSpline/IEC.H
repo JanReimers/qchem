@@ -23,7 +23,8 @@ template <size_t K> struct IrrepIEClient
     // size_t l;
     // int m;
     
-    IrrepIEClient(size_t Ngrid, double rmin, double rmax, size_t l, int m=0);
+    IrrepIEClient(size_t Ngrid, double rmin, double rmax, size_t l);
+    IrrepIEClient(size_t Ngrid, double rmin, double rmax, size_t l,const std::vector<int>& ml);
     virtual ~IrrepIEClient();
     
     virtual size_t size() const {return splines.size();}

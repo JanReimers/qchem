@@ -2,6 +2,7 @@
 
 #include "Imp/BasisSet/Atom/ml/BSpline_BS.H"
 #include "Imp/BasisSet/Atom/ml/BSpline_IBS.H"
+#include "Imp/BasisSet/Atom/EC.H"
 
 namespace Atom_ml
 {
@@ -9,11 +10,22 @@ namespace BSpline
 {
 
 
-template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, size_t LMax)
+template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
 {
+    const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+    size_t LMax=aec.GetLMax();
     for (size_t L=0;L<=LMax;L++)
-        for (int m=-L;m<=(int)L;m++)
-            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,m));            
+    {
+        auto mls=aec.GetBreadown(L);
+        if (mls.ml_paired.size()>0)   
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_paired));            
+        if (mls.ml_unpaired.size()>0)   
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_unpaired));            
+        if (mls.ml_unoccupied.size()>0)   
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_unoccupied));            
+
+    
+    }           
     this->BuildCache(LMax);
 }
 

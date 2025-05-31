@@ -259,10 +259,10 @@ BasisSet* BS_OBasis::GetBasisSet () const
 #include "Imp/BasisSet/Atom/ml/BSpline_BS.H"
 BasisSet* BSm_OBasis::GetBasisSet () const
 {
-    BasisSet* bs=new Atom_ml::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
+    BasisSet* bs=new Atom_ml::BSpline::BasisSet<6>(N,rmin,rmax,*GetElectronConfiguration());
     bs->Set(lap);
     // StreamableObject::SetToPretty();
-    //std::cout << *bs << std::endl;
+    // std::cout << *bs << std::endl;
     return  bs;
 }
 

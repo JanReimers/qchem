@@ -14,13 +14,14 @@ namespace BSpline
 //  Common implementation for orbital and fit basis sets.
 //
 
-template <size_t K> IrrepBasisSet<K>::IrrepBasisSet(size_t Ngrid, double rmin, double rmax, Symmetry* sym, size_t L, int m)
+template <size_t K> IrrepBasisSet<K>::IrrepBasisSet(size_t Ngrid, double rmin, double rmax, Symmetry* sym, size_t L)
     : IBS_Common(sym)
-    , BSpline::IrrepIEClient<K>(Ngrid,rmin, rmax,L,m)
-{
-    
-    
-};
+    , BSpline::IrrepIEClient<K>(Ngrid,rmin, rmax,L)
+{};
+template <size_t K> IrrepBasisSet<K>::IrrepBasisSet(size_t Ngrid, double rmin, double rmax, Symmetry* sym, size_t L, const std::vector<int>& ml)
+    : IBS_Common(sym)
+    , BSpline::IrrepIEClient<K>(Ngrid,rmin, rmax,L,ml)
+{};
 
 template <size_t K> std::ostream&  IrrepBasisSet<K>::Write(std::ostream& os) const
 {

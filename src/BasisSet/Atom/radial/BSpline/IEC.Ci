@@ -5,12 +5,11 @@
 
 namespace BSpline
 {
-template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin, double _rmax, size_t _l, int _m)
+template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin, double _rmax, size_t _l)
 : AtomIrrepIEClient(Ngrid)
 ,rmin(_rmin), rmax(_rmax), itsGL(0)
 {
     l=_l;
-    m=_m;
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
@@ -22,6 +21,13 @@ template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin,
     itsGL=new GLCache(grid,K+2*l);
     assert(itsGL);
 }
+
+template <size_t K> IrrepIEClient<K>::IrrepIEClient( size_t Ngrid, double _rmin, double _rmax, size_t _l, const std::vector<int>& _ml)
+: IrrepIEClient(Ngrid,_rmin,_rmax,_l)
+{
+    ml=_ml;
+}
+
 
 template <size_t K> IrrepIEClient<K>::~IrrepIEClient()
 {

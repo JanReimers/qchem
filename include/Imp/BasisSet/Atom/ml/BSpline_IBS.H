@@ -25,7 +25,7 @@ template <size_t K> class Orbital_IBS
 
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, int m);
+    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
