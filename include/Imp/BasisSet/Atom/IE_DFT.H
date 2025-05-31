@@ -3,6 +3,7 @@
 #define _Atom_IE_DFT_H_
 
 #include "IE.H"
+#include "IEC.H"
 #include "Imp/DataBase/DB_DFT.H"
 
 template <class T> class AtomIE_DFT 
@@ -20,7 +21,7 @@ protected:
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
 private:
-    typedef std::tuple<int,int,int,double,double> bf_tuple;
+    typedef AtomIrrepIEClient::bf_tuple bf_tuple;
     SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
     SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
 };

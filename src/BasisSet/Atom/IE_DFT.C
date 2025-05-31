@@ -23,7 +23,8 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap  (con
     const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(ab);
     size_t N=ab->size();
-    int Nc,Lc,Mc;
+    int Nc,Lc;
+    std::vector<int> Mc;
     double ec,nc;
     std::tie(Nc,Lc,Mc,ec,nc)=c;
     SMat s(N);
@@ -38,7 +39,8 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeRepulsion(con
     const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
     assert(ab);
     size_t N=ab->size();
-    int Nc,Lc,Mc;
+    int Nc,Lc;
+    std::vector<int> Mc;
     double ec,nc;
     std::tie(Nc,Lc,Mc,ec,nc)=c;
     SMat s(N,N);

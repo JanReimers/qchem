@@ -3,11 +3,10 @@
 #include "Imp/BasisSet/Atom/IEC.H"
 
 
-void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l, int _m)
+void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l)
 {
     n=_l+1;
     l=_l;
-    m=_m;
 
     es=exponents;
     ns=norms;
@@ -15,9 +14,9 @@ void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double
 
 void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l, const std::vector<int>& _ml)
 {
+    assert(ml.size()>0);
     n=_l+1;
     l=_l;
-    m=_ml.front();
     ml=_ml;
 
     es=exponents;

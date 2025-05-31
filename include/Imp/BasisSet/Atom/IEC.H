@@ -14,15 +14,14 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     std::vector<size_t> es_indices; //Unique exponent index
     
     size_t n,l;
-    int m;
     std::vector<int> ml;
     
-    void Init(const Vector  <double>& exponents,const Vector<double>& norms, size_t l, int m=0);
+    void Init(const Vector  <double>& exponents,const Vector<double>& norms, size_t l);
     void Init(const Vector  <double>& exponents,const Vector<double>& norms, size_t l,  const std::vector<int>& ml);
     
     virtual size_t size() const {return es.size();}
-    typedef std::tuple<int,int,int,double,double> bf_tuple;
-    bf_tuple operator()(index_t i) const {return std::make_tuple(n,l,m,es(i),ns(i));}
+    typedef std::tuple<int,int,std::vector<int>,double,double> bf_tuple;
+    bf_tuple operator()(index_t i) const {return std::make_tuple(n,l,ml,es(i),ns(i));}
     auto indices() const {return es.indices();}
     auto indices(size_t i) const {return es.indices(i);}
 };

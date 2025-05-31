@@ -24,7 +24,7 @@ protected:
     virtual ERI3 MakeOverlap3C  (const fbs_t& c) const;
     virtual ERI3 MakeRepulsion3C(const fbs_t& c) const;
 private:
-    typedef std::tuple<int,int,const spline_t*,double> bf_tuple;
+    typedef typename BSpline::IrrepIEClient<K>::bf_tuple bf_tuple;
     SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
     SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
 };

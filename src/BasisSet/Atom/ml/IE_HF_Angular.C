@@ -19,32 +19,25 @@ namespace Atom_ml
 
 IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
  {
-    if (a->ml.size()==0 && c->ml.size()==0)
-        return AngularIntegrals::Coulomb(a->l,c->l,a->m,c->m); //old style
-    else
-    {
-        RVec Ak;
-        size_t nac=a->ml.size()*c->ml.size();
-        
-        for (auto ma:a->ml)
-        for (auto mc:c->ml)
-            Ak+=AngularIntegrals::Coulomb(a->l,c->l,ma,mc);
-        return Ak/nac;
-    }
+    RVec Ak;
+    size_t nac=a->ml.size()*c->ml.size();
+    
+    for (auto ma:a->ml)
+    for (auto mc:c->ml)
+        Ak+=AngularIntegrals::Coulomb(a->l,c->l,ma,mc);
+    return Ak/nac;
+    
  }
 IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
 {
-    if (a->ml.size()==0 && b->ml.size()==0)
-        return AngularIntegrals::Exchange(a->l,b->l,a->m,b->m);
-    else
-    {
-        RVec Ak;
-        size_t nab=(a->ml.size())*(b->ml.size());
-        for (auto ma:a->ml)
-        for (auto mb:b->ml)
-            Ak+=AngularIntegrals::Exchange(a->l,b->l,ma,mb);
-        return Ak/nab;
-    }
+    
+    RVec Ak;
+    size_t nab=(a->ml.size())*(b->ml.size());
+    for (auto ma:a->ml)
+    for (auto mb:b->ml)
+        Ak+=AngularIntegrals::Exchange(a->l,b->l,ma,mb);
+    return Ak/nab;
+    
 }
 
 }

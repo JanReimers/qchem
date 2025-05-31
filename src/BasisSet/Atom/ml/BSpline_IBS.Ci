@@ -30,7 +30,7 @@ template <size_t K> void Orbital_IBS<K>::InsertBasisFunctions()
     size_t i=1;
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     for (auto s:iec.splines) 
-        IBS_Common::Insert(new BasisFunction<K>(s,iec.l,iec.m,iec.ns(i++))); //ns from SlaterIEClient
+        IBS_Common::Insert(new BasisFunction<K>(s,iec.l,iec.ml[0],iec.ns(i++))); //ns from SlaterIEClient
 }
 
 template <size_t K>  ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const
