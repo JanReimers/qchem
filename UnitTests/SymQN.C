@@ -72,26 +72,6 @@ TEST_F(SymQNTests, Omega_k_Sym)
         delete Ol1;
     }
 }
-TEST_F(SymQNTests, Ylm_Sym)
-{
-    for (size_t l1=0;l1<=LMax;l1++)
-    for (int m1=-(int)l1;m1<=(int)l1;m1++)
-    {
-        Symmetry* yl1=new Ylm_Sym(l1,m1);
-        for (size_t l2=0;l2<=l1;l2++)
-        for (int m2=-(int)l2;m2<=(int)l2;m2++)
-        {
-            if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
-            Symmetry* yl2=new Ylm_Sym(l2,m2);
-            if (!(*yl1==*yl2))
-            {
-                EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
-            }
-            delete yl2;
-        }
-        delete yl1;
-    }
-}
 TEST_F(SymQNTests, Ylm_Sym_multi)
 {
     for (size_t l1=0;l1<=LMax;l1++)

@@ -14,10 +14,10 @@ void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double
 
 void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l, const std::vector<int>& _ml)
 {
-    assert(ml.size()>0);
     n=_l+1;
     l=_l;
     ml=_ml;
+    assert(ml.size()>0);
 
     es=exponents;
     ns=norms;

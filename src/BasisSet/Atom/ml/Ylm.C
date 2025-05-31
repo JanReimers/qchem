@@ -13,17 +13,19 @@ using std::cout;
 using std::endl;
 
 const int LMAX=4;
-Ylm_Sym::Ylm_Sym(): Yl_Sym(0),m(0) {};
+Ylm_Sym::Ylm_Sym(): Yl_Sym(0) {};
 
-Ylm_Sym::Ylm_Sym(int l, int _m) : Yl_Sym(l), m(_m) {};
 
-Ylm_Sym::Ylm_Sym(int l, const std::vector<int>& _ml) : Yl_Sym(l), m(_ml.front()), ml(_ml) {};
+Ylm_Sym::Ylm_Sym(int l, const std::vector<int>& _ml) 
+: Yl_Sym(l),  ml(_ml) 
+{
+
+
+};
 
 size_t Ylm_Sym::SequenceIndex() const //Used for op<
  {
-    int mmax=m;
-    if (ml.size()>0)
-        mmax=*std::max_element(ml.begin(),ml.end());
+    int mmax=*std::max_element(ml.begin(),ml.end());
     return mmax+itsL+itsL*(2*LMAX+1);
  }
 
@@ -36,9 +38,7 @@ bool Ylm_Sym::Match(const Symmetry& qn) const
 {
     const Ylm_Sym* yqn = dynamic_cast<const Ylm_Sym*>(&qn);
     assert(yqn);
-    bool meq =  m==yqn->m;
-    if (ml.size()>0)
-        meq=ml.size()==yqn->ml.size() && std::equal(ml.begin(), ml.end(), yqn->ml.begin());
+    bool meq=ml.size()==yqn->ml.size() && std::equal(ml.begin(), ml.end(), yqn->ml.begin());
     return itsL==yqn->itsL && meq;
 }
 
@@ -87,25 +87,15 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
         //cout << "Down v,u=" << nlv << " " << nlu << endl;
     }
 
-
-    if (ml.size()==0)
+    for (auto im:ml)
     {
-        nlmv=nlmvs[m+l];
-        nlmu=nlmus[m+l];
-        assert(nlmv%2==nlmu);
-    }
-    else
-    {
-        for (auto im:ml)
-        {
-            nlmv+=nlmvs[im+l];
-            nlmu+=nlmus[im+l];
-        }
+        nlmv+=nlmvs[im+l];
+        nlmu+=nlmus[im+l];
     }
         //cout << "(" << " " << nlmv << " " << nlmu << ") ";
-    int nlmc=nlc/g;  //# core electrons for this {l,m}
-    if (ml.size()>0)
-        nlmc=nlc/g*ml.size();
+    // int nlmc=0/nlc/g;  //# core electrons for this {l,m}
+    // if (ml.size()>0)
+    int nlmc=nlc/g*ml.size();
 
     return ElCounts_l{nlmc+nlmv,nlmu};//::make_pair(nlc+nlv,nlu);
 }
@@ -116,11 +106,8 @@ extern std::string SPDFG[];
 std::ostream& Ylm_Sym::Write(std::ostream& os) const
 {
     os << SPDFG[itsL] << " ";
-    if (ml.size()==0)
-        os << std::setw(2) << m << " ";
-    else
-        for (auto im:ml)
-            os << std::setw(2) << im << " ";
+    for (auto im:ml)
+        os << std::setw(2) << im << " ";
 
     return os;
 }

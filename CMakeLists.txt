@@ -16,7 +16,7 @@ add_library(qchem)
 target_sources(qchem PRIVATE ${qchem_SOURCES} ${qchem_FORTRAN})
 
 # -Wno-unknown-pragmas
-target_compile_options(qchem PRIVATE -fopenmp -Wall 
+target_compile_options(qchem PRIVATE -Wall -Wno-unknown-pragmas
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )

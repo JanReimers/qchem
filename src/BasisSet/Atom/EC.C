@@ -155,10 +155,11 @@ ml_Breakdown Atom_EC::GetBreadown(size_t l) const
     size_t g=(2*l+1); //degenracy
     size_t Nunp=GetNUnapired(l);
     size_t Nl=GetNval(l);
+    // if (l==itsLMax && Nl==0)  Nl=itsNs.Nf[l];
     // aec.Display();
     // std::cout << "L,g,Nump,Nl = " << L << " " << g  << " " << Nunp  << " " <<  Nl << std::endl;
     assert(Nl>=Nunp);
-    assert((Nl-Nunp)%2==0);  //This fails Cr Z=24 which one 3s and 5 3d unpaired electrons.
+    assert((Nl-Nunp)%2==0);  
     size_t Npaired= (Nl-Nunp)/2;
     assert(g>=Npaired+Nunp);
     size_t Nempty=g-Npaired-Nunp;

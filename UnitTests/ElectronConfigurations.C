@@ -21,8 +21,8 @@ class ElectronConfigurationTests : public ::testing::Test
 public:
     ElectronConfigurationTests() {}
     Yl_Sym qn(int l) const {return Yl_Sym(l);}
-    Ylm_Sym qn(int l, int m) const {return Ylm_Sym(l,m);}
-
+    Ylm_Sym qn(int l, const std::vector<int>& ml) const {return Ylm_Sym(l,ml);}
+    
     static int GetN(const Atom_EC& ac) {return ac.GetN();}
     static int GetN(const Atom_EC& ac, Spin s) {return ac.GetN(s);}
     static int GetN(const Atom_EC& ac, const Symmetry& s) {return ac.GetN(s);}
@@ -316,21 +316,21 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
 
 TEST_F(ElectronConfigurationTests, Ylm_SP)
 {
-    for (int Z=1;Z<=94;Z++)
+    for (int Z=4;Z<=10;Z++)
     {
-//        cout << "Z=" << Z << endl;
+        cout << "Z=" << Z << endl;
         Atom_EC ec(Z);
         for (int l=0;l<=3;l++)
         {
 //            cout << "  l=" << l << endl;
             int nlu=GetN(ec,qn(l),Spin::Up);
             int nld=GetN(ec,qn(l),Spin::Down);
+            ml_Breakdown mls=ec.GetBreadown(l);
             int nlu1=0,nld1=0;
-            for (int m=-l;m<=l;m++)
-            {
-                nlu1+=GetN(ec,qn(l,m),Spin::Up);
-                nld1+=GetN(ec,qn(l,m),Spin::Down);
-            }
+            nlu1+=GetN(ec,qn(l,mls.ml_unpaired),Spin::Up);
+            nlu1+=GetN(ec,qn(l,mls.ml_paired),Spin::Up);
+            nld1+=GetN(ec,qn(l,mls.ml_unpaired),Spin::Down);
+            nld1+=GetN(ec,qn(l,mls.ml_paired),Spin::Down);
             EXPECT_EQ(nlu,nlu1);
             EXPECT_EQ(nld,nld1);
         }

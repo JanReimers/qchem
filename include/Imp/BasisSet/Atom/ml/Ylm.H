@@ -17,7 +17,6 @@ class Ylm_Sym
 {
 public:
     Ylm_Sym(             );
-    Ylm_Sym(int l, int ml);
     Ylm_Sym(int l, const std::vector<int>& ml);
 
     virtual size_t     SequenceIndex() const; //Used for op<
@@ -29,10 +28,8 @@ public:
     virtual std::ostream&  Write(std::ostream&) const;
     virtual Angular_Sym*   Clone(        ) const;
 
-    int Getm() const {return m;}
     using Yl_Sym::GetL;
 protected:
-    int m;
     std::vector<int> ml;
 };
 
