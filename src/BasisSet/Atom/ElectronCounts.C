@@ -29,6 +29,7 @@ void ElCounts::DebugCheck() const
         #endif
         assert(g>=Nu[l]);
         assert(2*g>=Nv[l]);
+        assert(Nf[l]%(2*g)==0);
     }
 }
     

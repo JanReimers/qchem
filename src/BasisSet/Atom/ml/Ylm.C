@@ -55,77 +55,27 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
     ec.DebugCheck();
     assert(itsL<=LMax);
     int l=itsL;
-    int g=2*l+1;
 
-    int nlv=ec.Nv[l]; //#valance for this l and all m
-    int nlu=ec.Nu[l]; //# unpaired for this l and all m
-    int nlc=ec.N[l]-ec.Nv[l]; //#core for this l and all m
-    assert(nlc%(2*g)==0);
-    
-    int nlmvs[2*LMax+1]={0,0,0,0,0,0,0};
-    int nlmus[2*LMax+1]={0,0,0,0,0,0,0};
-    int nlmv=0,nlmu=0;
-   
-        //cout << "Start v,u=" << nlv << " " << nlu << endl;
-
-    bool less_than_half = nlv<=g;
-    //
-    //  Fill with spin up.
-    //
-    for (int m1=-l;m1<=l && nlv>0 && nlu>=0;m1++)
+    int nup=ec.GetNv(l,Spin::Up);   //How many spin up valance electrons.
+    int ndn=ec.GetNv(l,Spin::Down); //How many spin dn valance electrons.
+    //  Fill all up and down occupied m states.
+    int nlmups[2*LMax+1]={0,0,0,0,0,0,0};
+    int nlmdns[2*LMax+1]={0,0,0,0,0,0,0};
+    for (int m=-l;m<=l && nup>0;m++,nup--) nlmups[m+l]++;
+    for (int m=-l;m<=l && ndn>0;m++,ndn--) nlmdns[m+l]++;
+    // Now count how many of these occupied states are in the ml list.
+    int nlmup=0,nlmdn=0;
+    for (auto m:ml)
     {
-        nlmvs[m1+l]++;
-        nlmus[m1+l]++;
-        nlv--;
-        if (less_than_half) nlu--;
-        //cout << "Up v,u=" << nlv << " " << nlu << endl;
+        nlmup+=nlmups[m+l];
+        nlmdn+=nlmdns[m+l];
     }
-    for (int m1=-l;m1<=l&&nlv>0;m1++)
-    {
-        nlmvs[m1+l]++;
-        nlmus[m1+l]--;
-        nlv--;
-        if (!less_than_half) nlu--;
-        //cout << "Down v,u=" << nlv << " " << nlu << endl;
-    }
+    assert(nlmup>=nlmdn);
+    int nlmv=nlmup+nlmdn; //Total valance
+    int nlmu=nlmup-nlmdn; //Total unpaired.
 
-    for (auto im:ml)
-    {
-        nlmv+=nlmvs[im+l];
-        nlmu+=nlmus[im+l];
-    }
-        //cout << "(" << " " << nlmv << " " << nlmu << ") ";
-    int nlmc=nlc/g*ml.size();
-
-    {
-        int nup=ec.GetNv(l,Spin::Up);
-        int ndn=ec.GetNv(l,Spin::Down);
-
-        int nlmups[2*LMax+1]={0,0,0,0,0,0,0};
-        int nlmdns[2*LMax+1]={0,0,0,0,0,0,0};
-        
-        for (int m=-l;m<=l && nup>0;m++) 
-        {
-            nlmups[m+l]++;
-            nup--;
-        }
-        for (int m=-l;m<=l && ndn>0;m++) 
-        {
-            nlmdns[m+l]++;
-            ndn--;
-        }
-        int nlmup=0,nlmdn=0;
-        for (auto im:ml)
-        {
-            nlmup+=nlmups[im+l];
-            nlmdn+=nlmdns[im+l];
-        }
-        assert(nlmv==nlmup+nlmdn);
-        assert(nlmu==nlmup-nlmdn);
-    }
-
-
-
+    int g=2*l+1; //Degeneracy.
+    int nlmc=ec.Nf[l]/g*ml.size();  //How many m states in the core.
 
     return ElCounts_l{nlmc+nlmv,nlmu};//// Should be total core+valance 
 }
