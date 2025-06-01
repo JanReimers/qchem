@@ -3,6 +3,7 @@
 #include "Imp/BasisSet/Atom/EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/Angular.H"
+// #include "Imp/Containers/stl_io.h"
 #include <Orbital_QNs.H>
 #include <cassert>
 #include <iostream>
@@ -153,23 +154,26 @@ ml_Breakdown Atom_EC::GetBreadown(size_t l) const
 {
     ml_Breakdown mls;
     size_t g=(2*l+1); //degenracy
-    size_t Nunp=GetNUnapired(l);
-    size_t Nl=GetNval(l);
+    size_t Nunp=itsNs.Nu[l];
+    size_t Nv=itsNs.Nv[l];  
     // if (l==itsLMax && Nl==0)  Nl=itsNs.Nf[l];
     // aec.Display();
     // std::cout << "L,g,Nump,Nl = " << L << " " << g  << " " << Nunp  << " " <<  Nl << std::endl;
-    assert(Nl>=Nunp);
-    assert((Nl-Nunp)%2==0);  
-    size_t Npaired= (Nl-Nunp)/2;
+    assert(Nv>=Nunp);
+    assert((Nv-Nunp)%2==0);  
+    size_t Npaired= (Nv-Nunp)/2; // For full shell systems this ends up being zero.
     assert(g>=Npaired+Nunp);
     size_t Nempty=g-Npaired-Nunp;
     int ml=-(int)l;
     for (size_t i=0;i<Npaired;i++) mls.ml_paired    .push_back(ml++);
     for (size_t i=0;i<Nunp   ;i++) mls.ml_unpaired  .push_back(ml++);
     for (size_t i=0;i<Nempty ;i++) mls.ml_unoccupied.push_back(ml++);
-    // cout << "ml_paired    =" << ml_paired << endl;
-    // cout << "ml_unpaired  =" << ml_unpaired << endl;
-    // cout << "ml_unoccupied=" << ml_unoccupied << endl;
+
+    // For full shell systems we end with one mls.ml_unoccupied set.  It sounds wrong but it works.
+
+    // cout << "ml_paired    =" << mls.ml_paired << endl;
+    // cout << "ml_unpaired  =" << mls.ml_unpaired << endl;
+    // cout << "ml_unoccupied=" << mls.ml_unoccupied << endl;
     assert(ml==(int)(l+1));
     return mls;
 }

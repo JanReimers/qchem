@@ -20,10 +20,8 @@ class Atom_EC : public virtual ElectronConfiguration
 public: 
     Atom_EC(int Z);
     
-    virtual int    GetN(const Irrep_QNs&) const;
+    virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance
     virtual size_t GetLMax() const {return itsLMax;}
-    virtual size_t GetNUnapired(size_t l) const {return itsNs.Nu[l];}
-    virtual size_t GetNval(size_t l) const {return itsNs.Nv[l];}
     virtual void   Display() const;
     
     ml_Breakdown GetBreadown(size_t l) const;
