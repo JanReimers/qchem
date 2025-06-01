@@ -1,6 +1,6 @@
 
 Priority 1:
-    -Clean up Atom_EC::GetBreadown so that full shell system (He, Ne..) get ml_paired instead of just ml_unoccupied
+    Done: -Clean up Atom_EC::GetBreadown so that full shell system (He, Ne..) get ml_paired instead of just ml_unoccupied
     -Fix polarized orbital output for Ylm basis sets.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
         Only in DEBUG mode!?!
@@ -24,14 +24,14 @@ Priority 1:
             Y_{1,-1} for occupied
             0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
         A simpler starting point is for all non-valance l's to be Yl
-    -Ylm  
         Done: Handle full m list more efficiently
             Use (2*la+1)*(2*lc+1)*Ak(la,lc)
             Do the la and lc parts factor?
                 For coulomb yes, for exchange no
+    -Ylm  
         Put basisset build logic in common base class.
-    -Clean up Atom_EC and Ylm::GetN
-    -Decide H based on EC.
+    Done: -Clean up Atom_EC and Ylm::GetN
+    -Decide Ham based on EC.
     -Decide Yl or Ylm basis based on EC.
 
     -openmp

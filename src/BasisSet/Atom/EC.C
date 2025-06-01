@@ -158,12 +158,15 @@ ml_Breakdown Atom_EC::GetBreadown(size_t l) const
     size_t Nunp=itsNs.Nu[l];
     size_t Npairs= (itsNs.Nv[l]-itsNs.Nu[l])/2; // For full shell systems this ends up being zero.
     size_t Nempty=g-Npairs-Nunp;
+    if (Nempty==g) //Fix up for full shell systems.
+    {
+        Npairs=g;
+        Nempty=0;
+    }
     int ml=-(int)l;
     for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml++);
     for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml++);
     for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
-
-    // For full shell systems we end with one mls.ml_unoccupied set.  It sounds wrong but it works.
 
     // cout << "ml_paired    =" << mls.ml_paired << endl;
     // cout << "ml_unpaired  =" << mls.ml_unpaired << endl;
