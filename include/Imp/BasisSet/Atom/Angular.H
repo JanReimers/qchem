@@ -15,11 +15,11 @@ class Angular_Sym
     : public virtual Symmetry
 {
 public:
-    virtual ElCounts_l GetN(const ElCounts&) const=0;
     virtual int GetPrincipleOffset() const {return GetL();} //Add to principle QN.  For atoms this is just l.
-
+    // New atom specific functions.
+    virtual ElCounts_l GetN(const ElCounts&) const=0;
     virtual int GetL() const=0;
-    virtual Angular_Sym* Clone() const=0;
+    virtual Angular_Sym* Clone() const=0; //Establish covarient return type.
 };
 
 #endif //_Angular_Sym_H_

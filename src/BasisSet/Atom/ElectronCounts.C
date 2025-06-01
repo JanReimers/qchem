@@ -7,7 +7,14 @@
 
 int ElCounts_l::GetN(Spin s) const
 {
+    assert(s!=Spin::None);
     return s==Spin::Up ? (N+Nu)/2 : (N-Nu)/2;  
+}
+
+int ElCounts::GetNv(int l, Spin s) const
+{
+    assert(s!=Spin::None);
+    return s==Spin::Up ? (Nv[l]+Nu[l])/2 : (Nv[l]-Nu[l])/2;  
 }
 
 void ElCounts::DebugCheck() const
@@ -18,7 +25,7 @@ void ElCounts::DebugCheck() const
         assert((Nv[l]-Nu[l])%2==0); 
         assert(N[l]==Nv[l]+Nf[l]);
         #ifndef NDEBUG
-        size_t g=(2*l+1); //degenracy
+        int g=(2*l+1); //degenracy
         #endif
         assert(g>=Nu[l]);
         assert(2*g>=Nv[l]);
