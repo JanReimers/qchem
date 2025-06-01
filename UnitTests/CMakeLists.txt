@@ -10,7 +10,8 @@ link_directories(
 add_executable(UTMain UTMain.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C)
 #add_executable(UTMain UTMain.C Angular.C)
 
-target_compile_options(UTMain PRIVATE -Wall 
+#-Wno-unknown-pragmas
+target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )

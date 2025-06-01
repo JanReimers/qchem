@@ -2,20 +2,11 @@
 #ifndef _Atom_EC_H_
 #define _Atom_EC_H_
 
+#include "ElectronCounts.H"
 #include <ElectronConfiguration.H>
 #include <vector>
 
 const int Nshell=8;
-const int LMax=3;
-
-struct ElCounts
-{
-    ElCounts() : N{0,0,0,0}, Nf{0,0,0,0},Nv{0,0,0,0},Nu{0,0,0,0} {};
-    int N [LMax+1]; //Total N[l]
-    int Nf[LMax+1]; //Full shell N[l]
-    int Nv[LMax+1]; //Valance shell N[l]
-    int Nu[LMax+1]; //# of unpaired electrons for a given l.
-};
 
 struct ml_Breakdown
 {
