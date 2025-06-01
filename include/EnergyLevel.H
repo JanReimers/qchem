@@ -24,18 +24,23 @@ struct EnergyLevel
 class EnergyLevels
 {
     typedef std::multimap<double,EnergyLevel> el_t;
-    typedef el_t::iterator iterator;
+    typedef std::map<Orbital_QNs,EnergyLevel> oel_t;
     typedef el_t::const_iterator const_iterator;
 public:
     void insert(const EnergyLevel& el)
     {
         itsELevels.insert(std::make_pair(el.e,el));
+        itsQNLevels.insert(std::make_pair(el.qns,el));
     }
-    void clear() {itsELevels.clear();}
+    void clear() 
+    {
+        itsELevels.clear();
+        itsQNLevels.clear();
+    }
     void merge(const EnergyLevels& els);
     void merge(const EnergyLevels& els, double tol);
-    iterator       begin()       {return itsELevels.begin();}
-    iterator       end  ()       {return itsELevels.end  ();}
+    const EnergyLevel& find(const Orbital_QNs&) const;
+
     const_iterator begin() const {return itsELevels.begin();}
     const_iterator end  () const {return itsELevels.end  ();}
     size_t         size () const {return itsELevels.size ();}
@@ -43,7 +48,8 @@ public:
 
 private:
 
-     el_t itsELevels;
+     el_t  itsELevels;
+     oel_t itsQNLevels; //All levels indexed by QNs.
 };
 
 

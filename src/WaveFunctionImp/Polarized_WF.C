@@ -15,6 +15,8 @@
 #include <Orbital_QNs.H>
 #include <iostream>
 
+using std::cout;
+using std::endl;
 
 
 Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec)
@@ -89,47 +91,34 @@ void Polarized_WF::FillOrbitals()
     for (auto& w:itsSpinDnIWFs) 
          itsDnELevels.merge(w->FillOrbitals(itsEC),0.0001);
 
-    // std::cout << "FillOrbitals Up:" << std::endl;
-    // itsUpELevels.Report(std::cout);
-    // std::cout << "FillOrbitals Down:" << std::endl;
-    // itsDnELevels.Report(std::cout);
+    // cout << "FillOrbitals Up:" << endl;
+    // itsUpELevels.Report(cout);
+    // cout << "FillOrbitals Down:" << endl;
+    // itsDnELevels.Report(cout);
 
 }
 
 
 void Polarized_WF::DisplayEigen() const
 {
-    // std::cout << "DisplayEigen Up:" << std::endl;
-    // itsUpELevels.Report(std::cout);
-    // std::cout << "DisplayEigen Down:" << std::endl;
-    // itsDnELevels.Report(std::cout);
+    // cout << "DisplayEigen Up:" << endl;
+    // itsUpELevels.Report(cout);
+    // cout << "DisplayEigen Down:" << endl;
+    // itsDnELevels.Report(cout);
     
-    std::cout << "Spin:         up                 down            avg" << std::endl;
-    auto iup=itsUpELevels.begin();
-    auto idn=itsDnELevels.begin();
-    while (iup!=itsUpELevels.end() && idn!=itsDnELevels.end())
+    cout << "Spin:         up                 down            avg" << endl;
+    for (auto iup:itsUpELevels)
     {
-        bool valid_up = iup!=itsUpELevels.end();
-        bool valid_dn = idn!=itsDnELevels.end();
-        assert(iup->first == iup->second.e);
-        assert(idn->first == idn->second.e);
-        bool print_up = valid_up && iup->first<=0.0;
-        bool print_dn = valid_dn && idn->first<=0.0;
-        bool qn_match = valid_up && valid_dn && iup->second.qns.MatchNoSpin(idn->second.qns);
-        if (print_up)
-            iup->second.Report(std::cout);
-        else
-            std::cout << "                                     ";
-        
-        if (print_dn && qn_match)
-            idn->second.Report(std::cout);
-        
-        
-            
-        std::cout << std::endl;
-        if (valid_up) iup++;
-        if (valid_dn && qn_match) idn++; //If no match, let iup catch up.
-        if (iup->first>0.0 && idn->first>0.0) break;
+        auto up=iup.second;
+        assert(iup.first == up.e);
+        Orbital_QNs dnqns(up.qns.n,Spin::Down,up.qns.sym->Clone());
+        // cout << "dnqns=" << dnqns << endl;
+        auto dn=itsDnELevels.find(dnqns);
+
+        up.Report(cout);
+        if (dn.e<=0.0) dn.Report(cout);
+        cout << endl;
+        if (up.e>0.0) break;
     }
    
 }

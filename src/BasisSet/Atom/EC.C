@@ -29,23 +29,21 @@ const int Atom_EC::FullShells[Nshell][LMax+2]=
 Atom_EC::Atom_EC(int Z)
 : itsLMax(0)
 {
-    int nup=pt.GetNumUnpairedElectrons(Z); //For all l.
     assert(Z>0);
     assert(Z<=N_Elements);
+
     int* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
-    // Hunt for the nearest for full shell for Z.
+    
+    // Step 1: Hunt for the nearest for full shell for Z.
     int ns=0;
     for (;ns<Nshell;ns++)
         if (FullShells[ns][0]>Z) break;
     ns--;
-//    for (auto l:{0,1,2,3}) cout << valance_configuration[l] << ",";
-//    cout << endl;
-//    for (auto l:{0,1,2,3}) cout << FullShells[ns][l+1] << ",";
-//    cout << endl;
 
-    // Load up arrays 
+    // Step 2: Load up counts of valance and core electrons.
     //   Nf=# of {s,p,d,f} electrons in the full shells.
     //   Nv=# of {s,p,d,f} valance electrons
+    //   N=Nf+Nv
     for (size_t l=0;l<=LMax;l++) 
     {
         int g=2*(2*l+1); //degeneracy
@@ -68,19 +66,22 @@ Atom_EC::Atom_EC(int Z)
         if (nv>0) lv=l;
         l++;
     }
-   
-    int gv=2*lv+1;
+    // Step 3:  Figure out where all the unpaired electrons land.  This is complicated by atoms like Cr
+    //          with 6 unpaired electrons.  5 are d, and 1 is s.
+
+    int nup=pt.GetNumUnpairedElectrons(Z); //Total # of unpaired electrons.
+    int gv=2*lv+1; //Degeneracy of the valance shell.
     if (itsNs.Nv[lv]<=gv)
     { // <= half filled
         if (nup<=itsNs.Nv[lv])
         {
-            itsNs.Nu[lv]=nup; //take them all.
+            itsNs.Nu[lv]=nup; //take all unapired in the valance shell.
             nup=0;
         }
         else
         {
-            itsNs.Nu[lv]=itsNs.Nv[lv];  //Take as many as we can.
-            nup-=itsNs.Nv[lv];
+            itsNs.Nu[lv]=itsNs.Nv[lv];  //Take as many as we can in the valance shell.
+            nup-=itsNs.Nv[lv]; //Keep track of how many unpaired electrons are left over.
         }
 
     }   
@@ -90,25 +91,25 @@ Atom_EC::Atom_EC(int Z)
         assert(Nvu<=gv);
         if (nup<=Nvu)
         {
-            itsNs.Nu[lv]=nup; //take them all.
+            itsNs.Nu[lv]=nup; //take all unapired in the valance shell.
             nup=0;
         }
         else
         {
-            itsNs.Nu[lv]=Nvu;  //Take as many as we can.
-            nup-=Nvu;
+            itsNs.Nu[lv]=Nvu;  //Take as many as we can in the valance shell.
+            nup-=Nvu; //Keep track of how many unpaired electrons are left over.
         }
 
     }
     //  Put any remaining unpaired electrons into lower l
     if (nup>0)
     {
-        assert(nup==1); //There are no cases where lower gets more than one unpaired.
+        assert(nup==1); //There are no cases where lower l gets more than one unpaired.
         assert(lv>0);
-        for (int l=lv-1;l>=0 && nup>0;l--)
-            if (itsNs.Nv[l]>0)
+        for (int l=lv-1;l>=0 && nup>0;l--) //Go backwards throuhg ls
+            if (itsNs.Nv[l]>0) //Did we find some valance electrons
             {
-                assert(itsNs.Nv[l]==1);
+                assert(itsNs.Nv[l]==1); 
                 itsNs.Nu[l]=nup;
                 nup--;
             }

@@ -1,7 +1,7 @@
 
 Priority 1:
     Done: -Clean up Atom_EC::GetBreadown so that full shell system (He, Ne..) get ml_paired instead of just ml_unoccupied
-    -Fix polarized orbital output for Ylm basis sets.
+    Done: -Fix polarized orbital output for Ylm basis sets.
     -WF list all oritals.  Don;t list so many un-occ orbitals.
         Only in DEBUG mode!?!
 

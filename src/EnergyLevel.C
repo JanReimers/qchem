@@ -36,10 +36,19 @@ void EnergyLevel::Report(std::ostream& os) const
        << ") " << qns;
 }
 
+const EnergyLevel& EnergyLevels::find(const Orbital_QNs& oqns) const
+{
+    auto i=itsQNLevels.find(oqns);
+    if (i==itsQNLevels.end())
+        for (auto o:itsQNLevels)
+            std::cout << o.first << std::endl;
+    assert(i!=itsQNLevels.end());
+    return i->second;
+}
 
 void EnergyLevels::merge(const EnergyLevels& els)
 {
-    for (auto& el:els) itsELevels.insert(el);
+    for (auto& el:els) insert(el.second);
 }
 
 void EnergyLevels::merge(const EnergyLevels& els, double tol)
@@ -55,7 +64,7 @@ void EnergyLevels::merge(const EnergyLevels& els, double tol)
         auto iu=itsELevels.upper_bound(el.first+tol);
         bool symmatch = il->second.qns == el.second.qns;
         if ((!symmatch) || il==itsELevels.end() || il==iu)
-            itsELevels.insert(el);
+            insert(el.second);
         else
             il->second.merge(el.second);
         
