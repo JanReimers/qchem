@@ -152,22 +152,16 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
 
 ml_Breakdown Atom_EC::GetBreadown(size_t l) const
 {
+    itsNs.DebugCheck(); //Check self consistency
     ml_Breakdown mls;
     size_t g=(2*l+1); //degenracy
     size_t Nunp=itsNs.Nu[l];
-    size_t Nv=itsNs.Nv[l];  
-    // if (l==itsLMax && Nl==0)  Nl=itsNs.Nf[l];
-    // aec.Display();
-    // std::cout << "L,g,Nump,Nl = " << L << " " << g  << " " << Nunp  << " " <<  Nl << std::endl;
-    assert(Nv>=Nunp);
-    assert((Nv-Nunp)%2==0);  
-    size_t Npaired= (Nv-Nunp)/2; // For full shell systems this ends up being zero.
-    assert(g>=Npaired+Nunp);
-    size_t Nempty=g-Npaired-Nunp;
+    size_t Npairs= (itsNs.Nv[l]-itsNs.Nu[l])/2; // For full shell systems this ends up being zero.
+    size_t Nempty=g-Npairs-Nunp;
     int ml=-(int)l;
-    for (size_t i=0;i<Npaired;i++) mls.ml_paired    .push_back(ml++);
-    for (size_t i=0;i<Nunp   ;i++) mls.ml_unpaired  .push_back(ml++);
-    for (size_t i=0;i<Nempty ;i++) mls.ml_unoccupied.push_back(ml++);
+    for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml++);
+    for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml++);
+    for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
 
     // For full shell systems we end with one mls.ml_unoccupied set.  It sounds wrong but it works.
 
