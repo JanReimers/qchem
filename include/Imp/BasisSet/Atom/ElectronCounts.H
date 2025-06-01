@@ -17,8 +17,8 @@ enum class Spin;
 
 struct ElCounts_l
 {
-    int n;  //# valance electrons for a given l
-    int nu; //# of un paired electrons (for a given l)
+    int N;  //# valance electrons for a given l
+    int Nu; //# of un paired electrons (for a given l)
     int GetN(Spin s) const;
 };
 

@@ -138,7 +138,7 @@ int Atom_EC::GetN(const Symmetry& qn) const
 {
     const Angular_Sym& sqn=dynamic_cast<const Angular_Sym&>(qn);
     ElCounts_l ecl=sqn.GetN(itsNs);
-    return ecl.n;    
+    return ecl.N; // Should be total core+valance 
 }
 int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
@@ -146,8 +146,8 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
     
     const Angular_Sym& sqn=dynamic_cast<const Angular_Sym&>(*qns.sym);
     ElCounts_l ecl=sqn.GetN(itsNs);
-    assert((ecl.n+ecl.nu)%2==0);
-    return ecl.GetN(qns.ms);       
+    assert((ecl.N+ecl.Nu)%2==0);
+    return ecl.GetN(qns.ms);  // Should be total core+valance      
 }
 
 ml_Breakdown Atom_EC::GetBreadown(size_t l) const

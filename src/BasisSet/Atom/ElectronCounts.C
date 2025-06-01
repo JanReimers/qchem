@@ -6,5 +6,5 @@
 
 int ElCounts_l::GetN(Spin s) const
 {
-    return s==Spin::Up ? (n+nu)/2 : (n-nu)/2;  
+    return s==Spin::Up ? (N+Nu)/2 : (N-Nu)/2;  
 }

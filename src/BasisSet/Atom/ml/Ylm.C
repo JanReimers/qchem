@@ -50,14 +50,14 @@ int Ylm_Sym::GetDegeneracy() const
 ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
 {
     assert(itsL<=LMax);
-    ElCounts_l ecl=Yl_Sym::GetN(ec);
+    ElCounts_l ecl=Yl_Sym::GetN(ec); // Should be total core+valance 
     int l=itsL;
     int g=2*l+1;
 
     int nlv=ec.Nv[l]; //#valance for this l and all m
-    int nlu=ecl.nu; //# unpaired for this l and all m
+    int nlu=ecl.Nu; //# unpaired for this l and all m
     int nlc=ec.N[l]-ec.Nv[l]; //#core for this l and all m
-    assert((ecl.n+ecl.nu)%2==0);
+    assert((ecl.N+ecl.Nu)%2==0);
     assert(nlc%(2*g)==0);
 
  
@@ -95,7 +95,7 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
         //cout << "(" << " " << nlmv << " " << nlmu << ") ";
     int nlmc=nlc/g*ml.size();
 
-    return ElCounts_l{nlmc+nlmv,nlmu};//::make_pair(nlc+nlv,nlu);
+    return ElCounts_l{nlmc+nlmv,nlmu};//// Should be total core+valance 
 }
 
 
