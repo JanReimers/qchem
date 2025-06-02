@@ -18,10 +18,7 @@ public:
     Large_BasisFunction() {};
     Large_BasisFunction(double ex, int kappa, int mj, double norm);
     
-    virtual bool   operator==(const ::BasisFunction&) const;
-
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
+    virtual std::ostream&    Write(std::ostream&) const;
     virtual ::BasisFunction* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
@@ -47,10 +44,7 @@ public:
     Small_BasisFunction();
     Small_BasisFunction(const Large_BasisFunction*,double norm);
     
-    virtual bool   operator==(const ::BasisFunction&) const;
-
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
+    virtual std::ostream&    Write(std::ostream&) const;
     virtual ::BasisFunction* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;

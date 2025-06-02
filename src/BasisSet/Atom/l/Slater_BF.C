@@ -26,13 +26,6 @@ BasisFunction::BasisFunction(double ex, int n, int l, double norm)
 {
 };
 
-bool BasisFunction::operator==(const ::BasisFunction& bf) const
-{
-    const BasisFunction& sbf = dynamic_cast<const BasisFunction&>(bf);
-    assert(&sbf);
-    return itsExponent==(sbf.itsExponent) && (itsN==sbf.itsN) && (itsL==sbf.itsL);
-}
-
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
     return os << itsExponent << " ";

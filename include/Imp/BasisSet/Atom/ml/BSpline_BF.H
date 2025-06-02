@@ -19,8 +19,6 @@ public:
     // BasisFunction();
     BasisFunction(const spline_t&, int l, int ml, double norm);
     
-    virtual bool   operator==(const ::BasisFunction&) const;
-
     virtual ::BasisFunction* Clone(        ) const;
 
 private:

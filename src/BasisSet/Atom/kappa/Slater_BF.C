@@ -19,13 +19,6 @@ Large_BasisFunction::Large_BasisFunction(double ex, int _kappa, int _mj, double 
 {
 };
 
-bool Large_BasisFunction::operator==(const ::BasisFunction& bf) const
-{
-    const Large_BasisFunction& sbf = dynamic_cast<const Large_BasisFunction&>(bf);
-    assert(&sbf);
-    return itsExponent==(sbf.itsExponent) && (kappa==sbf.kappa) && (mj==sbf.mj) && (l==sbf.l);
-}
-
 std::ostream& Large_BasisFunction::Write(std::ostream& os) const
 {
     if (StreamableObject::Pretty())
@@ -33,11 +26,6 @@ std::ostream& Large_BasisFunction::Write(std::ostream& os) const
         os << itsExponent << " ";
     }
     return os;
-}
-
-std::istream& Large_BasisFunction::Read(std::istream& is)
-{
-    return is;
 }
 
 //
@@ -73,19 +61,9 @@ Small_BasisFunction::Small_BasisFunction(const Large_BasisFunction* _Pr,double n
     assert(itsNormalization>0.0);
 }
 
-bool Small_BasisFunction::operator==(const ::BasisFunction& bf) const
-{
-    return *Pr==bf;
-}
-
 std::ostream& Small_BasisFunction::Write(std::ostream& os) const
 {
     return Pr->Write(os);
-}
-
-std::istream& Small_BasisFunction::Read(std::istream& is)
-{
-    return is;
 }
 
 //

@@ -14,8 +14,6 @@ class BasisFunction : public Atoml::Slater::BasisFunction
 public:
     BasisFunction(double ex, int n, int l, int ml, double norm);
     
-    virtual bool   operator==(const ::BasisFunction&) const;
-
     virtual BasisFunction* Clone(        ) const;
 private:
     typedef Atoml::Slater::BasisFunction Base;

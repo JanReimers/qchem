@@ -13,12 +13,6 @@ BasisFunction::BasisFunction(double e,int n, int l, int _ml, double norm)
 , ml(_ml)
 {};
 
-bool BasisFunction::operator==(const ::BasisFunction& bf) const
-{
-    const BasisFunction& sgbf = dynamic_cast<const BasisFunction&>(bf);
-    assert(&sgbf);
-    return  Base::operator==(bf) && (ml==sgbf.ml);
-}
 
 BasisFunction* BasisFunction::Clone() const
 {

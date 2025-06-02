@@ -14,8 +14,6 @@ namespace Gaussian
     public:
         BasisFunction(double theExponent,int n, int l, int ml, double norm);
         
-        virtual bool   operator==(const ::BasisFunction&) const;
-    
         virtual BasisFunction* Clone(        ) const;
     private:
         typedef Atoml::Gaussian::BasisFunction Base;

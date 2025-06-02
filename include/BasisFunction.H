@@ -18,8 +18,6 @@ class BasisFunction
 public:
     virtual ~BasisFunction()  {};
 
-    virtual bool   operator==(const BasisFunction&) const=0;
-
     virtual BasisFunction* Clone  (             ) const=0;
     static  BasisFunction* Factory(std::istream&)        ;
 };

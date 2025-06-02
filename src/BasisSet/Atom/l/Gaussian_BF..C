@@ -24,21 +24,9 @@ BasisFunction::BasisFunction(double theExponent, int theL, double norm)
 {
 };
 
-bool BasisFunction::operator==(const ::BasisFunction& bf) const
-{
-    const BasisFunction& sgbf = dynamic_cast<const BasisFunction&>(bf);
-    assert(&sgbf);
-    return itsExponent==(sgbf.itsExponent) && (itsL==sgbf.itsL);
-}
-
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {
     return os << itsExponent << " ";
-}
-
-std::istream& BasisFunction::Read(std::istream& is)
-{
-    return is;
 }
 
 double BasisFunction::operator()(const Vec3& r) const

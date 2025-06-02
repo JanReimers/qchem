@@ -24,8 +24,6 @@ public:
     virtual ~IBS_Common();
 
     virtual size_t  GetNumFunctions(               ) const;
-    virtual bool    operator==     (const IrrepBasisSet&) const;
-
     virtual const Symmetry&  GetSymmetry() const
     {
         assert(itsSymmetry);

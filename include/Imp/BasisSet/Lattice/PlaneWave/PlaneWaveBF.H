@@ -14,13 +14,11 @@ public:
     PlaneWaveBF(const RVec3& G, double Volume);
     virtual void Init(double norm, double charge); //Use an integral engine to calculate normalization and charge constants.
 
-    virtual bool   operator==(const BasisFunction&) const;
     virtual double GetNormalization() const;
     virtual double GetCharge       () const; //Zero, unless G=0.
 
     
-    virtual std::ostream&       Write(std::ostream&   ) const;
-    virtual std::istream&       Read (std::istream&   )      ;
+    virtual std::ostream&  Write(std::ostream&   ) const;
     virtual BasisFunction* Clone(           ) const;
 
     virtual std::complex<double>  operator()(const RVec3&) const;

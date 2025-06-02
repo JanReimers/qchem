@@ -24,17 +24,8 @@ template <size_t K> BasisFunction<K>::BasisFunction(const spline_t& sp, int l, d
     , itsL            (l)
     , itsNormalization(norm)
 {
-    // bspline::operators::Derivative<1> ddx;
-    // auto ddx1=bspline::operators::Dx<1>{};
-    // auto dsdr=ddx1*(*itsSpline);
 };
 
-template <size_t K> bool BasisFunction<K>::operator==(const ::BasisFunction& bf) const
-{
-    const BasisFunction<K>& sbf = dynamic_cast<const BasisFunction<K>&>(bf);
-    assert(&sbf);
-    return (itsSpline==sbf.itsSpline) && (itsL==sbf.itsL);
-}
 
 template <size_t K> std::ostream& BasisFunction<K>::Write(std::ostream& os) const
 {

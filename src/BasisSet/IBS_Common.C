@@ -63,20 +63,6 @@ size_t IBS_Common::GetNumFunctions() const
     return itsBasisFunctions.size();
 }
 
-bool IBS_Common::operator==(const IrrepBasisSet& bs) const
-{
-    // No UT coverage
-    if (GetNumFunctions() != bs.GetNumFunctions()) return false;
-    bool ret=true;
-    auto b2=bs.Iterate<BasisFunction>().begin(); 
-    for (auto b1:Iterate<BasisFunction>()) 
-    {
-        ret=ret && (*b1)==(**b2);
-        ++b2;
-    }
-    return ret;
-}
-
 //-----------------------------------------------------------------------------
 //
 //  Streamable stuff.
@@ -105,17 +91,6 @@ std::ostream& IBS_Common::Write(std::ostream& os) const
 
     return os;
 }
-
-// std::istream& IrrepBasisSetCommon::Read(std::istream& is)
-// {
-//     UniqueID::Read(is);
-
-//     delete itsQuantumNumber;
-//     itsQuantumNumber=QuantumNumber::Factory(is);
-//     is >> *itsQuantumNumber;
-
-//     return is;
-// };
 
 //-----------------------------------------------------------------------------
 //

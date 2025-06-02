@@ -16,10 +16,7 @@ public:
     BasisFunction();
     BasisFunction(double ex, int n, int l, double norm);
     
-    virtual bool   operator==(const ::BasisFunction&) const;
-
-    virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream& is) {return is;}
+    virtual std::ostream&  Write(std::ostream&) const;
     virtual BasisFunction* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
