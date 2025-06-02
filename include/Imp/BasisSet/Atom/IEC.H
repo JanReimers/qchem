@@ -24,6 +24,10 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     bf_tuple operator()(index_t i) const {return std::make_tuple(n,l,es(i),ns(i));}
     auto indices() const {return es.indices();}
     auto indices(size_t i) const {return es.indices(i);}
+
+    static AtomIrrepIEClient* dcast(::IrrepIEClient*);
+    static const AtomIrrepIEClient* dcast(const ::IrrepIEClient*);
+    static const AtomIrrepIEClient& dcast(const ::IrrepIEClient& iec) {return *dcast(&iec);}
 };
 
 

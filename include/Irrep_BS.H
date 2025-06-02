@@ -82,7 +82,7 @@ public:
     size_t GetVectorSize() const {return GetNumFunctions();}
 };
 
-#include "AnalyticIE.H"
+#include <IntegralEngine.H>
 //
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 

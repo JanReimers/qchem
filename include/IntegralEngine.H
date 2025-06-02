@@ -1,6 +1,6 @@
-// File: AnalyticIE.H  Abtract integral engine interface.
-#ifndef _AnalyticIE_H_
-#define _AnalyticIE_H_
+// File: IntegralEngine.H  Abtract integral engine interfaces.
+#ifndef _IntegralEngine_H_
+#define _IntegralEngine_H_
 
 
 #include "types.H"
@@ -79,13 +79,5 @@ public:
     virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 
-// template <class T> class Integrals_Repulsion : public virtual Integrals_Base<T>
-// {
-// public:
-//     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-//     virtual typename Integrals_Base<T>::SMat_ref Repulsion() const=0;
-// };
 
-
-
-#endif //_AnalyticIE_H_
+#endif //_IntegralEngine_H_

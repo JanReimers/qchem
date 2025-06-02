@@ -2,7 +2,7 @@
 #ifndef _Fit_IE_H_
 #define _Fit_IE_H_
 
-#include <AnalyticIE.H>
+#include <IntegralEngine.H>
 
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.
  class FitIntegrals  

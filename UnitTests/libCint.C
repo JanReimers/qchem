@@ -8,7 +8,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
-#include <AnalyticIE.H>
+#include <IntegralEngine.H>
 
 #include <LAParams.H>
 #include "oml/vector3d.h"

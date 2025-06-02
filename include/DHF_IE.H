@@ -2,7 +2,7 @@
 #ifndef _DHF_IE_H_
 #define _DHF_IE_H_
 
-#include <AnalyticIE.H>
+#include <IntegralEngine.H>
 
 
 //! \brief Interface for one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.

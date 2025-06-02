@@ -5,7 +5,7 @@
 
 
 #include <IEClient.H>
-#include <AnalyticIE.H>
+#include <IntegralEngine.H>
 #include "Imp/Containers/ERI4.H"
 #include <map>
 #include "oml/vector.h"

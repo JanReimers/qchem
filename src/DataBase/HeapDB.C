@@ -4,7 +4,6 @@
 #include "Imp/Integrals/MeshIntegrator.H"
 #include <Irrep_BS.H>
 #include <Cluster.H>
-#include <AnalyticIE.H>
 #include "oml/vector.h"
 #include <iomanip>
 
