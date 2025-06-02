@@ -96,13 +96,13 @@ std::ostream& Ylm_Sym::Write(std::ostream& os) const
         {
             int w=width(im);
             os << std::setw(w) << im << " ";
-            n_extra-=w+1;
+            n_extra-=(w+1);
         }
         os << "] ";
 
     }
     for (int i=0;i<n_extra;i++) os << " ";
-
+    os << "|";
     return os;
 }
 

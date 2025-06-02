@@ -321,7 +321,8 @@ TEST_P(A_BSm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37)); //,53,57,64
+// INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37)); //,53,57,64
+INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Range(1,93)); //,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>

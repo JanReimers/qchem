@@ -14,6 +14,7 @@
 #include <Spin.H>
 #include <Orbital_QNs.H>
 #include <iostream>
+#include <iomanip>
 
 using std::cout;
 using std::endl;
@@ -101,22 +102,33 @@ void Polarized_WF::FillOrbitals()
 
 void Polarized_WF::DisplayEigen() const
 {
-    // cout << "DisplayEigen Up:" << endl;
-    // itsUpELevels.Report(cout);
-    // cout << "DisplayEigen Down:" << endl;
-    // itsDnELevels.Report(cout);
-    
-    cout << "Spin:         up                 down            avg" << endl;
+    cout << "                         |       Spin up           |          Spin Down      |    Spin " << endl;
+    cout << " Orbital                 |  Occ/g  |     E         |  Occ/g  |       E       |  Splitting" << endl;
     for (auto iup:itsUpELevels)
     {
         auto up=iup.second;
         assert(iup.first == up.e);
         Orbital_QNs dnqns(up.qns.n,Spin::Down,up.qns.sym->Clone());
-        // cout << "dnqns=" << dnqns << endl;
-        auto dn=itsDnELevels.find(dnqns);
+        auto dn=itsDnELevels.find(dnqns); 
 
-        up.Report(cout);
-        if (dn.e<=0.0) dn.Report(cout);
+        cout  << up.qns << " (" << std::fixed << std::setw(2) << std::setprecision(0) << up.occ  << "/"  << std::setw(2) << up.degen << ") |";
+        cout  << std::fixed << std::setw(14) << std::setprecision(8) << up.e << " |";
+        if ((dn.e<=0.0 && dn.occ>0) || up.e>0.0) 
+        {
+            cout  << " (" << std::fixed << std::setw(2) << std::setprecision(0) << dn.occ  << "/"  << std::setw(2) << dn.degen << ") |";
+            cout << std::setw(14)  << std::setprecision(8) << dn.e << " |";
+            if (fabs(up.e-dn.e)>1e-4) 
+            {
+                cout.precision(4);
+                cout << std::fixed << std::setw(8) << up.e-dn.e;
+            }
+        }
+        else
+        {
+            cout << "         |               |";
+        }
+        
+        
         cout << endl;
         if (up.e>0.0) break;
     }
