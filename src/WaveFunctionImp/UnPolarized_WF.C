@@ -53,12 +53,24 @@ DM_CD* UnPolarized_WF::GetChargeDensity() const
 
 const Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
-    // No UT coverage
+    return const_cast<UnPolarized_WF*>(this)->GetOrbitals(qns);
+}
+Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns) 
+{
     assert(qns.ms==Spin::None);
     auto i=itsQN_WFs.find(qns);
     assert(i!=itsQN_WFs.end());
     return i->second->GetOrbitals();
+
 }
+
+UnPolarized_WF::iqns_t UnPolarized_WF::GetQNs() const
+{
+    iqns_t iqns;
+    for (auto q:itsQN_WFs) iqns.push_back(q.first);
+    return iqns;
+}
+
 
 
 void UnPolarized_WF::FillOrbitals()

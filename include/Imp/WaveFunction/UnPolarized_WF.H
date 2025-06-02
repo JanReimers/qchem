@@ -21,12 +21,14 @@ public:
     virtual ~UnPolarized_WF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
+    virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
+    virtual       Orbitals* GetOrbitals     (const Irrep_QNs&)      ;
     virtual DM_CD*          GetChargeDensity() const;
     virtual sf_t*           GetSpinDensity  () const {return 0;}
-    virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;} 
     virtual void            FillOrbitals    ();
-    virtual void            DisplayEigen    (               ) const;
+    virtual iqns_t          GetQNs          () const;
+    virtual void            DisplayEigen    () const;
 
 private:
     typedef std::unique_ptr<Irrep_WF> uiwf_t;
@@ -34,7 +36,7 @@ private:
     const ElectronConfiguration* itsEC;
     EnergyLevels itsELevels;
     std::vector<uiwf_t> itsIWFs;
-    std::map<Irrep_QNs,const Irrep_WF*> itsQN_WFs;
+    std::map<Irrep_QNs,Irrep_WF*> itsQN_WFs;
 };
 
 #endif //_UnPolarized_WF_H_

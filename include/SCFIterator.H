@@ -7,8 +7,8 @@ class SCFIterator
 {
 public:
     SCFIterator(WaveFunction*, Hamiltonian*,DM_CD* cd=0);
-    ~SCFIterator();
-    bool Iterate(const SCFIterationParams& ipar);
+    virtual ~SCFIterator();
+    virtual bool Iterate(const SCFIterationParams& ipar);
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double chargeDensityChange, double fitError) const;
     void DisplayEigen   () const;
 
@@ -21,5 +21,33 @@ private:
     Hamiltonian*  itsHamiltonian;
     DM_CD*        itsCD;
     DM_CD*        itsOldCD;
+};
+
+
+#include <vector>
+class SCFIrrepIterator_DIIS
+{
+public:
+    SCFIrrepIterator_DIIS(Orbitals* os,const SMatrix<double>&);
+
+private:
+    std::vector<SMatrix<double>> itsF_Primes;
+
+
+};
+
+#include <memory>
+//  Accelerated convergence algo described in: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
+class SCFIterator_DIIS : public SCFIterator
+{
+public:
+    SCFIterator_DIIS(const BasisSet*,WaveFunction*, Hamiltonian*,DM_CD* cd=0);
+    ~SCFIterator_DIIS();
+    // virtual bool Iterate(const SCFIterationParams& ipar);
+
+private:
+    typedef std::shared_ptr<SCFIrrepIterator_DIIS> ii_t; //Irrep iterator type
+    std::vector<ii_t> itsSCFIterators;
+    
 };
 

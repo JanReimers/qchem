@@ -3,6 +3,23 @@ Priority 1:
 
     -Convergence acceleration.
         -DIIS: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
+        -Where is all the info:
+            F is in TOrbitalsImp<T>::UpdateOrbitals
+            F' = S^-1/2*F*S^-1/2 is calculated in LASolver, but it is not cached anywhere.
+            S^-1/2 is stored in LASolver
+            S is cached the DB
+            D is calculated in TOrbitalsImp<T> but only stored in IrrepCD.
+        Plan:
+            TOrbitalsImp<T> calculates and saves  D at the end UpdateOrbitals.
+                IrrepCD gets a shallow copy 
+            SCFIterator:
+                Somehow gets S^-1/2 (V,Vd in LASolver) at construction time
+                Somehow get F' out of UpdateOrbitals, LASolver
+
+                Request error vector e_i = Vd*(F_i*D_i*S-S*D_i*F_i)*V
+                Build the B matrix and silver for the c_i
+                F' = sum(c_i*F'_i)
+
 
 
     -General AtomIrrepIECLient clean up.
@@ -208,7 +225,7 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 Priority 2:
     -Plane waves:
         https://docs.dftk.org/stable/guide/periodic_problems/#periodic-problems
-        
+
     -Try serializing with cereal.  
         -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
         -Need a mile high plan to io before doing anything.

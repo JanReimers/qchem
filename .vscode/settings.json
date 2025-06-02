@@ -81,7 +81,8 @@
         "cfenv": "cpp",
         "future": "cpp",
         "stdfloat": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "cassert": "cpp"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}"
 }

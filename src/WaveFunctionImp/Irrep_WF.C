@@ -44,6 +44,11 @@ const Orbitals* Irrep_WF::GetOrbitals() const
     assert(itsOrbitals);
     return itsOrbitals;
 }
+Orbitals* Irrep_WF::GetOrbitals() 
+{
+    assert(itsOrbitals);
+    return itsOrbitals;
+}
 //
 //  There are three steps here:
 //

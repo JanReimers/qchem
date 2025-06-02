@@ -70,6 +70,11 @@ WaveFunction::sf_t* Polarized_WF::GetSpinDensity() const
 
 const Orbitals* Polarized_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
+    return const_cast<Polarized_WF*>(this)->GetOrbitals(qns);
+}
+
+Orbitals* Polarized_WF::GetOrbitals(const Irrep_QNs& qns) 
+{
     auto i=itsQN_WFs.find(qns);
     assert(i!=itsQN_WFs.end());
     return i->second->GetOrbitals();
@@ -81,6 +86,14 @@ EnergyLevels  Polarized_WF::GetEnergyLevels () const
     ret.merge(itsDnELevels);
     return ret;
 } 
+
+Polarized_WF::iqns_t Polarized_WF::GetQNs() const
+{
+    iqns_t iqns;
+    for (auto q:itsQN_WFs) iqns.push_back(q.first);
+    return iqns;
+}
+
 
 void Polarized_WF::FillOrbitals()
 {

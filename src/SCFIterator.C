@@ -130,3 +130,36 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
     cout << std::endl;
 }
 
+SCFIrrepIterator_DIIS::SCFIrrepIterator_DIIS(Orbitals* os,const SMatrix<double>&)
+{
+
+}
+
+#include <BasisSet.H>
+#include <Irrep_BS.H>
+#include <Orbital_QNs.H>
+#include <Symmetry.H>
+#include "oml/smatrix.h"
+#include <map>
+
+SCFIterator_DIIS::SCFIterator_DIIS(const BasisSet* bs, WaveFunction* wf, Hamiltonian* ham,DM_CD* cd)
+: SCFIterator(wf,ham,cd)
+{
+    // Build a look up table Irres basis set indexed by symmetry.
+    auto comp = [](const Symmetry* a, const Symmetry* b) { return a->SequenceIndex() < b->SequenceIndex(); };
+    std::map<const Symmetry*,const TOrbital_IBS<double>*,decltype(comp)> sym_ibs(comp);
+    for (auto ibs:bs->Iterate<TOrbital_IBS<double>>()) sym_ibs[&ibs->GetSymmetry()]=ibs;
+
+    // Create a SCFIrrepIterator_DIIS for each Irrep.
+    WaveFunction::iqns_t qns=wf->GetQNs();
+    for (auto& q:qns)
+    {
+        Orbitals* o=wf->GetOrbitals(q);
+        const SMatrix<double>& S=sym_ibs.find(q.sym)->second->Overlap();
+        itsSCFIterators.push_back(ii_t(new SCFIrrepIterator_DIIS(o,S)));
+    }
+
+
+}
+
+SCFIterator_DIIS::~SCFIterator_DIIS() {};
