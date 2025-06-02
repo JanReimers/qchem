@@ -9,17 +9,14 @@ template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
     assert(ciec);
     DB_BS_2E<T>::Append(ciec);
     IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
-    AtomIrrepIEClient* aiec=dynamic_cast<AtomIrrepIEClient*>(iec);
-    assert(aiec);
+    AtomIrrepIEClient* aiec=AtomIrrepIEClient::dcast(iec);
     BFGrouper::Append(aiec);
 }
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     typedef SMatrix<T> SMat;
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
-    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
-    assert(a);
-    assert(c);
+    auto a=AtomIrrepIEClient::dcast(_a);
+    auto c=AtomIrrepIEClient::dcast(_c);
     size_t Na=a->size(), Nc=c->size();
     ERI4 J(Na,Nc);
     for (size_t ia:a->indices())
@@ -56,10 +53,8 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, c
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {
     typedef SMatrix<T> SMat;
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient* >(_a);
-    const AtomIrrepIEClient* c=dynamic_cast<const AtomIrrepIEClient* >(_c);
-    assert(a);
-    assert(c);
+    auto a=AtomIrrepIEClient::dcast(_a);
+    auto c=AtomIrrepIEClient::dcast(_c);
     size_t Na=a->size(), Nc=c->size();
     ERI4 K(Na,Nc);
     for (size_t ia:a->indices())

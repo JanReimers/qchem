@@ -6,21 +6,21 @@
 
 template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const fbs_t& _c) const
 {
-    const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
+    auto& c=AtomIrrepIEClient::dcast(_c);
     ERI3 s3;
     for (auto i:c.indices()) s3.push_back(MakeOverlap(c(i)));
     return s3;
 }
 template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(const fbs_t& _c) const
 {
-    const AtomIrrepIEClient& c=dynamic_cast<const AtomIrrepIEClient&>(_c);
+    auto& c=AtomIrrepIEClient::dcast(_c);
     ERI3 s3;
     for (auto i:c.indices()) s3.push_back(MakeRepulsion(c(i)));
     return s3;
 }
 template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap  (const bf_tuple& c) const
 {    
-    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this); //cross cast.
     assert(ab);
     size_t N=ab->size();
     int Nc,Lc;
@@ -35,7 +35,7 @@ template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeOverlap  (con
 }
 template <class T> typename AtomIE_DFT<T>::SMat AtomIE_DFT<T>::MakeRepulsion(const bf_tuple& c) const
 {    
-    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* ab=dynamic_cast<const AtomIrrepIEClient*>(this); //cross cast.
     assert(ab);
     size_t N=ab->size();
     int Nc,Lc;

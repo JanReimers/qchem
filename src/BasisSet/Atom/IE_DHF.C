@@ -6,8 +6,8 @@
 
 template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(rkbs);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //cross cast
+    const AtomIrrepIEClient* b=AtomIrrepIEClient::dcast(rkbs);
     assert(a->l==b->l);
     size_t l=a->l;
     size_t Na=a->size();

@@ -6,7 +6,7 @@
 
 template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOverlap() const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); // Cross cast
     assert(a);
 
     size_t N=a->size(),l=a->l;
@@ -19,7 +19,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOver
 }
 template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKinetic() const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  // Cross cast
     assert(a);
 
     size_t N=a->size(),l=a->l;
@@ -35,7 +35,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNucl
     assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
         int Z=-cl->GetNuclearCharge(); 
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  // Cross cast
     assert(a);
 
     size_t N=a->size(),l=a->l;

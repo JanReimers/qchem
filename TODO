@@ -1,13 +1,10 @@
 
 Priority 1:
-    Done: -Clean up Atom_EC::GetBreadown so that full shell system (He, Ne..) get ml_paired instead of just ml_unoccupied
-    Done: -Fix polarized orbital output for Ylm basis sets.
-    -WF list all oritals.  Don;t list so many un-occ orbitals.
-        Only in DEBUG mode!?!
+    -Convergence acceleration.
+        Should go in SCFIterator.
 
     -General AtomIrrepIECLient clean up.
         template type double r spline for all three radial types?
-    Done: -Get rid of SCFIterationParams::kT
     -QChemTester move bs->Set(lap); to one spot
         All check SV tol, set lower i.e. 1e-9
     -It would be nice if Atom derived from Cluster.
@@ -16,23 +13,14 @@ Priority 1:
             Atom would be a std::single_view
     -convert all enums into enum classes
         General clean as well.
-    Done: -Re-imagine Ylm basis sets.
-        Based on electron config only *two* Irreps one for occupied and one for unoccupied.
-        Each would be merge of Nocc or Nunocc m values.
-        Ak and Rk would need to be avaraged or summed accordingly.
-        For example for Boron
-            Y_{1,-1} for occupied
-            0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
-        A simpler starting point is for all non-valance l's to be Yl
-        Done: Handle full m list more efficiently
-            Use (2*la+1)*(2*lc+1)*Ak(la,lc)
-            Do the la and lc parts factor?
-                For coulomb yes, for exchange no
     -Ylm  
         Put basisset build logic in common base class.
-    Done: -Clean up Atom_EC and Ylm::GetN
-    -Decide Ham based on EC.
-    -Decide Yl or Ylm basis based on EC.
+        Distinction between Ylm and Yl basis sets is now blurred
+        -Decide Ham based on EC.
+        -Decide Yl or Ylm basis based on EC.
+        -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
+            DO we support this or just decide the correct basis and H automaically.
+
 
     -openmp
         -Make some simple unit tests
@@ -51,6 +39,7 @@ Priority 1:
     -Orbital_QNs
         Use std::shared_ptr for sym.
     -BSpline basis sets.
+        How to get 11 digits for virial ratio?
         Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>
             Make Log from N,Rmin,Rmax or N,Rmin,m  
             Qiu's mesh, with linear for r<1.0 a.u.
@@ -64,7 +53,6 @@ Priority 1:
         Add DFT support.
         
     -BSplines should use (symmetric) banded matricies for space/time efficiency.
-    -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
     -Atom app needs to save state.
         Done: install cereal
         Done auto save to .qchem
@@ -73,21 +61,13 @@ Priority 1:
         Open recent
 
     -Plotting:
+        Orbital vector heat map.
         Orbitals:
             swap colour and line increments.
             Too many line Ylm basis sets!
                 Just plot distinct eigen energies?
-        Done: Charge density
-            r^2*ro(r)
-            r^2*{ro_up-ro_down}
-        Done: Energy level diagram
-            Use PlotObject2DLine for el lines.
-        Done: Diagonal values plot for BS
-            -SVD: plot SVs
-            -Eigen: plot eigen values
-            -Cholsky: plot diagonal.
-        Done: Y and X axis labels. + graph title.
-            Use UTF
+        Add BSplines
+        Ouput panel.
         Put Atom name and electron config in title.
         NO legend if only one line.
         Missing features:
@@ -95,80 +75,50 @@ Priority 1:
             2) Disable legend entries.
 
 
-    -Energy levels:  Show unocc eigen values for spin down.
     -Fix orbital phases to 1s, 2p , 3d are always >0?
-    -Get LMax from the periodic table.
-        Done: Used the Atom_EC
-        Add unti test.
 
     -Clean up naming for IterationParams.
         SCFParams
     -BasisSet:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
+        How to distinguish in constructor signature?
     -Try making a separate libqc_basis.a to enforce some modularity.
         -Porabaly need to make a libqc_base.a  with some common stuff.
         Try making a C++20 module
-    -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
-        Most code except Norms can move up to the radial level.
-        Minor consolidaton.
     -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m
     -DFT check for l>0 basis sets for fitting.
     -Slater norm takes n=l+1, Gaussian norm takes l.
-
-    -Make a UI app with plotting
-        -wxPython + matplotlib (python)
-            -I hate wx only becuse I spent 90% of my time trying to get the stupid
-             sizers to do what I want.
-            -Need to make a python binding using
-                1) SIP https://github.com/Python-SIP/sip
-                    -Used this before
-                    https://www.itopen.it/python-sip-c-bindings-experiments/
-                    https://wiki.python.org/moin/SIP
-                2) https://github.com/pybind/pybind11
-                -Python bindings might be of interest anyway.
-        -Matplot++ just does popup windows, hard to embbed ... which seems bizzare.
-        -Gtkmm-PLplot https://tschoonj.github.io/gtkmm-plplot/index.html
-            Looks primising,  workinside a GTK-C++ (gtkmm) app
-            https://www.gtk.org/docs/language-bindings/cpp/
-            Need to worry about GTK3 or GTK4 support
-            GTK 2,3,4 comes with ubuntu linux
-            -Use GLADE to generate UI code. Or Cambalache https://gitlab.gnome.org/jpu/cambalache
-            -Read in ui files: https://gnome.pages.gitlab.gnome.org/gtkmm-documentation/chapter-builder.html
-
-        -Gnuplot has a c++ interface.
-        -XMGrace
-        -Use own PLotting which has an XMGrace driver.
-            Would need to make Gtkmm-PLplot driver.
-            -The multigraph support got complex and buggy.  Maybe refactoring would fix it?
-        -FLTK https://www.fltk.org/doc-1.4/basics.html
-        -QT has many plotting widgets.
-            -Has a designer like GLADE.
-
-        
-
-    -Break up the BasisSet.H header
-        Done: -Break out BasisFunction.H
-        Done: -Break out IrrepBS.H
-            DFT: Put IE,DB,IBS interfaces in one header?
-            HF: 
-            Fit:
-        Done: -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
-        -Make AnalyticIE.H -> IE_common.H
-        -Make IE.H which just includes all IE types.
-        Done: -Make Atom folder under Basis set.
-            AtomIE.H -> IE_Common.h
-            IE.H which just includes all atom IE types.
-
-    -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
-    -Survey use of dynamic cast
-        -Hunt for dynamic casts that can be removed using dynamic_cast iterator
-        -SHould only be casting between interfaces
-        -Can we pass around more specific interfaces?
     -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
         Can we use constexpr features here?
+
+    
+    -Survey use of dynamic cast
+        -Usage:
+            ChargeDensity.C base->Polarized for MixIn & Change functions
+            CompositeCD
+            Atom_EC: Symmetry->Angular_Sym
+            Electron configurtions EC->AtomEC
+            cross casts from IE to AtomIEC.  These are now all labeled
+                options:
+                    forget about it
+                    lots virtual inheritance form ::IEC
+            BasisFunction op==
+                Do we really need op== for something?
+            Symmetry::MatchType and Match
+                Do we need this for anything?
+            Cachable->Rk engines for radial slater inegrals.
+            Create CD and Vxc fit basis sets.  Need to get at DB*
+            Multiple virtual dispatch for RadialFunction->GaussianRF
+            Orbital_IBS->Orbital_HF_IBS for ERI integrals.
+            
+
+        Done: consolidate iec->atomiec casts into one place
+        Done: -Hunt for dynamic casts that can be removed using dynamic_cast iterator
+        -SHould only be casting between interfaces
+        DOne: -Can we pass around more specific interfaces?
     
     
 
@@ -192,12 +142,6 @@ Priority 1:
     -Overlap3C La==Lb, but La==Lc is not always true how???
     -Need to tighten up/specialize allowed errors in HF energies for all UTs.
     -SVD truncation ... we need no know which L is getting truncated.
-    -Energy levels:
-        List m values [-1 0 1]
-            How:  Merge std::vector<qn> into 3p [-1 0 1]
-                Should have common n,l
-                call qn->Append(os);  just output m?
-            Handled cases where Up (col 1) is degenerate and Dn (col 2) is less/non degen.
     -Stream output to a separate log file?
     
     -QchemTester: make show basis set an option.
@@ -222,39 +166,6 @@ Priority 1:
         https://nubakery.org/scf/dhf.html
         https://github.com/compas/grasp
         https://github.com/BERTHA-4c-DKS/pybertha
-        -Make some tech notes
-        -Start coding
-            -BasisFunctions
-                Done: -Large: Derive from SGm or SLm?
-                    -Multiply by CG coeffs for spherical spinor components.
-                Done: -Small: Construct from Large.
-                Done: -Quantum number: kappa: can infer j,l.
-                    AtomQN = radial QN * Angular QNs
-                    Done: -Right now AtomQN derived from YlmQN
-                    DOne: -Try AtomQN {n,QN* Anglular}
-                    Clean up LMax (multiple places)
-                        -LMax for electron configurations should be 3
-                        -LMax for basis sets/functions can be >3
-                    Fix up GetN for O_kmj.
-                -BasisSet
-                    Done: -Slater_mj,  SG_mj
-                    Done: -Loop over kappa
-                    Done: -How to arrange L/S basis functions?
-                        Have Dirac::IrrepBasisSet hold 
-                            Slater_mj::LargeBasisSet ={gL1,gL2,gL3...gLN}
-                            Slater_mj::SmallBasisSet ={gS1,gS2...gSN}
-                            Have Dirac::IntegralEngine manage the matrix build.
-                Done: -IECLient
-                Done: -Integral engine
-                    -Need a cross Kinetic integral calculator:  K(a,b) where a is a large BS, b is small.
-            -Hamiltonian
-                Done: -Dirac K, Ven
-                Done: -How to enforce Basis set is correct for H?
-                    No: -bool Relativistc() const=0 member for BS and H interfaces?
-                    Done: -Dynamic cast from Orbital_IBS to Orbital_RKB_IBS
-            No: -Wave function
-                    No: -DiracWF {PolaraizedWF itsLarge, itsSmall}
-                    Done: -L^alpha and S^alpha need to interact for kinetic energy matrix.
             -Run H
             -Add support J/K 2ERIs, Dirac Vee, Vxc
             -Run He, Li, Be, B ....
@@ -263,36 +174,24 @@ Priority 1:
             TODO:
             Done: -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
         -Factors of 2
-            -Exchange
-                K_LSLS should be Matrix, not SMatrix
-                We need a non symmetrix version of ERI4
-            No: -Don't renormalize gS, make gS=1/(2*c)*OP*gL
-                Should be able to remove -2* for kinetic matrix, and 0.5* for energy.
-                This one could get messy. Commit first for easy back out.
-            -Confirm (debunk) theory:
-                the so call centrifugal part of the kinetic enegry l*(l+1)*(d/dr)*2
-                should use the l corresponding to -kappa not the radial l.
+            Normalization
+                -Try no normalization for small sector.  Put in 1/(2*c) factor.
+                -Check factors of i, may be a sign problem somewhere.
 
             
-    -use map hints for caches
-        No such thing as map::hint for finding iterators.
     -Molecule mesh gives crappy integrals.  
         -Something wrong with Molecular mesh generation.
     -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2
     
-    -Convergence acceleration.
-        Should go in SCFIterator.
     -Document and make UTs for all the mesh types.
     -put periodic table in spreadsheet and read in a csv file.
         -Use python to read NIST DFT tables, and Hartree–Fock–Roothaan energies.txt
-    -Fix valgrind errors
-        Seeing 1 errors related open MP
-        Atom mesh leaks.  Should own radial and angular meshes?
     -Clean up PolGaussian construction
         -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
    
     -Clean up tech notes.
     -Make a new PolG::IntegralEngine using libcint
+        -Started.  Some confusion with how things are normalized .. or not.
     -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
                                     ^^^^^^^^^^^^^^
     -G-orbs for gaussians?
@@ -302,6 +201,7 @@ Priority 1:
     -GaussianRF.C has its own DFact tables.  Use the global tables.
     
 oml:
+    CMake build.
     (symmetric) banded matricies for space/time efficiency when using BSplines.
     **-SMAT does not support S+=Xpr
     -Support V*SymMat without including matrix.h
@@ -316,7 +216,11 @@ oml:
         Use generators for co_yield?
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {
-    if (a.size()==0) a.SetLimits(b.GetLimits());
+    if (a.size()==0) 
+    {
+        a.SetLimits(b.GetLimits());
+        Fill(a,0.0)
+    }
     return ArrayAdd(a,b);
 }
 
@@ -324,17 +228,6 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
     
       
 Priority 2:
-    -ID, streaming
-        1) Test boost::serialization, does it work for shared pointers???
-            Looks like yes, can std::shared_ptr in the headers.
-        -We need a non-streamable UniqueID for caching GaussianCD amd RNLM objects.
-        -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
-        -What about pretty output?
-        -boost::serialization of OML objects.
-        -Also consider cereal.
-        -Does UniqueID really need to enforce Read/Write?
-        Tightly couple with PMStreamableObject which is tightly coupled with
-        the Read/Write functions throughout.
     -Try serializing with cereal.  
         -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
         -Need a mile high plan to io before doing anything.
@@ -363,9 +256,6 @@ Priority 2:
             Talks about boost::shared_pointer ... too old for sdt::shared_ptr?
             Need to try.
             
-    -Do something about the oml/imp includes.
-        -Include binio in stream.h?
-        -Move stream up from imp.
     -Vosco LDA
     
     
@@ -393,12 +283,7 @@ Priority 3:
     -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.
        
-    -ROHF for one open orbital.
-        -Need separate list of C and O orbitals in TOrbitals.
-        -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
-        -Need coupling constants for d orbitals.
-        -Understand what ERI4view.Exchange(a,b,c,d) is doing.
-        -Polarized HF with m splitting basis works just well. Way less complicated.
+        
     
 --------------------------------------------------------------------------------------
 
@@ -415,6 +300,179 @@ Priority 3:
 
 
 
+    Done: -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
+        Most code except Norms can move up to the radial level.
+        Minor consolidaton.
+    Done: -Break up the BasisSet.H header
+        Done: -Break out BasisFunction.H
+        Done: -Break out IrrepBS.H
+            DFT: Put IE,DB,IBS interfaces in one header?
+            HF: 
+            Fit:
+        Done: -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
+        Done: -Make AnalyticIE.H -> IntegralEngine.H
+        No: -Make IE.H which just includes all IE types.
+        Done: -Make Atom folder under Basis set.
+            AtomIE.H -> IE_Common.h
+            IE.H which just includes all atom IE types.
+
+    Done: -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
+
+    Done: -Make a UI app with plotting
+        -wxPython + matplotlib (python)
+            -I hate wx only becuse I spent 90% of my time trying to get the stupid
+             sizers to do what I want.
+            -Need to make a python binding using
+                1) SIP https://github.com/Python-SIP/sip
+                    -Used this before
+                    https://www.itopen.it/python-sip-c-bindings-experiments/
+                    https://wiki.python.org/moin/SIP
+                2) https://github.com/pybind/pybind11
+                -Python bindings might be of interest anyway.
+        -Matplot++ just does popup windows, hard to embbed ... which seems bizzare.
+        -Gtkmm-PLplot https://tschoonj.github.io/gtkmm-plplot/index.html
+            Looks primising,  workinside a GTK-C++ (gtkmm) app
+            https://www.gtk.org/docs/language-bindings/cpp/
+            Need to worry about GTK3 or GTK4 support
+            GTK 2,3,4 comes with ubuntu linux
+            -Use GLADE to generate UI code. Or Cambalache https://gitlab.gnome.org/jpu/cambalache
+            -Read in ui files: https://gnome.pages.gitlab.gnome.org/gtkmm-documentation/chapter-builder.html
+
+        -Gnuplot has a c++ interface.
+        -XMGrace
+        -Use own PLotting which has an XMGrace driver.
+            Would need to make Gtkmm-PLplot driver.
+            -The multigraph support got complex and buggy.  Maybe refactoring would fix it?
+        -FLTK https://www.fltk.org/doc-1.4/basics.html
+        -QT has many plotting widgets.
+            -Has a designer like GLADE.
+    Done: -WF list all oritals.  Don;t list so many un-occ orbitals.
+        Only in DEBUG mode!?!
+    Done: -Energy levels:
+        List m values [-1 0 1]
+            How:  Merge std::vector<qn> into 3p [-1 0 1]
+                Should have common n,l
+                call qn->Append(os);  just output m?
+            Handled cases where Up (col 1) is degenerate and Dn (col 2) is less/non degen.
+
+    -Get LMax from the periodic table.
+        Done: Used the Atom_EC
+        Add unti test.
+-Plotting:
+        Done: Charge density
+            r^2*ro(r)
+            r^2*{ro_up-ro_down}
+        Done: Energy level diagram
+            Use PlotObject2DLine for el lines.
+        Done: Diagonal values plot for BS
+            -SVD: plot SVs
+            -Eigen: plot eigen values
+            -Cholsky: plot diagonal.
+        Done: Y and X axis labels. + graph title.
+            Use UTF
+
+
+    Dirac
+    -Relativistic:
+        https://github.com/drjuls/AMBiT/tree/master/src
+        https://diracprogram.org/doku.php?id=start
+        https://nubakery.org/scf/dhf.html
+        https://github.com/compas/grasp
+        https://github.com/BERTHA-4c-DKS/pybertha
+        Done: -Make some tech notes
+        -Start coding
+            -BasisFunctions
+                Done: -Large: Derive from SGm or SLm?
+                    -Multiply by CG coeffs for spherical spinor components.
+                Done: -Small: Construct from Large.
+                Done: -Quantum number: kappa: can infer j,l.
+                    AtomQN = radial QN * Angular QNs
+                    Done: -Right now AtomQN derived from YlmQN
+                    DOne: -Try AtomQN {n,QN* Anglular}
+                    Clean up LMax (multiple places)
+                        -LMax for electron configurations should be 3
+                        -LMax for basis sets/functions can be >3
+                    Fix up GetN for O_kmj.
+                -BasisSet
+                    Done: -Slater_mj,  SG_mj
+                    Done: -Loop over kappa
+                    Done: -How to arrange L/S basis functions?
+                        Have Dirac::IrrepBasisSet hold 
+                            Slater_mj::LargeBasisSet ={gL1,gL2,gL3...gLN}
+                            Slater_mj::SmallBasisSet ={gS1,gS2...gSN}
+                            Have Dirac::IntegralEngine manage the matrix build.
+                Done: -IECLient
+                Done: -Integral engine
+                    Done: -Need a cross Kinetic integral calculator:  K(a,b) where a is a large BS, b is small.
+            -Hamiltonian
+                Done: -Dirac K, Ven
+                Done: -How to enforce Basis set is correct for H?
+                    No: -bool Relativistc() const=0 member for BS and H interfaces?
+                    Done: -Dynamic cast from Orbital_IBS to Orbital_RKB_IBS
+            No: -Wave function
+                    No: -DiracWF {PolaraizedWF itsLarge, itsSmall}
+                    Done: -L^alpha and S^alpha need to interact for kinetic energy matrix.
+            Done: -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
+        -Factors of 2
+            Done: -Exchange
+                K_LSLS should be Matrix, not SMatrix
+                We need a non symmetrix version of ERI4
+            No: -Don't renormalize gS, make gS=1/(2*c)*OP*gL
+                Should be able to remove -2* for kinetic matrix, and 0.5* for energy.
+                This one could get messy. Commit first for easy back out.
+            Bunk: -Confirm (debunk) theory:
+                the so call centrifugal part of the kinetic enegry l*(l+1)*(d/dr)*2
+                should use the l corresponding to -kappa not the radial l.
+                -This idea is flawed
+
+    -use map hints for caches
+        No such thing as map::hint for finding iterators.
+
+    No: -ID, streaming
+        -Use cereal.
+        1) Test boost::serialization, does it work for shared pointers???
+            Looks like yes, can std::shared_ptr in the headers.
+        -We need a non-streamable UniqueID for caching GaussianCD amd RNLM objects.
+        -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
+        -What about pretty output?
+        -boost::serialization of OML objects.
+        -Also consider cereal.
+        -Does UniqueID really need to enforce Read/Write?
+        Tightly couple with PMStreamableObject which is tightly coupled with
+        the Read/Write functions throughout.
+
+    Fixed: -Fix valgrind errors
+        Seeing 1 errors related open MP
+        Atom mesh leaks.  Should own radial and angular meshes?
+
+    No: -Do something about the oml/imp includes.
+        -Move to cereal which does binio.
+        -Include binio in stream.h?
+        -Move stream up from imp.
+
+    No:-ROHF for one open orbital.
+        -Polarized HF with m splitting basis works just well. Way less complicated.
+        -Need separate list of C and O orbitals in TOrbitals.
+        -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
+        -Need coupling constants for d orbitals.
+        -Understand what ERI4view.Exchange(a,b,c,d) is doing.
+
+    Done: -Clean up Atom_EC::GetBreadown so that full shell system (He, Ne..) get ml_paired instead of just ml_unoccupied
+    Done: -Fix polarized orbital output for Ylm basis sets.
+    Done: -Get rid of SCFIterationParams::kT
+    Done: -Re-imagine Ylm basis sets.
+        Based on electron config only *two* Irreps one for occupied and one for unoccupied.
+        Each would be merge of Nocc or Nunocc m values.
+        Ak and Rk would need to be avaraged or summed accordingly.
+        For example for Boron
+            Y_{1,-1} for occupied
+            0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
+        A simpler starting point is for all non-valance l's to be Yl
+        Done: Handle full m list more efficiently
+            Use (2*la+1)*(2*lc+1)*Ak(la,lc)
+            Do the la and lc parts factor?
+                For coulomb yes, for exchange no
+    Done: -Clean up Atom_EC and Ylm::GetN
 
     Done: -Separate UniquesID from streaming
     Done: -Set up a CMake build.  Run from vscode.

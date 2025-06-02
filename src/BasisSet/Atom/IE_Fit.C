@@ -6,7 +6,7 @@
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //Cross cast
     assert(a);
     Vec c(a->size());
     for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
@@ -14,7 +14,7 @@ AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 }
 AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //Cross cast
     assert(a);
 
     size_t N=a->size(),l=a->l;
@@ -27,10 +27,9 @@ AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
 }
 AtomIE_Fit::Mat  AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
 {
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);
-    const AtomIrrepIEClient* b=dynamic_cast<const AtomIrrepIEClient*>(&_b);
+    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  //Cross cast
+    const AtomIrrepIEClient* b=AtomIrrepIEClient::dcast(&_b);
     assert(a);
-    assert(b);
     size_t Na=a->es.size(), Nb=b->es.size();
     Mat s(Na,Nb);
     for (auto i:s.rows())

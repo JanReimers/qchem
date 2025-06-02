@@ -22,3 +22,18 @@ void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double
     es=exponents;
     ns=norms;
 }
+
+AtomIrrepIEClient* AtomIrrepIEClient::dcast(::IrrepIEClient* iec)
+{
+    assert(iec);
+    AtomIrrepIEClient* aiec=dynamic_cast< AtomIrrepIEClient*>(iec);
+    assert(aiec);
+    return aiec;
+}
+const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepIEClient* iec)
+{
+    assert(iec);
+    const AtomIrrepIEClient* aiec=dynamic_cast< const AtomIrrepIEClient*>(iec);
+    assert(aiec);
+    return aiec;
+}
