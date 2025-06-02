@@ -1,7 +1,9 @@
 
 Priority 1:
+
     -Convergence acceleration.
-        Should go in SCFIterator.
+        -DIIS: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
+
 
     -General AtomIrrepIECLient clean up.
         template type double r spline for all three radial types?
@@ -95,30 +97,6 @@ Priority 1:
         Can we use constexpr features here?
 
     
-    -Survey use of dynamic cast
-        -Usage:
-            ChargeDensity.C base->Polarized for MixIn & Change functions
-            CompositeCD
-            Atom_EC: Symmetry->Angular_Sym
-            Electron configurtions EC->AtomEC
-            cross casts from IE to AtomIEC.  These are now all labeled
-                options:
-                    forget about it
-                    lots virtual inheritance form ::IEC
-            BasisFunction op==
-                Do we really need op== for something?
-            Symmetry::MatchType and Match
-                Do we need this for anything?
-            Cachable->Rk engines for radial slater inegrals.
-            Create CD and Vxc fit basis sets.  Need to get at DB*
-            Multiple virtual dispatch for RadialFunction->GaussianRF
-            Orbital_IBS->Orbital_HF_IBS for ERI integrals.
-            
-
-        Done: consolidate iec->atomiec casts into one place
-        Done: -Hunt for dynamic casts that can be removed using dynamic_cast iterator
-        -SHould only be casting between interfaces
-        DOne: -Can we pass around more specific interfaces?
     
     
 
@@ -228,6 +206,9 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
     
       
 Priority 2:
+    -Plane waves:
+        https://docs.dftk.org/stable/guide/periodic_problems/#periodic-problems
+        
     -Try serializing with cereal.  
         -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
         -Need a mile high plan to io before doing anything.
@@ -300,6 +281,31 @@ Priority 3:
 
 
 
+    Done: -Survey use of dynamic cast
+        -Usage:
+            ChargeDensity.C base->Polarized for MixIn & Change functions
+            CompositeCD
+            Atom_EC: Symmetry->Angular_Sym
+            Electron configurtions EC->AtomEC
+            cross casts from IE to AtomIEC.  These are now all labeled
+                options:
+                    forget about it
+                    lots virtual inheritance form ::IEC
+            Done: BasisFunction op==
+                Do we really need op== for something? No
+                PG basis function still needed.
+            Done: Symmetry::MatchType and Match
+                Do we need this for anything? No
+            Cachable->Rk engines for radial slater inegrals.
+            Create CD and Vxc fit basis sets.  Need to get at DB*
+            Multiple virtual dispatch for RadialFunction->GaussianRF
+            Orbital_IBS->Orbital_HF_IBS for ERI integrals.
+            
+
+        Done: consolidate iec->atomiec casts into one place
+        Done: -Hunt for dynamic casts that can be removed using dynamic_cast iterator
+        -SHould only be casting between interfaces
+        DOne: -Can we pass around more specific interfaces?
     Done: -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
         Most code except Norms can move up to the radial level.
         Minor consolidaton.

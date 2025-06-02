@@ -29,10 +29,6 @@ Irrep_QNs::~Irrep_QNs()
     assert(sym);
     if (sym) delete sym;
 }
-bool Irrep_QNs::Match(const Irrep_QNs& b) const
-{
-    return ms==b.ms && (*sym==*b.sym);
-}
 size_t Irrep_QNs::SequenceIndex() const
 {
     assert(::SequenceIndex(ms)<ms_max);
@@ -80,14 +76,6 @@ size_t Orbital_QNs::SequenceIndex() const
     assert(::SequenceIndex(ms)<ms_max);
     Irrep_QNs iqns(ms,sym);
     return iqns.SequenceIndex()*n_max + (n-1);
-}
-bool Orbital_QNs::Match(const Orbital_QNs& b) const
-{
-    return n==b.n && ms==b.ms && (*sym==*b.sym);
-}
-bool Orbital_QNs::MatchNoSpin(const Orbital_QNs& b) const
-{
-    return n==b.n && (*sym==*b.sym);
 }
 size_t Orbital_QNs::GetDegeneracy() const
 {

@@ -62,8 +62,8 @@ void EnergyLevels::merge(const EnergyLevels& els, double tol)
     {
         auto il=itsELevels.lower_bound(el.first-tol);
         auto iu=itsELevels.upper_bound(el.first+tol);
-        bool symmatch = il->second.qns == el.second.qns;
-        if ((!symmatch) || il==itsELevels.end() || il==iu)
+        bool symmatch = (il!=itsELevels.end()) && (il->second.qns.SequenceIndex() == el.second.qns.SequenceIndex());
+        if ((!symmatch) || il==iu)
             insert(el.second);
         else
             il->second.merge(el.second);

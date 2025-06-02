@@ -18,8 +18,6 @@ public:
     Yl_Sym(int theL);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual bool MatchType(const Symmetry&) const;
-    virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
     
     virtual std::ostream&  Write(std::ostream&) const;

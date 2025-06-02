@@ -29,18 +29,6 @@ size_t Ylm_Sym::SequenceIndex() const //Used for op<
     return mmax+itsL+itsL*(2*LMAX+1);
  }
 
-bool Ylm_Sym::MatchType(const Symmetry& b) const
-{
-    return dynamic_cast<const Ylm_Sym*>(&b)!=0;
-}
-
-bool Ylm_Sym::Match(const Symmetry& qn) const
-{
-    const Ylm_Sym* yqn = dynamic_cast<const Ylm_Sym*>(&qn);
-    assert(yqn);
-    bool meq=ml.size()==yqn->ml.size() && std::equal(ml.begin(), ml.end(), yqn->ml.begin());
-    return itsL==yqn->itsL && meq;
-}
 
 int Ylm_Sym::GetDegeneracy() const
 {

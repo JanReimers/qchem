@@ -18,8 +18,6 @@ public:
     Omega_k_Sym(int kappa);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual bool MatchType(const Symmetry&) const;
-    virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
     virtual ElCounts_l GetN(const ElCounts&) const;
     
@@ -51,8 +49,6 @@ public:
     Omega_kmj_Sym(int kappa, double mj);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual bool MatchType(const Symmetry&) const;
-    virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
     Symmetry* AddPrincipleQN(int index) const;
     virtual std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const;

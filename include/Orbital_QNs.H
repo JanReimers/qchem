@@ -15,13 +15,8 @@ struct Irrep_QNs
     Irrep_QNs(const Irrep_QNs&);
     ~Irrep_QNs();
 
-    bool Match(const Irrep_QNs&) const;
     size_t  SequenceIndex() const; //Used for op<
 
-    friend  bool operator==(const Irrep_QNs& a, const Irrep_QNs& b)
-    {
-        return a.Match(b);
-    }
     friend bool operator<(const Irrep_QNs& a, const Irrep_QNs& b)
     {
         return a.SequenceIndex()<b.SequenceIndex();
@@ -46,13 +41,7 @@ struct Orbital_QNs
     Orbital_QNs(const Orbital_QNs&);
     ~Orbital_QNs();
 
-    bool Match(const Orbital_QNs&) const;
-    bool MatchNoSpin(const Orbital_QNs&) const;
     size_t  SequenceIndex() const; //Used for op<
-    friend  bool operator==(const Orbital_QNs& a, const Orbital_QNs& b)
-    {
-        return a.Match(b);
-    }
     friend bool operator<(const Orbital_QNs& a, const Orbital_QNs& b)
     {
         return a.SequenceIndex()<b.SequenceIndex();
@@ -60,8 +49,6 @@ struct Orbital_QNs
     size_t GetDegeneracy() const;
 
     std::ostream& Write(std::ostream&) const;
-    std::istream& Read (std::istream& is)      {return is;}
-
 
     size_t     n;
     Spin       ms;

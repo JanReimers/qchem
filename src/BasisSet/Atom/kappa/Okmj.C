@@ -21,17 +21,6 @@ size_t Omega_k_Sym::SequenceIndex() const //Used for op<
     return kappa+LMax+1;
  }
 
-bool Omega_k_Sym::MatchType(const Symmetry& b) const
-{
-    return dynamic_cast<const Omega_k_Sym*>(&b)!=0;
-}
-
-bool Omega_k_Sym::Match(const Symmetry& qn) const
-{
-    const Omega_k_Sym* oqn = dynamic_cast<const Omega_k_Sym*>(&qn);
-    assert(oqn);
-    return kappa==oqn->kappa;
-}
 
 int Omega_k_Sym::GetDegeneracy() const
 {
@@ -101,17 +90,6 @@ size_t Omega_kmj_Sym::SequenceIndex() const //Used for op<
     return (mj+Getj())*(2*LMax+3)+(kappa+LMax+1);
  }
 
-bool Omega_kmj_Sym::MatchType(const Symmetry& b) const
-{
-    return dynamic_cast<const Omega_kmj_Sym*>(&b)!=0;
-}
-
-bool Omega_kmj_Sym::Match(const Symmetry& qn) const
-{
-    const Omega_kmj_Sym* oqn = dynamic_cast<const Omega_kmj_Sym*>(&qn);
-    assert(oqn);
-    return kappa==oqn->kappa && mj==oqn->mj;
-}
 
 int Omega_kmj_Sym::GetDegeneracy() const
 {

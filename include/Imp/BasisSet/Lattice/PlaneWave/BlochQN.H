@@ -22,11 +22,9 @@ public:
     BlochQN(         );
     BlochQN(RVec3 theK);
 
-    virtual bool Match(const Symmetry&) const;
     virtual int GetDegeneracy() const;
 
     virtual std::ostream&       Write(std::ostream&) const;
-    virtual std::istream&       Read (std::istream&)      ;
     virtual Symmetry* Clone(        ) const;
 
     RVec3   GetK() const

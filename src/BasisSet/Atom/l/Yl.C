@@ -20,17 +20,6 @@ Yl_Sym::Yl_Sym(int theL)
     return itsL;
  }
 
-bool Yl_Sym::MatchType(const Symmetry& b) const
-{
-    return dynamic_cast<const Yl_Sym*>(&b)!=0;
-}
-
-bool Yl_Sym::Match(const Symmetry& qn) const
-{
-    const Yl_Sym* aqn = dynamic_cast<const Yl_Sym*>(&qn);
-    assert(aqn);
-    return itsL==aqn->itsL;
-}
 
 int Yl_Sym::GetDegeneracy() const
 {

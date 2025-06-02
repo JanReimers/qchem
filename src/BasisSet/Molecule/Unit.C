@@ -8,10 +8,6 @@
 UnitQN::UnitQN()
 {};
 
-bool UnitQN::MatchType(const Symmetry& b) const
-{
-    return dynamic_cast<const UnitQN*>(&b)!=0;
-}
 
 int UnitQN::GetDegeneracy() const
 {

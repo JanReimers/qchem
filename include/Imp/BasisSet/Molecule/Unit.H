@@ -12,11 +12,6 @@ class UnitQN
 public:
     UnitQN();
     virtual size_t SequenceIndex() const {return 1;} //Used for op<
-    virtual bool MatchType(const Symmetry&) const;
-    virtual bool Match(const Symmetry&) const
-    {
-        return true;
-    }
     virtual int GetDegeneracy() const;
     virtual int GetPrincipleOffset() const {return 0;}
 
@@ -33,10 +28,6 @@ public:
     UnitnQN() ;
     UnitnQN(int n);
 
-    virtual bool Match(const Symmetry&) const
-    {
-        return true;
-    }
     virtual std::ostream& Write(std::ostream&) const;
     virtual Symmetry* Clone() const;
 private:

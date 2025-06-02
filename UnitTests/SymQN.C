@@ -50,7 +50,6 @@ TEST_F(SymQNTests, Yl_Sym)
         {
             if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
             Symmetry* yl2=new Yl_Sym(l2);
-            EXPECT_FALSE(*yl1==*yl2);
             EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
             delete yl2;
         }
@@ -65,7 +64,6 @@ TEST_F(SymQNTests, Omega_k_Sym)
         for (int kappa2=-kappa_max;kappa2<kappa1;kappa2++)
         {
             Symmetry* Ol2=new Omega_k_Sym(kappa2);
-            EXPECT_FALSE(*Ol1==*Ol2);
             EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
             delete Ol2;
         }
@@ -83,7 +81,7 @@ TEST_F(SymQNTests, Ylm_Sym_multi)
         {
             if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
             Symmetry* yl2=new Ylm_Sym(l2,make_mls(-(int)l2,m2));
-            if (!(*yl1==*yl2))
+            if (m1!=m2)
             {
                 EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
             }
@@ -107,7 +105,7 @@ TEST_F(SymQNTests, Omega_kmj_Sym)
                 {
                     Symmetry* Ol2=new Omega_kmj_Sym(kappa2,mj2);
                     if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
-                    if (!(*Ol1==*Ol2))
+                    if (mj1!=mj2)
                     {
                         EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
                     }
@@ -135,7 +133,6 @@ TEST_F(SymQNTests, Orbital_QNs_YlQN)
             if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
             Symmetry* yl2=new Yl_Sym(l2);
             Orbital_QNs oqn2(n2,s2,yl2);
-            EXPECT_FALSE(oqn1==oqn2);
             EXPECT_NE(oqn1.SequenceIndex(),oqn2.SequenceIndex());
             delete yl2;
         }
