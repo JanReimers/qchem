@@ -57,6 +57,13 @@ EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
     return e;
 }
 
+#include "Imp/WaveFunction/Polarized_WF.H"
+#include "Imp/WaveFunction/UnPolarized_WF.H"
+WaveFunction* HamiltonianImp::CreateWaveFunction(const BasisSet* bs,const ElectronConfiguration* ec) const
+{
+    return IsPolarized ? (WaveFunction*)new Polarized_WF(bs,ec) : (WaveFunction*)new UnPolarized_WF(bs,ec);
+}
+
 
 std::ostream& HamiltonianImp::Write(std::ostream& os) const
 {

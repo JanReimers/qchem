@@ -43,7 +43,8 @@ void QchemTester::Init(double eps)
     assert(itsBasisSet);
     itsHamiltonian=GetHamiltonian(itsCluster); //HF,semi HF, DFT all Pol or un-polarized.
     assert(itsHamiltonian);
-    itsWaveFunction=GetWaveFunction(itsBasisSet); //Polarized or un-polarized
+    itsWaveFunction=itsHamiltonian->CreateWaveFunction(itsBasisSet,GetElectronConfiguration());
+    // itsWaveFunction=GetWaveFunction(itsBasisSet); //Polarized or un-polarized
     assert(itsWaveFunction);
     itsSCFIterator=new SCFIterator(itsWaveFunction,itsHamiltonian);
 }
