@@ -9,16 +9,38 @@ Priority 1:
             S^-1/2 is stored in LASolver
             S is cached the DB
             D is calculated in TOrbitalsImp<T> but only stored in IrrepCD.
+        -THe proceedure needs happen at the irrep level. Right the SCFiterator does not work with irreps.
+            The separation of SCF algo from the wavefunction is breaking down.
+            Use a SCFAccelerator interface that feeds through from SCFIterator->WF->IrrepWF->Orbitals::Update
+                Have a noop and DIIS derived versions.
+                DIIS agent stores S, V,Vd
         Plan:
             TOrbitalsImp<T> calculates and saves  D at the end UpdateOrbitals.
                 IrrepCD gets a shallow copy 
             SCFIterator:
+
                 Somehow gets S^-1/2 (V,Vd in LASolver) at construction time
                 Somehow get F' out of UpdateOrbitals, LASolver
 
                 Request error vector e_i = Vd*(F_i*D_i*S-S*D_i*F_i)*V
                 Build the B matrix and silver for the c_i
                 F' = sum(c_i*F'_i)
+        Fixed: Design issue
+            Hamiltonian is created only from a cluster
+            WF is created from BS & SCFAccelerator
+            SCFIterator is created from WF and Ham
+
+            Hamiltonian knows if it is spin polarized or not.  Vxc or Dirac Kinetic terms
+            Therefore H has unique knowledge to create the correct type of wave function
+            New sequence:
+                Create cl
+                Create BS(cl)
+                Create H(cl)
+                Create SCFIterator(BS,H)
+                    Create SCFAccelerator (pass through or DIIS)
+                    WF=H->Create WF(BS,SCFAccelerator)
+
+            SCFiterator is created from a wf and 
 
 
 

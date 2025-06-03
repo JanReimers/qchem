@@ -17,8 +17,6 @@ PeriodicTable QchemTester::itsPT;
 QchemTester::QchemTester()
 : itsCluster(0)
 , itsBasisSet(0)
-, itsHamiltonian(0)
-, itsWaveFunction(0)
 , itsSCFIterator(0)
 , MaxRelErrE(0)
 {
@@ -28,7 +26,6 @@ QchemTester::QchemTester()
 QchemTester::~QchemTester()
 {
     delete itsBasisSet;
-    delete itsWaveFunction;
     delete itsSCFIterator;
 }
 
@@ -41,12 +38,8 @@ void QchemTester::Init(double eps)
     assert(&*itsCluster);
     itsBasisSet=GetBasisSet(); //SG, PG, Slater
     assert(itsBasisSet);
-    itsHamiltonian=GetHamiltonian(itsCluster); //HF,semi HF, DFT all Pol or un-polarized.
-    assert(itsHamiltonian);
-    itsWaveFunction=itsHamiltonian->CreateWaveFunction(itsBasisSet,GetElectronConfiguration());
-    // itsWaveFunction=GetWaveFunction(itsBasisSet); //Polarized or un-polarized
-    assert(itsWaveFunction);
-    itsSCFIterator=new SCFIterator(itsWaveFunction,itsHamiltonian);
+    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster));
+    assert(itsSCFIterator);
 }
 
 void QchemTester::Iterate(const SCFIterationParams& ipar)
@@ -63,21 +56,17 @@ double QchemTester::TotalEnergy() const
 
 EnergyBreakdown QchemTester::GetEnergyBreakdown() const
 {
-    assert(itsHamiltonian);
-    DM_CD* cd=itsWaveFunction->GetChargeDensity();
-    EnergyBreakdown te=itsHamiltonian->GetTotalEnergy(cd);
-    delete cd;
-    return te;
+    return itsSCFIterator->GetEnergy();
 }
 
 double QchemTester::TotalCharge() const
 {
-    return itsWaveFunction->GetChargeDensity()->GetTotalCharge();
+    return itsSCFIterator->GetChargeDensity()->GetTotalCharge();
 }
 
 const Orbitals* QchemTester::GetOrbitals(const Irrep_QNs& qns) const
 {
-    return itsWaveFunction->GetOrbitals(qns);
+    return itsSCFIterator->GetWaveFunction()->GetOrbitals(qns);
 }
 
 const Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const

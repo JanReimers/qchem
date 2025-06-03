@@ -46,8 +46,6 @@ protected:
 protected:
     cl_t          itsCluster;
     BasisSet*     itsBasisSet;
-    Hamiltonian*  itsHamiltonian;
-    WaveFunction* itsWaveFunction;
     SCFIterator*  itsSCFIterator;
 public:
     static PeriodicTable itsPT;

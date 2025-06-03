@@ -12,14 +12,14 @@
 #include <iomanip>
 #include <cassert>
 
-SCFIterator::SCFIterator(WaveFunction* W,Hamiltonian* H,DM_CD* cd)
-    : itsWaveFunction         (W )
-    , itsHamiltonian          (H )
+SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,DM_CD* cd)
+    : itsHamiltonian          (H )
+    , itsWaveFunction         (itsHamiltonian->CreateWaveFunction(bs,ec) )
     , itsCD   (0)
     , itsOldCD(0)
 {
-    assert(itsWaveFunction);
     assert(itsHamiltonian);
+    assert(itsWaveFunction);
     Initialize(cd);
 }
 
@@ -40,6 +40,7 @@ void SCFIterator::Initialize(DM_CD* cd)
 SCFIterator::~SCFIterator()
 {
     delete itsHamiltonian;
+    delete itsWaveFunction;
     delete itsCD;
     delete itsOldCD;
 }
@@ -102,7 +103,12 @@ void SCFIterator::DisplayEigen() const
     itsWaveFunction->DisplayEigen();
 }
 
-DM_CD* SCFIterator::GetExactChargeDensity() const
+EnergyBreakdown SCFIterator::GetEnergy() const
+{
+    return itsHamiltonian->GetTotalEnergy(itsCD);
+}
+
+DM_CD* SCFIterator::GetChargeDensity() const
 {
     return itsCD;
 }
@@ -142,22 +148,22 @@ SCFIrrepIterator_DIIS::SCFIrrepIterator_DIIS(Orbitals* os,const SMatrix<double>&
 #include "oml/smatrix.h"
 #include <map>
 
-SCFIterator_DIIS::SCFIterator_DIIS(const BasisSet* bs, WaveFunction* wf, Hamiltonian* ham,DM_CD* cd)
-: SCFIterator(wf,ham,cd)
+SCFIterator_DIIS::SCFIterator_DIIS(const BasisSet* bs, const ElectronConfiguration* ec, Hamiltonian* ham,DM_CD* cd)
+: SCFIterator(bs,ec,ham,cd)
 {
     // Build a look up table Irres basis set indexed by symmetry.
-    auto comp = [](const Symmetry* a, const Symmetry* b) { return a->SequenceIndex() < b->SequenceIndex(); };
-    std::map<const Symmetry*,const TOrbital_IBS<double>*,decltype(comp)> sym_ibs(comp);
-    for (auto ibs:bs->Iterate<TOrbital_IBS<double>>()) sym_ibs[&ibs->GetSymmetry()]=ibs;
+    // auto comp = [](const Symmetry* a, const Symmetry* b) { return a->SequenceIndex() < b->SequenceIndex(); };
+    // std::map<const Symmetry*,const TOrbital_IBS<double>*,decltype(comp)> sym_ibs(comp);
+    // for (auto ibs:bs->Iterate<TOrbital_IBS<double>>()) sym_ibs[&ibs->GetSymmetry()]=ibs;
 
-    // Create a SCFIrrepIterator_DIIS for each Irrep.
-    WaveFunction::iqns_t qns=wf->GetQNs();
-    for (auto& q:qns)
-    {
-        Orbitals* o=wf->GetOrbitals(q);
-        const SMatrix<double>& S=sym_ibs.find(q.sym)->second->Overlap();
-        itsSCFIterators.push_back(ii_t(new SCFIrrepIterator_DIIS(o,S)));
-    }
+    // // Create a SCFIrrepIterator_DIIS for each Irrep.
+    // WaveFunction::iqns_t qns=wf->GetQNs();
+    // for (auto& q:qns)
+    // {
+    //     Orbitals* o=wf->GetOrbitals(q);
+    //     const SMatrix<double>& S=sym_ibs.find(q.sym)->second->Overlap();
+    //     itsSCFIterators.push_back(ii_t(new SCFIrrepIterator_DIIS(o,S)));
+    // }
 
 
 }

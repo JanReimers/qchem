@@ -6,19 +6,22 @@
 class SCFIterator
 {
 public:
-    SCFIterator(WaveFunction*, Hamiltonian*,DM_CD* cd=0);
+    SCFIterator(const BasisSet*, const ElectronConfiguration*, Hamiltonian*,DM_CD* cd=0);
     virtual ~SCFIterator();
     virtual bool Iterate(const SCFIterationParams& ipar);
-    void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double chargeDensityChange, double fitError) const;
-    void DisplayEigen   () const;
 
-    DM_CD* GetExactChargeDensity () const;
+    const WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
+    EnergyBreakdown     GetEnergy() const;
+    DM_CD*              GetChargeDensity () const;
 
 private:
     void Initialize(DM_CD* cd);  //Does on iteration to set up the exact charge density.
+    void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double chargeDensityChange, double fitError) const;
+    void DisplayEigen   () const;
 
-    WaveFunction* itsWaveFunction;  //We don't own this guy!
+    //All owned, see destructor.
     Hamiltonian*  itsHamiltonian;
+    WaveFunction* itsWaveFunction;  
     DM_CD*        itsCD;
     DM_CD*        itsOldCD;
 };
@@ -41,7 +44,7 @@ private:
 class SCFIterator_DIIS : public SCFIterator
 {
 public:
-    SCFIterator_DIIS(const BasisSet*,WaveFunction*, Hamiltonian*,DM_CD* cd=0);
+    SCFIterator_DIIS(const BasisSet* bs, const ElectronConfiguration* ec, Hamiltonian*,DM_CD* cd=0);
     ~SCFIterator_DIIS();
     // virtual bool Iterate(const SCFIterationParams& ipar);
 
