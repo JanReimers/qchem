@@ -14,7 +14,6 @@
 #include <LASolver.H>
 #include "Imp/Containers/stl_io.h"
 #include "oml/vector.h"
-#include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include <iostream>
 
@@ -28,10 +27,12 @@ TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms,SCFIrrepAccelerator* acc)
     , itsLASolver(bs->CreateSolver())
     , itsQNs(ms,&bs->GetSymmetry())
     , itsAccelerator(acc)
+    , itsDensityMatrix(bs->GetNumFunctions())
 {
     assert(itsBasisSet->GetNumFunctions()>0);
     assert(itsAccelerator);
     itsAccelerator->Init(itsLASolver);
+    Fill(itsDensityMatrix,0.0);
 };
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
@@ -102,22 +103,28 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const D
 
     }
 }
+template <class T> double TOrbitalsImp<T>::TakeElectrons(double ne)
+{
+    // Dump electrons into orbitals, starting from the lowest energy.
+    for (auto o:this->Iterate<Orbital>())
+    {
+        ne=o->TakeElectrons(ne);
+        if (ne<=0.0) break;
+    }
+    //
+    //  Now the orbitals are accupied we can build the density matrix.
+    //
+    Fill(itsDensityMatrix,T(0.0));
+    for (auto b:Iterate<TOrbital<double>>()) b->AddDensityMatrix(itsDensityMatrix);
 
+    return ne;
+}
 
 template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 {
-    return new IrrepCD<T>(CalculateDensityMatrix(),itsBasisSet,GetQNs());
+    return new IrrepCD<T>(itsDensityMatrix,itsBasisSet,GetQNs());
 }
 
-
-template <class T> typename TOrbitalsImp<T>::SMat TOrbitalsImp<T>::
-CalculateDensityMatrix() const
-{
-    SMat d(itsBasisSet->GetNumFunctions());
-    Fill(d,T(0.0));
-    for (auto b:Iterate<TOrbital<double>>()) b->AddDensityMatrix(d);
-    return d;
-}
 
 template <class T>  Irrep_QNs TOrbitalsImp<T>::GetQNs() const
 {

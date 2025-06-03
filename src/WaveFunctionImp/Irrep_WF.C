@@ -54,17 +54,12 @@ Orbitals* Irrep_WF::GetOrbitals()
 //
 const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
 {
-    // Step one: How many electron for this Irrep(qn,spin) ?
-    double ne=ec->GetN(itsIrrep);
-    // if (ne>0)
-    //     std::cout << "ne=" << ne << " QN=" << itsIrrep << std::endl;
-    // //  Loop over orbitals and consume the electrons quota.
-    for (auto o:itsOrbitals->Iterate<Orbital>())
-    {
-        ne=o->TakeElectrons(ne);
-        if (ne<=0.0) break;
-    }
-    //  Now update the list of energy levels.
+    
+    double ne=ec->GetN(itsIrrep); // Step one: How many electron for this Irrep(qn,spin) ?
+    ne=itsOrbitals->TakeElectrons(ne); // Step two: Dump electrons into the orbitals
+    assert(ne==0.0); 
+    
+    // Step three: Make a list of energy levels.  Degenerate levels should get merged.
     itsELevels.clear();
     for (auto o:itsOrbitals->Iterate<Orbital>())
         itsELevels.insert(EnergyLevel(o));

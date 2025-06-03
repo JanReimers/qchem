@@ -65,6 +65,7 @@ public:
     typedef ov_t::const_iterator const_iterator;
 
     virtual ~Orbitals() {};
+    virtual double         TakeElectrons      (double ne      )      =0;
     virtual index_t        GetNumOrbitals     (               ) const=0;
     virtual index_t        GetNumOccOrbitals  (               ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;

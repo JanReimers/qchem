@@ -5,6 +5,7 @@
 
 #include "Orbital.H"
 #include <Orbital_QNs.H>
+#include "oml/smatrix.h"
 #include <memory>
 #include <vector>
 
@@ -26,9 +27,8 @@ public:
     TOrbitalsImp(const TOrbital_IBS<T>*, Spin s,SCFIrrepAccelerator* acc);
     virtual ~TOrbitalsImp();
 
-    virtual Vec     operator()(const RVec3&) const;
-    virtual Vec3Vec Gradient  (const RVec3&) const;
 
+    virtual double    TakeElectrons      (double ne      )      ;
     virtual index_t   GetNumOrbitals     (               ) const;
     virtual index_t   GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
@@ -36,6 +36,10 @@ public:
     virtual void      UpdateOrbitals     (Hamiltonian&, const DM_CD*);
     virtual Irrep_QNs GetQNs() const;
     virtual RVec      Get_BS_Diagonal() const;
+
+    virtual Vec     operator()(const RVec3&) const;
+    virtual Vec3Vec Gradient  (const RVec3&) const;
+
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}
     virtual const_iterator end  () const {return itsOrbitals.end  ();} 
@@ -47,13 +51,13 @@ public:
 
 private:
     TOrbitalsImp(const TOrbitalsImp&);
-    virtual SMat CalculateDensityMatrix() const;
 
     const TOrbital_IBS<T>*  itsBasisSet;
     ov_t                    itsOrbitals;
     LASolver<double>*       itsLASolver; //General eigen solver
     Irrep_QNs               itsQNs;
     SCFIrrepAccelerator*    itsAccelerator;
+    SMat                    itsDensityMatrix;
 };
 
 
