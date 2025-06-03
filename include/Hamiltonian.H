@@ -19,6 +19,7 @@ public:
 
     virtual const SMat& GetMatrix(const ibs_t*,const Spin&) const=0;
     virtual void        GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
+    virtual bool        IsPolarized() const {return false;}
 };
 
 class Dynamic_HT
@@ -29,6 +30,7 @@ public:
     typedef TOrbital_IBS<double> ibs_t;    
     virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
     virtual void        GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
+    virtual bool        IsPolarized() const {return false;}
 };
 
 #include <FittedFunctionClient.H>

@@ -13,6 +13,7 @@ public:
     // Required by HamiltonianTerm
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
+    virtual bool          IsPolarized() const {return true;}
 
 private:
     virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;

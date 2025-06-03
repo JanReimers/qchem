@@ -22,6 +22,7 @@ public:
     ~VxcPol();
     // Required by HamiltonianTerm
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:

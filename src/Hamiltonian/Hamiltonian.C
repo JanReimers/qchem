@@ -14,16 +14,18 @@
 #include <cassert>
 #include <iostream>
 
-HamiltonianImp::HamiltonianImp()
+HamiltonianImp::HamiltonianImp() : IsPolarized(false)
 {};
 
 void HamiltonianImp::Add(Static_HT* p)
 {
     itsSHTs.push_back(std::unique_ptr<Static_HT>(p));
+    IsPolarized = IsPolarized || p->IsPolarized();
 }
 void HamiltonianImp::Add(Dynamic_HT* p)
 {
     itsDHTs.push_back(std::unique_ptr<Dynamic_HT>(p));
+    IsPolarized = IsPolarized || p->IsPolarized();
 }
 
 void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
@@ -58,8 +60,10 @@ EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 
 std::ostream& HamiltonianImp::Write(std::ostream& os) const
 {
+    if (IsPolarized) os << "Polarized ";
     os << "Hamiltonian with " << itsSHTs.size() << " static terms:" << std::endl;
     os << itsSHTs;
+    if (IsPolarized) os << "Polarized ";
     os << "Hamiltonian with " << itsDHTs.size() << " dynamic terms:" << std::endl;
     os << itsDHTs;
     return os;

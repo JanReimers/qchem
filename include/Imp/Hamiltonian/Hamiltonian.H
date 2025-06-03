@@ -28,6 +28,7 @@ protected:
 
     shtv_t itsSHTs;
     dhtv_t itsDHTs;
+    bool   IsPolarized;
 };
 
 #endif //_HamiltonianImp_H_
