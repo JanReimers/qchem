@@ -6,6 +6,7 @@
 #include "Imp/Orbitals/TOrbital.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Misc/DFTDefines.H"
+#include "Imp/SCFAccelerator.H"
 #include <Irrep_BS.H>
 #include <Hamiltonian.H>
 #include <Symmetry.H>
@@ -22,17 +23,21 @@
 //  Construction zone
 //
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
+TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms,SCFIrrepAccelerator* acc)
     : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
     , itsQNs(ms,&bs->GetSymmetry())
+    , itsAccelerator(acc)
 {
     assert(itsBasisSet->GetNumFunctions()>0);
+    assert(itsAccelerator);
+    itsAccelerator->Init(itsLASolver);
 };
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
 {
     delete itsLASolver;
+    delete itsAccelerator;
 }
 
 //-----------------------------------------------------------------
@@ -43,7 +48,6 @@ template <class T> index_t TOrbitalsImp<T>::GetNumOrbitals() const
 {
     return itsOrbitals.size();
 }
-
 template <class T> index_t TOrbitalsImp<T>::GetNumOccOrbitals() const
 {
     index_t n=0;
@@ -53,7 +57,6 @@ template <class T> index_t TOrbitalsImp<T>::GetNumOccOrbitals() const
 
     return n;
 }
-
 template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& og) const
 {
     // No UT coverage

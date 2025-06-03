@@ -7,6 +7,7 @@
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/Orbitals/TOrbitals.H"
+#include "Imp/SCFAccelerator.H"
 #include <BasisSet.H>
 #include <Symmetry.H>
 #include <Irrep_BS.H>
@@ -20,7 +21,7 @@ using std::cout;
 using std::endl;
 
 
-Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec)
+Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,const SCFAccelerator& acc)
     : itsBS(bs) //Basis set
     , itsEC(ec) //Electron cofiguration
 {
@@ -28,8 +29,8 @@ Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec)
     assert(itsBS->GetNumFunctions()>0);
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wfup(new Irrep_WF(b,Spin(Spin::Up)));
-        uiwf_t wfdn(new Irrep_WF(b,Spin(Spin::Down)));
+        uiwf_t wfup(new Irrep_WF(b,Spin(Spin::Up  ),acc.Create(b)));
+        uiwf_t wfdn(new Irrep_WF(b,Spin(Spin::Down),acc.Create(b)));
         itsQN_WFs[wfup->GetQNs()]=wfup.get();
         itsQN_WFs[wfdn->GetQNs()]=wfdn.get();
         // Do tte move last.

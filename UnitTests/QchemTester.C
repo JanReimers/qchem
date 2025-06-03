@@ -1,5 +1,6 @@
 
 #include "QchemTester.H"
+#include "Imp/SCFAccelerator.H"
 #include <MeshParams.H>
 #include <SCFIterator.H>
 #include <WaveFunction.H>
@@ -38,7 +39,8 @@ void QchemTester::Init(double eps)
     assert(&*itsCluster);
     itsBasisSet=GetBasisSet(); //SG, PG, Slater
     assert(itsBasisSet);
-    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster));
+    SCFAccelerator* acc=new SCFAccelerator_DIIS();
+    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }
 

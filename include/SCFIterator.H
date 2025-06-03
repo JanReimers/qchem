@@ -6,7 +6,7 @@
 class SCFIterator
 {
 public:
-    SCFIterator(const BasisSet*, const ElectronConfiguration*, Hamiltonian*,DM_CD* cd=0);
+    SCFIterator(const BasisSet*, const ElectronConfiguration*, Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
     virtual ~SCFIterator();
     virtual bool Iterate(const SCFIterationParams& ipar);
 
@@ -20,37 +20,13 @@ private:
     void DisplayEigen   () const;
 
     //All owned, see destructor.
-    Hamiltonian*  itsHamiltonian;
-    WaveFunction* itsWaveFunction;  
-    DM_CD*        itsCD;
-    DM_CD*        itsOldCD;
+    Hamiltonian*    itsHamiltonian;
+    SCFAccelerator* itsAccelerator;
+    WaveFunction*   itsWaveFunction;  
+    DM_CD*          itsCD;
+    DM_CD*          itsOldCD;
 };
 
 
-#include <vector>
-class SCFIrrepIterator_DIIS
-{
-public:
-    SCFIrrepIterator_DIIS(Orbitals* os,const SMatrix<double>&);
 
-private:
-    std::vector<SMatrix<double>> itsF_Primes;
-
-
-};
-
-#include <memory>
-//  Accelerated convergence algo described in: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
-class SCFIterator_DIIS : public SCFIterator
-{
-public:
-    SCFIterator_DIIS(const BasisSet* bs, const ElectronConfiguration* ec, Hamiltonian*,DM_CD* cd=0);
-    ~SCFIterator_DIIS();
-    // virtual bool Iterate(const SCFIterationParams& ipar);
-
-private:
-    typedef std::shared_ptr<SCFIrrepIterator_DIIS> ii_t; //Irrep iterator type
-    std::vector<ii_t> itsSCFIterators;
-    
-};
 

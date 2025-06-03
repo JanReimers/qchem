@@ -17,7 +17,7 @@ class UnPolarized_WF
 {
 public:
     UnPolarized_WF();
-    UnPolarized_WF(const BasisSet*,const ElectronConfiguration*);
+    UnPolarized_WF(const BasisSet*,const ElectronConfiguration*,const SCFAccelerator& acc);
     virtual ~UnPolarized_WF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;

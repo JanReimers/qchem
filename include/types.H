@@ -100,6 +100,8 @@ class Orbital_IBS;
 class Orbital;
 class Orbitals;
 class Orbital_QNs;
+class SCFIrrepAccelerator;
+class SCFAccelerator;
 class Symmetry;
 enum class Spin;
 class RadialMesh;

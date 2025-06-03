@@ -4,6 +4,7 @@
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/Orbitals/TOrbitals.H"
+#include "Imp/SCFAccelerator.H"
 #include <BasisSet.H>
 #include <Irrep_BS.H>
 #include <cassert>
@@ -15,7 +16,7 @@ UnPolarized_WF::UnPolarized_WF()
     : itsEC(0)
 {};
 
-UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec)
+UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,const SCFAccelerator& acc)
     : itsBS(bs)
     , itsEC(ec)
 {
@@ -24,7 +25,7 @@ UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* e
     assert(itsBS->GetNumFunctions()>0);
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wf(new Irrep_WF(b,Spin(Spin::None)));
+        uiwf_t wf(new Irrep_WF(b,Spin(Spin::None),acc.Create(b)));
         itsQN_WFs[wf->GetQNs()]=wf.get();
         itsIWFs.push_back(std::move(wf)); //Do the move last.
     }

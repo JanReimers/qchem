@@ -23,7 +23,7 @@ template <class T> class TOrbitalsImp
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
 public:
-    TOrbitalsImp(const TOrbital_IBS<T>*, Spin s);
+    TOrbitalsImp(const TOrbital_IBS<T>*, Spin s,SCFIrrepAccelerator* acc);
     virtual ~TOrbitalsImp();
 
     virtual Vec     operator()(const RVec3&) const;
@@ -53,6 +53,7 @@ private:
     ov_t                    itsOrbitals;
     LASolver<double>*       itsLASolver; //General eigen solver
     Irrep_QNs               itsQNs;
+    SCFIrrepAccelerator*    itsAccelerator;
 };
 
 

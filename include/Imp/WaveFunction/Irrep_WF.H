@@ -8,7 +8,7 @@
 class Irrep_WF
 {
 public:
-    Irrep_WF(const TOrbital_IBS<double>*, const Spin&);
+    Irrep_WF(const TOrbital_IBS<double>*, const Spin&,SCFIrrepAccelerator*);
     ~Irrep_WF();
 
     void                DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
