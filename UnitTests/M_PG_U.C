@@ -21,7 +21,7 @@ double Alpha_N2=0.75197;
 //  Un-polarized tests.
 //
 class M_PG_HF_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis, TestUnPolarized
+, public TestMolecule, public PG_OBasis
 {
 public:
     M_PG_HF_U() {};
@@ -37,7 +37,7 @@ public:
 };
 
 class M_PG_SHF_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis, TestUnPolarized
+, public TestMolecule, public PG_OBasis
 {
 public:
     M_PG_SHF_U() {};
@@ -53,7 +53,7 @@ public:
     }
 };
 class M_PG_DFT_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis, TestUnPolarized
+, public TestMolecule, public PG_OBasis
 {
 public:
     M_PG_DFT_U() {};

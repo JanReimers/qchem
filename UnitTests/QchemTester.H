@@ -41,12 +41,8 @@ protected:
 
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet* GetBasisSet   () const=0;
-    // virtual Fit_IBS*  GetCBasisSet  () const;
-    // virtual Fit_IBS*  GetXBasisSet  () const;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
-    // Polarized or un-polarized
-    virtual WaveFunction* GetWaveFunction(const BasisSet*) const=0;
 protected:
     cl_t          itsCluster;
     BasisSet*     itsBasisSet;
@@ -200,28 +196,6 @@ private:
     Molecule_EC ec;
 };
 
-
-//--------------------------------------------------------------------------------
-//
-//  Wave functions
-//
-class TestUnPolarized  : public virtual QchemTester
-{
-public:
-    virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
-};
-
-class TestPolarized  : public virtual QchemTester
-{
-public:
-    virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
-};
-
-class TestDirac : public virtual QchemTester
-{
-    public:
-    virtual WaveFunction* GetWaveFunction(const BasisSet*) const;
-};  
 
 
 #endif //QchemTester_H

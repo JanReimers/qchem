@@ -19,7 +19,7 @@ class DFT_U : public virtual QchemTester
 //  Un-polarized tests.
 //
 class A_SG_DFT_U : public ::testing::TestWithParam<int>
-, public TestAtom, SG_OBasis, DFT_U,TestUnPolarized
+, public TestAtom, SG_OBasis, DFT_U
 {
 public:
     A_SG_DFT_U() : TestAtom(GetParam()) {};
@@ -31,7 +31,7 @@ public:
 };
 
 class A_SL_DFT_U : public ::testing::TestWithParam<int>
-, public TestAtom, SL_OBasis, DFT_U, TestUnPolarized
+, public TestAtom, SL_OBasis, DFT_U
 {
 public:
     A_SL_DFT_U() : TestAtom(GetParam()) {};
@@ -43,7 +43,7 @@ public:
 };
 
 class A_PG_DFT_U : public ::testing::TestWithParam<int>
-, public TestMolecule, PG_OBasis, DFT_U, TestUnPolarized
+, public TestMolecule, PG_OBasis, DFT_U
 {
 public:
     A_PG_DFT_U() : TestMolecule() {};
@@ -97,7 +97,7 @@ class DFT_P : public virtual QchemTester
 //  Polarized tests.
 //
 class A_SG_DFT_P : public ::testing::TestWithParam<int>
-, public TestAtom, SG_OBasis, DFT_P,TestPolarized
+, public TestAtom, SG_OBasis, DFT_P
 {
 public:
     A_SG_DFT_P() : TestAtom(GetParam()) {};
@@ -119,7 +119,7 @@ TEST_P(A_SG_DFT_P,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DFT_P,::testing::Values(1,3,5,7,37,53)); //,3,5,7,37,53
 
 class A_SL_DFT_P : public ::testing::TestWithParam<int>
-, public TestAtom, SL_OBasis, DFT_P, TestPolarized
+, public TestAtom, SL_OBasis, DFT_P
 {
 public:
     A_SL_DFT_P() : TestAtom(GetParam()) {};
@@ -144,7 +144,7 @@ TEST_P(A_SL_DFT_P,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_DFT_P,::testing::Values(1,3,5,7,37,53)); 
 
 class A_PG_DFT_P : public ::testing::TestWithParam<int>
-, public TestMolecule, PG_OBasis, DFT_P, TestPolarized
+, public TestMolecule, PG_OBasis, DFT_P
 {
 public:
     A_PG_DFT_P() : TestMolecule() {};

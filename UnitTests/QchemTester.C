@@ -138,16 +138,6 @@ QchemTester::symv_t QchemTester::GetSymmetries() const
     return itsBasisSet->GetSymmetries();
 }
 
-// Fit_IBS* QchemTester::GetCBasisSet() const
-// {
-//     return itsBasisSet->CreateCDFitBasisSet(itsCluster.get());
-// }
-
-// Fit_IBS* QchemTester::GetXBasisSet() const
-// {
-//     return itsBasisSet->CreateVxcFitBasisSet(itsCluster.get());    
-// }
-
 
 #include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
 BasisSet* SG_OBasis::GetBasisSet () const
@@ -295,19 +285,4 @@ MeshParams TestMolecule::GetMeshParams() const
     return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
 }
 
-    
-
-#include "Imp/WaveFunction/UnPolarized_WF.H"
-WaveFunction* TestUnPolarized::GetWaveFunction(const BasisSet* bs) const
-{
-    return new UnPolarized_WF(bs,GetElectronConfiguration());
-}
-
-#include "Imp/WaveFunction/Polarized_WF.H"
-
-WaveFunction* TestPolarized::GetWaveFunction(const BasisSet* bs) const
-{   
-    assert(bs->GetNumFunctions()>0);
-    return new Polarized_WF(bs,GetElectronConfiguration() );
-}
 

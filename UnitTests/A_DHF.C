@@ -51,7 +51,7 @@ class DHF : public virtual QchemTester
 //  Slater functions
 //
 class A_SLm_HF_ion : public ::testing::TestWithParam<int>
-, public TestAtom, SLm_OBasis, HF_P, TestPolarized
+, public TestAtom, SLm_OBasis, HF_P
 {
 public:
     A_SLm_HF_ion() : TestAtom(GetParam(),GetParam()-1) {};
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100))
 
 
 class A_SLmj_DHF : public ::testing::TestWithParam<int>
-, public TestAtom, SLmj_OBasis, DHF, TestPolarized
+, public TestAtom, SLmj_OBasis, DHF
 {
 public:
     A_SLmj_DHF() : TestAtom(GetParam(),GetParam()-1) {};
@@ -128,7 +128,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SLmj_DHF,::testing::Values(1,20,60,86,100));
 
 // Non relativistic hydrogenic atom
 class A_SGm_HF_ion : public ::testing::TestWithParam<int>
-, public TestAtom, SGm_OBasis, HF_P, TestPolarized
+, public TestAtom, SGm_OBasis, HF_P
 {
 public:
     A_SGm_HF_ion() : TestAtom(GetParam(),GetParam()-1) {};
@@ -142,7 +142,7 @@ public:
 
 // Relativistic hydrogenic atom
 class A_SG_DHF : public ::testing::TestWithParam<int>
-, public TestAtom, SG_RKB_OBasis, DHF, TestPolarized
+, public TestAtom, SG_RKB_OBasis, DHF
 {
 public:
     A_SG_DHF() : TestAtom(GetParam(),GetParam()-1) {};

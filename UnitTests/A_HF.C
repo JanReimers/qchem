@@ -19,7 +19,7 @@ class HF_U : public virtual QchemTester
 //  Un-polarized tests.
 //
 class A_SG_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, SG_OBasis, HF_U, TestUnPolarized
+, public TestAtom, SG_OBasis, HF_U
 {
 public:
     A_SG_HF_U() : TestAtom(GetParam()) {};
@@ -31,7 +31,7 @@ public:
 };
 
 class A_SGm_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, SGm_OBasis, HF_U, TestUnPolarized
+, public TestAtom, SGm_OBasis, HF_U
 {
 public:
     A_SGm_HF_U() : TestAtom(GetParam()) {};
@@ -43,7 +43,7 @@ public:
 };
 
 class A_SL_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, SL_OBasis, HF_U, TestUnPolarized
+, public TestAtom, SL_OBasis, HF_U
 {
 public:
     A_SL_HF_U() : TestAtom(GetParam()) {};
@@ -55,7 +55,7 @@ public:
 };
 
 class A_SLm_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, SLm_OBasis, HF_U, TestUnPolarized
+, public TestAtom, SLm_OBasis, HF_U
 {
 public:
     A_SLm_HF_U() : TestAtom(GetParam()) {};
@@ -67,7 +67,7 @@ public:
 };
 
 class A_PG_HF_U : public ::testing::TestWithParam<int>
-, public TestMolecule, PG_OBasis, HF_U, TestUnPolarized
+, public TestMolecule, PG_OBasis, HF_U
 {
 public:
     A_PG_HF_U() : TestMolecule() {};
@@ -137,7 +137,7 @@ TEST_P(A_PG_HF_U,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
 
 class A_BS_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, BS_OBasis, HF_U, TestUnPolarized
+, public TestAtom, BS_OBasis, HF_U
 {
 public:
     A_BS_HF_U() : TestAtom(GetParam()) {};
@@ -172,7 +172,7 @@ class HF_P : public virtual QchemTester
 //  Polarized tests.
 //
 class A_SG_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SG_OBasis, HF_P, TestPolarized
+, public TestAtom, SG_OBasis, HF_P
 {
 public:
     A_SG_HF_P() : TestAtom(GetParam()) {};
@@ -198,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,21,37,53,56,6
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
 class A_SL_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SL_OBasis, HF_P, TestPolarized
+, public TestAtom, SL_OBasis, HF_P
 {
 public:
     A_SL_HF_P() : TestAtom(GetParam()) {};
@@ -224,7 +224,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53,56,64))
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
 class A_BS_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, BS_OBasis, HF_P, TestPolarized
+, public TestAtom, BS_OBasis, HF_P
 {
 public:
     A_BS_HF_P() : TestAtom(GetParam()) {};
@@ -248,7 +248,7 @@ TEST_P(A_BS_HF_P,Multiple)
 INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
 
 class A_SLm_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SLm_OBasis, HF_P, TestPolarized
+, public TestAtom, SLm_OBasis, HF_P
 {
 public:
     A_SLm_HF_P() : TestAtom(GetParam()) {};
@@ -274,7 +274,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,6,7,8,9,11,1
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(1,93)); 
 
 class A_SGm_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SGm_OBasis, HF_P, TestPolarized
+, public TestAtom, SGm_OBasis, HF_P
 {
 public:
     A_SGm_HF_P() : TestAtom(GetParam()) {};
@@ -300,7 +300,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,21,37,53,5
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(1,93)); //Only goes to 92?!?
 
 class A_BSm_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, BSm_OBasis, HF_P, TestPolarized
+, public TestAtom, BSm_OBasis, HF_P
 {
 public:
     A_BSm_HF_P() : TestAtom(GetParam()) {};
@@ -325,7 +325,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
-, public TestMolecule, PG_OBasis, HF_P, TestPolarized
+, public TestMolecule, PG_OBasis, HF_P
 {
 public:
     A_PG_HF_P() : TestMolecule() {};
@@ -352,7 +352,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,21,37)); //7 fa
 //  Uranium atom test for f-orbitals
 //
 class A_SL_HF_P_92 : public ::testing::Test
-, public TestAtom, SL_OBasis, HF_P, TestPolarized
+, public TestAtom, SL_OBasis, HF_P
 {
 public:
     A_SL_HF_P_92() : TestAtom(92) {};
