@@ -266,7 +266,7 @@ TEST_P(A_SLm_HF_P,Multiple)
     if (Z>12) N=16;
     if (Z>50) N=20;
     Init(N,0.125,8*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,0.5,true});
+    Iterate({40,Z*1e-6,1.0,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -292,7 +292,7 @@ TEST_P(A_SGm_HF_P,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,6000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,verbose});
+    Iterate({40,Z*1e-7,0.5,true});
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 

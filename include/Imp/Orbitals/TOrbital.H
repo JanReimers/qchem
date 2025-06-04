@@ -41,14 +41,9 @@ template <class T> class TOrbitalImp
     typedef typename Base::Vec3Vec Vec3Vec;
 public:
     TOrbitalImp() {};
-    TOrbitalImp(const TOrbital_IBS<T>*,const Vec&, double e, const Orbital_QNs&);
-//
-//  These are indepentent of the template parameter and could therrefore be refactored.
-//
-//
-//  These are dependent on the template parameter
-//
-    virtual void        AddDensityMatrix(SMat&) const;
+    TOrbitalImp(const TOrbital_IBS<T>*,const Vec& C, const Vec& CPrime, double e, const Orbital_QNs&);
+
+    virtual void   AddDensityMatrix(SMat& D, SMat& DPrime) const;
 
     virtual T      operator()      (const RVec3&) const;
     virtual Vec3   Gradient        (const RVec3&) const;
@@ -56,7 +51,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
    
 private:
-    Vec                      itsCoeff;
+    Vec                    itsCoeff;  //C=V*CPrime
+    Vec                    itsCoeffPrime; //Un transdormed coefficients.
     const TOrbital_IBS<T>* itsBasisSet;
 };
 

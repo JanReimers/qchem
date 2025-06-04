@@ -43,7 +43,7 @@ template <class T> class TOrbital
 {
     typedef typename ScalarFunction<T>::SMat SMat;
 public:
-    virtual void AddDensityMatrix(SMat&) const=0;
+    virtual void AddDensityMatrix(SMat& D, SMat& DPrime) const=0;
 };
 
 #include <vector>

@@ -57,7 +57,7 @@ private:
     LASolver<double>*       itsLASolver; //General eigen solver
     Irrep_QNs               itsQNs;
     SCFIrrepAccelerator*    itsAccelerator;
-    SMat                    itsDensityMatrix;
+    SMat                    itsD, itsDPrime, itsF; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 
 

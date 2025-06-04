@@ -57,8 +57,8 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     if (ipar.Verbose)
     {
         std::cout << std::endl << std::endl;
-        std::cout << " #       Etotal        Virial          K             V            Ven          Vee          Vxc      Del(Ro) relax" << std::endl;
-        std::cout << "---------------------------------------------------------------------------------------------------------------------" << std::endl;
+        std::cout << " #       Etotal        Virial          K             V            Ven          Vee          Vxc      Del(E)  Del(Ro) relax" << std::endl;
+        std::cout << "--------------------------------------------------------------------------------------------------------------------------" << std::endl;
     }
 
     double ChargeDensityChange=1;
@@ -80,12 +80,12 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         // std::cout << "Total charge=" << itsCD->GetTotalCharge() << std::endl;
 
         EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(itsCD);
-        if (ipar.Verbose) DisplayEnergies(i,eb,relax,ChargeDensityChange,0.0);
         double E=eb.GetTotalEnergy();
-        if (E>Eold && Eold<Eoldold) relax*=0.5;
-        if (E<Eold && Eold>Eoldold) relax*=0.5;
+        if (ipar.Verbose) DisplayEnergies(i,eb,relax,E-Eold,ChargeDensityChange);
+        // if (E>Eold && Eold<Eoldold) relax*=0.5;
+        // if (E<Eold && Eold>Eoldold) relax*=0.5;
         if (E<Eold && Eold<Eoldold) relax*=1.5;
-        if (E>Eold && Eold>Eoldold) relax*=1.5;
+        // if (E>Eold && Eold>Eoldold) relax*=1.5;
         if (relax>relMax) relax=relMax;
 
         Eoldold=Eold;
@@ -94,7 +94,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
 
     if (ipar.Verbose)
     {
-        std::cout << "---------------------------------------------------------------------------------------------------------------------" << std::endl;
+        std::cout << "--------------------------------------------------------------------------------------------------------------------------" << std::endl;
         DisplayEigen();
     }
 
@@ -122,7 +122,7 @@ using std::setw;
 using std::setprecision;
 using std::ios;
 
-void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double ChargeDensityChange, double fitError) const
+void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD) const
 {
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(2)  << i << " "
@@ -134,7 +134,8 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
          << setw(12)  << setprecision(8) << eb.Eee << " "
          << setw(12)  << setprecision(8) << eb.Exc << " ";
     cout.setf(ios::scientific,ios::floatfield);
-    cout << setw(7) << setprecision(1) << ChargeDensityChange << " " << relax << " ";
+    cout << setw(7) << setprecision(1) << dE  << " ";
+    cout << setw(7) << setprecision(1) << dCD << " " << relax << " ";
 //    cout << setw(8) << setprecision(2) << fitError << " ";
 //    cout << setw(9) << setprecision(2) << lam << " ";
     cout << std::endl;

@@ -218,6 +218,7 @@ Priority 1:
     -GaussianRF.C has its own DFact tables.  Use the global tables.
     
 oml:
+    LapackLinearSolver is messed up, seem to be missing LinearSolver.C
     CMake build.
     (symmetric) banded matricies for space/time efficiency when using BSplines.
     **-SMAT does not support S+=Xpr
@@ -240,6 +241,7 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
     }
     return ArrayAdd(a,b);
 }
+    Same for matrix.
 
         
     

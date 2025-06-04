@@ -12,18 +12,22 @@
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const TOrbital_IBS<T>* bs,const Vec& c,double e, const Orbital_QNs& qns)
-    : OrbitalImp (e,qns)
-    , itsCoeff   (c)
-    , itsBasisSet(bs)
+TOrbitalImp(const TOrbital_IBS<T>* bs,const Vec& _C,const Vec& _CPrime,double e, const Orbital_QNs& qns)
+    : OrbitalImp   (e,qns)
+    , itsCoeff     (_C)
+    , itsCoeffPrime(_CPrime)
+    , itsBasisSet  (bs)
 {
 };
 
-template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& d) const
+template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& D, SMat& DPrime) const
 {
     
     if (IsOccupied()) 
-        d+=SMat(OuterProduct(itsCoeff)*GetOccupation());
+    {
+        D     +=SMat(OuterProduct(itsCoeff     )*GetOccupation());
+        DPrime+=SMat(OuterProduct(itsCoeffPrime)*GetOccupation());
+    }
 }
 
 

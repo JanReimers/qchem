@@ -27,12 +27,14 @@ TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms,SCFIrrepAccelerator* acc)
     , itsLASolver(bs->CreateSolver())
     , itsQNs(ms,&bs->GetSymmetry())
     , itsAccelerator(acc)
-    , itsDensityMatrix(bs->GetNumFunctions())
+    , itsD     (bs->GetNumFunctions())
+    , itsDPrime(bs->GetNumFunctions())
 {
     assert(itsBasisSet->GetNumFunctions()>0);
     assert(itsAccelerator);
     itsAccelerator->Init(itsLASolver);
-    Fill(itsDensityMatrix,0.0);
+    Fill(itsD,0.0);
+    Fill(itsDPrime,0.0);
 };
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
@@ -79,11 +81,16 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsBasisSet);
-    SMatrix<T> H=ham.GetMatrix(itsBasisSet,itsQNs.ms,cd);
-    //std::cout << "UpdateOrbitals " << itsBasisSet->GetSymmetry() << " spin=" << spin << std::endl;
-    //std::cout << "H=" << H << std::endl;
-    assert(!isnan(H));
-    auto [U,e]=itsLASolver->Solve(H);
+    itsF=ham.GetMatrix(itsBasisSet,itsQNs.ms,cd);
+    //
+    //  Feed F,D into the SCF accelerator
+    //
+    SMat Fprime=itsAccelerator->Project(itsF,itsDPrime); //Calcularte F'=Vd*F*V and conditionally project F'
+    assert(!isnan(Fprime));
+    auto [U,UPrime,e]=itsLASolver->SolveOrtho(Fprime);
+
+    // assert(!isnan(itsFockMatrix));
+    // auto [U,e]=itsLASolver->Solve(itsFockMatrix);
 
     itsOrbitals.clear();
     index_t n=e.size();
@@ -98,7 +105,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const D
     {
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
         if (e(i)<=e_positron) continue; //Strip out all the positron orbitals.
-        Orbital* o=new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), e(i),Orbital_QNs(index++,itsQNs));
+        Orbital* o=new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), UPrime.GetColumn(i), e(i),Orbital_QNs(index++,itsQNs));
         itsOrbitals.push_back(std::unique_ptr<Orbital>(o));
 
     }
@@ -114,15 +121,15 @@ template <class T> double TOrbitalsImp<T>::TakeElectrons(double ne)
     //
     //  Now the orbitals are accupied we can build the density matrix.
     //
-    Fill(itsDensityMatrix,T(0.0));
-    for (auto b:Iterate<TOrbital<double>>()) b->AddDensityMatrix(itsDensityMatrix);
-
+    Fill(itsD,T(0.0));
+    Fill(itsDPrime,T(0.0));
+    for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,itsDPrime);
     return ne;
 }
 
 template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 {
-    return new IrrepCD<T>(itsDensityMatrix,itsBasisSet,GetQNs());
+    return new IrrepCD<T>(itsD,itsBasisSet,GetQNs());
 }
 
 

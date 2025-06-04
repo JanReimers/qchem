@@ -10,7 +10,8 @@ protected:
     typedef SMatrix<double> SMat;
 public:
     virtual ~SCFIrrepAccelerator() {};
-    virtual void Init(const LASolver<double>*)=0;;
+    virtual void Init(const LASolver<double>*)=0; //Solver knows how to transform to orthogonal basis.
+    virtual SMat Project(const SMat& F, const SMat& DPrime)=0; //Fock and Density matrices.
 
 };
 
@@ -22,7 +23,7 @@ public:
 };
 
 
-#include <vector>
+#include <deque>
 #include "oml/smatrix.h"
 
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
@@ -31,8 +32,13 @@ public:
     SCFIrrepAccelerator_DIIS(const SMat& overlap);
     virtual ~SCFIrrepAccelerator_DIIS();
     virtual void Init(const LASolver<double>*);
+    virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
+
 private:
-    std::vector<SMatrix<double>> itsF_Primes;
+    SMat Solve();
+    void Purge(int N);
+    std::deque<SMatrix<double>> itsF_Primes;
+    std::deque< Matrix<double>> itsEs; //Error matrices
     SMat S;
     const LASolver<double>* itsLaSolver; //Knows the ortho transform
 

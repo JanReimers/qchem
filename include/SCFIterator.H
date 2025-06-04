@@ -16,7 +16,7 @@ public:
 
 private:
     void Initialize(DM_CD* cd);  //Does on iteration to set up the exact charge density.
-    void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double chargeDensityChange, double fitError) const;
+    void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD) const;
     void DisplayEigen   () const;
 
     //All owned, see destructor.
