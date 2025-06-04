@@ -10,14 +10,20 @@
 template <class T> typename LASolver<T>::UdType LASolverOMLCommon<T>::Solve(const SMat& Ham) const
 {
     assert(!isnan(Ham));
-	StreamableObject::SetToPretty();
-    Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
+	Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
     SMat HS=MakeSymmetric(HPrime,"Hamiltonian");
     auto [U,e]  = Diagonalize(HS);  //Get eigen solution.
     U = V * U;                      //Back transform.
     return std::make_tuple(U,e);
 }
 
+template <class T> typename LASolver<T>::UUdType LASolverOMLCommon<T>::SolveOrtho(const SMat& HPrime) const
+{
+    assert(!isnan(HPrime));
+    auto [Uprime,e]  = Diagonalize(HPrime);  //Get eigen solution.
+    Mat U = V * Uprime;                      //Back transform.
+    return std::make_tuple(U,Uprime,e);
+}
 
 
 template <class T> void LASolverOMLEigen<T>::SetBasisOverlap(const SMat& S)

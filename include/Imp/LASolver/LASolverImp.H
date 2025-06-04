@@ -35,6 +35,7 @@ template <class T> class LASolverCommon
     typedef DiagonalMatrix<T>  DMat;
 
     virtual RSMat  Transform(const RSMat& M) const;
+    virtual Mat    Transform(const   Mat& M) const;
     virtual RVec   Get_BS_Diagonal() const {return Diag;}
 
 protected:

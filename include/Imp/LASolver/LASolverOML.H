@@ -12,10 +12,13 @@ template <class T> class LASolverOMLCommon
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
     typedef typename Base::UdType UdType;
+    typedef typename Base::UUdType UUdType;
 public:
     LASolverOMLCommon(const LAParams& lap) : LASolverCommon<T>(lap) {};
 
     virtual UdType Solve(const SMat&) const;
+    //! returns U,U',E  where U' has not been back transformed, U=V*Uprime.
+    virtual UUdType SolveOrtho(const SMat&) const;
     
     using LASolverCommon<T>::MakeSymmetric;
     using LASolverCommon<T>::V;

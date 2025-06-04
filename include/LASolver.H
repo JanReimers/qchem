@@ -39,15 +39,20 @@ public:
     typedef Vector<double>  RVec;
     typedef SMatrix<double> RSMat;
     typedef std::tuple<Mat,RVec> UdType;
+    typedef std::tuple<Mat,Mat,RVec> UUdType; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
     static  LASolver* Factory(const LAParams&);  
       
+    //! Factor S=U*Ud then invert U, V=U^-1  and store V and Vd.
     virtual void   SetBasisOverlap(const SMat& S)=0;
     virtual RVec   Get_BS_Diagonal() const=0;
-    virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.
+    virtual UdType Solve(const SMat& H) const=0; //H=Hamiltonian/Fock matrix.  H'=
+    //! returns U,U',E  where U' has not been back transformed, U=V*Uprime.
+    virtual UUdType SolveOrtho(const SMat& Hprime) const=0; //Hprime = Vd * H * V Hamiltonian/Fock matrix.
     virtual RSMat  Inverse(const RSMat& S) const=0;
     // For unit testing
     virtual RSMat  Transform(const RSMat& M) const=0; // M' = Vd * M * V, where S = V * Vd
+    virtual Mat    Transform(const   Mat& M) const=0; // M' = Vd * M * V, where S = V * Vd
 };
 
 

@@ -16,6 +16,11 @@ template <class T> typename LASolver<T>::RSMat  LASolverCommon<T>::Transform(con
     Mat Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
     return MakeSymmetric(Mprime,"Test matrix");
 }
+template <class T> typename LASolver<T>::Mat  LASolverCommon<T>::Transform(const Mat& M) const
+{
+    Mat Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
+    return Mprime;
+}
 
 template <class T> void LASolverCommon<T>::Rescale(Mat& V,const RVec& w)
 {

@@ -33,12 +33,18 @@ template <class T> LASolverLapackCommon<T>::~LASolverLapackCommon()
 template <class T> typename LASolver<T>::UdType LASolverLapackCommon<T>::Solve(const SMat& Ham) const
 {
     assert(!isnan(Ham));
-	StreamableObject::SetToPretty();
     Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
     MakeSymmetric(HPrime,"Hamiltonian");
     auto [U,e]  =itsLapackEigenSolver->SolveAll(HPrime,itsParams.abstol);  //Get eigen solution.
     U = V * U;                      //Back transform.
     return std::make_tuple(U,e);
+}
+template <class T> typename LASolver<T>::UUdType LASolverLapackCommon<T>::SolveOrtho(const SMat& HPrime) const
+{
+    assert(!isnan(HPrime));
+    auto [Uprime,e]  =itsLapackEigenSolver->SolveAll(HPrime,itsParams.abstol);  //Get eigen solution.
+    Mat U = V * Uprime;                      //Back transform.
+    return std::make_tuple(U,Uprime,e);
 }
 
 
@@ -82,9 +88,9 @@ template <class T> typename LASolverLapackSVD<T>::RSMat LASolverLapackSVD<T>::In
 
 template <class T> void LASolverLapackCholsky<T>::SetBasisOverlap(const SMat& S)
 {
-    Mat U=oml::LapackCholsky(S);
-    Mat Uinv=oml::LapackInvertTriangular(U); 
-    LASolverCommon<T>::AssignVs(Uinv,~Uinv);
+    Mat U=oml::LapackCholsky(S); // S=Ud*U
+    Mat Uinv=oml::LapackInvertTriangular(U); //V=U^-1
+    LASolverCommon<T>::AssignVs(Uinv,~Uinv); //V=U^-1, Vd=transpose(U^-1)
     LASolverCommon<T>::Diag=U.GetDiagonal();
 }
 

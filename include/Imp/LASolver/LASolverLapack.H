@@ -16,12 +16,15 @@ template <class T> class LASolverLapackCommon
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
     typedef typename Base::UdType UdType;
+    typedef typename Base::UUdType UUdType;
 public:
     LASolverLapackCommon(const LAParams&);
     ~LASolverLapackCommon();
 
-    virtual UdType Solve          (const SMat& H) const;
-    
+    virtual  UdType Solve          (const SMat& H) const;
+    //! returns U,U',E  where U' has not been back transformed, U=V*Uprime.
+    virtual UUdType SolveOrtho(const SMat& Hprime) const; //Hprime = Vd * H * V Hamiltonian/Fock matrix.
+   
     using  LASolverCommon<T>::MakeSymmetric;
     using  LASolverCommon<T>::itsParams;
 
