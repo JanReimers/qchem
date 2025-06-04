@@ -884,6 +884,93 @@ E=E_{NN}+\sum_{ab}D_{ab}H_{ab}+\frac{1}{2}\sum_{ab}D_{ab}J_{ab}-\frac{1}{2}\sum_
 \end_layout
 
 \begin_layout Section
+Acceleration
+\end_layout
+
+\begin_layout Standard
+For each Irrep we must solve the generalized eigen problem 
+\begin_inset Formula $FC=\varepsilon SC$
+\end_inset
+
+ by factoring 
+\begin_inset Formula $S=U^{\dagger}U$
+\end_inset
+
+ and calculating 
+\begin_inset Formula $V=U^{-1}$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+FC=\varepsilon U^{\dagger}UC
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+V^{\dagger}FVUC=\varepsilon UC
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+F^{\prime}C^{\prime}=\varepsilon C^{\prime},\quad F^{\prime}=V^{\dagger}FV,\quad C^{\prime}=UC.
+\]
+
+\end_inset
+
+After solving for 
+\begin_inset Formula $C^{\prime}$
+\end_inset
+
+ we then must back transform 
+\begin_inset Formula $C=VC^{\prime}$
+\end_inset
+
+.
+ Defining the density matrix 
+\begin_inset Formula $D=CC^{\dagger}$
+\end_inset
+
+ acceleration schemes work with commutator as the error expression
+\begin_inset Formula 
+\[
+e=V^{\dagger}\left(FDS-SDF\right)V=V^{\dagger}\left(U^{\dagger}F^{\prime}UDU^{\dagger}U-U^{\dagger}UDU^{\dagger}F^{\prime}U\right)V
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=F^{\prime}D^{\prime}-D^{\prime}F^{\prime}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $D^{\prime}=UDU^{\dagger}=UCC^{\dagger}U^{\dagger}=C^{\prime}C^{\prime\dagger}$
+\end_inset
+
+.
+ From a numerical accuracy standpoint it is probably most efficient to work in the orthogonal basis (primed matrices) but the literature makes no comment on this.
+ In particular calculate directly 
+\begin_inset Formula $D^{\prime}=C^{\prime}C^{\prime\dagger}$
+\end_inset
+
+ before back transforming 
+\begin_inset Formula $C$
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Section
 Spherical Gaussian Basis Functions
 \end_layout
 
