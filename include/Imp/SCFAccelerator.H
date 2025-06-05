@@ -35,10 +35,11 @@ public:
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
 
 private:
-    SMat Solve();
+    SMat Solve(const SMat& Fprime);
     void Purge(int N);
     std::deque<SMatrix<double>> itsF_Primes;
     std::deque< Matrix<double>> itsEs; //Error matrices
+    std::vector<       double > itsEns; //Errors ||E||
     SMat S;
     const LASolver<double>* itsLaSolver; //Knows the ortho transform
 

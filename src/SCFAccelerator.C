@@ -20,17 +20,18 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     if (Max(fabs(DPrime))==0.0) return Fproj;
     Mat E=Fproj*DPrime-DPrime*Fproj;// Make the communtator
     double En=FrobeniusNorm(E);
-    if (En<1.0)
+    if (En<1.0  && En> 1e-7)
     {
         // std::cout << "||E|| = " << FrobeniusNorm(E) << std:: endl;
         itsEs.push_back(E);
+        itsEns.push_back(En);
         itsF_Primes.push_back(Fproj);
         Purge(8);
-        if (itsEs.size()>1  && En>1e-6) 
-            Fproj=Solve();
-        else
-            if (itsEs.size()>1 ) std::cout << "Skip projection ||E|| = " << En << std::endl;
+        Fproj=Solve(Fproj);
     }
+    else
+        if (itsEs.size()>1 ) std::cout << "Skip projection ||E|| = " << En << std::endl;
+
     return Fproj;
 }
 
@@ -45,8 +46,11 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
 }
 
 #include "oml/numeric/LapackLinearSolver.H"
+#include "oml/numeric/LapackSVDSolver.H"
 #include "oml/vector.h"
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Solve()
+#include "oml/diagonalmatrix.h"
+#include "Imp/Containers/stl_io.h"
+SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Solve(const SMat& Fprime)
 {
     index_t N=itsEs.size()+1;
     Mat B(N,N);
@@ -63,6 +67,16 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Solve()
         B(N,i)=B(i,N)=-1.0;
     }
     B(N,N)=0.0;
+
+    assert(IsSymmetric(B));
+    auto svd_solver=new oml::LapackSVDSolver<double>();
+    auto [U,s,V]=svd_solver->SolveAll(B);
+    double smin=s(N,N);
+    if (smin<1e-9)
+    {
+        return Fprime;
+    }
+
     Vector<double> v(N);
     Fill(v,0.0); 
     v(N)=-1.0;
@@ -75,23 +89,38 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Solve()
     // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
     assert(sqrt(del*del)<1e-14);
     Vector<double> c=C.SubVector(N-1);
+    for (size_t i=1;i<=c.size();i++) assert(c(i)==C(i));
     // std::cout << " sum(c)-1 = " << Sum(c)-1.0 << std::endl;
     assert(fabs(Sum(c)-1.0)<1e-13);
-    SMat Fproj;
+    SMat Fproj(itsF_Primes[0].GetLimits());
+    Fill(Fproj,0.0);
     i=1;
-    for (auto f:itsF_Primes) 
-        Fproj+=SMat(c(i++)*f);
+    for (const auto& f:itsF_Primes) 
+    {
+        Fproj+=c(i)*f;
+        i++;
+    }
     return Fproj;
 
 }
+
+#include <algorithm>
 void SCFIrrepAccelerator_DIIS::Purge(int N)
 {
     assert(itsEs.size()==itsF_Primes.size());
-    if (itsEs.size()>N)
+    while ((int)itsEs.size()>N)
     {
-        itsEs.pop_front();
-        itsF_Primes.pop_front();
+        auto iter=std::max_element(itsEns.begin(),itsEns.end());
+        size_t index=std::distance(itsEns.begin(),iter);
+        // if (index!=0) std::cout << "Remove index=" << index << std::endl;
+        itsEns.erase(iter);
+        itsEs.erase(itsEs.begin()+index);
+        // itsEns.pop_front();
+        itsF_Primes.erase(itsF_Primes.begin()+index);
     }
+    for (size_t i=0;i<itsEns.size();i++)
+        assert(itsEns[i]==FrobeniusNorm(itsEs[i]));
+    
 }
 
 
