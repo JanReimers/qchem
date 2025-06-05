@@ -21,7 +21,7 @@ using std::cout;
 using std::endl;
 
 
-Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,const SCFAccelerator& acc)
+Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator& acc)
     : itsBS(bs) //Basis set
     , itsEC(ec) //Electron cofiguration
 {

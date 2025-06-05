@@ -15,11 +15,14 @@ public:
 
 };
 
+#include <iosfwd>
 class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
-    virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*) const=0;
+    virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*)=0;
+    virtual void ShowLabels     (std::ostream&) const=0;
+    virtual void ShowConvergence(std::ostream&) const=0;
 };
 
 
@@ -44,17 +47,22 @@ public:
     virtual ~SCFIrrepAccelerator_DIIS();
     virtual void Init(const LASolver<double>*);
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
-
+   
+    double GetError() const {return itsLastError;}
+    double GetSVMin() const {return itsLastSVMin;}
 private:
     typedef  Vector<double> RVec;
 
     SMat BuildB() const;
-    bool IsSingular(const SMat& B, double SVtol) const;
+    bool IsSingular(const SMat& B, double SVtol);
     RVec SolveC(const SMat& B) const;
     SMat Project(const SMat& FPrime);
     void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
 
     DIISParams                   itsParams; 
+    double                       itsLastError;  // [F',D']
+    double                       itsLastSVMin;  //Smallest singular value for latest B matric.
+
     std::vector<SMatrix<double>> itsFPrimes;
     std::vector< Matrix<double>> itsEs; //Error matrices
     std::vector<        double > itsEns; //Errors ||E||
@@ -70,10 +78,12 @@ class SCFAccelerator_DIIS : public virtual SCFAccelerator
 public:
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
-    virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*) const;
-
+    virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*);
+    virtual void ShowLabels     (std::ostream&) const;
+    virtual void ShowConvergence(std::ostream&) const;
 private:
     DIISParams itsParams;
+    std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
 };
 
 #endif //_SCFAccelerator_H_

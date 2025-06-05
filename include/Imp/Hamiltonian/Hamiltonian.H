@@ -18,7 +18,7 @@ public:
 
     virtual SMat            GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
     virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
-    virtual WaveFunction*   CreateWaveFunction(const BasisSet*,const ElectronConfiguration*,const SCFAccelerator& acc) const;
+    virtual WaveFunction*   CreateWaveFunction(const BasisSet*,const ElectronConfiguration*,SCFAccelerator& acc) const;
     virtual std::ostream&   Write(std::ostream&) const;
  
 protected:

@@ -13,7 +13,7 @@ class Polarized_WF
     : public virtual WaveFunction
 {
 public:
-    Polarized_WF(const BasisSet*,const ElectronConfiguration*,const SCFAccelerator& acc);
+    Polarized_WF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator& acc);
     
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
     virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;

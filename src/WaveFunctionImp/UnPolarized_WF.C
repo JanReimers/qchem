@@ -16,7 +16,7 @@ UnPolarized_WF::UnPolarized_WF()
     : itsEC(0)
 {};
 
-UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,const SCFAccelerator& acc)
+UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator& acc)
     : itsBS(bs)
     , itsEC(ec)
 {

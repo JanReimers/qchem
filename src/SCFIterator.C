@@ -65,7 +65,9 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     if (ipar.Verbose)
     {
         cout << endl << endl;
-        cout << " #             Etotal       Del(E)  Del(Ro)   2+V/K  relax" << endl;
+        cout << " #             Etotal       Del(E)  Del(Ro)   2+V/K  relax ";
+        itsAccelerator->ShowLabels(cout);
+        cout << endl;
         cout << "--------------------------------------------------------------------------------------------------------------------------" << endl;
     }
 
@@ -151,6 +153,7 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+2.0 << " ";
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dCD << " ";
     cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << " ";
+    itsAccelerator->ShowConvergence(cout);
 //    cout << setw(8) << setprecision(2) << fitError << " ";
 //    cout << setw(9) << setprecision(2) << lam << " ";
     cout << endl;

@@ -9,6 +9,8 @@
 
 SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p) 
     : itsParams(p)
+    , itsLastError(0.0)
+    , itsLastSVMin(0.0)
     , itsLinearSolver(new LapackLinearSolver<double>())
     , itsSVDSolver(new oml::LapackSVDSolver<double>())
 {
@@ -32,11 +34,11 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     if (Max(fabs(DPrime))==0.0) return FPrime;
     Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
-    double En=FrobeniusNorm(E);
-    if (En<itsParams.EMax  && En> itsParams.EMin)
+    itsLastError=FrobeniusNorm(E);
+    if (itsLastError<itsParams.EMax  && itsLastError> itsParams.EMin)
     {
         // std::cout << "||E|| = " << FrobeniusNorm(E) << std:: endl;
-        AppendAndPurge(FPrime,E,En,itsParams.Nproj);
+        AppendAndPurge(FPrime,E,itsLastError,itsParams.Nproj);
         return Project(FPrime);
     }
     else
@@ -74,11 +76,12 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::BuildB() const
 }
 
 #include "oml/diagonalmatrix.h"
-bool SCFIrrepAccelerator_DIIS::IsSingular(const SMat& B, double SVtol) const
+bool SCFIrrepAccelerator_DIIS::IsSingular(const SMat& B, double SVtol) 
 {
     auto [U,s,V]=itsSVDSolver->SolveAll(B);
     size_t N=s.GetNumRows();
-    return s(N,N)<itsParams.SVTol;
+    itsLastSVMin=s(N,N);
+    return itsLastSVMin<itsParams.SVTol;
 }
 
 #include "oml/vector.h"
@@ -142,8 +145,25 @@ SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p)
 {};
 
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
-SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs) const
+SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs) 
 {
-    return new SCFIrrepAccelerator_DIIS(itsParams);
+    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams));
+    return itsIrreps.back();;
+}
+
+void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
+{
+    os << " [F,D]   SVMin";
+}
+void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
+{
+    double EMax=0.0,SVMin=1.0e20;
+    for (auto i:itsIrreps)
+    {
+        if (i->GetError()>EMax) EMax=i->GetError();
+        if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
+    }
+    os << std::scientific << std::setw(7) << std::setprecision(1) << EMax << " ";
+    os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << " ";
 }
 
