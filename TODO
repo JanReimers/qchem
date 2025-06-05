@@ -2,46 +2,24 @@
 Priority 1:
 
     -Convergence acceleration.
-        -DIIS: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
-        -Where is all the info:
-            F is in TOrbitalsImp<T>::UpdateOrbitals
-            F' = S^-1/2*F*S^-1/2 is calculated in LASolver, but it is not cached anywhere.
-            S^-1/2 is stored in LASolver
-            S is cached the DB
-            D is calculated in TOrbitalsImp<T> but only stored in IrrepCD.
-        -THe proceedure needs happen at the irrep level. Right the SCFiterator does not work with irreps.
-            The separation of SCF algo from the wavefunction is breaking down.
-            Use a SCFAccelerator interface that feeds through from SCFIterator->WF->IrrepWF->Orbitals::Update
-                Have a noop and DIIS derived versions.
-                DIIS agent stores S, V,Vd
-        Plan:
-            TOrbitalsImp<T> calculates and saves  D at the end UpdateOrbitals.
-                IrrepCD gets a shallow copy 
-            SCFIterator:
-
-                Somehow gets S^-1/2 (V,Vd in LASolver) at construction time
-                Somehow get F' out of UpdateOrbitals, LASolver
-
-                Request error vector e_i = Vd*(F_i*D_i*S-S*D_i*F_i)*V
-                Build the B matrix and silver for the c_i
-                F' = sum(c_i*F'_i)
-        Fixed: Design issue
-            Hamiltonian is created only from a cluster
-            WF is created from BS & SCFAccelerator
-            SCFIterator is created from WF and Ham
-
-            Hamiltonian knows if it is spin polarized or not.  Vxc or Dirac Kinetic terms
-            Therefore H has unique knowledge to create the correct type of wave function
-            New sequence:
-                Create cl
-                Create BS(cl)
-                Create H(cl)
-                Create SCFIterator(BS,H)
-                    Create SCFAccelerator (pass through or DIIS)
-                    WF=H->Create WF(BS,SCFAccelerator)
-
-            SCFiterator is created from a wf and 
-
+        -DIIS is best for closed shell.
+        -Convergence on delta-ro is not very good.
+        -Pass smin,||[F,D]|| out to SCFIterator
+        -Pass Nproj, Emin, Emax, smax into IReep accelerators.
+        -Decide convergence on dE, Niter, [F,D]  Are these and'ed ?
+        -Clean up DIIS code.
+        -EDIIS
+        -Make a pass through accelerator.
+        -Check out some manuals:
+            https://manual.q-chem.com/5.1/sect-convergence.html
+            https://www.faccts.de/docs/orca/6.0/manual/contents/detailed/scfconv.html
+        -Check if merge tolerances effect convergence.
+        -Fix:
+[  FAILED  ] M_PG_HF_U.N2
+[  FAILED  ] Multiple/A_SLm_HF_P.Multiple/2, where GetParam() = 5
+[  FAILED  ] Multiple/A_SLm_HF_P.Multiple/6, where GetParam() = 9
+[  FAILED  ] Multiple/A_BSm_HF_P.Multiple/0, where GetParam() = 5
+[  FAILED  ] Multiple/A_SG_DFT_P.Multiple/3, where GetParam() = 7
 
 
     -General AtomIrrepIECLient clean up.
@@ -219,6 +197,9 @@ Priority 1:
     
 oml:
     LapackLinearSolver is messed up, seem to be missing LinearSolver.C
+    -Support SMatrix for Lapack solvers.
+        Lapack uses the extra space in the full matrix as working space.
+        So we end up converting to full anyway.  THis is just a convenience for the user.
     CMake build.
     (symmetric) banded matricies for space/time efficiency when using BSplines.
     **-SMAT does not support S+=Xpr
@@ -296,15 +277,8 @@ Priority 3:
     -template <class T> T Max(const std::vector<T>& v) in one place
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     -If N_nucleus=1 (atom) leave out Vnn term.
-    -Support SMatrix for Lapack solvers.
-        Lapack uses the extra space in the full matrix as working space.
-        So we end up converting to full anyway.  THis is just a convenience for the user.
-     ??? the order of H, which may cause some problem in the qchem code.
     
             
-    -Design question:
-        Who should own the Hamitonian ... right now SCFIterator is deleting it.
-       
         
     
 --------------------------------------------------------------------------------------
@@ -321,6 +295,59 @@ Priority 3:
 
 
 
+
+
+
+
+
+
+
+
+
+
+    Done: -Design question:
+        Who should own the Hamitonian ... right now SCFIterator is deleting it.
+       -SCFITertor now owns H ad Wf
+    -Convergence acceleration.
+        Done: -DIIS: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
+        Done: -Where is all the info:
+            F is in TOrbitalsImp<T>::UpdateOrbitals
+            F' = S^-1/2*F*S^-1/2 is calculated in LASolver, but it is not cached anywhere.
+            S^-1/2 is stored in LASolver
+            S is cached the DB
+            D is calculated in TOrbitalsImp<T> but only stored in IrrepCD.
+        Done: -THe proceedure needs happen at the irrep level. Right now the SCFiterator does not work with irreps.
+            The separation of SCF algo from the wavefunction is breaking down.
+            Use a SCFAccelerator interface that feeds through from SCFIterator->WF->IrrepWF->Orbitals::Update
+                Have a noop and DIIS derived versions.
+                DIIS agent stores S, V,Vd
+        Plan:
+            Done: TOrbitalsImp<T> calculates and saves  D at the end UpdateOrbitals.
+                IrrepCD gets a shallow copy 
+            SCFIterator:
+
+                Somehow gets S^-1/2 (V,Vd in LASolver) at construction time
+                Somehow get F' out of UpdateOrbitals, LASolver
+
+                Request error vector e_i = Vd*(F_i*D_i*S-S*D_i*F_i)*V
+                Build the B matrix and silver for the c_i
+                F' = sum(c_i*F'_i)
+        Fixed: Design issue
+            Hamiltonian is created only from a cluster
+            WF is created from BS & SCFAccelerator
+            SCFIterator is created from WF and Ham
+
+            Hamiltonian knows if it is spin polarized or not.  Vxc or Dirac Kinetic terms
+            Therefore H has unique knowledge to create the correct type of wave function
+            Done: New sequence:
+                Create cl
+                Create BS(cl)
+                Create H(cl)
+                Create SCFIterator(BS,H)
+                    Create SCFAccelerator (pass through or DIIS)
+                    WF=H->Create WF(BS,SCFAccelerator)
+
+            
 
     Done: -Survey use of dynamic cast
         -Usage:
