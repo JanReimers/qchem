@@ -7,8 +7,9 @@
 #include "oml/numeric/LapackSVDSolver.H"
 
 
-SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS() 
-    : itsLinearSolver(new LapackLinearSolver<double>())
+SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p) 
+    : itsParams(p)
+    , itsLinearSolver(new LapackLinearSolver<double>())
     , itsSVDSolver(new oml::LapackSVDSolver<double>())
 {
     assert(itsLinearSolver);
@@ -28,15 +29,14 @@ void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las)
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const SMat& DPrime)
 {
-    size_t Nproj=8;
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     if (Max(fabs(DPrime))==0.0) return FPrime;
     Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
     double En=FrobeniusNorm(E);
-    if (En<1.0  && En> 1e-7)
+    if (En<itsParams.EMax  && En> itsParams.EMin)
     {
         // std::cout << "||E|| = " << FrobeniusNorm(E) << std:: endl;
-        AppendAndPurge(FPrime,E,En,Nproj);
+        AppendAndPurge(FPrime,E,En,itsParams.Nproj);
         return Project(FPrime);
     }
     else
@@ -78,7 +78,7 @@ bool SCFIrrepAccelerator_DIIS::IsSingular(const SMat& B, double SVtol) const
 {
     auto [U,s,V]=itsSVDSolver->SolveAll(B);
     size_t N=s.GetNumRows();
-    return s(N,N)<SVtol;
+    return s(N,N)<itsParams.SVTol;
 }
 
 #include "oml/vector.h"
@@ -137,10 +137,13 @@ void SCFIrrepAccelerator_DIIS::AppendAndPurge(const SMat& FPrime, const Mat& E, 
 
 #include <Irrep_BS.H>
 
-SCFAccelerator_DIIS::SCFAccelerator_DIIS() {};
+SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p) 
+: itsParams(p)
+{};
+
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
 SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs) const
 {
-    return new SCFIrrepAccelerator_DIIS();
+    return new SCFIrrepAccelerator_DIIS(itsParams);
 }
 

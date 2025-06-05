@@ -23,6 +23,14 @@ public:
 };
 
 
+struct DIISParams
+{
+    size_t Nproj;  //Number of terms to keep for proections.
+    double EMax;   //DIIS starts when E<EMax
+    double EMin;   //DIIS stops when E<EMin
+    double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
+};
+
 #include "oml/smatrix.h"
 template <class T> class LinearSolver;
 namespace oml
@@ -32,7 +40,7 @@ namespace oml
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    SCFIrrepAccelerator_DIIS();
+    SCFIrrepAccelerator_DIIS(const DIISParams&);
     virtual ~SCFIrrepAccelerator_DIIS();
     virtual void Init(const LASolver<double>*);
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
@@ -46,6 +54,7 @@ private:
     SMat Project(const SMat& FPrime);
     void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
 
+    DIISParams                   itsParams; 
     std::vector<SMatrix<double>> itsFPrimes;
     std::vector< Matrix<double>> itsEs; //Error matrices
     std::vector<        double > itsEns; //Errors ||E||
@@ -59,12 +68,12 @@ private:
 class SCFAccelerator_DIIS : public virtual SCFAccelerator
 {
 public:
-    SCFAccelerator_DIIS();
+    SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*) const;
 
 private:
-
+    DIISParams itsParams;
 };
 
 #endif //_SCFAccelerator_H_

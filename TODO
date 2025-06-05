@@ -8,7 +8,7 @@ Priority 1:
         -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
             CD->GetChangeFrom does Max(fabs(D1-D2)).
 
-        -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
+        Done: -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
         -Decide convergence on dE, Niter, [F,D]  Are these and'ed ?
         Done: -Clean up DIIS code.
             Make unit test that track iteration count 
