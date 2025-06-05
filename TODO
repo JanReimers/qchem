@@ -10,7 +10,7 @@ Priority 1:
 
         -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
         -Decide convergence on dE, Niter, [F,D]  Are these and'ed ?
-        -Clean up DIIS code.
+        Done: -Clean up DIIS code.
             Make unit test that track iteration count 
         -EDIIS
         -Make a pass through accelerator.
@@ -42,7 +42,7 @@ Priority 1:
         Fix unpolarized.
         Vee Vxc are not wide enough.
         relax in fixed
-        
+
     -General AtomIrrepIECLient clean up.
         template type double r spline for all three radial types?
     -QChemTester move bs->Set(lap); to one spot

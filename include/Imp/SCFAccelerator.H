@@ -35,6 +35,11 @@ public:
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
 
 private:
+    typedef  Vector<double> RVec;
+
+    SMat BuildB() const;
+    bool IsSingular(const SMat& B, double SVtol) const;
+    RVec SolveC(const SMat& B) const;
     SMat Solve(const SMat& Fprime);
     void Purge(int N);
     std::deque<SMatrix<double>> itsF_Primes;

@@ -92,7 +92,7 @@ TEST_P(A_SG_HF_U,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
     assert(expected_itartion_counts.find(Z)!=expected_itartion_counts.end());
     size_t ic_expected=expected_itartion_counts[Z];
-    EXPECT_LE(GetIterationCount(),ic_expected);
+    EXPECT_EQ(GetIterationCount(),ic_expected);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
