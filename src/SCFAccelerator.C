@@ -13,6 +13,7 @@ void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las)
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const SMat& DPrime)
 {
+    size_t Nproj=8;
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     if (Max(fabs(DPrime))==0.0) return FPrime;
     Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
@@ -20,10 +21,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     if (En<1.0  && En> 1e-7)
     {
         // std::cout << "||E|| = " << FrobeniusNorm(E) << std:: endl;
-        itsEs.push_back(E);
-        itsEns.push_back(En);
-        itsF_Primes.push_back(FPrime);
-        Purge(8);
+        AppendAndPurge(FPrime,E,En,Nproj);
         return Solve(FPrime);
     }
     else
@@ -99,23 +97,31 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Solve(const SMat& Fprime)
     // Now do the projection for the Fock matrix.
     SMat Fproj;
     index_t i=1;
-    for (const auto& f:itsF_Primes) Fproj+=SMat(c(i++)*f);
+    for (const auto& f:itsFPrimes) Fproj+=SMat(c(i++)*f);
     return Fproj;
 
 }
 
 #include <algorithm>
-void SCFIrrepAccelerator_DIIS::Purge(int N)
+void SCFIrrepAccelerator_DIIS::AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N)
 {
-    assert(itsEs.size()==itsF_Primes.size());
-    while ((int)itsEs.size()>N)
+    assert(itsEs.size()==itsFPrimes.size());
+    assert(itsEns.size()==itsFPrimes.size());
+    // Purge first to avoid purging the latest
+    while (N>0 && itsEs.size()>N-1)
     {
-        auto iter=std::max_element(itsEns.begin(),itsEns.end());
+        auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
         size_t index=std::distance(itsEns.begin(),iter);
         itsEns.erase(iter);
         itsEs.erase(itsEs.begin()+index);
-        itsF_Primes.erase(itsF_Primes.begin()+index);
+        itsFPrimes.erase(itsFPrimes.begin()+index);
     }
+    itsEs.push_back(E);
+    itsEns.push_back(En);
+    itsFPrimes.push_back(FPrime);
+    assert(itsEs.size()<=N);
+    assert(itsEns.size()<=N);
+    assert(itsFPrimes.size()<=N);
     
 }
 
