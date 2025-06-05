@@ -4,15 +4,31 @@ Priority 1:
     -Convergence acceleration.
         -DIIS is best for closed shell.
         -Convergence on delta-ro is not very good.
-        -Pass smin,||[F,D]|| out to SCFIterator
-        -Pass Nproj, Emin, Emax, smax into IReep accelerators.
+            SHould we track which Irrep is not converging?
+        -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
+            CD->GetChangeFrom does Max(fabs(D1-D2)).
+
+        -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
         -Decide convergence on dE, Niter, [F,D]  Are these and'ed ?
         -Clean up DIIS code.
+            Make unit test that track iteration count 
         -EDIIS
         -Make a pass through accelerator.
         -Check out some manuals:
-            https://manual.q-chem.com/5.1/sect-convergence.html
+            https://manual.q-chem.com/5.3/sect_convergence.html
+            Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations
+            RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCA_DIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
+            Convergence criteria require the largest element of the N th error vector to be below a cutoff threshold, usually 10−5  a.u. for single point energies, but often increased to 10−8 a.u.  for optimizations and frequency calculations.
+            As the Fock matrix nears self-consistency, the linear matrix equations in Eq. (4.34) tend to become severely ill-conditioned and it is often necessary to reset the DIIS subspace (this is automatically carried out by the program).
+            Relaxed Constraint Algorithm
+
             https://www.faccts.de/docs/orca/6.0/manual/contents/detailed/scfconv.html
+            once the DIIS error falls below DampErr (0.1), the damping is turned off. The default value is 0.1 Eh. In difficult cases, however, it is a good idea to choose DampErr much smaller, e.g. 0.001.
+            As self-consistency is approached, the set of linear equations to be solved for DIIS approaches linear dependency and it is useful to bias DIIS in favor of the SCF cycle that had the lowest energy using the factor DIISBfac. This is achieved by multiplying all diagonal elements of the DIIS matrix with this factor unless it is the Fock matrix/density which leads to the lowest energy. The default value for DIISBfac is 1.05.
+            The start of the DIIS procedure is controlled by DIISStart. It has a default value of 0.2 Eh, which usually starts DIIS after 0-3 cycles. A different way of controlling the DIIS start is adjusting the value DIISMaxIt, which sets the maximum number of cycles after which DIIS will be started irrespective of the error value.
+            Trust-Region Augmented Hessian
+
+
         -Check if merge tolerances effect convergence.
         -Fix:
 [  FAILED  ] M_PG_HF_U.N2
@@ -22,6 +38,11 @@ Priority 1:
 [  FAILED  ] Multiple/A_SG_DFT_P.Multiple/3, where GetParam() = 7
 
 
+    -Eigen energy output
+        Fix unpolarized.
+        Vee Vxc are not wide enough.
+        relax in fixed
+        
     -General AtomIrrepIECLient clean up.
         template type double r spline for all three radial types?
     -QChemTester move bs->Set(lap); to one spot
@@ -51,6 +72,27 @@ Priority 1:
             Need to use instance of cach4, rather then inherit?
                 Once ERI4 is stored, we can throw out cache4?
         -Try unrolling the irrep loops in HeapDB.C
+        -Use particla sums
+            https://curc.readthedocs.io/en/latest/programming/OpenMP-C.html
+            int partial_Sum, total_Sum;
+            #pragma omp parallel private(partial_Sum) shared(total_Sum)
+            {
+                partial_Sum = 0;
+                total_Sum = 0;
+
+                #pragma omp for
+                for(int i = 1; i <= 1000; i++){
+                    partial_Sum += i;
+                }
+
+                //Create thread safe region.
+                #pragma omp critical
+                {
+                    //add each threads partial sum to the total sum
+                    total_Sum += partial_Sum;
+                }
+            }
+
     
     -Vxc->LDAxc->ExchangeFunctional  
         Can we get rid of LDAxc?

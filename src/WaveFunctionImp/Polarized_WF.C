@@ -102,9 +102,9 @@ void Polarized_WF::FillOrbitals()
     itsDnELevels.clear();
 
     for (auto& w:itsSpinUpIWFs) 
-         itsUpELevels.merge(w->FillOrbitals(itsEC),0.0001);
+         itsUpELevels.merge(w->FillOrbitals(itsEC));//,0.000001);
     for (auto& w:itsSpinDnIWFs) 
-         itsDnELevels.merge(w->FillOrbitals(itsEC),0.0001);
+         itsDnELevels.merge(w->FillOrbitals(itsEC));//,0.000001);
 
     // cout << "FillOrbitals Up:" << endl;
     // itsUpELevels.Report(cout);
@@ -116,6 +116,7 @@ void Polarized_WF::FillOrbitals()
 
 void Polarized_WF::DisplayEigen() const
 {
+    StreamableObject::SetToPretty();
     cout << "                         |       Spin up           |          Spin Down      |    Spin " << endl;
     cout << " Orbital                 |  Occ/g  |     E         |  Occ/g  |       E       |  Splitting" << endl;
     for (auto iup:itsUpELevels)

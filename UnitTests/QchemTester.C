@@ -63,7 +63,7 @@ EnergyBreakdown QchemTester::GetEnergyBreakdown() const
 
 double QchemTester::TotalCharge() const
 {
-    return itsSCFIterator->GetChargeDensity()->GetTotalCharge();
+    return itsSCFIterator->GetWaveFunction()->GetChargeDensity()->GetTotalCharge();
 }
 
 const Orbitals* QchemTester::GetOrbitals(const Irrep_QNs& qns) const
@@ -86,6 +86,11 @@ const Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const
         index--;
     }
     return o;
+}
+
+size_t QchemTester::GetIterationCount() const 
+{
+    return itsSCFIterator->GetIterationCount();
 }
 
 #include <cmath> //fabs

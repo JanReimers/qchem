@@ -20,6 +20,7 @@ SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Ham
     , itsWaveFunction(itsHamiltonian->CreateWaveFunction(bs,ec,*itsAccelerator) )
     , itsCD          (0)
     , itsOldCD       (0)
+    , itsIterationCount(0)
 {
     assert(itsHamiltonian);
     assert(itsWaveFunction);
@@ -35,6 +36,7 @@ void SCFIterator::Initialize(DM_CD* cd)
     itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
     assert(itsCD);
     itsOldCD=cd;
+    itsIterationCount=0;
 }
 //
 //  Recall that the wavefunction is not owned buy this.
@@ -67,7 +69,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     double relax=ipar.StartingRelaxRo;
     double relMax=1.0;
 
-    for (size_t i=0; i<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; i++)
+    for (itsIterationCount=1; itsIterationCount<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; itsIterationCount++)
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD); //Just gets a set of eigen orbitals from the Hamiltonian
         itsWaveFunction->FillOrbitals();
@@ -81,7 +83,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
 
         EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(itsCD);
         double E=eb.GetTotalEnergy();
-        if (ipar.Verbose) DisplayEnergies(i,eb,relax,E-Eold,ChargeDensityChange);
+        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,E-Eold,ChargeDensityChange);
         if (E>Eold ) 
         {
             relax*=0.5;
@@ -119,10 +121,6 @@ EnergyBreakdown SCFIterator::GetEnergy() const
     return itsHamiltonian->GetTotalEnergy(itsCD);
 }
 
-DM_CD* SCFIterator::GetChargeDensity() const
-{
-    return itsCD;
-}
 
 using std::cout;
 using std::setw;

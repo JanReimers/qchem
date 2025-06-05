@@ -83,6 +83,8 @@ void UnPolarized_WF::FillOrbitals()
 
 void UnPolarized_WF::DisplayEigen() const
 {
+    StreamableObject::SetToPretty();
+
     std::cout << "Alpha+Beta spin :" << std::endl;
     itsELevels.Report(std::cout);
 }

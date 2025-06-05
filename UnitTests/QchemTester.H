@@ -29,6 +29,7 @@ public:
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
     symv_t GetSymmetries() const;
+    size_t GetIterationCount() const;
     
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;
