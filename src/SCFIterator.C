@@ -13,6 +13,12 @@
 #include <iomanip>
 #include <cassert>
 
+using std::cout;
+using std::endl;
+using std::setw;
+using std::setprecision;
+using std::ios;
+
 
 SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
     : itsHamiltonian (H )
@@ -58,9 +64,9 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     assert(itsCD);
     if (ipar.Verbose)
     {
-        std::cout << std::endl << std::endl;
-        std::cout << " #       Etotal        Virial          K             V            Ven          Vee          Vxc      Del(E)  Del(Ro) relax" << std::endl;
-        std::cout << "--------------------------------------------------------------------------------------------------------------------------" << std::endl;
+        cout << endl << endl;
+        cout << " #             Etotal       Del(E)  Del(Ro)   2+V/K  relax" << endl;
+        cout << "--------------------------------------------------------------------------------------------------------------------------" << endl;
     }
 
     double ChargeDensityChange=1;
@@ -68,6 +74,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     // double Eoldold=0;
     double relax=ipar.StartingRelaxRo;
     double relMax=1.0;
+    EnergyBreakdown eb;
 
     for (itsIterationCount=1; itsIterationCount<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; itsIterationCount++)
     {
@@ -79,9 +86,9 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
         ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
         itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
-        // std::cout << "Total charge=" << itsCD->GetTotalCharge() << std::endl;
+        // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
-        EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(itsCD);
+        eb=itsHamiltonian->GetTotalEnergy(itsCD);
         double E=eb.GetTotalEnergy();
         if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,E-Eold,ChargeDensityChange);
         if (E>Eold ) 
@@ -100,10 +107,21 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         // Eoldold=Eold;
         Eold=E;
     }
-
+    size_t nprec=14,ndigits=log10(-eb.Een)+1,w=1+ndigits+1+nprec;
     if (ipar.Verbose)
     {
-        std::cout << "--------------------------------------------------------------------------------------------------------------------------" << std::endl;
+        cout << "--------------------------------------------------------------------------------------------------------------------------" << endl;
+        cout << "Energy    Breakdown  "
+        << "Total: " << std::fixed << setw(w) << setprecision(nprec) << eb.GetTotalEnergy() << "  "
+        << "Kinetic: " << std::fixed << setw(w) << setprecision(nprec) << eb.Kinetic << "  "
+        << "Potential: " << std::fixed << setw(w) << setprecision(nprec) << eb.GetPotentialEnergy() << endl;
+        cout << "Potential Breakdown  "
+        << "Een  : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een << "  "
+        << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee << "   "
+        << "Eex     : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
+        cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(nprec) << eb.GetVirial() << endl;
+        
+
         DisplayEigen();
     }
 
@@ -122,28 +140,20 @@ EnergyBreakdown SCFIterator::GetEnergy() const
 }
 
 
-using std::cout;
-using std::setw;
-using std::setprecision;
-using std::ios;
 
 void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD) const
 {
     cout.setf(ios::fixed,ios::floatfield);
-    cout << setw(2)  << i << " "
-         << setw(16) << setprecision(10) << eb.GetTotalEnergy() << " "
-         << setw(12) << setprecision(10) << eb.GetVirial() << " "
-         << setw(12)  << setprecision(8) << eb.Kinetic << " "
-         << setw(12)  << setprecision(8) << eb.GetPotentialEnergy() << " "
-         << setw(12)  << setprecision(8) << eb.Een << " "
-         << setw(12)  << setprecision(8) << eb.Eee << " "
-         << setw(12)  << setprecision(8) << eb.Exc << " ";
-    cout.setf(ios::scientific,ios::floatfield);
-    cout << setw(7) << setprecision(1) << dE  << " ";
-    cout << setw(7) << setprecision(1) << dCD << " " << relax << " ";
+    cout << setw(3)  << i << " ";
+    cout << setw(2+6+14) << setprecision(14) << eb.GetTotalEnergy() << " ";
+        
+    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dE  << " ";
+    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+2.0 << " ";
+    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dCD << " ";
+    cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << " ";
 //    cout << setw(8) << setprecision(2) << fitError << " ";
 //    cout << setw(9) << setprecision(2) << lam << " ";
-    cout << std::endl;
+    cout << endl;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------
