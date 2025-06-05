@@ -3,9 +3,24 @@
 
 #include "Imp/SCFAccelerator.H"
 #include <LASolver.H>
+#include "oml/numeric/LapackLinearSolver.H"
+#include "oml/numeric/LapackSVDSolver.H"
 
-SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const SMat& _S) : S(_S) {};
-SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() {};
+
+SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS() 
+    : itsLinearSolver(new LapackLinearSolver<double>())
+    , itsSVDSolver(new oml::LapackSVDSolver<double>())
+{
+    assert(itsLinearSolver);
+    assert(itsSVDSolver);
+};
+
+SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
+{
+    delete itsLinearSolver;
+    delete itsSVDSolver;
+};
+
 void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las)
 {
     itsLaSolver=las;
@@ -22,7 +37,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     {
         // std::cout << "||E|| = " << FrobeniusNorm(E) << std:: endl;
         AppendAndPurge(FPrime,E,En,Nproj);
-        return Solve(FPrime);
+        return Project(FPrime);
     }
     else
         return FPrime;
@@ -58,19 +73,15 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::BuildB() const
     return B;
 }
 
-#include "oml/numeric/LapackSVDSolver.H"
 #include "oml/diagonalmatrix.h"
 bool SCFIrrepAccelerator_DIIS::IsSingular(const SMat& B, double SVtol) const
 {
-    auto svd_solver=new oml::LapackSVDSolver<double>();
-    auto [U,s,V]=svd_solver->SolveAll(B);
-    delete svd_solver;
+    auto [U,s,V]=itsSVDSolver->SolveAll(B);
     size_t N=s.GetNumRows();
     return s(N,N)<SVtol;
 }
 
 #include "oml/vector.h"
-#include "oml/numeric/LapackLinearSolver.H"
 
 SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) const
 {
@@ -78,16 +89,14 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) c
     RVec v(N);
     Fill(v,0.0); 
     v(N)=1.0;
-    auto solver=new LapackLinearSolver<double>();
-    Vector<double> C=solver->Solve(B,v);
-    delete solver;
+    Vector<double> C=itsLinearSolver->Solve(B,v);
     // std:: cout << B << C << v << del <<std::endl;
     // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
     return C.SubVector(N-1);   
 }
 
 #include "Imp/Containers/stl_io.h"
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Solve(const SMat& Fprime)
+SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& Fprime)
 {
     SMat B=BuildB();
     if (IsSingular(B,1e-9)) return Fprime;
@@ -132,6 +141,6 @@ SCFAccelerator_DIIS::SCFAccelerator_DIIS() {};
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
 SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs) const
 {
-    return new SCFIrrepAccelerator_DIIS(bs->Overlap());
+    return new SCFIrrepAccelerator_DIIS();
 }
 

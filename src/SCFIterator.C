@@ -65,7 +65,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
 
     double ChargeDensityChange=1;
     double Eold=0;
-    double Eoldold=0;
+    // double Eoldold=0;
     double relax=ipar.StartingRelaxRo;
     double relMax=1.0;
 
@@ -97,7 +97,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         // if (E>Eold && Eold>Eoldold) relax*=1.5;
         if (relax>relMax) relax=relMax;
 
-        Eoldold=Eold;
+        // Eoldold=Eold;
         Eold=E;
     }
 

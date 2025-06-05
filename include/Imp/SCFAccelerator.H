@@ -23,13 +23,16 @@ public:
 };
 
 
-#include <deque>
 #include "oml/smatrix.h"
-
+template <class T> class LinearSolver;
+namespace oml
+{
+    template <class T> class SVDSolver;
+}
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    SCFIrrepAccelerator_DIIS(const SMat& overlap);
+    SCFIrrepAccelerator_DIIS();
     virtual ~SCFIrrepAccelerator_DIIS();
     virtual void Init(const LASolver<double>*);
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
@@ -40,14 +43,15 @@ private:
     SMat BuildB() const;
     bool IsSingular(const SMat& B, double SVtol) const;
     RVec SolveC(const SMat& B) const;
-    SMat Solve(const SMat& Fprime);
+    SMat Project(const SMat& FPrime);
     void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
-    
-    std::deque<SMatrix<double>> itsFPrimes;
-    std::deque< Matrix<double>> itsEs; //Error matrices
-    std::vector<       double > itsEns; //Errors ||E||
-    SMat S;
-    const LASolver<double>* itsLaSolver; //Knows the ortho transform
+
+    std::vector<SMatrix<double>> itsFPrimes;
+    std::vector< Matrix<double>> itsEs; //Error matrices
+    std::vector<        double > itsEns; //Errors ||E||
+    const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
+         LinearSolver<double>*   itsLinearSolver;
+    oml::SVDSolver   <double>*   itsSVDSolver;
 
 };
 
