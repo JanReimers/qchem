@@ -3,13 +3,14 @@ Priority 1:
 
     -Convergence acceleration.
         -DIIS is best for closed shell.
-        -Convergence on delta-ro is not very good.
+        Done: -Convergence on delta-ro is not very good.
             SHould we track which Irrep is not converging?
-        -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
+        Deon: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
             CD->GetChangeFrom does Max(fabs(D1-D2)).
-
+            swith fro Fnorm
         Done: -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
-        -Decide convergence on dE, Niter, [F,D]  Are these and'ed ?
+        Done: -Decide convergence on dE, Niter, [F,D]  
+            We need to know how [F,D] scales.  Maybe -[F,D]/E is better.
         Done: -Clean up DIIS code.
             Make unit test that track iteration count 
         -EDIIS

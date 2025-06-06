@@ -10,7 +10,7 @@
 SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p) 
     : itsParams(p)
     , itsLastError(0.0)
-    , itsLastSVMin(0.0)
+    , itsLastSVMin(1e20)
     , itsLinearSolver(new LapackLinearSolver<double>())
     , itsSVDSolver(new oml::LapackSVDSolver<double>())
 {
@@ -102,7 +102,11 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) c
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& Fprime)
 {
     SMat B=BuildB();
-    if (IsSingular(B,1e-9)) return Fprime;
+    if (IsSingular(B,itsParams.SVTol)) 
+    {
+        itsLastSVMin=1e20;  //indicate bailout.
+        return Fprime;
+    }
     RVec c=SolveC(B); //Solve for the projection coefficients
     assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
 
@@ -164,6 +168,18 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
         if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
     }
     os << std::scientific << std::setw(7) << std::setprecision(1) << EMax << " ";
-    os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << " ";
+    if (SVMin<1.0e20)
+        os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << " ";
+    else
+        os << "        ";
 }
+
+double SCFAccelerator_DIIS::GetError() const
+{
+    double EMax=0.0;
+    for (auto i:itsIrreps)
+        if (i->GetError()>EMax) EMax=i->GetError();
+    return EMax;
+}
+
 

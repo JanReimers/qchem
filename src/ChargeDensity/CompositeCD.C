@@ -113,8 +113,7 @@ double Composite_CD::GetChangeFrom(const DM_CD& cd) const
     double ret=0;
     for (auto& c:itsCDs)
     {
-        double t = c->GetChangeFrom(**b);
-        ret = t > ret ? t : ret;
+        ret += c->GetChangeFrom(**b);
         b++;
     }
     return ret;

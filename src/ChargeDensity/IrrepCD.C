@@ -150,7 +150,7 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
-    return Max(fabs(itsDensityMatrix - eicd->itsDensityMatrix));
+    return FrobeniusNorm(itsDensityMatrix - eicd->itsDensityMatrix);
 }
 
 //-------------------------------------------------------------------------

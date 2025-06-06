@@ -65,20 +65,30 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     if (ipar.Verbose)
     {
         cout << endl << endl;
-        cout << " #             Etotal       Del(E)  Del(Ro)   2+V/K  relax ";
+        cout << " #             Etotal       2+V/K    Del(E)  Del(Ro)";
         itsAccelerator->ShowLabels(cout);
+        cout << "   relax" << endl;
+        cout << "                                     ";
+        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinDelE  << ") ";
+        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinDeltaRo  << ") ";
+        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinError  << ") ";
         cout << endl;
         cout << "--------------------------------------------------------------------------------------------------------------------------" << endl;
     }
 
     double ChargeDensityChange=1;
-    double Eold=0;
+    double E=0,Eold=0,dE=1e10,Error=1e10;
     // double Eoldold=0;
     double relax=ipar.StartingRelaxRo;
     double relMax=1.0;
     EnergyBreakdown eb;
 
-    for (itsIterationCount=1; itsIterationCount<ipar.NMaxIter && ChargeDensityChange > ipar.MinDeltaRo; itsIterationCount++)
+    for (itsIterationCount=1; 
+        itsIterationCount   < ipar.NMaxIter && ( 
+        ChargeDensityChange > ipar.MinDeltaRo ||
+        fabs(dE)            > ipar.MinDelE ||
+        Error               > ipar.MinError );
+        itsIterationCount++)
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD); //Just gets a set of eigen orbitals from the Hamiltonian
         itsWaveFunction->FillOrbitals();
@@ -91,8 +101,10 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=itsHamiltonian->GetTotalEnergy(itsCD);
-        double E=eb.GetTotalEnergy();
-        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,E-Eold,ChargeDensityChange);
+        E=eb.GetTotalEnergy();
+        dE=E-Eold;
+        Error=itsAccelerator->GetError(); //i.e. [F,D]
+        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dE,ChargeDensityChange);
         if (E>Eold ) 
         {
             relax*=0.5;
@@ -109,6 +121,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         // Eoldold=Eold;
         Eold=E;
     }
+    itsIterationCount--;
     size_t nprec=14,ndigits=log10(-eb.Een)+1,w=1+ndigits+1+nprec;
     if (ipar.Verbose)
     {
@@ -148,14 +161,12 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(3)  << i << " ";
     cout << setw(2+6+14) << setprecision(14) << eb.GetTotalEnergy() << " ";
+    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+2.0 << " ";
         
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dE  << " ";
-    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+2.0 << " ";
-    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dCD << " ";
-    cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << " ";
+    cout << setw(8) << std::scientific << setw(7) << setprecision(1) << dCD << " ";
     itsAccelerator->ShowConvergence(cout);
-//    cout << setw(8) << setprecision(2) << fitError << " ";
-//    cout << setw(9) << setprecision(2) << lam << " ";
+    cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << " ";
     cout << endl;
 }
 

@@ -23,6 +23,7 @@ public:
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*)=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;
+    virtual double GetError() const=0;
 };
 
 
@@ -81,6 +82,8 @@ public:
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*);
     virtual void ShowLabels     (std::ostream&) const;
     virtual void ShowConvergence(std::ostream&) const;
+    virtual double GetError() const;
+
 private:
     DIISParams itsParams;
     std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;

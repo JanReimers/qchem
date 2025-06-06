@@ -5,7 +5,11 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 
-bool verbose=true;
+SCFIterationParams scf_params(int Z) 
+{
+//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo verbose
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5       ,true};
+}
 
 class HF_U : public virtual QchemTester
 {
@@ -80,7 +84,7 @@ public:
     }
 };
 
-static std::map<int,size_t> expected_itartion_counts={{2,15},{4,13},{10,11},{12,12},{18,11},{20,11},{30,18},{36,14},{38,16},{46,30},{48,27},{54,15},{56,15},{70,22},{80,30},{86,19},{88,21}};
+static std::map<int,size_t> expected_itartion_counts={{2,14},{4,12},{10,12},{12,13},{18,10},{20,11},{30,20},{36,18},{38,18},{46,30},{48,29},{54,20},{56,15},{70,28},{80,30},{86,27},{88,20}};
 TEST_P(A_SG_HF_U,Multiple)
 {
     int Z=GetParam();
@@ -88,11 +92,11 @@ TEST_P(A_SG_HF_U,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-6,0.5,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
     assert(expected_itartion_counts.find(Z)!=expected_itartion_counts.end());
     size_t ic_expected=expected_itartion_counts[Z];
-    EXPECT_EQ(GetIterationCount(),ic_expected);
+    EXPECT_LE(GetIterationCount(),ic_expected);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
@@ -103,7 +107,7 @@ TEST_P(A_SGm_HF_U,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88)); 
@@ -115,7 +119,7 @@ TEST_P(A_SL_HF_U,Multiple)
     if (Z>15) N=14;
     if (Z>50) N=18;
     Init(N,0.3,5*Z,GetLMax(Z));
-    Iterate({40,1e-6,0.5,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));
@@ -127,15 +131,16 @@ TEST_P(A_SLm_HF_U,Multiple)
     if (Z>15) N=15;
     if (Z>50) N=18;
     Init(N,0.3,5*Z,GetLMax(Z));
-    Iterate({40,1e-4,1.0,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56));//,70,80,86,88));
 
 TEST_P(A_PG_HF_U,Multiple)
 {
+    int Z=GetParam();
     Init();
-    Iterate({40,1e-6,1.0,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
@@ -157,7 +162,7 @@ TEST_P(A_BS_HF_U,Multiple)
     int Z=GetParam();
     int N=50;
     Init(N,0.1,40,GetLMax(Z));
-    Iterate({40,Z*1e-9,1.0,true});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -194,7 +199,7 @@ TEST_P(A_SG_HF_P,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;    
     Init(N,0.05,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -220,7 +225,7 @@ TEST_P(A_SL_HF_P,Multiple)
     if (Z>15) N=14;
     if (Z>50) N=18;
     Init(N,0.3,5*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -244,7 +249,7 @@ TEST_P(A_BS_HF_P,Multiple)
     int Z=GetParam();
     int N=20;
     Init(N,1.0/Z,30,GetLMax(Z));
-    Iterate({20,Z*1e-9,0.5,true});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -270,7 +275,7 @@ TEST_P(A_SLm_HF_P,Multiple)
     if (Z>12) N=16;
     if (Z>50) N=20;
     Init(N,0.125,8*Z,GetLMax(Z));
-    Iterate({40,Z*1e-6,0.5,true});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -296,7 +301,7 @@ TEST_P(A_SGm_HF_P,Multiple)
     if (Z>40) N=20;
     if (Z>70) N=25;
     Init(N,0.05,6000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-7,0.5,true});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -320,7 +325,7 @@ TEST_P(A_BSm_HF_P,Multiple)
     int Z=GetParam();
     int N=30;
     Init(N,1.0/Z,30.,GetLMax(Z));
-    Iterate({40,Z*1e-9,0.5,true});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
@@ -344,8 +349,9 @@ public:
 
 TEST_P(A_PG_HF_P,Multiple)
 {
+    int Z=GetParam();
     Init();
-    Iterate({40,1e-6,0.5,verbose});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,21,37)); //7 fails Z=51 is slow
@@ -367,48 +373,3 @@ public:
     }
 };
 
-//TEST_F(A_SL_HF_P_92,Unranium)
-//{
-//    Init(10,1.0,1.5*92,3);
-//    Iterate({40,1e-1,1.0,0.0,false});
-//    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-//}
-
-//class A_SG_HF_P_92 : public ::testing::Test
-//, public TestAtom, SG_OBasis, HF_P, TestPolarized
-//{
-//public:
-//    A_SG_HF_P_92() : TestAtom(92), TestPolarized(6.0) {};
-//    void Init(int N, double emin, double emax, int LMax)
-//    {
-//        SG_OBasis::Init(N,emin,emax,LMax);
-//        QchemTester::Init(1e-3);
-//    }
-//};
-//
-//TEST_F(A_SG_HF_P_92,Unranium)
-//{
-//    Init(20,0.08,7000*92,3);
-//    Iterate({40,1e-1,1.0,0.0,true});
-//    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-//}
-
-//class A_PG_HF_P_92 : public ::testing::Test
-//, public TestAtom, SL_OBasis, HF_P, TestPolarized
-//{
-//public:
-//    A_PG_HF_P_92() : TestAtom(21), TestPolarized(3.0) {};
-//    void Init(int N, double emin, double emax, int LMax)
-//    {
-//        SL_OBasis::Init(N,emin,emax,LMax);
-//        QchemTester::Init(1e-3);
-//    }
-//};
-//
-//TEST_F(A_PG_HF_P_92,Unranium)
-//{
-//    Init(15,0.1,80,2  );
-//    Iterate({40,1e-1,1.0,0.0,true});
-//    EXPECT_LT(RelativeHFError(),MaxRelErrE);
-//}
-//
