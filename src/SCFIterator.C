@@ -80,7 +80,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
     double E=0,Eold=0,dE=1e10,Error=1e10;
     // double Eoldold=0;
     double relax=ipar.StartingRelaxRo;
-    double relMax=1.0;
+    double relMax=0.8;
     EnergyBreakdown eb;
 
     for (itsIterationCount=1; 
@@ -97,6 +97,7 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         itsOldCD=itsCD;
         itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
         ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
+        if (ChargeDensityChange<1e-2) relMax=1.0;
         itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
@@ -107,11 +108,11 @@ bool SCFIterator::Iterate(const SCFIterationParams& ipar)
         if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dE,ChargeDensityChange);
         if (E>Eold ) 
         {
-            relax*=0.5;
             itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
-            itsCD->MixIn(*itsOldCD,1.0-relax); 
+            itsCD->MixIn(*itsOldCD,1.0-relax/4.0); 
             eb=itsHamiltonian->GetTotalEnergy(itsCD);
+            relax*=0.8;
         }
         // if (E<Eold && Eold>Eoldold) relax*=0.5;
         if (E<Eold ) relax*=1.5;
