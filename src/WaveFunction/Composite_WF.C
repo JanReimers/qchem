@@ -3,18 +3,10 @@
 #include "Imp/WaveFunction/Composite_WF.H"
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
-#include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/SCFAccelerator.H"
 #include <BasisSet.H>
 #include <Irrep_BS.H>
 #include <cassert>
-#include <Spin.H>
-#include <Orbital_QNs.H>
-#include <iostream>
-
-Composite_WF::Composite_WF()
-    : itsEC(0)
-{};
 
 Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec)
     : itsBS(bs)
@@ -37,6 +29,8 @@ void Composite_WF::MakeIrrep_WFs(SCFAccelerator& acc, Spin s)
         itsIWFs.push_back(std::move(wf)); //Do the move last.
     }
 }
+
+Composite_WF::~Composite_WF() {};
 
 //----------------------------------------------------------------------------
 //

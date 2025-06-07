@@ -14,21 +14,18 @@ class Composite_WF
     : public virtual WaveFunction
 {
 public:
-    Composite_WF();
     Composite_WF(const BasisSet*,const ElectronConfiguration*);
-    
+    ~Composite_WF();
+
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
     virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep_QNs&)      ;
-    // virtual DM_CD*          GetChargeDensity() const;
-    // virtual sf_t*           GetSpinDensity  () const {return 0;}
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;} 
     virtual void            FillOrbitals    ();
     virtual iqns_t          GetQNs          () const;
 
     virtual DM_CD*          GetChargeDensity(Spin) const;
     virtual EnergyLevels    GetEnergyLevels (Spin) const; 
-
 
 protected:
     void MakeIrrep_WFs(SCFAccelerator&, Spin);

@@ -1,15 +1,9 @@
 // File: Irrep_WF.C  Wave function for an unpolarized atom.
 
-
-
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include <ElectronConfiguration.H>
 #include "Imp/Orbitals/TOrbitals.H"
 #include <Irrep_BS.H>
-#include <cassert>
-#include <iostream>
-
-
 
 Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms,SCFIrrepAccelerator* acc)
     : itsOrbitals(new  TOrbitalsImp<double>(bs,ms,acc))

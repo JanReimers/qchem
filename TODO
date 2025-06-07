@@ -31,7 +31,7 @@ Priority 1:
         -DIIS design
             Does not need the LASolver, it just needs an interface that can do the ortho tranform.
             Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
-            Refactor WF for less spin dependence? (similar to CD)
+            Done: Refactor WF for less spin dependence? (similar to CD)
             Irrep_QNs should be a separate header.
         A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT
 
