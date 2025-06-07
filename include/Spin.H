@@ -9,11 +9,5 @@ enum class Spin {Down,None,Up};
 inline bool   IsPolarized  (Spin s) {return !(s==Spin::None);}
 inline int    GetDegeneracy(Spin s) {return IsPolarized(s) ? 1 : 2;}
 inline size_t SequenceIndex(Spin s) {return static_cast<size_t>(s);}
-inline bool operator<(const Spin& a,const Spin& b)
-{
-    int ia=static_cast<int>(a);
-    int ib=static_cast<int>(b);
-    return ia<ib;
-}
 
 #endif //_Spin_H_

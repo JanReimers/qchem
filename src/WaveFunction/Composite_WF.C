@@ -1,6 +1,6 @@
-// File: UnPolarized_WF.C  Wave function for an unpolarized atom.
+// File: Composite_WF.H  Wave function as a list of Irrep wave functions.
 
-#include "Imp/WaveFunction/UnPolarized_WF.H"
+#include "Imp/WaveFunction/Composite_WF.H"
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/Orbitals/TOrbitals.H"
@@ -12,51 +12,56 @@
 #include <Orbital_QNs.H>
 #include <iostream>
 
-UnPolarized_WF::UnPolarized_WF()
+Composite_WF::Composite_WF()
     : itsEC(0)
 {};
 
-UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator& acc)
+Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec)
     : itsBS(bs)
     , itsEC(ec)
 {
     assert(itsBS);
     assert(itsEC);
     assert(itsBS->GetNumFunctions()>0);
-    for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
-    {
-        uiwf_t wf(new Irrep_WF(b,Spin(Spin::None),acc.Create(b)));
-        itsQN_WFs[wf->GetQNs()]=wf.get();
-        itsIWFs.push_back(std::move(wf)); //Do the move last.
-    }
+    
 };
 
-UnPolarized_WF::~UnPolarized_WF()
+void Composite_WF::MakeIrrep_WFs(SCFAccelerator& acc, Spin s)
 {
-    
+
+    for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
+    {
+        uiwf_t wf(new Irrep_WF(b,s,acc.Create(b)));
+        itsQN_WFs[wf->GetQNs()]=wf.get();
+        itsSpin_WFs[s].push_back(wf.get());
+        itsIWFs.push_back(std::move(wf)); //Do the move last.
+    }
 }
+
 //----------------------------------------------------------------------------
 //
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-void UnPolarized_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
+void Composite_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     for (auto& w:itsIWFs) w->DoSCFIteration(ham,cd);
 }
 
-DM_CD* UnPolarized_WF::GetChargeDensity() const
+DM_CD* Composite_WF::GetChargeDensity(Spin s) const
 {
+    auto i = itsSpin_WFs.find(s);
+    assert(i!=itsSpin_WFs.end());
     Composite_CD* cd = new Composite_CD();
-    for (auto& w:itsIWFs) cd->Insert(w->GetChargeDensity());
+    for (auto& w:i->second) cd->Insert(w->GetChargeDensity());
     return cd;
 }
 
-const Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* Composite_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
-    return const_cast<UnPolarized_WF*>(this)->GetOrbitals(qns);
+    return const_cast<Composite_WF*>(this)->GetOrbitals(qns);
 }
-Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns) 
+Orbitals* Composite_WF::GetOrbitals(const Irrep_QNs& qns) 
 {
     assert(qns.ms==Spin::None);
     auto i=itsQN_WFs.find(qns);
@@ -65,7 +70,7 @@ Orbitals* UnPolarized_WF::GetOrbitals(const Irrep_QNs& qns)
 
 }
 
-UnPolarized_WF::iqns_t UnPolarized_WF::GetQNs() const
+Composite_WF::iqns_t Composite_WF::GetQNs() const
 {
     iqns_t iqns;
     for (auto q:itsQN_WFs) iqns.push_back(q.first);
@@ -74,20 +79,13 @@ UnPolarized_WF::iqns_t UnPolarized_WF::GetQNs() const
 
 
 
-void UnPolarized_WF::FillOrbitals()
+void Composite_WF::FillOrbitals()
 {
     itsELevels.clear();
     for (auto& w:itsIWFs) 
         itsELevels.merge(w->FillOrbitals(itsEC),0.0001);
 }
 
-void UnPolarized_WF::DisplayEigen() const
-{
-    StreamableObject::SetToPretty();
-
-    std::cout << "Alpha+Beta spin :" << std::endl;
-    itsELevels.Report(std::cout);
-}
 
 
 
