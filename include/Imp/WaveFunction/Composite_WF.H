@@ -27,6 +27,7 @@ public:
     virtual iqns_t          GetQNs          () const;
 
     virtual DM_CD*          GetChargeDensity(Spin) const;
+    virtual EnergyLevels    GetEnergyLevels (Spin) const; 
 
 
 protected:
@@ -38,6 +39,7 @@ private:
     const BasisSet*              itsBS; 
     const ElectronConfiguration* itsEC;
     EnergyLevels                 itsELevels;
+    std::map<Spin,EnergyLevels>  itsSpin_ELevels;
 
     std::vector<uiwf_t>                   itsIWFs;
     std::map<Irrep_QNs,Irrep_WF*>         itsQN_WFs; //sort by Irrep for easy lookup.

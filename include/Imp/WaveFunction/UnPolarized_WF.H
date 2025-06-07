@@ -14,12 +14,15 @@ class UnPolarized_WF
 public:
     UnPolarized_WF();
     UnPolarized_WF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator& acc);
+    using Composite_WF::GetChargeDensity;
+    using Composite_WF::GetEnergyLevels;
 
-    virtual DM_CD*          GetChargeDensity() const;
+
+    virtual DM_CD*          GetChargeDensity() const {return GetChargeDensity(Spin::None);}
     virtual sf_t*           GetSpinDensity  () const {return 0;}
+    virtual EnergyLevels    GetEnergyLevels () const {return GetEnergyLevels(Spin::None);} 
     virtual void            DisplayEigen    () const;
 
-    using Composite_WF::GetChargeDensity;
 
 };
 

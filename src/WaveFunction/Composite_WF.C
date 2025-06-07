@@ -57,6 +57,13 @@ DM_CD* Composite_WF::GetChargeDensity(Spin s) const
     return cd;
 }
 
+EnergyLevels Composite_WF::GetEnergyLevels (Spin s) const 
+{
+    auto i = itsSpin_ELevels.find(s);
+    assert(i!=itsSpin_ELevels.end());
+    return i->second;
+} 
+
 const Orbitals* Composite_WF::GetOrbitals(const Irrep_QNs& qns) const
 {
     return const_cast<Composite_WF*>(this)->GetOrbitals(qns);
@@ -82,9 +89,17 @@ Composite_WF::iqns_t Composite_WF::GetQNs() const
 void Composite_WF::FillOrbitals()
 {
     itsELevels.clear();
+    itsSpin_ELevels.clear();
     for (auto& w:itsIWFs) 
-        itsELevels.merge(w->FillOrbitals(itsEC),0.0001);
+    {
+        EnergyLevels els=w->FillOrbitals(itsEC);
+        itsELevels.merge(els,0.0001);
+        Spin s=w->GetQNs().ms;
+        itsSpin_ELevels[s].merge(els,0.0001);
+    }
+        
 }
+
 
 
 

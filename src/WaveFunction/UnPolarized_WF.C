@@ -23,11 +23,6 @@ UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* e
 };
 
 
-DM_CD* UnPolarized_WF::GetChargeDensity() const
-{
-    return GetChargeDensity(Spin::None);
-}
-
 void UnPolarized_WF::DisplayEigen() const
 {
     StreamableObject::SetToPretty();
