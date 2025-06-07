@@ -51,6 +51,7 @@ public:
    
     double GetError() const {return itsLastError;}
     double GetSVMin() const {return itsLastSVMin;}
+    size_t GetNproj() const {return itsEs.size();}
 private:
     typedef  Vector<double> RVec;
 
@@ -59,6 +60,7 @@ private:
     RVec SolveC(const SMat& B) const;
     SMat Project(const SMat& FPrime);
     void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
+    void Purge(size_t N); 
 
     DIISParams                   itsParams; 
     double                       itsLastError;  // [F',D']

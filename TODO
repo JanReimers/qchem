@@ -2,7 +2,6 @@
 Priority 1:
 
     -Convergence acceleration.
-        -DIIS is best for closed shell.
         Done: -Convergence on delta-ro is not very good.
             SHould we track which Irrep is not converging?
         Deon: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
@@ -16,6 +15,14 @@ Priority 1:
         -EDIIS
         -Make a pass through accelerator.
         -DIIS auto adjust Npurge 
+            Lorenzo Maschio 2018: The algorithm pre-sented discards an older iterations i only when the absolute value of corresponding coefficient ci in Eq. (1) is below 10−8. 
+            Pauley 1982: If eq. (1) becomes ill-conditioned, omit the first, second, etc., equation until its condition becomes acceptable.
+                (this is a bit vague: the first eq. in eq.1 in the lamba eq. which makes no sense to remove)
+            One thing left out of the literature is when to add error vectors and when to start using them?
+        -DIIS should e be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
+            He and Be have one irrep.  Do they work well?
+            For Be N=4, SVmin=1e-10 work very well.
+
         -Check out some manuals:
             https://manual.q-chem.com/5.3/sect_convergence.html
             Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations

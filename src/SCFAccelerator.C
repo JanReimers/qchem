@@ -37,7 +37,6 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     itsLastError=FrobeniusNorm(E);
     if (itsLastError<itsParams.EMax  && itsLastError> itsParams.EMin)
     {
-        // std::cout << "||E|| = " << FrobeniusNorm(E) << std:: endl;
         AppendAndPurge(FPrime,E,itsLastError,itsParams.Nproj);
         return Project(FPrime);
     }
@@ -102,11 +101,20 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) c
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& Fprime)
 {
     SMat B=BuildB();
-    if (IsSingular(B,itsParams.SVTol)) 
+    size_t N=itsEs.size();
+    while (IsSingular(B,itsParams.SVTol)) 
     {
-        itsLastSVMin=1e20;  //indicate bailout.
-        return Fprime;
+        if (N<=2)
+        {
+            itsLastSVMin=1e20;  //indicate bailout.
+            return Fprime;
+        }
+        N--;
+        // std::cout << "Purging to N=" << N << std::endl;
+        Purge(N);
+        B=BuildB();
     }
+    
     RVec c=SolveC(B); //Solve for the projection coefficients
     assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
 
@@ -126,7 +134,8 @@ void SCFIrrepAccelerator_DIIS::AppendAndPurge(const SMat& FPrime, const Mat& E, 
     // Purge first to avoid purging the latest
     while (N>0 && itsEs.size()>N-1)
     {
-        auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
+        //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
+        auto iter=itsEns.begin(); //just pick the oldest element.
         size_t index=std::distance(itsEns.begin(),iter);
         itsEns.erase(iter);
         itsEs.erase(itsEs.begin()+index);
@@ -140,7 +149,22 @@ void SCFIrrepAccelerator_DIIS::AppendAndPurge(const SMat& FPrime, const Mat& E, 
     assert(itsFPrimes.size()<=N);
     
 }
-
+void SCFIrrepAccelerator_DIIS::Purge(size_t N)
+{
+    while (itsEs.size()>N)
+    {
+        //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
+        auto iter=itsEns.begin(); //just pick the oldest element.
+        size_t index=std::distance(itsEns.begin(),iter);
+        itsEns.erase(iter);
+        itsEs.erase(itsEs.begin()+index);
+        itsFPrimes.erase(itsFPrimes.begin()+index);
+    }
+    assert(itsEs.size()==N);
+    assert(itsEns.size()==N);
+    assert(itsFPrimes.size()==N);
+    
+}
 
 #include <Irrep_BS.H>
 
@@ -157,21 +181,28 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs)
 
 void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
 {
-    os << " [F,D]   SVMin";
+    os << " [F,D]   Nmin   Nmax    SVMin";
 }
 void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
 {
     double EMax=0.0,SVMin=1.0e20;
+    size_t NMin=1000,NMax=0;
     for (auto i:itsIrreps)
     {
         if (i->GetError()>EMax) EMax=i->GetError();
         if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
+        if (i->GetNproj()<NMin) NMin=i->GetNproj();
+        if (i->GetNproj()>NMax) NMax=i->GetNproj();
+        
     }
     os << std::scientific << std::setw(7) << std::setprecision(1) << EMax << " ";
     if (SVMin<1.0e20)
-        os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << " ";
+    {
+        os << std::setw(3) << NMin << "    " << std::setw(3) << NMax << "     ";
+        os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << "  ";
+    }
     else
-        os << "        ";
+        os << "                        ";
 }
 
 double SCFAccelerator_DIIS::GetError() const
