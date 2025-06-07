@@ -32,7 +32,7 @@ TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms,SCFIrrepAccelerator* acc)
 {
     assert(itsBasisSet->GetNumFunctions()>0);
     assert(itsAccelerator);
-    itsAccelerator->Init(itsLASolver);
+    itsAccelerator->Init(itsLASolver,itsQNs);
     Fill(itsD,0.0);
     Fill(itsDPrime,0.0);
 };

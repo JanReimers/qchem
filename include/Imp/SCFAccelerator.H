@@ -10,7 +10,7 @@ protected:
     typedef SMatrix<double> SMat;
 public:
     virtual ~SCFIrrepAccelerator() {};
-    virtual void Init(const LASolver<double>*)=0; //Solver knows how to transform to orthogonal basis.
+    virtual void Init(const LASolver<double>*, const Irrep_QNs&)=0; //Solver knows how to transform to orthogonal basis.
     virtual SMat Project(const SMat& F, const SMat& DPrime)=0; //Fock and Density matrices.
 
 };
@@ -35,6 +35,7 @@ struct DIISParams
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
 };
 
+#include <Orbital_QNs.H>
 #include "oml/smatrix.h"
 template <class T> class LinearSolver;
 namespace oml
@@ -46,7 +47,7 @@ class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 public:
     SCFIrrepAccelerator_DIIS(const DIISParams&);
     virtual ~SCFIrrepAccelerator_DIIS();
-    virtual void Init(const LASolver<double>*);
+    virtual void Init(const LASolver<double>*, const Irrep_QNs&);
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
    
     double GetError() const {return itsLastError;}
@@ -63,6 +64,7 @@ private:
     void Purge(size_t N); 
 
     DIISParams                   itsParams; 
+    Irrep_QNs                    itsIrrep;
     double                       itsLastError;  // [F',D']
     double                       itsLastSVMin;  //Smallest singular value for latest B matric.
 

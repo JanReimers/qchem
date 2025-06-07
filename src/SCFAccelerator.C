@@ -24,8 +24,9 @@ SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS()
     delete itsSVDSolver;
 };
 
-void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las)
+void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las, const Irrep_QNs& qns)
 {
+    itsIrrep=qns;
     itsLaSolver=las;
 }
 
@@ -41,7 +42,11 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
         return Project(FPrime);
     }
     else
+    {
+        StreamableObject::SetToPretty();
+        std::cout << "Bail qns, E=" << itsIrrep << " " << itsLastError << std::endl;
         return FPrime;
+    }
 }
 
 
