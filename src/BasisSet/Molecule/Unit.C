@@ -25,10 +25,6 @@ std::istream& UnitQN::Read (std::istream& is)
     return is;
 }
 
-Symmetry* UnitQN::Clone() const
-{
-    return new UnitQN;
-}
 
 UnitnQN::UnitnQN() : n(0) {};
 UnitnQN::UnitnQN(int _n) : n(_n) {};
@@ -39,7 +35,3 @@ std::ostream& UnitnQN::Write(std::ostream& os) const
     return UnitQN::Write(os);
 }
 
-Symmetry* UnitnQN::Clone() const
-{
-    return new UnitnQN(*this);
-}

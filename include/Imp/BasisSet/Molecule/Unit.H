@@ -17,7 +17,6 @@ public:
 
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
-    virtual Symmetry* Clone() const;
 };
 
 class UnitnQN
@@ -29,7 +28,6 @@ public:
     UnitnQN(int n);
 
     virtual std::ostream& Write(std::ostream&) const;
-    virtual Symmetry* Clone() const;
 private:
     int n; //Principle QN
 };

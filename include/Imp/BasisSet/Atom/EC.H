@@ -5,6 +5,7 @@
 #include "ElectronCounts.H"
 #include <ElectronConfiguration.H>
 #include <vector>
+#include <memory>
 
 const int Nshell=8;
 
@@ -27,10 +28,11 @@ public:
     ml_Breakdown GetBreadown(size_t l) const;
 
 private:
+    typedef std::shared_ptr<const Symmetry> sym_t;
     friend class ElectronConfigurationTests;
     int  GetN() const;
     int  GetN(const Spin&) const;
-    int  GetN(const Symmetry&) const;
+    int  GetN(const sym_t&) const;
 
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.

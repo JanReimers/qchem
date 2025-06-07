@@ -26,7 +26,7 @@ size_t BS_Common::GetNumFunctions() const
 BasisSet::symv_t BS_Common::GetSymmetries  () const
 {
     symv_t symv;
-    for (auto& b:itsBasisSets) symv.push_back(&b->GetSymmetry());
+    for (auto& b:itsBasisSets) symv.push_back(b->GetSymmetry());
     return symv;
 }
 

@@ -19,16 +19,17 @@ using std::endl;
 class ElectronConfigurationTests : public ::testing::Test
 {
 public:
+    typedef Irrep_QNs::sym_t sym_t;
     ElectronConfigurationTests() {}
-    Yl_Sym qn(int l) const {return Yl_Sym(l);}
-    Ylm_Sym qn(int l, const std::vector<int>& ml) const {return Ylm_Sym(l,ml);}
+    sym_t qn(int l) const {return sym_t(new Yl_Sym(l));}
+    sym_t qn(int l, const std::vector<int>& ml) const {return sym_t(new Ylm_Sym(l,ml));}
     
     static int GetN(const Atom_EC& ac) {return ac.GetN();}
     static int GetN(const Atom_EC& ac, Spin s) {return ac.GetN(s);}
-    static int GetN(const Atom_EC& ac, const Symmetry& s) {return ac.GetN(s);}
-    static int GetN(const Atom_EC& ac, const Symmetry& sym, Spin s) 
+    static int GetN(const Atom_EC& ac, const sym_t& s) {return ac.GetN(s);}
+    static int GetN(const Atom_EC& ac, const sym_t& sym, Spin s) 
     {
-        Irrep_QNs qns(s,sym.Clone());
+        Irrep_QNs qns(s,sym);
         return ac.GetN(qns);
     }
 };
@@ -81,11 +82,11 @@ TEST_F(ElectronConfigurationTests, SumLAndSpin)
         int Nld=0;
         for (int l=0;l<=3;l++)
         {
-            Yl_Sym qn(l);
-            int nlu=GetN(ec,qn,Spin::Up);
-            int nld=GetN(ec,qn,Spin::Down);
+            auto yl=qn(l);
+            int nlu=GetN(ec,yl,Spin::Up);
+            int nld=GetN(ec,yl,Spin::Down);
 //            cout << "l,nu,nd = " << l << " " << nlu << " " << nld << endl;
-            EXPECT_EQ(GetN(ec,qn),nlu+nld);
+            EXPECT_EQ(GetN(ec,yl),nlu+nld);
             Nlu+=nlu;
             Nld+=nld;
         }

@@ -8,16 +8,9 @@
 const size_t n_max=300; //Max principle QN.
 const size_t ms_max=3; //three states Up/Down and None.
 
-Irrep_QNs::Irrep_QNs(Spin _ms,const Symmetry* _sym) 
+Irrep_QNs::Irrep_QNs(Spin _ms,const sym_t& _sym) 
     : ms(_ms)
-    , sym(_sym->Clone()) 
-{
-    assert(sym);
-}
-
-Irrep_QNs::Irrep_QNs(const Irrep_QNs& qns)
-    : ms(qns.ms)
-    , sym(qns.sym ? qns.sym->Clone() : 0)
+    , sym(_sym) 
 {
     assert(sym);
 }
@@ -26,8 +19,7 @@ Irrep_QNs::Irrep_QNs(const Irrep_QNs& qns)
 
 Irrep_QNs::~Irrep_QNs()
 {
-    assert(sym);
-    if (sym) delete sym;
+   
 }
 size_t Irrep_QNs::SequenceIndex() const
 {
@@ -44,8 +36,8 @@ std::ostream& Irrep_QNs::Write(std::ostream& os) const
     return os << " ms=" << static_cast<int>(ms) << " sym=" << *sym;
 }
 
-Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const Symmetry* _sym)
-: n(_n), ms(_ms), sym(_sym->Clone())
+Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const sym_t& _sym)
+: n(_n), ms(_ms), sym(_sym)
 {
     assert(sym);
     assert(n<=n_max);
@@ -54,21 +46,13 @@ Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const Symmetry* _sym)
 Orbital_QNs::Orbital_QNs(size_t _n, const Irrep_QNs& irr)
 : n(_n)
 , ms(irr.ms)
-, sym(irr.sym ? irr.sym->Clone() : 0)
+, sym(irr.sym)
 {
     assert(sym);
 }
 
-Orbital_QNs::Orbital_QNs(const Orbital_QNs& qns)
-: n(qns.n)
-, ms(qns.ms)
-, sym(qns.sym ? qns.sym->Clone() : 0)
-{
-    assert(sym);
-}
 Orbital_QNs::~Orbital_QNs()
 {
-    if (sym) delete sym;
 }
 size_t Orbital_QNs::SequenceIndex() const
 {
@@ -87,7 +71,3 @@ std::ostream& Orbital_QNs::Write(std::ostream& os) const
     return os << n+sym->GetPrincipleOffset() << *sym;
 }
     
-// Orbital_QNs* Orbital_QNs::Clone() const
-// {
-//     return new Orbital_QNs(n,ms,sym);
-// }

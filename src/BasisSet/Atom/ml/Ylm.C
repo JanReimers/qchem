@@ -94,8 +94,3 @@ std::ostream& Ylm_Sym::Write(std::ostream& os) const
     return os;
 }
 
-Angular_Sym* Ylm_Sym::Clone() const
-{
-    return new Ylm_Sym(*this);
-}
-

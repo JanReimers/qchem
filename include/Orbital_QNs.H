@@ -4,15 +4,16 @@
 
 #include "Imp/Misc/pmstream.h"
 #include <Spin.H>
+#include <memory>
 
 class Symmetry;
 
 struct Irrep_QNs
     : public virtual PMStreamableObject
 {   
+    typedef std::shared_ptr<const Symmetry> sym_t;
     Irrep_QNs() : ms(Spin::None), sym(0) {};
-    Irrep_QNs(Spin _ms,const Symmetry* _sym);
-    Irrep_QNs(const Irrep_QNs&);
+    Irrep_QNs(Spin _ms,const sym_t& _sym);
     ~Irrep_QNs();
 
     size_t  SequenceIndex() const; //Used for op<
@@ -25,20 +26,19 @@ struct Irrep_QNs
 
     std::ostream& Write(std::ostream&) const;
     std::istream& Read (std::istream& is)      {return is;}
-    // Irrep_QNs* Clone() const;
     
-    Spin       ms;
-    const Symmetry* sym;
+    Spin  ms;
+    sym_t sym;
 };
 
 
 struct Orbital_QNs
     : public virtual PMStreamableObject
 {   
-    Orbital_QNs() : n(0), ms(Spin::None), sym(0) {};
-    Orbital_QNs(size_t n, Spin ms,const Symmetry* sym);
+    typedef std::shared_ptr<const Symmetry> sym_t;
+    Orbital_QNs() : n(0), ms(Spin::None), sym() {};
+    Orbital_QNs(size_t n, Spin ms,const sym_t& sym);
     Orbital_QNs(size_t n, const Irrep_QNs&);
-    Orbital_QNs(const Orbital_QNs&);
     ~Orbital_QNs();
 
     size_t  SequenceIndex() const; //Used for op<
@@ -50,9 +50,9 @@ struct Orbital_QNs
 
     std::ostream& Write(std::ostream&) const;
 
-    size_t     n;
-    Spin       ms;
-    const Symmetry* sym;
+    size_t  n;
+    Spin    ms;
+    sym_t   sym;
 };
 
 

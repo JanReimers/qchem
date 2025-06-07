@@ -6,6 +6,13 @@
 #include "Imp/Cluster/Molecule.H"
 #include <MeshParams.H>
 
+inline SCFIterationParams scf_params(int Z) 
+{
+//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo verbose
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5       ,true};
+}
+
+
 class DFT_U : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
@@ -60,7 +67,7 @@ TEST_P(A_SG_DFT_U,Multiple)
 {
     int Z=GetParam();
     Init(20,0.05,10000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-4,1.0,false});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DFT_U,::testing::Values(2,4,10,18,36,54)); 
@@ -72,7 +79,7 @@ TEST_P(A_SL_DFT_U,Multiple)
     if (Z>20) N=10;
     if (Z>50) N=11;
     Init(N, 0.31,3*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,false});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SL_DFT_U,::testing::Values(2,4,10,18,36,54));
@@ -80,7 +87,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SL_DFT_U,::testing::Values(2,4,10,18,36,54));
 TEST_P(A_PG_DFT_U,Multiple)
 {
     Init();
-    Iterate({40,1e-3,1.0,false});
+    Iterate(scf_params(GetParam()));
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_DFT_U,::testing::Values(2,4,10,18,36));
@@ -112,7 +119,7 @@ TEST_P(A_SG_DFT_P,Multiple)
 {
     int Z=GetParam();
     Init(20,0.01,4000*Z,GetLMax(Z));
-    Iterate({40,Z*1e-3,1.0,false});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
 
@@ -137,7 +144,7 @@ TEST_P(A_SL_DFT_P,Multiple)
     if (Z>20) N=10;
     if (Z>50) N=11;
     Init(N,0.31,3*Z,GetLMax(Z));
-    Iterate({40,Z*1e-2,1.0,false});
+    Iterate(scf_params(Z));
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
 
@@ -160,7 +167,7 @@ public:
 TEST_P(A_PG_DFT_P,Multiple)
 {
     Init();
-    Iterate({40,1e-3,1.0,false});
+    Iterate(scf_params(GetParam()));
     EXPECT_LT(RelativeDFTError(),MaxRelErrE);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_PG_DFT_P,::testing::Values(3,5,11,37)); //Z=51 is slow.

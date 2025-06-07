@@ -74,7 +74,7 @@ public:
 TEST_F(M_PG_HF_U,N2)
 {
     Init(MakeN2());
-    Iterate({1,1e-3,1.0,true});
+    Iterate({40,1e-5,1e-10,1e-6,0.5,true});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,MaxRelErrE);
 }
@@ -82,7 +82,7 @@ TEST_F(M_PG_HF_U,N2)
 TEST_F(M_PG_SHF_U,N2)
 {
     Init(MakeN2());
-    Iterate({20,1e-3,1.0,true});
+    Iterate({20,1e-5,1e-10,1e-6,0.5,true});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,MaxRelErrE);
 }
@@ -90,7 +90,7 @@ TEST_F(M_PG_SHF_U,N2)
 TEST_F(M_PG_DFT_U,N2)
 {
     Init(MakeN2());
-    Iterate({20,1e-3,1.0,true});
+    Iterate({20,1e-5,1e-10,1e-6,0.5,true});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,MaxRelErrE);
 }

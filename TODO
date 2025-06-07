@@ -1,10 +1,12 @@
 
 Priority 1:
 
+    Done: -Orbital_QNs
+        Use std::shared_ptr for sym.
     -Convergence acceleration.
         Done: -Convergence on delta-ro is not very good.
             SHould we track which Irrep is not converging?
-        Deon: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
+        Done: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
             CD->GetChangeFrom does Max(fabs(D1-D2)).
             swith fro Fnorm
         Done: -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
@@ -116,8 +118,6 @@ Priority 1:
     -Vxc->LDAxc->ExchangeFunctional  
         Can we get rid of LDAxc?
     
-    -Orbital_QNs
-        Use std::shared_ptr for sym.
     -BSpline basis sets.
         How to get 11 digits for virial ratio?
         Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>

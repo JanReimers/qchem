@@ -30,10 +30,11 @@ public:
     typedef std::vector<std::shared_ptr<bf_t>> bfv_t;
     typedef bfv_t::      iterator       iterator;
     typedef bfv_t::const_iterator const_iterator;
+    typedef std::shared_ptr<const Symmetry> sym_t;
 
     virtual void   Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
-    virtual const  Symmetry& GetSymmetry() const=0;
+    virtual sym_t  GetSymmetry() const=0;
 //
 //  PMStreamableObject stuff.
 //

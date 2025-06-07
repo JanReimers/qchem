@@ -73,12 +73,6 @@ std::ostream& Omega_k_Sym::Write(std::ostream& os) const
     return os;
 }
 
-Angular_Sym* Omega_k_Sym::Clone() const
-{
-    return new Omega_k_Sym(*this);
-}
-
-
 
 Omega_kmj_Sym::Omega_kmj_Sym(): kappa(0), mj(0) {};
 
@@ -244,8 +238,4 @@ std::istream& Omega_kmj_Sym::Read (std::istream& is)
     return is;
 }
 
-Angular_Sym* Omega_kmj_Sym::Clone() const
-{
-    return new Omega_kmj_Sym(*this);
-}
 

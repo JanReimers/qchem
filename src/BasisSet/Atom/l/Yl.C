@@ -39,8 +39,3 @@ std::ostream& Yl_Sym::Write(std::ostream& os) const
     return os << SPDFG[itsL] << " ";
 }
 
-Angular_Sym* Yl_Sym::Clone() const
-{
-    return new Yl_Sym(*this);
-}
-

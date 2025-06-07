@@ -25,7 +25,7 @@ template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms,SCFIrrepAccelerator* acc)
     : itsBasisSet(bs)
     , itsLASolver(bs->CreateSolver())
-    , itsQNs(ms,&bs->GetSymmetry())
+    , itsQNs(ms,bs->GetSymmetry())
     , itsAccelerator(acc)
     , itsD     (bs->GetNumFunctions())
     , itsDPrime(bs->GetNumFunctions())

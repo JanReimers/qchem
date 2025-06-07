@@ -14,6 +14,7 @@ using std::endl;
 class SymQNTests : public ::testing::Test
 {
 public:
+    typedef Orbital_QNs::sym_t sym_t;
     SymQNTests() 
     : LMax(4) 
     , kappa_max(4)
@@ -126,17 +127,15 @@ TEST_F(SymQNTests, Orbital_QNs_YlQN)
     {
         Spin s1=makespin(ms1);
         Spin s2=makespin(ms2);
-        Symmetry* yl1=new Yl_Sym(l1);
+        auto yl1=sym_t(new Yl_Sym(l1));
         Orbital_QNs oqn1(n1,s1,yl1);
         for (size_t l2=0;l2<l1;l2++)
         {
             if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
-            Symmetry* yl2=new Yl_Sym(l2);
+            auto yl2=sym_t(new Yl_Sym(l2));
             Orbital_QNs oqn2(n2,s2,yl2);
             EXPECT_NE(oqn1.SequenceIndex(),oqn2.SequenceIndex());
-            delete yl2;
         }
-        delete yl1;
     }
 }
 TEST_F(SymQNTests, Orbital_QNs_set)
@@ -148,7 +147,7 @@ TEST_F(SymQNTests, Orbital_QNs_set)
     for (size_t l1=0;l1<=LMax;l1++)
     {
         Spin s1=makespin(ms1);
-        Symmetry* yl1=new Yl_Sym(l1);
+        auto yl1=sym_t(new Yl_Sym(l1));
         qns.insert(Orbital_QNs(n1,s1,yl1));
         // delete yl1;
     }

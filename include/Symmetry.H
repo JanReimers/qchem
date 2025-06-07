@@ -14,7 +14,6 @@ public:
     virtual int GetDegeneracy     () const=0;
     virtual int GetPrincipleOffset() const=0; //Add to principle QN.  For atoms this is just l.
     std::string GetLabel          () const;
-    virtual Symmetry* Clone() const=0;
     static  Symmetry* Factory(std::istream&);
 };
 

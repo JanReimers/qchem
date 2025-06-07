@@ -135,18 +135,18 @@ int Atom_EC::GetN(const Spin& s) const
     return s==Spin::Up ? (ne+NUnpaired)/2 : (ne-NUnpaired)/2;
 }
 
-int Atom_EC::GetN(const Symmetry& qn) const
+int Atom_EC::GetN(const sym_t& qn) const
 {
-    const Angular_Sym& sqn=dynamic_cast<const Angular_Sym&>(qn);
-    ElCounts_l ecl=sqn.GetN(itsNs);
+    const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qn.get());
+    ElCounts_l ecl=sqn->GetN(itsNs);
     return ecl.N; // Should be total core+valance 
 }
 int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
-    if (qns.ms==Spin::None) return GetN(*qns.sym);
+    if (qns.ms==Spin::None) return GetN(qns.sym);
     
-    const Angular_Sym& sqn=dynamic_cast<const Angular_Sym&>(*qns.sym);
-    ElCounts_l ecl=sqn.GetN(itsNs);
+    const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
+    ElCounts_l ecl=sqn->GetN(itsNs);
     assert((ecl.N+ecl.Nu)%2==0);
     return ecl.GetN(qns.ms);  // Should be total core+valance      
 }

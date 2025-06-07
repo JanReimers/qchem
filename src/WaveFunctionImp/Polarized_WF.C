@@ -123,7 +123,7 @@ void Polarized_WF::DisplayEigen() const
     {
         auto up=iup.second;
         assert(iup.first == up.e);
-        Orbital_QNs dnqns(up.qns.n,Spin::Down,up.qns.sym->Clone());
+        Orbital_QNs dnqns(up.qns.n,Spin::Down,up.qns.sym);
         auto dn=itsDnELevels.find(dnqns); 
 
         cout  << up.qns << " (" << std::fixed << std::setw(2) << std::setprecision(0) << up.occ  << "/"  << std::setw(2) << up.degen << ") |";

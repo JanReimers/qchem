@@ -24,10 +24,10 @@ public:
     virtual ~IBS_Common();
 
     virtual size_t  GetNumFunctions(               ) const;
-    virtual const Symmetry&  GetSymmetry() const
+    virtual sym_t   GetSymmetry() const
     {
         assert(itsSymmetry);
-        return *itsSymmetry;
+        return itsSymmetry;
     }
 
     virtual const_iterator begin() const {return itsBasisFunctions.begin();}
@@ -47,8 +47,8 @@ protected:
 private:
     IBS_Common& operator=(const IBS_Common&);
 
-    Symmetry*  itsSymmetry;
-    bfv_t      itsBasisFunctions;
+    sym_t itsSymmetry;
+    bfv_t itsBasisFunctions;
 };
 
 #endif //_IBS_Common_H_

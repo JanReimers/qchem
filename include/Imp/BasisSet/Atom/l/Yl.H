@@ -21,8 +21,7 @@ public:
     virtual int GetDegeneracy() const;
     
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual Angular_Sym* Clone(        ) const;
-
+   
     virtual int     GetL() const {return itsL;}
     virtual ElCounts_l GetN(const ElCounts&) const;
 protected:

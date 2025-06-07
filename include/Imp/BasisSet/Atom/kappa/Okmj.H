@@ -22,7 +22,6 @@ public:
     virtual ElCounts_l GetN(const ElCounts&) const;
     
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual Angular_Sym* Clone         () const;
 
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}
@@ -56,8 +55,7 @@ public:
 
     virtual std::ostream&  Write(std::ostream&) const;
     virtual std::istream&  Read (std::istream&)      ;
-    virtual Angular_Sym* Clone(        ) const;
-
+   
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}
     int    GetL    () const {return l(kappa);}

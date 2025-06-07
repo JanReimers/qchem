@@ -25,7 +25,7 @@ IBS_Common::IBS_Common(Symmetry* theQN)
 };
 
 IBS_Common::IBS_Common(const IBS_Common& bs)
-  : itsSymmetry (bs.itsSymmetry->Clone())
+  : itsSymmetry (bs.itsSymmetry)
   , itsBasisFunctions(bs.itsBasisFunctions)
   {
     assert(itsSymmetry);
@@ -33,7 +33,6 @@ IBS_Common::IBS_Common(const IBS_Common& bs)
 
 IBS_Common::~IBS_Common()
 {
-    delete itsSymmetry;
 }
 
 //-----------------------------------------------------------------------------

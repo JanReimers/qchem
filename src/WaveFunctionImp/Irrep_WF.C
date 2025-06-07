@@ -13,7 +13,7 @@
 
 Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms,SCFIrrepAccelerator* acc)
     : itsOrbitals(new  TOrbitalsImp<double>(bs,ms,acc))
-    , itsIrrep     (ms,&bs->GetSymmetry())
+    , itsIrrep     (ms,bs->GetSymmetry())
 {
     assert(itsOrbitals);
 };

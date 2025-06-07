@@ -24,8 +24,7 @@ public:
     virtual ElCounts_l GetN(const ElCounts&) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual Angular_Sym*   Clone(        ) const;
-
+   
     using Yl_Sym::GetL;
 protected:
     std::vector<int> ml;
