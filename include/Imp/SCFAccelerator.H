@@ -41,8 +41,6 @@ struct DIISParams
 };
 
 #include <vector>
-SMatrix<double> BuildB(const std::vector< Matrix<double>>&);
-bool IsSingular(const SMatrix<double>& B, double SVtol);
 
 #include <Orbital_QNs.H>
 #include "oml/smatrix.h"
@@ -67,12 +65,16 @@ public:
     double GetError() const {return itsLastError;}
     double GetSVMin() const {return itsLastSVMin;}
     size_t GetNproj() const {return itsEs.size();}
+
+    static SMat   BuildB(const std::vector< Matrix<double>>&);
+    static double GetMinSV(const SMatrix<double>& B);
+    static RVec   SolveC(const SMatrix<double>& B);
+
 private:
     typedef  Vector<double> RVec;
 
-    SMat BuildB() const;
-    bool IsSingular(const SMat& B, double SVtol);
-    RVec SolveC(const SMat& B) const;
+   
+    // RVec SolveC(const SMat& B) const;
     RVec Solve();
     SMat Project(const RVec& c);
     void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
@@ -88,8 +90,6 @@ private:
     std::vector< Matrix<double>> itsEs; //Error matrices
     std::vector<        double > itsEns; //Errors ||E||
     const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
-         LinearSolver<double>*   itsLinearSolver;
-    oml::SVDSolver   <double>*   itsSVDSolver;
 
 };
 

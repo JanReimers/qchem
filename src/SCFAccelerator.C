@@ -7,21 +7,57 @@
 #include "oml/numeric/LapackSVDSolver.H"
 
 
+#include "oml/diagonalmatrix.h"
+
+SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildB(const std::vector< Matrix<double>>& Es)
+{
+    index_t N=Es.size()+1;
+    SMat B(N,N);
+    for (index_t i:B.rows())
+        for (index_t j:B.cols(i))
+            if (i<N)
+                if (j<N)
+                    B(i,j)=Dot(Es[i-1],Es[j-1]);
+                else
+                    B(i,j)=1.0;
+            else
+                B(i,j)=0.0; //i=j=N
+    
+    return B;
+}
+double SCFIrrepAccelerator_DIIS::GetMinSV(const SMat& B)
+{
+    static oml::LapackSVDSolver<double> solver;
+    auto [U,s,V]=solver.SolveAll(B);
+    size_t N=s.GetNumRows();
+    return s(N,N);
+}
+SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) 
+{
+    static LapackLinearSolver<double> solver;
+    size_t N=B.GetNumRows();
+    RVec v(N);
+    Fill(v,0.0); 
+    v(N)=1.0;
+    RVec C=solver.Solve(B,v);
+    // std:: cout << B << C << v << del <<std::endl;
+    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
+    return C.SubVector(N-1);   
+}
+
+
+
 SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p) 
     : itsParams(p)
     , itsLastError(0.0)
     , itsLastSVMin(1e20)
-    , itsLinearSolver(new LapackLinearSolver<double>())
-    , itsSVDSolver(new oml::LapackSVDSolver<double>())
+    
 {
-    assert(itsLinearSolver);
-    assert(itsSVDSolver);
 };
 
 SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
 {
-    delete itsLinearSolver;
-    delete itsSVDSolver;
+
 };
 
 void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las, const Irrep_QNs& qns)
@@ -75,51 +111,13 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
     return ArrayAdd(a,b);
 }
 
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::BuildB() const
-{
-    index_t N=itsEs.size()+1;
-    SMat B(N,N);
-    for (index_t i:B.rows())
-        for (index_t j:B.cols(i))
-            if (i<N)
-                if (j<N)
-                    B(i,j)=Dot(itsEs[i-1],itsEs[j-1]);
-                else
-                    B(i,j)=1.0;
-            else
-                B(i,j)=0.0; //i=j=N
-    
-    return B;
-}
-
-#include "oml/diagonalmatrix.h"
-bool SCFIrrepAccelerator_DIIS::IsSingular(const SMat& B, double SVtol) 
-{
-    auto [U,s,V]=itsSVDSolver->SolveAll(B);
-    size_t N=s.GetNumRows();
-    itsLastSVMin=s(N,N);
-    return itsLastSVMin<itsParams.SVTol;
-}
-
-
-SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) const
-{
-    size_t N=B.GetNumRows();
-    RVec v(N);
-    Fill(v,0.0); 
-    v(N)=1.0;
-    Vector<double> C=itsLinearSolver->Solve(B,v);
-    // std:: cout << B << C << v << del <<std::endl;
-    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
-    return C.SubVector(N-1);   
-}
 
 #include "Imp/Containers/stl_io.h"
 SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
 {
-    SMat B=BuildB();
+    SMat B=BuildB(itsEs);
     size_t N=itsEs.size();
-    while (IsSingular(B,itsParams.SVTol)) 
+    while (GetMinSV(B)<itsParams.SVTol) 
     {
         if (N<=2)
         {
@@ -129,7 +127,7 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
         N--;
         // std::cout << "Purging to N=" << N << std::endl;
         Purge(N);
-        B=BuildB();
+        B=BuildB(itsEs);
     }
     
     return SolveC(B); //Solve for the projection coefficients
@@ -200,44 +198,8 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs)
     return itsIrreps.back();;
 }
 
-SMatrix<double> BuildB(const std::vector< Matrix<double>>& Es)
-{
-    index_t N=Es.size()+1;
-    SMatrix<double> B(N,N);
-    for (index_t i:B.rows())
-        for (index_t j:B.cols(i))
-            if (i<N)
-                if (j<N)
-                    B(i,j)=Dot(Es[i-1],Es[j-1]);
-                else
-                    B(i,j)=1.0;
-            else
-                B(i,j)=0.0; //i=j=N
-    
-    return B;
-}
 
 
-double GetMinSV(const SMatrix<double>& B)
-{
-    oml::LapackSVDSolver<double> solver;
-    auto [U,s,V]=solver.SolveAll(B);
-    size_t N=s.GetNumRows();
-    return s(N,N);
-}
-
-Vector<double> SolveC(const SMatrix<double>& B) 
-{
-    LapackLinearSolver<double> solver;
-    size_t N=B.GetNumRows();
-    Vector<double> v(N);
-    Fill(v,0.0); 
-    v(N)=1.0;
-    Vector<double> C=solver.Solve(B,v);
-    // std:: cout << B << C << v << del <<std::endl;
-    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
-    return C.SubVector(N-1);   
-}
 
 void SCFAccelerator_DIIS::CalculateProjections()
 {
@@ -248,14 +210,14 @@ void SCFAccelerator_DIIS::CalculateProjections()
     if (itsBailout=En>itsParams.EMax;itsBailout) return;
     itsEs.push_back(E);
     if (itsBailout=itsEs.size()<2;itsBailout) return;
-    SMat B=BuildB(itsEs);
-    while (GetMinSV(B)<itsParams.SVTol) 
+    SMat B=SCFIrrepAccelerator_DIIS::BuildB(itsEs);
+    while (SCFIrrepAccelerator_DIIS::GetMinSV(B)<itsParams.SVTol) 
     {
         if (itsBailout=itsEs.size()<2;itsBailout) return;
         itsEs.erase(itsEs.begin());
-        B=BuildB(itsEs);
+        B=SCFIrrepAccelerator_DIIS::BuildB(itsEs);
     }
-    itsCs=SolveC(B);
+    itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
     for (auto k:itsIrreps) k->SetProjection(itsCs);
 }
 
