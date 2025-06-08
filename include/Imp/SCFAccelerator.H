@@ -59,7 +59,8 @@ private:
     SMat BuildB() const;
     bool IsSingular(const SMat& B, double SVtol);
     RVec SolveC(const SMat& B) const;
-    SMat Project(const SMat& FPrime);
+    RVec Solve();
+    SMat Project(const RVec& c);
     void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
     void Purge(size_t N); 
 

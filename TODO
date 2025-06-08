@@ -34,6 +34,35 @@ Priority 1:
             He and Be have one irrep.  Do they work well?
                 Yes (with some tweaking of how the SCFIter algo handle relmax)
             For Be N=4, SVmin=1e-10 or 1e-9 work very well.
+            DIIS Steps with bailouts
+                1) INput F',D'
+                2) Calculate E=F'D'-D'F' and En=||E||,  
+                    Bail if En is too big
+                3) Add F',E,En to storage
+                    Bail if N<2
+                    Bail if En is too small.
+                4) Purge if N>Nmax
+                5) Calculate B
+                6) Prune F',E,En until B is not singular
+                    Bail if N<2    
+                7) c=solve(B)
+                8) Do the projection and return Fproj.
+            Steps For all Irreps {k}
+                1) Foreach k do 
+                    calc F_k'(H_k,s_k)
+                    Calculate Ek=Fk'Dk'-Dk'Fk' and Enk=||Ek||,  
+                    
+                2) E=sum(Ek)
+                    Bail if En is too big
+                3) Foreach k do Add F_k',E_k,En_k to storage
+                    Bail if N<2
+                    Bail if En is too small.
+                3) Calculate B_ij = sum(k,E_ki*E_kj)0
+                4) Prune F',E,En until B is not singular
+                    Bail if N<2    
+                5) c=Solve B
+                6) foreach k project Fproj_k=sum(i,c_i,F'_ki)
+
         -DIIS design
             Does not need the LASolver, it just needs an interface that can do the ortho tranform.
                 Irrep basis should be able to provide this interface.

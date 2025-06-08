@@ -29,6 +29,7 @@ void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las, const Irrep_QNs
     itsIrrep=qns;
     itsLaSolver=las;
 }
+#include "oml/vector.h"
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const SMat& DPrime)
 {
@@ -37,17 +38,14 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     assert(FPrime.GetLimits()==DPrime.GetLimits());
     Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
     itsLastError=FrobeniusNorm(E);
-    if (itsLastError<itsParams.EMax  && itsLastError> itsParams.EMin)
-    {
-        AppendAndPurge(FPrime,E,itsLastError,itsParams.Nproj);
-        return Project(FPrime);
-    }
-    else
-    {
-        StreamableObject::SetToPretty();
-        std::cout << "Bail qns, E=" << itsIrrep << " " << itsLastError << std::endl;
-        return FPrime;
-    }
+    if (itsLastError>itsParams.EMax) return FPrime;
+  
+    AppendAndPurge(FPrime,E,itsLastError,itsParams.Nproj);
+    if (itsLastError< itsParams.EMin) return FPrime;
+    RVec c=Solve();
+    if (c.size()==0) return FPrime;
+    return Project(c);
+
 }
 
 
@@ -89,7 +87,6 @@ bool SCFIrrepAccelerator_DIIS::IsSingular(const SMat& B, double SVtol)
     return itsLastSVMin<itsParams.SVTol;
 }
 
-#include "oml/vector.h"
 
 SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) const
 {
@@ -104,7 +101,7 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) c
 }
 
 #include "Imp/Containers/stl_io.h"
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& Fprime)
+SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
 {
     SMat B=BuildB();
     size_t N=itsEs.size();
@@ -113,7 +110,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& Fprime)
         if (N<=2)
         {
             itsLastSVMin=1e20;  //indicate bailout.
-            return Fprime;
+            return RVec();
         }
         N--;
         // std::cout << "Purging to N=" << N << std::endl;
@@ -121,7 +118,11 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& Fprime)
         B=BuildB();
     }
     
-    RVec c=SolveC(B); //Solve for the projection coefficients
+    return SolveC(B); //Solve for the projection coefficients
+}
+
+SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const RVec& c)
+{
     assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
 
     // Now do the projection for the Fock matrix.
