@@ -8,29 +8,34 @@
 #include <Irrep_BS.H>
 #include <cassert>
 
-Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec)
+Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)
     , itsEC(ec)
+    , itsAccelerator(acc)
 {
     assert(itsBS);
     assert(itsEC);
+    assert(itsAccelerator);
     assert(itsBS->GetNumFunctions()>0);
     
 };
 
-void Composite_WF::MakeIrrep_WFs(SCFAccelerator& acc, Spin s)
+void Composite_WF::MakeIrrep_WFs(Spin s)
 {
 
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wf(new Irrep_WF(b,s,acc.Create(b)));
+        uiwf_t wf(new Irrep_WF(b,s,itsAccelerator->Create(b)));
         itsQN_WFs[wf->GetQNs()]=wf.get();
         itsSpin_WFs[s].push_back(wf.get());
         itsIWFs.push_back(std::move(wf)); //Do the move last.
     }
 }
 
-Composite_WF::~Composite_WF() {};
+Composite_WF::~Composite_WF() 
+{
+    // delete itsAccelerator; NO!!!! SCFiterator deletes the accelerator.
+};
 
 //----------------------------------------------------------------------------
 //

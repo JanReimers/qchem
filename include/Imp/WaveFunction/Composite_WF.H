@@ -14,7 +14,7 @@ class Composite_WF
     : public virtual WaveFunction
 {
 public:
-    Composite_WF(const BasisSet*,const ElectronConfiguration*);
+    Composite_WF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator*);
     ~Composite_WF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
@@ -28,13 +28,14 @@ public:
     virtual EnergyLevels    GetEnergyLevels (Spin) const; 
 
 protected:
-    void MakeIrrep_WFs(SCFAccelerator&, Spin);
+    void MakeIrrep_WFs(Spin);
 
 private:
     typedef std::unique_ptr<Irrep_WF> uiwf_t;
 
     const BasisSet*              itsBS; 
     const ElectronConfiguration* itsEC;
+    SCFAccelerator*              itsAccelerator;
     EnergyLevels                 itsELevels;
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
 

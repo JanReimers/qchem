@@ -10,11 +10,11 @@ using std::cout;
 using std::endl;
 
 
-Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator& acc)
-    : Composite_WF(bs,ec) 
+Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
+    : Composite_WF(bs,ec,acc) 
 {
-    MakeIrrep_WFs(acc,Spin::Up);
-    MakeIrrep_WFs(acc,Spin::Down);
+    MakeIrrep_WFs(Spin::Up);
+    MakeIrrep_WFs(Spin::Down);
 };
 
 DM_CD* Polarized_WF::GetChargeDensity() const

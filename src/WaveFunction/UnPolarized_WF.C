@@ -3,10 +3,10 @@
 #include "Imp/WaveFunction/UnPolarized_WF.H"
 #include <iostream>
 
-UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator& acc)
-    : Composite_WF(bs,ec)
+UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
+    : Composite_WF(bs,ec,acc)
 {
-    MakeIrrep_WFs(acc,Spin::None);
+    MakeIrrep_WFs(Spin::None);
 };
 
 

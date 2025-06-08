@@ -9,7 +9,7 @@ class Polarized_WF
     , public Composite_WF
 {
 public:
-    Polarized_WF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator& acc);
+    Polarized_WF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator* acc);
     using Composite_WF::GetEnergyLevels;
     using Composite_WF::GetChargeDensity;
 

@@ -34,6 +34,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
 {
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     if (Max(fabs(DPrime))==0.0) return FPrime;
+    assert(FPrime.GetLimits()==DPrime.GetLimits());
     Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
     itsLastError=FrobeniusNorm(E);
     if (itsLastError<itsParams.EMax  && itsLastError> itsParams.EMin)

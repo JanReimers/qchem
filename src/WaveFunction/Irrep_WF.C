@@ -18,10 +18,12 @@ Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms,SCFIrrepAccele
     , itsOrbitals(new  TOrbitalsImp<double>(bs,ms))
     , itsIrrep     (ms,bs->GetSymmetry())
     , itsAccelerator(acc)
+    , itsDPrime(bs->GetNumFunctions())
 {
     assert(itsOrbitals);
     assert(itsAccelerator);
     itsAccelerator->Init(itsLASolver,itsIrrep);
+    Fill(itsDPrime,0.0);
 };
 
 Irrep_WF::~Irrep_WF()
