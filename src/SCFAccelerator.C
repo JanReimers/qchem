@@ -54,17 +54,16 @@ SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p)
     
 {
 };
-
 SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
 {
 
 };
-
 void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las, const Irrep_QNs& qns)
 {
     itsIrrep=qns;
     itsLaSolver=las;
 }
+
 #include "oml/vector.h"
 
 
@@ -83,17 +82,20 @@ SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculeteError() const
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const SMat& DPrime)
 {
+    itsBailout=false;
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
-    if (Max(fabs(DPrime))==0.0) return FPrime;
+    if (itsBailout=Max(fabs(DPrime))==0.0;itsBailout) return FPrime;
     assert(FPrime.GetLimits()==DPrime.GetLimits());
     Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
     itsLastError=FrobeniusNorm(E);
-    if (itsLastError>itsParams.EMax) return FPrime;
+    if (itsBailout=itsLastError>itsParams.EMax;itsBailout) return FPrime;
   
-    AppendAndPurge(FPrime,E,itsLastError,itsParams.Nproj);
-    if (itsLastError< itsParams.EMin) return FPrime;
+    Append(FPrime,E,itsLastError);
+    if (itsEs.size()>itsParams.Nproj) Purge1();
+    assert(itsEs.size()<=itsParams.Nproj);
+    if (itsBailout=itsLastError< itsParams.EMin;itsBailout) return FPrime;
     RVec c=Solve();
-    if (c.size()==0) return FPrime;
+    if (itsBailout=c.size()<2;itsBailout) return FPrime;
     return Project(c);
 
 }
@@ -111,23 +113,29 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
     return ArrayAdd(a,b);
 }
 
+SCFIrrepAccelerator_DIIS::md_t SCFIrrepAccelerator_DIIS::BuildPrunedB(const mv_t& Es,double svmin)
+{
+    SMat B=BuildB(Es);
+    double sv=GetMinSV(B);
+    while (sv<svmin && Es.size()>=2) 
+    {
+        Purge1(); //Must be a member function for this.
+        B=BuildB(Es);
+        sv=GetMinSV(B);
+    }
+    return std::make_pair(B,sv);
+}
 
 #include "Imp/Containers/stl_io.h"
 SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
 {
-    SMat B=BuildB(itsEs);
-    size_t N=itsEs.size();
-    while (GetMinSV(B)<itsParams.SVTol) 
+    SMat B;
+    std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
+    if (B.GetNumRows()<2)
     {
-        if (N<=2)
-        {
-            itsLastSVMin=1e20;  //indicate bailout.
-            return RVec();
-        }
-        N--;
-        // std::cout << "Purging to N=" << N << std::endl;
-        Purge(N);
-        B=BuildB(itsEs);
+        itsBailout=true;
+        RVec c({1});
+        return c;
     }
     
     return SolveC(B); //Solve for the projection coefficients
@@ -146,42 +154,23 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const RVec& c)
 }
 
 #include <algorithm>
-void SCFIrrepAccelerator_DIIS::AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N)
+void SCFIrrepAccelerator_DIIS::Append(const SMat& FPrime, const Mat& E, double En)
 {
     assert(itsEs.size()==itsFPrimes.size());
     assert(itsEns.size()==itsFPrimes.size());
-    // Purge first to avoid purging the latest
-    while (N>0 && itsEs.size()>N-1)
-    {
-        //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
-        auto iter=itsEns.begin(); //just pick the oldest element.
-        size_t index=std::distance(itsEns.begin(),iter);
-        itsEns.erase(iter);
-        itsEs.erase(itsEs.begin()+index);
-        itsFPrimes.erase(itsFPrimes.begin()+index);
-    }
     itsEs.push_back(E);
     itsEns.push_back(En);
-    itsFPrimes.push_back(FPrime);
-    assert(itsEs.size()<=N);
-    assert(itsEns.size()<=N);
-    assert(itsFPrimes.size()<=N);
-    
+    itsFPrimes.push_back(FPrime);   
 }
-void SCFIrrepAccelerator_DIIS::Purge(size_t N)
+
+void SCFIrrepAccelerator_DIIS::Purge1()
 {
-    while (itsEs.size()>N)
-    {
-        //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
-        auto iter=itsEns.begin(); //just pick the oldest element.
-        size_t index=std::distance(itsEns.begin(),iter);
-        itsEns.erase(iter);
-        itsEs.erase(itsEs.begin()+index);
-        itsFPrimes.erase(itsFPrimes.begin()+index);
-    }
-    assert(itsEs.size()==N);
-    assert(itsEns.size()==N);
-    assert(itsFPrimes.size()==N);
+    //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
+    auto iter=itsEns.begin(); //just pick the oldest element.
+    size_t index=std::distance(itsEns.begin(),iter);
+    itsEns.erase(iter);
+    itsEs.erase(itsEs.begin()+index);
+    itsFPrimes.erase(itsFPrimes.begin()+index);
     
 }
 
@@ -229,16 +218,17 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
 {
     double EMax=0.0,SVMin=1.0e20;
     size_t NMin=1000,NMax=0;
+    bool bailout=false;
     for (auto i:itsIrreps)
     {
         if (i->GetError()>EMax) EMax=i->GetError();
         if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
         if (i->GetNproj()<NMin) NMin=i->GetNproj();
         if (i->GetNproj()>NMax) NMax=i->GetNproj();
-        
+        if (i->Bailout()) bailout=true;
     }
     os << std::scientific << std::setw(7) << std::setprecision(1) << EMax << " ";
-    if (SVMin<1.0e20)
+    if (!bailout)
     {
         os << std::setw(3) << NMin << "    " << std::setw(3) << NMax << "     ";
         os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << "  ";

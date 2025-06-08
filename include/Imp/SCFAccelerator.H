@@ -53,6 +53,8 @@ namespace oml
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
+    typedef std::vector< Matrix<double>> mv_t; //matrix-vector type.
+    typedef std::pair<SMat,double> md_t;
     SCFIrrepAccelerator_DIIS(const DIISParams&);
     virtual ~SCFIrrepAccelerator_DIIS();
     virtual void Init(const LASolver<double>*, const Irrep_QNs&);
@@ -65,20 +67,21 @@ public:
     double GetError() const {return itsLastError;}
     double GetSVMin() const {return itsLastSVMin;}
     size_t GetNproj() const {return itsEs.size();}
+    bool   Bailout () const {return itsBailout;}
 
-    static SMat   BuildB(const std::vector< Matrix<double>>&);
+    static SMat   BuildB(const mv_t&);
     static double GetMinSV(const SMatrix<double>& B);
     static RVec   SolveC(const SMatrix<double>& B);
 
 private:
     typedef  Vector<double> RVec;
 
-   
+    md_t BuildPrunedB(const mv_t&,double svmin);
     // RVec SolveC(const SMat& B) const;
     RVec Solve();
     SMat Project(const RVec& c);
-    void AppendAndPurge(const SMat& FPrime, const Mat& E, double En, size_t N);
-    void Purge(size_t N); 
+    void Append(const SMat& FPrime, const Mat& E, double En);
+    void Purge1();
 
     DIISParams                   itsParams; 
     Irrep_QNs                    itsIrrep;
@@ -86,8 +89,10 @@ private:
     double                       itsLastSVMin;  //Smallest singular value for latest B matric.
     SMat                         itsFPrime,itsDPrime;    
     RVec                         itsCs;  //Projection coefficients.
+    bool                         itsBailout;
+
     std::vector<SMatrix<double>> itsFPrimes;
-    std::vector< Matrix<double>> itsEs; //Error matrices
+    mv_t                         itsEs; //Error matrices
     std::vector<        double > itsEns; //Errors ||E||
     const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
 
