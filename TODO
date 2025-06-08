@@ -299,6 +299,7 @@ Priority 1:
     -GaussianRF.C has its own DFact tables.  Use the global tables.
     
 oml:
+    SMat return A*B-B*A -> not suitable conversion exists.
     LapackLinearSolver is messed up, seem to be missing LinearSolver.C
         Put it in oml namespace.
     -Support SMatrix for Lapack solvers.

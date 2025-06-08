@@ -6,11 +6,15 @@
 class SCFIrrepAccelerator
 {
 protected:
+    typedef Vector<double>  RVec;
     typedef  Matrix<double>  Mat;
     typedef SMatrix<double> SMat;
 public:
     virtual ~SCFIrrepAccelerator() {};
     virtual void Init(const LASolver<double>*, const Irrep_QNs&)=0; //Solver knows how to transform to orthogonal basis.
+    virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
+    virtual void SetProjection(const RVec& cs)=0;
+    virtual  Mat CalculeteError() const=0;
     virtual SMat Project(const SMat& F, const SMat& DPrime)=0; //Fock and Density matrices.
 
 };
@@ -21,6 +25,7 @@ class SCFAccelerator
 public:
     virtual ~SCFAccelerator() {};
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*)=0;
+    virtual void CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;
     virtual double GetError() const=0;
@@ -35,8 +40,13 @@ struct DIISParams
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
 };
 
+#include <vector>
+SMatrix<double> BuildB(const std::vector< Matrix<double>>&);
+bool IsSingular(const SMatrix<double>& B, double SVtol);
+
 #include <Orbital_QNs.H>
 #include "oml/smatrix.h"
+#include "oml/vector.h"
 template <class T> class LinearSolver;
 namespace oml
 {
@@ -48,6 +58,10 @@ public:
     SCFIrrepAccelerator_DIIS(const DIISParams&);
     virtual ~SCFIrrepAccelerator_DIIS();
     virtual void Init(const LASolver<double>*, const Irrep_QNs&);
+    virtual void UseFD(const SMat& F, const SMat& DPrime);
+    virtual void SetProjection(const RVec& cs) {itsCs=cs;}
+
+    virtual  Mat CalculeteError() const;
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
    
     double GetError() const {return itsLastError;}
@@ -68,7 +82,8 @@ private:
     Irrep_QNs                    itsIrrep;
     double                       itsLastError;  // [F',D']
     double                       itsLastSVMin;  //Smallest singular value for latest B matric.
-
+    SMat                         itsFPrime,itsDPrime;    
+    RVec                         itsCs;  //Projection coefficients.
     std::vector<SMatrix<double>> itsFPrimes;
     std::vector< Matrix<double>> itsEs; //Error matrices
     std::vector<        double > itsEns; //Errors ||E||
@@ -85,13 +100,21 @@ public:
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*);
+    virtual void CalculateProjections();
     virtual void ShowLabels     (std::ostream&) const;
     virtual void ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
 
 private:
+    typedef  Matrix<double>  Mat;
+    typedef SMatrix<double> SMat;
+    typedef  Vector<double> RVec;
     DIISParams itsParams;
     std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
+
+    bool itsBailout;
+    std::vector<Mat> itsEs; //Error matrices
+    RVec itsCs;
 };
 
 #endif //_SCFAccelerator_H_

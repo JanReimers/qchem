@@ -12,6 +12,7 @@ public:
     Irrep_WF(const TOrbital_IBS<double>*, const Spin&,SCFIrrepAccelerator*);
     ~Irrep_WF();
 
+    void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
     void                DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
     DM_CD*              GetChargeDensity(                            ) const;
     const Orbitals*     GetOrbitals     (           ) const;

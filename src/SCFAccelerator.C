@@ -31,6 +31,20 @@ void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las, const Irrep_QNs
 }
 #include "oml/vector.h"
 
+
+void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
+{
+    itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
+    assert(itsFPrime.GetLimits()==DPrime.GetLimits());
+    itsDPrime=DPrime;
+}
+
+SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculeteError() const
+{
+    return itsFPrime*itsDPrime-itsDPrime*itsFPrime;
+}
+
+
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const SMat& DPrime)
 {
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
@@ -184,6 +198,65 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs)
 {
     itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams));
     return itsIrreps.back();;
+}
+
+SMatrix<double> BuildB(const std::vector< Matrix<double>>& Es)
+{
+    index_t N=Es.size()+1;
+    SMatrix<double> B(N,N);
+    for (index_t i:B.rows())
+        for (index_t j:B.cols(i))
+            if (i<N)
+                if (j<N)
+                    B(i,j)=Dot(Es[i-1],Es[j-1]);
+                else
+                    B(i,j)=1.0;
+            else
+                B(i,j)=0.0; //i=j=N
+    
+    return B;
+}
+
+
+double GetMinSV(const SMatrix<double>& B)
+{
+    oml::LapackSVDSolver<double> solver;
+    auto [U,s,V]=solver.SolveAll(B);
+    size_t N=s.GetNumRows();
+    return s(N,N);
+}
+
+Vector<double> SolveC(const SMatrix<double>& B) 
+{
+    LapackLinearSolver<double> solver;
+    size_t N=B.GetNumRows();
+    Vector<double> v(N);
+    Fill(v,0.0); 
+    v(N)=1.0;
+    Vector<double> C=solver.Solve(B,v);
+    // std:: cout << B << C << v << del <<std::endl;
+    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
+    return C.SubVector(N-1);   
+}
+
+void SCFAccelerator_DIIS::CalculateProjections()
+{
+    itsBailout=false;
+    Mat E;
+    for (auto k:itsIrreps) E+=k->CalculeteError();
+    double En=FrobeniusNorm(E);
+    if (itsBailout=En>itsParams.EMax;itsBailout) return;
+    itsEs.push_back(E);
+    if (itsBailout=itsEs.size()<2;itsBailout) return;
+    SMat B=BuildB(itsEs);
+    while (GetMinSV(B)<itsParams.SVTol) 
+    {
+        if (itsBailout=itsEs.size()<2;itsBailout) return;
+        itsEs.erase(itsEs.begin());
+        B=BuildB(itsEs);
+    }
+    itsCs=SolveC(B);
+    for (auto k:itsIrreps) k->SetProjection(itsCs);
 }
 
 void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
