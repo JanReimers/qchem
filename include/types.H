@@ -123,6 +123,7 @@ template <class T> class TOrbital_HF_IBS;
 template <class T> class Orbital_RKBL_IBS;
 template <class T> class Orbital_RKBS_IBS;
 template <class T> class TOrbital;
+template <class T> class TOrbitals;
 
 namespace qchem
 {

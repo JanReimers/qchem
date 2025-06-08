@@ -1,6 +1,6 @@
 
 Priority 1:
-
+    More use of structured bindings for map iterating.
     Done: -Orbital_QNs
         Use std::shared_ptr for sym.
     -Convergence acceleration.
@@ -14,6 +14,10 @@ Priority 1:
             We need to know how [F,D] scales.  Maybe -[F,D]/E is better.
         Done: -Clean up DIIS code.
             Make unit test that track iteration count 
+        DIIS singular B
+            Shprd & Minkoff 2007 eq 23.  Linear Least Squares much better condition number.
+            SVD and trunctate B?
+                We don't need a uniqe c vector, just need any c than minimizes ||e||
         -EDIIS
         -Make a pass through accelerator.
         -DIIS auto adjust Npurge 
@@ -23,6 +27,8 @@ Priority 1:
             One thing left out of the literature is when to add error vectors and when to start using them?
             Yb, Z = 70, [Xe] 6s2 4f14 (1S) is a very tough convergence.
                 Need relax=0.1 just to get going before DIIS kicks in.
+                f orbitals are the ones converging very slowely.
+                Same for smaller basis sets?
         -DIIS should e be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
             This should be optional
             He and Be have one irrep.  Do they work well?
@@ -30,7 +36,14 @@ Priority 1:
             For Be N=4, SVmin=1e-10 or 1e-9 work very well.
         -DIIS design
             Does not need the LASolver, it just needs an interface that can do the ortho tranform.
+                Irrep basis should be able to provide this interface.
             Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
+                only the orbital knows D or Dprime.
+                In software (currently) IrrepWF and TOrbtials are alsmost the same thing.  But this is mostly an effect of
+                    1) We done ask for pair or high quantities like WF(r1,r2,r3...)
+                    2) Antisymmetry is all encapsulated in integral rules.
+                In any case building H depends in principle on the Slater determinant, which is a concept that belongs in WF, not orbitals.
+                
             Done: Refactor WF for less spin dependence? (similar to CD)
             Irrep_QNs should be a separate header.
         A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT

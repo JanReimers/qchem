@@ -4,6 +4,7 @@
 
 #include <EnergyLevel.H>
 #include <Orbital_QNs.H>
+#include "oml/smatrix.h"
 
 class Irrep_WF
 {
@@ -18,13 +19,18 @@ public:
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     void                DisplayEigen    (                            ) const;
     const Irrep_QNs&    GetQNs          () const {return itsIrrep;}
+    Vector<double>      Get_BS_Diagonal () const;
+
  private:
     Irrep_WF(const Irrep_WF&);
 
-    Orbitals*     itsOrbitals; //Owned
-    Irrep_QNs     itsIrrep;
-    EnergyLevels  itsELevels;
-
+    const TOrbital_IBS<double>*  itsBasisSet;
+    LASolver<double>*            itsLASolver;
+    TOrbitals<double>*           itsOrbitals; //Owned
+    Irrep_QNs                    itsIrrep;
+    EnergyLevels                 itsELevels;
+    SCFIrrepAccelerator*         itsAccelerator;
+    SMatrix<double>              itsDPrime,itsF; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 }; 
 
 #endif //IrrepWaveFunction

@@ -6,8 +6,6 @@
 #include "Orbital.H"
 #include <Orbital_QNs.H>
 #include "oml/smatrix.h"
-#include <memory>
-#include <vector>
 
 
 template <class T> class TOrbitalsImp
@@ -23,20 +21,20 @@ template <class T> class TOrbitalsImp
     typedef typename Base::RVec3   RVec3;  //Real space vector.
     typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
+    typedef typename TOrbitals<T>::ds_t ds_t; //{double,SMat}}
 public:
-    TOrbitalsImp(const TOrbital_IBS<T>*, Spin s,SCFIrrepAccelerator* acc);
+    TOrbitalsImp(const TOrbital_IBS<T>*, Spin s);
     virtual ~TOrbitalsImp();
 
 
-    virtual double    TakeElectrons      (double ne      )      ;
+    virtual ds_t      TakeElectrons      (double ne      )      ;
     virtual index_t   GetNumOrbitals     (               ) const;
     virtual index_t   GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
     virtual DM_CD*    GetChargeDensity   () const;
-    virtual void      UpdateOrbitals     (Hamiltonian&, const DM_CD*);
+    virtual void      UpdateOrbitals     (const Mat& U, const Mat& UPrime, const RVec& e);
     virtual Irrep_QNs GetQNs() const;
-    virtual RVec      Get_BS_Diagonal() const;
-
+    
     virtual Vec     operator()(const RVec3&) const;
     virtual Vec3Vec Gradient  (const RVec3&) const;
 
@@ -54,10 +52,8 @@ private:
 
     const TOrbital_IBS<T>*  itsBasisSet;
     ov_t                    itsOrbitals;
-    LASolver<double>*       itsLASolver; //General eigen solver
     Irrep_QNs               itsQNs;
-    SCFIrrepAccelerator*    itsAccelerator;
-    SMat                    itsD, itsDPrime, itsF; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    SMat                    itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 
 

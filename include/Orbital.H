@@ -65,15 +65,12 @@ public:
     typedef ov_t::const_iterator const_iterator;
 
     virtual ~Orbitals() {};
-    virtual double         TakeElectrons      (double ne      )      =0;
     virtual index_t        GetNumOrbitals     (               ) const=0;
     virtual index_t        GetNumOccOrbitals  (               ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual DM_CD*         GetChargeDensity   (               ) const=0;
-    virtual void           UpdateOrbitals     (Hamiltonian&, const DM_CD*)=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep_QNs      GetQNs() const=0;
-    virtual RVec           Get_BS_Diagonal() const=0;
 
     virtual std::ostream& Write  (std::ostream&) const=0;
    
@@ -121,6 +118,13 @@ public:
     {
         return GetNumOrbitals();
     }
+    typedef Vector<double> RVec;
+    typedef  Matrix<T>  Mat;
+    typedef SMatrix<T> SMat;
+    typedef std::tuple<double,SMat> ds_t;
+
+    virtual void  UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)=0;
+    virtual ds_t TakeElectrons (double ne)=0;
 
     static  TOrbitals* Factory(std::istream&)        ;
 };

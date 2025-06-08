@@ -6,41 +6,28 @@
 #include "Imp/Orbitals/TOrbital.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Misc/DFTDefines.H"
-#include "Imp/SCFAccelerator.H"
 #include <Irrep_BS.H>
-#include <Hamiltonian.H>
-#include <Symmetry.H>
-#include <Orbital_QNs.H>
-#include <LASolver.H>
 #include "Imp/Containers/stl_io.h"
-#include "oml/vector.h"
-#include "oml/matrix.h"
-#include <iostream>
 
 //-----------------------------------------------------------------
 //
 //  Construction zone
 //
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms,SCFIrrepAccelerator* acc)
+TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
     : itsBasisSet(bs)
-    , itsLASolver(bs->CreateSolver())
     , itsQNs(ms,bs->GetSymmetry())
-    , itsAccelerator(acc)
     , itsD     (bs->GetNumFunctions())
-    , itsDPrime(bs->GetNumFunctions())
 {
     assert(itsBasisSet->GetNumFunctions()>0);
-    assert(itsAccelerator);
-    itsAccelerator->Init(itsLASolver,itsQNs);
+    
     Fill(itsD,0.0);
-    Fill(itsDPrime,0.0);
+  
 };
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
 {
-    delete itsLASolver;
-    delete itsAccelerator;
+ 
 }
 
 //-----------------------------------------------------------------
@@ -78,24 +65,10 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 //
 //  This is where the real SCF work gets done.
 //
-template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const DM_CD* cd)
+template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)
 {
-    assert(itsBasisSet);
-    itsF=ham.GetMatrix(itsBasisSet,itsQNs.ms,cd);
-    //
-    //  Feed F,D into the SCF accelerator
-    //
-    SMat Fprime=itsAccelerator->Project(itsF,itsDPrime); //Calcularte F'=Vd*F*V and conditionally project F'
-    assert(!isnan(Fprime));
-    auto [U,UPrime,e]=itsLASolver->SolveOrtho(Fprime);
-
-    // assert(!isnan(itsFockMatrix));
-    // auto [U,e]=itsLASolver->Solve(itsFockMatrix);
-
     itsOrbitals.clear();
     index_t n=e.size();
-    //std::cout << "   Eigen values=" << e << std::endl;
-
     //
     //  Strip out all the positron orbitals.
     //
@@ -110,7 +83,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(Hamiltonian& ham,const D
 
     }
 }
-template <class T> double TOrbitalsImp<T>::TakeElectrons(double ne)
+template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne)
 {
     // Dump electrons into orbitals, starting from the lowest energy.
     for (auto o:this->Iterate<Orbital>())
@@ -122,9 +95,10 @@ template <class T> double TOrbitalsImp<T>::TakeElectrons(double ne)
     //  Now the orbitals are accupied we can build the density matrix.
     //
     Fill(itsD,T(0.0));
-    Fill(itsDPrime,T(0.0));
-    for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,itsDPrime);
-    return ne;
+    SMat DPrime(itsD.GetLimits());
+    Fill(DPrime,T(0.0));
+    for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,DPrime);
+    return std::make_tuple(ne,DPrime);
 }
 
 template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
@@ -138,11 +112,7 @@ template <class T>  Irrep_QNs TOrbitalsImp<T>::GetQNs() const
     return itsQNs;
 }
 
-template <class T>  typename TOrbitalsImp<T>::RVec TOrbitalsImp<T>::Get_BS_Diagonal() const
-{
-    assert(itsLASolver);
-    return itsLASolver->Get_BS_Diagonal();
-}
+
 //-----------------------------------------------------------------
 //
 //  VectorFunction stuff.
