@@ -25,7 +25,7 @@ class SCFAccelerator
 public:
     virtual ~SCFAccelerator() {};
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*)=0;
-    virtual void CalculateProjections()=0;
+    virtual bool CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;
     virtual double GetError() const=0;
@@ -67,14 +67,17 @@ public:
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
     virtual SMat Project(); 
    
-    double GetError() const {return itsLastError;}
+    double GetError() const {return itsLastEn;}
     double GetSVMin() const {return itsLastSVMin;}
     size_t GetNproj() const {return itsEs.size();}
     bool   Bailout () const {return itsBailout;}
+    void   GlobalBailout() {itsBailout=true;}
+    void   AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
 
     static SMat   BuildB(const mv_t&);
     static double GetMinSV(const SMatrix<double>& B);
     static RVec   SolveC(const SMatrix<double>& B);
+    void Purge1();
 
 private:
     typedef  Vector<double> RVec;
@@ -84,13 +87,13 @@ private:
     RVec Solve();
     SMat Project(const RVec& c);
     void Append(const SMat& FPrime, const Mat& E, double En);
-    void Purge1();
 
     DIISParams                   itsParams; 
     Irrep_QNs                    itsIrrep;
-    double                       itsLastError;  // [F',D']
+    double                       itsLastEn;  // [F',D']
     double                       itsLastSVMin;  //Smallest singular value for latest B matric.
     SMat                         itsFPrime,itsDPrime;    
+    Mat                          itsLastE;
     RVec                         itsCs;  //Projection coefficients.
     bool                         itsBailout;
 
@@ -115,7 +118,7 @@ public:
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*);
-    virtual void CalculateProjections();
+    virtual bool CalculateProjections();
     virtual void ShowLabels     (std::ostream&) const;
     virtual void ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
@@ -123,13 +126,14 @@ public:
 private:
     md_t BuildPrunedB(const mv_t&,double svmin);
     void Purge1();
+    bool BailoutChildren();
 
   
     DIISParams itsParams;
     std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
 
     bool itsBailout;
-    double itsLastSVMin;
+    double itsEn,itsLastSVMin;
     mv_t itsEs; //Error matrices
     RVec itsCs;
 };

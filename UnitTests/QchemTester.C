@@ -40,7 +40,7 @@ void QchemTester::Init(double eps)
     itsBasisSet=GetBasisSet(); //SG, PG, Slater
     assert(itsBasisSet);
     // int Z=GetZ();
-    SCFAccelerator* acc=new SCFAccelerator_DIIS({DIISParams::irrep,8,0.1,1e-7,1e-9});
+    SCFAccelerator* acc=new SCFAccelerator_DIIS({DIISParams::global,8,0.1,1e-7,1e-9});
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }

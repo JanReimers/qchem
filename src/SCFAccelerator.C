@@ -51,7 +51,7 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B)
 
 SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p) 
     : itsParams(p)
-    , itsLastError(0.0)
+    , itsLastEn(0.0)
     , itsLastSVMin(1e20)
     , itsCs(1)
 {
@@ -75,6 +75,7 @@ void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
     itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.GetLimits()==DPrime.GetLimits());
     itsDPrime=DPrime;
+    itsBailout = Max(fabs(itsDPrime))==0.0;
 }
 
 SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError() const
@@ -89,14 +90,14 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
     SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     if (itsBailout=Max(fabs(DPrime))==0.0;itsBailout) return FPrime;
     assert(FPrime.GetLimits()==DPrime.GetLimits());
-    Mat E=FPrime*DPrime-DPrime*FPrime;// Make the communtator
-    itsLastError=FrobeniusNorm(E);
-    if (itsBailout=itsLastError>itsParams.EMax;itsBailout) return FPrime;
+    itsLastE=FPrime*DPrime-DPrime*FPrime;// Make the communtator
+    itsLastEn=FrobeniusNorm(itsLastE);
+    if (itsBailout=itsLastEn>itsParams.EMax;itsBailout) return FPrime;
   
-    Append(FPrime,E,itsLastError);
+    Append(FPrime,itsLastE,itsLastEn);
     if (itsEs.size()>itsParams.Nproj) Purge1();
     assert(itsEs.size()<=itsParams.Nproj);
-    if (itsBailout=itsLastError< itsParams.EMin;itsBailout) return FPrime;
+    if (itsBailout=itsLastEn< itsParams.EMin;itsBailout) return FPrime;
     RVec c=Solve();
     if (itsBailout=c.size()<2;itsBailout) return FPrime;
     return Project(c);
@@ -113,6 +114,15 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
 
 
 template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
+{
+    if (a.size()==0) 
+    {
+        a.SetLimits(b.GetLimits());
+        Fill(a,0.0);
+    }
+    return ArrayAdd(a,b);
+}
+template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
 {
     if (a.size()==0) 
     {
@@ -157,13 +167,13 @@ bool SCFIrrepAccelerator_DIIS::CalculateProjections()
     if (itsBailout=Max(fabs(itsDPrime))==0.0;itsBailout) return itsBailout;
     assert(itsFPrime.GetLimits()==itsDPrime.GetLimits());
     Mat E=CalculateError();
-    itsLastError=FrobeniusNorm(E);
-    if (itsBailout=itsLastError>itsParams.EMax;itsBailout) return itsBailout;
+    itsLastEn=FrobeniusNorm(E);
+    if (itsBailout=itsLastEn>itsParams.EMax;itsBailout) return itsBailout;
   
-    Append(itsFPrime,E,itsLastError);
+    Append(itsFPrime,E,itsLastEn);
     if (itsEs.size()>itsParams.Nproj) Purge1();
     assert(itsEs.size()<=itsParams.Nproj);
-    if (itsBailout=itsLastError< itsParams.EMin;itsBailout) 
+    if (itsBailout=itsLastEn< itsParams.EMin;itsBailout) 
         return itsBailout;
     
     SMat B;
@@ -186,6 +196,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const RVec& c)
     assert(!itsBailout);
     assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
     assert(c.size()>=2);
+    assert(c.size()==itsFPrimes.size());
     // Now do the projection for the Fock matrix.
     SMat Fproj;
     index_t i=1;
@@ -250,10 +261,10 @@ void SCFAccelerator_DIIS::Purge1()
     //itsEns.erase(iter);
     itsEs.erase(itsEs.begin()+index);
     //itsFPrimes.erase(itsFPrimes.begin()+index);
-    
+    for (auto k:itsIrreps) k->Purge1();
 }
 
-void SCFAccelerator_DIIS::CalculateProjections()
+bool SCFAccelerator_DIIS::CalculateProjections()
 {
     itsBailout=false;
     switch (itsParams.type)
@@ -268,19 +279,26 @@ void SCFAccelerator_DIIS::CalculateProjections()
         }
         case DIISParams::global:
         {
+            itsBailout=false;
+            for (auto k:itsIrreps) 
+                itsBailout=k->Bailout() || itsBailout;
+            if (itsBailout) return itsBailout;
+
             Mat E;
             for (auto k:itsIrreps) E+=k->CalculateError();
-            double En=FrobeniusNorm(E);
-            if (itsBailout=En>itsParams.EMax;itsBailout) return;
+            itsEn=FrobeniusNorm(E);
+            if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
             itsEs.push_back(E);
-            if (itsBailout=itsEs.size()<2;itsBailout) return;
+            for (auto k:itsIrreps) k->AppendFPrime();
+            if (itsBailout=itsEs.size()<2;itsBailout) return BailoutChildren();
             SMat B;
             std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
-            if (B.GetNumRows()<2)
+            if (B.GetNumRows()<=2)
             {
                 itsBailout=true;
                 itsCs=RVec(1);
                 itsCs(1)=1.0;
+                return BailoutChildren();
             }
             else
                 itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
@@ -290,7 +308,13 @@ void SCFAccelerator_DIIS::CalculateProjections()
         }
 
     }
-    
+    return itsBailout;
+}
+bool SCFAccelerator_DIIS::BailoutChildren()
+{
+    assert(itsBailout);
+        for (auto k:itsIrreps) k->GlobalBailout();
+    return itsBailout;
 }
 
 void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
@@ -302,13 +326,30 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
     double EMax=0.0,SVMin=1.0e20;
     size_t NMin=1000,NMax=0;
     bool bailout=false;
-    for (auto i:itsIrreps)
+    switch (itsParams.type)
     {
-        if (i->GetError()>EMax) EMax=i->GetError();
-        if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
-        if (i->GetNproj()<NMin) NMin=i->GetNproj();
-        if (i->GetNproj()>NMax) NMax=i->GetNproj();
-        if (i->Bailout()) bailout=true;
+        case DIISParams::irrep :
+        {
+            for (auto i:itsIrreps)
+            {
+                if (i->GetError()>EMax) EMax=i->GetError();
+                if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
+                if (i->GetNproj()<NMin) NMin=i->GetNproj();
+                if (i->GetNproj()>NMax) NMax=i->GetNproj();
+                if (i->Bailout()) bailout=true;
+            }
+            
+           
+            break;
+        }
+        case DIISParams::global :
+        {
+            bailout=itsBailout;
+            EMax=itsEn;
+            SVMin=itsLastSVMin;
+            NMax=NMin=itsEs.size();
+            break;
+        }
     }
     os << std::scientific << std::setw(7) << std::setprecision(1) << EMax << " ";
     if (!bailout)
@@ -316,7 +357,7 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
         os << std::setw(3) << NMin << "    " << std::setw(3) << NMax << "     ";
         os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << "  ";
     }
-    else
+        else
         os << "                        ";
 }
 
