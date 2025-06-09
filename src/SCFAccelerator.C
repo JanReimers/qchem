@@ -141,6 +141,20 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
     return SolveC(B); //Solve for the projection coefficients
 }
 
+void SCFIrrepAccelerator_DIIS::CalculateProjections()
+{
+    SMat B;
+    std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
+    if (B.GetNumRows()<2)
+    {
+        itsBailout=true;
+        itsCs=RVec({1});
+    }
+    else
+        itsCs=SolveC(B); //Solve for the projection coefficients
+}
+
+
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const RVec& c)
 {
     assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
@@ -188,7 +202,29 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs)
 }
 
 
+SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(const mv_t& Es,double svmin)
+{
+    SMat B=SCFIrrepAccelerator_DIIS::BuildB(Es);
+    double sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
+    while (sv<svmin && Es.size()>=2) 
+    {
+        Purge1(); //Must be a member function for this.
+        B=SCFIrrepAccelerator_DIIS::BuildB(Es);
+        sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
+    }
+    return std::make_pair(B,sv);    
+}
 
+void SCFAccelerator_DIIS::Purge1()
+{
+    //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
+    auto iter=itsEs.begin(); //just pick the oldest element.
+    size_t index=std::distance(itsEs.begin(),iter);
+    //itsEns.erase(iter);
+    itsEs.erase(itsEs.begin()+index);
+    //itsFPrimes.erase(itsFPrimes.begin()+index);
+    
+}
 
 void SCFAccelerator_DIIS::CalculateProjections()
 {
@@ -199,14 +235,16 @@ void SCFAccelerator_DIIS::CalculateProjections()
     if (itsBailout=En>itsParams.EMax;itsBailout) return;
     itsEs.push_back(E);
     if (itsBailout=itsEs.size()<2;itsBailout) return;
-    SMat B=SCFIrrepAccelerator_DIIS::BuildB(itsEs);
-    while (SCFIrrepAccelerator_DIIS::GetMinSV(B)<itsParams.SVTol) 
+    SMat B;
+    std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
+    if (B.GetNumRows()<2)
     {
-        if (itsBailout=itsEs.size()<2;itsBailout) return;
-        itsEs.erase(itsEs.begin());
-        B=SCFIrrepAccelerator_DIIS::BuildB(itsEs);
+        itsBailout=true;
+        itsCs=RVec({1});
     }
-    itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
+    else
+        itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
+
     for (auto k:itsIrreps) k->SetProjection(itsCs);
 }
 

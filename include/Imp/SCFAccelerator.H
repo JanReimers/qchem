@@ -53,7 +53,7 @@ namespace oml
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    typedef std::vector< Matrix<double>> mv_t; //matrix-vector type.
+    typedef std::vector<Mat> mv_t; //matrix-vector type.
     typedef std::pair<SMat,double> md_t;
     SCFIrrepAccelerator_DIIS(const DIISParams&);
     virtual ~SCFIrrepAccelerator_DIIS();
@@ -62,6 +62,7 @@ public:
     virtual void SetProjection(const RVec& cs) {itsCs=cs;}
 
     virtual  Mat CalculeteError() const;
+    virtual void CalculateProjections();
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
    
     double GetError() const {return itsLastError;}
@@ -101,7 +102,14 @@ private:
 
 class SCFAccelerator_DIIS : public virtual SCFAccelerator
 {
+protected:
+    typedef Vector<double>  RVec;
+    typedef  Matrix<double>  Mat;
+    typedef SMatrix<double> SMat;
 public:
+    typedef std::vector< Mat> mv_t; //matrix-vector type.
+    typedef std::pair<SMat,double> md_t;
+
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
     virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*);
@@ -111,14 +119,16 @@ public:
     virtual double GetError() const;
 
 private:
-    typedef  Matrix<double>  Mat;
-    typedef SMatrix<double> SMat;
-    typedef  Vector<double> RVec;
+    md_t BuildPrunedB(const mv_t&,double svmin);
+    void Purge1();
+
+  
     DIISParams itsParams;
     std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
 
     bool itsBailout;
-    std::vector<Mat> itsEs; //Error matrices
+    double itsLastSVMin;
+    mv_t itsEs; //Error matrices
     RVec itsCs;
 };
 
