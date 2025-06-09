@@ -6,6 +6,8 @@
 #include "oml/numeric/LapackLinearSolver.H"
 #include "oml/numeric/LapackSVDSolver.H"
 
+using std::cout;
+using std::endl;
 
 #include "oml/diagonalmatrix.h"
 
@@ -51,8 +53,9 @@ SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p)
     : itsParams(p)
     , itsLastError(0.0)
     , itsLastSVMin(1e20)
-    
+    , itsCs(1)
 {
+    itsCs(1)=1.0;
 };
 SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
 {
@@ -74,7 +77,7 @@ void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
     itsDPrime=DPrime;
 }
 
-SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculeteError() const
+SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError() const
 {
     return itsFPrime*itsDPrime-itsDPrime*itsFPrime;
 }
@@ -100,7 +103,13 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const
 
 }
 
-
+SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
+{
+    if (itsBailout) 
+        return itsFPrime;
+    else
+        return Project(itsCs);
+}
 
 
 template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
@@ -141,24 +150,42 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
     return SolveC(B); //Solve for the projection coefficients
 }
 
-void SCFIrrepAccelerator_DIIS::CalculateProjections()
+bool SCFIrrepAccelerator_DIIS::CalculateProjections()
 {
+    // cout << itsIrrep << endl;
+    itsBailout=false;
+    if (itsBailout=Max(fabs(itsDPrime))==0.0;itsBailout) return itsBailout;
+    assert(itsFPrime.GetLimits()==itsDPrime.GetLimits());
+    Mat E=CalculateError();
+    itsLastError=FrobeniusNorm(E);
+    if (itsBailout=itsLastError>itsParams.EMax;itsBailout) return itsBailout;
+  
+    Append(itsFPrime,E,itsLastError);
+    if (itsEs.size()>itsParams.Nproj) Purge1();
+    assert(itsEs.size()<=itsParams.Nproj);
+    if (itsBailout=itsLastError< itsParams.EMin;itsBailout) 
+        return itsBailout;
+    
     SMat B;
     std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
-    if (B.GetNumRows()<2)
+    if (B.GetNumRows()<=2)
     {
         itsBailout=true;
-        itsCs=RVec({1});
+        itsCs=RVec(1);
+        itsCs(1)=1.0;
     }
     else
         itsCs=SolveC(B); //Solve for the projection coefficients
+    
+    return itsBailout;
 }
 
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const RVec& c)
 {
+    assert(!itsBailout);
     assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
-
+    assert(c.size()>=2);
     // Now do the projection for the Fock matrix.
     SMat Fproj;
     index_t i=1;
@@ -229,23 +256,41 @@ void SCFAccelerator_DIIS::Purge1()
 void SCFAccelerator_DIIS::CalculateProjections()
 {
     itsBailout=false;
-    Mat E;
-    for (auto k:itsIrreps) E+=k->CalculeteError();
-    double En=FrobeniusNorm(E);
-    if (itsBailout=En>itsParams.EMax;itsBailout) return;
-    itsEs.push_back(E);
-    if (itsBailout=itsEs.size()<2;itsBailout) return;
-    SMat B;
-    std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
-    if (B.GetNumRows()<2)
+    switch (itsParams.type)
     {
-        itsBailout=true;
-        itsCs=RVec({1});
-    }
-    else
-        itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
+        case DIISParams::irrep:
+        {
+            for (auto k:itsIrreps) 
+            {
+                itsBailout = k->CalculateProjections() || itsBailout;
+            }
+            break;
+        }
+        case DIISParams::global:
+        {
+            Mat E;
+            for (auto k:itsIrreps) E+=k->CalculateError();
+            double En=FrobeniusNorm(E);
+            if (itsBailout=En>itsParams.EMax;itsBailout) return;
+            itsEs.push_back(E);
+            if (itsBailout=itsEs.size()<2;itsBailout) return;
+            SMat B;
+            std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
+            if (B.GetNumRows()<2)
+            {
+                itsBailout=true;
+                itsCs=RVec(1);
+                itsCs(1)=1.0;
+            }
+            else
+                itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
 
-    for (auto k:itsIrreps) k->SetProjection(itsCs);
+            for (auto k:itsIrreps) k->SetProjection(itsCs);
+            break;
+        }
+
+    }
+    
 }
 
 void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const

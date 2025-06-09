@@ -44,7 +44,7 @@ Composite_WF::~Composite_WF()
 //
 void Composite_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
-    for (auto& w:itsIWFs) w->CalculateH(ham,cd);
+    for (auto& w:itsIWFs) w->CalculateH(ham,cd); //Feed F,D' into all the irre eccelerators.
     itsAccelerator->CalculateProjections();
     for (auto& w:itsIWFs) w->DoSCFIteration(ham,cd);
 }

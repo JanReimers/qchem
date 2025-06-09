@@ -10,7 +10,8 @@
 #include <Hamiltonian.H>
 #include "oml/vector.h"
 
-
+using std::cout;
+using std::endl;
 
 Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms,SCFIrrepAccelerator* acc)
     : itsBasisSet(bs)
@@ -47,12 +48,13 @@ void Irrep_WF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 void Irrep_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
-    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd);
+    // itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd);
     //
     //  Feed F,D into the SCF accelerator
     //
-    SMatrix<double> Fprime=itsAccelerator->Project(itsF,itsDPrime); //Calcularte F'=Vd*F*V and conditionally project F'
-    auto [U,Up,e]=itsLASolver->SolveOrtho(Fprime);
+    SMatrix<double> FPrime=itsAccelerator->Project(); //Calcularte F'=Vd*F*V and conditionally project F'
+    // cout << "FPrime=" << FPrime << endl;
+    auto [U,Up,e]=itsLASolver->SolveOrtho(FPrime);
     itsOrbitals->UpdateOrbitals(U,Up,e);
 }
 //

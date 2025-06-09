@@ -14,9 +14,9 @@ public:
     virtual void Init(const LASolver<double>*, const Irrep_QNs&)=0; //Solver knows how to transform to orthogonal basis.
     virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
     virtual void SetProjection(const RVec& cs)=0;
-    virtual  Mat CalculeteError() const=0;
+    virtual  Mat CalculateError() const=0;
     virtual SMat Project(const SMat& F, const SMat& DPrime)=0; //Fock and Density matrices.
-
+    virtual SMat Project()=0; 
 };
 
 #include <iosfwd>
@@ -34,6 +34,7 @@ public:
 
 struct DIISParams
 {
+    enum {global,irrep} type;
     size_t Nproj;  //Number of terms to keep for proections.
     double EMax;   //DIIS starts when E<EMax
     double EMin;   //DIIS stops when E<EMin
@@ -61,9 +62,10 @@ public:
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual void SetProjection(const RVec& cs) {itsCs=cs;}
 
-    virtual  Mat CalculeteError() const;
-    virtual void CalculateProjections();
+    virtual  Mat CalculateError() const;
+    virtual bool CalculateProjections();
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
+    virtual SMat Project(); 
    
     double GetError() const {return itsLastError;}
     double GetSVMin() const {return itsLastSVMin;}
