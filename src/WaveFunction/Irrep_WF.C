@@ -14,12 +14,12 @@ using std::cout;
 using std::endl;
 
 Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms,SCFIrrepAccelerator* acc)
-    : itsBasisSet(bs)
-    , itsLASolver(bs->CreateSolver())
-    , itsOrbitals(new  TOrbitalsImp<double>(bs,ms))
-    , itsIrrep     (ms,bs->GetSymmetry())
+    : itsBasisSet   (bs)
+    , itsLASolver   (bs->CreateSolver())
+    , itsOrbitals   (new  TOrbitalsImp<double>(bs,ms))
+    , itsIrrep      (ms,bs->GetSymmetry())
     , itsAccelerator(acc)
-    , itsDPrime(bs->GetNumFunctions())
+    , itsDPrime     (bs->GetNumFunctions())
 {
     assert(itsOrbitals);
     assert(itsAccelerator);
@@ -37,24 +37,19 @@ Irrep_WF::~Irrep_WF()
 void Irrep_WF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
-    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd);
-    itsAccelerator->UseFD(itsF,itsDPrime);
+    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd); //Hamiltonian or Fock matrix in the non-orthogonal basis.
+    itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator along with density matrix (in the orthogonal basis).
 }
 
 //----------------------------------------------------------------------------
 //
 //  This function will create unoccupied orbtials.  
 //
-void Irrep_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
+void Irrep_WF::DoSCFIteration()
 {
     assert(itsOrbitals);
-    // itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd);
-    //
-    //  Feed F,D into the SCF accelerator
-    //
-    SMatrix<double> FPrime=itsAccelerator->Project(); //Calcularte F'=Vd*F*V and conditionally project F'
-    // cout << "FPrime=" << FPrime << endl;
-    auto [U,Up,e]=itsLASolver->SolveOrtho(FPrime);
+    //project F' using pre calculated coefficients. And then diagonalize it.
+    auto [U,Up,e]=itsLASolver->SolveOrtho(itsAccelerator->Project());
     itsOrbitals->UpdateOrbitals(U,Up,e);
 }
 //

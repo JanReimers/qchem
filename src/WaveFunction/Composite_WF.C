@@ -46,7 +46,7 @@ void Composite_WF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd); //Feed F,D' into all the irre eccelerators.
     itsAccelerator->CalculateProjections();
-    for (auto& w:itsIWFs) w->DoSCFIteration(ham,cd);
+    for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
 DM_CD* Composite_WF::GetChargeDensity(Spin s) const

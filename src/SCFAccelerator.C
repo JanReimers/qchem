@@ -11,23 +11,33 @@ using std::endl;
 
 #include "oml/diagonalmatrix.h"
 
-SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildB(const std::vector< Matrix<double>>& Es)
+SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildRawB(const std::vector< Matrix<double>>& Es)
 {
     index_t N=Es.size()+1;
     SMat B(N,N);
     for (index_t i:B.rows())
-        for (index_t j:B.cols(i))
-            if (i<N)
+        if (i<N)
+            for (index_t j:B.cols(i))
                 if (j<N)
                     B(i,j)=Dot(Es[i-1],Es[j-1]);
-                else
-                    B(i,N)=1.0;
-            else
-                B(i,j)=0.0; //i=j=N
-    
-    // StreamableObject::SetToPretty();
-    // cout << std::scientific << "static BuildB B=" << B << endl;
+                
     return B;
+}
+SCFIrrepAccelerator_DIIS::SMat& SCFIrrepAccelerator_DIIS::AddBEdges(SMat& B)
+{
+    index_t N=B.GetNumRows();
+    for (index_t i:B.rows())
+        if (i<N)
+            B(i,N)=B(N,i)=1;
+        else
+            B(N,N)=0.0; 
+    return B;
+}
+SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildB(const std::vector< Matrix<double>>& Es)
+{
+    SMat B(BuildRawB(Es));
+    return AddBEdges(B);
+   
 }
 double SCFIrrepAccelerator_DIIS::GetMinSV(const SMat& B)
 {
@@ -250,37 +260,16 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs)
 SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(double svmin)
 {
     SMat B;
-    for (auto k:itsIrreps) B+=k->BuildB();
-    index_t N=B.GetNumRows();
-    for (index_t i:B.rows())
-        for (index_t j:B.cols(i))
-            if (i<N)
-                if (j<N)
-                    B(i,j)=B(i,j);
-                else
-                    B(i,j)=1.0;
-            else
-                B(i,j)=0.0; //i=j=N
+    for (auto k:itsIrreps) B+=k->BuildRawB();
+    SCFIrrepAccelerator_DIIS::AddBEdges(B);
     
-    // StreamableObject::SetToPretty();
-    // cout << std::scientific << "B=" << B << endl;
-
     double sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
     while (sv<svmin &&itsN>=2) 
     {
         Purge1(); //Must be a member function for this.
         B.SetLimits(0);
-        for (auto k:itsIrreps) B+=k->BuildB();
-        index_t N=B.GetNumRows();
-        for (index_t i:B.rows())
-            for (index_t j:B.cols(i))
-                if (i<N)
-                    if (j<N)
-                        B(i,j)=B(i,j);
-                    else
-                        B(i,j)=1.0;
-                else
-                    B(i,j)=0.0; //i=j=N
+        for (auto k:itsIrreps) B+=k->BuildRawB();
+        SCFIrrepAccelerator_DIIS::AddBEdges(B);
         sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
     }
     return std::make_pair(B,sv);    
@@ -323,6 +312,9 @@ bool SCFAccelerator_DIIS::CalculateProjections()
             if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
             for (auto k:itsIrreps) k->AppendFPrime();
             itsN= itsIrreps[0]->GetNproj();
+            if (itsN>itsParams.Nproj) Purge1();
+            itsN= itsIrreps[0]->GetNproj();
+            assert(itsN<=itsParams.Nproj);
             if (itsBailout=itsN<2;itsBailout) return BailoutChildren();
             SMat B;
             std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);

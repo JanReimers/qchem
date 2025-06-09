@@ -73,9 +73,11 @@ public:
     bool   Bailout () const {return itsBailout;}
     void   GlobalBailout() {itsBailout=true;}
     void   AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
-    SMat   BuildB() const {return BuildB(itsEs);}
+    SMat   BuildRawB() const {return BuildRawB(itsEs);}
 
 
+    static SMat&  AddBEdges(SMat& B);
+    static SMat   BuildRawB(const mv_t&);
     static SMat   BuildB(const mv_t&);
     static double GetMinSV(const SMatrix<double>& B);
     static RVec   SolveC(const SMatrix<double>& B);

@@ -13,12 +13,12 @@ public:
     ~Irrep_WF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
-    void                DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
-    DM_CD*              GetChargeDensity(                            ) const;
-    const Orbitals*     GetOrbitals     (           ) const;
-          Orbitals*     GetOrbitals     (           )      ;
+    void                DoSCFIteration  ()      ;
+    DM_CD*              GetChargeDensity() const;
+    const Orbitals*     GetOrbitals     () const;
+          Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
-    void                DisplayEigen    (                            ) const;
+    void                DisplayEigen    () const;
     const Irrep_QNs&    GetQNs          () const {return itsIrrep;}
     Vector<double>      Get_BS_Diagonal () const;
 

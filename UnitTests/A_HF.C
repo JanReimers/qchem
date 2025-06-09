@@ -84,7 +84,7 @@ public:
     }
 };
 
-static std::map<int,size_t> expected_itartion_counts={{2,11},{4,11},{10,12},{12,15},{18,13},{20,15},{30,20},{36,17},{38,15},{46,28},{48,18},{54,14},{56,15},{70,22},{80,22},{86,16},{88,15}};
+static std::map<int,size_t> expected_itartion_counts={{2,9},{4,11},{10,11},{12,13},{18,12},{20,13},{30,17},{36,13},{38,15},{46,13},{48,15},{54,12},{56,14},{70,20},{80,16},{86,13},{88,13}};
 TEST_P(A_SG_HF_U,Multiple)
 {
     int Z=GetParam();
@@ -97,6 +97,7 @@ TEST_P(A_SG_HF_U,Multiple)
     assert(expected_itartion_counts.find(Z)!=expected_itartion_counts.end());
     size_t ic_expected=expected_itartion_counts[Z];
     EXPECT_LE(GetIterationCount(),ic_expected);
+    EXPECT_EQ(GetIterationCount(),ic_expected);
 }
 INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
