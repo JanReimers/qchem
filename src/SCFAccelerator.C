@@ -21,10 +21,12 @@ SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildB(const std::vecto
                 if (j<N)
                     B(i,j)=Dot(Es[i-1],Es[j-1]);
                 else
-                    B(i,j)=1.0;
+                    B(i,N)=1.0;
             else
                 B(i,j)=0.0; //i=j=N
     
+    // StreamableObject::SetToPretty();
+    // cout << std::scientific << "static BuildB B=" << B << endl;
     return B;
 }
 double SCFIrrepAccelerator_DIIS::GetMinSV(const SMat& B)
@@ -78,9 +80,10 @@ void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
     itsBailout = Max(fabs(itsDPrime))==0.0;
 }
 
-SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError() const
+SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError() 
 {
-    return itsFPrime*itsDPrime-itsDPrime*itsFPrime;
+    itsLastE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
+    return itsLastE;
 }
 
 
@@ -120,6 +123,8 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
         a.SetLimits(b.GetLimits());
         Fill(a,0.0);
     }
+    else
+        assert(a.GetLimits()==b.GetLimits());
     return ArrayAdd(a,b);
 }
 template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
@@ -129,6 +134,8 @@ template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
         a.SetLimits(b.GetLimits());
         Fill(a,0.0);
     }
+    else
+        assert(a.GetLimits()==b.GetLimits());
     return ArrayAdd(a,b);
 }
 
@@ -240,14 +247,40 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs)
 }
 
 
-SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(const mv_t& Es,double svmin)
+SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(double svmin)
 {
-    SMat B=SCFIrrepAccelerator_DIIS::BuildB(Es);
+    SMat B;
+    for (auto k:itsIrreps) B+=k->BuildB();
+    index_t N=B.GetNumRows();
+    for (index_t i:B.rows())
+        for (index_t j:B.cols(i))
+            if (i<N)
+                if (j<N)
+                    B(i,j)=B(i,j);
+                else
+                    B(i,j)=1.0;
+            else
+                B(i,j)=0.0; //i=j=N
+    
+    // StreamableObject::SetToPretty();
+    // cout << std::scientific << "B=" << B << endl;
+
     double sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
-    while (sv<svmin && Es.size()>=2) 
+    while (sv<svmin &&itsN>=2) 
     {
         Purge1(); //Must be a member function for this.
-        B=SCFIrrepAccelerator_DIIS::BuildB(Es);
+        B.SetLimits(0);
+        for (auto k:itsIrreps) B+=k->BuildB();
+        index_t N=B.GetNumRows();
+        for (index_t i:B.rows())
+            for (index_t j:B.cols(i))
+                if (i<N)
+                    if (j<N)
+                        B(i,j)=B(i,j);
+                    else
+                        B(i,j)=1.0;
+                else
+                    B(i,j)=0.0; //i=j=N
         sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
     }
     return std::make_pair(B,sv);    
@@ -255,12 +288,7 @@ SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(const mv_t& Es,doubl
 
 void SCFAccelerator_DIIS::Purge1()
 {
-    //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
-    auto iter=itsEs.begin(); //just pick the oldest element.
-    size_t index=std::distance(itsEs.begin(),iter);
-    //itsEns.erase(iter);
-    itsEs.erase(itsEs.begin()+index);
-    //itsFPrimes.erase(itsFPrimes.begin()+index);
+    
     for (auto k:itsIrreps) k->Purge1();
 }
 
@@ -284,15 +312,20 @@ bool SCFAccelerator_DIIS::CalculateProjections()
                 itsBailout=k->Bailout() || itsBailout;
             if (itsBailout) return itsBailout;
 
-            Mat E;
-            for (auto k:itsIrreps) E+=k->CalculateError();
-            itsEn=FrobeniusNorm(E);
+            itsEn=0.0;
+            for (auto k:itsIrreps) 
+            {
+                double Enk=FrobeniusNorm(k->CalculateError());
+                itsEn+=Enk*Enk;
+            }
+            itsEn=sqrt(itsEn);
+            // cout << "itsEn=" << itsEn << endl;
             if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
-            itsEs.push_back(E);
             for (auto k:itsIrreps) k->AppendFPrime();
-            if (itsBailout=itsEs.size()<2;itsBailout) return BailoutChildren();
+            itsN= itsIrreps[0]->GetNproj();
+            if (itsBailout=itsN<2;itsBailout) return BailoutChildren();
             SMat B;
-            std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
+            std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
             if (B.GetNumRows()<=2)
             {
                 itsBailout=true;
@@ -300,9 +333,9 @@ bool SCFAccelerator_DIIS::CalculateProjections()
                 itsCs(1)=1.0;
                 return BailoutChildren();
             }
-            else
-                itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
-
+           
+            itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
+            // cout << "Cs=" << itsCs << endl;
             for (auto k:itsIrreps) k->SetProjection(itsCs);
             break;
         }
@@ -347,7 +380,7 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
             bailout=itsBailout;
             EMax=itsEn;
             SVMin=itsLastSVMin;
-            NMax=NMin=itsEs.size();
+            NMax=NMin=itsN;
             break;
         }
     }
@@ -364,8 +397,19 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
 double SCFAccelerator_DIIS::GetError() const
 {
     double EMax=0.0;
-    for (auto i:itsIrreps)
-        if (i->GetError()>EMax) EMax=i->GetError();
+    switch (itsParams.type)
+    {
+    case DIISParams::irrep:
+        for (auto i:itsIrreps)
+            if (i->GetError()>EMax) EMax=i->GetError();
+        break;
+    
+    case DIISParams::global:
+        EMax=itsEn;
+        break;
+    }
+    
+    
     return EMax;
 }
 

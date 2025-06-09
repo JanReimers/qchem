@@ -14,7 +14,7 @@ public:
     virtual void Init(const LASolver<double>*, const Irrep_QNs&)=0; //Solver knows how to transform to orthogonal basis.
     virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
     virtual void SetProjection(const RVec& cs)=0;
-    virtual  Mat CalculateError() const=0;
+    virtual  Mat CalculateError() =0;
     virtual SMat Project(const SMat& F, const SMat& DPrime)=0; //Fock and Density matrices.
     virtual SMat Project()=0; 
 };
@@ -62,7 +62,7 @@ public:
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual void SetProjection(const RVec& cs) {itsCs=cs;}
 
-    virtual  Mat CalculateError() const;
+    virtual  Mat CalculateError() ;
     virtual bool CalculateProjections();
     virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
     virtual SMat Project(); 
@@ -73,6 +73,8 @@ public:
     bool   Bailout () const {return itsBailout;}
     void   GlobalBailout() {itsBailout=true;}
     void   AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
+    SMat   BuildB() const {return BuildB(itsEs);}
+
 
     static SMat   BuildB(const mv_t&);
     static double GetMinSV(const SMatrix<double>& B);
@@ -124,7 +126,7 @@ public:
     virtual double GetError() const;
 
 private:
-    md_t BuildPrunedB(const mv_t&,double svmin);
+    md_t BuildPrunedB(double svmin);
     void Purge1();
     bool BailoutChildren();
 
@@ -134,7 +136,7 @@ private:
 
     bool itsBailout;
     double itsEn,itsLastSVMin;
-    mv_t itsEs; //Error matrices
+    size_t itsN;
     RVec itsCs;
 };
 
