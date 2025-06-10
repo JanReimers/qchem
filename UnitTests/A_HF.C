@@ -84,22 +84,24 @@ public:
     }
 };
 
-static std::map<int,size_t> expected_itartion_counts={{2,9},{4,11},{10,11},{12,13},{18,12},{20,13},{30,17},{36,13},{38,15},{46,13},{48,15},{54,12},{56,14},{70,20},{80,16},{86,13},{88,13}};
+static std::map<int,size_t> expected_itartion_counts={{2,10},{4,11},{10,12},{12,14},{18,13},{20,16},{30,17},{36,13},{38,15},{46,15},{48,16},{54,13},{56,15},{70,22},{80,16},{86,15},{88,17}};
+static std::map<int,size_t> NBasis={{2,20},{4,20},{10,22},{12,22},{18,23},{20,25},{30,25},{36,25},{38,27},{46,27},{48,27},{54,30},{56,30},{70,30},{80,30},{86,30},{88,30}};
 TEST_P(A_SG_HF_U,Multiple)
 {
     int Z=GetParam();
-    int N=20;
-    if (Z>40) N=20;
-    if (Z>70) N=25;
-    Init(N,0.05,4000*Z,GetLMax(Z));
+    int N=NBasis[Z];
+    std::cout << "NBasis=" << N << std::endl;
+    // if (Z>40) N=20;
+    // if (Z>70) N=25;
+    Init(N,0.01,10000*Z*sqrt(Z),GetLMax(Z));
     Iterate(scf_params(Z));
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+    EXPECT_LT(RelativeHFError(),1e-6);
     assert(expected_itartion_counts.find(Z)!=expected_itartion_counts.end());
     size_t ic_expected=expected_itartion_counts[Z];
     EXPECT_LE(GetIterationCount(),ic_expected);
     EXPECT_EQ(GetIterationCount(),ic_expected);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 TEST_P(A_SGm_HF_U,Multiple)
 {

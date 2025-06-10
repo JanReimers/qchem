@@ -21,10 +21,10 @@ namespace Gaussian
 ExponentScaler::RVec   ExponentScaler::Get_es(size_t L) const
 {
     if (L==0) return es;
-    int N=itsN-2*L;
+    int N=itsN-4*L;
     if (N<1) N=1;
     RVec esL(N);
-    for (auto i:esL.indices()) esL(i)=es(i+L);
+    for (auto i:esL.indices()) esL(i)=es(i);
     return esL;
 }
 
