@@ -47,7 +47,7 @@ private:
     bool   Bailout () const {return itsBailout;}
     void   GlobalBailout() {itsBailout=true;}
     SMat   BuildRawB() const {return BuildRawB(itsEs);}
-
+    double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
 
     void Append(const SMat& FPrime, const Mat& E, double En);
     void AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
@@ -95,9 +95,11 @@ public:
     virtual double GetError() const;
 
 private:
+    SMat BuildB() const;
     md_t BuildPrunedB(double svmin);
     void Purge1();
     bool BailoutChildren();
+    size_t GetNProj() const;
 
   
     DIISParams itsParams;

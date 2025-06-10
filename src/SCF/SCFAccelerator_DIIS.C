@@ -226,20 +226,38 @@ SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const Irrep_QNs& qns)
     return itsIrreps.back();;
 }
 
+size_t SCFAccelerator_DIIS::GetNProj() const
+{
+    size_t N=itsIrreps[0]->GetNproj();
+#ifdef DEBUG
+    for (auto k:itsIrreps) assert(N==k->GetNproj());
+#endif
+    return N;
+}
+
+SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildB() const
+{
+    index_t N=GetNProj()+1;
+    SMat B(N);
+    Fill(B,0.0);
+    for (index_t i=1;i<N;i++)
+    {
+        B(i,N)=1.0; //B is symmetric so no need to set B(N,i)=1.0
+        for (index_t j=i;j<N;j++)
+            for (auto k:itsIrreps) B(i,j)+=k->GetError(i-1,j-1);
+    }
+    // B(N,N)=0.0;  should already be true
+    return B;
+}
 
 SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(double svmin)
 {
-    SMat B;
-    for (auto k:itsIrreps) B+=k->BuildRawB();
-    SCFIrrepAccelerator_DIIS::AddBEdges(B);
-    
+    SMat B=BuildB();
     double sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
     while (sv<svmin &&itsN>=2) 
     {
         Purge1(); //Must be a member function for this.
-        B.SetLimits(0);
-        for (auto k:itsIrreps) B+=k->BuildRawB();
-        SCFIrrepAccelerator_DIIS::AddBEdges(B);
+        B=BuildB();
         sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
     }
     return std::make_pair(B,sv);    
