@@ -27,6 +27,7 @@ public:
     typedef std::deque<SMat  > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
     typedef std::pair<SMat,double> md_t;
+    
     SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAccelerator_DIIS();
     
@@ -35,12 +36,9 @@ public:
     virtual SMat Project(); 
 private:
     friend class SCFAccelerator_DIIS;
-    
-
-
-    double GetError() const {return itsEn;}
     size_t GetNproj() const {return itsEs.size();}
     void   GlobalBailout() {itsBailout=true;}
+    double GetError() const {return itsEn;}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
 
     void Append1();
@@ -74,33 +72,35 @@ protected:
     typedef SMatrix<double> SMat;
 public:
     typedef std::vector< Mat> mv_t; //matrix-vector type.
-    typedef std::pair<SMat,double> md_t;
 
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
     virtual SCFIrrepAccelerator* Create(const Irrep_QNs&);
-    virtual bool CalculateProjections();
-    virtual void ShowLabels     (std::ostream&) const;
-    virtual void ShowConvergence(std::ostream&) const;
+    virtual bool   CalculateProjections();
+    virtual void   ShowLabels     (std::ostream&) const;
+    virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
 
 private:
     static double GetMinSV(const SMatrix<double>& B);
     static RVec   SolveC(const SMatrix<double>& B);
-    SMat BuildB() const;
-    md_t BuildPrunedB(double svmin);
+    
+    struct md_t{SMat B;double sv;};
+
+    md_t BuildB() const;
+    SMat BuildPrunedB(double svmin);
     size_t Append1();
     size_t Purge1();
-    bool BailoutChildren();
+    bool   BailoutChildren();
     size_t GetNProj() const;
 
   
     DIISParams itsParams;
     std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
 
-    bool itsBailout;
+    bool   itsBailout;
     double itsEn,itsLastSVMin;
-    RVec itsCs;
+    RVec   itsCs;
 };
 
 #endif //_SCFAccelerator_DIIS_H_

@@ -145,7 +145,7 @@ SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B)
 }
 
 
-SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildB() const
+SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildB() const
 {
     index_t N=GetNProj()+1;
     SMat B(N);
@@ -157,20 +157,18 @@ SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildB() const
             for (auto k:itsIrreps) B(i,j)+=k->GetError(i-1,j-1);
     }
     // B(N,N)=0.0;  should already be true
-    return B;
+    return {B,GetMinSV(B)};    
 }
 
-SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(double svmin)
+SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildPrunedB(double svmin)
 {
-    SMat B=BuildB();
-    double sv=SCFAccelerator_DIIS::GetMinSV(B);
-    while (sv<svmin &&GetNProj()>=2) 
+    md_t B=BuildB(); //Returns a SMat,double struct.
+    while (B.sv<svmin &&GetNProj()>=2) 
     {
         Purge1(); //Must be a member function for this.
         B=BuildB();
-        sv=SCFAccelerator_DIIS::GetMinSV(B);
     }
-    return std::make_pair(B,sv);    
+    return B.B;    
 }
 
 size_t SCFAccelerator_DIIS::Purge1()
@@ -203,8 +201,7 @@ bool SCFAccelerator_DIIS::CalculateProjections()
     assert(GetNProj()<=itsParams.Nproj);
     if (GetNProj()<2) return BailoutChildren();
     
-    SMat B;
-    std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
+    SMat B=BuildPrunedB(itsParams.SVTol);
     if (B.GetNumRows()<=2) return BailoutChildren();
                 
     itsCs=SCFAccelerator_DIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
