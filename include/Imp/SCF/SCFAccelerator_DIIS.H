@@ -23,12 +23,11 @@ class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 public:
     typedef std::vector<Mat> mv_t; //matrix-vector type.
     typedef std::pair<SMat,double> md_t;
-    SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&);
+    SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAccelerator_DIIS();
     
     virtual void Init(const LASolver<double>*);
     virtual void UseFD(const SMat& F, const SMat& DPrime);
-    virtual void SetProjection(const RVec& cs) {itsCs=cs;}
     virtual  Mat CalculateError() ;
     virtual SMat Project(); 
 private:
@@ -37,17 +36,14 @@ private:
 
 
     double GetError() const {return itsLastEn;}
-    // double GetSVMin() const {return itsLastSVMin;}
     size_t GetNproj() const {return itsEs.size();}
-    // bool   Bailout () const {return itsBailout;}
     void   GlobalBailout() {itsBailout=true;}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
 
     void Append(const SMat& FPrime, const Mat& E, double En);
     void AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
     void Purge1();
-    // RVec Solve();
-
+    
 
     typedef  Vector<double> RVec;
 
@@ -58,7 +54,7 @@ private:
     // double                       itsLastSVMin;  //Smallest singular value for latest B matric.
     SMat                         itsFPrime,itsDPrime;    
     Mat                          itsLastE;
-    RVec                         itsCs;  //Projection coefficients.
+    const RVec&                  itsCs;  //Projection coefficients.
     bool                         itsBailout;
 
     std::vector<SMatrix<double>> itsFPrimes;

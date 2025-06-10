@@ -9,13 +9,13 @@
 using std::cout;
 using std::endl;
 
-SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const Irrep_QNs& qns) 
+SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const Irrep_QNs& qns,const RVec& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsLastEn(0.0)
-    , itsCs(1)
+    , itsCs(cs)
 {
-    itsCs(1)=1.0;
+    
 };
 SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
 {
@@ -80,7 +80,6 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
         index_t i=1;
         for (const auto& f:itsFPrimes) Fproj+=SMat(itsCs(i++)*f);
         return Fproj;
-        // return Project(itsCs);
     }
 }
 
@@ -122,8 +121,8 @@ SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p)
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
 SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const Irrep_QNs& qns) 
 {
-    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,qns));
-    return itsIrreps.back();;
+    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,qns,itsCs));
+    return itsIrreps.back();
 }
 
 size_t SCFAccelerator_DIIS::GetNProj() const
@@ -214,9 +213,8 @@ bool SCFAccelerator_DIIS::CalculateProjections()
     std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
     if (itsBailout=B.GetNumRows()<=2;itsBailout) return BailoutChildren();
                 
-    itsCs=SCFAccelerator_DIIS::SolveC(B);
-    for (auto k:itsIrreps) k->SetProjection(itsCs);
-
+    itsCs=SCFAccelerator_DIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
+   
     return itsBailout;
 }
 bool SCFAccelerator_DIIS::BailoutChildren()
