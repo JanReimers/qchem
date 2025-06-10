@@ -21,7 +21,9 @@ class SCFAccelerator_DIIS;
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    typedef std::vector<Mat> mv_t; //matrix-vector type.
+    typedef std::vector<Mat   > mv_t; //matrix-vector type.
+    typedef std::vector<SMat  > sv_t; //smatrix-vector type.
+    typedef std::vector<double> dv_t ; //doubles
     typedef std::pair<SMat,double> md_t;
     SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAccelerator_DIIS();
@@ -35,31 +37,33 @@ private:
     
 
 
-    double GetError() const {return itsLastEn;}
+    double GetError() const {return itsEn;}
     size_t GetNproj() const {return itsEs.size();}
     void   GlobalBailout() {itsBailout=true;}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
 
-    void Append(const SMat& FPrime, const Mat& E, double En);
-    void AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
+    void Append1();
     void Purge1();
     
 
     typedef  Vector<double> RVec;
 
     
-    DIISParams                   itsParams; 
-    Irrep_QNs                    itsIrrep;
-    double                       itsLastEn;  // [F',D']
-    // double                       itsLastSVMin;  //Smallest singular value for latest B matric.
-    SMat                         itsFPrime,itsDPrime;    
-    Mat                          itsLastE;
-    const RVec&                  itsCs;  //Projection coefficients.
+    DIISParams itsParams; 
+    Irrep_QNs  itsIrrep;
+    // All of these are the the most recent values
+    SMat   itsFPrime,itsDPrime;    
+    Mat    itsE;
+    double itsEn;  // [F',D']
+    // Caches for F',E,En
+    sv_t itsFPrimes;
+    mv_t itsEs; //Error matrices
+    dv_t itsEns; //Errors ||E||
+    
+
+    const RVec&                  itsCs;  //Projection coefficients from SCFAccelerator_DIIS class.
     bool                         itsBailout;
 
-    std::vector<SMatrix<double>> itsFPrimes;
-    mv_t                         itsEs; //Error matrices
-    std::vector<        double > itsEns; //Errors ||E||
     const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
 
 };
@@ -88,7 +92,8 @@ private:
     static RVec   SolveC(const SMatrix<double>& B);
     SMat BuildB() const;
     md_t BuildPrunedB(double svmin);
-    void Purge1();
+    size_t Append1();
+    size_t Purge1();
     bool BailoutChildren();
     size_t GetNProj() const;
 

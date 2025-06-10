@@ -12,7 +12,7 @@ using std::endl;
 SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const Irrep_QNs& qns,const RVec& cs) 
     : itsParams(p)
     , itsIrrep(qns)
-    , itsLastEn(0.0)
+    , itsEn(0.0)
     , itsCs(cs)
 {
     
@@ -39,8 +39,8 @@ void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
 
 SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError() 
 {
-    itsLastE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
-    return itsLastE;
+    itsE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
+    return itsE;
 }
 
 template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
@@ -86,13 +86,13 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
 #include "Imp/Containers/stl_io.h"
 
 #include <algorithm>
-void SCFIrrepAccelerator_DIIS::Append(const SMat& FPrime, const Mat& E, double En)
+void SCFIrrepAccelerator_DIIS::Append1()
 {
     assert(itsEs.size()==itsFPrimes.size());
     assert(itsEns.size()==itsFPrimes.size());
-    itsEs.push_back(E);
-    itsEns.push_back(En);
-    itsFPrimes.push_back(FPrime);   
+    itsEs     .push_back(itsE);
+    itsEns    .push_back(itsEn);
+    itsFPrimes.push_back(itsFPrime);   
 }
 
 void SCFIrrepAccelerator_DIIS::Purge1()
@@ -183,16 +183,21 @@ SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(double svmin)
     return std::make_pair(B,sv);    
 }
 
-void SCFAccelerator_DIIS::Purge1()
+size_t SCFAccelerator_DIIS::Purge1()
 {
     
     for (auto k:itsIrreps) k->Purge1();
+    return GetNProj();
+}
+size_t SCFAccelerator_DIIS::Append1()
+{
+    
+    for (auto k:itsIrreps) k->Append1();
+    return GetNProj();
 }
 
 bool SCFAccelerator_DIIS::CalculateProjections()
 {
-    itsBailout=false;
-
     itsEn=0.0;
     for (auto k:itsIrreps) 
     {
@@ -204,18 +209,17 @@ bool SCFAccelerator_DIIS::CalculateProjections()
     // cout << "itsEn=" << itsEn << endl;
     if (itsEn>itsParams.EMax) return BailoutChildren();
     
-    for (auto k:itsIrreps) k->AppendFPrime();
-    if (GetNProj()>itsParams.Nproj) Purge1();
+    if (Append1()>itsParams.Nproj) Purge1();
     assert(GetNProj()<=itsParams.Nproj);
     if (GetNProj()<2) return BailoutChildren();
     
     SMat B;
     std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
-    if (itsBailout=B.GetNumRows()<=2;itsBailout) return BailoutChildren();
+    if (B.GetNumRows()<=2) return BailoutChildren();
                 
     itsCs=SCFAccelerator_DIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
    
-    return itsBailout;
+    return itsBailout=false;
 }
 bool SCFAccelerator_DIIS::BailoutChildren()
 {
