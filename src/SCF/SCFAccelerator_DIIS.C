@@ -36,7 +36,6 @@ void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
     itsDPrime=DPrime;
     itsE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
     itsEn=FrobeniusNorm(itsE);
-    itsBailout = Max(fabs(itsDPrime))==0.0;
 }
 
 template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
@@ -64,12 +63,11 @@ template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
 {
-    if (itsBailout) 
+    if (itsCs.size()<2) 
         return itsFPrime;
     else
     {
         assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
-        assert(itsCs.size()>=2);
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
         SMat Fproj;
@@ -190,29 +188,28 @@ bool SCFAccelerator_DIIS::CalculateProjections()
     for (auto k:itsIrreps) 
     {
         double Enk=k->GetError();
-        if (Enk==0.0) return BailoutChildren();
+        if (Enk==0.0) return DoBailout();
         itsEn+=Enk*Enk;
     }
     itsEn=sqrt(itsEn);
     // cout << "itsEn=" << itsEn << endl;
-    if (itsEn>itsParams.EMax) return BailoutChildren();
+    if (itsEn>itsParams.EMax) return DoBailout();
     
     if (Append1()>itsParams.Nproj) Purge1();
     assert(GetNProj()<=itsParams.Nproj);
-    if (GetNProj()<2) return BailoutChildren();
+    if (GetNProj()<2) return DoBailout();
     
     SMat B=BuildPrunedB(itsParams.SVTol);
-    if (B.GetNumRows()<=2) return BailoutChildren();
+    if (B.GetNumRows()<=2) return DoBailout();
                 
     itsCs=SCFAccelerator_DIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
    
-    return itsBailout=false;
+    return false;
 }
-bool SCFAccelerator_DIIS::BailoutChildren()
+bool SCFAccelerator_DIIS::DoBailout()
 {
-    itsBailout=true;
-        for (auto k:itsIrreps) k->GlobalBailout();
-    return itsBailout;
+    itsCs.SetLimits(0);
+    return true;
 }
 
 void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
@@ -222,7 +219,7 @@ void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
 void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
 {
     os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
-    if (!itsBailout)
+    if (!HasProjection())
     {
         os << std::setw(3) << GetNProj() << "    ";
         os << std::scientific << std::setw(7) << std::setprecision(1) << itsLastSVMin << "  ";

@@ -37,10 +37,8 @@ public:
 private:
     friend class SCFAccelerator_DIIS;
     size_t GetNproj() const {return itsEs.size();}
-    void   GlobalBailout() {itsBailout=true;}
     double GetError() const {return itsEn;}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
-
     void Append1();
     void Purge1();
     
@@ -57,7 +55,6 @@ private:
     
 
     const RVec&                  itsCs;  //Projection coefficients from SCFAccelerator_DIIS class.
-    bool                         itsBailout;
 
     const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
 
@@ -66,12 +63,7 @@ private:
 
 class SCFAccelerator_DIIS : public virtual SCFAccelerator
 {
-protected:
-    typedef Vector<double>  RVec;
-    typedef  Matrix<double>  Mat;
-    typedef SMatrix<double> SMat;
 public:
-    typedef std::vector< Mat> mv_t; //matrix-vector type.
 
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
@@ -82,23 +74,29 @@ public:
     virtual double GetError() const;
 
 private:
-    static double GetMinSV(const SMatrix<double>& B);
-    static RVec   SolveC(const SMatrix<double>& B);
+    typedef Vector<double>  RVec;
+    typedef  Matrix<double>  Mat;
+    typedef SMatrix<double> SMat;
+    typedef std::vector< Mat> mv_t; //matrix-vector type.
+
+
+    static double GetMinSV(const SMat& B);
+    static RVec   SolveC  (const SMat& B);
     
     struct md_t{SMat B;double sv;};
 
-    md_t BuildB() const;
-    SMat BuildPrunedB(double svmin);
+    md_t   BuildB() const;
+    SMat   BuildPrunedB(double svmin);
     size_t Append1();
     size_t Purge1();
-    bool   BailoutChildren();
+    bool   DoBailout();
     size_t GetNProj() const;
+    bool   HasProjection() const {return itsCs.size()>=2;}
 
   
     DIISParams itsParams;
     std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
 
-    bool   itsBailout;
     double itsEn,itsLastSVMin;
     RVec   itsCs;
 };
