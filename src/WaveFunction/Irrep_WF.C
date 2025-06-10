@@ -1,7 +1,7 @@
 // File: Irrep_WF.C  Wave function for an unpolarized atom.
 
 #include "Imp/WaveFunction/Irrep_WF.H"
-#include "Imp/SCFAccelerator.H"
+#include "Imp/SCF/SCFAccelerator.H"
 #include "Imp/Orbitals/TOrbitals.H"
 
 #include <ElectronConfiguration.H>

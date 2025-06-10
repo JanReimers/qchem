@@ -3,7 +3,7 @@
 
 
 #include <SCFIterator.H>
-#include "Imp/SCFAccelerator.H"
+#include "Imp/SCF/SCFAccelerator.H"
 #include <WaveFunction.H>
 #include <IterationParams.H>
 #include <Hamiltonian.H>
@@ -43,8 +43,7 @@ void SCFIterator::Initialize(DM_CD* cd)
     assert(itsCD);
     itsOldCD=cd;
     itsIterationCount=0;
-    EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(itsCD);
-    DisplayEnergies(itsIterationCount,eb,1.0,0.0,0.0);
+    // DisplayEnergies(itsIterationCount,itsHamiltonian->GetTotalEnergy(itsCD),1.0,0.0,0.0);
 }
 //
 //  Recall that the wavefunction is not owned buy this.

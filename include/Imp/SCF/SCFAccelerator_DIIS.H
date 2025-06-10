@@ -1,50 +1,8 @@
-// FIle: SCFAccelerator.H  Interface for an accelerator alogrithm
-#ifndef _SCFAccelerator_H_
-#define _SCFAccelerator_H_
+// FIle: SCFAccelerator_DIIS.H  Direct Inversion of the Iterative Subspace (DIIS) algorithm
+#ifndef _SCFAccelerator_DIIS_H_
+#define _SCFAccelerator_DIIS_H_
 
-#include <types.H>
-class SCFIrrepAccelerator
-{
-protected:
-    typedef Vector<double>  RVec;
-    typedef  Matrix<double>  Mat;
-    typedef SMatrix<double> SMat;
-public:
-    virtual ~SCFIrrepAccelerator() {};
-    virtual void Init(const LASolver<double>*)=0; //Solver knows how to transform to orthogonal basis.
-    virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
-    virtual void SetProjection(const RVec& cs)=0;
-    virtual  Mat CalculateError() =0;
-    virtual SMat Project()=0; 
-};
-
-#include <iosfwd>
-class SCFAccelerator
-{
-public:
-    virtual ~SCFAccelerator() {};
-    virtual SCFIrrepAccelerator* Create(const Irrep_QNs&)=0;
-    virtual bool CalculateProjections()=0;
-    virtual void ShowLabels     (std::ostream&) const=0;
-    virtual void ShowConvergence(std::ostream&) const=0;
-    virtual double GetError() const=0;
-};
-
-#include "oml/smatrix.h"
-class SCFIrrepAccelerator__Null : public virtual SCFIrrepAccelerator
-{
-public:
-    SCFIrrepAccelerator__Null(const Irrep_QNs&) {};
-    virtual ~SCFIrrepAccelerator__Null() {};
-    virtual void Init(const LASolver<double>*); 
-    virtual void UseFD(const SMat& F, const SMat& DPrime);
-    virtual void SetProjection(const RVec& cs) {};
-    virtual  Mat CalculateError();
-    virtual SMat Project();
-private:
-    const LASolver<double>*   itsLaSolver; //Knows the ortho transform
-    SMat   itsFPrime;
-};
+#include "SCFAccelerator.H"
 
 struct DIISParams
 {
@@ -152,4 +110,4 @@ private:
     RVec itsCs;
 };
 
-#endif //_SCFAccelerator_H_
+#endif //_SCFAccelerator_DIIS_H_

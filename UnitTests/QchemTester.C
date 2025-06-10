@@ -1,6 +1,6 @@
 
 #include "QchemTester.H"
-#include "Imp/SCFAccelerator.H"
+#include "Imp/SCF/SCFAccelerator_DIIS.H"
 #include <MeshParams.H>
 #include <SCFIterator.H>
 #include <WaveFunction.H>

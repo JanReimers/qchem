@@ -1,32 +1,13 @@
-// FIle: SCFAccelerator.C  Interface for an accelerator alogrithm
+// FIle: SCFAccelerator_DIIS.C  Direct Inversion of the Iterative Subspace (DIIS) algorithm
 
 
-#include "Imp/SCFAccelerator.H"
+#include "Imp/SCF/SCFAccelerator_DIIS.H"
 #include <LASolver.H>
 #include "oml/numeric/LapackLinearSolver.H"
 #include "oml/numeric/LapackSVDSolver.H"
 
 using std::cout;
 using std::endl;
-
-void SCFIrrepAccelerator__Null::Init(const LASolver<double>* las) 
-{
-     itsLaSolver=las;
-}; 
-void SCFIrrepAccelerator__Null::UseFD(const SMat& F, const SMat& DPrime)
-{
-    itsFPrime=itsLaSolver->Transform(F);
-}
-
-SCFIrrepAccelerator::Mat SCFIrrepAccelerator__Null::CalculateError()
-{
-    assert(false);
-    return Mat();
-}
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator__Null::Project()
-{
-    return itsFPrime;
-}
 
 
 #include "oml/diagonalmatrix.h"

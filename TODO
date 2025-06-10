@@ -4,6 +4,20 @@ Priority 1:
     Done: -Orbital_QNs
         Use std::shared_ptr for sym.
     -Convergence acceleration.
+        Refactor DIIS code:
+            SUpport irrep version? No let's go global only.
+            All irrep does is
+                1) transform Fprime=Vd*F*V
+                2) store DPrime, F',E,En deques
+                3) Calculate commutator [F',D']
+                4) Store projection coeff (as a reference?)
+                5) Do projection
+                -no need to track bailout
+                -What is the cleanest to get B_ij = e_i*e_j out of each irrep?
+                    inline GetError(i,j). 
+            Plan:
+                1) Separate out source files
+                2) Make BuildPrunedB self contained.
         Done: -Convergence on delta-ro is not very good.
             SHould we track which Irrep is not converging?
         Done: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
@@ -19,8 +33,8 @@ Priority 1:
             SVD and trunctate B?
                 We don't need a uniqe c vector, just need any c than minimizes ||e||
         -EDIIS
-        -Make a pass through accelerator.
-        -DIIS auto adjust Npurge 
+        Done: -Make a pass through accelerator.
+        Done: -DIIS auto adjust Npurge 
             Lorenzo Maschio 2018: The algorithm pre-sented discards an older iterations i only when the absolute value of corresponding coefficient ci in Eq. (1) is below 10−8. 
             Pauley 1982: If eq. (1) becomes ill-conditioned, omit the first, second, etc., equation until its condition becomes acceptable.
                 (this is a bit vague: the first eq. in eq.1 in the lamba eq. which makes no sense to remove)
@@ -29,44 +43,17 @@ Priority 1:
                 Need relax=0.1 just to get going before DIIS kicks in.
                 f orbitals are the ones converging very slowely.
                 Same for smaller basis sets?
-        -DIIS should e be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
-            This should be optional
-            He and Be have one irrep.  Do they work well?
+        Done: -DIIS should e be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
+            No This should be optional
+                The irrep cersion is useless, global only
+            DOne: He and Be have one irrep.  Do they work well?
                 Yes (with some tweaking of how the SCFIter algo handle relmax)
-            For Be N=4, SVmin=1e-10 or 1e-9 work very well.
-            DIIS Steps with bailouts
-                1) INput F',D'
-                2) Calculate E=F'D'-D'F' and En=||E||,  
-                    Bail if En is too big
-                3) Add F',E,En to storage
-                    Bail if N<2
-                    Bail if En is too small.
-                4) Purge if N>Nmax
-                5) Calculate B
-                6) Prune F',E,En until B is not singular
-                    Bail if N<2    
-                7) c=solve(B)
-                8) Do the projection and return Fproj.
-            Steps For all Irreps {k}
-                1) Foreach k do 
-                    calc F_k'(H_k,s_k)
-                    Calculate Ek=Fk'Dk'-Dk'Fk' and Enk=||Ek||,  
-                    
-                2) E=sum(Ek)
-                    Bail if En is too big
-                3) Foreach k do Add F_k',E_k,En_k to storage
-                    Bail if N<2
-                    Bail if En is too small.
-                3) Calculate B_ij = sum(k,E_ki*E_kj)0
-                4) Prune F',E,En until B is not singular
-                    Bail if N<2    
-                5) c=Solve B
-                6) foreach k project Fproj_k=sum(i,c_i,F'_ki)
-
+                For Be N=4, SVmin=1e-10 or 1e-9 work very well.
+            
         -DIIS design
             Does not need the LASolver, it just needs an interface that can do the ortho tranform.
                 Irrep basis should be able to provide this interface.
-            Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
+            Done: Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
                 only the orbital knows D or Dprime.
                 In software (currently) IrrepWF and TOrbtials are alsmost the same thing.  But this is mostly an effect of
                     1) We done ask for pair or high quantities like WF(r1,r2,r3...)
@@ -75,9 +62,9 @@ Priority 1:
                 
             Done: Refactor WF for less spin dependence? (similar to CD)
             Irrep_QNs should be a separate header.
-        A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT
+        Done: A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT
 
-        -Check out some manuals:
+        Done: -Check out some manuals:
             https://manual.q-chem.com/5.3/sect_convergence.html
             Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations
             RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCA_DIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
@@ -101,6 +88,10 @@ Priority 1:
 [  FAILED  ] Multiple/A_SG_DFT_P.Multiple/3, where GetParam() = 7
 
 
+    -Move Orbital_QNs.C into BasisSet/Atom folder.
+    -Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
+        shared_ptr
+        done list all exponents just {min .. max} factor = 
     -Eigen energy output
         Fix unpolarized.
         Vee Vxc are not wide enough.
@@ -1226,17 +1217,3 @@ Priority 3:
         
         
         
- #             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nmin   Nmax    SVMin   relax
-                                     (1e-10) (2e-05) (2e-06) 
---------------------------------------------------------------------------------------------------------------------------
-  1      -2.80238854939499  1.9e-01 -2.8e+00 1.6e-01 1.1e+00                         0.50 
-  2      -2.84589377072965  6.8e-02 -4.4e-02 8.8e-02 4.7e-02                         0.75 
-  3      -2.85681307713258 -1.7e-02 -1.1e-02 6.9e-02 3.9e-02   2      2     3.5e-05  0.80 
-  4      -2.86068863726803 -4.9e-03 -3.9e-03 1.7e-02 1.2e-01                         0.80 
-  5      -2.86140576240848 -8.1e-03 -7.2e-04 1.6e-03 7.3e-03   3      3     7.6e-06  0.80 
-  6      -2.86156180984879 -1.0e-02 -1.6e-04 1.2e-03 2.5e-02   4      4     4.9e-08  1.00 
-  7      -2.86165766669501  4.2e-03 -9.6e-05 1.2e-02 2.8e-02   5      5     1.1e-09  1.00 
-  8      -2.86167873740197  3.5e-04 -2.1e-05 3.3e-03 1.2e-02   3      3     1.5e-09  1.00 
-  9      -2.86167890146587 -3.5e-06 -1.6e-07 3.0e-04 1.0e-03   3      3     2.7e-08  1.00 
- 10      -2.86167890147440 -1.2e-06 -8.5e-12 6.7e-06 7.1e-06   3      3     3.1e-09  1.00 
- 11      -2.86167890147448 -1.2e-06 -7.9e-14 8.1e-07 7.3e-07                         1.00 
