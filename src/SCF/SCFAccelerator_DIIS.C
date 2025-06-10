@@ -97,13 +97,11 @@ void SCFIrrepAccelerator_DIIS::Append1()
 
 void SCFIrrepAccelerator_DIIS::Purge1()
 {
-    //auto iter=std::max_element(itsEns.begin(),itsEns.end()); //Find the maximum Error
-    auto iter=itsEns.begin(); //just pick the oldest element.
-    size_t index=std::distance(itsEns.begin(),iter);
-    itsEns.erase(iter);
-    itsEs.erase(itsEs.begin()+index);
-    itsFPrimes.erase(itsFPrimes.begin()+index);
-    
+    assert(itsEs.size()==itsFPrimes.size());
+    assert(itsEns.size()==itsFPrimes.size());
+    itsEns    .pop_front();
+    itsEs     .pop_front();
+    itsFPrimes.pop_front();    
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
@@ -241,7 +239,7 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
         os << std::scientific << std::setw(7) << std::setprecision(1) << itsLastSVMin << "  ";
     }
         else
-        os << "                 ";
+        os << "                ";
 }
 
 double SCFAccelerator_DIIS::GetError() const

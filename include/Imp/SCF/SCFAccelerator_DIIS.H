@@ -12,7 +12,7 @@ struct DIISParams
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
 };
 
-#include <vector>
+#include <deque>
 
 #include <Orbital_QNs.H>
 #include "oml/smatrix.h"
@@ -21,9 +21,9 @@ class SCFAccelerator_DIIS;
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    typedef std::vector<Mat   > mv_t; //matrix-vector type.
-    typedef std::vector<SMat  > sv_t; //smatrix-vector type.
-    typedef std::vector<double> dv_t ; //doubles
+    typedef std::deque<Mat   > mv_t; //matrix-vector type.
+    typedef std::deque<SMat  > sv_t; //smatrix-vector type.
+    typedef std::deque<double> dv_t ; //doubles
     typedef std::pair<SMat,double> md_t;
     SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAccelerator_DIIS();
