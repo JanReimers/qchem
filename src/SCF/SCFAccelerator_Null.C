@@ -12,11 +12,6 @@ void SCFIrrepAccelerator__Null::UseFD(const SMat& F, const SMat& DPrime)
     itsFPrime=itsLaSolver->Transform(F);
 }
 
-SCFIrrepAccelerator::Mat SCFIrrepAccelerator__Null::CalculateError()
-{
-    assert(false);
-    return Mat();
-}
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator__Null::Project()
 {
     return itsFPrime;

@@ -34,13 +34,9 @@ void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
     itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.GetLimits()==DPrime.GetLimits());
     itsDPrime=DPrime;
-    itsBailout = Max(fabs(itsDPrime))==0.0;
-}
-
-SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError() 
-{
     itsE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
-    return itsE;
+    itsEn=FrobeniusNorm(itsE);
+    itsBailout = Max(fabs(itsDPrime))==0.0;
 }
 
 template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
@@ -83,9 +79,6 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
     }
 }
 
-#include "Imp/Containers/stl_io.h"
-
-#include <algorithm>
 void SCFIrrepAccelerator_DIIS::Append1()
 {
     assert(itsEs.size()==itsFPrimes.size());
@@ -94,7 +87,6 @@ void SCFIrrepAccelerator_DIIS::Append1()
     itsEns    .push_back(itsEn);
     itsFPrimes.push_back(itsFPrime);   
 }
-
 void SCFIrrepAccelerator_DIIS::Purge1()
 {
     assert(itsEs.size()==itsFPrimes.size());
@@ -199,7 +191,7 @@ bool SCFAccelerator_DIIS::CalculateProjections()
     itsEn=0.0;
     for (auto k:itsIrreps) 
     {
-        double Enk=FrobeniusNorm(k->CalculateError());
+        double Enk=k->GetError();
         if (Enk==0.0) return BailoutChildren();
         itsEn+=Enk*Enk;
     }

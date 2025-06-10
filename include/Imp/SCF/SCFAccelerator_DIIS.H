@@ -21,6 +21,8 @@ class SCFAccelerator_DIIS;
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
+    typedef Matrix<double> Mat;
+    typedef Vector<double> RVec;
     typedef std::deque<Mat   > mv_t; //matrix-vector type.
     typedef std::deque<SMat  > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
@@ -30,7 +32,6 @@ public:
     
     virtual void Init(const LASolver<double>*);
     virtual void UseFD(const SMat& F, const SMat& DPrime);
-    virtual  Mat CalculateError() ;
     virtual SMat Project(); 
 private:
     friend class SCFAccelerator_DIIS;
@@ -44,10 +45,6 @@ private:
 
     void Append1();
     void Purge1();
-    
-
-    typedef  Vector<double> RVec;
-
     
     DIISParams itsParams; 
     Irrep_QNs  itsIrrep;

@@ -12,8 +12,6 @@ public:
     virtual ~SCFIrrepAccelerator__Null() {};
     virtual void Init(const LASolver<double>*); 
     virtual void UseFD(const SMat& F, const SMat& DPrime);
-    virtual void SetProjection(const RVec& cs) {};
-    virtual  Mat CalculateError();
     virtual SMat Project();
 private:
     const LASolver<double>*   itsLaSolver; //Knows the ortho transform
