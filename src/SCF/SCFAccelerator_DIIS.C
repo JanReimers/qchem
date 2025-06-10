@@ -12,34 +12,6 @@ using std::endl;
 
 #include "oml/diagonalmatrix.h"
 
-SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildRawB(const std::vector< Matrix<double>>& Es)
-{
-    index_t N=Es.size()+1;
-    SMat B(N,N);
-    for (index_t i:B.rows())
-        if (i<N)
-            for (index_t j:B.cols(i))
-                if (j<N)
-                    B(i,j)=Dot(Es[i-1],Es[j-1]);
-                
-    return B;
-}
-SCFIrrepAccelerator_DIIS::SMat& SCFIrrepAccelerator_DIIS::AddBEdges(SMat& B)
-{
-    index_t N=B.GetNumRows();
-    for (index_t i:B.rows())
-        if (i<N)
-            B(i,N)=1;
-        else
-            B(N,N)=0.0; 
-    return B;
-}
-SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildB(const std::vector< Matrix<double>>& Es)
-{
-    SMat B(BuildRawB(Es));
-    return AddBEdges(B);
-   
-}
 double SCFIrrepAccelerator_DIIS::GetMinSV(const SMat& B)
 {
     static oml::LapackSVDSolver<double> solver;
@@ -140,54 +112,15 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
 
 
 
-SCFIrrepAccelerator_DIIS::md_t SCFIrrepAccelerator_DIIS::BuildPrunedB(const mv_t& Es,double svmin)
-{
-    SMat B=BuildB(Es);
-    double sv=GetMinSV(B);
-    while (sv<svmin && Es.size()>=2) 
-    {
-        Purge1(); //Must be a member function for this.
-        B=BuildB(Es);
-        sv=GetMinSV(B);
-    }
-    return std::make_pair(B,sv);
-}
 
 #include "Imp/Containers/stl_io.h"
 SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
 {
-    SMat B;
-    std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
-    if (B.GetNumRows()<2)
-    {
-        itsBailout=true;
-        RVec c({1});
-        return c;
-    }
-    
-    return SolveC(B); //Solve for the projection coefficients
+    return RVec();
 }
 
 bool SCFIrrepAccelerator_DIIS::CalculateProjections()
 {
-    // cout << itsIrrep << endl;
-    itsBailout=false;
-    if (itsBailout=Max(fabs(itsDPrime))==0.0;itsBailout) return itsBailout;
-    assert(itsFPrime.GetLimits()==itsDPrime.GetLimits());
-    Mat E=CalculateError();
-    itsLastEn=FrobeniusNorm(E);
-    if (itsBailout=itsLastEn>itsParams.EMax;itsBailout) return itsBailout;
-  
-    Append(itsFPrime,E,itsLastEn);
-    if (itsEs.size()>itsParams.Nproj) Purge1();
-    assert(itsEs.size()<=itsParams.Nproj);
-    if (itsBailout=itsLastEn< itsParams.EMin;itsBailout) return itsBailout;
-    
-    SMat B;
-    std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
-    if (itsBailout=B.GetNumRows()<=2;itsBailout) return itsBailout;
-    
-    itsCs=SolveC(B); //Solve for the projection coefficients
     
     return itsBailout;
 }

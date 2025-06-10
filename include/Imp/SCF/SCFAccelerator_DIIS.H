@@ -34,9 +34,6 @@ public:
     virtual SMat Project(); 
 private:
     friend class SCFAccelerator_DIIS;
-    static SMat&  AddBEdges(SMat& B);
-    static SMat   BuildRawB(const mv_t&);
-    static SMat   BuildB(const mv_t&);
     static double GetMinSV(const SMatrix<double>& B);
     static RVec   SolveC(const SMatrix<double>& B);
 
@@ -46,13 +43,11 @@ private:
     size_t GetNproj() const {return itsEs.size();}
     bool   Bailout () const {return itsBailout;}
     void   GlobalBailout() {itsBailout=true;}
-    SMat   BuildRawB() const {return BuildRawB(itsEs);}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
 
     void Append(const SMat& FPrime, const Mat& E, double En);
     void AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
     void Purge1();
-    md_t BuildPrunedB(const mv_t&,double svmin);
     RVec Solve();
 
 
