@@ -11,7 +11,7 @@ protected:
     typedef SMatrix<double> SMat;
 public:
     virtual ~SCFIrrepAccelerator() {};
-    virtual void Init(const LASolver<double>*, const Irrep_QNs&)=0; //Solver knows how to transform to orthogonal basis.
+    virtual void Init(const LASolver<double>*)=0; //Solver knows how to transform to orthogonal basis.
     virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
     virtual void SetProjection(const RVec& cs)=0;
     virtual  Mat CalculateError() =0;
@@ -23,13 +23,28 @@ class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
-    virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*)=0;
+    virtual SCFIrrepAccelerator* Create(const Irrep_QNs&)=0;
     virtual bool CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;
     virtual double GetError() const=0;
 };
 
+#include "oml/smatrix.h"
+class SCFIrrepAccelerator__Null : public virtual SCFIrrepAccelerator
+{
+public:
+    SCFIrrepAccelerator__Null(const Irrep_QNs&) {};
+    virtual ~SCFIrrepAccelerator__Null() {};
+    virtual void Init(const LASolver<double>*); 
+    virtual void UseFD(const SMat& F, const SMat& DPrime);
+    virtual void SetProjection(const RVec& cs) {};
+    virtual  Mat CalculateError();
+    virtual SMat Project();
+private:
+    const LASolver<double>*   itsLaSolver; //Knows the ortho transform
+    SMat   itsFPrime;
+};
 
 struct DIISParams
 {
@@ -51,10 +66,10 @@ class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 public:
     typedef std::vector<Mat> mv_t; //matrix-vector type.
     typedef std::pair<SMat,double> md_t;
-    SCFIrrepAccelerator_DIIS(const DIISParams&);
+    SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&);
     virtual ~SCFIrrepAccelerator_DIIS();
     
-    virtual void Init(const LASolver<double>*, const Irrep_QNs&);
+    virtual void Init(const LASolver<double>*);
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual void SetProjection(const RVec& cs) {itsCs=cs;}
     virtual bool CalculateProjections();
@@ -116,7 +131,7 @@ public:
 
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
-    virtual SCFIrrepAccelerator* Create(const TOrbital_IBS<double>*);
+    virtual SCFIrrepAccelerator* Create(const Irrep_QNs&);
     virtual bool CalculateProjections();
     virtual void ShowLabels     (std::ostream&) const;
     virtual void ShowConvergence(std::ostream&) const;

@@ -84,7 +84,7 @@ public:
     }
 };
 
-static std::map<int,size_t> expected_itartion_counts={{2,10},{4,11},{10,12},{12,14},{18,13},{20,16},{30,17},{36,13},{38,15},{46,15},{48,16},{54,13},{56,15},{70,22},{80,16},{86,15},{88,17}};
+static std::map<int,size_t> expected_itartion_counts={{2,10},{4,11},{10,12},{12,14},{18,13},{20,16},{30,17},{36,12},{38,15},{46,15},{48,16},{54,13},{56,15},{70,22},{80,16},{86,15},{88,17}};
 static std::map<int,size_t> NBasis={{2,20},{4,20},{10,22},{12,22},{18,23},{20,25},{30,25},{36,25},{38,27},{46,27},{48,27},{54,30},{56,30},{70,30},{80,30},{86,30},{88,30}};
 TEST_P(A_SG_HF_U,Multiple)
 {
@@ -109,7 +109,7 @@ TEST_P(A_SGm_HF_U,Multiple)
     int N=20;
     if (Z>40) N=20;
     if (Z>70) N=25;
-    Init(N,0.05,4000*Z,GetLMax(Z));
+    Init(N,0.01,10000*Z*sqrt(Z),GetLMax(Z));
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -201,7 +201,7 @@ TEST_P(A_SG_HF_P,Multiple)
     int N=20;
     if (Z>40) N=20;
     if (Z>70) N=25;    
-    Init(N,0.05,4000*Z,GetLMax(Z));
+    Init(N,0.01,10000*Z*sqrt(Z),GetLMax(Z));
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }

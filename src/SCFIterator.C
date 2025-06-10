@@ -43,6 +43,8 @@ void SCFIterator::Initialize(DM_CD* cd)
     assert(itsCD);
     itsOldCD=cd;
     itsIterationCount=0;
+    EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(itsCD);
+    DisplayEnergies(itsIterationCount,eb,1.0,0.0,0.0);
 }
 //
 //  Recall that the wavefunction is not owned buy this.

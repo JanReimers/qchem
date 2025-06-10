@@ -13,17 +13,17 @@
 using std::cout;
 using std::endl;
 
-Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Spin& ms,SCFIrrepAccelerator* acc)
+Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (bs->CreateSolver())
-    , itsOrbitals   (new  TOrbitalsImp<double>(bs,ms))
-    , itsIrrep      (ms,bs->GetSymmetry())
+    , itsOrbitals   (new  TOrbitalsImp<double>(bs,qns.ms))
+    , itsIrrep      (qns)
     , itsAccelerator(acc)
     , itsDPrime     (bs->GetNumFunctions())
 {
     assert(itsOrbitals);
     assert(itsAccelerator);
-    itsAccelerator->Init(itsLASolver,itsIrrep);
+    itsAccelerator->Init(itsLASolver);
     Fill(itsDPrime,0.0);
 };
 

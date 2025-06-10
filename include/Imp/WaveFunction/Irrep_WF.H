@@ -9,7 +9,7 @@
 class Irrep_WF
 {
 public:
-    Irrep_WF(const TOrbital_IBS<double>*, const Spin&,SCFIrrepAccelerator*);
+    Irrep_WF(const TOrbital_IBS<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
     ~Irrep_WF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;

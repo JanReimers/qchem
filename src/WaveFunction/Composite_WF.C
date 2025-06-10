@@ -6,6 +6,7 @@
 #include "Imp/SCFAccelerator.H"
 #include <BasisSet.H>
 #include <Irrep_BS.H>
+#include <ElectronConfiguration.H>
 #include <cassert>
 
 Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
@@ -25,10 +26,13 @@ void Composite_WF::MakeIrrep_WFs(Spin s)
 
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
-        uiwf_t wf(new Irrep_WF(b,s,itsAccelerator->Create(b)));
-        itsQN_WFs[wf->GetQNs()]=wf.get();
+        Irrep_QNs qns(s,b->GetSymmetry());
+        SCFIrrepAccelerator* acc=itsEC->GetN(qns)>0 ? itsAccelerator->Create(qns) : new SCFIrrepAccelerator__Null(qns);
+        
+        uiwf_t wf(new Irrep_WF(b,qns,acc));
+        itsQN_WFs[qns]=wf.get();
         itsSpin_WFs[s].push_back(wf.get());
-        itsIWFs.push_back(std::move(wf)); //Do the move last.
+        itsIWFs.push_back(std::move(wf)); //Do the move last. wf is invalid after the move.
     }
 }
 

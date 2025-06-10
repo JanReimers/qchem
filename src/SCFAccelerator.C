@@ -9,6 +9,26 @@
 using std::cout;
 using std::endl;
 
+void SCFIrrepAccelerator__Null::Init(const LASolver<double>* las) 
+{
+     itsLaSolver=las;
+}; 
+void SCFIrrepAccelerator__Null::UseFD(const SMat& F, const SMat& DPrime)
+{
+    itsFPrime=itsLaSolver->Transform(F);
+}
+
+SCFIrrepAccelerator::Mat SCFIrrepAccelerator__Null::CalculateError()
+{
+    assert(false);
+    return Mat();
+}
+SCFIrrepAccelerator::SMat SCFIrrepAccelerator__Null::Project()
+{
+    return itsFPrime;
+}
+
+
 #include "oml/diagonalmatrix.h"
 
 SCFIrrepAccelerator_DIIS::SMat SCFIrrepAccelerator_DIIS::BuildRawB(const std::vector< Matrix<double>>& Es)
@@ -28,7 +48,7 @@ SCFIrrepAccelerator_DIIS::SMat& SCFIrrepAccelerator_DIIS::AddBEdges(SMat& B)
     index_t N=B.GetNumRows();
     for (index_t i:B.rows())
         if (i<N)
-            B(i,N)=B(N,i)=1;
+            B(i,N)=1;
         else
             B(N,N)=0.0; 
     return B;
@@ -61,8 +81,9 @@ SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B)
 
 
 
-SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p) 
+SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const Irrep_QNs& qns) 
     : itsParams(p)
+    , itsIrrep(qns)
     , itsLastEn(0.0)
     , itsLastSVMin(1e20)
     , itsCs(1)
@@ -73,9 +94,8 @@ SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS()
 {
 
 };
-void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las, const Irrep_QNs& qns)
+void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las)
 {
-    itsIrrep=qns;
     itsLaSolver=las;
 }
 
@@ -219,9 +239,9 @@ SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p)
 {};
 
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
-SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const TOrbital_IBS<double>* bs) 
+SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const Irrep_QNs& qns) 
 {
-    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams));
+    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,qns));
     return itsIrreps.back();;
 }
 
@@ -268,7 +288,7 @@ bool SCFAccelerator_DIIS::CalculateProjections()
             itsBailout=false;
             for (auto k:itsIrreps) 
                 itsBailout=k->Bailout() || itsBailout;
-            if (itsBailout) return itsBailout;
+            if (itsBailout) return BailoutChildren();
 
             itsEn=0.0;
             for (auto k:itsIrreps) 
