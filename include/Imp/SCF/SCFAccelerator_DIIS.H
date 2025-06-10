@@ -89,7 +89,6 @@ private:
     SMat   BuildPrunedB(double svmin);
     size_t Append1();
     size_t Purge1();
-    bool   DoBailout();
     size_t GetNProj() const;
     bool   HasProjection() const {return itsCs.size()>=2;}
 
