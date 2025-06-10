@@ -6,7 +6,6 @@
 
 struct DIISParams
 {
-    enum {global,irrep} type;
     size_t Nproj;  //Number of terms to keep for proections.
     double EMax;   //DIIS starts when E<EMax
     double EMin;   //DIIS stops when E<EMin

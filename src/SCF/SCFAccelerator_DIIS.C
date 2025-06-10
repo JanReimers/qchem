@@ -254,50 +254,34 @@ void SCFAccelerator_DIIS::Purge1()
 bool SCFAccelerator_DIIS::CalculateProjections()
 {
     itsBailout=false;
-    switch (itsParams.type)
+    for (auto k:itsIrreps) 
+        itsBailout=k->Bailout() || itsBailout;
+    if (itsBailout) return BailoutChildren();
+
+    itsEn=0.0;
+    for (auto k:itsIrreps) 
     {
-        case DIISParams::irrep:
-        {
-            for (auto k:itsIrreps) 
-            {
-                itsBailout = k->CalculateProjections() || itsBailout;
-            }
-            break;
-        }
-        case DIISParams::global:
-        {
-            itsBailout=false;
-            for (auto k:itsIrreps) 
-                itsBailout=k->Bailout() || itsBailout;
-            if (itsBailout) return BailoutChildren();
-
-            itsEn=0.0;
-            for (auto k:itsIrreps) 
-            {
-                double Enk=FrobeniusNorm(k->CalculateError());
-                itsEn+=Enk*Enk;
-            }
-            itsEn=sqrt(itsEn);
-            // cout << "itsEn=" << itsEn << endl;
-            if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
-            
-            for (auto k:itsIrreps) k->AppendFPrime();
-            itsN= itsIrreps[0]->GetNproj();
-            if (itsN>itsParams.Nproj) Purge1();
-            itsN= itsIrreps[0]->GetNproj();
-            assert(itsN<=itsParams.Nproj);
-            if (itsBailout=itsN<2;itsBailout) return BailoutChildren();
-            
-            SMat B;
-            std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
-            if (itsBailout=B.GetNumRows()<=2;itsBailout) return BailoutChildren();
-                      
-            itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
-            for (auto k:itsIrreps) k->SetProjection(itsCs);
-            break;
-        }
-
+        double Enk=FrobeniusNorm(k->CalculateError());
+        itsEn+=Enk*Enk;
     }
+    itsEn=sqrt(itsEn);
+    // cout << "itsEn=" << itsEn << endl;
+    if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
+    
+    for (auto k:itsIrreps) k->AppendFPrime();
+    itsN= itsIrreps[0]->GetNproj();
+    if (itsN>itsParams.Nproj) Purge1();
+    itsN= itsIrreps[0]->GetNproj();
+    assert(itsN<=itsParams.Nproj);
+    if (itsBailout=itsN<2;itsBailout) return BailoutChildren();
+    
+    SMat B;
+    std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
+    if (itsBailout=B.GetNumRows()<=2;itsBailout) return BailoutChildren();
+                
+    itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
+    for (auto k:itsIrreps) k->SetProjection(itsCs);
+
     return itsBailout;
 }
 bool SCFAccelerator_DIIS::BailoutChildren()
@@ -309,65 +293,24 @@ bool SCFAccelerator_DIIS::BailoutChildren()
 
 void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
 {
-    os << " [F,D]   Nmin   Nmax    SVMin";
+    os << " [F,D]   Nproj    SVMin";
 }
 void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
 {
-    double EMax=0.0,SVMin=1.0e20;
-    size_t NMin=1000,NMax=0;
-    bool bailout=false;
-    switch (itsParams.type)
+    os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
+    if (!itsBailout)
     {
-        case DIISParams::irrep :
-        {
-            for (auto i:itsIrreps)
-            {
-                if (i->GetError()>EMax) EMax=i->GetError();
-                if (i->GetSVMin()<SVMin) SVMin=i->GetSVMin();
-                if (i->GetNproj()<NMin) NMin=i->GetNproj();
-                if (i->GetNproj()>NMax) NMax=i->GetNproj();
-                if (i->Bailout()) bailout=true;
-            }
-            
-           
-            break;
-        }
-        case DIISParams::global :
-        {
-            bailout=itsBailout;
-            EMax=itsEn;
-            SVMin=itsLastSVMin;
-            NMax=NMin=itsN;
-            break;
-        }
-    }
-    os << std::scientific << std::setw(7) << std::setprecision(1) << EMax << " ";
-    if (!bailout)
-    {
-        os << std::setw(3) << NMin << "    " << std::setw(3) << NMax << "     ";
-        os << std::scientific << std::setw(7) << std::setprecision(1) << SVMin << "  ";
+        os << std::setw(3) << itsN << "    ";
+        os << std::scientific << std::setw(7) << std::setprecision(1) << itsLastSVMin << "  ";
     }
         else
-        os << "                        ";
+        os << "                 ";
 }
 
 double SCFAccelerator_DIIS::GetError() const
 {
-    double EMax=0.0;
-    switch (itsParams.type)
-    {
-    case DIISParams::irrep:
-        for (auto i:itsIrreps)
-            if (i->GetError()>EMax) EMax=i->GetError();
-        break;
-    
-    case DIISParams::global:
-        EMax=itsEn;
-        break;
-    }
-    
-    
-    return EMax;
+      
+    return itsEn;
 }
 
 
