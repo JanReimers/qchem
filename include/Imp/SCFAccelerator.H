@@ -45,6 +45,7 @@ struct DIISParams
 #include <Orbital_QNs.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
+class SCFAccelerator_DIIS;
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
@@ -52,39 +53,40 @@ public:
     typedef std::pair<SMat,double> md_t;
     SCFIrrepAccelerator_DIIS(const DIISParams&);
     virtual ~SCFIrrepAccelerator_DIIS();
+    
     virtual void Init(const LASolver<double>*, const Irrep_QNs&);
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual void SetProjection(const RVec& cs) {itsCs=cs;}
-
-    virtual  Mat CalculateError() ;
     virtual bool CalculateProjections();
+    virtual  Mat CalculateError() ;
     virtual SMat Project(); 
-   
-    double GetError() const {return itsLastEn;}
-    double GetSVMin() const {return itsLastSVMin;}
-    size_t GetNproj() const {return itsEs.size();}
-    bool   Bailout () const {return itsBailout;}
-    void   GlobalBailout() {itsBailout=true;}
-    void   AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
-    SMat   BuildRawB() const {return BuildRawB(itsEs);}
-
-
+private:
+    friend class SCFAccelerator_DIIS;
     static SMat&  AddBEdges(SMat& B);
     static SMat   BuildRawB(const mv_t&);
     static SMat   BuildB(const mv_t&);
     static double GetMinSV(const SMatrix<double>& B);
     static RVec   SolveC(const SMatrix<double>& B);
-    void Purge1();
 
-private:
+
+    double GetError() const {return itsLastEn;}
+    double GetSVMin() const {return itsLastSVMin;}
+    size_t GetNproj() const {return itsEs.size();}
+    bool   Bailout () const {return itsBailout;}
+    void   GlobalBailout() {itsBailout=true;}
+    SMat   BuildRawB() const {return BuildRawB(itsEs);}
+
+
+    void Append(const SMat& FPrime, const Mat& E, double En);
+    void AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
+    void Purge1();
+    md_t BuildPrunedB(const mv_t&,double svmin);
+    RVec Solve();
+
+
     typedef  Vector<double> RVec;
 
-    md_t BuildPrunedB(const mv_t&,double svmin);
-    // RVec SolveC(const SMat& B) const;
-    RVec Solve();
-    SMat Project(const RVec& c);
-    void Append(const SMat& FPrime, const Mat& E, double En);
-
+    
     DIISParams                   itsParams; 
     Irrep_QNs                    itsIrrep;
     double                       itsLastEn;  // [F',D']

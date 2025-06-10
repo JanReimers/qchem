@@ -96,16 +96,6 @@ SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError()
     return itsLastE;
 }
 
-
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
-{
-    if (itsBailout) 
-        return itsFPrime;
-    else
-        return Project(itsCs);
-}
-
-
 template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
 {
     if (a.size()==0) 
@@ -128,6 +118,26 @@ template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
         assert(a.GetLimits()==b.GetLimits());
     return ArrayAdd(a,b);
 }
+
+SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
+{
+    if (itsBailout) 
+        return itsFPrime;
+    else
+    {
+        assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
+        assert(itsCs.size()>=2);
+        assert(itsCs.size()==itsFPrimes.size());
+        // Now do the projection for the Fock matrix.
+        SMat Fproj;
+        index_t i=1;
+        for (const auto& f:itsFPrimes) Fproj+=SMat(itsCs(i++)*f);
+        return Fproj;
+        // return Project(itsCs);
+    }
+}
+
+
 
 SCFIrrepAccelerator_DIIS::md_t SCFIrrepAccelerator_DIIS::BuildPrunedB(const mv_t& Es,double svmin)
 {
@@ -170,36 +180,15 @@ bool SCFIrrepAccelerator_DIIS::CalculateProjections()
     Append(itsFPrime,E,itsLastEn);
     if (itsEs.size()>itsParams.Nproj) Purge1();
     assert(itsEs.size()<=itsParams.Nproj);
-    if (itsBailout=itsLastEn< itsParams.EMin;itsBailout) 
-        return itsBailout;
+    if (itsBailout=itsLastEn< itsParams.EMin;itsBailout) return itsBailout;
     
     SMat B;
     std::tie(B,itsLastSVMin)=BuildPrunedB(itsEs,itsParams.SVTol);
-    if (B.GetNumRows()<=2)
-    {
-        itsBailout=true;
-        itsCs=RVec(1);
-        itsCs(1)=1.0;
-    }
-    else
-        itsCs=SolveC(B); //Solve for the projection coefficients
+    if (itsBailout=B.GetNumRows()<=2;itsBailout) return itsBailout;
+    
+    itsCs=SolveC(B); //Solve for the projection coefficients
     
     return itsBailout;
-}
-
-
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const RVec& c)
-{
-    assert(!itsBailout);
-    assert(fabs(Sum(c)-1.0)<1e-13); //Check that the constraint worked.
-    assert(c.size()>=2);
-    assert(c.size()==itsFPrimes.size());
-    // Now do the projection for the Fock matrix.
-    SMat Fproj;
-    index_t i=1;
-    for (const auto& f:itsFPrimes) Fproj+=SMat(c(i++)*f);
-    return Fproj;
-
 }
 
 #include <algorithm>
@@ -290,24 +279,19 @@ bool SCFAccelerator_DIIS::CalculateProjections()
             itsEn=sqrt(itsEn);
             // cout << "itsEn=" << itsEn << endl;
             if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
+            
             for (auto k:itsIrreps) k->AppendFPrime();
             itsN= itsIrreps[0]->GetNproj();
             if (itsN>itsParams.Nproj) Purge1();
             itsN= itsIrreps[0]->GetNproj();
             assert(itsN<=itsParams.Nproj);
             if (itsBailout=itsN<2;itsBailout) return BailoutChildren();
+            
             SMat B;
             std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
-            if (B.GetNumRows()<=2)
-            {
-                itsBailout=true;
-                itsCs=RVec(1);
-                itsCs(1)=1.0;
-                return BailoutChildren();
-            }
-           
+            if (itsBailout=B.GetNumRows()<=2;itsBailout) return BailoutChildren();
+                      
             itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
-            // cout << "Cs=" << itsCs << endl;
             for (auto k:itsIrreps) k->SetProjection(itsCs);
             break;
         }
