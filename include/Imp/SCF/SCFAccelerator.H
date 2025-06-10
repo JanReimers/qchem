@@ -13,7 +13,6 @@ public:
     virtual ~SCFIrrepAccelerator() {};
     virtual void Init(const LASolver<double>*)=0; //Solver knows how to transform to orthogonal basis.
     virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
-    virtual void SetProjection(const RVec& cs)=0;
     virtual  Mat CalculateError() =0;
     virtual SMat Project()=0; 
 };

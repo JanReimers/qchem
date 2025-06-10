@@ -9,36 +9,10 @@
 using std::cout;
 using std::endl;
 
-
-#include "oml/diagonalmatrix.h"
-
-double SCFIrrepAccelerator_DIIS::GetMinSV(const SMat& B)
-{
-    static oml::LapackSVDSolver<double> solver;
-    auto [U,s,V]=solver.SolveAll(B);
-    size_t N=s.GetNumRows();
-    return s(N,N);
-}
-SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::SolveC(const SMat& B) 
-{
-    static LapackLinearSolver<double> solver;
-    size_t N=B.GetNumRows();
-    RVec v(N);
-    Fill(v,0.0); 
-    v(N)=1.0;
-    RVec C=solver.Solve(B,v);
-    // std:: cout << B << C << v << del <<std::endl;
-    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
-    return C.SubVector(N-1);   
-}
-
-
-
 SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const Irrep_QNs& qns) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsLastEn(0.0)
-    , itsLastSVMin(1e20)
     , itsCs(1)
 {
     itsCs(1)=1.0;
@@ -110,20 +84,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
     }
 }
 
-
-
-
 #include "Imp/Containers/stl_io.h"
-SCFIrrepAccelerator_DIIS::RVec SCFIrrepAccelerator_DIIS::Solve()
-{
-    return RVec();
-}
-
-bool SCFIrrepAccelerator_DIIS::CalculateProjections()
-{
-    
-    return itsBailout;
-}
 
 #include <algorithm>
 void SCFIrrepAccelerator_DIIS::Append(const SMat& FPrime, const Mat& E, double En)
@@ -146,7 +107,13 @@ void SCFIrrepAccelerator_DIIS::Purge1()
     
 }
 
+//----------------------------------------------------------------------------------------------------------------------------
+//
+// Non irrep code
+//
 #include <Irrep_BS.H>
+#include "oml/diagonalmatrix.h"
+
 
 SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p) 
 : itsParams(p)
@@ -168,6 +135,27 @@ size_t SCFAccelerator_DIIS::GetNProj() const
     return N;
 }
 
+double SCFAccelerator_DIIS::GetMinSV(const SMat& B)
+{
+    static oml::LapackSVDSolver<double> solver;
+    auto [U,s,V]=solver.SolveAll(B);
+    size_t N=s.GetNumRows();
+    return s(N,N);
+}
+SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B) 
+{
+    static LapackLinearSolver<double> solver;
+    size_t N=B.GetNumRows();
+    RVec v(N);
+    Fill(v,0.0); 
+    v(N)=1.0;
+    RVec C=solver.Solve(B,v);
+    // std:: cout << B << C << v << del <<std::endl;
+    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
+    return C.SubVector(N-1);   
+}
+
+
 SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildB() const
 {
     index_t N=GetNProj()+1;
@@ -186,12 +174,12 @@ SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildB() const
 SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildPrunedB(double svmin)
 {
     SMat B=BuildB();
-    double sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
-    while (sv<svmin &&itsN>=2) 
+    double sv=SCFAccelerator_DIIS::GetMinSV(B);
+    while (sv<svmin &&GetNProj()>=2) 
     {
         Purge1(); //Must be a member function for this.
         B=BuildB();
-        sv=SCFIrrepAccelerator_DIIS::GetMinSV(B);
+        sv=SCFAccelerator_DIIS::GetMinSV(B);
     }
     return std::make_pair(B,sv);    
 }
@@ -205,39 +193,35 @@ void SCFAccelerator_DIIS::Purge1()
 bool SCFAccelerator_DIIS::CalculateProjections()
 {
     itsBailout=false;
-    for (auto k:itsIrreps) 
-        itsBailout=k->Bailout() || itsBailout;
-    if (itsBailout) return BailoutChildren();
 
     itsEn=0.0;
     for (auto k:itsIrreps) 
     {
         double Enk=FrobeniusNorm(k->CalculateError());
+        if (Enk==0.0) return BailoutChildren();
         itsEn+=Enk*Enk;
     }
     itsEn=sqrt(itsEn);
     // cout << "itsEn=" << itsEn << endl;
-    if (itsBailout=itsEn>itsParams.EMax;itsBailout) return BailoutChildren();
+    if (itsEn>itsParams.EMax) return BailoutChildren();
     
     for (auto k:itsIrreps) k->AppendFPrime();
-    itsN= itsIrreps[0]->GetNproj();
-    if (itsN>itsParams.Nproj) Purge1();
-    itsN= itsIrreps[0]->GetNproj();
-    assert(itsN<=itsParams.Nproj);
-    if (itsBailout=itsN<2;itsBailout) return BailoutChildren();
+    if (GetNProj()>itsParams.Nproj) Purge1();
+    assert(GetNProj()<=itsParams.Nproj);
+    if (GetNProj()<2) return BailoutChildren();
     
     SMat B;
     std::tie(B,itsLastSVMin)=BuildPrunedB(itsParams.SVTol);
     if (itsBailout=B.GetNumRows()<=2;itsBailout) return BailoutChildren();
                 
-    itsCs=SCFIrrepAccelerator_DIIS::SolveC(B);
+    itsCs=SCFAccelerator_DIIS::SolveC(B);
     for (auto k:itsIrreps) k->SetProjection(itsCs);
 
     return itsBailout;
 }
 bool SCFAccelerator_DIIS::BailoutChildren()
 {
-    assert(itsBailout);
+    itsBailout=true;
         for (auto k:itsIrreps) k->GlobalBailout();
     return itsBailout;
 }
@@ -251,7 +235,7 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
     os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
     if (!itsBailout)
     {
-        os << std::setw(3) << itsN << "    ";
+        os << std::setw(3) << GetNProj() << "    ";
         os << std::scientific << std::setw(7) << std::setprecision(1) << itsLastSVMin << "  ";
     }
         else

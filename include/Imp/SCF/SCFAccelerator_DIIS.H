@@ -29,26 +29,24 @@ public:
     virtual void Init(const LASolver<double>*);
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual void SetProjection(const RVec& cs) {itsCs=cs;}
-    virtual bool CalculateProjections();
     virtual  Mat CalculateError() ;
     virtual SMat Project(); 
 private:
     friend class SCFAccelerator_DIIS;
-    static double GetMinSV(const SMatrix<double>& B);
-    static RVec   SolveC(const SMatrix<double>& B);
+    
 
 
     double GetError() const {return itsLastEn;}
-    double GetSVMin() const {return itsLastSVMin;}
+    // double GetSVMin() const {return itsLastSVMin;}
     size_t GetNproj() const {return itsEs.size();}
-    bool   Bailout () const {return itsBailout;}
+    // bool   Bailout () const {return itsBailout;}
     void   GlobalBailout() {itsBailout=true;}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
 
     void Append(const SMat& FPrime, const Mat& E, double En);
     void AppendFPrime() {Append(itsFPrime,itsLastE,itsLastEn);}
     void Purge1();
-    RVec Solve();
+    // RVec Solve();
 
 
     typedef  Vector<double> RVec;
@@ -57,7 +55,7 @@ private:
     DIISParams                   itsParams; 
     Irrep_QNs                    itsIrrep;
     double                       itsLastEn;  // [F',D']
-    double                       itsLastSVMin;  //Smallest singular value for latest B matric.
+    // double                       itsLastSVMin;  //Smallest singular value for latest B matric.
     SMat                         itsFPrime,itsDPrime;    
     Mat                          itsLastE;
     RVec                         itsCs;  //Projection coefficients.
@@ -90,6 +88,8 @@ public:
     virtual double GetError() const;
 
 private:
+    static double GetMinSV(const SMatrix<double>& B);
+    static RVec   SolveC(const SMatrix<double>& B);
     SMat BuildB() const;
     md_t BuildPrunedB(double svmin);
     void Purge1();
@@ -102,7 +102,6 @@ private:
 
     bool itsBailout;
     double itsEn,itsLastSVMin;
-    size_t itsN;
     RVec itsCs;
 };
 
