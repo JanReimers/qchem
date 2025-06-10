@@ -97,26 +97,6 @@ SCFIrrepAccelerator::Mat SCFIrrepAccelerator_DIIS::CalculateError()
 }
 
 
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(const SMat& F, const SMat& DPrime)
-{
-    itsBailout=false;
-    SMat FPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
-    if (itsBailout=Max(fabs(DPrime))==0.0;itsBailout) return FPrime;
-    assert(FPrime.GetLimits()==DPrime.GetLimits());
-    itsLastE=FPrime*DPrime-DPrime*FPrime;// Make the communtator
-    itsLastEn=FrobeniusNorm(itsLastE);
-    if (itsBailout=itsLastEn>itsParams.EMax;itsBailout) return FPrime;
-  
-    Append(FPrime,itsLastE,itsLastEn);
-    if (itsEs.size()>itsParams.Nproj) Purge1();
-    assert(itsEs.size()<=itsParams.Nproj);
-    if (itsBailout=itsLastEn< itsParams.EMin;itsBailout) return FPrime;
-    RVec c=Solve();
-    if (itsBailout=c.size()<2;itsBailout) return FPrime;
-    return Project(c);
-
-}
-
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
 {
     if (itsBailout) 

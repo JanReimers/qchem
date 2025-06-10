@@ -15,7 +15,6 @@ public:
     virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
     virtual void SetProjection(const RVec& cs)=0;
     virtual  Mat CalculateError() =0;
-    virtual SMat Project(const SMat& F, const SMat& DPrime)=0; //Fock and Density matrices.
     virtual SMat Project()=0; 
 };
 
@@ -46,11 +45,6 @@ struct DIISParams
 #include <Orbital_QNs.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
-template <class T> class LinearSolver;
-namespace oml
-{
-    template <class T> class SVDSolver;
-}
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {
 public:
@@ -64,7 +58,6 @@ public:
 
     virtual  Mat CalculateError() ;
     virtual bool CalculateProjections();
-    virtual SMat Project(const SMat& F, const SMat& DPrime); //Fock and Density matrices.
     virtual SMat Project(); 
    
     double GetError() const {return itsLastEn;}
