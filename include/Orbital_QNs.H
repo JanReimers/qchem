@@ -12,7 +12,7 @@ struct Orbital_QNs
     Orbital_QNs(size_t n, const Irrep_QNs&);
     ~Orbital_QNs();
 
-    size_t  SequenceIndex() const; //Used for op<
+    virtual size_t  SequenceIndex() const; //Used for op<
     //size_t GetDegeneracy() const; //Same as Irrep
 
     std::ostream& Write(std::ostream&) const;

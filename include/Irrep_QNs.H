@@ -16,13 +16,13 @@ struct Irrep_QNs
     Irrep_QNs(Spin _ms,const sym_t& _sym);
     ~Irrep_QNs();
 
-    size_t  SequenceIndex() const; //Used for op<
+    virtual size_t  SequenceIndex() const; //Used for op<
 
     friend bool operator<(const Irrep_QNs& a, const Irrep_QNs& b)
     {
         return a.SequenceIndex()<b.SequenceIndex();
     }
-    size_t GetDegeneracy() const;
+    virtual size_t GetDegeneracy() const;
 
     std::ostream& Write(std::ostream&) const;
     
