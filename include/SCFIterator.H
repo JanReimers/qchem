@@ -8,7 +8,7 @@ class SCFIterator
 public:
     SCFIterator(const BasisSet*, const ElectronConfiguration*, Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
     virtual ~SCFIterator();
-    virtual bool Iterate(const SCFIterationParams& ipar);
+    virtual bool Iterate(const SCFParams& ipar);
 
     const WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
     EnergyBreakdown     GetEnergy() const;

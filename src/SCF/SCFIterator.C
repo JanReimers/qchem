@@ -5,7 +5,7 @@
 #include <SCFIterator.H>
 #include "Imp/SCF/SCFAccelerator.H"
 #include <WaveFunction.H>
-#include <IterationParams.H>
+#include <SCFParams.H>
 #include <Hamiltonian.H>
 #include <TotalEnergy.H>
 #include <ChargeDensity.H>
@@ -58,7 +58,7 @@ SCFIterator::~SCFIterator()
     delete itsOldCD;
 }
 
-bool SCFIterator::Iterate(const SCFIterationParams& ipar)
+bool SCFIterator::Iterate(const SCFParams& ipar)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);

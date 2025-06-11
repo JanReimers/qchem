@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include <types.H>
 #include <BasisSet.H>
-#include <IterationParams.H>
+#include <SCFParams.H>
 #include <LAParams.H>
 #include "Imp/Misc/PeriodicTable.H"
 #include <TotalEnergy.H>
@@ -18,7 +18,7 @@ public:
     QchemTester();
     virtual ~QchemTester();
     void   Init(double eps);
-    void   Iterate(const SCFIterationParams&);
+    void   Iterate(const SCFParams&);
     double TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
     double TotalCharge() const;

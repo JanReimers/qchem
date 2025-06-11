@@ -66,7 +66,7 @@ bool ControllerWindow::close_request()
 #include "Imp/Cluster/Atom.H"
 #include <MeshParams.H>
 #include <SCFIterator.H>
-#include <IterationParams.H>
+#include <SCFParams.H>
 #include <BasisSet.H>
 #include <WaveFunction.H>
 #include <ChargeDensity.H>
@@ -86,7 +86,7 @@ void ControllerWindow::new_model()
   MeshParams m=itsMeshFrame->create();
   Hamiltonian* h=itsHamiltonian->create(a,&m,bs);
   WaveFunction* wf=itsHamiltonian->create(bs,&ec);
-  SCFIterationParams scfip=itsIterationParams->create();
+  SCFParams scfip=itsIterationParams->create();
   itsSCFIterator=new SCFIterator(wf,h);
   itsSCFIterator->Iterate(scfip);
   

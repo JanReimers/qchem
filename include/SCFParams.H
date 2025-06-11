@@ -1,11 +1,10 @@
-#ifndef ITERATIONPARAMS_H_INCLUDED
-#define ITERATIONPARAMS_H_INCLUDED
+// File: SCFParams.H Parameters used for controling SCF iteration and convergence.
+#ifndef _SCFParams_H_
+#define _SCFParams_H_
 
-#include "types.H"
+#include "oml/imp/index_t.h"
 
-
-
-struct SCFIterationParams
+struct SCFParams
 {
     size_t NMaxIter;         //Max allowed number of iterations
     double MinDeltaRo;       //Minimum delta in charge density for convergence.
@@ -16,4 +15,4 @@ struct SCFIterationParams
 };
 
 
-#endif // ITERATIONPARAMS_H_INCLUDED
+#endif // _SCFParams_H_

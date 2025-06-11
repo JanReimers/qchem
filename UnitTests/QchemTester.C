@@ -46,7 +46,7 @@ void QchemTester::Init(double eps)
     assert(itsSCFIterator);
 }
 
-void QchemTester::Iterate(const SCFIterationParams& ipar)
+void QchemTester::Iterate(const SCFParams& ipar)
 {
     assert(itsSCFIterator);
     itsSCFIterator->Iterate(ipar);

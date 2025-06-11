@@ -110,7 +110,7 @@ class EnergyBreakdown;
 class WaveFunction;
 
 struct LAParams;
-struct SCFIterationParams;
+struct SCFParams;
 
 
 template <class T> class LASolver;

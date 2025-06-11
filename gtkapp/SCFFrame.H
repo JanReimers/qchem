@@ -12,7 +12,7 @@ public:
     SCFIterationParamsFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
     virtual ~SCFIterationParamsFrame() {};
 
-    SCFIterationParams create() const;
+    SCFParams create() const;
 
     template<class Archive>  void save(Archive & archive) const
     {

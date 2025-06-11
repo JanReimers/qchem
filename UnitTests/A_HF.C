@@ -5,7 +5,7 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 
-inline SCFIterationParams scf_params(int Z) 
+inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo verbose
     return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5       ,false};

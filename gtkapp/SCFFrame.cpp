@@ -1,7 +1,7 @@
 // File: SCFFrame.cpp  GTK frame to show and manage SCF iteration paramater settings.
 
 #include "SCFFrame.H"
-#include <IterationParams.H>
+#include <SCFParams.H>
 
 SCFIterationParamsFrame::SCFIterationParamsFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder) 
   : Glib::ObjectBase("iteration_frame")
@@ -14,7 +14,7 @@ SCFIterationParamsFrame::SCFIterationParamsFrame(BaseObjectType* cobject, const 
   
 }
 
-SCFIterationParams SCFIterationParamsFrame::create() const
+SCFParams SCFIterationParamsFrame::create() const
 {
   guint N_iter=itsNIter->get_value_as_int();
   double min_delta_ro=Glib::Ascii::strtod(itsMinDeltaRo->get_text());
