@@ -199,14 +199,15 @@ TEST_P(A_SG_HF_P,Multiple)
 {
     int Z=GetParam();
     int N=20;
-    if (Z>40) N=20;
-    if (Z>70) N=25;    
+    if (Z>20) N=25;
+    if (Z>40) N=27;    
+    if (Z>70) N=30;    
     Init(N,0.01,10000*Z*sqrt(Z),GetLMax(Z));
     Iterate(scf_params(Z));
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+    EXPECT_LT(RelativeHFError(),1e-6);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,21,37,53,56,64)); //Can't do boron, need SGm basis for that.
+INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,25,37,47,63,75)); //Can't do boron or Sc, need SGm basis for that.
 //INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88)); 
 
 class A_SL_HF_P : public ::testing::TestWithParam<int>
@@ -301,9 +302,9 @@ TEST_P(A_SGm_HF_P,Multiple)
 {
     int Z=GetParam();
     int N=20;
-    if (Z>40) N=20;
+    if (Z>20) N=25;
     if (Z>70) N=25;
-    Init(N,0.05,6000*Z,GetLMax(Z));
+    Init(N,0.01,10000*Z*sqrt(Z),GetLMax(Z));
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }

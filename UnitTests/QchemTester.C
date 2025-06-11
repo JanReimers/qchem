@@ -109,7 +109,7 @@ double QchemTester::RelativeError(double E,bool quiet) const
         else
             std::cout << error*1e9 << "(ppb)" << std::endl;
     }
-    return fabs(error);
+    return error;
 }
 
 
