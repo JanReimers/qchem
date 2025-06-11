@@ -76,7 +76,6 @@ const Orbitals* Composite_WF::GetOrbitals(const Irrep_QNs& qns) const
 }
 Orbitals* Composite_WF::GetOrbitals(const Irrep_QNs& qns) 
 {
-    assert(qns.ms==Spin::None);
     auto i=itsQN_WFs.find(qns);
     assert(i!=itsQN_WFs.end());
     return i->second->GetOrbitals();
