@@ -60,13 +60,23 @@ void EnergyLevels::merge(const EnergyLevels& els, double tol)
     
     for (auto& el:els) 
     {
+        Irrep_QNs el_qns(el.second.qns);
         auto il=itsELevels.lower_bound(el.first-tol);
         auto iu=itsELevels.upper_bound(el.first+tol);
-        bool symmatch = (il!=itsELevels.end()) && (il->second.qns.SequenceIndex() == el.second.qns.SequenceIndex());
-        if ((!symmatch) || il==iu)
-            insert(el.second);
+        if (il!=itsELevels.end())
+        {
+            Irrep_QNs il_qns(il->second.qns);
+            bool symmatch =  (il_qns.SequenceIndex() == el_qns.SequenceIndex());
+            // if (el.first<0.0)
+            //     std::cout << std::setprecision(6) << el.first << " " << il->first << " " <<el_qns << " " << il_qns << std::endl;
+            if ((!symmatch) || il==iu)
+                insert(el.second);
+            else
+                il->second.merge(el.second);
+        }
         else
-            il->second.merge(el.second);
+            insert(el.second);
+        
         
     }
     // std::cout << "Merged levels" << std::endl;

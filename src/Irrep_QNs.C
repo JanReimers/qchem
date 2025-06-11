@@ -30,9 +30,11 @@ size_t Irrep_QNs::GetDegeneracy() const
 {
     return sym->GetDegeneracy()*::GetDegeneracy(ms);
 }
+
+std::string spins[]={"↓"," ","↑"};
 std::ostream& Irrep_QNs::Write(std::ostream& os) const
 {
-    return os << " ms=" << static_cast<int>(ms) << " sym=" << *sym;
+    return os  << *sym << spins[static_cast<int>(ms)];
 }
 
     

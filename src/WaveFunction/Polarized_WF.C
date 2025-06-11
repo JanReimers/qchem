@@ -38,6 +38,7 @@ void Polarized_WF::DisplayEigen() const
     {
         auto up=iup.second;
         assert(iup.first == up.e);
+        if (up.e>0.0 || up.occ==0) break;
         Orbital_QNs dnqns(up.qns.n,Spin::Down,up.qns.sym);
         auto dn=els_dn.find(dnqns); 
 

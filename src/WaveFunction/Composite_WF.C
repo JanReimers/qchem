@@ -91,16 +91,16 @@ Composite_WF::iqns_t Composite_WF::GetQNs() const
 
 
 
-void Composite_WF::FillOrbitals()
+void Composite_WF::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
     for (auto& w:itsIWFs) 
     {
         EnergyLevels els=w->FillOrbitals(itsEC);
-        itsELevels.merge(els,0.0001);
+        itsELevels.merge(els,mergeTol);
         Spin s=w->GetQNs().ms;
-        itsSpin_ELevels[s].merge(els,0.0001);
+        itsSpin_ELevels[s].merge(els,mergeTol);
     }
         
 }

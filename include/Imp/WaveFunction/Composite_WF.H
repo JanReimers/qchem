@@ -21,7 +21,7 @@ public:
     virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep_QNs&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;} 
-    virtual void            FillOrbitals    ();
+    virtual void            FillOrbitals    (double mergeTol);
     virtual iqns_t          GetQNs          () const;
 
     virtual DM_CD*          GetChargeDensity(Spin) const;

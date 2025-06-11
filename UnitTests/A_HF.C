@@ -8,7 +8,7 @@
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-4  ,false};
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-7  ,true};
 }
 
 class HF_U : public virtual QchemTester
@@ -306,7 +306,7 @@ TEST_P(A_SGm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,21,37,53,57,64)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,21,37,53,58,62)); 
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(1,93)); //Only goes to 92?!?
 
 class A_BSm_HF_P : public ::testing::TestWithParam<int>
