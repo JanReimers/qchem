@@ -26,12 +26,10 @@ public:
     typedef std::deque<Mat   > mv_t; //matrix-vector type.
     typedef std::deque<SMat  > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
-    typedef std::pair<SMat,double> md_t;
     
-    SCFIrrepAccelerator_DIIS(const DIISParams&,const Irrep_QNs&,const RVec& cs);
+    SCFIrrepAccelerator_DIIS(const DIISParams&,const LASolver<double>*,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAccelerator_DIIS();
     
-    virtual void Init(const LASolver<double>*);
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual SMat Project(); 
 private:
@@ -50,8 +48,8 @@ private:
     double itsEn;  // [F',D']
     // Caches for F',E,En
     sv_t itsFPrimes;
-    mv_t itsEs; //Error matrices
-    dv_t itsEns; //Errors ||E||
+    mv_t itsEs; //Error matrices [F',D']
+    dv_t itsEns; //Errors ||E||=FNorm[F',D']
     
 
     const RVec&                  itsCs;  //Projection coefficients from SCFAccelerator_DIIS class.
@@ -67,7 +65,7 @@ public:
 
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
-    virtual SCFIrrepAccelerator* Create(const Irrep_QNs&);
+    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;

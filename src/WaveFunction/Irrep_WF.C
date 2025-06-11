@@ -13,9 +13,9 @@
 using std::cout;
 using std::endl;
 
-Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
-    , itsLASolver   (bs->CreateSolver())
+    , itsLASolver   (las)
     , itsOrbitals   (new  TOrbitalsImp<double>(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
@@ -23,7 +23,6 @@ Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, const Irrep_QNs& qns,SCFIrrep
 {
     assert(itsOrbitals);
     assert(itsAccelerator);
-    itsAccelerator->Init(itsLASolver);
     Fill(itsDPrime,0.0);
 };
 

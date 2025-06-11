@@ -3,10 +3,6 @@
 #include "Imp/SCF/SCFAccelerator_Null.H"
 #include <LASolver.H>
 
-void SCFIrrepAccelerator__Null::Init(const LASolver<double>* las) 
-{
-     itsLaSolver=las;
-}; 
 void SCFIrrepAccelerator__Null::UseFD(const SMat& F, const SMat& DPrime)
 {
     itsFPrime=itsLaSolver->Transform(F);

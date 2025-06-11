@@ -9,22 +9,19 @@
 using std::cout;
 using std::endl;
 
-SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const Irrep_QNs& qns,const RVec& cs) 
+SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const LASolver<double>* las,const Irrep_QNs& qns,const RVec& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
     , itsCs(cs)
+    , itsLaSolver(las)
 {
-    
+    assert(itsLaSolver);
 };
 SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
 {
 
 };
-void SCFIrrepAccelerator_DIIS::Init(const LASolver<double>* las)
-{
-    itsLaSolver=las;
-}
 
 #include "oml/vector.h"
 
@@ -49,17 +46,17 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
         assert(a.GetLimits()==b.GetLimits());
     return ArrayAdd(a,b);
 }
-template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
-{
-    if (a.size()==0) 
-    {
-        a.SetLimits(b.GetLimits());
-        Fill(a,0.0);
-    }
-    else
-        assert(a.GetLimits()==b.GetLimits());
-    return ArrayAdd(a,b);
-}
+// template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
+// {
+//     if (a.size()==0) 
+//     {
+//         a.SetLimits(b.GetLimits());
+//         Fill(a,0.0);
+//     }
+//     else
+//         assert(a.GetLimits()==b.GetLimits());
+//     return ArrayAdd(a,b);
+// }
 
 SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
 {
@@ -107,9 +104,9 @@ SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p)
 {};
 
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
-SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const Irrep_QNs& qns) 
+SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const LASolver<double>* las,const Irrep_QNs& qns) 
 {
-    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,qns,itsCs));
+    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,las,qns,itsCs));
     return itsIrreps.back();
 }
 
@@ -129,6 +126,7 @@ double SCFAccelerator_DIIS::GetMinSV(const SMat& B)
     size_t N=s.GetNumRows();
     return s(N,N);
 }
+
 SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B) 
 {
     static LapackLinearSolver<double> solver;
@@ -141,8 +139,6 @@ SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B)
     // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
     return C.SubVector(N-1);   
 }
-
-
 SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildB() const
 {
     index_t N=GetNProj()+1;
@@ -157,7 +153,6 @@ SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildB() const
     // B(N,N)=0.0;  should already be true
     return {B,GetMinSV(B)};    
 }
-
 SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildPrunedB(double svmin)
 {
     md_t B=BuildB(); //Returns a SMat,double struct.
@@ -169,7 +164,6 @@ SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildPrunedB(double svmin)
     itsLastSVMin=B.sv;
     return B.B;    
 }
-
 size_t SCFAccelerator_DIIS::Purge1()
 {
     
@@ -225,7 +219,6 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
         else
         os << "                ";
 }
-
 double SCFAccelerator_DIIS::GetError() const
 {
       

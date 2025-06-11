@@ -26,10 +26,11 @@ void Composite_WF::MakeIrrep_WFs(Spin s)
 
     for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
     {
+        auto las=b->CreateSolver(); //Irrep_WF will own delete this thing.
         Irrep_QNs qns(s,b->GetSymmetry());
-        SCFIrrepAccelerator* acc=itsEC->GetN(qns)>0 ? itsAccelerator->Create(qns) : new SCFIrrepAccelerator__Null(qns);
+        SCFIrrepAccelerator* acc=itsEC->GetN(qns)>0 ? itsAccelerator->Create(las,qns) : new SCFIrrepAccelerator__Null(las,qns);
         
-        uiwf_t wf(new Irrep_WF(b,qns,acc));
+        uiwf_t wf(new Irrep_WF(b,las,qns,acc));
         itsQN_WFs[qns]=wf.get();
         itsSpin_WFs[s].push_back(wf.get());
         itsIWFs.push_back(std::move(wf)); //Do the move last. wf is invalid after the move.

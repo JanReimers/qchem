@@ -8,9 +8,8 @@
 class SCFIrrepAccelerator__Null : public virtual SCFIrrepAccelerator
 {
 public:
-    SCFIrrepAccelerator__Null(const Irrep_QNs&) {};
+    SCFIrrepAccelerator__Null(const LASolver<double>* las,const Irrep_QNs&) : itsLaSolver(las) {};
     virtual ~SCFIrrepAccelerator__Null() {};
-    virtual void Init(const LASolver<double>*); 
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual SMat Project();
 private:

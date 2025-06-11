@@ -9,7 +9,6 @@ protected:
     typedef SMatrix<double> SMat;
 public:
     virtual ~SCFIrrepAccelerator() {};
-    virtual void Init(const LASolver<double>*)=0; //Solver knows how to transform to orthogonal basis.
     virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
     virtual SMat Project()=0; 
 };
@@ -19,7 +18,7 @@ class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
-    virtual SCFIrrepAccelerator* Create(const Irrep_QNs&)=0;
+    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&)=0;
     virtual bool CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;
