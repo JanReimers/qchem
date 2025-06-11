@@ -11,8 +11,14 @@ Priority 1:
             Irrep basis should be able to provide this interface.
         Adjust damping based on [F,D] error
         -Check if merge tolerances effect convergence.
+        Crappy convergence:
+            Multiple/A_PG_DFT_P.Multiple/*
+            Multiple/A_SL_DFT_P.Multiple/5
+            Multiple/A_SG_DFT_P.Multiple/5
+            Multiple/A_PG_DFT_U.Multiple/2
     -Small fixes
         Done: Irrep_QNs should be a separate header.
+        Done: Orbital_QNs should derive from Irrep_QNs;
         Set merge tolerances in SCFParams.
         Move Orbital_QNs.C into BasisSet/Atom folder.
         Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 

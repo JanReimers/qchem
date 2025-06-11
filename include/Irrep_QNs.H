@@ -25,12 +25,11 @@ struct Irrep_QNs
     size_t GetDegeneracy() const;
 
     std::ostream& Write(std::ostream&) const;
-    std::istream& Read (std::istream& is)      {return is;}
     
     Spin  ms;
     sym_t sym;
 
-    static const size_t n_max,ms_max; //Used for calculating sequenxe indexes.
+    static const size_t ms_max; //Used for calculating sequenxe indexes.
 };
 
 

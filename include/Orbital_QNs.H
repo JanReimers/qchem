@@ -5,26 +5,21 @@
 #include <Irrep_QNs.H>
 
 struct Orbital_QNs
-    : public virtual PMStreamableObject
+    : public Irrep_QNs
 {   
-    typedef std::shared_ptr<const Symmetry> sym_t;
-    Orbital_QNs() : n(0), ms(Spin::None), sym() {};
+    Orbital_QNs() : Irrep_QNs(), n(0) {};
     Orbital_QNs(size_t n, Spin ms,const sym_t& sym);
     Orbital_QNs(size_t n, const Irrep_QNs&);
     ~Orbital_QNs();
 
     size_t  SequenceIndex() const; //Used for op<
-    friend bool operator<(const Orbital_QNs& a, const Orbital_QNs& b)
-    {
-        return a.SequenceIndex()<b.SequenceIndex();
-    }
-    size_t GetDegeneracy() const;
+    //size_t GetDegeneracy() const; //Same as Irrep
 
     std::ostream& Write(std::ostream&) const;
 
     size_t  n;
-    Spin    ms;
-    sym_t   sym;
+    static const size_t n_max; //Used for calculating sequenxe indexes.
+  
 };
 
 
