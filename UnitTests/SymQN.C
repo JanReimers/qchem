@@ -14,7 +14,7 @@ using std::endl;
 class SymQNTests : public ::testing::Test
 {
 public:
-    typedef Orbital_QNs::sym_t sym_t;
+    typedef Irrep_QNs::sym_t sym_t;
     SymQNTests() 
     : LMax(4) 
     , kappa_max(4)

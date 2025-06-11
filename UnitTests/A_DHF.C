@@ -6,7 +6,7 @@
 #include "Imp/Cluster/Molecule.H"
 #include <Orbital.H>
 #include <Spin.H>
-#include <Orbital_QNs.H>
+#include <Irrep_QNs.H>
 #include <Symmetry.H>
 #include <iostream>
 #include <Imp/Misc/DFTDefines.H>

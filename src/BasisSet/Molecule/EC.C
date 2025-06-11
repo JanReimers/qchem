@@ -1,7 +1,7 @@
 // File: ElectronConfiguration.C
 
 #include "Imp/BasisSet/Molecule/EC.H"
-#include <Orbital_QNs.H>
+#include <Irrep_QNs.H>
 #include <cassert>
 #include <iostream>
 

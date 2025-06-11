@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/Atom/EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/ml/Ylm.H"
-#include <Orbital_QNs.H>
+#include <Irrep_QNs.H>
 #include <iostream>
 
 using std::cout;

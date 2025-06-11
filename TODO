@@ -1,106 +1,33 @@
 
 Priority 1:
     More use of structured bindings for map iterating.
-    Done: -Orbital_QNs
-        Use std::shared_ptr for sym.
     -Convergence acceleration.
-        Refactor DIIS code:
-            SUpport irrep version? No let's go global only.
-            All irrep does is
-                1) transform Fprime=Vd*F*V
-                2) store DPrime, F',E,En deques
-                3) Calculate commutator [F',D']
-                4) Store projection coeff (as a reference?)
-                5) Do projection
-                -no need to track bailout
-                -What is the cleanest to get B_ij = e_i*e_j out of each irrep?
-                    inline GetError(i,j). 
-            Plan:
-                1) Separate out source files
-                2) Make BuildPrunedB self contained.
-        Done: -Convergence on delta-ro is not very good.
-            SHould we track which Irrep is not converging?
-        Done: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
-            CD->GetChangeFrom does Max(fabs(D1-D2)).
-            swith fro Fnorm
-        Done: -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
-        Done: -Decide convergence on dE, Niter, [F,D]  
-            We need to know how [F,D] scales.  Maybe -[F,D]/E is better.
-        Done: -Clean up DIIS code.
-            Make unit test that track iteration count 
         DIIS singular B
             Shprd & Minkoff 2007 eq 23.  Linear Least Squares much better condition number.
             SVD and trunctate B?
                 We don't need a uniqe c vector, just need any c than minimizes ||e||
         -EDIIS
-        Done: -Make a pass through accelerator.
-        Done: -DIIS auto adjust Npurge 
-            Lorenzo Maschio 2018: The algorithm pre-sented discards an older iterations i only when the absolute value of corresponding coefficient ci in Eq. (1) is below 10−8. 
-            Pauley 1982: If eq. (1) becomes ill-conditioned, omit the first, second, etc., equation until its condition becomes acceptable.
-                (this is a bit vague: the first eq. in eq.1 in the lamba eq. which makes no sense to remove)
-            One thing left out of the literature is when to add error vectors and when to start using them?
-            Yb, Z = 70, [Xe] 6s2 4f14 (1S) is a very tough convergence.
-                Need relax=0.1 just to get going before DIIS kicks in.
-                f orbitals are the ones converging very slowely.
-                Same for smaller basis sets?
-        Done: -DIIS should e be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
-            No This should be optional
-                The irrep cersion is useless, global only
-            DOne: He and Be have one irrep.  Do they work well?
-                Yes (with some tweaking of how the SCFIter algo handle relmax)
-                For Be N=4, SVmin=1e-10 or 1e-9 work very well.
-            
-        -DIIS design
-            Does not need the LASolver, it just needs an interface that can do the ortho tranform.
-                Irrep basis should be able to provide this interface.
-            Done: Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
-                only the orbital knows D or Dprime.
-                In software (currently) IrrepWF and TOrbtials are alsmost the same thing.  But this is mostly an effect of
-                    1) We done ask for pair or high quantities like WF(r1,r2,r3...)
-                    2) Antisymmetry is all encapsulated in integral rules.
-                In any case building H depends in principle on the Slater determinant, which is a concept that belongs in WF, not orbitals.
-                
-            Done: Refactor WF for less spin dependence? (similar to CD)
-            Irrep_QNs should be a separate header.
-        Done: A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT
-
-        Done: -Check out some manuals:
-            https://manual.q-chem.com/5.3/sect_convergence.html
-            Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations
-            RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCA_DIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
-            Convergence criteria require the largest element of the N th error vector to be below a cutoff threshold, usually 10−5  a.u. for single point energies, but often increased to 10−8 a.u.  for optimizations and frequency calculations.
-            As the Fock matrix nears self-consistency, the linear matrix equations in Eq. (4.34) tend to become severely ill-conditioned and it is often necessary to reset the DIIS subspace (this is automatically carried out by the program).
-            Relaxed Constraint Algorithm
-
-            https://www.faccts.de/docs/orca/6.0/manual/contents/detailed/scfconv.html
-            once the DIIS error falls below DampErr (0.1), the damping is turned off. The default value is 0.1 Eh. In difficult cases, however, it is a good idea to choose DampErr much smaller, e.g. 0.001.
-            As self-consistency is approached, the set of linear equations to be solved for DIIS approaches linear dependency and it is useful to bias DIIS in favor of the SCF cycle that had the lowest energy using the factor DIISBfac. This is achieved by multiplying all diagonal elements of the DIIS matrix with this factor unless it is the Fock matrix/density which leads to the lowest energy. The default value for DIISBfac is 1.05.
-            The start of the DIIS procedure is controlled by DIISStart. It has a default value of 0.2 Eh, which usually starts DIIS after 0-3 cycles. A different way of controlling the DIIS start is adjusting the value DIISMaxIt, which sets the maximum number of cycles after which DIIS will be started irrespective of the error value.
-            Trust-Region Augmented Hessian
-
-
+        Does not need the LASolver, it just needs an interface that can do the ortho tranform.
+            Irrep basis should be able to provide this interface.
+        Adjust damping based on [F,D] error
         -Check if merge tolerances effect convergence.
-        -Fix:
-[  FAILED  ] M_PG_HF_U.N2
-[  FAILED  ] Multiple/A_SLm_HF_P.Multiple/2, where GetParam() = 5
-[  FAILED  ] Multiple/A_SLm_HF_P.Multiple/6, where GetParam() = 9
-[  FAILED  ] Multiple/A_BSm_HF_P.Multiple/0, where GetParam() = 5
-[  FAILED  ] Multiple/A_SG_DFT_P.Multiple/3, where GetParam() = 7
-
-
-    -Move Orbital_QNs.C into BasisSet/Atom folder.
-    -Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
+    -Small fixes
+        Done: Irrep_QNs should be a separate header.
+        Set merge tolerances in SCFParams.
+        Move Orbital_QNs.C into BasisSet/Atom folder.
+        Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
         shared_ptr
         done list all exponents just {min .. max} factor = 
-    -Eigen energy output
-        Fix unpolarized.
-        Vee Vxc are not wide enough.
-        relax in fixed
+        -Eigen energy output
+            Fix unpolarized.
+        -QChemTester move bs->Set(lap); to one spot
+            All check SV tol, set lower i.e. 1e-9
+        -Clean up naming for IterationParams.
+            SCFParams
+
 
     -General AtomIrrepIECLient clean up.
-        template type double r spline for all three radial types?
-    -QChemTester move bs->Set(lap); to one spot
-        All check SV tol, set lower i.e. 1e-9
+        template type double r or spline for all three radial types?
     -It would be nice if Atom derived from Cluster.
         Hard, we can't fake the iterator interface for typedef std::vector<std::unique_ptr<Atom>> av_t;
         Ranges might solve this problem: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates.
@@ -110,7 +37,7 @@ Priority 1:
     -Ylm  
         Put basisset build logic in common base class.
         Distinction between Ylm and Yl basis sets is now blurred
-        -Decide Ham based on EC.
+        Done: -Decide Ham based on EC.
         -Decide Yl or Ylm basis based on EC.
         -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
             DO we support this or just decide the correct basis and H automaically.
@@ -190,8 +117,6 @@ Priority 1:
 
     -Fix orbital phases to 1s, 2p , 3d are always >0?
 
-    -Clean up naming for IterationParams.
-        SCFParams
     -BasisSet:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
@@ -290,7 +215,7 @@ Priority 1:
     -GaussianRF.C has its own DFact tables.  Use the global tables.
     
 oml:
-    SMat return A*B-B*A -> not suitable conversion exists.
+    
     LapackLinearSolver is messed up, seem to be missing LinearSolver.C
         Put it in oml namespace.
     -Support SMatrix for Lapack solvers.
@@ -316,6 +241,8 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
         a.SetLimits(b.GetLimits());
         Fill(a,0.0)
     }
+    else
+        assert(a.GetLimits()==b.GetLimits());
     return ArrayAdd(a,b);
 }
     Same for matrix.
@@ -400,6 +327,75 @@ Priority 3:
 
 
 
+
+    Done: -Orbital_QNs
+        Use std::shared_ptr for sym.
+    Done:-Convergence acceleration.
+        Done: Refactor DIIS code:
+            SUpport irrep version? No let's go global only.
+            All irrep does is
+                1) transform Fprime=Vd*F*V
+                2) store DPrime, F',E,En deques
+                3) Calculate commutator [F',D']
+                4) Store projection coeff (as a reference?)
+                5) Do projection
+                -no need to track bailout
+                -What is the cleanest to get B_ij = e_i*e_j out of each irrep?
+                    inline GetError(i,j). 
+            Plan:
+                1) Separate out source files
+                2) Make BuildPrunedB self contained.
+        Done: -Convergence on delta-ro is not very good.
+            SHould we track which Irrep is not converging?
+        Done: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
+            CD->GetChangeFrom does Max(fabs(D1-D2)).
+            swith fro Fnorm
+        Done: -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
+        Done: -Decide convergence on dE, Niter, [F,D]  
+            We need to know how [F,D] scales.  Maybe -[F,D]/E is better.
+        Done: -Clean up DIIS code.
+            Make unit test that track iteration count 
+        Done: -Make a pass through accelerator.
+        Done: -DIIS auto adjust Npurge 
+            Lorenzo Maschio 2018: The algorithm presented discards an older iterations i only when the absolute value of corresponding coefficient ci in Eq. (1) is below 10−8. 
+            Pauley 1982: If eq. (1) becomes ill-conditioned, omit the first, second, etc., equation until its condition becomes acceptable.
+                (this is a bit vague: the first eq. in eq.1 in the lamba eq. which makes no sense to remove)
+            One thing left out of the literature is when to add error vectors and when to start using them?
+            Yb, Z = 70, [Xe] 6s2 4f14 (1S) is a very tough convergence.
+                Need relax=0.1 just to get going before DIIS kicks in.
+                f orbitals are the ones converging very slowely.
+                Same for smaller basis sets?
+        Done: -DIIS should de be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
+            No This should be optional
+                The irrep cersion is useless, global only
+            DOne: He and Be have one irrep.  Do they work well?
+                Yes (with some tweaking of how the SCFIter algo handle relmax)
+                For Be N=4, SVmin=1e-10 or 1e-9 work very well.
+            
+        Done: -DIIS design
+            Done: Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
+                only the orbital knows D or Dprime.
+                In software (currently) IrrepWF and TOrbtials are alsmost the same thing.  But this is mostly an effect of
+                    1) We done ask for pair or high quantities like WF(r1,r2,r3...)
+                    2) Antisymmetry is all encapsulated in integral rules.
+                In any case building H depends in principle on the Slater determinant, which is a concept that belongs in WF, not orbitals.
+                
+            Done: Refactor WF for less spin dependence? (similar to CD)
+        Done: A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT
+
+        Done: -Check out some manuals:
+            https://manual.q-chem.com/5.3/sect_convergence.html
+            Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations
+            RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCA_DIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
+            Convergence criteria require the largest element of the N th error vector to be below a cutoff threshold, usually 10−5  a.u. for single point energies, but often increased to 10−8 a.u.  for optimizations and frequency calculations.
+            As the Fock matrix nears self-consistency, the linear matrix equations in Eq. (4.34) tend to become severely ill-conditioned and it is often necessary to reset the DIIS subspace (this is automatically carried out by the program).
+            Relaxed Constraint Algorithm
+
+            https://www.faccts.de/docs/orca/6.0/manual/contents/detailed/scfconv.html
+            once the DIIS error falls below DampErr (0.1), the damping is turned off. The default value is 0.1 Eh. In difficult cases, however, it is a good idea to choose DampErr much smaller, e.g. 0.001.
+            As self-consistency is approached, the set of linear equations to be solved for DIIS approaches linear dependency and it is useful to bias DIIS in favor of the SCF cycle that had the lowest energy using the factor DIISBfac. This is achieved by multiplying all diagonal elements of the DIIS matrix with this factor unless it is the Fock matrix/density which leads to the lowest energy. The default value for DIISBfac is 1.05.
+            The start of the DIIS procedure is controlled by DIISStart. It has a default value of 0.2 Eh, which usually starts DIIS after 0-3 cycles. A different way of controlling the DIIS start is adjusting the value DIISMaxIt, which sets the maximum number of cycles after which DIIS will be started irrespective of the error value.
+            Trust-Region Augmented Hessian
 
     Done: -Design question:
         Who should own the Hamitonian ... right now SCFIterator is deleting it.

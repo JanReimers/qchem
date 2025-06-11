@@ -3,7 +3,7 @@
 #define _IrrepWaveFunction_H_
 
 #include <EnergyLevel.H>
-#include <Orbital_QNs.H>
+#include <Irrep_QNs.H>
 #include "oml/smatrix.h"
 
 class Irrep_WF

@@ -8,7 +8,7 @@
 inline SCFIterationParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5       ,true};
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5       ,false};
 }
 
 class HF_U : public virtual QchemTester
@@ -90,9 +90,6 @@ TEST_P(A_SG_HF_U,Multiple)
 {
     int Z=GetParam();
     int N=NBasis[Z];
-    std::cout << "NBasis=" << N << std::endl;
-    // if (Z>40) N=20;
-    // if (Z>70) N=25;
     Init(N,0.01,10000*Z*sqrt(Z),GetLMax(Z));
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),1e-6);
