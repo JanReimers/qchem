@@ -7,8 +7,8 @@
 
 inline SCFParams scf_params(int Z) 
 {
-//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5       ,false};
+//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-4  ,false};
 }
 
 class HF_U : public virtual QchemTester
