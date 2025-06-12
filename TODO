@@ -10,23 +10,13 @@ Priority 1:
         Does not need the LASolver, it just needs an interface that can do the ortho tranform.
             Irrep basis should be able to provide this interface.
         Adjust damping based on [F,D] error
-        -Check if merge tolerances effect convergence.
+        Done: -Check if merge tolerances effect convergence.
+            Only effects display.
         Crappy convergence:
             Multiple/A_PG_DFT_P.Multiple/*
             Multiple/A_SL_DFT_P.Multiple/5
             Multiple/A_SG_DFT_P.Multiple/5
             Multiple/A_PG_DFT_U.Multiple/2
-    -Small fixes
-        Done: Irrep_QNs should be a separate header.
-        Done: Orbital_QNs should derive from Irrep_QNs;
-        Done: Set merge tolerances in SCFParams.
-        Done: -Clean up naming for IterationParams.    SCFParams
-        Done: Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
-            shared_ptr
-            don't list all exponents just {min .. max} factor = 
-        Done: -QChemTester move bs->Set(lap); to one spot
-            All check SV tol, set lower i.e. 1e-9
-            Make BS dump optional.
  
     -Proper consol tables:
         header only: https://github.com/p-ranav/tabulate
@@ -334,6 +324,17 @@ Priority 3:
 
 
 
+    -Small fixes
+        Done: Irrep_QNs should be a separate header.
+        Done: Orbital_QNs should derive from Irrep_QNs;
+        Done: Set merge tolerances in SCFParams.
+        Done: -Clean up naming for IterationParams.    SCFParams
+        Done: Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
+            shared_ptr
+            don't list all exponents just {min .. max} factor = 
+        Done: -QChemTester move bs->Set(lap); to one spot
+            All check SV tol, set lower i.e. 1e-9
+            Make BS dump optional.
     Done: -Orbital_QNs
         Use std::shared_ptr for sym.
     Done:-Convergence acceleration.

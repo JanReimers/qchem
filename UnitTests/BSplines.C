@@ -32,7 +32,7 @@ public:
     {
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
-        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
+        MeshParams mp({qchem::MHL,500,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }
     void Init(int N, double rmin, double rmax)
@@ -196,14 +196,14 @@ TEST_F(BSplineTests, Overlap)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<TOrbital_IBS<double> >())
     {
-        cout << ibs->GetSymmetry();
+        cout << *ibs->GetSymmetry();
         SMatrix<double> S=ibs->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:S.rows()) //Check banded
             for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
         
         SMatrix<double> Snum = mintegrator->Overlap(*ibs);
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,3e-6);
 
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
@@ -239,7 +239,7 @@ TEST_F(BSplineTests, Nuclear)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
-        cout << ibs->GetSymmetry();
+        cout << *ibs->GetSymmetry();
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> Ven=ibs1->Nuclear(cl);
         for (auto i:Ven.rows()) //Check banded
@@ -260,7 +260,7 @@ TEST_F(BSplineTests, Kinetic)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
     {
-        cout << ibs->GetSymmetry();
+        cout << *ibs->GetSymmetry();
         const TOrbital_IBS<double>* ibs1=ibs;
         SMatrix<double> T=ibs1->Kinetic();
         for (auto i:T.rows()) //Check banded

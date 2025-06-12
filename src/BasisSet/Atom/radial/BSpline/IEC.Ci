@@ -49,6 +49,11 @@ template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ng
     for (size_t i = 0; i < Ngrid-1; i++) //Skip 0.0 and rmax
         knots.push_back(rmin * pow(step, i));
     
+    // cout << Ngrid << " " << l << " " << numberOfZeros << " ";
+    if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
+    if (numberOfZeros<1) numberOfZeros=1;
+    // cout << numberOfZeros << endl;
+
     for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
     // std::cout << knots << std::endl;
     return knots;
