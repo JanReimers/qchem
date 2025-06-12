@@ -1,3 +1,15 @@
 [submodule "BSplinebasis"]
-	path = BSplinebasis
+	path = submodules/BSplinebasis
 	url = https://github.com/okruz/BSplinebasis
+[submodule "tabulate"]
+	path = submodules/tabulate
+	url = https://github.com/p-ranav/tabulate
+[submodule "submodules/googletest"]
+	path = submodules/googletest
+	url = https://github.com/google/googletest
+[submodule "submodules/oml"]
+	path = submodules/oml
+	url = https://github.com/JanReimers/oml
+[submodule "submodules/wignerSymbols"]
+	path = submodules/wignerSymbols
+	url = https://github.com/joeydumont/wignerSymbols

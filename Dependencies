@@ -1,0 +1,8 @@
+This project uses the following library and toolkits:
+
+lapack  Should come with ubuntu
+https://github.com/google/googletest
+https://github.com/JanReimers/oml
+https://github.com/joeydumont/wignerSymbols  
+https://github.com/okruz/BSplinebasis (header only)
+https://github.com/p-ranav/tabulate (header only)
