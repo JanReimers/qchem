@@ -56,7 +56,7 @@ template <template<class> class V,class T> std::ostream& Write(std::ostream& os,
     }
     else 
     {   
-        os << v.size() << " ";
+        // os << v.size() << " ";
         for (auto& i:v) os << *i.get() << " ";
     }
     return os;

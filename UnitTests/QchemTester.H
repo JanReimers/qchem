@@ -17,7 +17,7 @@ public:
     typedef BasisSet::symv_t symv_t;
     QchemTester();
     virtual ~QchemTester();
-    void   Init(double eps);
+    void   Init(double eps, bool verbose=false, LAParams lap={qchem::Lapack,qchem::Cholsky,1e-9,1e-12});
     void   Iterate(const SCFParams&);
     double TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
@@ -60,42 +60,31 @@ public:
 class SG_OBasis : public virtual QchemTester
 {
 public:
-    void Init(int _N, double _emin, double _emax, int _Lmax, const LAParams& _lap)
+    void Init(int _N, double _emin, double _emax, int _Lmax)
     {
         N=_N;Lmax=_Lmax;emin=_emin;emax=_emax;
-        lap=_lap;
-    }
-    void Init(int _N, double _emin, double _emax, int _Lmax) 
-    {
-        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-9,1e-12}));
     }
      
 protected:
-    virtual BasisSet*      GetBasisSet () const;
+    virtual BasisSet* GetBasisSet () const;
 
     int N,Lmax;
     double emin,emax;
-    LAParams lap;
 };
 
 class SL_OBasis : public virtual QchemTester
 {
 public:
-    void Init(int _N, double _emin, double _emax, int _Lmax, const LAParams& _lap)
+    void Init(int _N, double _emin, double _emax, int _Lmax)
     {
         N=_N;Lmax=_Lmax;emin=_emin;emax=_emax;
-        lap=_lap;
-    }
-    void Init(int _N, double _emin, double _emax, int _Lmax) 
-    {
-        Init(_N,_emin,_emax,_Lmax,LAParams({qchem::Lapack,qchem::SVD,1e-9,1e-12}));
     }
     
 protected:
     virtual BasisSet*      GetBasisSet () const;
     int N,Lmax;
     double emin,emax;
-    LAParams lap;
+  
 };
 
 class SLm_OBasis : public SL_OBasis
@@ -114,14 +103,13 @@ class SGm_OBasis : public SG_OBasis
 class PG_OBasis : public virtual QchemTester
 {
 public:
-    PG_OBasis() : lap({qchem::Lapack,qchem::SVD,1e-4,1e-12}), N(0) {};     
+    PG_OBasis() : N(0) {};     
     void Init(int _N, double _emin, double _emax, int _LMax)
     {
       N=_N;LMax=_LMax;emin=_emin;emax=_emax;
     }
 private:
     virtual BasisSet*      GetBasisSet () const;
-    LAParams lap;
     int N,LMax;
     double emin,emax;
 };
@@ -142,18 +130,14 @@ class SG_RKB_OBasis : public SG_OBasis
 class BS_OBasis : public virtual QchemTester
 {
 public:
-    void Init(int _N, double _rmin, double _rmax, int _LMax, const LAParams& _lap)
+    void Init(int _N, double _rmin, double _rmax, int _LMax)
     {
         N=_N;LMax=_LMax;rmin=_rmin;rmax=_rmax;
-        lap=_lap;
     }
-    void Init(int _N, double _rmin, double _rmax, int _LMax) 
-    {
-        Init(_N,_rmin,_rmax,_LMax,LAParams({qchem::Lapack,qchem::Cholsky,1e-9,1e-12}));
-    }
+    
  protected:
     virtual BasisSet*      GetBasisSet () const;   
-    LAParams lap;
+   
     int N,LMax;
     double rmin,rmax;
 };

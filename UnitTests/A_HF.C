@@ -5,10 +5,11 @@
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 
+const bool verbose=true;
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-7  ,true};
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-7  ,verbose};
 }
 
 class HF_U : public virtual QchemTester
@@ -188,7 +189,7 @@ public:
     void Init(int N, double emin, double emax, int LMax)
     {
         SG_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init(1e-3);
+        QchemTester::Init(1e-3,verbose);
     }
 };
 
@@ -291,7 +292,7 @@ public:
     void Init(int N, double emin, double emax, int LMax)
     {
         SGm_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init(1e-3);
+        QchemTester::Init(1e-3,verbose);
     }
 };
 

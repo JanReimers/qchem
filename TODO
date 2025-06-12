@@ -24,7 +24,7 @@ Priority 1:
         Done: Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
             shared_ptr
             don't list all exponents just {min .. max} factor = 
-        -QChemTester move bs->Set(lap); to one spot
+        Done: -QChemTester move bs->Set(lap); to one spot
             All check SV tol, set lower i.e. 1e-9
             Make BS dump optional.
  
