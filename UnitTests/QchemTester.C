@@ -179,7 +179,7 @@ BasisSet* SG_RKB_OBasis::GetBasisSet () const
 
 BasisSet* SGm_OBasis::GetBasisSet () const
 {
-//    PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+//    PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/dzvp.bsd");
 //    const Cluster* cl=GetCluster();
 //    Atom* a=*cl->begin();
 //    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
@@ -193,7 +193,7 @@ BasisSet* PG_OBasis::GetBasisSet () const
 {
     if (N==0)
     {
-        PolarizedGaussian::Gaussian94Reader reader("../BasisSetData/dzvp.bsd");
+        PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/dzvp.bsd");
         return new PolarizedGaussian::BasisSet(&reader,GetCluster());  
     }
     else
