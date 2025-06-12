@@ -134,10 +134,11 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         << "Potential: " << std::fixed << setw(w) << setprecision(nprec) << eb.GetPotentialEnergy() << endl;
         cout << "Potential Breakdown  "
         << "Een  : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een << "  "
-        << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee << "   "
-        << "Eex     : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
-        cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(nprec) << eb.GetVirial() << endl;
-        
+        << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee << "  "
+        << "Eex      : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
+        cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(nprec) << eb.GetVirial() << "  ";
+        if (eb.Exc!=0.0)
+            cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc << endl;
 
         DisplayEigen();
     }
