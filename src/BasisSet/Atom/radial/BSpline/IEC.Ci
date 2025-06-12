@@ -46,8 +46,11 @@ template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ng
 
     // logarithmic step
     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
-    for (size_t i = 0; i < Ngrid; i++) 
+    for (size_t i = 0; i < Ngrid-1; i++) //Skip 0.0 and rmax
         knots.push_back(rmin * pow(step, i));
+    
+    for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
+    // std::cout << knots << std::endl;
     return knots;
 }
 
