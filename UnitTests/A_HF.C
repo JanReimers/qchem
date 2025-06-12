@@ -9,7 +9,12 @@ const bool verbose=true;
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-7  ,verbose};
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-7        ,0.5     ,1e-7  ,verbose};
+}
+inline SCFParams scf_params_BS(int Z) 
+{
+//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
+    return {   30     ,Z*1e-5    ,1e-10   ,Z*1e-11        ,0.5     ,1e-7  ,verbose};
 }
 
 class HF_U : public virtual QchemTester
@@ -154,20 +159,20 @@ public:
     void Init(int N, double rmin, double rmax, int LMax)
     {
         BS_OBasis::Init(N,rmin,rmax,LMax);
-        QchemTester::Init(1e-3);
+        QchemTester::Init(1e-3,verbose);
     }
 };
 
 TEST_P(A_BS_HF_U,Multiple)
 {
     int Z=GetParam();
-    int N=50;
-    Init(N,0.1,40,GetLMax(Z));
-    Iterate(scf_params(Z));
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+    int N=40;
+    Init(N,0.01,50,GetLMax(Z));
+    Iterate(scf_params_BS(Z));
+    EXPECT_LT(RelativeHFError(),1e-9);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_U,::testing::Values(2,4)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_U,::testing::Values(2,4,10,12,18)); 
 
 
 class HF_P : public virtual QchemTester
