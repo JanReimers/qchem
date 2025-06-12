@@ -6,3 +6,6 @@ https://github.com/JanReimers/oml
 https://github.com/joeydumont/wignerSymbols  
 https://github.com/okruz/BSplinebasis (header only)
 https://github.com/p-ranav/tabulate (header only)
+
+
+You must run two commands from the main project: git submodule init to initialize your local configuration file, and git submodule update to fetch all the data from that project and check out the appropriate commit listed in your superproject. There is another way to do this which is a little simpler, however. If you pass --recurse-submodules to the git clone command, it will automatically initialize and update each submodule in the repository, including nested submodules if any of the submodules in the repository have submodules themselves.
