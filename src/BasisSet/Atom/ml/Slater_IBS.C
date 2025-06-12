@@ -41,18 +41,6 @@ void Orbital_IBS::InsertBasisFunctions()
     return 0;
 }
 
-// std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
-// {
-//     if (Pretty())
-//     {
-//         os << "Slater functions l,m=" << GetSymmetry()
-//         << " with " << GetNumFunctions() << " basis functions, alpha={";
-//         for (auto b:*this) os << *b;
-//         os << "}" << std::endl;
-//     }
-//     return os;
-// }
-
 
 
 ::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const

@@ -19,19 +19,17 @@ Priority 1:
     -Small fixes
         Done: Irrep_QNs should be a separate header.
         Done: Orbital_QNs should derive from Irrep_QNs;
-        Set merge tolerances in SCFParams.
-        Done: -Clean up naming for IterationParams.
-            SCFParams
-        Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
+        Done: Set merge tolerances in SCFParams.
+        Done: -Clean up naming for IterationParams.    SCFParams
+        Done: Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
             shared_ptr
             don't list all exponents just {min .. max} factor = 
-        -Eigen energy output
-            Fix unpolarized.
-            THis is getting too messy.  Let's use a proper tabulator
-                header only: https://github.com/p-ranav/tabulate
         -QChemTester move bs->Set(lap); to one spot
             All check SV tol, set lower i.e. 1e-9
+            Make BS dump optional.
  
+    -Proper consol tables:
+        header only: https://github.com/p-ranav/tabulate
 
 
     -General AtomIrrepIECLient clean up.

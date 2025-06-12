@@ -142,8 +142,8 @@ BasisSet* SG_OBasis::GetBasisSet () const
 {
     BasisSet* bs=new Atoml::Gaussian::BasisSet(N,emin,emax,Lmax);
     bs->Set(lap);
-    // StreamableObject::SetToPretty();
-    // std::cout << *bs << std::endl;
+    StreamableObject::SetToPretty();
+    std::cout << *bs << std::endl;
     return  bs;
 }
 
