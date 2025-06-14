@@ -142,7 +142,7 @@ TEST_F(BSplineTests, SplineMap)
 }
 
 #include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
-#include <Imp/BasisSet/Atom/Angular.H>
+#include <Symmetry/Angular.H>
 TEST_F(BSplineTests,GLQIntegration)
 {
     Init(10,.1,10);

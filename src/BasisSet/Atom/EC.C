@@ -2,8 +2,8 @@
 
 #include "Imp/BasisSet/Atom/EC.H"
 #include "Base/PeriodicTable.H"
-#include "Imp/BasisSet/Atom/Angular.H"
-#include <Irrep_QNs.H>
+#include "Symmetry/Angular.H"
+#include <Symmetry/Irrep_QNs.H>
 #include <cassert>
 #include <iostream>
 #include <initializer_list>

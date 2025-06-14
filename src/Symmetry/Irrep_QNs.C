@@ -1,6 +1,6 @@
 // File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
 
-#include <Irrep_QNs.H>
+#include <Symmetry/Irrep_QNs.H>
 #include <Symmetry.H>
 #include <cassert>
 #include <iostream>

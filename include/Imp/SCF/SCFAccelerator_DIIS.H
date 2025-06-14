@@ -14,7 +14,7 @@ struct DIISParams
 
 #include <deque>
 
-#include <Irrep_QNs.H>
+#include <Symmetry/Irrep_QNs.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
 class SCFAccelerator_DIIS;

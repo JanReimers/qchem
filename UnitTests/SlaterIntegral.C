@@ -8,7 +8,7 @@
 #include "Imp/BasisSet/Atom/l/Slater_BS.H"
 #include "Imp/BasisSet/Atom/l/Slater_IBS.H"
 #include "Imp/BasisSet/Atom/l/Slater_BF.H"
-#include "Imp/BasisSet/Atom/l/Yl.H"
+#include "Symmetry/Yl.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
 #include "Base/DFTDefines.H"

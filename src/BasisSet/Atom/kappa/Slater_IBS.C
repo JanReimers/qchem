@@ -4,7 +4,7 @@
 #include "Imp/BasisSet/Atom/kappa/Slater_BF.H"
 #include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
 
-#include "Imp/BasisSet/Atom/kappa/Okmj.H"
+#include "Symmetry/Okmj.H"
 #include <Symmetry.H>
 #include <iostream>
 #include <cassert>

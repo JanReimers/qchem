@@ -9,7 +9,7 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include "Imp/Cluster/Atom.H"
-#include "Imp/BasisSet/Molecule/Unit.H"
+#include "Symmetry/Unit.H"
 #include <BasisSet.H>
 #include <Cluster.H>
 #include "Base/stl_io.h"

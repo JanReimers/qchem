@@ -2,7 +2,7 @@
 #ifndef _Symmetry_Omega_k_Sym_H_
 #define _Symmetry_Omega_k_Sym_H_
 
-#include "Imp/BasisSet/Atom/Angular.H"
+#include "Symmetry/Angular.H"
 #include <utility>
 
 //---------------------------------------------------------------------------------

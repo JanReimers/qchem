@@ -1,6 +1,6 @@
 // File: Factorials.C
 
-#include "Imp/Integrals/Factorials.H"
+#include "Base/Factorials.H"
 #include <iostream>
 namespace qchem
 {

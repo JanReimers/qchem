@@ -2,7 +2,7 @@
 #ifndef _Orbital_QNs_H_
 #define _Orbital_QNs_H_
 
-#include <Irrep_QNs.H>
+#include <Symmetry/Irrep_QNs.H>
 
 struct Orbital_QNs
     : public Irrep_QNs

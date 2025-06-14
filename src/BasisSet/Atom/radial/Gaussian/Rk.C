@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/radial/Gaussian/Rk.H"
 #include "Imp/Integrals/PascalTriangle.H"
-#include "Imp/Integrals/Factorials.H"
+#include "Base/Factorials.H"
 #include "oml/vector.h"
 using std::cout;
 using std::endl;

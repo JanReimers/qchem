@@ -22,13 +22,19 @@ Priority 1:
             Multiple/A_PG_DFT_U.Multiple/2
     -Try making a separate libqc_basis.a to enforce some modularity.
         -Probably need to make a libqcCommon.a  with some common stuff.
-            stl_io.C Symmetry.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
+            stl_io.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
+            Interators.H UniqueID.H 
         -libqcSymmetry Symmetry.C Unit.C
         -libqcMesh.a
         -libqcCluster.a
         -libqcAtom_BS
         -libqcMolecule_BS
         -libqc_Lattice_BS.a
+        -Where
+            LASolver,(Base)
+            ElectronConfiguration.H (BasisSet, Base, Symmetry)
+            Cache4.H (BasisSet)
+            Spin.H
 
         -Out of folder includes in BasisSet/Atom    
             #include "Base/stl_io.h" .C file
@@ -39,7 +45,7 @@ Priority 1:
             #include "Base/IntPower.H" OK Pure header
             #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
             #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
-            #include "Imp/Integrals/Factorials.H" .C LibQchemBase
+            #include "Base/Factorials.H" .C LibQchemBase
         -Out of folder includes in BasisSet/Molecule
             #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
             #include "Imp/Cluster/Atom.H"

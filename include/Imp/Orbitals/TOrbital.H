@@ -4,7 +4,7 @@
 
 #include <Orbital.H>
 #include "oml/vector.h"
-#include <Orbital_QNs.H>
+#include <Symmetry/Orbital_QNs.H>
 
 class OrbitalImp
     : public virtual Orbital

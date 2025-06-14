@@ -3,7 +3,7 @@
 #define _EnergyLevel_H_
 
 #include <types.H>
-#include <Orbital_QNs.H>
+#include <Symmetry/Orbital_QNs.H>
 
 struct EnergyLevel
 {
