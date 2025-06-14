@@ -32,9 +32,9 @@ Priority 1:
         -libqc_Lattice_BS.a
         -Where
             LASolver,(Base)
-            ElectronConfiguration.H (BasisSet, Base, Symmetry)
+            ElectronConfiguration.H two way coupling with Symmetry, has to go in Symmetry
             Cache4.H (BasisSet)
-            Spin.H
+            Spin.H needed by symmetry
 
         -Out of folder includes in BasisSet/Atom    
             #include "Base/stl_io.h" .C file

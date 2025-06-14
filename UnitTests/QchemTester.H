@@ -151,7 +151,7 @@ class BSm_OBasis : public virtual BS_OBasis
 
 
 
-#include "Imp/BasisSet/Atom/EC.H"
+#include "Symmetry/Atom_EC.H"
 //----------------------------------------------------------------------------------
 //
 //  Atoms and Molecules
@@ -166,7 +166,7 @@ private:
     Atom_EC ec;
 };
 
-#include "Imp/BasisSet/Molecule/EC.H"
+#include "Symmetry/Molecule_EC.H"
 
 class TestMolecule : public virtual QchemTester
 {

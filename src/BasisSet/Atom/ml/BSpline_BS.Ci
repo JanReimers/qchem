@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/ml/BSpline_BS.H"
 #include "Imp/BasisSet/Atom/ml/BSpline_IBS.H"
-#include "Imp/BasisSet/Atom/EC.H"
+#include "Symmetry/Atom_EC.H"
 
 namespace Atom_ml
 {

@@ -3,7 +3,7 @@
 #include "Imp/BasisSet/Atom/ml/Slater_BS.H"
 #include "Imp/BasisSet/Atom/ml/Slater_IBS.H"
 #include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
-#include "Imp/BasisSet/Atom/EC.H"
+#include "Symmetry/Atom_EC.H"
 #include "Base/stl_io.h"
 #include <iostream>
 

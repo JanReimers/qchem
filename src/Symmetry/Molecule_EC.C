@@ -1,6 +1,6 @@
 // File: ElectronConfiguration.C
 
-#include "Imp/BasisSet/Molecule/EC.H"
+#include "Symmetry/Molecule_EC.H"
 #include <Symmetry/Irrep_QNs.H>
 #include <cassert>
 #include <iostream>

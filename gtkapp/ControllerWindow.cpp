@@ -7,7 +7,7 @@
 #include "LAParamsFrame.H"
 #include "SCFFrame.H"
 #include "MeshFrame.H"
-#include "Imp/BasisSet/Atom/EC.H"
+#include "Symmetry/Atom_EC.H"
 #include "PlotWindow.H"
 #include <fstream>
 #include <cereal/archives/json.hpp>

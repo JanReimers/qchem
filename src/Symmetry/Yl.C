@@ -3,7 +3,7 @@
 
 
 #include "Symmetry/Yl.H"
-#include "Imp/BasisSet/Atom/EC.H"
+#include "Symmetry/Atom_EC.H"
 #include <iostream>
 #include <cassert>
 

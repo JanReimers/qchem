@@ -1,6 +1,6 @@
 // File:  ElectronCounts.C  Simple structure that store electron configuration counts for each l state.
 
-#include "Imp/BasisSet/Atom/ElectronCounts.H"
+#include "Symmetry/ElectronCounts.H"
 #include <Spin.H>
 #include <cassert>
 
