@@ -1,6 +1,6 @@
 // File: Triangle.C  A triangular data structure.
 #include "Imp/Containers/Triangle3D.H"
-#include "Imp/Containers/stl_io.h"
+#include "Base/stl_io.h"
 #include <cassert>
 
 Triangle3D::Triangle3D()

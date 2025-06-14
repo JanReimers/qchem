@@ -3,7 +3,7 @@
 #define _Molecule_H_
 
 #include "Cluster.H"
-#include "Imp/Misc/UniqueID/UniqueIDImp.H"
+#include "Base/UniqueIDImp.H"
 #include <iostream>
 
 

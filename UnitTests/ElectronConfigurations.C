@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "Imp/BasisSet/Atom/EC.H"
-#include "Imp/Misc/PeriodicTable.H"
+#include "Base/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/ml/Ylm.H"
 #include <Irrep_QNs.H>
 #include <iostream>

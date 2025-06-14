@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/kappa/Slater_BF.H"
 #include "Imp/BasisSet/Atom/kappa/Okmj.H"
-#include "Imp/Misc/IntPower.H"
+#include "Base/IntPower.H"
 #include "oml/vector3d.h"
 #include <iostream>
 #include <cassert>

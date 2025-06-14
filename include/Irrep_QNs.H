@@ -2,7 +2,7 @@
 #ifndef _Irrep_QNs_H_
 #define _Irrep_QNs_H_
 
-#include "Imp/Misc/pmstream.h"
+#include "Base/pmstream.h"
 #include <Spin.H>
 #include <memory>
 

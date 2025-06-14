@@ -4,7 +4,7 @@
 
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite2.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Polarization.H"
-#include "Imp/Misc/IntPower.H"
+#include "Base/IntPower.H"
 #include "oml/imp/binio.h"
 
 #include <iostream>

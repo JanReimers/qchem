@@ -1,9 +1,9 @@
 #ifndef SLATERINTEGRALS_H
 #define SLATERINTEGRALS_H
 
-#include "Imp/Misc/IntPower.H"
+#include "Base/IntPower.H"
 #include "Imp/Integrals/Factorials.H"
-#include "Imp/Misc/DFTDefines.H"
+#include "Base/DFTDefines.H"
 
 #include <cmath>
 #include <cassert>

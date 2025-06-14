@@ -14,7 +14,7 @@
 #include "Imp/BasisSet/Atom/kappa/Okmj.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
-#include "Imp/Misc/DFTDefines.H"
+#include "Base/DFTDefines.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Containers/ERI4.H"

@@ -2,7 +2,7 @@
 #ifndef _Symmetry_H_
 #define _Symmetry_H_
 
-#include "Imp/Misc/pmstream.h"
+#include "Base/pmstream.h"
 
 class Symmetry
     : public virtual PMStreamableObject

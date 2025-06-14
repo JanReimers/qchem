@@ -4,7 +4,7 @@
 
 
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite2.H"
-#include "Imp/Misc/UniqueID/UniqueIDImp.H"
+#include "Base/UniqueIDImp.H"
 #include <types.H>
 
 namespace PolarizedGaussian

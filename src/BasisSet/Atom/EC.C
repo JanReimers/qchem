@@ -1,7 +1,7 @@
 // File: Atom_EC.C
 
 #include "Imp/BasisSet/Atom/EC.H"
-#include "Imp/Misc/PeriodicTable.H"
+#include "Base/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/Angular.H"
 #include <Irrep_QNs.H>
 #include <cassert>

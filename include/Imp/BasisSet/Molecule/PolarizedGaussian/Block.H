@@ -4,7 +4,7 @@
 
 #include "RadialFunction.H"
 #include "Polarization.H"
-#include "Imp/Misc/pmstream.h"
+#include "Base/pmstream.h"
 #include <cassert>
 
 namespace PolarizedGaussian

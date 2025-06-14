@@ -2,7 +2,7 @@
 
 #include "Imp/Integrals/AngularIntegrals.H"
 #include "Imp/Integrals/Wigner3j.H"
-#include "Imp/Misc/IntPower.H"
+#include "Base/IntPower.H"
 #include "oml/vector.h"
 #include <cassert>
 #include <cmath>

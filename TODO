@@ -23,19 +23,20 @@ Priority 1:
     -Try making a separate libqc_basis.a to enforce some modularity.
         -Probably need to make a libqcCommon.a  with some common stuff.
             stl_io.C Symmetry.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
+        -libqcSymmetry Symmetry.C Unit.C
         -libqcMesh.a
         -libqcCluster.a
         -libqcAtom_BS
         -libqcMolecule_BS
         -libqc_Lattice_BS.a
 
-        -Out of folder includes in BasisSet/Atom
-            #include "Imp/Containers/stl_io.h" .C file
+        -Out of folder includes in BasisSet/Atom    
+            #include "Base/stl_io.h" .C file
             #include "Imp/Integrals/MeshIntegrator.H" libQchemMesh
             #include "Imp/Containers/ERI4.H" .C file  move into BasisSet
             #include <Cluster.H> OK pure header
             #include <Symmetry.H> GetLabel .C file LibQchemBase
-            #include "Imp/Misc/IntPower.H" OK Pure header
+            #include "Base/IntPower.H" OK Pure header
             #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
             #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
             #include "Imp/Integrals/Factorials.H" .C LibQchemBase
@@ -43,10 +44,10 @@ Priority 1:
             #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
             #include "Imp/Cluster/Atom.H"
             #include "Imp/BasisSet/Molecule/Unit.H"
-            #include "Imp/Misc/IntPower.H"
+            #include "Base/IntPower.H"
             #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
-            #include "Imp/Misc/DFTDefines.H" LibQchemBase
-            #include "Imp/Misc/PeriodicTable.H" LibQchemBase
+            #include "Base/DFTDefines.H" LibQchemBase
+            #include "Base/PeriodicTable.H" LibQchemBase
 
         -Atom SG depends on 
             #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"

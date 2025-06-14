@@ -6,7 +6,7 @@
 #include <BasisSet.H>
 #include <SCFParams.H>
 #include <LAParams.H>
-#include "Imp/Misc/PeriodicTable.H"
+#include "Base/PeriodicTable.H"
 #include <TotalEnergy.H>
 
 #include <memory>

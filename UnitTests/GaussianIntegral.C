@@ -8,7 +8,7 @@
 #include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Imp/BasisSet/Atom/l/Yl.H"
 #include "Imp/Integrals/MeshIntegrator.H"
-#include "Imp/Misc/DFTDefines.H"
+#include "Base/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
 #include <MeshParams.H>

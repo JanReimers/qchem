@@ -4,7 +4,7 @@
 
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/RNLM.H"
 #include "Imp/Integrals/AuxillaryFJ.H"
-#include "Imp/Misc/IntPower.H"
+#include "Base/IntPower.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>

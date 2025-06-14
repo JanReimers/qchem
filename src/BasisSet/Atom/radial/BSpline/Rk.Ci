@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
 #include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
-#include "Imp/Misc/IntPower.H"
+#include "Base/IntPower.H"
 #include "oml/vector.h"
 
 using std::cout;
