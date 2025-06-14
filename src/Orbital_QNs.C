@@ -28,7 +28,7 @@ size_t Orbital_QNs::SequenceIndex() const
 
 std::ostream& Orbital_QNs::Write(std::ostream& os) const
 {
-    os << n+sym->GetPrincipleOffset();
+    os << n;
     return  Irrep_QNs::Write(os);
 }
     

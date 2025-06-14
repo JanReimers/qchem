@@ -7,6 +7,7 @@
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Misc/DFTDefines.H"
 #include <Irrep_BS.H>
+#include <Symmetry.H>
 #include "Imp/Containers/stl_io.h"
 
 //-----------------------------------------------------------------
@@ -78,7 +79,8 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Mat& U, const Mat&
     {
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
         if (e(i)<=e_positron) continue; //Strip out all the positron orbitals.
-        Orbital* o=new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), UPrime.GetColumn(i), e(i),Orbital_QNs(index++,itsQNs));
+        size_t principle_QN=itsQNs.sym->GetPrincipleOffset() + index++;
+        Orbital* o=new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), UPrime.GetColumn(i), e(i),Orbital_QNs(principle_QN,itsQNs));
         itsOrbitals.push_back(std::unique_ptr<Orbital>(o));
 
     }
