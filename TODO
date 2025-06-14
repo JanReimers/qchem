@@ -2,6 +2,9 @@
 Priority 1:
     More use of structured bindings for map iterating.
     -Convergence acceleration.
+        Geometric Direct Minimization (GDM)
+            Read up on BFDS method, Numerical Recipes section 10.7
+            Make some notes that translate into our notation.
         DIIS singular B
             Shprd & Minkoff 2007 eq 23.  Linear Least Squares much better condition number.
             SVD and trunctate B?
@@ -17,8 +20,49 @@ Priority 1:
             Multiple/A_SL_DFT_P.Multiple/5
             Multiple/A_SG_DFT_P.Multiple/5
             Multiple/A_PG_DFT_U.Multiple/2
- 
-    -Proper consol tables:
+    -Try making a separate libqc_basis.a to enforce some modularity.
+        -Probably need to make a libqcCommon.a  with some common stuff.
+            stl_io.C Symmetry.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
+        -libqcMesh.a
+        -libqcCluster.a
+        -libqcAtom_BS
+        -libqcMolecule_BS
+        -libqc_Lattice_BS.a
+
+        -Out of folder includes in BasisSet/Atom
+            #include "Imp/Containers/stl_io.h" .C file
+            #include "Imp/Integrals/MeshIntegrator.H" libQchemMesh
+            #include "Imp/Containers/ERI4.H" .C file  move into BasisSet
+            #include <Cluster.H> OK pure header
+            #include <Symmetry.H> GetLabel .C file LibQchemBase
+            #include "Imp/Misc/IntPower.H" OK Pure header
+            #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
+            #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
+            #include "Imp/Integrals/Factorials.H" .C LibQchemBase
+        -Out of folder includes in BasisSet/Molecule
+            #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+            #include "Imp/Cluster/Atom.H"
+            #include "Imp/BasisSet/Molecule/Unit.H"
+            #include "Imp/Misc/IntPower.H"
+            #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
+            #include "Imp/Misc/DFTDefines.H" LibQchemBase
+            #include "Imp/Misc/PeriodicTable.H" LibQchemBase
+
+        -Atom SG depends on 
+            #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
+            #include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
+
+        Try making a C++20 module
+
+
+    -Play around with plane wave basis sets
+        -Make some UTs for the lattice class.
+        -Intros:
+            https://extras.csc.fi/chem/courses/cpmd/tue/lecture-pw_pp.pdf
+            exchange tyerm: https://physics.iisc.ac.in/~aveek_bid/wp-content/uploads/2019/07/Lecture-11-Hartree-Fock-Screening-Electron-phonon-interaction-etc..pdf
+            https://github.com/ifilot/pypwdft
+
+    Done: -Proper consol tables:
         header only: https://github.com/p-ranav/tabulate
 
 
@@ -117,9 +161,6 @@ Priority 1:
         Use tempered definition for exponents:
             e=alpha*beta^i i = 0 ... n-1
         How to distinguish in constructor signature?
-    -Try making a separate libqc_basis.a to enforce some modularity.
-        -Porabaly need to make a libqc_base.a  with some common stuff.
-        Try making a C++20 module
     -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
     -Use ml instead of m

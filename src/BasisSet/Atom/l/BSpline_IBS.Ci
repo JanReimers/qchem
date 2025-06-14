@@ -3,7 +3,6 @@
 #include "Imp/BasisSet/Atom/l/BSpline_IBS.H"
 #include "Imp/BasisSet/Atom/l/BSpline_BF.H"
 #include "Imp/BasisSet/Atom/radial/BSpline/IBS_Common.H"
-//#include "Imp/BasisSet/Atom/radial/BSpline/Integrals.H"
 #include "Imp/BasisSet/Atom/l/Yl.H"
 #include <BasisSet.H>
 #include <iostream>

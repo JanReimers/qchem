@@ -3,7 +3,6 @@
 #include "Imp/BasisSet/Atom/EC.H"
 #include "Imp/Misc/PeriodicTable.H"
 #include "Imp/BasisSet/Atom/Angular.H"
-// #include "Imp/Containers/stl_io.h"
 #include <Irrep_QNs.H>
 #include <cassert>
 #include <iostream>

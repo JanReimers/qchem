@@ -6,7 +6,6 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
 #include "Imp/BasisSet/Atom/EC.H"
-// #include "Imp/Integrals/AngularIntegrals.H"
 #include <algorithm>
 
 namespace Atom_ml
