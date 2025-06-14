@@ -37,7 +37,8 @@
                 "/usr/include/gtk-4.0/unix-print",
                 "/usr/local/include/gtkmm-plplot-3.0",
                 "/usr/local/lib/x86_64-linux-gnu/gtkmm-plplot-3.0/include",
-                "${workspaceFolder}/BSplinebasis/include"
+                "${workspaceFolder}/submodules/BSplinebasis/include",
+                "${workspaceFolder}/submodules/tabulate/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

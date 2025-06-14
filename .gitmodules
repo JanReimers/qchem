@@ -13,3 +13,5 @@
 [submodule "submodules/wignerSymbols"]
 	path = submodules/wignerSymbols
 	url = https://github.com/joeydumont/wignerSymbols
+[submodules "oml"]
+	branch = main

@@ -75,22 +75,18 @@ inline int width(int m) {return m<0 ? 2 : 1;}
 std::ostream& Ylm_Sym::Write(std::ostream& os) const
 {
     os << SPDFG[itsL] << " ";
-    int n_extra=22;
     if (ml.size()<2*(size_t)itsL+1)
     {
-        n_extra-=4;
-        os << "[ ";
+        os << "[";
         for (auto im:ml)
         {
             int w=width(im);
             os << std::setw(w) << im << " ";
-            n_extra-=(w+1);
         }
-        os << "] ";
+        os << "]";
 
     }
-    for (int i=0;i<n_extra;i++) os << " ";
-    os << "|";
+   
     return os;
 }
 

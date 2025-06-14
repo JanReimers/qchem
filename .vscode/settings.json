@@ -82,7 +82,9 @@
         "future": "cpp",
         "stdfloat": "cpp",
         "chrono": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "csignal": "cpp",
+        "forward_list": "cpp"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}"
 }
