@@ -18,4 +18,4 @@ target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas
 
 target_link_options(UTMain PRIVATE -fopenmp)
 target_include_directories(UTMain PRIVATE ../include ../submodules/oml/include ../submodules/BSplinebasis/include)
-target_link_libraries(UTMain qchem)
+target_link_libraries(UTMain qchem qc_Common)

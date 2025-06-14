@@ -1,6 +1,6 @@
 // File: PeriodicTable.C  Implement a periodic table.
 
-#include "Common/PeriodicTable.H"
+#include "PeriodicTable.H"
 #include <string>
 #include <cassert>
 
