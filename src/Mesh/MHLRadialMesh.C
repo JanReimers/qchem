@@ -3,8 +3,8 @@
 
 
 #include "Imp/Mesh/MHLRadialMesh.H"
-#include "Base/DFTDefines.H"
-#include "Base/IntPower.H"
+#include "Common/DFTDefines.H"
+#include "Common/IntPower.H"
 #include <iostream>
 #include <cmath>
 

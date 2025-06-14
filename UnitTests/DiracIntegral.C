@@ -14,7 +14,7 @@
 #include "Symmetry/Okmj.H"
 
 #include "Imp/Integrals/MeshIntegrator.H"
-#include "Base/DFTDefines.H"
+#include "Common/DFTDefines.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Containers/ERI4.H"

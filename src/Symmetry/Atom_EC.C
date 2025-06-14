@@ -1,7 +1,7 @@
 // File: Atom_EC.C
 
 #include "Symmetry/Atom_EC.H"
-#include "Base/PeriodicTable.H"
+#include "Common/PeriodicTable.H"
 #include "Symmetry/Angular.H"
 #include <Symmetry/Irrep_QNs.H>
 #include <cassert>

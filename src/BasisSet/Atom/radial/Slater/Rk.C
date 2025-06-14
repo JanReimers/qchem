@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
 #include "Imp/Integrals/PascalTriangle.H"
-#include "Base/Factorials.H"
+#include "Common/Factorials.H"
 #include "oml/vector.h"
 
 namespace Slater

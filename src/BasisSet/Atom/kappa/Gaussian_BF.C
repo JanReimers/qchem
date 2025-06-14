@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
 #include "Symmetry/Okmj.H"
-#include "Base/IntPower.H"
+#include "Common/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"
 #include "oml/imp/stream.h"

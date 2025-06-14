@@ -1,7 +1,7 @@
 // File: BSpline/IEC.C Common IE client code for all atom BSpline basis sets and IEs.
 
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
-#include "Base/stl_io.h"
+#include "Common/stl_io.h"
 
 namespace BSpline
 {

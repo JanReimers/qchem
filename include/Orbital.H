@@ -3,7 +3,7 @@
 #define _Orbital_H_
 
 #include "types.H"
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 
 //#############################################################
 //
@@ -48,7 +48,7 @@ public:
 
 #include <vector>
 #include <memory>
-#include <Base/Iterators.H>
+#include <Common/Iterators.H>
 //---------------------------------------------------------------------------
 //
 //  A group of orbitals is usually for one irreducable representation.

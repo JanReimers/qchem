@@ -5,7 +5,7 @@
 #include "types.H"
 #include "oml/vector3d.h"
 #include "oml/matrix3d.h"
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 
 class UnitCell
     : public virtual PMStreamableObject

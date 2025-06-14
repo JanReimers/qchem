@@ -3,7 +3,7 @@
 
 
 #include "Imp/Mesh/GaussLegendreAngularMesh.H"
-#include "Base/DFTDefines.H"
+#include "Common/DFTDefines.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>

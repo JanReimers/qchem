@@ -9,7 +9,7 @@
 #include <Symmetry/Irrep_QNs.H>
 #include <Symmetry.H>
 #include <iostream>
-#include <Base/DFTDefines.H>
+#include <Common/DFTDefines.H>
 #include "oml/io3d.h"
 #include <iomanip>
 #include "Imp/Integrals/MeshIntegrator.H"

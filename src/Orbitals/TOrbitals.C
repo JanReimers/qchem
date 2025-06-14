@@ -5,10 +5,10 @@
 #include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/Orbitals/TOrbital.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
-#include "Base/DFTDefines.H"
+#include "Common/DFTDefines.H"
 #include <Irrep_BS.H>
 #include <Symmetry.H>
-#include "Base/stl_io.h"
+#include "Common/stl_io.h"
 
 //-----------------------------------------------------------------
 //

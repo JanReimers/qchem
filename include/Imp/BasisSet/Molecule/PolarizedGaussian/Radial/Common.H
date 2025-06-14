@@ -5,7 +5,7 @@
 
 
 #include "../RadialFunction.H"
-#include "Base/UniqueIDImp.H"
+#include "Common/UniqueIDImp.H"
 
 namespace PolarizedGaussian
 {

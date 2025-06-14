@@ -2,7 +2,7 @@
 #ifndef _BasisFunction_H_
 #define _BasisFunction_H_
 
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 #include <iosfwd>
 
 //--------------------------------------------------------------

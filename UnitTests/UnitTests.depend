@@ -787,7 +787,7 @@
 
 1729383646 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 	<FittedFunctionClient.H>
 
 1727405242 /home/janr/Code/qchem/include/HamiltonianTerm.H
@@ -804,7 +804,7 @@
 1731377993 /home/janr/Code/qchem/include/WaveFunction.H
 	<types.H>
 	<Spin.H>
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 
 1727901331 /home/janr/Code/qchem/include/PolarizedWF.H
 	"WaveFunction.H"
@@ -922,7 +922,7 @@
 
 1734374032 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Misc/IntPower.H"
-	"Base/Factorials.H"
+	"Common/Factorials.H"
 	<cmath>
 
 1730402179 /home/janr/Code/qchem/include/Imp/Integrals/Wigner3j.H
@@ -940,7 +940,7 @@
 1732455716 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/Block.H
 	"RadialFunction.H"
 	"Polarization.H"
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 	<cassert>
 
 1732470843 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
@@ -1233,7 +1233,7 @@
 	<Spin.H>
 
 1729383672 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 	<ScalarFunction.H>
 
 1729443462 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
@@ -1293,12 +1293,12 @@
 
 1729475680 /home/janr/Code/qchem/include/Imp/Cluster/Atom.H
 	"types.H"
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 	"oml/vector3d.h"
 	<string>
 
 1729383654 /home/janr/Code/qchem/include/Spin.H
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 	<iosfwd>
 
 1728746622 /home/janr/Code/qchem/include/Imp/DataBase/HeapDB.H
@@ -1364,7 +1364,7 @@
 	"Imp/Misc/UniqueID/UniqueID.H"
 
 1729383613 /home/janr/Code/qchem/include/Imp/Misc/UniqueID/UniqueID.H
-	"Base/pmstream.h"
+	"Common/pmstream.h"
 
 1728599453 /home/janr/Code/qchem/include/Imp/Misc/IntPower.H
 	"DFTDefines.H"

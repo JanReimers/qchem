@@ -37,23 +37,23 @@ Priority 1:
             Spin.H needed by symmetry
 
         -Out of folder includes in BasisSet/Atom    
-            #include "Base/stl_io.h" .C file
+            #include "Common/stl_io.h" .C file
             #include "Imp/Integrals/MeshIntegrator.H" libQchemMesh
             #include "Imp/Containers/ERI4.H" .C file  move into BasisSet
             #include <Cluster.H> OK pure header
             #include <Symmetry.H> GetLabel .C file LibQchemBase
-            #include "Base/IntPower.H" OK Pure header
+            #include "Common/IntPower.H" OK Pure header
             #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
             #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
-            #include "Base/Factorials.H" .C LibQchemBase
+            #include "Common/Factorials.H" .C LibQchemBase
         -Out of folder includes in BasisSet/Molecule
             #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
             #include "Imp/Cluster/Atom.H"
             #include "Imp/BasisSet/Molecule/Unit.H"
-            #include "Base/IntPower.H"
+            #include "Common/IntPower.H"
             #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
-            #include "Base/DFTDefines.H" LibQchemBase
-            #include "Base/PeriodicTable.H" LibQchemBase
+            #include "Common/DFTDefines.H" LibQchemBase
+            #include "Common/PeriodicTable.H" LibQchemBase
 
         -Atom SG depends on 
             #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"

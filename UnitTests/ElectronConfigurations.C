@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "Symmetry/Atom_EC.H"
-#include "Base/PeriodicTable.H"
+#include "Common/PeriodicTable.H"
 #include "Symmetry/Ylm.H"
 #include <Symmetry/Irrep_QNs.H>
 #include <iostream>

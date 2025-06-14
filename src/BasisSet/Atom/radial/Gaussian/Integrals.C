@@ -3,7 +3,7 @@
 
 #include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
 #include "Imp/Integrals/AngularIntegrals.H"
-#include "Base/Factorials.H"
+#include "Common/Factorials.H"
 
 #include <iostream>
 #include <cassert>

@@ -3,8 +3,8 @@
 #define _Atom_H_
 
 #include "types.H"
-#include "Base/UniqueIDImp.H"
-#include "Base/pmstream.h"
+#include "Common/UniqueIDImp.H"
+#include "Common/pmstream.h"
 #include "oml/vector3d.h"
 #include <string>
 

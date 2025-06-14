@@ -4,7 +4,7 @@
 
 
 
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 #include <ScalarFunction.H>
 
 class ExFunctional

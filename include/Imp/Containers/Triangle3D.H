@@ -2,7 +2,7 @@
 #ifndef _Triangle_H_
 #define _Triangle_H_
 
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 #include <vector>
 
 #if DEBUG

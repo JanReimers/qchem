@@ -1,7 +1,7 @@
 // File: DiracKinetic.C  Kinetic energy term for the Dirac hamiltonian.
 
 #include "Imp/Hamiltonian/DiracKinetic.H"
-#include "Base/DFTDefines.H"
+#include "Common/DFTDefines.H"
 #include <Irrep_BS.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>

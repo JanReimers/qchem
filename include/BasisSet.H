@@ -4,9 +4,9 @@
 
 #include <types.H>
 #include <UniqueID.H>
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 #include <IEClient.H>
-#include <Base/Iterators.H>
+#include <Common/Iterators.H>
 
 #include <vector>
 #include <memory>

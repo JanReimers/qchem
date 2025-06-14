@@ -3,7 +3,7 @@
 #define _RadialFunction_H_
 
 #include "Polarization.H"
-#include "Base/pmstream.h"
+#include "Common/pmstream.h"
 #include <UniqueID.H> 
 #include <ScalarFunction.H>
 #include "oml/vector3d.h"

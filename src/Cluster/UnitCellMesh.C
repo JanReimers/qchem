@@ -4,7 +4,7 @@
 
 #include "Imp/Cluster/UnitCell.H"
 #include "Imp/Cluster/UnitCellMesh.H"
-#include "Base/DFTDefines.H"
+#include "Common/DFTDefines.H"
 #include <cmath>
 
 UnitCellMesh::UnitCellMesh(const UnitCell& cell, index_t NumPoints)

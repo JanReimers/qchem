@@ -12,7 +12,7 @@
 #include "Symmetry/Unit.H"
 #include <BasisSet.H>
 #include <Cluster.H>
-#include "Base/stl_io.h"
+#include "Common/stl_io.h"
 #include <cassert>
 #include <algorithm> //Need std::max
 
