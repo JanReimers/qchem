@@ -64,7 +64,7 @@ bool ControllerWindow::close_request()
 
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
-#include <MeshParams.H>
+#include <Mesh/MeshParams.H>
 #include <SCFIterator.H>
 #include <SCFParams.H>
 #include <BasisSet.H>

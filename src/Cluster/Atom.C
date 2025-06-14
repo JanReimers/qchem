@@ -4,12 +4,12 @@
 
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/AtomMesh.H"
-#include <MeshParams.H>
+#include <Mesh/MeshParams.H>
 #include "oml/io3d.h"
 #include <iostream>
 #include <cassert>
-#include "Imp/Mesh/MHLRadialMesh.H"
-#include "Imp/Mesh/GaussAngularMesh.H"
+#include "Mesh/MHLRadialMesh.H"
+#include "Mesh/GaussAngularMesh.H"
 
 
 Atom::Atom()

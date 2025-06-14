@@ -5,7 +5,7 @@
 #include "Imp/Cluster/MoleculeMesh.H"
 #include "Imp/Cluster/Atom.H"
 #include <Cluster.H>
-#include <MeshParams.H>
+#include <Mesh/MeshParams.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include "oml/io3d.h"

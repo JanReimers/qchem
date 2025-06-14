@@ -19,7 +19,7 @@
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Containers/ERI4.H"
 
-#include <MeshParams.H>
+#include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include <iostream>
 

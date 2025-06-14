@@ -11,7 +11,7 @@
 #include "Common/DFTDefines.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
-#include <MeshParams.H>
+#include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include "oml/smatrix.h"
 #include "oml/matrix.h"

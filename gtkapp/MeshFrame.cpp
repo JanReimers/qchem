@@ -1,11 +1,11 @@
 // File: MeshFrame.cpp  GTK frame to show and manage DFT integration mesh settings.
 
 #include "MeshFrame.H"
-#include "Imp/Mesh/LogRadialMesh.H"
-#include "Imp/Mesh/MHLRadialMesh.H"
-#include "Imp/Mesh/GaussAngularMesh.H"
-#include "Imp/Mesh/GaussLegendreAngularMesh.H"
-#include "Imp/Mesh/EulerMaclarenAngularMesh.H"
+#include "Mesh/LogRadialMesh.H"
+#include "Mesh/MHLRadialMesh.H"
+#include "Mesh/GaussAngularMesh.H"
+#include "Mesh/GaussLegendreAngularMesh.H"
+#include "Mesh/EulerMaclarenAngularMesh.H"
 #include "Imp/Cluster/AtomMesh.H"
 #include <iostream>
 

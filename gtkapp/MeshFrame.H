@@ -5,7 +5,7 @@
 #include "enumDropDown.H"
 #include <gtkmm.h>
 #include <types.H>
-#include <MeshParams.H>
+#include <Mesh/MeshParams.H>
 
 class MeshFrame : public Gtk::Frame
 {

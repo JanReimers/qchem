@@ -609,7 +609,7 @@
 	"Imp/Cluster/Molecule.H"
 	"Imp/Containers/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 	<Cluster.H>
 	<BasisSet.H>
 	"oml/imp/ran250.h"
@@ -1041,7 +1041,7 @@
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Molecule.H"
 	"Imp/Cluster/Atom.H"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 	<Cluster.H>
 	"oml/smatrix.h"
 	"oml/matrix.h"
@@ -1125,7 +1125,7 @@
 
 1731898295 source:/home/janr/Code/qchem/UnitTests/QchemTester.C
 	"QchemTester.H"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 	<SCFIterator.H>
 	<WaveFunction.H>
 	<Hamiltonian.H>
@@ -1165,14 +1165,14 @@
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 
 1731945649 source:/home/janr/Code/qchem/UnitTests/A_DFT.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 
 1729268252 source:/home/janr/Code/qchem/UnitTests/M_HF.C
 	"QchemTester.H"
@@ -1186,7 +1186,7 @@
 	"Imp/Cluster/Molecule.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 
 1730517927 source:/home/janr/Code/qchem/UnitTests/GaussianERIIntegral.C
 	"gtest/gtest.h"
@@ -1330,7 +1330,7 @@
 	"oml/vector3d.h"
 
 1729375907 /home/janr/Code/qchem/include/Imp/Mesh/MHLRadialMesh.H
-	<RadialMesh.H>
+	<Mesh/RadialMesh.H>
 
 1729371938 /home/janr/Code/qchem/include/RadialMesh.H
 	"types.H"
@@ -1390,7 +1390,7 @@
 	"Imp/Cluster/Molecule.H"
 	"Imp/Cluster/Atom.H"
 	<LAParams.H>
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 	<Symmetry.H>
 	"oml/smatrix.h"
 	"oml/matrix.h"
@@ -1513,7 +1513,7 @@
 	"Imp/Cluster/Molecule.H"
 	"Imp/Containers/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
-	<MeshParams.H>
+	<Mesh/MeshParams.H>
 	<Cluster.H>
 	<BasisSet.H>
 	<iostream>

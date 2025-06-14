@@ -2,7 +2,7 @@
 #ifndef _LogRadialMesh_H_
 #define _LogRadialMesh_H_
 
-#include <RadialMesh.H>
+#include <Mesh/RadialMesh.H>
 
 class LogRadialMesh : public   RadialMesh
 {
