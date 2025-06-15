@@ -7,6 +7,7 @@
                 "${workspaceFolder}/submodules/oml/include",
                 "${workspaceFolder}/submodules/BSplinebasis/include",
                 "${workspaceFolder}/submodules/tabulate/include",
+                "${workspaceFolder}/submodules/json/single_include",
                 "${workspaceFolder}/include/Imp/Cluster",
                 "${workspaceFolder}/include/Imp/LASolver",
                 "/usr/include/gtkmm-4.0",

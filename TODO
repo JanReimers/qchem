@@ -21,6 +21,11 @@ Priority 1:
             Multiple/A_SG_DFT_P.Multiple/5
             Multiple/A_PG_DFT_U.Multiple/2
 
+    Make a basis set factory in order to avoid including private headers
+        Function signatures vary.  Use json structures?
+        Need separate function signatures for Atom, Molecule and Lattice basis sets.
+            If we want to breakout separate libqcAtom_BS libqcMolecule_BS  libqcLattice_BS modules.
+            Each of these would have its own factory function
     Try separating out 
         libqcFitting ?
         libqcChargeDensity
