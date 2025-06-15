@@ -12,7 +12,7 @@
 #include <Common/DFTDefines.H>
 #include "oml/io3d.h"
 #include <iomanip>
-#include "Imp/Integrals/MeshIntegrator.H"
+#include "Mesh/MeshIntegrator.H"
 #include <Mesh/MeshParams.H>
 #include <Mesh.H>
 

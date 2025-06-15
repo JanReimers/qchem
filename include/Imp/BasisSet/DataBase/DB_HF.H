@@ -2,7 +2,7 @@
 #ifndef _DB_HF_H_
 #define _DB_HF_H_
 
-#include "Imp/DataBase/HeapDB.H"
+#include "Imp/BasisSet/DataBase/HeapDB.H"
 #include <HF_IE.H>
 
 template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>

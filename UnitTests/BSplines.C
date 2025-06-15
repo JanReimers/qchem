@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/Atom/l/BSpline_BS.H"
 #include "Imp/BasisSet/Atom/l/BSpline_IBS.H"
 #include "Common/stl_io.h"
-#include "Imp/Integrals/MeshIntegrator.H"
+#include "Mesh/MeshIntegrator.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
 #include <Mesh/MeshParams.H>

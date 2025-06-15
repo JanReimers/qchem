@@ -1,7 +1,7 @@
 // File: ERIList.C  Test the DFT persistance classes
 
 #include "gtest/gtest.h"
-#include "Imp/Containers/ERI4.H"
+#include "Imp/BasisSet/ERI4.H"
 #include <iostream>
 #include <fstream>
 

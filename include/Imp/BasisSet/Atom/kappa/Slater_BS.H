@@ -3,7 +3,7 @@
 #define _Atom_kappa_Slater_BS_H_
 
 #include "../../BS_Common.H"
-#include "Imp/DataBase/HeapDB.H"
+#include "Imp/BasisSet/DataBase/HeapDB.H"
 
 namespace Atom_kappa
 {

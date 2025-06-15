@@ -1,7 +1,7 @@
 // File: MeshIntegrator.C  mesh Integrator
 
 
-#include "Imp/Integrals/MeshIntegrator.H"
+#include "Mesh/MeshIntegrator.H"
 #include <Mesh.H>
 #include <ScalarFunction.H>
 #include <VectorFunction.H>

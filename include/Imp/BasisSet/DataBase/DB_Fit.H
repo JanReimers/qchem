@@ -2,7 +2,7 @@
 #ifndef _DB_Fit_H_
 #define _DB_Fit_H_
 
-#include "Imp/DataBase/HeapDB.H"
+#include "Imp/BasisSet/DataBase/HeapDB.H"
 #include <Fit_IE.H>
 
 class DB_Fit 

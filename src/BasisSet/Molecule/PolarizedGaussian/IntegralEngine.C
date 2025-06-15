@@ -7,7 +7,7 @@
 #include <Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "Imp/Containers/ERI4.H"
+#include "Imp/BasisSet/ERI4.H"
 
 namespace PolarizedGaussian
 {

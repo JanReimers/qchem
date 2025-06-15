@@ -5,7 +5,7 @@
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
-#include "Imp/Integrals/MeshIntegrator.H"
+#include "Mesh/MeshIntegrator.H"
 #include "Imp/Cluster/Molecule.H"
 #include "Imp/Cluster/Atom.H"
 #include <LAParams.H>

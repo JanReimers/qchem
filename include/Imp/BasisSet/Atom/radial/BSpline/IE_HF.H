@@ -6,8 +6,8 @@
 #include "IEC.H"
 #include "BFGrouper.H"
 #include "../../IE_HF_Angular.H" //For angular interfactes
-#include "Imp/DataBase/DB_HF.H"
-// #include "Imp/Integrals/Cache4.H"
+#include "Imp/BasisSet/DataBase/DB_HF.H"
+// #include "Imp/BasisSet/Cache4.H"
 
 namespace BSpline
 {

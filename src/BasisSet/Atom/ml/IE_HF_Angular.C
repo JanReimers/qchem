@@ -1,7 +1,7 @@
 // File: Atom_ml_IE_HF_Angular.H  Angular 2e-Integrals for atom-ml HF basis sets.
 
 #include "Imp/BasisSet/Atom/ml/IE_HF_Angular.H"
-#include "Imp/Integrals/AngularIntegrals.H"
+#include "Imp/BasisSet/Atom/AngularIntegrals.H"
 #include "Imp/BasisSet/Atom/IEC.H"
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)

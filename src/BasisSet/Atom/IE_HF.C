@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/IE_HF.H"
 #include "Imp/BasisSet/Atom/IEC.H"
-#include "Imp/Containers/ERI4.H"
+#include "Imp/BasisSet/ERI4.H"
 
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {

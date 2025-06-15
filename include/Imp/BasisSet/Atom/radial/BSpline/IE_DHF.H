@@ -3,7 +3,7 @@
 #define _BSpline_IE_DHF_H_
 
 #include "IE.H"
-#include "Imp/DataBase/DB_DHF.H"
+#include "Imp/BasisSet/DataBase/DB_DHF.H"
 
 namespace BSpline
 {

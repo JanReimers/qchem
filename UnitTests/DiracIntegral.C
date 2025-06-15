@@ -13,11 +13,11 @@
 #include "Imp/BasisSet/Atom/kappa/Gaussian_IBS.H"
 #include "Symmetry/Okmj.H"
 
-#include "Imp/Integrals/MeshIntegrator.H"
+#include "Mesh/MeshIntegrator.H"
 #include "Common/DFTDefines.H"
 #include "Imp/Cluster/Atom.H"
 #include "Imp/Cluster/Molecule.H"
-#include "Imp/Containers/ERI4.H"
+#include "Imp/BasisSet/ERI4.H"
 
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>

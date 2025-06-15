@@ -2,7 +2,7 @@
 #ifndef _SphericalGaussianCD_H_
 #define _SphericalGaussianCD_H_
 
-#include "Imp/Integrals/Cache4.H"
+#include "Imp/BasisSet/Cache4.H"
 #include "oml/matrix.h"
 
 namespace Gaussian

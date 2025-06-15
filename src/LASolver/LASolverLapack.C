@@ -100,6 +100,7 @@ template <class T> typename LASolver<T>::RSMat LASolverLapackCholsky<T>::Inverse
 }
 
 
+template class LASolverLapackCommon <double>;
 template class LASolverLapackEigen  <double>;
 template class LASolverLapackSVD    <double>;
 template class LASolverLapackCholsky<double>;

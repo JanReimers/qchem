@@ -3,8 +3,8 @@
 #define _AtomIE_H_
 
 #include "BFGrouper.H"
-#include "Imp/Integrals/Cache4.H"
-#include "Imp/DataBase/HeapDB.H"
+#include "Imp/BasisSet/Cache4.H"
+#include "Imp/BasisSet/DataBase/HeapDB.H"
 
 
 template <class T> class Primative_Overlap

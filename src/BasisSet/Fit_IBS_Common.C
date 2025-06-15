@@ -2,7 +2,7 @@
 
 
 #include "Imp/BasisSet/Fit_IBS_Common.H"
-#include "Imp/Integrals/MeshIntegrator.H"
+#include "Mesh/MeshIntegrator.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"
 

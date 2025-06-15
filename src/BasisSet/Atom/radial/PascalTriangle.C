@@ -1,6 +1,6 @@
 // File: Integrals/PascalTriangle.C
 
-#include "Imp/Integrals/PascalTriangle.H"
+#include "Imp/BasisSet/Atom/radial/PascalTriangle.H"
 #include <iostream>
 
 PascalTriangle PascalTriangle::thePascalTriangle(9);

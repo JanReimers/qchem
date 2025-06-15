@@ -2,7 +2,7 @@
 
 #include "Imp/BasisSet/Atom/radial/BSpline/IE.H"
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
-#include "Imp/Containers/ERI4.H"
+#include "Imp/BasisSet/ERI4.H"
 #include <Cluster.H>
 #include <Irrep_BS.H>
 

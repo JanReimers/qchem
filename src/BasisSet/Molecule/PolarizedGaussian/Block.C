@@ -58,15 +58,6 @@ std::ostream& Block::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& Block::Read(std::istream& is)
-{
-    delete itsRadial;
-    itsRadial=RadialFunction::Factory(is);
-    is >> itsRadial >> itsPols;
-    if(Binary()) BinaryRead(itsN,is);
-    if(Ascii ()) is >> itsN;
-    return is;
-}
 
 Block* Block::Clone() const
 {

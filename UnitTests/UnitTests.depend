@@ -243,7 +243,7 @@
 1728746622 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
 	<IEClient.H>
-	"Imp/Containers/ERI4.H"
+	"Imp/BasisSet/ERI4.H"
 	<map>
 
 1727636581 /home/janr/Code/qchem/src/BasisSet/IntegralDataBase.H
@@ -603,11 +603,11 @@
 	"Imp/BasisSet/Slater/BasisFunction.H"
 	"Symmetry/Yl.H"
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
-	"Imp/Integrals/MeshIntegrator.H"
+	"Mesh/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
-	"Imp/Containers/ERI4.H"
+	"Imp/BasisSet/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
 	<Cluster.H>
@@ -783,7 +783,7 @@
 1729380966 /home/janr/Code/qchem/include/IntegralDataBase.H
 	"types.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
-	"Imp/Containers/ERI4.H"
+	"Imp/BasisSet/ERI4.H"
 
 1729383646 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
@@ -1037,7 +1037,7 @@
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
 	"Imp/BasisSet/SphericalGaussian/IrrepBasisSet.H"
 	"Symmetry/Yl.H"
-	"Imp/Integrals/MeshIntegrator.H"
+	"Mesh/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Molecule.H"
 	"Imp/Cluster/Atom.H"
@@ -1304,7 +1304,7 @@
 1728746622 /home/janr/Code/qchem/include/Imp/DataBase/HeapDB.H
 	"IntegralDataBase.H"
 	<IEClient.H>
-	"Imp/Containers/ERI4.H"
+	"Imp/BasisSet/ERI4.H"
 	<map>
 
 1728702044 /home/janr/Code/qchem/include/LAParams.H
@@ -1386,7 +1386,7 @@
 	"Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
-	"Imp/Integrals/MeshIntegrator.H"
+	"Mesh/MeshIntegrator.H"
 	"Imp/Cluster/Molecule.H"
 	"Imp/Cluster/Atom.H"
 	<LAParams.H>
@@ -1420,7 +1420,7 @@
 	<map>
 
 1730995751 /home/janr/Code/qchem/include/Imp/Integrals/Slater::RkEngine.H
-	"Imp/Integrals/Cache4.H"
+	"Imp/BasisSet/Cache4.H"
 	"oml/matrix.h"
 
 1731887269 /home/janr/Code/qchem/include/Imp/BasisSet/BFGrouper.H
@@ -1428,7 +1428,7 @@
 	<map>
 
 1731510439 /home/janr/Code/qchem/include/Imp/Integrals/SphericalGaussianCD.H
-	"Imp/Integrals/Cache4.H"
+	"Imp/BasisSet/Cache4.H"
 	"oml/matrix.h"
 
 1731941953 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian_m/BasisSet.H
@@ -1462,7 +1462,7 @@
 
 1731684021 source:/home/janr/Code/qchem/UnitTests/ERIList.C
 	"gtest/gtest.h"
-	"Imp/Containers/ERI4.H"
+	"Imp/BasisSet/ERI4.H"
 	<iostream>
 	<fstream>
 
@@ -1474,7 +1474,7 @@
 1732133455 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIE.H
 	<AnalyticIE.H>
 	"Imp/BasisSet/BFGrouper.H"
-	"Imp/Integrals/Cache4.H"
+	"Imp/BasisSet/Cache4.H"
 	"oml/vector.h"
 
 1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/Ylm.H
@@ -1507,11 +1507,11 @@
 	"Imp/BasisSet/Slater_mj/BasisFunction.H"
 	"Imp/BasisSet/Slater_mj/IrrepBasisSet.H"
 	"Symmetry/Okmj.H"
-	"Imp/Integrals/MeshIntegrator.H"
+	"Mesh/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
 	"Imp/Cluster/Atom.H"
 	"Imp/Cluster/Molecule.H"
-	"Imp/Containers/ERI4.H"
+	"Imp/BasisSet/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
 	<Cluster.H>

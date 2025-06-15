@@ -5,10 +5,10 @@
 #include "RadialFunction.H"
 #include "CDCache.H"
 #include "Polarization.H"
-#include "Imp/DataBase/HeapDB.H"
-#include "Imp/DataBase/DB_DFT.H"
-#include "Imp/DataBase/DB_HF.H"
-#include "Imp/DataBase/DB_Fit.H"
+#include "Imp/BasisSet/DataBase/HeapDB.H"
+#include "Imp/BasisSet/DataBase/DB_DFT.H"
+#include "Imp/BasisSet/DataBase/DB_HF.H"
+#include "Imp/BasisSet/DataBase/DB_Fit.H"
 
 #include <IntegralEngine.H>
 #include "oml/vector.h"

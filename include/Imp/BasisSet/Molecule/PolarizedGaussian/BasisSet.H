@@ -4,7 +4,7 @@
 
 #include "IEClient.H"
 #include "../../BS_Common.H"
-#include "Imp/DataBase/DB_HF.H"
+#include "Imp/BasisSet/DataBase/DB_HF.H"
 #include "CDCache.H"
 
 namespace PolarizedGaussian

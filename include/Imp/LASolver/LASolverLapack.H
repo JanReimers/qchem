@@ -20,7 +20,7 @@ template <class T> class LASolverLapackCommon
 public:
     LASolverLapackCommon(const LAParams&);
     ~LASolverLapackCommon();
-
+    
     virtual  UdType Solve          (const SMat& H) const;
     //! returns U,U',E  where U' has not been back transformed, U=V*Uprime.
     virtual UUdType SolveOrtho(const SMat& Hprime) const; //Hprime = Vd * H * V Hamiltonian/Fock matrix.

@@ -2,7 +2,7 @@
 #ifndef _BSpline_RkEngine_H_
 #define _BSpline_RkEngine_H_
 
-#include "Imp/Integrals/Cache4.H"
+#include "Imp/BasisSet/Cache4.H"
 #include <bspline/Core.h>
 #include "oml/vector.h"
 

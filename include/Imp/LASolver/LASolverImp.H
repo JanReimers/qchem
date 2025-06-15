@@ -40,6 +40,7 @@ template <class T> class LASolverCommon
 
 protected:
     LASolverCommon(const LAParams& lap) : itsParams(lap) {};
+    ~LASolverCommon() {};
     //
     //  Helper functions used by derived classes.
     //

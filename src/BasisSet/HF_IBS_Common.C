@@ -2,7 +2,7 @@
 
 
 #include "Imp/BasisSet/HF_IBS_Common.H"
-#include "Imp/Containers/ERI4.H"
+#include "Imp/BasisSet/ERI4.H"
 
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::

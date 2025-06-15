@@ -38,8 +38,8 @@ Priority 1:
 
         -Out of folder includes in BasisSet/Atom    
             #include "Common/stl_io.h" .C file
-            #include "Imp/Integrals/MeshIntegrator.H" libQchemMesh
-            #include "Imp/Containers/ERI4.H" .C file  move into BasisSet
+            #include "Mesh/MeshIntegrator.H" libQchemMesh
+            #include "Imp/BasisSet/ERI4.H" .C file  move into BasisSet
             #include <Cluster.H> OK pure header
             #include <Symmetry.H> GetLabel .C file LibQchemBase
             #include "Common/IntPower.H" OK Pure header

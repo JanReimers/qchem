@@ -1,6 +1,6 @@
 // File: TriangleFactories.C
 
-#include "Imp/Containers/Triangle3D.H"
+#include "Imp/BasisSet/Molecule/PolarizedGaussian/Triangle3D.H"
 #include <string>
 #include <iostream>
 #include <typeinfo>
