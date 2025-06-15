@@ -20,44 +20,22 @@ Priority 1:
             Multiple/A_SL_DFT_P.Multiple/5
             Multiple/A_SG_DFT_P.Multiple/5
             Multiple/A_PG_DFT_U.Multiple/2
-    -Try making a separate libqc_basis.a to enforce some modularity.
-        -Probably need to make a libqcCommon.a  with some common stuff.
-            stl_io.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
-            Interators.H UniqueID.H 
-        -libqcSymmetry Symmetry.C Unit.C
-        -libqcMesh.a
-        -libqcCluster.a
-        -libqcAtom_BS
-        -libqcMolecule_BS
-        -libqc_Lattice_BS.a
-        -Where
-            LASolver,(Base)
-            ElectronConfiguration.H two way coupling with Symmetry, has to go in Symmetry
-            Cache4.H (BasisSet)
-            Spin.H needed by symmetry
 
-        -Out of folder includes in BasisSet/Atom    
-            #include "Common/stl_io.h" .C file
-            #include "Mesh/MeshIntegrator.H" libQchemMesh
-            #include "Imp/BasisSet/ERI4.H" .C file  move into BasisSet
-            #include <Cluster.H> OK pure header
-            #include <Symmetry.H> GetLabel .C file LibQchemBase
-            #include "Common/IntPower.H" OK Pure header
-            #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
-            #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
-            #include "Common/Factorials.H" .C LibQchemBase
-        -Out of folder includes in BasisSet/Molecule
-            #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
-            #include "Imp/Cluster/Atom.H"
-            #include "Imp/BasisSet/Molecule/Unit.H"
-            #include "Common/IntPower.H"
-            #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
-            #include "Common/DFTDefines.H" LibQchemBase
-            #include "Common/PeriodicTable.H" LibQchemBase
-
-        -Atom SG depends on 
-            #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
-            #include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
+    Try separating out 
+        libqcFitting ?
+        libqcChargeDensity
+        libqcHamiltonian
+        libqcWaveFunction
+        -this will require decouple Ham from WF.  Make a factory function in WF interface.
+    Try splitting libqcBasisSet into
+        libqcAtom_BS
+        libqcMolecule_BS
+        libqcLattice_BS
+        this will require isolating basis set reader code so atom and molecule can see them.
+    Modules
+        How to control header access?
+        Right now all headers are pooled.  It would nice to control header access with
+           include search dirs.  Each module can only headers for its dependencies.
 
         Try making a C++20 module
 
@@ -69,8 +47,7 @@ Priority 1:
             exchange tyerm: https://physics.iisc.ac.in/~aveek_bid/wp-content/uploads/2019/07/Lecture-11-Hartree-Fock-Screening-Electron-phonon-interaction-etc..pdf
             https://github.com/ifilot/pypwdft
 
-    Done: -Proper consol tables:
-        header only: https://github.com/p-ranav/tabulate
+    Use console tables for dumping basis sets?
 
 
     -General AtomIrrepIECLient clean up.
@@ -371,8 +348,48 @@ Priority 3:
 
 
 
+    Done: -Proper consol tables:
+        header only: https://github.com/p-ranav/tabulate
+    Done: -Try making a separate libqc_basis.a to enforce some modularity.
+        -Probably need to make a libqcCommon.a  with some common stuff.
+            stl_io.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
+            Interators.H UniqueID.H 
+        -libqcSymmetry Symmetry.C Unit.C
+        -libqcMesh.a
+        -libqcCluster.a
+        -libqcAtom_BS
+        -libqcMolecule_BS
+        -libqc_Lattice_BS.a
+        -Where
+            LASolver,(Base)
+            ElectronConfiguration.H two way coupling with Symmetry, has to go in Symmetry
+            Cache4.H (BasisSet)
+            Spin.H needed by symmetry
 
-    -Small fixes
+        -Out of folder includes in BasisSet/Atom    
+            #include "Common/stl_io.h" .C file
+            #include "Mesh/MeshIntegrator.H" libQchemMesh
+            #include "Imp/BasisSet/ERI4.H" .C file  move into BasisSet
+            #include <Cluster.H> OK pure header
+            #include <Symmetry.H> GetLabel .C file LibQchemBase
+            #include "Common/IntPower.H" OK Pure header
+            #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
+            #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
+            #include "Common/Factorials.H" .C LibQchemBase
+        -Out of folder includes in BasisSet/Molecule
+            #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+            #include "Imp/Cluster/Atom.H"
+            #include "Imp/BasisSet/Molecule/Unit.H"
+            #include "Common/IntPower.H"
+            #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
+            #include "Common/DFTDefines.H" LibQchemBase
+            #include "Common/PeriodicTable.H" LibQchemBase
+
+        -Atom SG depends on 
+            #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
+            #include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
+
+    Done: -Small fixes
         Done: Irrep_QNs should be a separate header.
         Done: Orbital_QNs should derive from Irrep_QNs;
         Done: Set merge tolerances in SCFParams.
