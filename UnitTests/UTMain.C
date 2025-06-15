@@ -6,7 +6,7 @@ int main(int argc, char **argv)
 {
      testing::InitGoogleTest(&argc, argv);
      //testing::GTEST_FLAG(filter) = "A_BS_1E_U.*";  
-     testing::GTEST_FLAG(filter) = "Multiple/A_*_HF_*.Multiple/*";  
+     // testing::GTEST_FLAG(filter) = "Multiple/A_*_DFT_P.Multiple/*";  
      // testing::GTEST_FLAG(filter) = "Multiple/A_BS_HF_U.Multiple/*";  
      // testing::GTEST_FLAG(filter) = "Multiple/A_BS*_HF_*.Multiple/*";  
      // testing::GTEST_FLAG(filter) = "BSplineTests.*";  
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
      // testing::GTEST_FLAG(filter) = "DiracIntegralTests.*";  
 //     testing::GTEST_FLAG(filter) = "DiracIntegralTests.*:Multiple/A_*_DHF.Multiple/*";
      //    testing::GTEST_FLAG(filter) = "Multiple/A_*_DHF.Multiple/*:DiracIntegralTests.*";
-     // testing::GTEST_FLAG(filter) = "M_PG_HF_U.N2";
+     // testing::GTEST_FLAG(filter) = "M_PG_*_*.*";
      //  testing::GTEST_FLAG(filter) = "ElectronConfigurationTests.*";
      //   testing::GTEST_FLAG(filter) = "jsonTests.*";
 //     testing::GTEST_FLAG(filter) = "Multiple/A_SLmj_DHF.Multiple/*";

@@ -3,11 +3,11 @@
 
 #include "gtest/gtest.h"
 
-#include "Imp/BasisSet/Atom/kappa/Slater_IE.H"
+// #include "Imp/BasisSet/Atom/kappa/Slater_IE.H"
 #include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
 #include "Imp/BasisSet/Atom/kappa/Slater_IBS.H"
 #include "Imp/BasisSet/Atom/kappa/Slater_BF.H"
-#include "Imp/BasisSet/Atom/kappa/Gaussian_IE.H"
+// #include "Imp/BasisSet/Atom/kappa/Gaussian_IE.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
 #include "Imp/BasisSet/Atom/kappa/Gaussian_IBS.H"

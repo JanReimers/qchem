@@ -18,7 +18,6 @@ public:
     typedef BasisSet::symv_t symv_t;
     QchemTester();
     virtual ~QchemTester();
-    void   Init(double eps, bool verbose=false, LAParams lap={qchem::Lapack,qchem::Cholsky,1e-9,1e-12});
     void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Lapack,qchem::Cholsky,1e-9,1e-12});
     void   Iterate(const SCFParams&);
     double TotalEnergy() const;
@@ -43,7 +42,6 @@ protected:
     virtual const ElectronConfiguration* GetElectronConfiguration() const=0;
 
     // Orbital Basis Set functions SG, PG, Slater
-    virtual BasisSet* GetBasisSet   () const=0;
     virtual BasisSet* GetBasisSet   (const nlohmann::json&) const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
@@ -55,103 +53,6 @@ public:
     static PeriodicTable itsPT;
     double MaxRelErrE;
 };
-
-//------------------------------------------------------------------------------------
-//
-//  Basis sets
-//
-class SG_OBasis : public virtual QchemTester
-{
-public:
-    void Init(int _N, double _emin, double _emax, int _Lmax)
-    {
-        N=_N;Lmax=_Lmax;emin=_emin;emax=_emax;
-    }
-     
-protected:
-    virtual BasisSet* GetBasisSet () const;
-
-    int N,Lmax;
-    double emin,emax;
-};
-
-class SL_OBasis : public virtual QchemTester
-{
-public:
-    void Init(int _N, double _emin, double _emax, int _Lmax)
-    {
-        N=_N;Lmax=_Lmax;emin=_emin;emax=_emax;
-    }
-    
-protected:
-    virtual BasisSet*      GetBasisSet () const;
-    int N,Lmax;
-    double emin,emax;
-  
-};
-
-class SLm_OBasis : public SL_OBasis
-{
- protected:
-    virtual BasisSet*      GetBasisSet () const;   
-};
-
-
-class SGm_OBasis : public SG_OBasis
-{
- protected:
-    virtual BasisSet*      GetBasisSet () const;   
-};
-
-class PG_OBasis : public virtual QchemTester
-{
-public:
-    PG_OBasis() : N(0) {};     
-    void Init(int _N, double _emin, double _emax, int _LMax)
-    {
-      N=_N;LMax=_LMax;emin=_emin;emax=_emax;
-    }
-private:
-    virtual BasisSet*      GetBasisSet () const;
-    int N,LMax;
-    double emin,emax;
-};
-
-// For Dirac wave functions
-class SLmj_OBasis : public SL_OBasis
-{
- protected:
-    virtual BasisSet*      GetBasisSet () const;   
-};
-
-class SG_RKB_OBasis : public SG_OBasis
-{
- protected:
-    virtual BasisSet*      GetBasisSet () const;   
-};
-
-class BS_OBasis : public virtual QchemTester
-{
-public:
-    void Init(int _N, double _rmin, double _rmax, int _LMax)
-    {
-        N=_N;LMax=_LMax;rmin=_rmin;rmax=_rmax;
-    }
-    
- protected:
-    virtual BasisSet*      GetBasisSet () const;   
-   
-    int N,LMax;
-    double rmin,rmax;
-};
-
-class BSm_OBasis : public virtual BS_OBasis
-{
- protected:
-    virtual BasisSet*      GetBasisSet () const;  
-
-};
-
 
 
 #include "Symmetry/Atom_EC.H"

@@ -30,26 +30,6 @@ QchemTester::~QchemTester()
     delete itsSCFIterator;
 }
 
-void QchemTester::Init(double eps,bool verbose,LAParams lap)
-{
-    assert(eps>0.0);
-    MaxRelErrE=eps;
-    
-    assert(itsCluster);
-    assert(&*itsCluster);
-    itsBasisSet=GetBasisSet(); //SG, PG, Slater
-    assert(itsBasisSet);
-    itsBasisSet->Set(lap);
-    if (verbose)
-    {
-        StreamableObject::SetToPretty();
-        std::cout << " " << *itsBasisSet << std::endl;
-    }
-    int Z=GetZ();
-    SCFAccelerator* acc=new SCFAccelerator_DIIS({8,Z*Z*0.1/16,1e-7,1e-9});
-    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
-    assert(itsSCFIterator);
-}
 void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParams lap)
 {
     assert(eps>0.0);
@@ -159,79 +139,6 @@ int QchemTester::GetZ() const
 QchemTester::symv_t QchemTester::GetSymmetries() const
 {
     return itsBasisSet->GetSymmetries();
-}
-
-
-#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
-BasisSet* SG_OBasis::GetBasisSet () const
-{
-    return new Atoml::Gaussian::BasisSet(N,emin,emax,Lmax);
-}
-
-#include "Imp/BasisSet/Atom/l/Slater_BS.H"
-BasisSet* SL_OBasis::GetBasisSet () const
-{
-    return new Atoml::Slater::BasisSet(N,emin,emax,Lmax);
-}
-
-#include "Imp/BasisSet/Atom/ml/Slater_BS.H"
-BasisSet* SLm_OBasis::GetBasisSet () const
-{
-    return new Atom_ml::Slater::BasisSet(N,emin,emax,*GetElectronConfiguration());
-}
-
-#include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
-BasisSet* SLmj_OBasis::GetBasisSet () const
-{
-    assert(N>0);
-    return new Atom_kappa::Slater::BasisSet(N,emin,emax,Lmax);
-}
-
-#include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
-BasisSet* SG_RKB_OBasis::GetBasisSet () const
-{
-    assert(N>0);
-    return new Atom_kappa::Gaussian::BasisSet(N,emin,emax,Lmax);
-}
-
-#include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Gaussian94.H"
-
-BasisSet* SGm_OBasis::GetBasisSet () const
-{
-//    PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/dzvp.bsd");
-//    const Cluster* cl=GetCluster();
-//    Atom* a=*cl->begin();
-//    SphericalGaussian_m::BasisSet* bs=new SphericalGaussian_m::BasisSet(lap,&reader,a);
-    return new Atom_ml::Gaussian::BasisSet(N,emin,emax,*GetElectronConfiguration());
-}
-
-
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/BasisSet.H"
-
-BasisSet* PG_OBasis::GetBasisSet () const
-{
-    if (N==0)
-    {
-        PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/dzvp.bsd");
-        return new PolarizedGaussian::BasisSet(&reader,GetCluster());  
-    }
-    else
-    {
-        return new PolarizedGaussian::BasisSet(N,emin,emax,LMax,GetCluster());
-    }
-}
-
-#include "Imp/BasisSet/Atom/l/BSpline_BS.H"
-BasisSet* BS_OBasis::GetBasisSet () const
-{
-    return new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
-}
-
-#include "Imp/BasisSet/Atom/ml/BSpline_BS.H"
-BasisSet* BSm_OBasis::GetBasisSet () const
-{
-    return new Atom_ml::BSpline::BasisSet<6>(N,rmin,rmax,*GetElectronConfiguration());
 }
 
 

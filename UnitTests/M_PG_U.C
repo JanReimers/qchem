@@ -21,14 +21,15 @@ double Alpha_N2=0.75197;
 //  Un-polarized tests.
 //
 class M_PG_HF_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis
+, public TestMolecule
 {
 public:
     M_PG_HF_U() {};
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(3e-3);
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(3e-3,js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
@@ -37,14 +38,15 @@ public:
 };
 
 class M_PG_SHF_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis
+, public TestMolecule
 {
 public:
     M_PG_SHF_U() {};
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(1e-2);
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-2,js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
@@ -53,14 +55,15 @@ public:
     }
 };
 class M_PG_DFT_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis
+, public TestMolecule
 {
 public:
     M_PG_DFT_U() {};
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(1e-2);
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-2,js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {

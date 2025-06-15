@@ -28,7 +28,8 @@ public:
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(3e-3);
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-3,js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
@@ -44,7 +45,8 @@ public:
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(1e-2);
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-2,js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
@@ -60,7 +62,8 @@ public:
     void Init(Molecule* m)
     {
         TestMolecule::Init(m);
-        QchemTester::Init(1e-2);
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-2,js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {

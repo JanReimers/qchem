@@ -31,21 +31,21 @@ class HF_U : public virtual QchemTester
 };
 
 class A_SG_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, SG_OBasis, HF_U
+, public TestAtom, HF_U
 {
 public:
     A_SG_HF_U() : TestAtom(GetParam()) {};
 };
 
 class A_SL_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, SL_OBasis, HF_U
+, public TestAtom, HF_U
 {
 public:
     A_SL_HF_U() : TestAtom(GetParam()) {};
 };
 
 class A_BS_HF_U : public ::testing::TestWithParam<int>
-, public TestAtom, BS_OBasis, HF_U
+, public TestAtom, HF_U
 {
 public:
     A_BS_HF_U() : TestAtom(GetParam()) {};
@@ -53,7 +53,7 @@ public:
 };
 
 class A_PG_HF_U : public ::testing::TestWithParam<int>
-, public TestMolecule, PG_OBasis, HF_U
+, public TestMolecule,  HF_U
 {
 public:
     A_PG_HF_U() : TestMolecule() {};
@@ -161,7 +161,7 @@ class HF_P : public virtual QchemTester
 };
 
 class A_SG_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SG_OBasis, HF_P
+, public TestAtom,  HF_P
 {
 public:
     A_SG_HF_P() : TestAtom(GetParam()) {};
@@ -169,21 +169,21 @@ public:
 };
 
 class A_SL_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SL_OBasis, HF_P
+, public TestAtom,HF_P
 {
 public:
     A_SL_HF_P() : TestAtom(GetParam()) {};
 };
 
 class A_BS_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, BS_OBasis, HF_P
+, public TestAtom, HF_P
 {
 public:
     A_BS_HF_P() : TestAtom(GetParam()) {};
 };
 
 class A_SLm_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SLm_OBasis, HF_P
+, public TestAtom,  HF_P
 {
 public:
     A_SLm_HF_P() : TestAtom(GetParam()) {};
@@ -191,22 +191,17 @@ public:
 };
 
 class A_SGm_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, SGm_OBasis, HF_P
+, public TestAtom,  HF_P
 {
 public:
     A_SGm_HF_P() : TestAtom(GetParam()) {};
 };
 
 class A_BSm_HF_P : public ::testing::TestWithParam<int>
-, public TestAtom, BSm_OBasis, HF_P
+, public TestAtom,  HF_P
 {
 public:
     A_BSm_HF_P() : TestAtom(GetParam()) {};
-    void Init(int N, double rmin, double rmax, int LMax)
-    {
-        BSm_OBasis::Init(N,rmin,rmax,LMax);
-        QchemTester::Init(1e-3);
-    }
 };
 
 TEST_P(A_SG_HF_P,Multiple)
@@ -316,7 +311,7 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37,53,57,64
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
-, public TestMolecule, PG_OBasis, HF_P
+, public TestMolecule,  HF_P
 {
 public:
     A_PG_HF_P() : TestMolecule() {};

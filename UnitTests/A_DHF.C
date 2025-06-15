@@ -15,6 +15,7 @@
 #include "Mesh/MeshIntegrator.H"
 #include <Mesh/MeshParams.H>
 #include <Mesh.H>
+#include <Factory.H>
 
 using std::cout;
 using std::endl;
@@ -51,15 +52,10 @@ class DHF : public virtual QchemTester
 //  Slater functions
 //
 class A_SLm_HF_ion : public ::testing::TestWithParam<int>
-, public TestAtom, SLm_OBasis, HF_P
+, public TestAtom,  HF_P
 {
 public:
     A_SLm_HF_ion() : TestAtom(GetParam(),GetParam()-1) {};
-    void Init(int N, double emin, double emax, int LMax)
-    {
-        SLm_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init(1e-3);
-    }
 };
 
 TEST_P(A_SLm_HF_ion,Multiple)
@@ -69,7 +65,11 @@ TEST_P(A_SLm_HF_ion,Multiple)
     // if (Z>12) N=14;
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
-    Init(N,Z/100.,Z*100.,GetLMax(1));
+    nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Slater},
+        {"N", N}, {"emin", Z/100.}, {"emax", Z*100.},
+    };
+    QchemTester::Init(1e-3,js);
    //  NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
     Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
@@ -79,16 +79,12 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100))
 
 
 class A_SLmj_DHF : public ::testing::TestWithParam<int>
-, public TestAtom, SLmj_OBasis, DHF
+, public TestAtom, DHF
 {
 public:
     A_SLmj_DHF() : TestAtom(GetParam(),GetParam()-1) {};
     A_SLmj_DHF(int Z) : TestAtom(Z,Z-1) {};
-    void Init(int N, double emin, double emax, int LMax)
-    {
-        SLmj_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init(1e-3);
-    }
+   
 };
 
 TEST_P(A_SLmj_DHF,Multiple)
@@ -97,7 +93,11 @@ TEST_P(A_SLmj_DHF,Multiple)
     int N=11;
     if (Z>12) N=15;
     if (Z>50) N=19;
-    Init(N,Z/200.,Z*200.,GetLMax(1));
+    nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Slater_RKB},
+        {"N", N}, {"emin", Z/200.}, {"emax", Z*200.},
+    };
+    QchemTester::Init(1e-3,js);
     Iterate({1,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
     BasisSet::symv_t qns=GetSymmetries();
@@ -129,30 +129,22 @@ INSTANTIATE_TEST_CASE_P(Multiple,A_SLmj_DHF,::testing::Values(1,20,60,86,100));
 
 // Non relativistic hydrogenic atom
 class A_SGm_HF_ion : public ::testing::TestWithParam<int>
-, public TestAtom, SGm_OBasis, HF_P
+, public TestAtom,  HF_P
 {
 public:
     A_SGm_HF_ion() : TestAtom(GetParam(),GetParam()-1) {};
     A_SGm_HF_ion(int Z) : TestAtom(Z,Z-1) {};
-    void Init(int N, double emin, double emax, int LMax)
-    {
-        SGm_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init(1e-3);
-    }
+   
 };
 
 // Relativistic hydrogenic atom
 class A_SG_DHF : public ::testing::TestWithParam<int>
-, public TestAtom, SG_RKB_OBasis, DHF
+, public TestAtom,  DHF
 {
 public:
     A_SG_DHF() : TestAtom(GetParam(),GetParam()-1) {};
     A_SG_DHF(int Z) : TestAtom(Z,Z-1) {};
-    void Init(int N, double emin, double emax, int LMax)
-    {
-        SG_RKB_OBasis::Init(N,emin,emax,LMax);
-        QchemTester::Init(1e-3);
-    }
+   
 };
 
 
@@ -168,7 +160,12 @@ TEST_P(A_SG_DHF,Multiple)
     }
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
-    Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
+    nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Gaussian_RKB},
+        {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
+    };
+    QchemTester::Init(1e-3,js);
+    // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
     BasisSet::symv_t qns=GetSymmetries();
@@ -258,7 +255,12 @@ TEST_F(A_SG_HFP_H,Phir)
 {
     int N=22;
     double alpha=0.01024,beta=2.0;
-    Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
+     nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Gaussian_RKB},
+        {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
+    };
+    QchemTester::Init(1e-3,js);
+    // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({1,1e-4,1e-7,1e-5,1.0,1e-4,false});
 
     BasisSet::symv_t qns=GetSymmetries();
