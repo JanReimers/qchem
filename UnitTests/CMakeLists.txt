@@ -21,6 +21,7 @@ target_include_directories(UTMain PRIVATE
     ../include 
     ../submodules/oml/include 
     ../submodules/BSplinebasis/include
-    ../submodules/json/single_include
+      ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+
 )
 target_link_libraries(UTMain qchem )

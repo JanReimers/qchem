@@ -11,7 +11,7 @@ BS_Common.C
 Cache4.C
 DataBase/HeapDB.C
 ERI4.C
-Atom/EC.C
+Atom/Factory.C
 Atom/IE_DHF.C
 Atom/IE_DFT.C
 Atom/IEC.C
@@ -60,6 +60,7 @@ Atom/ml/Ylm.C
 Atom/ml/Slater_BF.C
 Atom/ml/Gaussian_BF..C
 Atom/ml/Gaussian_IBS.C
+Molecule/Factory.C
 Molecule/Unit.C
 Molecule/PolarizedGaussian/Triangle2D.C
 Molecule/PolarizedGaussian/Triangle3D.C
@@ -90,4 +91,5 @@ target_include_directories(qcBasisSet PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/oml/include 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )

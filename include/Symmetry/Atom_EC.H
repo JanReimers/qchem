@@ -24,6 +24,7 @@ public:
     virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance
     virtual size_t GetLMax() const {return itsLMax;}
     virtual void   Display() const;
+    virtual bool   IsMagnetic() const; //Does this EC require ml splitting for the basis set?
     
     ml_Breakdown GetBreadown(size_t l) const;
 

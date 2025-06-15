@@ -117,6 +117,16 @@ Atom_EC::Atom_EC(int Z)
     assert(nup==0); //By now all unpaired electrons should have gobbled up.        
 }
 
+//
+//  If all 2l+1 of the m valance states are either unpaired or paired then we don't need m splitting in the basis set.
+//
+bool Atom_EC::IsMagnetic() const
+{
+     size_t LMax=GetLMax(),g=2*LMax+1;
+    ml_Breakdown bd=GetBreadown(LMax);
+    return !(bd.ml_paired.size()==g || bd.ml_unpaired.size()==g);
+}
+
 int Atom_EC::GetN() const
 {
     int ne=0;
