@@ -10,6 +10,7 @@ namespace BasisSetAtom
     enum class Type {Slater,Gaussian,BSpline};
     BasisSet* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
     BasisSet* Factory(Type,const nlohmann::json& js,size_t Z); //Use atomic number Z to deduce the ElectronConfiguration
+    BasisSet* Factory(const nlohmann::json& js,size_t Z); //Type is in the json object
 }
 
 namespace BasisSetMolecule

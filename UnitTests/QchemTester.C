@@ -50,6 +50,26 @@ void QchemTester::Init(double eps,bool verbose,LAParams lap)
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }
+void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParams lap)
+{
+    assert(eps>0.0);
+    MaxRelErrE=eps;
+    
+    assert(itsCluster);
+    assert(&*itsCluster);
+    itsBasisSet=GetBasisSet(js); //SG, PG, Slater
+    assert(itsBasisSet);
+    itsBasisSet->Set(lap);
+    if (verbose)
+    {
+        StreamableObject::SetToPretty();
+        std::cout << " " << *itsBasisSet << std::endl;
+    }
+    int Z=GetZ();
+    SCFAccelerator* acc=new SCFAccelerator_DIIS({8,Z*Z*0.1/16,1e-7,1e-9});
+    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
+    assert(itsSCFIterator);
+}
 
 void QchemTester::Iterate(const SCFParams& ipar)
 {
@@ -220,6 +240,7 @@ BasisSet* BSm_OBasis::GetBasisSet () const
 #include "Cluster/Molecule.H"
 TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 {
+    itsZ=Z-q;
     Cluster* cl=new Molecule;
     cl->Insert(new Atom(Z,q,Vector3D<double>(0,0,0)));
     itsCluster=cl_t(cl);
@@ -228,6 +249,12 @@ TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 MeshParams TestAtom::GetMeshParams() const
 {
     return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
+}
+
+#include <Factory.H>
+BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
+{
+    return BasisSetAtom::Factory(js,itsZ);
 }
 
 void TestMolecule::Init(Molecule* m)
@@ -240,6 +267,10 @@ void TestMolecule::Init(Molecule* m)
 MeshParams TestMolecule::GetMeshParams() const
 {
     return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
+}
+BasisSet* TestMolecule::GetBasisSet (const nlohmann::json& js) const
+{
+    return BasisSetMolecule::Factory(js,GetCluster());
 }
 
 

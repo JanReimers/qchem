@@ -8,6 +8,7 @@
 #include <LAParams.H>
 #include "Common/PeriodicTable.H"
 #include <TotalEnergy.H>
+#include <nlohmann/json.hpp>
 
 #include <memory>
 
@@ -18,6 +19,7 @@ public:
     QchemTester();
     virtual ~QchemTester();
     void   Init(double eps, bool verbose=false, LAParams lap={qchem::Lapack,qchem::Cholsky,1e-9,1e-12});
+    void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Lapack,qchem::Cholsky,1e-9,1e-12});
     void   Iterate(const SCFParams&);
     double TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
@@ -42,6 +44,7 @@ protected:
 
     // Orbital Basis Set functions SG, PG, Slater
     virtual BasisSet* GetBasisSet   () const=0;
+    virtual BasisSet* GetBasisSet   (const nlohmann::json&) const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
 protected:
@@ -163,7 +166,9 @@ public:
     virtual MeshParams GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
+    virtual BasisSet* GetBasisSet (const nlohmann::json&) const;
     Atom_EC ec;
+    int itsZ;
 };
 
 #include "Symmetry/Molecule_EC.H"
@@ -176,6 +181,7 @@ public:
     virtual MeshParams  GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
+    virtual BasisSet* GetBasisSet (const nlohmann::json&) const;
     Molecule_EC ec;
 };
 

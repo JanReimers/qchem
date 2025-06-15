@@ -21,6 +21,12 @@ namespace BasisSetAtom
         return Factory(type,js,Atom_EC(Z));
     }
 
+    BasisSet* Factory(const nlohmann::json& js,size_t Z)
+    {
+        Type type=js["type"].template get<Type>();
+        return Factory(type,js,Z);
+    }
+
     BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguration& ec)
     {
         size_t N=js["N"];
