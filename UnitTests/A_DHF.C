@@ -256,12 +256,11 @@ TEST_F(A_SG_HFP_H,Phir)
     int N=22;
     double alpha=0.01024,beta=2.0;
      nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Gaussian_RKB},
+        {"type",BasisSetAtom::Type::Gaussian},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
-    QchemTester::Init(1e-3,js);
-    // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
-    Iterate({1,1e-4,1e-7,1e-5,1.0,1e-4,false});
+    QchemTester::Init(1e-3,js,true);
+    Iterate({2,1e-4,1e-7,1e-5,1.0,1e-4,true});
 
     BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
