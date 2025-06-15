@@ -22,8 +22,7 @@ public:
 
     // Required by PMStreamableObject
     virtual std::ostream&   Write(std::ostream&) const;
-    virtual std::istream&   Read (std::istream&)      ;
-
+   
 private:
     virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
 

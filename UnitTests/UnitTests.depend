@@ -605,8 +605,8 @@
 	"Imp/BasisSet/Slater/IrrepBasisSet.H"
 	"Mesh/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 	"Imp/BasisSet/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
@@ -628,8 +628,8 @@
 	"Imp/Containers/stl_io.h"
 	"Imp/Containers/ptr_vector.h"
 	"Imp/Containers/ptr_vector_io.h"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 	<vector>
 	<ostream>
 	<sstream>
@@ -1039,8 +1039,8 @@
 	"Symmetry/Yl.H"
 	"Mesh/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
-	"Imp/Cluster/Molecule.H"
-	"Imp/Cluster/Atom.H"
+	"Cluster/Molecule.H"
+	"Cluster/Atom.H"
 	<Mesh/MeshParams.H>
 	<Cluster.H>
 	"oml/smatrix.h"
@@ -1140,8 +1140,8 @@
 	"Imp/BasisSet/SphericalGaussian_m/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 	"Imp/WaveFunction/MasterUnPolarizedWF.H"
 	"Imp/WaveFunction/MasterPolarizedWF.H"
 
@@ -1157,21 +1157,21 @@
 1732218432 source:/home/janr/Code/qchem/UnitTests/A_HF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 
 1731948378 source:/home/janr/Code/qchem/UnitTests/A_SHF.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 	<Mesh/MeshParams.H>
 
 1731945649 source:/home/janr/Code/qchem/UnitTests/A_DFT.C
 	"QchemTester.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 	<Mesh/MeshParams.H>
 
 1729268252 source:/home/janr/Code/qchem/UnitTests/M_HF.C
@@ -1183,8 +1183,8 @@
 
 1729608070 source:/home/janr/Code/qchem/UnitTests/M_PG_U.C
 	"QchemTester.H"
-	"Imp/Cluster/Molecule.H"
-	"Imp/Cluster/Atom.H"
+	"Cluster/Molecule.H"
+	"Cluster/Atom.H"
 	"Imp/Hamiltonian/Hamiltonians.H"
 	<Mesh/MeshParams.H>
 
@@ -1387,8 +1387,8 @@
 	"Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 	"Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 	"Mesh/MeshIntegrator.H"
-	"Imp/Cluster/Molecule.H"
-	"Imp/Cluster/Atom.H"
+	"Cluster/Molecule.H"
+	"Cluster/Atom.H"
 	<LAParams.H>
 	<Mesh/MeshParams.H>
 	<Symmetry.H>
@@ -1490,8 +1490,8 @@
 	"Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 	"Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 	"Imp/BasisSet/PolarizedGaussian/Block.H"
-	"Imp/Cluster/Molecule.H"
-	"Imp/Cluster/Atom.H"
+	"Cluster/Molecule.H"
+	"Cluster/Atom.H"
 	<AnalyticIE.H>
 	<LAParams.H>
 	"oml/vector3d.h"
@@ -1509,8 +1509,8 @@
 	"Symmetry/Okmj.H"
 	"Mesh/MeshIntegrator.H"
 	"Imp/Misc/DFTDefines.H"
-	"Imp/Cluster/Atom.H"
-	"Imp/Cluster/Molecule.H"
+	"Cluster/Atom.H"
+	"Cluster/Molecule.H"
 	"Imp/BasisSet/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>

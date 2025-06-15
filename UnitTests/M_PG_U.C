@@ -2,8 +2,8 @@
 
 #include "QchemTester.H"
 
-#include "Imp/Cluster/Molecule.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster/Atom.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
 #include <Mesh/MeshParams.H>
 

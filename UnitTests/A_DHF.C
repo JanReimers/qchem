@@ -2,8 +2,8 @@
 
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
-#include "Imp/Cluster/Atom.H"
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 #include <Orbital.H>
 #include <Spin.H>
 #include <Symmetry/Irrep_QNs.H>

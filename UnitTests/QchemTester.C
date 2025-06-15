@@ -216,8 +216,8 @@ BasisSet* BSm_OBasis::GetBasisSet () const
 
 
 
-#include "Imp/Cluster/Atom.H"
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 {
     Cluster* cl=new Molecule;

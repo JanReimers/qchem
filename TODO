@@ -378,7 +378,7 @@ Priority 3:
             #include "Common/Factorials.H" .C LibQchemBase
         -Out of folder includes in BasisSet/Molecule
             #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
-            #include "Imp/Cluster/Atom.H"
+            #include "Cluster/Atom.H"
             #include "Imp/BasisSet/Molecule/Unit.H"
             #include "Common/IntPower.H"
             #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet

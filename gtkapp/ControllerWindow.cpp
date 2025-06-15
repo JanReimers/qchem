@@ -62,8 +62,8 @@ bool ControllerWindow::close_request()
   return false;
 }
 
-#include "Imp/Cluster/Molecule.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster/Atom.H"
 #include <Mesh/MeshParams.H>
 #include <SCFIterator.H>
 #include <SCFParams.H>

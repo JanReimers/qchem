@@ -6,8 +6,8 @@
 #include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
 #include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
 #include "Mesh/MeshIntegrator.H"
-#include "Imp/Cluster/Molecule.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster/Atom.H"
 #include <LAParams.H>
 #include <Mesh/MeshParams.H>
 #include <Symmetry.H>

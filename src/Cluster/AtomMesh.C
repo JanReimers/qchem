@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/Cluster/AtomMesh.H"
+#include "AtomMesh.H"
 #include <Mesh/RadialMesh.H>
 #include <typeinfo>
 

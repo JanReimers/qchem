@@ -2,8 +2,8 @@
 
 #include "QchemTester.H"
 #include "Imp/Hamiltonian/Hamiltonians.H"
-#include "Imp/Cluster/Atom.H"
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 
 const bool verbose=true;
 inline SCFParams scf_params(int Z) 

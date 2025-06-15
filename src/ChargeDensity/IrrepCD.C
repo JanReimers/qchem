@@ -1,7 +1,7 @@
 // File: ExactIrrepCD.C  Exact implementation of the charged density.
 
 
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Molecule.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "Imp/Fitting/FittedFunction.H"

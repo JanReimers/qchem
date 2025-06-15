@@ -9,7 +9,7 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/CDCache.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Block.H"
 #include "Common/DFTDefines.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Atom.H"
 #include <Cluster.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"

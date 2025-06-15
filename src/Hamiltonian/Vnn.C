@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Atom.H"
 #include "Imp/Hamiltonian/Vnn.H"
 #include <TotalEnergy.H>
 #include <Irrep_BS.H>

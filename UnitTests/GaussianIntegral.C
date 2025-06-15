@@ -9,8 +9,8 @@
 #include "Symmetry/Yl.H"
 #include "Mesh/MeshIntegrator.H"
 #include "Common/DFTDefines.H"
-#include "Imp/Cluster/Molecule.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster/Atom.H"
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include "oml/smatrix.h"

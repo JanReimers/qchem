@@ -6,8 +6,8 @@
 #include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
 #include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/PolarizedGaussian/Block.H"
-#include "Imp/Cluster/Molecule.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Molecule.H"
+#include "Cluster/Atom.H"
 #include <IntegralEngine.H>
 
 #include <LAParams.H>

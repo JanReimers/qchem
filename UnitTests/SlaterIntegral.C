@@ -12,8 +12,8 @@
 
 #include "Mesh/MeshIntegrator.H"
 #include "Common/DFTDefines.H"
-#include "Imp/Cluster/Atom.H"
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 #include "Imp/BasisSet/ERI4.H"
 
 #include <Mesh/MeshParams.H>

@@ -6,7 +6,6 @@
 #include "Mesh/GaussAngularMesh.H"
 #include "Mesh/GaussLegendreAngularMesh.H"
 #include "Mesh/EulerMaclarenAngularMesh.H"
-#include "Imp/Cluster/AtomMesh.H"
 #include <iostream>
 
 

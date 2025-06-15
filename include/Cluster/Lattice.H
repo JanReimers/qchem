@@ -3,7 +3,7 @@
 #define _Lattice_H_
 
 #include "Cluster.H"
-#include "Imp/Cluster/UnitCell.H"
+#include "Cluster/UnitCell.H"
 #include "Common/UniqueIDImp.H"
 #include "oml/vector3d.h"
 #include <vector>

@@ -40,11 +40,4 @@ std::ostream& Ven::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& Ven::Read (std::istream& is)
-{
-    Cluster* cl=Cluster::Factory(is);
-    is >> *cl;
-    theCluster.reset(cl);
-    return is;
-}
 

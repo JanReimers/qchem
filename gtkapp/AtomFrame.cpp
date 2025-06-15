@@ -1,8 +1,8 @@
 // File: AtomFrame.cpp GTK frame to show and manage atom settings.
 
 #include "AtomFrame.H"
-#include "Imp/Cluster/Atom.H"
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 
 AtomFrame::AtomFrame() : Glib::ObjectBase("atom_frame")
 {

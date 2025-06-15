@@ -5,8 +5,8 @@
 #include "oml/vector.h"
 #include "oml/imp/stream.h"
 #include "Common/stl_io.h"
-#include "Imp/Cluster/Atom.H"
-#include "Imp/Cluster/Molecule.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 #include <vector>
 #include <ostream>
 #include <sstream>

@@ -8,7 +8,7 @@
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/GaussianRF.H"
 #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
-#include "Imp/Cluster/Atom.H"
+#include "Cluster/Atom.H"
 #include "Symmetry/Unit.H"
 #include <BasisSet.H>
 #include <Cluster.H>

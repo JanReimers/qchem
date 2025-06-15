@@ -4,7 +4,10 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/include",
-                "${workspaceFolder}/../oml/include",
+                "${workspaceFolder}/submodules/oml/include",
+                "${workspaceFolder}/submodules/BSplinebasis/include",
+                "${workspaceFolder}/submodules/tabulate/include",
+                "${workspaceFolder}/include/Imp/Cluster",
                 "/usr/include/gtkmm-4.0",
                 "/usr/lib/x86_64-linux-gnu/gtkmm-4.0/include",
                 "/usr/include/giomm-2.68",
@@ -36,9 +39,8 @@
                 "/usr/lib/x86_64-linux-gnu/pangomm-2.48/include",
                 "/usr/include/gtk-4.0/unix-print",
                 "/usr/local/include/gtkmm-plplot-3.0",
-                "/usr/local/lib/x86_64-linux-gnu/gtkmm-plplot-3.0/include",
-                "${workspaceFolder}/submodules/BSplinebasis/include",
-                "${workspaceFolder}/submodules/tabulate/include"
+                "/usr/local/lib/x86_64-linux-gnu/gtkmm-plplot-3.0/include"
+                
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

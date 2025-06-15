@@ -2,7 +2,7 @@
 #ifndef _Molecule_H_
 #define _Molecule_H_
 
-#include "Cluster.H"
+#include <Cluster.H>
 #include "Common/UniqueIDImp.H"
 #include <iostream>
 
