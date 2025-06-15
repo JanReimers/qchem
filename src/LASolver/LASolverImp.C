@@ -1,6 +1,6 @@
 // File: LASolver.C  General eigen solver.
 
-#include "Imp/LASolver/LASolverImp.H"
+#include "LASolverImp.H"
 #include "oml/smatrix.h"
 #include "oml/diagonalmatrix.h"
 #include "oml/vector.h"
@@ -128,8 +128,8 @@ template class LASolver<double>;
 template class LASolverCommon<double>;
 
 
-#include "Imp/LASolver/LASolverOML.H"
-#include "Imp/LASolver/LASolverLapack.H"
+#include "LASolverOML.H"
+#include "LASolverLapack.H"
 
 
 template <class T> LASolver<T>* LASolver<T>::

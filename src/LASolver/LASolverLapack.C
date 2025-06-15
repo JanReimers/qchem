@@ -1,7 +1,7 @@
 // File: LASolverLapack.C  General eigen solver.
 
 #include <LASolver.H>
-#include "Imp/LASolver/LASolverLapack.H"
+#include "LASolverLapack.H"
 #include "oml/numeric/LapackEigenSolver.H"
 #include "oml/numeric/LapackSVDSolver.H"
 #include "oml/numeric/LapackCholsky.H"

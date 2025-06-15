@@ -2,7 +2,7 @@
 #ifndef _LASolverOML_H_
 #define _LASolverOML_H_
 
-#include "Imp/LASolver/LASolverImp.H"
+#include "LASolverImp.H"
 
 template <class T> class LASolverOMLCommon
     : public virtual  LASolver<T>

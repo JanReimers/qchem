@@ -3,7 +3,7 @@
 #define _LASolverLapack_H_
 
 #include <LASolver.H>
-#include "Imp/LASolver/LASolverImp.H"
+#include "LASolverImp.H"
 #include "oml/numeric/EigenSolver.H"
 #include "oml/numeric/SVDSolver.H"
 
