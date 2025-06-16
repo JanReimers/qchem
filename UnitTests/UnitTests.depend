@@ -242,7 +242,7 @@
 
 1728746622 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
-	<BasisSet/IEClient.H>
+	"IEClient.H"
 	"Imp/BasisSet/ERI4.H"
 	<map>
 
@@ -895,12 +895,12 @@
 	"Imp/Misc/UniqueID/UniqueID.H"
 
 1728492922 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/IEClient.H
-	<BasisSet/IEClient.H>
+	"IEClient.H"
 	"oml/vector.h"
 
 1728492922 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/IEClient.H
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-	<BasisSet/IEClient.H>
+	"IEClient.H"
 	"oml/vector.h"
 	<vector>
 
@@ -933,7 +933,7 @@
 
 1732455178 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
 	"Polarization.H"
-	<BasisSet/IEClient.H>
+	"IEClient.H"
 	"oml/vector.h"
 	<vector>
 
@@ -1303,7 +1303,7 @@
 
 1728746622 /home/janr/Code/qchem/include/Imp/DataBase/HeapDB.H
 	"IntegralDataBase.H"
-	<BasisSet/IEClient.H>
+	"IEClient.H"
 	"Imp/BasisSet/ERI4.H"
 	<map>
 
@@ -1467,7 +1467,7 @@
 	<fstream>
 
 1732225411 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIEClient.H
-	<BasisSet/IEClient.H>
+	"IEClient.H"
 	"oml/vector.h"
 	<set>
 

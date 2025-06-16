@@ -14,7 +14,10 @@ namespace BSpline
     template <size_t K> void BS_Common<K>::Insert(bs_t* bs)
     {
         ::BS_Common::Insert(bs);
-        this->Append(bs); 
+        auto iec=dynamic_cast<const ::IrrepIEClient*>(bs);
+        assert(iec);
+        this->Append(iec);
+
     }
 
     template <size_t K> void BS_Common<K>::BuildCache(size_t lmax)

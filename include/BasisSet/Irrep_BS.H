@@ -3,7 +3,6 @@
 #define _Irrep_BS_H_
 
 #include <types.H>
-#include <BasisSet/IEClient.H>
 #include <UniqueID.H>
 #include <Common/Iterators.H>
 #include "Common/pmstream.h" 
@@ -21,8 +20,7 @@
 //
 
 class IrrepBasisSet
-    : public virtual IrrepIEClient
-    , public virtual UniqueID
+    : public virtual UniqueID
     , public virtual PMStreamableObject
 {
 public:
@@ -34,6 +32,7 @@ public:
 
     virtual void   Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
+    virtual size_t size() const {return GetNumFunctions();}
     virtual sym_t  GetSymmetry() const=0;
 //
 //  PMStreamableObject stuff.

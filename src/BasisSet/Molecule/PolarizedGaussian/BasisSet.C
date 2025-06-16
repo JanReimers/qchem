@@ -31,7 +31,9 @@ BasisSet::BasisSet( size_t N, double emin, double emax, size_t LMax, const Clust
 void BasisSet::Insert(bs_t* bs)
 {
     BS_Common::Insert(bs);
-    Append(bs);
+    auto iec=dynamic_cast<const IrrepIEClient*>(bs);
+    assert(iec);
+    Append(iec);
 }
 
 ERI4 BasisSet::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const

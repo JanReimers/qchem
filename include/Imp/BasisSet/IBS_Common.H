@@ -5,6 +5,7 @@
 
 
 #include <BasisSet/Irrep_BS.H>
+#include "IEClient.H"
 #include "Common/UniqueIDImp.H"
 
 //---------------------------------------------------------------------
@@ -14,6 +15,7 @@
 //
 class IBS_Common
     : public virtual IrrepBasisSet
+    , public virtual IrrepIEClient
     , private UniqueIDImp
 {
 public:

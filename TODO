@@ -48,7 +48,7 @@ Priority 1:
         Right now all headers are pooled.  It would nice to control header access with
            include search dirs.  Each module can only headers for its dependencies.
         For BasisSet module:
-            -<BasisSet/IEClient.H> is only used internally but IrrepBasisSet inherits from it.
+            -"IEClient.H" is only used internally but IrrepBasisSet inherits from it.
                 What if IBS_Common inherits IEClient instead?
             -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
                 BasisFunction.  Irrep_BS iterator returns BasisFunction.

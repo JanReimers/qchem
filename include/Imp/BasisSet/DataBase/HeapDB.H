@@ -4,7 +4,7 @@
 
 
 
-#include <BasisSet/IEClient.H>
+#include "../IEClient.H"
 #include <BasisSet/IntegralEngine.H>
 #include "../ERI4.H"
 #include <map>

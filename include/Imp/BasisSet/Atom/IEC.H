@@ -2,7 +2,8 @@
 #ifndef _AtomIEClient_H_
 #define _AtomIEClient_H_
 
-#include <BasisSet/IEClient.H> // <> prevents file search on this folder.
+#include <types.H>
+#include "../IEClient.H" // <> prevents file search on this folder.
 #include "oml/vector.h"
 #include <set>
 
@@ -25,9 +26,12 @@ struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     auto indices() const {return es.indices();}
     auto indices(size_t i) const {return es.indices(i);}
 
-    static AtomIrrepIEClient* dcast(::IrrepIEClient*);
+    static       AtomIrrepIEClient* dcast(      ::IrrepIEClient*);
     static const AtomIrrepIEClient* dcast(const ::IrrepIEClient*);
     static const AtomIrrepIEClient& dcast(const ::IrrepIEClient& iec) {return *dcast(&iec);}
+    static       AtomIrrepIEClient* dcast(      ::IrrepBasisSet*);
+    static const AtomIrrepIEClient* dcast(const ::IrrepBasisSet*);
+    static const AtomIrrepIEClient& dcast(const ::IrrepBasisSet& ibs) {return *dcast(&ibs);}
 };
 
 

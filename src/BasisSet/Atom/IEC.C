@@ -1,6 +1,7 @@
 // File: AtomIEClient.C Common IE client code for all atom basis sets and IEs.
 
 #include "Atom/IEC.H"
+#include <BasisSet/Irrep_BS.H>
 
 
 void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l)
@@ -34,6 +35,21 @@ const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepIEClient* iec)
 {
     assert(iec);
     const AtomIrrepIEClient* aiec=dynamic_cast< const AtomIrrepIEClient*>(iec);
+    assert(aiec);
+    return aiec;
+}
+
+AtomIrrepIEClient* AtomIrrepIEClient::dcast(::IrrepBasisSet* ibs)
+{
+    assert(ibs);
+    AtomIrrepIEClient* aiec=dynamic_cast< AtomIrrepIEClient*>(ibs);
+    assert(aiec);
+    return aiec;
+}
+const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepBasisSet* ibs)
+{
+    assert(ibs);
+    const AtomIrrepIEClient* aiec=dynamic_cast< const AtomIrrepIEClient*>(ibs);
     assert(aiec);
     return aiec;
 }

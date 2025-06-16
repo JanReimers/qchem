@@ -2,7 +2,6 @@
 #ifndef _BSplineIEClient_H_
 #define _BSplineIEClient_H_
 
-#include <BasisSet/IEClient.H> // <> prevents file search on this folder.
 #include "../../IEC.H"
 #include <bspline/Core.h>
 #include "GLQuadrature.H"
