@@ -2,7 +2,7 @@
 
 
 
-#include "Mesh/LinearMesh.H"
+#include "LinearMesh.H"
 #include "Common/DFTDefines.H"
 #include "oml/vector.h"
 #include <cmath>

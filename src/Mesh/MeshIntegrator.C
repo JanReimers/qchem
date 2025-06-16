@@ -2,7 +2,7 @@
 
 
 #include "Mesh/MeshIntegrator.H"
-#include <Mesh.H>
+#include <Mesh/Mesh.H>
 #include <ScalarFunction.H>
 #include <VectorFunction.H>
 #include "oml/vector.h"

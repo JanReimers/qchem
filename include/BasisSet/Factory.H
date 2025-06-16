@@ -1,6 +1,6 @@
-// File:: Factory.H  Interfaces for various fctories.
-#ifndef _Factory_H_
-#define _Factory_H_
+// File:: BasisSet/Factory.H  Interfaces for various fctories.
+#ifndef _BasisSet_Factory_H_
+#define _BasisSet_Factory_H_
 
 #include <types.H>
 #include <nlohmann/json.hpp>
@@ -18,4 +18,4 @@ namespace BasisSetMolecule
     BasisSet* Factory(const nlohmann::json& js,const Cluster* cl);
 }
 
-#endif //_Factory_H_
+#endif //_BasisSet_Factory_H_

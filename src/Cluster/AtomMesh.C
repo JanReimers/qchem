@@ -9,12 +9,14 @@
 //
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
-AtomMesh::AtomMesh(const RadialMesh& rm, const Mesh& am, const RVec3& R)
+AtomMesh::AtomMesh(RadialMesh* rm, Mesh* am, const RVec3& R)
 {
-    for (auto arw: am)
-        for (auto rrw: rm)
+    for (auto arw: *am)
+        for (auto rrw: *rm)
             push_back(r(rrw) * normalize(r(arw)),w(rrw) *  w(arw));
     ShiftOrigin(R);
+    delete am;
+    delete rm;
 }
 
 

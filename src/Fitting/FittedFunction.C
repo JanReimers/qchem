@@ -4,7 +4,7 @@
 #include <ChargeDensity.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
-#include <Mesh.H>
+#include <Mesh/Mesh.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"

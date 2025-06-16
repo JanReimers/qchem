@@ -8,9 +8,9 @@
 #include "oml/io3d.h"
 #include <iostream>
 #include <cassert>
-#include "Mesh/MHLRadialMesh.H"
-#include "Mesh/GaussAngularMesh.H"
-
+#include <Mesh/Factory.H>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 Atom::Atom()
     : itsZ(0)
@@ -38,8 +38,10 @@ Atom::Atom(int Z, double charge, const RVec3& R)
 
 Mesh* Atom::CreateMesh(const MeshParams& mp) const
 {
-    MHLRadialMesh    rm(mp.Nradial,mp.MHL_m,mp.MHL_alpha);
-    GaussAngularMesh am(mp.Nangle);  
+    json js={{"N",mp.Nradial},{"m",mp.MHL_m},{"alpha",mp.MHL_alpha}};
+    RadialMesh* rm=MeshF::Factory(MeshF::RadialType::MHL,js);
+    js={{"Nangle",mp.Nangle}};
+    Mesh* am=MeshF::Factory(MeshF::AngularType::Gauss,js);  
     return new AtomMesh(rm,am,itsR); 
 }
 

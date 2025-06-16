@@ -32,14 +32,16 @@ Priority 1:
         Need separate function signatures for Atom, Molecule and Lattice basis sets.
             If we want to breakout separate libqcAtom_BS libqcMolecule_BS  libqcLattice_BS modules.
             Each of these would have its own factory function
-    Make a mesh factory
+    Done: Make a mesh factory
     Try separating out 
         libqcFitting ?
         libqcChargeDensity
         libqcHamiltonian
         libqcWaveFunction
         -this will require decouple Ham from WF.  Make a factory function in WF interface.
-        For BasisSet module:
+
+
+        Done: For BasisSet module:
             Done: -"IEClient.H" is only used internally but IrrepBasisSet inherits from it.
                 What if IBS_Common inherits IEClient instead?
             No: -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
@@ -47,7 +49,7 @@ Priority 1:
             Done: <BasisSet/XXX_IE> are included by <BasisSet/XXX_IBS> *and* various internal DB headers
                 We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see TOrbital_HF_IBS interfaces
                 which is more than they need.  Small problem to eliminate 4 public/internal headers?
-            Breakout Atom and Molecule pseudo modules.
+            Done: Breakout Atom and Molecule pseudo modules.
                 libqcAtom_BS
                 libqcMolecule_BS
                 libqcLattice_BS

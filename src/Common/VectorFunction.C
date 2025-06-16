@@ -3,7 +3,7 @@
 
 
 #include <VectorFunction.H>
-#include <Mesh.H>
+#include <Mesh/Mesh.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include <cassert>

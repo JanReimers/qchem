@@ -2,13 +2,13 @@
 #ifndef _AtomMesh_H_
 #define _AtomMesh_H_
 
-#include <Mesh.H>
+#include <Mesh/Mesh.H>
 
 class AtomMesh : public Mesh
 {
 public:
     AtomMesh(                              ) {};
-    AtomMesh(const RadialMesh&, const Mesh&, const RVec3& R);
+    AtomMesh(RadialMesh*, Mesh*, const RVec3& R);
 
     virtual Mesh*  Clone(        ) const;
 };

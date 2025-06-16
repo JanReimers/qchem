@@ -14,7 +14,7 @@
 #include <iomanip>
 #include "Mesh/MeshIntegrator.H"
 #include <Mesh/MeshParams.H>
-#include <Mesh.H>
+#include <Mesh/Mesh.H>
 #include <BasisSet/Factory.H>
 
 using std::cout;

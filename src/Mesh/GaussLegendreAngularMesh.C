@@ -2,7 +2,7 @@
 
 
 
-#include "Mesh/GaussLegendreAngularMesh.H"
+#include "GaussLegendreAngularMesh.H"
 #include "Common/DFTDefines.H"
 #include "oml/vector.h"
 #include <iostream>
