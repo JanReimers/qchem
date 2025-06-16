@@ -35,9 +35,10 @@ Priority 1:
             If we want to breakout separate libqcAtom_BS libqcMolecule_BS  libqcLattice_BS modules.
             Each of these would have its own factory function
     Done: Make a mesh factory
+    -Redising fitting so fitted objects contain a Fitter*
     -Types.H switch for <module-name>/fwd.H
     Try separating out 
-        libqcFitting ?
+        Done: libqcFitting ?
             Very tightly coupled with Hamiltonian and Charge density; 
                 FittedVxc : public FittedFunctionImp<double>
                 FittedCDImp : public IntegralConstrainedFF<T>

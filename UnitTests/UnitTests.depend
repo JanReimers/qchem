@@ -788,7 +788,7 @@
 1729383646 /home/janr/Code/qchem/include/Hamiltonian.H
 	"types.H"
 	"Common/pmstream.h"
-	<FittedFunctionClient.H>
+	<Fitting/FittedFunctionClient.H>
 
 1727405242 /home/janr/Code/qchem/include/HamiltonianTerm.H
 	"Functions/FittedFunctionClient.H"
@@ -1275,7 +1275,7 @@
 
 1729443462 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
 	<BasisSet/BasisSet.H>
-	<FittedFunction.H>
+	<Fitting/FittedFunction.H>
 	<Mesh/Mesh.H>
 	<LAParams.H>
 	"oml/vector.h"

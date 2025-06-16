@@ -2,7 +2,7 @@
 #ifndef _FittedCD_H_
 #define _FittedCD_H_
 
-#include <FittedFunction.H>
+#include <Fitting/FittedFunction.H>
 
 //----------------------------------------------------------------------------------
 //

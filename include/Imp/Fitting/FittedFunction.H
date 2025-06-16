@@ -4,7 +4,7 @@
 
 
 
-#include <FittedFunction.H>
+#include <Fitting/FittedFunction.H>
 #include <Mesh/Mesh.H>
 #include <LAParams.H>
 #include "oml/vector.h"
