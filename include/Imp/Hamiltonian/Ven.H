@@ -5,7 +5,7 @@
 
 
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 #include <Cluster.H>
 #include <memory>
 

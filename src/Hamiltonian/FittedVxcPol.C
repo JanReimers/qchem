@@ -2,10 +2,10 @@
 
 
 
-#include "Imp/Hamiltonian/FittedVxc.H"
-#include "Imp/Hamiltonian/FittedVxcPol.H"
+#include "FittedVxc.H"
+#include "FittedVxcPol.H"
 #include <ChargeDensity/ChargeDensity.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include <Spin.H>
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"

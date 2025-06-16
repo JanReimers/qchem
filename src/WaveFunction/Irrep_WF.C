@@ -7,7 +7,7 @@
 #include <ElectronConfiguration.H>
 #include <BasisSet/Irrep_BS.H>
 #include <LASolver.H>
-#include <Hamiltonian.H>
+#include <Hamiltonian/Hamiltonian.H>
 #include "oml/vector.h"
 
 using std::cout;

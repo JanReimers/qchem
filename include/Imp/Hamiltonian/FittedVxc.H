@@ -4,8 +4,8 @@
 
 
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include "Imp/Hamiltonian/ExchangeFunctional.H"
+#include "HamiltonianTerm.H"
+#include "ExchangeFunctional.H"
 #include "Imp/Fitting/FittedFunction.H"
 
 //###############################################################################

@@ -2,9 +2,9 @@
 
 
 
-#include "Imp/Hamiltonian/Ven.H"
+#include "Ven.H"
 #include <BasisSet/Irrep_BS.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"

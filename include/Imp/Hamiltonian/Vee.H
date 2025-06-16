@@ -2,7 +2,7 @@
 #ifndef _Vee_H_
 #define _Vee_H_
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 
 //###############################################################################
 //

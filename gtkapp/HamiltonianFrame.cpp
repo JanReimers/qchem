@@ -1,7 +1,7 @@
 // File: HamiltonianFrame.cpp  GTK frame to show and manage Hamiltonian settings.
 
 #include "HamiltonianFrame.H"
-#include "Imp/Hamiltonian/Hamiltonians.H"
+#include "Hamiltonians.H"
 #include <iostream>
 
 

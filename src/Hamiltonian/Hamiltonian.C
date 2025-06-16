@@ -2,11 +2,11 @@
 
 
 
-#include "Imp/Hamiltonian/Hamiltonian.H"
-#include "Imp/Hamiltonian/Kinetic.H"
-#include "Imp/Hamiltonian/Ven.H"
-#include "Imp/Hamiltonian/Vnn.H"
-#include <TotalEnergy.H>
+#include "Hamiltonian.H"
+#include "Kinetic.H"
+#include "Ven.H"
+#include "Vnn.H"
+#include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Irrep_BS.H>
 #include "Common/stl_io.h"
@@ -14,18 +14,18 @@
 #include <cassert>
 #include <iostream>
 
-HamiltonianImp::HamiltonianImp() : IsPolarized(false)
+HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
 {};
 
 void HamiltonianImp::Add(Static_HT* p)
 {
     itsSHTs.push_back(std::unique_ptr<Static_HT>(p));
-    IsPolarized = IsPolarized || p->IsPolarized();
+    itsIsPolarized = itsIsPolarized || p->IsPolarized();
 }
 void HamiltonianImp::Add(Dynamic_HT* p)
 {
     itsDHTs.push_back(std::unique_ptr<Dynamic_HT>(p));
-    IsPolarized = IsPolarized || p->IsPolarized();
+    itsIsPolarized = itsIsPolarized || p->IsPolarized();
 }
 
 void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
@@ -57,20 +57,13 @@ EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
     return e;
 }
 
-#include "Imp/WaveFunction/Polarized_WF.H"
-#include "Imp/WaveFunction/UnPolarized_WF.H"
-WaveFunction* HamiltonianImp::CreateWaveFunction(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc) const
-{
-    return IsPolarized ? (WaveFunction*)new Polarized_WF(bs,ec,acc) : (WaveFunction*)new UnPolarized_WF(bs,ec,acc);
-}
-
 
 std::ostream& HamiltonianImp::Write(std::ostream& os) const
 {
-    if (IsPolarized) os << "Polarized ";
+    if (itsIsPolarized) os << "Polarized ";
     os << "Hamiltonian with " << itsSHTs.size() << " static terms:" << std::endl;
     os << itsSHTs;
-    if (IsPolarized) os << "Polarized ";
+    if (itsIsPolarized) os << "Polarized ";
     os << "Hamiltonian with " << itsDHTs.size() << " dynamic terms:" << std::endl;
     os << itsDHTs;
     return os;

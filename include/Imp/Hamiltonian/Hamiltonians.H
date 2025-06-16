@@ -1,6 +1,6 @@
 // File:: Hamiltonians.H  Create fully implemented Hamiltonians
 
-#include "Imp/Hamiltonian/Hamiltonian.H"
+#include "Hamiltonian.H"
 
 //
 //  1 Electron

@@ -2,7 +2,7 @@
 #ifndef _Kinetic_H_
 #define _Kinetic_H_
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 
 class Kinetic
     : public virtual Static_HT

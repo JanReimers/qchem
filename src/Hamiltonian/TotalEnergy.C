@@ -2,7 +2,7 @@
 
 
 
-#include "TotalEnergy.H"
+#include <Hamiltonian/TotalEnergy.H>
 #include <iostream>
 
 EnergyBreakdown::EnergyBreakdown()

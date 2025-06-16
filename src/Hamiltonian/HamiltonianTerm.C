@@ -1,7 +1,7 @@
 // File: HamiltonianTermImplementation  General implementation of a HamiltonianTerm term in the Hamiltonian.
 
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Symmetry.H>

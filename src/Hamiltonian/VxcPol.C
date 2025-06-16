@@ -2,10 +2,10 @@
 
 
 
-#include "Imp/Hamiltonian/VxcPol.H"
-#include "Imp/Hamiltonian/Vxc.H"
+#include "VxcPol.H"
+#include "Vxc.H"
 #include <BasisSet/HF_IBS.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Spin.H>
 #include "oml/smatrix.h"

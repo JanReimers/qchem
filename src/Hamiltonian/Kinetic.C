@@ -1,9 +1,9 @@
 // File: Kinetic.C  Kinetic energy term for the hamiltonian.
 
-#include "Imp/Hamiltonian/Kinetic.H"
+#include "Kinetic.H"
 #include <BasisSet/Irrep_BS.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 
 Kinetic::Kinetic()
     : Static_HT_Imp()

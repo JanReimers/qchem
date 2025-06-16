@@ -4,7 +4,7 @@
 
 
 
-#include <Hamiltonian.H>
+#include <Hamiltonian/Hamiltonian.H>
 #include <Symmetry/Irrep_QNs.H>
 #include "oml/smatrix.h"
 #include <map>

@@ -3,8 +3,8 @@
 
 
 #include "Cluster/Atom.H"
-#include "Imp/Hamiltonian/Vnn.H"
-#include <TotalEnergy.H>
+#include "Vnn.H"
+#include <Hamiltonian/TotalEnergy.H>
 #include <BasisSet/Irrep_BS.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"

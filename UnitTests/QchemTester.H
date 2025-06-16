@@ -7,7 +7,7 @@
 #include <SCFParams.H>
 #include <LAParams.H>
 #include "Common/PeriodicTable.H"
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include <nlohmann/json.hpp>
 
 #include <memory>

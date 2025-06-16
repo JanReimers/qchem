@@ -4,7 +4,7 @@
 
 
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 #include <memory>
 
 //###############################################################################

@@ -707,7 +707,7 @@
 1729269268 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
 	"QchemTester.H"
 	<Cluster.H>
-	<Hamiltonian.H>
+	<Hamiltonian/Hamiltonian.H>
 	<iostream>
 	<fstream>
 
@@ -1128,10 +1128,10 @@
 	<Mesh/MeshParams.H>
 	<SCFIterator.H>
 	<WaveFunction.H>
-	<Hamiltonian.H>
+	<Hamiltonian/Hamiltonian.H>
 	<Cluster.H>
 	<BasisSet/BasisSet.H>
-	<TotalEnergy.H>
+	<Hamiltonian/TotalEnergy.H>
 	<memory>
 	<cmath>
 	"Imp/BasisSet/SphericalGaussian/BasisSet.H"
@@ -1199,7 +1199,7 @@
 	<cmath>
 
 1729461294 /home/janr/Code/qchem/include/Imp/Hamiltonian/Hamiltonian.H
-	<Hamiltonian.H>
+	<Hamiltonian/Hamiltonian.H>
 	"Imp/Containers/ptr_vector.h"
 	<memory>
 
@@ -1207,7 +1207,7 @@
 	"Imp/Hamiltonian/HamiltonianTerm.H"
 
 1729306957 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
-	<Hamiltonian.H>
+	<Hamiltonian/Hamiltonian.H>
 	<Spin.H>
 	"oml/smatrix.h"
 	<map>

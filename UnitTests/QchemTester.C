@@ -4,11 +4,11 @@
 #include <Mesh/MeshParams.H>
 #include <SCFIterator.H>
 #include <WaveFunction.H>
-#include <Hamiltonian.H>
+#include <Hamiltonian/Hamiltonian.H>
 #include <Cluster.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include <Orbital.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <memory>

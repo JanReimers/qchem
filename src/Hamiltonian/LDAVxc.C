@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/Hamiltonian/LDAVxc.H"
+#include "LDAVxc.H"
 #include "oml/smatrix.h"
 #include <ChargeDensity/ChargeDensity.H>
 #include <iostream>

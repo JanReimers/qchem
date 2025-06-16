@@ -5,9 +5,10 @@
 #include <SCFIterator.H>
 #include "Imp/SCF/SCFAccelerator.H"
 #include <WaveFunction.H>
+#include <WaveFunction/Factory.H>
 #include <SCFParams.H>
-#include <Hamiltonian.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/Hamiltonian.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <iostream>
 #include <iomanip>
@@ -23,7 +24,7 @@ using std::ios;
 SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
     : itsHamiltonian (H )
     , itsAccelerator (acc)       
-    , itsWaveFunction(itsHamiltonian->CreateWaveFunction(bs,ec,itsAccelerator) )
+    , itsWaveFunction(WaveFunctionF::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
     , itsCD          (0)
     , itsOldCD       (0)
     , itsIterationCount(0)

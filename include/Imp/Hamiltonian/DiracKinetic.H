@@ -2,7 +2,7 @@
 #ifndef _DiracKinetic_H_
 #define _DiracKinetic_H_
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 
 class DiracKinetic
     : public virtual Static_HT

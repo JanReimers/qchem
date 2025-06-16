@@ -58,8 +58,8 @@ public:
     virtual void            Add             (      Dynamic_HT*)      =0;
     virtual SMat            GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;
     virtual EnergyBreakdown GetTotalEnergy  (  const DM_CD*    ) const=0;
-    virtual WaveFunction*   CreateWaveFunction(const BasisSet*,const ElectronConfiguration*,SCFAccelerator* acc) const=0;
-    static  Hamiltonian*  Factory(std::istream&)        ;
+    virtual bool            IsPolarized() const=0;
+    static  Hamiltonian*    Factory(std::istream&)        ;
 };
 
 #endif //_Hamiltonian_H_

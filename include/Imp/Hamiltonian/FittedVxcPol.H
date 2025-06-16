@@ -4,8 +4,8 @@
 
 
 
-#include "Imp/Hamiltonian/ExchangeFunctional.H"
-#include "Imp/Hamiltonian/Hamiltonian.H"
+#include "ExchangeFunctional.H"
+#include "Hamiltonian.H"
 #include <memory>
 
 //###############################################################################

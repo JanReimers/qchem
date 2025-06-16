@@ -1,7 +1,7 @@
 #include "QchemTester.H"
 
 #include <Cluster.H>
-#include <Hamiltonian.H>
+#include <Hamiltonian/Hamiltonian.H>
 #include <iostream> 
 #include <fstream>
 

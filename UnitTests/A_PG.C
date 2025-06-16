@@ -4,7 +4,7 @@
 
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
-#include "Imp/Hamiltonian/Hamiltonians.H"
+#include "Hamiltonians.H"
 #include <Mesh/MeshParams.H>
 
 Molecule* MakeN2()

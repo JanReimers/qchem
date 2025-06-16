@@ -4,7 +4,7 @@
 
 
 
-#include "Imp/Hamiltonian/ExchangeFunctional.H"
+#include "ExchangeFunctional.H"
 
 class ExFunctionalImp
     : public  virtual ExFunctional

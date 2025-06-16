@@ -2,12 +2,12 @@
 
 
 
-#include "Imp/Hamiltonian/FittedVee.H"
+#include "FittedVee.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <ChargeDensity/FittedCD.H>
 #include <ChargeDensity/Factory.H>
 #include <BasisSet/DFT_IBS.H>
-#include <TotalEnergy.H>
+#include <Hamiltonian/TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>

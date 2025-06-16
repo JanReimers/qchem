@@ -2,7 +2,7 @@
 #ifndef _RestMass_H_
 #define _RestMass_H_
 
-#include "Imp/Hamiltonian/HamiltonianTerm.H"
+#include "HamiltonianTerm.H"
 
 class RestMass
     : public virtual Static_HT
