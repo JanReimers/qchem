@@ -3,7 +3,7 @@
 #define _DB_Fit_H_
 
 #include "HeapDB.H"
-#include <BasisSet/Fit_IE.H>
+#include <BasisSet/Fit_IBS.H>
 
 class DB_Fit 
     : public virtual FitIntegrals

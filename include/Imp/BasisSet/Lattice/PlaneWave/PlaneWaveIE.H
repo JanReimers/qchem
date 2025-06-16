@@ -3,7 +3,7 @@
 #define _PlaneWaveIE_H_
 
 
-#include <BasisSet/IntegralEngine.H>
+#include <BasisSet/Integrals.H>
 #include "Cluster/UnitCell.H"
 
 class PlaneWaveBS;

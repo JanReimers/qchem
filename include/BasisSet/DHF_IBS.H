@@ -2,8 +2,40 @@
 #ifndef _DHF_IBS_H_
 #define _DHF_IBS_H_
 
-#include <BasisSet/Irrep_BS.H>
-#include <BasisSet/DHF_IE.H>
+#include <BasisSet/Integrals.H>
+
+
+//! \brief Interface for one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.
+template <class T> class Integrals_RKB
+: public virtual Integrals_Overlap<T>
+, public virtual Integrals_Kinetic<T>
+, public virtual Integrals_Nuclear<T>
+, public virtual Integrals_RestMass<T>
+{
+public:
+    
+};
+
+//! \brief Interface for Large-Component one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.
+template <class T> class Integrals_RKBL
+: public virtual Integrals_Overlap<T>
+, public virtual Integrals_XKinetic<T>
+, public virtual Integrals_Nuclear<T>
+{
+public:
+    
+};
+
+//! \brief Interface for Small-Component one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.
+template <class T> class Integrals_RKBS 
+: public virtual Integrals_Kinetic<T> //Serves as the overlap.
+, public virtual Integrals_Nuclear<T>
+{
+public:
+   
+ };
+
+ #include <BasisSet/Irrep_BS.H>
 
 template <class T> class Orbital_RKB_IBS
     : public virtual TIrrepBasisSet<T>

@@ -5,7 +5,7 @@
 
 
 #include "../IEClient.H"
-#include <BasisSet/IntegralEngine.H>
+#include <BasisSet/Integrals.H>
 #include "../ERI4.H"
 #include <map>
 #include "oml/vector.h"

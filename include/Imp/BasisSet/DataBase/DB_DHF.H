@@ -3,7 +3,7 @@
 #define _DB_DHF_H_
 
 #include "HeapDB.H"
-#include <BasisSet/DHF_IE.H>
+#include <BasisSet/DHF_IBS.H>
 
 template <class T> class DB_RKB 
     : virtual public Integrals_RKB<T>

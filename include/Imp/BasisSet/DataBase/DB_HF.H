@@ -3,7 +3,7 @@
 #define _DB_HF_H_
 
 #include "HeapDB.H"
-#include <BasisSet/HF_IE.H>
+#include <BasisSet/HF_IBS.H>
 
 template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
 {
