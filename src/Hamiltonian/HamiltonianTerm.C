@@ -2,7 +2,7 @@
 
 
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Symmetry.H>
 #include <iostream>

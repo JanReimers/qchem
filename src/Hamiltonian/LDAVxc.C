@@ -4,7 +4,7 @@
 
 #include "Imp/Hamiltonian/LDAVxc.H"
 #include "oml/smatrix.h"
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>

@@ -4,7 +4,7 @@
 
 #include <types.H>
 #include "Common/pmstream.h"
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 //
 //  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.
 //  We have two distinct types of HT:

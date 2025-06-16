@@ -4,7 +4,7 @@
 
 
 
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <Spin.H>
 #include <Symmetry/Irrep_QNs.H>
 #include "oml/smatrix.h"

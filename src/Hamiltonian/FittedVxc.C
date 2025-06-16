@@ -6,7 +6,7 @@
 #include "Imp/Hamiltonian/LDAVxc.H"
 #include <BasisSet/DFT_IBS.H>
 #include <TotalEnergy.H>
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 

@@ -4,7 +4,7 @@
 
 #include "Imp/Hamiltonian/Vee.H"
 #include <BasisSet/HF_IBS.H>
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <cassert>

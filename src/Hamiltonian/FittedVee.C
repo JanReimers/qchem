@@ -3,7 +3,7 @@
 
 
 #include "Imp/Hamiltonian/FittedVee.H"
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/DFT_IBS.H>
 #include "Imp/ChargeDensity/FittedCD.H"
 #include <TotalEnergy.H>

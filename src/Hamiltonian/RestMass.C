@@ -3,7 +3,7 @@
 #include "Imp/Hamiltonian/RestMass.H"
 #include "Common/DFTDefines.H"
 #include <BasisSet/DHF_IBS.H>
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <TotalEnergy.H>
 
 RestMass::RestMass()

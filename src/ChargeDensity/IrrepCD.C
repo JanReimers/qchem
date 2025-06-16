@@ -1,13 +1,12 @@
 // File: ExactIrrepCD.C  Exact implementation of the charged density.
 
 
-#include "Cluster/Molecule.H"
-#include "Imp/ChargeDensity/IrrepCD.H"
+#include "IrrepCD.H"
+#include <Cluster/Molecule.H>
 #include <BasisSet/HF_IBS.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
 #include <Symmetry.H>
-#include <ChargeDensity.H>
 #include "oml/vector3d.h"
 #include "oml/vector.h"
 #include "oml/matrix.h"

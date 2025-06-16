@@ -10,7 +10,7 @@
 #include <BasisSet/Irrep_BS.H>
 #include <TotalEnergy.H>
 #include <Orbital.H>
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <memory>
 
 PeriodicTable QchemTester::itsPT;

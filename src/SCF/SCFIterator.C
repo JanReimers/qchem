@@ -8,7 +8,7 @@
 #include <SCFParams.H>
 #include <Hamiltonian.H>
 #include <TotalEnergy.H>
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <iostream>
 #include <iomanip>
 #include <cassert>

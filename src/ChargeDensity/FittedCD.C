@@ -2,8 +2,7 @@
 
 
 
-#include "Imp/ChargeDensity/FittedCD.H"
-#include <ChargeDensity.H>
+#include "FittedCD.H"
 #include <Mesh/Mesh.H>
 #include <BasisSet/DFT_IBS.H>
 #include "oml/smatrix.h"
@@ -30,7 +29,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 //  Totale energy terms for a charge density.
 //
 
-template <class T> DM_CD::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
+template <class T> typename FittedCDImp<T>::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
 {
     assert(bs);
     const std::vector<SMat>& repulsions=bs->Repulsion3C(*itsBasisSet);

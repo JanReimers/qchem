@@ -4,7 +4,7 @@
 
 #include "Imp/Hamiltonian/FittedVxc.H"
 #include "Imp/Hamiltonian/FittedVxcPol.H"
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <TotalEnergy.H>
 #include <Spin.H>
 #include "oml/smatrix.h"

@@ -3,7 +3,7 @@
 
 
 #include "Imp/Hamiltonian/ExchangeFunctionalImp.H"
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include "oml/vector.h"
 #include <cassert>
 

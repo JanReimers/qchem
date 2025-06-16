@@ -2,7 +2,7 @@
 
 #include "Imp/Hamiltonian/Kinetic.H"
 #include <BasisSet/Irrep_BS.H>
-#include <ChargeDensity.H>
+#include <ChargeDensity/ChargeDensity.H>
 #include <TotalEnergy.H>
 
 Kinetic::Kinetic()
