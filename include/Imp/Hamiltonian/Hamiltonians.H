@@ -21,16 +21,6 @@ public:
 };
 
 //
-// Un-polarized Semi Hartree-Fock, full Vee, and fitted DFT like Vxc
-//
-class Ham_SHF_U : public virtual Hamiltonian, private HamiltonianImp
-{
-public:
-    Ham_SHF_U(const cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* or_bs);
-    Ham_SHF_U(const cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
-};
-
-//
 // Un-polarized DFT, fitted Vee, and fitted DFT like Vxc
 //
 class Ham_DFT_U : public virtual Hamiltonian, private HamiltonianImp
@@ -49,15 +39,6 @@ public:
     Ham_HF_P(const cl_t& cl);
 };
 
-//
-// Un-polarized Semi Hartree-Fock, full Vee, and fitted DFT like Vxc
-//
-class Ham_SHF_P : public virtual Hamiltonian, private HamiltonianImp
-{
-public:
-    Ham_SHF_P(const cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* or_bs);
-    Ham_SHF_P(const cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
-};
 
 //
 // Un-polarized DFT, fitted Vee, and fitted DFT like Vxc

@@ -1,7 +1,6 @@
 // File A_DHF.C  Atom Dirac-Hartree-Fock tests.
 
 #include "QchemTester.H"
-#include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <Orbital.H>
@@ -16,6 +15,8 @@
 #include <Mesh/MeshParams.H>
 #include <Mesh/Mesh.H>
 #include <BasisSet/Factory.H>
+#include <Hamiltonian/Factory.H>
+
 
 using std::cout;
 using std::endl;
@@ -32,11 +33,12 @@ double Enk(int n, int kappa,int Z, double alpha)
     return (1/sqrt(1.0+a2*Z*Z/(d*d))-1.0)/a2;
 }
 
+using namespace HamiltonianF;
 class HF_P : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_HF_P(cluster);
+        return Factory(Model::HF,Pol::Polarized,cluster);
     }
 };
 
@@ -44,7 +46,7 @@ class DHF : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_DHF(cluster);
+        return Factory(Model::DHF,Pol::Polarized,cluster);
     }
 };
 

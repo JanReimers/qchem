@@ -22,22 +22,6 @@ Ham_HF_U::Ham_HF_U(const cl_t& cl)
 #include "SlaterExchange.H"
 #include "FittedVxc.H"
 #include "ExchangeFunctional.H" 
-#include <Cluster.H>
-Ham_SHF_U::Ham_SHF_U(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
-    : Ham_SHF_U(cl,new SlaterExchange(alpha_ex),mp,bs)
-{};
-
-Ham_SHF_U::Ham_SHF_U(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
-{
-    InsertStandardTerms(cl);
-    Add(new Vee);
-    
-    FittedVxc::ex_t   XcFunct(ex);
-    FittedVxc::bs_t   XFitBasis(bs->CreateVxcFitBasisSet(cl.get()));
-    FittedVxc::mesh_t m(cl->CreateMesh(mp));
-    Add(new FittedVxc(XFitBasis, XcFunct,m));
-}
-
 #include "FittedVee.H"
 #include <Cluster.H>
 
@@ -67,21 +51,6 @@ Ham_HF_P::Ham_HF_P(const cl_t& cl)
 }
 
 #include "FittedVxcPol.H"
-
-Ham_SHF_P::Ham_SHF_P(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
-    : Ham_SHF_P(cl,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
-{};
-
-Ham_SHF_P::Ham_SHF_P(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
-{
-    InsertStandardTerms(cl);
-    Add(new Vee);
-    
-    FittedVxcPol::ex_t XcFunct(ex);
-    FittedVxcPol::bs_t XFitBasis(bs->CreateVxcFitBasisSet(cl.get()));
-    FittedVxcPol::mesh_t  m(cl->CreateMesh(mp));
-    Add(new FittedVxcPol(XFitBasis, XcFunct,m));
-}
 
 Ham_DFT_P::Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
     : Ham_DFT_P(cl,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)

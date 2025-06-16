@@ -1,12 +1,11 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
-#include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <Mesh/MeshParams.H>
 #include <BasisSet/Factory.H> //Just to get the types.
-
+#include <Hamiltonian/Factory.H>
 
 inline SCFParams dft_scf_params(int Z) 
 {
@@ -14,13 +13,13 @@ inline SCFParams dft_scf_params(int Z)
     return {   20     ,Z*1e-3    ,1e-10   ,Z*1e-4        ,0.1      ,1e-8  ,true};
 }
 
-
+using namespace HamiltonianF;
 class DFT_U : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return new Ham_DFT_U(cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+        return Factory(Pol::UnPolarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 
@@ -112,7 +111,7 @@ class DFT_P : public virtual QchemTester
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return new Ham_DFT_P(cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+        return Factory(Pol::Polarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 

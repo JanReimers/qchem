@@ -1,10 +1,10 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
-#include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H> //Just to get the types.
+#include <Hamiltonian/Factory.H>
 
 const bool verbose=true;
 inline SCFParams scf_params(int Z) 
@@ -22,11 +22,12 @@ inline SCFParams scf_params_BS(int Z)
 //
 //  Un-polarized tests.
 //
+using namespace HamiltonianF;
 class HF_U : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_HF_U(cluster);
+        return Factory(Model::HF,Pol::UnPolarized,cluster);
     }
 };
 
@@ -156,7 +157,7 @@ class HF_P : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_HF_P(cluster);
+        return Factory(Model::HF,Pol::Polarized,cluster);
     }
 };
 
