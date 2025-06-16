@@ -84,7 +84,12 @@
         "chrono": "cpp",
         "cassert": "cpp",
         "csignal": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "bitset": "cpp",
+        "codecvt": "cpp",
+        "regex": "cpp",
+        "ranges": "cpp",
+        "shared_mutex": "cpp"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}"
 }

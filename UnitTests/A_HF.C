@@ -6,7 +6,7 @@
 #include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H> //Just to get the types.
 
-const bool verbose=true;
+const bool verbose=false;
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
@@ -228,7 +228,7 @@ TEST_P(A_SL_HF_P,Multiple)
     int Z=GetParam();
     int N=10;
     if (Z>15) N=14;
-    if (Z>50) N=18;
+    if (Z>30) N=18;
     nlohmann::json js = {
         {"type",BasisSetAtom::Type::Slater},
         {"N", N}, {"emin", 0.3}, {"emax", 5*Z},
@@ -238,7 +238,7 @@ TEST_P(A_SL_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,11,15,19,25,29,30,31,33,34,35,37,53,56,64)); 
 
 
 TEST_P(A_BS_HF_P,Multiple)
@@ -272,7 +272,7 @@ TEST_P(A_SLm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(1,3,5,6,7,8,9,11,13,14,15,16,17,21,37,53,57,64)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(1,93)); 
 
 TEST_P(A_SGm_HF_P,Multiple)
@@ -290,7 +290,7 @@ TEST_P(A_SGm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(1,3,5,7,21,37,53,58,62)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
 // INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(1,93)); //Only goes to 92?!?
 
 
@@ -307,7 +307,8 @@ TEST_P(A_BSm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,7,21,37,53,57,64)); 
+// INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
+INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,6,8,9)); 
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>

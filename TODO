@@ -1,11 +1,13 @@
 
 Priority 1:
     -eigen tables, hide border dark problem for Hydrogen (one row in table).
-    -Atom tests  Yl and Ylm basis is now chosen automatically.  
+    Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
         Either combine yl and ylm tests or make sure we are not duplicating.
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
     -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAccelerator_DIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(): Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
+    -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
+    
     More use of structured bindings for map iterating.
     -Convergence acceleration.
         Geometric Direct Minimization (GDM)
