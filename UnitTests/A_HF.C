@@ -6,7 +6,7 @@
 #include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H> //Just to get the types.
 
-const bool verbose=false;
+const bool verbose=true;
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose

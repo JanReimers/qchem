@@ -4,6 +4,7 @@
 
 #include <types.H>
 #include "Common/pmstream.h"
+#include <ChargeDensity.H>
 //
 //  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.
 //  We have two distinct types of HT:
@@ -12,6 +13,7 @@
 //
 class Static_HT
     : public virtual PMStreamableObject
+    , public virtual Static_CC
 {
 public:
     typedef SMatrix<double> SMat;
@@ -23,7 +25,8 @@ public:
 };
 
 class Dynamic_HT
-: public virtual PMStreamableObject
+    : public virtual PMStreamableObject
+    , public virtual Dynamic_CC
 {
 public:
     typedef SMatrix<double> SMat;

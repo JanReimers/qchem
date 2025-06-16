@@ -30,8 +30,8 @@ public:
     virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const;
     virtual RVec   GetRepulsion3C(const Fit_IBS*) const;
 
-    virtual double DM_Contract(const Static_HT*) const;
-    virtual double DM_Contract(const Dynamic_HT*,const DM_CD*) const;
+    virtual double DM_Contract(const Static_CC*) const;
+    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
     virtual double GetTotalCharge(                      ) const;
 
     virtual void   ReScale      (double factor         )      ; // No UT coverage

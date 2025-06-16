@@ -43,14 +43,14 @@ DM_CD::SMat Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) cons
     return K;
 }
 
-double Composite_CD::DM_Contract(const Static_HT* v) const
+double Composite_CD::DM_Contract(const Static_CC* v) const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->DM_Contract(v);
     return ret;
 }
 
-double Composite_CD::DM_Contract(const Dynamic_HT* v,const DM_CD* cd) const
+double Composite_CD::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->DM_Contract(v,cd);
