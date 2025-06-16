@@ -7,7 +7,6 @@
 #include "Molecule/PolarizedGaussian/IntegralEngine.H"
 #include "Molecule/PolarizedGaussian/Readers/Gaussian94.H"
 #include "Molecule/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Atom/radial/Gaussian/ExponentScaler.H"
 #include "Cluster/Atom.H"
 #include "Symmetry/Unit.H"
 #include <BasisSet/BasisSet.H>

@@ -1,6 +1,6 @@
 // File: Atom/kappa/Slater_IE.C  Inegral Engine (IE) for Slater basis set with Restricted Kinetic Balance (RKB).
-#include "Atom/kappa/Slater_IE.H"
-#include "Atom/radial/Slater/Integrals.H"
+#include "kappa/Slater_IE.H"
+#include "radial/Slater/Integrals.H"
 
 
 namespace Atom_kappa

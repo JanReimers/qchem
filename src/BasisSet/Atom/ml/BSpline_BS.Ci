@@ -1,7 +1,7 @@
 // File: Atom/ml/BSpline_BS.H BSpline Basis Set for atoms, no m degeneracy.
 
-#include "Atom/ml/BSpline_BS.H"
-#include "Atom/ml/BSpline_IBS.H"
+#include "ml/BSpline_BS.H"
+#include "ml/BSpline_IBS.H"
 #include "Symmetry/Atom_EC.H"
 
 namespace Atom_ml

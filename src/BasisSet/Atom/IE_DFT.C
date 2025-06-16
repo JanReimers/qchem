@@ -1,7 +1,7 @@
 // File: Atom/IE_DFT.C Common DFT IE code for all atom basis sets.
 
-#include "Atom/IE_DFT.H"
-#include "Atom/IEC.H"
+#include "IE_DFT.H"
+#include "IEC.H"
 #include <BasisSet/Fit_IBS.H>
 
 template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const fbs_t& _c) const

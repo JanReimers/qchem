@@ -3,7 +3,7 @@
 #define _Atom_kappa_Gaussian_BS_H_
 
 #include "../../BS_Common.H"
-#include "DataBase/HeapDB.H"
+#include "../DataBase/HeapDB.H"
 
 namespace Atom_kappa
 {

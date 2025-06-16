@@ -1,6 +1,6 @@
-// File: Imp/Integrals/PascalTriangle.H
+// File: PascalTriangle.H
 
-#include "Molecule/PolarizedGaussian/Triangle2D.H"
+#include "Triangle2D.H"
 
 class PascalTriangle : public Triangle2D
 {

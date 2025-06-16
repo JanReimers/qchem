@@ -1,5 +1,5 @@
 // File: GLQuadrature.H Perform Gauss-Legendre quadrature integration over B-Splines.
-#include "Atom/radial/BSpline/GLQuadrature.H"
+#include "radial/BSpline/GLQuadrature.H"
 #include <cassert>
 #include <iostream>
 using std::cout;

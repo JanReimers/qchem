@@ -3,7 +3,7 @@
 #define _BSpline_IE_Fit_H_
 
 #include "IE.H"
-#include "DataBase/DB_Fit.H"
+#include "../DataBase/DB_Fit.H"
 
 namespace BSpline
 {

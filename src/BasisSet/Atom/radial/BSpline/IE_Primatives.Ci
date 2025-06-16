@@ -1,8 +1,8 @@
 // File: BSpline/IE_Primatives.C get all calculation of primative integrals in one place.
 
-#include "Atom/radial/BSpline/IE_Primatives.H"
-#include "Atom/radial/BSpline/Integrals.H"
-#include "Atom/radial/BSpline/Rk.H"
+#include "radial/BSpline/IE_Primatives.H"
+#include "radial/BSpline/Integrals.H"
+#include "radial/BSpline/Rk.H"
 
 using namespace bspline::operators; 
 using namespace bspline::integration; 

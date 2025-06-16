@@ -7,12 +7,6 @@
 #include "../IE.H"
 #include "../radial/Gaussian/BS_Common.H"
 
-
-namespace PolarizedGaussian
-{
-    class Reader;    
-}
-
 namespace Atom_ml
 {
 namespace Gaussian
@@ -25,7 +19,6 @@ class BasisSet
 public:
     BasisSet() {};
     BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
-    BasisSet(PolarizedGaussian::Reader*, const Atom*);
 };
 
 } //namespace 

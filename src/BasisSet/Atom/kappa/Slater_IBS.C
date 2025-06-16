@@ -1,8 +1,8 @@
 // File: Atom/kappa/Slater_IBS.C  Slater Irrep Basis Set (IBS) with Restricted Kinetic Balance (RKB).
 
-#include "Atom/kappa/Slater_IBS.H"
-#include "Atom/kappa/Slater_BF.H"
-#include "Atom/radial/Slater/Integrals.H"
+#include "kappa/Slater_IBS.H"
+#include "kappa/Slater_BF.H"
+#include "radial/Slater/Integrals.H"
 
 #include "Symmetry/Okmj.H"
 #include <Symmetry.H>

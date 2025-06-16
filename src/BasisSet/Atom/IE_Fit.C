@@ -1,7 +1,7 @@
 // File: AtomIE.C Common Fit IE code for all atom basis sets.
 
-#include "Atom/IE_Fit.H"
-#include "Atom/IEC.H"
+#include "IE_Fit.H"
+#include "IEC.H"
 #include <BasisSet/Fit_IBS.H>
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const

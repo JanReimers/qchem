@@ -1,8 +1,8 @@
 // File: Atom/l/BSpline_BS.H BSpline Basis Set for atoms.
 
-#include "Atom/l/BSpline_BS.H"
-#include "Atom/l/BSpline_IBS.H"
-#include "Atom/radial/BSpline/Rk.H"
+#include "l/BSpline_BS.H"
+#include "l/BSpline_IBS.H"
+#include "radial/BSpline/Rk.H"
 
 
 namespace Atoml

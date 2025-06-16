@@ -1,9 +1,9 @@
 // File: Atom/l/Slater_BS.C Slater Basis Set for atoms.
 
-#include "Atom/l/Slater_BS.H"
-#include "Atom/l/Slater_IBS.H"
-#include "Atom/radial/Slater/ExponentScaler.H"
-#include "Atom/radial/Slater/Rk.H"
+#include "l/Slater_BS.H"
+#include "l/Slater_IBS.H"
+#include "radial/Slater/ExponentScaler.H"
+#include "radial/Slater/Rk.H"
 
 namespace Atoml
 {

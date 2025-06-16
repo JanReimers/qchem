@@ -1,6 +1,6 @@
 // File: Atom/radial/BSpline/IBS_Common.H  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom BSpline functions.
 
-#include "Atom/radial/BSpline/IBS_Common.H"
+#include "radial/BSpline/IBS_Common.H"
 #include <BasisSet/BasisFunction.H>
 #include <Symmetry.H>
 //#include "oml/vector.h"

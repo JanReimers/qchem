@@ -1,8 +1,8 @@
 // File: Gaussian/IE_Primatives.C get all calculation of primative integrals in one place.
 
-#include "Atom/radial/Gaussian/IE_Primatives.H"
-#include "Atom/radial/Gaussian/Integrals.H"
-#include "Atom/radial/Gaussian/Rk.H"
+#include "radial/Gaussian/IE_Primatives.H"
+#include "radial/Gaussian/Integrals.H"
+#include "radial/Gaussian/Rk.H"
 
 namespace Gaussian
 {

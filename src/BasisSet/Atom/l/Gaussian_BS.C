@@ -1,8 +1,8 @@
 // File: Atom/l/Gaussian_BS.H
 
-#include "Atom/l/Gaussian_BS.H"
-#include "Atom/l/Gaussian_IBS.H"
-#include "Atom/radial/Gaussian/ExponentScaler.H"
+#include "l/Gaussian_BS.H"
+#include "l/Gaussian_IBS.H"
+#include "radial/Gaussian/ExponentScaler.H"
 
 namespace Atoml
 {

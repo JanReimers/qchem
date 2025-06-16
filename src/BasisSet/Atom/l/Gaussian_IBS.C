@@ -1,8 +1,8 @@
 // File: Atom/l/Gaussian_IBS.H  Gaussian Irrep Basis Set (IBS) with orbital angular momentum l.
 
-#include "Atom/l/Gaussian_IBS.H"
-#include "Atom/l/Gaussian_BF.H"
-#include "Atom/radial/Gaussian/Integrals.H"
+#include "l/Gaussian_IBS.H"
+#include "l/Gaussian_BF.H"
+#include "radial/Gaussian/Integrals.H"
 #include "Symmetry/Yl.H"
 #include <BasisSet/BasisSet.H>
 #include <iostream>

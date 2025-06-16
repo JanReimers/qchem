@@ -1,8 +1,8 @@
 // File: Slater/IE_Primatives.C get all calculation of primative integrals in one place.
 
-#include "Atom/radial/Slater/IE_Primatives.H"
-#include "Atom/radial/Slater/Integrals.H"
-#include "Atom/radial/Slater/Rk.H"
+#include "radial/Slater/IE_Primatives.H"
+#include "radial/Slater/Integrals.H"
+#include "radial/Slater/Rk.H"
 
 namespace Slater
 {

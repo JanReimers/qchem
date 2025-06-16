@@ -3,7 +3,7 @@
 #define _Atom_IE_DHF_H_
 
 #include "IE.H"
-#include "DataBase/DB_DHF.H"
+#include "../DataBase/DB_DHF.H"
 
 template <class T> class AtomIE_RKBL 
     : public AtomIE_Overlap<T>

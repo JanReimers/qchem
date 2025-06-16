@@ -1,8 +1,8 @@
 // File Slater_m/BasisSet.H
 
-#include "Atom/ml/Slater_BS.H"
-#include "Atom/ml/Slater_IBS.H"
-#include "Atom/radial/Slater/ExponentScaler.H"
+#include "ml/Slater_BS.H"
+#include "ml/Slater_IBS.H"
+#include "radial/Slater/ExponentScaler.H"
 #include "Symmetry/Atom_EC.H"
 #include "Common/stl_io.h"
 #include <iostream>

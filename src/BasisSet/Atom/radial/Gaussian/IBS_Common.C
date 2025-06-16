@@ -1,7 +1,7 @@
 // File: Atom/radial/Gaussian/IBS_Common.C  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom Gaussians.
 
-#include "Atom/radial/Gaussian/IBS_Common.H"
-#include "Atom/radial/Gaussian/Integrals.H"
+#include "radial/Gaussian/IBS_Common.H"
+#include "radial/Gaussian/Integrals.H"
 #include <BasisSet/BasisFunction.H>
 #include <Symmetry.H>
 #include "oml/vector.h"

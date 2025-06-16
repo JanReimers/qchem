@@ -3,8 +3,8 @@
 #define _BSpline_IE_H_
 
 #include "../../BFGrouper.H"
-#include "Cache4.H"
-#include "DataBase/HeapDB.H"
+#include "../../../Cache4.H"
+#include "../../../DataBase/HeapDB.H"
 #include <bspline/Core.h>
 
 

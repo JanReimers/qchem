@@ -1,4 +1,4 @@
-#include "Atom/Wigner3j.H"
+#include "Wigner3j.H"
 #include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cassert>
 #include <iostream>
