@@ -3,7 +3,6 @@
 
 
 #include "Imp/Hamiltonian/LDAVxc.H"
-#include "Imp/Fitting/FittedFunction.H"
 #include "oml/smatrix.h"
 #include <ChargeDensity.H>
 #include <iostream>

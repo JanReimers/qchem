@@ -4,7 +4,6 @@
 #include "Cluster/Molecule.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
-#include "Imp/Fitting/FittedFunction.H"
 #include <BasisSet/HF_IBS.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
