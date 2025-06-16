@@ -1,7 +1,7 @@
 // File: Atom/radial/Gaussian/BS_Common.C  l/ml/kappa/mj independent part of BasisSet for atom Gaussians.
 
-#include "Imp/BasisSet/Atom/radial/Gaussian/BS_Common.H"
-#include "Imp/BasisSet/Atom/radial/Gaussian/Rk.H"
+#include "Atom/radial/Gaussian/BS_Common.H"
+#include "Atom/radial/Gaussian/Rk.H"
 #include <Irrep_BS.H>
 #include "oml/vector.h"
 

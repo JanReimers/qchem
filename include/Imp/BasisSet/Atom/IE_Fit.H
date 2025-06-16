@@ -3,7 +3,7 @@
 #define _Atom_IE_Fit_H_
 
 #include "IE.H"
-#include "Imp/BasisSet/DataBase/DB_Fit.H"
+#include "DataBase/DB_Fit.H"
 
 class AtomIE_Fit 
 : public virtual Primative_Repulsion<double>

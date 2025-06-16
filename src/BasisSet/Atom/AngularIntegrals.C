@@ -1,7 +1,7 @@
 // File: AngularIntegrals.C  Handle the angular part of 2-electron ERIs
 
-#include "Imp/BasisSet/Atom/AngularIntegrals.H"
-#include "Imp/BasisSet/Atom/Wigner3j.H"
+#include "Atom/AngularIntegrals.H"
+#include "Atom/Wigner3j.H"
 #include "Common/IntPower.H"
 #include "oml/vector.h"
 #include <cassert>

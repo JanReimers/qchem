@@ -2,7 +2,7 @@
 #ifndef _DB_DFT_H_
 #define _DB_DFT_H_
 
-#include "Imp/BasisSet/DataBase/HeapDB.H"
+#include "HeapDB.H"
 #include <DFT_IE.H>
 
 template <class T> class DB_DFT 

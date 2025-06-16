@@ -1,7 +1,7 @@
 // File: TBasisSetImplementation.C
 
 
-#include "Imp/BasisSet/Fit_IBS_Common.H"
+#include "Fit_IBS_Common.H"
 #include "Mesh/MeshIntegrator.H"
 #include "oml/matrix.h"
 #include "oml/vector.h"

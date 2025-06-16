@@ -1,6 +1,6 @@
 // File: Cache4.H Cache object based on four unsigned integer indices.
 
-#include "Imp/BasisSet/Cache4.H"
+#include "Cache4.H"
 
 Cache4::~Cache4()
 {

@@ -4,7 +4,7 @@
 
 #include "IE.H"
 #include "IE_HF_Angular.H"
-#include "Imp/BasisSet/DataBase/DB_HF.H"
+#include "DataBase/DB_HF.H"
 
 
 template <class T> class AtomIE_BS_2E 

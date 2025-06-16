@@ -1,10 +1,10 @@
 // File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
 
-#include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
-#include "Imp/BasisSet/Atom/ml/Gaussian_IBS.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
-#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+#include "Atom/ml/Gaussian_BS.H"
+#include "Atom/ml/Gaussian_IBS.H"
+#include "Molecule/PolarizedGaussian/Readers/Reader.H"
+#include "Molecule/PolarizedGaussian/RadialFunction.H"
+#include "Atom/radial/Gaussian/ExponentScaler.H"
 #include "Symmetry/Atom_EC.H"
 #include <algorithm>
 

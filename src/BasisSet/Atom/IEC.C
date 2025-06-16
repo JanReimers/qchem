@@ -1,6 +1,6 @@
 // File: AtomIEClient.C Common IE client code for all atom basis sets and IEs.
 
-#include "Imp/BasisSet/Atom/IEC.H"
+#include "Atom/IEC.H"
 
 
 void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l)

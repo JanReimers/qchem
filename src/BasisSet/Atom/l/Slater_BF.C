@@ -1,6 +1,6 @@
 // File: Atom/l/Slater_BF.H  r^l exp(-a*r) type Slater basis function.
 
-#include "Imp/BasisSet/Atom/l/Slater_BF.H"
+#include "Atom/l/Slater_BF.H"
 #include "Common/IntPower.H"
 #include "oml/vector3d.h"
 #include <iostream>

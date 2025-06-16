@@ -1,10 +1,10 @@
 // File: BasisSetFrame.cpp  GTK frame to show and manage basis set settings.
 
 #include "BasisSetFrame.H"
-#include "Imp/BasisSet/Atom/l/Slater_BS.H"
-#include "Imp/BasisSet/Atom/ml/Slater_BS.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
-#include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
+#include "Atom/l/Slater_BS.H"
+#include "Atom/ml/Slater_BS.H"
+#include "Atom/l/Gaussian_BS.H"
+#include "Atom/ml/Gaussian_BS.H"
 
 
 BasisSetFrame::BasisSetFrame() : Glib::ObjectBase("basisset_frame") {}

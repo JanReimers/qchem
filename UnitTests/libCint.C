@@ -1,11 +1,11 @@
 // File libCint.C   test the libCint molecular integral library
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-//#include "Imp/BasisSet/PolarizedGaussian/IEClient.H"
-#include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
-#include "Imp/BasisSet/PolarizedGaussian/Readers/Gaussian94.H"
-#include "Imp/BasisSet/PolarizedGaussian/Block.H"
+#include "PolarizedGaussian/BasisSet.H"
+//#include "PolarizedGaussian/IEClient.H"
+#include "PolarizedGaussian/IntegralEngine.H"
+#include "PolarizedGaussian/Readers/Gaussian94.H"
+#include "PolarizedGaussian/Block.H"
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <IntegralEngine.H>

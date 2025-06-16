@@ -2,7 +2,7 @@
 #ifndef _Slater_RkEngine_H_
 #define _Slater_RkEngine_H_
 
-#include "Imp/BasisSet/Cache4.H"
+#include "Cache4.H"
 #include "oml/matrix.h"
 
 namespace Slater

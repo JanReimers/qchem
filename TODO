@@ -380,7 +380,7 @@ Priority 3:
         -Out of folder includes in BasisSet/Atom    
             #include "Common/stl_io.h" .C file
             #include "Mesh/MeshIntegrator.H" libQchemMesh
-            #include "Imp/BasisSet/ERI4.H" .C file  move into BasisSet
+            #include "ERI4.H" .C file  move into BasisSet
             #include <Cluster.H> OK pure header
             #include <Symmetry.H> GetLabel .C file LibQchemBase
             #include "Common/IntPower.H" OK Pure header
@@ -388,17 +388,17 @@ Priority 3:
             #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
             #include "Common/Factorials.H" .C LibQchemBase
         -Out of folder includes in BasisSet/Molecule
-            #include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+            #include "Atom/radial/Gaussian/ExponentScaler.H"
             #include "Cluster/Atom.H"
-            #include "Imp/BasisSet/Molecule/Unit.H"
+            #include "Molecule/Unit.H"
             #include "Common/IntPower.H"
             #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
             #include "Common/DFTDefines.H" LibQchemBase
             #include "Common/PeriodicTable.H" LibQchemBase
 
         -Atom SG depends on 
-            #include "Imp/BasisSet/Molecule/PolarizedGaussian/Readers/Reader.H"
-            #include "Imp/BasisSet/Molecule/PolarizedGaussian/RadialFunction.H"
+            #include "Molecule/PolarizedGaussian/Readers/Reader.H"
+            #include "Molecule/PolarizedGaussian/RadialFunction.H"
 
     Done: -Small fixes
         Done: Irrep_QNs should be a separate header.

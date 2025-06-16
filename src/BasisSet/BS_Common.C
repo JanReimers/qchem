@@ -1,6 +1,6 @@
 // File: BasisSetImp/TCommon.H
 
-#include "Imp/BasisSet/BS_Common.H"
+#include "BS_Common.H"
 #include "Common/stl_io.h"
 #include <Irrep_BS.H>
 

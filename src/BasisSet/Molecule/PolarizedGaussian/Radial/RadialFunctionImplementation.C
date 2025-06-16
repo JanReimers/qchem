@@ -2,8 +2,8 @@
 
 
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Radial/Common.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite1.H"
+#include "Molecule/PolarizedGaussian/Radial/Common.H"
+#include "Molecule/PolarizedGaussian/MnD/Hermite1.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include <cmath>

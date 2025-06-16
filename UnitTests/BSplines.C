@@ -2,7 +2,7 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/Atom//radial/BSpline/IEC.H"
+#include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
 #include "Common/stl_io.h"
 #include "Mesh/MeshIntegrator.H"

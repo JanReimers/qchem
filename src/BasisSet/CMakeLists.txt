@@ -88,6 +88,7 @@ Molecule/PolarizedGaussian/BasisSet.C
 
 target_include_directories(qcBasisSet PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  
+    ${PROJECT_SOURCE_DIR}/include/Imp/BasisSet 
     ${PROJECT_SOURCE_DIR}/submodules/oml/include 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include

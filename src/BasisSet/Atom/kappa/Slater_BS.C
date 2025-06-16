@@ -1,8 +1,8 @@
 // File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 
-#include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
-#include "Imp/BasisSet/Atom/kappa/Slater_IBS.H"
-#include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
+#include "Atom/kappa/Slater_BS.H"
+#include "Atom/kappa/Slater_IBS.H"
+#include "Atom/radial/Slater/ExponentScaler.H"
 
 namespace Atom_kappa
 {

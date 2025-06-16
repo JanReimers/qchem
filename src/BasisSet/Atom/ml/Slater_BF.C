@@ -1,6 +1,6 @@
 // File: Atom/ml/Slater_BF.C  r^l exp(-ar)*Y_lm type basis function 
 
-#include "Imp/BasisSet/Atom/ml/Slater_BF.H"
+#include "Atom/ml/Slater_BF.H"
 #include "Common/IntPower.H"
 #include "oml/vector3d.h"
 #include <iostream>

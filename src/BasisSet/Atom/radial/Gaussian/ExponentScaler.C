@@ -1,6 +1,6 @@
 // File: Gaussian/ExponentScaler.C  Rescale Gaussian exponents based in angular momentum L.
 
-#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+#include "Atom/radial/Gaussian/ExponentScaler.H"
 
 template <class T> void FillPower(Vector<T>& arr,T start, T stop);
 

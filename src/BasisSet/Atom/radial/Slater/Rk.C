@@ -1,7 +1,7 @@
 // File: Slater::RkEngine.C  4 electron Charge distribution of Slater orbitals. 
 
-#include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
-#include "Imp/BasisSet/Atom/radial/PascalTriangle.H"
+#include "Atom/radial/Slater/Rk.H"
+#include "Atom/radial/PascalTriangle.H"
 #include "Common/Factorials.H"
 #include "oml/vector.h"
 

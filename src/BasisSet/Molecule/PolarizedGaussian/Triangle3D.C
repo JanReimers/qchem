@@ -1,5 +1,5 @@
 // File: Triangle.C  A triangular data structure.
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Triangle3D.H"
+#include "Molecule/PolarizedGaussian/Triangle3D.H"
 #include "Common/stl_io.h"
 #include <cassert>
 

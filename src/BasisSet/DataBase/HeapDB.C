@@ -1,6 +1,6 @@
 // File: HeapDB.H  Implement a heap storage integral data base.
 
-#include "Imp/BasisSet/DataBase/HeapDB.H"
+#include "DataBase/HeapDB.H"
 #include "Mesh/MeshIntegrator.H"
 #include <Irrep_BS.H>
 #include <Cluster.H>
@@ -119,7 +119,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_RestMass<T>::RestMass
         return i->second;
 }
 
-#include "Imp/BasisSet/DataBase/DB_DFT.H"
+#include "DataBase/DB_DFT.H"
 
 template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fbs_t& c) const
 { 
@@ -147,7 +147,7 @@ template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const 
 }
 template class DB_DFT<double>;
 
-#include "Imp/BasisSet/DataBase/DB_HF.H"
+#include "DataBase/DB_HF.H"
 
 template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db) 
     : itsDB_BS_2E(db) 
@@ -221,13 +221,13 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
 template class DB_2E<double>;
 template class DB_BS_2E<double>;
 
-#include "Imp/BasisSet/DataBase/DB_DHF.H"
+#include "DataBase/DB_DHF.H"
 
 template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
-#include "Imp/BasisSet/DataBase/DB_Fit.H"
+#include "DataBase/DB_Fit.H"
 #include <Fit_IBS.H>
 
 DB_Fit:: Vec_ref DB_Fit::Charge   () const

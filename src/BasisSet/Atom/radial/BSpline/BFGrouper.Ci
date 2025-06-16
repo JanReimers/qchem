@@ -1,7 +1,7 @@
 // File: BSpline/BFGrouper.C  Group BSpline basis functions by support start positions.
 
-#include "Imp/BasisSet/Atom/radial/BSpline/BFGrouper.H"
-#include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
+#include "Atom/radial/BSpline/BFGrouper.H"
+#include "Atom/radial/BSpline/IEC.H"
 #include "Common/stl_io.h"
 #include <cassert>
 #include <iostream>

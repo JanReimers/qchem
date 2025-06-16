@@ -3,7 +3,7 @@
 #define _DHF_IBS_Common_H_
 
 #include <DHF_IBS.H>
-#include "Imp/BasisSet/DataBase/DB_DHF.H"
+#include "DataBase/DB_DHF.H"
 #include "TIBS_Common.H"
 #include "IBS_Common.H"
 

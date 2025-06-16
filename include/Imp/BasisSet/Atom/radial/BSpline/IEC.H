@@ -3,7 +3,7 @@
 #define _BSplineIEClient_H_
 
 #include <IEClient.H> // <> prevents file search on this folder.
-#include "Imp/BasisSet/Atom/IEC.H"
+#include "../../IEC.H"
 #include <bspline/Core.h>
 #include "GLQuadrature.H"
 #include "oml/vector.h"

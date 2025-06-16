@@ -2,14 +2,14 @@
 
 #include "Symmetry/Atom_EC.H"
 #include <Factory.H>
-#include "Imp/BasisSet/Atom/l/Slater_BS.H"
-#include "Imp/BasisSet/Atom/ml/Slater_BS.H"
-#include "Imp/BasisSet/Atom/kappa/Slater_BS.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
-#include "Imp/BasisSet/Atom/ml/Gaussian_BS.H"
-#include "Imp/BasisSet/Atom/kappa/Gaussian_BS.H"
-#include "Imp/BasisSet/Atom/l/BSpline_BS.H"
-#include "Imp/BasisSet/Atom/ml/BSpline_BS.H"
+#include "Atom/l/Slater_BS.H"
+#include "Atom/ml/Slater_BS.H"
+#include "Atom/kappa/Slater_BS.H"
+#include "Atom/l/Gaussian_BS.H"
+#include "Atom/ml/Gaussian_BS.H"
+#include "Atom/kappa/Gaussian_BS.H"
+#include "Atom/l/BSpline_BS.H"
+#include "Atom/ml/BSpline_BS.H"
 #include <cassert>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;

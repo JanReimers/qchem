@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite1.H"
+#include "Molecule/PolarizedGaussian/MnD/Hermite1.H"
 #include "Common/IntPower.H"
 #include "oml/imp/binio.h"
 #include "oml/imp/stream.h"

@@ -1,6 +1,6 @@
 // File: ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
 
-#include "Imp/BasisSet/Atom/radial/Slater/ExponentScaler.H"
+#include "Atom/radial/Slater/ExponentScaler.H"
 
 
 template <class T> void FillPower(Vector<T>& arr,T start, T stop)

@@ -1,6 +1,6 @@
 // File: Atom/kappa/Slater_BF.C  Slater basis function with Restricted Kinetic Balance (RKB).
 
-#include "Imp/BasisSet/Atom/kappa/Slater_BF.H"
+#include "Atom/kappa/Slater_BF.H"
 #include "Symmetry/Okmj.H"
 #include "Common/IntPower.H"
 #include "oml/vector3d.h"

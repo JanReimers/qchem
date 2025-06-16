@@ -1,7 +1,7 @@
 // File: TBasisSetImplementation.C
 
 
-#include "Imp/BasisSet/TIBS_Common.H"
+#include "TIBS_Common.H"
 #include <BasisFunction.H>
 #include <LASolver.H>
 #include "oml/vector.h"

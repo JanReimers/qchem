@@ -1,8 +1,8 @@
 // File: Gaussian::Integrals.C  General gaussian integral.
 
 
-#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/BasisSet/Atom/AngularIntegrals.H"
+#include "Atom/radial/Gaussian/Integrals.H"
+#include "Atom/AngularIntegrals.H"
 #include "Common/Factorials.H"
 
 #include <iostream>

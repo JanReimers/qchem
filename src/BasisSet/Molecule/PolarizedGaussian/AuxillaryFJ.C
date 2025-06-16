@@ -1,6 +1,6 @@
 // File:  AuxillaryFJ.C  Class for calculating the auxiliary function.
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/AuxillaryFJ.H"
+#include "Molecule/PolarizedGaussian/AuxillaryFJ.H"
 #include "Common/DFTDefines.H"
 #include "Common/IntPower.H"
 #include "oml/vector.h"

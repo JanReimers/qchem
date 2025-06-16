@@ -2,8 +2,8 @@
 
 
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite2.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/Polarization.H"
+#include "Molecule/PolarizedGaussian/MnD/Hermite2.H"
+#include "Molecule/PolarizedGaussian/Polarization.H"
 #include "Common/IntPower.H"
 #include "oml/imp/binio.h"
 

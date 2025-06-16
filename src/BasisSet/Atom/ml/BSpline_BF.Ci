@@ -1,6 +1,6 @@
 // File: Atom/ml/BSpline_BF.C  B-Spline basis function.
 
-#include "Imp/BasisSet/Atom/ml/BSpline_BF.H"
+#include "Atom/ml/BSpline_BF.H"
 #include <iostream>
 #include <cassert>
 

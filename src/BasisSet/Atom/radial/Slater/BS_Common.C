@@ -1,7 +1,7 @@
 // File: Atom/radial/Slater/BS_Common.C  l/ml/kappa/mj independent part of BasisSet for atom Slater basis functions.
 
-#include "Imp/BasisSet/Atom/radial/Slater/BS_Common.H"
-#include "Imp/BasisSet/Atom/radial/Slater/Rk.H"
+#include "Atom/radial/Slater/BS_Common.H"
+#include "Atom/radial/Slater/Rk.H"
 #include <Irrep_BS.H>
 #include "oml/vector.h"
 

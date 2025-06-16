@@ -3,7 +3,7 @@
 #define _GaussianCD_H_
 
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite2.H"
+#include "Molecule/PolarizedGaussian/MnD/Hermite2.H"
 #include "Common/UniqueIDImp.H"
 #include <types.H>
 

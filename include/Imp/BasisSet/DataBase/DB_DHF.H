@@ -2,7 +2,7 @@
 #ifndef _DB_DHF_H_
 #define _DB_DHF_H_
 
-#include "Imp/BasisSet/DataBase/HeapDB.H"
+#include "HeapDB.H"
 #include <DHF_IE.H>
 
 template <class T> class DB_RKB 

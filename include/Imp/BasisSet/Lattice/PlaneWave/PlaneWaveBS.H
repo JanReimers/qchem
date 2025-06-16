@@ -4,8 +4,8 @@
 
 
 
-#include "Imp/BasisSet/IrrepBasisSetCommon.H"
-#include "Imp/BasisSet/TIrrepBasisSetCommon.H"
+#include "IrrepBasisSetCommon.H"
+#include "TIrrepBasisSetCommon.H"
 #include "Cluster/UnitCell.H"
 
 class Reader;

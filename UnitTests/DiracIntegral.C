@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "Imp/BasisSet/DHF_IBS_Common.H"
+#include "Imp/BasisSet/ERI4.H"
 // #include "Symmetry/Okmj.H"
 #include <Factory.H>
 #include <LAParams.H>
@@ -12,7 +13,6 @@
 #include "Common/DFTDefines.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include "Imp/BasisSet/ERI4.H"
 
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>

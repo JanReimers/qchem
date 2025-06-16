@@ -2,9 +2,9 @@
 
 #include "gtest/gtest.h"
 
-#include "Imp/BasisSet/PolarizedGaussian/IntegralEngine.H"
-#include "Imp/BasisSet/PolarizedGaussian/BasisSet.H"
-#include "Imp/BasisSet/PolarizedGaussian/IrrepBasisSet.H"
+#include "PolarizedGaussian/IntegralEngine.H"
+#include "PolarizedGaussian/BasisSet.H"
+#include "PolarizedGaussian/IrrepBasisSet.H"
 #include "Mesh/MeshIntegrator.H"
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"

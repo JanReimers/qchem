@@ -1,8 +1,8 @@
 // File: TBasisSetImplementation.C
 
 
-#include "Imp/BasisSet/TIBS_Common.H"
-#include "Imp/BasisSet/DFT_IBS_Common.H"
+#include "TIBS_Common.H"
+#include "DFT_IBS_Common.H"
 #include <Fit_IBS.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"

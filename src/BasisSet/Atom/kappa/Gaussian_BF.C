@@ -1,6 +1,6 @@
 // File: Atom/kappa/Gaussian_BF.C  Gaussians with Restricted Kinetic Balance (RKB).
 
-#include "Imp/BasisSet/Atom/kappa/Gaussian_BF.H"
+#include "Atom/kappa/Gaussian_BF.H"
 #include "Symmetry/Okmj.H"
 #include "Common/IntPower.H"
 #include "oml/vector3d.h"

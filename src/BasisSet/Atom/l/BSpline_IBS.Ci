@@ -1,8 +1,8 @@
 // File: Atom/l/BSpline_IBS.H  BSpline Irrep Basis Set (IBS) with orbital angular momentum l.
 
-#include "Imp/BasisSet/Atom/l/BSpline_IBS.H"
-#include "Imp/BasisSet/Atom/l/BSpline_BF.H"
-#include "Imp/BasisSet/Atom/radial/BSpline/IBS_Common.H"
+#include "Atom/l/BSpline_IBS.H"
+#include "Atom/l/BSpline_BF.H"
+#include "Atom/radial/BSpline/IBS_Common.H"
 #include "Symmetry/Yl.H"
 #include <BasisSet.H>
 #include <iostream>

@@ -1,8 +1,8 @@
 // File PolarizedGaussian/BasisSet.C
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/BasisSet.H"
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/IrrepBasisSet.H"
-#include "Imp/BasisSet/Atom/radial/Gaussian/ExponentScaler.H"
+#include "Molecule/PolarizedGaussian/BasisSet.H"
+#include "Molecule/PolarizedGaussian/IrrepBasisSet.H"
+#include "Atom/radial/Gaussian/ExponentScaler.H"
 #include <Cluster.H>
 
 namespace PolarizedGaussian

@@ -4,7 +4,7 @@
 
 
 #include "../IE.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_IE.H"
+#include "Atom/l/Gaussian_IE.H"
 
 class DiracIntegralTests;
 

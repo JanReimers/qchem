@@ -1,7 +1,7 @@
 // File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
 
-#include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
-#include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
+#include "Atom/radial/BSpline/Rk.H"
+#include "Atom/radial/BSpline/GLQuadrature.H"
 #include "Common/IntPower.H"
 #include "oml/vector.h"
 

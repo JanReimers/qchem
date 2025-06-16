@@ -1,7 +1,7 @@
 // File: OpenMP.C  
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/ERI4.H"
+#include "ERI4.H"
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include <omp.h>

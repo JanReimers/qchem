@@ -1,8 +1,8 @@
 // File: Atom/ml/Slater_IBS.C  Slater Irrep Basis Set (IBS) with orbital angular momentum l,m.
 
-#include "Imp/BasisSet/Atom/ml/Slater_IBS.H"
-#include "Imp/BasisSet/Atom/ml/Slater_BF.H"
-#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
+#include "Atom/ml/Slater_IBS.H"
+#include "Atom/ml/Slater_BF.H"
+#include "Atom/radial/Slater/Integrals.H"
 #include "Symmetry/Ylm.H"
 #include <iostream>
 #include <cassert>

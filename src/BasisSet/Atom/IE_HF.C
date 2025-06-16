@@ -1,8 +1,8 @@
 // File: AtomIE.C Common HF IE code for all atom basis sets.
 
-#include "Imp/BasisSet/Atom/IE_HF.H"
-#include "Imp/BasisSet/Atom/IEC.H"
-#include "Imp/BasisSet/ERI4.H"
+#include "Atom/IE_HF.H"
+#include "Atom/IEC.H"
+#include "ERI4.H"
 
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {

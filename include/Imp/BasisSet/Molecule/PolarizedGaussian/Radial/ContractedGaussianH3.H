@@ -3,7 +3,7 @@
 #define _ContractedGaussianH3_H_
 
 
-#include "Imp/BasisSet/Molecule/PolarizedGaussian/MnD/Hermite3.H"
+#include "Molecule/PolarizedGaussian/MnD/Hermite3.H"
 #include <types.H>
 #include <vector>
 #include <memory>

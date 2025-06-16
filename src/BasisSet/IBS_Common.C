@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/BasisSet/IBS_Common.H"
+#include "IBS_Common.H"
 #include <Symmetry.H>
 #include <BasisFunction.H>
 #include "Common/stl_io.h"

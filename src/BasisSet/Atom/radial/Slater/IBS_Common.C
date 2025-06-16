@@ -1,7 +1,7 @@
 // File: Atom/radial/Slater/IBS_Common.H  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom Slater functions.
 
-#include "Imp/BasisSet/Atom/radial/Slater/IBS_Common.H"
-#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
+#include "Atom/radial/Slater/IBS_Common.H"
+#include "Atom/radial/Slater/Integrals.H"
 #include <BasisFunction.H>
 #include <Symmetry.H>
 #include "oml/vector.h"

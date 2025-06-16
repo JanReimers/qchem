@@ -1,7 +1,7 @@
 // File: Atom/radial/BSpline/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom BSpline Basis Sets.
 
-#include "Imp/BasisSet/Atom/radial/BSpline/BS_Common.H"
-#include "Imp/BasisSet/Atom/radial/BSpline/Rk.H"
+#include "Atom/radial/BSpline/BS_Common.H"
+#include "Atom/radial/BSpline/Rk.H"
 #include <Irrep_BS.H>
 #include "oml/vector.h"
 

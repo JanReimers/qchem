@@ -1,8 +1,8 @@
 // File: Atoml_IE_HF_Angular.H  Angular 2e-Integrals for atoml HF basis sets.
 
-#include "Imp/BasisSet/Atom/l/IE_HF_Angular.H"
-#include "Imp/BasisSet/Atom/AngularIntegrals.H"
-#include "Imp/BasisSet/Atom/IEC.H"
+#include "Atom/l/IE_HF_Angular.H"
+#include "Atom/AngularIntegrals.H"
+#include "Atom/IEC.H"
 
 namespace Atoml
 {
