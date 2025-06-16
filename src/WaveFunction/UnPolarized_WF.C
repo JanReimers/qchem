@@ -45,5 +45,6 @@ void UnPolarized_WF::DisplayEigen() const
     for (size_t i=1;i<N-1;i++) eigen_table[i].format().hide_border_bottom();
     for (size_t i=2;i<N;i++) eigen_table[i].format().hide_border_top();
     for (size_t i:{1}) eigen_table.column(i).format().font_align(FontAlign::right);
+    for (size_t i:{0,2}) eigen_table.column(i).format().font_align(FontAlign::center);
     std::cout << eigen_table << std::endl;
 }

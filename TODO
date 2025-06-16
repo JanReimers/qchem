@@ -1,6 +1,6 @@
 
 Priority 1:
-    -eigen tables, hide border dark problem for Hydrogen (one row in table).
+    Fixed: -eigen tables, hide border dark problem for Hydrogen (one row in table).
     Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
         Either combine yl and ylm tests or make sure we are not duplicating.
     -DFT need to force Yl basis set instead of auto pick Ylm.

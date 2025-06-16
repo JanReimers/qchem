@@ -34,10 +34,10 @@ using namespace tabulate;
 Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
 void Polarized_WF::DisplayEigen() const
 {
-
+    StreamableObject::SetToPretty();
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);
-    eigen_table.add_row({"Occ/Degen ↑","ϵ↑ (au)","Symmetry","Occ/Degen ↓","ϵ↓ (au)","ϵ↑-ϵ↓ (au)"});
+    eigen_table.add_row({"Occ/Degen ↑","ϵ↑ (au)","n,Symmetry","Occ/Degen ↓","ϵ↓ (au)","ϵ↑-ϵ↓ (au)"});
 
 
     EnergyLevels els_up=GetEnergyLevels(Spin::Up), els_dn=GetEnergyLevels(Spin::Down);
@@ -63,7 +63,10 @@ void Polarized_WF::DisplayEigen() const
         eigen_table[n].format().font_color(l_colors[l]);
         if (dn.occ==0.0)
             for (size_t i:{3,4,5})
-                eigen_table[n][i].format().font_style({FontStyle::dark}).hide_border_top();
+            {
+                eigen_table[n][i].format().font_style({FontStyle::dark});//.hide_border_top();
+                if (n>1) eigen_table[n][i].format().hide_border_top();
+            }
         
 
     }
@@ -72,6 +75,7 @@ void Polarized_WF::DisplayEigen() const
     for (size_t i=1;i<N-1;i++) eigen_table[i].format().hide_border_bottom();
     for (size_t i=2;i<N;i++) eigen_table[i].format().hide_border_top();
     for (size_t i:{1,4,5}) eigen_table.column(i).format().font_align(FontAlign::right);
+    for (size_t i:{0,2,3}) eigen_table.column(i).format().font_align(FontAlign::center);
     cout << eigen_table << endl;
 }
 
