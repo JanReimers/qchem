@@ -5,7 +5,7 @@
 
 
 #include "../Polarization.H"
-#include "Molecule/PolarizedGaussian/Triangle3D.H"
+#include "PolarizedGaussian/Triangle3D.H"
 #include "oml/vector3d.h"
 #include <iosfwd>
 

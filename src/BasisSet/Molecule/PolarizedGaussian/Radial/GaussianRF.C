@@ -1,13 +1,13 @@
 // File: GaussianRF.C  Primative Gaussian in 3D space.
 
 
-#include "Molecule/PolarizedGaussian/MnD/Hermite1.H"
-#include "Molecule/PolarizedGaussian/MnD/RNLM.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianCD.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianH3.H"
-#include "Molecule/PolarizedGaussian/CDCache.H"
-#include "Molecule/PolarizedGaussian/Block.H"
+#include "PolarizedGaussian/MnD/Hermite1.H"
+#include "PolarizedGaussian/MnD/RNLM.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
+#include "PolarizedGaussian/Radial/GaussianCD.H"
+#include "PolarizedGaussian/Radial/GaussianH3.H"
+#include "PolarizedGaussian/CDCache.H"
+#include "PolarizedGaussian/Block.H"
 #include "Common/DFTDefines.H"
 #include "Cluster/Atom.H"
 #include <Cluster.H>

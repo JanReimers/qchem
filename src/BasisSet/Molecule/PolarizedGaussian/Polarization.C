@@ -2,7 +2,7 @@
 
 
 
-#include "Molecule/PolarizedGaussian/Polarization.H"
+#include "PolarizedGaussian/Polarization.H"
 #include "oml/imp/stream.h"
 #include "oml/imp/binio.h"
 

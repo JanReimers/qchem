@@ -4,8 +4,8 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-#include "Molecule/PolarizedGaussian/Readers/Gaussian94.H"
-#include "Molecule/PolarizedGaussian/BasisSet.H"
+#include "PolarizedGaussian/Readers/Gaussian94.H"
+#include "PolarizedGaussian/BasisSet.H"
 
 
 namespace BasisSetMolecule

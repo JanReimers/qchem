@@ -2,7 +2,7 @@
 
 
 
-#include "Molecule/PolarizedGaussian/Radial/GaussianH3.H"
+#include "PolarizedGaussian/Radial/GaussianH3.H"
 #include <iostream>
 #include <cassert>
 namespace PolarizedGaussian

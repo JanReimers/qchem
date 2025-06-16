@@ -1,9 +1,9 @@
 // File: CDCache.H
 
-#include "Molecule/PolarizedGaussian/CDCache.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianCD.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Molecule/PolarizedGaussian/MnD/RNLM.H"
+#include "PolarizedGaussian/CDCache.H"
+#include "PolarizedGaussian/Radial/GaussianCD.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
+#include "PolarizedGaussian/MnD/RNLM.H"
 #include <iomanip>
 
 namespace PolarizedGaussian

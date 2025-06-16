@@ -2,8 +2,8 @@
 
 
 
-#include "Molecule/PolarizedGaussian/MnD/RNLM.H"
-#include "Molecule/PolarizedGaussian/AuxillaryFJ.H"
+#include "PolarizedGaussian/MnD/RNLM.H"
+#include "PolarizedGaussian/AuxillaryFJ.H"
 #include "Common/IntPower.H"
 #include "oml/vector.h"
 #include <iostream>

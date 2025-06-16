@@ -2,7 +2,7 @@
 
 
 
-#include "Molecule/PolarizedGaussian/Radial/ContractedGaussianH3.H"
+#include "PolarizedGaussian/Radial/ContractedGaussianH3.H"
 #include "oml/vector.h"
 #include <cassert>
 namespace PolarizedGaussian

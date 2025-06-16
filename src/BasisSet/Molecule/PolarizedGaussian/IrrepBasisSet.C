@@ -2,11 +2,11 @@
 
 
 
-#include "Molecule/PolarizedGaussian/BasisFunction.H"
-#include "Molecule/PolarizedGaussian/IrrepBasisSet.H"
-#include "Molecule/PolarizedGaussian/IntegralEngine.H"
-#include "Molecule/PolarizedGaussian/Readers/Gaussian94.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianRF.H"
+#include "PolarizedGaussian/BasisFunction.H"
+#include "PolarizedGaussian/IrrepBasisSet.H"
+#include "PolarizedGaussian/IntegralEngine.H"
+#include "PolarizedGaussian/Readers/Gaussian94.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "Cluster/Atom.H"
 #include "Symmetry/Unit.H"
 #include <BasisSet/BasisSet.H>

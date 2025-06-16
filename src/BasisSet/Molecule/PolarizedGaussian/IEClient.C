@@ -1,8 +1,8 @@
 // File: PolarizedGaussian/IEClient.C
 
-#include "Molecule/PolarizedGaussian/IEClient.H"
-#include "Molecule/PolarizedGaussian/CDCache.H"
-#include "Molecule/PolarizedGaussian/Block.H"
+#include "PolarizedGaussian/IEClient.H"
+#include "PolarizedGaussian/CDCache.H"
+#include "PolarizedGaussian/Block.H"
 
 namespace PolarizedGaussian
 {

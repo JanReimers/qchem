@@ -2,7 +2,7 @@
 
 
 
-#include "Molecule/PolarizedGaussian/BasisFunction.H"
+#include "PolarizedGaussian/BasisFunction.H"
 #include "oml/io3d.h"
 #include <cmath>
 #include <iostream>

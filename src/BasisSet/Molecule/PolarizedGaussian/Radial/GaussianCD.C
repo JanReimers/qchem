@@ -1,8 +1,8 @@
 // File: GaussianCD.C  Charge distribution for two  gaussians.
 
 
-#include "Molecule/PolarizedGaussian/Radial/GaussianCD.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianRF.H"
+#include "PolarizedGaussian/Radial/GaussianCD.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
 
 namespace PolarizedGaussian
 {

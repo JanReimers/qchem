@@ -3,9 +3,9 @@
 
 
 #include "oml/matrix.h"
-#include "Molecule/PolarizedGaussian/Readers/Gaussian94.H"
-#include "Molecule/PolarizedGaussian/Radial/GaussianRF.H"
-#include "Molecule/PolarizedGaussian/Radial/ContractedGaussianRF.H"
+#include "PolarizedGaussian/Readers/Gaussian94.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
+#include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
 #include "Cluster/Atom.H"
 #include "Common/PeriodicTable.H"
 #include "oml/vector.h"

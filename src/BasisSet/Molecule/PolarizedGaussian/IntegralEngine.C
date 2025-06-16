@@ -1,13 +1,13 @@
 // File: IntegralEngine.C  Here is where all the integral get calculated.
 
 
-#include "Molecule/PolarizedGaussian/IEClient.H"
-#include "Molecule/PolarizedGaussian/IntegralEngine.H"
+#include "PolarizedGaussian/IEClient.H"
+#include "PolarizedGaussian/IntegralEngine.H"
 #include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "ERI4.H"
+#include "../ERI4.H"
 
 namespace PolarizedGaussian
 {

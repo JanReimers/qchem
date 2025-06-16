@@ -1,7 +1,7 @@
 // File PolarizedGaussian/BasisSet.C
 
-#include "Molecule/PolarizedGaussian/BasisSet.H"
-#include "Molecule/PolarizedGaussian/IrrepBasisSet.H"
+#include "PolarizedGaussian/BasisSet.H"
+#include "PolarizedGaussian/IrrepBasisSet.H"
 #include <Cluster.H>
 
 namespace PolarizedGaussian

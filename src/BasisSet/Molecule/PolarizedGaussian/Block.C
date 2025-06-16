@@ -2,7 +2,7 @@
 
 
 
-#include "Molecule/PolarizedGaussian/Block.H"
+#include "PolarizedGaussian/Block.H"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include "Common/stl_io.h"
