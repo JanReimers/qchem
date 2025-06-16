@@ -255,7 +255,7 @@ TEST_F(A_SG_HFP_H,Phir)
 {
     int N=22;
     double alpha=0.01024,beta=2.0;
-     nlohmann::json js = {
+    nlohmann::json js = {
         {"type",BasisSetAtom::Type::Gaussian},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };

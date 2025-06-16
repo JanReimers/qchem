@@ -2,17 +2,18 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/Atom/radial/Gaussian/Integrals.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_IE.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_BS.H"
-#include "Imp/BasisSet/Atom/l/Gaussian_IBS.H"
 #include "Symmetry/Yl.H"
+#include <Factory.H>
+#include <LAParams.H>
+#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include "Mesh/MeshIntegrator.H"
 #include "Common/DFTDefines.H"
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>
+#include "oml/vector.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include "oml/imp/ran250.h"
@@ -35,10 +36,15 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Atoml::Gaussian::BasisSet(5,.01,100.0,Lmax))
+    , bs(0)
     , cl(new Molecule())
     , mintegrator()
     {
+        nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Gaussian},
+        {"N", 5}, {"emin", 0.01}, {"emax", 100.0},
+        };
+        bs=BasisSetAtom::Factory(js,75);
         bs->Set(lap);
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
@@ -49,7 +55,7 @@ public:
     
     int Lmax, Z;
     LAParams lap;
-    Atoml::Gaussian::BasisSet* bs;
+    BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

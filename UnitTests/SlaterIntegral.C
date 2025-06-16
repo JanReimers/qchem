@@ -2,12 +2,8 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/Atom/radial/Slater/Integrals.H"
-
-#include "Imp/BasisSet/Atom/l/Slater_IE.H"
-#include "Imp/BasisSet/Atom/l/Slater_BS.H"
-#include "Imp/BasisSet/Atom/l/Slater_IBS.H"
-#include "Imp/BasisSet/Atom/l/Slater_BF.H"
+#include "Imp/BasisSet/DataBase/DB_HF.H"
+#include "Imp/BasisSet/Atom/IEC.H"
 #include "Symmetry/Yl.H"
 
 #include "Mesh/MeshIntegrator.H"
@@ -15,7 +11,11 @@
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include "Imp/BasisSet/ERI4.H"
-
+#include <Factory.H>
+#include <LAParams.H>
+#include <BasisSet.H>
+#include <Irrep_BS.H>
+#include <HF_IBS.H>
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include "oml/imp/ran250.h"
@@ -38,9 +38,14 @@ public:
     : Lmax(4    )
     , Z(1)
     , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
-    , bs(new Atoml::Slater::BasisSet(6,0.1,10,Lmax))
+    , bs(0)
     , cl(new Molecule())
     {
+        nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Slater},
+        {"N", 6}, {"emin", 0.1}, {"emax", 10.0},
+        };
+        bs=BasisSetAtom::Factory(js,75);
         bs->Set(lap);
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
@@ -57,7 +62,7 @@ public:
     
     int Lmax, Z;
     LAParams lap;
-    Atoml::Slater::BasisSet* bs;
+    BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;
@@ -234,14 +239,16 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
 
 TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 {
-    for (auto iab:bs->Iterate<Atoml::Slater::Orbital_IBS>())
+    const DB_BS_2E<double>* hfdb=dynamic_cast<const DB_BS_2E<double>*>(bs);
+    assert(hfdb);
+    for (auto iab:bs->Iterate<AtomIrrepIEClient>())
     {
         // const Orbital_IBS* iab1=iab;
         // cout << (void*)iab << " " << (void*)iab1 << endl;
-    for (auto icd:bs->Iterate<Atoml::Slater::Orbital_IBS>(iab))
+    for (auto icd:bs->Iterate<AtomIrrepIEClient>(iab))
     {
-        int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERI4 J=bs->Direct(iab->GetID(),icd->GetID());
+        int Nab=iab->size(), Ncd=icd->size();
+        ERI4 J=hfdb->Direct(iab->GetID(),icd->GetID());
        
         for (int ia=1 ;ia<=Nab;ia++)
         for (int ib=ia;ib<=Nab;ib++)
@@ -257,9 +264,9 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
                     double jv=Jab(ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
                     if (fabs(jv-r0)/jv>1e-12)
                     {
-                        cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
-                        cout << iab->GetSymmetry() << " " << icd->GetSymmetry() << endl; 
-                        cout << "j,r=" << jv << " " << r0 << endl;
+                        // cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
+                        // cout << iab->GetSymmetry() << " " << icd->GetSymmetry() << endl; 
+                        // cout << "j,r=" << jv << " " << r0 << endl;
                         assert(false);                 
                     }
                     // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;

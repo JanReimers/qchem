@@ -1,14 +1,14 @@
 // file: EigenSolverUT.C  Unit test for the eigen solver
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/Atom/l/Slater_BS.H"
+#include <BasisSet.H>
+#include <Irrep_BS.H>
 #include <LAParams.H>
 #include <LASolver.H>
-// #include "oml/numeric/LapackSVDSolver.H"
-// #include "oml/diagonalmatrix.h"
-// #include "oml/numeric.h"
+#include <Factory.H>
 #include <iostream> 
 #include <cassert>
+#include "oml/smatrix.h"
 
 using std::cout;
 using std::endl;
@@ -29,12 +29,16 @@ public:
     void Set(int N, LAParams lap)
     {
         if (bs) delete bs;
-        bs=new Atoml::Slater::BasisSet(N,0.1,10,Lmax);
+        nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Slater},
+        {"N", N}, {"emin", 0.1}, {"emax", 10.0},
+        };
+        bs=BasisSetAtom::Factory(js,75);
         bs->Set(lap);
     }    
     
     int Lmax;
-    Atoml::Slater::BasisSet* bs;
+    BasisSet* bs;
  };
 
  const double trunc_tol=1e-12;

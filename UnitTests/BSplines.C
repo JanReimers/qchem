@@ -2,8 +2,8 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/Atom/l/BSpline_BS.H"
-#include "Imp/BasisSet/Atom/l/BSpline_IBS.H"
+#include "Imp/BasisSet/Atom//radial/BSpline/IEC.H"
+
 #include "Common/stl_io.h"
 #include "Mesh/MeshIntegrator.H"
 #include "Cluster/Atom.H"
@@ -11,7 +11,12 @@
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include <Symmetry.H>
+#include <Factory.H>
+#include <LAParams.H>
+#include <BasisSet.H>
+#include <Irrep_BS.H>
 
+#include "oml/vector.h"
 #include "oml/smatrix.h"
 #include <bspline/Core.h>
 #include <iostream>
@@ -37,7 +42,11 @@ public:
     }
     void Init(int N, double rmin, double rmax)
     {
-        bs=new Atoml::BSpline::BasisSet<K>(N,rmin,rmax,LMax);
+        nlohmann::json js = {
+        {"type",BasisSetAtom::Type::BSpline},
+        {"N", N}, {"rmin", rmin}, {"rmax", rmax},
+        };
+        bs=BasisSetAtom::Factory(js,75);
         for (auto io:bs->Iterate<ibs_t>()) itsIBSs.push_back(io);
 
         std::vector<double> knots=MakeLogKnots(0.01,2000.0,K,10);
@@ -237,11 +246,11 @@ TEST_F(BSplineTests, Nuclear)
     cout << "Nuclear ";
     cout.precision(3);
     Init(10,.1,40.);
-    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
+    for (auto ibs:bs->Iterate<const TOrbital_IBS<double>>())
     {
         cout << *ibs->GetSymmetry();
-        const TOrbital_IBS<double>* ibs1=ibs;
-        SMatrix<double> Ven=ibs1->Nuclear(cl);
+        // const TOrbital_IBS<double>* ibs1=ibs;
+        SMatrix<double> Ven=ibs->Nuclear(cl);
         for (auto i:Ven.rows()) //Check banded
             for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
         
@@ -258,11 +267,10 @@ TEST_F(BSplineTests, Kinetic)
     cout << "Kinetic ";
     cout.precision(3);
     Init(10,.1,40.);
-    for (auto ibs:bs->Iterate<Atoml::BSpline::Orbital_IBS<K> >())
+    for (auto ibs:bs->Iterate<const TOrbital_IBS<double>>())
     {
         cout << *ibs->GetSymmetry();
-        const TOrbital_IBS<double>* ibs1=ibs;
-        SMatrix<double> T=ibs1->Kinetic();
+        SMatrix<double> T=ibs->Kinetic();
         for (auto i:T.rows()) //Check banded
             for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
         

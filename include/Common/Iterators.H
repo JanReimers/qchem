@@ -12,7 +12,7 @@ public:
     D_iterator(const it_t& b) : current(b) {};
     D_iterator(const it_t& b, const D* c) : current(b) //STL won't let us construct current(c).
     {
-        while ((*current).get()!=c) 
+        while (this->operator*()!=c) 
             ++current; //Clunky
     };
     it_t operator++() {return ++current;} //Prefix only.

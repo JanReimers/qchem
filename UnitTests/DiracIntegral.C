@@ -45,6 +45,7 @@ public:
     , gbs(new Atom_kappa::Gaussian::BasisSet(3,0.1,10,Lmax))
     , cl(new Molecule())
     {
+        
         sbs->Set(lap);
         gbs->Set(lap);
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
