@@ -4,7 +4,7 @@
 
 #include "Imp/Orbitals/TOrbitals.H"
 #include "Imp/Orbitals/TOrbital.H"
-#include "Imp/ChargeDensity/IrrepCD.H"
+#include <ChargeDensity/Factory.H>
 #include "Common/DFTDefines.H"
 #include <BasisSet/Irrep_BS.H>
 #include <Symmetry.H>
@@ -105,7 +105,7 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
 
 template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 {
-    return new IrrepCD<T>(itsD,itsBasisSet,GetQNs());
+    return IrrepCD_Factory(itsD,itsBasisSet,GetQNs());
 }
 
 

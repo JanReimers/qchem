@@ -4,8 +4,9 @@
 
 #include "Imp/Hamiltonian/FittedVee.H"
 #include <ChargeDensity/ChargeDensity.H>
+#include <ChargeDensity/FittedCD.H>
+#include <ChargeDensity/Factory.H>
 #include <BasisSet/DFT_IBS.H>
-#include "Imp/ChargeDensity/FittedCD.H"
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <cassert>
@@ -17,7 +18,7 @@ FittedVee::FittedVee()
 {};
 
 FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElectrons)
-    : itsFittedChargeDensity(new FittedCDImp<double>(chargeDensityFitBasisSet,m,numElectrons))
+    : itsFittedChargeDensity(FittedCD_Factory(chargeDensityFitBasisSet,m,numElectrons))
 {
     assert(itsFittedChargeDensity);
 };

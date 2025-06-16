@@ -28,17 +28,7 @@ private:
     DM_CD* itsSpinDownCD;
 };
 
-class SpinDensity : public virtual ScalarFunction<double>
-{
-public:
-    SpinDensity(DM_CD* up,DM_CD* down);
-    ~SpinDensity();
-    virtual double operator()(const RVec3&) const; // No UT coverage
-    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
-private:
-    DM_CD* itsSpinUpCD;
-    DM_CD* itsSpinDownCD;
-};
+
 
 
 #endif //_PolarizedCDImp_H_

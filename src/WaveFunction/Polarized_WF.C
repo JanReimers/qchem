@@ -1,7 +1,8 @@
 // File: Polarized_WF.C  Wave function for an unpolarized atom.
 
 #include "Imp/WaveFunction/Polarized_WF.H"
-#include "Imp/ChargeDensity/PolarizedCD.H"
+#include <ChargeDensity/ChargeDensity.H>
+#include <ChargeDensity/Factory.H>
 #include <cassert>
 #include <iostream>
 #include <iomanip>
@@ -19,7 +20,7 @@ Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SC
 
 DM_CD* Polarized_WF::GetChargeDensity() const
 {
-    return new Polarized_CDImp(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
+    return PolarizedCD_Factory(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
 WaveFunction::sf_t* Polarized_WF::GetSpinDensity() const

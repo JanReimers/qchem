@@ -2,7 +2,7 @@
 
 
 
-#include "CompositeCD.H"
+#include <ChargeDensity/CompositeCD.H>
 #include <BasisSet/HF_IBS.H>
 #include <BasisSet/Fit_IBS.H>
 #include "oml/smatrix.h"

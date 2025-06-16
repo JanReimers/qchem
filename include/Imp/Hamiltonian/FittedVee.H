@@ -25,7 +25,7 @@ class FittedVee
     , private        Dynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const Mesh>    mesh_t;
     typedef std::shared_ptr<const Fit_IBS> bs_t;
     FittedVee();
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);

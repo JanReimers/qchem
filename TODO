@@ -47,6 +47,11 @@ Priority 1:
         libqcChargeDensity
             Ham and CD are tightly coupled
                 IrrepCD needs Static/Dynamic Hamilton terms. to call GetMatrix. 
+            factory
+                move Composite_CD to interface
+                need
+                    FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
+                    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
         libqcHamiltonian
         libqcWaveFunction
         -this will require decouple Ham from WF.  Make a factory function in WF interface.

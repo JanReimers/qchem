@@ -2,7 +2,7 @@
 
 #include "Imp/WaveFunction/Composite_WF.H"
 #include "Imp/WaveFunction/Irrep_WF.H"
-#include "Imp/ChargeDensity/CompositeCD.H"
+#include <ChargeDensity/CompositeCD.H>
 #include "Imp/SCF/SCFAccelerator_Null.H"
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
