@@ -242,7 +242,7 @@
 
 1728746622 /home/janr/Code/qchem/src/DFTDataBase/HeapDB/HeapDB.H
 	"IntegralDataBase.H"
-	<IEClient.H>
+	<BasisSet/IEClient.H>
 	"Imp/BasisSet/ERI4.H"
 	<map>
 
@@ -611,7 +611,7 @@
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
 	<Cluster.H>
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 	"oml/imp/ran250.h"
 	<iostream>
 	<fstream>
@@ -895,12 +895,12 @@
 	"Imp/Misc/UniqueID/UniqueID.H"
 
 1728492922 /home/janr/Code/qchem/src/BasisSetImplementation/SphericalGaussian/IEClient.H
-	<IEClient.H>
+	<BasisSet/IEClient.H>
 	"oml/vector.h"
 
 1728492922 /home/janr/Code/qchem/src/BasisSetImplementation/PolarizedGaussian/IEClient.H
 	"BasisSetImplementation/PolarizedGaussian/BasisFunctionBlock.H"
-	<IEClient.H>
+	<BasisSet/IEClient.H>
 	"oml/vector.h"
 	<vector>
 
@@ -918,7 +918,7 @@
 	"Imp/Containers/ptr_vector.h"
 
 1734102141 /home/janr/Code/qchem/include/Imp/BasisSet/TCommon.H
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 
 1734374032 /home/janr/Code/qchem/include/Imp/Integrals/SlaterIntegrals.H
 	"Imp/Misc/IntPower.H"
@@ -933,7 +933,7 @@
 
 1732455178 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/IEClient.H
 	"Polarization.H"
-	<IEClient.H>
+	<BasisSet/IEClient.H>
 	"oml/vector.h"
 	<vector>
 
@@ -1020,7 +1020,7 @@
 	"Imp/Containers/ptr_vector.h"
 
 1732197866 /home/janr/Code/qchem/include/Imp/BasisSet/TIBS_Common.H
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 	<LAParams.H>
 
 1728702044 /home/janr/Code/qchem/include/Imp/LAParams.H
@@ -1088,7 +1088,7 @@
 	"Imp/Misc/UniqueID/UniqueID.H"
 
 1728772650 /home/janr/Code/qchem/include/Imp/BasisSet/Slater/BasisFunction.H
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 
 1729116829 /home/janr/Code/qchem/UnitTests/AtomTesterSlater.H
 	"BaseTester.H"
@@ -1130,7 +1130,7 @@
 	<WaveFunction.H>
 	<Hamiltonian.H>
 	<Cluster.H>
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 	<TotalEnergy.H>
 	<memory>
 	<cmath>
@@ -1274,7 +1274,7 @@
 	<ScalarFunction.H>
 
 1729443462 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 	<FittedFunction.H>
 	<Mesh.H>
 	<LAParams.H>
@@ -1303,7 +1303,7 @@
 
 1728746622 /home/janr/Code/qchem/include/Imp/DataBase/HeapDB.H
 	"IntegralDataBase.H"
-	<IEClient.H>
+	<BasisSet/IEClient.H>
 	"Imp/BasisSet/ERI4.H"
 	<map>
 
@@ -1467,7 +1467,7 @@
 	<fstream>
 
 1732225411 /home/janr/Code/qchem/include/Imp/BasisSet/AtomIEClient.H
-	<IEClient.H>
+	<BasisSet/IEClient.H>
 	"oml/vector.h"
 	<set>
 
@@ -1515,7 +1515,7 @@
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
 	<Cluster.H>
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 	<iostream>
 
 1734554189 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/IntegralEngine.H
@@ -1530,7 +1530,7 @@
 	"../TCommon.H"
 
 1734395772 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/BasisFunction.H
-	<BasisSet.H>
+	<BasisSet/BasisSet.H>
 
 1734387873 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_mj/IrrepBasisSet.H
 	"IEClient.H"

@@ -2,7 +2,7 @@
 
 
 #include "TIBS_Common.H"
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 #include <LASolver.H>
 #include "oml/vector.h"
 

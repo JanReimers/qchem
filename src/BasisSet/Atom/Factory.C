@@ -1,7 +1,7 @@
 // File::BasisSet/Atom/Factory.C  Factory function for atom basis sets.
 
 #include "Symmetry/Atom_EC.H"
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include "Atom/l/Slater_BS.H"
 #include "Atom/ml/Slater_BS.H"
 #include "Atom/kappa/Slater_BS.H"

@@ -5,10 +5,10 @@
 #include "Imp/BasisSet/DHF_IBS_Common.H"
 #include "Imp/BasisSet/ERI4.H"
 // #include "Symmetry/Okmj.H"
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include <LAParams.H>
-#include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
 #include "Mesh/MeshIntegrator.H"
 #include "Common/DFTDefines.H"
 #include "Cluster/Atom.H"

@@ -1,7 +1,7 @@
 // File: BasisSet.C
 
-#include <BasisSet.H>
-#include <DFT_IBS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/DFT_IBS.H>
 
 
 Fit_IBS* BasisSet::CreateCDFitBasisSet(const Cluster* cl) const

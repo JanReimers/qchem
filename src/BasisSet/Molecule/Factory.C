@@ -1,5 +1,5 @@
 // File::BasisSet/Molecule/Factory.C  Factory function for molecular basis sets.
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include <cassert>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;

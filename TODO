@@ -2,7 +2,7 @@
 Priority 1:
     -eigen tables, hide border dark problem for Hydrogen (one row in table).
     -Atom tests  Yl and Ylm basis is now chosen automatically.  
-        Either combine yl and ylm tests or make we are not duplicating.
+        Either combine yl and ylm tests or make sure we are not duplicating.
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
     -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAccelerator_DIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(): Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
@@ -43,12 +43,23 @@ Priority 1:
         libqcMolecule_BS
         libqcLattice_BS
         this will require isolating basis set reader code so atom and molecule can see them.
-    Modules
+    Header reorg
         How to control header access?
         Right now all headers are pooled.  It would nice to control header access with
            include search dirs.  Each module can only headers for its dependencies.
+        For BasisSet module:
+            -<BasisSet/IEClient.H> is only used internally but IrrepBasisSet inherits from it.
+                What if IBS_Common inherits IEClient instead?
+            -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
+                BasisFunction.  Irrep_BS iterator returns BasisFunction.
+            <BasisSet/XXX_IE> are included by <BasisSet/XXX_IBS> *and* various internal DB headers
+                We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see TOrbital_HF_IBS interfaces
+                which is more than they need.  Small problem to eliminate 4 public/internal headers?
+    Modules
 
         Try making a C++20 module
+            Wait for gcc-15
+            need a recent version of CMake
 
 
     -Play around with plane wave basis sets

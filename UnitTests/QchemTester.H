@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 #include <types.H>
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 #include <SCFParams.H>
 #include <LAParams.H>
 #include "Common/PeriodicTable.H"

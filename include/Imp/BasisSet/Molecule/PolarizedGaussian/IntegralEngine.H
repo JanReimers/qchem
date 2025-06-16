@@ -10,7 +10,7 @@
 #include "DataBase/DB_HF.H"
 #include "DataBase/DB_Fit.H"
 
-#include <IntegralEngine.H>
+#include <BasisSet/IntegralEngine.H>
 #include "oml/vector.h"
 
 namespace PolarizedGaussian

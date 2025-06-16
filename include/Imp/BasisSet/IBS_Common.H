@@ -4,7 +4,7 @@
 
 
 
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include "Common/UniqueIDImp.H"
 
 //---------------------------------------------------------------------

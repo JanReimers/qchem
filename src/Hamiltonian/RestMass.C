@@ -2,7 +2,7 @@
 
 #include "Imp/Hamiltonian/RestMass.H"
 #include "Common/DFTDefines.H"
-#include <DHF_IBS.H>
+#include <BasisSet/DHF_IBS.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>
 

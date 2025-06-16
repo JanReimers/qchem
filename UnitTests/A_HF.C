@@ -4,7 +4,7 @@
 #include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include <Factory.H> //Just to get the types.
+#include <BasisSet/Factory.H> //Just to get the types.
 
 const bool verbose=true;
 inline SCFParams scf_params(int Z) 

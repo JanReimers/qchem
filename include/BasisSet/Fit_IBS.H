@@ -2,8 +2,8 @@
 #ifndef Fit_IBS_H_
 #define Fit_IBS_H_
 
-#include <Irrep_BS.H>
-#include <Fit_IE.H>
+#include <BasisSet/Irrep_BS.H>
+#include <BasisSet/Fit_IE.H>
 
 class Fit_IBS
     : public virtual TIrrepBasisSet<double>

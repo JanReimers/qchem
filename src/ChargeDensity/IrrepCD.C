@@ -5,9 +5,9 @@
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Imp/Hamiltonian/HamiltonianTerm.H"
 #include "Imp/Fitting/FittedFunction.H"
-#include <HF_IBS.H>
-#include <Fit_IBS.H>
-#include <DFT_IBS.H>
+#include <BasisSet/HF_IBS.H>
+#include <BasisSet/Fit_IBS.H>
+#include <BasisSet/DFT_IBS.H>
 #include <Symmetry.H>
 #include <ChargeDensity.H>
 #include "oml/vector3d.h"

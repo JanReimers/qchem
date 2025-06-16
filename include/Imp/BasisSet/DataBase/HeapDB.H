@@ -4,8 +4,8 @@
 
 
 
-#include <IEClient.H>
-#include <IntegralEngine.H>
+#include <BasisSet/IEClient.H>
+#include <BasisSet/IntegralEngine.H>
 #include "../ERI4.H"
 #include <map>
 #include "oml/vector.h"

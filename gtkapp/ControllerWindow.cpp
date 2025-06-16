@@ -67,7 +67,7 @@ bool ControllerWindow::close_request()
 #include <Mesh/MeshParams.H>
 #include <SCFIterator.H>
 #include <SCFParams.H>
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 #include <WaveFunction.H>
 #include <ChargeDensity.H>
 

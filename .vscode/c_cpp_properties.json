@@ -10,6 +10,7 @@
                 "${workspaceFolder}/submodules/json/single_include",
                 "${workspaceFolder}/include/Imp/Cluster",
                 "${workspaceFolder}/include/Imp/LASolver",
+                "${workspaceFolder}/include/Imp/BasisSet",
                 "/usr/include/gtkmm-4.0",
                 "/usr/lib/x86_64-linux-gnu/gtkmm-4.0/include",
                 "/usr/include/giomm-2.68",

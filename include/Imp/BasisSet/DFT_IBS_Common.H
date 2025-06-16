@@ -2,7 +2,7 @@
 #ifndef _DFT_IBS_Common_H_
 #define _DFT_IBS_Common_H_
 
-#include <DFT_IBS.H>
+#include <BasisSet/DFT_IBS.H>
 template <class T> class Orbital_DFT_IBS_Common
     : public virtual TOrbital_DFT_IBS<T>
 {

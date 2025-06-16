@@ -2,7 +2,7 @@
 
 #include "Atom/IE_DFT.H"
 #include "Atom/IEC.H"
-#include <Fit_IBS.H>
+#include <BasisSet/Fit_IBS.H>
 
 template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const fbs_t& _c) const
 {

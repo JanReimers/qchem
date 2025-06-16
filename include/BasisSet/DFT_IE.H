@@ -2,7 +2,7 @@
 #ifndef _DFT_IE_H_
 #define _DFT_IE_H_
 
-#include <IntegralEngine.H>
+#include <BasisSet/IntegralEngine.H>
 
 //! \brief Interface for 3-center integrals used in DFT calculations.
 template <class T> class Integrals_DFT : public virtual Integrals_Base<T>

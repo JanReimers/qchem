@@ -3,7 +3,7 @@
 
 
 #include "Imp/Hamiltonian/Vee.H"
-#include <HF_IBS.H>
+#include <BasisSet/HF_IBS.H>
 #include <ChargeDensity.H>
 #include <TotalEnergy.H>
 #include "oml/smatrix.h"

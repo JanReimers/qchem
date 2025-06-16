@@ -3,10 +3,10 @@
 
 #include "gtest/gtest.h"
 #include "Symmetry/Yl.H"
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include <LAParams.H>
-#include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
 #include "Mesh/MeshIntegrator.H"
 #include "Common/DFTDefines.H"
 #include "Cluster/Molecule.H"

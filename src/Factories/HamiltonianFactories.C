@@ -12,7 +12,7 @@
 #include "Imp/Hamiltonian/FittedVxcPol.H"
 #include "Imp/Hamiltonian/LDAVxc.H"
 #include "Imp/Hamiltonian/Hamiltonian.H"
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 
 #include <string>
 #include <iostream>

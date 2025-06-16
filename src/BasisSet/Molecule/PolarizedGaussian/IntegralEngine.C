@@ -3,8 +3,8 @@
 
 #include "Molecule/PolarizedGaussian/IEClient.H"
 #include "Molecule/PolarizedGaussian/IntegralEngine.H"
-#include <Irrep_BS.H>
-#include <Fit_IBS.H>
+#include <BasisSet/Irrep_BS.H>
+#include <BasisSet/Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include "ERI4.H"

@@ -5,7 +5,7 @@
 #include "Imp/Orbitals/TOrbitals.H"
 
 #include <ElectronConfiguration.H>
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include <LASolver.H>
 #include <Hamiltonian.H>
 #include "oml/vector.h"

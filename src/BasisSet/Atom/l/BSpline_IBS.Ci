@@ -4,7 +4,7 @@
 #include "Atom/l/BSpline_BF.H"
 #include "Atom/radial/BSpline/IBS_Common.H"
 #include "Symmetry/Yl.H"
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 #include <iostream>
 #include <cassert>
 

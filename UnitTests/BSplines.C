@@ -11,10 +11,10 @@
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include <Symmetry.H>
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include <LAParams.H>
-#include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
 
 #include "oml/vector.h"
 #include "oml/smatrix.h"

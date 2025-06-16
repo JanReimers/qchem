@@ -2,8 +2,8 @@
 #ifndef _DFT_IBS_H_
 #define _DFT_IBS_H_
 
-#include <Irrep_BS.H>
-#include <DFT_IE.H>
+#include <BasisSet/Irrep_BS.H>
+#include <BasisSet/DFT_IE.H>
 template <class T> class TOrbital_DFT_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_DFT<T> //DFT integrals

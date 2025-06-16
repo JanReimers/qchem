@@ -3,7 +3,7 @@
 #define _Irrep_BS_H_
 
 #include <types.H>
-#include <IEClient.H>
+#include <BasisSet/IEClient.H>
 #include <UniqueID.H>
 #include <Common/Iterators.H>
 #include "Common/pmstream.h" 
@@ -82,7 +82,7 @@ public:
     size_t GetVectorSize() const {return GetNumFunctions();}
 };
 
-#include <IntegralEngine.H>
+#include <BasisSet/IntegralEngine.H>
 //
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 

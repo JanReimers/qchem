@@ -3,7 +3,7 @@
 
 #include "TIBS_Common.H"
 #include "DFT_IBS_Common.H"
-#include <Fit_IBS.H>
+#include <BasisSet/Fit_IBS.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 

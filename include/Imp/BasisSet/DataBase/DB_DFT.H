@@ -3,7 +3,7 @@
 #define _DB_DFT_H_
 
 #include "HeapDB.H"
-#include <DFT_IE.H>
+#include <BasisSet/DFT_IE.H>
 
 template <class T> class DB_DFT 
     : virtual public Integrals_DFT<T>

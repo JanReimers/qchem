@@ -2,7 +2,7 @@
 #ifndef _DHF_IBS_Common_H_
 #define _DHF_IBS_Common_H_
 
-#include <DHF_IBS.H>
+#include <BasisSet/DHF_IBS.H>
 #include "DataBase/DB_DHF.H"
 #include "TIBS_Common.H"
 #include "IBS_Common.H"

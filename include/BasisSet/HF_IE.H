@@ -2,7 +2,7 @@
 #ifndef _HF_IE_H_
 #define _HF_IE_H_
 
-#include <IntegralEngine.H>
+#include <BasisSet/IntegralEngine.H>
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
 //! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)

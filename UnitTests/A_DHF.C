@@ -15,7 +15,7 @@
 #include "Mesh/MeshIntegrator.H"
 #include <Mesh/MeshParams.H>
 #include <Mesh.H>
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 
 using std::cout;
 using std::endl;

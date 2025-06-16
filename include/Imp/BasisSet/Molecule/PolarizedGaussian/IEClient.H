@@ -3,7 +3,7 @@
 #define _PolarizedGaussianIEClient_H_
 
 #include "Polarization.H"
-#include <IEClient.H> // <> prevents file search on this SphericalGaussian folder.
+#include <BasisSet/IEClient.H> // <> prevents file search on this SphericalGaussian folder.
 #include "oml/vector.h"
 #include <vector>
 

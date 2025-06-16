@@ -2,7 +2,7 @@
 
 #include "Atom/IE_DHF.H"
 #include "Atom/IEC.H"
-#include <DHF_IBS.H>
+#include <BasisSet/DHF_IBS.H>
 
 template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {

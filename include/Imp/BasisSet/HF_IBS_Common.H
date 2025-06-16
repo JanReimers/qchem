@@ -2,7 +2,7 @@
 #ifndef _HF_IBS_Common_H_
 #define _HF_IBS_Common_H_
 
-#include <HF_IBS.H>
+#include <BasisSet/HF_IBS.H>
 template <class T> class Orbital_HF_IBS_Common
     : public virtual TOrbital_HF_IBS<T>
 {

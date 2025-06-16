@@ -4,7 +4,7 @@
 
 #include "IBS_Common.H"
 #include <Symmetry.H>
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 #include "Common/stl_io.h"
 
 #include <iomanip>

@@ -2,7 +2,7 @@
 
 #include "Atom/radial/BSpline/BS_Common.H"
 #include "Atom/radial/BSpline/Rk.H"
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include "oml/vector.h"
 
 namespace BSpline

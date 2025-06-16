@@ -3,8 +3,8 @@
 #include "Imp/Hamiltonian/Hamiltonians.H"
 #include "Imp/Hamiltonian/Vee.H"
 #include "Imp/Hamiltonian/Vxc.H"
-#include <BasisSet.H>
-#include <Fit_IBS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Fit_IBS.H>
 #include <memory>
 
 Ham_1E::Ham_1E(const cl_t& cl) 

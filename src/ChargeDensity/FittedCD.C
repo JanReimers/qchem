@@ -5,7 +5,7 @@
 #include "Imp/ChargeDensity/FittedCD.H"
 #include <ChargeDensity.H>
 #include <Mesh.H>
-#include <DFT_IBS.H>
+#include <BasisSet/DFT_IBS.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include <cmath>

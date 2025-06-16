@@ -4,7 +4,7 @@
 #include "Atom/radial/BSpline/IEC.H"
 #include "ERI4.H"
 #include <Cluster.H>
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 
 namespace BSpline
 {
@@ -234,7 +234,7 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
 
 
 #include "Atom/radial/BSpline/IE_Fit.H"
-#include <Fit_IBS.H>
+#include <BasisSet/Fit_IBS.H>
 
 namespace BSpline
 {
@@ -279,7 +279,7 @@ template <size_t K> typename IE_Fit<K>::Mat IE_Fit<K>::MakeRepulsion(const fbs_t
 
 #include "Atom/radial/BSpline/IE_DHF.H"
 #include "Atom/radial/BSpline/IE_DFT.H"
-#include <DHF_IBS.H>
+#include <BasisSet/DHF_IBS.H>
 namespace BSpline
 {
 template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const

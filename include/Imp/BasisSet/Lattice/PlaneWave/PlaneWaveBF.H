@@ -3,7 +3,7 @@
 #define _PlaneWaveBF_H_
 
 
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 #include "oml/vector3d.h"
 
 class PlaneWaveBF

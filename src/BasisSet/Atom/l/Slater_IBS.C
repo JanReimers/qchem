@@ -4,7 +4,7 @@
 #include "Atom/l/Slater_BF.H"
 #include "Atom/radial/Slater/Integrals.H"
 #include "Symmetry/Yl.H"
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 #include <iostream>
 #include <cassert>
 

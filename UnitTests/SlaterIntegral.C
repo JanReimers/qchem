@@ -11,11 +11,11 @@
 #include "Common/DFTDefines.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include <LAParams.H>
-#include <BasisSet.H>
-#include <Irrep_BS.H>
-#include <HF_IBS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
+#include <BasisSet/HF_IBS.H>
 #include <Mesh/MeshParams.H>
 #include <Cluster.H>
 #include "oml/imp/ran250.h"

@@ -2,7 +2,7 @@
 #ifndef _TIBS_Common_H_
 #define _TIBS_Common_H_
 
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include <LAParams.H>
 
 template <class T> class TIBS_Common

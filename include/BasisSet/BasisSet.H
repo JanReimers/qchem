@@ -5,7 +5,6 @@
 #include <types.H>
 #include <UniqueID.H>
 #include "Common/pmstream.h"
-#include <IEClient.H>
 #include <Common/Iterators.H>
 
 #include <vector>

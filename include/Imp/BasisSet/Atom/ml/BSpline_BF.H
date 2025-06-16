@@ -2,7 +2,7 @@
 #ifndef _Atom_ml_BSpline_BF_H_
 #define _Atom_ml_BSpline_BF_H_
 
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 #include <bspline/Core.h>
 
 namespace Atom_ml

@@ -4,8 +4,8 @@
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/ChargeDensity/CompositeCD.H"
 #include "Imp/SCF/SCFAccelerator_Null.H"
-#include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
 #include <ElectronConfiguration.H>
 #include <cassert>
 

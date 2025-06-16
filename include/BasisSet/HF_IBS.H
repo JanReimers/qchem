@@ -2,8 +2,8 @@
 #ifndef _HF_IBS_H_
 #define _HF_IBS_H_
 
-#include <Irrep_BS.H>
-#include <HF_IE.H>
+#include <BasisSet/Irrep_BS.H>
+#include <BasisSet/HF_IE.H>
 
 template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>

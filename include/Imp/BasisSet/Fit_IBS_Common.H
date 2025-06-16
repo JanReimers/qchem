@@ -2,7 +2,7 @@
 #ifndef _Fit_IBS_Common_H_
 #define _Fit_IBS_Common_H_
 
-#include <Fit_IBS.H>
+#include <BasisSet/Fit_IBS.H>
 class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
 {
     typedef Integrals_Base<double>::Vec Vec;

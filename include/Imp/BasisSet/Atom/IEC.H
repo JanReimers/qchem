@@ -2,7 +2,7 @@
 #ifndef _AtomIEClient_H_
 #define _AtomIEClient_H_
 
-#include <IEClient.H> // <> prevents file search on this folder.
+#include <BasisSet/IEClient.H> // <> prevents file search on this folder.
 #include "oml/vector.h"
 #include <set>
 

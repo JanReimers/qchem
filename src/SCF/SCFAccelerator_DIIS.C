@@ -95,7 +95,7 @@ void SCFIrrepAccelerator_DIIS::Purge1()
 //
 // Non irrep code
 //
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include "oml/diagonalmatrix.h"
 
 

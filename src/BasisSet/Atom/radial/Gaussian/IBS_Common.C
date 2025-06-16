@@ -2,7 +2,7 @@
 
 #include "Atom/radial/Gaussian/IBS_Common.H"
 #include "Atom/radial/Gaussian/Integrals.H"
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 #include <Symmetry.H>
 #include "oml/vector.h"
 

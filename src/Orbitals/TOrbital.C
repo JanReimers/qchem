@@ -3,7 +3,7 @@
 
 
 #include "Imp/Orbitals/TOrbital.H"
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include "oml/smatrix.h"
 #include <iostream>
 

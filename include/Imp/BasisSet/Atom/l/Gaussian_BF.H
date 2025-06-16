@@ -2,7 +2,7 @@
 #ifndef _Atom_l_Gaussian_BF_H_
 #define _Atom_l_Gaussian_BF_H_
 
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 
 namespace Atoml
 {

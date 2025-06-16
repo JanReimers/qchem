@@ -5,7 +5,7 @@
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <Mesh/MeshParams.H>
-#include <Factory.H> //Just to get the types.
+#include <BasisSet/Factory.H> //Just to get the types.
 
 
 inline SCFParams dft_scf_params(int Z) 

@@ -1,11 +1,11 @@
 // file: EigenSolverUT.C  Unit test for the eigen solver
 
 #include "gtest/gtest.h"
-#include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
 #include <LAParams.H>
 #include <LASolver.H>
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 #include <iostream> 
 #include <cassert>
 #include "oml/smatrix.h"

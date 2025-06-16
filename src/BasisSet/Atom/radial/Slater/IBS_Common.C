@@ -2,7 +2,7 @@
 
 #include "Atom/radial/Slater/IBS_Common.H"
 #include "Atom/radial/Slater/Integrals.H"
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 #include <Symmetry.H>
 #include "oml/vector.h"
 

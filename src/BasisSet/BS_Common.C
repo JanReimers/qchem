@@ -2,7 +2,7 @@
 
 #include "BS_Common.H"
 #include "Common/stl_io.h"
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 
 void BS_Common::Insert(bs_t* bs)
 {

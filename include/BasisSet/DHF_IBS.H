@@ -2,8 +2,8 @@
 #ifndef _DHF_IBS_H_
 #define _DHF_IBS_H_
 
-#include <Irrep_BS.H>
-#include <DHF_IE.H>
+#include <BasisSet/Irrep_BS.H>
+#include <BasisSet/DHF_IE.H>
 
 template <class T> class Orbital_RKB_IBS
     : public virtual TIrrepBasisSet<T>

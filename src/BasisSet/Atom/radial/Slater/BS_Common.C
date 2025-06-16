@@ -2,7 +2,7 @@
 
 #include "Atom/radial/Slater/BS_Common.H"
 #include "Atom/radial/Slater/Rk.H"
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include "oml/vector.h"
 
 namespace Slater

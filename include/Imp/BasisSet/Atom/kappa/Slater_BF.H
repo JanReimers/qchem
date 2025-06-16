@@ -2,7 +2,7 @@
 #ifndef _Atom_kappa_Slater_BF_H_
 #define _Atom_kappa_Slater_BF_H_
 
-#include <BasisFunction.H>
+#include <BasisSet/BasisFunction.H>
 
 namespace Atom_kappa
 {

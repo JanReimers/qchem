@@ -4,7 +4,7 @@
 #include "Atom/l/Gaussian_BF.H"
 #include "Atom/radial/Gaussian/Integrals.H"
 #include "Symmetry/Yl.H"
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 #include <iostream>
 #include <cassert>
 

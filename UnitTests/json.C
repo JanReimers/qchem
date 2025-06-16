@@ -1,8 +1,8 @@
 // File: json.C  Test out basis set factory using the json header library 
 
 #include "gtest/gtest.h"
-#include <BasisSet.H>
-#include <Factory.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Factory.H>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 

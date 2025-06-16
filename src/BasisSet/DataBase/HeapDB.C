@@ -2,7 +2,7 @@
 
 #include "DataBase/HeapDB.H"
 #include "Mesh/MeshIntegrator.H"
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include <Cluster.H>
 #include "oml/vector.h"
 #include <iomanip>
@@ -96,7 +96,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(
         return i->second;
 }
 
-#include <DHF_IBS.H>
+#include <BasisSet/DHF_IBS.H>
 
 template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
@@ -228,7 +228,7 @@ template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
 #include "DataBase/DB_Fit.H"
-#include <Fit_IBS.H>
+#include <BasisSet/Fit_IBS.H>
 
 DB_Fit:: Vec_ref DB_Fit::Charge   () const
 {

@@ -6,8 +6,8 @@
 #include <WaveFunction.H>
 #include <Hamiltonian.H>
 #include <Cluster.H>
-#include <BasisSet.H>
-#include <Irrep_BS.H>
+#include <BasisSet/BasisSet.H>
+#include <BasisSet/Irrep_BS.H>
 #include <TotalEnergy.H>
 #include <Orbital.H>
 #include <ChargeDensity.H>
@@ -158,7 +158,7 @@ MeshParams TestAtom::GetMeshParams() const
     return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
 }
 
-#include <Factory.H>
+#include <BasisSet/Factory.H>
 BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSetAtom::Factory(js,itsZ);

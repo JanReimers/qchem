@@ -39,7 +39,7 @@ template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
 }
 
 #include <WaveFunction.H>
-#include <BasisSet.H>
+#include <BasisSet/BasisSet.H>
 #include <Orbital.H>
 #include <Symmetry/Orbital_QNs.H>
 void Orbital_PW::AddLines(const BasisSet* bs, const WaveFunction* wf, Spin s, Glib::ustring symbol)

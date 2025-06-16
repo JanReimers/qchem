@@ -6,7 +6,7 @@
 #include "Imp/Orbitals/TOrbital.H"
 #include "Imp/ChargeDensity/IrrepCD.H"
 #include "Common/DFTDefines.H"
-#include <Irrep_BS.H>
+#include <BasisSet/Irrep_BS.H>
 #include <Symmetry.H>
 #include "Common/stl_io.h"
 

@@ -2,7 +2,7 @@
 
 #include "Atom/IE_Fit.H"
 #include "Atom/IEC.H"
-#include <Fit_IBS.H>
+#include <BasisSet/Fit_IBS.H>
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 {
