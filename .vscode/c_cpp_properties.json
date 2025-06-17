@@ -16,6 +16,8 @@
                 "${workspaceFolder}/include/Imp/BasisSet/Molecule",
                 "${workspaceFolder}/include/Imp/Fitting",
                 "${workspaceFolder}/include/Imp/ChargeDensity",
+                "${workspaceFolder}/include/Imp/Hamiltonian",
+                "${workspaceFolder}/include/Imp/Orbitals",
                 "/usr/include/gtkmm-4.0",
                 "/usr/lib/x86_64-linux-gnu/gtkmm-4.0/include",
                 "/usr/include/giomm-2.68",

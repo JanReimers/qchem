@@ -2,12 +2,13 @@
 
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include "Imp/SCF/SCFAccelerator.H"
-#include "Imp/Orbitals/TOrbitals.H"
 
 #include <Symmetry/ElectronConfiguration.H>
 #include <BasisSet/Irrep_BS.H>
 #include <LASolver/LASolver.H>
 #include <Hamiltonian/Hamiltonian.H>
+#include <Orbitals/Factory.H>
+#include <Orbitals/Orbitals.H>
 #include "oml/vector.h"
 
 using std::cout;
@@ -16,7 +17,7 @@ using std::endl;
 Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (las)
-    , itsOrbitals   (new  TOrbitalsImp<double>(bs,qns.ms))
+    , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
     , itsDPrime     (bs->GetNumFunctions())
