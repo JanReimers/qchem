@@ -1,7 +1,7 @@
 // File: Composite_WF.H  Wave function as a list of Irrep wave functions.
 
-#include "Imp/WaveFunction/Composite_WF.H"
-#include "Imp/WaveFunction/Irrep_WF.H"
+#include "Composite_WF.H"
+#include "Irrep_WF.H"
 #include <ChargeDensity/CompositeCD.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>

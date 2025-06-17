@@ -2,7 +2,7 @@
 #ifndef _IrrepWaveFunction_H_
 #define _IrrepWaveFunction_H_
 
-#include <EnergyLevel.H>
+#include <WaveFunction/EnergyLevel.H>
 #include <Symmetry/Irrep_QNs.H>
 #include "oml/smatrix.h"
 

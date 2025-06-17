@@ -1,6 +1,6 @@
 // File: EnergyLevel.H  Energy level with degeneracy and orbital list.
 
-#include <EnergyLevel.H>
+#include <WaveFunction/EnergyLevel.H>
 #include <Orbitals/Orbitals.H>
 #include <cassert>
 #include <iostream>

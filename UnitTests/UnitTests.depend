@@ -840,11 +840,11 @@
 
 1731378504 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterUnPolarizedWF.H
 	"WaveFunction.H"
-	<EnergyLevel.H>
+	<WaveFunction/EnergyLevel.H>
 
 1731378486 /home/janr/Code/qchem/include/Imp/WaveFunction/MasterPolarizedWF.H
 	"WaveFunction.H"
-	<EnergyLevel.H>
+	<WaveFunction/EnergyLevel.H>
 
 1728239691 /home/janr/Code/qchem/include/IntegralEngine1.H
 	"types.H"

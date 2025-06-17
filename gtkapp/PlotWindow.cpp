@@ -130,7 +130,7 @@ const double dx_sym=1.0;
 const double dx_arrow=0.1;
 const double dx_spin=dx_arrow+0.001;
 
-#include <EnergyLevel.H>
+#include <WaveFunction/EnergyLevel.H>
 
 //
 //  Common construction

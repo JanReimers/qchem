@@ -55,7 +55,7 @@ public:
 
 #include <Symmetry/Symmetry.H>
 #include <Symmetry/Spin.H>
-#include <EnergyLevel.H>
+#include <WaveFunction/EnergyLevel.H>
 class EnergyLevel_PW : public PlotWindow
 {
 public:

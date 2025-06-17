@@ -3,7 +3,7 @@
 #define _Composite_WF_H_
 
 #include <WaveFunction/WaveFunction.H>
-#include <EnergyLevel.H>
+#include <WaveFunction/EnergyLevel.H>
 #include <vector>
 #include <map>
 #include <memory>

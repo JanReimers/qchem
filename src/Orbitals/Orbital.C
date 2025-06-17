@@ -3,7 +3,7 @@
 
 
 #include "TOrbital.H"
-#include <EnergyLevel.H>
+#include <WaveFunction/EnergyLevel.H>
 #include <Symmetry/Symmetry.H>
 // #include <iostream>
 // #include <cassert>

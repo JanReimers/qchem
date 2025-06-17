@@ -1,6 +1,6 @@
 // File: Polarized_WF.C  Wave function for an unpolarized atom.
 
-#include "Imp/WaveFunction/Polarized_WF.H"
+#include "Polarized_WF.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <ChargeDensity/Factory.H>
 #include <cassert>

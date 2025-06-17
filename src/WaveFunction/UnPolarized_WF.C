@@ -1,6 +1,6 @@
 // File: UnPolarized_WF.C  Wave function for an unpolarized atom.
 
-#include "Imp/WaveFunction/UnPolarized_WF.H"
+#include "UnPolarized_WF.H"
 #include <iostream>
 
 UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)

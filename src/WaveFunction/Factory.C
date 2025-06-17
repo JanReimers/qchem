@@ -2,8 +2,8 @@
 
 #include <WaveFunction/Factory.H>
 #include <Hamiltonian/Hamiltonian.H>
-#include "Imp/WaveFunction/UnPolarized_WF.H"
-#include "Imp/WaveFunction/Polarized_WF.H"
+#include "UnPolarized_WF.H"
+#include "Polarized_WF.H"
 
 namespace WaveFunctionF
 {
