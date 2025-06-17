@@ -3,7 +3,7 @@
 
 
 #include <SCFIterator.H>
-#include "Imp/SCF/SCFAccelerator.H"
+#include <SCFAccelerator/SCFAccelerator.H>
 #include <WaveFunction/WaveFunction.H>
 #include <WaveFunction/Factory.H>
 #include <SCFParams.H>

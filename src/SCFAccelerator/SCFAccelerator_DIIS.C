@@ -1,7 +1,7 @@
 // FIle: SCFAccelerator_DIIS.C  Direct Inversion of the Iterative Subspace (DIIS) algorithm
 
 
-#include "Imp/SCF/SCFAccelerator_DIIS.H"
+#include "SCFAccelerator_DIIS.H"
 #include <LASolver/LASolver.H>
 #include "oml/numeric/LapackLinearSolver.H"
 #include "oml/numeric/LapackSVDSolver.H"
@@ -97,6 +97,7 @@ void SCFIrrepAccelerator_DIIS::Purge1()
 //
 #include <BasisSet/Irrep_BS.H>
 #include "oml/diagonalmatrix.h"
+#include "SCFAccelerator_Null.H"
 
 
 SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p) 
@@ -104,10 +105,15 @@ SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p)
 {};
 
 SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
-SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const LASolver<double>* las,const Irrep_QNs& qns) 
+SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const LASolver<double>* las,const Irrep_QNs& qns, int occ) 
 {
-    itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,las,qns,itsCs));
-    return itsIrreps.back();
+    if (occ>0)
+    {
+        itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,las,qns,itsCs));
+        return itsIrreps.back();
+    }
+    else
+        return new SCFIrrepAccelerator__Null(las,qns);
 }
 
 size_t SCFAccelerator_DIIS::GetNProj() const

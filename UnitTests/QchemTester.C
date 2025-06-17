@@ -1,6 +1,7 @@
 
 #include "QchemTester.H"
-#include "Imp/SCF/SCFAccelerator_DIIS.H"
+#include <SCFAccelerator/SCFAccelerator.H>
+#include <SCFAccelerator/Factory.H>
 #include <Mesh/MeshParams.H>
 #include <SCFIterator.H>
 #include <WaveFunction/WaveFunction.H>
@@ -46,7 +47,9 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
         std::cout << " " << *itsBasisSet << std::endl;
     }
     int Z=GetZ();
-    SCFAccelerator* acc=new SCFAccelerator_DIIS({8,Z*Z*0.1/16,1e-7,1e-9});
+    nlohmann::json jsacc={{"NProj",8},{"EMax",Z*Z*0.1/16},{"EMin",1e-7},{"SVTol",1e-9}};
+    SCFAccelerator* acc=SCFAcceleratorF::Factory(SCFAcceleratorF::Type::DIIS,jsacc);
+    // SCFAccelerator* acc=new SCFAccelerator_DIIS({8,Z*Z*0.1/16,1e-7,1e-9});
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }

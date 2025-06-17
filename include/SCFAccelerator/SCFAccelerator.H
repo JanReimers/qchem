@@ -18,7 +18,7 @@ class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
-    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&)=0;
+    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&, int occ)=0;
     virtual bool CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;

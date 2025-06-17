@@ -2,7 +2,7 @@
 #ifndef _SCFAccelerator_Null_H_
 #define _SCFAccelerator_Null_H_
 
-#include "SCFAccelerator.H"
+#include <SCFAccelerator/SCFAccelerator.H>
 
 #include "oml/smatrix.h"
 class SCFIrrepAccelerator__Null : public virtual SCFIrrepAccelerator

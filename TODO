@@ -1,5 +1,7 @@
 
 Priority 1:
+    -SCFAccelerator_Null
+        We wave the Irrep just need to supervisor.
     Fixed: -eigen tables, hide border dark problem for Hydrogen (one row in table).
     Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
         Either combine yl and ylm tests or make sure we are not duplicating.

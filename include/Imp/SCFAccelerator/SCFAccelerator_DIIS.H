@@ -2,7 +2,7 @@
 #ifndef _SCFAccelerator_DIIS_H_
 #define _SCFAccelerator_DIIS_H_
 
-#include "SCFAccelerator.H"
+#include <SCFAccelerator/SCFAccelerator.H>
 
 struct DIISParams
 {
@@ -65,7 +65,7 @@ public:
 
     SCFAccelerator_DIIS(const DIISParams&);
     ~SCFAccelerator_DIIS();
-    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&);
+    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;

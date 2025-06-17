@@ -3,10 +3,10 @@
 #include "Imp/WaveFunction/Composite_WF.H"
 #include "Imp/WaveFunction/Irrep_WF.H"
 #include <ChargeDensity/CompositeCD.H>
-#include "Imp/SCF/SCFAccelerator_Null.H"
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Symmetry/ElectronConfiguration.H>
+#include <SCFAccelerator/SCFAccelerator.H>
 #include <cassert>
 
 Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
@@ -28,7 +28,7 @@ void Composite_WF::MakeIrrep_WFs(Spin s)
     {
         auto las=b->CreateSolver(); //Irrep_WF will own delete this thing.
         Irrep_QNs qns(s,b->GetSymmetry());
-        SCFIrrepAccelerator* acc=itsEC->GetN(qns)>0 ? itsAccelerator->Create(las,qns) : new SCFIrrepAccelerator__Null(las,qns);
+        SCFIrrepAccelerator* acc=itsAccelerator->Create(las,qns,itsEC->GetN(qns));
         
         uiwf_t wf(new Irrep_WF(b,las,qns,acc));
         itsQN_WFs[qns]=wf.get();
