@@ -9,10 +9,10 @@
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <Mesh/MeshParams.H>
-#include <Cluster.H>
-#include <Symmetry.H>
+#include <Cluster/Cluster.H>
+#include <Symmetry/Symmetry.H>
 #include <BasisSet/Factory.H>
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 

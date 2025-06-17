@@ -6,7 +6,7 @@
 #include "radial/Gaussian/Integrals.H"
 
 #include "Symmetry/Okmj.H"
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include <iostream>
 #include <cassert>
 

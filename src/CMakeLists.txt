@@ -10,6 +10,7 @@ list(FILTER qchem_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/src/LASolver/.*" 
 list(FILTER qchem_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/src/Fitting/.*" )
 list(FILTER qchem_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/src/ChargeDensity/.*" )
 list(FILTER qchem_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/src/Hamiltonian/.*" )
+list(FILTER qchem_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}/src/Orbitals/.*" )
 message("qchem_SOURCES is ${qchem_SOURCES}")
 target_sources(qchem PRIVATE ${qchem_SOURCES} ${qchem_FORTRAN})
 
@@ -22,3 +23,4 @@ add_subdirectory(BasisSet)
 add_subdirectory(Fitting)
 add_subdirectory(ChargeDensity)
 add_subdirectory(Hamiltonian)
+add_subdirectory(Orbitals)

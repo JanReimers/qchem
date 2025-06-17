@@ -9,7 +9,7 @@ UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* e
     MakeIrrep_WFs(Spin::None);
 };
 
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include <iomanip>
 #include "tabulate/table.hpp"
 using namespace tabulate;

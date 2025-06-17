@@ -2,7 +2,7 @@
 #ifndef _HamiltonianFrame_H_
 #define _HamiltonianFrame_H_
 
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include "enumDropDown.H"
 #include <gtkmm.h>
 #include <types.H>

@@ -4,7 +4,7 @@
 
 
 
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 
 class UnitQN
     : public virtual Symmetry

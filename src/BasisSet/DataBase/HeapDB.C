@@ -3,7 +3,7 @@
 #include "DataBase/HeapDB.H"
 #include "Mesh/MeshIntegrator.H"
 #include <BasisSet/Irrep_BS.H>
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include "oml/vector.h"
 #include <iomanip>
 
@@ -298,8 +298,8 @@ DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
 }
 
 
-#include <LASolver.H>
-#include <LAParams.H>
+#include <LASolver/LASolver.H>
+#include <LASolver/LAParams.H>
 DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 
 {
     LASolver<double>* las=LASolver<double>::Factory(lap);

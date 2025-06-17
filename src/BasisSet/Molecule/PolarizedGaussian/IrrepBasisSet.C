@@ -10,7 +10,7 @@
 #include "Cluster/Atom.H"
 #include "Symmetry/Unit.H"
 #include <BasisSet/BasisSet.H>
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include "Common/stl_io.h"
 #include <cassert>
 #include <algorithm> //Need std::max

@@ -5,7 +5,7 @@
 #include "enumDropDown.H"
 #include <gtkmm.h>
 #include <types.H>
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 
 class LAParamsFrame : public Gtk::Frame
 {

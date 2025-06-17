@@ -2,7 +2,7 @@
 
 
 
-#include <ScalarFunction.H>
+#include <Common/ScalarFunction.H>
 #include <Mesh/Mesh.H>
 #include "oml/vector.h"
 #include <cassert>

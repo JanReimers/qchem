@@ -53,8 +53,8 @@ public:
 
 };
 
-#include <Symmetry.H>
-#include <Spin.H>
+#include <Symmetry/Symmetry.H>
+#include <Symmetry/Spin.H>
 #include <EnergyLevel.H>
 class EnergyLevel_PW : public PlotWindow
 {
@@ -96,7 +96,7 @@ public:
 
 };
 
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 class Diagonal_PW : public PlotWindow
 {
 public:

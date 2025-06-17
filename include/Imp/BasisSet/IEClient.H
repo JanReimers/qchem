@@ -2,7 +2,7 @@
 #ifndef _IEClient_H_
 #define _IEClient_H_
 
-#include <UniqueID.H> 
+#include <Common/UniqueID.H> 
 #include "oml/imp/index_t.h" //for size_t
 //
 //  Integral DB and engines only sees this

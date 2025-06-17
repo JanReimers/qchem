@@ -3,7 +3,7 @@
 #define _FittedFunction_H_
 
 #include <types.H>
-#include <ScalarFunction.H>
+#include <Common/ScalarFunction.H>
 
 class ScalarFFClient;
 class DensityFFClient;

@@ -2,8 +2,8 @@
 #ifndef _Molecule_EC_H_
 #define _Molecule_EC_H_
 
-#include <ElectronConfiguration.H>
-#include <Spin.H>
+#include <Symmetry/ElectronConfiguration.H>
+#include <Symmetry/Spin.H>
 
 class Molecule_EC : public virtual ElectronConfiguration
 {

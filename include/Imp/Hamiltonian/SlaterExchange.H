@@ -5,7 +5,7 @@
 
 
 #include "ExchangeFunctionalImp.H"
-#include <Spin.H>
+#include <Symmetry/Spin.H>
 
 class SlaterExchange
     : public  virtual ExFunctional

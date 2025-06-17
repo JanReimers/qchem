@@ -3,10 +3,10 @@
 #include "QchemTester.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include <Orbital.H>
-#include <Spin.H>
+#include <Orbitals/Orbitals.H>
+#include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include <iostream>
 #include <Common/DFTDefines.H>
 #include "oml/io3d.h"

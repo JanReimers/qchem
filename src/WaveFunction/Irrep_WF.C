@@ -4,9 +4,9 @@
 #include "Imp/SCF/SCFAccelerator.H"
 #include "Imp/Orbitals/TOrbitals.H"
 
-#include <ElectronConfiguration.H>
+#include <Symmetry/ElectronConfiguration.H>
 #include <BasisSet/Irrep_BS.H>
-#include <LASolver.H>
+#include <LASolver/LASolver.H>
 #include <Hamiltonian/Hamiltonian.H>
 #include "oml/vector.h"
 

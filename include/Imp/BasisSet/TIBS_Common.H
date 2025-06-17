@@ -3,7 +3,7 @@
 #define _TIBS_Common_H_
 
 #include <BasisSet/Irrep_BS.H>
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 
 template <class T> class TIBS_Common
     : public virtual TIrrepBasisSet<T>

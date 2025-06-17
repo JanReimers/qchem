@@ -4,8 +4,8 @@
 
 #include "Polarization.H"
 #include "Common/pmstream.h"
-#include <UniqueID.H> 
-#include <ScalarFunction.H>
+#include <Common/UniqueID.H> 
+#include <Common/ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>
 #include <set>

@@ -4,7 +4,7 @@
 
 #include <SCFIterator.H>
 #include "Imp/SCF/SCFAccelerator.H"
-#include <WaveFunction.H>
+#include <WaveFunction/WaveFunction.H>
 #include <WaveFunction/Factory.H>
 #include <SCFParams.H>
 #include <Hamiltonian/Hamiltonian.H>

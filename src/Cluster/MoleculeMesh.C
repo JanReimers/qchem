@@ -4,7 +4,7 @@
 
 #include "MoleculeMesh.H"
 #include "Cluster/Atom.H"
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include <Mesh/MeshParams.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"

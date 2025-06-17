@@ -7,7 +7,7 @@
 #include <BasisSet/HF_IBS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include <Spin.H>
+#include <Symmetry/Spin.H>
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"
 #include <cassert>

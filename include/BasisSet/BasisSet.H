@@ -3,7 +3,7 @@
 #define _BasisSet_H_
 
 #include <types.H>
-#include <UniqueID.H>
+#include <Common/UniqueID.H>
 #include "Common/pmstream.h"
 #include <Common/Iterators.H>
 

@@ -1,4 +1,4 @@
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include <iostream>
 
 std::string PkgStrs[]={"OML","Lapack"};

@@ -2,12 +2,12 @@
 
 
 
-#include "Imp/Orbitals/TOrbitals.H"
-#include "Imp/Orbitals/TOrbital.H"
+#include "TOrbitals.H"
+#include "TOrbital.H"
 #include <ChargeDensity/Factory.H>
 #include "Common/DFTDefines.H"
 #include <BasisSet/Irrep_BS.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include "Common/stl_io.h"
 
 //-----------------------------------------------------------------

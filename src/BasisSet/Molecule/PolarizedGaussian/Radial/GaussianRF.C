@@ -10,7 +10,7 @@
 #include "PolarizedGaussian/Block.H"
 #include "Common/DFTDefines.H"
 #include "Cluster/Atom.H"
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include "oml/smatrix.h"
 #include "oml/imp/binio.h"
 #include "oml/io3d.h"

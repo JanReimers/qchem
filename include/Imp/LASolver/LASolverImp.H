@@ -20,8 +20,8 @@
 //  to use: OML (derived from Numerical Recipes), or Lapack.
 //
 
-#include <LASolver.H>
-#include <LAParams.H>
+#include <LASolver/LASolver.H>
+#include <LASolver/LAParams.H>
 #include "oml/matrix.h"
 
 template <class T> class LASolverCommon 

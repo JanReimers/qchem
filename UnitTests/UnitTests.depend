@@ -610,7 +610,7 @@
 	"Imp/BasisSet/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	<BasisSet/BasisSet.H>
 	"oml/imp/ran250.h"
 	<iostream>
@@ -706,7 +706,7 @@
 
 1729269268 source:/home/janr/Code/qchem/UnitTests/Persistence2.C
 	"QchemTester.H"
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	<Hamiltonian/Hamiltonian.H>
 	<iostream>
 	<fstream>
@@ -761,10 +761,10 @@
 1732210500 /home/janr/Code/qchem/include/BasisSet.H
 	"types.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
-	<ScalarFunction.H>
+	<Common/ScalarFunction.H>
 	<vector>
 	"IEClient.H"
-	<VectorFunction.H>
+	<Common/VectorFunction.H>
 	"Imp/Containers/ptr_vector.h"
 
 1727636581 /home/janr/Code/qchem/include/BasisFunction.H
@@ -803,7 +803,7 @@
 
 1731377993 /home/janr/Code/qchem/include/WaveFunction.H
 	<types.H>
-	<Spin.H>
+	<Symmetry/Spin.H>
 	"Common/pmstream.h"
 
 1727901331 /home/janr/Code/qchem/include/PolarizedWF.H
@@ -946,7 +946,7 @@
 1732470843 /home/janr/Code/qchem/include/Imp/BasisSet/PolarizedGaussian/RadialFunction.H
 	"Polarization.H"
 	"Imp/Misc/UniqueID/UniqueID.H"
-	<ScalarFunction.H>
+	<Common/ScalarFunction.H>
 	"oml/vector3d.h"
 	<vector>
 	<set>
@@ -1021,7 +1021,7 @@
 
 1732197866 /home/janr/Code/qchem/include/Imp/BasisSet/TIBS_Common.H
 	<BasisSet/BasisSet.H>
-	<LAParams.H>
+	<LASolver/LAParams.H>
 
 1728702044 /home/janr/Code/qchem/include/Imp/LAParams.H
 	<iosfwd>
@@ -1042,7 +1042,7 @@
 	"Cluster/Molecule.H"
 	"Cluster/Atom.H"
 	<Mesh/MeshParams.H>
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	"oml/smatrix.h"
 	"oml/matrix.h"
 	"oml/imp/ran250.h"
@@ -1081,7 +1081,7 @@
 	"Imp/Misc/DFTDefines.H"
 
 1732205786 /home/janr/Code/qchem/include/Imp/BasisSet/SphericalGaussian/QuantumNumber.H
-	<Symmetry.H>
+	<Symmetry/Symmetry.H>
 	<tuple>
 
 1732210500 /home/janr/Code/qchem/include/QuantumNumber.H
@@ -1129,7 +1129,7 @@
 	<SCFIterator.H>
 	<WaveFunction.H>
 	<Hamiltonian/Hamiltonian.H>
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	<BasisSet/BasisSet.H>
 	<Hamiltonian/TotalEnergy.H>
 	<memory>
@@ -1149,7 +1149,7 @@
 	"gtest/gtest.h"
 	<types.H>
 	<IterationParams.H>
-	<LAParams.H>
+	<LASolver/LAParams.H>
 	"Imp/Misc/PeriodicTable.H"
 	<memory>
 	"Imp/WaveFunction/ElectronConfiguration.H"
@@ -1208,7 +1208,7 @@
 
 1729306957 /home/janr/Code/qchem/include/Imp/Hamiltonian/HamiltonianTerm.H
 	<Hamiltonian/Hamiltonian.H>
-	<Spin.H>
+	<Symmetry/Spin.H>
 	"oml/smatrix.h"
 	<map>
 
@@ -1217,12 +1217,12 @@
 
 1729443462 /home/janr/Code/qchem/include/Imp/Hamiltonian/Ven.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	<memory>
 
 1729443462 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vnn.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	<memory>
 
 1729297647 /home/janr/Code/qchem/include/Imp/Hamiltonian/Vee.H
@@ -1230,11 +1230,11 @@
 
 1729306839 /home/janr/Code/qchem/include/Imp/Hamiltonian/SlaterExchange.H
 	"Imp/Hamiltonian/ExchangeFunctionalImp.H"
-	<Spin.H>
+	<Symmetry/Spin.H>
 
 1729383672 /home/janr/Code/qchem/include/Imp/Hamiltonian/ExchangeFunctional.H
 	"Common/pmstream.h"
-	<ScalarFunction.H>
+	<Common/ScalarFunction.H>
 
 1729443462 /home/janr/Code/qchem/include/Imp/Hamiltonian/FittedVxc.H
 	"Imp/Hamiltonian/HamiltonianTerm.H"
@@ -1271,20 +1271,20 @@
 
 1730644128 /home/janr/Code/qchem/include/FittedFunctionClient.H
 	<types.H>
-	<ScalarFunction.H>
+	<Common/ScalarFunction.H>
 
 1729443462 /home/janr/Code/qchem/include/Imp/Fitting/FittedFunction.H
 	<BasisSet/BasisSet.H>
 	<Fitting/FittedFunction.H>
 	<Mesh/Mesh.H>
-	<LAParams.H>
+	<LASolver/LAParams.H>
 	"oml/vector.h"
 	"oml/smatrix.h"
 	<memory>
 
 1729305772 /home/janr/Code/qchem/include/FittedFunction.H
 	<types.H>
-	<ScalarFunction.H>
+	<Common/ScalarFunction.H>
 
 1729475680 /home/janr/Code/qchem/include/Imp/Cluster/Molecule.H
 	"Cluster.H"
@@ -1389,9 +1389,9 @@
 	"Mesh/MeshIntegrator.H"
 	"Cluster/Molecule.H"
 	"Cluster/Atom.H"
-	<LAParams.H>
+	<LASolver/LAParams.H>
 	<Mesh/MeshParams.H>
-	<Symmetry.H>
+	<Symmetry/Symmetry.H>
 	"oml/smatrix.h"
 	"oml/matrix.h"
 	<iomanip>
@@ -1447,7 +1447,7 @@
 	"Imp/WaveFunction/ElectronConfiguration.H"
 	"Imp/Misc/PeriodicTable.H"
 	"Symmetry/Ylm.H"
-	<Spin.H>
+	<Symmetry/Spin.H>
 	<iostream>
 
 1731335940 /home/janr/Code/qchem/include/Imp/WaveFunction/ElectronConfiguration.H
@@ -1457,7 +1457,7 @@
 
 1732212107 /home/janr/Code/qchem/include/EnergyLevel.H
 	<types.H>
-	<Spin.H>
+	<Symmetry/Spin.H>
 	<map>
 
 1731684021 source:/home/janr/Code/qchem/UnitTests/ERIList.C
@@ -1481,7 +1481,7 @@
 	"Symmetry/Yl.H"
 
 1732211171 /home/janr/Code/qchem/include/Imp/Symmetry/Yl.H
-	<Symmetry.H>
+	<Symmetry/Symmetry.H>
 	<tuple>
 
 1732800168 source:/home/janr/Code/qchem/UnitTests/libCint.C
@@ -1493,7 +1493,7 @@
 	"Cluster/Molecule.H"
 	"Cluster/Atom.H"
 	<AnalyticIE.H>
-	<LAParams.H>
+	<LASolver/LAParams.H>
 	"oml/vector3d.h"
 	"oml/smatrix.h"
 	<vector>
@@ -1514,7 +1514,7 @@
 	"Imp/BasisSet/ERI4.H"
 	"Imp/Containers/ptr_vector.h"
 	<Mesh/MeshParams.H>
-	<Cluster.H>
+	<Cluster/Cluster.H>
 	<BasisSet/BasisSet.H>
 	<iostream>
 
@@ -1539,7 +1539,7 @@
 	"oml/vector.h"
 
 1734358967 /home/janr/Code/qchem/include/Imp/Symmetry/Okmj.H
-	<Symmetry.H>
+	<Symmetry/Symmetry.H>
 	<utility>
 
 1732133738 /home/janr/Code/qchem/include/Imp/BasisSet/Slater_m/IntegralEngine.H

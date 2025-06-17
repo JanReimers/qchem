@@ -3,7 +3,7 @@
 
 
 #include "IBS_Common.H"
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include <BasisSet/BasisFunction.H>
 #include "Common/stl_io.h"
 

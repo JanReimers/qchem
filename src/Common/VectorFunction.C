@@ -2,7 +2,7 @@
 
 
 
-#include <VectorFunction.H>
+#include <Common/VectorFunction.H>
 #include <Mesh/Mesh.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"

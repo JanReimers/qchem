@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "Symmetry/Yl.H"
 #include <BasisSet/Factory.H>
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include "Mesh/MeshIntegrator.H"
@@ -12,7 +12,7 @@
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <Mesh/MeshParams.H>
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include "oml/matrix.h"

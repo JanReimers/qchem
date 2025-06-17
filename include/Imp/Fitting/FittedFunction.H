@@ -6,7 +6,7 @@
 
 #include <Fitting/FittedFunction.H>
 #include <Mesh/Mesh.H>
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include <memory> // for std::shared_ptr

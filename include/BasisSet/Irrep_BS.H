@@ -3,7 +3,7 @@
 #define _Irrep_BS_H_
 
 #include <types.H>
-#include <UniqueID.H>
+#include <Common/UniqueID.H>
 #include <Common/Iterators.H>
 #include "Common/pmstream.h" 
 
@@ -68,7 +68,7 @@ public:
     friend class BS_Common;
 };
 
-#include <VectorFunction.H>
+#include <Common/VectorFunction.H>
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions

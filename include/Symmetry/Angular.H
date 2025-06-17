@@ -2,7 +2,7 @@
 #ifndef _Angular_Sym_H_
 #define _Angular_Sym_H_
 
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 
 class ElCounts;
 class ElCounts_l;

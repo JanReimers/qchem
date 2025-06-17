@@ -3,13 +3,13 @@
 #include "Imp/SCF/SCFAccelerator_DIIS.H"
 #include <Mesh/MeshParams.H>
 #include <SCFIterator.H>
-#include <WaveFunction.H>
+#include <WaveFunction/WaveFunction.H>
 #include <Hamiltonian/Hamiltonian.H>
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include <Orbital.H>
+#include <Orbitals/Orbitals.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <memory>
 

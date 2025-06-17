@@ -3,7 +3,7 @@
 #include "radial/Gaussian/IBS_Common.H"
 #include "radial/Gaussian/Integrals.H"
 #include <BasisSet/BasisFunction.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include "oml/vector.h"
 
 

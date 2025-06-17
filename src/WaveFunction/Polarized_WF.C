@@ -28,7 +28,7 @@ WaveFunction::sf_t* Polarized_WF::GetSpinDensity() const
     return new SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include "tabulate/table.hpp"
 using namespace tabulate;
 

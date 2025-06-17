@@ -30,7 +30,7 @@ target_compile_definitions(qchem PRIVATE
     $<$<CONFIG:Release>:-DNDEBUG>
 )
 target_include_directories(qchem PRIVATE include ${submodule_includes} src/BasisSet/Atom/radial/BSpline)
-target_link_libraries(qchem qcHamiltonian qcChargeDensity qcFitting qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry  qcCommon  oml lapack gtest wignerSymbols)
+target_link_libraries(qchem qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry  qcCommon  oml lapack gtest wignerSymbols)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 add_subdirectory(./submodules/oml)

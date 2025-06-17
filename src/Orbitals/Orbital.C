@@ -2,9 +2,9 @@
 
 
 
-#include "Imp/Orbitals/TOrbital.H"
+#include "TOrbital.H"
 #include <EnergyLevel.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 // #include <iostream>
 // #include <cassert>
 // #include <stdlib.h>

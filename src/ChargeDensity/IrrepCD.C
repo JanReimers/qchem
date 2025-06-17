@@ -6,7 +6,7 @@
 #include <BasisSet/HF_IBS.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include "oml/vector3d.h"
 #include "oml/vector.h"
 #include "oml/matrix.h"

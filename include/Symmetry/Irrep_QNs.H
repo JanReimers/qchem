@@ -3,7 +3,7 @@
 #define _Irrep_QNs_H_
 
 #include "Common/pmstream.h"
-#include <Spin.H>
+#include <Symmetry/Spin.H>
 #include <memory>
 
 class Symmetry;

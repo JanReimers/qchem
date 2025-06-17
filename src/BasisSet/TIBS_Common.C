@@ -3,7 +3,7 @@
 
 #include "TIBS_Common.H"
 #include <BasisSet/BasisFunction.H>
-#include <LASolver.H>
+#include <LASolver/LASolver.H>
 #include "oml/vector.h"
 
 LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});

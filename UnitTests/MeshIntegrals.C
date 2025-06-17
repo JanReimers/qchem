@@ -8,9 +8,9 @@
 #include "Mesh/MeshIntegrator.H"
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include <Mesh/MeshParams.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include <iomanip>

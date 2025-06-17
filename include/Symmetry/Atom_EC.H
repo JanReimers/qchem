@@ -3,7 +3,7 @@
 #define _Atom_EC_H_
 
 #include "Symmetry/ElectronCounts.H"
-#include <ElectronConfiguration.H>
+#include <Symmetry/ElectronConfiguration.H>
 #include <vector>
 #include <memory>
 

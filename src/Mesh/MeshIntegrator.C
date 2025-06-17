@@ -3,8 +3,8 @@
 
 #include "Mesh/MeshIntegrator.H"
 #include <Mesh/Mesh.H>
-#include <ScalarFunction.H>
-#include <VectorFunction.H>
+#include <Common/ScalarFunction.H>
+#include <Common/VectorFunction.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"

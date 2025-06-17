@@ -407,8 +407,8 @@ Priority 3:
             #include "Common/stl_io.h" .C file
             #include "Mesh/MeshIntegrator.H" libQchemMesh
             #include "ERI4.H" .C file  move into BasisSet
-            #include <Cluster.H> OK pure header
-            #include <Symmetry.H> GetLabel .C file LibQchemBase
+            #include <Cluster/Cluster.H> OK pure header
+            #include <Symmetry/Symmetry.H> GetLabel .C file LibQchemBase
             #include "Common/IntPower.H" OK Pure header
             #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
             #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet

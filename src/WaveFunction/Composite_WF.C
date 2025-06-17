@@ -6,7 +6,7 @@
 #include "Imp/SCF/SCFAccelerator_Null.H"
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include <ElectronConfiguration.H>
+#include <Symmetry/ElectronConfiguration.H>
 #include <cassert>
 
 Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )

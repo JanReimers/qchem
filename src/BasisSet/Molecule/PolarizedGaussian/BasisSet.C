@@ -2,7 +2,7 @@
 
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 
 namespace PolarizedGaussian
 {

@@ -8,7 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <Spin.H>
+#include <Symmetry/Spin.H>
 
 using std::cout;
 using std::endl;

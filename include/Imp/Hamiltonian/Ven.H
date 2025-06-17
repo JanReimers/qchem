@@ -6,7 +6,7 @@
 
 
 #include "HamiltonianTerm.H"
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 #include <memory>
 
 class Ven

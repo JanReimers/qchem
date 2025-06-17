@@ -23,7 +23,7 @@ Ham_HF_U::Ham_HF_U(const cl_t& cl)
 #include "FittedVxc.H"
 #include "ExchangeFunctional.H" 
 #include "FittedVee.H"
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 
 Ham_DFT_U::Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
     : Ham_DFT_U(cl,new SlaterExchange(alpha_ex),mp,bs)

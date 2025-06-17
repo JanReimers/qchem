@@ -2,7 +2,7 @@
 
 
 #include "Imp/SCF/SCFAccelerator_DIIS.H"
-#include <LASolver.H>
+#include <LASolver/LASolver.H>
 #include "oml/numeric/LapackLinearSolver.H"
 #include "oml/numeric/LapackSVDSolver.H"
 

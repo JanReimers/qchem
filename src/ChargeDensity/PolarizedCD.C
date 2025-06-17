@@ -1,7 +1,7 @@
 // File: PolarizedCD.C  Interface for the charge density.
 
 #include "PolarizedCD.H"
-#include <Spin.H>
+#include <Symmetry/Spin.H>
 #include <cassert>
 
 //---------------------------------------------------------------------------------

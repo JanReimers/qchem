@@ -10,7 +10,7 @@
 #include "Cluster/Atom.H"
 #include <BasisSet/Integrals.H>
 
-#include <LAParams.H>
+#include <LASolver/LAParams.H>
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
 #include <vector>

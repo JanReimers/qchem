@@ -2,7 +2,7 @@
 
 #include "IE.H"
 #include "IEC.H"
-#include <Cluster.H>
+#include <Cluster/Cluster.H>
 
 template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOverlap() const
 {

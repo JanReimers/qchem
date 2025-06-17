@@ -4,7 +4,7 @@
 #include "HamiltonianTerm.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Irrep_BS.H>
-#include <Symmetry.H>
+#include <Symmetry/Symmetry.H>
 #include <iostream>
 #include <cassert>
 
