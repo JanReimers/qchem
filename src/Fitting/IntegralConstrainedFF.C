@@ -2,7 +2,7 @@
 
 
 
-#include "Imp/Fitting/IntegralConstrainedFF.H"
+#include "IntegralConstrainedFF.H"
 #include <BasisSet/Fit_IBS.H>
 #include "oml/matrix.h"
 

@@ -1,6 +1,6 @@
 // File: FittedFunctionImp.C  Common imp for Fitted Functions.
 
-#include "Imp/Fitting/FittedFunction.H"
+#include "FittedFunction.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>

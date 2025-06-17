@@ -1,6 +1,6 @@
 // File: ConstrainedFF.C  General constrained fit.
 
-#include "Imp/Fitting/ConstrainedFF.H"
+#include "ConstrainedFF.H"
 #include <Fitting/FittedFunctionClient.H>
 #include <BasisSet/Fit_IBS.H>
 #include "oml/matrix.h"
