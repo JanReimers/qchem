@@ -4,6 +4,7 @@
 
 
 
+#include <BasisSet/fwd.H>
 #include <Fitting/FittedFunction.H>
 #include <Mesh/Mesh.H>
 #include <LASolver/LAParams.H>

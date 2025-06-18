@@ -2,7 +2,8 @@
 #ifndef _UnitCell_H_
 #define _UnitCell_H_
 
-#include "types.H"
+#include <omlfwd.H>
+
 #include "oml/vector3d.h"
 #include "oml/matrix3d.h"
 #include "Common/pmstream.h"

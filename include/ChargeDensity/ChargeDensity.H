@@ -2,7 +2,9 @@
 #ifndef _ChargeDensity_H_
 #define _ChargeDensity_H_
 
-#include <Common/ScalarFunction.H>
+#include <Symmetry/fwd.H>
+#include <Mesh/ScalarFunction.H>
+#include <ChargeDensity/fwd.H>
 #include <Fitting/FittedFunctionClient.H>
 
 //

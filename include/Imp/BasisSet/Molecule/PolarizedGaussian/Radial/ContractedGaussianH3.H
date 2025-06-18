@@ -4,7 +4,7 @@
 
 
 #include "PolarizedGaussian/MnD/Hermite3.H"
-#include <types.H>
+#include <omlfwd.H>
 #include <vector>
 #include <memory>
 

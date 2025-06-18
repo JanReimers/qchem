@@ -3,6 +3,9 @@
 #define Fit_IBS_H_
 
 #include <BasisSet/Integrals.H>
+#include <Common/fwd.H>
+#include <Mesh/fwd.H>
+#include <LASolver/fwd.H>
 
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.
  class FitIntegrals  

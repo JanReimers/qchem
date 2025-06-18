@@ -2,7 +2,10 @@
 #ifndef _Hamiltonian_Factory_H_
 #define _Hamiltonian_Factory_H_
 
-#include <types.H>
+#include <Mesh/fwd.H>
+#include <Cluster/fwd.H>
+#include <BasisSet/fwd.H>
+#include <Hamiltonian/fwd.H>
 #include <memory>
 
 typedef std::shared_ptr<const Cluster> cl_t;

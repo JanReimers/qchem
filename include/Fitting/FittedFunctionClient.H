@@ -2,8 +2,8 @@
 #ifndef _FittedFunctionClient_H_
 #define _FittedFunctionClient_H_
 
-#include <types.H>
-#include <Common/ScalarFunction.H>
+#include <BasisSet/fwd.H>
+#include <Mesh/ScalarFunction.H>
 
 //-------------------------------------------------------------------
 //

@@ -5,7 +5,6 @@
 
 #include "PolarizedGaussian/MnD/Hermite2.H"
 #include "Common/UniqueIDImp.H"
-#include <types.H>
 
 namespace PolarizedGaussian
 {

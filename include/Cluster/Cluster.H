@@ -2,7 +2,10 @@
 #ifndef _Cluster_H_
 #define _Cluster_H_
 
-#include <types.H>
+#include <omlfwd.H>
+#include <Mesh/fwd.H>
+#include <Cluster/fwd.H>
+
 #include <Common/UniqueID.H> 
 #include "Common/pmstream.h"
 #include <vector>

@@ -2,6 +2,12 @@
 #ifndef _IrrepWaveFunction_H_
 #define _IrrepWaveFunction_H_
 
+#include <Symmetry/fwd.H>
+#include <LASolver/fwd.H>
+#include <BasisSet/fwd.H>
+#include <SCFAccelerator/fwd.H>
+#include <ChargeDensity/fwd.H>
+#include <Hamiltonian/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
 #include <Symmetry/Irrep_QNs.H>
 #include "oml/smatrix.h"

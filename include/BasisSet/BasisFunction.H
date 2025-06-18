@@ -22,7 +22,7 @@ public:
     static  BasisFunction* Factory(std::istream&)        ;
 };
 
-#include <Common/ScalarFunction.H>
+#include <Mesh/ScalarFunction.H>
 //---------------------------------------------------------------
 //
 //  Here the basis becomes a real or complex valued function

@@ -2,7 +2,7 @@
 #ifndef _SCFAccelerator_Factory_H_
 #define _SCFAccelerator_Factory_H_
 
-#include <types.H>
+#include <SCFAccelerator/fwd.H>
 #include <nlohmann/json.hpp>
 
 namespace SCFAcceleratorF

@@ -1,10 +1,6 @@
 
 Priority 1:
-    -SCFAccelerator_Null
-        We wave the Irrep just need to supervisor.
-    Fixed: -eigen tables, hide border dark problem for Hydrogen (one row in table).
-    Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
-        Either combine yl and ylm tests or make sure we are not duplicating.
+    
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
     -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAccelerator_DIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(): Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
@@ -30,54 +26,21 @@ Priority 1:
             Multiple/A_SL_DFT_P.Multiple/5
             Multiple/A_SG_DFT_P.Multiple/5
             Multiple/A_PG_DFT_U.Multiple/2
+        -SCFAccelerator_Null
+            We wave the Irrep just need to supervisor.
 
-    Done: Make a basis set factory in order to avoid including private headers
-        Function signatures vary.  Use json structures?
-        Need separate function signatures for Atom, Molecule and Lattice basis sets.
-            If we want to breakout separate libqcAtom_BS libqcMolecule_BS  libqcLattice_BS modules.
-            Each of these would have its own factory function
-    Done: Make a mesh factory
-    -Redising fitting so fitted objects contain a Fitter*
-    -Types.H switch for <module-name>/fwd.H
-    Try separating out 
-        Done: libqcFitting ?
-            Very tightly coupled with Hamiltonian and Charge density; 
-                FittedVxc : public FittedFunctionImp<double>
-                FittedCDImp : public IntegralConstrainedFF<T>
-            We can still make a module the exposes these implementation classes.
-
-        libqcChargeDensity
-            Ham and CD are tightly coupled
-                IrrepCD needs Static/Dynamic Hamilton terms. to call GetMatrix. 
-            factory
-                move Composite_CD to interface
-                need
-                    FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
-                    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
-        libqcHamiltonian
-        libqcWaveFunction
-        -this will require decouple Ham from WF.  Make a factory function in WF interface.
-
-
-        Done: For BasisSet module:
-            Done: -"IEClient.H" is only used internally but IrrepBasisSet inherits from it.
-                What if IBS_Common inherits IEClient instead?
-            No: -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
-                BasisFunction.  Irrep_BS iterator returns BasisFunction.
-            Done: <BasisSet/XXX_IE> are included by <BasisSet/XXX_IBS> *and* various internal DB headers
-                We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see TOrbital_HF_IBS interfaces
-                which is more than they need.  Small problem to eliminate 4 public/internal headers?
-            Done: Breakout Atom and Molecule pseudo modules.
-                libqcAtom_BS
-                libqcMolecule_BS
-                libqcLattice_BS
-                this will require isolating basis set reader code so atom and molecule can see them.
-    Modules
-
-        Try making a C++20 module
-            Wait for gcc-15
-            need a recent version of CMake
-
+    -Redesign fitting so fitted objects contain a Fitter*
+    
+    -C++ Modules  Try making a C++20 module    
+        Done: Wait for gcc-15
+        Done: need a recent version of CMake (on 3.31.6)
+        -Scalar/VectorFunction depend on Mesh?  Only at the header level.
+            options:
+            1) Move Scalar/VectorFunction into the mesh module
+            2) Refactor mesh hold std::vector<RVec3> rs and std::vector<double> ws and make the 3 iterator proxies
+                1) riterator
+                2) witerator
+                3) rwiterator
 
     -Play around with plane wave basis sets
         -Make some UTs for the lattice class.
@@ -387,6 +350,51 @@ Priority 3:
 
 
 
+    Fixed: -eigen tables, hide border dark problem for Hydrogen (one row in table).
+    Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
+        Either combine yl and ylm tests or make sure we are not duplicating.
+    Done: Make a basis set factory in order to avoid including private headers
+        Function signatures vary.  Use json structures?
+        Need separate function signatures for Atom, Molecule and Lattice basis sets.
+            If we want to breakout separate libqcAtom_BS libqcMolecule_BS  libqcLattice_BS modules.
+            Each of these would have its own factory function
+    Done: Make a mesh factory
+    Done:-Types.H switch for <module-name>/fwd.H
+    Done: Try separating out 
+        
+        Done: -Finally make a fwd.H for each module.
+        Done: libqcFitting ?
+            Very tightly coupled with Hamiltonian and Charge density; 
+                FittedVxc : public FittedFunctionImp<double>
+                FittedCDImp : public IntegralConstrainedFF<T>
+            We can still make a module the exposes these implementation classes.
+
+        Done: libqcChargeDensity
+            Ham and CD are tightly coupled
+                IrrepCD needs Static/Dynamic Hamilton terms. to call GetMatrix. 
+            factory
+                move Composite_CD to interface
+                need
+                    FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
+                    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
+        Done: libqcHamiltonian
+        Done: libqcWaveFunction
+        Done: -this will require decouple Ham from WF.  Make a factory function in WF interface.
+
+
+        Done: For BasisSet module:
+            Done: -"IEClient.H" is only used internally but IrrepBasisSet inherits from it.
+                What if IBS_Common inherits IEClient instead?
+            No: -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
+                BasisFunction.  Irrep_BS iterator returns BasisFunction.
+            Done: <BasisSet/XXX_IE> are included by <BasisSet/XXX_IBS> *and* various internal DB headers
+                We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see TOrbital_HF_IBS interfaces
+                which is more than they need.  Small problem to eliminate 4 public/internal headers?
+            Done: Breakout Atom and Molecule pseudo modules.
+                libqcAtom_BS
+                libqcMolecule_BS
+                libqcLattice_BS
+                this will require isolating basis set reader code so atom and molecule can see them.
     Done: -Proper consol tables:
         header only: https://github.com/p-ranav/tabulate
     Done: -Try making a separate libqc_basis.a to enforce some modularity.

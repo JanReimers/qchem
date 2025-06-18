@@ -2,7 +2,10 @@
 #ifndef _SCFAccelerator_H_
 #define _SCFAccelerator_H_
 
-#include <types.H>
+#include <omlfwd.H>
+#include <Symmetry/fwd.H>
+#include <LASolver/fwd.H>
+
 class SCFIrrepAccelerator
 {
 protected:

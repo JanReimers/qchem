@@ -2,7 +2,6 @@
 #ifndef _CDCache_H_
 #define _CDCache_H_
 
-#include "types.H"
 #include <Common/UniqueID.H> 
 #include <tuple>
 #include <map>

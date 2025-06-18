@@ -2,8 +2,7 @@
 #ifndef _FittedFunction_H_
 #define _FittedFunction_H_
 
-#include <types.H>
-#include <Common/ScalarFunction.H>
+#include <Mesh/ScalarFunction.H>
 
 class ScalarFFClient;
 class DensityFFClient;

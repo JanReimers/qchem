@@ -2,7 +2,7 @@
 #ifndef _Mesh_Factory_H_
 #define _Mesh_Factory_H_
 
-#include <types.H>
+#include <Mesh/fwd.H>
 #include <nlohmann/json.hpp>
 
 namespace MeshF

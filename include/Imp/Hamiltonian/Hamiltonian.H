@@ -3,7 +3,7 @@
 #define _HamiltonianImp_H_
 
 
-
+#include <Cluster/fwd.H>
 #include <Hamiltonian/Hamiltonian.H>
 #include <vector>
 #include <memory>

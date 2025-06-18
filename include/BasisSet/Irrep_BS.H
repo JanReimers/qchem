@@ -2,7 +2,10 @@
 #ifndef _Irrep_BS_H_
 #define _Irrep_BS_H_
 
-#include <types.H>
+#include <omlfwd.H>
+#include <Symmetry/fwd.H>
+#include <LASolver/fwd.H>
+#include <BasisSet/fwd.H>
 #include <Common/UniqueID.H>
 #include <Common/Iterators.H>
 #include "Common/pmstream.h" 
@@ -68,7 +71,7 @@ public:
     friend class BS_Common;
 };
 
-#include <Common/VectorFunction.H>
+#include <Mesh/VectorFunction.H>
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions

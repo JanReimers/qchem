@@ -2,7 +2,10 @@
 #ifndef _BasisSet_H_
 #define _BasisSet_H_
 
-#include <types.H>
+#include <Symmetry/fwd.H>
+#include <Cluster/fwd.H>
+#include <LASolver/fwd.H>
+#include <BasisSet/fwd.H>
 #include <Common/UniqueID.H>
 #include "Common/pmstream.h"
 #include <Common/Iterators.H>

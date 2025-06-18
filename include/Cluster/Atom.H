@@ -2,7 +2,8 @@
 #ifndef _Atom_H_
 #define _Atom_H_
 
-#include "types.H"
+#include <omlfwd.H>
+#include <Mesh/fwd.H>
 #include "Common/UniqueIDImp.H"
 #include "Common/pmstream.h"
 #include "oml/vector3d.h"

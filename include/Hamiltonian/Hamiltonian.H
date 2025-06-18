@@ -2,7 +2,7 @@
 #ifndef _Hamiltonian_H_
 #define _Hamiltonian_H_
 
-#include <types.H>
+#include <Hamiltonian/fwd.H>
 #include "Common/pmstream.h"
 #include <ChargeDensity/ChargeDensity.H>
 //

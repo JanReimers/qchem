@@ -2,9 +2,10 @@
 #ifndef _RadialMesh_H_
 #define _RadialMesh_H_
 
-#include "types.H"
+#include "omlfwd.H"
 #include <tuple>
 #include <vector>
+
 
 class RadialMesh
 {

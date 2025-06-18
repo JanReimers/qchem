@@ -1,8 +1,6 @@
 #ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
 
-#include "oml/imp/index_t.h"
-
 /*! \mainpage qchem .
  *
  * \section overview_sec Overview 
@@ -46,89 +44,7 @@
  * Irrep =  Irreducible Representation
 */
 
-
-//
-//  Forward declarations for OML types.
-//
-template <class T> class Matrix;
-template <class T> class SMatrix;
-template <class T> class DiagonalMatrix;
-template <class T> class Vector;
-template <class T> class Vector3D;
-
-typedef Vector3D<double> RVec3;
-//
-//  Some stuff in std::
-//
-namespace std 
-{
-    template <typename T> class valarray;
-}
-//
-//  Forward declarations for function types.
-//
-template <class T> class ScalarFunction;
-template <class T> class VectorFunction;
-//
-//  Forward declarations for qchem abstract base classes.
-//
-class Atom;
-class IrrepBasisSet;
-class BasisFunction;
-class BasisSet;
-class Cluster;
-class ElectronConfiguration;
-class EnergyLevel;
-class EnergyLevels;
-class ERI4;
-class DM_CD;
-class M4;
-class ExFunctional;
-class Fit_IBS;
-class FittedCD;
-class FittedFunction;
-class FittedFunctionClient;
-class Hamiltonian;
-class Irrep_QNs;
-class Irrep_WF;
-class Molecule;
-class Mesh;
-class MeshParams;
-class Orbital_IBS;
-class Orbital;
-class Orbitals;
-class Orbital_QNs;
-class SCFIrrepAccelerator;
-class SCFAccelerator;
-class Symmetry;
-enum class Spin;
-class RadialMesh;
 class SCFIterator;
-class EnergyBreakdown;
-class WaveFunction;
-
-struct LAParams;
 struct SCFParams;
-
-
-template <class T> class LASolver;
-template <class T> class AnalyticIE;
-template <class T> class TBasisFunction;
-template <class T> class TIrrepBasisSet;
-template <class T> class TOrbital_IBS;
-template <class T> class TOrbital_DFT_IBS;
-template <class T> class TOrbital_HF_IBS;
-template <class T> class Orbital_RKBL_IBS;
-template <class T> class Orbital_RKBS_IBS;
-template <class T> class TOrbital;
-template <class T> class TOrbitals;
-
-namespace qchem
-{
-    // Integral types.
-    enum IType3C {Overlap3C, Repulsion3C}; // <ab|c> and <ar|1/r12|c>
-    enum IType2C {Overlap2C, Repulsion2C,Grad2,Nuclear,RestMass, InvOverlap, InvRepulsion, Charge, Normalization,NumCharge,NumNormalization,NumOverlap};
-    enum IType   {Overlap1, Grad2_1, Nuclear1, RestMass1,Repulsion1,InvOverlap1, InvRepulsion1, Charge1};
-}
 
 #endif // TYPES_H_INCLUDED

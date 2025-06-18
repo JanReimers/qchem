@@ -3,7 +3,7 @@
 #define _MoleculeMesh_H_
 
 
-
+#include <Mesh/fwd.H>
 #include <Mesh/Mesh.H>
 
 class Cluster;

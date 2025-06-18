@@ -2,10 +2,12 @@
 #ifndef _RadialFunction_H_
 #define _RadialFunction_H_
 
+#include <Cluster/fwd.H>
+#include <BasisSet/fwd.H>
 #include "Polarization.H"
 #include "Common/pmstream.h"
 #include <Common/UniqueID.H> 
-#include <Common/ScalarFunction.H>
+#include <Mesh/ScalarFunction.H>
 #include "oml/vector3d.h"
 #include <vector>
 #include <set>

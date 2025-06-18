@@ -2,8 +2,14 @@
 #ifndef _ScalarFunction_H_
 #define _ScalarFunction_H_
 
-#include "types.H"
+#include <omlfwd.H>
+#include <Mesh/fwd.H>
 #include "oml/vector3d.h"
+
+namespace std 
+{
+    template <typename T> class valarray;
+}
 
 //------------------------------------------------------------------
 //

@@ -2,7 +2,12 @@
 #ifndef _ChargeDensity_Factory_H_
 #define _ChargeDensity_Factory_H_
 
-#include <types.H>
+#include <omlfwd.H>
+#include <Symmetry/fwd.H>
+#include <Mesh/fwd.H>
+#include <BasisSet/fwd.H>
+#include <Fitting/fwd.H>
+#include <ChargeDensity/fwd.H>
 #include <memory>
 
 typedef std::shared_ptr<const Mesh>    mesh_t;

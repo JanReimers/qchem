@@ -2,8 +2,6 @@
 #ifndef _MeshParams_H_
 #define _MeshParams_H_
 
-#include "types.H"
-
 namespace qchem
 {
     //! \brief radial integration mesh types.

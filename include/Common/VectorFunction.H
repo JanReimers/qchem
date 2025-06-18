@@ -2,7 +2,9 @@
 #ifndef _VectorFunction_H_
 #define _VectorFunction_H_
 
-#include "types.H"
+#include <omlfwd.H>
+#include <Mesh/fwd.H>
+
 #include "oml/vector3d.h"
 
 //--------------------------------------------------------------------------

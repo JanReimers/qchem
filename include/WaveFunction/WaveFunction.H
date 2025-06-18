@@ -2,7 +2,13 @@
 #ifndef _WaveFunction_H_
 #define _WaveFunction_H_
 
-#include <types.H>
+#include <Common/fwd.H>
+#include <Symmetry/fwd.H>
+#include <ChargeDensity/fwd.H>
+#include <Hamiltonian/fwd.H>
+#include <Orbitals/fwd.H>
+#include <WaveFunction/fwd.H>
+
 #include <vector>
 class WaveFunction 
 {

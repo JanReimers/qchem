@@ -2,6 +2,8 @@
 #ifndef _Composite_WF_H_
 #define _Composite_WF_H_
 
+#include <BasisSet/fwd.H>
+#include <SCFAccelerator/fwd.H>
 #include <WaveFunction/WaveFunction.H>
 #include <WaveFunction/EnergyLevel.H>
 #include <vector>

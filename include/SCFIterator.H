@@ -1,7 +1,13 @@
 // File: SCFIterator.H  Interface for an object that manages SCF convergence.
 
-
-#include "types.H"
+#include <omlfwd.H>
+#include <Symmetry/fwd.H>
+#include <BasisSet/fwd.H>
+#include <ChargeDensity/fwd.H>
+#include <Hamiltonian/fwd.H>
+#include <SCFAccelerator/fwd.H>
+#include <WaveFunction/fwd.H>
+#include <SCFIteratorfwd.H>
 
 class SCFIterator
 {

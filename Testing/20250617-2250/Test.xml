@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20250617-2250-Experimental"
+	Name="(empty)"
+	Generator="ctest-3.31.6"
+	CompilerName=""
+	CompilerVersion=""
+	OSName="Linux"
+	Hostname="janr-HP-Compaq-Pro-6300-MT"
+	OSRelease="6.11.0-26-generic"
+	OSVersion="#26-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 12 11:25:41 UTC 2025"
+	OSPlatform="x86_64"
+	Is64Bits="1"
+	VendorString="GenuineIntel"
+	VendorID="Intel Corporation"
+	FamilyID="6"
+	ModelID="58"
+	ModelName="Intel(R) Core(TM) i5-3470 CPU @ 3.20GHz"
+	ProcessorCacheSize="6144"
+	NumberOfLogicalCPU="4"
+	NumberOfPhysicalCPU="4"
+	TotalVirtualMemory="25999"
+	TotalPhysicalMemory="15355"
+	LogicalProcessorsPerPhysical="1"
+	ProcessorClockFrequency="2913.13"
+	>
+	<Testing>
+		<StartDateTime>Jun 17 16:53 CST</StartDateTime>
+		<StartTestTime>1750200817</StartTestTime>
+		<TestList/>
+		<EndDateTime>Jun 17 16:53 CST</EndDateTime>
+		<EndTestTime>1750200817</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

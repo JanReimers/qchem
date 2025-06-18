@@ -2,7 +2,7 @@
 #ifndef _Reader_h_
 #define _Reader_h_
 
-#include "types.H"
+#include <Cluster/fwd.H>
 #include <vector>
 
 namespace PolarizedGaussian

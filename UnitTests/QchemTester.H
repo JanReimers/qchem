@@ -2,7 +2,11 @@
 #define QchemTester_H
 
 #include "gtest/gtest.h"
-#include <types.H>
+#include <Mesh/fwd.H>
+#include <Hamiltonian/fwd.H>
+#include <Orbitals/fwd.H>
+#include <SCFIteratorfwd.H>
+
 #include <BasisSet/BasisSet.H>
 #include <SCFParams.H>
 #include <LASolver/LAParams.H>

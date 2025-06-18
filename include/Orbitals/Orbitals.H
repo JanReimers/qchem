@@ -2,7 +2,7 @@
 #ifndef _Orbital_H_
 #define _Orbital_H_
 
-#include "types.H"
+#include <Symmetry/fwd.H>
 #include "Common/pmstream.h"
 
 //#############################################################
@@ -31,7 +31,7 @@ public:
     static  Orbital* Factory     (std::istream&)        ;
 };
 
-#include <Common/ScalarFunction.H>
+#include <Mesh/ScalarFunction.H>
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or
@@ -48,6 +48,7 @@ public:
 
 #include <vector>
 #include <memory>
+#include <ChargeDensity/fwd.H>
 #include <Common/Iterators.H>
 //---------------------------------------------------------------------------
 //
@@ -103,7 +104,7 @@ public:
 
 };
 
-#include <Common/VectorFunction.H>
+#include <Mesh/VectorFunction.H>
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or

@@ -2,7 +2,7 @@
 #ifndef _ElectronConfiguration_H_
 #define _ElectronConfiguration_H_
 
-#include <types.H>
+#include <Symmetry/fwd.H>
 
 class ElectronConfiguration
 {

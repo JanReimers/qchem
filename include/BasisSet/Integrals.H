@@ -3,7 +3,9 @@
 #define _IntegralEngine_H_
 
 
-#include "types.H"
+#include <omlfwd.H>
+#include <Cluster/fwd.H>
+#include <BasisSet/fwd.H>
 #include <Common/UniqueID.H> //Need IDType
 #include <vector>
 

@@ -3,9 +3,9 @@
 #define _ExchangeFunctional_H_
 
 
-
+#include <ChargeDensity/fwd.H>
 #include "Common/pmstream.h"
-#include <Common/ScalarFunction.H>
+#include <Mesh/ScalarFunction.H>
 
 class ExFunctional
     : public virtual PMStreamableObject

@@ -3,6 +3,7 @@
 #define _TOrbitalGroupImplementation_H_
 
 
+#include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
 #include <Symmetry/Irrep_QNs.H>
 #include "oml/smatrix.h"

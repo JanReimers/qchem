@@ -2,7 +2,11 @@
 #ifndef _WaveFunction_Factory_H_
 #define _WaveFunction_Factory_H_
 
-#include <types.H>
+#include <Symmetry/fwd.H>
+#include <BasisSet/fwd.H>
+#include <Hamiltonian/fwd.H>
+#include <SCFAccelerator/fwd.H>
+#include <WaveFunction/fwd.H>
 
 namespace WaveFunctionF
 {

@@ -2,7 +2,9 @@
 #ifndef _BasisSet_Factory_H_
 #define _BasisSet_Factory_H_
 
-#include <types.H>
+#include <Symmetry/fwd.H>
+#include <Cluster/fwd.H>
+#include <BasisSet/fwd.H>
 #include <nlohmann/json.hpp>
 
 namespace BasisSetAtom
