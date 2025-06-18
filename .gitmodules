@@ -15,6 +15,10 @@
 	url = https://github.com/joeydumont/wignerSymbols
 [submodules "oml"]
 	branch = main
+[submodules "json"]
+	branch = master
+[submodules "wignerSymbols"]
+	branch = master
 [submodule "submodules/json"]
 	path = submodules/json
 	url = https://github.com/nlohmann/json
