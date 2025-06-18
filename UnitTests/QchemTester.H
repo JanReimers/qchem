@@ -1,3 +1,4 @@
+module;
 #ifndef QchemTester_H
 #define QchemTester_H
 
@@ -5,7 +6,7 @@
 #include <Mesh/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <Orbitals/fwd.H>
-#include <SCFIteratorfwd.H>
+// #include <SCFIteratorfwd.H>
 
 #include <BasisSet/BasisSet.H>
 #include <SCFParams.H>
@@ -15,6 +16,8 @@
 #include <nlohmann/json.hpp>
 
 #include <memory>
+
+import SCFIterator;
 
 class QchemTester
 {

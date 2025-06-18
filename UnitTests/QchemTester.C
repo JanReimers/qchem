@@ -3,7 +3,6 @@
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <SCFAccelerator/Factory.H>
 #include <Mesh/MeshParams.H>
-#include <SCFIterator.H>
 #include <WaveFunction/WaveFunction.H>
 #include <Hamiltonian/Hamiltonian.H>
 #include <Cluster/Cluster.H>
@@ -13,8 +12,9 @@
 #include <Orbitals/Orbitals.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <memory>
-
 PeriodicTable QchemTester::itsPT;
+
+
 
 QchemTester::QchemTester()
 : itsCluster(0)

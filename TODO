@@ -30,18 +30,18 @@ Priority 1:
             We wave the Irrep just need to supervisor.
 
     -Redesign fitting so fitted objects contain a Fitter*
-    
-    -C++ Modules  Try making a C++20 module    
+    -Mesh refactor Refactor mesh hold std::vector<RVec3> rs and std::vector<double> ws and make the 3 iterator proxies
+        1) riterator
+        2) witerator
+        3) rwiterator
+    -C++ Modules  Try making a C++20 module  
+        Need to work top down, so start with SCFIter.
+            Put all legacy include statements before any module statements.  
         Done: Wait for gcc-15
         Done: need a recent version of CMake (on 3.31.6)
-        -Scalar/VectorFunction depend on Mesh?  Only at the header level.
-            options:
-            1) Move Scalar/VectorFunction into the mesh module
-            2) Refactor mesh hold std::vector<RVec3> rs and std::vector<double> ws and make the 3 iterator proxies
-                1) riterator
-                2) witerator
-                3) rwiterator
-
+        Done: -Scalar/VectorFunction depend on Mesh?  Only at the header level.
+            Move Scalar/VectorFunction into the mesh module
+            
     -Play around with plane wave basis sets
         -Make some UTs for the lattice class.
         -Intros:

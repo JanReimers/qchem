@@ -1,8 +1,14 @@
 // File: SCFIteratorImplementation.C  Partial common implementation for an object that manages SCF convergence.
+module ;
 
-
-
-#include <SCFIterator.H>
+#include <omlfwd.H>
+#include <Symmetry/fwd.H>
+#include <BasisSet/fwd.H>
+#include <ChargeDensity/fwd.H>
+#include <Hamiltonian/fwd.H>
+#include <SCFAccelerator/fwd.H>
+#include <WaveFunction/fwd.H>
+// #include <SCFIteratorfwd.H>
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <WaveFunction/WaveFunction.H>
 #include <WaveFunction/Factory.H>
@@ -14,11 +20,17 @@
 #include <iomanip>
 #include <cassert>
 
+
+export module SCFIterator;
 using std::cout;
 using std::endl;
 using std::setw;
 using std::setprecision;
 using std::ios;
+
+export {
+
+#include <SCFIterator.H>
 
 
 SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
@@ -176,3 +188,4 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
 
 //-------------------------------------------------------------------------------------------------------------------------
 
+} //export
