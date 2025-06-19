@@ -8,7 +8,7 @@ include(CTest)
 include(GoogleTest)
 
 add_library(qchem) 
-target_sources(qchem PRIVATE FILE_SET all_my_modules TYPE CXX_MODULES FILES src/SCFIterator.C)
+target_sources(qchem PRIVATE src/SCFIterator.C)
 set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
 
 add_subdirectory(./src)

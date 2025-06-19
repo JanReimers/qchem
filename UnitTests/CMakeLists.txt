@@ -13,7 +13,8 @@ add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C Electro
 #GCM_PATH := $(LIB_PATH)/gcm.cache
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
 #-Wno-unknown-pragmas
-target_compile_options(UTMain PRIVATE -v -Wall -Wno-unknown-pragmas -fmodules-ts
+# -Wno-cpp  Suppress warning messages emitted by #warning directives.
+target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )

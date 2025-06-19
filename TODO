@@ -34,7 +34,8 @@ Priority 1:
         1) riterator
         2) witerator
         3) rwiterator
-    -C++ Modules  Try making a C++20 module  
+    -C++ Modules  Try making a C++20 module 
+        use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C 
         Need to work top down, so start with SCFIter.
             Put all legacy include statements before any module statements.  
         Done: Wait for gcc-15

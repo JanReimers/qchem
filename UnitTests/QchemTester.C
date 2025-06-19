@@ -11,6 +11,7 @@
 #include <Hamiltonian/TotalEnergy.H>
 #include <Orbitals/Orbitals.H>
 #include <ChargeDensity/ChargeDensity.H>
+#include <SCFIterator.H>
 #include <memory>
 PeriodicTable QchemTester::itsPT;
 
