@@ -14,7 +14,7 @@ set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
 add_subdirectory(./src)
 
 # -Wno-unknown-pragmas
-target_compile_options(qchem PRIVATE -Wall -Wno-unknown-pragmas
+target_compile_options(qchem PRIVATE -Wall -Wno-unknown-pragmas -fmodules-ts
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )

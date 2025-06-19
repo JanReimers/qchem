@@ -6,3 +6,8 @@ target_include_directories(qcCluster PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/oml/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
+target_compile_options(qcCluster PRIVATE -Wall -Wno-unknown-pragmas -fmodules-ts
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2>
+)
+set_property(TARGET qcCluster PROPERTY CXX_STANDARD 20)

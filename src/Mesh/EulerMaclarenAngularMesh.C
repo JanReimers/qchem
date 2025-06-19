@@ -3,12 +3,13 @@
 
 
 #include "EulerMaclarenAngularMesh.H"
-#include <Common/Constants.H>
+// #include <Common/Constants.H>
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
 
+import Common;
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {
     assert(m>=1 && m<=3);
