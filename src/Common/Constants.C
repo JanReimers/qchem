@@ -1,8 +1,5 @@
-//  file: DFTDefines.C
-
-
-
-#include "Common/DFTDefines.H"
+// File: Common/Constants.C  Some commonly used math and physics constants.
+#include "Common/Constants.H"
 #include <cmath>
 
 const double  Pi   = M_PI;

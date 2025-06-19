@@ -8,7 +8,7 @@
 #include "Symmetry/Angular.H"
 
 #include "Mesh/MeshIntegrator.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H>

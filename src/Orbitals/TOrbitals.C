@@ -5,7 +5,7 @@
 #include "TOrbitals.H"
 #include "TOrbital.H"
 #include <ChargeDensity/Factory.H>
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Symmetry/Symmetry.H>
 #include "Common/stl_io.h"

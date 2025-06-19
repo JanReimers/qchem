@@ -8,7 +8,7 @@
 #include <Symmetry/Irrep_QNs.H>
 #include <Symmetry/Symmetry.H>
 #include <iostream>
-#include <Common/DFTDefines.H>
+#include <Common/Constants.H>
 #include "oml/io3d.h"
 #include <iomanip>
 #include "Mesh/MeshIntegrator.H"

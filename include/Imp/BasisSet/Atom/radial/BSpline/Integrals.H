@@ -3,7 +3,7 @@
 
 #include "Common/IntPower.H"
 #include "Common/Factorials.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 
 #include <cmath>
 #include <cassert>

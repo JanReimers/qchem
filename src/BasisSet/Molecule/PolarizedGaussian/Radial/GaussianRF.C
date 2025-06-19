@@ -8,7 +8,7 @@
 #include "PolarizedGaussian/Radial/GaussianH3.H"
 #include "PolarizedGaussian/CDCache.H"
 #include "PolarizedGaussian/Block.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "Cluster/Atom.H"
 #include <Cluster/Cluster.H>
 #include "oml/smatrix.h"

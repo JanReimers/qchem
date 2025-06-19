@@ -1,6 +1,6 @@
-// File: DFTDefines.H  global defines used in DFT system.
-#ifndef _DFTDefines_H_
-#define _DFTDefines_H_
+// File: Common/Constants.H  Some commonly used math and physics constants.
+#ifndef _Common_Constants_H
+#define _Common_Constants_H
 
 extern const double  Pi  ;
 extern const double  Pi12;
@@ -18,4 +18,4 @@ inline double Cube  (double x)
     return x*x*x;
 }
 
-#endif //_DFTDefines_H_
+#endif //_Common_Constants_H

@@ -3,7 +3,7 @@
 
 
 #include "EulerMaclarenAngularMesh.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>

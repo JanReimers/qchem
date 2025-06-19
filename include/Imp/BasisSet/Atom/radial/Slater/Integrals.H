@@ -2,7 +2,7 @@
 #define SLATERINTEGRALS_H
 
 #include "Common/IntPower.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "Common/Factorials.H"
 
 #include <cmath>

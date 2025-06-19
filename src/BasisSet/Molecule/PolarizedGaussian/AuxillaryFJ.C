@@ -1,7 +1,7 @@
 // File:  AuxillaryFJ.C  Class for calculating the auxiliary function.
 
 #include "PolarizedGaussian/AuxillaryFJ.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "Common/IntPower.H"
 #include "oml/vector.h"
 #include <cmath>

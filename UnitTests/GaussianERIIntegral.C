@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include "Imp/Integrals/Wigner3j.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>

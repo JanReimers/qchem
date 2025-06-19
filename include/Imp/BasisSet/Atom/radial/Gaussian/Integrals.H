@@ -3,7 +3,7 @@
 #define  _GaussianIntegrals_H_
 
 #include <cmath>
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 
 namespace Gaussian
 {

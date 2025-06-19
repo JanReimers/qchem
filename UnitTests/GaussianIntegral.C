@@ -8,7 +8,7 @@
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include "Mesh/MeshIntegrator.H"
-#include "Common/DFTDefines.H"
+#include <Common/Constants.H>
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <Mesh/MeshParams.H>
