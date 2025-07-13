@@ -10,6 +10,7 @@ include(GoogleTest)
 add_library(qchem) 
 target_sources(qchem PRIVATE src/SCFIterator.C)
 set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
+set(CXX_SCAN_FOR_MODULES on)
 
 add_subdirectory(./src)
 

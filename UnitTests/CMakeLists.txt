@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.30.0)
 
 variable_watch(__CMAKE_CXX_COMPILER_OUTPUT)
 
@@ -14,7 +14,8 @@ add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C Electro
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
-target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
+
+target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp -fmodules-ts
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )
@@ -28,7 +29,7 @@ target_include_directories(UTMain PRIVATE
       ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 
 )
-target_link_libraries(UTMain qchem )
+target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 add_executable(UTModules UTModules.C)
 set_property(TARGET UTModules PROPERTY CXX_STANDARD 20)

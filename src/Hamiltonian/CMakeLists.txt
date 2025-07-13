@@ -7,3 +7,6 @@ target_include_directories(qcHamiltonian PRIVATE
     ${PROJECT_SOURCE_DIR}/include/Imp/Hamiltonian  
     ${PROJECT_SOURCE_DIR}/submodules/oml/include
     )
+    
+set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 20)
+target_link_libraries(qcHamiltonian PUBLIC qcCommon)

@@ -11,3 +11,4 @@ target_compile_options(qcCluster PRIVATE -Wall -Wno-unknown-pragmas -fmodules-ts
     $<$<CONFIG:Release>: -O2>
 )
 set_property(TARGET qcCluster PROPERTY CXX_STANDARD 20)
+target_link_libraries(qcCluster PUBLIC qcCommon)
