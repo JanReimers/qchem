@@ -1,5 +1,6 @@
 // File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
 
+#include <Common/pmstream.h>
 #include <Symmetry/Irrep_QNs.H>
 #include <Symmetry/Symmetry.H>
 #include <cassert>
@@ -34,7 +35,7 @@ size_t Irrep_QNs::GetDegeneracy() const
 std::string spins[]={"↓"," ","↑"};
 std::ostream& Irrep_QNs::Write(std::ostream& os) const
 {
-    return os  << *sym << spins[static_cast<int>(ms)];
+    return os  << (*sym) << spins[static_cast<int>(ms)];
 }
 
     

@@ -21,6 +21,8 @@ target_include_directories(qcBasisSet PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
+set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)
+target_link_libraries(qcBasisSet PUBLIC qcCommon) 
 
 add_subdirectory(Atom)
 add_subdirectory(Molecule)

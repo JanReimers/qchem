@@ -1,9 +1,14 @@
 // File: Factorials.C
-
-#include "Common/Factorials.H"
+module;
+// #include "Common/Factorials.H"
 #include <iostream>
+
+module Common:Factorials;
+import Common;
+
 namespace qchem
 {
+    extern const int NMax=19; //Should enable up to f orbitals.
     static FactorialTables theFactoriTables; //Force call to InitFactorials() before main().
 
     FactorialTables::FactorialTables()

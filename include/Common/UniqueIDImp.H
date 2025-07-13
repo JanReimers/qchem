@@ -5,7 +5,7 @@
 
 #include <Common/UniqueID.H>
 #include "Common/pmstream.h"
-
+#include <iostream>
 //#############################################################################
 //
 //  This class allows objects to be pickled with unique ID's.  The problem

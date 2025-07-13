@@ -2,6 +2,7 @@
 
 #include "Symmetry/Okmj.H"
 #include "Symmetry/Atom_EC.H"
+#include <cstddef> //for size_t
 #include <iostream>
 #include <iomanip>
 #include <cassert>

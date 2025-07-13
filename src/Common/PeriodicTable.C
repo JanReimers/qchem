@@ -1,10 +1,16 @@
 // File: PeriodicTable.C  Implement a periodic table.
+module;
 
-#include "Common/PeriodicTable.H"
+// #include "Common/PeriodicTable.H"
 #include <string>
 #include <cassert>
 
-char PeriodicTable::theSymbols[110][3] =
+module Common:PeriodicTable;
+import Common;
+
+// extern const int N_Elements;
+
+char PeriodicTable::theSymbols[N_Elements][3] =
 {
     "  ",
     "H ",                                                                                                                                                                                     "He",

@@ -3,13 +3,11 @@
 
 
 #include "GaussLegendreAngularMesh.H"
-// #include <Common/Constants.H>
+#include <Common/Constants.H>
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
-
-import Common;
 
 void GaussLegendre(double x1, double x2, Vector<double>& x, Vector<double>& w, int n);
 

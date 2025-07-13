@@ -35,12 +35,9 @@ Priority 1:
         2) witerator
         3) rwiterator
     -C++ Modules  Try making a C++20 module 
+        Issues:
+            1) 
         use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
-        add_compile_options(-fprebuilt-module-path=${PREBUILT_MODULE_PATH})
-        CXX_MODULES_BMI
-            There are two solutions to the latter. The first one is that when you add a link dependency of B to A, you also add its module output directory to the module input path of A. The other, and much simpler, solution is that the module output directory is shared between all build targets and subprojects within a single build tree. It could be called, for example, built-modules and be at the root dir of the build tree. The only real downside is that if your project defines a module with the same name in two different source files, there would be a clash. But if that is the case your build setup is broken already due to potential module-ODR violations, and bailing out is the sensible thing to do.
-        add_library(qcCommon MODULE) 
-        '-fmodule-mapper=|@g++-mapper-server -r'<INSERT YOUR DESIRED PATH HERE>
         create system modules 
             g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 
 

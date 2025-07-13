@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.30.0)
+# cmake_minimum_required(VERSION 3.30.0)
 
-variable_watch(__CMAKE_CXX_COMPILER_OUTPUT)
+#variable_watch(__CMAKE_CXX_COMPILER_OUTPUT)
 
 #file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 link_directories( 
