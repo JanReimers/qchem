@@ -5,5 +5,7 @@
 class Mesh;
 class MeshParams;
 class RadialMesh;
+template <class T> class ScalarFunction;
+template <class T> class VectorFunction;
 
 #endif //_Mesh_fwd_H_

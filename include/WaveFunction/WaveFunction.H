@@ -2,7 +2,7 @@
 #ifndef _WaveFunction_H_
 #define _WaveFunction_H_
 
-#include <Common/fwd.H>
+#include <Mesh/fwd.H>
 #include <Symmetry/fwd.H>
 #include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>

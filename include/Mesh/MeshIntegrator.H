@@ -3,7 +3,6 @@
 #define _MeshIntegrator_H_
 
 #include <omlfwd.H>
-#include <Common/fwd.H>
 #include <Mesh/fwd.H>
 
 class MeshImplementation;
