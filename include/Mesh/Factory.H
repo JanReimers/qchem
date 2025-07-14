@@ -5,6 +5,7 @@
 #include <Mesh/fwd.H>
 #include <nlohmann/json.hpp>
 import Mesh;
+import RadialMesh;
 
 namespace MeshF
 {

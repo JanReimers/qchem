@@ -1,12 +1,21 @@
 //  File: MHLRadialMesh.C  MHLarithmic radial mesh implementation
-
-
-
-#include "MHLRadialMesh.H"
+module;
+#include "oml/imp/index_t.h"
 #include <iostream>
 #include <cmath>
 
+export module Mesh.MHLRadialMesh;
 import Common.IntPow;
+import RadialMesh;
+
+//
+// C.W. Murray,N.C. Handy and G.J. Laming, Mol. Phys.78 (1993) 997. 
+//
+export class MHLRadialMesh : public  RadialMesh
+{
+public:
+    MHLRadialMesh(index_t NumPoints, int m, double alpha);
+};
 
 MHLRadialMesh::MHLRadialMesh(index_t NumPoints, int m, double alpha)
 {

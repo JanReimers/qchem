@@ -1,10 +1,17 @@
 // File: LinearMesh.C  Linear mesh implementation.
-
-
-
+module;
 #include "oml/vector.h"
 #include <cmath>
-#include "LinearMesh.H"
+export module Mesh.LinearMesh;
+export import Mesh;
+
+export class LinearMesh : public Mesh
+{
+public:
+    LinearMesh(double start, double stop, const RVec3& direction, index_t numPoints);
+    Mesh*  Clone() const;
+};
+
 
 LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, index_t NumPoints)
 {

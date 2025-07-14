@@ -3,6 +3,7 @@
 #define _AtomMesh_H_
 
 import Mesh;
+import RadialMesh;
 
 class AtomMesh : public Mesh
 {

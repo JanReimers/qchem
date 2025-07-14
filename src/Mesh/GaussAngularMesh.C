@@ -1,15 +1,19 @@
 //  File: GaussAngularMesh.C  Gauss style angular mesh implementation
-
-
-
+module;
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <stdlib.h>
 
-#include "GaussAngularMesh.H"
-
+export module Mesh.GaussAngularMesh;
+export import Mesh;
 import Common.Constants;
+
+export class GaussAngularMesh : public  Mesh
+{
+public:
+    GaussAngularMesh(index_t numDir=1);
+};
 
 GaussAngularMesh::GaussAngularMesh(index_t numDir)
 {

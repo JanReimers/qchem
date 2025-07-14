@@ -1,15 +1,20 @@
 //  File: EulerMaclarenAngularMesh.C  EulerMaclaren style angular mesh implementation
-
-
-
+module;
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
 
-#include "EulerMaclarenAngularMesh.H"
+export module Mesh.EulerMaclarenAngularMesh;
+export import Mesh;
 
 import Common.Constants;
+
+export class EulerMaclarenAngularMesh : public  Mesh
+{
+public:
+    EulerMaclarenAngularMesh(int L, int m);
+};
 
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {

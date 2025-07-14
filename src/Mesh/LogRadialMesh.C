@@ -1,12 +1,19 @@
 //  File: LogRadialMesh.C  Logarithmic radial mesh implementation
-
-
-
-#include "LogRadialMesh.H"
+module;
+#include "oml/imp/index_t.h"
 #include <iostream>
 #include <cmath>
 
+export module Mesh.LogRadialMesh;
+
 import Common.Constants;
+import RadialMesh;
+
+export class LogRadialMesh : public   RadialMesh
+{
+public:
+    LogRadialMesh(double start, double stop, index_t numPoints);
+};
 
 LogRadialMesh::LogRadialMesh(double start, double stop, index_t NumPoints)
 {

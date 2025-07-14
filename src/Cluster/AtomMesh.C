@@ -2,8 +2,9 @@
 
 
 #include "oml/vector3d.h"
-#include <Mesh/RadialMesh.H>
 #include "AtomMesh.H"
+import RadialMesh;
+
 
 //
 //  The full mesh is just a direct product of radial and ungular meshes.
