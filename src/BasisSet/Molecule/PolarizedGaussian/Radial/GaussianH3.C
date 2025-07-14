@@ -1,10 +1,10 @@
 // File: GaussianH3.C   Class for managing 3 function Hermite coefficients.
 
 
-
-#include "PolarizedGaussian/Radial/GaussianH3.H"
 #include <iostream>
 #include <cassert>
+
+#include "PolarizedGaussian/Radial/GaussianH3.H"
 namespace PolarizedGaussian
 {
 //----------------------------------------------------------------------------------------

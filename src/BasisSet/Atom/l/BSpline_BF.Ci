@@ -1,11 +1,12 @@
 // File: Atom/l/BSpline_BF.C  B-Spline basis function.
 
 #include "l/BSpline_BF.H"
-#include "Common/IntPower.H"
 #include <bspline/operators/Derivative.h>
 #include "oml/vector3d.h"
 #include <iostream>
 #include <cassert>
+
+import Common.IntPow;
 
 namespace Atoml
 {

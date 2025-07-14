@@ -2,13 +2,13 @@
 
 #include "AngularIntegrals.H"
 #include "Wigner3j.H"
-#include "Common/IntPower.H"
 #include "oml/vector.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
 
 import Common.Constants;
+import Common.IntPow;
 
 using std::cout;
 using std::endl;

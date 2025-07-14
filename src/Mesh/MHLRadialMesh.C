@@ -3,9 +3,10 @@
 
 
 #include "MHLRadialMesh.H"
-#include "Common/IntPower.H"
 #include <iostream>
 #include <cmath>
+
+import Common.IntPow;
 
 MHLRadialMesh::MHLRadialMesh(index_t NumPoints, int m, double alpha)
 {

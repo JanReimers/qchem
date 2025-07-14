@@ -2,11 +2,12 @@
 
 #include "kappa/Gaussian_BF.H"
 #include "Symmetry/Okmj.H"
-#include "Common/IntPower.H"
 #include "oml/vector3d.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>
+
+import Common.IntPow;
 
 namespace Atom_kappa
 {

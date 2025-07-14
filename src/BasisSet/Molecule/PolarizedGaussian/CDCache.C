@@ -1,10 +1,10 @@
 // File: CDCache.H
 
+#include <iomanip>
 #include "PolarizedGaussian/CDCache.H"
 #include "PolarizedGaussian/Radial/GaussianCD.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/MnD/RNLM.H"
-#include <iomanip>
 
 namespace PolarizedGaussian
 {

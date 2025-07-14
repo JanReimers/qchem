@@ -2,10 +2,10 @@
 #ifndef _PolarizedGaussianIEClient_H_
 #define _PolarizedGaussianIEClient_H_
 
-#include "Polarization.H"
-#include "../../IEClient.H" // <> prevents file search on this SphericalGaussian folder.
 #include "oml/vector.h"
 #include <vector>
+#include "Polarization.H"
+#include "../../IEClient.H" // <> prevents file search on this SphericalGaussian folder.
 
 namespace PolarizedGaussian
 {

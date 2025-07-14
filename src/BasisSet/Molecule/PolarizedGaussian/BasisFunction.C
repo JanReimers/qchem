@@ -1,13 +1,13 @@
 // File: BasisFunction.C  Polarized Gaussian in 3D space.
 
 
-
-#include "PolarizedGaussian/BasisFunction.H"
 #include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+
+#include "PolarizedGaussian/BasisFunction.H"
 
 namespace PolarizedGaussian
 {

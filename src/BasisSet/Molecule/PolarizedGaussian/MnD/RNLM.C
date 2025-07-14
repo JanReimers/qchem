@@ -2,12 +2,13 @@
 
 
 
-#include "PolarizedGaussian/MnD/RNLM.H"
-#include "PolarizedGaussian/AuxillaryFJ.H"
-#include "Common/IntPower.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>
+#include "PolarizedGaussian/MnD/RNLM.H"
+#include "PolarizedGaussian/AuxillaryFJ.H"
+
+import Common.IntPow;
 
 #define MAX 16
 

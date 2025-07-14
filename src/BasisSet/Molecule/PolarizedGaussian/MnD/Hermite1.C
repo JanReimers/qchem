@@ -1,11 +1,12 @@
 // File: Hermite1.C
 
+#include <iostream>
+#include <cassert>
 
 
 #include "PolarizedGaussian/MnD/Hermite1.H"
-#include "Common/IntPower.H"
-#include <iostream>
-#include <cassert>
+
+import Common.IntPow;
 
 //----------------------------------------------------------------------------------------
 //

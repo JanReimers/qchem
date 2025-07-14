@@ -1,12 +1,12 @@
 #ifndef SLATERINTEGRALS_H
 #define SLATERINTEGRALS_H
 
-#include "Common/IntPower.H"
 #include <cmath>
 #include <cassert>
 
 import Common.Constants;
 import Common.Factorials;
+import Common.IntPow;
 
 namespace Slater
 {

@@ -1,13 +1,14 @@
 // File: Hermite2.C
 
 
+#include <iostream>
+#include <cassert>
+
 
 #include "PolarizedGaussian/MnD/Hermite2.H"
 #include "PolarizedGaussian/Polarization.H"
-#include "Common/IntPower.H"
 
-#include <iostream>
-#include <cassert>
+import Common.IntPow;
 
 std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
 {

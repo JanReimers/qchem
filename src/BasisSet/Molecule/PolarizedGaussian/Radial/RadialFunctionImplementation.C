@@ -2,11 +2,11 @@
 
 
 
-#include "PolarizedGaussian/MnD/Hermite1.H"
 #include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>
+#include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/Radial/Common.H"
 
 namespace PolarizedGaussian

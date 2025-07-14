@@ -2,8 +2,9 @@
 
 #include "radial/BSpline/Rk.H"
 #include "radial/BSpline/GLQuadrature.H"
-#include "Common/IntPower.H"
 #include "oml/vector.h"
+
+import Common.IntPow;
 
 using std::cout;
 using std::endl;
