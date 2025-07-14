@@ -1,12 +1,9 @@
 // File: Iterators.H  helps class to support range based iteration
-#ifndef _Iterators_H_
-#define _Iterators_H_
-
+module;
 #include <cassert>
-//
-// THis iterator will dynamic cast to type D
-//
-template <class D, class it_t> class D_iterator
+export module Common.Iterators;
+
+export template <class D, class it_t> class D_iterator
 {
 public:
     D_iterator(const it_t& b) : current(b) {};
@@ -22,7 +19,7 @@ public:
         assert(ret);
         return ret;
     }
-    friend bool operator!=(const D_iterator& a, const D_iterator& b)
+    friend inline bool operator!=(const D_iterator& a, const D_iterator& b)
     {
         return a.current!=b.current;
     }
@@ -30,7 +27,7 @@ private:
     it_t current;
 };
 
-template <class D, class cit_t> class D_iterator_proxy
+export template <class D, class cit_t> class D_iterator_proxy
 {
     typedef D_iterator<D,cit_t> it_t;
 public:
@@ -42,5 +39,3 @@ private:
     it_t ib,ie;
 };
 
-
-#endif //_Iterators_H_

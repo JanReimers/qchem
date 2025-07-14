@@ -49,7 +49,9 @@ public:
 #include <vector>
 #include <memory>
 #include <ChargeDensity/fwd.H>
-#include <Common/Iterators.H>
+
+import Common.Iterators;
+
 //---------------------------------------------------------------------------
 //
 //  A group of orbitals is usually for one irreducable representation.

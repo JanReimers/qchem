@@ -4,6 +4,7 @@
 
 
 
+#include <cassert>
 #include <BasisSet/Irrep_BS.H>
 #include "IEClient.H"
 
