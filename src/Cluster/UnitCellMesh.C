@@ -4,7 +4,6 @@
 
 #include "Cluster/UnitCell.H"
 #include "UnitCellMesh.H"
-#include <Common/Constants.H>
 #include <cmath>
 
 UnitCellMesh::UnitCellMesh(const UnitCell& cell, index_t NumPoints)

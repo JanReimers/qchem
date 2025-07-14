@@ -2,8 +2,9 @@
 
 #include "radial/Slater/Rk.H"
 #include "radial/PascalTriangle.H"
-#include "Common/Factorials.H"
 #include "oml/vector.h"
+
+import Common.Factorials;
 
 namespace Slater
 {

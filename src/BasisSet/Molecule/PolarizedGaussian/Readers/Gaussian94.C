@@ -7,13 +7,14 @@
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
 #include "Cluster/Atom.H"
-#include "Common/PeriodicTable.H"
 #include "oml/vector.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>
 #include <algorithm>
 #include <unistd.h>
+
+import Common.PeriodicTable;
 
 using std::ws;
 namespace PolarizedGaussian

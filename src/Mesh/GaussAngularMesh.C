@@ -3,11 +3,12 @@
 
 
 #include "GaussAngularMesh.H"
-#include <Common/Constants.H>
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <stdlib.h>
+
+import Common.Constants;
 
 GaussAngularMesh::GaussAngularMesh(index_t numDir)
 {

@@ -3,10 +3,13 @@
 
 #include "radial/Gaussian/Integrals.H"
 #include "AngularIntegrals.H"
-#include "Common/Factorials.H"
 
 #include <iostream>
 #include <cassert>
+#include <cmath>
+
+import Common.Constants;
+import Common.Factorials;
 
 namespace Gaussian
 {

@@ -1,10 +1,11 @@
 // File: DiracKinetic.C  Kinetic energy term for the Dirac hamiltonian.
 
 #include "DiracKinetic.H"
-#include <Common/Constants.H>
 #include <BasisSet/Irrep_BS.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
+
+import Common.Constants;
 
 DiracKinetic::DiracKinetic()
     : Static_HT_Imp()

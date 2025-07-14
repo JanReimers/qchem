@@ -3,9 +3,10 @@
 
 
 #include "LogRadialMesh.H"
-#include <Common/Constants.H>
 #include <iostream>
 #include <cmath>
+
+import Common.Constants;
 
 LogRadialMesh::LogRadialMesh(double start, double stop, index_t NumPoints)
 {

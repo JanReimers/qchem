@@ -3,7 +3,6 @@
 
 
 #include "LinearMesh.H"
-#include <Common/Constants.H>
 #include "oml/vector.h"
 #include <cmath>
 

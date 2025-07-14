@@ -10,11 +10,13 @@
 #include <BasisSet/BasisSet.H>
 #include <SCFParams.H>
 #include <LASolver/LAParams.H>
-#include "Common/PeriodicTable.H"
 #include <Hamiltonian/TotalEnergy.H>
 #include <nlohmann/json.hpp>
 
 #include <memory>
+
+import Common.PeriodicTable;
+
 
 class QchemTester
 {

@@ -2,11 +2,11 @@
 #define SLATERINTEGRALS_H
 
 #include "Common/IntPower.H"
-#include <Common/Constants.H>
-#include "Common/Factorials.H"
-
 #include <cmath>
 #include <cassert>
+
+import Common.Constants;
+import Common.Factorials;
 
 namespace Slater
 {

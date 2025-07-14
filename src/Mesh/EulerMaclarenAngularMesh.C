@@ -3,11 +3,12 @@
 
 
 #include "EulerMaclarenAngularMesh.H"
-#include <Common/Constants.H>
 #include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
+
+import Common.Constants;
 
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {

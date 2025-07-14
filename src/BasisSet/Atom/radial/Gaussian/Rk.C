@@ -2,8 +2,9 @@
 
 #include "radial/Gaussian/Rk.H"
 #include "radial/PascalTriangle.H"
-#include "Common/Factorials.H"
 #include "oml/vector.h"
+import Common.Factorials;
+
 using std::cout;
 using std::endl;
 

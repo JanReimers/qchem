@@ -1,12 +1,13 @@
 // File: Atom_EC.C
 
 #include "Symmetry/Atom_EC.H"
-#include "Common/PeriodicTable.H"
 #include "Symmetry/Angular.H"
 #include <Symmetry/Irrep_QNs.H>
 #include <cassert>
 #include <iostream>
 #include <initializer_list>
+
+import Common.PeriodicTable;
 
 using std::cout;
 using std::endl;

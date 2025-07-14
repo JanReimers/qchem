@@ -1,7 +1,7 @@
 #include "oml/vector.h"
-#include <Common/Constants.H>
 #include <cmath>
 
+import Common.Constants;
 
 void GaussLegendre(double x1, double x2, Vector<double>& x, Vector<double>& w, int n)
 {

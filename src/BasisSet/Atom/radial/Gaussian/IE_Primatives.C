@@ -4,6 +4,8 @@
 #include "radial/Gaussian/Integrals.H"
 #include "radial/Gaussian/Rk.H"
 
+import Common.Constants;
+
 namespace Gaussian
 {
 

@@ -2,9 +2,6 @@
 #ifndef  _GaussianIntegrals_H_
 #define  _GaussianIntegrals_H_
 
-#include <cmath>
-#include <Common/Constants.H>
-
 namespace Gaussian
 {
 //###################################################################

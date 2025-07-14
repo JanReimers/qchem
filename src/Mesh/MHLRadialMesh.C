@@ -3,7 +3,6 @@
 
 
 #include "MHLRadialMesh.H"
-#include <Common/Constants.H>
 #include "Common/IntPower.H"
 #include <iostream>
 #include <cmath>
