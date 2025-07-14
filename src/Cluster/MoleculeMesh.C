@@ -1,15 +1,13 @@
 // File: MoleculeMesh.C  mesh implementation
 
-
-
-#include "MoleculeMesh.H"
-#include <Mesh/MeshParams.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include "oml/io3d.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
+#include "MoleculeMesh.H"
+#include <Mesh/MeshParams.H>
 #include <Cluster/Cluster.H>
 #include "Cluster/Atom.H"
 

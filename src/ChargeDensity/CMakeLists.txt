@@ -7,4 +7,4 @@ target_include_directories(qcChargeDensity PRIVATE
     )
 
 set_property(TARGET qcChargeDensity PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcChargeDensity PUBLIC qcCommon) 
+target_link_libraries(qcChargeDensity PUBLIC qcMesh qcCommon) 

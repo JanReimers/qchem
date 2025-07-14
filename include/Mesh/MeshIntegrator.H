@@ -6,6 +6,7 @@
 #include <Mesh/fwd.H>
 
 class MeshImplementation;
+import Mesh;
 
 template <class T> class MeshIntegrator
 {

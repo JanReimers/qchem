@@ -1,11 +1,12 @@
-// File:: Hamiltonians.S  Create fully implemented Hamiltonians
+// File:: Hamiltonians.C  Create fully implemented Hamiltonians
+
+#include <memory>
 
 #include "Hamiltonians.H"
 #include "Vee.H"
 #include "Vxc.H"
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Fit_IBS.H>
-#include <memory>
 
 Ham_1E::Ham_1E(const cl_t& cl) 
 {

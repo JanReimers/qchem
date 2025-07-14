@@ -2,13 +2,14 @@
 
 
 
-#include "MoleculeMesh.H"
 #include "Common/stl_io.h"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <Cluster/Molecule.H>
+
 #include "Cluster/Atom.H"
+#include <Cluster/Molecule.H>
+#include "MoleculeMesh.H"
 
 Molecule::Molecule()
     : itsNumElectrons(0)

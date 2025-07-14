@@ -1,9 +1,9 @@
 // File: Atom/l/Slater_BF.H  r^l exp(-a*r) type Slater basis function.
 
-#include "l/Slater_BF.H"
 #include "oml/vector3d.h"
 #include <iostream>
 #include <cassert>
+#include "l/Slater_BF.H"
 
 import Common.IntPow;
 

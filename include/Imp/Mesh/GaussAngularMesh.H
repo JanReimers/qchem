@@ -2,9 +2,7 @@
 #ifndef _GaussAngularMesh_H_
 #define _GaussAngularMesh_H_
 
-
-
-#include <Mesh/Mesh.H>
+import Mesh;
 
 class GaussAngularMesh : public  Mesh
 {

@@ -2,9 +2,7 @@
 #ifndef _EulerMaclarenAngularMesh_H_
 #define _EulerMaclarenAngularMesh_H_
 
-
-
-#include <Mesh/Mesh.H>
+import Mesh;
 
 class EulerMaclarenAngularMesh : public  Mesh
 {

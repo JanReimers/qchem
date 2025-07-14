@@ -2,15 +2,14 @@
 #ifndef _RadialFunction_H_
 #define _RadialFunction_H_
 
+#include <vector>
+#include <set>
+#include <map>
 #include <Cluster/fwd.H>
 #include <BasisSet/fwd.H>
 #include "Polarization.H"
 #include "Common/pmstream.h"
 #include <Mesh/ScalarFunction.H>
-#include "oml/vector3d.h"
-#include <vector>
-#include <set>
-#include <map>
 
 import Common.UniqueID; 
 

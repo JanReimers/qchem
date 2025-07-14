@@ -1,15 +1,16 @@
 // File: FittedFunctionImp.C  Common imp for Fitted Functions.
 
-#include "FittedFunction.H"
-#include <ChargeDensity/ChargeDensity.H>
-#include <BasisSet/Fit_IBS.H>
-#include <BasisSet/DFT_IBS.H>
-#include <Mesh/Mesh.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
+#include "FittedFunction.H"
+#include <ChargeDensity/ChargeDensity.H>
+#include <BasisSet/Fit_IBS.H>
+#include <BasisSet/DFT_IBS.H>
+
+import Mesh;
 
 //---------------------------------------------------------------------
 //

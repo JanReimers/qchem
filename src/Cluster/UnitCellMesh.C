@@ -1,10 +1,10 @@
 // File: UnitCellMesh.C  UnitCell mesh implementation.
 
 
+#include <cmath>
 
 #include "Cluster/UnitCell.H"
 #include "UnitCellMesh.H"
-#include <cmath>
 
 UnitCellMesh::UnitCellMesh(const UnitCell& cell, index_t NumPoints)
 {

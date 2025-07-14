@@ -1,13 +1,14 @@
 // File: Vxc.C  Hartree-Fock exchange potential
 
-#include "Vxc.H"
-#include <BasisSet/HF_IBS.H>
-#include <ChargeDensity/ChargeDensity.H>
-#include <Hamiltonian/TotalEnergy.H>
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>
+
+#include "Vxc.H"
+#include <BasisSet/HF_IBS.H>
+#include <ChargeDensity/ChargeDensity.H>
+#include <Hamiltonian/TotalEnergy.H>
 
 Vxc::Vxc() {};
 

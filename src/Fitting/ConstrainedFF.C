@@ -1,12 +1,12 @@
 // File: ConstrainedFF.C  General constrained fit.
 
-#include "ConstrainedFF.H"
-#include <Fitting/FittedFunctionClient.H>
-#include <BasisSet/Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
+#include "ConstrainedFF.H"
+#include <Fitting/FittedFunctionClient.H>
+#include <BasisSet/Fit_IBS.H>
 
 
 template <class T> ConstrainedFF<T>::ConstrainedFF()

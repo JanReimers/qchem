@@ -2,9 +2,7 @@
 #ifndef _UnitCellMesh_H_
 #define _UnitCellMesh_H_
 
-
-
-#include <Mesh/Mesh.H>
+import Mesh;
 
 class UnitCell;
 

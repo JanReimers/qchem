@@ -2,9 +2,7 @@
 #ifndef _GaussLegendreAngularMesh_H_
 #define _GaussLegendreAngularMesh_H_
 
-
-
-#include <Mesh/Mesh.H>
+import Mesh;
 
 class GaussLegendreAngularMesh :  public  Mesh
 {

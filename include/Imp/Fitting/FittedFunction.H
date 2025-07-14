@@ -6,11 +6,12 @@
 
 #include <BasisSet/fwd.H>
 #include <Fitting/FittedFunction.H>
-#include <Mesh/Mesh.H>
 #include <LASolver/LAParams.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"
 #include <memory> // for std::shared_ptr
+
+import Mesh;
 
 template <class T> class FittedCDImp;
 template <class T> class ConstrainedFF;

@@ -4,6 +4,7 @@
 
 #include <Mesh/fwd.H>
 #include <nlohmann/json.hpp>
+import Mesh;
 
 namespace MeshF
 {

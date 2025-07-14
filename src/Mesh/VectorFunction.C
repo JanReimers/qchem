@@ -2,12 +2,11 @@
 
 
 
-#include <Mesh/VectorFunction.H>
-#include <Mesh/Mesh.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include <cassert>
 #include <complex>
+#include <Mesh/VectorFunction.H>
 
 template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator() (const Mesh& mesh) const
 {

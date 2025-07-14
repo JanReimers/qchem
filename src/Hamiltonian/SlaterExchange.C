@@ -1,12 +1,12 @@
 // File: SlaterExchange.C  Slater exchange potential.
 
+#include <iostream>
+#include <cmath>
+#include <cassert>
 
 
 #include "SlaterExchange.H"
 #include <ChargeDensity/ChargeDensity.H>
-#include <iostream>
-#include <cmath>
-#include <cassert>
 
 import Common.Constants;
 

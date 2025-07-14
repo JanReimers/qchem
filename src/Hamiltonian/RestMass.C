@@ -1,9 +1,9 @@
 // File: RestMass.C  Reast mass c^2 term for the Dirac hamiltonian.
 
-#include "RestMass.H"
 #include <BasisSet/DHF_IBS.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
+#include "RestMass.H"
 
 import Common.Constants;
 

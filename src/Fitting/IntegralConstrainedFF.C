@@ -2,9 +2,9 @@
 
 
 
+#include "oml/matrix.h"
 #include "IntegralConstrainedFF.H"
 #include <BasisSet/Fit_IBS.H>
-#include "oml/matrix.h"
 
 template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
     : ConstrainedFF<T>()

@@ -1,10 +1,11 @@
 // File: UnitCell.C  Unit cell for a lattice.
 
-#include "Cluster/UnitCell.H"
 #include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>
+
+#include "Cluster/UnitCell.H"
 
 import Common.Constants;
 

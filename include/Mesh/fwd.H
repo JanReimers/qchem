@@ -2,7 +2,6 @@
 #ifndef _Mesh_fwd_H_
 #define _Mesh_fwd_H_
 
-class Mesh;
 class MeshParams;
 class RadialMesh;
 template <class T> class ScalarFunction;

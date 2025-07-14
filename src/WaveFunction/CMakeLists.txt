@@ -8,4 +8,4 @@ target_include_directories(qcWaveFunction PRIVATE
     
     )
 set_property(TARGET qcWaveFunction PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcWaveFunction PUBLIC qcCommon) 
+target_link_libraries(qcWaveFunction PUBLIC qcMesh qcCommon) 

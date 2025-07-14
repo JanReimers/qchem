@@ -2,8 +2,8 @@
 #ifndef _Molecule_H_
 #define _Molecule_H_
 
+#include <iosfwd>
 #include <Cluster/Cluster.H>
-#include <iostream>
 
 import Common.UniqueIDImp;
 

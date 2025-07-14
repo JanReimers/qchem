@@ -2,9 +2,9 @@
 
 
 
-#include "LinearMesh.H"
 #include "oml/vector.h"
 #include <cmath>
+#include "LinearMesh.H"
 
 LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, index_t NumPoints)
 {

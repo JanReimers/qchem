@@ -1,10 +1,6 @@
 // File: MeshIntegrator.C  mesh Integrator
 
 
-#include "Mesh/MeshIntegrator.H"
-#include <Mesh/Mesh.H>
-#include <Mesh/ScalarFunction.H>
-#include <Mesh/VectorFunction.H>
 #include "oml/vector.h"
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
@@ -13,8 +9,13 @@
 #include <iomanip>
 #include <cmath>
 #include <cassert>
+#include "Mesh/MeshIntegrator.H"
+#include <Mesh/ScalarFunction.H>
+#include <Mesh/VectorFunction.H>
+
 using std::cout;
 using std::endl;
+
 
 //-------------------------------------------------------------------------
 //

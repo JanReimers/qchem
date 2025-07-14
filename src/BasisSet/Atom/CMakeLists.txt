@@ -60,4 +60,4 @@ target_include_directories(qcAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcAtom_BS PUBLIC qcCommon)
+target_link_libraries(qcAtom_BS PUBLIC qcMesh qcCommon)

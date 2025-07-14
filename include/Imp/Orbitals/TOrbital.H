@@ -2,9 +2,9 @@
 #ifndef _TOrbitalImplementation_H_
 #define _TOrbitalImplementation_H_
 
+#include "oml/vector.h"
 #include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
-#include "oml/vector.h"
 #include <Symmetry/Orbital_QNs.H>
 
 class OrbitalImp

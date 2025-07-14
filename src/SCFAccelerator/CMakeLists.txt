@@ -8,4 +8,4 @@ target_include_directories(qcSCFAccelerator PRIVATE
     )
 
 set_property(TARGET qcSCFAccelerator PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcSCFAccelerator PUBLIC qcCommon) 
+target_link_libraries(qcSCFAccelerator PUBLIC qcMesh qcCommon) 

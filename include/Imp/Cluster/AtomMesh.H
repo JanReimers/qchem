@@ -2,8 +2,7 @@
 #ifndef _AtomMesh_H_
 #define _AtomMesh_H_
 
-#include <Mesh/fwd.H>
-#include <Mesh/Mesh.H>
+import Mesh;
 
 class AtomMesh : public Mesh
 {

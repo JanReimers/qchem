@@ -1,10 +1,9 @@
 // File: AtomMesh.C  mesh implementation
 
 
-
-#include "AtomMesh.H"
+#include "oml/vector3d.h"
 #include <Mesh/RadialMesh.H>
-#include <typeinfo>
+#include "AtomMesh.H"
 
 //
 //  The full mesh is just a direct product of radial and ungular meshes.

@@ -5,6 +5,9 @@
 #include <omlfwd.H>
 #include <Mesh/fwd.H>
 #include "oml/vector3d.h"
+
+import Mesh;
+
 namespace std {template <class T> class valarray;}
 //--------------------------------------------------------------------------
 //

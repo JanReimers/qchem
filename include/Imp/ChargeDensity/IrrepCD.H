@@ -4,10 +4,10 @@
 
 
 
+#include "oml/smatrix.h"
 #include <ChargeDensity/ChargeDensity.H>
 #include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
-#include "oml/smatrix.h"
 
 //------------------------------------------------------------------------------------
 //

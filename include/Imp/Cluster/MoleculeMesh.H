@@ -4,7 +4,8 @@
 
 
 #include <Mesh/fwd.H>
-#include <Mesh/Mesh.H>
+
+import Mesh;
 
 class Cluster;
 

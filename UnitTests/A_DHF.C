@@ -1,5 +1,9 @@
 // File A_DHF.C  Atom Dirac-Hartree-Fock tests.
 
+#include <iostream>
+#include "oml/io3d.h"
+#include <iomanip>
+
 #include "QchemTester.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
@@ -7,16 +11,13 @@
 #include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
 #include <Symmetry/Symmetry.H>
-#include <iostream>
-#include "oml/io3d.h"
-#include <iomanip>
 #include "Mesh/MeshIntegrator.H"
 #include <Mesh/MeshParams.H>
-#include <Mesh/Mesh.H>
 #include <BasisSet/Factory.H>
 #include <Hamiltonian/Factory.H>
 
 import Common.Constants;
+import Mesh;
 
 using std::cout;
 using std::endl;

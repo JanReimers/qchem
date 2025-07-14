@@ -6,6 +6,8 @@
 #include <Mesh/fwd.H>
 #include <LASolver/fwd.H>
 
+import Mesh;
+
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.
  class FitIntegrals  
  : public virtual Integrals_Base<double>

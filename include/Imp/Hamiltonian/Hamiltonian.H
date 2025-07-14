@@ -3,10 +3,10 @@
 #define _HamiltonianImp_H_
 
 
-#include <Cluster/fwd.H>
-#include <Hamiltonian/Hamiltonian.H>
 #include <vector>
 #include <memory>
+#include <Cluster/fwd.H>
+#include <Hamiltonian/Hamiltonian.H>
 
 class HamiltonianImp
     : public virtual Hamiltonian

@@ -1,5 +1,10 @@
 // File: VxcPol.C  Polarized HF exchange potential
 
+#include "oml/smatrix.h"
+#include "oml/vector3d.h"
+#include <cassert>
+#include <iostream>
+#include <stdlib.h>
 
 
 #include "VxcPol.H"
@@ -8,11 +13,6 @@
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Symmetry/Spin.H>
-#include "oml/smatrix.h"
-#include "oml/vector3d.h"
-#include <cassert>
-#include <iostream>
-#include <stdlib.h>
 
 VxcPol::VxcPol()
 {

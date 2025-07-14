@@ -1,12 +1,13 @@
 // File: HamiltonianTermImplementation  General implementation of a HamiltonianTerm term in the Hamiltonian.
 
 
+#include <iostream>
+#include <cassert>
+
 #include "HamiltonianTerm.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Symmetry/Symmetry.H>
-#include <iostream>
-#include <cassert>
 
 Dynamic_HT_Imp::Dynamic_HT_Imp()
     : itsCD(0)

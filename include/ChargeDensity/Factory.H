@@ -10,6 +10,7 @@
 #include <ChargeDensity/fwd.H>
 #include <memory>
 
+import Mesh;
 typedef std::shared_ptr<const Mesh>    mesh_t;
 typedef std::shared_ptr<const Fit_IBS> bs_t;
 

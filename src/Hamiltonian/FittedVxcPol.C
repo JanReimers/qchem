@@ -2,16 +2,16 @@
 
 
 
-#include "FittedVxc.H"
-#include "FittedVxcPol.H"
-#include <ChargeDensity/ChargeDensity.H>
-#include <Hamiltonian/TotalEnergy.H>
-#include <Symmetry/Spin.H>
 #include "oml/smatrix.h"
 #include "oml/vector3d.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
+#include "FittedVxc.H"
+#include "FittedVxcPol.H"
+#include <ChargeDensity/ChargeDensity.H>
+#include <Hamiltonian/TotalEnergy.H>
+#include <Symmetry/Spin.H>
 
 FittedVxcPol::FittedVxcPol()
     : itsUpVxc                    (0)

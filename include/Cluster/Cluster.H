@@ -2,15 +2,16 @@
 #ifndef _Cluster_H_
 #define _Cluster_H_
 
-#include <omlfwd.H>
-#include <Mesh/fwd.H>
-#include <Cluster/fwd.H>
 
 #include "Common/pmstream.h"
 #include <vector>
 #include <memory>
+#include <omlfwd.H>
+#include <Mesh/fwd.H>
+#include <Cluster/fwd.H>
 
 import Common.UniqueID; 
+import Mesh; 
 
 class Cluster
     : public virtual UniqueID

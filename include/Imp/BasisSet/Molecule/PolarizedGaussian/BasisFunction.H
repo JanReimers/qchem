@@ -3,10 +3,10 @@
 #define _PolarizedGaussianBF_H_
 
 
-#include <BasisSet/BasisFunction.H>
-#include "RadialFunction.H"
-#include "Polarization.H"
 #include "oml/vector3d.h"
+#include "Polarization.H"
+#include "RadialFunction.H"
+#include <BasisSet/BasisFunction.H>
 
 namespace PolarizedGaussian
 {

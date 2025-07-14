@@ -2,6 +2,9 @@
 #ifndef _Orbital_H_
 #define _Orbital_H_
 
+#include <vector>
+#include <memory>
+
 #include <Symmetry/fwd.H>
 #include "Common/pmstream.h"
 
@@ -46,8 +49,6 @@ public:
     virtual void AddDensityMatrix(SMat& D, SMat& DPrime) const=0;
 };
 
-#include <vector>
-#include <memory>
 #include <ChargeDensity/fwd.H>
 
 import Common.Iterators;

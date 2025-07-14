@@ -2,13 +2,14 @@
 
 
 
-#include "Vnn.H"
-#include <Hamiltonian/TotalEnergy.H>
-#include <BasisSet/Irrep_BS.H>
 #include "oml/smatrix.h"
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include <cassert>
+
+#include "Vnn.H"
+#include <Hamiltonian/TotalEnergy.H>
+#include <BasisSet/Irrep_BS.H>
 #include "Cluster/Atom.H"
 
 

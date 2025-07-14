@@ -1,9 +1,9 @@
 // File: WaveFunction/Factory.C  Create wavefunctions.
 
 #include <WaveFunction/Factory.H>
-#include <Hamiltonian/Hamiltonian.H>
 #include "UnPolarized_WF.H"
 #include "Polarized_WF.H"
+#include <Hamiltonian/Hamiltonian.H>
 
 namespace WaveFunctionF
 {

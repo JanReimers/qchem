@@ -2,12 +2,12 @@
 
 
 
-#include "LDAVxc.H"
 #include "oml/smatrix.h"
-#include <ChargeDensity/ChargeDensity.H>
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>
+#include "LDAVxc.H"
+#include <ChargeDensity/ChargeDensity.H>
 
 LDAVxc::LDAVxc()
     : itsExchangeFunctional  (0)

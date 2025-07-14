@@ -1,5 +1,9 @@
 // File: CDFittedVee.C  Exact Coulomb potential
 
+#include "oml/smatrix.h"
+#include <cassert>
+#include <iostream>
+#include <stdlib.h>
 
 
 #include "FittedVee.H"
@@ -8,10 +12,6 @@
 #include <ChargeDensity/Factory.H>
 #include <BasisSet/DFT_IBS.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include "oml/smatrix.h"
-#include <cassert>
-#include <iostream>
-#include <stdlib.h>
 
 FittedVee::FittedVee()
   
