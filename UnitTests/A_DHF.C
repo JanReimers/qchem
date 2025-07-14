@@ -218,7 +218,7 @@ class A_SL_DHF_H : public A_SLmj_DHF
 
 double S12g(double r,double alpha)
 {
-    if (alpha==0.0) return exp(-r)/sqrt(Pi);
+    if (alpha==0.0) return exp(-r)/Pi12;
     double a2=alpha*alpha;
     double g=sqrt(1.0-a2*1.0);
     double n=FourPi*tgamma(2*g+1.)/pow(2.,2.*g+1.);  

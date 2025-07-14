@@ -3,6 +3,8 @@
 #include "radial/Gaussian/Rk.H"
 #include "radial/PascalTriangle.H"
 #include "oml/vector.h"
+
+import Common.Constants;
 import Common.Factorials;
 
 using std::cout;
@@ -76,7 +78,7 @@ double RkEngine::Coulomb_R0(size_t la,size_t lc) const
     size_t Lcd_p=lc+1; // (lc+ld+2)/2
     //cout << "Lab_m Lcd_m Lab_p Lcd_p" << Lab_m << " " << Lcd_m << " " << Lab_p << " " << Lcd_p << endl;
     //cout << "Iab Icd = " << Iab(Lab_m,Lcd_p) << " " << Icd(Lcd_m,Lab_p) << endl;
-    return sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+    return Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
 Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
@@ -92,7 +94,7 @@ Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
         size_t Lab_m=la-k/2; 
         size_t Lcd_p=lc+1+k/2;
         //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        ret(i++)=sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+        ret(i++)=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
     }
     return ret;
 }
@@ -114,7 +116,7 @@ Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
         size_t Lab_m=(la+lb-k)/2; 
         size_t Lcd_p=(la+lb+k)/2+1;
 
-        ret(i++)=sqrt(pi)/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
+        ret(i++)=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
     }
     return ret;
 }

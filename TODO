@@ -41,6 +41,7 @@ Priority 1:
             2) internal compiler error: in finish_member_declaration, at cp/semantics.cc:4210 when parsing
                 stream.h.  We should just get the hell rid of StreamableObject at least in qchem.
                 clang-20 handles this fine.
+            -THis might have been caused by importing in the middle of various header include.  Try to keep imports after all includes are done.
         use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
         create system modules 
             g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 
