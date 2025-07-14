@@ -9,12 +9,7 @@
 
 import Common.Constants;
 
-const double Rad90=M_PI/2.0;
 
-inline double Rad(double d)
-{
-    return d/180.0*M_PI;
-}
 
 
 UnitCell::UnitCell()

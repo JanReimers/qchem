@@ -8,14 +8,14 @@
 #include <cmath>
 #include <iostream>
 
+import Common.Constants;
+
 using std::cout;
 using std::endl;
 
 namespace AngularIntegrals
 {
 
-double FourPi2=4*4*pi*pi;
-    
 double Exchange(int k,int la,int lb)
 {
     assert(k>=std::abs(la-lb));

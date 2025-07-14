@@ -9,6 +9,9 @@
 #include <cmath>
 #include <cassert>
 
+import Common.Constants;
+
+
 SlaterExchange::SlaterExchange()
     : itsAlpha(0)
     , itsSpin(Spin::None)
@@ -38,7 +41,7 @@ double SlaterExchange::GetVxc(double ro) const
     double ret=0;
     if (ro > 0.0)
     {
-        ret=-3.0 * itsAlpha * pow(3.0*ro/(M_PI*4.0) , 1.0/3.0);
+        ret=-3.0 * itsAlpha * pow(3.0*ro/FourPi , 1.0/3.0);
     }
     return ret;
 }
@@ -50,7 +53,7 @@ SlaterExchange::Vec3 SlaterExchange::Gradient(const Vec3& r) const
     Vec3 ret(0,0,0);
     if (ro > 0.0)
     {
-        ret=-3.0 * itsAlpha * pow(3.0*ro/(M_PI*4.0) , -2.0/3.0) / (M_PI*4.0) * itsChargeDensity->Gradient(r);
+        ret=-3.0 * itsAlpha * pow(3.0*ro/FourPi , -2.0/3.0) / FourPi * itsChargeDensity->Gradient(r);
     }
     if (!isPolarized) ret*=0.5;
     return ret;

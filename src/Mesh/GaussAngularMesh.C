@@ -273,7 +273,7 @@ GaussAngularMesh::GaussAngularMesh(index_t numDir)
         exit(-1);
     }
     };
-    W*=4.0*Pi;
+    W*=FourPi;
 
 #if DEBUG_OUTPUT
     cout << "Sum of weigths/4Pi = " << Sum(W)/4/Pi << std::endl;

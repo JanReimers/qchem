@@ -81,7 +81,7 @@ double SlaterRadialIntegralTests::R0(const AtomIrrepIEClient& ab, const AtomIrre
     double b=cd.es(ic)+cd.es(id);
     int nab=ab.n+ab.n;
     int ncd=cd.n+cd.n;
-    double f=4*4*Pi*Pi/(a*b*(a+b));
+    double f=FourPi2/(a*b*(a+b));
     if (nab==2 && ncd==2)
         return 2*f*( 
                     1/(pow(a,1)*pow(b,1)*pow(a+b,0))

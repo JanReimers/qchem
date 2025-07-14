@@ -30,10 +30,8 @@ public:
     }
 
     double ab,cd;
-    static const double FourPi2;
 };
 
-const double GaussianRadialERITests::FourPi2=4*4*Pi*Pi;
 
 TEST_F(GaussianRadialERITests, R0_0000)
 {

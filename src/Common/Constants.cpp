@@ -10,6 +10,8 @@ export
     const double  Pi12 = sqrt(Pi);
     const double  Pi32 = Pi*Pi12;
     const double  Pi52 = Pi*Pi32;
+    const double  FourPi =4*Pi;
+    const double  FourPi2=4*4*Pi*Pi;
     const double  c_light = 137.035999139; // speed of light in atomic units
 
     inline double Square(double x)
@@ -20,6 +22,13 @@ export
     {
         return x*x*x;
     }
+
+    const double Rad90=Pi/2.0;
+
+    inline double Rad(double d)
+    {
+        return d/180.0*Pi;
+}
 } //export
 
 

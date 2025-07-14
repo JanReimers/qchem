@@ -36,7 +36,7 @@ double IE_Primatives::Inv_r2(double ea , double eb,size_t l_total) const
 double IE_Primatives::Repulsion(double eab, double ec,size_t la,size_t lc) const
 {    
     Gaussian::RkEngine cd(eab,ec,std::max(la,lc));
-    return 4*4*Pi*Pi*cd.Coulomb_R0(la,lc);
+    return FourPi2*cd.Coulomb_R0(la,lc);
 }
 
 double IE_Primatives::Charge(double ea, size_t l) const

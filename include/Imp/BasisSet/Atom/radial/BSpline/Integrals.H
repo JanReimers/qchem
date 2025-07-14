@@ -17,7 +17,7 @@ namespace Slater
 inline double Integral(double a, int l)
 {
     assert(l>=-2);
-    return 4*Pi* qchem::Fact[l+2]/pow(a,l+3);
+    return FourPi* qchem::Fact[l+2]/pow(a,l+3);
 }
 
 //--------------------------------------------------------------------
