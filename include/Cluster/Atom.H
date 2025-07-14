@@ -4,10 +4,11 @@
 
 #include <omlfwd.H>
 #include <Mesh/fwd.H>
-#include "Common/UniqueIDImp.H"
 #include "Common/pmstream.h"
 #include "oml/vector3d.h"
 #include <string>
+
+import Common.UniqueIDImp;
 
 class Atom
     : public virtual PMStreamableObject

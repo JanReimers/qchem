@@ -2,7 +2,6 @@
 
 
 
-#include "Cluster/Atom.H"
 #include "Vnn.H"
 #include <Hamiltonian/TotalEnergy.H>
 #include <BasisSet/Irrep_BS.H>
@@ -10,6 +9,8 @@
 #include "oml/vector.h"
 #include "oml/vector3d.h"
 #include <cassert>
+#include "Cluster/Atom.H"
+
 
 Vnn::Vnn()
     : Static_HT_Imp()

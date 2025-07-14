@@ -2,15 +2,15 @@
 
 
 
-#include "Cluster/Lattice.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
 #include "MoleculeMesh.H"
 #include "oml/io3d.h"
 #include <iostream>
 #include <cassert>
 #include <cmath>
 #include <algorithm> //sort
+#include "Cluster/Lattice.H"
+#include "Cluster/Atom.H"
+#include "Cluster/Molecule.H"
 
 //--------------------------------------------------------------------------
 //

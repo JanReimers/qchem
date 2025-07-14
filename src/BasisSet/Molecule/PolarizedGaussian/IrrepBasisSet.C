@@ -1,19 +1,21 @@
 // File: BasisSet.C  Polarized Gaussian basis set, for MO calculations.
 
-
-
-#include "PolarizedGaussian/BasisFunction.H"
-#include "PolarizedGaussian/IrrepBasisSet.H"
-#include "PolarizedGaussian/IntegralEngine.H"
-#include "PolarizedGaussian/Readers/Gaussian94.H"
-#include "PolarizedGaussian/Radial/GaussianRF.H"
-#include "Cluster/Atom.H"
-#include "Symmetry/Unit.H"
-#include <BasisSet/BasisSet.H>
-#include <Cluster/Cluster.H>
 #include "Common/stl_io.h"
 #include <cassert>
 #include <algorithm> //Need std::max
+
+#include "Symmetry/Unit.H"
+#include <BasisSet/BasisSet.H>
+
+
+#include "PolarizedGaussian/BasisFunction.H"
+#include "PolarizedGaussian/IntegralEngine.H"
+#include "PolarizedGaussian/Readers/Gaussian94.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
+
+#include "PolarizedGaussian/IrrepBasisSet.H"
+#include <Cluster/Cluster.H>
+#include "Cluster/Atom.H"
 
 namespace PolarizedGaussian
 {

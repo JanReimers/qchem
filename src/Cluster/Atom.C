@@ -2,7 +2,6 @@
 
 
 
-#include "Cluster/Atom.H"
 #include "AtomMesh.H"
 #include <Mesh/MeshParams.H>
 #include "oml/io3d.h"
@@ -10,6 +9,9 @@
 #include <cassert>
 #include <Mesh/Factory.H>
 #include <nlohmann/json.hpp>
+
+#include "Cluster/Atom.H"
+
 using json = nlohmann::json;
 
 Atom::Atom()

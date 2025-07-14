@@ -1,14 +1,16 @@
 // File: ContractedGaussianRF.C  Contracted Gaussian in 3D space.
 
 
-#include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
+#include "Common/stl_io.h"
+#include "oml/io3d.h"
+#include <iostream>
+
 #include "PolarizedGaussian/Radial/ContractedGaussianH3.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/Block.H"
 #include "PolarizedGaussian/MnD/Hermite1.H"
-#include "Common/stl_io.h"
-#include "oml/io3d.h"
-#include <iostream>
+#include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
+
 namespace PolarizedGaussian
 {
 //#######################################################################

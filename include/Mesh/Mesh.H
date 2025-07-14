@@ -2,10 +2,12 @@
 #ifndef _Mesh_H_
 #define _Mesh_H_
 
-#include <omlfwd.H>
 #include "oml/vector3d.h"
 #include <tuple>
 #include <vector>
+
+template <class T> class Vector3D;
+typedef Vector3D<double> RVec3; //Not really a fwd decalre!
 
 class Mesh 
 { 

@@ -6,7 +6,8 @@
 
 #include <BasisSet/Irrep_BS.H>
 #include "IEClient.H"
-#include "Common/UniqueIDImp.H"
+
+import Common.UniqueIDImp;
 
 //---------------------------------------------------------------------
 //

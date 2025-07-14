@@ -3,9 +3,9 @@
 #define _Molecule_H_
 
 #include <Cluster/Cluster.H>
-#include "Common/UniqueIDImp.H"
 #include <iostream>
 
+import Common.UniqueIDImp;
 
 class Molecule 
     : public virtual Cluster

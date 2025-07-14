@@ -1,8 +1,8 @@
 // File: BasisSetImp/TCommon.H
 
-#include "BS_Common.H"
 #include "Common/stl_io.h"
 #include <BasisSet/Irrep_BS.H>
+#include "BS_Common.H"
 
 void BS_Common::Insert(bs_t* bs)
 {

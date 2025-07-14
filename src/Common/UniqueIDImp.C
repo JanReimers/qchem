@@ -1,16 +1,58 @@
 // File: UniqueIDImp.C  Anything derived from this will have a unique ID.
+module;
 
-
-
-#include "Common/UniqueIDImp.H"
+#include "Common/pmstream.h"
 #include <fstream>
 #include <cassert>
 #include <stdlib.h>
+#include <iostream>
+
+import Common.UniqueID; 
+
+export module Common.UniqueIDImp;
+
+
+export class UniqueIDImp 
+    : public virtual UniqueID
+    , public virtual PMStreamableObject
+{
+public:
+    typedef int IDtype;
+
+    UniqueIDImp();
+    UniqueIDImp(const UniqueIDImp&);
+    ~UniqueIDImp();
+    
+    UniqueID& operator=(const UniqueID&);
+
+    virtual std::ostream& Write(std::ostream&) const;
+
+    IDtype GetID() const
+    {
+        return itsID;
+    }
+    IDtype NewID()
+    {
+        return itsID=GetNextID();
+    }
+    static
+    IDtype GetMaxID()
+    {
+        return MaxID;
+    }
+
+private:
+    static IDtype GetNextID();
+    IDtype itsID;
+    static       IDtype NextID;
+    static const IDtype MaxID= 0x20000;
+};
+
+
 
 char ID_FILE[] = "/tmp/NextID.tmp";
 
 UniqueID::IDtype UniqueIDImp::NextID = 0      ;
-const UniqueID::IDtype UniqueIDImp::MaxID  = 0x20000;
 
 UniqueIDImp::UniqueIDImp()
 {

@@ -4,7 +4,8 @@
 
 
 #include "PolarizedGaussian/MnD/Hermite2.H"
-#include "Common/UniqueIDImp.H"
+
+import Common.UniqueIDImp;
 
 namespace PolarizedGaussian
 {

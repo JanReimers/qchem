@@ -3,8 +3,6 @@
 
 
 #include "MoleculeMesh.H"
-#include "Cluster/Atom.H"
-#include <Cluster/Cluster.H>
 #include <Mesh/MeshParams.H>
 #include "oml/matrix.h"
 #include "oml/vector.h"
@@ -12,6 +10,8 @@
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
+#include <Cluster/Cluster.H>
+#include "Cluster/Atom.H"
 
 size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
 {

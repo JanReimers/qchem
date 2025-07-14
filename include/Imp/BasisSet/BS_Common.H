@@ -4,7 +4,8 @@
 
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include "Common/UniqueIDImp.H"
+
+import Common.UniqueIDImp;
 
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
