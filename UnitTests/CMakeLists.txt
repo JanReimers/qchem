@@ -15,13 +15,13 @@ add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C Electro
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
-target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp -fmodules-ts
+target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
-target_link_options(UTMain PRIVATE -fopenmp)
+target_link_options(UTMain PRIVATE )
 target_include_directories(UTMain PRIVATE 
     ../include 
     ../submodules/oml/include 

@@ -36,7 +36,11 @@ Priority 1:
         3) rwiterator
     -C++ Modules  Try making a C++20 module 
         Issues:
-            1) 
+            1) gcc-15.0.1 is grabbing symbols from the global modules space and incorportating them into my exports
+                resulting in mutliple deifinitions.
+            2) internal compiler error: in finish_member_declaration, at cp/semantics.cc:4210 when parsing
+                stream.h.  We should just get the hell rid of StreamableObject at least in qchem.
+                clang-20 handles this fine.
         use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
         create system modules 
             g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 
