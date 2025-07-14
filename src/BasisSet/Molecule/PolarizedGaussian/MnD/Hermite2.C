@@ -200,50 +200,43 @@ double Hermite2::operator()(const Polarization& P,const Polarization& Pa,const P
 
 std::ostream& Hermite2::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
+    os << ": LA=" << LA << ", LB = " << LB << std::endl;
+    os.precision(4);
+    os.width(8);
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    for (int N=0; N<=LA+LB; N++)
     {
-        os << ": LA=" << LA << ", LB = " << LB << std::endl;
-        os.precision(4);
-        os.width(8);
-        os.setf(std::ios::fixed,std::ios::floatfield);
-        for (int N=0; N<=LA+LB; N++)
+        os << "---------------------------------------------------------------------" << std::endl;
+        os << "N = " << N << std::endl;
+        for (int na=0; na<=LA; na++)
         {
-            os << "---------------------------------------------------------------------" << std::endl;
-            os << "N = " << N << std::endl;
-            for (int na=0; na<=LA; na++)
-            {
-                for (int nb=0; nb<=LB; nb++)  os << d[GetIndex(N,na,nb)] << " ";
-                os << std::endl;
-            }
+            for (int nb=0; nb<=LB; nb++)  os << d[GetIndex(N,na,nb)] << " ";
+            os << std::endl;
         }
-        for (int N=0; N<=LA+LB; N++)
+    }
+    for (int N=0; N<=LA+LB; N++)
+    {
+        os << "---------------------------------------------------------------------" << std::endl;
+        os << "L = " << N << std::endl;
+        for (int na=0; na<=LA; na++)
         {
-            os << "---------------------------------------------------------------------" << std::endl;
-            os << "L = " << N << std::endl;
-            for (int na=0; na<=LA; na++)
-            {
-                for (int nb=0; nb<=LB; nb++)  os << e[GetIndex(N,na,nb)] << " ";
-                os << std::endl;
-            }
+            for (int nb=0; nb<=LB; nb++)  os << e[GetIndex(N,na,nb)] << " ";
+            os << std::endl;
         }
-        for (int N=0; N<=LA+LB; N++)
+    }
+    for (int N=0; N<=LA+LB; N++)
+    {
+        os << "---------------------------------------------------------------------" << std::endl;
+        os << "M = " << N << std::endl;
+        for (int na=0; na<=LA; na++)
         {
-            os << "---------------------------------------------------------------------" << std::endl;
-            os << "M = " << N << std::endl;
-            for (int na=0; na<=LA; na++)
-            {
-                for (int nb=0; nb<=LB; nb++)  os << f[GetIndex(N,na,nb)] << " ";
-                os << std::endl;
-            }
+            for (int nb=0; nb<=LB; nb++)  os << f[GetIndex(N,na,nb)] << " ";
+            os << std::endl;
         }
     }
     return os;
 }
 
-std::istream& Hermite2::Read (std::istream& is)
-{
-    return is;
-}
 
 Hermite2* Hermite2::Clone() const
 {

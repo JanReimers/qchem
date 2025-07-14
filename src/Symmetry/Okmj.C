@@ -65,12 +65,9 @@ std::string j2s[]={"1/2","3/2","5/2","7/2","9/2"};
 
 std::ostream& Omega_k_Sym::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        int jindex=Getj()-0.5;
-        os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " ";
+    int jindex=Getj()-0.5;
+    os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " ";
         
-    }
     return os;
 }
 
@@ -225,12 +222,8 @@ ElCounts_l Omega_kmj_Sym::GetN(const ElCounts& ec) const
 
 std::ostream& Omega_kmj_Sym::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        int jindex=Getj()-0.5;
-        os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << std::setprecision(1) << mj << " ";
-        
-    }
+    int jindex=Getj()-0.5;
+    os << SPDFG[GetL()] << j2s[jindex] << " kappa=" << std::setw(2) << kappa << " mj=" << std::setw(4) << std::setprecision(1) << mj << " ";
     return os;
 }
 

@@ -433,36 +433,10 @@ double GaussianRF::GetCharge(const Polarization& p) const
 //
 std::ostream& GaussianRF::Write(std::ostream& os) const
 {
-    if (Binary())
-    {
-        BinaryWrite(itsExponent,os);
-    }
-    if (Ascii ())
-        os << itsExponent << " ";
-
-    if (Pretty())
-    {
-        os << "Primative  " <<  std::setw(8) << itsExponent;
-    }
-
-    if (!Pretty()) RadialCommon::Write(os);
-
+    os << "Primative  " <<  std::setw(8) << itsExponent;
     return os;
 }
 
-std::istream& GaussianRF::Read(std::istream& is)
-{
-    if (Binary())
-    {
-        BinaryRead(itsExponent,is);
-    }
-    else
-    {
-        is >> itsExponent;
-    }
-    RadialCommon::Read(is);
-    return is;
-}
 
 RadialFunction* GaussianRF::Clone() const
 {

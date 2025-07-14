@@ -168,22 +168,16 @@ Hermite3* ContractedGaussianRF::GetH3(const RadialFunction& r1, const RadialFunc
 
 std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
 {
-    if (Binary()) os << cs << gs;
-    if (Ascii ()) os << cs << std::endl << gs << std::endl;
-    if (Pretty())
+    os << "Contracted {";
+    for(auto& g:gs)
     {
-        os << "Contracted {";
-        for(auto& g:gs)
-        {
-            std::ostringstream s;
-            s << *g;
-            std::string ss(s.str());
-            std::string num=ss.substr(10);
-            os << num << " ";
-        }
-        os << "}";
+        std::ostringstream s;
+        s << *g;
+        std::string ss(s.str());
+        std::string num=ss.substr(10);
+        os << num << " ";
     }
-    if (!Pretty()) RadialCommon::Write(os);
+    os << "}";
     return os;
 }
 

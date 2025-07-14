@@ -35,7 +35,6 @@ using namespace tabulate;
 Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
 void Polarized_WF::DisplayEigen() const
 {
-    StreamableObject::SetToPretty();
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);
     eigen_table.add_row({"Occ/Degen ↑","ϵ↑ (au)","n,Symmetry","Occ/Degen ↓","ϵ↓ (au)","ϵ↑-ϵ↓ (au)"});

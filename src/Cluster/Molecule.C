@@ -51,29 +51,13 @@ Mesh*  Molecule::CreateMesh(const MeshParams& mp) const
 
 std::ostream& Molecule::Write(std::ostream& os) const
 {
-    if (!StreamableObject::Pretty())
-    {
-        UniqueIDImp::Write(os);
-        if (StreamableObject::Binary())
-        {
-            BinaryWrite(GetNumElectrons(),os);
-        }
-        else
-        {
-            os << GetNumElectrons() << " ";
-        }
-        os << itsAtoms;
-    }
-    else
-    {
-        os << "Molecule with " << GetNumAtoms() << " atoms"
-        << ", nuclear charge " << GetNuclearCharge() << "(e)"
-        << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
-        os << "Atom #  Element  Position vector     Mesh file    Charge density file" << std::endl;
-        int i=1;
-        for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b;
-        os << std::endl;
-    }
+    os << "Molecule with " << GetNumAtoms() << " atoms"
+    << ", nuclear charge " << GetNuclearCharge() << "(e)"
+    << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
+    os << "Atom #  Element  Position vector     Mesh file    Charge density file" << std::endl;
+    int i=1;
+    for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b;
+    os << std::endl;
 
     return os;
 }

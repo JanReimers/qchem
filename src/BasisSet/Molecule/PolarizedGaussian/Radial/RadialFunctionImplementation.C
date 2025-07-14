@@ -62,32 +62,10 @@ const Hermite1& RadialCommon::GetH1() const
 std::ostream& RadialCommon::Write(std::ostream& os) const
 {
     UniqueIDImp::Write(os);
-    if ( StreamableObject::Binary())
-    {
-        os << itsCenter;
-        BinaryWrite(itsL      ,os);
-    }
-    if (StreamableObject::Ascii ())
-        os << itsCenter              << " "
-        << itsL                   << " ";
+    os << itsCenter << " " << itsL << " ";
 
     return os;
 }
 
-std::istream& RadialCommon::Read(std::istream& is)
-{
-    UniqueIDImp::Read(is);
-    if (StreamableObject::Binary())
-    {
-        is >> itsCenter;
-        BinaryRead(itsL    ,is);
-    }
-    else
-    {
-        is >> itsCenter >> itsL;
-    }
-    itsH1=0; //old one is not longer valid.
-    return is;
-}
 
 } //namespace PolarizedGaussian

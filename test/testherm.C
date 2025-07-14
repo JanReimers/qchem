@@ -6,7 +6,6 @@
 
 int main()
 {
-  StreamableObject::SetOutputMode(StreamableObject::pretty);
   {
     Hermite2 d(1.0,RVec(-1,0,0),RVec(1,0,0),1,2);
     cout << d(Polarization(0,0,0),Polarization(0,0,1),Polarization(2,0,0)) << endl << d;

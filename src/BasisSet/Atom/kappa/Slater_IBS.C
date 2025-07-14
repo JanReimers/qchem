@@ -38,15 +38,7 @@ Orbital_IBS::Orbital_IBS
 
 std::ostream&  Orbital_IBS::Write(std::ostream& os) const
 {
-    if (!Pretty())
-    {
-        WriteBasisFunctions(os);
-        IBS_Common::Write(os);
-    }
-    else
-    {
-        os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
-    }
+    os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
     return os;
 }
 
@@ -85,13 +77,10 @@ template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<doubl
 
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        os << "Slater     " << this->GetSymmetry()
-        << "             r^" << l << "*exp(-e*r), e={";
-        for (auto b:*this) os << *b;
-        os << "}";
-    }
+    os << "Slater     " << this->GetSymmetry()
+    << "             r^" << l << "*exp(-e*r), e={";
+    for (auto b:*this) os << *b;
+    os << "}";
     return os;
 }
 
@@ -134,18 +123,14 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
 
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        os << "Slater RKB " << this->GetSymmetry();
-        if (kappa>0)
-            os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
-        else
-            os << "[       -e ]";
-        os << "*r^" << l << "*exp(-e*r), e={";
-        for (auto b:*this) os << *b;
-        os << "}";
-        
-    }
+    os << "Slater RKB " << this->GetSymmetry();
+    if (kappa>0)
+        os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
+    else
+        os << "[       -e ]";
+    os << "*r^" << l << "*exp(-e*r), e={";
+    for (auto b:*this) os << *b;
+    os << "}";
     return os;
 }
 

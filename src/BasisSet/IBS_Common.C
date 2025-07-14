@@ -69,24 +69,14 @@ size_t IBS_Common::GetNumFunctions() const
 std::ostream& IBS_Common::Write(std::ostream& os) const
 {
     assert(itsSymmetry);
-    if(!Pretty())
-    {
-        UniqueIDImp::Write(os);
-        if(!Binary()) os << std::endl;
-        os << *itsSymmetry;
-        if(!Binary()) os << std::endl;
-    }
-    else
-    {
-        os << "IrrepBasisSet " << " with " << GetNumFunctions() << " basis functions"
-        << ", Quantum number=" << *itsSymmetry <<  std::endl;
-        os << "   #          Center      Pol     Radial     Exponents" << std::endl;
-        // No UT coverage
-        int i=1;
-        for(auto b:*this) os << std::setw(4) << i++ << " " << *b << std::endl;
-        
-        os << "-------------------------------------------------------------------------------" << std::endl;
-    }
+    os << "IrrepBasisSet " << " with " << GetNumFunctions() << " basis functions"
+    << ", Quantum number=" << *itsSymmetry <<  std::endl;
+    os << "   #          Center      Pol     Radial     Exponents" << std::endl;
+    // No UT coverage
+    int i=1;
+    for(auto b:*this) os << std::setw(4) << i++ << " " << *b << std::endl;
+    
+    os << "-------------------------------------------------------------------------------" << std::endl;
 
     return os;
 }

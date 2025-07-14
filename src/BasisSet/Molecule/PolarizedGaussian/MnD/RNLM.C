@@ -79,11 +79,6 @@ std::ostream& RNLM::Write(std::ostream& os) const
     return os << itsData;
 }
 
-std::istream& RNLM::Read (std::istream& is)
-{
-    return is >> itsData;
-}
-
 RNLM* RNLM::Clone() const
 {
     return new RNLM(*this);

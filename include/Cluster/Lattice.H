@@ -71,7 +71,6 @@ public:
     virtual       iterator end  ()       {return itsAtoms->end  ();} 
     
     std::ostream& Write(std::ostream&) const;
-    std::istream& Read (std::istream&)      ;
 
 private:
     size_t      Find(const RVec3&               ) const; //Search unit cell.

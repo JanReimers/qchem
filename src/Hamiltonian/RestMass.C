@@ -28,8 +28,7 @@ void RestMass::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& RestMass::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "   Rest mass (beta-alpha)*c^2" << std::endl;
+    os << "   Rest mass (beta-alpha)*c^2" << std::endl;
     return os;
 }
 

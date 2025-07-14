@@ -24,7 +24,6 @@ public:
     Vector3D<int> GetNumCells       (double MaxDistance) const;
 
     std::ostream&  Write(std::ostream&) const;
-    std::istream&  Read (std::istream&)      ;
 
     static UnitCell* Factory(std::istream&);
 

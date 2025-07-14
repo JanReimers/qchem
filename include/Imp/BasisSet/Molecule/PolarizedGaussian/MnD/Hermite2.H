@@ -39,7 +39,6 @@ public:
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual std::istream&  Read (std::istream&)      ;
     virtual Hermite2* Clone(        ) const;
 
 private:

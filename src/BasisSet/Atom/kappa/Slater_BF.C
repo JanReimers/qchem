@@ -21,10 +21,7 @@ Large_BasisFunction::Large_BasisFunction(double ex, int _kappa, int _mj, double 
 
 std::ostream& Large_BasisFunction::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        os << itsExponent << " ";
-    }
+    os << itsExponent << " ";
     return os;
 }
 

@@ -5,7 +5,6 @@
 #include "PolarizedGaussian/MnD/Hermite1.H"
 #include "Common/IntPower.H"
 #include "oml/imp/binio.h"
-#include "oml/imp/stream.h"
 #include <iostream>
 #include <cassert>
 
@@ -119,58 +118,23 @@ void Hermite1::Clear()
 
 std::ostream& Hermite1::Write(std::ostream& os) const
 {
-    if (StreamableObject::Binary())
+    os << ": L=" << itsL << std::endl;
+    os.precision(4);
+    os.width(8);
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    for (int N=0; N<=itsL; N++)
     {
-        BinaryWrite(itsL,os);
-        for (int N=0; N<=itsL; N++)
-            for (int n=0; n<=itsL; n++)
-                BinaryWrite(def[N][n],os);
-    }
-    if (StreamableObject::Ascii())
-    {
-        os << itsL << " ";
-        for (int N=0; N<=itsL; N++)
-            for (int n=0; n<=itsL; n++)
-                os << def[N][n] << " ";
-    }
-    if (StreamableObject::Pretty())
-    {
-        os << ": L=" << itsL << std::endl;
-        os.precision(4);
-        os.width(8);
-        os.setf(std::ios::fixed,std::ios::floatfield);
-        for (int N=0; N<=itsL; N++)
+        os << "---------------------------------------------------------------------" << std::endl;
+        os << "N = " << N << std::endl;
+        for (int n=0; n<=itsL; n++)
         {
-            os << "---------------------------------------------------------------------" << std::endl;
-            os << "N = " << N << std::endl;
-            for (int n=0; n<=itsL; n++)
-            {
-                os << Getdef(N,n) << " ";
-                os << std::endl;
-            }
+            os << Getdef(N,n) << " ";
+            os << std::endl;
         }
     }
     return os;
 }
 
-std::istream& Hermite1::Read (std::istream& is)
-{
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(itsL,is);
-        for (int N=0; N<=itsL; N++)
-            for (int n=0; n<=itsL; n++)
-                BinaryRead(def[N][n],is);
-    }
-    if (StreamableObject::Ascii())
-    {
-        is >> itsL;
-        for (int N=0; N<=itsL; N++)
-            for (int n=0; n<=itsL; n++)
-                is >> def[N][n];
-    }
-    return is;
-}
 
 Hermite1* Hermite1::Clone() const
 {

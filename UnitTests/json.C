@@ -11,7 +11,6 @@ class jsonTests : public ::testing::Test
 public:
     jsonTests()
     {
-        StreamableObject::SetToPretty();
     }
 };
 

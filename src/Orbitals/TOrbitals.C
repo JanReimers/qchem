@@ -154,22 +154,9 @@ Gradient(const RVec3& r) const
 //
 template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
 {
-     if (!StreamableObject::Pretty())
-    {
-        os  << itsOrbitals;
-        if (!StreamableObject::Binary()) os << std::endl;
-    }
-    else
-    {
-        os << "        Orbital group with " << GetNumOrbitals() << " " << itsBasisSet->GetSymmetry() << "orbitals:" << std::endl;
-        os << "            Occupation      Energy      Eigenvector" << std::endl;
-        os << itsOrbitals;
-    }
-    if (!StreamableObject::Pretty())
-    {
-        os  << itsBasisSet;
-        if (StreamableObject::Ascii()) os << std::endl;
-    }
+    os << "        Orbital group with " << GetNumOrbitals() << " " << itsBasisSet->GetSymmetry() << "orbitals:" << std::endl;
+    os << "            Occupation      Energy      Eigenvector" << std::endl;
+    os << itsOrbitals;
     return os;
 }
 

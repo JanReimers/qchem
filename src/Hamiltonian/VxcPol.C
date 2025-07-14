@@ -59,8 +59,7 @@ void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& VxcPol::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "    Polarized Hartee-Fock exchange potential." << std::endl;
+    os << "    Polarized Hartee-Fock exchange potential." << std::endl;
     return os;
 }
 

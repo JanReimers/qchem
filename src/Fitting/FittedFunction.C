@@ -187,35 +187,14 @@ template <class T> typename FittedFunctionImp<T>::RVec3  FittedFunctionImp<T>::G
 //
 template <class T> std::ostream& FittedFunctionImp<T>::Write(std::ostream& os) const
 {
-//    if (StreamableObject::Binary())
-//       
-//    else if (StreamableObject::Ascii())
-//        
-//    else
-        os << "Fit Function: " << std::endl;
+    os << "Fit Function: " << std::endl;
 
     os << *itsBasisSet;
-    if (!StreamableObject::Pretty())
-    os << itsFitCoeff;
-    else
-    {
-        os << std::endl;
-        os << "  Coeff=" << itsFitCoeff << std::endl;
-    }
+    os << std::endl;
+    os << "  Coeff=" << itsFitCoeff << std::endl;
 
     return os;
 }
 
-template <class T> std::istream& FittedFunctionImp<T>::Read (std::istream& is)
-{
-//    if (StreamableObject::Binary())
-//        BinaryRead(itsCDFitFlag,is);
-//    else
-//        is >> itsCDFitFlag;
-
-    //itsBasisSet.reset(IrrepBasisSet::Factory(is));
-    //is >> *itsBasisSet >> itsFitCoeff;
-    return is;
-}
 
 template class FittedFunctionImp<double>;

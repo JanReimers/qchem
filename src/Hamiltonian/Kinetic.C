@@ -22,8 +22,7 @@ void Kinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Kinetic::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "    Kinetic energy Grad^2(r_i)" << std::endl;
+    os << "    Kinetic energy Grad^2(r_i)" << std::endl;
     return os;
 }
 

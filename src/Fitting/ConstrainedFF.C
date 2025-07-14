@@ -39,31 +39,8 @@ template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const
 {
     FittedFunctionImp<T>::Write(os);
     os << g << gS;
-    if (StreamableObject::Binary())
-    {
-        BinaryWrite(gSg,os);
-    }
-    else if(StreamableObject::Ascii())
-    {
-        os << gSg << " ";
-    }
     return os;
 }
 
-template <class T> std::istream& ConstrainedFF<T>::Read (std::istream& is)
-{
-    FittedFunctionImp<T>::Read(is);
-    is >> g >> gS;
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(gSg,is);
-    }
-    else
-    {
-        is >> gSg;
-        assert(is.get() == ' ');
-    }
-    return is;
-}
 
 template class ConstrainedFF<double>;

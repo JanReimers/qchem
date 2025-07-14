@@ -62,7 +62,6 @@ public:
     int   GetSign    () const; //(-1)^(n+l+m)
 
     friend std::ostream& operator<<(std::ostream&, const Polarization&);
-    friend std::istream& operator>>(std::istream&,       Polarization&);
 
     int n,l,m;
     const static int LMax=64;

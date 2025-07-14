@@ -32,8 +32,7 @@ void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Vxc::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "    Hartee-Fock exchange potential phi(r_1)*phi(r_2)/r_12" << std::endl;
+    os << "    Hartee-Fock exchange potential phi(r_1)*phi(r_2)/r_12" << std::endl;
     return os;
 }
 

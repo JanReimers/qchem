@@ -49,11 +49,3 @@ std::ostream& LDAVxc::Write(std::ostream& os) const
     return os;
 }
 
-std::istream& LDAVxc::Read (std::istream& is)
-{
-    itsExchangeFunctional.reset(ExFunctional::Factory(is));
-    is >> *itsExchangeFunctional;
-
-    return is;
-}
-

@@ -89,41 +89,11 @@ double UnitCell::GetDistance(const RVec3& r) const
 
 std::ostream&  UnitCell::Write(std::ostream& os) const
 {
-    if(Binary())
-    {
-        BinaryWrite(itsA    ,os);
-        BinaryWrite(itsB    ,os);
-        BinaryWrite(itsC    ,os);
-        BinaryWrite(itsAlpha,os);
-        BinaryWrite(itsBeta ,os);
-        BinaryWrite(itsGamma,os);
-    }
-    if(Ascii()) os << itsA << " " << itsB << " " << itsC << " "
-        << itsAlpha << " " << itsBeta << " " << itsGamma << " ";
-    if (!StreamableObject::Pretty()) os << itsMetricTensor;
-    if (StreamableObject::Pretty())
-    {
-        os << "(a,b,c)=(" << itsA << "," << itsB << "," << itsC << "),   "
-        << "(alpha,beta,gamma)=(" << itsAlpha << "," << itsBeta << "," << itsGamma << ")";
-    }
+    os << "(a,b,c)=(" << itsA << "," << itsB << "," << itsC << "),   "
+    << "(alpha,beta,gamma)=(" << itsAlpha << "," << itsBeta << "," << itsGamma << ")";
     return os;
 }
 
-std::istream&  UnitCell::Read (std::istream& is)
-{
-    if(Binary())
-    {
-        BinaryRead(itsA    ,is);
-        BinaryRead(itsB    ,is);
-        BinaryRead(itsC    ,is);
-        BinaryRead(itsAlpha,is);
-        BinaryRead(itsBeta ,is);
-        BinaryRead(itsGamma,is);
-    }
-    if(Ascii()) is >> itsA >> itsB >> itsC >> itsAlpha >> itsBeta >> itsGamma;
-    is >> itsMetricTensor;
-    return is;
-}
 
 
 

@@ -44,13 +44,8 @@ void Vnn::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Vnn::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        size_t Na=theCluster->GetNumAtoms();
-        os << "    Nuclear-Nuclear potential ZiZj/|Ri-Rj| with " << Na*(Na-1) << " nucleus pairs." << std::endl;
-    }
-    else
-        os << *theCluster;
+    size_t Na=theCluster->GetNumAtoms();
+    os << "    Nuclear-Nuclear potential ZiZj/|Ri-Rj| with " << Na*(Na-1) << " nucleus pairs." << std::endl;
     return os;
 }
 

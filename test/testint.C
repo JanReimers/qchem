@@ -93,7 +93,6 @@ int main(int argc, char **argv)
   db   =bs   ->GetDataBase();
   dbnum=bsnum->GetDataBase();
 
-  StreamableObject::SetOutputMode(StreamableObject::pretty);  
   cout.setf(ios::fixed,ios::floatfield);  
   cout.precision(6);  
   cout.width(10);  

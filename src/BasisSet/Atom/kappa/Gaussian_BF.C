@@ -5,7 +5,6 @@
 #include "Common/IntPower.H"
 #include "oml/vector3d.h"
 #include "oml/imp/binio.h"
-#include "oml/imp/stream.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>
@@ -36,10 +35,7 @@ Large_BasisFunction::Large_BasisFunction(double theExponent, int _kappa, double 
 
 std::ostream& Large_BasisFunction::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        os << itsExponent << " ";
-    }
+    os << itsExponent << " ";
     return os;
 }
 

@@ -33,10 +33,7 @@ void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Ven::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "    Nuclear-electron potential Zi/|Ri-r| with " << theCluster->GetNumAtoms() << " atoms." << std::endl;
-    else
-        os << *theCluster;
+    os << "    Nuclear-electron potential Zi/|Ri-r| with " << theCluster->GetNumAtoms() << " atoms." << std::endl;
     return os;
 }
 

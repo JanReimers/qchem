@@ -53,37 +53,11 @@ double Atom::GetNumElectrons() const
 
 std::ostream& Atom::Write  (std::ostream& os) const
 {
-    if (Binary())
-    {
-        BinaryWrite(itsZ,os);
-        os << itsR << " ";
-    }
-    if (Ascii())
-    {
-        os << itsZ << " " << itsR  << " ";
-    }
-    if (Pretty())
-    {
-        os.setf(std::ios::fixed,std::ios::floatfield);
-        os << std::setw(4) << itsZ << "    "
-        << std::setw(5) << std::setprecision(2) << itsR << "     ";
-    }
-    if (!Binary()) os << std::endl;
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    os << std::setw(4) << itsZ << "    "
+    << std::setw(5) << std::setprecision(2) << itsR << "     ";
+    os << std::endl;
     return os;
 }
 
-std::istream& Atom::Read   (std::istream& is)
-{
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(itsZ,is);
-        is >> itsR >> std::ws;
-    }
-    else
-    {
-        is >> itsZ >> itsR >>  std::ws;
-    }
-
-    return is;
-}
 

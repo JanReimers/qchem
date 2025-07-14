@@ -28,7 +28,6 @@ public:
     virtual const ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
     
     virtual std::ostream&           Write(std::ostream&) const;
-    virtual std::istream&           Read (std::istream&)      ;
 private:
     virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 

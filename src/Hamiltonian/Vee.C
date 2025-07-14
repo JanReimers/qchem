@@ -43,8 +43,7 @@ void Vee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Vee::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "    Coulomb potential ro(r_2)/r_12" << std::endl;
+    os << "    Coulomb potential ro(r_2)/r_12" << std::endl;
     return os;
 }
 

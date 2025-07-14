@@ -59,15 +59,8 @@ template <class T> typename TOrbitalImp<T>::Vec3 TOrbitalImp<T>::Gradient(const 
 template <class T> std::ostream& TOrbitalImp<T>::Write(std::ostream& os) const
 {
     OrbitalImp::Write(os);
-    if (StreamableObject::Pretty())
-        os << "              " << GetOccupation() << "/" << GetDegeneracy() << "       " << std::setw(12) << GetEigenEnergy() << "      ";
-    else
-        os << itsBasisSet;
-    
-    
-        
-    os << itsCoeff;
-    if (StreamableObject::Pretty()) os << std::endl;
+    os << "              " << GetOccupation() << "/" << GetDegeneracy() << "       " << std::setw(12) << GetEigenEnergy() << "      ";
+    os << itsCoeff << std::endl;
     return os;
 }
 

@@ -43,8 +43,6 @@ public:
     virtual RVec3  Gradient  (const RVec3&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
 protected:
     virtual double DoFitInternal(const ScalarFFClient&,double constraint=0);
     virtual double DoFitInternal(const DensityFFClient&,double constraint=0);

@@ -18,8 +18,6 @@ public:
     virtual void            SetPolarized(bool)=0;
 
     virtual std::ostream&       Write(std::ostream&) const=0;
-    virtual std::istream&       Read (std::istream&)      =0;
-    static  ExFunctional* Factory(std::istream&);
 };
 
 #endif //_ExchangeFunctional_H_

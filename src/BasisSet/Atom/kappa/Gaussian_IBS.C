@@ -35,15 +35,7 @@ Orbital_IBS::Orbital_IBS
 
 std::ostream&  Orbital_IBS::Write(std::ostream& os) const
 {
-    if (!Pretty())
-    {
-        WriteBasisFunctions(os);
-        IBS_Common::Write(os);
-    }
-    else
-    {
-        os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
-    }
+    os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
     return os;
 }
 ::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
@@ -74,13 +66,10 @@ template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<doubl
 }
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        os << "Gaussian     " << this->GetSymmetry()
-        << "               r^" << l << "*exp(-e*r^2), e={";
-        for (auto b:*this) os << *b;
-        os << "}";
-    }
+    os << "Gaussian     " << this->GetSymmetry()
+    << "               r^" << l << "*exp(-e*r^2), e={";
+    for (auto b:*this) os << *b;
+    os << "}";
     return os;
 }
 template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) const
@@ -117,13 +106,10 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
 }
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-    {
-        os << "Gaussian     " << this->GetSymmetry()
-        << "               r^" << l << "*exp(-e*r^2), e={";
-        for (auto b:*this) os << *b;
-        os << "}";
-    }
+    os << "Gaussian     " << this->GetSymmetry()
+    << "               r^" << l << "*exp(-e*r^2), e={";
+    for (auto b:*this) os << *b;
+    os << "}";
     return os;
 }
 template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) const

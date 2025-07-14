@@ -23,7 +23,6 @@ public:
 
 
     virtual std::ostream&            Write(std::ostream&) const;
-    virtual std::istream&            Read (std::istream&)      ;
 
 private:
     double itsAlpha;

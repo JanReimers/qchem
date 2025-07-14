@@ -20,8 +20,6 @@ public:
     virtual double DoFit(const DensityFFClient&);
 
     virtual std::ostream& Write    (std::ostream&) const;
-    virtual std::istream& Read     (std::istream&)      ;
-
 private:
     using Base::itsLAParams;
     Vec g,gS;

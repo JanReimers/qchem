@@ -47,12 +47,9 @@ std::ostream& BasisFunction::Write(std::ostream& os) const
 {
     assert(itsRadial);
     
-    if (StreamableObject::Pretty())
-    {
-        os.setf(std::ios::fixed,std::ios::floatfield);
-        os <<  std::setw(5) << std::setprecision(2) << itsRadial->GetCenter() << " "
-        << itsPol << " " << *itsRadial;
-    }
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    os <<  std::setw(5) << std::setprecision(2) << itsRadial->GetCenter() << " "
+    << itsPol << " " << *itsRadial;
     return os;
 }
 

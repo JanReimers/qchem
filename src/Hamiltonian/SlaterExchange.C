@@ -61,29 +61,8 @@ SlaterExchange::Vec3 SlaterExchange::Gradient(const Vec3& r) const
 
 std::ostream& SlaterExchange::Write(std::ostream& os) const
 {
-    if (StreamableObject::Binary())
-    {
-        BinaryWrite(itsAlpha,os);
-    }
-    else
-    {
-        os << itsAlpha << " ";
-    }
+    os << itsAlpha << " ";
     return os;
-}
-
-std::istream& SlaterExchange::Read (std::istream& is)
-{
-    if (StreamableObject::Binary())
-    {
-        BinaryRead(itsAlpha,is);
-    }
-    else
-    {
-        is >> itsAlpha;
-        assert(is.get() == ' ');
-    }
-    return is;
 }
 
 

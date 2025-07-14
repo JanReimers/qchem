@@ -38,14 +38,11 @@ Vector<double> IrrepBasisSet::Norms(const Vector<double>& es, size_t l) const
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
-    if (Pretty())
-    {
-        os << "Spherical Slater L=" << *GetSymmetry()
-        << " with " << GetNumFunctions() << " basis functions, alpha={";
-        // for (auto b:*this) os << *b;
-        os << *front() << " ... " << *back();
-        os << "}" << std::endl;
-    }
+    os << "Spherical Slater L=" << *GetSymmetry()
+    << " with " << GetNumFunctions() << " basis functions, alpha={";
+    // for (auto b:*this) os << *b;
+    os << *front() << " ... " << *back();
+    os << "}" << std::endl;
     return os;
 }
 

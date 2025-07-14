@@ -58,27 +58,17 @@ void Triangle3D::Check(int i,int j,int k) const
 
 std::ostream&  Triangle3D::Write(std::ostream& os) const
 {
-    if (!StreamableObject::Pretty())
-        os << N << " " << itsData << std::endl;
-    else
+    os << "Triangle N=" << N << "data size=" << itsData.size() << std::endl;
+    for (int i=0; i<=N; i++)
     {
-        os << "Triangle N=" << N << "data size=" << itsData.size() << std::endl;
-        for (int i=0; i<=N; i++)
+        os << "i = " << i << " layer:" << std::endl;
+        for (int j=0; j<=N-i; j++)
         {
-            os << "i = " << i << " layer:" << std::endl;
-            for (int j=0; j<=N-i; j++)
-            {
-                for (int k=0; k<=N-j-i; k++) os << (*this)(i,j,k) << " ";
-                os << std::endl;
-            }
+            for (int k=0; k<=N-j-i; k++) os << (*this)(i,j,k) << " ";
+            os << std::endl;
         }
     }
-
     return os;
 }
 
-std::istream&  Triangle3D::Read (std::istream& is)
-{
-    return is >> N >> itsData;
-}
 

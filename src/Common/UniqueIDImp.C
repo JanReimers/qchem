@@ -61,16 +61,8 @@ UniqueID& UniqueIDImp::operator=(const UniqueID&)
 
 std::ostream& UniqueIDImp::Write(std::ostream& os) const
 {
-    if (StreamableObject::Binary()) BinaryWrite(itsID,os);
-    if (StreamableObject::Ascii ()) os << itsID << " ";
-    return os;
+    return os << itsID << " ";
 }
 
-std::istream& UniqueIDImp::Read (std::istream& is)
-{
-    if (StreamableObject::Binary()) BinaryRead(itsID,is);
-    if (StreamableObject::Ascii ()) is >> itsID;
-    return is;
-}
 
 

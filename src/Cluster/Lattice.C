@@ -7,7 +7,6 @@
 #include "Cluster/Molecule.H"
 #include "MoleculeMesh.H"
 #include "oml/imp/binio.h"
-#include "oml/imp/stream.h"
 #include "oml/io3d.h"
 #include <iostream>
 #include <cassert>
@@ -328,26 +327,9 @@ using std::endl;
 //
 std::ostream& Lattice::Write(std::ostream& os) const
 {
-    if ( Binary())
-    {
-        os << itsUnitCell << itsLimits << itsAtoms;
-        BinaryWrite(itsTolerence,os);
-    }
-    if ( Ascii ()) os << itsUnitCell << itsLimits << endl << itsAtoms << endl << itsTolerence << " ";
-    if ( Pretty()) os << itsUnitCell << endl << itsLimits << endl << itsAtoms << std::endl;
+    os << itsUnitCell << endl << itsLimits << endl << itsAtoms << std::endl;
     return os;
 }
 
-std::istream& Lattice::Read (std::istream& is)
-{
-    is >> itsUnitCell >> itsLimits;
-    delete itsAtoms;
-    itsAtoms=Cluster::Factory(is);
-    is >> itsAtoms;
-    if (Binary())	BinaryRead(itsTolerence,is);
-    if (Ascii ())	is >> itsTolerence;
-
-    return is;
-}
 
 

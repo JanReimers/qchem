@@ -18,7 +18,6 @@ extern Color l_colors[];
 
 void UnPolarized_WF::DisplayEigen() const
 {
-    StreamableObject::SetToPretty();
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);
     eigen_table.add_row({"Occ/Degen","ϵ (au)","Symmetry"});

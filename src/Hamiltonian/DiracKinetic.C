@@ -25,8 +25,7 @@ void DiracKinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& DiracKinetic::Write(std::ostream& os) const
 {
-    if (StreamableObject::Pretty())
-        os << "    Dirac kinetic energy c*sigma*p" << std::endl;
+    os << "    Dirac kinetic energy c*sigma*p" << std::endl;
     return os;
 }
 

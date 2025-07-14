@@ -44,7 +44,6 @@ public:
     virtual       Hermite3* GetH3 (const RadialFunction&, const RadialFunction&) const;
 
     virtual std::ostream&        Write(std::ostream&   ) const;
-    virtual std::istream&        Read (std::istream&   )      ;
     virtual RadialFunction* Clone(           ) const;
     virtual RadialFunction* Clone(const RVec3&) const;
 

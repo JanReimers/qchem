@@ -44,7 +44,6 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     itsBasisSet->Set(lap);
     if (verbose)
     {
-        StreamableObject::SetToPretty();
         std::cout << " " << *itsBasisSet << std::endl;
     }
     int Z=GetZ();
