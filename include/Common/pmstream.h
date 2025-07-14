@@ -1,22 +1,21 @@
 #ifndef PMSTREAM_H
 #define PMSTREAM_H
 
-// #include "oml/imp/stream.h"
 #include <iosfwd>
-
 //
-// Provide IO (Pickling) with virtual dispatch.
+// Provide op<< for any class that implements Write
 //
 class PMStreamableObject 
 {
-    public: 
-        virtual ~PMStreamableObject();
-
-        virtual std::ostream& Write(std::ostream&) const=0;
-        // virtual std::istream& Read (std::istream& is) {return is;}
+public: 
+    virtual ~PMStreamableObject() {};
+    virtual std::ostream& Write(std::ostream&) const=0;
 };
 
-std::ostream& operator<<(std::ostream& os, const PMStreamableObject& o);
-// std::istream& operator>>(std::istream& is,       PMStreamableObject& o);
+inline std::ostream& operator<<(std::ostream& os, const PMStreamableObject& o)
+{
+    return o.Write(os);
+}
+
 
 #endif // PMSTREAM_H
