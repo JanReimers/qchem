@@ -6,10 +6,11 @@
 #include <Mesh/fwd.H>
 #include <Cluster/fwd.H>
 
-#include <Common/UniqueID.H> 
 #include "Common/pmstream.h"
 #include <vector>
 #include <memory>
+
+import Common.UniqueID; 
 
 class Cluster
     : public virtual UniqueID

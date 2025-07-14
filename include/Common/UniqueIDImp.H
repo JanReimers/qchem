@@ -3,9 +3,11 @@
 #define _UniqueIDImp_H_
 
 
-#include <Common/UniqueID.H>
 #include "Common/pmstream.h"
 #include <iostream>
+
+import Common.UniqueID; 
+
 //#############################################################################
 //
 //  This class allows objects to be pickled with unique ID's.  The problem

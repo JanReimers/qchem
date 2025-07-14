@@ -6,12 +6,13 @@
 #include <Cluster/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
-#include <Common/UniqueID.H>
 #include "Common/pmstream.h"
 #include <Common/Iterators.H>
 
 #include <vector>
 #include <memory>
+
+import Common.UniqueID;
 
 //----------------------------------------------------------------------------
 //

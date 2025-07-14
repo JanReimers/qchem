@@ -2,10 +2,11 @@
 #ifndef _CDCache_H_
 #define _CDCache_H_
 
-#include <Common/UniqueID.H> 
 #include <tuple>
 #include <map>
 #include <iosfwd>
+
+import Common.UniqueID; 
 
 namespace PolarizedGaussian
 {
