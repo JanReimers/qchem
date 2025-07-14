@@ -5,7 +5,6 @@
 #include "PolarizedGaussian/MnD/Hermite2.H"
 #include "PolarizedGaussian/Polarization.H"
 #include "Common/IntPower.H"
-#include "oml/imp/binio.h"
 
 #include <iostream>
 #include <cassert>

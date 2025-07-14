@@ -6,7 +6,6 @@
 #include <Mesh/Mesh.H>
 #include <BasisSet/DFT_IBS.H>
 #include "oml/smatrix.h"
-#include "oml/imp/binio.h"
 #include <cmath>
 #include <cassert>
 #include <stdlib.h>

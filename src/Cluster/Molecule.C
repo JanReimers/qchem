@@ -6,7 +6,6 @@
 #include "Cluster/Atom.H"
 #include "MoleculeMesh.H"
 #include "Common/stl_io.h"
-#include "oml/imp/binio.h"
 #include <iostream>
 #include <iomanip>
 #include <cassert>

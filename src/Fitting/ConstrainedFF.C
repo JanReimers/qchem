@@ -5,7 +5,6 @@
 #include <BasisSet/Fit_IBS.H>
 #include "oml/matrix.h"
 #include "oml/smatrix.h"
-#include "oml/imp/binio.h"
 #include <iostream>
 #include <cassert>
 

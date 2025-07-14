@@ -8,7 +8,6 @@
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include "oml/smatrix.h"
-#include "oml/imp/binio.h"
 
 FittedVxc::FittedVxc()
     : FittedFunctionImp<double>( )

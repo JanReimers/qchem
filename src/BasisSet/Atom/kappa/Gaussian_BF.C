@@ -4,7 +4,6 @@
 #include "Symmetry/Okmj.H"
 #include "Common/IntPower.H"
 #include "oml/vector3d.h"
-#include "oml/imp/binio.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>

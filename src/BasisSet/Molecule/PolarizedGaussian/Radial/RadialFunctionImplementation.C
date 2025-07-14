@@ -4,7 +4,6 @@
 
 #include "PolarizedGaussian/Radial/Common.H"
 #include "PolarizedGaussian/MnD/Hermite1.H"
-#include "oml/imp/binio.h"
 #include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
