@@ -6,7 +6,8 @@
 
 #include "IrrepBasisSetCommon.H"
 #include "TIrrepBasisSetCommon.H"
-#include "Cluster/UnitCell.H"
+
+import Cluster.UnitCell;
 
 class Reader;
 class Cluster;

@@ -4,7 +4,8 @@
 
 
 #include <BasisSet/Integrals.H>
-#include "Cluster/UnitCell.H"
+
+import Cluster.UnitCell;
 
 class PlaneWaveBS;
 template <class T> class SList;

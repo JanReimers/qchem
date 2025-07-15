@@ -1,5 +1,6 @@
 add_library(qcCluster) 
-target_sources(qcCluster PRIVATE Atom.C AtomMesh.C Lattice.C Molecule.C MoleculeMesh.C UnitCell.C UnitCellMesh.C)
+target_sources(qcCluster PRIVATE Atom.C AtomMesh.C Molecule.C MoleculeMesh.C )
+target_sources(qcCluster PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES UnitCell.C Lattice.C UnitCellMesh.C)
 target_include_directories(qcCluster PRIVATE 
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/include/Imp/Cluster  

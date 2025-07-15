@@ -1,10 +1,20 @@
 // File: UnitCellMesh.C  UnitCell mesh implementation.
-
-
+module;
 #include <cmath>
+#include "oml/imp/index_t.h"
 
-#include "Cluster/UnitCell.H"
-#include "UnitCellMesh.H"
+export module Cluster.UnitCellMesh;
+import Cluster.UnitCell;
+import Mesh;
+import Cluster.UnitCell;
+
+export class UnitCellMesh : public Mesh
+{
+public:
+    UnitCellMesh() {};
+    UnitCellMesh(const UnitCell&, index_t numPoints);
+    Mesh*  Clone() const;
+};
 
 UnitCellMesh::UnitCellMesh(const UnitCell& cell, index_t NumPoints)
 {
