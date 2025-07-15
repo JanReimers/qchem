@@ -8,7 +8,6 @@
 #include "Mesh/MeshIntegrator.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include <Mesh/MeshParams.H>
 #include <Cluster/Cluster.H>
 #include <Symmetry/Symmetry.H>
 #include <BasisSet/Factory.H>

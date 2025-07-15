@@ -6,7 +6,6 @@
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
-#include <Mesh/MeshParams.H>
 #include <Cluster/Cluster.H>
 #include "Cluster/Atom.H"
 #include "MoleculeMesh.H"

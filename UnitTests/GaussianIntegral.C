@@ -10,7 +10,6 @@
 #include "Mesh/MeshIntegrator.H"
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
-#include <Mesh/MeshParams.H>
 #include <Cluster/Cluster.H>
 #include "oml/vector.h"
 #include "oml/smatrix.h"

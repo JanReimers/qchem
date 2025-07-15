@@ -4,7 +4,6 @@
 
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
-#include <Mesh/MeshParams.H>
 #include <Hamiltonian/Factory.H>
 
 

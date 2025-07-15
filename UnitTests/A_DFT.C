@@ -3,7 +3,6 @@
 #include "QchemTester.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
-#include <Mesh/MeshParams.H>
 #include <BasisSet/Factory.H> //Just to get the types.
 #include <Hamiltonian/Factory.H>
 

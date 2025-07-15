@@ -4,7 +4,6 @@
 
 #include <Mesh/fwd.H>
 #include <nlohmann/json.hpp>
-#include <Mesh/MeshParams.H>
 import Mesh;
 import RadialMesh;
 

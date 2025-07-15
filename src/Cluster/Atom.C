@@ -8,7 +8,6 @@
 #include <Mesh/Factory.H>
 #include <nlohmann/json.hpp>
 
-#include <Mesh/MeshParams.H>
 #include "AtomMesh.H"
 #include "Cluster/Atom.H"
 

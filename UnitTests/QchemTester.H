@@ -16,7 +16,7 @@
 #include <memory>
 
 import Common.PeriodicTable;
-
+import Mesh; //To get Meshparams
 
 class QchemTester
 {

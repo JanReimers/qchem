@@ -8,6 +8,8 @@
 #include <Hamiltonian/fwd.H>
 #include <memory>
 
+import Mesh;
+
 typedef std::shared_ptr<const Cluster> cl_t;
 namespace HamiltonianF
 {

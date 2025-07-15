@@ -4,7 +4,7 @@
 
 #include <omlfwd.H>
 #include "Common/pmstream.h"
-// #include "oml/vector3d.h"
+#include "oml/vector3d.h"
 #include <Mesh/fwd.H>
 
 import Common.UniqueIDImp;
@@ -15,6 +15,7 @@ class Atom
     , public UniqueIDImp
 {
 public:
+    using RVec3=Vector3D<double>;
     Atom();
     Atom(int Z, double charge);
     Atom(int Z, double charge, const RVec3& R);

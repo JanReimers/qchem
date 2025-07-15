@@ -12,7 +12,6 @@
 #include <Symmetry/Irrep_QNs.H>
 #include <Symmetry/Symmetry.H>
 #include "Mesh/MeshIntegrator.H"
-#include <Mesh/MeshParams.H>
 #include <BasisSet/Factory.H>
 #include <Hamiltonian/Factory.H>
 

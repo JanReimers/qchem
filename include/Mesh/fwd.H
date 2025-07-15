@@ -2,7 +2,6 @@
 #ifndef _Mesh_fwd_H_
 #define _Mesh_fwd_H_
 
-class MeshParams;
 template <class T> class ScalarFunction;
 template <class T> class VectorFunction;
 

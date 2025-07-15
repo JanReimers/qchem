@@ -2,7 +2,6 @@
 #include "QchemTester.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <SCFAccelerator/Factory.H>
-#include <Mesh/MeshParams.H>
 #include <WaveFunction/WaveFunction.H>
 #include <Hamiltonian/Hamiltonian.H>
 #include <Cluster/Cluster.H>

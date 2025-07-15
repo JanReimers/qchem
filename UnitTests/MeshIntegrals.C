@@ -9,7 +9,6 @@
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <LASolver/LAParams.H>
-#include <Mesh/MeshParams.H>
 #include <Symmetry/Symmetry.H>
 #include "oml/smatrix.h"
 #include "oml/matrix.h"

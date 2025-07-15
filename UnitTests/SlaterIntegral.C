@@ -15,7 +15,6 @@
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include <BasisSet/HF_IBS.H>
-#include <Mesh/MeshParams.H>
 #include <Cluster/Cluster.H>
 #include "oml/imp/ran250.h"
 #include <iostream>
