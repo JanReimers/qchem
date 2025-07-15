@@ -4,15 +4,14 @@
 
 #include <Mesh/fwd.H>
 #include <nlohmann/json.hpp>
+#include <Mesh/MeshParams.H>
 import Mesh;
 import RadialMesh;
 
 namespace MeshF
 {
-    enum class  RadialType {Log,MHL};
-    enum class AngularType {EulerMaclaren,Gauss,GaussLegendre};
-    RadialMesh* Factory( RadialType,const nlohmann::json& js);
-          Mesh* Factory(AngularType,const nlohmann::json& js); 
+    RadialMesh* Factory(qchem::RadialType,const nlohmann::json& js);
+          Mesh* Factory(qchem::AngleType,const nlohmann::json& js); 
 }
 
 #endif //_Mesh_Factory_H_

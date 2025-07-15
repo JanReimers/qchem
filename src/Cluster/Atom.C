@@ -41,9 +41,9 @@ Atom::Atom(int Z, double charge, const RVec3& R)
 Mesh* Atom::CreateMesh(const MeshParams& mp) const
 {
     json js={{"N",mp.Nradial},{"m",mp.MHL_m},{"alpha",mp.MHL_alpha}};
-    RadialMesh* rm=MeshF::Factory(MeshF::RadialType::MHL,js);
+    RadialMesh* rm=MeshF::Factory(qchem::MHL,js);
     js={{"Nangle",mp.Nangle}};
-    Mesh* am=MeshF::Factory(MeshF::AngularType::Gauss,js);  
+    Mesh* am=MeshF::Factory(qchem::Gauss,js);  
     return new AtomMesh(rm,am,itsR); 
 }
 

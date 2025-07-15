@@ -15,7 +15,7 @@ import Mesh.LogRadialMesh;
 
 namespace MeshF
 {
-    RadialMesh* Factory( RadialType rt,const nlohmann::json& js)
+    RadialMesh* Factory( qchem::RadialType rt,const nlohmann::json& js)
     {
         size_t N=js["N"];
         RadialMesh* m=0;
@@ -28,13 +28,13 @@ namespace MeshF
         //         m=new LinearMesh(start,stop,dir,N);
         //     }
         //     break;
-        case RadialType::Log:
+        case qchem::Log:
             {
                 double start=js["start"].template get<double>(),stop=js["stop"].template get<double>();
                 m=new LogRadialMesh(start,stop,N);
             }
             break;
-        case RadialType::MHL:
+        case qchem::MHL:
             {
                 int mi=js["m"].template get<int>();
                 double alpha=js["alpha"].template get<double>();
@@ -46,24 +46,24 @@ namespace MeshF
         return m;
     }
 
-    Mesh* Factory(AngularType at,const nlohmann::json& js)
+    Mesh* Factory(qchem::AngleType at,const nlohmann::json& js)
     {
         Mesh* m=0;
         switch(at)
         {
-            case AngularType::EulerMaclaren:
+            case qchem::EulerMaclaren:
             {
                 int L=js["L"].template get<int>(),mi=js["m"].template get<int>();
                 m=new EulerMaclarenAngularMesh(L,mi);
             }
             break;
-            case AngularType::Gauss:
+            case qchem::Gauss:
             {
                 int Nangle=js["Nangle"].template get<int>();
                 m=new GaussAngularMesh(Nangle);
             }
             break;
-            case AngularType::GaussLegendre:
+            case qchem::GaussLegendre:
             {
                 int L=js["L"].template get<int>(),mi=js["m"].template get<int>();
                 m=new GaussLegendreAngularMesh(L,mi);

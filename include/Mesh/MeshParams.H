@@ -7,7 +7,7 @@ namespace qchem
     //! \brief radial integration mesh types.
     enum RadialType {MHL,Log};
     //! \brief angular integration mesh types.
-    enum AngleType  {Gauss, GaussLegendre, EulerMclaren};
+    enum AngleType  {Gauss, GaussLegendre, EulerMaclaren};
 }
 
 //! \brief parameters for controlling various Gaussian Quadrature integration mesh types.
