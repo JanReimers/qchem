@@ -7,7 +7,6 @@
 #include "Imp/BasisSet/ERI4.H"
 #include "Symmetry/Angular.H"
 
-#include "Mesh/MeshIntegrator.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H>
@@ -22,6 +21,7 @@
 #include <cmath>
 
 import Common.Constants;
+import Mesh.Integrator;
 
 using std::cout;
 using std::endl;

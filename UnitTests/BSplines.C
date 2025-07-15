@@ -5,7 +5,6 @@
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
 #include "Common/stl_io.h"
-#include "Mesh/MeshIntegrator.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <Cluster/Cluster.H>
@@ -19,6 +18,8 @@
 #include "oml/smatrix.h"
 #include <bspline/Core.h>
 #include <iostream>
+
+import Mesh.Integrator;
 
 using std::cout;
 using std::endl;

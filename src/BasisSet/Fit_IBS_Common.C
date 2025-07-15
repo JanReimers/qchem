@@ -4,7 +4,8 @@
 #include "oml/matrix.h"
 #include "oml/vector.h"
 #include "Fit_IBS_Common.H"
-#include "Mesh/MeshIntegrator.H"
+
+import Mesh.Integrator;
 
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const
 {

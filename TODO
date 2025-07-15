@@ -44,7 +44,17 @@ Priority 1:
             -THis might have been caused by importing in the middle of various header include.  Try to keep imports after all includes are done.
             -Progress is grinding to a waiding through molasses pace.  We must fiddle with include orders to prevent gcc complaining
              multiple definitions of std:: redefinition of ‘struct std::numeric_limits<_Tp>’
-            -
+        Failed attempts:
+            ScalarFunction/VectorFunction fix mesh iterator to disentagle from Mesh.
+            Mesh/Factory json lib is too much for gcc-15.0
+        Sequence:
+            Common
+            Mesh
+            Cluster
+            Symmetry
+            BasisSet
+                Molecule
+                Atom
         use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
         create system modules 
             g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 

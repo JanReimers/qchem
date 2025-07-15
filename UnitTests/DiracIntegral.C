@@ -9,7 +9,6 @@
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include "Mesh/MeshIntegrator.H"
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 
@@ -17,6 +16,7 @@
 #include <iostream>
 
 import Common.Constants;
+import Mesh.Integrator;
 
 using std::cout;
 using std::endl;

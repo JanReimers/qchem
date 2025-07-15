@@ -1,5 +1,5 @@
 add_library(qcMesh) 
-target_sources(qcMesh PRIVATE Factory.C  MeshIntegrator.C  ScalarFunction.C VectorFunction.C)
+target_sources(qcMesh PRIVATE Factory.C   ScalarFunction.C VectorFunction.C)
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Mesh.C 
     RadialMesh.C 
@@ -9,6 +9,7 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     EulerMaclarenAngularMesh.C 
     MHLRadialMesh.C 
     LogRadialMesh.C 
+    MeshIntegrator.C 
      )
 target_include_directories(qcMesh PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  

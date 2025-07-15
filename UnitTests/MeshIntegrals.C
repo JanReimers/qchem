@@ -5,7 +5,6 @@
 #include "PolarizedGaussian/IntegralEngine.H"
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
-#include "Mesh/MeshIntegrator.H"
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <LASolver/LAParams.H>
@@ -13,6 +12,8 @@
 #include "oml/smatrix.h"
 #include "oml/matrix.h"
 #include <iomanip>
+
+import Mesh.Integrator;
 
 
 using std::cout;

@@ -11,12 +11,12 @@
 #include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
 #include <Symmetry/Symmetry.H>
-#include "Mesh/MeshIntegrator.H"
 #include <BasisSet/Factory.H>
 #include <Hamiltonian/Factory.H>
 
 import Common.Constants;
 import Mesh;
+import Mesh.Integrator;
 
 using std::cout;
 using std::endl;
