@@ -1,8 +1,8 @@
 // File: TBasisSetImplementation.C
 
 
-#include "HF_IBS_Common.H"
 #include "ERI4.H"
+#include "HF_IBS_Common.H"
 
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::

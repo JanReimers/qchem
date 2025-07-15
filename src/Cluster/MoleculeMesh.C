@@ -6,10 +6,10 @@
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
-#include "MoleculeMesh.H"
 #include <Mesh/MeshParams.H>
 #include <Cluster/Cluster.H>
 #include "Cluster/Atom.H"
+#include "MoleculeMesh.H"
 
 size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
 {
