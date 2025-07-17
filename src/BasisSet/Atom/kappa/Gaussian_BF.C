@@ -1,6 +1,5 @@
 // File: Atom/kappa/Gaussian_BF.C  Gaussians with Restricted Kinetic Balance (RKB).
 
-#include "oml/vector3d.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>
@@ -8,6 +7,7 @@
 #include "Symmetry/Okmj.H"
 
 import Common.IntPow;
+import oml;
 
 namespace Atom_kappa
 {

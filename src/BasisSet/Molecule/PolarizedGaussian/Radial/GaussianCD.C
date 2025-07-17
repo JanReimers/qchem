@@ -1,6 +1,6 @@
 // File: GaussianCD.C  Charge distribution for two  gaussians.
 
-
+#include <cmath>
 #include "PolarizedGaussian/Radial/GaussianCD.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 

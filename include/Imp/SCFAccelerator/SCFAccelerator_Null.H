@@ -3,8 +3,8 @@
 #define _SCFAccelerator_Null_H_
 
 #include <SCFAccelerator/SCFAccelerator.H>
+import oml;
 
-#include "oml/smatrix.h"
 class SCFIrrepAccelerator__Null : public virtual SCFIrrepAccelerator
 {
 public:

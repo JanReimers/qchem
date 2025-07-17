@@ -2,12 +2,12 @@
 
 
 
-#include "oml/vector.h"
 #include <cassert>
 #include <iostream>
 #include <complex>
 #include <valarray>
 #include <Mesh/ScalarFunction.H>
+import oml;
 
 
 template <class T> typename ScalarFunction<T>::Vec ScalarFunction<T>::operator() (const Mesh& mesh) const

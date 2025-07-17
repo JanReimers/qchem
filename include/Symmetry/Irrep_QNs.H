@@ -2,9 +2,9 @@
 #ifndef _Irrep_QNs_H_
 #define _Irrep_QNs_H_
 
+#include <memory>
 #include "Common/pmstream.h"
 #include <Symmetry/Spin.H>
-#include <memory>
 
 class Symmetry;
 

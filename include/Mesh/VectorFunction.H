@@ -2,10 +2,9 @@
 #ifndef _VectorFunction_H_
 #define _VectorFunction_H_
 
-#include <omlfwd.H>
 #include <Mesh/fwd.H>
-#include "oml/vector3d.h"
 
+import oml;
 import Mesh;
 
 namespace std {template <class T> class valarray;}

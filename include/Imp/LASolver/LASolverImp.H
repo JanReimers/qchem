@@ -20,9 +20,9 @@
 //  to use: OML (derived from Numerical Recipes), or Lapack.
 //
 
+#include <string>
 #include <LASolver/LASolver.H>
 #include <LASolver/LAParams.H>
-#include "oml/matrix.h"
 
 template <class T> class LASolverCommon 
     : public virtual  LASolver<T>
@@ -48,7 +48,7 @@ protected:
     static void Rescale (Mat& U, const RVec& w, Mat& Vt);
     static void Truncate(Mat& U, RVec& w, double tol);
     static void Truncate(Mat& U, RVec&, Mat& V , double tol);
-    static SMat MakeSymmetric(Mat&,c_str name);
+    static SMat MakeSymmetric(Mat&,std::string name);
     
     void AssignVs(const Mat& _V, const Mat& _Vd) {V=_V;Vd=_Vd;}
 

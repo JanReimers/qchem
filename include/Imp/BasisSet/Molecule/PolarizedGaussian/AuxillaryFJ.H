@@ -2,10 +2,7 @@
 #ifndef _AuxillaryFJ_H_
 #define _AuxillaryFJ_H_
 
-
-
-template <class T> class Vector;
-
+import oml;
 //
 //  This class encapsulates the calculation of:
 //

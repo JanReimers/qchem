@@ -8,8 +8,8 @@
 #include <BasisSet/Factory.H>
 #include <iostream> 
 #include <cassert>
-#include "oml/smatrix.h"
 
+import oml;
 using std::cout;
 using std::endl;
 

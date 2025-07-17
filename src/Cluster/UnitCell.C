@@ -1,15 +1,13 @@
 // File: UnitCell.C  Unit cell for a lattice.
 module;
-#include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <cassert>
-#include "oml/vector3d.h"
-#include "oml/matrix3d.h"
 #include "Common/pmstream.h"
 
 export module Cluster.UnitCell;
 import Common.Constants;
+import oml;
 
 export class UnitCell
     : public virtual PMStreamableObject

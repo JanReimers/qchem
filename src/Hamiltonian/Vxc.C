@@ -1,6 +1,5 @@
 // File: Vxc.C  Hartree-Fock exchange potential
 
-#include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>

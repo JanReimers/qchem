@@ -11,7 +11,7 @@
 #include "../DataBase/DB_Fit.H"
 
 #include <BasisSet/Integrals.H>
-#include "oml/vector.h"
+import oml;
 
 namespace PolarizedGaussian
 {

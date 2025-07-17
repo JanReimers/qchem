@@ -1,10 +1,13 @@
 // File: TBasisSetImplementation.C
 
 
+#include <tuple>
+#include <iostream>
+#include <vector>
 #include <LASolver/LASolver.H>
-#include "oml/vector.h"
 #include "TIBS_Common.H"
 #include <BasisSet/BasisFunction.H>
+import oml;
 
 LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
 //-----------------------------------------------------------------------------

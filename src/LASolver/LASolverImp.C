@@ -1,10 +1,9 @@
 // File: LASolver.C  General eigen solver.
 
-#include "LASolverImp.H"
-#include "oml/smatrix.h"
-#include "oml/diagonalmatrix.h"
-#include "oml/vector.h"
+#include <cassert>
+#include <iostream>
 #include <cmath>
+#include "LASolverImp.H"
 
 //-------------------------------------------------------------------------
 //
@@ -109,7 +108,7 @@ template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& w,double tol)
     }
 }
 
-template <class T>  typename LASolverCommon<T>::SMat LASolverCommon<T>::MakeSymmetric(Mat& A,c_str name)
+template <class T>  typename LASolverCommon<T>::SMat LASolverCommon<T>::MakeSymmetric(Mat& A,std::string name)
 {
 #ifdef false
     double del=::MakeSymmetric(A); // A=0.5*(A+~A)
@@ -126,11 +125,8 @@ template <class T>  typename LASolverCommon<T>::SMat LASolverCommon<T>::MakeSymm
 
 template class LASolver<double>;
 template class LASolverCommon<double>;
-
-
 #include "LASolverOML.H"
 #include "LASolverLapack.H"
-
 
 template <class T> LASolver<T>* LASolver<T>::
     Factory(const LAParams& lap)
@@ -170,4 +166,6 @@ template <class T> LASolver<T>* LASolver<T>::
     assert(ret);
     return ret;
 }
+
+template LASolver<double>* LASolver<double>::Factory(const LAParams& lap);
 

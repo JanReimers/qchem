@@ -4,7 +4,7 @@
 
 #include "../../../Cache4.H"
 #include <bspline/Core.h>
-#include "oml/vector.h"
+import oml;
 
 class GLCache;
 namespace BSpline

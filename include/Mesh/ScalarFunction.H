@@ -2,11 +2,10 @@
 #ifndef _ScalarFunction_H_
 #define _ScalarFunction_H_
 
-#include <omlfwd.H>
 #include <Mesh/fwd.H>
-#include "oml/vector3d.h"
 
 import Mesh;
+import oml;
 namespace std {template <class T> class valarray;}
 //------------------------------------------------------------------
 //

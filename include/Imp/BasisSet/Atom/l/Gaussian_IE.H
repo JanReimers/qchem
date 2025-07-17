@@ -9,7 +9,8 @@
 #include "../IE_DHF.H"
 #include "../IE_DFT.H"
 #include "../IE_Fit.H"
-#include "oml/vector.h"
+
+import oml;
 
 
 namespace Atoml

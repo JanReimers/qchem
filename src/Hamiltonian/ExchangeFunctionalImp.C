@@ -1,6 +1,5 @@
 // File: ExchangeFunctionalImplementation.C  Common implementation details for an exchange potential.
 
-#include "oml/vector.h"
 #include <cassert>
 
 #include "ExchangeFunctionalImp.H"

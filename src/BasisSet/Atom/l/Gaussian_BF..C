@@ -1,11 +1,12 @@
 // File: Atom/l/Gaussian_BF.C r^l exp(-a*r^2) type Gaussian basis function.
 
-#include "oml/vector3d.h"
 #include <iostream>
 #include <cassert>
+#include <cmath>
 #include "l/Gaussian_BF.H"
 
 import Common.IntPow;
+import oml;
 
 namespace Atoml
 {

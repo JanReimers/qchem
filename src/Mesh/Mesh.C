@@ -1,8 +1,8 @@
 //  File: Mesh.C  mesh implementation
 module;
-#include "oml/vector3d.h"
 #include <tuple>
 #include <vector>
+import oml;
 
 export module Mesh;
 

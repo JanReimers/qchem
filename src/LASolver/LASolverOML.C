@@ -1,11 +1,9 @@
 // File: LASolverOML.C  General eigen solver.
 
+#include <iostream>
+#include <cassert>
 #include <LASolver/LASolver.H>
 #include "LASolverOML.H"
-#include "oml/smatrix.h"
-#include "oml/diagonalmatrix.h"
-#include "oml/numeric.h"
-#include <iostream>
 
 template <class T> typename LASolver<T>::UdType LASolverOMLCommon<T>::Solve(const SMat& Ham) const
 {

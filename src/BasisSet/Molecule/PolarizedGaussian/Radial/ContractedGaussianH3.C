@@ -3,8 +3,9 @@
 
 
 #include "PolarizedGaussian/Radial/ContractedGaussianH3.H"
-#include "oml/vector.h"
 #include <cassert>
+import oml;
+
 namespace PolarizedGaussian
 {
 //----------------------------------------------------------------------------------------

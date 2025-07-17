@@ -2,7 +2,6 @@
 
 
 #include "Common/stl_io.h"
-#include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>
 

@@ -2,10 +2,10 @@
 #ifndef _TOrbitalImplementation_H_
 #define _TOrbitalImplementation_H_
 
-#include "oml/vector.h"
 #include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
 #include <Symmetry/Orbital_QNs.H>
+import oml;
 
 class OrbitalImp
     : public virtual Orbital
@@ -40,6 +40,7 @@ template <class T> class TOrbitalImp
     typedef typename Base::Vec  Vec;
     typedef typename Base::Vec3 Vec3;
     typedef typename Base::Vec3Vec Vec3Vec;
+    typedef Vector3D<double> RVec3;
 public:
     TOrbitalImp() {};
     TOrbitalImp(const TOrbital_IBS<T>*,const Vec& C, const Vec& CPrime, double e, const Orbital_QNs&);

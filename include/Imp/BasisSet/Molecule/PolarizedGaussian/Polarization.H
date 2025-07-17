@@ -2,10 +2,10 @@
 #ifndef _Polarization_H_
 #define _Polarization_H_
 
-#include "oml/vector3d.h"
 #include <iosfwd>
 
 import Common.IntPow;
+import oml;
 
 typedef Vector3D<double> RVec3;
 namespace PolarizedGaussian

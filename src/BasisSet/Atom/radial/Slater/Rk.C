@@ -1,10 +1,12 @@
 // File: Slater::RkEngine.C  4 electron Charge distribution of Slater orbitals. 
 
+#include <cassert>
+#include <cmath>
 #include "radial/Slater/Rk.H"
 #include "radial/PascalTriangle.H"
-#include "oml/vector.h"
 
 import Common.Factorials;
+import oml;
 
 namespace Slater
 {

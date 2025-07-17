@@ -10,16 +10,13 @@
 #include "Cluster/Molecule.H"
 #include "Cluster/Atom.H"
 #include <Cluster/Cluster.H>
-#include "oml/vector.h"
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
-#include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
 import Common.Constants;
 import Mesh.Integrator;
+import oml;
 
 using std::cout;
 using std::endl;

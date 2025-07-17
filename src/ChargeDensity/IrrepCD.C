@@ -1,10 +1,6 @@
 // File: ExactIrrepCD.C  Exact implementation of the charged density.
 
 
-#include "oml/vector3d.h"
-#include "oml/vector.h"
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 #include <cassert>
 #include <complex>
 #include <iostream>
@@ -18,7 +14,7 @@
 #include <Symmetry/Symmetry.H>
 
 typedef Vector3D<std::complex<double> > Vec3;
-
+typedef Vector3D<double>  RVec3;
 
 RVec3  GradientContraction(const Vector<RVec3 >&, const Vector<double>&, const SMatrix<double>&);
 RVec3  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<double> >&, const SMatrix<std::complex<double> >&);

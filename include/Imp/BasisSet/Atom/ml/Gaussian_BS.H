@@ -2,6 +2,7 @@
 #ifndef _Atom_ml_Gaussian_BS_H_
 #define _Atom_ml_Gaussian_BS_H_
 
+#include <vector>
 #include "IE_HF_Angular.H"
 #include "../../BS_Common.H"
 #include "../IE.H"

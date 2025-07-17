@@ -1,6 +1,5 @@
 //  File: GaussLegendreAngularMesh.C  GaussLegendre style angular mesh implementation
 module;
-#include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
@@ -9,6 +8,7 @@ export module Mesh.GaussLegendreAngularMesh;
 export import Mesh;
 
 import Common.Constants;
+import oml;
 
 export class GaussLegendreAngularMesh :  public  Mesh
 {

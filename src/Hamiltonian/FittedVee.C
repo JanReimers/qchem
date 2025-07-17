@@ -1,6 +1,5 @@
 // File: CDFittedVee.C  Exact Coulomb potential
 
-#include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>

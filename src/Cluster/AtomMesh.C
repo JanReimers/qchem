@@ -1,9 +1,10 @@
 // File: AtomMesh.C  mesh implementation
 
 
-#include "oml/vector3d.h"
+#include <vector>
 #include "AtomMesh.H"
 import RadialMesh;
+import oml;
 
 
 //

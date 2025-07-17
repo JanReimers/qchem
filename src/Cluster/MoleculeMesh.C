@@ -1,14 +1,12 @@
 // File: MoleculeMesh.C  mesh implementation
 
-#include "oml/matrix.h"
-#include "oml/vector.h"
-#include "oml/io3d.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
 #include <Cluster/Cluster.H>
 #include "Cluster/Atom.H"
 #include "MoleculeMesh.H"
+import oml;
 
 size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
 {
@@ -91,7 +89,6 @@ Mesh* MoleculeMesh::Clone() const
 
 using std::cout;
 using std::endl;
-#include "oml/io3d.h"
 
 double Poly(double u,int k)
 {

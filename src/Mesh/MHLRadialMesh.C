@@ -1,12 +1,12 @@
 //  File: MHLRadialMesh.C  MHLarithmic radial mesh implementation
 module;
-#include "oml/imp/index_t.h"
 #include <iostream>
 #include <cmath>
 
 export module Mesh.MHLRadialMesh;
 import Common.IntPow;
 import RadialMesh;
+import oml;
 
 //
 // C.W. Murray,N.C. Handy and G.J. Laming, Mol. Phys.78 (1993) 997. 

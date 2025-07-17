@@ -12,6 +12,7 @@ protected:
     typedef IrrepBasisSet Base;
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
+    typedef Vector3D<double> RVec3;
     //typedef typename VectorFunction<T>::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
   
 public:

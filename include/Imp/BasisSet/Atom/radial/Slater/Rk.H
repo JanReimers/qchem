@@ -3,7 +3,7 @@
 #define _Slater_RkEngine_H_
 
 #include "../../../Cache4.H"
-#include "oml/matrix.h"
+import oml;
 
 namespace Slater
 {

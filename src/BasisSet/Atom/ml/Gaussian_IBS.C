@@ -1,5 +1,6 @@
 // File: Atom/ml/Gaussian_IBS.H  r^l exp(-ar^2)*Y_lm type Irrep Basis set (IBS).
 
+#include <iostream>
 #include "ml/Gaussian_IBS.H"
 #include "ml/Gaussian_BF.H"
 #include "Symmetry/Ylm.H"

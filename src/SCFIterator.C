@@ -1,5 +1,10 @@
 // File: SCFIteratorImplementation.C  Partial common implementation for an object that manages SCF convergence.
-#include <omlfwd.H>
+#include <iostream>
+#include <iomanip>
+#include <cassert>
+#include <cmath>
+#include <vector>
+
 #include <Symmetry/fwd.H>
 #include <BasisSet/fwd.H>
 #include <ChargeDensity/fwd.H>
@@ -14,9 +19,6 @@
 #include <Hamiltonian/Hamiltonian.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include <iostream>
-#include <iomanip>
-#include <cassert>
 
 
 using std::cout;

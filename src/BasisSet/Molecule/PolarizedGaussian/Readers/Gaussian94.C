@@ -2,12 +2,10 @@
 
 
 
-#include "oml/matrix.h"
 #include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
 #include "Cluster/Atom.H"
-#include "oml/vector.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>
@@ -15,6 +13,7 @@
 #include <unistd.h>
 
 import Common.PeriodicTable;
+import oml;
 
 using std::ws;
 namespace PolarizedGaussian

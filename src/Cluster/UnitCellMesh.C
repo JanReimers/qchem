@@ -1,12 +1,12 @@
 // File: UnitCellMesh.C  UnitCell mesh implementation.
 module;
 #include <cmath>
-#include "oml/imp/index_t.h"
 
 export module Cluster.UnitCellMesh;
 import Cluster.UnitCell;
 import Mesh;
 import Cluster.UnitCell;
+import oml;
 
 export class UnitCellMesh : public Mesh
 {

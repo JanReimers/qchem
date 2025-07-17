@@ -5,7 +5,7 @@
 #include "../../IEC.H"
 #include <bspline/Core.h>
 #include "GLQuadrature.H"
-#include "oml/vector.h"
+import oml;
 
 namespace BSpline
 {

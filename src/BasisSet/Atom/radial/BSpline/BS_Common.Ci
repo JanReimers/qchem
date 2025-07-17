@@ -3,7 +3,7 @@
 #include "radial/BSpline/BS_Common.H"
 #include "radial/BSpline/Rk.H"
 #include <BasisSet/Irrep_BS.H>
-#include "oml/vector.h"
+import oml;
 
 namespace BSpline
 {

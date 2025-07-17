@@ -2,12 +2,11 @@
 #ifndef _HamiltonianTermImp_H_
 #define _HamiltonianTermImp_H_
 
-#include "oml/smatrix.h"
 #include <map>
-
-
 #include <Hamiltonian/Hamiltonian.H>
 #include <Symmetry/Irrep_QNs.H>
+
+import oml;
 
 class HT_Common
 {

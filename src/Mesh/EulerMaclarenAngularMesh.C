@@ -1,6 +1,5 @@
 //  File: EulerMaclarenAngularMesh.C  EulerMaclaren style angular mesh implementation
 module;
-#include "oml/vector.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
@@ -9,6 +8,7 @@ export module Mesh.EulerMaclarenAngularMesh;
 export import Mesh;
 
 import Common.Constants;
+import oml;
 
 export class EulerMaclarenAngularMesh : public  Mesh
 {

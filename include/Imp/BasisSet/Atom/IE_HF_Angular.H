@@ -2,7 +2,7 @@
 #ifndef _Atom_IE_HF_Angular_H_
 #define _Atom_IE_HF_Angular_H_
 
-#include "oml/vector.h"
+import oml;
 
 class AtomIrrepIEClient;
 

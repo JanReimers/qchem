@@ -3,10 +3,10 @@
 #define _CompositeCD_H_
 
 
-
-#include <ChargeDensity/ChargeDensity.H>
 #include <vector>
 #include <memory>
+
+#include <ChargeDensity/ChargeDensity.H>
 
 //--------------------------------------------------------------------------
 //

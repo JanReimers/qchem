@@ -1,10 +1,7 @@
 // File: Vnn.C  Nuclear-Nuclear potential.
 
 
-
-#include "oml/smatrix.h"
-#include "oml/vector.h"
-#include "oml/vector3d.h"
+#include <iostream>
 #include <cassert>
 
 #include "Vnn.H"
@@ -37,7 +34,7 @@ void Vnn::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
     for(const auto& atom1:*theCluster)
         for(const auto& atom2:*theCluster)
         {
-            RVec3 r1=atom1->itsR, r2=atom2->itsR;
+            Vector3D<double> r1=atom1->itsR, r2=atom2->itsR;
             if (r1!=r2) vnn += 0.5 * atom1->itsZ * atom2->itsZ / norm(r1-r2);
         }
 

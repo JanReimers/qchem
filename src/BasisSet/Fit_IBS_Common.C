@@ -1,11 +1,11 @@
 // File: TBasisSetImplementation.C
 
-
-#include "oml/matrix.h"
-#include "oml/vector.h"
+#include <iostream>
+#include <cassert>
 #include "Fit_IBS_Common.H"
 
 import Mesh.Integrator;
+import oml;
 
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const
 {

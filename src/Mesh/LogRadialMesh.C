@@ -1,6 +1,5 @@
 //  File: LogRadialMesh.C  Logarithmic radial mesh implementation
 module;
-#include "oml/imp/index_t.h"
 #include <iostream>
 #include <cmath>
 
@@ -8,6 +7,7 @@ export module Mesh.LogRadialMesh;
 
 import Common.Constants;
 import RadialMesh;
+import oml;
 
 export class LogRadialMesh : public   RadialMesh
 {

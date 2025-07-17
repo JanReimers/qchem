@@ -6,9 +6,10 @@
 
 #include "Common.H"
 #include "../Polarization.H"
-#include "oml/vector.h"
 #include <vector>
 #include <memory>
+
+import oml;
 
 namespace PolarizedGaussian
 {

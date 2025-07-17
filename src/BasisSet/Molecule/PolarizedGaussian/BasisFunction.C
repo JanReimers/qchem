@@ -1,7 +1,6 @@
 // File: BasisFunction.C  Polarized Gaussian in 3D space.
 
 
-#include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <iomanip>

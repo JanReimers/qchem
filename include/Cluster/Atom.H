@@ -2,13 +2,12 @@
 #ifndef _Atom_H_
 #define _Atom_H_
 
-#include <omlfwd.H>
 #include "Common/pmstream.h"
-#include "oml/vector3d.h"
 #include <Mesh/fwd.H>
 
 import Common.UniqueIDImp;
 import Mesh;
+import oml;
 
 class Atom
     : public virtual PMStreamableObject

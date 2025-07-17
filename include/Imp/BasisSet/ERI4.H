@@ -1,8 +1,8 @@
 #ifndef ERI4_H
 #define ERI4_H
 
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
+#include <cstddef> //size_t
+import oml;
 
 //------------------------------------------------------------------
 //

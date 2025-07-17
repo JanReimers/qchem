@@ -1,9 +1,9 @@
 // File: LinearMesh.C  Linear mesh implementation.
 module;
-#include "oml/vector.h"
 #include <cmath>
 export module Mesh.LinearMesh;
 export import Mesh;
+import oml;
 
 export class LinearMesh : public Mesh
 {

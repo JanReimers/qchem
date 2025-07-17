@@ -2,14 +2,15 @@
 #ifndef _BasisSet_H_
 #define _BasisSet_H_
 
+#include <vector>
+#include <memory>
+
 #include <Symmetry/fwd.H>
 #include <Cluster/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include "Common/pmstream.h"
 
-#include <vector>
-#include <memory>
 
 import Common.UniqueID;
 import Common.Iterators;

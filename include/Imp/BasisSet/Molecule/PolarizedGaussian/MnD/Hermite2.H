@@ -2,10 +2,12 @@
 #ifndef _Hermite2_H_
 #define _Hermite2_H_
 
-#include "oml/vector.h"
-#include "oml/vector3d.h"
+#include <vector>
 #include <iosfwd>
+#include <cassert>
+
 #include "../Polarization.H"
+import oml;
 
 //#define USE_CACHE
 

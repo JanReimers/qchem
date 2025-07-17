@@ -1,5 +1,7 @@
 // File: Atom/IE_DFT.C Common DFT IE code for all atom basis sets.
 
+#include <vector>
+#include <iostream>
 #include "IE_DFT.H"
 #include "IEC.H"
 #include <BasisSet/Fit_IBS.H>

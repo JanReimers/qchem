@@ -2,7 +2,6 @@
 
 
 
-#include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
 #include <stdlib.h>

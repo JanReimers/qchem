@@ -1,7 +1,8 @@
 // File: OrbitalGroupImplementation.C  general orbital group implementation.
 
 
-
+#include <cmath>
+#include <cassert>
 #include "TOrbitals.H"
 #include "TOrbital.H"
 #include <ChargeDensity/Factory.H>
@@ -89,7 +90,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Mat& U, const Mat&
 template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne)
 {
     // Dump electrons into orbitals, starting from the lowest energy.
-    for (auto o:this->Iterate<Orbital>())
+    for (auto o:this->template Iterate<Orbital>())
     {
         ne=o->TakeElectrons(ne);
         if (ne<=0.0) break;

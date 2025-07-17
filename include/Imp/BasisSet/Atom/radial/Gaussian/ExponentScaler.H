@@ -2,7 +2,8 @@
 #ifndef _GaussianScaler_H_
 #define _GaussianScaler_H_
 
-#include "oml/vector.h"
+#include <cstddef>
+import oml;
 
 namespace Gaussian
 {

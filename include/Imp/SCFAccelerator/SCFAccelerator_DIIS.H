@@ -2,7 +2,11 @@
 #ifndef _SCFAccelerator_DIIS_H_
 #define _SCFAccelerator_DIIS_H_
 
+#include <deque>
+#include <vector>
 #include <SCFAccelerator/SCFAccelerator.H>
+#include <Symmetry/Irrep_QNs.H>
+import oml;
 
 struct DIISParams
 {
@@ -12,11 +16,8 @@ struct DIISParams
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
 };
 
-#include <deque>
 
-#include <Symmetry/Irrep_QNs.H>
-#include "oml/smatrix.h"
-#include "oml/vector.h"
+
 class SCFAccelerator_DIIS;
 class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
 {

@@ -7,7 +7,6 @@
 #include <BasisSet/DFT_IBS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include "oml/smatrix.h"
 
 FittedVxc::FittedVxc()
     : FittedFunctionImp<double>( )

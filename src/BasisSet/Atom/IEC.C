@@ -1,5 +1,7 @@
 // File: AtomIEClient.C Common IE client code for all atom basis sets and IEs.
 
+#include <cassert>
+#include <iostream>
 #include "IEC.H"
 #include <BasisSet/Irrep_BS.H>
 

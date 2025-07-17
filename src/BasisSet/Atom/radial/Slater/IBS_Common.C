@@ -1,11 +1,12 @@
 // File: Atom/radial/Slater/IBS_Common.H  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom Slater functions.
 
+#include <iostream>
 #include "radial/Slater/IBS_Common.H"
 #include "radial/Slater/Integrals.H"
 #include <BasisSet/BasisFunction.H>
 #include <Symmetry/Symmetry.H>
-#include "oml/vector.h"
 
+import oml;
 
 namespace Slater
 {

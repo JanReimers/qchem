@@ -2,8 +2,6 @@
 
 
 
-#include "oml/smatrix.h"
-#include "oml/vector3d.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>

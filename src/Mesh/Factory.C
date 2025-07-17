@@ -1,7 +1,6 @@
 // File: Mesh/Factory.C  Create various mesh types.
 
 #include <Mesh/Factory.H>
-#include "oml/vector3d.h"
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -12,6 +11,7 @@ import Mesh.GaussLegendreAngularMesh;
 import Mesh.EulerMaclarenAngularMesh;
 import Mesh.MHLRadialMesh;
 import Mesh.LogRadialMesh;
+import oml;
 
 namespace MeshF
 {

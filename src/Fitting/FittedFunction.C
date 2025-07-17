@@ -1,8 +1,5 @@
 // File: FittedFunctionImp.C  Common imp for Fitted Functions.
 
-#include "oml/vector.h"
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 #include <iostream>
 #include <cassert>
 #include "FittedFunction.H"
@@ -11,6 +8,7 @@
 #include <BasisSet/DFT_IBS.H>
 
 import Mesh;
+import oml;
 
 //---------------------------------------------------------------------
 //

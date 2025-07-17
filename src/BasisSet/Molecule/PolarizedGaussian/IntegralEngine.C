@@ -5,8 +5,6 @@
 #include "PolarizedGaussian/IntegralEngine.H"
 #include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Fit_IBS.H>
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
 #include "../ERI4.H"
 
 namespace PolarizedGaussian

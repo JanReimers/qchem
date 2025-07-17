@@ -2,10 +2,11 @@
 #ifndef _AtomIEClient_H_
 #define _AtomIEClient_H_
 
+#include <vector>
+#include <set>
 #include <BasisSet/fwd.H>
 #include "../IEClient.H" // <> prevents file search on this folder.
-#include "oml/vector.h"
-#include <set>
+import oml;
 
 struct AtomIrrepIEClient : public virtual ::IrrepIEClient
 {

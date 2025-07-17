@@ -25,4 +25,4 @@ target_include_directories(qcMesh PRIVATE
 # If you leave this out it does not complain about the import statement, in compains that it can;t find the .gcm file.
 set_property(TARGET qcMesh PROPERTY CXX_STANDARD 20)
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
-target_link_libraries(qcMesh PUBLIC qcCommon) 
+target_link_libraries(qcMesh PUBLIC qcCommon omlm) 

@@ -1,5 +1,6 @@
 // File: AtomIE.C Common HF IE code for all atom basis sets.
 
+#include <iostream>
 #include "IE_HF.H"
 #include "IEC.H"
 #include "../ERI4.H"

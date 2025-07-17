@@ -1,14 +1,9 @@
 // File: LASolverLapack.C  General eigen solver.
 
+#include <cassert>
+#include <iostream>
 #include <LASolver/LASolver.H>
 #include "LASolverLapack.H"
-#include "oml/numeric/LapackEigenSolver.H"
-#include "oml/numeric/LapackSVDSolver.H"
-#include "oml/numeric/LapackCholsky.H"
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
-#include "oml/diagonalmatrix.h"
-#include "oml/vector.h"
 //#include <iostream>
 
 

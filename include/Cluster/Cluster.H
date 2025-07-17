@@ -6,18 +6,19 @@
 #include "Common/pmstream.h"
 #include <vector>
 #include <memory>
-#include <omlfwd.H>
 #include <Mesh/fwd.H>
 #include <Cluster/fwd.H>
 
 import Common.UniqueID; 
 import Mesh; 
+import oml;
 
 class Cluster
     : public virtual UniqueID
     , public virtual PMStreamableObject
 {
 public:
+    typedef Vector3D<double> RVec3;
     typedef std::vector<std::unique_ptr<Atom>> av_t;
 
     typedef av_t::      iterator       iterator;

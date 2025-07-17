@@ -3,7 +3,7 @@
 #define _SphericalGaussianCD_H_
 
 #include "../../../Cache4.H"
-#include "oml/matrix.h"
+import oml;
 
 namespace Gaussian
 {

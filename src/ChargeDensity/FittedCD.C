@@ -2,7 +2,6 @@
 
 
 
-#include "oml/smatrix.h"
 #include <cmath>
 #include <cassert>
 #include <stdlib.h>
@@ -29,7 +28,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 //  Totale energy terms for a charge density.
 //
 
-template <class T> typename FittedCDImp<T>::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
+template <class T> FittedCD::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
 {
     assert(bs);
     const std::vector<SMat>& repulsions=bs->Repulsion3C(*itsBasisSet);
@@ -64,7 +63,7 @@ template <class T> void FittedCDImp<T>::Eval(const Mesh& m, Vector<double>& v) c
     FittedFunctionImp<T>::Eval(m,v);
 }
 
-template <class T> typename FittedCDImp<T>::Vec3 FittedCDImp<T>::Gradient(const RVec3& r) const
+template <class T> FittedCD::Vec3 FittedCDImp<T>::Gradient(const RVec3& r) const
 {
     // No UT coverage
     return FittedFunctionImp<T>::Gradient(r);

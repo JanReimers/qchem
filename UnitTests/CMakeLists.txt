@@ -24,12 +24,11 @@ set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 target_link_options(UTMain PRIVATE )
 target_include_directories(UTMain PRIVATE 
     ../include 
-    ../submodules/oml/include 
     ../submodules/BSplinebasis/include
       ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 
 )
-target_link_libraries(UTMain PUBLIC qchem qcCommon)
+target_link_libraries(UTMain PUBLIC qchem qcCommon omlm)
 
 add_executable(UTModules UTModules.C)
 set_property(TARGET UTModules PROPERTY CXX_STANDARD 20)
@@ -41,7 +40,6 @@ target_compile_options(UTModules PRIVATE -Wall -Wno-unknown-pragmas -fmodules
 add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)
 target_include_directories(UTSym PRIVATE 
     ../include 
-    ../submodules/oml/include 
 )
 target_link_libraries(UTSym qcSymmetry gtest)
 

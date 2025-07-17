@@ -1,11 +1,11 @@
 // File: Atom/ml/Slater_BF.C  r^l exp(-ar)*Y_lm type basis function 
 
-#include "oml/vector3d.h"
 #include <iostream>
 #include <cassert>
 #include "ml/Slater_BF.H"
 
 import Common.IntPow;
+import oml;
 
 namespace Atom_ml
 {

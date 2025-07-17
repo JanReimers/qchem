@@ -2,8 +2,8 @@
 
 #include "radial/Slater/Rk.H"
 #include <BasisSet/Irrep_BS.H>
-#include "oml/vector.h"
 #include "radial/Slater/BS_Common.H"
+import oml;
 
 namespace Slater
 {

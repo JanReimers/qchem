@@ -2,7 +2,7 @@
 #ifndef _AngularIntegrals_H_
 #define _AngularIntegrals_H_
 
-template <class T> class Vector;
+import oml;
 
 namespace AngularIntegrals
 {

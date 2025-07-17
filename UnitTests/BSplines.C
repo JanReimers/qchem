@@ -14,12 +14,11 @@
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 
-#include "oml/vector.h"
-#include "oml/smatrix.h"
 #include <bspline/Core.h>
 #include <iostream>
 
 import Mesh.Integrator;
+import oml;
 
 using std::cout;
 using std::endl;

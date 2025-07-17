@@ -26,9 +26,9 @@
 //  Similarly we can do an eigen inverse S=U*w*Ud, Inv(S)=U*1/w*Ud
 //
 
-#include <omlfwd.H>
 #include <LASolver/fwd.H>
 #include <tuple>
+import oml;
 
 template <class T> class LASolver
 {

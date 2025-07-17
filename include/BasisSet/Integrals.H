@@ -3,12 +3,12 @@
 #define _IntegralEngine_H_
 
 
-#include <omlfwd.H>
+#include <vector>
 #include <Cluster/fwd.H>
 #include <BasisSet/fwd.H>
-#include <vector>
 
 import Common.UniqueID; //Need IDType
+import oml;
 
 //--------------------------------------------------------------------------------
 //

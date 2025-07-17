@@ -1,11 +1,9 @@
 // File: Lattice.C
 module;
-#include "oml/io3d.h"
 #include <iostream>
 #include <cassert>
 #include <cmath>
 #include <algorithm> //sort
-#include "oml/vector3d.h"
 #include <vector>
 #include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
@@ -16,6 +14,7 @@ export module Cluster.Lattice;
 
 import Common.UniqueIDImp;
 import Cluster.UnitCell;
+import oml;
 
 //----------------------------------------------------------------------------
 //
@@ -248,7 +247,7 @@ Vector3D<int> Lattice::GetCellCoord (const RVec3& r) const
 }
 
 
-RVec3 Lattice::GetCoordinate(size_t SiteNumber) const
+Lattice::RVec3 Lattice::GetCoordinate(size_t SiteNumber) const
 {
     assert(SiteNumber>=0);
     assert(SiteNumber<GetNumSites());
@@ -300,7 +299,7 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
     return std::vector<double>(distances.begin(),distances.begin()+NumShells);
 }
 
-std::vector<RVec3> Lattice::GetBonds(size_t BasisNumber, double Distance) const
+std::vector<Lattice::RVec3> Lattice::GetBonds(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber>=0 && BasisNumber<GetNumBasisSites());
     assert(Distance>0);
@@ -319,7 +318,7 @@ std::vector<RVec3> Lattice::GetBonds(size_t BasisNumber, double Distance) const
     return ret;
 }
 
-std::vector<RVec3> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
+std::vector<Lattice::RVec3> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber>=0 && BasisNumber<GetNumBasisSites());
     assert(Distance>0);
@@ -371,7 +370,7 @@ size_t  Lattice::Find(double r,const std::vector<double>& lis) const
     return ret;
 }
 
-std::vector<RVec3> Lattice::GetSuperCells(double MaxDistance) const
+std::vector<Lattice::RVec3> Lattice::GetSuperCells(double MaxDistance) const
 {
     std::vector<RVec3> ret;
     Vector3D<int> nc=itsUnitCell.GetNumCells(MaxDistance);
@@ -382,7 +381,7 @@ std::vector<RVec3> Lattice::GetSuperCells(double MaxDistance) const
     return ret;
 }
 
-RVec3 Lattice::GetBasisVector(size_t BasisNumber) const
+Lattice::RVec3 Lattice::GetBasisVector(size_t BasisNumber) const
 {
     assert(BasisNumber<GetNumBasisSites());
     RVec3 ret;
@@ -407,7 +406,7 @@ using std::endl;
 //
 std::ostream& Lattice::Write(std::ostream& os) const
 {
-    os << itsUnitCell << endl << itsLimits << endl << itsAtoms << std::endl;
+    // os << itsUnitCell << endl << itsLimits << endl << itsAtoms << std::endl;
     return os;
 }
 

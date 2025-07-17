@@ -3,11 +3,11 @@
 #define _ContractedGaussianH3_H_
 
 
-#include "PolarizedGaussian/MnD/Hermite3.H"
-#include <omlfwd.H>
 #include <vector>
 #include <memory>
+#include "PolarizedGaussian/MnD/Hermite3.H"
 
+import oml;
 
 namespace PolarizedGaussian
 {

@@ -1,14 +1,14 @@
 // File: AngularIntegrals.C  Handle the angular part of 2-electron ERIs
 
-#include "AngularIntegrals.H"
-#include "Wigner3j.H"
-#include "oml/vector.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include "Wigner3j.H"
+#include "AngularIntegrals.H"
 
 import Common.Constants;
 import Common.IntPow;
+import oml;
 
 using std::cout;
 using std::endl;

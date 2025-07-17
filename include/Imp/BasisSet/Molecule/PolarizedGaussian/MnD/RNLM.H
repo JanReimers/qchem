@@ -6,8 +6,8 @@
 
 #include "../Polarization.H"
 #include "PolarizedGaussian/Triangle3D.H"
-#include "oml/vector3d.h"
 #include <iosfwd>
+import oml;
 
 namespace PolarizedGaussian
 {

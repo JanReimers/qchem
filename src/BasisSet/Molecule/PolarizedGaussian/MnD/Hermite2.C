@@ -3,7 +3,8 @@
 
 #include <iostream>
 #include <cassert>
-
+#include <cmath>
+#include <iomanip>
 
 #include "PolarizedGaussian/MnD/Hermite2.H"
 #include "PolarizedGaussian/Polarization.H"

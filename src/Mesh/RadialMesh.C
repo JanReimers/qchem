@@ -1,10 +1,10 @@
 //  File: RadialMesh.C  RadialMesh implementation
 module;
-#include "omlfwd.H"
 #include <tuple>
 #include <vector>
 
 export module RadialMesh;
+import oml;
 
 export class RadialMesh
 {

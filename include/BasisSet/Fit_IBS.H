@@ -46,6 +46,7 @@ class Fit_IBS
     , public virtual FitIntegrals 
 {
     public:
+    using IrrepBasisSet::RVec3;
     virtual Fit_IBS* Clone  (const RVec3&) const=0;  
 
 };

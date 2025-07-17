@@ -1,6 +1,5 @@
 // File: ChargeDensity.C  Interface for the charge density category.
-#include "oml/smatrix.h"
-#include "oml/vector.h"
+#include <iostream>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Symmetry/Spin.H>
 //----------------------------------------------------------------------------

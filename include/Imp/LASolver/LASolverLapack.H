@@ -4,8 +4,6 @@
 
 #include <LASolver/LASolver.H>
 #include "LASolverImp.H"
-#include "oml/numeric/EigenSolver.H"
-#include "oml/numeric/SVDSolver.H"
 
 
 template <class T> class LASolverLapackCommon

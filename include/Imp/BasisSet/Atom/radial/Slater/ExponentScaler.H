@@ -2,7 +2,8 @@
 #ifndef _SlaterScaler_H_
 #define _SlaterScaler_H_
 
-#include "oml/vector.h"
+import oml;
+
 namespace Slater
 {
 

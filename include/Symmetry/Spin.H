@@ -2,8 +2,7 @@
 #ifndef _Spin_H_
 #define _Spin_H_
 
-#include "oml/imp/index_t.h"
-
+#include <cstddef> 
 enum class Spin {Down,None,Up};
 
 inline bool   IsPolarized  (Spin s) {return !(s==Spin::None);}

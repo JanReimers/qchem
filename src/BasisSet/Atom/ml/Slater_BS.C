@@ -1,11 +1,12 @@
 // File Slater_m/BasisSet.H
 
+#include <iostream>
+#include <vector>
 #include "ml/Slater_BS.H"
 #include "ml/Slater_IBS.H"
 #include "radial/Slater/ExponentScaler.H"
 #include "Symmetry/Atom_EC.H"
 #include "Common/stl_io.h"
-#include <iostream>
 
 using std::cout;
 using std::endl;

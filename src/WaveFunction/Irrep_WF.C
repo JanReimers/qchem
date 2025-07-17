@@ -1,5 +1,7 @@
 // File: Irrep_WF.C  Wave function for an unpolarized atom.
 
+#include <iostream>
+#include <cassert>
 #include "Irrep_WF.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 
@@ -9,7 +11,6 @@
 #include <Hamiltonian/Hamiltonian.H>
 #include <Orbitals/Factory.H>
 #include <Orbitals/Orbitals.H>
-#include "oml/vector.h"
 
 using std::cout;
 using std::endl;

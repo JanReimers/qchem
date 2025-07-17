@@ -1,5 +1,6 @@
 // File: Atom/l/Slater_BS.C Slater Basis Set for atoms.
 
+#include <vector>
 #include "l/Slater_BS.H"
 #include "l/Slater_IBS.H"
 #include "radial/Slater/ExponentScaler.H"

@@ -1,5 +1,7 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
 
+#include <vector>
+#include <iostream>
 #include "IE.H"
 #include "IEC.H"
 #include <Cluster/Cluster.H>

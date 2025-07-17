@@ -1,12 +1,12 @@
 // File:  AuxillaryFJ.C  Class for calculating the auxiliary function.
 
-#include "PolarizedGaussian/AuxillaryFJ.H"
-#include "oml/vector.h"
 #include <cmath>
 #include <cassert>
+#include "PolarizedGaussian/AuxillaryFJ.H"
 
 import Common.Constants;
 import Common.IntPow;
+import oml;
 
 
 double Factorial[]= {1,1,2,6,24,120,720};

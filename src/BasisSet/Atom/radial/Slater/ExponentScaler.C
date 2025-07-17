@@ -1,5 +1,6 @@
 // File: ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
 
+#include <cmath>
 #include "radial/Slater/ExponentScaler.H"
 
 

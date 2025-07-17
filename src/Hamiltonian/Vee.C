@@ -6,7 +6,6 @@
 #include <BasisSet/HF_IBS.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include "oml/smatrix.h"
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>

@@ -2,7 +2,6 @@
 #ifndef _Irrep_BS_H_
 #define _Irrep_BS_H_
 
-#include <omlfwd.H>
 #include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
@@ -13,6 +12,7 @@
 
 import Common.UniqueID; 
 import Common.Iterators;
+import oml;
 
 //----------------------------------------------------------------------------
 //
@@ -33,6 +33,7 @@ public:
     typedef bfv_t::      iterator       iterator;
     typedef bfv_t::const_iterator const_iterator;
     typedef std::shared_ptr<const Symmetry> sym_t;
+    typedef Vector3D<double> RVec3;
 
     virtual void   Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;

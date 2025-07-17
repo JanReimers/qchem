@@ -1,10 +1,14 @@
 // FIle: SCFAccelerator_DIIS.C  Direct Inversion of the Iterative Subspace (DIIS) algorithm
 
 
+#include <iostream>
+#include <cassert>
+#include <cmath>
+#include <iomanip>
 #include "SCFAccelerator_DIIS.H"
 #include <LASolver/LASolver.H>
-#include "oml/numeric/LapackLinearSolver.H"
-#include "oml/numeric/LapackSVDSolver.H"
+#include <BasisSet/Irrep_BS.H>
+#include "SCFAccelerator_Null.H"
 
 using std::cout;
 using std::endl;
@@ -22,8 +26,6 @@ SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS()
 {
 
 };
-
-#include "oml/vector.h"
 
 
 void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
@@ -95,9 +97,6 @@ void SCFIrrepAccelerator_DIIS::Purge1()
 //
 // Non irrep code
 //
-#include <BasisSet/Irrep_BS.H>
-#include "oml/diagonalmatrix.h"
-#include "SCFAccelerator_Null.H"
 
 
 SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p) 
@@ -135,7 +134,7 @@ double SCFAccelerator_DIIS::GetMinSV(const SMat& B)
 
 SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B) 
 {
-    static LapackLinearSolver<double> solver;
+    static oml::LapackLinearSolver<double> solver;
     size_t N=B.GetNumRows();
     RVec v(N);
     Fill(v,0.0); 

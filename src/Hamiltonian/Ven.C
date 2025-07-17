@@ -1,14 +1,13 @@
 // File: Ven.C  Electron-Nuclear potential.
 
 
+#include <iostream>
+#include <cassert>
 
 #include "Ven.H"
 #include <BasisSet/Irrep_BS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include "oml/smatrix.h"
-#include "oml/vector.h"
-#include "oml/vector3d.h"
 
 Ven::Ven() : Static_HT_Imp() , theCluster() {};
 

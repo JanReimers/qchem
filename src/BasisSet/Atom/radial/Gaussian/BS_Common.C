@@ -2,8 +2,8 @@
 
 #include "radial/Gaussian/Rk.H"
 #include <BasisSet/Irrep_BS.H>
-#include "oml/vector.h"
 #include "radial/Gaussian/BS_Common.H"
+import oml;
 
 namespace Gaussian
 {

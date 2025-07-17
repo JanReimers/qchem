@@ -1,11 +1,14 @@
 // File: Gaussian::Rk.C  2 electron Charge distribution of Gaussian orbitals. 
 
+#include <iostream>
+#include <cassert>
+#include <cmath>
 #include "radial/Gaussian/Rk.H"
 #include "radial/PascalTriangle.H"
-#include "oml/vector.h"
 
 import Common.Constants;
 import Common.Factorials;
+import oml;
 
 using std::cout;
 using std::endl;

@@ -10,7 +10,8 @@
 #include <Hamiltonian/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
 #include <Symmetry/Irrep_QNs.H>
-#include "oml/smatrix.h"
+
+import oml;
 
 class Irrep_WF
 {

@@ -2,8 +2,6 @@
 
 
 
-#include "oml/smatrix.h"
-#include "oml/vector.h"
 #include <cassert>
 #include <ChargeDensity/CompositeCD.H>
 #include <BasisSet/HF_IBS.H>

@@ -1,8 +1,6 @@
 // File: GaussianRF.C  Primative Gaussian in 3D space.
 
 
-#include "oml/smatrix.h"
-#include "oml/io3d.h"
 #include <cmath>
 #include <iostream>
 #include <iomanip>
@@ -20,6 +18,7 @@
 #include <Cluster/Cluster.H>
 
 import Common.Constants;
+import oml;
 
 namespace PolarizedGaussian
 {

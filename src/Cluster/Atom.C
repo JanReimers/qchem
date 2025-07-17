@@ -2,7 +2,6 @@
 
 
 
-#include "oml/io3d.h"
 #include <iostream>
 #include <cassert>
 #include <Mesh/Factory.H>
@@ -10,6 +9,7 @@
 
 #include "AtomMesh.H"
 #include "Cluster/Atom.H"
+import oml;
 
 using json = nlohmann::json;
 

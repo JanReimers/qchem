@@ -2,7 +2,7 @@
 #ifndef _SCFParams_H_
 #define _SCFParams_H_
 
-#include "oml/imp/index_t.h"
+#include <cstddef>
 
 struct SCFParams
 {

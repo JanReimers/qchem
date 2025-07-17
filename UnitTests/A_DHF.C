@@ -1,7 +1,6 @@
 // File A_DHF.C  Atom Dirac-Hartree-Fock tests.
 
 #include <iostream>
-#include "oml/io3d.h"
 #include <iomanip>
 
 #include "QchemTester.H"

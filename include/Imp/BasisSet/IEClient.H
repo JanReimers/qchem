@@ -2,8 +2,7 @@
 #ifndef _IEClient_H_
 #define _IEClient_H_
 
-#include "oml/imp/index_t.h" //for size_t
-
+#include <cstddef>
 import Common.UniqueID; 
 
 //

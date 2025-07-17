@@ -5,8 +5,8 @@
 
 
 #include <map>
+#include <cassert>
 #include "../ERI4.H"
-#include "oml/vector.h"
 #include <BasisSet/Integrals.H>
 #include "../IEClient.H"
 

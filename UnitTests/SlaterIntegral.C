@@ -15,13 +15,13 @@
 #include <BasisSet/Irrep_BS.H>
 #include <BasisSet/HF_IBS.H>
 #include <Cluster/Cluster.H>
-#include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
 import Common.Constants;
 import Mesh.Integrator;
+import oml;
 
 using std::cout;
 using std::endl;
