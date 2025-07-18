@@ -8,6 +8,7 @@
 #include <BasisSet/fwd.H>
 
 import Common.UniqueID; //Need IDType
+import qchem.Cluster;
 import oml;
 
 //--------------------------------------------------------------------------------

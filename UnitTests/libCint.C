@@ -7,7 +7,6 @@
 #include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Block.H"
 #include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
 #include <BasisSet/Integrals.H>
 
 #include <LASolver/LAParams.H>
@@ -15,6 +14,8 @@
 #include "oml/smatrix.h"
 #include <vector>
 #include <iostream>
+
+import qchem.Atom;
 
 typedef Vector3D<double> RVec3;
 

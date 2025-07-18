@@ -1,7 +1,10 @@
 // File::BasisSet/Atom/Factory.C  Factory function for atom basis sets.
 
-#include "Symmetry/Atom_EC.H"
+#include <cassert>
+#include <nlohmann/json.hpp>
 #include <BasisSet/Factory.H>
+
+#include "Symmetry/Atom_EC.H"
 #include "l/Slater_BS.H"
 #include "ml/Slater_BS.H"
 #include "kappa/Slater_BS.H"
@@ -10,8 +13,6 @@
 #include "kappa/Gaussian_BS.H"
 #include "l/BSpline_BS.H"
 #include "ml/BSpline_BS.H"
-#include <cassert>
-#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 namespace BasisSetAtom

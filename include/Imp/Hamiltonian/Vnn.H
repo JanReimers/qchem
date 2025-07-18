@@ -6,7 +6,7 @@
 
 #include <memory>
 #include "HamiltonianTerm.H"
-#include <Cluster/Cluster.H>
+import qchem.Cluster;
 
 class Vnn
     : public virtual Static_HT

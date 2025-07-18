@@ -5,8 +5,9 @@
 
 #include <vector>
 #include <memory>
-#include <Cluster/fwd.H>
 #include <Hamiltonian/Hamiltonian.H>
+
+import qchem.Cluster;
 
 class HamiltonianImp
     : public virtual Hamiltonian

@@ -9,4 +9,4 @@ target_include_directories(qcHamiltonian PRIVATE
     )
     
 set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcHamiltonian PUBLIC qcMesh qcCommon)
+target_link_libraries(qcHamiltonian PUBLIC qcCluster qcMesh qcCommon)

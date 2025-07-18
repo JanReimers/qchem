@@ -2,9 +2,9 @@
 #ifndef _Reader_h_
 #define _Reader_h_
 
-#include <Cluster/fwd.H>
 #include <vector>
-
+import qchem.Atom;
+ 
 namespace PolarizedGaussian
 {
 

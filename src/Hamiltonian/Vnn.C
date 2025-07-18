@@ -8,8 +8,8 @@
 #include "Vnn.H"
 #include <Hamiltonian/TotalEnergy.H>
 #include <BasisSet/Irrep_BS.H>
-#include "Cluster/Atom.H"
 
+import qchem.Atom;
 
 Vnn::Vnn()
     : Static_HT_Imp()

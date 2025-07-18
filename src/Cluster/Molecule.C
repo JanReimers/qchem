@@ -2,14 +2,15 @@
 
 
 
+#include <Common/pmstream.h>
 #include "Common/stl_io.h"
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 
-#include "Cluster/Atom.H"
 #include <Cluster/Molecule.H>
 #include "MoleculeMesh.H"
+import qchem.Atom;
 
 Molecule::Molecule()
     : itsNumElectrons(0)

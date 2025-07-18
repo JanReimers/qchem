@@ -6,5 +6,5 @@ target_include_directories(qcFitting PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/oml/include
     )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcFitting PUBLIC qcMesh qcCommon) 
+target_link_libraries(qcFitting PUBLIC qcCluster qcMesh qcCommon) 
 

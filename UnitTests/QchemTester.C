@@ -1,19 +1,26 @@
 
+#include <memory>
+#include <cmath>
+#include <memory>
+
+#include <BasisSet/Factory.H>
 #include "QchemTester.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <SCFAccelerator/Factory.H>
 #include <WaveFunction/WaveFunction.H>
 #include <Hamiltonian/Hamiltonian.H>
-#include <Cluster/Cluster.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <Orbitals/Orbitals.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <SCFIterator.H>
-#include <memory>
+#include "Cluster/Molecule.H"
+
 PeriodicTable QchemTester::itsPT;
 
+import qchem.Cluster;
+import qchem.Atom;
 
 
 QchemTester::QchemTester()
@@ -102,7 +109,6 @@ size_t QchemTester::GetIterationCount() const
     return itsSCFIterator->GetIterationCount();
 }
 
-#include <cmath> //fabs
 double QchemTester::RelativeError(double E,bool quiet) const
 {
     double error=(E-TotalEnergy())/E;
@@ -145,8 +151,6 @@ QchemTester::symv_t QchemTester::GetSymmetries() const
 
 
 
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
 TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 {
     itsZ=Z-q;
@@ -160,7 +164,6 @@ MeshParams TestAtom::GetMeshParams() const
     return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
 }
 
-#include <BasisSet/Factory.H>
 BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSetAtom::Factory(js,itsZ);

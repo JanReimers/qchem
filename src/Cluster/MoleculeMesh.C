@@ -3,23 +3,11 @@
 #include <cassert>
 #include <iostream>
 #include <stdlib.h>
-#include <Cluster/Cluster.H>
-#include "Cluster/Atom.H"
 #include "MoleculeMesh.H"
 import oml;
+import qchem.Cluster;
+import qchem.Atom;
 
-size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
-{
-    size_t ret=0;
-    for (auto& a:*this)
-    {
-        if (norm(r-a->itsR)<=tol)
-            break;
-        ret++;
-    }
-    assert(ret!=GetNumAtoms());
-    return ret;
-}
 
 double          Poly             (double,int m_mu);
 

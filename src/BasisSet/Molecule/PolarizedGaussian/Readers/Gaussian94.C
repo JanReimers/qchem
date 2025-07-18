@@ -2,17 +2,18 @@
 
 
 
-#include "PolarizedGaussian/Readers/Gaussian94.H"
-#include "PolarizedGaussian/Radial/GaussianRF.H"
-#include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
-#include "Cluster/Atom.H"
 #include <iostream>
 #include <cassert>
+#include <memory>
 #include <stdlib.h>
 #include <algorithm>
 #include <unistd.h>
+#include "PolarizedGaussian/Readers/Gaussian94.H"
+#include "PolarizedGaussian/Radial/GaussianRF.H"
+#include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
 
 import Common.PeriodicTable;
+import qchem.Atom;
 import oml;
 
 using std::ws;

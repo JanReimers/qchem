@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <memory>
 #include "Fit_IBS_Common.H"
 
 import Mesh.Integrator;

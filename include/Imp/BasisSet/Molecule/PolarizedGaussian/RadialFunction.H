@@ -12,6 +12,7 @@
 #include <Mesh/ScalarFunction.H>
 
 import Common.UniqueID; 
+import qchem.Cluster;
 
 class  Polarization;
 

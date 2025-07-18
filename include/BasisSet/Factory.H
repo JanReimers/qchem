@@ -7,6 +7,8 @@
 #include <BasisSet/fwd.H>
 #include <nlohmann/json.hpp>
 
+import qchem.Cluster;
+
 namespace BasisSetAtom
 {
     enum class Type {Slater,Gaussian,BSpline,Slater_RKB,Gaussian_RKB,BSpline_RKB};

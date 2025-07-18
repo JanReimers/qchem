@@ -1,6 +1,7 @@
 // File: DHF_IBS_Common.H  Common implementation for all Dirac-Hartree-Fock (HF) Irrep Basis Sets.
 
 #include <vector>
+#include <memory>
 #include <iostream>
 #include "DHF_IBS_Common.H"
 

@@ -2,12 +2,13 @@
 
 #include <iomanip>
 #include <vector>
+#include <memory>
 #include "DataBase/HeapDB.H"
 #include <BasisSet/Irrep_BS.H>
-#include <Cluster/Cluster.H>
 #include <BasisSet/Fit_IBS.H>
 
 import Mesh.Integrator;
+import qchem.Cluster;
 import oml;
 
 //------------------------------------------------------------------------

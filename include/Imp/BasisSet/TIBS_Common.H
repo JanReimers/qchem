@@ -2,8 +2,8 @@
 #ifndef _TIBS_Common_H_
 #define _TIBS_Common_H_
 
-#include <BasisSet/Irrep_BS.H>
 #include <LASolver/LAParams.H>
+#include <BasisSet/Irrep_BS.H>
 
 template <class T> class TIBS_Common
     : public virtual TIrrepBasisSet<T>

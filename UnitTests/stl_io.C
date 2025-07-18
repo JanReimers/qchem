@@ -5,12 +5,13 @@
 #include "oml/vector.h"
 #include "oml/imp/stream.h"
 #include "Common/stl_io.h"
-#include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <vector>
 #include <ostream>
 #include <sstream>
 #include <fstream>
+
+import qchem.Atom;
 
 using std::ostream;
 using std::istream;

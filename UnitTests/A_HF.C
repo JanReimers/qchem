@@ -1,10 +1,12 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
-#include "Cluster/Atom.H"
 #include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H> //Just to get the types.
 #include <Hamiltonian/Factory.H>
+
+import qchem.Atom;
+import oml.Vector3D;
 
 const bool verbose=true;
 inline SCFParams scf_params(int Z) 

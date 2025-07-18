@@ -2,6 +2,7 @@
 #ifndef Fit_IBS_H_
 #define Fit_IBS_H_
 
+#include <LASolver/LAParams.H>
 #include <BasisSet/Integrals.H>
 #include <Mesh/fwd.H>
 #include <LASolver/fwd.H>

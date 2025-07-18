@@ -3,9 +3,10 @@
 #include "QchemTester.H"
 
 #include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
 #include <Hamiltonian/Factory.H>
 
+import qchem.Atom;
+import oml;
 
 Molecule* MakeN2()
 {

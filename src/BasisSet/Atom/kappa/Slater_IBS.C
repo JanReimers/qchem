@@ -4,6 +4,8 @@
 #include <cassert>
 #include <iomanip>
 #include <cmath>
+#include <memory>
+#include <Common/pmstream.h>
 
 #include "kappa/Slater_IBS.H"
 #include "kappa/Slater_BF.H"

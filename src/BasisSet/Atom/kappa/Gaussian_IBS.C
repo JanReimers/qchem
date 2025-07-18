@@ -1,9 +1,10 @@
 // File: Atom/kappa/Gaussian_IBS.C  Restricted Kinetic Balance (RKB) Irrep Basis Set (IBS).
 
-
+#include <memory>
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <Common/pmstream.h>
 
 #include "kappa/Gaussian_IBS.H"
 #include "kappa/Gaussian_BF.H"

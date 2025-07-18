@@ -3,9 +3,11 @@
 #define _Molecule_H_
 
 #include <iosfwd>
-#include <Cluster/Cluster.H>
 
 import Common.UniqueIDImp;
+import qchem.Cluster;
+import qchem.Atom;
+import Mesh;
 
 class Molecule 
     : public virtual Cluster

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <memory>
 #include <BasisSet/DHF_IBS.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>

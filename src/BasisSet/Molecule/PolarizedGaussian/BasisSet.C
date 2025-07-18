@@ -4,7 +4,7 @@
 #include <cmath>
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
-#include <Cluster/Cluster.H>
+import qchem.Cluster;
 
 namespace PolarizedGaussian
 {

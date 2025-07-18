@@ -26,6 +26,7 @@
 //  Similarly we can do an eigen inverse S=U*w*Ud, Inv(S)=U*1/w*Ud
 //
 
+#include <LASolver/LAParams.H>
 #include <LASolver/fwd.H>
 #include <tuple>
 import oml;

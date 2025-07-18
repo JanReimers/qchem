@@ -1,6 +1,7 @@
 // File: AtomIE.C Common DHF IE code for all atom basis sets.
 
 #include <iostream>
+#include <memory>
 #include "IE_DHF.H"
 #include "IEC.H"
 #include <BasisSet/DHF_IBS.H>

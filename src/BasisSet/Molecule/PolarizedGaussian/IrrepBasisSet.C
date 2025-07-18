@@ -18,8 +18,9 @@
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 
 #include "PolarizedGaussian/IrrepBasisSet.H"
-#include <Cluster/Cluster.H>
-#include "Cluster/Atom.H"
+
+import qchem.Cluster;
+import qchem.Atom;
 
 namespace PolarizedGaussian
 {

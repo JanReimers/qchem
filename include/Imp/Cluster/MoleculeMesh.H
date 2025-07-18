@@ -6,8 +6,7 @@
 #include <Mesh/fwd.H>
 
 import Mesh;
-
-class Cluster;
+import qchem.Cluster;
 
 class MoleculeMesh : public Mesh
     

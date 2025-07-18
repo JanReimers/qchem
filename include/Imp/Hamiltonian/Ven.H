@@ -4,10 +4,11 @@
 
 
 
-
-#include "HamiltonianTerm.H"
-#include <Cluster/Cluster.H>
 #include <memory>
+#include "HamiltonianTerm.H"
+
+import qchem.Cluster;
+
 
 class Ven
     : public virtual Static_HT

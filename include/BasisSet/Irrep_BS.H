@@ -8,6 +8,7 @@
 #include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
+#include <LASolver/LAParams.H>
 #include "Common/pmstream.h" 
 
 import Common.UniqueID; 

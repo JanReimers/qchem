@@ -4,7 +4,7 @@
 #include <iostream>
 #include "IE.H"
 #include "IEC.H"
-#include <Cluster/Cluster.H>
+import qchem.Cluster;
 
 template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOverlap() const
 {

@@ -2,11 +2,11 @@
 
 #include <vector>
 #include <iostream>
+#include <algorithm>
 #include "ml/Gaussian_BS.H"
 #include "ml/Gaussian_IBS.H"
 #include "radial/Gaussian/ExponentScaler.H"
 #include "Symmetry/Atom_EC.H"
-#include <algorithm>
 
 namespace Atom_ml
 {

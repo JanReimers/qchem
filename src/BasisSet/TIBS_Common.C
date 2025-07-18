@@ -4,6 +4,7 @@
 #include <tuple>
 #include <iostream>
 #include <vector>
+#include <LASolver/LAParams.H>
 #include <LASolver/LASolver.H>
 #include "TIBS_Common.H"
 #include <BasisSet/BasisFunction.H>
@@ -15,8 +16,9 @@ LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
 //  Construction zone
 //
 template <class T> TIBS_Common<T>::TIBS_Common()
-    : itsLAParams      (DefaultLAP)
-{};
+    : itsLAParams      (DefaultLAP) //gcc-15.0.1 segfault here
+{
+};
 
 template <class T> TIBS_Common<T>::TIBS_Common(const TIBS_Common<T>& bs)
     : itsLAParams      (bs.itsLAParams)

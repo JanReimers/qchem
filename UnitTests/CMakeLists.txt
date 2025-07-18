@@ -10,6 +10,7 @@ link_directories(
 
 #  Main
 add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C)
+#add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
 #GCM_PATH := $(LIB_PATH)/gcm.cache
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
 #-Wno-unknown-pragmas

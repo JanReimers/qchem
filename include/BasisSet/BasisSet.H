@@ -6,14 +6,15 @@
 #include <memory>
 
 #include <Symmetry/fwd.H>
-#include <Cluster/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include "Common/pmstream.h"
+#include <LASolver/LAParams.H>
 
 
 import Common.UniqueID;
 import Common.Iterators;
+import qchem.Cluster;
 //----------------------------------------------------------------------------
 //
 //  Interface for a BasisSet which is assumed to a list of Irrep Basis Sets.

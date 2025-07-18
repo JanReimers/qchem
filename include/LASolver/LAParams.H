@@ -20,6 +20,7 @@ namespace qchem {
 
 struct LAParams
 {
+    //LAParams() : LinearAlgebraPackage(qchem::Lapack), BasisOrthoAlgorithm(qchem::SVD), TruncationTolerance(1e-10), abstol(1e-12) {};
     qchem::Pkg    LinearAlgebraPackage; //{OML,Lapack}
     qchem::Ortho  BasisOrthoAlgorithm;  //{Cholsky,Eigen,SVD}
     //For Ortho=SVD/Eigen we can truncation solutions with small
@@ -55,7 +56,5 @@ struct LAParams
           Kahan, LAPACK Working Note #3.
 */
 
-#include <iosfwd>
-std::ostream& operator<<(std::ostream& os, const LAParams& lap);
 
 #endif // _LAParams_H_

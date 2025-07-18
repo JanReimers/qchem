@@ -5,11 +5,11 @@
 #include <cassert>
 #include <cmath>
 #include "gtest/gtest.h"
+#include <BasisSet/Factory.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include <LASolver/LAParams.H>
 #include <LASolver/LASolver.H>
-#include <BasisSet/Factory.H>
 
 import oml;
 using std::cout;
