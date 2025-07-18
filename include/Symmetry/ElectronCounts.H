@@ -2,8 +2,9 @@
 #ifndef _ElectronCounts_H_
 #define _ElectronCounts_H_
 
+import qchem.Symmetry.Spin;
+
 const int LMax=3;
-enum class Spin;
 
 struct ElCounts
 {

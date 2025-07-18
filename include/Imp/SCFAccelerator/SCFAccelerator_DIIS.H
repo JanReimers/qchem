@@ -5,7 +5,7 @@
 #include <deque>
 #include <vector>
 #include <SCFAccelerator/SCFAccelerator.H>
-#include <Symmetry/Irrep_QNs.H>
+import qchem.Symmetry.Irrep;
 import oml;
 
 struct DIISParams

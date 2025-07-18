@@ -10,6 +10,7 @@
 #include <Hamiltonian/fwd.H>
 #include <Orbitals/fwd.H>
 #include <WaveFunction/fwd.H>
+import qchem.Symmetry.Irrep;
 
 class WaveFunction 
 {

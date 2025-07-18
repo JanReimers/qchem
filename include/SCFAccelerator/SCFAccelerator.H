@@ -2,9 +2,9 @@
 #ifndef _SCFAccelerator_H_
 #define _SCFAccelerator_H_
 
-#include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 import oml;
+import qchem.Symmetry.Irrep;
 
 class SCFIrrepAccelerator
 {

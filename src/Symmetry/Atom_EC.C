@@ -2,12 +2,12 @@
 
 #include "Symmetry/Atom_EC.H"
 #include "Symmetry/Angular.H"
-#include <Symmetry/Irrep_QNs.H>
 #include <cassert>
 #include <iostream>
 #include <initializer_list>
 
 import Common.PeriodicTable;
+import qchem.Symmetry.Irrep;
 
 using std::cout;
 using std::endl;

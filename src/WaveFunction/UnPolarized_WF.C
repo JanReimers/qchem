@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include "tabulate/table.hpp"
+#include <Common/pmstream.h>
 #include "UnPolarized_WF.H"
 import qchem.Symmetry;
 

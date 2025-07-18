@@ -3,11 +3,10 @@
 #define _ExactIrrepCD_H_
 
 
-
-#include <Symmetry/Irrep_QNs.H>
+#include <iosfwd>
 #include <ChargeDensity/ChargeDensity.H>
 import oml;
-import qchem.Symmetry.Spin;
+import qchem.Symmetry.Irrep;
 
 //------------------------------------------------------------------------------------
 //

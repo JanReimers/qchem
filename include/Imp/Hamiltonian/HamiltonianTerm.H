@@ -4,9 +4,9 @@
 
 #include <map>
 #include <Hamiltonian/Hamiltonian.H>
-#include <Symmetry/Irrep_QNs.H>
 
 import oml;
+import qchem.Symmetry.Irrep;
 
 class HT_Common
 {

@@ -18,6 +18,7 @@
 import Common.PeriodicTable;
 import Mesh; //To get Meshparams
 import qchem.Molecule;
+import qchem.Symmetry.Irrep;
 
 class QchemTester
 {

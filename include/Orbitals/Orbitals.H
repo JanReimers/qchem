@@ -6,7 +6,12 @@
 #include <memory>
 
 #include <Symmetry/fwd.H>
+#include <ChargeDensity/fwd.H>
 #include "Common/pmstream.h"
+#include <Mesh/ScalarFunction.H>
+#include <Mesh/VectorFunction.H>
+import Common.Iterators;
+import qchem.Symmetry.Irrep;
 
 //#############################################################
 //
@@ -34,7 +39,6 @@ public:
     static  Orbital* Factory     (std::istream&)        ;
 };
 
-#include <Mesh/ScalarFunction.H>
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or
@@ -49,9 +53,7 @@ public:
     virtual void AddDensityMatrix(SMat& D, SMat& DPrime) const=0;
 };
 
-#include <ChargeDensity/fwd.H>
 
-import Common.Iterators;
 
 //---------------------------------------------------------------------------
 //
@@ -107,7 +109,6 @@ public:
 
 };
 
-#include <Mesh/VectorFunction.H>
 //---------------------------------------------------------
 //
 //  Templated depending or whether it is a real or

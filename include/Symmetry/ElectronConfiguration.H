@@ -2,7 +2,7 @@
 #ifndef _ElectronConfiguration_H_
 #define _ElectronConfiguration_H_
 
-#include <Symmetry/fwd.H>
+import qchem.Symmetry.Irrep;
 
 class ElectronConfiguration
 {

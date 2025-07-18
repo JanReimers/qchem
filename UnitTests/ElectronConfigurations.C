@@ -4,10 +4,10 @@
 #include "gtest/gtest.h"
 #include "Symmetry/Atom_EC.H"
 #include "Symmetry/Ylm.H"
-#include <Symmetry/Irrep_QNs.H>
 #include <iostream>
 
 import Common.PeriodicTable;
+import qchem.Symmetry.Irrep;
 
 using std::cout;
 using std::endl;

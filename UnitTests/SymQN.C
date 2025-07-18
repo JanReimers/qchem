@@ -1,6 +1,7 @@
 // File: SymQN.C  Unite tests for symmetrys and QN classes
 
 #include "gtest/gtest.h"
+#include <Common/pmstream.h>
 #include <Symmetry/Yl.H>
 #include <Symmetry/Ylm.H>
 #include <Symmetry/Okmj.H>

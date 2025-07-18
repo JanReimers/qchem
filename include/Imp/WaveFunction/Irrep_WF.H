@@ -9,7 +9,7 @@
 #include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
-#include <Symmetry/Irrep_QNs.H>
+import qchem.Symmetry.Irrep;
 
 import oml;
 

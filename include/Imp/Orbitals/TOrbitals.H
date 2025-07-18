@@ -5,7 +5,7 @@
 
 #include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
-#include <Symmetry/Irrep_QNs.H>
+import qchem.Symmetry.Irrep;
 
 
 template <class T> class TOrbitalsImp

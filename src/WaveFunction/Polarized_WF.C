@@ -5,6 +5,7 @@
 #include <iomanip>
 #include "tabulate/table.hpp"
 
+#include <Common/pmstream.h>
 #include "Polarized_WF.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <ChargeDensity/Factory.H>

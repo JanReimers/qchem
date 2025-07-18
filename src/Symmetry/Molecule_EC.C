@@ -1,9 +1,9 @@
 // File: ElectronConfiguration.C
 
 #include "Symmetry/Molecule_EC.H"
-#include <Symmetry/Irrep_QNs.H>
 #include <cassert>
 #include <iostream>
+import qchem.Symmetry.Irrep;
 
 using std::cout;
 using std::endl;

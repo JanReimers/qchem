@@ -1,5 +1,6 @@
 // File: ChargeDensity/Factory.C  Create some charge densitytypes.
 
+#include <memory>
 #include "IrrepCD.H"
 #include "PolarizedCD.H"
 #include "FittedCD.H"
