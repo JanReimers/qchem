@@ -11,7 +11,6 @@
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
 #include "Common/stl_io.h"
-#include <Symmetry/Symmetry.H>
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
@@ -21,6 +20,7 @@ import Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Symmetry;
 import oml;
 
 using std::cout;

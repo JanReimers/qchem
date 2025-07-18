@@ -1,8 +1,9 @@
 // File:  ElectronCounts.C  Simple structure that store electron configuration counts for each l state.
 
-#include "Symmetry/ElectronCounts.H"
-#include <Symmetry/Spin.H>
 #include <cassert>
+#include <cstddef>
+#include "Symmetry/ElectronCounts.H"
+import qchem.Symmetry.Spin;
 
 
 int ElCounts_l::GetN(Spin s) const

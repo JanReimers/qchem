@@ -15,6 +15,7 @@
 import Common.UniqueID;
 import Common.Iterators;
 import qchem.Cluster;
+import qchem.Symmetry;
 //----------------------------------------------------------------------------
 //
 //  Interface for a BasisSet which is assumed to a list of Irrep Basis Sets.

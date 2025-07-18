@@ -2,6 +2,8 @@
 #ifndef _Yl_Sym_H_
 #define _Yl_Sym_H_
 
+#include <cstddef>
+#include <iosfwd>
 #include "Symmetry/Angular.H"
 
 //---------------------------------------------------------------------------------

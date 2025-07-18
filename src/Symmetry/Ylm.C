@@ -8,7 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
 
 using std::cout;
 using std::endl;

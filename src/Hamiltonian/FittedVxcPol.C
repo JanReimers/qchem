@@ -11,7 +11,7 @@
 #include "FittedVxcPol.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
 
 FittedVxcPol::FittedVxcPol()
     : itsUpVxc                    (0)

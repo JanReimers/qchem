@@ -2,8 +2,10 @@
 #ifndef _Symmetry_Omega_k_Sym_H_
 #define _Symmetry_Omega_k_Sym_H_
 
-#include "Symmetry/Angular.H"
 #include <utility>
+#include <cstddef>
+#include <iosfwd>
+#include "Symmetry/Angular.H"
 
 //---------------------------------------------------------------------------------
 //

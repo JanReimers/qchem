@@ -6,7 +6,7 @@
 #include "radial/Gaussian/IBS_Common.H"
 #include "radial/Gaussian/Integrals.H"
 #include <BasisSet/BasisFunction.H>
-#include <Symmetry/Symmetry.H>
+import qchem.Symmetry;
 import oml;
 
 

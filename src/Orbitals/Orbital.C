@@ -6,8 +6,8 @@
 #include <cassert>
 // #include <stdlib.h>
 #include <WaveFunction/EnergyLevel.H>
-#include <Symmetry/Symmetry.H>
 #include "TOrbital.H"
+import qchem.Symmetry;
 
 OrbitalImp::OrbitalImp(double e, const Orbital_QNs& qns)
     : itsEigenEnergy(e)

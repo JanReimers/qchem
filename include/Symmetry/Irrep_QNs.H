@@ -4,9 +4,9 @@
 
 #include <memory>
 #include "Common/pmstream.h"
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
+import qchem.Symmetry;
 
-class Symmetry;
 
 struct Irrep_QNs
     : public virtual PMStreamableObject

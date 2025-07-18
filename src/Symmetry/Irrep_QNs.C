@@ -1,10 +1,10 @@
 // File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
 
-#include <Common/pmstream.h>
-#include <Symmetry/Irrep_QNs.H>
-#include <Symmetry/Symmetry.H>
 #include <cassert>
 #include <iostream>
+#include <Common/pmstream.h>
+#include <Symmetry/Irrep_QNs.H>
+import qchem.Symmetry;
 
 const size_t Irrep_QNs::ms_max=3; //three states Up/Down and None.
 

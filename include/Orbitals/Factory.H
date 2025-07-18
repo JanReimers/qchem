@@ -5,6 +5,7 @@
 #include <Symmetry/fwd.H>
 #include <BasisSet/fwd.H>
 #include <Orbitals/fwd.H>
+import qchem.Symmetry.Spin;
 
 namespace OrbitalsF
 {

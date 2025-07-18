@@ -2,9 +2,10 @@
 #ifndef _UnitSymmetryQN_H_
 #define _UnitSymmetryQN_H_
 
+#include <cstddef>
+#include <iosfwd>
 
-
-#include <Symmetry/Symmetry.H>
+import qchem.Symmetry;
 
 class UnitQN
     : public virtual Symmetry

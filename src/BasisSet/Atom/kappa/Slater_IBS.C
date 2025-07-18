@@ -12,7 +12,7 @@
 #include "radial/Slater/Integrals.H"
 
 #include "Symmetry/Okmj.H"
-#include <Symmetry/Symmetry.H>
+import qchem.Symmetry;
 
 using std::endl;
 

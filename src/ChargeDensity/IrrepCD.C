@@ -11,8 +11,8 @@
 #include <BasisSet/HF_IBS.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
-#include <Symmetry/Symmetry.H>
 
+import qchem.Symmetry;
 import qchem.Molecule;
 
 typedef Vector3D<std::complex<double> > Vec3;

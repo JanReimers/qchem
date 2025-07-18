@@ -3,10 +3,12 @@
 #include <cassert>
 #include <iostream>
 #include <iomanip>
+#include "tabulate/table.hpp"
 
 #include "Polarized_WF.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <ChargeDensity/Factory.H>
+import qchem.Symmetry;
 
 using std::cout;
 using std::endl;
@@ -29,8 +31,6 @@ WaveFunction::sf_t* Polarized_WF::GetSpinDensity() const
     return new SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
-#include <Symmetry/Symmetry.H>
-#include "tabulate/table.hpp"
 using namespace tabulate;
 
 Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};

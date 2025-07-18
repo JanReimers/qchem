@@ -11,7 +11,7 @@
 #include "radial/Gaussian/Integrals.H"
 
 #include "Symmetry/Okmj.H"
-#include <Symmetry/Symmetry.H>
+import qchem.Symmetry;
 
 using std::endl;
 

@@ -1,7 +1,10 @@
 // File: UnPolarized_WF.C  Wave function for an unpolarized atom.
 
-#include "UnPolarized_WF.H"
+#include <iomanip>
 #include <iostream>
+#include "tabulate/table.hpp"
+#include "UnPolarized_WF.H"
+import qchem.Symmetry;
 
 UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
     : Composite_WF(bs,ec,acc)
@@ -9,9 +12,6 @@ UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* e
     MakeIrrep_WFs(Spin::None);
 };
 
-#include <Symmetry/Symmetry.H>
-#include <iomanip>
-#include "tabulate/table.hpp"
 using namespace tabulate;
 
 extern Color l_colors[];

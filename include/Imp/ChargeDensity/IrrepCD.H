@@ -4,10 +4,10 @@
 
 
 
-#include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
 #include <ChargeDensity/ChargeDensity.H>
 import oml;
+import qchem.Symmetry.Spin;
 
 //------------------------------------------------------------------------------------
 //

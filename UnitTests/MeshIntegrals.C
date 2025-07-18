@@ -6,14 +6,13 @@
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
 #include <LASolver/LAParams.H>
-#include <Symmetry/Symmetry.H>
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
 #include <iomanip>
 
 import Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Symmetry;
+import oml;
 
 
 using std::cout;

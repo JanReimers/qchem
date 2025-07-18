@@ -11,7 +11,7 @@
 #include <BasisSet/HF_IBS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
 
 VxcPol::VxcPol()
 {

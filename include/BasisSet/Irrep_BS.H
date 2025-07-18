@@ -14,6 +14,7 @@
 import Common.UniqueID; 
 import Common.Iterators;
 import oml;
+import qchem.Symmetry;
 
 //----------------------------------------------------------------------------
 //

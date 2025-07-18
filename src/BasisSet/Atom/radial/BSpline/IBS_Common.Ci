@@ -2,8 +2,7 @@
 
 #include "radial/BSpline/IBS_Common.H"
 #include <BasisSet/BasisFunction.H>
-#include <Symmetry/Symmetry.H>
-//#include "oml/vector.h"
+import qchem.Symmetry;
 
 
 namespace BSpline

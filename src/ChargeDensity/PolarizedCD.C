@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cassert>
 #include "PolarizedCD.H"
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
 
 //---------------------------------------------------------------------------------
 //

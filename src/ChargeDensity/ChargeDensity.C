@@ -1,7 +1,7 @@
 // File: ChargeDensity.C  Interface for the charge density category.
 #include <iostream>
 #include <ChargeDensity/ChargeDensity.H>
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
 //----------------------------------------------------------------------------
 //
 //  Various integrals.

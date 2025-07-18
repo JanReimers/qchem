@@ -6,6 +6,7 @@
 #include <Symmetry/ElectronConfiguration.H>
 #include <vector>
 #include <memory>
+import qchem.Symmetry;
 
 const int Nshell=8;
 

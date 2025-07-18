@@ -2,10 +2,10 @@
 #ifndef _Angular_Sym_H_
 #define _Angular_Sym_H_
 
-#include <Symmetry/Symmetry.H>
+import qchem.Symmetry;
 
-class ElCounts;
-class ElCounts_l;
+struct ElCounts;
+struct ElCounts_l;
 
 //---------------------------------------------------------------------------------
 //

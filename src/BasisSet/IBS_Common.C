@@ -4,9 +4,9 @@
 
 #include "Common/stl_io.h"
 #include <iomanip>
-#include <Symmetry/Symmetry.H>
 #include <BasisSet/BasisFunction.H>
 #include "IBS_Common.H"
+import qchem.Symmetry;
 
 //-----------------------------------------------------------------------------
 //

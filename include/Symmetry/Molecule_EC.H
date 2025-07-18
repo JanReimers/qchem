@@ -3,7 +3,8 @@
 #define _Molecule_EC_H_
 
 #include <Symmetry/ElectronConfiguration.H>
-#include <Symmetry/Spin.H>
+import qchem.Symmetry.Spin;
+import qchem.Symmetry;
 
 class Molecule_EC : public virtual ElectronConfiguration
 {

@@ -1,9 +1,9 @@
 // File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
 
-#include <Symmetry/Orbital_QNs.H>
-#include <Symmetry/Symmetry.H>
 #include <cassert>
 #include <iostream>
+#include <Symmetry/Orbital_QNs.H>
+import qchem.Symmetry;
 
 const size_t Orbital_QNs::n_max=300; //Max principle QN.
 

@@ -5,9 +5,7 @@
 
 #include "QchemTester.H"
 #include <Orbitals/Orbitals.H>
-#include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
-#include <Symmetry/Symmetry.H>
 #include <BasisSet/Factory.H>
 #include <Hamiltonian/Factory.H>
 
@@ -16,6 +14,8 @@ import Mesh;
 import Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Symmetry.Spin;
+import qchem.Symmetry;
 
 using std::cout;
 using std::endl;

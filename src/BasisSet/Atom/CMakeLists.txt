@@ -7,7 +7,6 @@ IEC.C
 IE.C
 IE_Fit.C
 IE_HF.C
-Angular.C
 AngularIntegrals.C
 BFGrouper.C
 Wigner3j.C
@@ -60,4 +59,4 @@ target_include_directories(qcAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcAtom_BS PUBLIC qcCluster qcMesh qcCommon)
+target_link_libraries(qcAtom_BS PUBLIC qcSymmetry qcCluster qcMesh qcCommon)

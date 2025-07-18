@@ -6,7 +6,7 @@
 #include <Mesh/ScalarFunction.H>
 #include <ChargeDensity/fwd.H>
 #include <Fitting/FittedFunctionClient.H>
-
+import qchem.Symmetry.Spin;
 //
 //
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
