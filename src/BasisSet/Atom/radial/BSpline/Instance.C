@@ -1,5 +1,6 @@
 // File: Atom/radial/BSpline/Instance.C  Make instance of BSpline templates
 
+#include <cmath>
 #include "BFGrouper.Ci"
 #include "BS_Common.Ci"
 #include "IBS_Common.Ci"

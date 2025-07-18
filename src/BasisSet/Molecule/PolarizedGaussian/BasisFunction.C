@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <vector>
 
 #include "PolarizedGaussian/BasisFunction.H"
 

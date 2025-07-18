@@ -1,6 +1,7 @@
 // File: HeapDB.H  Implement a heap storage integral data base.
 
 #include <iomanip>
+#include <vector>
 #include "DataBase/HeapDB.H"
 #include <BasisSet/Irrep_BS.H>
 #include <Cluster/Cluster.H>

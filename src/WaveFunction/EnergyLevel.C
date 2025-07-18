@@ -1,10 +1,10 @@
 // File: EnergyLevel.H  Energy level with degeneracy and orbital list.
 
-#include <WaveFunction/EnergyLevel.H>
-#include <Orbitals/Orbitals.H>
 #include <cassert>
 #include <iostream>
 #include <iomanip>
+#include <WaveFunction/EnergyLevel.H>
+#include <Orbitals/Orbitals.H>
 
 EnergyLevel::EnergyLevel(const Orbital* o)
     : e(o->GetEigenEnergy()), occ(o->GetOccupation()), degen(o->GetDegeneracy()), qns(o->GetQNs())

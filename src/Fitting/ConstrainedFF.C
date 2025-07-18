@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <vector>
 #include "ConstrainedFF.H"
 #include <Fitting/FittedFunctionClient.H>
 #include <BasisSet/Fit_IBS.H>

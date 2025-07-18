@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <vector>
 #include "radial/Slater/Rk.H"
 #include "radial/PascalTriangle.H"
 

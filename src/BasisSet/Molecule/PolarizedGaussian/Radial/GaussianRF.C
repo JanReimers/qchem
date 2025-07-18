@@ -5,7 +5,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <stdlib.h>
+#include <vector>
 
 #include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/MnD/RNLM.H"

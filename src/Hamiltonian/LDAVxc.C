@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include <cassert>
-#include <stdlib.h>
+#include <memory>
 #include "LDAVxc.H"
 #include <ChargeDensity/ChargeDensity.H>
 

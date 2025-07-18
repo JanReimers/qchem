@@ -18,7 +18,7 @@ template <class T,template<class> class M> size_t ERI4T<T,M>::size() const
 template class ERI4T<double,SMatrix>;
 template class ERI4T<double, Matrix>;
 
-ERI4::SMat operator*(const ERI4& gabcd,const ERI4::SMat& Scd)
+ERI4::SMat MatMul(const ERI4& gabcd,const ERI4::SMat& Scd)
 {
     //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
     ERI4::SMat Sab(gabcd.GetLimits());
@@ -29,7 +29,7 @@ ERI4::SMat operator*(const ERI4& gabcd,const ERI4::SMat& Scd)
 }
 
 // Profiling hot loop
-ERI4::SMat operator*(const ERI4::SMat& Sab, const ERI4& gabcd)
+ERI4::SMat MatMul(const ERI4::SMat& Sab, const ERI4& gabcd)
 {
     ERI4::SMat Scd(gabcd(1,1).GetLimits());
     Fill(Scd,0.0);

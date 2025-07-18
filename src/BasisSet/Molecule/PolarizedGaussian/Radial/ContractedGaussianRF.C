@@ -3,6 +3,7 @@
 
 #include "Common/stl_io.h"
 #include <iostream>
+#include <iomanip>
 
 #include "PolarizedGaussian/Radial/ContractedGaussianH3.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"

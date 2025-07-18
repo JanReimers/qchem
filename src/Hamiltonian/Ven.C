@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <cassert>
+#include <memory>
+#include <vector>
 
 #include "Ven.H"
 #include <BasisSet/Irrep_BS.H>

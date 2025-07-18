@@ -4,7 +4,9 @@
 
 #include <cassert>
 #include <iostream>
-#include <stdlib.h>
+#include <memory>
+#include <vector>
+
 #include "FittedVxc.H"
 #include "FittedVxcPol.H"
 #include <ChargeDensity/ChargeDensity.H>

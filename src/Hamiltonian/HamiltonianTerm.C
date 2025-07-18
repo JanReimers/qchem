@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <cassert>
+#include <memory>
+#include <vector>
 
 #include "HamiltonianTerm.H"
 #include <ChargeDensity/ChargeDensity.H>

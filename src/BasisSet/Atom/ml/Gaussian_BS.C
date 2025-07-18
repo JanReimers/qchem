@@ -1,5 +1,7 @@
 // File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
 
+#include <vector>
+#include <iostream>
 #include "ml/Gaussian_BS.H"
 #include "ml/Gaussian_IBS.H"
 #include "radial/Gaussian/ExponentScaler.H"

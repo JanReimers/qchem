@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include <iomanip>
+#include <cmath>
 
 #include "kappa/Slater_IBS.H"
 #include "kappa/Slater_BF.H"

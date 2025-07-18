@@ -4,7 +4,9 @@
 
 #include <cmath>
 #include <cassert>
-#include <stdlib.h>
+#include <memory>
+#include <vector>
+
 #include "FittedCD.H"
 #include <BasisSet/DFT_IBS.H>
 

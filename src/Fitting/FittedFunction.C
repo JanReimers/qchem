@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <vector>
 #include "FittedFunction.H"
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Fit_IBS.H>

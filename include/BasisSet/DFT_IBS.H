@@ -2,6 +2,7 @@
 #ifndef _DFT_IBS_H_
 #define _DFT_IBS_H_
 
+#include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Integrals.H>
 
 //! \brief Interface for 3-center integrals used in DFT calculations.
@@ -19,7 +20,6 @@ public:
 
 };
 
-#include <BasisSet/Irrep_BS.H>
 
 template <class T> class TOrbital_DFT_IBS
     : public virtual TOrbital_IBS<T>

@@ -2,13 +2,13 @@
 #ifndef _Irrep_BS_H_
 #define _Irrep_BS_H_
 
+
+#include <vector>
+#include <memory>
 #include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include "Common/pmstream.h" 
-
-#include <vector>
-#include <memory>
 
 import Common.UniqueID; 
 import Common.Iterators;

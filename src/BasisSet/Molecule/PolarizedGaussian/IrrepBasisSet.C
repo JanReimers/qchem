@@ -3,6 +3,10 @@
 #include "Common/stl_io.h"
 #include <cassert>
 #include <algorithm> //Need std::max
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cmath>
 
 #include "Symmetry/Unit.H"
 #include <BasisSet/BasisSet.H>

@@ -2,7 +2,8 @@
 
 #include <iostream>
 #include <cassert>
-#include <stdlib.h>
+#include <memory>
+#include <vector>
 
 #include "Vxc.H"
 #include <BasisSet/HF_IBS.H>

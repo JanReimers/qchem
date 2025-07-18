@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <vector>
 #include "radial/Gaussian/Rk.H"
 #include "radial/PascalTriangle.H"
 

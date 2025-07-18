@@ -1,6 +1,8 @@
 // File: IntegralConstrainedFF.C  Integral constrained fit.
 
 
+#include <memory>
+#include <vector>
 
 #include "IntegralConstrainedFF.H"
 #include <BasisSet/Fit_IBS.H>

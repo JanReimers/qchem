@@ -1,5 +1,6 @@
 // File: Atom/kappa/Gaussian_BS.C  Restricted Kinetic Balance (RKB) Basis Set (BS).
 
+#include <memory>
 #include "kappa/Gaussian_IBS.H"
 #include "radial/Gaussian/ExponentScaler.H"
 

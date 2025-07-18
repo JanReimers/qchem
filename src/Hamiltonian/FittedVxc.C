@@ -2,6 +2,8 @@
 
   
 
+#include <memory>
+#include <vector>
 #include "FittedVxc.H"
 #include "LDAVxc.H"
 #include <BasisSet/DFT_IBS.H>

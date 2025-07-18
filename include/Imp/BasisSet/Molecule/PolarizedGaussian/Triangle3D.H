@@ -2,8 +2,8 @@
 #ifndef _Triangle_H_
 #define _Triangle_H_
 
-#include "Common/pmstream.h"
 #include <vector>
+#include "Common/pmstream.h"
 
 #if DEBUG
 #define CHECK(i,j,k) Check(i,j,k)

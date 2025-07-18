@@ -4,9 +4,9 @@
 
 
 
+#include <memory>
 #include "HamiltonianTerm.H"
 #include <Cluster/Cluster.H>
-#include <memory>
 
 class Vnn
     : public virtual Static_HT

@@ -47,8 +47,8 @@ public:
     typedef SMatrix<double> SMat;
     ERI4() : Base() {};
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
-    friend SMat operator*(const ERI4& gabcd,const SMat& Scd);
-    friend SMat operator*(const SMat& Sab, const ERI4& gabcd);
+    friend SMat MatMul(const ERI4& gabcd,const SMat& Scd);
+    friend SMat MatMul(const SMat& Sab, const ERI4& gabcd);
 private:
     static double contract(const SMat& A,const SMat& B);
 };
@@ -60,8 +60,8 @@ public:
     typedef Matrix<double> Mat;
     M4() : Base() {};
     M4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
-    friend Mat operator*(const M4& gabcd,const Mat& Scd);
-    friend Mat operator*(const Mat& Sab, const ERI4& gabcd);
+    friend Mat MatMul(const M4& gabcd,const Mat& Scd);
+    friend Mat MatMul(const Mat& Sab, const ERI4& gabcd);
 private:
     static double contract(const Mat& A,const Mat& B);
 };

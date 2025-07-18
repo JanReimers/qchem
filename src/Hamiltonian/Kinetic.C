@@ -1,6 +1,9 @@
 // File: Kinetic.C  Kinetic energy term for the hamiltonian.
 
 #include <iostream>
+#include <memory>
+#include <vector>
+
 #include "Kinetic.H"
 #include <BasisSet/Irrep_BS.H>
 #include <ChargeDensity/ChargeDensity.H>

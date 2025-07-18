@@ -1,11 +1,12 @@
 // File: Polarized_WF.C  Wave function for an unpolarized atom.
 
-#include "Polarized_WF.H"
-#include <ChargeDensity/ChargeDensity.H>
-#include <ChargeDensity/Factory.H>
 #include <cassert>
 #include <iostream>
 #include <iomanip>
+
+#include "Polarized_WF.H"
+#include <ChargeDensity/ChargeDensity.H>
+#include <ChargeDensity/Factory.H>
 
 using std::cout;
 using std::endl;

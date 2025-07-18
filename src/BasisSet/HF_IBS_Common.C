@@ -1,6 +1,9 @@
 // File: TBasisSetImplementation.C
 
 #include <cassert>
+#include <vector>
+#include <memory>
+#include <iomanip>
 #include "HF_IBS_Common.H"
 #include "ERI4.H"
 
@@ -15,12 +18,12 @@ Direct(const SMat& Dcd, const obs_t* cd) const
     if (ab->GetID()<=cd->GetID())
     {
          ERI4 Jabcd=ab->Direct(*cd);
-        return Jabcd*Dcd;
+        return MatMul(Jabcd,Dcd);
     }
     else
     {
         ERI4 Jcdab=cd->Direct(*ab);
-        return Dcd*Jcdab;        
+        return MatMul(Dcd,Jcdab);        
     }
 }
 
@@ -33,9 +36,9 @@ Exchange(const SMat& Dcd, const obs_t* cd) const
     const TOrbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())
-        return ab->Exchange(*cd)*Dcd; // ERI4 Kabcd=ab->Exchange(*cd);
+        return MatMul(ab->Exchange(*cd),Dcd); // ERI4 Kabcd=ab->Exchange(*cd);
     else
-        return Dcd*cd->Exchange(*ab); // ERI4 Kcdab=cd->Exchange(*ab);    
+        return MatMul(Dcd,cd->Exchange(*ab)); // ERI4 Kcdab=cd->Exchange(*ab);    
 
 }
 

@@ -1,6 +1,8 @@
 // File: Atom/l/Gaussian_BS.H
 
 #include <cmath>
+#include <vector>
+#include <iostream>
 #include "l/Gaussian_BS.H"
 #include "l/Gaussian_IBS.H"
 #include "radial/Gaussian/ExponentScaler.H"

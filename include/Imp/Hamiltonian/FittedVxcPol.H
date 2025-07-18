@@ -4,9 +4,9 @@
 
 
 
+#include <memory>
 #include "ExchangeFunctional.H"
 #include "Hamiltonian.H"
-#include <memory>
 
 //###############################################################################
 //

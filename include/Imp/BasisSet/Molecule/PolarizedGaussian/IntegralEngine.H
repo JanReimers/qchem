@@ -2,6 +2,7 @@
 #ifndef _PolarizedGaussianIE_H_
 #define _PolarizedGaussianIE_H_
 
+#include <cmath>
 #include "RadialFunction.H"
 #include "CDCache.H"
 #include "Polarization.H"

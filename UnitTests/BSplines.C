@@ -2,6 +2,11 @@
 
 
 #include "gtest/gtest.h"
+#include <bspline/Core.h>
+#include <iostream>
+#include <valarray>
+#include <iomanip>
+
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
 #include "Common/stl_io.h"
@@ -14,8 +19,6 @@
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 
-#include <bspline/Core.h>
-#include <iostream>
 
 import Mesh.Integrator;
 import oml;

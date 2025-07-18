@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cassert>
+#include <iostream>
 #include "TOrbitals.H"
 #include "TOrbital.H"
 #include <ChargeDensity/Factory.H>

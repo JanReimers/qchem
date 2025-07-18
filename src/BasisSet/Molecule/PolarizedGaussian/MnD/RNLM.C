@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <vector>
 #include "PolarizedGaussian/MnD/RNLM.H"
 #include "PolarizedGaussian/AuxillaryFJ.H"
 

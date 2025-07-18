@@ -2,13 +2,15 @@
 
 
 
+#include <cassert>
+#include <iostream>
+#include <memory>
+#include <vector>
+
 #include "Vee.H"
 #include <BasisSet/HF_IBS.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include <cassert>
-#include <iostream>
-#include <stdlib.h>
 
 Vee::Vee()
 {};

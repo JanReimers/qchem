@@ -5,6 +5,7 @@
 #include <complex>
 #include <iostream>
 #include <stdlib.h>
+#include <vector>
 
 #include "IrrepCD.H"
 #include <Cluster/Molecule.H>

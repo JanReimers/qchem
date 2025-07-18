@@ -2,7 +2,8 @@
 
 #include <cassert>
 #include <iostream>
-#include <stdlib.h>
+#include <memory>
+#include <vector>
 
 
 #include "VxcPol.H"

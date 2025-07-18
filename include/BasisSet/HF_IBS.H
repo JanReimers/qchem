@@ -2,6 +2,7 @@
 #ifndef _HF_IBS_H_
 #define _HF_IBS_H_
 
+#include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Integrals.H>
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
@@ -27,7 +28,6 @@ public:
     virtual ERI4 Exchange(IDType a,IDType b) const=0;
 };
 
-#include <BasisSet/Irrep_BS.H>
 
 template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>

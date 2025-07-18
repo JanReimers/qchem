@@ -1,5 +1,6 @@
 // File: AtomIE.C Common Fit IE code for all atom basis sets.
 
+#include <memory>
 #include "IE_Fit.H"
 #include "IEC.H"
 #include <BasisSet/Fit_IBS.H>

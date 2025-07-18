@@ -22,6 +22,7 @@ class Orbital_IBS
     , public         Orbital_RKB_IBS_Common<double> 
 {
 public:
+    using ::IrrepBasisSet::RVec3;
     Orbital_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
@@ -38,7 +39,7 @@ template <class T> class Large_Orbital_IBS
     , public     Orbital_RKBL_IE<T>
     , public     AtomIrrepIEClient
 {
-    using ::IrrepBasisSet::RVec3;
+    using RVec3=::IrrepBasisSet::RVec3;
     public:
     Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
@@ -55,8 +56,8 @@ template <class T> class Small_Orbital_IBS
     , public     Orbital_RKBS_IE<T>
     , public     AtomIrrepIEClient
 {
-    using ::IrrepBasisSet::RVec3;
 public:
+    using RVec3=::IrrepBasisSet::RVec3;
     Small_Orbital_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l);
 

@@ -1,11 +1,13 @@
 // File: Atom/ml/Slater_IBS.C  Slater Irrep Basis Set (IBS) with orbital angular momentum l,m.
 
+
+#include <iostream>
+#include <cassert>
+#include <cmath>
 #include "ml/Slater_IBS.H"
 #include "ml/Slater_BF.H"
 #include "radial/Slater/Integrals.H"
 #include "Symmetry/Ylm.H"
-#include <iostream>
-#include <cassert>
 
 namespace Atom_ml
 {
@@ -43,7 +45,7 @@ void Orbital_IBS::InsertBasisFunctions()
 
 
 
-::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
+::IrrepBasisSet* Orbital_IBS::Clone(const ::IrrepBasisSet::RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return 0;

@@ -1,5 +1,7 @@
 // File PolarizedGaussian/BasisSet.C
 
+#include <memory>
+#include <cmath>
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
 #include <Cluster/Cluster.H>

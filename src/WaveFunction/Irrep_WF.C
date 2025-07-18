@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <cassert>
+#include <memory>
+#include <vector>
 #include "Irrep_WF.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 

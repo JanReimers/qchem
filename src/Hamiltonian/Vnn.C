@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cassert>
+#include <vector>
 
 #include "Vnn.H"
 #include <Hamiltonian/TotalEnergy.H>
