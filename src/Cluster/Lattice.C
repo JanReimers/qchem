@@ -5,7 +5,6 @@ module;
 #include <cmath>
 #include <algorithm> //sort
 #include <vector>
-#include "Cluster/Molecule.H"
 #include "MoleculeMesh.H"
 
 export module Cluster.Lattice;
@@ -13,6 +12,7 @@ export module Cluster.Lattice;
 import Common.UniqueIDImp;
 import qchem.Cluster;
 import qchem.Atom;
+import qchem.Molecule;
 import Cluster.UnitCell;
 import oml;
 

@@ -3,7 +3,6 @@
 #define _Hamiltonian_Factory_H_
 
 #include <Mesh/fwd.H>
-#include <Cluster/fwd.H>
 #include <BasisSet/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <memory>

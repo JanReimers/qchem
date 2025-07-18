@@ -7,7 +7,6 @@
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include "Cluster/Molecule.H"
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -16,6 +15,7 @@ import Common.Constants;
 import Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
+import qchem.Molecule;
 import oml;
 
 using std::cout;

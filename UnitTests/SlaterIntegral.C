@@ -13,7 +13,6 @@
 #include "Imp/BasisSet/ERI4.H"
 #include "Symmetry/Angular.H"
 
-#include "Cluster/Molecule.H"
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
@@ -23,6 +22,7 @@ import Common.Constants;
 import Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
+import qchem.Molecule;
 import oml;
 
 using std::cout;

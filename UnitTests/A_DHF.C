@@ -4,7 +4,6 @@
 #include <iomanip>
 
 #include "QchemTester.H"
-#include "Cluster/Molecule.H"
 #include <Orbitals/Orbitals.H>
 #include <Symmetry/Spin.H>
 #include <Symmetry/Irrep_QNs.H>
@@ -16,6 +15,7 @@ import Common.Constants;
 import Mesh;
 import Mesh.Integrator;
 import qchem.Atom;
+import qchem.Molecule;
 
 using std::cout;
 using std::endl;

@@ -15,12 +15,12 @@
 #include <Orbitals/Orbitals.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <SCFIterator.H>
-#include "Cluster/Molecule.H"
 
 PeriodicTable QchemTester::itsPT;
 
 import qchem.Cluster;
 import qchem.Atom;
+import qchem.Molecule;
 
 
 QchemTester::QchemTester()

@@ -2,10 +2,10 @@
 
 #include "QchemTester.H"
 
-#include "Cluster/Molecule.H"
 #include "Hamiltonians.H"
 
 import qchem.Atom;
+import qchem.Molecule;
 
 Molecule* MakeN2()
 {

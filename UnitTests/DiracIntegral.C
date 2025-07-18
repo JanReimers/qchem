@@ -14,12 +14,12 @@
 // #include "Symmetry/Okmj.H"
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include "Cluster/Molecule.H"
 
 import Common.Constants;
 import qchem.Cluster;
 import Mesh.Integrator;
 import qchem.Atom;
+import qchem.Molecule;
 
 using std::cout;
 using std::endl;

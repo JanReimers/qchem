@@ -2,9 +2,7 @@
 module;
 #include "Common/pmstream.h"
 #include <vector>
-#include <cassert>
 #include <memory>
-#include <Mesh/fwd.H>
 
 export module qchem.Cluster;
 import Common.UniqueID; 
@@ -43,21 +41,9 @@ public:
     virtual       iterator begin()      =0;
     virtual       iterator end  ()      =0;
 
-    static  Cluster* Factory    (std::istream&) ;
+   
 };
 
-size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
-{
-    size_t ret=0;
-    for (auto& a:*this)
-    {
-        if (norm(r-a->itsR)<=tol)
-            break;
-        ret++;
-    }
-    assert(ret!=GetNumAtoms());
-    return ret;
-}
 
 
 

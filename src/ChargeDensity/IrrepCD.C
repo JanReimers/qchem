@@ -8,11 +8,12 @@
 #include <vector>
 
 #include "IrrepCD.H"
-#include <Cluster/Molecule.H>
 #include <BasisSet/HF_IBS.H>
 #include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
 #include <Symmetry/Symmetry.H>
+
+import qchem.Molecule;
 
 typedef Vector3D<std::complex<double> > Vec3;
 typedef Vector3D<double>  RVec3;

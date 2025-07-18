@@ -3,7 +3,6 @@
 #define _BasisSet_Factory_H_
 
 #include <Symmetry/fwd.H>
-#include <Cluster/fwd.H>
 #include <BasisSet/fwd.H>
 #include <nlohmann/json.hpp>
 

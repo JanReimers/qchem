@@ -1,11 +1,11 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
-#include "Cluster/Molecule.H"
 #include <BasisSet/Factory.H> //Just to get the types.
 #include <Hamiltonian/Factory.H>
 
 import qchem.Atom;
+import qchem.Molecule;
 import oml.Vector3D;
 
 const bool verbose=true;

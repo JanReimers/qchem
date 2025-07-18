@@ -4,7 +4,6 @@
 
 
 #include <vector>
-#include <Cluster/fwd.H>
 #include <BasisSet/fwd.H>
 
 import Common.UniqueID; //Need IDType

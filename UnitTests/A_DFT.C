@@ -3,9 +3,9 @@
 #include <BasisSet/Factory.H> 
 #include <Hamiltonian/Factory.H>
 #include "QchemTester.H"
-#include "Cluster/Molecule.H"
 
 import qchem.Atom;
+import qchem.Molecule;
 import oml;
 
 inline SCFParams dft_scf_params(int Z) 

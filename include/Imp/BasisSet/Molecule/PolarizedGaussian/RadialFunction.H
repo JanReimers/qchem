@@ -5,7 +5,6 @@
 #include <vector>
 #include <set>
 #include <map>
-#include <Cluster/fwd.H>
 #include <BasisSet/fwd.H>
 #include "Polarization.H"
 #include "Common/pmstream.h"

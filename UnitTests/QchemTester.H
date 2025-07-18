@@ -14,10 +14,10 @@
 #include <SCFParams.H>
 #include <LASolver/LAParams.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include <Cluster/Molecule.H>
 
 import Common.PeriodicTable;
 import Mesh; //To get Meshparams
+import qchem.Molecule;
 
 class QchemTester
 {

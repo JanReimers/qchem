@@ -5,7 +5,6 @@
 #include "PolarizedGaussian/IntegralEngine.H"
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
-#include "Cluster/Molecule.H"
 #include <LASolver/LAParams.H>
 #include <Symmetry/Symmetry.H>
 #include "oml/smatrix.h"
@@ -14,6 +13,7 @@
 
 import Mesh.Integrator;
 import qchem.Atom;
+import qchem.Molecule;
 
 
 using std::cout;
