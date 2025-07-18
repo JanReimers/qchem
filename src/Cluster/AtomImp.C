@@ -1,10 +1,11 @@
 module;
 #include <cassert>
-#include <Mesh/Factory.H>
 #include <nlohmann/json.hpp>
+using json = nlohmann::json;
 module qchem.Atom;
 import qchem.Cluster.AtomMesh;
-using json = nlohmann::json;
+import qchem.Mesh.Factory;
+
 
 Atom::Atom()
     : itsZ(0)

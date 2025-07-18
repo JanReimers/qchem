@@ -2,7 +2,7 @@
 #ifndef _FittedFunction_H_
 #define _FittedFunction_H_
 
-#include <Mesh/ScalarFunction.H>
+import qchem.ScalarFunction;
 
 class ScalarFFClient;
 class DensityFFClient;

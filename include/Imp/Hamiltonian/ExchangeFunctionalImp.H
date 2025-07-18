@@ -17,7 +17,7 @@ public:
     virtual void           SetPolarized(bool p) {isPolarized=p;}
 
 protected:
-    virtual void  Eval    (const Mesh&, Vector<double>&) const;
+    // virtual void  Eval    (const Mesh&, Vector<double>&) const;
 
     const DM_CD* itsChargeDensity;
     bool            isPolarized;

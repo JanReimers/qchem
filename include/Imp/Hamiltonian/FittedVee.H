@@ -8,6 +8,8 @@
 #include "HamiltonianTerm.H"
 #include <memory>
 
+import Mesh;
+
 //###############################################################################
 //
 //  Implementation of the Coulomb potential

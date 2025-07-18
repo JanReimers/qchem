@@ -200,30 +200,30 @@ RVec3 ContractedGaussianRF::Gradient(const RVec3& r) const
     return ret;
 }
 
-void ContractedGaussianRF::Eval(const Mesh& mesh, Vector<double>& vec) const
-{
-    size_t ig=1;
-    for (auto& g:gs)
-    {
-        Vector<double>::iterator i(vec.begin());
-        Vector<double>::const_iterator  v(g->operator()(mesh).begin());
-        for (; i!=vec.end()&&v; i++,v++) *i += cs(ig++) * (*v);
-    }
-}
+// void ContractedGaussianRF::Eval(const Mesh& mesh, Vector<double>& vec) const
+// {
+//     size_t ig=1;
+//     for (auto& g:gs)
+//     {
+//         Vector<double>::iterator i(vec.begin());
+//         Vector<double>::const_iterator  v(g->operator()(mesh).begin());
+//         for (; i!=vec.end()&&v; i++,v++) *i += cs(ig++) * (*v);
+//     }
+// }
 
-void ContractedGaussianRF::EvalGrad(const Mesh& mesh, Vector<RVec3>& vec) const
-{
-//    CVITER c(cs.begin());
-//    CITER p(gs.begin());
-//    for (; p!=gs.end()&&c!=cs.end(); c++,p++)
-    size_t ig=1;
-    for (auto& g:gs)
-    {
-        Vector<RVec3>::iterator i(vec.begin());
-        Vector<RVec3>::const_iterator  v(g->Gradient(mesh).begin());
-        for (; i&&v; i++,v++) *i += cs(ig++)* (*v);
-    }
-}
+// void ContractedGaussianRF::EvalGrad(const Mesh& mesh, Vector<RVec3>& vec) const
+// {
+// //    CVITER c(cs.begin());
+// //    CITER p(gs.begin());
+// //    for (; p!=gs.end()&&c!=cs.end(); c++,p++)
+//     size_t ig=1;
+//     for (auto& g:gs)
+//     {
+//         Vector<RVec3>::iterator i(vec.begin());
+//         Vector<RVec3>::const_iterator  v(g->Gradient(mesh).begin());
+//         for (; i&&v; i++,v++) *i += cs(ig++)* (*v);
+//     }
+// }
 
 
 RadialFunction* ContractedGaussianRF::Clone() const

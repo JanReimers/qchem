@@ -4,10 +4,11 @@
 
 #include <LASolver/LAParams.H>
 #include <BasisSet/Integrals.H>
-#include <Mesh/fwd.H>
 #include <LASolver/fwd.H>
 
 import Mesh;
+import qchem.ScalarFunction;
+
 
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.
  class FitIntegrals  

@@ -1,41 +1,37 @@
 // File: VectorFunction.C  Mixin interface for real space vector functions.
+module;
+#include <cstddef>
+namespace std {template <class T> class valarray;}
+export module qchem.VectorFunction;
+export import oml;
+export import Mesh;
 
-
-
-#include <cassert>
-#include <complex>
-#include <Mesh/VectorFunction.H>
-import oml;
-
-template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator() (const Mesh& mesh) const
+//--------------------------------------------------------------------------
+//
+//  Any function that returns a vector of values for any given point
+//  in real space.  When evaluated over a mesh a matrix of values
+//  is returned with rows (first index) labelling the vector index, and
+//  the columns (second index) labelling the mesh point.
+//
+export template <class T> class VectorFunction
 {
-    index_t n=GetVectorSize();
-    Mat m(MatLimits(n,mesh.size()));
-    Fill(m,T(0.0));
-    int i=1;
-    for (auto rw:mesh) 
-    {
-        const Vec& v((*this)(r(rw)));
-        for (int j=1; j<=n; j++) m(j,i) += v(j);
-        i++;
-    }
-    return m;
-}
+public:
+    typedef Matrix<T>        Mat;  //Matrix.
+    typedef SMatrix<T>       SMat; //Symmetrix matrix.
+    typedef Vector<T>        Vec;  //Vector of scalars.
+    typedef Vector3D<T>      Vec3;   //3 vector (possibly complex).
+    typedef Vector<Vec3>     Vec3Vec;//vector of 3 space vectors.
+    typedef Vector3D<double> RVec3;  //Real space vector.
+    typedef Vector<double>   RVec;
+    typedef Matrix<Vec3>     Vec3Mat;//matrix of 3 space vectors.
 
-template <class T> typename VectorFunction<T>::Vec3Mat VectorFunction<T>::Gradient(const Mesh& mesh) const
-{
-    index_t n=GetVectorSize();
-    Vec3Mat m(MatLimits(n,mesh.size()));
-    Fill(m,Vec3(0,0,0));
-    int i=1;
-    for (auto rw:mesh) 
-    {
-        const Vec3Vec& v(Gradient(r(rw)));
-        for (int j=1; j<=n; j++) m(j,i) += v(j);
-        i++;
-    }
-    return m;
-}
+    virtual ~VectorFunction()  {};
 
-template class VectorFunction<double>;
-template class VectorFunction<std::complex<double> >;
+    virtual size_t  GetVectorSize() const=0;
+
+    virtual Vec     operator() (const RVec3&     ) const=0;
+    virtual Mat     operator() (const Mesh&      ) const  ;
+
+    virtual Vec3Vec Gradient   (const RVec3&         ) const=0;
+    virtual Vec3Mat Gradient   (const Mesh&          ) const  ;
+};

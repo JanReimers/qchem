@@ -5,12 +5,10 @@ module;
 #include <cmath>
 #include <complex>
 #include <cassert>
-#include <Mesh/ScalarFunction.H>
-#include <Mesh/VectorFunction.H>
 
 export module Mesh.Integrator;
-import Mesh;
-import oml;
+import qchem.ScalarFunction;
+import qchem.VectorFunction;
 
 
 using std::cout;

@@ -8,10 +8,10 @@
 #include <BasisSet/fwd.H>
 #include "Polarization.H"
 #include "Common/pmstream.h"
-#include <Mesh/ScalarFunction.H>
 
 import Common.UniqueID; 
 import qchem.Cluster;
+import qchem.ScalarFunction;
 
 class  Polarization;
 

@@ -5,7 +5,6 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
-#include <Mesh/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <Orbitals/fwd.H>
 #include <SCFIteratorfwd.H>

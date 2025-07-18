@@ -3,8 +3,7 @@
 #define _FittedFunctionClient_H_
 
 #include <BasisSet/fwd.H>
-#include <Mesh/ScalarFunction.H>
-
+import qchem.ScalarFunction;
 //-------------------------------------------------------------------
 //
 //  Abstract interfaces used by the FittedFunction class.

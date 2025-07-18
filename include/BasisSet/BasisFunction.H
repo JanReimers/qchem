@@ -22,7 +22,7 @@ public:
     static  BasisFunction* Factory(std::istream&)        ;
 };
 
-#include <Mesh/ScalarFunction.H>
+import qchem.ScalarFunction;
 //---------------------------------------------------------------
 //
 //  Here the basis becomes a real or complex valued function

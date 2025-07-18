@@ -7,12 +7,11 @@
 
 #include <ChargeDensity/fwd.H>
 #include "Common/pmstream.h"
-#include <Mesh/ScalarFunction.H>
-#include <Mesh/VectorFunction.H>
 import Common.Iterators;
 import qchem.Symmetry.Orbital;
 import qchem.Symmetry.ElectronConfiguration;
-
+import qchem.ScalarFunction;
+import qchem.VectorFunction;
 //#############################################################
 //
 //  An orbital is 1) a real space function, 2) it holds some number

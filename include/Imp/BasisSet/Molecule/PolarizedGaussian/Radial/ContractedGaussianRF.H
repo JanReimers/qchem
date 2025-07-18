@@ -51,8 +51,8 @@ public:
     virtual RVec3           Gradient  (const RVec3&) const;
 
 private:
-    virtual void  Eval    (const Mesh&, Vector<double>&) const;
-    virtual void  EvalGrad(const Mesh&, Vector<RVec3 >&) const;
+    // virtual void  Eval    (const Mesh&, Vector<double>&) const;
+    // virtual void  EvalGrad(const Mesh&, Vector<RVec3 >&) const;
     virtual Hermite1* MakeH1() const;
 
     void Check() const;

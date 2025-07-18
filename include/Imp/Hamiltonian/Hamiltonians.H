@@ -2,6 +2,7 @@
 
 #include "Hamiltonian.H"
 
+import Mesh;
 //
 //  1 Electron
 //

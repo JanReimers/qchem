@@ -75,7 +75,7 @@ public:
     friend class BS_Common;
 };
 
-#include <Mesh/VectorFunction.H>
+import qchem.VectorFunction;
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions

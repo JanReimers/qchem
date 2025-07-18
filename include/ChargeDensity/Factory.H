@@ -2,15 +2,13 @@
 #ifndef _ChargeDensity_Factory_H_
 #define _ChargeDensity_Factory_H_
 
-#include <Mesh/fwd.H>
 #include <BasisSet/fwd.H>
 #include <Fitting/fwd.H>
 #include <ChargeDensity/fwd.H>
 #include <memory>
 
-import Mesh;
 import qchem.Symmetry.ElectronConfiguration;
-import oml;
+import qchem.VectorFunction;
 
 typedef std::shared_ptr<const Mesh>    mesh_t;
 typedef std::shared_ptr<const Fit_IBS> bs_t;

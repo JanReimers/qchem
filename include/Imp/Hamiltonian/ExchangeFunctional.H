@@ -5,7 +5,7 @@
 
 #include <ChargeDensity/fwd.H>
 #include "Common/pmstream.h"
-#include <Mesh/ScalarFunction.H>
+import qchem.ScalarFunction;
 
 class ExFunctional
     : public virtual PMStreamableObject

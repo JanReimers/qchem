@@ -17,13 +17,13 @@ void ExFunctionalImp::InsertChargeDensity(const DM_CD* cd)
     itsChargeDensity=cd;
 }
 
-void ExFunctionalImp::Eval(const Mesh& m, Vector<double>& v) const
-{
-    assert(itsChargeDensity);
-    Vector<double> ro=(*itsChargeDensity)(m);
-    if (!isPolarized) ro*=0.5;
-    v=GetVxcs(ro);
-}
+// void ExFunctionalImp::Eval(const Mesh& m, Vector<double>& v) const
+// {
+//     assert(itsChargeDensity);
+//     Vector<double> ro=(*itsChargeDensity)(m);
+//     if (!isPolarized) ro*=0.5;
+//     v=GetVxcs(ro);
+// }
 
 Vector<double> ExFunctionalImp::GetVxcs(const Vector<double>& ros) const
 {
