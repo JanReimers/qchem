@@ -4,10 +4,8 @@ module;
 #include <iomanip>
 #include <cassert>
 
-#include "MoleculeMesh.H"
-
 module qchem.Molecule;
-
+import qchem.Cluster.MoleculeMesh;
 
 Molecule::Molecule()
     : itsNumElectrons(0)

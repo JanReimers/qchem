@@ -2,9 +2,8 @@ module;
 #include <cassert>
 #include <Mesh/Factory.H>
 #include <nlohmann/json.hpp>
-#include "AtomMesh.H"
 module qchem.Atom;
-
+import qchem.Cluster.AtomMesh;
 using json = nlohmann::json;
 
 Atom::Atom()

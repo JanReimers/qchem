@@ -1,29 +1,14 @@
-// File: AtomMesh.C  mesh implementation
-
-
-#include <vector>
-#include "AtomMesh.H"
+// File: AtomMesh.C  Atom centered mesh interface.
+export module qchem.Cluster.AtomMesh;
+import Mesh;
 import RadialMesh;
-import oml;
 
-
-//
-//  The full mesh is just a direct product of radial and ungular meshes.
-//
-AtomMesh::AtomMesh(RadialMesh* rm, Mesh* am, const RVec3& R)
+export class AtomMesh : public Mesh
 {
-    for (auto arw: *am)
-        for (auto rrw: *rm)
-            push_back(r(rrw) * normalize(r(arw)),w(rrw) *  w(arw));
-    ShiftOrigin(R);
-    delete am;
-    delete rm;
-}
+public:
+    AtomMesh(                              ) {};
+    AtomMesh(RadialMesh*, Mesh*, const RVec3& R);
 
-
-Mesh* AtomMesh::Clone() const
-{
-    return new AtomMesh(*this);
-}
-
+    virtual Mesh*  Clone(        ) const;
+};
 
