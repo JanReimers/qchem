@@ -19,6 +19,7 @@ import Common.PeriodicTable;
 import Mesh; //To get Meshparams
 import qchem.Molecule;
 import qchem.Symmetry.Irrep;
+import qchem.Symmetry.AtomEC;
 
 class QchemTester
 {
@@ -63,7 +64,6 @@ public:
 };
 
 
-#include "Symmetry/Atom_EC.H"
 //----------------------------------------------------------------------------------
 //
 //  Atoms and Molecules
@@ -80,8 +80,7 @@ private:
     int itsZ;
 };
 
-#include "Symmetry/Molecule_EC.H"
-
+import qchem.Symmetry.MoleculeEC;
 class TestMolecule : public virtual QchemTester
 {
 public:

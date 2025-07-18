@@ -2,9 +2,10 @@
 #ifndef _EnergyLevel_H_
 #define _EnergyLevel_H_
 
-#include <Symmetry/Orbital_QNs.H>
+#include <iosfwd>
 #include <Orbitals/fwd.H>
 #include <WaveFunction/fwd.H>
+import qchem.Symmetry.Orbital;
 
 struct EnergyLevel
 {

@@ -2,7 +2,6 @@
 #ifndef _IrrepWaveFunction_H_
 #define _IrrepWaveFunction_H_
 
-#include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include <SCFAccelerator/fwd.H>
@@ -10,6 +9,7 @@
 #include <Hamiltonian/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
 import qchem.Symmetry.Irrep;
+import qchem.Symmetry.ElectronConfiguration;
 
 import oml;
 

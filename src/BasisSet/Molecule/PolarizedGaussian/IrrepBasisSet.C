@@ -8,7 +8,6 @@
 #include <string>
 #include <cmath>
 
-#include "Symmetry/Unit.H"
 #include <BasisSet/BasisSet.H>
 
 
@@ -21,6 +20,7 @@
 
 import qchem.Cluster;
 import qchem.Atom;
+import qchem.Symmetry.Unit;
 
 namespace PolarizedGaussian
 {

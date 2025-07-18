@@ -3,9 +3,10 @@
 #include <iostream>
 #include "ml/Gaussian_IBS.H"
 #include "ml/Gaussian_BF.H"
-#include "Symmetry/Ylm.H"
 
 #include <cassert>
+
+import qchem.Symmetry.Ylm;
 
 namespace Atom_ml
 {

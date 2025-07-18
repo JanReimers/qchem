@@ -1,14 +1,12 @@
-// File: Slater_m/QuantumNumer.H  Spherical harmonic Ylm symmetry.
-
-
-
-#include "Symmetry/Ylm.H"
-#include "Symmetry/Atom_EC.H"
+// File: Symmetry/YlmImp.C  Magnetic spherical harmonic Y_lm(theta,phi) symmetry
+module;
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-import qchem.Symmetry.Spin;
+#include <vector>
+
+module qchem.Symmetry.Ylm;
 
 using std::cout;
 using std::endl;
@@ -69,7 +67,6 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
 }
 
 
-extern std::string SPDFG[];
 
 inline int width(int m) {return m<0 ? 2 : 1;}
 std::ostream& Ylm_Sym::Write(std::ostream& os) const
@@ -89,4 +86,3 @@ std::ostream& Ylm_Sym::Write(std::ostream& os) const
    
     return os;
 }
-

@@ -2,7 +2,6 @@
 
 
 #include "gtest/gtest.h"
-#include "Symmetry/Yl.H"
 #include <BasisSet/Factory.H>
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
@@ -16,6 +15,7 @@ import Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Symmetry.Yl;
 import oml;
 
 using std::cout;

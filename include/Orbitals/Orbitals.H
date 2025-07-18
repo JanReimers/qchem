@@ -5,13 +5,13 @@
 #include <vector>
 #include <memory>
 
-#include <Symmetry/fwd.H>
 #include <ChargeDensity/fwd.H>
 #include "Common/pmstream.h"
 #include <Mesh/ScalarFunction.H>
 #include <Mesh/VectorFunction.H>
 import Common.Iterators;
-import qchem.Symmetry.Irrep;
+import qchem.Symmetry.Orbital;
+import qchem.Symmetry.ElectronConfiguration;
 
 //#############################################################
 //

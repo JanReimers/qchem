@@ -5,9 +5,9 @@
 #include <ChargeDensity/CompositeCD.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
-#include <Symmetry/ElectronConfiguration.H>
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <cassert>
+import qchem.Symmetry.ElectronConfiguration;
 
 Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)

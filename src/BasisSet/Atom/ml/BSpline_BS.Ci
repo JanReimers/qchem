@@ -2,7 +2,7 @@
 
 #include "ml/BSpline_BS.H"
 #include "ml/BSpline_IBS.H"
-#include "Symmetry/Atom_EC.H"
+import qchem.Symmetry.AtomEC;
 
 namespace Atom_ml
 {

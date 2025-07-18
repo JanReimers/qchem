@@ -5,8 +5,9 @@
 #include "l/Gaussian_IBS.H"
 #include "l/Gaussian_BF.H"
 #include "radial/Gaussian/Integrals.H"
-#include "Symmetry/Yl.H"
 #include <BasisSet/BasisSet.H>
+
+import qchem.Symmetry.Yl;
 
 namespace Atoml
 {

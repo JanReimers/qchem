@@ -4,9 +4,9 @@
 #include <iostream>
 #include <cassert>
 #include "kappa/Gaussian_BF.H"
-#include "Symmetry/Okmj.H"
 
 import Common.IntPow;
+import qchem.Symmetry.Okmj;
 import oml;
 
 namespace Atom_kappa

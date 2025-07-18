@@ -6,7 +6,7 @@
 #include "ml/Gaussian_BS.H"
 #include "ml/Gaussian_IBS.H"
 #include "radial/Gaussian/ExponentScaler.H"
-#include "Symmetry/Atom_EC.H"
+import qchem.Symmetry.AtomEC;
 
 namespace Atom_ml
 {

@@ -11,8 +11,7 @@
 #include "kappa/Slater_BF.H"
 #include "radial/Slater/Integrals.H"
 
-#include "Symmetry/Okmj.H"
-import qchem.Symmetry;
+import qchem.Symmetry.Okmj;
 
 using std::endl;
 

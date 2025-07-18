@@ -5,7 +5,6 @@
 
 #include <vector>
 #include <memory>
-#include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include <LASolver/LAParams.H>
@@ -15,6 +14,7 @@ import Common.UniqueID;
 import Common.Iterators;
 import oml;
 import qchem.Symmetry;
+import qchem.Symmetry.ElectronConfiguration;
 
 //----------------------------------------------------------------------------
 //

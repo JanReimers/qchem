@@ -5,7 +5,6 @@
 #include <vector>
 #include <memory>
 
-#include <Symmetry/fwd.H>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include "Common/pmstream.h"
@@ -16,6 +15,7 @@ import Common.UniqueID;
 import Common.Iterators;
 import qchem.Cluster;
 import qchem.Symmetry;
+import qchem.Symmetry.ElectronConfiguration;
 //----------------------------------------------------------------------------
 //
 //  Interface for a BasisSet which is assumed to a list of Irrep Basis Sets.

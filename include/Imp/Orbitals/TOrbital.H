@@ -4,8 +4,8 @@
 
 #include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
-#include <Symmetry/Orbital_QNs.H>
 import oml;
+import qchem.Symmetry.Orbital;
 
 class OrbitalImp
     : public virtual Orbital

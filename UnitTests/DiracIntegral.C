@@ -11,7 +11,7 @@
 #include <BasisSet/Factory.H>
 #include "Imp/BasisSet/DHF_IBS_Common.H"
 #include "Imp/BasisSet/ERI4.H"
-// #include "Symmetry/Okmj.H"
+// import qchem.Symmetry.Okmj;
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 

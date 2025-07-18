@@ -4,7 +4,6 @@
 #include <nlohmann/json.hpp>
 #include <BasisSet/Factory.H>
 
-#include "Symmetry/Atom_EC.H"
 #include "l/Slater_BS.H"
 #include "ml/Slater_BS.H"
 #include "kappa/Slater_BS.H"
@@ -14,6 +13,7 @@
 #include "l/BSpline_BS.H"
 #include "ml/BSpline_BS.H"
 using json = nlohmann::json;
+import qchem.Symmetry.AtomEC;
 
 namespace BasisSetAtom
 {

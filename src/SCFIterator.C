@@ -5,7 +5,6 @@
 #include <cmath>
 #include <vector>
 
-#include <Symmetry/fwd.H>
 #include <BasisSet/fwd.H>
 #include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>
@@ -20,6 +19,7 @@
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 
+import qchem.Symmetry.ElectronConfiguration;
 
 using std::cout;
 using std::endl;

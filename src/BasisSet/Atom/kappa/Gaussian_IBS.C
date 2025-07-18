@@ -10,8 +10,7 @@
 #include "kappa/Gaussian_BF.H"
 #include "radial/Gaussian/Integrals.H"
 
-#include "Symmetry/Okmj.H"
-import qchem.Symmetry;
+import qchem.Symmetry.Okmj;
 
 using std::endl;
 

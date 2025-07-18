@@ -5,8 +5,8 @@
 #include "ml/Slater_BS.H"
 #include "ml/Slater_IBS.H"
 #include "radial/Slater/ExponentScaler.H"
-#include "Symmetry/Atom_EC.H"
 #include "Common/stl_io.h"
+import qchem.Symmetry.AtomEC;
 
 using std::cout;
 using std::endl;

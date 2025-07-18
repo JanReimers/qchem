@@ -1,17 +1,14 @@
-// File: Angular_Sym.H Common interface for various atomic (spherical) symmetries.
-#ifndef _Angular_Sym_H_
-#define _Angular_Sym_H_
+// File: Symmetry/Angular.C Common interface for various atomic (spherical) symmetries.
 
-import qchem.Symmetry;
-
-struct ElCounts;
-struct ElCounts_l;
+export module qchem.Symmetry.Angular;
+export import qchem.Symmetry;
+export import qchem.Symmetry.ElectronCounts;
 
 //---------------------------------------------------------------------------------
 //
 // Angular_Sym for atoms
 //
-class Angular_Sym
+export class Angular_Sym
     : public virtual Symmetry
 {
 public:
@@ -20,5 +17,3 @@ public:
     virtual ElCounts_l GetN(const ElCounts&) const=0;
     virtual int GetL() const=0;
 };
-
-#endif //_Angular_Sym_H_

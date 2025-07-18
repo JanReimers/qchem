@@ -2,7 +2,6 @@
 #ifndef _ChargeDensity_Factory_H_
 #define _ChargeDensity_Factory_H_
 
-#include <Symmetry/fwd.H>
 #include <Mesh/fwd.H>
 #include <BasisSet/fwd.H>
 #include <Fitting/fwd.H>
@@ -10,6 +9,7 @@
 #include <memory>
 
 import Mesh;
+import qchem.Symmetry.ElectronConfiguration;
 import oml;
 
 typedef std::shared_ptr<const Mesh>    mesh_t;

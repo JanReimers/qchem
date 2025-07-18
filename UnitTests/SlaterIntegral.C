@@ -11,7 +11,6 @@
 #include "Imp/BasisSet/DataBase/DB_HF.H"
 #include "Imp/BasisSet/Atom/IEC.H"
 #include "Imp/BasisSet/ERI4.H"
-#include "Symmetry/Angular.H"
 
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
@@ -23,6 +22,7 @@ import Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Symmetry.Angular;
 import oml;
 
 using std::cout;

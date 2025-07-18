@@ -2,11 +2,11 @@
 #ifndef _BasisSet_Factory_H_
 #define _BasisSet_Factory_H_
 
-#include <Symmetry/fwd.H>
 #include <BasisSet/fwd.H>
 #include <nlohmann/json.hpp>
 
 import qchem.Cluster;
+import qchem.Symmetry.ElectronConfiguration;
 
 namespace BasisSetAtom
 {

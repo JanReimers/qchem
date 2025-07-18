@@ -3,9 +3,10 @@
 #include "ml/BSpline_IBS.H"
 #include "ml/BSpline_BF.H"
 #include "radial/BSpline/IBS_Common.H"
-#include "Symmetry/Ylm.H"
 #include <iostream>
 #include <cassert>
+
+import qchem.Symmetry.Ylm;
 
 namespace Atom_ml
 {

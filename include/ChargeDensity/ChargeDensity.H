@@ -2,11 +2,11 @@
 #ifndef _ChargeDensity_H_
 #define _ChargeDensity_H_
 
-#include <Symmetry/fwd.H>
 #include <Mesh/ScalarFunction.H>
 #include <ChargeDensity/fwd.H>
 #include <Fitting/FittedFunctionClient.H>
 import qchem.Symmetry.Spin;
+import qchem.Symmetry.ElectronConfiguration;
 //
 //
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
