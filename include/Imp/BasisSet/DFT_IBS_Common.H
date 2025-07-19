@@ -2,7 +2,8 @@
 #ifndef _DFT_IBS_Common_H_
 #define _DFT_IBS_Common_H_
 
-#include <BasisSet/DFT_IBS.H>
+#include "BasisSet/Integrals.H"
+import qchem.DFT_IBS;
 template <class T> class Orbital_DFT_IBS_Common
     : public virtual TOrbital_DFT_IBS<T>
 {

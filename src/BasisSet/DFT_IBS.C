@@ -1,13 +1,12 @@
 // File: DFT_IBS.H  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
-#ifndef _DFT_IBS_H_
-#define _DFT_IBS_H_
-
+module;
 #include <BasisSet/Integrals.H>
-import qchem.BasisSet;
-import qchem.Irrep_BS;
+export module qchem.DFT_IBS;
+export import qchem.BasisSet;
+export import qchem.Irrep_BS;
 
 //! \brief Interface for 3-center integrals used in DFT calculations.
-template <class T> class Integrals_DFT : public virtual Integrals_Base<T>
+export template <class T> class Integrals_DFT : public virtual Integrals_Base<T>
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat SMat;
@@ -21,7 +20,7 @@ public:
 };
 
 
-template <class T> class TOrbital_DFT_IBS
+export template <class T> class TOrbital_DFT_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_DFT<T> //DFT integrals
     
@@ -37,4 +36,3 @@ public:
     virtual Vec Repulsion3C(const SMat& Dcd, const Fit_IBS* ff) const=0;
 };
 
-#endif //_DFT_IBS_H_

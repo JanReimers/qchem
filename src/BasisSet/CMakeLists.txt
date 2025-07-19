@@ -19,6 +19,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   BasisFunction.C
   Fit_IBS.C
   HF_IBS.C
+  DFT_IBS.C
 )
 
 target_include_directories(qcBasisSet PRIVATE 

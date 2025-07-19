@@ -5,7 +5,7 @@
 #include <vector>
 #include "FittedFunction.H"
 #include <ChargeDensity/ChargeDensity.H>
-#include <BasisSet/DFT_IBS.H>
+import qchem.DFT_IBS;
 
 import qchem.Fit_IBS;
 import Mesh;

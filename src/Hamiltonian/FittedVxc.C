@@ -6,7 +6,7 @@
 #include <vector>
 #include "FittedVxc.H"
 #include "LDAVxc.H"
-#include <BasisSet/DFT_IBS.H>
+import qchem.DFT_IBS;
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 

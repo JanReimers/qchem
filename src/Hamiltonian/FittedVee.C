@@ -9,7 +9,7 @@
 #include <ChargeDensity/ChargeDensity.H>
 #include <ChargeDensity/FittedCD.H>
 #include <ChargeDensity/Factory.H>
-#include <BasisSet/DFT_IBS.H>
+import qchem.DFT_IBS;
 #include <Hamiltonian/TotalEnergy.H>
 
 FittedVee::FittedVee()

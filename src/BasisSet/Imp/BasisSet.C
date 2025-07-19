@@ -1,6 +1,6 @@
 // File: BasisSetImp.C Quantum Chemistry basis set expressed as a sequence of Irrep basis sets.
 module;
-#include <BasisSet/DFT_IBS.H>
+import qchem.DFT_IBS;
 module qchem.BasisSet;
 
 

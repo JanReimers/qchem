@@ -34,7 +34,7 @@ template <class T> class Integrals_Base
 public:
     // typedef TOrbital_IBS<T> obs_t;
     // typedef TOrbital_HF_IBS<T> hf_obs_t;
-    typedef TOrbital_DFT_IBS<T> dft_obs_t;
+    // typedef TOrbital_DFT_IBS<T> dft_obs_t;
     // typedef Fit_IBS fbs_t;
 
     typedef  Vector<T>  Vec;

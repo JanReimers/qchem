@@ -9,7 +9,7 @@
 
 #include "IrrepCD.H"
 import qchem.HF_IBS;
-#include <BasisSet/DFT_IBS.H>
+import qchem.DFT_IBS;
 
 import qchem.Fit_IBS;
 import qchem.Symmetry;

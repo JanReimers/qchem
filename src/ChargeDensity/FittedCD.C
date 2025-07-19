@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "FittedCD.H"
-#include <BasisSet/DFT_IBS.H>
+import qchem.DFT_IBS;
 
 import Mesh;
 
