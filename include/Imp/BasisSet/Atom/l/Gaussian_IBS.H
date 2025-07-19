@@ -5,7 +5,6 @@
 
 #include "../radial/Gaussian/IBS_Common.H"
 #include "Gaussian_IE.H"
-#include "../../HF_IBS_Common.H"
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 namespace Atoml
 {

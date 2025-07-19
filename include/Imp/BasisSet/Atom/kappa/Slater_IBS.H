@@ -6,7 +6,7 @@
 
 #include "Slater_IE.H"
 #include "../IEC.H"
-#include "../../DHF_IBS_Common.H"
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 
 class DiracIntegralTests;
 

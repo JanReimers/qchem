@@ -2,7 +2,6 @@
 #ifndef _PolarizedGaussian_IrrepBasisSet_H_
 #define _PolarizedGaussian_IrrepBasisSet_H_
 
-#include "../../HF_IBS_Common.H"
 #include "Polarization.H"
 #include "IntegralEngine.H"
 #include "IEClient.H"

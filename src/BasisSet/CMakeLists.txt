@@ -1,7 +1,5 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
-  HF_IBS_Common.C
-  DHF_IBS_Common.C
   DataBase/HeapDB.C
   Cache4.C
   Imp/ERI4Imp.C
@@ -11,7 +9,8 @@ target_sources(qcBasisSet PRIVATE
   Common/Imp/TIBS_Common.C
   Common/Imp/Fit_IBS_Common.C
   Common/Imp/DFT_IBS_Common.C
-
+  Common/Imp/HF_IBS_Common.C
+  Common/Imp/DHF_IBS_Common.C
 )
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   BasisSet.C

@@ -9,7 +9,8 @@
 #include <iomanip>
 
 #include <LASolver/LAParams.H>
-#include "Imp/BasisSet/DHF_IBS_Common.H"
+
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 
 import qchem.Factory;
 import qchem.BasisSet;

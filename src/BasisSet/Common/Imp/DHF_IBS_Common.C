@@ -1,10 +1,12 @@
-// File: DHF_IBS_Common.H  Common implementation for all Dirac-Hartree-Fock (HF) Irrep Basis Sets.
-
+// File: Imp/DHF_IBS_Common.C  Common implementation for all Dirac-Hartree-Fock (HF) Irrep Basis Sets.
+module;
 #include <vector>
 #include <memory>
 #include <iostream>
-#include "DHF_IBS_Common.H"
-
+#include <cassert>
+#include "DataBase/HeapDB.H"
+#include "DataBase/DB_DHF.H"
+module qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import oml;
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common

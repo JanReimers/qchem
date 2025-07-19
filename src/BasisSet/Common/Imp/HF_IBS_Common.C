@@ -1,11 +1,10 @@
-// File: TBasisSetImplementation.C
-
+// File: Imp/HF_IBS_Common.H  Common implementation for all Hartree-Fock (HF) Irrep Basis Sets.
+module;
 #include <cassert>
 #include <vector>
 #include <memory>
 #include <iomanip>
-#include "HF_IBS_Common.H"
-
+module qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.ERI4;
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
