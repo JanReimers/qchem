@@ -4,7 +4,7 @@
 #include <memory>
 #include "IE_DHF.H"
 #include "IEC.H"
-#include <BasisSet/DHF_IBS.H>
+import qchem.DHF_IBS;
 
 template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {

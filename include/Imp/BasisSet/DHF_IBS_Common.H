@@ -3,7 +3,7 @@
 #define _DHF_IBS_Common_H_
 
 #include "DataBase/DB_DHF.H"
-#include <BasisSet/DHF_IBS.H>
+import qchem.DHF_IBS;
 #include "TIBS_Common.H"
 #include "IBS_Common.H"
 

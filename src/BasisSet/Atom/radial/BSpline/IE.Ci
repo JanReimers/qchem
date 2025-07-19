@@ -279,7 +279,7 @@ template <size_t K> typename Integrals_Base<double>::Mat IE_Fit<K>::MakeRepulsio
 
 #include "radial/BSpline/IE_DHF.H"
 #include "radial/BSpline/IE_DFT.H"
-#include <BasisSet/DHF_IBS.H>
+import qchem.DHF_IBS;
 namespace BSpline
 {
 template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const

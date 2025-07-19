@@ -3,7 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
-#include <BasisSet/DHF_IBS.H>
+import qchem.DHF_IBS;
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include "RestMass.H"

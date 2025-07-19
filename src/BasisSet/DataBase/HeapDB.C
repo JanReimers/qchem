@@ -100,7 +100,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(
         return i->second;
 }
 
-#include <BasisSet/DHF_IBS.H>
+import qchem.DHF_IBS;
 
 template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {

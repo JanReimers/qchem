@@ -10,6 +10,8 @@
 #include <BasisSet/Integrals.H>
 #include "../IEClient.H"
 
+import qchem.DHF_IBS;
+
 template  <class T> class DB_cache  : virtual public Integrals_Base<T>
 {
     typedef UniqueID::IDtype IDType;
