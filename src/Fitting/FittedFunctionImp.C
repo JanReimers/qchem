@@ -1,27 +1,22 @@
-// File: FittedFunctionImp.H  Common imp for Fitted Functions.
-#ifndef _FittedFunctionImp_H_
-#define _FittedFunctionImp_H_
-
-
-
+// File: FittedFunctionImp.C  Implementation for Fitted Functions.
+module;
 #include <memory> // for std::shared_ptr
-#include <Fitting/FittedFunction.H>
 #include <LASolver/LAParams.H>
-
+export module qchem.FittedFunctionImp;
+export import qchem.FittedFunctionClient;
+export import qchem.FittedFunction;
 import qchem.DFT_IBS;
 import qchem.Fit_IBS;
-import Mesh;
+export import Mesh;
 import oml;
 
-template <class T> class FittedCDImp;
-template <class T> class ConstrainedFF;
 
 //--------------------------------------------------------------------------
 //
 //  The fit function is assumed to be real valued, but the basis set and
 //  coefficients can be complex.
 //
-template <class T> class FittedFunctionImp
+export template <class T> class FittedFunctionImp
     : public virtual FittedFunction
 {
 public:
@@ -58,10 +53,7 @@ protected:
 
     virtual void  Eval(const Mesh&, Vec&) const;
 
-private:
-    friend class FittedCDImp<T>;
-    friend class ConstrainedFF<T>;
-
+public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
     Vec      itsFitCoeff;
     mesh_t   itsMesh;
@@ -69,5 +61,35 @@ protected:
     LAParams itsLAParams; //Decides about matrix inversion.
 };
 
-#endif //_FittedFunctionImp_H_
+export template <class T> class ConstrainedFF
+    : public FittedFunctionImp<T>
+{
+    typedef FittedFunctionImp<T> Base;
+    typedef typename Base::Vec Vec;
+public:
+    typedef typename Base::mesh_t mesh_t;
+    typedef typename Base::bs_t   bs_t;
 
+    ConstrainedFF();
+    ConstrainedFF(bs_t&, const Vec&, mesh_t&  m);
+
+    virtual double DoFit(const ScalarFFClient&);
+    virtual double DoFit(const DensityFFClient&);
+
+    virtual std::ostream& Write    (std::ostream&) const;
+private:
+    using Base::itsLAParams;
+    Vec g,gS;
+    T   gSg;
+};
+
+export template <class T> class IntegralConstrainedFF
+    : public ConstrainedFF<T>
+{
+public:
+    typedef typename ConstrainedFF<T>::mesh_t mesh_t;
+    typedef typename ConstrainedFF<T>::bs_t   bs_t;
+
+    IntegralConstrainedFF(              );
+    IntegralConstrainedFF(bs_t&, mesh_t&);
+};

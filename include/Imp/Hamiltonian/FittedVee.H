@@ -2,9 +2,6 @@
 #ifndef _FittedVee_H_
 #define _FittedVee_H_
 
-
-#include <Fitting/fwd.H>
-
 #include "HamiltonianTerm.H"
 #include <memory>
 

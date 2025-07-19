@@ -2,9 +2,8 @@
 #ifndef _FittedCD_H_
 #define _FittedCD_H_
 
-#include <Fitting/FittedFunction.H>
 import qchem.DFT_IBS;
-
+import qchem.FittedFunction;
 //----------------------------------------------------------------------------------
 //
 //

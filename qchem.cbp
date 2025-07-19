@@ -54,7 +54,7 @@
 		<Unit filename="include/ChargeDensity.H" />
 		<Unit filename="include/Cluster.H" />
 		<Unit filename="include/EnergyLevel.H" />
-		<Unit filename="include/FittedFunction.H" />
+		<Unit filename="include/import qchem.FittedFunction;" />
 		<Unit filename="include/FittedFunctionClient.H" />
 		<Unit filename="include/Hamiltonian.H" />
 		<Unit filename="include/IEClient.H" />
@@ -130,7 +130,7 @@
 		<Unit filename="include/Imp/Containers/stl_io.h" />
 		<Unit filename="include/Imp/DataBase/HeapDB.H" />
 		<Unit filename="include/Imp/Fitting/ConstrainedFF.H" />
-		<Unit filename="include/Imp/Fitting/FittedFunction.H" />
+		<Unit filename="include/Imp/Fitting/import qchem.FittedFunction;" />
 		<Unit filename="include/Imp/Fitting/IntegralConstrainedFF.H" />
 		<Unit filename="include/Imp/Hamiltonian/ExchangeFunctional.H" />
 		<Unit filename="include/Imp/Hamiltonian/ExchangeFunctionalImp.H" />

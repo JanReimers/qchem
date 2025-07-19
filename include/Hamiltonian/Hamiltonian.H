@@ -36,7 +36,7 @@ public:
     virtual bool        IsPolarized() const {return false;}
 };
 
-#include <Fitting/FittedFunctionClient.H>
+import qchem.FittedFunctionClient;
 
 class FittablePotential
     : public virtual Dynamic_HT

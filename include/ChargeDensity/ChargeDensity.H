@@ -3,8 +3,9 @@
 #define _ChargeDensity_H_
 
 #include <ChargeDensity/fwd.H>
-#include <Fitting/FittedFunctionClient.H>
+import qchem.FittedFunctionClient;
 import qchem.HF_IBS;
+import qchem.Fit_IBS;
 import qchem.Symmetry.Spin;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;

@@ -2,6 +2,7 @@
 Priority 1:
     -Design flaw
         src/BasisSet/Common/IBS_Common.C Orbital_RKB_IBS_Common incorporates DB, none of the other Common classes do this.
+        Get rid of FittedFunctionImp, less burdensome for client.
 
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.

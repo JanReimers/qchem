@@ -1,19 +1,21 @@
-// File: IntegralConstrainedFF.C  Integral constrained fit.
+// File: IntegralConstraintFF.H  Integral constrained fit.
+#ifndef _IntegralConstraintFF_H_
+#define _IntegralConstraintFF_H_
 
 
-#include <memory>
-#include <vector>
 
-#include "IntegralConstrainedFF.H"
-import qchem.Fit_IBS;
+#include "ConstrainedFF.H"
 
-template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
-    : ConstrainedFF<T>()
-{};
+template <class T> class IntegralConstrainedFF
+    : public ConstrainedFF<T>
+{
+public:
+    typedef typename ConstrainedFF<T>::mesh_t mesh_t;
+    typedef typename ConstrainedFF<T>::bs_t   bs_t;
 
-template <class T> IntegralConstrainedFF<T>::
-IntegralConstrainedFF(bs_t& fbs, mesh_t&  m)
-    : ConstrainedFF<T>(fbs,fbs->Charge(),m)
-    {};
+    IntegralConstrainedFF(                                   );
+    IntegralConstrainedFF(bs_t&, mesh_t& );
+};
 
-template class IntegralConstrainedFF<double>;
+#endif //_IntegralConstraintFF_H_
+

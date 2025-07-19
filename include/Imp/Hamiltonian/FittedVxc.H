@@ -3,10 +3,9 @@
 #define _FittedVxc_H_
 
 
-
 #include "HamiltonianTerm.H"
 #include "ExchangeFunctional.H"
-#include "Imp/Fitting/FittedFunction.H"
+import qchem.FittedFunctionImp;
 
 //###############################################################################
 //

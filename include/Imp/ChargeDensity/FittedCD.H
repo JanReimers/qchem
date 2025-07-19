@@ -5,7 +5,7 @@
 
 
 #include <ChargeDensity/FittedCD.H>
-#include "Imp/Fitting/IntegralConstrainedFF.H"
+import qchem.FittedFunctionImp;
 
 //---------------------------------------------------------------------------------
 //

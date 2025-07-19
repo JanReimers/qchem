@@ -1,5 +1,10 @@
 add_library(qcFitting) 
-target_sources(qcFitting PRIVATE ConstrainedFF.C  FittedFunction.C  IntegralConstrainedFF.C)
+target_sources(qcFitting PRIVATE Imp/ConstrainedFF.C  Imp/FittedFunction.C  Imp/IntegralConstrainedFF.C)
+target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+    FittedFunction.C
+    FittedFunctionClient.C
+    FittedFunctionImp.C
+)
 target_include_directories(qcFitting PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  
     ${PROJECT_SOURCE_DIR}/include/Imp/Fitting  

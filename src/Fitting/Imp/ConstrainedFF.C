@@ -1,10 +1,10 @@
 // File: ConstrainedFF.C  General constrained fit.
-
+module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include "ConstrainedFF.H"
-#include <Fitting/FittedFunctionClient.H>
+module qchem.FittedFunctionImp;
+import qchem.FittedFunctionClient;
 import qchem.Fit_IBS;
 import oml;
 

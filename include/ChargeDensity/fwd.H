@@ -5,5 +5,6 @@
 class DM_CD;
 class Polarized_CD;
 class SpinDensity;
+class FittedCD;
 
 #endif //_ChargeDensity_fwd_H_
