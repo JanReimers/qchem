@@ -11,7 +11,7 @@
 #include "../DataBase/DB_HF.H"
 #include "../DataBase/DB_Fit.H"
 
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Integrals;
 
 import qchem.Irrep_BS;
 import oml;

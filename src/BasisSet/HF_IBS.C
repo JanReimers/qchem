@@ -1,7 +1,10 @@
 // File: HF_IBS.H  Interface for a Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
-#include <BasisSet/Integrals.H>
+#include "BasisSet/fwd.H"
+
 export module qchem.HF_IBS;
+import qchem.BasisSet.Integrals;
+import Common.UniqueID;
 export import qchem.Irrep_BS;
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.

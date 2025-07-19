@@ -6,7 +6,7 @@
 #include "PolarizedGaussian/IntegralEngine.H"
 #include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Block.H"
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Integrals;
 
 #include <LASolver/LAParams.H>
 #include "oml/vector3d.h"

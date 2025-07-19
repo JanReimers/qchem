@@ -1,6 +1,6 @@
 // File: DHF_IBS.H  Interface for a Dirac-Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Integrals;
 
 export module qchem.DHF_IBS;
 import qchem.Irrep_BS;

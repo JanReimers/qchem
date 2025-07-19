@@ -3,7 +3,7 @@
 #define _PlaneWaveIE_H_
 
 
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Integrals;
 
 import Cluster.UnitCell;
 

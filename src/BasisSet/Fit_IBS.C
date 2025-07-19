@@ -1,7 +1,7 @@
 // File: Fit_IBS.H  Interface for a fitting Basis Set.
 module;
 #include <LASolver/LAParams.H>
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Integrals;
 #include <LASolver/fwd.H>
 
 export module qchem.Fit_IBS;

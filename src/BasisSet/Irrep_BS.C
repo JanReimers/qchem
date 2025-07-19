@@ -5,7 +5,7 @@ module;
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include <LASolver/LAParams.H>
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Integrals;
 class BS_Common;
 
 export module qchem.Irrep_BS;
