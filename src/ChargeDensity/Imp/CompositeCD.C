@@ -1,10 +1,9 @@
-// File: CompositeCD.C  Exact implementation of the charged density.
-
-
-
+// File: Imp/CompositeCD.C  Composite charged density, which is any array of Irrep DM_CDs.
+module;
 #include <cassert>
-#include <ChargeDensity/CompositeCD.H>
-
+#include <vector>
+#include <memory>
+module qchem.CompositeCD;
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.

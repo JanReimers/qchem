@@ -2,11 +2,11 @@
 
 #include "Composite_WF.H"
 #include "Irrep_WF.H"
-#include <ChargeDensity/CompositeCD.H>
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <cassert>
 import qchem.BasisSet;
 import qchem.Irrep_BS;
+import qchem.CompositeCD;
 import qchem.Symmetry.ElectronConfiguration;
 
 Composite_WF::Composite_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )

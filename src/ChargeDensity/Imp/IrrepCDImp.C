@@ -1,17 +1,15 @@
 // File: ExactIrrepCD.C  Exact implementation of the charged density.
-
-
+module;
 #include <cassert>
 #include <complex>
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
-
-#include "IrrepCD.H"
-import qchem.HF_IBS;
+module qchem.ChargeDensity.IrrepCD;
+// import qchem.HF_IBS;
 import qchem.DFT_IBS;
 
-import qchem.Fit_IBS;
+// import qchem.Fit_IBS;
 import qchem.Symmetry;
 import qchem.Molecule;
 

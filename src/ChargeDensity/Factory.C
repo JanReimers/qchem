@@ -1,10 +1,10 @@
 // File: ChargeDensity/Factory.C  Create some charge densitytypes.
 
 #include <memory>
-#include "IrrepCD.H"
 #include "PolarizedCD.H"
 #include "FittedCD.H"
 #include <ChargeDensity/Factory.H>
+import qchem.ChargeDensity.IrrepCD;
 
 DM_CD*     IrrepCD_Factory(const Matrix<double>& dm,const TOrbital_IBS<double>* bs, Irrep_QNs qns)
 {

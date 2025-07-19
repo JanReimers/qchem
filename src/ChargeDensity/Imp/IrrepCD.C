@@ -1,15 +1,14 @@
 // File: ExactIrrepCD.H  Exact charged density for ONE irreducable representation basis set.
-#ifndef _ExactIrrepCD_H_
-#define _ExactIrrepCD_H_
-
-
+module;
 #include <iosfwd>
-import qchem.ChargeDensity;
+export module qchem.ChargeDensity.IrrepCD;
+
+export import qchem.ChargeDensity;
 import oml;
-import qchem.Symmetry.Irrep;
+export import qchem.Symmetry.Irrep;
 import qchem.Irrep_BS;
-import qchem.HF_IBS;
-import qchem.Fit_IBS;
+export import qchem.HF_IBS;
+export import qchem.Fit_IBS;
 
 //------------------------------------------------------------------------------------
 //
@@ -17,7 +16,7 @@ import qchem.Fit_IBS;
 //  of one irreducable representation.  The full charge density will in general
 //  be a summation of these guys.
 //
-template <class T> class IrrepCD
+export template <class T> class IrrepCD
     : public virtual DM_CD
 {
 public:
@@ -58,4 +57,3 @@ private:
     Irrep_QNs              itsIrrep;
 };
 
-#endif //_ExactIrrepCD_H_

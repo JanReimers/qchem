@@ -1,20 +1,17 @@
-// File: CompositeCD.H  Composite charged density, no fitting.
-#ifndef _CompositeCD_H_
-#define _CompositeCD_H_
-
-
+// File: CompositeCD.C  Composite charged density, which is any array of Irrep DM_CDs.
+module;
 #include <vector>
 #include <memory>
-
-import qchem.ChargeDensity;
-import qchem.HF_IBS;
-import qchem.Fit_IBS;
+export module qchem.CompositeCD;
+export import qchem.ChargeDensity;
+export import qchem.HF_IBS;
+export import qchem.Fit_IBS;
 
 //--------------------------------------------------------------------------
 //
 //  Full charge density represented Compositely as sum of density matricies.
 //
-class Composite_CD
+export class Composite_CD
     : public virtual DM_CD
 {
 public:
@@ -46,4 +43,3 @@ private:
     cdv_t itsCDs;
 };
 
-#endif //_CompositeCD_H_
