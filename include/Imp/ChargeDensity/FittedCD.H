@@ -4,9 +4,8 @@
 
 
 
-#include <ChargeDensity/FittedCD.H>
+import qchem.FittedCD;
 import qchem.FittedFunctionImp;
-
 //---------------------------------------------------------------------------------
 //
 //  A charge density implemented by fitting the real charge density to an

@@ -1,6 +1,4 @@
 // File: ChargeDensity.C  Interface for a charge density 
-module;
-// #include <ChargeDensity/fwd.H>
 export module qchem.ChargeDensity;
 import qchem.FittedFunctionClient;
 export import qchem.HF_IBS;

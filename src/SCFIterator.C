@@ -5,7 +5,6 @@
 #include <cmath>
 #include <vector>
 
-#include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <SCFAccelerator/fwd.H>
 #include <WaveFunction/fwd.H>

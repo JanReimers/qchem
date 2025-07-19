@@ -6,11 +6,11 @@
 #include <vector>
 
 #include "FittedVee.H"
-import qchem.ChargeDensity;
-#include <ChargeDensity/FittedCD.H>
 #include <ChargeDensity/Factory.H>
 #include <Hamiltonian/TotalEnergy.H>
 import qchem.DFT_IBS;
+import qchem.ChargeDensity;
+import qchem.FittedCD;
 
 FittedVee::FittedVee()
   
