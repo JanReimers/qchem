@@ -5,7 +5,6 @@
 
 
 #include <memory> // for std::shared_ptr
-#include <BasisSet/fwd.H>
 #include <Fitting/FittedFunction.H>
 #include <LASolver/LAParams.H>
 

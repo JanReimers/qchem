@@ -6,7 +6,6 @@
 #include <map>
 #include <memory>
 
-#include <BasisSet/fwd.H>
 #include <SCFAccelerator/fwd.H>
 #include <WaveFunction/WaveFunction.H>
 #include <WaveFunction/EnergyLevel.H>

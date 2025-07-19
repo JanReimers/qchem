@@ -3,7 +3,6 @@
 #define _Orbitals_Factory_H_
 
 #include <vector>
-#include <BasisSet/fwd.H>
 #include <Orbitals/fwd.H>
 import qchem.Irrep_BS;
 import qchem.Symmetry.Spin;

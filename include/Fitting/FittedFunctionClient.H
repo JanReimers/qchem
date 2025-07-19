@@ -2,7 +2,6 @@
 #ifndef _FittedFunctionClient_H_
 #define _FittedFunctionClient_H_
 
-#include <BasisSet/fwd.H>
 import qchem.Fit_IBS;
 import qchem.ScalarFunction;
 //-------------------------------------------------------------------

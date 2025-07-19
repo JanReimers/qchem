@@ -3,7 +3,6 @@ module;
 #include <vector>
 #include <memory>
 #include <LASolver/fwd.H>
-#include <BasisSet/fwd.H>
 #include <LASolver/LAParams.H>
 import qchem.BasisSet.Integrals;
 class BS_Common;

@@ -2,7 +2,6 @@
 #ifndef _TOrbitalImplementation_H_
 #define _TOrbitalImplementation_H_
 
-#include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
 import oml;
 import qchem.Irrep_BS;

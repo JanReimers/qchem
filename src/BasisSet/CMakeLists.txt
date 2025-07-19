@@ -23,6 +23,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   DHF_IBS.C
   Integrals.C
   Imp/ERI4.C
+  Imp/IntegralEnums.C
 )
 
 target_include_directories(qcBasisSet PRIVATE 

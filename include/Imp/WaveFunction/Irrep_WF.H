@@ -3,7 +3,6 @@
 #define _IrrepWaveFunction_H_
 
 #include <LASolver/fwd.H>
-#include <BasisSet/fwd.H>
 #include <SCFAccelerator/fwd.H>
 #include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>

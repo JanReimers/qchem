@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <set>
-#include <BasisSet/fwd.H>
 #include "../IEClient.H" // <> prevents file search on this folder.
 
 import qchem.Irrep_BS;

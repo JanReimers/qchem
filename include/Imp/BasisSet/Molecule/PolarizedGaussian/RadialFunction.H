@@ -5,13 +5,13 @@
 #include <vector>
 #include <set>
 #include <map>
-#include <BasisSet/fwd.H>
 #include "Polarization.H"
 
 import Common.UniqueID; 
 import qchem.Cluster;
 import qchem.ScalarFunction;
 import qchem.Streamable;
+import qchem.BasisSet.IntegralEnums;
 
 class  Polarization;
 

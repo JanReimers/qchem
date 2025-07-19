@@ -1,7 +1,6 @@
 // File: IntegralEngine.H  Abtract integral engine interfaces.
 module;
 #include <vector>
-#include <BasisSet/fwd.H>
 export module qchem.BasisSet.Integrals;
 import Common.UniqueID; //Need IDType
 export import qchem.Cluster;

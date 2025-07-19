@@ -4,7 +4,6 @@ module;
 #include <memory>
 
 #include <LASolver/fwd.H>
-#include <BasisSet/fwd.H>
 #include <LASolver/LAParams.H>
 export module qchem.BasisSet;
 

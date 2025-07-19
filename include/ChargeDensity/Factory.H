@@ -2,7 +2,6 @@
 #ifndef _ChargeDensity_Factory_H_
 #define _ChargeDensity_Factory_H_
 
-#include <BasisSet/fwd.H>
 #include <Fitting/fwd.H>
 #include <ChargeDensity/fwd.H>
 #include <memory>

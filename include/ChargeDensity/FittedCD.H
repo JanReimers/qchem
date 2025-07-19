@@ -2,7 +2,6 @@
 #ifndef _FittedCD_H_
 #define _FittedCD_H_
 
-#include <BasisSet/fwd.H>
 #include <Fitting/FittedFunction.H>
 import qchem.DFT_IBS;
 

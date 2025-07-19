@@ -2,7 +2,6 @@
 #ifndef _BasisSet_Factory_H_
 #define _BasisSet_Factory_H_
 
-#include <BasisSet/fwd.H>
 #include <nlohmann/json.hpp>
 
 import qchem.BasisSet;

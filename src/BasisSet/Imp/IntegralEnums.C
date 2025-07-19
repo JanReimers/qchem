@@ -1,8 +1,7 @@
-// File: BasisSet/fwd.H  forward declare some BasisSet classes.
-#ifndef _BasisSet_fwd_H_
-#define _BasisSet_fwd_H_
+// File: BasisSet/Imp/IntegralEnums.C  Define some enums for integral types;
+export module qchem.BasisSet.IntegralEnums;
 
-namespace qchem
+export namespace qchem
 {
     // Integral types.
     enum IType3C {Overlap3C, Repulsion3C}; // <ab|c> and <ar|1/r12|c>
@@ -10,4 +9,3 @@ namespace qchem
     enum IType   {Overlap1, Grad2_1, Nuclear1, RestMass1,Repulsion1,InvOverlap1, InvRepulsion1, Charge1};
 }
 
-#endif //_BasisSet_fwd_H_
