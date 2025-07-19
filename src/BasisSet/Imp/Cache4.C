@@ -1,12 +1,11 @@
-// File: Cache4.H Cache object based on four unsigned integer indices.
-#ifndef _Cache4_H_
-#define _Cache4_H_
-
+// File: Cache4.C Cache object based on four unsigned integer indices.
+module;
 #include <map>
+export module qchem.BasisSet.Imp.Cache4;
 //
 //  Abstract base for the type being cached.
 //
-class Cacheable
+export class Cacheable
 {
 public:
     virtual ~Cacheable() {};
@@ -17,7 +16,7 @@ public:
 //  Use covariant return types for the loop_4 overload. 
 //  Derived class also needs to supply a Create function.
 //
-class Cache4
+export class Cache4
 {
 protected:
     ~Cache4();
@@ -42,4 +41,3 @@ private:
     mutable size_t i1,i2,i3,i4; //Current indexes
 };
 
-#endif // _Cache4_H_

@@ -6,8 +6,8 @@
 
 #include <map>
 #include <cassert>
-#include "../IEClient.H"
 
+import qchem.BasisSet.Imp.IEClient;
 import qchem.DHF_IBS;
 import Common.UniqueID;
 import qchem.BasisSet.Integrals;

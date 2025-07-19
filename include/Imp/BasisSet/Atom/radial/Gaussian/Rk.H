@@ -2,7 +2,7 @@
 #ifndef _SphericalGaussianCD_H_
 #define _SphericalGaussianCD_H_
 
-#include "../../../Cache4.H"
+import qchem.BasisSet.Imp.Cache4;
 import oml;
 
 namespace Gaussian

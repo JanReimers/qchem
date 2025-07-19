@@ -1,7 +1,7 @@
 // File: DB_HF.H Cache HF 4-center ERIs.
 #ifndef _DB_HF_H_
 #define _DB_HF_H_
-
+#include <vector>
 #include "HeapDB.H"
 import qchem.HF_IBS;
 

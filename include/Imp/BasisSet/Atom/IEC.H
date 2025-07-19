@@ -4,8 +4,8 @@
 
 #include <vector>
 #include <set>
-#include "../IEClient.H" // <> prevents file search on this folder.
 
+import qchem.BasisSet.Imp.IEClient;
 import qchem.Irrep_BS;
 import oml;
 

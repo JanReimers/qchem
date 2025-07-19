@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "Polarization.H"
-#include "../../IEClient.H" // <> prevents file search on this SphericalGaussian folder.
+import qchem.BasisSet.Imp.IEClient;
 import oml;
 
 namespace PolarizedGaussian

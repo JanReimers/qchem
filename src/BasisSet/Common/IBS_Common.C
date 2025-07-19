@@ -2,7 +2,6 @@
 module;
 #include <cassert>
 #include <iosfwd>
-#include "IEClient.H"
 #include "LASolver/LAParams.H"
 #include "LASolver/fwd.H"
 #include "Imp/BasisSet/DataBase/DB_DHF.H"
@@ -10,6 +9,7 @@ module;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.IEClient;
 import qchem.Irrep_BS;
 import qchem.Fit_IBS;
 import qchem.DFT_IBS;

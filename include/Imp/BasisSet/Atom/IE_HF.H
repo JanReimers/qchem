@@ -5,6 +5,7 @@
 #include "IE.H"
 #include "IE_HF_Angular.H"
 #include "../DataBase/DB_HF.H"
+import qchem.BasisSet.Imp.Cache4;
 
 
 template <class T> class AtomIE_BS_2E 
