@@ -1,6 +1,6 @@
 // File: TBasisSetImplementation.C
 
-
+#include <vector>
 #include "TIBS_Common.H"
 #include "DFT_IBS_Common.H"
 #include <BasisSet/Fit_IBS.H>

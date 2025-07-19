@@ -8,6 +8,7 @@
 #include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
+import qchem.Irrep_BS;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.ElectronConfiguration;
 

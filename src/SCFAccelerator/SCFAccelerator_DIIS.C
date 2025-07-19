@@ -7,8 +7,8 @@
 #include <iomanip>
 #include "SCFAccelerator_DIIS.H"
 #include <LASolver/LASolver.H>
-#include <BasisSet/Irrep_BS.H>
 #include "SCFAccelerator_Null.H"
+import qchem.Irrep_BS;
 
 using std::cout;
 using std::endl;

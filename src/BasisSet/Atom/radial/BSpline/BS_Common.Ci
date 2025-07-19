@@ -2,7 +2,7 @@
 
 #include "radial/BSpline/BS_Common.H"
 #include "radial/BSpline/Rk.H"
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 import oml;
 
 namespace BSpline

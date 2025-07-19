@@ -2,16 +2,15 @@
 #ifndef _HF_IBS_H_
 #define _HF_IBS_H_
 
-#include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Integrals.H>
+import qchem.Irrep_BS;
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
 //! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)
 template <class T> class Integrals_HF : public virtual Integrals_Base<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::obs_t obs_t;
 public:
+    typedef TOrbital_IBS<T> obs_t;
     virtual ERI4 Direct  (const obs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
     virtual ERI4 Exchange(const obs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
 

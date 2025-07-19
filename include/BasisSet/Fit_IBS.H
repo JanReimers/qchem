@@ -41,7 +41,7 @@ public:
  virtual  Mat MakeOverlap(const Mesh*,const fbs_t& b) const=0; //Numerical X overlap.
 };
 
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 
 class Fit_IBS
     : public virtual TIrrepBasisSet<double>

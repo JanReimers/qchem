@@ -2,8 +2,9 @@
 #ifndef _BasisSet_TCommon_H_
 #define _BasisSet_TCommon_H_
 
-#include <BasisSet/Irrep_BS.H>
-
+#include <cstddef>
+#include <iosfwd>
+#include "LASolver/LAParams.H"
 import Common.UniqueIDImp;
 import qchem.BasisSet;
 

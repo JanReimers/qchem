@@ -35,7 +35,7 @@ public:
    
  };
 
- #include <BasisSet/Irrep_BS.H>
+ import qchem.Irrep_BS;
 
 template <class T> class Orbital_RKB_IBS
     : public virtual TIrrepBasisSet<T>

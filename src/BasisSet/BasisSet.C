@@ -8,11 +8,12 @@ module;
 #include <LASolver/LAParams.H>
 export module qchem.BasisSet;
 
+export import qchem.Irrep_BS;
 import Common.UniqueID;
 import Common.Iterators;
-import qchem.Cluster;
-import qchem.Symmetry;
-import qchem.Symmetry.ElectronConfiguration;
+export import qchem.Cluster;
+export import qchem.Symmetry;
+export import qchem.Symmetry.ElectronConfiguration;
 import qchem.Streamable;
 
 //----------------------------------------------------------------------------

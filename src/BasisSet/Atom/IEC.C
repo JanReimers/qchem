@@ -3,7 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include "IEC.H"
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 
 
 void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l)

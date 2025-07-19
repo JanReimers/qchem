@@ -5,10 +5,11 @@
 
 
 #include <cassert>
-#include <BasisSet/Irrep_BS.H>
 #include "IEClient.H"
 
 import Common.UniqueIDImp;
+import qchem.Irrep_BS;
+import qchem.Symmetry;
 
 //---------------------------------------------------------------------
 //

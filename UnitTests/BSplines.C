@@ -11,10 +11,10 @@
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
 #include <LASolver/LAParams.H>
-#include <BasisSet/Irrep_BS.H>
 
 
 import qchem.BasisSet;
+import qchem.Irrep_BS;
 import Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;

@@ -3,8 +3,8 @@
 #include <vector>
 #include <iostream>
 #include "radial/Gaussian/Rk.H"
-#include <BasisSet/Irrep_BS.H>
 #include "radial/Gaussian/BS_Common.H"
+import qchem.Irrep_BS;
 import oml;
 
 namespace Gaussian

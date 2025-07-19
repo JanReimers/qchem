@@ -4,9 +4,9 @@
 #include <vector>
 #include <memory>
 #include "DataBase/HeapDB.H"
-#include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Fit_IBS.H>
 
+import qchem.Irrep_BS;
 import Mesh.Integrator;
 import qchem.Cluster;
 import oml;

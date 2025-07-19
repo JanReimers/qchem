@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <complex>
 #include "TOrbital.H"
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 
 //-----------------------------------------------------------------
 //

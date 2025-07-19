@@ -7,11 +7,11 @@
 #include "Irrep_WF.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 
-#include <BasisSet/Irrep_BS.H>
 #include <LASolver/LASolver.H>
 #include <Hamiltonian/Hamiltonian.H>
 #include <Orbitals/Factory.H>
 #include <Orbitals/Orbitals.H>
+import qchem.Irrep_BS;
 import qchem.Symmetry.ElectronConfiguration;
 
 using std::cout;

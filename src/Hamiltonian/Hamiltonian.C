@@ -10,7 +10,7 @@
 #include "Vnn.H"
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 import qchem.stl_io;
 
 HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)

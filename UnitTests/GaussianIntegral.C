@@ -4,12 +4,12 @@
 #include "gtest/gtest.h"
 #include <BasisSet/Factory.H>
 #include <LASolver/LAParams.H>
-#include <BasisSet/Irrep_BS.H>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
 import qchem.BasisSet;
+import qchem.Irrep_BS;
 import Common.Constants;
 import Mesh.Integrator;
 import qchem.Cluster;

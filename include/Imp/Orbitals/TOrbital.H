@@ -5,6 +5,7 @@
 #include <BasisSet/fwd.H>
 #include <Orbitals/Orbitals.H>
 import oml;
+import qchem.Irrep_BS;
 import qchem.Symmetry.Orbital;
 
 class OrbitalImp

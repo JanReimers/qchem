@@ -12,6 +12,8 @@
 #include "../DataBase/DB_Fit.H"
 
 #include <BasisSet/Integrals.H>
+
+import qchem.Irrep_BS;
 import oml;
 
 namespace PolarizedGaussian
@@ -49,7 +51,7 @@ class Orbital_IE
     typedef Base::SMat SMat;
     typedef Base::ERI3 ERI3;
     typedef Base::fbs_t fbs_t; //Fit basis
-    typedef Base::obs_t obs_t; //Fit basis
+    typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
     virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Grad2);}
     virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}

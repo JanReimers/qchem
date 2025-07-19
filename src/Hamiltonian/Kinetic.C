@@ -5,9 +5,9 @@
 #include <vector>
 
 #include "Kinetic.H"
-#include <BasisSet/Irrep_BS.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
+import qchem.Irrep_BS;
 
 Kinetic::Kinetic()
     : Static_HT_Imp()

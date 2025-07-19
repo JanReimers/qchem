@@ -6,14 +6,10 @@
 class ERI4;
 class M4;
 
-class IrrepBasisSet;
 class Fit_IBS;
-class Orbital_IBS;
 
 class BasisFunction;
 
-template <class T> class TIrrepBasisSet;
-template <class T> class     TOrbital_IBS;
 template <class T> class TOrbital_DFT_IBS;
 template <class T> class  TOrbital_HF_IBS;
 template <class T> class Orbital_RKBL_IBS;

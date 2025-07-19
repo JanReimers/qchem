@@ -1,20 +1,22 @@
-// File: Irrep_BS.H
-#ifndef _Irrep_BS_H_
-#define _Irrep_BS_H_
-
-
+// File: Irrep_BS.C  Interface for an Irrep Basis Set
+module;
 #include <vector>
 #include <memory>
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include <LASolver/LAParams.H>
+#include <BasisSet/Integrals.H>
+class BS_Common;
+
+export module qchem.Irrep_BS;
 
 import Common.UniqueID; 
 import Common.Iterators;
 import oml;
-import qchem.Symmetry;
-import qchem.Symmetry.ElectronConfiguration;
+export import qchem.Symmetry;
+export import qchem.Symmetry.ElectronConfiguration;
 import qchem.Streamable;
+export import qchem.VectorFunction;
 
 //----------------------------------------------------------------------------
 //
@@ -25,7 +27,7 @@ import qchem.Streamable;
 //  the wave vector k for solids.
 //
 
-class IrrepBasisSet
+export class IrrepBasisSet
     : public virtual UniqueID
     , public virtual Streamable
 {
@@ -45,7 +47,6 @@ public:
 //  Streamable stuff.
 //
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
-    static  IrrepBasisSet* Factory(std::istream&    )        ;
 
 private:
     virtual const_iterator begin() const=0;
@@ -75,12 +76,11 @@ public:
     friend class BS_Common;
 };
 
-import qchem.VectorFunction;
 //----------------------------------------------------------------------------
 //
 //  Extend basis to be a set of real or complex valued functions
 //
-template <class T> class TIrrepBasisSet
+export template <class T> class TIrrepBasisSet
     : public virtual IrrepBasisSet
     , public virtual VectorFunction<T>
 {
@@ -88,12 +88,11 @@ public:
     size_t GetVectorSize() const {return GetNumFunctions();}
 };
 
-#include <BasisSet/Integrals.H>
 //
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 
 //
-class Orbital_IBS
+export class Orbital_IBS
     : public virtual IrrepBasisSet
 {
     public:
@@ -101,7 +100,7 @@ class Orbital_IBS
     
 };
 
-template <class T> class TOrbital_IBS
+export template <class T> class TOrbital_IBS
     : public virtual Orbital_IBS
     , public virtual TIrrepBasisSet<T>
     , public virtual Integrals_Overlap<T> 
@@ -111,5 +110,3 @@ template <class T> class TOrbital_IBS
     public:
     
 };
-
-#endif //_Irrep_BS_H_

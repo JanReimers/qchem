@@ -7,8 +7,8 @@
 #include "TOrbitals.H"
 #include "TOrbital.H"
 #include <ChargeDensity/Factory.H>
-#include <BasisSet/Irrep_BS.H>
 
+import qchem.Irrep_BS;
 import qchem.Symmetry;
 import Common.Constants; //c_light
 import qchem.stl_io;

@@ -1,9 +1,10 @@
 // File: BasisSetImp/TCommon.H
 
 #include <cassert>
-#include <BasisSet/Irrep_BS.H>
+#include <memory>
 #include "BS_Common.H"
 import qchem.stl_io;
+import qchem.Irrep_BS;
 
 void BS_Common::Insert(bs_t* bs)
 {

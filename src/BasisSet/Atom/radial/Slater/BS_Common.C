@@ -3,8 +3,8 @@
 #include <vector>
 #include <iostream>
 #include "radial/Slater/Rk.H"
-#include <BasisSet/Irrep_BS.H>
 #include "radial/Slater/BS_Common.H"
+import qchem.Irrep_BS;
 import oml;
 
 namespace Slater

@@ -3,6 +3,7 @@
 
 
 #include <iomanip>
+#include <memory>
 #include <BasisSet/BasisFunction.H>
 #include "IBS_Common.H"
 import qchem.Symmetry;

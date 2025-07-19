@@ -1,5 +1,6 @@
 // File: WaveFunction/Factory.C  Create wavefunctions.
 
+#include <vector>
 #include <WaveFunction/Factory.H>
 #include "UnPolarized_WF.H"
 #include "Polarized_WF.H"

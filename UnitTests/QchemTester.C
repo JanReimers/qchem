@@ -9,7 +9,6 @@
 #include <SCFAccelerator/Factory.H>
 #include <WaveFunction/WaveFunction.H>
 #include <Hamiltonian/Hamiltonian.H>
-#include <BasisSet/Irrep_BS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <Orbitals/Orbitals.H>
 #include <ChargeDensity/ChargeDensity.H>
@@ -17,6 +16,7 @@
 
 PeriodicTable QchemTester::itsPT;
 
+import qchem.Irrep_BS;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;

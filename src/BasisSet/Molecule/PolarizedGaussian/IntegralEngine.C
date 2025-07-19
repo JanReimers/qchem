@@ -5,9 +5,9 @@
 #include <cmath>
 #include "PolarizedGaussian/IEClient.H"
 #include "PolarizedGaussian/IntegralEngine.H"
-#include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Fit_IBS.H>
 #include "../ERI4.H"
+import qchem.Irrep_BS;
 
 namespace PolarizedGaussian
 {

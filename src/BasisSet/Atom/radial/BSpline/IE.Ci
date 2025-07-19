@@ -3,7 +3,7 @@
 #include "radial/BSpline/IE.H"
 #include "radial/BSpline/IEC.H"
 #include "../ERI4.H"
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 import qchem.Cluster;
 
 namespace BSpline

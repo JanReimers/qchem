@@ -8,7 +8,7 @@
 
 #include "HamiltonianTerm.H"
 #include <ChargeDensity/ChargeDensity.H>
-#include <BasisSet/Irrep_BS.H>
+import qchem.Irrep_BS;
 import qchem.Symmetry;
 
 Dynamic_HT_Imp::Dynamic_HT_Imp()
