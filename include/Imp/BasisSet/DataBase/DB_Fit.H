@@ -2,8 +2,9 @@
 #ifndef _DB_Fit_H_
 #define _DB_Fit_H_
 
+#include "LASolver/LAParams.H"
 #include "HeapDB.H"
-#include <BasisSet/Fit_IBS.H>
+import qchem.Fit_IBS;
 
 class DB_Fit 
     : public virtual FitIntegrals
@@ -15,12 +16,12 @@ protected:
     using Integrals_Overlap<double>::Overlap; 
     virtual Vec_ref  Charge   () const;   
     virtual SMat_ref Repulsion() const;
-    virtual  Mat_ref Repulsion(const fbs_t&) const;
+    virtual  Mat_ref Repulsion(const Fit_IBS&) const;
     virtual SMat_ref InvOverlap(const LAParams&) const;
     virtual SMat_ref InvRepulsion(const LAParams&) const;
     virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
     virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,const fbs_t& b) const; //Numerical X overlap.
+    virtual  Mat_ref Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
 
 private:
@@ -29,7 +30,7 @@ private:
     virtual Vec  MakeCharge() const=0;
     // virtual SMat MakeOverlap() const=0;
     virtual SMat MakeRepulsion() const=0;
-    virtual  Mat MakeRepulsion(const fbs_t&) const=0;
+    virtual  Mat MakeRepulsion(const Fit_IBS&) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

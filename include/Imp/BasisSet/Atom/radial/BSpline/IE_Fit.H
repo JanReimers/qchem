@@ -18,7 +18,7 @@ template <size_t K> class IE_Fit
 
     virtual Vec  MakeCharge() const;
     virtual SMat MakeRepulsion() const;
-    virtual  Mat MakeRepulsion(const fbs_t&) const;
+    virtual  Mat MakeRepulsion(const Fit_IBS&) const;
 private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide

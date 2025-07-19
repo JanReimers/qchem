@@ -9,6 +9,7 @@ module;
 export module qchem.BasisSet;
 
 export import qchem.Irrep_BS;
+export import qchem.Fit_IBS;
 import Common.UniqueID;
 import Common.Iterators;
 export import qchem.Cluster;

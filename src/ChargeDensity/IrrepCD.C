@@ -9,9 +9,9 @@
 
 #include "IrrepCD.H"
 #include <BasisSet/HF_IBS.H>
-#include <BasisSet/Fit_IBS.H>
 #include <BasisSet/DFT_IBS.H>
 
+import qchem.Fit_IBS;
 import qchem.Symmetry;
 import qchem.Molecule;
 

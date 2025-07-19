@@ -9,6 +9,7 @@
 #include <Fitting/FittedFunction.H>
 #include <LASolver/LAParams.H>
 
+import qchem.Fit_IBS;
 import Mesh;
 import oml;
 

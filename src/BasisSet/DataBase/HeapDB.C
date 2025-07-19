@@ -4,8 +4,8 @@
 #include <vector>
 #include <memory>
 #include "DataBase/HeapDB.H"
-#include <BasisSet/Fit_IBS.H>
 
+import qchem.Fit_IBS;
 import qchem.Irrep_BS;
 import Mesh.Integrator;
 import qchem.Cluster;
@@ -125,7 +125,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_RestMass<T>::RestMass
 
 #include "DataBase/DB_DFT.H"
 
-template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fbs_t& c) const
+template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const Fit_IBS& c) const
 { 
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -137,7 +137,7 @@ template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const fb
     else
         return i->second;
 }
-template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const fbs_t& c) const
+template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const Fit_IBS& c) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -232,7 +232,6 @@ template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
 #include "DataBase/DB_Fit.H"
-#include <BasisSet/Fit_IBS.H>
 
 DB_Fit:: Vec_ref DB_Fit::Charge   () const
 {
@@ -251,7 +250,7 @@ DB_Fit::SMat_ref DB_Fit::Repulsion() const
     else
         return i->second;
 }
-DB_Fit:: Mat_ref DB_Fit::Repulsion(const fbs_t& b) const
+DB_Fit:: Mat_ref DB_Fit::Repulsion(const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
     if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
@@ -292,7 +291,7 @@ DB_Fit:: Vec_ref DB_Fit::Charge (const Mesh* m        ) const
         return i->second;
 
 }
-DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const fbs_t& b) const
+DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
     if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())

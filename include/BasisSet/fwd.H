@@ -6,9 +6,6 @@
 class ERI4;
 class M4;
 
-class Fit_IBS;
-
-
 template <class T> class TOrbital_DFT_IBS;
 template <class T> class  TOrbital_HF_IBS;
 template <class T> class Orbital_RKBL_IBS;

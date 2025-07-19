@@ -3,7 +3,7 @@
 #include <memory>
 #include "IE_Fit.H"
 #include "IEC.H"
-#include <BasisSet/Fit_IBS.H>
+import qchem.Fit_IBS;
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 {
@@ -26,7 +26,7 @@ AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
 
     return H;
 }
-AtomIE_Fit::Mat  AtomIE_Fit::MakeRepulsion(const fbs_t& _b) const
+AtomIE_Fit::Mat  AtomIE_Fit::MakeRepulsion(const Fit_IBS& _b) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  //Cross cast
     const AtomIrrepIEClient* b=AtomIrrepIEClient::dcast(&_b);

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "IntegralConstrainedFF.H"
-#include <BasisSet/Fit_IBS.H>
+import qchem.Fit_IBS;
 
 template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
     : ConstrainedFF<T>()

@@ -3,6 +3,7 @@
 #include "radial/BSpline/IE.H"
 #include "radial/BSpline/IEC.H"
 #include "../ERI4.H"
+import qchem.Fit_IBS;
 import qchem.Irrep_BS;
 import qchem.Cluster;
 
@@ -61,14 +62,14 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Inv_r1<T,K>::Mak
 
 namespace BSpline
 {
-template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeOverlap3C  (const fbs_t& _c) const
+template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeOverlap3C  (const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
     ERI3 s3;
     for (auto i:c.indices()) s3.push_back(MakeOverlap(c.tuple(i)));
     return s3;
 }
-template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeRepulsion3C(const fbs_t& _c) const
+template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
     ERI3 s3;
@@ -234,7 +235,6 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
 
 
 #include "radial/BSpline/IE_Fit.H"
-#include <BasisSet/Fit_IBS.H>
 
 namespace BSpline
 {
@@ -259,7 +259,7 @@ template <size_t K> typename Integrals_Base<double>::SMat IE_Fit<K>::MakeRepulsi
 
     return H;
 }
-template <size_t K> typename Integrals_Base<double>::Mat IE_Fit<K>::MakeRepulsion(const fbs_t& _b) const
+template <size_t K> typename Integrals_Base<double>::Mat IE_Fit<K>::MakeRepulsion(const Fit_IBS& _b) const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     const IrrepIEClient<K>* b=dynamic_cast<const IrrepIEClient<K>*>(&_b);

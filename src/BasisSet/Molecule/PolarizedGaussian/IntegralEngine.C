@@ -5,8 +5,8 @@
 #include <cmath>
 #include "PolarizedGaussian/IEClient.H"
 #include "PolarizedGaussian/IntegralEngine.H"
-#include <BasisSet/Fit_IBS.H>
 #include "../ERI4.H"
+import qchem.Fit_IBS;
 import qchem.Irrep_BS;
 
 namespace PolarizedGaussian
@@ -29,7 +29,7 @@ Fit_IE::Vec Fit_IE::MakeCharge() const
     return c;
 }
 
-Fit_IE::Mat Fit_IE::MakeRepulsion(const fbs_t& _b) const
+Fit_IE::Mat Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
 {   
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
@@ -58,7 +58,7 @@ IE_Common::SMat IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) c
     return s;
 }
 
-Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const fbs_t& _c) const
+Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
@@ -71,7 +71,7 @@ Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const fbs_t& _c) const
     } 
     return s3;   
 }
-Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const fbs_t& _c) const
+Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();

@@ -7,6 +7,7 @@
 #include <ChargeDensity/fwd.H>
 #include <memory>
 
+import qchem.Fit_IBS;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.VectorFunction;
 
