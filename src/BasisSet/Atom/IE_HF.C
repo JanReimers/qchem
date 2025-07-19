@@ -4,7 +4,7 @@
 #include <memory>
 #include "IE_HF.H"
 #include "IEC.H"
-#include "../ERI4.H"
+import qchem.BasisSet.ERI4;
 
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {

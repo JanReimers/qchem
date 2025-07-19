@@ -10,11 +10,10 @@
 #include <LASolver/LAParams.H>
 #include <BasisSet/Factory.H>
 #include "Imp/BasisSet/DHF_IBS_Common.H"
-#include "Imp/BasisSet/ERI4.H"
-// import qchem.Symmetry.Okmj;
 
 import qchem.BasisSet;
 import qchem.Irrep_BS;
+import qchem.BasisSet.ERI4;
 import Common.Constants;
 import qchem.Cluster;
 import Mesh.Integrator;

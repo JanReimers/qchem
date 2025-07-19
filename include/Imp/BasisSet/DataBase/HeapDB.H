@@ -7,12 +7,12 @@
 #include <map>
 #include <cassert>
 #include "BasisSet/fwd.H"
-#include "../ERI4.H"
 #include "../IEClient.H"
 
 import qchem.DHF_IBS;
 import Common.UniqueID;
 import qchem.BasisSet.Integrals;
+import qchem.BasisSet.ERI4;
 
 template  <class T> class DB_cache  : virtual public Integrals_Base<T>
 {

@@ -2,10 +2,9 @@
 
 #include "radial/BSpline/IE.H"
 #include "radial/BSpline/IEC.H"
-#include "../ERI4.H"
 import qchem.Fit_IBS;
 import qchem.Irrep_BS;
-import qchem.Cluster;
+import qchem.BasisSet.ERI4;
 
 namespace BSpline
 {

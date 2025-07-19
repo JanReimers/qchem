@@ -2,11 +2,6 @@
 #ifndef _BasisSet_fwd_H_
 #define _BasisSet_fwd_H_
 
-//Super matrix containers
-class ERI4;
-class M4;
-
-
 namespace qchem
 {
     // Integral types.

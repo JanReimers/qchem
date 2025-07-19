@@ -4,6 +4,8 @@ module;
 
 export module qchem.HF_IBS;
 import qchem.BasisSet.Integrals;
+import qchem.BasisSet.ERI4;
+
 import Common.UniqueID;
 export import qchem.Irrep_BS;
 

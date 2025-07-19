@@ -5,8 +5,8 @@
 #include <memory>
 #include <iomanip>
 #include "HF_IBS_Common.H"
-#include "ERI4.H"
 
+import qchem.BasisSet.ERI4;
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
 Direct(const SMat& Dcd, const obs_t* cd) const

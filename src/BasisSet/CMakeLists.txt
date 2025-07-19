@@ -1,17 +1,17 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
-BasisSet.C
-     BS_Common.C
-    IBS_Common.C
-   TIBS_Common.C
- HF_IBS_Common.C
-DHF_IBS_Common.C
-DFT_IBS_Common.C
-Fit_IBS_Common.C
-DataBase/HeapDB.C
-Cache4.C
-ERI4.C
-   Imp/BasisSet.C
+  BasisSet.C
+      BS_Common.C
+      IBS_Common.C
+    TIBS_Common.C
+  HF_IBS_Common.C
+  DHF_IBS_Common.C
+  DFT_IBS_Common.C
+  Fit_IBS_Common.C
+  DataBase/HeapDB.C
+  Cache4.C
+  Imp/ERI4Imp.C
+  Imp/BasisSet.C
 )
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   BasisSet.C
@@ -22,6 +22,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   DFT_IBS.C
   DHF_IBS.C
   Integrals.C
+  Imp/ERI4.C
 )
 
 target_include_directories(qcBasisSet PRIVATE 

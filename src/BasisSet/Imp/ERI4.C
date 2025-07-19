@@ -1,7 +1,7 @@
-#ifndef ERI4_H
-#define ERI4_H
-
+// File ERI4.C  Symmetric containters for and ERI (Electron Repulsion Integral) 4 index super matrix.
+module;
 #include <cstddef> //size_t
+export module qchem.BasisSet.ERI4;
 import oml;
 
 //------------------------------------------------------------------
@@ -40,7 +40,7 @@ private:
     M<M<T> > itsData;
 };
 
-class ERI4 : public ERI4T<double,SMatrix>
+export class ERI4 : public ERI4T<double,SMatrix>
 {
 public:
     typedef ERI4T<double,SMatrix> Base;
@@ -53,7 +53,7 @@ private:
     static double contract(const SMat& A,const SMat& B);
 };
 
-class M4 : public ERI4T<double,Matrix>
+export class M4 : public ERI4T<double,Matrix>
 {
 public:
     typedef ERI4T<double,Matrix> Base;
@@ -68,4 +68,3 @@ private:
  
 
 
-#endif // ERI4_H

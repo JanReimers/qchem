@@ -10,10 +10,10 @@
 #include <BasisSet/Factory.H>
 #include "Imp/BasisSet/DataBase/DB_HF.H"
 #include "Imp/BasisSet/Atom/IEC.H"
-#include "Imp/BasisSet/ERI4.H"
 
 #include <LASolver/LAParams.H>
 import qchem.HF_IBS;
+import qchem.BasisSet.ERI4;
 
 import qchem.BasisSet;
 import qchem.Irrep_BS;

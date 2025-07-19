@@ -3,9 +3,6 @@
 #include <memory>
 #include "kappa/Gaussian_IE.H"
 #include "radial/Gaussian/Integrals.H"
-// #include "ERI4.H"
-// import qchem.Symmetry.Okmj;
-// #include <iostream>
 
 
 namespace Atom_kappa
