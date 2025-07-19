@@ -12,7 +12,7 @@ namespace BSpline
 {
     
 template <size_t K> class BasisFunction
-    : public virtual ::TBasisFunction<double>
+    : public virtual ::Real_BF
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;
@@ -21,7 +21,7 @@ public:
     BasisFunction(const spline_t&, int l, double norm);
     
     virtual std::ostream&    Write(std::ostream&) const;
-    virtual ::TBasisFunction<double>* Clone(        ) const;
+    virtual ::Real_BF* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
     virtual Vec3   Gradient  (const Vec3&) const;

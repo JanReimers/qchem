@@ -11,7 +11,7 @@ namespace Slater
 {
     
 class BasisFunction
-    : public virtual ::TBasisFunction<double>
+    : public virtual ::Real_BF
 {
 public:
     BasisFunction();

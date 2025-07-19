@@ -35,8 +35,8 @@ Orbital_IBS::Orbital_IBS
         , new Small_Orbital_IBS<double>(db,exponents,kappa)
         )
 {
-    for (auto b:itsRKBL->Iterate<TBasisFunction<double>>()) Insert(b);
-    for (auto b:itsRKBS->Iterate<TBasisFunction<double>>()) Insert(b);
+    for (auto b:itsRKBL->Iterate<Real_BF>()) Insert(b);
+    for (auto b:itsRKBS->Iterate<Real_BF>()) Insert(b);
 };
 
 

@@ -31,7 +31,7 @@ export class IrrepBasisSet
     , public virtual Streamable
 {
 public:
-    typedef TBasisFunction<double> bf_t;
+    typedef Real_BF bf_t;
     typedef std::vector<std::shared_ptr<bf_t>> bfv_t;
     typedef bfv_t::      iterator       iterator;
     typedef bfv_t::const_iterator const_iterator;

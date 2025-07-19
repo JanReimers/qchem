@@ -12,13 +12,13 @@ namespace PolarizedGaussian
 {
 
 class BasisFunction
-    : public TBasisFunction<double>
+    : public Real_BF
 {
 public:
     BasisFunction(                                          );
     BasisFunction(const RadialFunction*, const Polarization&, double norm);
 
-    virtual bool   operator==(const ::TBasisFunction<double>&) const;
+    virtual bool   operator==(const ::Real_BF&) const;
  
     virtual std::ostream&       Write(std::ostream&   ) const;
     virtual std::istream&       Read (std::istream&   )      ;

@@ -17,7 +17,7 @@ template <size_t K> BasisFunction<K>::BasisFunction(const spline_t& sp, int l, i
 };
 
 
-template <size_t K> ::TBasisFunction<double>* BasisFunction<K>::Clone() const
+template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const
 {
     return new  BasisFunction<K>(*this);
 }

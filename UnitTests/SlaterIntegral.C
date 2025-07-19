@@ -290,7 +290,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 //TEST_F(SlaterRadialIntegralTests, Numerical)
 //{
 //    TIrrepBasisSet<double>* vf=*bs->beginT();
-//    TBasisFunction<double>* sf=*vf->beginT();
+//    Real_BF* sf=*vf->beginT();
 //
 //    Vector<double> cnum=mintegrator->Integrate(*vf);
 //    Vector<double> c=ie->MakeCharge(vf);

@@ -13,14 +13,14 @@ namespace Slater
 class Small_BasisFunction;
     
 class Large_BasisFunction
-    : public virtual ::TBasisFunction<double>
+    : public virtual ::Real_BF
 {
 public:
     Large_BasisFunction() {};
     Large_BasisFunction(double ex, int kappa, int mj, double norm);
     
     virtual std::ostream&    Write(std::ostream&) const;
-    virtual ::TBasisFunction<double>* Clone(        ) const;
+    virtual ::Real_BF* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
     virtual Vec3   Gradient  (const Vec3&) const;
@@ -39,14 +39,14 @@ private:
 //                                  ((2l+1)/r-e)*r^lexp(-e*r), kappa>0
 //
 class Small_BasisFunction
-    : public virtual ::TBasisFunction<double>
+    : public virtual ::Real_BF
 {
 public:
     Small_BasisFunction();
     Small_BasisFunction(const Large_BasisFunction*,double norm);
     
     virtual std::ostream&    Write(std::ostream&) const;
-    virtual ::TBasisFunction<double>* Clone(        ) const;
+    virtual ::Real_BF* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
     virtual Vec3   Gradient  (const Vec3&) const;
