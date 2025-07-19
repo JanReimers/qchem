@@ -2,11 +2,13 @@
 #ifndef _PolarizedGaussian_BasisSet_H_
 #define _PolarizedGaussian_BasisSet_H_
 
-#include "../DataBase/DB_HF.H"
 #include "CDCache.H"
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Imp.IEClient;
 import qchem.BasisSet.Common;
-
+import qchem.BasisSet.ERI4;
+import qchem.DFT_IBS;
+import qchem.Cluster;
 namespace PolarizedGaussian
 {
 

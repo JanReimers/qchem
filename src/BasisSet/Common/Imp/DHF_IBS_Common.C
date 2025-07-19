@@ -4,9 +4,8 @@ module;
 #include <memory>
 #include <iostream>
 #include <cassert>
-#include "DataBase/HeapDB.H"
-#include "DataBase/DB_DHF.H"
 module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.HeapDB;
 import oml;
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common

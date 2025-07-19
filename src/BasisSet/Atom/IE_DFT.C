@@ -3,6 +3,8 @@
 #include <vector>
 #include <memory>
 #include <iostream>
+#include <cassert>
+
 #include "IE_DFT.H"
 #include "IEC.H"
 import qchem.Fit_IBS;

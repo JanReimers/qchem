@@ -2,8 +2,11 @@
 #ifndef _DB_HF_H_
 #define _DB_HF_H_
 #include <vector>
-#include "HeapDB.H"
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.ERI4;
 import qchem.HF_IBS;
+import Common.UniqueID;
+import qchem.BasisSet.Imp.IEClient;
 
 template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
 {

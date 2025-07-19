@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include <cassert>
 #include "radial/Slater/Rk.H"
 #include "radial/Slater/BS_Common.H"
 import qchem.Irrep_BS;

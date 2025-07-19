@@ -5,6 +5,7 @@
 #include "IE_HF_Angular.H"
 #include "../l/Slater_BS.H"
 import qchem.BasisSet.Common;
+import qchem.Symmetry.ElectronConfiguration;
 
 namespace Atom_ml
 {

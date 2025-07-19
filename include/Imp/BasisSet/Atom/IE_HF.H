@@ -2,10 +2,13 @@
 #ifndef _Atom_IE_HF_H_
 #define _Atom_IE_HF_H_
 
+
 #include "IE.H"
 #include "IE_HF_Angular.H"
-#include "../DataBase/DB_HF.H"
 import qchem.BasisSet.Imp.Cache4;
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Imp.IEClient;
 
 
 template <class T> class AtomIE_BS_2E 

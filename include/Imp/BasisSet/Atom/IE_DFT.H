@@ -4,7 +4,8 @@
 
 #include "IE.H"
 #include "IEC.H"
-#include "../DataBase/DB_DFT.H"
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.Fit_IBS;
 
 template <class T> class AtomIE_DFT 
 : public virtual Primative_Overlap<T>

@@ -1,6 +1,6 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
-  DataBase/HeapDB.C
+  DataBase/HeapDBImp.C
   Imp/Cache4Imp.C
   Imp/ERI4Imp.C
   Imp/BasisSet.C
@@ -27,6 +27,8 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Imp/IntegralEnums.C
   Common/BS_Common.C
   Common/IBS_Common.C
+  DataBase/HeapDB.C
+
 )
 
 target_include_directories(qcBasisSet PRIVATE 

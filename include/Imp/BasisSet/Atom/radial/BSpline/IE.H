@@ -3,10 +3,12 @@
 #define _BSpline_IE_H_
 
 #include "../../BFGrouper.H"
-#include "../../../DataBase/HeapDB.H"
 #include <bspline/Core.h>
 
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Integrals;
 import qchem.BasisSet.Imp.Cache4;
+import qchem.DHF_IBS;
 
 namespace BSpline
 {

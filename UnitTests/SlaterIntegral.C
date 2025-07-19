@@ -8,13 +8,13 @@
 #include <cmath>
 #include <iomanip>
 
-#include "Imp/BasisSet/DataBase/DB_HF.H"
 #include "Imp/BasisSet/Atom/IEC.H"
 
 #include <LASolver/LAParams.H>
 import qchem.Factory;
 import qchem.HF_IBS;
 import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Imp.HeapDB;
 
 import qchem.BasisSet;
 import qchem.Irrep_BS;

@@ -2,7 +2,7 @@
 #ifndef _DB_DFT_H_
 #define _DB_DFT_H_
 
-#include "HeapDB.H"
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.DFT_IBS;
 
 template <class T> class DB_DFT 

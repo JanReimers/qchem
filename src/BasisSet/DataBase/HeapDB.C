@@ -1,312 +1,197 @@
-// File: HeapDB.H  Implement a heap storage integral data base.
-
-#include <iomanip>
+// File: HeapDB.C  Implement an integral data base that uses heap for storage.
+module;
+#include <map>
+#include <cassert>
 #include <vector>
-#include <memory>
-#include "DataBase/HeapDB.H"
-
-import qchem.Fit_IBS;
-import qchem.Irrep_BS;
-import Mesh.Integrator;
-import qchem.Cluster;
-import oml;
-
-//------------------------------------------------------------------------
-//
-//  Construction zone.
-//
-// template <class T> HeapDB<T>::HeapDB()
-//     :itsAnalyticIE   (0)
-// {}
-
-// template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
-//     :itsAnalyticIE(ie)   
-// {
-//     assert(itsAnalyticIE);
-// }
-
-// template <class T> HeapDB<T>::~HeapDB()
-// {
-//     //Report(std::cout);
-//     delete itsAnalyticIE;
-// }
-
-template <class T> size_t Size(const Vector <T>& m) {return m.size();}
-template <class T> size_t Size(const Matrix <T>& m) {return m.size();}
-template <class T> size_t Size(const SMatrix<T>& m) {return m.size();}
-                   size_t Size(const ERI4      & m) {return m.size();}
-template <class M> size_t Size(const std::vector<M> & v) 
-{
-    size_t N=0;
-    for (auto i:v) 
-        N+=Size(i);
-    return N;
-}
-
-template <class K, class M> size_t Size(const std::map<K,M>& m)
-{
-    size_t N=0;
-    for (auto i:m) 
-        N+=Size(i.second);
-    return N;
-}
-
-using std::setw;
-
-// template <class T> void HeapDB<T>::Report(std::ostream& os) const
-// {
-//     size_t N1=Size(its1C)+Size(its1Cx);
-//     size_t N2=Size(its2C)+Size(its2Cx)+Size(its2CNuc);
-//     size_t N3=Size(its3C);
-//     //size_t N4=Size(Jac)+Size(Kab);
-    
-//     os << "Heap DB storage report:" << std::endl;
-//     os << "    " << setw(10) << N1 << " 1 centre integrals." << std::endl;
-//     os << "    " << setw(10) << N2 << " 2 centre integrals." << std::endl;
-//     os << "    " << setw(10) << N3 << " 3 centre integrals." << std::endl;
-//     //os << "    " << setw(10) << N4 << " 4 centre integrals." << std::endl;
-    
-// }
-//---------------------------------------------------------------------------------
-
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap <T>::Overlap() const
-{
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeOverlap();
-    else
-        return i->second;
-}
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic <T>::Kinetic() const
-{
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Grad2,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeKinetic();
-    else
-        return i->second;
-}
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(const Cluster* cl) const
-{
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeNuclear(cl);
-    else
-        return i->second;
-}
+#include "LASolver/LAParams.H"
+export module qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Integrals;
+import qchem.BasisSet.IntegralEnums;
+import qchem.BasisSet.ERI4;
 
 import qchem.DHF_IBS;
+import qchem.HF_IBS;
+import qchem.Fit_IBS;
+import qchem.DFT_IBS;
 
-template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
-{
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Grad2,this->GetID(),rkbs->GetID());
-    if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
-        return cache->itsMats[key] = MakeKinetic(rkbs);
-    else
-        return i->second;
-}
-template <class T> typename Integrals_Base<T>::SMat_ref DB_RestMass<T>::RestMass() const
-{
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeRestMass();
-    else
-        return i->second;
-}
+import Common.UniqueID;
 
-#include "DataBase/DB_DFT.H"
 
-template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const Fit_IBS& c) const
-{ 
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id3c_t key=std::make_tuple(qchem::Overlap3C,this->GetID(),c.GetID());
-    if (auto i = cache->itsERI3s.find(key); i==cache->itsERI3s.end())
-    {
-        return cache->itsERI3s[key] = MakeOverlap3C(c);
-    }
-    else
-        return i->second;
-}
-template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const Fit_IBS& c) const
-{
-    auto cache(DB_Common<T>::itsCache);
-    assert(cache);
-    typename DB_cache<T>::id3c_t key=std::make_tuple(qchem::Repulsion3C,this->GetID(),c.GetID());
-    if (auto i = cache->itsERI3s.find(key); i==cache->itsERI3s.end())
-    {
-        return cache->itsERI3s[key] = MakeRepulsion3C(c);
-    }
-    else
-        return i->second;
-}
-template class DB_DFT<double>;
 
-#include "DataBase/DB_HF.H"
 
-template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db) 
-    : itsDB_BS_2E(db) 
-    {
-        assert(itsDB_BS_2E);
-    };
-template <class T> ERI4 DB_2E<T>::Direct(const obs_t& c) const
+export template  <class T> class DB_cache  : virtual public Integrals_Base<T>
 {
-    assert(itsDB_BS_2E);
-    return itsDB_BS_2E->Direct(this->GetID(),c.GetID());
-}
-template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
-{
-    assert(itsDB_BS_2E);
-    return itsDB_BS_2E->Exchange(this->GetID(),b.GetID()); 
-}
-
-template <class T> void DB_BS_2E<T>::Append(const IrrepIEClient* iec)
-{
-    itsIrreps.push_back(iec);
-}
-template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
-{
-    assert(a<=c);
-    if (Jac.size()==0) MakeDirect();
-    //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
-    assert(Jac.find(a)!=Jac.end());
-    assert(Jac[a].find(c)!=Jac[a].end());
+    typedef UniqueID::IDtype IDType;
+    typedef Integrals_Base<T> Base;
+    typedef typename Base::SMat SMat;    
+    typedef typename Base::Mat Mat;    
+    typedef typename Base::Vec Vec;    
+    typedef typename Base::ERI3 ERI3;    
+public:
+    typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
+    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
+    typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
+    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
     
-    return Jac[a][c];
-}
-template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
+    mutable std::map<id2c_t ,SMat> itsSMats; 
+    mutable std::map< idx_t , Mat> itsMats; 
+    mutable std::map<id2c_t , Vec> itsVecs; 
+    mutable std::map<id3c_t ,ERI3> itsERI3s; 
+    mutable erij_t Jac,Kab;
+};
+ 
+export template <class T> class DB_Common 
+    : virtual public Integrals_Base<T>
+    , virtual public UniqueID
 {
-    assert(a<=b);
-    if (Kab.size()==0) MakeExchange(); 
-    //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
-    assert(Kab.find(a)!=Kab.end());
-    assert(Kab[a].find(b)!=Kab[a].end());
+protected:
+    DB_Common(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
+    const DB_cache<T>* itsCache;
+};
+
+// It would be nice use virtual inheretance from DB_Common<T>, but that opens a contructor hornets nest.
+export template <class T> class DB_Overlap  : public DB_Common<T>, public virtual Integrals_Overlap<T>
+{    
+protected:
+    DB_Overlap(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Overlap() const;
+    virtual typename Integrals_Base<T>::SMat MakeOverlap() const=0;
+};
+export template <class T> class DB_Kinetic    : public DB_Common<T>, public virtual Integrals_Kinetic<T>
+{    
+protected:
+    DB_Kinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const;
+    virtual typename Integrals_Base<T>::SMat MakeKinetic() const=0;
+};
+export template <class T> class DB_Nuclear  : public DB_Common<T>, public virtual Integrals_Nuclear<T>
+{    
+protected:
+    DB_Nuclear(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
+    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
+};
+export template <class T> class DB_XKinetic   : public DB_Common<T>, public virtual Integrals_XKinetic<T>
+{    
+protected:
+    DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+};
+export template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
+{    
+protected:
+    DB_RestMass(const DB_cache<T>* db) : DB_Common<T>(db) {};
+    virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
+    virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
+};
+
+export template <class T> class DB_DFT 
+    : virtual public Integrals_DFT<T>
+    , public DB_Common<T>
+{
+    typedef typename Integrals_Base<T>::ERI3 ERI3;
+protected:
+    DB_DFT(const DB_cache<T>* db) : DB_Common<T>(db) {}
+    virtual const ERI3& Overlap3C  (const Fit_IBS& c) const; //<ab|c>
+    virtual const ERI3& Repulsion3C(const Fit_IBS& c) const; //<a(1)b(1)|1/r12|c(2)>
+    virtual ERI3 MakeOverlap3C  (const Fit_IBS& c) const=0;
+    virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const=0;
+};
+
+export class DB_Fit 
+    : public virtual FitIntegrals
+    , public DB_Common<double>
+{
+protected:
+    DB_Fit(const DB_cache<double>* db) : DB_Common<double>(db) {};
+
+    using Integrals_Overlap<double>::Overlap; 
+    virtual Vec_ref  Charge   () const;   
+    virtual SMat_ref Repulsion() const;
+    virtual  Mat_ref Repulsion(const Fit_IBS&) const;
+    virtual SMat_ref InvOverlap(const LAParams&) const;
+    virtual SMat_ref InvRepulsion(const LAParams&) const;
+    virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
+    virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
+    virtual  Mat_ref Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+
+
+private:
+    // One time calls to un-buffered integral calculations.
+    using FitIntegrals::MakeCharge;
+    virtual Vec  MakeCharge() const=0;
+    // virtual SMat MakeOverlap() const=0;
+    virtual SMat MakeRepulsion() const=0;
+    virtual  Mat MakeRepulsion(const Fit_IBS&) const=0;
     
-    return Kab[a][b];
-}
-template <class T> void DB_BS_2E<T>::MakeDirect() const
-{
-    Jac.clear();
-    // This crashed at run time.  Possibly because of CDcache4 index state and some other cache.
-    // #pragma omp parallel for collapse(1)
-    // for (size_t ia=0;ia<itsIrreps.size();ia++)
-    // {
-    //     auto a=itsIrreps[ia];
-   for (auto a: itsIrreps)
-        for (auto c: itsIrreps) //TODO run from ia n
-        {
-            if (a->GetID()>c->GetID()) continue;
-            ERI4 jac=MakeDirect(a,c);
-            # pragma omp critical
-            Jac[a->GetID()][c->GetID()]=jac;
-        }
-    // }
-}
-template <class T> void DB_BS_2E<T>::MakeExchange() const
-{
-    Kab.clear();
-    for (auto a: itsIrreps)
-        for (auto b: itsIrreps) 
-        {
-            if (a->GetID()>b->GetID()) continue;
-            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);            
-        }
-    
-}
-template class DB_2E<double>;
-template class DB_BS_2E<double>;
+    //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
+    //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
+    static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
 
-#include "DataBase/DB_DHF.H"
+};
 
-template class DB_RKB<double>;
-template class DB_RKBL<double>;
-template class DB_RKBS<double>;
-
-#include "DataBase/DB_Fit.H"
-
-DB_Fit:: Vec_ref DB_Fit::Charge   () const
+export template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
 {
-    assert(itsCache);
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeCharge();
-    else
-        return i->second;
-}
-DB_Fit::SMat_ref DB_Fit::Repulsion() const
+    typedef UniqueID::IDtype IDType;   
+public: 
+    virtual ERI4 Direct  (IDType a,IDType c) const;
+    virtual ERI4 Exchange(IDType a,IDType b) const;
+protected:
+    void Append(const IrrepIEClient*);
+    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
+    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+private:
+    //! Internally called once to build direct and exchange supermatrix tables.
+    virtual void MakeDirect  () const; 
+    virtual void MakeExchange() const; 
+    std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
+    using DB_cache<T>::Jac;
+    using DB_cache<T>::Kab;
+};
+export template <class T> class DB_2E 
+    : virtual public Integrals_HF<T>
+    , virtual public UniqueID
 {
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::Repulsion2C,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeRepulsion();
-    else
-        return i->second;
-}
-DB_Fit:: Mat_ref DB_Fit::Repulsion(const Fit_IBS& b) const
-{
-    DB_cache<double>::idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
-    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
-        return itsCache->itsMats[key] = MakeRepulsion(b);
-    else
-        return i->second;
-}
-DB_Fit::SMat_ref DB_Fit::InvOverlap  (const LAParams& lap) const
-{
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Overlap(),lap);
-    else
-        return i->second;
-}
-DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
-{
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Repulsion(),lap);
-    else
-        return i->second;
-}
-DB_Fit:: Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
-{
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeNorm(m);
-    else
-        return i->second;
-}
-DB_Fit:: Vec_ref DB_Fit::Charge (const Mesh* m        ) const
-{
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeCharge(m);
-    else
-        return i->second;
-
-}
-DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
-{
-    DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
-    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
-        return itsCache->itsMats[key] = MakeOverlap(m,b);
-    else
-        return i->second;
-}
+public:
+    typedef typename Integrals_HF<T>::obs_t obs_t;
+    virtual ERI4 Direct  (const obs_t& c) const;
+    virtual ERI4 Exchange(const obs_t& b) const;
+protected:
+    DB_2E() : itsDB_BS_2E(0) {};
+    DB_2E(const DB_BS_2E<T>* db);
+private:
+    const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
+};
 
 
-#include <LASolver/LASolver.H>
-#include <LASolver/LAParams.H>
-DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 
+export template <class T> class DB_RKB 
+    : virtual public Integrals_RKB<T>
+    , public DB_Overlap<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
+    , public DB_RestMass<T>
+{    
+protected:
+    DB_RKB(const DB_cache<T>* db) :  DB_Overlap<T>(db), DB_Kinetic<T>(db), DB_Nuclear<T>(db), DB_RestMass<T>(db) {}; 
+   
+};
+export template <class T> class DB_RKBL 
+    : virtual public Integrals_RKBL<T>
+    , public DB_Overlap<T>
+    , public DB_XKinetic<T>
+    , public DB_Nuclear<T>
 {
-    LASolver<double>* las=LASolver<double>::Factory(lap);
-    SMat Sinv=las->Inverse(S);
-    delete las;
-    return Sinv;
-}
+protected:
+    DB_RKBL(const DB_cache<T>* db) : DB_Overlap<T>(db), DB_XKinetic<T>(db), DB_Nuclear<T>(db) {};
+};
+export template <class T> class DB_RKBS 
+    : virtual public Integrals_RKBS<T>
+    , public DB_Kinetic<T>
+    , public DB_Nuclear<T>
+{
+protected:
+    DB_RKBS(const DB_cache<T>* db) :  DB_Kinetic<T>(db), DB_Nuclear<T>(db) {};  
+   
+};

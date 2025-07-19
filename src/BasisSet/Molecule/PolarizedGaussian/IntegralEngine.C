@@ -1,6 +1,7 @@
 // File: IntegralEngine.C  Here is where all the integral get calculated.
 
 
+#include <cassert>
 #include <memory>
 #include <cmath>
 #include "PolarizedGaussian/IEClient.H"

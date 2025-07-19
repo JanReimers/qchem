@@ -4,12 +4,12 @@ module;
 #include <iosfwd>
 #include "LASolver/LAParams.H"
 #include "LASolver/fwd.H"
-#include "Imp/BasisSet/DataBase/DB_DHF.H"
-#include "DataBase/HeapDB.H"
 class DiracIntegralTests;
 
 export module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.Irrep_BS;
 import qchem.Fit_IBS;
 import qchem.DFT_IBS;

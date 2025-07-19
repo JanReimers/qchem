@@ -1,5 +1,6 @@
 // File: Atom/kappa/Gaussian_IE.C  Integral Engine for RKB Gaussians.
 
+#include <cassert>
 #include <memory>
 #include "kappa/Gaussian_IE.H"
 #include "radial/Gaussian/Integrals.H"

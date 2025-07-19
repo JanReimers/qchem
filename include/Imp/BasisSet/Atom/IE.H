@@ -3,8 +3,10 @@
 #define _AtomIE_H_
 
 #include "BFGrouper.H"
-#include "../DataBase/HeapDB.H"
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Imp.Cache4;
+import qchem.BasisSet.Integrals;
+import qchem.DHF_IBS;
 
 template <class T> class Primative_Overlap
 {

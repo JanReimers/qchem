@@ -5,6 +5,9 @@
 #include "../l/Slater_IE.H"
 #include "../radial/Slater/IBS_Common.H"
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.HF_IBS;
+import qchem.DFT_IBS;
+
 namespace Atom_ml
 {
 namespace Slater

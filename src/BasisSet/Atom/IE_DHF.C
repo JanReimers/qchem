@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <cassert>
 #include "IE_DHF.H"
 #include "IEC.H"
 import qchem.DHF_IBS;

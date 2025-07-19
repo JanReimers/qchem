@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include <cassert>
 #include "radial/Gaussian/Rk.H"
 #include "radial/Gaussian/BS_Common.H"
 import qchem.Irrep_BS;

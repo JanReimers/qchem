@@ -7,6 +7,8 @@
 #include "../IE.H"
 #include "../radial/Gaussian/BS_Common.H"
 import qchem.BasisSet.Common;
+import qchem.Symmetry.ElectronConfiguration;
+import qchem.HF_IBS;
 
 namespace Atom_ml
 {

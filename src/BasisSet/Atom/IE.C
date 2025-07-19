@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include <cassert>
 #include "IE.H"
 #include "IEC.H"
 import qchem.Cluster;

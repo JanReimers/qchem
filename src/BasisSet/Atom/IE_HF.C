@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <cassert>
 #include "IE_HF.H"
 #include "IEC.H"
 import qchem.BasisSet.ERI4;

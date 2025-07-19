@@ -2,7 +2,7 @@
 #ifndef _DB_DHF_H_
 #define _DB_DHF_H_
 
-#include "HeapDB.H"
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.DHF_IBS;
 
 template <class T> class DB_RKB 

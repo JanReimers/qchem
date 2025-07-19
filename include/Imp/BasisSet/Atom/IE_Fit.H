@@ -3,7 +3,9 @@
 #define _Atom_IE_Fit_H_
 
 #include "IE.H"
-#include "../DataBase/DB_Fit.H"
+
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.Fit_IBS;
 
 class AtomIE_Fit 
 : public virtual Primative_Repulsion<double>

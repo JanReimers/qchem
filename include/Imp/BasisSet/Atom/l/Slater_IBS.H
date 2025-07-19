@@ -4,7 +4,10 @@
 
 #include "../radial/Slater/IBS_Common.H"
 #include "Slater_IE.H"
+import qchem.BasisSet;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.HF_IBS;
+
 namespace Atoml
 {
 namespace Slater

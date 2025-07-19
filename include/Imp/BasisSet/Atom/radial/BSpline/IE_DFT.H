@@ -3,7 +3,7 @@
 #define _BSpline_IE_DFT_H_
 
 #include "IE.H"
-#include "../DataBase/DB_DFT.H"
+import qchem.BasisSet.Imp.HeapDB;
 
 namespace BSpline
 {

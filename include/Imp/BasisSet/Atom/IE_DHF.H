@@ -3,7 +3,7 @@
 #define _Atom_IE_DHF_H_
 
 #include "IE.H"
-#include "../DataBase/DB_DHF.H"
+import qchem.BasisSet.Imp.HeapDB;
 
 template <class T> class AtomIE_RKBL 
     : public AtomIE_Overlap<T>

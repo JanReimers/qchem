@@ -6,7 +6,10 @@
 #include "IEC.H"
 #include "BFGrouper.H"
 #include "../../IE_HF_Angular.H" //For angular interfactes
-#include "../../../DataBase/DB_HF.H"
+import qchem.BasisSet;
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.ERI4;
+import qchem.HF_IBS;
 
 namespace BSpline
 {

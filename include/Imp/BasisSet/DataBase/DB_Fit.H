@@ -3,7 +3,7 @@
 #define _DB_Fit_H_
 
 #include "LASolver/LAParams.H"
-#include "HeapDB.H"
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.Fit_IBS;
 
 class DB_Fit 
