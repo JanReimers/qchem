@@ -2,12 +2,13 @@
 
 
 #include "gtest/gtest.h"
-#include <BasisSet/Factory.H>
+#include "nlohmann/json.hpp"
 #include <LASolver/LAParams.H>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
+import qchem.Factory;
 import qchem.BasisSet;
 import qchem.Irrep_BS;
 import Common.Constants;

@@ -3,7 +3,6 @@
 #include <cmath>
 #include <memory>
 
-#include <BasisSet/Factory.H>
 #include "QchemTester.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <SCFAccelerator/Factory.H>
@@ -16,6 +15,7 @@
 
 PeriodicTable QchemTester::itsPT;
 
+import qchem.Factory;
 import qchem.Irrep_BS;
 import qchem.Cluster;
 import qchem.Atom;

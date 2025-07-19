@@ -5,9 +5,9 @@
 
 #include "QchemTester.H"
 #include <Orbitals/Orbitals.H>
-#include <BasisSet/Factory.H>
 #include <Hamiltonian/Factory.H>
 
+import qchem.Factory;
 import Common.Constants;
 import Mesh;
 import Mesh.Integrator;

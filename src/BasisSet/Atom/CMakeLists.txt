@@ -1,6 +1,6 @@
 add_library(qcAtom_BS) 
 target_sources(qcAtom_BS PRIVATE 
-Factory.C
+FactoryImp.C
 IE_DHF.C
 IE_DFT.C
 IEC.C
@@ -48,6 +48,9 @@ ml/Slater_BS.C
 ml/Slater_BF.C
 ml/Gaussian_BF..C
 ml/Gaussian_IBS.C
+)
+target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+  Factory.C
 )
 target_include_directories(qcAtom_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  

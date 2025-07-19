@@ -6,6 +6,8 @@
 #include <memory>
 
 import Mesh;
+import qchem.Cluster;
+import qchem.BasisSet;
 
 typedef std::shared_ptr<const Cluster> cl_t;
 namespace HamiltonianF

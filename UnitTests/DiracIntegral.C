@@ -2,15 +2,16 @@
 
 
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
 #include <iostream>
 #include <valarray>
 #include <cmath>
 #include <iomanip>
 
 #include <LASolver/LAParams.H>
-#include <BasisSet/Factory.H>
 #include "Imp/BasisSet/DHF_IBS_Common.H"
 
+import qchem.Factory;
 import qchem.BasisSet;
 import qchem.Irrep_BS;
 import qchem.BasisSet.ERI4;

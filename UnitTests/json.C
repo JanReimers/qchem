@@ -2,7 +2,7 @@
 
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
-#include <BasisSet/Factory.H>
+import qchem.Factory;
 import qchem.BasisSet;
 using json = nlohmann::json;
 

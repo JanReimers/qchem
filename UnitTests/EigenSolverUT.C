@@ -4,11 +4,12 @@
 #include <iomanip> 
 #include <cassert>
 #include <cmath>
+#include "nlohmann/json.hpp"
 #include "gtest/gtest.h"
-#include <BasisSet/Factory.H>
 #include <LASolver/LAParams.H>
 #include <LASolver/LASolver.H>
 
+import qchem.Factory;
 import qchem.Irrep_BS;
 import qchem.BasisSet;
 import oml;

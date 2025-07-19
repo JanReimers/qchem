@@ -2,16 +2,17 @@
 
 
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <iomanip>
 
-#include <BasisSet/Factory.H>
 #include "Imp/BasisSet/DataBase/DB_HF.H"
 #include "Imp/BasisSet/Atom/IEC.H"
 
 #include <LASolver/LAParams.H>
+import qchem.Factory;
 import qchem.HF_IBS;
 import qchem.BasisSet.ERI4;
 

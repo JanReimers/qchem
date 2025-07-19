@@ -2,17 +2,18 @@
 
 
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
 #include <bspline/Core.h>
 #include <iostream>
 #include <valarray>
 #include <iomanip>
-#include <BasisSet/Factory.H>
 
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
 #include <LASolver/LAParams.H>
 
 
+import qchem.Factory;
 import qchem.BasisSet;
 import qchem.Irrep_BS;
 import Mesh.Integrator;

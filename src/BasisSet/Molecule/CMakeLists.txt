@@ -1,6 +1,6 @@
 add_library(qcMolecule_BS) 
 target_sources(qcMolecule_BS PRIVATE 
-Factory.C
+FactoryImp.C
 PolarizedGaussian/Triangle3D.C
 PolarizedGaussian/AuxillaryData.C
 PolarizedGaussian/AuxillaryFJ.C
@@ -22,6 +22,9 @@ PolarizedGaussian/Radial/GaussianRF.C
 PolarizedGaussian/BasisFunction.C
 PolarizedGaussian/Polarization.C
 PolarizedGaussian/BasisSet.C
+)
+target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+  Factory.C
 )
 target_include_directories(qcMolecule_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  
