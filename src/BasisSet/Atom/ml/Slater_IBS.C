@@ -5,13 +5,13 @@
 #include <cassert>
 #include <cmath>
 #include <memory>
-#include <Common/pmstream.h>
 
 #include "ml/Slater_IBS.H"
 #include "ml/Slater_BF.H"
 #include "radial/Slater/Integrals.H"
 
 import qchem.Symmetry.Ylm;
+import qchem.Streamable;
 
 namespace Atom_ml
 {

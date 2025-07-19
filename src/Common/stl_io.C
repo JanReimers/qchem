@@ -1,11 +1,13 @@
-#ifndef STL_IO_H_INCLUDED
-#define STL_IO_H_INCLUDED
-
+// File: Common/stl_io.C
+module;
 #include <iostream>
 #include <vector>
 #include <set>
 #include <memory>
+export module qchem.stl_io;
 
+export 
+{
 //
 //  W/R size and data
 //
@@ -27,7 +29,4 @@ template <template<class> class V,class T> std::ostream& Write(std::ostream& os,
 template <class T> std::ostream& operator<<(std::ostream& os,const std::vector<T>& v) {return Write(os,v);}
 template <class T> std::ostream& operator<<(std::ostream& os,const std::set   <T>& s) {return Write(os,s);}
 
-
-
-
-#endif // STL_IO_H_INCLUDED
+} //export block

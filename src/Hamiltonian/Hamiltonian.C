@@ -1,7 +1,6 @@
 // File: HamiltonianImplementation.C  General matrix implementation of a Hamiltonian operator.
 
 
-#include "Common/stl_io.h"
 #include <cassert>
 #include <iostream>
 
@@ -12,6 +11,7 @@
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
 #include <BasisSet/Irrep_BS.H>
+import qchem.stl_io;
 
 HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
 {};

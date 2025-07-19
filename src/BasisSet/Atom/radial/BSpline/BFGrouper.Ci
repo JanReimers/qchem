@@ -2,9 +2,11 @@
 
 #include "radial/BSpline/BFGrouper.H"
 #include "radial/BSpline/IEC.H"
-#include "Common/stl_io.h"
 #include <cassert>
 #include <iostream>
+import qchem.stl_io;
+
+
 using std::cout;
 using std::endl;
 

@@ -1,7 +1,6 @@
 // File: ContractedGaussianRF.C  Contracted Gaussian in 3D space.
 
 
-#include "Common/stl_io.h"
 #include <iostream>
 #include <iomanip>
 
@@ -10,6 +9,7 @@
 #include "PolarizedGaussian/Block.H"
 #include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
+import qchem.stl_io;
 
 namespace PolarizedGaussian
 {

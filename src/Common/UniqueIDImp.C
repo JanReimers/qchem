@@ -1,20 +1,20 @@
 // File: UniqueIDImp.C  Anything derived from this will have a unique ID.
 module;
 
-#include "Common/pmstream.h"
 #include <fstream>
 #include <cassert>
 #include <stdlib.h>
 #include <iostream>
 
 import Common.UniqueID; 
+import qchem.Streamable;
 
 export module Common.UniqueIDImp;
 
 
 export class UniqueIDImp 
     : public virtual UniqueID
-    , public virtual PMStreamableObject
+    , public virtual Streamable
 {
 public:
     typedef int IDtype;

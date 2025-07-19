@@ -2,8 +2,8 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <Common/pmstream.h>
 module qchem.Symmetry.Irrep;
+import qchem.Streamable;
 
 const size_t Irrep_QNs::ms_max=3; //three states Up/Down and None.
 

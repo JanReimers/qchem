@@ -1,14 +1,14 @@
 // File: Irrep_QNs.C  Combine Symmetry with Spin.
 module;
 #include <memory>
-#include <Common/pmstream.h>
 
 export module qchem.Symmetry.Irrep;
 export import qchem.Symmetry;
 export import qchem.Symmetry.Spin;
+import qchem.Streamable;
 
 export struct Irrep_QNs
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {   
     typedef std::shared_ptr<const Symmetry> sym_t;
     Irrep_QNs() : ms(Spin::None), sym(0) {};

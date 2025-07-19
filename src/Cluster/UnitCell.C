@@ -1,12 +1,12 @@
 // File: UnitCell.C  Unit cell for a lattice.
 module;
-#include "Common/pmstream.h"
-
+#include <iosfwd>
 export module Cluster.UnitCell;
 import oml;
+import qchem.Streamable;
 
 export class UnitCell
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {
 public:
      using RVec3=Vector3D<double>;

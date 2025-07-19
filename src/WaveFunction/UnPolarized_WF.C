@@ -3,9 +3,9 @@
 #include <iomanip>
 #include <iostream>
 #include "tabulate/table.hpp"
-#include <Common/pmstream.h>
 #include "UnPolarized_WF.H"
 import qchem.Symmetry;
+import qchem.Streamable;
 
 UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
     : Composite_WF(bs,ec,acc)

@@ -4,8 +4,8 @@
 
 #include "RadialFunction.H"
 #include "Polarization.H"
-#include "Common/pmstream.h"
 #include <cassert>
+import qchem.Streamable;
 
 namespace PolarizedGaussian
 {
@@ -16,7 +16,7 @@ namespace PolarizedGaussian
 //  with differing polarizations and the same radial part.
 //
 class Block
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {
 public:
     Block(                         );

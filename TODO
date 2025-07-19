@@ -745,7 +745,7 @@ Priority 3:
         -boost::serialization of OML objects.
         -Also consider cereal.
         -Does UniqueID really need to enforce Read/Write?
-        Tightly couple with PMStreamableObject which is tightly coupled with
+        Tightly couple with Streamable which is tightly coupled with
         the Read/Write functions throughout.
 
     Fixed: -Fix valgrind errors

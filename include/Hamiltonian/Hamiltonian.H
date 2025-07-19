@@ -3,8 +3,8 @@
 #define _Hamiltonian_H_
 
 #include <Hamiltonian/fwd.H>
-#include "Common/pmstream.h"
 #include <ChargeDensity/ChargeDensity.H>
+import qchem.Streamable;
 //
 //  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.
 //  We have two distinct types of HT:
@@ -12,7 +12,7 @@
 //  Dynamic_HT - Vee, Vac which depend on the CD, and change with each iteration.
 //
 class Static_HT
-    : public virtual PMStreamableObject
+    : public virtual Streamable
     , public virtual Static_CC
 {
 public:
@@ -25,7 +25,7 @@ public:
 };
 
 class Dynamic_HT
-    : public virtual PMStreamableObject
+    : public virtual Streamable
     , public virtual Dynamic_CC
 {
 public:
@@ -48,7 +48,7 @@ public:
 
 
 class Hamiltonian
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {
 public:
     typedef SMatrix<double> SMat;

@@ -1,15 +1,15 @@
 // File: Atom.C  A Atom like data type.
 module;
 #include <iostream>
-#include <Common/pmstream.h>
 
 export module qchem.Atom;
 import Common.UniqueIDImp;
 import Mesh;
 import oml;
+import qchem.Streamable;
 
 export class Atom
-    : public virtual PMStreamableObject
+    : public virtual Streamable
     , public UniqueIDImp
 {
 public:

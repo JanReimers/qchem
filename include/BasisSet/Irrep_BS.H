@@ -8,13 +8,13 @@
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
 #include <LASolver/LAParams.H>
-#include "Common/pmstream.h" 
 
 import Common.UniqueID; 
 import Common.Iterators;
 import oml;
 import qchem.Symmetry;
 import qchem.Symmetry.ElectronConfiguration;
+import qchem.Streamable;
 
 //----------------------------------------------------------------------------
 //
@@ -27,7 +27,7 @@ import qchem.Symmetry.ElectronConfiguration;
 
 class IrrepBasisSet
     : public virtual UniqueID
-    , public virtual PMStreamableObject
+    , public virtual Streamable
 {
 public:
     typedef BasisFunction bf_t;
@@ -42,7 +42,7 @@ public:
     virtual size_t size() const {return GetNumFunctions();}
     virtual sym_t  GetSymmetry() const=0;
 //
-//  PMStreamableObject stuff.
+//  Streamable stuff.
 //
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
     static  IrrepBasisSet* Factory(std::istream&    )        ;

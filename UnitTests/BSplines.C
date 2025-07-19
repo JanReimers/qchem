@@ -10,7 +10,6 @@
 
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
-#include "Common/stl_io.h"
 #include <LASolver/LAParams.H>
 #include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
@@ -22,6 +21,7 @@ import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry;
 import oml;
+import qchem.stl_io;
 
 using std::cout;
 using std::endl;

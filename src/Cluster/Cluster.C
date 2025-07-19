@@ -1,6 +1,5 @@
 // File: Cluster.C  A cluster of atoms, Molecule, unit cell, solid all with spatial struture defined.
 module;
-#include "Common/pmstream.h"
 #include <vector>
 #include <memory>
 
@@ -9,10 +8,11 @@ import Common.UniqueID;
 import Mesh; 
 import qchem.Atom;
 import oml.Vector3D;
+import qchem.Streamable;
 
 export class Cluster
     : public virtual UniqueID
-    , public virtual PMStreamableObject
+    , public virtual Streamable
 {
 public:
     typedef Vector3D<double> RVec3;

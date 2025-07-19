@@ -2,8 +2,9 @@
 #ifndef _Triangle_H_
 #define _Triangle_H_
 
+#include <iosfwd>
 #include <vector>
-#include "Common/pmstream.h"
+import qchem.Streamable;
 
 #if DEBUG
 #define CHECK(i,j,k) Check(i,j,k)
@@ -14,7 +15,7 @@
 //  Implements an triangle data structure, where N+L+M is always < MaxSum.
 //
 class Triangle3D
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {
 public:
     Triangle3D(   );

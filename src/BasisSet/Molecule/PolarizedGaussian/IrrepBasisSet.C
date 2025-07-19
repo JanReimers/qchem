@@ -1,6 +1,5 @@
 // File: BasisSet.C  Polarized Gaussian basis set, for MO calculations.
 
-#include "Common/stl_io.h"
 #include <cassert>
 #include <algorithm> //Need std::max
 #include <iostream>
@@ -21,6 +20,7 @@
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Symmetry.Unit;
+import qchem.stl_io;
 
 namespace PolarizedGaussian
 {

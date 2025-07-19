@@ -4,13 +4,13 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include <Common/pmstream.h>
 
 #include "kappa/Gaussian_IBS.H"
 #include "kappa/Gaussian_BF.H"
 #include "radial/Gaussian/Integrals.H"
 
 import qchem.Symmetry.Okmj;
+import qchem.Streamable;
 
 using std::endl;
 

@@ -18,7 +18,7 @@ public:
     Vnn(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd               ) const;
-    // Required by PMStreamableObject
+    // Required by Streamable
     virtual std::ostream& Write(std::ostream&) const;
     virtual std::istream& Read (std::istream&)      ;
 

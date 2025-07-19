@@ -7,11 +7,11 @@
 #include <map>
 #include <BasisSet/fwd.H>
 #include "Polarization.H"
-#include "Common/pmstream.h"
 
 import Common.UniqueID; 
 import qchem.Cluster;
 import qchem.ScalarFunction;
+import qchem.Streamable;
 
 class  Polarization;
 
@@ -33,7 +33,7 @@ class  Block;
 class RadialFunction
     : public virtual UniqueID
     , public virtual ScalarFunction<double>
-    , public virtual PMStreamableObject
+    , public virtual Streamable
 {
 public:
     typedef std::set   <double> sd_t;

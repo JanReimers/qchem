@@ -2,9 +2,9 @@
 
 
 
-#include "Common/stl_io.h"
 #include <iomanip>
 #include "PolarizedGaussian/Block.H"
+import qchem.stl_io;
 
 namespace PolarizedGaussian
 {

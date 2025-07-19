@@ -5,13 +5,13 @@
 #include <iomanip>
 #include <cmath>
 #include <memory>
-#include <Common/pmstream.h>
 
 #include "kappa/Slater_IBS.H"
 #include "kappa/Slater_BF.H"
 #include "radial/Slater/Integrals.H"
 
 import qchem.Symmetry.Okmj;
+import qchem.Streamable;
 
 using std::endl;
 

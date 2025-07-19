@@ -1,10 +1,11 @@
 // File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 
 #include <memory>
-#include <Common/pmstream.h>
 #include "kappa/Slater_IBS.H"
 #include "radial/Slater/ExponentScaler.H"
 #include "kappa/Slater_BS.H"
+
+import qchem.Streamable;
 
 namespace Atom_kappa
 {

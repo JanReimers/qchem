@@ -3,12 +3,13 @@
 #define _ExchangeFunctional_H_
 
 
+#include <iosfwd>
 #include <ChargeDensity/fwd.H>
-#include "Common/pmstream.h"
 import qchem.ScalarFunction;
+import qchem.Streamable;
 
 class ExFunctional
-    : public virtual PMStreamableObject
+    : public virtual Streamable
     , public virtual ScalarFunction<double>
 {
 public:

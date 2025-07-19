@@ -2,9 +2,6 @@
 // stl_io.C Develop stl io code.
 
 #include "gtest/gtest.h"
-#include "oml/vector.h"
-#include "oml/imp/stream.h"
-#include "Common/stl_io.h"
 #include <vector>
 #include <ostream>
 #include <sstream>
@@ -12,6 +9,7 @@
 
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.stl_io;
 
 using std::ostream;
 using std::istream;

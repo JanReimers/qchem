@@ -1,7 +1,9 @@
 // File: Triangle.C  A triangular data structure.
 #include "PolarizedGaussian/Triangle3D.H"
-#include "Common/stl_io.h"
 #include <cassert>
+#include <iostream>
+
+import qchem.stl_io;
 
 Triangle3D::Triangle3D()
     : N(-1)

@@ -2,8 +2,8 @@
 #ifndef _BasisFunction_H_
 #define _BasisFunction_H_
 
-#include "Common/pmstream.h"
 #include <iosfwd>
+import qchem.Streamable;
 
 //--------------------------------------------------------------
 //
@@ -13,7 +13,7 @@
 //  be real.
 //
 class BasisFunction
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {
 public:
     virtual ~BasisFunction()  {};

@@ -1,11 +1,12 @@
 module;
-#include <Common/pmstream.h>
-#include "Common/stl_io.h"
 #include <iomanip>
 #include <cassert>
+#include <memory>
 
 module qchem.Molecule;
 import qchem.Cluster.MoleculeMesh;
+import qchem.stl_io;
+import qchem.Streamable;
 
 Molecule::Molecule()
     : itsNumElectrons(0)

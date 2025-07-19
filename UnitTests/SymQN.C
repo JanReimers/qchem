@@ -1,13 +1,13 @@
 // File: SymQN.C  Unite tests for symmetrys and QN classes
 
 #include "gtest/gtest.h"
-#include <Common/pmstream.h>
 #include <set>
 #include <iostream>
 import qchem.Symmetry.Orbital;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 import qchem.Symmetry.Okmj;
+import qchem.Streamable;
 
 using std::cout;
 using std::endl;

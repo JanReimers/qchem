@@ -1,7 +1,8 @@
 // File: Triangle.C  A triangular data structure.
 #include "radial/Triangle2D.H"
-#include "Common/stl_io.h"
 #include <cassert>
+#include <iostream>
+import qchem.stl_io;
 
 Triangle2D::Triangle2D()
     : N(-1)

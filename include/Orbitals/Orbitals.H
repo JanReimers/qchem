@@ -6,12 +6,13 @@
 #include <memory>
 
 #include <ChargeDensity/fwd.H>
-#include "Common/pmstream.h"
 import Common.Iterators;
 import qchem.Symmetry.Orbital;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
 import qchem.VectorFunction;
+import qchem.Streamable;
+
 //#############################################################
 //
 //  An orbital is 1) a real space function, 2) it holds some number
@@ -20,7 +21,7 @@ import qchem.VectorFunction;
 //  or complex valued.
 //
 class Orbital
-    : public virtual PMStreamableObject
+    : public virtual Streamable
 {
 public:
     virtual ~Orbital() {};
@@ -61,7 +62,7 @@ public:
 //  templated portion is independant of whether the orbitals are real
 //  or complex valued.
 //
-class Orbitals : public virtual PMStreamableObject
+class Orbitals : public virtual Streamable
 {
     typedef Vector<double> RVec;
 public:

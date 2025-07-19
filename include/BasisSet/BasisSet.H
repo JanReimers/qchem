@@ -7,7 +7,6 @@
 
 #include <LASolver/fwd.H>
 #include <BasisSet/fwd.H>
-#include "Common/pmstream.h"
 #include <LASolver/LAParams.H>
 
 
@@ -16,13 +15,15 @@ import Common.Iterators;
 import qchem.Cluster;
 import qchem.Symmetry;
 import qchem.Symmetry.ElectronConfiguration;
+import qchem.Streamable;
+
 //----------------------------------------------------------------------------
 //
 //  Interface for a BasisSet which is assumed to a list of Irrep Basis Sets.
 //
 class BasisSet
     : public virtual UniqueID
-    , public virtual PMStreamableObject
+    , public virtual Streamable
 {
 public:
     typedef Orbital_IBS bs_t; 
