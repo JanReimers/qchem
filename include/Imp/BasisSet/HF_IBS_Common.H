@@ -2,7 +2,9 @@
 #ifndef _HF_IBS_Common_H_
 #define _HF_IBS_Common_H_
 
-#include <BasisSet/HF_IBS.H>
+#include "BasisSet/Integrals.H"
+
+import qchem.HF_IBS;
 template <class T> class Orbital_HF_IBS_Common
     : public virtual TOrbital_HF_IBS<T>
 {

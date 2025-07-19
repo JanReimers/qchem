@@ -4,7 +4,7 @@
 
 #include <ChargeDensity/fwd.H>
 #include <Fitting/FittedFunctionClient.H>
-import qchem.Irrep_BS;
+import qchem.HF_IBS;
 import qchem.Symmetry.Spin;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;

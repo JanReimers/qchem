@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "Vxc.H"
-#include <BasisSet/HF_IBS.H>
+import qchem.HF_IBS;
 #include <ChargeDensity/ChargeDensity.H>
 #include <Hamiltonian/TotalEnergy.H>
 

@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "IrrepCD.H"
-#include <BasisSet/HF_IBS.H>
+import qchem.HF_IBS;
 #include <BasisSet/DFT_IBS.H>
 
 import qchem.Fit_IBS;

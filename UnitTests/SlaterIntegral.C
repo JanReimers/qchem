@@ -13,7 +13,7 @@
 #include "Imp/BasisSet/ERI4.H"
 
 #include <LASolver/LAParams.H>
-#include <BasisSet/HF_IBS.H>
+import qchem.HF_IBS;
 
 import qchem.BasisSet;
 import qchem.Irrep_BS;

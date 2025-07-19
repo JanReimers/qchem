@@ -1,13 +1,12 @@
 // File: HF_IBS.H  Interface for a Hartree-Fock (HF) Orbital Irrep Basis Set.
-#ifndef _HF_IBS_H_
-#define _HF_IBS_H_
-
+module;
 #include <BasisSet/Integrals.H>
-import qchem.Irrep_BS;
+export module qchem.HF_IBS;
+export import qchem.Irrep_BS;
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
 //! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)
-template <class T> class Integrals_HF : public virtual Integrals_Base<T>
+export template <class T> class Integrals_HF : public virtual Integrals_Base<T>
 {
 public:
     typedef TOrbital_IBS<T> obs_t;
@@ -19,7 +18,7 @@ public:
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
 //! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)
 //! using IBS IDs.
-template <class T> class Integrals_BS_2E
+export template <class T> class Integrals_BS_2E
 {
 public:
     typedef UniqueID::IDtype IDType;   
@@ -28,7 +27,7 @@ public:
 };
 
 
-template <class T> class TOrbital_HF_IBS
+export template <class T> class TOrbital_HF_IBS
     : public virtual TOrbital_IBS<T>
     , public virtual Integrals_HF<T> //Two electron integrals used for HF
 {
@@ -43,4 +42,3 @@ public:
 
 };
 
-#endif //_HF_IBS_H_
