@@ -3,8 +3,8 @@
 #define _Atom_ml_Slater_BS_H_
 
 #include "IE_HF_Angular.H"
-#include "../../BS_Common.H"
 #include "../l/Slater_BS.H"
+import qchem.BasisSet.Common;
 
 namespace Atom_ml
 {

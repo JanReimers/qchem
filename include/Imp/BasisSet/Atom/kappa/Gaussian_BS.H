@@ -2,8 +2,8 @@
 #ifndef _Atom_kappa_Gaussian_BS_H_
 #define _Atom_kappa_Gaussian_BS_H_
 
-#include "../../BS_Common.H"
 #include "../DataBase/HeapDB.H"
+import qchem.BasisSet.Common;
 
 namespace Atom_kappa
 {

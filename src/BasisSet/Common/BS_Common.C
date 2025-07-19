@@ -1,17 +1,17 @@
-// File: BasisSet/TCommon.H
-#ifndef _BasisSet_TCommon_H_
-#define _BasisSet_TCommon_H_
-
+// File: IBS_Common.C  Irrep Basis set common implementation.
+module;
 #include <cstddef>
 #include <iosfwd>
 #include "LASolver/LAParams.H"
-import Common.UniqueIDImp;
-import qchem.BasisSet;
-
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 
-class BS_Common
+export module qchem.BasisSet.Common;
+import Common.UniqueIDImp;
+import qchem.BasisSet;
+
+
+export class BS_Common
     : public virtual BasisSet
     , private UniqueIDImp
 {
@@ -39,4 +39,3 @@ protected:
     bsv_t itsBasisSets;
 };
 
-#endif // _BasisSet_TCommon_H_

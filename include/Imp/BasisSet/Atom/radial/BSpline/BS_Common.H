@@ -2,8 +2,8 @@
 #ifndef _Atom_radial_BSpline_BS_Common_H_
 #define _Atom_radial_BSpline_BS_Common_H_
 
-#include "../../../BS_Common.H"
 #include "IE_HF.H"
+import qchem.BasisSet.Common;
 
 
 namespace BSpline

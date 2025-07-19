@@ -4,10 +4,9 @@ module;
 #include <memory>
 #include <LASolver/fwd.H>
 #include <LASolver/LAParams.H>
-import qchem.BasisSet.Integrals;
-class BS_Common;
 
 export module qchem.Irrep_BS;
+import qchem.BasisSet.Integrals;
 
 export import qchem.BasisFunction;
 import Common.UniqueID; 
@@ -73,7 +72,7 @@ public:
         return D_iterator_proxy<D,iterator>(begin(),end(),start);
     }
     
-    friend class BS_Common;
+    // friend class BS_Common;
 };
 
 //----------------------------------------------------------------------------

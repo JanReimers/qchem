@@ -4,9 +4,9 @@
 
 #include <vector>
 #include "IE_HF_Angular.H"
-#include "../../BS_Common.H"
 #include "../IE.H"
 #include "../radial/Gaussian/BS_Common.H"
+import qchem.BasisSet.Common;
 
 namespace Atom_ml
 {

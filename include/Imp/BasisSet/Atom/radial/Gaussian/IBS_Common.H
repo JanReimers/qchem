@@ -3,7 +3,7 @@
 #define _Atom_radial_Gaussian_IBS_Common_H_
 
 #include "../../IEC.H"
-#include "../../../IBS_Common.H"
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 
 
 namespace Gaussian

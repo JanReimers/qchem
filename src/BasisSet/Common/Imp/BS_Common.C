@@ -1,8 +1,10 @@
-// File: BasisSetImp/TCommon.H
-
+// File: BasisSet/Imp/BS_Common.C  Common implementation for BasisSet
+module;
 #include <cassert>
 #include <memory>
-#include "BS_Common.H"
+#include "LASolver/LAParams.H"
+
+module qchem.BasisSet.Common;
 import qchem.stl_io;
 import qchem.Irrep_BS;
 
@@ -31,9 +33,6 @@ BasisSet::symv_t BS_Common::GetSymmetries  () const
     for (auto& b:itsBasisSets) symv.push_back(b->GetSymmetry());
     return symv;
 }
-
-
-
 
 //
 //  StreamableObject stuff.

@@ -4,7 +4,7 @@
 
 #include "IE_HF_Angular.H"
 #include "../radial/Slater/BS_Common.H"
-#include "../../BS_Common.H"
+import qchem.BasisSet.Common;
 
 namespace Atoml
 {

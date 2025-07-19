@@ -3,9 +3,9 @@
 #define _PolarizedGaussian_BasisSet_H_
 
 #include "IEClient.H"
-#include "../../BS_Common.H"
 #include "../DataBase/DB_HF.H"
 #include "CDCache.H"
+import qchem.BasisSet.Common;
 
 namespace PolarizedGaussian
 {

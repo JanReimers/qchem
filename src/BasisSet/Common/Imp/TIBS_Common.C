@@ -1,12 +1,12 @@
 // File: TBasisSetImplementation.C
-
-
+module;
 #include <tuple>
 #include <iostream>
 #include <vector>
 #include <LASolver/LAParams.H>
 #include <LASolver/LASolver.H>
-#include "TIBS_Common.H"
+
+module qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisFunction;
 import oml;
 

@@ -2,17 +2,14 @@
 #ifndef _PolarizedGaussian_IrrepBasisSet_H_
 #define _PolarizedGaussian_IrrepBasisSet_H_
 
-#include "../../IBS_Common.H"
-#include "../../TIBS_Common.H"
-#include "../../DFT_IBS_Common.H"
 #include "../../HF_IBS_Common.H"
-#include "../../Fit_IBS_Common.H"
 #include "Polarization.H"
 #include "IntegralEngine.H"
 #include "IEClient.H"
 #include "Block.H"
 #include <vector>
 #include <memory>
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 
 namespace PolarizedGaussian
 {

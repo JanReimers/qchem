@@ -6,9 +6,9 @@
 #include <vector>
 #include "FittedVxc.H"
 #include "LDAVxc.H"
-import qchem.DFT_IBS;
 #include <Hamiltonian/TotalEnergy.H>
 #include <ChargeDensity/ChargeDensity.H>
+import qchem.DFT_IBS;
 
 FittedVxc::FittedVxc()
     : FittedFunctionImp<double>( )

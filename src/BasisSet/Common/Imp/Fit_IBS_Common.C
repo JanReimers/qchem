@@ -1,10 +1,9 @@
-// File: TBasisSetImplementation.C
-
+// File: Imp/Fit_IBS_Common.C Common implementation for Irrep fit basis set.
+module;
 #include <iostream>
 #include <cassert>
 #include <memory>
-#include "Fit_IBS_Common.H"
-
+module qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import Mesh.Integrator;
 import oml;
 

@@ -1,11 +1,10 @@
-// File: BasisSetImplementation.C  General basis set implementation as a list.
-
-
-
+// File: Imp/IBS_Common.C  Irrep Basis set common implementation.
+module;
 #include <iosfwd>
 #include <iomanip>
 #include <memory>
-#include "IBS_Common.H"
+#include <cassert>
+module qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisFunction;
 import qchem.Symmetry;
 import qchem.stl_io;

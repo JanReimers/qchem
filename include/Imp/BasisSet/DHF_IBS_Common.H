@@ -4,8 +4,8 @@
 
 #include "DataBase/DB_DHF.H"
 import qchem.DHF_IBS;
-#include "TIBS_Common.H"
-#include "IBS_Common.H"
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.Symmetry;
 
 class DiracIntegralTests;
 template <class T> class Orbital_RKB_IBS_Common

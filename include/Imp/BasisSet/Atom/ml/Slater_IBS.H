@@ -4,11 +4,8 @@
 
 #include "../l/Slater_IE.H"
 #include "../radial/Slater/IBS_Common.H"
-#include "../../TIBS_Common.H"
-#include "../../DFT_IBS_Common.H"
 #include "../../HF_IBS_Common.H"
-#include "../../Fit_IBS_Common.H"
-
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 namespace Atom_ml
 {
 namespace Slater
