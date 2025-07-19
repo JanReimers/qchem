@@ -57,7 +57,7 @@ Large_BasisFunction::Vec3 Large_BasisFunction::Gradient(const Vec3& r) const
     return ret;
 }
 
-BasisFunction* Large_BasisFunction::Clone() const
+TBasisFunction<double>* Large_BasisFunction::Clone() const
 {
     return new  Large_BasisFunction(*this);
 }
@@ -96,7 +96,7 @@ Large_BasisFunction::Vec3 Small_BasisFunction::Gradient(const Vec3& r) const
     return Pr->Gradient(r);
 }
 
-::BasisFunction* Small_BasisFunction::Clone() const
+::TBasisFunction<double>* Small_BasisFunction::Clone() const
 {
     return new  Small_BasisFunction(*this);
 }

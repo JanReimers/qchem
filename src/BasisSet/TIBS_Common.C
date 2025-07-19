@@ -7,7 +7,7 @@
 #include <LASolver/LAParams.H>
 #include <LASolver/LASolver.H>
 #include "TIBS_Common.H"
-#include <BasisSet/BasisFunction.H>
+import qchem.BasisFunction;
 import oml;
 
 LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});

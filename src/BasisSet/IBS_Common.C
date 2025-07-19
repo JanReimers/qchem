@@ -2,10 +2,11 @@
 
 
 
+#include <iosfwd>
 #include <iomanip>
 #include <memory>
-#include <BasisSet/BasisFunction.H>
 #include "IBS_Common.H"
+import qchem.BasisFunction;
 import qchem.Symmetry;
 import qchem.stl_io;
 

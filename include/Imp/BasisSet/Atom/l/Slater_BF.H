@@ -2,7 +2,8 @@
 #ifndef _Atom_l_Slater_BF_H_
 #define _Atom_l_Slater_BF_H_
 
-#include <BasisSet/BasisFunction.H>
+#include <iosfwd>
+import qchem.BasisFunction;
 
 namespace Atoml
 {

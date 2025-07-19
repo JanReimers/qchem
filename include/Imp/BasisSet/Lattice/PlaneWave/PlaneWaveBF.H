@@ -3,8 +3,8 @@
 #define _PlaneWaveBF_H_
 
 
-#include <BasisSet/BasisFunction.H>
-#include "oml/vector3d.h"
+#include <iosfwd>
+import qchem.BasisFunction;
 
 class PlaneWaveBF
     : public TBasisFunction<std::complex<double> >

@@ -16,7 +16,7 @@ ERI4.C
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   BasisSet.C
   Irrep_BS.C
- 
+  BasisFunction.C;
 )
 
 target_include_directories(qcBasisSet PRIVATE 

@@ -4,8 +4,8 @@
 #include <cmath>
 #include "radial/Slater/IBS_Common.H"
 #include "radial/Slater/Integrals.H"
-#include <BasisSet/BasisFunction.H>
 
+import qchem.BasisFunction;
 import qchem.Symmetry;
 import oml;
 

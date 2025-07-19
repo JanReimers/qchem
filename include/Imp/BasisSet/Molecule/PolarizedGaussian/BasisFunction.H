@@ -5,7 +5,7 @@
 
 #include "Polarization.H"
 #include "RadialFunction.H"
-#include <BasisSet/BasisFunction.H>
+import qchem.BasisFunction;
 import oml;
 
 namespace PolarizedGaussian
@@ -18,7 +18,7 @@ public:
     BasisFunction(                                          );
     BasisFunction(const RadialFunction*, const Polarization&, double norm);
 
-    virtual bool   operator==(const ::BasisFunction&) const;
+    virtual bool   operator==(const ::TBasisFunction<double>&) const;
  
     virtual std::ostream&       Write(std::ostream&   ) const;
     virtual std::istream&       Read (std::istream&   )      ;

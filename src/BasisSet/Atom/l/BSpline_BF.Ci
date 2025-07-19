@@ -51,7 +51,7 @@ template <size_t K> typename BasisFunction<K>::Vec3 BasisFunction<K>::Gradient(c
     return rhat*itsNormalization*itsDxSpline(mr);
 }
 
-template <size_t K> ::BasisFunction* BasisFunction<K>::Clone() const
+template <size_t K> ::TBasisFunction<double>* BasisFunction<K>::Clone() const
 {
     return new  BasisFunction<K>(*this);
 }

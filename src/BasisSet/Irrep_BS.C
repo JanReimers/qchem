@@ -10,6 +10,7 @@ class BS_Common;
 
 export module qchem.Irrep_BS;
 
+export import qchem.BasisFunction;
 import Common.UniqueID; 
 import Common.Iterators;
 import oml;
@@ -32,7 +33,7 @@ export class IrrepBasisSet
     , public virtual Streamable
 {
 public:
-    typedef BasisFunction bf_t;
+    typedef TBasisFunction<double> bf_t;
     typedef std::vector<std::shared_ptr<bf_t>> bfv_t;
     typedef bfv_t::      iterator       iterator;
     typedef bfv_t::const_iterator const_iterator;

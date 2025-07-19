@@ -2,7 +2,8 @@
 #ifndef _Atom_kappa_Gaussian_BF_H_
 #define _Atom_kappa_Gaussian_BF_H_
 
-#include <BasisSet/BasisFunction.H>
+#include <iosfwd>
+import qchem.BasisFunction;
 
 namespace Atom_kappa
 {
@@ -19,7 +20,7 @@ public:
     Large_BasisFunction(double theExponent, int kappa, double norm);
     
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual BasisFunction* Clone(        ) const;
+    virtual TBasisFunction<double>* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
     virtual Vec3   Gradient  (const Vec3&) const;
@@ -47,7 +48,7 @@ public:
     Small_BasisFunction(const Large_BasisFunction*,double norm);
 
     virtual std::ostream&    Write(std::ostream&) const;
-    virtual ::BasisFunction* Clone(        ) const;
+    virtual ::TBasisFunction<double>* Clone(        ) const;
 
     virtual double operator()(const Vec3&) const;
     virtual Vec3   Gradient  (const Vec3&) const;

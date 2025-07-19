@@ -2,8 +2,9 @@
 #ifndef _Atom_ml_BSpline_BF_H_
 #define _Atom_ml_BSpline_BF_H_
 
-#include <BasisSet/BasisFunction.H>
 #include <bspline/Core.h>
+#include <iosfwd>
+import qchem.BasisFunction;
 
 namespace Atom_ml
 {
@@ -19,7 +20,7 @@ public:
     // BasisFunction();
     BasisFunction(const spline_t&, int l, int ml, double norm);
     
-    virtual ::BasisFunction* Clone(        ) const;
+    virtual ::TBasisFunction<double>* Clone(        ) const;
 
 private:
     int      ml;

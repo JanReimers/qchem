@@ -8,14 +8,12 @@ class M4;
 
 class Fit_IBS;
 
-class BasisFunction;
 
 template <class T> class TOrbital_DFT_IBS;
 template <class T> class  TOrbital_HF_IBS;
 template <class T> class Orbital_RKBL_IBS;
 template <class T> class Orbital_RKBS_IBS;
 
-template <class T> class TBasisFunction;
 
 namespace qchem
 {

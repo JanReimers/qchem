@@ -3,9 +3,10 @@
 #include <iostream>
 #include <iomanip>
 
+#include <iosfwd>
 #include "radial/Gaussian/IBS_Common.H"
 #include "radial/Gaussian/Integrals.H"
-#include <BasisSet/BasisFunction.H>
+import qchem.BasisFunction;
 import qchem.Symmetry;
 import oml;
 

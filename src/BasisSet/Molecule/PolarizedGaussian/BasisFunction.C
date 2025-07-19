@@ -30,7 +30,7 @@ BasisFunction::BasisFunction(const RadialFunction* theRF,const Polarization& the
     assert(itsRadial);
 };
 
-bool BasisFunction::operator==(const ::BasisFunction& bf) const
+bool BasisFunction::operator==(const ::TBasisFunction<double>& bf) const
 {
     assert(itsRadial);
     const BasisFunction& pgbf = dynamic_cast<const BasisFunction&>(bf);
