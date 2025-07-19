@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "Kinetic.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <Hamiltonian/TotalEnergy.H>
 import qchem.Irrep_BS;
 

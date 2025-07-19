@@ -1,7 +1,7 @@
 // File: DiracKinetic.C  Kinetic energy term for the Dirac hamiltonian.
 
 #include <iostream>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <Hamiltonian/TotalEnergy.H>
 #include "DiracKinetic.H"
 

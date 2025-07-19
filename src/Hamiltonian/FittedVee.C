@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "FittedVee.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <ChargeDensity/FittedCD.H>
 #include <ChargeDensity/Factory.H>
 #include <Hamiltonian/TotalEnergy.H>

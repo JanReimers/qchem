@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 
-#include <ChargeDensity/fwd.H>
+import qchem.ChargeDensity;
 import Common.Iterators;
 import qchem.Symmetry.Orbital;
 import qchem.Symmetry.ElectronConfiguration;

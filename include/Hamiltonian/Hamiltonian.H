@@ -3,7 +3,7 @@
 #define _Hamiltonian_H_
 
 #include <Hamiltonian/fwd.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import qchem.Streamable;
 //
 //  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.

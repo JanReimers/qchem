@@ -6,7 +6,7 @@
 
 
 #include "SlaterExchange.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 
 import Common.Constants;
 

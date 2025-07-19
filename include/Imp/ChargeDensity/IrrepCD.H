@@ -4,9 +4,12 @@
 
 
 #include <iosfwd>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import oml;
 import qchem.Symmetry.Irrep;
+import qchem.Irrep_BS;
+import qchem.HF_IBS;
+import qchem.Fit_IBS;
 
 //------------------------------------------------------------------------------------
 //

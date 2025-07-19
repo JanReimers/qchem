@@ -4,7 +4,7 @@
 
 
 #include <iosfwd>
-#include <ChargeDensity/fwd.H>
+import qchem.ChargeDensity;
 import qchem.ScalarFunction;
 import qchem.Streamable;
 

@@ -5,6 +5,8 @@
 #include "HamiltonianTerm.H"
 #include <memory>
 
+class FittedCD;
+import qchem.ChargeDensity;
 import Mesh;
 
 //###############################################################################

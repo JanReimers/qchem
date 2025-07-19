@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "HamiltonianTerm.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import qchem.Irrep_BS;
 import qchem.Symmetry;
 

@@ -10,7 +10,7 @@
 #include <Hamiltonian/Hamiltonian.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <Orbitals/Orbitals.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <SCFIterator.H>
 
 PeriodicTable QchemTester::itsPT;

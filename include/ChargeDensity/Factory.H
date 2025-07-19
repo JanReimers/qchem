@@ -2,9 +2,9 @@
 #ifndef _ChargeDensity_Factory_H_
 #define _ChargeDensity_Factory_H_
 
-#include <ChargeDensity/fwd.H>
 #include <memory>
-
+class FittedCD;
+import qchem.ChargeDensity;
 import qchem.Fit_IBS;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.VectorFunction;

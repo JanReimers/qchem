@@ -4,8 +4,8 @@
 
 
 
-#include <ChargeDensity/ChargeDensity.H>
-
+import qchem.ChargeDensity;
+import qchem.Symmetry.Spin;
 //---------------------------------------------------------------------------------------
 //
 //  Store spin and spin down a ChargeDensity*'s to allow polymorphism.

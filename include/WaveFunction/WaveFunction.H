@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <Orbitals/fwd.H>
 #include <WaveFunction/fwd.H>
+import qchem.ChargeDensity;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;

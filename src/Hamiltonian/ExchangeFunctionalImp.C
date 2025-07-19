@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "ExchangeFunctionalImp.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 
 ExFunctionalImp::ExFunctionalImp()
     : itsChargeDensity(0)

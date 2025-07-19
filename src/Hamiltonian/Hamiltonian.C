@@ -9,7 +9,7 @@
 #include "Ven.H"
 #include "Vnn.H"
 #include <Hamiltonian/TotalEnergy.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import qchem.Irrep_BS;
 import qchem.stl_io;
 

@@ -6,7 +6,7 @@
 #include "tabulate/table.hpp"
 
 #include "Polarized_WF.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <ChargeDensity/Factory.H>
 import qchem.Symmetry;
 import qchem.Streamable;

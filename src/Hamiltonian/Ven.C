@@ -8,7 +8,7 @@
 
 #include "Ven.H"
 #include <Hamiltonian/TotalEnergy.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import qchem.Irrep_BS;
 
 Ven::Ven() : Static_HT_Imp() , theCluster() {};

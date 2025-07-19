@@ -4,7 +4,7 @@
 #include <iostream>
 #include <memory>
 import qchem.DHF_IBS;
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <Hamiltonian/TotalEnergy.H>
 #include "RestMass.H"
 

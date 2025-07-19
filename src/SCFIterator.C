@@ -16,7 +16,7 @@
 #include <SCFParams.H>
 #include <Hamiltonian/Hamiltonian.H>
 #include <Hamiltonian/TotalEnergy.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 
 import qchem.Symmetry.ElectronConfiguration;
 

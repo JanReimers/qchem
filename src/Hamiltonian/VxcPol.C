@@ -10,7 +10,7 @@
 #include "Vxc.H"
 import qchem.HF_IBS;
 #include <Hamiltonian/TotalEnergy.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 
 VxcPol::VxcPol()

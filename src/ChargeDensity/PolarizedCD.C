@@ -1,8 +1,9 @@
 // File: PolarizedCD.C  Interface for the charge density.
-
+// module;
 #include <cstddef>
 #include <cassert>
 #include "PolarizedCD.H"
+import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 
 //---------------------------------------------------------------------------------
@@ -52,31 +53,5 @@ const DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s) const
     if(s==Spin::Up  ) ret=itsSpinUpCD  ;
     if(s==Spin::Down) ret=itsSpinDownCD;
     return ret;
-}
-
-SpinDensity::SpinDensity(DM_CD* up,DM_CD* down)
-: itsSpinUpCD  (up  )
-, itsSpinDownCD(down)
-{
-    assert(itsSpinUpCD);
-    assert(itsSpinDownCD);
-};
-
-SpinDensity::~SpinDensity()
-{
-    delete itsSpinUpCD;
-    delete itsSpinDownCD;
-}
-
-double SpinDensity::operator()(const RVec3& r) const
-{
-    // No UT coverage
-    return (*itsSpinUpCD)(r) - (*itsSpinDownCD)(r);
-}
-
-SpinDensity::RVec3 SpinDensity::Gradient  (const RVec3& r) const
-{
-    // No UT coverage
-    return itsSpinUpCD->Gradient(r) - itsSpinDownCD->Gradient(r);
 }
 

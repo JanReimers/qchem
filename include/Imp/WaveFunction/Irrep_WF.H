@@ -4,9 +4,9 @@
 
 #include <LASolver/fwd.H>
 #include <SCFAccelerator/fwd.H>
-#include <ChargeDensity/fwd.H>
 #include <Hamiltonian/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
+import qchem.ChargeDensity;
 import qchem.Irrep_BS;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.ElectronConfiguration;

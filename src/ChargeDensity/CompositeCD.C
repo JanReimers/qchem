@@ -4,8 +4,6 @@
 
 #include <cassert>
 #include <ChargeDensity/CompositeCD.H>
-import qchem.HF_IBS;
-import qchem.Fit_IBS;
 
 //------------------------------------------------------------------------------------
 //

@@ -6,7 +6,9 @@
 #include <vector>
 #include <memory>
 
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
+import qchem.HF_IBS;
+import qchem.Fit_IBS;
 
 //--------------------------------------------------------------------------
 //

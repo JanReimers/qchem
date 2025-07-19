@@ -7,7 +7,7 @@
 
 #include "Vxc.H"
 import qchem.HF_IBS;
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 #include <Hamiltonian/TotalEnergy.H>
 
 Vxc::Vxc() {};

@@ -7,7 +7,7 @@
 #include "FittedVxc.H"
 #include "LDAVxc.H"
 #include <Hamiltonian/TotalEnergy.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 import qchem.DFT_IBS;
 
 FittedVxc::FittedVxc()

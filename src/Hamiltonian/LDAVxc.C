@@ -6,7 +6,7 @@
 #include <cassert>
 #include <memory>
 #include "LDAVxc.H"
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 
 LDAVxc::LDAVxc()
     : itsExchangeFunctional  (0)

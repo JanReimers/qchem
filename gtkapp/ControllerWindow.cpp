@@ -69,7 +69,7 @@ bool ControllerWindow::close_request()
 #include <SCFParams.H>
 #include <BasisSet/BasisSet.H>
 #include <WaveFunction.H>
-#include <ChargeDensity/ChargeDensity.H>
+import qchem.ChargeDensity;
 
 
 void ControllerWindow::new_model()
