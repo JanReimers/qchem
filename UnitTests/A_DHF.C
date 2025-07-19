@@ -74,7 +74,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); //37,53
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); //37,53
 
 
 class A_SLmj_DHF : public ::testing::TestWithParam<int>
@@ -119,7 +119,7 @@ TEST_P(A_SLmj_DHF,Multiple)
    
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLmj_DHF,::testing::Values(1,20,60,86,100)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLmj_DHF,::testing::Values(1,20,60,86,100)); 
 
 //--------------------------------------------------------------------------------------------
 //
@@ -190,7 +190,7 @@ TEST_P(A_SG_DHF,Multiple)
 
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53
 
 
 

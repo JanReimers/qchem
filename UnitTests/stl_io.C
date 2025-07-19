@@ -96,7 +96,7 @@ TEST_P(STLTesting,FileIO)
     StreamableObject::SetOutputMode(mode);
 }
 
-INSTANTIATE_TEST_CASE_P(FileIO,STLTesting,
+INSTANTIATE_TEST_SUITE_P(FileIO,STLTesting,
                         ::testing::Values(StreamableObject::ascii,StreamableObject::binary));
 
                         
