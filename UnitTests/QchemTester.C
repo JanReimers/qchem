@@ -9,7 +9,6 @@
 #include <SCFAccelerator/Factory.H>
 #include <WaveFunction/WaveFunction.H>
 #include <Hamiltonian/Hamiltonian.H>
-#include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 #include <Hamiltonian/TotalEnergy.H>
 #include <Orbitals/Orbitals.H>

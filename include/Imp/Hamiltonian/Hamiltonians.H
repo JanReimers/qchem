@@ -2,6 +2,7 @@
 
 #include "Hamiltonian.H"
 
+import qchem.BasisSet;
 import Mesh;
 //
 //  1 Electron

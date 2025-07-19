@@ -6,8 +6,6 @@
 class ERI4;
 class M4;
 
-class BasisSet;
-
 class IrrepBasisSet;
 class Fit_IBS;
 class Orbital_IBS;

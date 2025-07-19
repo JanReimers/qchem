@@ -7,6 +7,7 @@
 #include <SCFAccelerator/fwd.H>
 #include <WaveFunction/fwd.H>
 
+import qchem.BasisSet;
 import qchem.Symmetry.ElectronConfiguration;
 
 namespace WaveFunctionF

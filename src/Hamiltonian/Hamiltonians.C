@@ -5,7 +5,6 @@
 #include "Hamiltonians.H"
 #include "Vee.H"
 #include "Vxc.H"
-#include <BasisSet/BasisSet.H>
 #include <BasisSet/Fit_IBS.H>
 #include "SlaterExchange.H"
 #include "FittedVxc.H"
@@ -18,6 +17,7 @@
 #include "RestMass.H"
 #include "Vnn.H"
 #include "Ven.H"
+import qchem.BasisSet;
 import qchem.Cluster;
 
 Ham_1E::Ham_1E(const cl_t& cl) 

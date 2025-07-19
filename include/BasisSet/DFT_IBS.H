@@ -4,6 +4,7 @@
 
 #include <BasisSet/Irrep_BS.H>
 #include <BasisSet/Integrals.H>
+import qchem.BasisSet;
 
 //! \brief Interface for 3-center integrals used in DFT calculations.
 template <class T> class Integrals_DFT : public virtual Integrals_Base<T>

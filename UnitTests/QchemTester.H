@@ -9,16 +9,18 @@
 #include <Orbitals/fwd.H>
 #include <SCFIteratorfwd.H>
 
-#include <BasisSet/BasisSet.H>
 #include <SCFParams.H>
 #include <LASolver/LAParams.H>
 #include <Hamiltonian/TotalEnergy.H>
 
+import qchem.BasisSet;
+import qchem.Cluster;
 import Common.PeriodicTable;
 import Mesh; //To get Meshparams
 import qchem.Molecule;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.AtomEC;
+import qchem.Symmetry.ElectronConfiguration;
 
 class QchemTester
 {

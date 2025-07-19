@@ -3,10 +3,10 @@
 #include "l/BSpline_IBS.H"
 #include "l/BSpline_BF.H"
 #include "radial/BSpline/IBS_Common.H"
-#include <BasisSet/BasisSet.H>
 #include <iostream>
 #include <cassert>
 
+import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 
 namespace Atoml

@@ -5,6 +5,7 @@
 #include <BasisSet/fwd.H>
 #include <nlohmann/json.hpp>
 
+import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.ElectronConfiguration;
 

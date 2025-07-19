@@ -2,10 +2,10 @@
 #ifndef _BasisSet_TCommon_H_
 #define _BasisSet_TCommon_H_
 
-#include <BasisSet/BasisSet.H>
 #include <BasisSet/Irrep_BS.H>
 
 import Common.UniqueIDImp;
+import qchem.BasisSet;
 
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;

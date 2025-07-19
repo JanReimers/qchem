@@ -7,8 +7,6 @@
 #include <string>
 #include <cmath>
 
-#include <BasisSet/BasisSet.H>
-
 
 #include "PolarizedGaussian/BasisFunction.H"
 #include "PolarizedGaussian/IntegralEngine.H"
@@ -17,6 +15,7 @@
 
 #include "PolarizedGaussian/IrrepBasisSet.H"
 
+import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Symmetry.Unit;

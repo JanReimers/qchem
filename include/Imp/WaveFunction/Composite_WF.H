@@ -12,6 +12,7 @@
 #include <WaveFunction/EnergyLevel.H>
 
 class Irrep_WF;
+import qchem.BasisSet;
 
 class Composite_WF
     : public virtual WaveFunction

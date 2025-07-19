@@ -2,8 +2,8 @@
 
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
-#include <BasisSet/BasisSet.H>
 #include <BasisSet/Factory.H>
+import qchem.BasisSet;
 using json = nlohmann::json;
 
 class jsonTests : public ::testing::Test

@@ -6,7 +6,7 @@
 #include "l/Slater_IBS.H"
 #include "l/Slater_BF.H"
 #include "radial/Slater/Integrals.H"
-#include <BasisSet/BasisSet.H>
+import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 
 namespace Atoml
