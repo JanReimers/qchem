@@ -6,7 +6,7 @@ Priority 1:
 
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
-    -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAccelerator_DIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project(): Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
+    -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAcceleratorDIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project(): Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
     -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
     
     More use of structured bindings for map iterating.
@@ -530,7 +530,7 @@ Priority 3:
         Done: -Check out some manuals:
             https://manual.q-chem.com/5.3/sect_convergence.html
             Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations
-            RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCA_DIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
+            RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCADIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
             Convergence criteria require the largest element of the N th error vector to be below a cutoff threshold, usually 10−5  a.u. for single point energies, but often increased to 10−8 a.u.  for optimizations and frequency calculations.
             As the Fock matrix nears self-consistency, the linear matrix equations in Eq. (4.34) tend to become severely ill-conditioned and it is often necessary to reset the DIIS subspace (this is automatically carried out by the program).
             Relaxed Constraint Algorithm

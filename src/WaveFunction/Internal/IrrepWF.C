@@ -1,6 +1,6 @@
 // File: IrrepWF.H  Wave function for an irreducable representation.
 module;
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 export module qchem.WaveFunction.Internal.IrrepWF;
 export import qchem.EnergyLevel;
 export import qchem.LASolver;

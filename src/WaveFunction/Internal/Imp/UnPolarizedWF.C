@@ -2,7 +2,7 @@
 module;
 #include <iomanip>
 #include <iostream>
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 #include "tabulate/table.hpp"
 using namespace tabulate;
 

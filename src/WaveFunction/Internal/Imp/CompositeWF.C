@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include <memory>
-#include <SCFAccelerator/SCFAccelerator.H>
+import qchem.SCFAccelerator;
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.BasisSet;
 import qchem.Irrep_BS;

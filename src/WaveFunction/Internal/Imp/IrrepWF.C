@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
-#include <SCFAccelerator/SCFAccelerator.H>
+import qchem.SCFAccelerator;
 module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.Orbitals.Factory;
 

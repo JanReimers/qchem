@@ -1,6 +1,6 @@
 // File: WaveFunction/Factory.H  Create wavefunctions.
 module;
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 export module qchem.WaveFunction.Factory;
 export import qchem.WaveFunction;
 export import qchem.Hamiltonian;

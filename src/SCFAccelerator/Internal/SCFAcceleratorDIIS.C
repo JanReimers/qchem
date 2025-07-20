@@ -1,14 +1,12 @@
-// FIle: SCFAccelerator_DIIS.H  Direct Inversion of the Iterative Subspace (DIIS) algorithm
-#ifndef _SCFAccelerator_DIIS_H_
-#define _SCFAccelerator_DIIS_H_
-
+// FIle: SCFAcceleratorDIIS.H  Direct Inversion of the Iterative Subspace (DIIS) algorithm
+module;
 #include <deque>
 #include <vector>
-#include <SCFAccelerator/SCFAccelerator.H>
-import qchem.Symmetry.Irrep;
-import oml;
+#include <iostream>
+export module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
+export import qchem.SCFAccelerator;
 
-struct DIISParams
+export struct DIISParams
 {
     size_t Nproj;  //Number of terms to keep for proections.
     double EMax;   //DIIS starts when E<EMax
@@ -18,8 +16,8 @@ struct DIISParams
 
 
 
-class SCFAccelerator_DIIS;
-class SCFIrrepAccelerator_DIIS : public virtual SCFIrrepAccelerator
+export class SCFAcceleratorDIIS;
+class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
 {
 public:
     typedef Matrix<double> Mat;
@@ -28,13 +26,13 @@ public:
     typedef std::deque<SMat  > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
     
-    SCFIrrepAccelerator_DIIS(const DIISParams&,const LASolver<double>*,const Irrep_QNs&,const RVec& cs);
-    virtual ~SCFIrrepAccelerator_DIIS();
+    SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver<double>*,const Irrep_QNs&,const RVec& cs);
+    virtual ~SCFIrrepAcceleratorDIIS();
     
     virtual void UseFD(const SMat& F, const SMat& DPrime);
     virtual SMat Project(); 
 private:
-    friend class SCFAccelerator_DIIS;
+    friend class SCFAcceleratorDIIS;
     size_t GetNproj() const {return itsEs.size();}
     double GetError() const {return itsEn;}
     double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
@@ -53,19 +51,19 @@ private:
     dv_t itsEns; //Errors ||E||=FNorm[F',D']
     
 
-    const RVec&                  itsCs;  //Projection coefficients from SCFAccelerator_DIIS class.
+    const RVec&                  itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
 
     const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
 
 };
 
 
-class SCFAccelerator_DIIS : public virtual SCFAccelerator
+export class SCFAcceleratorDIIS : public virtual SCFAccelerator
 {
 public:
 
-    SCFAccelerator_DIIS(const DIISParams&);
-    ~SCFAccelerator_DIIS();
+    SCFAcceleratorDIIS(const DIISParams&);
+    ~SCFAcceleratorDIIS();
     virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
@@ -93,10 +91,9 @@ private:
 
   
     DIISParams itsParams;
-    std::vector<SCFIrrepAccelerator_DIIS*> itsIrreps;
+    std::vector<SCFIrrepAcceleratorDIIS*> itsIrreps;
 
     double itsEn,itsLastSVMin;
     RVec   itsCs;
 };
 
-#endif //_SCFAccelerator_DIIS_H_

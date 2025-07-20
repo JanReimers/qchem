@@ -1,6 +1,6 @@
 // File: WaveFunction/Factory.C  Create wavefunctions.
 module;
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 
 module qchem.WaveFunction.Factory;
 import qchem.WaveFunction.Internal.UnPolarizedWF;

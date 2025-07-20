@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "QchemTester.H"
-#include <SCFAccelerator/SCFAccelerator.H>
-#include <SCFAccelerator/Factory.H>
+import qchem.SCFAccelerator;
+import qchem.SCFAccelerator.Factory;
 import qchem.WaveFunction;
 import qchem.Hamiltonian;
 import qchem.Energy;
@@ -54,7 +54,7 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     int Z=GetZ();
     nlohmann::json jsacc={{"NProj",8},{"EMax",Z*Z*0.1/16},{"EMin",1e-7},{"SVTol",1e-9}};
     SCFAccelerator* acc=SCFAcceleratorF::Factory(SCFAcceleratorF::Type::DIIS,jsacc);
-    // SCFAccelerator* acc=new SCFAccelerator_DIIS({8,Z*Z*0.1/16,1e-7,1e-9});
+    // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }

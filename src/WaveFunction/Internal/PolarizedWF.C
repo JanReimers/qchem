@@ -1,6 +1,6 @@
 // File: PolarizedWF.H  Wave function for an polarized system.
 module;
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 
 export module qchem.WaveFunction.Internal.PolarizedWF;
 export import qchem.WaveFunction;

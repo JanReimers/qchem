@@ -1,12 +1,12 @@
-// FIle: SCFAccelerator.H  Interface for an SCF accelerator alogrithm
-#ifndef _SCFAccelerator_H_
-#define _SCFAccelerator_H_
+// FIle: SCFAccelerator.C  Interface for an SCF accelerator alogrithm
+module;
+#include <iosfwd>
+export module qchem.SCFAccelerator;
+export import oml;
+export import qchem.Symmetry.Irrep;
+export import qchem.LASolver;
 
-import oml;
-import qchem.Symmetry.Irrep;
-import qchem.LASolver;
-
-class SCFIrrepAccelerator
+export class SCFIrrepAccelerator
 {
 protected:
     typedef SMatrix<double> SMat;
@@ -16,8 +16,7 @@ public:
     virtual SMat Project()=0; 
 };
 
-#include <iosfwd>
-class SCFAccelerator
+export class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
@@ -29,4 +28,3 @@ public:
 };
 
 
-#endif //_SCFAccelerator_H_

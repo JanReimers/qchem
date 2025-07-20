@@ -5,9 +5,9 @@
 #include <cmath>
 #include <vector>
 
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 #include <SCFIteratorfwd.H>
-#include <SCFAccelerator/SCFAccelerator.H>
+import qchem.SCFAccelerator;
 #include <SCFParams.H>
 import qchem.WaveFunction;
 import qchem.WaveFunction.Factory;

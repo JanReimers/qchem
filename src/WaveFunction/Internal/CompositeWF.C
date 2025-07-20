@@ -3,7 +3,7 @@ module;
 #include <vector>
 #include <map>
 #include <memory>
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 export module qchem.WaveFunction.Internal.CompositeWF;
 export import qchem.WaveFunction;
 export import qchem.BasisSet;

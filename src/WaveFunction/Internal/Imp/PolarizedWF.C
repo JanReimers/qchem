@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <iomanip>
 #include "tabulate/table.hpp"
-#include <SCFAccelerator/fwd.H>
+import qchem.SCFAccelerator;
 using namespace tabulate;
 
 Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};

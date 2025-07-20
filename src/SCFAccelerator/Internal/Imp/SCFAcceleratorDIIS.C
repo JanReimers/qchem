@@ -1,19 +1,17 @@
-// FIle: SCFAccelerator_DIIS.C  Direct Inversion of the Iterative Subspace (DIIS) algorithm
-
-
+// FIle: SCFAcceleratorDIIS.C  Direct Inversion of the Iterative Subspace (DIIS) algorithm
+module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
 #include <iomanip>
-#include "SCFAccelerator_DIIS.H"
-import qchem.LASolver;
-#include "SCFAccelerator_Null.H"
+module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
+import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Irrep_BS;
 
 using std::cout;
 using std::endl;
 
-SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const LASolver<double>* las,const Irrep_QNs& qns,const RVec& cs) 
+SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* las,const Irrep_QNs& qns,const RVec& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
@@ -22,13 +20,13 @@ SCFIrrepAccelerator_DIIS::SCFIrrepAccelerator_DIIS(const DIISParams& p,const LAS
 {
     assert(itsLaSolver);
 };
-SCFIrrepAccelerator_DIIS::~SCFIrrepAccelerator_DIIS() 
+SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS() 
 {
 
 };
 
 
-void SCFIrrepAccelerator_DIIS::UseFD(const SMat& F, const SMat& DPrime)
+void SCFIrrepAcceleratorDIIS::UseFD(const SMat& F, const SMat& DPrime)
 {
     itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.GetLimits()==DPrime.GetLimits());
@@ -60,7 +58,7 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
 //     return ArrayAdd(a,b);
 // }
 
-SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
+SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project()
 {
     if (itsCs.size()<2) 
         return itsFPrime;
@@ -76,7 +74,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAccelerator_DIIS::Project()
     }
 }
 
-void SCFIrrepAccelerator_DIIS::Append1()
+void SCFIrrepAcceleratorDIIS::Append1()
 {
     assert(itsEs.size()==itsFPrimes.size());
     assert(itsEns.size()==itsFPrimes.size());
@@ -84,7 +82,7 @@ void SCFIrrepAccelerator_DIIS::Append1()
     itsEns    .push_back(itsEn);
     itsFPrimes.push_back(itsFPrime);   
 }
-void SCFIrrepAccelerator_DIIS::Purge1()
+void SCFIrrepAcceleratorDIIS::Purge1()
 {
     assert(itsEs.size()==itsFPrimes.size());
     assert(itsEns.size()==itsFPrimes.size());
@@ -99,23 +97,23 @@ void SCFIrrepAccelerator_DIIS::Purge1()
 //
 
 
-SCFAccelerator_DIIS::SCFAccelerator_DIIS(const DIISParams& p) 
+SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p) 
 : itsParams(p)
 {};
 
-SCFAccelerator_DIIS::~SCFAccelerator_DIIS() {};
-SCFIrrepAccelerator* SCFAccelerator_DIIS::Create(const LASolver<double>* las,const Irrep_QNs& qns, int occ) 
+SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
+SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* las,const Irrep_QNs& qns, int occ) 
 {
     if (occ>0)
     {
-        itsIrreps.push_back(new SCFIrrepAccelerator_DIIS(itsParams,las,qns,itsCs));
+        itsIrreps.push_back(new SCFIrrepAcceleratorDIIS(itsParams,las,qns,itsCs));
         return itsIrreps.back();
     }
     else
-        return new SCFIrrepAccelerator__Null(las,qns);
+        return new SCFIrrepAcceleratorNull(las,qns);
 }
 
-size_t SCFAccelerator_DIIS::GetNProj() const
+size_t SCFAcceleratorDIIS::GetNProj() const
 {
     size_t N=itsIrreps[0]->GetNproj();
 #ifdef DEBUG
@@ -124,7 +122,7 @@ size_t SCFAccelerator_DIIS::GetNProj() const
     return N;
 }
 
-double SCFAccelerator_DIIS::GetMinSV(const SMat& B)
+double SCFAcceleratorDIIS::GetMinSV(const SMat& B)
 {
     static oml::LapackSVDSolver<double> solver;
     auto [U,s,V]=solver.SolveAll(B);
@@ -132,7 +130,7 @@ double SCFAccelerator_DIIS::GetMinSV(const SMat& B)
     return s(N,N);
 }
 
-SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B) 
+SCFAcceleratorDIIS::RVec SCFAcceleratorDIIS::SolveC(const SMat& B) 
 {
     static oml::LapackLinearSolver<double> solver;
     size_t N=B.GetNumRows();
@@ -144,7 +142,7 @@ SCFAccelerator_DIIS::RVec SCFAccelerator_DIIS::SolveC(const SMat& B)
     // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
     return C.SubVector(N-1);   
 }
-SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildB() const
+SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
     index_t N=GetNProj()+1;
     SMat B(N);
@@ -158,7 +156,7 @@ SCFAccelerator_DIIS::md_t SCFAccelerator_DIIS::BuildB() const
     // B(N,N)=0.0;  should already be true
     return {B,GetMinSV(B)};    
 }
-SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildPrunedB(double svmin)
+SCFAcceleratorDIIS::SMat SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 {
     md_t B=BuildB(); //Returns a SMat,double struct.
     while (B.sv<svmin &&GetNProj()>=2) 
@@ -169,20 +167,20 @@ SCFAccelerator_DIIS::SMat SCFAccelerator_DIIS::BuildPrunedB(double svmin)
     itsLastSVMin=B.sv;
     return B.B;    
 }
-size_t SCFAccelerator_DIIS::Purge1()
+size_t SCFAcceleratorDIIS::Purge1()
 {
     
     for (auto k:itsIrreps) k->Purge1();
     return GetNProj();
 }
-size_t SCFAccelerator_DIIS::Append1()
+size_t SCFAcceleratorDIIS::Append1()
 {
     
     for (auto k:itsIrreps) k->Append1();
     return GetNProj();
 }
 
-bool SCFAccelerator_DIIS::CalculateProjections()
+bool SCFAcceleratorDIIS::CalculateProjections()
 {
     itsCs.SetLimits(0);
     itsEn=0.0;
@@ -203,17 +201,17 @@ bool SCFAccelerator_DIIS::CalculateProjections()
     SMat B=BuildPrunedB(itsParams.SVTol);
     if (B.GetNumRows()<=2) return false;
                 
-    itsCs=SCFAccelerator_DIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
+    itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
    
     return true;
 }
 
 
-void SCFAccelerator_DIIS::ShowLabels(std::ostream& os) const
+void SCFAcceleratorDIIS::ShowLabels(std::ostream& os) const
 {
     os << " [F,D]   Nproj    SVMin";
 }
-void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
+void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
 {
     os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
     if (HasProjection())
@@ -224,7 +222,7 @@ void SCFAccelerator_DIIS::ShowConvergence(std::ostream& os) const
         else
         os << "                ";
 }
-double SCFAccelerator_DIIS::GetError() const
+double SCFAcceleratorDIIS::GetError() const
 {
       
     return itsEn;
