@@ -1,9 +1,7 @@
-// File: TotalEnergy.C  Store and display a breakdown of the total energy.
-
-
-
-#include <Hamiltonian/TotalEnergy.H>
+// File: Imp/Energy.C  Store and display a breakdown of the total energy.
+module;
 #include <iostream>
+module qchem.Energy;
 
 EnergyBreakdown::EnergyBreakdown()
     : Kinetic  (0)

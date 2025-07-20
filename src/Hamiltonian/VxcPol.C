@@ -9,7 +9,7 @@
 #include "VxcPol.H"
 #include "Vxc.H"
 import qchem.HF_IBS;
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 

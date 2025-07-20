@@ -8,7 +8,7 @@
 #include <SCFAccelerator/SCFAccelerator.H>
 
 #include <LASolver/LASolver.H>
-#include <Hamiltonian/Hamiltonian.H>
+import qchem.Hamiltonian;
 #include <Orbitals/Factory.H>
 #include <Orbitals/Orbitals.H>
 import qchem.Irrep_BS;

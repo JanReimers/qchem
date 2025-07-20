@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "Ven.H"
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Irrep_BS;
 

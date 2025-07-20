@@ -5,7 +5,7 @@
 #include <memory>
 import qchem.DHF_IBS;
 import qchem.ChargeDensity;
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 #include "RestMass.H"
 
 import Common.Constants;

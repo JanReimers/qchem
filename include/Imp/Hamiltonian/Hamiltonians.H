@@ -1,7 +1,7 @@
 // File:: Hamiltonians.H  Create fully implemented Hamiltonians
 
-#include "Hamiltonian.H"
-
+import qchem.Hamiltonian.Internal.ExFunctional;
+import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.BasisSet;
 import Mesh;
 //

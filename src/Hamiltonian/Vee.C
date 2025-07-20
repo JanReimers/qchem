@@ -10,7 +10,7 @@
 #include "Vee.H"
 import qchem.HF_IBS;
 import qchem.ChargeDensity;
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 
 Vee::Vee()
 {};

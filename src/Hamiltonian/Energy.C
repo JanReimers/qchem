@@ -1,10 +1,7 @@
-// File: TotalEnergy.H  Store and display a breakdown of the total energy.
-#ifndef _TotalEnergy_H_
-#define _TotalEnergy_H_
-
-
-
-class EnergyBreakdown
+// File: Energy.C  Store and display a breakdown of the total energy.
+export module qchem.Energy;
+ 
+export class EnergyBreakdown
 {
 public:
     EnergyBreakdown();
@@ -33,5 +30,3 @@ public:
     double ExcFitFit;
     double RestMass;
 };
-
-#endif //_TotalEnergy_H_

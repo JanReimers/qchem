@@ -8,7 +8,6 @@
 #include "SlaterExchange.H"
 #include "FittedVxc.H"
 #include "FittedVxcPol.H"
-#include "ExchangeFunctional.H" 
 #include "FittedVee.H"
 #include "VxcPol.H"
 #include "VxcPol.H"
@@ -16,6 +15,7 @@
 #include "RestMass.H"
 #include "Vnn.H"
 #include "Ven.H"
+import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.BasisSet;
 import qchem.Fit_IBS;
 import qchem.Cluster;

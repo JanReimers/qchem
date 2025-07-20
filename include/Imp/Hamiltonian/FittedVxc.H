@@ -4,7 +4,7 @@
 
 
 #include "HamiltonianTerm.H"
-#include "ExchangeFunctional.H"
+import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.FittedFunctionImp;
 
 //###############################################################################

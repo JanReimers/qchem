@@ -4,9 +4,9 @@
 
 
 
-#include "ExchangeFunctional.H"
 #include "HamiltonianTerm.H"
 #include <memory>
+import qchem.Hamiltonian.Internal.ExFunctional;
 
 //###############################################################################
 //

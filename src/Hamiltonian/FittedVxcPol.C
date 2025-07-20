@@ -10,7 +10,7 @@
 #include "FittedVxc.H"
 #include "FittedVxcPol.H"
 import qchem.ChargeDensity;
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 import qchem.Symmetry.Spin;
 
 FittedVxcPol::FittedVxcPol()

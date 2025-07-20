@@ -4,9 +4,9 @@
 
 #include <vector>
 
-#include <Hamiltonian/fwd.H>
 #include <Orbitals/fwd.H>
 #include <WaveFunction/fwd.H>
+import qchem.Hamiltonian;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.ElectronConfiguration;

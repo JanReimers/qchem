@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "Vnn.H"
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 
 import qchem.Irrep_BS;
 import qchem.Atom;

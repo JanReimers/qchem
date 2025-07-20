@@ -2,7 +2,7 @@
 
 #include <iostream>
 import qchem.ChargeDensity;
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 #include "DiracKinetic.H"
 
 import qchem.Irrep_BS;

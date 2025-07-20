@@ -1,69 +1,55 @@
-// File: HamiltonianImplementation.C  General matrix implementation of a Hamiltonian operator.
+// File: Hamiltonian.C  Interface a Hamiltonianian operator.
+export module qchem.Hamiltonian;
+export import qchem.ChargeDensity;
+import qchem.Streamable;
+export import qchem.Energy;
 
-
-#include <cassert>
-#include <iostream>
-
-#include "Hamiltonian.H"
-#include "Kinetic.H"
-#include "Ven.H"
-#include "Vnn.H"
-#include <Hamiltonian/TotalEnergy.H>
-import qchem.ChargeDensity;
-import qchem.Irrep_BS;
-import qchem.stl_io;
-
-HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
-{};
-
-void HamiltonianImp::Add(Static_HT* p)
+//
+//  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.
+//  We have two distinct types of HT:
+//  Static_HT - Does not depend on the Charge Dnesity (CD), and therefore does change during iterations
+//  Dynamic_HT - Vee, Vac which depend on the CD, and change with each iteration.
+//
+export class Static_HT
+    : public virtual Streamable
+    , public virtual Static_CC
 {
-    itsSHTs.push_back(std::unique_ptr<Static_HT>(p));
-    itsIsPolarized = itsIsPolarized || p->IsPolarized();
-}
-void HamiltonianImp::Add(Dynamic_HT* p)
+public:
+    typedef SMatrix<double> SMat;
+    typedef TOrbital_IBS<double> ibs_t;
+
+    virtual const SMat& GetMatrix(const ibs_t*,const Spin&) const=0;
+    virtual void        GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
+    virtual bool        IsPolarized() const {return false;}
+};
+
+export class Dynamic_HT
+    : public virtual Streamable
+    , public virtual Dynamic_CC
 {
-    itsDHTs.push_back(std::unique_ptr<Dynamic_HT>(p));
-    itsIsPolarized = itsIsPolarized || p->IsPolarized();
-}
+public:
+    typedef SMatrix<double> SMat;
+    typedef TOrbital_IBS<double> ibs_t;    
+    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
+    virtual void        GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
+    virtual bool        IsPolarized() const {return false;}
+};
 
-void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
+
+
+
+
+export class Hamiltonian
+    : public virtual Streamable
 {
-    Add(new Kinetic);
-    Add(new Vnn(cl));
-    Add(new Ven(cl));
-}
+public:
+    typedef SMatrix<double> SMat;
+    typedef TOrbital_IBS<double> ibs_t;
 
-Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
-{
-    int n=bs->GetNumFunctions();
-    SMat H(n,n);
-    Fill(H,0.0);
-    for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
-    // Leave these terms out if we don't have guess for the charge density.
-    if (cd)
-        for (auto& t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
-    return H;
-}
+    virtual void            Add             (      Static_HT*)      =0;
+    virtual void            Add             (      Dynamic_HT*)      =0;
+    virtual SMat            GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;
+    virtual EnergyBreakdown GetTotalEnergy  (  const DM_CD*    ) const=0;
+    virtual bool            IsPolarized() const=0;
+};
 
-
-EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
-{
-    assert(cd);
-    EnergyBreakdown e;
-    for (auto& t:itsSHTs)  t->GetEnergy(e,cd);
-    for (auto& t:itsDHTs)  t->GetEnergy(e,cd);
-    return e;
-}
-
-
-std::ostream& HamiltonianImp::Write(std::ostream& os) const
-{
-    if (itsIsPolarized) os << "Polarized ";
-    os << "Hamiltonian with " << itsSHTs.size() << " static terms:" << std::endl;
-    os << itsSHTs;
-    if (itsIsPolarized) os << "Polarized ";
-    os << "Hamiltonian with " << itsDHTs.size() << " dynamic terms:" << std::endl;
-    os << itsDHTs;
-    return os;
-}

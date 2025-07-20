@@ -7,8 +7,8 @@
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <SCFAccelerator/Factory.H>
 #include <WaveFunction/WaveFunction.H>
-#include <Hamiltonian/Hamiltonian.H>
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Hamiltonian;
+import qchem.Energy;
 #include <Orbitals/Orbitals.H>
 import qchem.ChargeDensity;
 #include <SCFIterator.H>

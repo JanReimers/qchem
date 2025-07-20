@@ -4,7 +4,7 @@
 #include <WaveFunction/Factory.H>
 #include "UnPolarized_WF.H"
 #include "Polarized_WF.H"
-#include <Hamiltonian/Hamiltonian.H>
+import qchem.Hamiltonian;
 
 namespace WaveFunctionF
 {

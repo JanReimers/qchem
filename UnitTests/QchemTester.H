@@ -5,13 +5,12 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
-#include <Hamiltonian/fwd.H>
 #include <Orbitals/fwd.H>
 #include <SCFIteratorfwd.H>
 
 #include <SCFParams.H>
 #include <LASolver/LAParams.H>
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Hamiltonian;
 
 import qchem.BasisSet;
 import qchem.Cluster;

@@ -5,7 +5,6 @@
 #include <cmath>
 #include <vector>
 
-#include <Hamiltonian/fwd.H>
 #include <SCFAccelerator/fwd.H>
 #include <WaveFunction/fwd.H>
 #include <SCFIteratorfwd.H>
@@ -13,8 +12,8 @@
 #include <WaveFunction/WaveFunction.H>
 #include <WaveFunction/Factory.H>
 #include <SCFParams.H>
-#include <Hamiltonian/Hamiltonian.H>
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Hamiltonian;
+import qchem.Energy; 
 import qchem.ChargeDensity;
 
 import qchem.Symmetry.ElectronConfiguration;

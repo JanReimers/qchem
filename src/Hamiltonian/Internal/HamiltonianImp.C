@@ -1,15 +1,12 @@
-// File: HamiltonianImplementation.H  General matrix implementation of a Hamiltonian operator.
-#ifndef _HamiltonianImp_H_
-#define _HamiltonianImp_H_
-
-
+// File: HamiltonianImp.C  General matrix implementation of a Hamiltonian operator.
+module;
 #include <vector>
 #include <memory>
-#include <Hamiltonian/Hamiltonian.H>
-
+export module qchem.Hamiltonian.Internal.Hamiltonian;
+export import qchem.Hamiltonian;
 import qchem.Cluster;
 
-class HamiltonianImp
+export class HamiltonianImp
     : public virtual Hamiltonian
 {
 public:
@@ -32,5 +29,3 @@ protected:
     dhtv_t itsDHTs;
     bool   itsIsPolarized;
 };
-
-#endif //_HamiltonianImp_H_

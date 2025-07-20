@@ -2,9 +2,10 @@
 #ifndef _Hamiltonian_Factory_H_
 #define _Hamiltonian_Factory_H_
 
-#include <Hamiltonian/fwd.H>
 #include <memory>
 
+import qchem.Hamiltonian;
+import qchem.Hamiltonian.Internal.ExFunctional;
 import Mesh;
 import qchem.Cluster;
 import qchem.BasisSet;

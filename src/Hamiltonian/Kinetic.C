@@ -6,7 +6,7 @@
 
 #include "Kinetic.H"
 import qchem.ChargeDensity;
-#include <Hamiltonian/TotalEnergy.H>
+import qchem.Energy;
 import qchem.Irrep_BS;
 
 Kinetic::Kinetic()

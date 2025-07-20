@@ -1,8 +1,8 @@
 // File: Hamiltonian/Factory.C  Interface a Hamiltonian operator.
 
-#include "Hamiltonians.H"
 #include <cassert>
 #include <Hamiltonian/Factory.H>
+#include "Hamiltonians.H"
 
 namespace HamiltonianF
 {

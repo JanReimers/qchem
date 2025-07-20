@@ -3,7 +3,8 @@
 #define _HamiltonianTermImp_H_
 
 #include <map>
-#include <Hamiltonian/Hamiltonian.H>
+import qchem.Hamiltonian;
+import qchem.FittedFunctionClient;
 
 import oml;
 import qchem.Symmetry.Irrep;
@@ -55,6 +56,14 @@ public:
 protected:
     virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     mutable SMat itsMat;
+};
+
+class FittablePotential
+    : public virtual Dynamic_HT
+    , public virtual ScalarFFClient
+{
+public:
+    virtual void UseChargeDensity(const DM_CD*)       =0;
 };
 
 
