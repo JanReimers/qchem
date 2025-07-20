@@ -1,41 +1,44 @@
-// File: Polarized_WF.C  Wave function for an unpolarized atom.
-
+// File: PolarizedWF.C  Wave function for an unpolarized atom.
+module;
 #include <cassert>
 #include <iostream>
 #include <iomanip>
 #include "tabulate/table.hpp"
+#include <SCFAccelerator/fwd.H>
+using namespace tabulate;
 
-#include "Polarized_WF.H"
-import qchem.ChargeDensity;
+Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
+
+module qchem.WaveFunction.Internal.PolarizedWF;
+
+// import qchem.ChargeDensity;
 import qchem.ChargeDensity.Factory;
-import qchem.Symmetry;
-import qchem.Streamable;
+// import qchem.Symmetry;
+// import qchem.Streamable;
 
 using std::cout;
 using std::endl;
 
 
-Polarized_WF::Polarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
-    : Composite_WF(bs,ec,acc) 
+PolarizedWF::PolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
+    : CompositeWF(bs,ec,acc) 
 {
-    MakeIrrep_WFs(Spin::Up);
-    MakeIrrep_WFs(Spin::Down);
+    MakeIrrepWFs(Spin::Up);
+    MakeIrrepWFs(Spin::Down);
 };
 
-DM_CD* Polarized_WF::GetChargeDensity() const
+DM_CD* PolarizedWF::GetChargeDensity() const
 {
     return PolarizedCD_Factory(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
-WaveFunction::sf_t* Polarized_WF::GetSpinDensity() const
+WaveFunction::sf_t* PolarizedWF::GetSpinDensity() const
 {
     return new SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
-using namespace tabulate;
 
-Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
-void Polarized_WF::DisplayEigen() const
+void PolarizedWF::DisplayEigen() const
 {
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);

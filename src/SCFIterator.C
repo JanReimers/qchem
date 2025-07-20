@@ -6,12 +6,12 @@
 #include <vector>
 
 #include <SCFAccelerator/fwd.H>
-#include <WaveFunction/fwd.H>
 #include <SCFIteratorfwd.H>
 #include <SCFAccelerator/SCFAccelerator.H>
-#include <WaveFunction/WaveFunction.H>
-#include <WaveFunction/Factory.H>
 #include <SCFParams.H>
+import qchem.WaveFunction;
+import qchem.WaveFunction.Factory;
+
 import qchem.Hamiltonian;
 import qchem.Energy; 
 import qchem.ChargeDensity;

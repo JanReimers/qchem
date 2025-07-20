@@ -1,24 +1,20 @@
-// File: Composite_WF.H  Wave function as a list of Irrep wave functions.
-#ifndef _Composite_WF_H_
-#define _Composite_WF_H_
-
+// File: CompositeWF.H  Wave function as a list of Irrep wave functions.
+module;
 #include <vector>
 #include <map>
 #include <memory>
-
 #include <SCFAccelerator/fwd.H>
-#include <WaveFunction/WaveFunction.H>
-import qchem.EnergyLevel;
+export module qchem.WaveFunction.Internal.CompositeWF;
+export import qchem.WaveFunction;
+export import qchem.BasisSet;
+import qchem.WaveFunction.Internal.IrrepWF;
 
-class Irrep_WF;
-import qchem.BasisSet;
-
-class Composite_WF
+export class CompositeWF
     : public virtual WaveFunction
 {
 public:
-    Composite_WF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator*);
-    ~Composite_WF();
+    CompositeWF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator*);
+    ~CompositeWF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
     virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
@@ -31,10 +27,10 @@ public:
     virtual EnergyLevels    GetEnergyLevels (Spin) const; 
 
 protected:
-    void MakeIrrep_WFs(Spin);
+    void MakeIrrepWFs(Spin);
 
 private:
-    typedef std::unique_ptr<Irrep_WF> uiwf_t;
+    typedef std::unique_ptr<IrrepWF> uiwf_t;
 
     const BasisSet*              itsBS; 
     const ElectronConfiguration* itsEC;
@@ -43,8 +39,7 @@ private:
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
 
     std::vector<uiwf_t>                   itsIWFs;
-    std::map<Irrep_QNs,Irrep_WF*>         itsQN_WFs; //sort by Irrep for easy lookup.
-    std::map<Spin,std::vector<Irrep_WF*>> itsSpin_WFs; //Sort by spin.
+    std::map<Irrep_QNs,IrrepWF*>         itsQNWFs; //sort by Irrep for easy lookup.
+    std::map<Spin,std::vector<IrrepWF*>> itsSpinWFs; //Sort by spin.
 };
 
-#endif //_Composite_WF_H_

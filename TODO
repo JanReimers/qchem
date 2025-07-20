@@ -911,7 +911,7 @@ Priority 3:
         Done: TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
             We need a way to get a vector<Irrep_QNs> of allowed Irrep_QNs
             BS can supply a vector<const Symmetry*> which is spin agnostic.
-                Pol_WF and UnPol-WF would need to add the spin aspect.
+                PolWF and UnPol-WF would need to add the spin aspect.
         How to plot orbitals
             Done: For UnPol plot
                 1) Change line colour based on symmetry/Irrep_QNs

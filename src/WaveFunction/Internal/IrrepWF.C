@@ -1,23 +1,22 @@
-// File: Irrep_WF.H  Wave function for an irreducable representation.
-#ifndef _IrrepWaveFunction_H_
-#define _IrrepWaveFunction_H_
-
+// File: IrrepWF.H  Wave function for an irreducable representation.
+module;
 #include <SCFAccelerator/fwd.H>
-import qchem.EnergyLevel;
-import qchem.LASolver;
-import qchem.Hamiltonian;
-import qchem.ChargeDensity;
-import qchem.Irrep_BS;
-import qchem.Symmetry.Irrep;
-import qchem.Symmetry.ElectronConfiguration;
+export module qchem.WaveFunction.Internal.IrrepWF;
+export import qchem.EnergyLevel;
+export import qchem.LASolver;
+export import qchem.Hamiltonian;
+export import qchem.ChargeDensity;
+export import qchem.Irrep_BS;
+export import qchem.Symmetry.Irrep;
+export import qchem.Symmetry.ElectronConfiguration;
 
 import oml;
 
-class Irrep_WF
+export class IrrepWF
 {
 public:
-    Irrep_WF(const TOrbital_IBS<double>*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
-    ~Irrep_WF();
+    IrrepWF(const TOrbital_IBS<double>*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
+    ~IrrepWF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
     void                DoSCFIteration  ()      ;
@@ -30,7 +29,7 @@ public:
     Vector<double>      Get_BS_Diagonal () const;
 
  private:
-    Irrep_WF(const Irrep_WF&);
+    IrrepWF(const IrrepWF&);
 
     const TOrbital_IBS<double>*  itsBasisSet;
     LASolver<double>*            itsLASolver;
@@ -41,4 +40,3 @@ public:
     SMatrix<double>              itsDPrime,itsF; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 }; 
 
-#endif //IrrepWaveFunction

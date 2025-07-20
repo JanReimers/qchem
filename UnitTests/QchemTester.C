@@ -6,7 +6,7 @@
 #include "QchemTester.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 #include <SCFAccelerator/Factory.H>
-#include <WaveFunction/WaveFunction.H>
+import qchem.WaveFunction;
 import qchem.Hamiltonian;
 import qchem.Energy;
 import qchem.Orbitals;

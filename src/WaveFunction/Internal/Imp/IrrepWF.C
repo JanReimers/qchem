@@ -1,23 +1,17 @@
-// File: Irrep_WF.C  Wave function for an unpolarized atom.
-
+// File: IrrepWF.C  Wave function for an unpolarized atom.
+module;
 #include <iostream>
 #include <cassert>
 #include <memory>
 #include <vector>
-#include "Irrep_WF.H"
 #include <SCFAccelerator/SCFAccelerator.H>
-
-import qchem.LASolver;
-import qchem.Hamiltonian;
+module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.Orbitals.Factory;
-import qchem.Orbitals;
-import qchem.Irrep_BS;
-import qchem.Symmetry.ElectronConfiguration;
 
 using std::cout;
 using std::endl;
 
-Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+IrrepWF::IrrepWF(const TOrbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (las)
     , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
@@ -30,14 +24,14 @@ Irrep_WF::Irrep_WF(const TOrbital_IBS<double>* bs, LASolver<double>* las, const 
     Fill(itsDPrime,0.0);
 };
 
-Irrep_WF::~Irrep_WF()
+IrrepWF::~IrrepWF()
 {
     delete itsOrbitals;
     delete itsLASolver;
     delete itsAccelerator;
 }
 
-void Irrep_WF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
+void IrrepWF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
     itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd); //Hamiltonian or Fock matrix in the non-orthogonal basis.
@@ -48,7 +42,7 @@ void Irrep_WF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 //
 //  This function will create unoccupied orbtials.  
 //
-void Irrep_WF::DoSCFIteration()
+void IrrepWF::DoSCFIteration()
 {
     assert(itsOrbitals);
     //project F' using pre calculated coefficients. And then diagonalize it.
@@ -59,7 +53,7 @@ void Irrep_WF::DoSCFIteration()
 //  Now populate the orbitals with electrons.  The ElectronConfiguration knows how many electrons
 //  are in each Irrep.
 //
-const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
+const EnergyLevels& IrrepWF::FillOrbitals(const ElectronConfiguration* ec)
 {
     
     double ne=ec->GetN(itsIrrep); // Step one: How many electron for this Irrep={spin,symmetry} ?
@@ -75,30 +69,30 @@ const EnergyLevels& Irrep_WF::FillOrbitals(const ElectronConfiguration* ec)
 }
 
 
-DM_CD* Irrep_WF::GetChargeDensity() const
+DM_CD* IrrepWF::GetChargeDensity() const
 {
     assert(itsOrbitals);
     return itsOrbitals->GetChargeDensity();
 }
 
-const Orbitals* Irrep_WF::GetOrbitals() const
+const Orbitals* IrrepWF::GetOrbitals() const
 {
     assert(itsOrbitals);
     return itsOrbitals;
 }
-Orbitals* Irrep_WF::GetOrbitals() 
+Orbitals* IrrepWF::GetOrbitals() 
 {
     assert(itsOrbitals);
     return itsOrbitals;
 }
 
-Vector<double> Irrep_WF::Get_BS_Diagonal() const
+Vector<double> IrrepWF::Get_BS_Diagonal() const
 {
     assert(itsLASolver);
     return itsLASolver->Get_BS_Diagonal();
 }
 
-void  Irrep_WF::DisplayEigen() const
+void  IrrepWF::DisplayEigen() const
 {
     itsELevels.Report(std::cout);
    

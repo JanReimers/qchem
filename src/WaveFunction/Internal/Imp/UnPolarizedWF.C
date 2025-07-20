@@ -1,23 +1,26 @@
-// File: UnPolarized_WF.C  Wave function for an unpolarized atom.
-
+// File: UnPolarizedWF.C  Wave function for an unpolarized atom.
+module;
 #include <iomanip>
 #include <iostream>
+#include <SCFAccelerator/fwd.H>
 #include "tabulate/table.hpp"
-#include "UnPolarized_WF.H"
-import qchem.Symmetry;
-import qchem.Streamable;
-
-UnPolarized_WF::UnPolarized_WF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
-    : Composite_WF(bs,ec,acc)
-{
-    MakeIrrep_WFs(Spin::None);
-};
-
 using namespace tabulate;
 
 extern Color l_colors[];
 
-void UnPolarized_WF::DisplayEigen() const
+module qchem.WaveFunction.Internal.UnPolarizedWF;
+import qchem.Symmetry;
+import qchem.Streamable;
+
+UnPolarizedWF::UnPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
+    : CompositeWF(bs,ec,acc)
+{
+    MakeIrrepWFs(Spin::None);
+};
+
+
+
+void UnPolarizedWF::DisplayEigen() const
 {
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);

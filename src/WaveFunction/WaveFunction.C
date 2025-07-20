@@ -1,18 +1,16 @@
-// File: WaveFunction.H  Interface for a wave function.
-#ifndef _WaveFunction_H_
-#define _WaveFunction_H_
-
+// File: WaveFunction.C  Interface for a wave function.
+module;
 #include <vector>
-
-#include <WaveFunction/fwd.H>
-import qchem.Hamiltonian;
-import qchem.ChargeDensity;
-import qchem.Symmetry.Irrep;
-import qchem.Symmetry.ElectronConfiguration;
+export module qchem.WaveFunction;
+export import qchem.EnergyLevel;
+export import qchem.Hamiltonian;
+export import qchem.ChargeDensity;
+export import qchem.Symmetry.Irrep;
+export import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
-import qchem.Orbitals;
+export import qchem.Orbitals;
 
-class WaveFunction 
+export class WaveFunction 
 {
 public:
     typedef ScalarFunction<double> sf_t;
@@ -34,5 +32,3 @@ private:
     WaveFunction& operator=(const WaveFunction&);
 };
 
-
-#endif //_WaveFunction_H_
