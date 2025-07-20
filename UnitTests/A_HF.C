@@ -5,8 +5,6 @@
 import qchem.Hamiltonian.Factory;
 import qchem.Factory;
 import qchem.Atom;
-import qchem.Molecule;
-import oml.Vector3D;
 
 const bool verbose=true;
 inline SCFParams scf_params(int Z) 

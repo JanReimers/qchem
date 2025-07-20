@@ -6,7 +6,6 @@ import qchem.Hamiltonian.Factory;
 import qchem.Factory;
 import qchem.Atom;
 import qchem.Molecule;
-import oml;
 
 inline SCFParams dft_scf_params(int Z) 
 {

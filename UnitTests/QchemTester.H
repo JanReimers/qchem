@@ -2,24 +2,19 @@
 #define QchemTester_H
 
 #include "gtest/gtest.h"
-#include <nlohmann/json.hpp>
 #include <memory>
-
+#include <nlohmann/json.hpp>
 #include <SCFIteratorfwd.H>
-
 #include <SCFParams.H>
+
 import qchem.LAParams;
 import qchem.Hamiltonian;
-
 import qchem.BasisSet;
-import qchem.Cluster;
 import Common.PeriodicTable;
-import Mesh; //To get Meshparams
 import qchem.Molecule;
-import qchem.Symmetry.Irrep;
 import qchem.Symmetry.AtomEC;
-import qchem.Symmetry.ElectronConfiguration;
 import qchem.Orbitals;
+import Mesh; //To get Meshparams
 
 class QchemTester
 {

@@ -4,16 +4,13 @@
 #include <iomanip>
 
 #include "QchemTester.H"
-import qchem.Orbitals;
 import qchem.Hamiltonian.Factory;
-
 import qchem.Factory;
 import Common.Constants;
 import Mesh;
 import Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
-import qchem.Symmetry.Irrep;
 
 using std::cout;
 using std::endl;

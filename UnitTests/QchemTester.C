@@ -4,23 +4,18 @@
 #include <memory>
 
 #include "QchemTester.H"
-import qchem.SCFAccelerator;
-import qchem.SCFAccelerator.Factory;
-import qchem.WaveFunction;
-import qchem.Hamiltonian;
-import qchem.Energy;
-import qchem.Orbitals;
-import qchem.ChargeDensity;
 #include <SCFIterator.H>
 
-PeriodicTable QchemTester::itsPT;
-
+import qchem.SCFAccelerator.Factory;
+import qchem.WaveFunction;
+import qchem.ChargeDensity;
 import qchem.Factory;
 import qchem.Irrep_BS;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
 
+PeriodicTable QchemTester::itsPT;
 
 QchemTester::QchemTester()
 : itsCluster(0)

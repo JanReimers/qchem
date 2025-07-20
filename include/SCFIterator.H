@@ -1,6 +1,7 @@
 // File: SCFIterator.H  Interface for an object that manages SCF convergence.
 
-
+import qchem.SCFAccelerator;
+import qchem.WaveFunction;
 
 class SCFIterator
 {
