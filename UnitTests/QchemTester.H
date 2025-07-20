@@ -5,7 +5,6 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
-#include <Orbitals/fwd.H>
 #include <SCFIteratorfwd.H>
 
 #include <SCFParams.H>
@@ -20,6 +19,7 @@ import qchem.Molecule;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.AtomEC;
 import qchem.Symmetry.ElectronConfiguration;
+import qchem.Orbitals;
 
 class QchemTester
 {

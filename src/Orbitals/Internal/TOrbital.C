@@ -1,13 +1,13 @@
-// File: TOrbitalImplementation.H  General implementation of an orbital, the functional part.
-#ifndef _TOrbitalImplementation_H_
-#define _TOrbitalImplementation_H_
-
-#include <Orbitals/Orbitals.H>
+// File: TOrbitalImp.C  Implementation of an orbital.
+module;
+#include <string>
+export module qchem.Orbitals.Internal.OrbitalImp;
+import qchem.Orbitals;
 import oml;
 import qchem.Irrep_BS;
 import qchem.Symmetry.Orbital;
 
-class OrbitalImp
+export class OrbitalImp
     : public virtual Orbital
 {
 public:
@@ -31,7 +31,7 @@ private:
     Orbital_QNs itsQNs;
 };
 
-template <class T> class TOrbitalImp
+export template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
     , protected      OrbitalImp  
 {
@@ -58,4 +58,3 @@ private:
     const TOrbital_IBS<T>* itsBasisSet;
 };
 
-#endif  //_TOrbitalImplementation_H_

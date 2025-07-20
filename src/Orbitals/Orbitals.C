@@ -1,17 +1,15 @@
-// File: Orbital.H  Interface for Orbital functions.
-#ifndef _Orbital_H_
-#define _Orbital_H_
-
+// File: Orbital.C  Interface for Orbitals.
+module;
 #include <vector>
 #include <memory>
+export module qchem.Orbitals;
+export import qchem.ChargeDensity;
+export import qchem.Symmetry.Orbital;
 
-import qchem.ChargeDensity;
-import Common.Iterators;
-import qchem.Symmetry.Orbital;
-import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
 import qchem.VectorFunction;
 import qchem.Streamable;
+import Common.Iterators;
 
 //#############################################################
 //
@@ -20,7 +18,7 @@ import qchem.Streamable;
 //  templated portion is independant of whether the orbital real
 //  or complex valued.
 //
-class Orbital
+export class Orbital
     : public virtual Streamable
 {
 public:
@@ -34,9 +32,6 @@ public:
     virtual double      GetEigenEnergy () const=0;
     virtual Orbital_QNs GetQNs         () const=0; //Should have principle QN + spin QN + any symmetry QNs.
     virtual std::string GetLabel       () const=0; //A text version of the QNs.
-
-    virtual std::ostream& Write  (std::ostream&) const=0;
-    static  Orbital* Factory     (std::istream&)        ;
 };
 
 //---------------------------------------------------------
@@ -44,7 +39,7 @@ public:
 //  Templated depending or whether it is a real or
 //  complex valued orbital.
 //
-template <class T> class TOrbital
+export template <class T> class TOrbital
     : public virtual Orbital
     , public virtual ScalarFunction<T>
 {
@@ -62,7 +57,7 @@ public:
 //  templated portion is independant of whether the orbitals are real
 //  or complex valued.
 //
-class Orbitals : public virtual Streamable
+export class Orbitals : public virtual Streamable
 {
     typedef Vector<double> RVec;
 public:
@@ -77,10 +72,6 @@ public:
     virtual DM_CD*         GetChargeDensity   (               ) const=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep_QNs      GetQNs() const=0;
-
-    virtual std::ostream& Write  (std::ostream&) const=0;
-   
-    static  Orbitals* Factory(std::istream&);  
     
 private:
     virtual const_iterator begin() const=0;
@@ -114,7 +105,7 @@ public:
 //  Templated depending or whether it is a real or
 //  complex valued orbital.
 //
-template <class T> class TOrbitals
+export template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
 {
@@ -131,8 +122,4 @@ public:
     virtual void  UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)=0;
     virtual ds_t TakeElectrons (double ne)=0;
 
-    static  TOrbitals* Factory(std::istream&)        ;
 };
-
-
-#endif //_Orbital_H_

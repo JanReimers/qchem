@@ -4,13 +4,13 @@
 
 #include <vector>
 
-#include <Orbitals/fwd.H>
 #include <WaveFunction/fwd.H>
 import qchem.Hamiltonian;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
+import qchem.Orbitals;
 
 class WaveFunction 
 {

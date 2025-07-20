@@ -9,7 +9,7 @@
 #include <WaveFunction/WaveFunction.H>
 import qchem.Hamiltonian;
 import qchem.Energy;
-#include <Orbitals/Orbitals.H>
+import qchem.Orbitals;
 import qchem.ChargeDensity;
 #include <SCFIterator.H>
 

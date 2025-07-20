@@ -9,8 +9,8 @@
 
 import qchem.LASolver;
 import qchem.Hamiltonian;
-#include <Orbitals/Factory.H>
-#include <Orbitals/Orbitals.H>
+import qchem.Orbitals.Factory;
+import qchem.Orbitals;
 import qchem.Irrep_BS;
 import qchem.Symmetry.ElectronConfiguration;
 

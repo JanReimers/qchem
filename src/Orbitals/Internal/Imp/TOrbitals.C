@@ -1,12 +1,11 @@
-// File: OrbitalGroupImplementation.C  general orbital group implementation.
-
-
+// File: Imp/TOrbitals.C  
+module;
 #include <cmath>
 #include <cassert>
 #include <iostream>
-#include "TOrbitals.H"
-#include "TOrbital.H"
-
+#include <memory>
+module qchem.Orbitals.Internal.OrbitalsImp;
+import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
 import qchem.Irrep_BS;
 import qchem.Symmetry;

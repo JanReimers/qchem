@@ -1,12 +1,9 @@
 // File: OrbitalIMp.C  Non template part of hte Orbital implemtaton.
-
-
-
-// #include <iostream>
+module;
 #include <cassert>
-// #include <stdlib.h>
+#include <map>
 #include <WaveFunction/EnergyLevel.H>
-#include "TOrbital.H"
+module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Symmetry;
 
 OrbitalImp::OrbitalImp(double e, const Orbital_QNs& qns)

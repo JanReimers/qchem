@@ -4,7 +4,7 @@
 #include <iomanip>
 
 #include "QchemTester.H"
-#include <Orbitals/Orbitals.H>
+import qchem.Orbitals;
 import qchem.Hamiltonian.Factory;
 
 import qchem.Factory;

@@ -1,11 +1,9 @@
-// File: OrbitalImplementation.C  General implementation of an orbital, the functional part.
-
-
-
+// File: OrbitalImp.C  Implementation of an orbital.
+module;
 #include <iostream>
 #include <iomanip>
 #include <complex>
-#include "TOrbital.H"
+module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Irrep_BS;
 
 //-----------------------------------------------------------------

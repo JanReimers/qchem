@@ -1,14 +1,13 @@
-// File: TOrbitalGroupImplementation.H  general orbital group implementation.
-#ifndef _TOrbitalGroupImplementation_H_
-#define _TOrbitalGroupImplementation_H_
+// File: TOrbitals.C  
+module;
+#include <iosfwd>
+export module qchem.Orbitals.Internal.OrbitalsImp;
+export import qchem.Orbitals;
+export import qchem.Irrep_BS;
+export import qchem.Symmetry.Irrep;
 
 
-#include <Orbitals/Orbitals.H>
-import qchem.Irrep_BS;
-import qchem.Symmetry.Irrep;
-
-
-template <class T> class TOrbitalsImp
+export template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
 {
@@ -56,5 +55,3 @@ private:
     SMat                    itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 
-
-#endif //_TOrbitalGroupImplementation_H_

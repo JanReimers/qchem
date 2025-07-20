@@ -4,7 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <WaveFunction/EnergyLevel.H>
-#include <Orbitals/Orbitals.H>
+import qchem.Orbitals;
 
 EnergyLevel::EnergyLevel(const Orbital* o)
     : e(o->GetEigenEnergy()), occ(o->GetOccupation()), degen(o->GetDegeneracy()), qns(o->GetQNs())
