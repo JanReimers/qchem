@@ -6,8 +6,8 @@
 #include <iostream>
 #include "TOrbitals.H"
 #include "TOrbital.H"
-#include <ChargeDensity/Factory.H>
 
+import qchem.ChargeDensity.Factory;
 import qchem.Irrep_BS;
 import qchem.Symmetry;
 import Common.Constants; //c_light

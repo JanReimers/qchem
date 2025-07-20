@@ -1,7 +1,7 @@
 // File: ExactIrrepCD.H  Exact charged density for ONE irreducable representation basis set.
 module;
 #include <iosfwd>
-export module qchem.ChargeDensity.IrrepCD;
+export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
 import oml;

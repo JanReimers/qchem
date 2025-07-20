@@ -5,7 +5,7 @@ module;
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
-module qchem.ChargeDensity.IrrepCD;
+module qchem.ChargeDensity.Imp.IrrepCD;
 // import qchem.HF_IBS;
 import qchem.DFT_IBS;
 

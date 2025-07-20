@@ -7,7 +7,7 @@
 
 #include "Polarized_WF.H"
 import qchem.ChargeDensity;
-#include <ChargeDensity/Factory.H>
+import qchem.ChargeDensity.Factory;
 import qchem.Symmetry;
 import qchem.Streamable;
 

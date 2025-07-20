@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "FittedVee.H"
-#include <ChargeDensity/Factory.H>
 #include <Hamiltonian/TotalEnergy.H>
 import qchem.DFT_IBS;
+import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 
