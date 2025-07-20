@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 #include "FittedVxc.H"
-#include "LDAVxc.H"
+import qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.DFT_IBS;

@@ -1,18 +1,15 @@
-// File: LDAVxc.H  Exact Exchange potential, only useful for plotting.
-#ifndef _LDAVxc_H_
-#define _LDAVxc_H_
-
-
-
-import qchem.Hamiltonian.Internal.Term;
+// File: LDAVxc.C  Exact Exchange potential, only useful for plotting.
+module;
 #include <memory>
+export module qchem.Hamiltonian.Internal.LDAVxc;
+import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
 
 //###############################################################################
 //
 //  Local density exchange potential using exact charge density.
 //
-class LDAVxc
+export class LDAVxc
     : public virtual FittablePotential
     , public virtual ScalarFFClient
     , private        Dynamic_HT_Imp
@@ -34,4 +31,3 @@ private:
     ex_t itsExchangeFunctional;
 };
 
-#endif //_LDAVxc_H_

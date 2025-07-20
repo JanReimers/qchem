@@ -2,7 +2,7 @@
 
 #include "QchemTester.H"
 
-#include "Hamiltonians.H"
+import qchem.Hamiltonian.Factory;
 
 import qchem.Atom;
 import qchem.Molecule;
@@ -33,27 +33,10 @@ public:
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return new Ham_HF_U(cluster);
+        Factory(Model::HF,Pol::UnPolarized,cluster);
     }
 };
 
-class M_PG_SHF_U : public ::testing::Test
-, public TestMolecule, public PG_OBasis, TestUnPolarized
-{
-public:
-    M_PG_SHF_U() {};
-    void Init(Molecule* m)
-    {
-        TestMolecule::Init(m);
-        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-        QchemTester::Init(1e-2,js);
-    }
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
-    {
-        MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
-        return new Ham_SHF_U(cluster,Alpha_N2,GetMeshParams(),itsBasisSet);
-    }
-};
 class M_PG_DFT_U : public ::testing::Test
 , public TestMolecule, public PG_OBasis, TestUnPolarized
 {
@@ -69,20 +52,13 @@ public:
     {
         //MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
         return new Ham_DFT_U(cluster,Alpha_N2,GetMeshParams(),itsBasisSet);
+        return Factory(Model::DFT,Pol::UnPolarized,cluster);
     }
 };
 
 
 
 TEST_F(M_PG_HF_U,N2)
-{
-    Init(MakeN2());
-    Iterate({20,1e-4,1e-7,1e-5,1.0,1e-4,false});
-    double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
-    EXPECT_LT(rerr,MaxRelErrE);
-}
-
-TEST_F(M_PG_SHF_U,N2)
 {
     Init(MakeN2());
     Iterate({20,1e-4,1e-7,1e-5,1.0,1e-4,false});

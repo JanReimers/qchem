@@ -1,11 +1,9 @@
 // File:: Hamiltonians.C  Create fully implemented Hamiltonians
-
+module;
 #include <memory>
 
-#include "Hamiltonians.H"
 #include "Vee.H"
 #include "Vxc.H"
-#include "SlaterExchange.H"
 #include "FittedVxc.H"
 #include "FittedVxcPol.H"
 #include "FittedVee.H"
@@ -15,7 +13,9 @@
 #include "RestMass.H"
 #include "Vnn.H"
 #include "Ven.H"
+module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
+import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.BasisSet;
 import qchem.Fit_IBS;
 import qchem.Cluster;

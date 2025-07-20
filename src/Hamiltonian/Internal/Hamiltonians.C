@@ -1,9 +1,11 @@
 // File:: Hamiltonians.H  Create fully implemented Hamiltonians
-
+export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.BasisSet;
 import Mesh;
+
+export {
 //
 //  1 Electron
 //
@@ -67,3 +69,5 @@ class Ham_DHF : public virtual Hamiltonian, private HamiltonianImp
 public:
     Ham_DHF(const cl_t& cl);
 };
+
+} //export block

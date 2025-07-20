@@ -1,8 +1,8 @@
 // File: Hamiltonian/Imp/Factory.C  Construct and return various Hamiltonian types.
 module;
 #include <cassert>
-#include "Hamiltonians.H"
 module qchem.Hamiltonian.Factory;
+import qchem.Hamiltonian.Internal.Hamiltonians;
 namespace HamiltonianF
 {
     

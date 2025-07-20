@@ -1,13 +1,10 @@
 // File: SlaterExchange.C  Slater exchange potential.
-
+module;
 #include <iostream>
 #include <cmath>
 #include <cassert>
-
-
-#include "SlaterExchange.H"
+module qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.ChargeDensity;
-
 import Common.Constants;
 
 

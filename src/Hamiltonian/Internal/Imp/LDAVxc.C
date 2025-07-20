@@ -1,11 +1,9 @@
 // File: LDAVxc.C  Exact Coulomb potential
-
-
-
+module;
 #include <iostream>
 #include <cassert>
 #include <memory>
-#include "LDAVxc.H"
+module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.ChargeDensity;
 
 LDAVxc::LDAVxc()
