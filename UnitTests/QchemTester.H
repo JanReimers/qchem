@@ -9,7 +9,7 @@
 #include <SCFIteratorfwd.H>
 
 #include <SCFParams.H>
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 import qchem.Hamiltonian;
 
 import qchem.BasisSet;

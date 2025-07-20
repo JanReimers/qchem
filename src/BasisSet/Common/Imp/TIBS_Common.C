@@ -3,8 +3,8 @@ module;
 #include <tuple>
 #include <iostream>
 #include <vector>
-#include <LASolver/LAParams.H>
-#include <LASolver/LASolver.H>
+import qchem.LAParams;
+import qchem.LASolver;
 
 module qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisFunction;

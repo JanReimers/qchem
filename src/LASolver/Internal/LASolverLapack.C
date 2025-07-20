@@ -1,12 +1,9 @@
-// File: LASolver.H  General eigen solver.
-#ifndef _LASolverLapack_H_
-#define _LASolverLapack_H_
-
-#include <LASolver/LASolver.H>
-#include "LASolverImp.H"
+// File: LASolverLAPack.C  Use Lapack linrary for all linear algebra ops.
+export module qchem.LASolver.Internal.Lapack;
+import qchem.LASolver.Internal.Common;
 
 
-template <class T> class LASolverLapackCommon
+export template <class T> class LASolverLapackCommon
     : public virtual  LASolver<T>
     , protected LASolverCommon<T>
 {
@@ -32,7 +29,7 @@ public:
     using LASolverCommon<T>::Vd;
 };
 
-template <class T> class LASolverLapackEigen
+export template <class T> class LASolverLapackEigen
     : public virtual  LASolver<T>
     , private LASolverLapackCommon<T>
 {
@@ -53,7 +50,7 @@ public:
 
 };
 
-template <class T> class LASolverLapackSVD
+export template <class T> class LASolverLapackSVD
     : public virtual  LASolver<T>
     , private LASolverLapackCommon<T>
 {
@@ -73,7 +70,7 @@ public:
     using  LASolverCommon<T>::itsParams;
 };
 
-template <class T> class LASolverLapackCholsky
+export template <class T> class LASolverLapackCholsky
     : public virtual  LASolver<T>
     , private LASolverLapackCommon<T>
 {
@@ -86,6 +83,3 @@ public:
     virtual void   SetBasisOverlap(const SMat& S);
     virtual RSMat   Inverse(const RSMat& S) const;
 };
-
-
-#endif //_LASolver_H_

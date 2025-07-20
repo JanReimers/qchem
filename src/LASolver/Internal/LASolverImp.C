@@ -1,6 +1,8 @@
-// File: LASolverImp.H  General eigen solver.
-#ifndef _LASolverImp_H_
-#define _LASolverImp_H_
+// File: LASolverImp.C  Linear algebra for Lowden orthogonalization and eigne solutions.
+module;
+#include <string>
+export module qchem.LASolver.Internal.Common;
+export import qchem.LASolver;
 
 //#################################################################################
 //
@@ -20,11 +22,8 @@
 //  to use: OML (derived from Numerical Recipes), or Lapack.
 //
 
-#include <string>
-#include <LASolver/LASolver.H>
-#include <LASolver/LAParams.H>
 
-template <class T> class LASolverCommon 
+export template <class T> class LASolverCommon 
     : public virtual  LASolver<T>
 {
     typedef LASolver<T> Base;
@@ -57,5 +56,3 @@ protected:
     RVec Diag; //s for SVD, e for eigen, diag for Cholsky.
 };
 
-
-#endif //_LASolverImp_H_

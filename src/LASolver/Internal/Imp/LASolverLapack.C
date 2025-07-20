@@ -1,11 +1,8 @@
 // File: LASolverLapack.C  General eigen solver.
-
+module;
 #include <cassert>
 #include <iostream>
-#include <LASolver/LASolver.H>
-#include "LASolverLapack.H"
-//#include <iostream>
-
+module qchem.LASolver.Internal.Lapack;
 
 //-----------------------------------------------------------------------------
 //

@@ -3,7 +3,7 @@ module;
 #include <map>
 #include <cassert>
 #include <vector>
-#include "LASolver/LAParams.H"
+import qchem.LAParams;
 export module qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Imp.IEClient;
 import qchem.BasisSet.Integrals;

@@ -2,7 +2,7 @@
 module;
 #include <cstddef>
 #include <iosfwd>
-#include "LASolver/LAParams.H"
+import qchem.LAParams;
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 

@@ -1,10 +1,8 @@
-// File: LASolver.H  General eigen solver.
-#ifndef _LASolverOML_H_
-#define _LASolverOML_H_
+// File: LASolverOML.C  Use OML/Numrical recipes linrary for all linear algebra ops.
+export module qchem.LASolver.Internal.OML;
+import qchem.LASolver.Internal.Common;
 
-#include "LASolverImp.H"
-
-template <class T> class LASolverOMLCommon
+export template <class T> class LASolverOMLCommon
     : public virtual  LASolver<T>
     , protected LASolverCommon<T>
 {
@@ -25,7 +23,7 @@ public:
     using LASolverCommon<T>::Vd;
 };
 
-template <class T> class LASolverOMLEigen
+export template <class T> class LASolverOMLEigen
     : public virtual  LASolver<T>
     , private LASolverOMLCommon<T>
 {
@@ -44,7 +42,7 @@ public:
     using  LASolverOMLCommon<T>::itsParams;
 };
 
-template <class T> class LASolverOMLSVD
+export template <class T> class LASolverOMLSVD
     : public virtual  LASolver<T>
     , private LASolverOMLCommon<T>
 {
@@ -63,7 +61,7 @@ public:
     using  LASolverCommon<T>::itsParams;
 };
 
-template <class T> class LASolverOMLCholsky
+export template <class T> class LASolverOMLCholsky
     : public virtual  LASolver<T>
     , private LASolverOMLCommon<T>
 {
@@ -79,6 +77,3 @@ public:
 
     using  LASolverCommon<T>::itsParams;
 };
-
-
-#endif //_LASolverOML_H_

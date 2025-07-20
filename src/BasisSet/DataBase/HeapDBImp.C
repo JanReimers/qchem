@@ -5,8 +5,8 @@ module;
 #include <memory>
 #include <map>
 #include <cassert>
-#include <LASolver/LASolver.H>
-#include <LASolver/LAParams.H>
+import qchem.LASolver;
+import qchem.LAParams;
 
 module qchem.BasisSet.Imp.HeapDB;
 import qchem.Fit_IBS;

@@ -8,7 +8,7 @@
 #include "PolarizedGaussian/Block.H"
 import qchem.BasisSet.Integrals;
 
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
 #include <vector>

@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include <memory>
-#include "LASolver/LAParams.H"
+import qchem.LAParams;
 
 module qchem.BasisSet.Common;
 import qchem.stl_io;

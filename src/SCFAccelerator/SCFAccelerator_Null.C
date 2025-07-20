@@ -2,7 +2,7 @@
 
 #include <tuple>
 #include <iostream>
-#include <LASolver/LASolver.H>
+import qchem.LASolver;
 #include "SCFAccelerator_Null.H"
 
 void SCFIrrepAccelerator__Null::UseFD(const SMat& F, const SMat& DPrime)

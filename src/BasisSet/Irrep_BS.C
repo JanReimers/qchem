@@ -2,8 +2,7 @@
 module;
 #include <vector>
 #include <memory>
-#include <LASolver/fwd.H>
-#include <LASolver/LAParams.H>
+import qchem.LASolver;
 
 export module qchem.Irrep_BS;
 import qchem.BasisSet.Integrals;

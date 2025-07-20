@@ -7,7 +7,7 @@
 #include "Irrep_WF.H"
 #include <SCFAccelerator/SCFAccelerator.H>
 
-#include <LASolver/LASolver.H>
+import qchem.LASolver;
 import qchem.Hamiltonian;
 #include <Orbitals/Factory.H>
 #include <Orbitals/Orbitals.H>

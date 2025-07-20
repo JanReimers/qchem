@@ -6,7 +6,7 @@
 #include <cmath>
 #include <iomanip>
 #include "SCFAccelerator_DIIS.H"
-#include <LASolver/LASolver.H>
+import qchem.LASolver;
 #include "SCFAccelerator_Null.H"
 import qchem.Irrep_BS;
 

@@ -10,7 +10,7 @@
 
 #include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
 
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 
 
 import qchem.Factory;

@@ -1,7 +1,7 @@
 // File: FittedFunctionImp.C  Implementation for Fitted Functions.
 module;
 #include <memory> // for std::shared_ptr
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 export module qchem.FittedFunctionImp;
 export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;

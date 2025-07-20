@@ -2,9 +2,9 @@
 #ifndef _IrrepWaveFunction_H_
 #define _IrrepWaveFunction_H_
 
-#include <LASolver/fwd.H>
 #include <SCFAccelerator/fwd.H>
 #include <WaveFunction/EnergyLevel.H>
+import qchem.LASolver;
 import qchem.Hamiltonian;
 import qchem.ChargeDensity;
 import qchem.Irrep_BS;

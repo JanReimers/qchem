@@ -1,6 +1,9 @@
-// File: LASolver.H  General eigen solver.
-#ifndef _LASolver_H_
-#define _LASolver_H_
+// File: LASolver.C  Linear algebra for Lowden orthogonalization and eigne solutions.
+module;
+#include <tuple>
+export module qchem.LASolver;
+export import qchem.LAParams;
+export import oml;
 
 //#################################################################################
 //
@@ -26,12 +29,8 @@
 //  Similarly we can do an eigen inverse S=U*w*Ud, Inv(S)=U*1/w*Ud
 //
 
-#include <LASolver/LAParams.H>
-#include <LASolver/fwd.H>
-#include <tuple>
-import oml;
 
-template <class T> class LASolver
+export template <class T> class LASolver
 {
 public:
     virtual ~LASolver() {};
@@ -56,6 +55,3 @@ public:
     virtual RSMat  Transform(const RSMat& M) const=0; // M' = Vd * M * V, where S = V * Vd
     virtual Mat    Transform(const   Mat& M) const=0; // M' = Vd * M * V, where S = V * Vd
 };
-
-
-#endif //_LASolver_H_

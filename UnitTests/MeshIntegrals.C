@@ -5,7 +5,7 @@
 #include "PolarizedGaussian/IntegralEngine.H"
 #include "PolarizedGaussian/BasisSet.H"
 #include "PolarizedGaussian/IrrepBasisSet.H"
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 #include <iomanip>
 
 import Mesh.Integrator;

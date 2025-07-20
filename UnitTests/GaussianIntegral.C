@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 #include <iostream>
 #include <fstream>
 #include <cmath>

@@ -10,7 +10,7 @@
 
 #include "Imp/BasisSet/Atom/IEC.H"
 
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 import qchem.Factory;
 import qchem.HF_IBS;
 import qchem.BasisSet.ERI4;

@@ -1,9 +1,9 @@
-// File: LASolverOML.C  General eigen solver.
-
+// File: LASolverOML.C  Use OML/Numrical recipes linrary for all linear algebra ops.
+module;
 #include <iostream>
 #include <cassert>
-#include <LASolver/LASolver.H>
-#include "LASolverOML.H"
+module qchem.LASolver.Internal.OML;
+import qchem.LASolver.Internal.Common;
 
 template <class T> typename LASolver<T>::UdType LASolverOMLCommon<T>::Solve(const SMat& Ham) const
 {

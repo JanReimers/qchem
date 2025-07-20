@@ -6,8 +6,8 @@
 #include <cmath>
 #include "nlohmann/json.hpp"
 #include "gtest/gtest.h"
-#include <LASolver/LAParams.H>
-#include <LASolver/LASolver.H>
+import qchem.LAParams;
+import qchem.LASolver;
 
 import qchem.Factory;
 import qchem.Irrep_BS;

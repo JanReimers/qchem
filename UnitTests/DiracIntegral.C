@@ -8,7 +8,7 @@
 #include <cmath>
 #include <iomanip>
 
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 

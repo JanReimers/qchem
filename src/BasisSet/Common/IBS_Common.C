@@ -2,11 +2,10 @@
 module;
 #include <cassert>
 #include <iosfwd>
-#include "LASolver/LAParams.H"
-#include "LASolver/fwd.H"
 class DiracIntegralTests;
 
 export module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.LASolver;
 import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Imp.IEClient;
 import qchem.BasisSet.Imp.HeapDB;

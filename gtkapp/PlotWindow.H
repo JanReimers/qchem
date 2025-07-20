@@ -96,7 +96,7 @@ public:
 
 };
 
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 class Diagonal_PW : public PlotWindow
 {
 public:
