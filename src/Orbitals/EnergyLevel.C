@@ -1,13 +1,12 @@
-// File: EnergyLevel.H  Energy level with degeneracy and orbital list.
-#ifndef _EnergyLevel_H_
-#define _EnergyLevel_H_
-
+// File: EnergyLevel.C  Energy level with degeneracy and orbital list.
+module;
 #include <iosfwd>
-#include <WaveFunction/fwd.H>
-import qchem.Symmetry.Orbital;
-import qchem.Orbitals;
+#include <map>
+export module qchem.EnergyLevel;
+export import qchem.Symmetry.Orbital;
+export import qchem.Orbitals;
 
-struct EnergyLevel
+export struct EnergyLevel
 {
     EnergyLevel(const Orbital* o);
     EnergyLevel(const EnergyLevel&);
@@ -21,9 +20,7 @@ struct EnergyLevel
   
 };
 
-#include <map>
-
-class EnergyLevels
+export class EnergyLevels
 {
     typedef std::multimap<double,EnergyLevel> el_t;
     typedef std::map<Orbital_QNs,EnergyLevel> oel_t;
@@ -54,5 +51,3 @@ private:
      oel_t itsQNLevels; //All levels indexed by QNs.
 };
 
-
-#endif //_EnergyLevel_H_

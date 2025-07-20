@@ -1,5 +1,5 @@
 add_library(qcWaveFunction) 
-target_sources(qcWaveFunction PRIVATE Factory.C   Polarized_WF.C Composite_WF.C  Irrep_WF.C  UnPolarized_WF.C EnergyLevel.C)
+target_sources(qcWaveFunction PRIVATE Factory.C   Polarized_WF.C Composite_WF.C  Irrep_WF.C  UnPolarized_WF.C )
 target_include_directories(qcWaveFunction PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  
     ${PROJECT_SOURCE_DIR}/include/Imp/WaveFunction

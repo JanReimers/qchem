@@ -8,7 +8,7 @@
 
 #include <SCFAccelerator/fwd.H>
 #include <WaveFunction/WaveFunction.H>
-#include <WaveFunction/EnergyLevel.H>
+import qchem.EnergyLevel;
 
 class Irrep_WF;
 import qchem.BasisSet;

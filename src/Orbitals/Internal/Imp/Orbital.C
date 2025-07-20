@@ -2,7 +2,8 @@
 module;
 #include <cassert>
 #include <map>
-#include <WaveFunction/EnergyLevel.H>
+#include <string>
+import qchem.EnergyLevel;
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Symmetry;
 

@@ -3,7 +3,7 @@
 #define _IrrepWaveFunction_H_
 
 #include <SCFAccelerator/fwd.H>
-#include <WaveFunction/EnergyLevel.H>
+import qchem.EnergyLevel;
 import qchem.LASolver;
 import qchem.Hamiltonian;
 import qchem.ChargeDensity;
