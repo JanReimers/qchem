@@ -1,10 +1,8 @@
 // File: FittedVxc.C  Fitted exchange potential.
-
-  
-
+module;
 #include <memory>
 #include <vector>
-#include "FittedVxc.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Energy;
 import qchem.ChargeDensity;

@@ -1,11 +1,11 @@
 // File: CDFittedVee.C  Exact Coulomb potential
-
+module;
 #include <cassert>
 #include <iostream>
 #include <memory>
 #include <vector>
 
-#include "FittedVee.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.DFT_IBS;
 import qchem.ChargeDensity.Factory;

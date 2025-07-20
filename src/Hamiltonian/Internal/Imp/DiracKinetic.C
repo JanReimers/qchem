@@ -1,10 +1,9 @@
 // File: DiracKinetic.C  Kinetic energy term for the Dirac hamiltonian.
-
+module;
 #include <iostream>
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
-#include "DiracKinetic.H"
-
 import qchem.Irrep_BS;
 import Common.Constants;
 

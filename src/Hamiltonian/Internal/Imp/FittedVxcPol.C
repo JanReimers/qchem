@@ -1,14 +1,10 @@
 // File: Fitted.C  Fitted polarized exchange potential.
-
-
-
+module;
 #include <cassert>
 #include <iostream>
 #include <memory>
 #include <vector>
-
-#include "FittedVxc.H"
-#include "FittedVxcPol.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Symmetry.Spin;

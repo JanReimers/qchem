@@ -1,13 +1,12 @@
 // File: RestMass.C  Reast mass c^2 term for the Dirac hamiltonian.
-
+module;
 #include <cassert>
 #include <iostream>
 #include <memory>
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.DHF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
-#include "RestMass.H"
-
 import Common.Constants;
 
 RestMass::RestMass()

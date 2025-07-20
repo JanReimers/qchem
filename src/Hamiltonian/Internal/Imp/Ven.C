@@ -1,12 +1,11 @@
 // File: Ven.C  Electron-Nuclear potential.
-
-
+module;
 #include <iostream>
 #include <cassert>
 #include <memory>
 #include <vector>
 
-#include "Ven.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Irrep_BS;

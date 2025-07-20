@@ -1,10 +1,9 @@
 // File: Kinetic.C  Kinetic energy term for the hamiltonian.
-
+module;
 #include <iostream>
 #include <memory>
 #include <vector>
-
-#include "Kinetic.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Irrep_BS;

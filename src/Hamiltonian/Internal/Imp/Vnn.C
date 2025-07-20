@@ -1,13 +1,11 @@
 // File: Vnn.C  Nuclear-Nuclear potential.
-
-
+module;
 #include <iostream>
 #include <cassert>
 #include <vector>
 
-#include "Vnn.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-
 import qchem.Irrep_BS;
 import qchem.Atom;
 

@@ -1,13 +1,10 @@
 // File: VxcPol.C  Polarized HF exchange potential
-
+module;
 #include <cassert>
 #include <iostream>
 #include <memory>
 #include <vector>
-
-
-#include "VxcPol.H"
-#include "Vxc.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.HF_IBS;
 import qchem.Energy;
 import qchem.ChargeDensity;

@@ -2,10 +2,9 @@
 module;
 #include <cassert>
 #include <iostream>
-#include "Kinetic.H"
-#include "Ven.H"
-#include "Vnn.H"
+#include <memory>
 module qchem.Hamiltonian.Internal.Hamiltonian;
+import qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Irrep_BS;

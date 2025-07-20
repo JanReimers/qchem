@@ -1,11 +1,11 @@
 // File: Vxc.C  Hartree-Fock exchange potential
-
+module;
 #include <iostream>
 #include <cassert>
 #include <memory>
 #include <vector>
 
-#include "Vxc.H"
+module qchem.Hamiltonian.Internal.Terms;
 import qchem.HF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
