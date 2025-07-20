@@ -3,7 +3,7 @@
 #define _FittedVxc_H_
 
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.FittedFunctionImp;
 

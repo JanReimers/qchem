@@ -2,7 +2,7 @@
 #ifndef _Kinetic_H_
 #define _Kinetic_H_
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 
 class Kinetic
     : public virtual Static_HT

@@ -2,7 +2,7 @@
 #ifndef _Vee_H_
 #define _Vee_H_
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 
 //###############################################################################
 //

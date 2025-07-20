@@ -1,21 +1,15 @@
-// File: HamiltonianTermImplementation  General implementation of a HamiltonianTerm term in the Hamiltonian.
-
-
+// File: HamiltonianTerm  General implementation of a HamiltonianTerm term in the Hamiltonian.
+module;
 #include <iostream>
 #include <cassert>
 #include <memory>
 #include <vector>
-
-#include "HamiltonianTerm.H"
+module qchem.Hamiltonian.Internal.Term;
 import qchem.ChargeDensity;
 import qchem.Irrep_BS;
 import qchem.Symmetry;
 
-Dynamic_HT_Imp::Dynamic_HT_Imp()
-    : itsCD(0)
-{
-    
-};
+Dynamic_HT_Imp::Dynamic_HT_Imp() : itsCD(0) {};
 
 const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {

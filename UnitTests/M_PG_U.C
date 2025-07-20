@@ -2,8 +2,8 @@
 
 #include "QchemTester.H"
 
-#include <Hamiltonian/Factory.H>
 
+import qchem.Hamiltonian.Factory;
 import qchem.Atom;
 import qchem.Molecule;
 import oml;

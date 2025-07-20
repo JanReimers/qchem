@@ -2,7 +2,7 @@
 #ifndef _FittedVee_H_
 #define _FittedVee_H_
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 #include <memory>
 
 class FittedCD;

@@ -1,8 +1,8 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
-#include <Hamiltonian/Factory.H>
 #include "QchemTester.H"
 
+import qchem.Hamiltonian.Factory;
 import qchem.Factory;
 import qchem.Atom;
 import qchem.Molecule;

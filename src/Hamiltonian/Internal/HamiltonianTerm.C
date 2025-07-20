@@ -1,15 +1,14 @@
-// File: HamiltonianTermImplementation.H  General implementation of a HamiltonianTerm term in the Hamiltonian.
-#ifndef _HamiltonianTermImp_H_
-#define _HamiltonianTermImp_H_
-
+// File: HamiltonianTerm.C  General implementation of a HamiltonianTerm term in the Hamiltonian.
+module;
 #include <map>
-import qchem.Hamiltonian;
-import qchem.FittedFunctionClient;
+export module qchem.Hamiltonian.Internal.Term;
+export import qchem.Hamiltonian;
+export import qchem.FittedFunctionClient;
 
 import oml;
 import qchem.Symmetry.Irrep;
 
-class HT_Common
+export class HT_Common
 {
 protected:
     typedef std::map<Irrep_QNs,Static_HT::SMat> CacheMap;
@@ -18,7 +17,7 @@ protected:
 };
 
 
-class Static_HT_Imp
+export class Static_HT_Imp
     : public virtual Static_HT
     , protected HT_Common
 {
@@ -30,7 +29,7 @@ protected:
     virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const=0;
 };
 
-class Dynamic_HT_Imp
+export class Dynamic_HT_Imp
 : public virtual Dynamic_HT
 , protected HT_Common
 {
@@ -47,7 +46,7 @@ protected:
 };
 
 // Used for polarized potentials (Vxc) which each polarization will handle its own cache.
-class Dynamic_HT_Imp_NoCache
+export class Dynamic_HT_Imp_NoCache
 : public virtual Dynamic_HT
 {
 public:
@@ -58,13 +57,10 @@ protected:
     mutable SMat itsMat;
 };
 
-class FittablePotential
+export class FittablePotential
     : public virtual Dynamic_HT
     , public virtual ScalarFFClient
 {
 public:
     virtual void UseChargeDensity(const DM_CD*)       =0;
 };
-
-
-#endif

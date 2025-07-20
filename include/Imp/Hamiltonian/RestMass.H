@@ -2,7 +2,7 @@
 #ifndef _RestMass_H_
 #define _RestMass_H_
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 
 class RestMass
     : public virtual Static_HT

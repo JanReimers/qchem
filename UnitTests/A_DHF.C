@@ -5,7 +5,7 @@
 
 #include "QchemTester.H"
 #include <Orbitals/Orbitals.H>
-#include <Hamiltonian/Factory.H>
+import qchem.Hamiltonian.Factory;
 
 import qchem.Factory;
 import Common.Constants;

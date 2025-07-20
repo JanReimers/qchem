@@ -4,7 +4,7 @@
 
 
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 #include <memory>
 import qchem.Hamiltonian.Internal.ExFunctional;
 

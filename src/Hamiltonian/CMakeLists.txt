@@ -1,8 +1,6 @@
 add_library(qcHamiltonian) 
 target_sources(qcHamiltonian PRIVATE 
     Imp/Energy.C 
-    Internal/Imp/HamiltonianImp.C 
-    Imp/HamiltonianTerm.C   
     Hamiltonians.C 
     Kinetic.C  
     DiracKinetic.C 
@@ -16,14 +14,18 @@ target_sources(qcHamiltonian PRIVATE
     FittedVxc.C 
     LDAVxc.C Vnn.C 
     Internal/Imp/ExchangeFunctional.C  
+    Internal/Imp/HamiltonianTerm.C  
+    Internal/Imp/HamiltonianImp.C  
     SlaterExchange.C 
     ExchangeFunctionalFactories.C 
-    Factory.C
+    Imp/Factory.C
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Energy.C  
     Hamiltonian.C 
+    Factory.C
     Internal/HamiltonianImp.C 
+    Internal/HamiltonianTerm.C 
     Internal/ExchangeFunctional.C  
 )
 

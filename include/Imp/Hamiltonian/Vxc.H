@@ -4,7 +4,7 @@
 
 
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 
 //###############################################################################
 //

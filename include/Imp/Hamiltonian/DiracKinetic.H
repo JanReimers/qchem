@@ -2,7 +2,7 @@
 #ifndef _DiracKinetic_H_
 #define _DiracKinetic_H_
 
-#include "HamiltonianTerm.H"
+import qchem.Hamiltonian.Internal.Term;
 
 class DiracKinetic
     : public virtual Static_HT
