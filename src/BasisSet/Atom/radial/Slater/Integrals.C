@@ -1,14 +1,13 @@
-#ifndef SLATERINTEGRALS_H
-#define SLATERINTEGRALS_H
-
-#include <cmath>
+// File: BasisSet/Atom/radial/Slater/Integrals.C   Slater radial integral functions.
+module;
 #include <cassert>
-
+#include <cmath>
+export module qchem.BasisSet.Atom.radial.Slater.Integrals;
 import Common.Constants;
 import Common.Factorials;
 import Common.IntPow;
 
-namespace Slater
+export namespace Slater
 {
 //##############################################################################
 //      /
@@ -31,4 +30,3 @@ inline double Norm(double a, int n)
 
 } //namespace
 
-#endif // SLATERINTEGRALS_H

@@ -1,5 +1,10 @@
 
 Priority 1:
+    -Make a qchem.Types module with:
+        RVec3
+        RVec
+        size_t;
+    -Migrate from index_t to int or size_t.
     -Try and simplify BSpling template instancing
     -use std::vector<double> for anything not involing lin-alg 
         -i.e. exponents

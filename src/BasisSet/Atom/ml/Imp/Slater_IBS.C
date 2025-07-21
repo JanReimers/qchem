@@ -5,10 +5,10 @@ module;
 #include <cmath>
 #include <memory>
 #include <vector>
-#include "radial/Slater/Integrals.H"
 module qchem.BasisSet.Atom.ml.SlaterBS;
 import qchem.Symmetry.Ylm;
 import qchem.Streamable;
+import qchem.BasisSet.Atom.radial.Slater.Integrals;
 
 namespace Atom_ml
 {

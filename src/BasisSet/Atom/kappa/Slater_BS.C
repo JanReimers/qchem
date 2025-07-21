@@ -1,7 +1,6 @@
 // File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 module;
 #include <iosfwd>
-#include "radial//Slater/IE_Primatives.H"
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.kappa.SlaterBS;
@@ -11,6 +10,8 @@ import qchem.Irrep_BS;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.radial.Slater.IE_Primatives;
+import qchem.BasisSet.Atom.IE;
 
 export namespace Atom_kappa
 {

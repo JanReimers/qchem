@@ -2,9 +2,10 @@
 module;
 #include <vector>
 #include <memory>
-#include "radial/Slater/ExponentScaler.H"
-#include "radial/Slater/Rk.H"
 module qchem.BasisSet.Atom.l.SlaterBS;
+import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.radial.Slater.Rk;
+
 namespace Atoml
 {
 namespace Slater

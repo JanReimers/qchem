@@ -3,9 +3,9 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include "radial/Slater/Integrals.H"
-#include "radial/Slater/IBS_Common.H"
 module qchem.BasisSet.Atom.l.SlaterBS;
+import qchem.BasisSet.Atom.radial.SlaterBS;
+import qchem.BasisSet.Atom.radial.Slater.Integrals;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 

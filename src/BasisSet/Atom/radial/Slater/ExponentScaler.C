@@ -1,34 +1,23 @@
-// File: ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
+// File: ExponentScaler.H  Rescale Slater exponents based in angular momentum L.
+module;
+#include <cstddef>
+export module qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
+export import oml.Vector;
 
-#include <cmath>
-#include "radial/Slater/ExponentScaler.H"
-
-import qchem.BasisSet.Atom.radial.FillPower;
-
-namespace Slater
+export namespace Slater
 {
 
-
-
-ExponentScaler::ExponentScaler(size_t N, double emin, double emax, size_t LMax)
-    : itsN(N)
-    , itsLMax(LMax)
-    , itsemin(emin)
-    , itsemax(emax)
-    , es(N)
+class ExponentScaler
 {
-    FillPower(es,itsemin,itsemax);
+public:
+    typedef Vector<double> RVec;
+    ExponentScaler(size_t N, double emin, double emax, size_t LMax);
+    RVec   Get_es (size_t L) const;
+private:        
+    size_t itsN,itsLMax;
+    double itsemin,itsemax;
+    RVec es;
 };
 
-ExponentScaler::RVec   ExponentScaler::Get_es(size_t L) const
-{
-    if (L==0) return es;
-    int N=itsN-1*L;
-    if (N<1) N=1;
-    if (N+L>itsN) L=itsN-N;
-    RVec esL(N);
-    for (auto i:esL.indices()) esL(i)=es(i+L);
-    return esL;
-}
-
 } //namespace
+

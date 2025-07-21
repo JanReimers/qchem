@@ -2,8 +2,8 @@
 module;
 #include <iostream>
 #include <vector>
-#include "radial/Slater/ExponentScaler.H"
 module qchem.BasisSet.Atom.ml.SlaterBS;
+import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
 import qchem.Symmetry.AtomEC;
 import qchem.stl_io;
 

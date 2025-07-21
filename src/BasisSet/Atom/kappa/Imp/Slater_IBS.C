@@ -5,9 +5,9 @@ module;
 #include <iomanip>
 #include <cmath>
 #include <memory>
-#include "radial/Slater/IE_Primatives.H"
-#include "radial/Slater/Integrals.H"
 module qchem.BasisSet.Atom.kappa.SlaterBS;
+import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.radial.Slater.Integrals;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
 import qchem.DHF_IBS;

@@ -3,11 +3,10 @@ module;
 #include <iosfwd>
 #include <vector>
 
-#include "radial/Slater/BS_Common.H"
-#include "radial/Slater/IE_Primatives.H"
-#include "radial/Slater/IBS_Common.H"
-
 export module qchem.BasisSet.Atom.l.SlaterBS;
+import qchem.BasisSet.Atom.radial.SlaterBS;
+import qchem.BasisSet.Atom.radial.Slater.IE_Primatives;
+
 import qchem.BasisSet;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.HF_IBS;

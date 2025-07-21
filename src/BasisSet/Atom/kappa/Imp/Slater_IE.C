@@ -2,8 +2,8 @@
 module;
 #include <memory>
 #include <cmath>
-#include "radial/Slater/Integrals.H"
 module qchem.BasisSet.Atom.kappa.SlaterBS;
+import qchem.BasisSet.Atom.radial.Slater.Integrals;
 
 namespace Atom_kappa
 {

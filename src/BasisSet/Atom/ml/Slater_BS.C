@@ -1,10 +1,9 @@
 // File: Atom/ml/Slater_BS.H  r^l exp(-a*r)*Y_lm type basis set.
 module;
 #include <vector>
-#include "radial/Slater/BS_Common.H"
-#include "radial/Slater/IBS_Common.H"
 
 export module qchem.BasisSet.Atom.ml.SlaterBS;
+import qchem.BasisSet.Atom.radial.SlaterBS;
 import qchem.BasisSet.Atom.l.SlaterBS;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Imp.HeapDB;

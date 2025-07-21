@@ -1,10 +1,8 @@
-// File: _Gaussian::Integrals.C   Gaussian radial integral functions.
+// File: BasisSet/Atom/radial/Gaussian/Integrals.C     Gaussian radial integral functions.
 module;
-#include <iostream>
 #include <cassert>
 #include <cmath>
 export module qchem.BasisSet.Atom.radial.GaussianIntegrals;
-// import qchem.BasisSet.Atom.AngularIntegrals;;
 import Common.Constants;
 import Common.Factorials;
 //###################################################################
