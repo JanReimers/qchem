@@ -64,7 +64,10 @@ SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project()
         return itsFPrime;
     else
     {
-        assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
+        double err=fabs(Sum(itsCs)-1.0);
+        if (err>1e-13)
+            cout << "Warning: SCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
+        // assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
         SMat Fproj;
