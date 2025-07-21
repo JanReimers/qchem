@@ -32,6 +32,7 @@ radial/Gaussian/Integrals.C
 radial/Gaussian/BS_Common.C
 radial/BSpline/Instance.C
 radial/BSpline/Instancem.C
+radial/BSpline/Instance_ml.C
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
 radial/Triangle2D.C
@@ -41,12 +42,12 @@ radial/Slater/Rk.C
 radial/Slater/ExponentScaler.C
 radial/Slater/IBS_Common.C
 radial/Slater/BS_Common.C
-ml/Slater_IBS.C
-ml/Gaussian_BS.C
-ml/Slater_BS.C
-ml/Slater_BF.C
-ml/Gaussian_BF.C
-ml/Gaussian_IBS.C
+ml/Imp/Slater_IBS.C
+ml/Imp/Gaussian_BS.C
+ml/Imp/Slater_BS.C
+ml/Imp/Slater_BF.C
+ml/Imp/Gaussian_BF.C
+ml/Imp/Gaussian_IBS.C
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   Factory.C
@@ -62,7 +63,9 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   l/Slater_BS.C
   l/BSpline_BS.C
   ml/IE_HF_Angular.C
-  
+  ml/Gaussian_BS.C
+  ml/Slater_BS.C
+  ml/BSpline_BS.C
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

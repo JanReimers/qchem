@@ -18,21 +18,10 @@ import oml;
 #include "../../l/Imp/BSpline_BS.Ci"
 #include "../../l/Imp/BSpline_IBS.Ci"
 #include "../../l/Imp/BSpline_BF.Ci"
-
 namespace Atoml::BSpline
 {
-    //Initial attempts to loop this with meta programming failed.
-    // template class BasisSet<3>;
-    // template class BasisSet<4>;
-    // template class BasisSet<5>;
     template class BasisSet<6>;
     template class Orbital_IBS<6>;
     template class BasisFunction<6>;
-
-    // template class BasisSet<7>;
-    // template class BasisSet<8>;
-    // template class BasisSet<9>;
-    // template class BasisSet<10>;
-    // template class BasisSet<11>;
 }
 

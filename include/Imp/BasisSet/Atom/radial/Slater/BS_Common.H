@@ -1,6 +1,7 @@
 // File: Atom/radial/Slater/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom Slater Basis Sets.
 #ifndef _Atom_radial_Slater_BS_Common_H_
 #define _Atom_radial_Slater_BS_Common_H_
+#include <cstddef>
 
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Common;

@@ -1,9 +1,8 @@
 // File: Atom/ml/Slater_BF.C  r^l exp(-ar)*Y_lm type basis function 
-
+module;
 #include <iostream>
 #include <cassert>
-#include "ml/Slater_BF.H"
-
+module qchem.BasisSet.Atom.ml.SlaterBS;
 import Common.IntPow;
 import oml;
 

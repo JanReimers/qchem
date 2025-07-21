@@ -1,39 +1,62 @@
 // File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
-
+module;
 #include <vector>
-#include <iostream>
-#include <algorithm>
-#include "ml/Gaussian_BS.H"
-#include "ml/Gaussian_IBS.H"
-#include "radial/Gaussian/ExponentScaler.H"
-import qchem.Symmetry.AtomEC;
+#include "radial/Gaussian/IBS_Common.H"
+#include "radial/Gaussian/BS_Common.H"
+export module qchem.BasisSet.Atom.ml.GaussianBS;
+import qchem.BasisSet.Atom.l.GaussianBS;
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.HF_IBS;
+import qchem.Fit_IBS;
+import qchem.Cluster;
+import qchem.BasisSet.Atom.ml.Angular;
+import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Common;
+import qchem.Symmetry.ElectronConfiguration;
 
-namespace Atom_ml
+export namespace Atom_ml
 {
 namespace Gaussian
 {
-
-
-BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
-{
-    const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
-    ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());
-    for (size_t L=0;L<=aec.GetLMax();L++)
+class BasisFunction : public Atoml::Gaussian::BasisFunction
     {
-        auto mls=aec.GetBreadown(L);
-        if (mls.ml_paired.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
-        if (mls.ml_unpaired.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
-        if (mls.ml_unoccupied.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
-
-    
-    }
+    public:
+        BasisFunction(double theExponent,int n, int l, int ml, double norm);
         
-}
+        virtual BasisFunction* Clone(        ) const;
+    private:
+        typedef Atoml::Gaussian::BasisFunction Base;
+        int ml;
+    };
+class Orbital_IBS
+: public virtual TOrbital_HF_IBS<double>
+// , public virtual TOrbital_DFT_IBS<double>
+, public         ::Gaussian::IrrepBasisSet
+, public         Orbital_IBS_Common<double>
+// , public         Orbital_DFT_IBS_Common<double>
+, public         Orbital_HF_IBS_Common<double>
+, public         Atoml::Gaussian::Orbital_IE
 
+{
+public:
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
 
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
+    virtual ::IrrepBasisSet* Clone(const ::IrrepBasisSet::RVec3&) const;
+private:
+    void InsertBasisFunctions();
+};
+class BasisSet 
+: public ::Gaussian::BS_Common
+, public IE_BS_2E_Angular //Pick angular integrals.
+{
+public:
+    BasisSet() {};
+    BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
+};
 
-} //namespace
-} //namespace
+} //namespace 
+} //namespace 
+

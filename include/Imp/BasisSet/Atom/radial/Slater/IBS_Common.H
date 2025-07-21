@@ -2,7 +2,7 @@
 #ifndef _Atom_radial_Slater_IBS_Common_H_
 #define _Atom_radial_Slater_IBS_Common_H_
 #include <vector>
-
+#include <iosfwd>
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Atom.IEClient;
 

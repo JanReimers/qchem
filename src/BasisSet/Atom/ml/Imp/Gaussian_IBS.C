@@ -1,11 +1,10 @@
 // File: Atom/ml/Gaussian_IBS.H  r^l exp(-ar^2)*Y_lm type Irrep Basis set (IBS).
-
+module;
 #include <iostream>
-#include "ml/Gaussian_IBS.H"
-#include "ml/Gaussian_BF.H"
-
 #include <cassert>
-
+#include <vector>
+#include "radial/Gaussian/IBS_Common.H"
+module qchem.BasisSet.Atom.ml.GaussianBS;
 import qchem.Symmetry.Ylm;
 
 namespace Atom_ml

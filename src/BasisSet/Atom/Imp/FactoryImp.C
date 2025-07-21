@@ -4,9 +4,6 @@ module;
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
-#include "ml/Slater_BS.H"
-#include "ml/Gaussian_BS.H"
-#include "ml/BSpline_BS.H"
 module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
 import qchem.BasisSet.Atom.kappa.GaussianBS;
@@ -14,6 +11,9 @@ import qchem.BasisSet.Atom.kappa.SlaterBS;
 import qchem.BasisSet.Atom.l.GaussianBS;
 import qchem.BasisSet.Atom.l.SlaterBS;
 import qchem.BasisSet.Atom.l.BSplineBS;
+import qchem.BasisSet.Atom.ml.GaussianBS;
+import qchem.BasisSet.Atom.ml.SlaterBS;
+import qchem.BasisSet.Atom.ml.BSplineBS;
 
 namespace BasisSetAtom
 {

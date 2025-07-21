@@ -9,16 +9,19 @@
 #include "IE.Ci"
 #include "IEC.Ci"
 #include "Rk.Ci"
-#include "../../ml/BSpline_BS.Ci"
-#include "../../ml/BSpline_IBS.Ci"
-#include "../../ml/BSpline_BF.Ci"
 import qchem.BasisSet.Atom.l.BSplineBS;
+import qchem.BasisSet.Atom.ml.BSplineBS;
 namespace BSpline
 {
     template class IrrepBasisSet<6>;
     template class RkEngine<6>;
     template class IE_Fit<6>;
+    template class IE_DFT<double,6>;
+    template class IE_Overlap<double,6>;
+    template class IE_Inv_r1<double,6>;
+    template class IE_Kinetic<double,6>;
     template class BS_Common<6>;
+    template class IE_Primatives<6>;
 }
 
 namespace Atoml::BSpline

@@ -1,15 +1,12 @@
 // File: Atom/ml/Slater_IBS.C  Slater Irrep Basis Set (IBS) with orbital angular momentum l,m.
-
-
+module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
 #include <memory>
-
-#include "ml/Slater_IBS.H"
-#include "ml/Slater_BF.H"
+#include <vector>
 #include "radial/Slater/Integrals.H"
-
+module qchem.BasisSet.Atom.ml.SlaterBS;
 import qchem.Symmetry.Ylm;
 import qchem.Streamable;
 

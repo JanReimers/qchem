@@ -1,38 +1,61 @@
-// File Slater_m/BasisSet.H
-
-#include <iostream>
+// File: Atom/ml/Slater_BS.H  r^l exp(-a*r)*Y_lm type basis set.
+module;
 #include <vector>
-#include "ml/Slater_BS.H"
-#include "ml/Slater_IBS.H"
-#include "radial/Slater/ExponentScaler.H"
-import qchem.Symmetry.AtomEC;
-import qchem.stl_io;
+#include "radial/Slater/BS_Common.H"
+#include "radial/Slater/IBS_Common.H"
 
-using std::cout;
-using std::endl;
+export module qchem.BasisSet.Atom.ml.SlaterBS;
+import qchem.BasisSet.Atom.l.SlaterBS;
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.HF_IBS;
+import qchem.DFT_IBS;
+import qchem.BasisSet.Atom.ml.Angular;
+import qchem.BasisSet.Common;
+import qchem.Symmetry.ElectronConfiguration;
 
-namespace Atom_ml
+export namespace Atom_ml
 {
 namespace Slater
 {
-
-BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
+class BasisFunction : public Atoml::Slater::BasisFunction
 {
-    const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
-    ::Slater::ExponentScaler ss(N,emin,emax,aec.GetLMax());
-    for (size_t L=0;L<=aec.GetLMax();L++)
-    {
-        auto mls=aec.GetBreadown(L);
-        if (mls.ml_paired.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
-        if (mls.ml_unpaired.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
-        if (mls.ml_unoccupied.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
-
+public:
+    BasisFunction(double ex, int n, int l, int ml, double norm);
     
-    }
-    
-}
+    virtual BasisFunction* Clone(        ) const;
+private:
+    typedef Atoml::Slater::BasisFunction Base;
+    int ml;
+};
+class Orbital_IBS
+    : public virtual TOrbital_HF_IBS<double>
+    , public virtual TOrbital_DFT_IBS<double>
+    , public         ::Slater::IrrepBasisSet
+    , public         Orbital_IBS_Common<double>
+    , public         Orbital_DFT_IBS_Common<double>
+    , public         Orbital_HF_IBS_Common<double>
+    , public         Atoml::Slater::Orbital_IE
 
-}} //namespace
+{
+public:
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
+
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
+    virtual ::IrrepBasisSet* Clone(const ::IrrepBasisSet::RVec3&) const;
+private:
+    void InsertBasisFunctions();
+
+};
+class BasisSet 
+    : public ::Slater::BS_Common
+    , public IE_BS_2E_Angular
+{
+public:
+    BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
+    
+};
+
+}} //namespace Slater_m
+

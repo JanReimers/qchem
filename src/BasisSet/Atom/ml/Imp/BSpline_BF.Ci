@@ -1,8 +1,5 @@
 // File: Atom/ml/BSpline_BF.C  B-Spline basis function.
 
-#include "ml/BSpline_BF.H"
-#include <iostream>
-#include <cassert>
 
 namespace Atom_ml
 {

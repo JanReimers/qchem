@@ -1,8 +1,5 @@
 // File: Atom/ml/BSpline_BS.H BSpline Basis Set for atoms, no m degeneracy.
 
-#include "ml/BSpline_BS.H"
-#include "ml/BSpline_IBS.H"
-import qchem.Symmetry.AtomEC;
 
 namespace Atom_ml
 {

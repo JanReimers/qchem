@@ -1,12 +1,5 @@
 // File: Atom/ml/BSpline_IBS.C  BSpline Irrep Basis Set (IBS) with orbital angular momentum l,m.
 
-#include "ml/BSpline_IBS.H"
-#include "ml/BSpline_BF.H"
-#include "radial/BSpline/IBS_Common.H"
-#include <iostream>
-#include <cassert>
-
-import qchem.Symmetry.Ylm;
 
 namespace Atom_ml
 {
