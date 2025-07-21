@@ -6,6 +6,7 @@
 #include "radial/Slater/Rk.H"
 #include "radial/Slater/BS_Common.H"
 import qchem.Irrep_BS;
+import qchem.BasisSet.Imp.IEClient;
 import oml;
 
 namespace Slater

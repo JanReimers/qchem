@@ -1,12 +1,12 @@
 add_library(qcAtom_BS) 
 target_sources(qcAtom_BS PRIVATE 
 FactoryImp.C
-IE_DHF.C
-IE_DFT.C
-IEC.C
-IE.C
-IE_Fit.C
-IE_HF.C
+Imp/IE_DHF.C
+Imp/IE_DFT.C
+Imp/IEC.C
+Imp/IE.C
+Imp/IE_Fit.C
+Imp/IE_HF.C
 AngularIntegrals.C
 BFGrouper.C
 Wigner3j.C
@@ -51,6 +51,8 @@ ml/Gaussian_IBS.C
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   Factory.C
+  IE.C
+  IEC.C
 )
 target_include_directories(qcAtom_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  

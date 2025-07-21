@@ -3,7 +3,7 @@
 #define _Atom_kappa_Slater_IE_H_
 
 #include "../radial//Slater/IE_Primatives.H"
-#include "../IE_DHF.H"
+import qchem.BasisSet.Atom.IE;
 
 class DiracIntegralTests;
 

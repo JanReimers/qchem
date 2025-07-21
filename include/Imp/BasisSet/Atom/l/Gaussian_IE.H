@@ -5,10 +5,7 @@
 
 // #include <AnalyticIE.H>
 #include "../radial/Gaussian/IE_Primatives.H"
-#include "../IE_HF.H"
-#include "../IE_DHF.H"
-#include "../IE_DFT.H"
-#include "../IE_Fit.H"
+import qchem.BasisSet.Atom.IE;
 
 import oml;
 

@@ -1,11 +1,10 @@
 // File: AtomIE.C Common DHF IE code for all atom basis sets.
-
+module;
 #include <iostream>
 #include <memory>
 #include <cassert>
-#include "IE_DHF.H"
-#include "IEC.H"
-import qchem.DHF_IBS;
+module qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IEClient;
 
 template <class T> typename Integrals_Base<T>::Mat  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {

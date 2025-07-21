@@ -1,8 +1,9 @@
 // File: Atom_ml_IE_HF_Angular.H  Angular 2e-Integrals for atom-ml HF basis sets.
-
-#include "IEC.H"
+#include <cstddef>
+#include <vector>
 #include "ml/IE_HF_Angular.H"
 #include "AngularIntegrals.H"
+import qchem.BasisSet.Atom.IEClient;
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {

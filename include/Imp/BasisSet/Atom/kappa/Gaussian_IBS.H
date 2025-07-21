@@ -3,8 +3,8 @@
 #define _Atom_kappa_Gaussian_IBS_H_
 
 #include "Gaussian_IE.H"
-#include "../IEC.H"
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Atom.IEClient;
 
 class DiracIntegralTests;
 

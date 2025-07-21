@@ -2,7 +2,7 @@
 #ifndef _Atom_radial_Slater_BS_Common_H_
 #define _Atom_radial_Slater_BS_Common_H_
 
-#include "../../IE_HF.H"
+import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Common;
 
 namespace Slater

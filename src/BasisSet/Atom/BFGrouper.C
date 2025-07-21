@@ -6,7 +6,7 @@
 #include <complex>
 #include "BFGrouper.H"
 #include "radial/BSpline/IEC.H"
-#include "IEC.H"
+import qchem.BasisSet.Atom.IEClient;
 
 using std::cout;
 using std::endl;

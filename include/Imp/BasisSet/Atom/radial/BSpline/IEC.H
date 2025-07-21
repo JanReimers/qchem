@@ -2,9 +2,9 @@
 #ifndef _BSplineIEClient_H_
 #define _BSplineIEClient_H_
 
-#include "../../IEC.H"
 #include <bspline/Core.h>
 #include "GLQuadrature.H"
+import qchem.BasisSet.Atom.IEClient;
 import oml;
 
 namespace BSpline

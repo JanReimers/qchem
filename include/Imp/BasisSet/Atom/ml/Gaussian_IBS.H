@@ -7,6 +7,8 @@
 #include "../l/Gaussian_IE.H"
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.HF_IBS;
+import qchem.Fit_IBS;
+import qchem.Cluster;
 
 namespace Atom_ml
 {

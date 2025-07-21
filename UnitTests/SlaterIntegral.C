@@ -8,7 +8,7 @@
 #include <cmath>
 #include <iomanip>
 
-#include "Imp/BasisSet/Atom/IEC.H"
+import qchem.BasisSet.Atom.IEClient;
 
 import qchem.LAParams;
 import qchem.Factory;

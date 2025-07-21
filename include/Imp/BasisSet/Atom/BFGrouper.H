@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <map>
+import qchem.BasisSet.Atom.IEClient;
 
 // 
 // Keep a list of unique exponents for Group Slater or Gaussian basis functions.
@@ -12,7 +13,6 @@
 // and work out the radial integral tables up to LMax for each exponent combination. 
 // THis class should be working together with the charge distribution caching mechanism.
 //  
-class AtomIrrepIEClient;
 
 class BFGrouper
 {

@@ -6,6 +6,7 @@
 #include "radial/Gaussian/Rk.H"
 #include "radial/Gaussian/BS_Common.H"
 import qchem.Irrep_BS;
+import qchem.BasisSet.Imp.IEClient;
 import oml;
 
 namespace Gaussian

@@ -2,10 +2,7 @@
 #ifndef _Atom_l_Slater_IE_H_
 #define _Atom_l_Slater_IE_H_
 
-#include "../IE_HF.H"
-#include "../IE_DHF.H"
-#include "../IE_DFT.H"
-#include "../IE_Fit.H"
+import qchem.BasisSet.Atom.IE;
 #include "../radial/Slater/IE_Primatives.H"
 
 namespace Atoml

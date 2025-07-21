@@ -1,6 +1,7 @@
 // File: Gaussian/IE_Primatives.C get all calculation of primative integrals in one place.
 
 #include <cassert>
+#include <algorithm> //min/max
 #include "radial/Gaussian/IE_Primatives.H"
 #include "radial/Gaussian/Integrals.H"
 #include "radial/Gaussian/Rk.H"

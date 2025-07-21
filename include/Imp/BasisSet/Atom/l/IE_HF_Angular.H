@@ -2,8 +2,7 @@
 #ifndef _Atoml_IE_HF_Angular_H_
 #define _Atoml_IE_HF_Angular_H_
 
-#include "../IE_HF_Angular.H"
-
+import qchem.BasisSet.Atom.IE;
 namespace Atoml
 {
 

@@ -1,8 +1,8 @@
 // File: Gaussian/IE_Primatives.H get all calculation of primative integrals in one place.
 #ifndef _Gaussian_IE_Primatives_H_
 #define _Gaussian_IE_Primatives_H_
-
-#include "../../IE.H"
+#include <cstddef>
+import qchem.BasisSet.Atom.IE;
 
 namespace Gaussian
 {

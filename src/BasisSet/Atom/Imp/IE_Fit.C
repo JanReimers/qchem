@@ -1,10 +1,9 @@
 // File: AtomIE.C Common Fit IE code for all atom basis sets.
-
+module;
 #include <cassert>
 #include <memory>
-#include "IE_Fit.H"
-#include "IEC.H"
-import qchem.Fit_IBS;
+module qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IEClient;
 
 AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
 {

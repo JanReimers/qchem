@@ -1,13 +1,11 @@
 // File: Atom/IE_DFT.C Common DFT IE code for all atom basis sets.
-
+module;
 #include <vector>
 #include <memory>
 #include <iostream>
 #include <cassert>
-
-#include "IE_DFT.H"
-#include "IEC.H"
-import qchem.Fit_IBS;
+module qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IEClient;
 
 template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const Fit_IBS& _c) const
 {

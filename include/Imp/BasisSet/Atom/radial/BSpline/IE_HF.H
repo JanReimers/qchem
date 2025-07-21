@@ -5,7 +5,7 @@
 #include "IE.H"
 #include "IEC.H"
 #include "BFGrouper.H"
-#include "../../IE_HF_Angular.H" //For angular interfactes
+import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.ERI4;

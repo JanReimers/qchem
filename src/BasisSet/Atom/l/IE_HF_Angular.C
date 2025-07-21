@@ -1,9 +1,9 @@
 // File: Atoml_IE_HF_Angular.H  Angular 2e-Integrals for atoml HF basis sets.
 
 #include <cmath>
-#include "IEC.H"
 #include "AngularIntegrals.H"
 #include "l/IE_HF_Angular.H"
+import qchem.BasisSet.Atom.IEClient;
 
 namespace Atoml
 {

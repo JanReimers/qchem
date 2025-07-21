@@ -1,11 +1,10 @@
 // File: AtomIE.C Common HF IE code for all atom basis sets.
-
+module;
 #include <iostream>
 #include <memory>
 #include <cassert>
-#include "IE_HF.H"
-#include "IEC.H"
-import qchem.BasisSet.ERI4;
+module qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IEClient;
 
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
 {

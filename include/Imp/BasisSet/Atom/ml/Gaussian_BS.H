@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "IE_HF_Angular.H"
-#include "../IE.H"
+import qchem.BasisSet.Atom.IE;
 #include "../radial/Gaussian/BS_Common.H"
 import qchem.BasisSet.Common;
 import qchem.Symmetry.ElectronConfiguration;

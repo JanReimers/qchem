@@ -5,8 +5,8 @@
 
 
 #include "Slater_IE.H"
-#include "../IEC.H"
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Atom.IEClient;
 
 class DiracIntegralTests;
 
