@@ -1,16 +1,16 @@
 // File: Atom/kappa/Gaussian_IBS.C  Restricted Kinetic Balance (RKB) Irrep Basis Set (IBS).
-
+module;
 #include <memory>
 #include <iostream>
 #include <cassert>
 #include <cmath>
-
-#include "kappa/Gaussian_IBS.H"
-#include "kappa/Gaussian_BF.H"
+#include "radial/Gaussian/IE_Primatives.H"
 #include "radial/Gaussian/Integrals.H"
+module qchem.BasisSet.Atom.kappa.GaussianBS;
 
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
+import qchem.DHF_IBS;
 
 using std::endl;
 

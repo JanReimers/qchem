@@ -1,10 +1,9 @@
 // File: Atom/kappa/Gaussian_BF.C  Gaussians with Restricted Kinetic Balance (RKB).
-
+module;
 #include <cmath>
 #include <iostream>
 #include <cassert>
-#include "kappa/Gaussian_BF.H"
-
+module qchem.BasisSet.Atom.kappa.GaussianBS;
 import Common.IntPow;
 import qchem.Symmetry.Okmj;
 import oml;

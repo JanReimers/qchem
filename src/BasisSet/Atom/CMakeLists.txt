@@ -1,6 +1,6 @@
 add_library(qcAtom_BS) 
 target_sources(qcAtom_BS PRIVATE 
-FactoryImp.C
+Imp/FactoryImp.C
 Imp/IE_DHF.C
 Imp/IE_DFT.C
 Imp/IEC.C
@@ -17,14 +17,14 @@ l/Slater_BS.C
 l/Slater_BF.C
 l/Gaussian_BF..C
 l/Gaussian_IBS.C
-kappa/Slater_IBS.C
-kappa/Gaussian_BS.C
-kappa/Slater_BS.C
-kappa/Slater_IE.C
-kappa/Slater_BF.C
-kappa/Gaussian_IE.C
-kappa/Gaussian_IBS.C
-kappa/Gaussian_BF.C
+kappa/Imp/Slater_IBS.C
+kappa/Imp/Gaussian_BS.C
+kappa/Imp/Slater_BS.C
+kappa/Imp/Slater_IE.C
+kappa/Imp/Slater_BF.C
+kappa/Imp/Gaussian_IE.C
+kappa/Imp/Gaussian_IBS.C
+kappa/Imp/Gaussian_BF.C
 radial/Gaussian/IE_Primatives.C
 radial/Gaussian/Rk.C
 radial/Gaussian/ExponentScaler.C
@@ -56,6 +56,8 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   AngularIntegrals.C
   BFGrouper.C
   Wigner3j.C
+  kappa/Gaussian_BS.C
+  kappa/Slater_BS.C
 )
 target_include_directories(qcAtom_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  

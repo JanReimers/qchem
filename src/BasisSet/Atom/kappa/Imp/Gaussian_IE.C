@@ -1,10 +1,10 @@
 // File: Atom/kappa/Gaussian_IE.C  Integral Engine for RKB Gaussians.
-
+module;
 #include <cassert>
 #include <memory>
-#include "kappa/Gaussian_IE.H"
 #include "radial/Gaussian/Integrals.H"
 
+module qchem.BasisSet.Atom.kappa.GaussianBS;
 
 namespace Atom_kappa
 {

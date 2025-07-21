@@ -1,10 +1,9 @@
 // File: Atom/kappa/Slater_BF.C  Slater basis function with Restricted Kinetic Balance (RKB).
-
+module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include "kappa/Slater_BF.H"
-
+module qchem.BasisSet.Atom.kappa.SlaterBS;
 import Common.IntPow;
 import qchem.Symmetry.Okmj;
 import oml;

@@ -1,17 +1,16 @@
 // File: Atom/kappa/Slater_IBS.C  Slater Irrep Basis Set (IBS) with Restricted Kinetic Balance (RKB).
-
+module;
 #include <iostream>
 #include <cassert>
 #include <iomanip>
 #include <cmath>
 #include <memory>
-
-#include "kappa/Slater_IBS.H"
-#include "kappa/Slater_BF.H"
+#include "radial/Slater/IE_Primatives.H"
 #include "radial/Slater/Integrals.H"
-
+module qchem.BasisSet.Atom.kappa.SlaterBS;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
+import qchem.DHF_IBS;
 
 using std::endl;
 

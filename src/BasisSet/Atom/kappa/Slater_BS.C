@@ -1,35 +1,152 @@
 // File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
+module;
+#include <iosfwd>
+#include "radial//Slater/IE_Primatives.H"
+class DiracIntegralTests;
 
-#include <memory>
-#include "kappa/Slater_IBS.H"
-#include "radial/Slater/ExponentScaler.H"
-#include "kappa/Slater_BS.H"
+export module qchem.BasisSet.Atom.kappa.SlaterBS;
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Common;
+import qchem.Irrep_BS;
+import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisFunction;
+import qchem.BasisSet.Atom.IEClient;
 
-import qchem.Streamable;
-
-namespace Atom_kappa
+export namespace Atom_kappa
 {
 namespace Slater
 {
 
-BasisSet::BasisSet(size_t N, double emin, double emax, size_t lMax)
+// Basis function
+class Small_BasisFunction;
+    
+class Large_BasisFunction
+    : public virtual ::Real_BF
 {
-    ::Slater::ExponentScaler ss(N,emin,emax,lMax);
-    const DB_cache<double>* db=this;
-    for (int l=0;l<=(int)lMax;l++)
-    {
-        // j=l-0.5 sector, kappa = l > 0
-        double j=l-0.5;
-        if (j>0) //skip j=-0.5 for l=0;
-//            for (double mj=-j;mj<=j;mj+=1.0)
-        Insert(new Orbital_IBS(db,ss.Get_es(l),l));            
-        // j=l+0.5 sector, kappa = -l -1 < 0
-        j=l+0.5;
-//        for (double mj=-j;mj<=j;mj+=1.0)
-            Insert(new Orbital_IBS(db,ss.Get_es(l),-l-1));            
-        
-    }
+public:
+    Large_BasisFunction() {};
+    Large_BasisFunction(double ex, int kappa, int mj, double norm);
+    
+    virtual std::ostream&    Write(std::ostream&) const;
+    virtual ::Real_BF* Clone(        ) const;
 
-}
+    virtual double operator()(const Vec3&) const;
+    virtual Vec3   Gradient  (const Vec3&) const;
+private:
+    friend class Small_BasisFunction;
+    double itsExponent;
+    int kappa,mj,l;
+    double itsNormalization;
+};
 
-}} //namespace
+//
+//  Derived from the LargeBF P(r)=r^l*exp(-e*r) as:
+//
+//                                  -e*r^l*exp(-e*r), kappa<0
+//     Q(r)=(d/dr+(1+kappa)/r)g = {
+//                                  ((2l+1)/r-e)*r^lexp(-e*r), kappa>0
+//
+class Small_BasisFunction
+    : public virtual ::Real_BF
+{
+public:
+    Small_BasisFunction();
+    Small_BasisFunction(const Large_BasisFunction*,double norm);
+    
+    virtual std::ostream&    Write(std::ostream&) const;
+    virtual ::Real_BF* Clone(        ) const;
+
+    virtual double operator()(const Vec3&) const;
+    virtual Vec3   Gradient  (const Vec3&) const;
+private:
+    const Large_BasisFunction* Pr;
+    double itsNormalization;
+};
+
+
+// Integral engine
+template <class T> class Orbital_RKBL_IE
+    : public     AtomIE_RKBL<T>
+    , public virtual ::Slater::IE_Primatives
+{
+protected:
+    Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
+};
+
+template <class T> class Orbital_RKBS_IE
+    : public     AtomIE_RKBS<T>
+    , public virtual ::Slater::IE_Primatives
+{
+protected:
+    Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
+    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
+};
+
+
+// Irrep basis set
+
+// All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
+// specific.
+class Orbital_IBS
+    : public virtual TOrbital_IBS<double>
+    , public         Orbital_RKB_IBS_Common<double> 
+{
+public:
+    using ::IrrepBasisSet::RVec3;
+    Orbital_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
+
+    virtual std::ostream&  Write(std::ostream&    ) const;
+    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
+private:
+    friend class ::DiracIntegralTests;
+
+};
+
+template <class T> class Large_Orbital_IBS
+    : public virtual ::Orbital_RKBL_IBS<T>
+    , public     Orbital_RKBL_IBS_Common<T> 
+    , public     Orbital_RKBL_IE<T>
+    , public     AtomIrrepIEClient
+{
+    using RVec3=::IrrepBasisSet::RVec3;
+    public:
+    Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
+
+    virtual std::ostream&  Write(std::ostream&    ) const;
+    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+private:
+    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+    using Orbital_RKBL_IBS_Common<T>::kappa;
+};
+
+template <class T> class Small_Orbital_IBS
+    : public virtual ::Orbital_RKBS_IBS<T>
+    , public     Orbital_RKBS_IBS_Common<T> 
+    , public     Orbital_RKBS_IE<T>
+    , public     AtomIrrepIEClient
+{
+public:
+    using RVec3=::IrrepBasisSet::RVec3;
+    Small_Orbital_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
+    virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l);
+
+    virtual std::ostream&  Write(std::ostream&    ) const;
+    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+private:
+    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+    using Orbital_RKBS_IBS_Common<T>::kappa;
+};
+
+// Full basis set
+class BasisSet 
+    : public ::BS_Common
+    , public DB_cache<double>
+{
+public:
+    BasisSet(size_t N, double minexp, double maxexp, size_t lMax);
+    
+};
+
+}} //namespace Atom_kappa::Slater
+
