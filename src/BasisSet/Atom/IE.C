@@ -1,10 +1,11 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
 module;
-#include "BFGrouper.H"
+#include <cstddef>
 export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Imp.HeapDB;
 export import qchem.BasisSet.Imp.Cache4;
 export import oml.Vector;
+import qchem.BasisSet.Atom.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Integrals;
 import qchem.BasisSet.ERI4;

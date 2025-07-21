@@ -2,8 +2,8 @@
 #include <cstddef>
 #include <vector>
 #include "ml/IE_HF_Angular.H"
-#include "AngularIntegrals.H"
 import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.AngularIntegrals;;
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {

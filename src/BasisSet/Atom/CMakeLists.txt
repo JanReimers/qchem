@@ -7,9 +7,9 @@ Imp/IEC.C
 Imp/IE.C
 Imp/IE_Fit.C
 Imp/IE_HF.C
-AngularIntegrals.C
-BFGrouper.C
-Wigner3j.C
+Imp/AngularIntegrals.C
+Imp/BFGrouper.C
+Imp/Wigner3j.C
 l/IE_HF_Angular.C
 l/Slater_IBS.C
 l/Gaussian_BS.C
@@ -53,6 +53,9 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Factory.C
   IE.C
   IEC.C
+  AngularIntegrals.C
+  BFGrouper.C
+  Wigner3j.C
 )
 target_include_directories(qcAtom_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  

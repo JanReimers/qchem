@@ -3,12 +3,11 @@
 
 #include "gtest/gtest.h"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
-#include "Imp/Integrals/Wigner3j.H"
-#include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
+import qchem.BasisSet.Atom.Wigner3j;
 import Common.Constants;
 
 using std::cout;

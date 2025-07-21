@@ -1,9 +1,8 @@
 // File: Angular.C  Test some identities for angular ERI integrals.
 
 #include "gtest/gtest.h"
-#include "Imp/Integrals/AngularIntegrals.H"
-#include "oml/vector.h"
 #include <iostream>
+import qchem.BasisSet.Atom.AngularIntegrals;;
 
 using std::cout;
 using std::endl;

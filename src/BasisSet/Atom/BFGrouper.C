@@ -1,47 +1,27 @@
-// File: BFGrouper.C  Group Slater or Gaussian basis functions by unique exponents.
+// File: BFGrouper.H  Group Slater or Gaussian basis functions by unique exponents.
+module;
+#include <vector>
+#include <map>
+export module qchem.BasisSet.Atom.BFGrouper;
+export import qchem.BasisSet.Atom.IEClient;
 
-#include <cassert>
-#include <iostream>
-#include <string>
-#include <complex>
-#include "BFGrouper.H"
-#include "radial/BSpline/IEC.H"
-import qchem.BasisSet.Atom.IEClient;
+// 
+// Keep a list of unique exponents for Group Slater or Gaussian basis functions.
+// For each unique exponent also store am index and the maximum l angular momentum used
+// for that exponent.  The idea is to share exponents between different l-irreps 
+// and work out the radial integral tables up to LMax for each exponent combination. 
+// THis class should be working together with the charge distribution caching mechanism.
+//  
 
-using std::cout;
-using std::endl;
-
-void BFGrouper::Append(AtomIrrepIEClient* aiec)
+export class BFGrouper
 {
-    for (auto e:aiec->es)
-    {
-        size_t index=unique_es.size();
-        if (const auto &ie =unique_es.find(e);ie==unique_es.end())
-        {
-            unique_esv.push_back(e);
-            maxls.push_back(aiec->l);
-            unique_es[e]=index;
-//            for (auto e:unique_esv) cout << e << " ";
-//            cout << endl;
-        }
-        else 
-            index=ie->second;
-
-        if (aiec->l>maxls[index]) maxls[index]=aiec->l;
-//        cout << "BFGrouper index,l,maxl=" << index << " " << aiec->l << " " << maxls[index] << endl;
-        aiec->es_indices.push_back(index);  
-    }        
-}
- 
-
-
-//  indices should already be zero based.
-size_t BFGrouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
-{
-    size_t lmax_ab=std::max(maxls[ia],maxls[ib]);
-    size_t lmax_cd=std::max(maxls[ic],maxls[id]);
-//    cout << "(abcd)=(" << ia << " "  << ib << " "  << ic << " "  << id << ") max(ab)=" << lmax_ab << " max(cd)=" << lmax_cd <<endl;
-    return std::max(lmax_ab,lmax_cd);
-}
-
-
+protected:
+    void Append(AtomIrrepIEClient*);
+    size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
+    //! Linear array of unique exponents.
+    std::vector<double> unique_esv; 
+private:
+    std::map<double,size_t> unique_es; //Unique exponents.
+    //! For each unique exponent, store the maximum l value.
+    std::vector<double> maxls;
+};

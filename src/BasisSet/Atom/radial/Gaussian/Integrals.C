@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include "radial/Gaussian/Integrals.H"
-#include "AngularIntegrals.H"
+import qchem.BasisSet.Atom.AngularIntegrals;;
 
 
 import Common.Constants;

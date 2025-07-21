@@ -1,54 +1,24 @@
-#include "Wigner3j.H"
-#include "wignerSymbols/wignerSymbols-cpp.h"
-#include <cassert>
-#include <iostream>
+// File: BasisSet/Atom/Wigner3j.C  Lookup table of Wigner3j symbols.
+export module qchem.BasisSet.Atom.Wigner3j;
 
-Wigner3j Wigner3j::w3j;
-
-using std::cout;
-using std::endl;
-
-Wigner3j::Wigner3j()
+//
+//  Server up special Wigner3j symbols resulting from exchange integral angular integrations:
+//
+//   (l_a l l_b)^2
+//   ( 0  0  0 )
+// 
+export class Wigner3j
 {
-    std::cout << "Initializing Wigner 3j tables LMax=" << LMax << std::endl;
+public:
+    static Wigner3j w3j; //Static instance with short name for convenience.
+    double operator()(int la, int lb, int k) const;
+    double operator()(int la, int lb, int k, int ma, int mb) const;
+private:
+    Wigner3j();
+    static const int LMax=4;
+    double Data[LMax+1][LMax+1][2*LMax+1];
+    double Data_m[LMax+1][LMax+1][2*LMax+1][2*LMax+1][2*LMax+1];
+};
 
-    for (int la=0; la<=LMax; la++)
-        for (int lb=0; lb<=LMax; lb++)
-            for (int k=0; k<=2*LMax; k++)
-            {
-                Data[la][lb][k]=WignerSymbols::wigner3j(la,lb,k,0,0,0);
-                for (int ma=-la;ma<=la;ma++)
-                    for (int mb=-lb;mb<=lb;mb++)
-                        Data_m[la][lb][k][ma+LMax][mb+LMax]=WignerSymbols::wigner3j(la,lb,k,ma,mb,-ma-mb);
-            }
-          
-  
-}
 
-double Wigner3j::operator()(int la, int lb, int k) const 
-{
-    assert(la>=0);
-    assert(la<=LMax);
-    assert(k >=0);
-    assert(k <=2*LMax);
-    assert(lb>=0);
-    assert(lb<=LMax);
-    return Data[la][lb][k];
-}
-
-double Wigner3j::operator()(int la, int lb, int k,int ma, int mb) const 
-{
-    assert(la>=0);
-    assert(la<=LMax);
-    assert(k >=0);
-    assert(k <=2*LMax);
-    assert(lb>=0);
-    assert(lb<=LMax);
-    assert(ma>=-la);
-    assert(ma<= la);
-    assert(mb>=-lb);
-    assert(mb<= lb);
-    
-    return Data_m[la][lb][k][ma+LMax][mb+LMax];
-}
 

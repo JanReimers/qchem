@@ -2,9 +2,9 @@
 #ifndef _BSpline_IE_H_
 #define _BSpline_IE_H_
 
-#include "../../BFGrouper.H"
 #include <bspline/Core.h>
 
+import qchem.BasisSet.Atom.BFGrouper;
 import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Integrals;
 import qchem.BasisSet.Imp.Cache4;
