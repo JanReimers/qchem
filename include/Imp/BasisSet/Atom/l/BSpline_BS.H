@@ -3,7 +3,7 @@
 #define _Atom_l_BSpline_BS_H_
 
 #include "../radial/BSpline/BS_Common.H"
-#include "IE_HF_Angular.H"
+import qchem.BasisSet.Atom.l.Angular;
 import qchem.BasisSet.Common;
 
 namespace Atoml

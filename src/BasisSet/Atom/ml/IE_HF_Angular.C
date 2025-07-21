@@ -1,7 +1,10 @@
-// File: Atom_ml_IE_HF_Angular.H  Angular 2e-Integrals for atom-ml HF basis sets.
+// File: Atom_ml_IE_HF_Angular.C  Angular 2e-Integrals for atom-ml HF basis sets.
+module;
 #include <cstddef>
 #include <vector>
-#include "ml/IE_HF_Angular.H"
+export module qchem.BasisSet.Atom.ml.Angular;
+
+import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.AngularIntegrals;;
 
@@ -17,6 +20,12 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 
 namespace Atom_ml
 {
+export class IE_BS_2E_Angular : public virtual ::AtomIE_BS_2E_Angular
+{
+public:
+    virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const;
+    virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const;
+};
 
 IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
  {

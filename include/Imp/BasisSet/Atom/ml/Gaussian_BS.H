@@ -3,7 +3,7 @@
 #define _Atom_ml_Gaussian_BS_H_
 
 #include <vector>
-#include "IE_HF_Angular.H"
+import qchem.BasisSet.Atom.ml.Angular;
 import qchem.BasisSet.Atom.IE;
 #include "../radial/Gaussian/BS_Common.H"
 import qchem.BasisSet.Common;

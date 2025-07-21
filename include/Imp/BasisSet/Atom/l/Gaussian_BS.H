@@ -2,9 +2,9 @@
 #ifndef _Atom_l_Gaussian_BS_H_
 #define _Atom_l_Gaussian_BS_H_
 
-#include "IE_HF_Angular.H"
 #include "../radial/Gaussian/BS_Common.H"
 import qchem.BasisSet.Common;
+import qchem.BasisSet.Atom.l.Angular;
 
 namespace Atoml
 {

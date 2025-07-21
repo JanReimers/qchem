@@ -2,10 +2,10 @@
 #ifndef _Atom_l_Slater_BS_H_
 #define _Atom_l_Slater_BS_H_
 
-#include "IE_HF_Angular.H"
 #include "../radial/Slater/BS_Common.H"
+import qchem.BasisSet.Atom.l.Angular;
 import qchem.BasisSet.Common;
-
+import qchem.BasisSet.Atom.IE;
 namespace Atoml
 {
 namespace Slater

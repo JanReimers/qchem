@@ -10,7 +10,6 @@ Imp/IE_HF.C
 Imp/AngularIntegrals.C
 Imp/BFGrouper.C
 Imp/Wigner3j.C
-l/IE_HF_Angular.C
 l/Slater_IBS.C
 l/Gaussian_BS.C
 l/Slater_BS.C
@@ -42,7 +41,6 @@ radial/Slater/ExponentScaler.C
 radial/Slater/IBS_Common.C
 radial/Slater/BS_Common.C
 ml/Slater_IBS.C
-ml/IE_HF_Angular.C
 ml/Gaussian_BS.C
 ml/Slater_BS.C
 ml/Slater_BF.C
@@ -58,6 +56,9 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Wigner3j.C
   kappa/Gaussian_BS.C
   kappa/Slater_BS.C
+  l/IE_HF_Angular.C
+  ml/IE_HF_Angular.C
+
 )
 target_include_directories(qcAtom_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/include  
