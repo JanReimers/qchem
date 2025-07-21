@@ -2,9 +2,12 @@
 #ifndef _Atom_ml_BSpline_IBS_H_
 #define _Atom_ml_BSpline_IBS_H_
 
-#include "../l/BSpline_IE.H"
 #include "../radial/BSpline/IBS_Common.H"
+
+import qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Atom.l.GaussianBS;
+
 namespace Atom_ml
 {
 namespace BSpline

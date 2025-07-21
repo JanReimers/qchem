@@ -2,7 +2,7 @@
 #ifndef _Atom_ml_Gaussian_BF_H_
 #define _Atom_ml_Gaussian_BF_H_
 
-#include "../l/Gaussian_BF.H"
+import qchem.BasisSet.Atom.l.GaussianBS;
 
 namespace Atom_ml
 {

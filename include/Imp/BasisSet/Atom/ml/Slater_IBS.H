@@ -2,9 +2,10 @@
 #ifndef _Atom_ml_Slater_IBS_H_
 #define _Atom_ml_Slater_IBS_H_
 
-#include "../l/Slater_IE.H"
 #include "../radial/Slater/IBS_Common.H"
+import qchem.BasisSet.Atom.l.SlaterBS;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.HF_IBS;
 import qchem.DFT_IBS;
 

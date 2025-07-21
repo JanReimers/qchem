@@ -1,19 +1,18 @@
 // File: Atom/l/Gaussian_BF.C r^l exp(-a*r^2) type Gaussian basis function.
-
+module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include "l/Gaussian_BF.H"
-
+module qchem.BasisSet.Atom.l.GaussianBS;
 import Common.IntPow;
 import oml;
 
-namespace Atoml
+namespace Atoml  
 {
 namespace Gaussian
 {
 
-    BasisFunction::BasisFunction()
+BasisFunction::BasisFunction()
     : itsExponent     (0)
     , itsL            (0)
     , itsNormalization(0)
@@ -25,6 +24,8 @@ BasisFunction::BasisFunction(double theExponent, int theL, double norm)
     , itsNormalization(norm)
 {
 };
+
+BasisFunction::~BasisFunction() {};
 
 std::ostream& BasisFunction::Write(std::ostream& os) const
 {

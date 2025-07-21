@@ -4,8 +4,9 @@
 
 
 #include "../radial/Gaussian/IBS_Common.H"
-#include "../l/Gaussian_IE.H"
+import qchem.BasisSet.Atom.l.GaussianBS;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Imp.HeapDB;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
 import qchem.Cluster;

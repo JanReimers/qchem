@@ -10,12 +10,12 @@ Imp/IE_HF.C
 Imp/AngularIntegrals.C
 Imp/BFGrouper.C
 Imp/Wigner3j.C
-l/Slater_IBS.C
-l/Gaussian_BS.C
-l/Slater_BS.C
-l/Slater_BF.C
-l/Gaussian_BF..C
-l/Gaussian_IBS.C
+l/Imp/Slater_BS.C
+l/Imp/Slater_IBS.C
+l/Imp/Slater_BF.C 
+l/Imp/Gaussian_IBS.C 
+l/Imp/Gaussian_BS.C
+l/Imp/Gaussian_BF.C 
 kappa/Imp/Slater_IBS.C
 kappa/Imp/Gaussian_BS.C
 kappa/Imp/Slater_BS.C
@@ -31,6 +31,7 @@ radial/Gaussian/IBS_Common.C
 radial/Gaussian/Integrals.C
 radial/Gaussian/BS_Common.C
 radial/BSpline/Instance.C
+radial/BSpline/Instancem.C
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
 radial/Triangle2D.C
@@ -44,7 +45,7 @@ ml/Slater_IBS.C
 ml/Gaussian_BS.C
 ml/Slater_BS.C
 ml/Slater_BF.C
-ml/Gaussian_BF..C
+ml/Gaussian_BF.C
 ml/Gaussian_IBS.C
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -57,7 +58,11 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   kappa/Gaussian_BS.C
   kappa/Slater_BS.C
   l/IE_HF_Angular.C
+  l/Gaussian_BS.C
+  l/Slater_BS.C
+  l/BSpline_BS.C
   ml/IE_HF_Angular.C
+  
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

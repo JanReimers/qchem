@@ -1,10 +1,9 @@
 // File: Atom/l/Slater_BF.H  r^l exp(-a*r) type Slater basis function.
-
+module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include "l/Slater_BF.H"
-
+module qchem.BasisSet.Atom.l.SlaterBS;
 import Common.IntPow;
 import oml;
 

@@ -1,38 +1,38 @@
-// File: Atom/l/Slater_IBS.H  Slater Irrep Basis Set (IBS) with orbital angular momentum l.
-
+// File: Atom/l/Gaussian_IBS.H  Gaussian Irrep Basis Set (IBS) with orbital angular momentum l.
+module;
 #include <iostream>
 #include <cassert>
-#include <cmath>
-#include "l/Slater_IBS.H"
-#include "l/Slater_BF.H"
-#include "radial/Slater/Integrals.H"
+#include "radial/Gaussian/Integrals.H"
+#include "radial/Gaussian/IBS_Common.H"
+module qchem.BasisSet.Atom.l.GaussianBS;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 
 namespace Atoml
 {
-namespace Slater
+namespace Gaussian
 {
+  
+
 //----------------------------------------------------------------
 //
-// Orbital SL basis set.
+// Orbital SG basis set.
 //
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
-: ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-, Orbital_IBS_Common<double>()
-, Orbital_IE(db)
-{
-    InsertBasisFunctions();
-};
-
-
+    : ::Gaussian::IrrepBasisSet(exponents,new Yl_Sym(L),L)
+    , Orbital_IBS_Common<double>()
+    , Orbital_IE(db)
+    {
+        InsertBasisFunctions();   
+    };
 
 void Orbital_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IBS_Common::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
+        IBS_Common::Insert(new BasisFunction(e,l,ns(i++)));
 }
+
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
@@ -48,32 +48,31 @@ void Orbital_IBS::InsertBasisFunctions()
 
 ::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
 {
-    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
+    std::cerr << "Why are you relocating a spherical Gaussian basis set?!" << std::endl;
     return 0;
 }
-//----------------------------------------------------------------
-//
-//  Fit with Slater_l  basis set.
-//
+
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , TIBS_Common<double>()
-    , Fit_IE(db)
-    {
-        InsertBasisFunctions();
-    };
+: ::Gaussian::IrrepBasisSet(exponents,new Yl_Sym(L), L)
+, TIBS_Common<double>()
+, Fit_IE(db)
+{
+    InsertBasisFunctions();   
+};
 
 void Fit_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IBS_Common::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
+        IBS_Common::Insert(new BasisFunction(e,l,ns(i++)));
 }
 
 ::Fit_IBS* Fit_IBS::Clone(const RVec3&) const
 {
-    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
+    std::cerr << "Why are you relocating a spherical Gaussian basis set?!" << std::endl;
     return 0;
 }
 
-}} //namespace
+
+} //namespace
+} //namespace

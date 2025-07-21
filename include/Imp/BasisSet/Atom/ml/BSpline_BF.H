@@ -5,6 +5,7 @@
 #include <bspline/Core.h>
 #include <iosfwd>
 import qchem.BasisFunction;
+import qchem.BasisSet.Atom.l.BSplineBS;
 
 namespace Atom_ml
 {

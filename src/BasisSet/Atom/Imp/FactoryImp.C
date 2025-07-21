@@ -3,18 +3,17 @@ module;
 #include <cassert>
 #include <nlohmann/json.hpp>
 
-#include "l/Slater_BS.H"
-#include "ml/Slater_BS.H"
-#include "l/Gaussian_BS.H"
-#include "ml/Gaussian_BS.H"
-#include "l/BSpline_BS.H"
-#include "ml/BSpline_BS.H"
 using json = nlohmann::json;
-
+#include "ml/Slater_BS.H"
+#include "ml/Gaussian_BS.H"
+#include "ml/BSpline_BS.H"
 module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
 import qchem.BasisSet.Atom.kappa.GaussianBS;
 import qchem.BasisSet.Atom.kappa.SlaterBS;
+import qchem.BasisSet.Atom.l.GaussianBS;
+import qchem.BasisSet.Atom.l.SlaterBS;
+import qchem.BasisSet.Atom.l.BSplineBS;
 
 namespace BasisSetAtom
 {

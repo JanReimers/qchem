@@ -1,8 +1,9 @@
 // File: Atom/ml/Slater_BS.H  r^l exp(-a*r)*Y_lm type basis set.
 #ifndef _Atom_ml_Slater_BS_H_
 #define _Atom_ml_Slater_BS_H_
+#include "radial/Slater/BS_Common.H"
 
-#include "../l/Slater_BS.H"
+import qchem.BasisSet.Atom.l.SlaterBS;
 import qchem.BasisSet.Atom.ml.Angular;
 import qchem.BasisSet.Common;
 import qchem.Symmetry.ElectronConfiguration;

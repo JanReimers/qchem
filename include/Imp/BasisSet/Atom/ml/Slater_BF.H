@@ -2,7 +2,7 @@
 #ifndef _Atom_ml_Slater_BF_H_
 #define _Atom_ml_Slater_BF_H_
 
-#include "../l/Slater_BF.H"
+import qchem.BasisSet.Atom.l.SlaterBS;
 
 namespace Atom_ml
 {

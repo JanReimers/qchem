@@ -2,6 +2,7 @@
 #ifndef _BSpline_RkEngine_H_
 #define _BSpline_RkEngine_H_
 
+#include <map>
 #include <bspline/Core.h>
 import qchem.BasisSet.Imp.Cache4;
 import oml;
