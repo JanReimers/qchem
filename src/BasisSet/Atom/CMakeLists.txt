@@ -24,12 +24,11 @@ kappa/Imp/Slater_BF.C
 kappa/Imp/Gaussian_IE.C
 kappa/Imp/Gaussian_IBS.C
 kappa/Imp/Gaussian_BF.C
-radial/Gaussian/IE_Primatives.C
-radial/Gaussian/Rk.C
-radial/Gaussian/ExponentScaler.C
-radial/Gaussian/IBS_Common.C
-radial/Gaussian/Integrals.C
-radial/Gaussian/BS_Common.C
+radial/Gaussian/Imp/IE_Primatives.C
+radial/Gaussian/Imp/Rk.C
+radial/Gaussian/Imp/ExponentScaler.C
+radial/Gaussian/Imp/IBS_Common.C
+radial/Gaussian/Imp/BS_Common.C
 radial/BSpline/Instance.C
 radial/BSpline/Instancem.C
 radial/BSpline/Instance_ml.C
@@ -66,6 +65,12 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   ml/Gaussian_BS.C
   ml/Slater_BS.C
   ml/BSpline_BS.C
+  radial/FillPower.C
+  radial/Gaussian/IE_Primatives.C
+  radial/Gaussian/Rk.C
+  radial/Gaussian/ExponentScaler.C
+  radial/Gaussian/Integrals.C
+  radial/Gaussian/BS_Common.C
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

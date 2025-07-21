@@ -2,9 +2,9 @@
 module;
 #include <cassert>
 #include <memory>
-#include "radial/Gaussian/Integrals.H"
 
 module qchem.BasisSet.Atom.kappa.GaussianBS;
+import qchem.BasisSet.Atom.radial.GaussianIntegrals;
 
 namespace Atom_kappa
 {

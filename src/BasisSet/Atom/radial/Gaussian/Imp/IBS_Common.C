@@ -1,11 +1,11 @@
 // File: Atom/radial/Gaussian/IBS_Common.C  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom Gaussians.
-
+module;
 #include <iostream>
 #include <iomanip>
-
 #include <iosfwd>
-#include "radial/Gaussian/IBS_Common.H"
-#include "radial/Gaussian/Integrals.H"
+#include <vector>
+module qchem.BasisSet.Atom.radial.GaussianBS;
+import qchem.BasisSet.Atom.radial.GaussianIntegrals;
 import qchem.BasisFunction;
 import qchem.Symmetry;
 import oml;

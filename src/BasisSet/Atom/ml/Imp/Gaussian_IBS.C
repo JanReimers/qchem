@@ -3,8 +3,8 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include "radial/Gaussian/IBS_Common.H"
 module qchem.BasisSet.Atom.ml.GaussianBS;
+import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.Symmetry.Ylm;
 
 namespace Atom_ml

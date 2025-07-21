@@ -4,10 +4,10 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include "radial/Gaussian/IE_Primatives.H"
-#include "radial/Gaussian/Integrals.H"
 module qchem.BasisSet.Atom.kappa.GaussianBS;
-
+import qchem.BasisSet.Atom.radial.GaussianBS;
+import qchem.BasisSet.Atom.radial.GaussianIntegrals;
+import qchem.BasisSet.Atom.radial.GaussianRk;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
 import qchem.DHF_IBS;

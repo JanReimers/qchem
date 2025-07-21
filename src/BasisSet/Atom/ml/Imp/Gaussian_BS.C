@@ -3,8 +3,8 @@ module;
 #include <vector>
 #include <iostream>
 #include <algorithm>
-#include "radial/Gaussian/ExponentScaler.H"
 module qchem.BasisSet.Atom.ml.GaussianBS;
+import qchem.BasisSet.Atom.radial.Gaussian.ExponentScaler; 
 import qchem.Symmetry.AtomEC;
 
 namespace Atom_ml

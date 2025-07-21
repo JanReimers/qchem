@@ -1,14 +1,15 @@
 // File: Atom/kappa/Gaussian_BS.H  Restricted Kinetic Balance (RKB) Basis Set (BS).
 module;
 #include <iosfwd>
-#include "radial//Gaussian/IE_Primatives.H"
 class DiracIntegralTests;
 export module qchem.BasisSet.Atom.kappa.GaussianBS;
+import qchem.BasisSet.Atom.radial.IE_Primatives;
 import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Common;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.IE;
 
 export namespace Atom_kappa
 {

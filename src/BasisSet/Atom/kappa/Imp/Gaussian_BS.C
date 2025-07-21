@@ -1,9 +1,9 @@
 // File: Atom/kappa/Gaussian_BS.C  Restricted Kinetic Balance (RKB) Basis Set (BS).
 module;
 #include <memory>
-#include "radial/Gaussian/ExponentScaler.H"
 
 module qchem.BasisSet.Atom.kappa.GaussianBS;
+import qchem.BasisSet.Atom.radial.Gaussian.ExponentScaler; 
 import qchem.Streamable;
 
 namespace Atom_kappa

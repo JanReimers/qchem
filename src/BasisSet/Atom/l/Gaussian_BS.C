@@ -2,11 +2,10 @@
 module;
 #include <iosfwd>
 #include <vector>
-#include "radial/Gaussian/BS_Common.H"
-#include "radial/Gaussian/IBS_Common.H"
-#include "radial/Gaussian/IE_Primatives.H"
 
 export module qchem.BasisSet.Atom.l.GaussianBS;
+import qchem.BasisSet.Atom.radial.IE_Primatives;
+import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet.Common;
 import qchem.BasisSet.Atom.l.Angular;
 import qchem.BasisSet.Atom.IE;

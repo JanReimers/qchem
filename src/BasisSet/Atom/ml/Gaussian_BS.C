@@ -1,9 +1,8 @@
 // File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
 module;
 #include <vector>
-#include "radial/Gaussian/IBS_Common.H"
-#include "radial/Gaussian/BS_Common.H"
 export module qchem.BasisSet.Atom.ml.GaussianBS;
+import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet.Atom.l.GaussianBS;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Imp.HeapDB;

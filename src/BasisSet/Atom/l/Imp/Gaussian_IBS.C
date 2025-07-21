@@ -2,9 +2,9 @@
 module;
 #include <iostream>
 #include <cassert>
-#include "radial/Gaussian/Integrals.H"
-#include "radial/Gaussian/IBS_Common.H"
 module qchem.BasisSet.Atom.l.GaussianBS;
+import qchem.BasisSet.Atom.radial.GaussianIntegrals;
+import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 
