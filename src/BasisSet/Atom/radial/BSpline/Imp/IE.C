@@ -1,14 +1,20 @@
 // File: BSpline/IE.C Common IE code for BSpline basis sets.
+module;
+#include <cassert>
+#include <cstddef>
+#include <tuple>
+#include <iostream>
+#include "radial/BSpline/BFGrouper.H"
 
-#include "radial/BSpline/IE.H"
+module qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Fit_IBS;
 import qchem.Irrep_BS;
 import qchem.BasisSet.ERI4;
+import qchem.DHF_IBS;
 
 namespace BSpline
 {
-
 template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Overlap<T,K>::MakeOverlap() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
@@ -51,16 +57,6 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Inv_r1<T,K>::Mak
 
     return H;
 }
-
-
-
-} //namespace
-
-
-#include "radial/BSpline/IE_DFT.H"
-
-namespace BSpline
-{
 template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeOverlap3C  (const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
@@ -107,15 +103,6 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_DFT<T,K>::MakeRe
 
     return s;
 }
-
-
-} //namespace
-
-
-#include "radial/BSpline/IE_HF.H"
-
-namespace BSpline
-{
 template <class T,size_t K> void IE_BS_2E<T,K>::Append(const ::IrrepIEClient* ciec)
 {
     assert(ciec);
@@ -228,15 +215,6 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
 
     return Kex;
 };
-
-} //namespace
-
-
-
-#include "radial/BSpline/IE_Fit.H"
-
-namespace BSpline
-{
 template <size_t K> typename Integrals_Base<double>::Vec  IE_Fit<K>::MakeCharge() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
@@ -272,15 +250,6 @@ template <size_t K> typename Integrals_Base<double>::Mat IE_Fit<K>::MakeRepulsio
 
     return s;
 }
-
-
-} //namespace
-
-#include "radial/BSpline/IE_DHF.H"
-#include "radial/BSpline/IE_DFT.H"
-import qchem.DHF_IBS;
-namespace BSpline
-{
 template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
@@ -299,6 +268,19 @@ template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::Mak
 }
 
 
-
+#define INSTANCEk(k) template class IE_Overlap<double,k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class IE_Kinetic<double,k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class IE_Inv_r1<double,k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class IE_DFT<double,k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class IE_BS_2E<double,k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class IE_Fit<k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class IE_XGrad2<double,k>;
+#include "../../../Instance.hpp"
 
 } //namespace

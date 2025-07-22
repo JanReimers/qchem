@@ -1,8 +1,9 @@
 // File: BSpline/IE_Primatives.H get all calculation of primative integrals in one place.
 #ifndef _BSpline_IE_Primatives_H_
 #define _BSpline_IE_Primatives_H_
+#include <bspline/Core.h>
 
-#include "IE.H"
+import qchem.Basisset.Atom.radial.BSpline.IE;
 
 namespace BSpline
 {

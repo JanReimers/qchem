@@ -3,25 +3,30 @@
 #include <cmath>
 #include "radial/BSpline/IE_Primatives.H"
 #include "BFGrouper.Ci"
+import qchem.BasisSet.Imp.IEClient;
+
 #include "BS_Common.Ci"
 #include "IBS_Common.Ci"
 #include "IE_Primatives.Ci"
-#include "IE.Ci"
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 // #include "Imp/Rk.Ci"
 import qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.BasisSet.Atom.ml.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.BasisSet.Imp.IEClient;
 
 namespace BSpline
 {
     template class IrrepBasisSet<6>;
-    template class RkEngine<6>;
-    template class IE_Fit<6>;
-    template class IE_DFT<double,6>;
-    template class IE_Overlap<double,6>;
-    template class IE_Inv_r1<double,6>;
-    template class IE_Kinetic<double,6>;
+    template class BFGrouper<5>;
+    template class BFGrouper<6>;
+    template class BFGrouper<7>;
+    // template class RkEngine<6>;
+    // template class IE_Fit<6>;
+    // template class IE_DFT<double,6>;
+    // template class IE_Overlap<double,6>;
+    // template class IE_Inv_r1<double,6>;
+    // template class IE_Kinetic<double,6>;
     template class BS_Common<6>;
     template class IE_Primatives<6>;
 }

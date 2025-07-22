@@ -35,6 +35,7 @@ radial/BSpline/Instance_ml.C
 #radial/BSpline/Instance_radial.C 
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
+radial/BSpline/Imp/IE.C
 radial/BSpline/Imp/IEC.C
 radial/BSpline/Imp/Rk.C
 radial/Triangle2D.C
@@ -81,6 +82,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   radial/Slater/BS_Common.C
   radial/BSpline/Rk.C
   radial/BSpline/IEC.C
+  radial/BSpline/IE.C
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

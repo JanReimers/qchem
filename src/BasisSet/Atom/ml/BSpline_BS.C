@@ -12,6 +12,11 @@ import qchem.BasisSet.Common;
 import qchem.BasisFunction;
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Atom.ml.Angular;
+import qchem.HF_IBS;
+import qchem.BasisSet.Imp.HeapDB;
+import qchem.Fit_IBS;
+import qchem.BasisSet;
+
 // import qchem.BasisSet.Atom.l.GaussianBS;
 
 export namespace Atom_ml

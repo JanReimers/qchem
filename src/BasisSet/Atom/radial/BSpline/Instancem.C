@@ -13,6 +13,7 @@ import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 import qchem.BasisSet.Imp.HeapDB;
 import Common.IntPow;
+import qchem.BasisSet.Imp.Cache4;
 import oml;
 
 #include "../../l/Imp/BSpline_BS.Ci"
