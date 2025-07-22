@@ -1,5 +1,4 @@
 module;
-#include <cstddef> //for size_t
 #include <iostream>
 #include <iomanip>
 #include <cassert>

@@ -51,7 +51,7 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
     return 0;
 }
 
-template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const ::IrrepBasisSet::RVec3&) const
+template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return 0;

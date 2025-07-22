@@ -7,6 +7,7 @@
 #include "../Polarization.H"
 #include <iosfwd>
 
+import qchem.Types;
 import oml;
 
 #define LMAX 3
@@ -25,7 +26,6 @@ namespace PolarizedGaussian
 //  op() returns the overlap integral directly.
 //
 
-typedef Vector3D<double> RVec3;
 
 class GaussianH3 : public Hermite3
 {

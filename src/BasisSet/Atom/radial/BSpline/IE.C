@@ -104,7 +104,6 @@ template <class T, size_t K> class IE_BS_2E
     , public DB_BS_2E<T>
     , public BFGrouper<K>
 {
-    typedef typename ::AtomIE_BS_2E_Angular::RVec RVec;
 public:
     virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;

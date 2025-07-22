@@ -22,8 +22,7 @@ export template <class T> class IrrepCD
 public:
     typedef Matrix<T>  DenMat;
     typedef SMatrix<T> DenSMat; //Type for the density matrix.
-    typedef DensityFFClient::RVec RVec;
-
+    
     IrrepCD();
     IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
 

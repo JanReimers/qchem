@@ -1,12 +1,12 @@
 // File: Slater_m/QuantumNumer.H  Spherical harmonic Ylm symmetry.
 module;
 #include <vector>
-#include <cstddef>
 #include <iosfwd>
 
 export module qchem.Symmetry.Ylm;
 export import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
+export import qchem.Types;
 
 //---------------------------------------------------------------------------------
 //

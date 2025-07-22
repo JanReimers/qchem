@@ -1,14 +1,14 @@
 // File: IBS_Common.C  Irrep Basis set common implementation.
 module;
-#include <cstddef>
 #include <iosfwd>
-import qchem.LAParams;
 class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Common;
+import qchem.LAParams;
 import Common.UniqueIDImp;
 import qchem.BasisSet;
+export import qchem.Types;
 
 
 export class BS_Common

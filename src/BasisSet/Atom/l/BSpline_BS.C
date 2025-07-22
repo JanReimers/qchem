@@ -88,7 +88,6 @@ template <size_t K> class Orbital_IBS
     , public         Orbital_IE<K>
 {
 public:
-    using RVec3=::IrrepBasisSet::RVec3;
     Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
@@ -108,7 +107,6 @@ template <size_t K> class Fit_IBS
 
 {
 public:
-    using RVec3=::IrrepBasisSet::RVec3;
     Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;

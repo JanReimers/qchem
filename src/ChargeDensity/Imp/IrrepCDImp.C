@@ -14,7 +14,6 @@ import qchem.Symmetry;
 import qchem.Molecule;
 
 typedef Vector3D<std::complex<double> > Vec3;
-typedef Vector3D<double>  RVec3;
 
 RVec3  GradientContraction(const Vector<RVec3 >&, const Vector<double>&, const SMatrix<double>&);
 RVec3  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<double> >&, const SMatrix<std::complex<double> >&);
@@ -50,7 +49,7 @@ template <> DM_CD::SMat IrrepCD<double>::ZeroM(size_t N) const
     return S;
 }
 
-template <> IrrepCD<double>::RVec IrrepCD<double>::ZeroV(size_t N) const
+template <> RVec IrrepCD<double>::ZeroV(size_t N) const
 {
     RVec V(N);
     Fill(V,0.0);

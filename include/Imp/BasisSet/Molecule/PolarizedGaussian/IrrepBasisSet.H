@@ -23,7 +23,6 @@ namespace PolarizedGaussian
           public IrrepIEClient
     {
     public:
-        typedef Vector<double> RVec;
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
         IrrepBasisSet(Reader *, const Cluster *);
@@ -52,7 +51,6 @@ namespace PolarizedGaussian
     {
         typedef DB_BS_2E<double> db_t;
     public:
-        using ::IrrepBasisSet::RVec3;
         Orbital_IBS(const db_t* db, Reader *, const Cluster *);
         Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster *);
         Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L);
@@ -71,7 +69,6 @@ namespace PolarizedGaussian
         , public Fit_IE
     {
     public:
-        using ::IrrepBasisSet::RVec3;
         Fit_IBS(const DB_cache<double>* db , Reader *, const Cluster *);
 
         virtual ::Fit_IBS *Clone(const RVec3 &) const;

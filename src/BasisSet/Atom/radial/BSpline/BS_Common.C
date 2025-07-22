@@ -1,6 +1,5 @@
 // File: Atom/radial/BSpline/BS_Common.C  l/ml/kappa/mj independent part of BasisSet for atom BSpline Basis Sets.
 module;
-#include <cstddef>
 #include <vector>
 #include <iostream>
 export module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
@@ -12,6 +11,7 @@ import qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Common;
 import qchem.BasisSet.Imp.Cache4;
 import oml.Vector;
+export import qchem.Types;
 
 export namespace BSpline
 {

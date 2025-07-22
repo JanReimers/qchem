@@ -1,7 +1,6 @@
 // File: BSpline/IE.C Common IE code for BSpline basis sets.
 module;
 #include <cassert>
-#include <cstddef>
 #include <tuple>
 #include <iostream>
 

@@ -46,7 +46,7 @@ void Orbital_IBS::InsertBasisFunctions()
 
 
 
-::IrrepBasisSet* Orbital_IBS::Clone(const ::IrrepBasisSet::RVec3&) const
+::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
     return 0;

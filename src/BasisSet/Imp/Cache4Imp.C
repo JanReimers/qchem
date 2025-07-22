@@ -1,6 +1,5 @@
 // File: Cache4Imp.C Cache object based on four unsigned integer indices.
 module;
-#include <cstddef>
 #include <map>
 module qchem.BasisSet.Imp.Cache4;
 

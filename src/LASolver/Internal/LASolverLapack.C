@@ -36,7 +36,6 @@ export template <class T> class LASolverLapackEigen
     typedef LASolver<T> Base;
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
-    typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
     LASolverLapackEigen(const LAParams& lap) : LASolverLapackCommon<T>(lap) {};
@@ -57,7 +56,6 @@ export template <class T> class LASolverLapackSVD
     typedef LASolver<T> Base;
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
-    typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
     LASolverLapackSVD(const LAParams& lap) : LASolverLapackCommon<T>(lap) {};

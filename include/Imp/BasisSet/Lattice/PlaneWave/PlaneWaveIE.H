@@ -17,7 +17,6 @@ class PlaneWaveIE
     typedef ScalarFunction <double> SF;
     typedef IE::Mat Mat;
     typedef IE::SMat SMat;
-    typedef IE::RVec RVec;
     typedef IE::iev_t iev_t;
     typedef IE::jk_t jk_t;
 public:

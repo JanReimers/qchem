@@ -3,11 +3,10 @@
 #define _Polarization_H_
 
 #include <iosfwd>
-
+import qchem.Types;
 import Common.IntPow;
 import oml;
 
-typedef Vector3D<double> RVec3;
 namespace PolarizedGaussian
 {
     

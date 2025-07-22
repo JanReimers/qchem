@@ -1,9 +1,9 @@
 // File: Symmetry/Unit.C  Abstract interface for no symmetry.
 module;
-#include <cstddef>
 #include <iosfwd>
 export module qchem.Symmetry.Unit;
 export import qchem.Symmetry;
+export import qchem.Types;
 
 export class UnitQN
     : public virtual Symmetry

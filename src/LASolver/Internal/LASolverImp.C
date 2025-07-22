@@ -27,7 +27,6 @@ export template <class T> class LASolverCommon
     : public virtual  LASolver<T>
 {
     typedef LASolver<T> Base;
-    typedef typename Base::RVec RVec;
     typedef typename Base::Mat  Mat;
     typedef typename Base::SMat SMat;
     typedef typename Base::RSMat RSMat;

@@ -14,8 +14,6 @@ public:
     typedef Vector<T>        Vec;  //Vector of scalars.
     typedef Vector3D<T>      Vec3;   //3 vector (possibly complex).
     typedef Vector<Vec3>     Vec3Vec;//vector of 3 space vectors.
-    typedef Vector3D<double> RVec3;  //Real space vector.
-    typedef Vector<double>   RVec;
     typedef std::valarray<T> va_t;
     typedef std::valarray<double> rva_t;
 

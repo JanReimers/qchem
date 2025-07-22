@@ -1,6 +1,5 @@
 // File: PolarizedCD.C  Interface for the charge density.
 module;
-#include <cstddef>
 #include <cassert>
 module qchem.ChargeDensity.Imp.PolarizedCD;
 import qchem.ChargeDensity;

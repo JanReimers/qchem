@@ -4,6 +4,7 @@ module;
 export module qchem.LASolver;
 export import qchem.LAParams;
 export import oml;
+export import qchem.Types;
 
 //#################################################################################
 //
@@ -37,7 +38,6 @@ public:
     
     typedef Matrix<T>      Mat;
     typedef SMatrix<T>     SMat;
-    typedef Vector<double>  RVec;
     typedef SMatrix<double> RSMat;
     typedef std::tuple<Mat,RVec> UdType;
     typedef std::tuple<Mat,Mat,RVec> UUdType; //U,U',E  where U' has not been back transformed, U=V*Uprime.

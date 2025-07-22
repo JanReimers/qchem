@@ -40,7 +40,6 @@ export template <class T> class TOrbitalImp
     typedef typename Base::Vec  Vec;
     typedef typename Base::Vec3 Vec3;
     typedef typename Base::Vec3Vec Vec3Vec;
-    typedef Vector3D<double> RVec3;
 public:
     TOrbitalImp() {};
     TOrbitalImp(const TOrbital_IBS<T>*,const Vec& C, const Vec& CPrime, double e, const Orbital_QNs&);

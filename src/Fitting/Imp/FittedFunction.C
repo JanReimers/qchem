@@ -169,7 +169,7 @@ template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
     v += Vec(itsFitCoeff * (*itsBasisSet)(m));
 }
 
-template <class T> typename FittedFunctionImp<T>::RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
+template <class T> RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {
     Vec3Vec br = itsBasisSet->Gradient(r);
     RVec3 ret(0,0,0);

@@ -1,12 +1,12 @@
 // File: Atom_ml_IE_HF_Angular.C  Angular 2e-Integrals for atom-ml HF basis sets.
 module;
-#include <cstddef>
 #include <vector>
 export module qchem.BasisSet.Atom.ml.Angular;
 
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
-import qchem.BasisSet.Atom.AngularIntegrals;;
+import qchem.BasisSet.Atom.AngularIntegrals;
+export import qchem.Types;
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {
@@ -27,7 +27,7 @@ public:
     virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const;
 };
 
-IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
+RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
  {
     RVec Ak;
     size_t nac=a->ml.size()*c->ml.size();
@@ -48,7 +48,7 @@ IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a
     return Ak;
     
  }
-IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
+RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
 {
     
     RVec Ak;

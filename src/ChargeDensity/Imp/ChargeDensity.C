@@ -104,7 +104,7 @@ double Polarized_CD::operator()(const RVec3& r) const
     return (*GetChargeDensity(Spin::Up))(r) + (*GetChargeDensity(Spin::Down))(r);
 }
 
-DM_CD::RVec3 Polarized_CD::Gradient  (const RVec3& r) const
+RVec3 Polarized_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
@@ -130,7 +130,7 @@ double SpinDensity::operator()(const RVec3& r) const
     return (*itsSpinUpCD)(r) - (*itsSpinDownCD)(r);
 }
 
-SpinDensity::RVec3 SpinDensity::Gradient  (const RVec3& r) const
+RVec3 SpinDensity::Gradient  (const RVec3& r) const
 {
     // No UT coverage
     return itsSpinUpCD->Gradient(r) - itsSpinDownCD->Gradient(r);

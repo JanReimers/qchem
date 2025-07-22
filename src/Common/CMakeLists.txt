@@ -11,6 +11,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Iterators.C
     stl_io.C
     stream.C
+    Types.C
     )
 
 target_include_directories(qcCommon PRIVATE ${PROJECT_SOURCE_DIR}/include  ${PROJECT_SOURCE_DIR}/submodules/oml/include)
@@ -19,3 +20,4 @@ target_compile_options(qcCommon PRIVATE -Wall -Wno-unknown-pragmas
     $<$<CONFIG:Debug>:-g -O0 -fmax-errors=1>
     $<$<CONFIG:Release>: -O2 -fmax-errors=1>
 )
+target_link_libraries(qcCommon PUBLIC omlm)

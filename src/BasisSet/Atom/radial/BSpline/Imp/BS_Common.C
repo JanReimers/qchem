@@ -1,7 +1,6 @@
 // File: Atom/radial/BSpline/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom BSpline Basis Sets.
 module;
 #include <cassert>
-#include <cstddef>
 module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
 import qchem.BasisSet.Imp.IEClient;
 import qchem.Irrep_BS;

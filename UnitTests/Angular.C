@@ -10,7 +10,6 @@ using std::endl;
 class AngularTests : public ::testing::Test
 {
     public:
-    typedef Vector<double> RVec;
     AngularTests() {StreamableObject::SetToPretty();}
 
     RVec msum_direct(size_t la, size_t lc, const std::set<int> m1,const std::set<int> m2)

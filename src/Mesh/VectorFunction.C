@@ -1,11 +1,10 @@
 // File: VectorFunction.C  Mixin interface for real space vector functions.
 module;
-#include <cstddef>
 namespace std {template <class T> class valarray;}
 export module qchem.VectorFunction;
 export import qchem.Mesh;
 export import oml;
-
+export import qchem.Types;
 //--------------------------------------------------------------------------
 //
 //  Any function that returns a vector of values for any given point
@@ -21,8 +20,6 @@ public:
     typedef Vector<T>        Vec;  //Vector of scalars.
     typedef Vector3D<T>      Vec3;   //3 vector (possibly complex).
     typedef Vector<Vec3>     Vec3Vec;//vector of 3 space vectors.
-    typedef Vector3D<double> RVec3;  //Real space vector.
-    typedef Vector<double>   RVec;
     typedef Matrix<Vec3>     Vec3Mat;//matrix of 3 space vectors.
 
     virtual ~VectorFunction()  {};

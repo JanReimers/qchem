@@ -1,9 +1,8 @@
 // File ERI4.C  Symmetric containters for and ERI (Electron Repulsion Integral) 4 index super matrix.
 module;
-#include <cstddef> //size_t
 export module qchem.BasisSet.ERI4;
 import oml;
-
+export import qchem.Types;
 //------------------------------------------------------------------
 //
 // Two electron repulsion integral have the following form:

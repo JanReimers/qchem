@@ -25,7 +25,7 @@ template <class T> MeshIntegrator<T>::MeshIntegrator(const Mesh* m)
 //
 //  Straight integration.
 //
-template <class T> typename MeshIntegrator<T>::RVec MeshIntegrator<T>::Integrate(const Vf& v) const
+template <class T> RVec MeshIntegrator<T>::Integrate(const Vf& v) const
 {
     index_t n=v.GetVectorSize();
     RVec ret(n);
@@ -44,7 +44,7 @@ template <class T> typename MeshIntegrator<T>::RVec MeshIntegrator<T>::Integrate
     return ret;
 }
 
-template <class T> typename MeshIntegrator<T>::RVec MeshIntegrator<T>::Normalize(const Vf& v) const
+template <class T> RVec MeshIntegrator<T>::Normalize(const Vf& v) const
 {
     index_t n=v.GetVectorSize();
     RVec ret(n);

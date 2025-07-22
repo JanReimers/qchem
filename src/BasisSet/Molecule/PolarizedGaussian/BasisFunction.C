@@ -73,7 +73,7 @@ double BasisFunction::operator()(const RVec3& r) const
     return itsNormalization*itsPol(dr) * rf(r);
 }
 
-BasisFunction::RVec3 BasisFunction::Gradient(const RVec3& r) const
+RVec3 BasisFunction::Gradient(const RVec3& r) const
 {
     assert(itsRadial);
     const RadialFunction& rf=*itsRadial;

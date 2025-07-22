@@ -21,7 +21,6 @@ class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
 {
 public:
     typedef Matrix<double> Mat;
-    typedef Vector<double> RVec;
     typedef std::deque<Mat   > mv_t; //matrix-vector type.
     typedef std::deque<SMat  > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
@@ -71,7 +70,6 @@ public:
     virtual double GetError() const;
 
 private:
-    typedef Vector<double>  RVec;
     typedef  Matrix<double>  Mat;
     typedef SMatrix<double> SMat;
     typedef std::vector< Mat> mv_t; //matrix-vector type.

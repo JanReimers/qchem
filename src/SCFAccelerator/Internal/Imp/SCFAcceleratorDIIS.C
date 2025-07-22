@@ -133,7 +133,7 @@ double SCFAcceleratorDIIS::GetMinSV(const SMat& B)
     return s(N,N);
 }
 
-SCFAcceleratorDIIS::RVec SCFAcceleratorDIIS::SolveC(const SMat& B) 
+RVec SCFAcceleratorDIIS::SolveC(const SMat& B) 
 {
     static oml::LapackLinearSolver<double> solver;
     size_t N=B.GetNumRows();

@@ -1,7 +1,7 @@
 module;
-#include <cstddef> 
 
 export module qchem.Symmetry.Spin;
+export import qchem.Types;
 
 export
 {

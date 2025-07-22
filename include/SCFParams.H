@@ -2,7 +2,7 @@
 #ifndef _SCFParams_H_
 #define _SCFParams_H_
 
-#include <cstddef>
+import qchem.Types;
 
 struct SCFParams
 {

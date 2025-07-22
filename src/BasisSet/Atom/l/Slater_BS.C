@@ -83,7 +83,6 @@ class Orbital_IBS
     , public         Orbital_IE
 {
 public:
-    using ::IrrepBasisSet::RVec3;
     Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
@@ -103,7 +102,6 @@ class Fit_IBS
 
 {
 public:
-    using ::IrrepBasisSet::RVec3;
     Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;

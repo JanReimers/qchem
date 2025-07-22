@@ -1,9 +1,8 @@
 // File: IEClient.H  Array like view of an Irrep basis set.
 module;
-#include <cstddef>
 export module qchem.BasisSet.Imp.IEClient;
 import Common.UniqueID; 
-
+export import qchem.Types;
 //
 //  Integral DB and engines only sees this
 //

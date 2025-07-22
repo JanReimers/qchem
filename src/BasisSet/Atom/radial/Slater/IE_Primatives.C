@@ -1,8 +1,8 @@
 // File: Slater/IE_Primatives.H get all calculation of primative integrals in one place.
 module;
-#include <cstddef>
 export module qchem.BasisSet.Atom.radial.Slater.IE_Primatives;
 import qchem.BasisSet.Atom.IE;
+export import qchem.Types;
 
 export namespace Slater
 {

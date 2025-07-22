@@ -59,7 +59,6 @@ public:
 //
 export class Orbitals : public virtual Streamable
 {
-    typedef Vector<double> RVec;
 public:
     typedef std::vector<std::unique_ptr<Orbital>> ov_t;
     typedef ov_t::      iterator       iterator;
@@ -114,7 +113,6 @@ public:
     {
         return GetNumOrbitals();
     }
-    typedef Vector<double> RVec;
     typedef  Matrix<T>  Mat;
     typedef SMatrix<T> SMat;
     typedef std::tuple<double,SMat> ds_t;

@@ -1,6 +1,5 @@
 module;
 #include <cassert>
-#include <cstddef>
 module qchem.BasisSet.ERI4;
 
 template <class T,template<class> class M> ERI4T<T,M>::ERI4T(size_t Nab, size_t Ncd) : itsData(Nab,Nab)

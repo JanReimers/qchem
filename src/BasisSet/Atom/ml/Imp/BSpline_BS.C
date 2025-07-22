@@ -2,7 +2,6 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <cstddef>
 
 module qchem.BasisSet.Atom.ml.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;

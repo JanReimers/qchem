@@ -15,7 +15,6 @@ export class Cluster
     , public virtual Streamable
 {
 public:
-    typedef Vector3D<double> RVec3;
     typedef std::vector<std::unique_ptr<Atom>> av_t;
 
     typedef av_t::      iterator       iterator;

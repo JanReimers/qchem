@@ -1,11 +1,11 @@
 // File: Symmetry/Okmj.C  Spherical Spinor Omega_kmj symmetry.
 module;
-#include <cstddef>
 #include <iosfwd>
 #include <utility> //std::pair
 
 export module qchem.Symmetry.Okmj;
 export import qchem.Symmetry.Angular;
+export import qchem.Types;
 //---------------------------------------------------------------------------------
 //
 //  Spherical Spinor with total AM J=L+S.  QNs are kappa (mj gets averaged over).

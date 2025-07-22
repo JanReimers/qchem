@@ -1,6 +1,5 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
 module;
-#include <cstddef>
 export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Imp.HeapDB;
 export import qchem.BasisSet.Imp.Cache4;
@@ -12,6 +11,7 @@ import qchem.BasisSet.ERI4;
 import qchem.BasisSet.Imp.IEClient;
 export import qchem.DHF_IBS;
 import qchem.Fit_IBS;
+export import qchem.Types;
 
 export
 {
@@ -93,7 +93,6 @@ protected:
 class AtomIE_BS_2E_Angular
 {
 public:
-    typedef Vector<double> RVec;
     typedef AtomIrrepIEClient iec_t;
     virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const=0;
     virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* c) const=0;
@@ -105,7 +104,6 @@ template <class T> class AtomIE_BS_2E
     , public DB_BS_2E<T>
     , public BFGrouper
 {
-    typedef typename AtomIE_BS_2E_Angular::RVec RVec;
 public:
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;

@@ -1,10 +1,10 @@
 // File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
 module;
-#include <cstddef>
 #include <iosfwd>
 
 export module qchem.Symmetry.Orbital;
 export import qchem.Symmetry.Irrep;
+export import qchem.Types;
 
 export struct Orbital_QNs
     : public Irrep_QNs

@@ -19,7 +19,7 @@ ExponentScaler::ExponentScaler(size_t N, double emin, double emax, size_t LMax)
     FillPower(es,itsemin,itsemax);
 };
 
-ExponentScaler::RVec   ExponentScaler::Get_es(size_t L) const
+RVec   ExponentScaler::Get_es(size_t L) const
 {
     if (L==0) return es;
     int N=itsN-1*L;

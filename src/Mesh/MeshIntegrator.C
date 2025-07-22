@@ -12,8 +12,7 @@ public:
     typedef SMatrix<T>     SMat;
     typedef Vector<T>      Vec;
     typedef Vector3D<T>    Vec3;
-    typedef Vector<double> RVec;
-
+ 
     MeshIntegrator(const Mesh*);
     virtual ~MeshIntegrator() {};
 

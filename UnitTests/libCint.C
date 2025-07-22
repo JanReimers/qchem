@@ -16,8 +16,7 @@ import qchem.LAParams;
 
 import qchem.Atom;
 import qchem.Molecule;
-
-typedef Vector3D<double> RVec3;
+import qchem.Types;
 
 extern "C" {
 #include "cint.h"

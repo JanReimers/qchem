@@ -5,6 +5,8 @@ export module qchem.Orbitals.Internal.OrbitalsImp;
 export import qchem.Orbitals;
 export import qchem.Irrep_BS;
 export import qchem.Symmetry.Irrep;
+export import qchem.Types;
+
 
 
 export template <class T> class TOrbitalsImp
@@ -17,8 +19,6 @@ export template <class T> class TOrbitalsImp
     typedef typename Base::Vec     Vec;  //Vector of scalars.
     typedef typename Base::Vec3    Vec3;   //3 vector (possibly complex).
     typedef typename Base::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    typedef typename Base::RVec3   RVec3;  //Real space vector.
-    typedef typename Base::RVec    RVec;
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
     typedef typename TOrbitals<T>::ds_t ds_t; //{double,SMat}}
 public:

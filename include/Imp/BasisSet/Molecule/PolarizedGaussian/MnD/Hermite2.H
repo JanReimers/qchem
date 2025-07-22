@@ -8,7 +8,7 @@
 
 #include "../Polarization.H"
 import oml;
-
+import qchem.Types;
 //#define USE_CACHE
 
 #ifdef USE_CACHE
@@ -27,7 +27,6 @@ import oml;
 //  zero before doing a more expensive lookup.
 //
 
-typedef Vector3D<double> RVec3;
 class Polarization;
 namespace PolarizedGaussian
 {

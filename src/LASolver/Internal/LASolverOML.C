@@ -30,7 +30,6 @@ export template <class T> class LASolverOMLEigen
     typedef LASolver<T> Base;
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
-    typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
     LASolverOMLEigen(const LAParams& lap) : LASolverOMLCommon<T>(lap) {};
@@ -49,7 +48,6 @@ export template <class T> class LASolverOMLSVD
     typedef LASolver<T> Base;
     typedef typename Base::Mat Mat;
     typedef typename Base::SMat SMat;
-    typedef typename Base::RVec RVec;
     typedef typename Base::RSMat RSMat;
 public:
     LASolverOMLSVD(const LAParams& lap) : LASolverOMLCommon<T>(lap) {};

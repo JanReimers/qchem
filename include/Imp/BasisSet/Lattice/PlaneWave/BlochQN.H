@@ -2,14 +2,6 @@
 #ifndef _BlochQN_H_
 #define _BlochQN_H_
 
-
-
-#include "QuantumNumber.H"
-#include "oml/vector3d.h"
-
-template <class T> class Vector3D;
-typedef Vector3D<double> RVec3;
-
 //---------------------------------------------------------------------------------
 //
 //  Translational symmetry, Bloch function wave vector.

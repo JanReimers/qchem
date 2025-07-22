@@ -1,6 +1,5 @@
 // File: BSpline/IEC.C Common IE client code for all atom BSpline basis sets and IEs.
 module;
-#include <cstddef>
 #include <vector>
 #include <cassert>
 #include <cmath>

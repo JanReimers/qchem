@@ -1,10 +1,10 @@
 // File: Symmetry.C  Abstract interface for symmetries that do not include spin.
 module;
-#include <cstddef>
 #include <string>
 
 export module qchem.Symmetry;
 import qchem.Streamable;
+export import qchem.Types;
 
 export class Symmetry
     : public virtual Streamable

@@ -1,6 +1,5 @@
 // File: Atom/radial/Slater/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom Slater Basis Sets.
 module;
-#include <cstddef>
 #include <vector>
 #include <iosfwd>
 export module qchem.BasisSet.Atom.radial.SlaterBS;
@@ -8,6 +7,7 @@ import qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Common;
+export import qchem.Types;
 
 export namespace Slater
 {

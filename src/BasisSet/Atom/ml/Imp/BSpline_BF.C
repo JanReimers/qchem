@@ -1,6 +1,5 @@
 // File: Atom/ml/BSpline_BF.C  B-Spline basis function.
 module;
-#include <cstddef>
 
 module qchem.BasisSet.Atom.ml.BSplineBS;
 

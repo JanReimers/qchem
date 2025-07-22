@@ -1,6 +1,5 @@
 // File: Gaussian/ExponentScaler.C  Rescale Gaussian exponents based in angular momentum L.
 module;
-#include <cstddef>
 module qchem.BasisSet.Atom.radial.Gaussian.ExponentScaler; 
 import qchem.BasisSet.Atom.radial.FillPower;
 
@@ -18,7 +17,7 @@ namespace Gaussian
     ::FillPower(es,itsemin,itsemax);
 };
 
-ExponentScaler::RVec   ExponentScaler::Get_es(size_t L) const
+RVec   ExponentScaler::Get_es(size_t L) const
 {
     if (L==0) return es;
     int N=itsN-4*L;

@@ -1,8 +1,8 @@
 // File: ExponentScaler.H  Rescale Slater exponents based in angular momentum L.
 module;
-#include <cstddef>
 export module qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
 export import oml.Vector;
+export import qchem.Types;
 
 export namespace Slater
 {
@@ -10,7 +10,6 @@ export namespace Slater
 class ExponentScaler
 {
 public:
-    typedef Vector<double> RVec;
     ExponentScaler(size_t N, double emin, double emax, size_t LMax);
     RVec   Get_es (size_t L) const;
 private:        
