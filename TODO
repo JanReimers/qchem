@@ -3,6 +3,7 @@ Priority 1:
     -Clean up lower lib to adhere to module naming conventions.
     -Find the largest pcm/gcm files,  Why do sbig.
     -Sort out compile options in CMake for gcc and clang.
+        Anything BSpline is huge.
     -Make a qchem.Types module with:
         RVec3
         RVec

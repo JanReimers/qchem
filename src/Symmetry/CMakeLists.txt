@@ -1,5 +1,15 @@
 add_library(qcSymmetry) 
-target_sources(qcSymmetry PRIVATE Atom_ECImp.C  ElectronCountsImp.C Irrep_QNsImp.C  Molecule_ECImp.C  Okmj.C  Orbital_QNsImp.C  SymmetryImp.C  UnitImp.C YlImp.C  YlmImp.C OkmjImp.C)
+target_sources(qcSymmetry PRIVATE 
+    Imp/Atom_EC.C  
+    Imp/ElectronCounts.C 
+    Imp/Irrep_QNs.C  
+    Imp/Molecule_EC.C  
+    Imp/Orbital_QNs.C  
+    Imp/Symmetry.C  
+    Imp/Unit.C 
+    Imp/Yl.C  
+    Imp/Ylm.C 
+    Imp/Okmj.C)
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
     Symmetry.C 
