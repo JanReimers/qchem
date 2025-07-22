@@ -42,8 +42,6 @@ radial/BSpline/Imp/BFGrouper.C
 radial/BSpline/Imp/GLQuadrature.C
 radial/BSpline/Imp/BS_Common.C
 radial/BSpline/Imp/IBS_Common.C
-radial/Triangle2D.C
-radial/PascalTriangle.C
 radial/Slater/Imp/IE_Primatives.C
 radial/Slater/Imp/Rk.C
 radial/Slater/Imp/ExponentScaler.C
@@ -77,6 +75,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   ml/Gaussian_BS.C
   ml/Slater_BS.C
   ml/BSpline_BS.C
+  radial/PascalTriangle.C
   radial/FillPower.C
   radial/Gaussian/IE_Primatives.C
   radial/Gaussian/Rk.C

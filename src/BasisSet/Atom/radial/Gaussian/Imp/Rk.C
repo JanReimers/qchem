@@ -4,8 +4,8 @@ module;
 #include <cassert>
 #include <cmath>
 #include <vector>
-#include "radial/PascalTriangle.H"
 module qchem.BasisSet.Atom.radial.GaussianRk;
+import qchem.BasisSet.Atom.radial.PascalTriangle;
 import Common.Constants;
 import Common.Factorials;
 import oml;
