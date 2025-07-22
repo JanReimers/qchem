@@ -5,7 +5,7 @@ import qchem.BasisSet.Integrals;
 
 export module qchem.Fit_IBS;
 export import qchem.Irrep_BS;
-export import Mesh;
+export import qchem.Mesh;
 export import qchem.ScalarFunction;
 
 export class Fit_IBS;

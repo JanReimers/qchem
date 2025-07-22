@@ -3,7 +3,7 @@
 module;
 export module qchem.Cluster.MoleculeMesh;
 import qchem.Cluster;
-import Mesh;
+import qchem.Mesh;
 
 export class MoleculeMesh : public Mesh    
 {

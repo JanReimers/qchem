@@ -4,13 +4,9 @@ using json = nlohmann::json;
 
 module qchem.Mesh.Factory;
 
-import Mesh;
-import Mesh.LinearMesh;
-import Mesh.GaussAngularMesh;
-import Mesh.GaussLegendreAngularMesh;
-import Mesh.EulerMaclarenAngularMesh;
-import Mesh.MHLRadialMesh;
-import Mesh.LogRadialMesh;
+import qchem.Mesh.Internal.Types;
+import qchem.Mesh.Internal.RadialTypes;
+
 import oml;
 
 namespace MeshF

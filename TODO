@@ -1,24 +1,8 @@
-export module qchem.BasisSet.Atom.l.BSplineBS;
-    import qchem.Basisset.Atom.radial.BSpline.BS_Common;
-    export qchem.Basisset.Atom.radial.BSpline.BS_Common; 
-            import qchem.Basisset.Atom.radial.BSpline.IE;
-            import qchem.Basisset.Atom.radial.BSpline.Rk;
-            import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
-    import qchem.Basisset.Atom.radial.BSpline.IE;
-    export qchem.Basisset.Atom.radial.BSpline.IE;
-        import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
-        import qchem.Basisset.Atom.radial.BSpline.IEC;
-    import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
-    export qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
-        import qchem.Basisset.Atom.radial.BSpline.IE;
-    import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
-    export qchem.Basisset.Atom.radial.BSpline.BFGrouper;
-        import qchem.Basisset.Atom.radial.BSpline.BS_Common; 
-        import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
-
-
 
 Priority 1:
+    -Clean up lower lib to adhere to module naming conventions.
+    -Find the largest pcm/gcm files,  Why do sbig.
+    -Sort out compile options in CMake for gcc and clang.
     -Make a qchem.Types module with:
         RVec3
         RVec

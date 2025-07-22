@@ -12,7 +12,7 @@ module qchem.BasisSet.Imp.HeapDB;
 import qchem.Fit_IBS;
 import qchem.DHF_IBS;
 import qchem.Irrep_BS;
-import Mesh.Integrator;
+import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.BasisSet.ERI4;
 import oml;

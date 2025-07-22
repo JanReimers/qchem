@@ -3,7 +3,7 @@ module;
 namespace std {template <class T> class valarray;}
 
 export module qchem.ScalarFunction;
-export import Mesh;
+export import qchem.Mesh;
 export import oml;
 
 export template <class T> class ScalarFunction

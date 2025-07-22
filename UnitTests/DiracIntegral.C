@@ -18,7 +18,7 @@ import qchem.Irrep_BS;
 import qchem.BasisSet.ERI4;
 import Common.Constants;
 import qchem.Cluster;
-import Mesh.Integrator;
+import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
 

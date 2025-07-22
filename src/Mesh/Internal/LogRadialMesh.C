@@ -1,21 +1,13 @@
 //  File: LogRadialMesh.C  Logarithmic radial mesh implementation
 module;
-#include <iostream>
 #include <cmath>
-
-export module Mesh.LogRadialMesh;
-
+module qchem.Mesh.Internal.RadialTypes;
 import Common.Constants;
-import RadialMesh;
-import oml;
+import qchem.RadialMesh;
+// import oml;
 
-export class LogRadialMesh : public   RadialMesh
-{
-public:
-    LogRadialMesh(double start, double stop, index_t numPoints);
-};
 
-LogRadialMesh::LogRadialMesh(double start, double stop, index_t NumPoints)
+LogRadialMesh::LogRadialMesh(double start, double stop, int NumPoints)
 {
     double q   = exp((log(stop)-log(start))/(NumPoints-1));
     double sq  = sqrt(q);

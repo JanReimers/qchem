@@ -6,7 +6,7 @@ module;
 #include <vector>
 module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.DFT_IBS;
-import Mesh;
+import qchem.Mesh;
 
 //------------------------------------------------------------------------------------
 //

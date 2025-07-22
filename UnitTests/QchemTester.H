@@ -14,7 +14,7 @@ import Common.PeriodicTable;
 import qchem.Molecule;
 import qchem.Symmetry.AtomEC;
 import qchem.Orbitals;
-import Mesh; //To get Meshparams
+import qchem.Mesh; //To get Meshparams
 
 class QchemTester
 {

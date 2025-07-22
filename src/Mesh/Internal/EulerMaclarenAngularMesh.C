@@ -4,17 +4,9 @@ module;
 #include <cmath>
 #include <cassert>
 
-export module Mesh.EulerMaclarenAngularMesh;
-export import Mesh;
-
+module qchem.Mesh.Internal.Types;
 import Common.Constants;
 import oml;
-
-export class EulerMaclarenAngularMesh : public  Mesh
-{
-public:
-    EulerMaclarenAngularMesh(int L, int m);
-};
 
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {

@@ -1,23 +1,27 @@
 add_library(qcMesh) 
-target_sources(qcMesh PRIVATE FactoryImp.C   ScalarFunctionImp.C VectorFunctionImp.C )
+target_sources(qcMesh PRIVATE 
+    Imp/Factory.C   
+    Imp/ScalarFunction.C 
+    Imp/VectorFunction.C 
+    Imp/MeshIntegrator.C 
+    Internal/LinearMesh.C 
+    Internal/GaussAngularMesh.C 
+    Internal/GaussLegendreAngularMesh.C 
+    Internal/EulerMaclarenAngularMesh.C 
+    Internal/MHLRadialMesh.C 
+    Internal/LogRadialMesh.C 
+    )
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Mesh.C 
     RadialMesh.C 
-    LinearMesh.C 
-    GaussAngularMesh.C 
-    GaussLegendreAngularMesh.C 
-    EulerMaclarenAngularMesh.C 
-    MHLRadialMesh.C 
-    LogRadialMesh.C 
     MeshIntegrator.C 
     ScalarFunction.C
     VectorFunction.C
     Factory.C
+    Internal/MeshTypes.C 
+    Internal/RadialMeshTypes.C  
      )
 target_include_directories(qcMesh PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include  
-    ${PROJECT_SOURCE_DIR}/include/Imp/Mesh
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     )
 # target_compile_options(qcMesh PRIVATE -Wall -Wno-unknown-pragmas -fmodules-ts

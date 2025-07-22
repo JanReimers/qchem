@@ -5,7 +5,7 @@ module;
 
 export module qchem.Cluster;
 import Common.UniqueID; 
-import Mesh; 
+import qchem.Mesh; 
 import qchem.Atom;
 import oml.Vector3D;
 import qchem.Streamable;

@@ -4,7 +4,7 @@ module;
 
 export module Cluster.UnitCellMesh;
 import Cluster.UnitCell;
-import Mesh;
+import qchem.Mesh;
 import Cluster.UnitCell;
 import oml;
 

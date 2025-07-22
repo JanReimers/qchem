@@ -7,7 +7,7 @@ module qchem.FittedFunctionImp;
 import qchem.FittedFunction;
 import qchem.Fit_IBS;
 import qchem.DFT_IBS;
-import Mesh;
+import qchem.Mesh;
 import oml;
 
 //---------------------------------------------------------------------

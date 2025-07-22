@@ -1,19 +1,10 @@
 // File: LinearMesh.C  Linear mesh implementation.
 module;
 #include <cmath>
-export module Mesh.LinearMesh;
-export import Mesh;
+module qchem.Mesh.Internal.Types;
 import oml;
 
-export class LinearMesh : public Mesh
-{
-public:
-    LinearMesh(double start, double stop, const RVec3& direction, index_t numPoints);
-    Mesh*  Clone() const;
-};
-
-
-LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, index_t NumPoints)
+LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, int NumPoints)
 {
     RVec3 nd=normalize(direction); //Make sure its normailized.
 

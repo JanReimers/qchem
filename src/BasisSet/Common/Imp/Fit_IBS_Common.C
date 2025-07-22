@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include <memory>
 module qchem.BasisSet.IBS_Common;
-import Mesh.Integrator;
+import qchem.Mesh.Integrator;
 import oml;
 
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const

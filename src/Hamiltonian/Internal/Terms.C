@@ -9,7 +9,7 @@ import qchem.Cluster;
 import qchem.FittedFunctionImp;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
-import Mesh;
+import qchem.Mesh;
 
 
 export {

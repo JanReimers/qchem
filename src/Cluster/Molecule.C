@@ -7,7 +7,7 @@ export module qchem.Molecule;
 import qchem.Atom;
 import qchem.Cluster;
 import Common.UniqueIDImp;
-import Mesh;
+import qchem.Mesh;
 
 export class Molecule 
     : public virtual Cluster

@@ -7,8 +7,8 @@
 import qchem.Hamiltonian.Factory;
 import qchem.Factory;
 import Common.Constants;
-import Mesh;
-import Mesh.Integrator;
+import qchem.Mesh;
+import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
 

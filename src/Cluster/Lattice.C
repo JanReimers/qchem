@@ -8,7 +8,7 @@ import Common.UniqueIDImp;
 import qchem.Cluster;
 import qchem.Atom;
 import Cluster.UnitCell;
-import Mesh;
+import qchem.Mesh;
 import oml.Vector3D;
 
 //----------------------------------------------------------------------------

@@ -4,7 +4,7 @@ module;
 export module qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Internal.ExFunctional;
-import Mesh;
+import qchem.Mesh;
 import qchem.Cluster;
 import qchem.BasisSet;
 

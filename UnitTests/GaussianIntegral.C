@@ -12,7 +12,7 @@ import qchem.Factory;
 import qchem.BasisSet;
 import qchem.Irrep_BS;
 import Common.Constants;
-import Mesh.Integrator;
+import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;

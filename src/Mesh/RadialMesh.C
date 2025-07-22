@@ -3,7 +3,7 @@ module;
 #include <tuple>
 #include <vector>
 
-export module RadialMesh;
+export module qchem.RadialMesh;
 import oml;
 
 export class RadialMesh

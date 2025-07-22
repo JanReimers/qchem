@@ -2,25 +2,18 @@
 module;
 #include <iostream>
 #include <cmath>
-// #include <stdlib.h>
 #include <cassert>
 
-export module Mesh.GaussAngularMesh;
-export import Mesh;
+module qchem.Mesh.Internal.Types;
 import Common.Constants;
 import oml;
 
-export class GaussAngularMesh : public  Mesh
-{
-public:
-    GaussAngularMesh(index_t numDir=1);
-};
 
-GaussAngularMesh::GaussAngularMesh(index_t numDir)
+GaussAngularMesh::GaussAngularMesh(int numDir)
 {
     Vector<RVec3>  D(numDir);
     Vector<double> W(numDir);
-    for (index_t i=1; i<=numDir; i++) W(i)=1.0/numDir; //Default weights.
+    for (int i=1; i<=numDir; i++) W(i)=1.0/numDir; //Default weights.
     switch(numDir)
     {
     case (1) : //L=0.

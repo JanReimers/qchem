@@ -3,7 +3,7 @@ module;
 
 
 module qchem.Cluster.AtomMesh;
-import RadialMesh;
+import qchem.RadialMesh;
 import oml;
 
 

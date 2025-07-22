@@ -3,7 +3,7 @@ export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.BasisSet;
-import Mesh;
+import qchem.Mesh;
 
 export {
 //

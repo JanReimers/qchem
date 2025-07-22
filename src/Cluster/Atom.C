@@ -1,11 +1,11 @@
 // File: Atom.C  A Atom like data type.
 module;
-#include <iostream>
+#include <iosfwd>
 
 export module qchem.Atom;
 import Common.UniqueIDImp;
-import Mesh;
-import oml;
+import qchem.Mesh;
+import oml.Vector3D;
 import qchem.Streamable;
 
 export class Atom
@@ -22,7 +22,6 @@ public:
     virtual Mesh*  CreateMesh(const MeshParams&) const;
 
     virtual std::ostream& Write  (std::ostream&) const;
-    static  Atom*    Factory(std::istream&);
 
     int     itsZ;      //Atomic number.
     double  itsCharge; //Net charge. Z-numElectrons.

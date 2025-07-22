@@ -18,7 +18,7 @@ import qchem.LAParams;
 import qchem.Factory;
 import qchem.BasisSet;
 import qchem.Irrep_BS;
-import Mesh.Integrator;
+import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;

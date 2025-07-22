@@ -4,7 +4,7 @@ module;
 #include <vector>
 import oml;
 
-export module Mesh;
+export module qchem.Mesh;
 
 export class Mesh 
 { 
