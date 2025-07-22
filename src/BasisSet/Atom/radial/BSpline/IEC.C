@@ -29,10 +29,10 @@ template <size_t K> struct IrrepIEClient
     virtual size_t size() const {return splines.size();}
     auto indices() const {return ns.indices();}
     auto indices(size_t i) const {return ns.indices(i);}
-    const spline_t& operator()(index_t i) const {assert(i>0);return splines[i-1];}
+    const spline_t& operator()(size_t i) const {assert(i>0);return splines[i-1];}
 
     typedef std::tuple<int,const spline_t*,double> bf_tuple;
-    bf_tuple tuple(index_t i) const {return std::make_tuple(l,&splines[i-1],ns(i));}
+    bf_tuple tuple(size_t i) const {return std::make_tuple(l,&splines[i-1],ns(i));}
     GLCache* itsGL;
 
 private:

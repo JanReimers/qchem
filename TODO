@@ -21,9 +21,10 @@ Priority 1:
         RVec
         size_t;
     -Migrate from index_t to int or size_t.
-    -Try and simplify BSpling template instancing
+    Done -Try and simplify BSpling template instancing
         constexpr Loop example: https://indii.org/blog/cplusplus-static-for-loop/
             Won;t compile]
+        Preprocessor works,  a bit ugly.
     -use std::vector<double> for anything not involing lin-alg 
         -i.e. exponents
     -Design flaw

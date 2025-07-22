@@ -14,7 +14,7 @@ Block::Block()
     , itsN     (0)
 {};
 
-Block::Block(RadialFunction* rf, index_t N)
+Block::Block(RadialFunction* rf, size_t N)
     : itsRadial(rf)
     , itsN     (N)
 {};

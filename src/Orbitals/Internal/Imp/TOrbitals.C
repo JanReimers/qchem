@@ -37,13 +37,13 @@ template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
 //
 //  Orbitals stuff.
 //
-template <class T> index_t TOrbitalsImp<T>::GetNumOrbitals() const
+template <class T> size_t  TOrbitalsImp<T>::GetNumOrbitals() const
 {
     return itsOrbitals.size();
 }
-template <class T> index_t TOrbitalsImp<T>::GetNumOccOrbitals() const
+template <class T> size_t  TOrbitalsImp<T>::GetNumOccOrbitals() const
 {
-    index_t n=0;
+    size_t  n=0;
     for (auto& o:*this)
         if (o->IsOccupied()) 
             n++;
@@ -71,13 +71,13 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)
 {
     itsOrbitals.clear();
-    index_t n=e.size();
+    size_t  n=e.size();
     //
     //  Strip out all the positron orbitals.
     //
     static const double e_positron=-c_light*c_light; //Max positron energy = -2mc^2.
     size_t index=1;
-    for (index_t i=1; i<=n; i++)
+    for (size_t  i=1; i<=n; i++)
     {
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
         if (e(i)<=e_positron) continue; //Strip out all the positron orbitals.

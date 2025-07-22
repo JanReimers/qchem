@@ -21,7 +21,7 @@ void BS_Common::Set(const LAParams& lap)
 
 size_t BS_Common::GetNumFunctions() const
 {
-    index_t ret=0;
+    size_t ret=0;
     for (auto& bs:*this) 
         ret+=bs->GetNumFunctions();
     return ret;

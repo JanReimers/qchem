@@ -20,7 +20,7 @@ class Block
 {
 public:
     Block(                         );
-    Block(RadialFunction*, index_t );
+    Block(RadialFunction*, size_t  );
     Block(const Block&);
     ~Block(                         );
 
@@ -28,7 +28,7 @@ public:
     {
         itsPols.push_back(p);
     }
-    index_t size() const
+    size_t  size() const
     {
         return itsPols.size();
     }
@@ -41,7 +41,7 @@ public:
 
     RadialFunction*           itsRadial; //Common radial function.
     std::vector<Polarization> itsPols;   //All polarizations for this block.
-    index_t                   itsN;      //Index of first basis function in block.
+    size_t                    itsN;      //Index of first basis function in block.
 };
 
 } //namespace PolarizedGaussian

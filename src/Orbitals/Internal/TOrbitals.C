@@ -27,8 +27,8 @@ public:
 
 
     virtual ds_t      TakeElectrons      (double ne      )      ;
-    virtual index_t   GetNumOrbitals     (               ) const;
-    virtual index_t   GetNumOccOrbitals  (               ) const;
+    virtual size_t    GetNumOrbitals     (               ) const;
+    virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
     virtual DM_CD*    GetChargeDensity   () const;
     virtual void      UpdateOrbitals     (const Mat& U, const Mat& UPrime, const RVec& e);

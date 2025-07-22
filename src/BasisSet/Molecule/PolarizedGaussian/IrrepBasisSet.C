@@ -70,7 +70,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
         {
             bool duplicate=false;
             std::vector<RadialFunction*>::iterator b(radials.begin());
-            for (index_t i=0; b!=radials.end(); i++,b++)
+            for (size_t i=0; b!=radials.end(); i++,b++)
                 if (**b==*rf) //Check for a duplicate, ingnoring Lmax.
                 {
                     duplicate=true;

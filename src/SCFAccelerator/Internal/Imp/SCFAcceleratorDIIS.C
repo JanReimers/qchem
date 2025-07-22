@@ -71,7 +71,7 @@ SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project()
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
         SMat Fproj;
-        index_t i=1;
+        size_t  i=1;
         for (const auto& f:itsFPrimes) Fproj+=SMat(itsCs(i++)*f);
         return Fproj;
     }
@@ -147,13 +147,13 @@ RVec SCFAcceleratorDIIS::SolveC(const SMat& B)
 }
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
-    index_t N=GetNProj()+1;
+    size_t  N=GetNProj()+1;
     SMat B(N);
     Fill(B,0.0);
-    for (index_t i=1;i<N;i++)
+    for (size_t  i=1;i<N;i++)
     {
         B(i,N)=1.0; //B is symmetric so no need to set B(N,i)=1.0
-        for (index_t j=i;j<N;j++)
+        for (size_t  j=i;j<N;j++)
             for (auto k:itsIrreps) B(i,j)+=k->GetError(i-1,j-1);
     }
     // B(N,N)=0.0;  should already be true

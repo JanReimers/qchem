@@ -7,7 +7,7 @@ import oml;
 
 template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator() (const Mesh& mesh) const
 {
-    index_t n=GetVectorSize();
+    size_t n=GetVectorSize();
     Mat m(MatLimits(n,mesh.size()));
     Fill(m,T(0.0));
     int i=1;
@@ -22,7 +22,7 @@ template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator()
 
 template <class T> typename VectorFunction<T>::Vec3Mat VectorFunction<T>::Gradient(const Mesh& mesh) const
 {
-    index_t n=GetVectorSize();
+    size_t n=GetVectorSize();
     Vec3Mat m(MatLimits(n,mesh.size()));
     Fill(m,Vec3(0,0,0));
     int i=1;

@@ -65,8 +65,8 @@ public:
     typedef ov_t::const_iterator const_iterator;
 
     virtual ~Orbitals() {};
-    virtual index_t        GetNumOrbitals     (               ) const=0;
-    virtual index_t        GetNumOccOrbitals  (               ) const=0;
+    virtual size_t         GetNumOrbitals     (               ) const=0;
+    virtual size_t         GetNumOccOrbitals  (               ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual DM_CD*         GetChargeDensity   (               ) const=0;
     //! This will hold spin and symmetry QNs, without the principle QN.

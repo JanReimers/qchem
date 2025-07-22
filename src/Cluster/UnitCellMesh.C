@@ -12,13 +12,13 @@ export class UnitCellMesh : public Mesh
 {
 public:
     UnitCellMesh() {};
-    UnitCellMesh(const UnitCell&, index_t numPoints);
+    UnitCellMesh(const UnitCell&, size_t numPoints);
     Mesh*  Clone() const;
 };
 
-UnitCellMesh::UnitCellMesh(const UnitCell& cell, index_t NumPoints)
+UnitCellMesh::UnitCellMesh(const UnitCell& cell, size_t NumPoints)
 {
-    index_t N=NumPoints*NumPoints*NumPoints;
+    size_t N=NumPoints*NumPoints*NumPoints;
     double w=cell.GetCellVolume()/N;
     double del=1.0/NumPoints;
 
