@@ -10,7 +10,7 @@ import qchem.BasisSet.Common;
 import qchem.BasisSet.Atom.l.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
-import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.IBS_Common;
 import qchem.HF_IBS;
 import qchem.BasisFunction;
 

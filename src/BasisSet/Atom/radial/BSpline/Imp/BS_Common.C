@@ -1,6 +1,9 @@
 // File: Atom/radial/BSpline/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom BSpline Basis Sets.
+module;
 #include <cassert>
-#include "radial/BSpline/BS_Common.H"
+#include <cstddef>
+module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
+import qchem.BasisSet.Imp.IEClient;
 import qchem.Irrep_BS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
@@ -20,12 +23,10 @@ namespace BSpline
         this->Append(iec);
 
     }
-
     template <size_t K> void BS_Common<K>::BuildCache(size_t lmax)
     {
         itsRkCache=new RkCache<K>(unique_spv,*this->GetGL(lmax),lmax);
     }
-    
     template <size_t K> const Cacheable* BS_Common<K>::Create(size_t ia,size_t ic,size_t ib,size_t id) const
     {
         assert(itsRkCache);
@@ -35,8 +36,6 @@ namespace BSpline
         return new BSpline::RkEngine(unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
 
     }
-    
-    
     template <size_t K> Vector<double> BS_Common<K>::loop_4_direct(size_t id, size_t la, size_t lc)  const
     {
         const Cacheable* c=Cache4::loop_4(id);
@@ -50,5 +49,7 @@ namespace BSpline
         return cd->ExchangeRk(la,lc);
     }
     
+#define INSTANCEk(k) template class BS_Common<k>;
+#include "../../../Instance.hpp"
     
 }

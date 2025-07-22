@@ -10,7 +10,7 @@
 
 import qchem.LAParams;
 
-import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.IBS_Common;
 
 import qchem.Factory;
 import qchem.BasisSet;

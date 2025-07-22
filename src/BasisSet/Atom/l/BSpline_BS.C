@@ -2,19 +2,19 @@
 module;
 #include <bspline/Core.h>
 #include <iosfwd>
-#include "radial/BSpline/BS_Common.H"
-#include "radial/BSpline/IBS_Common.H"
 
 export module qchem.BasisSet.Atom.l.BSplineBS;
-import qchem.Basisset.Atom.radial.BSpline.IE;
-import qchem.BasisSet.qchem.BasisSet.IBS_Common;
-import qchem.BasisFunction;
-import qchem.BasisSet.Atom.l.Angular;
-import qchem.BasisSet.Common;
-import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
-import qchem.BasisSet;
+import qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Common;
+import qchem.BasisFunction;
+import qchem.BasisSet.Atom.l.Angular;
+import qchem.BasisSet.Imp.HeapDB;
+
+import qchem.Basisset.Atom.radial.BSpline.BS_Common;
+import qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 

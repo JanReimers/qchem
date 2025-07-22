@@ -4,14 +4,13 @@ module;
 #include <bspline/operators/Derivative.h>
 #include <cmath>
 
-#include "radial/BSpline/IBS_Common.H"
-#include "radial/BSpline/BS_Common.H"
-
 import qchem.Symmetry.Ylm;
 
 
 module qchem.BasisSet.Atom.ml.BSplineBS;
+import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 import qchem.BasisSet.Imp.HeapDB;

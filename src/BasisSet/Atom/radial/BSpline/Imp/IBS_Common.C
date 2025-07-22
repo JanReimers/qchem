@@ -1,8 +1,9 @@
 // File: Atom/radial/BSpline/IBS_Common.H  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom BSpline functions.
-
+module;
 #include <iosfwd>
 #include <iostream>
-#include "radial/BSpline/IBS_Common.H"
+#include <vector>
+module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
 import qchem.BasisFunction;
 import qchem.Symmetry;
 
@@ -33,6 +34,7 @@ template <size_t K> std::ostream&  IrrepBasisSet<K>::Write(std::ostream& os) con
     return os;
 }
 
-
+#define INSTANCEk(k) template class IrrepBasisSet<k>;
+#include "../../../Instance.hpp"
 
 } //namespace 

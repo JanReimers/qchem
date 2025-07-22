@@ -5,7 +5,7 @@ module;
 export module qchem.BasisSet.Atom.ml.SlaterBS;
 import qchem.BasisSet.Atom.radial.SlaterBS;
 import qchem.BasisSet.Atom.l.SlaterBS;
-import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Imp.HeapDB;
 import qchem.HF_IBS;
 import qchem.DFT_IBS;

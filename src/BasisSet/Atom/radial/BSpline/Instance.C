@@ -3,8 +3,6 @@
 #include <cmath>
 import qchem.BasisSet.Imp.IEClient;
 
-#include "BS_Common.Ci"
-#include "IBS_Common.Ci"
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.BasisSet.Atom.ml.BSplineBS;

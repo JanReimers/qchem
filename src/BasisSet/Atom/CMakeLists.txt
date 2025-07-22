@@ -29,7 +29,7 @@ radial/Gaussian/Imp/Rk.C
 radial/Gaussian/Imp/ExponentScaler.C
 radial/Gaussian/Imp/IBS_Common.C
 radial/Gaussian/Imp/BS_Common.C
-radial/BSpline/Instance.C
+#radial/BSpline/Instance.C
 radial/BSpline/Instancem.C
 radial/BSpline/Instance_ml.C
 #radial/BSpline/Instance_radial.C 
@@ -41,6 +41,8 @@ radial/BSpline/Imp/IEC.C
 radial/BSpline/Imp/Rk.C
 radial/BSpline/Imp/BFGrouper.C
 radial/BSpline/Imp/GLQuadrature.C
+radial/BSpline/Imp/BS_Common.C
+radial/BSpline/Imp/IBS_Common.C
 radial/Triangle2D.C
 radial/PascalTriangle.C
 radial/Slater/Imp/IE_Primatives.C
@@ -89,6 +91,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   radial/BSpline/IE_Primatives.C
   radial/BSpline/BFGrouper.C
   radial/BSpline/GLQuadrature.C
+  radial/BSpline/BS_Common.C
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

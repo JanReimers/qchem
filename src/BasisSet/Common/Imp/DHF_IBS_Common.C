@@ -4,7 +4,7 @@ module;
 #include <memory>
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+module qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.Imp.HeapDB;
 import oml;
 

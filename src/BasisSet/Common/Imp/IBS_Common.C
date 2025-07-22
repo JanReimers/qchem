@@ -4,7 +4,7 @@ module;
 #include <iomanip>
 #include <memory>
 #include <cassert>
-module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+module qchem.BasisSet.IBS_Common;
 import qchem.BasisFunction;
 import qchem.Symmetry;
 import qchem.stl_io;

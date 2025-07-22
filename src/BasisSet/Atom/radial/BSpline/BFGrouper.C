@@ -3,8 +3,8 @@ module;
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
-#include "radial/BSpline/IBS_Common.H"
 export module qchem.Basisset.Atom.radial.BSpline.BFGrouper;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 // 
 // Keep a list of unique exponents for Group Slater or Gaussian basis functions.

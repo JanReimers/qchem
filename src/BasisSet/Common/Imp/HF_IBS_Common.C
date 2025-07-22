@@ -4,7 +4,7 @@ module;
 #include <vector>
 #include <memory>
 #include <iomanip>
-module qchem.BasisSet.qchem.BasisSet.IBS_Common;
+module qchem.BasisSet.IBS_Common;
 import qchem.BasisSet.ERI4;
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
