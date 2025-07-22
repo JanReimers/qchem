@@ -1,4 +1,15 @@
 // File: Atom/ml/BSpline_IBS.C  BSpline Irrep Basis Set (IBS) with orbital angular momentum l,m.
+module;
+#include <iostream>
+#include <cassert>
+#include <cmath>
+#include <vector>
+
+
+module qchem.BasisSet.Atom.ml.BSplineBS;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
+import qchem.Symmetry.Ylm;
 
 
 namespace Atom_ml
@@ -46,6 +57,7 @@ template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const ::IrrepBasisSet
     return 0;
 }
 
-
+#define INSTANCEk(k) template class Orbital_IBS<k>;
+#include "../../Instance.hpp"
 
 }} //namespace

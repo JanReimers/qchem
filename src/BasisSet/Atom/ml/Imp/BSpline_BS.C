@@ -1,6 +1,13 @@
-// File: Atom/ml/BSpline_BS.H BSpline Basis Set for atoms, no m degeneracy.
+// File: Atom/ml/BSpline_BS.C BSpline Basis Set for atoms, no m degeneracy.
+module;
+#include <iostream>
+#include <cassert>
+#include <cstddef>
 
-
+module qchem.BasisSet.Atom.ml.BSplineBS;
+import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.BasisSet.Imp.Cache4;
+import qchem.Symmetry.AtomEC;
 namespace Atom_ml
 {
 namespace BSpline
@@ -25,5 +32,6 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
     }           
     this->BuildCache(LMax);
 }
-
+#define INSTANCEk(k) template class BasisSet<k>;
+#include "../../Instance.hpp"
 }} //namespace

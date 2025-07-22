@@ -1,5 +1,8 @@
 // File: Atom/ml/BSpline_BF.C  B-Spline basis function.
+module;
+#include <cstddef>
 
+module qchem.BasisSet.Atom.ml.BSplineBS;
 
 namespace Atom_ml
 {
@@ -19,6 +22,7 @@ template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const
     return new  BasisFunction<K>(*this);
 }
 
-
+#define INSTANCEk(k) template class BasisFunction<k>;
+#include "../../Instance.hpp"
 
 }} //namespace

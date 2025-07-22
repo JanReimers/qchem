@@ -1,4 +1,13 @@
 // File: Atom/l/BSpline_IBS.H  BSpline Irrep Basis Set (IBS) with orbital angular momentum l.
+module;
+#include <iostream>
+#include <cassert>
+#include <cmath>
+
+
+module qchem.BasisSet.Atom.l.BSplineBS;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.Symmetry.Yl;
 
 namespace Atoml
 {
@@ -20,8 +29,6 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_
     InsertBasisFunctions();
 };
 
-
-
 template <size_t K> void Orbital_IBS<K>::InsertBasisFunctions()
 {
     size_t i=1;
@@ -32,21 +39,18 @@ template <size_t K> void Orbital_IBS<K>::InsertBasisFunctions()
     for (auto s: this->splines) 
         IBS_Common::Insert(new BasisFunction<K>(s,this->l,this->ns(i++))); //ns from IEClient
 }
-
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     return new Fit_IBS<K>(db,size(),iec.rmin,iec.rmax,0); 
 }
-
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     return new Fit_IBS<K>(db,size(),iec.rmin,iec.rmax,0);    
 }
-
 template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
@@ -63,7 +67,6 @@ template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, dou
 {
     InsertBasisFunctions();
 };
-
 template <size_t K> void Fit_IBS<K>::InsertBasisFunctions()
 {
     size_t i=1;
@@ -71,13 +74,15 @@ template <size_t K> void Fit_IBS<K>::InsertBasisFunctions()
     for (auto s:iec.splines) 
         IBS_Common::Insert(new BasisFunction<K>(s,iec.l,iec.ns(i++))); //ns from SlaterIEClient
 }
-
 template <size_t K> ::Fit_IBS* Fit_IBS<K>::Clone(const RVec3&) const
 {
     std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
     return 0;
 }
 
-
+#define INSTANCEk(k) template class Orbital_IBS<k>;
+#include "../../Instance.hpp"
+#define INSTANCEk(k) template class Fit_IBS<k>;
+#include "../../Instance.hpp"
 
 }} //namespace

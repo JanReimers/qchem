@@ -1,17 +1,17 @@
 // File: Atom/l/BSpline_BF.C  B-Spline basis function.
+module;
+#include <iostream>
+#include <cassert>
+#include <cmath>
+#include <bspline/operators/Derivative.h>
 
 
+module qchem.BasisSet.Atom.l.BSplineBS;
 
 namespace Atoml
 {
 namespace BSpline
 {
-
-//     template <size_t K> BasisFunction<K>::BasisFunction()
-//     : itsSpline       ()
-//     , itsL            (0)
-//     , itsNormalization(0)
-// {};
 
 template <size_t K> BasisFunction<K>::BasisFunction(const spline_t& sp, int l, double norm)
     : itsSpline       (sp)
@@ -20,20 +20,16 @@ template <size_t K> BasisFunction<K>::BasisFunction(const spline_t& sp, int l, d
     , itsNormalization(norm)
 {
 };
-
-
 template <size_t K> std::ostream& BasisFunction<K>::Write(std::ostream& os) const
 {
     return os << "[" << itsSpline.front() << "," << itsSpline.back() << "] ";
 }
-
 template <size_t K> double BasisFunction<K>::operator()(const Vec3& r) const
 {
     double mr=norm(r);
     if (mr<itsSpline.front() || mr>itsSpline.back()) return 0.0;
     return itsNormalization*itsSpline(mr);
 }
-
 template <size_t K> typename BasisFunction<K>::Vec3 BasisFunction<K>::Gradient(const Vec3& r) const
 {
     Vec3 ret(0,0,0);
@@ -44,12 +40,12 @@ template <size_t K> typename BasisFunction<K>::Vec3 BasisFunction<K>::Gradient(c
     Vec3 rhat=r/mr;
     return rhat*itsNormalization*itsDxSpline(mr);
 }
-
 template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const
 {
     return new  BasisFunction<K>(*this);
 }
 
-
+#define INSTANCEk(k) template class BasisFunction<k>;
+#include "../../Instance.hpp"
 
 }} //namespace

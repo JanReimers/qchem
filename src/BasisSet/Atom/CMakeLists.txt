@@ -16,6 +16,9 @@ l/Imp/Slater_BF.C
 l/Imp/Gaussian_IBS.C 
 l/Imp/Gaussian_BS.C
 l/Imp/Gaussian_BF.C 
+l/Imp/BSpline_BS.C
+l/Imp/BSpline_IBS.C
+l/Imp/BSpline_BF.C 
 kappa/Imp/Slater_IBS.C
 kappa/Imp/Gaussian_BS.C
 kappa/Imp/Slater_BS.C
@@ -29,10 +32,6 @@ radial/Gaussian/Imp/Rk.C
 radial/Gaussian/Imp/ExponentScaler.C
 radial/Gaussian/Imp/IBS_Common.C
 radial/Gaussian/Imp/BS_Common.C
-#radial/BSpline/Instance.C
-radial/BSpline/Instancem.C
-radial/BSpline/Instance_ml.C
-#radial/BSpline/Instance_radial.C 
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
 radial/BSpline/Imp/IE.C
@@ -56,6 +55,10 @@ ml/Imp/Slater_BS.C
 ml/Imp/Slater_BF.C
 ml/Imp/Gaussian_BF.C
 ml/Imp/Gaussian_IBS.C
+ml/Imp/BSpline_BS.C
+ml/Imp/BSpline_IBS.C
+ml/Imp/BSpline_BF.C 
+
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   Factory.C
