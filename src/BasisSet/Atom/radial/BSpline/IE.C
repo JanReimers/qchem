@@ -1,7 +1,6 @@
 // File: BSpline/IE.C Common IE code for BSpline basis sets.
 module;
 #include <bspline/Core.h>
-#include "radial/BSpline/BFGrouper.H"
 
 export module qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.BasisSet.Atom.BFGrouper;
@@ -17,6 +16,7 @@ import qchem.BasisSet;
 import qchem.HF_IBS;
 import qchem.DHF_IBS;
 import qchem.Fit_IBS;
+import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 
 export namespace BSpline
 {

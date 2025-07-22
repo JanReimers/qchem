@@ -6,7 +6,6 @@ module;
 
 #include "radial/BSpline/IBS_Common.H"
 #include "radial/BSpline/BS_Common.H"
-#include "radial/BSpline/IE_Primatives.H"
 
 import qchem.Symmetry.Ylm;
 
@@ -18,6 +17,7 @@ import qchem.Symmetry.Yl;
 import qchem.BasisSet.Imp.HeapDB;
 import Common.IntPow;
 import qchem.Symmetry.AtomEC;
+import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 
 import oml;
 

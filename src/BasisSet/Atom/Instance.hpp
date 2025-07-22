@@ -14,7 +14,8 @@
 #define END_(...) __VA_ARGS__##_END
 
 // Instance with k={5,6,7}
-INSTANCE((5)(6)(7)) 
+//INSTANCE((5)(6)(7)) 
+INSTANCE((6)) 
 
 #undef END
 #undef END_

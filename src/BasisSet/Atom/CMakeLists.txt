@@ -36,8 +36,11 @@ radial/BSpline/Instance_ml.C
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
 radial/BSpline/Imp/IE.C
+radial/BSpline/Imp/IE_Primatives.C
 radial/BSpline/Imp/IEC.C
 radial/BSpline/Imp/Rk.C
+radial/BSpline/Imp/BFGrouper.C
+radial/BSpline/Imp/GLQuadrature.C
 radial/Triangle2D.C
 radial/PascalTriangle.C
 radial/Slater/Imp/IE_Primatives.C
@@ -83,6 +86,9 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   radial/BSpline/Rk.C
   radial/BSpline/IEC.C
   radial/BSpline/IE.C
+  radial/BSpline/IE_Primatives.C
+  radial/BSpline/BFGrouper.C
+  radial/BSpline/GLQuadrature.C
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

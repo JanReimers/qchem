@@ -1,13 +1,13 @@
 // File: Atom/radial/BSpline/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom BSpline Basis Sets.
 #ifndef _Atom_radial_BSpline_BS_Common_H_
 #define _Atom_radial_BSpline_BS_Common_H_
-#include "radial/BSpline/BFGrouper.H"
 
 import qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.BasisSet.Common;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.BasisSet.Imp.Cache4;
-
+import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
+import oml.Vector;
 
 namespace BSpline
 {

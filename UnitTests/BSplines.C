@@ -9,6 +9,8 @@
 #include <iomanip>
 
 import qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+import qchem.Symmetry.Angular;
 
 import qchem.LAParams;
 
@@ -153,8 +155,6 @@ TEST_F(BSplineTests, SplineMap)
     }
 }
 
-#include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
-import qchem.Symmetry.Angular;
 
 TEST_F(BSplineTests,GLQIntegration)
 {

@@ -1,93 +1,119 @@
-// File: GLQuadrature.H Perform Gauss-Legendre quadrature integration over B-Splines.
-#include "radial/BSpline/GLQuadrature.H"
+// File: GLQuadrature.C Perform Gauss-Legendre quadrature integration over B-Splines.
+module;
+#include <valarray>
+#include <functional>
+#include <bspline/Core.h>
 #include <cassert>
 #include <iostream>
-using std::cout;
-using std::endl;
+#include <map>
+export module qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 
-// see gauleg.f 
-extern "C"
+export class GLCache;
+export class GLQuadrature
 {
-    void gauleg_(const double* rmin, const double* rmax, double* x, double* w, const int* n);
-}
+public:
+    GLQuadrature() {}; //map needs a default constructor.
+    GLQuadrature(const double& rmin, const double& rmax,int N);
 
-GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N) 
-: its_xmin(rmin), its_xmax(rmax), xs(N), ws(N) 
-{
-    gauleg_(&rmin,&rmax,&xs[0],&ws[0],&N); //Numerical recipes.
-    // cout << "GLQuadrature xmin,xmax,N = " << its_xmin << " " << its_xmax << " " << N << endl;
+    double Integrate(const std::function< double (double)>& f) const
+    {
+        double ret=0.0;
+        for (size_t i=0;i<xs.size();i++)
+            ret+=ws[i]*f(xs[i]);
+        return ret;
+    }
+    double Integrate(const std::function< double (double)>& f, double xmin, double xmax) const
+    {
+        assert(xmax>=its_xmin); //Make sure caller did thier homework and checked the ranges.
+        assert(xmin<=its_xmax);
+        double ret=0.0;
+        for (size_t i=0;i<xs.size();i++)
+            if (xs[i]>=xmin && xs[i]<=xmax)
+                ret+=ws[i]*f(xs[i]);
+        return ret;
+    }
+private:
+    friend class GLCache;
+    double its_xmin, its_xmax;
+    std::valarray<double> xs,ws;
 };
-
-
-GLCache::GLCache(const bspline::support::Grid<double>& g,size_t N)
-: grid(g)
+export class GLCache
 {
-    for (size_t i=1;i<grid.size();i++)
+public:
+    GLCache(const bspline::support::Grid<double>& g,size_t N);
+
+    const GLQuadrature& find(double rmin, double rmax) const;
+    
+    template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b) const
     {
-        double rmin=grid[i-1], rmax=grid[i];
-        itsGLs.push_back(GLQuadrature(rmin,rmax,N));
-        const GLQuadrature& gl=itsGLs.back();
-        for (double r:gl.xs)
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab,a.getSupport(),b.getSupport());
+    }
+    template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, double rmin, double rmax) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab,a.getSupport(),b.getSupport(),rmin,rmax);
+    }
+    template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0, size_t i1) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return IntegrateIndex(fwab,i0,i1);
+    }
+    template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        assert(i0<itsGLs.size());
+        return itsGLs[i0].Integrate(fwab);
+    }
+
+    template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab);
+    }
+    template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b, double rmin, double rmax) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab,rmin,rmax);
+    }
+
+private:
+    GLCache(const GLCache&)=delete;
+    typedef bspline::Support<double> sup_t;
+    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
+    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
+    double IntegrateIndex(const std::function< double (double)>& f,  size_t i0, size_t i1) const
+    {
+        if (i0>=i1) return 0.0;
+        assert(i0<itsGLs.size());
+        assert(i1<=itsGLs.size());
+        double ret=0.0;
+        for (size_t i=i0;i<i1;i++) ret+=itsGLs[i].Integrate(f);
+        return ret;
+    }
+    double Integrate(const std::function< double (double)>& f) const
+    {
+        double ret=0.0;
+        for (auto gl:itsGLs)
+            ret+=gl.Integrate(f);
+        return ret;
+    }
+    double Integrate(const std::function< double (double)>& f, double rmin, double rmax) const
+    {
+        double ret=0.0;
+        // std::cout << grid.size() << " " << itsGLs.size() << std::endl;
+        for (size_t i=1;i<grid.size();i++)
         {
-            itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,N);
-            itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,N);
+            // std::cout << "rmin,grid[i-1],grid[i],rmax=" << rmin << "   " <<  grid[i-1] << "   " << grid[i] << "   " << rmax << std::endl;
+            if (rmin<=grid[i] && rmax>=grid[i-1])
+                ret+=itsGLs[i-1].Integrate(f,rmin,rmax);
+
         }
+        return ret;
     }
-    
-}
+   
+    const bspline::support::Grid<double> grid;
+    std::vector<GLQuadrature> itsGLs;
+    std::map<double,std::map<double,GLQuadrature>> itsDiagGLs;
 
-const GLQuadrature& GLCache::find(double rmin, double rmax) const
-{
-    assert(rmin<rmax);
-    auto i1=itsDiagGLs.find(rmin);
-    assert(i1!=itsDiagGLs.end());
-    auto i2=i1->second.find(rmax);
-    assert(i2!=i1->second.end());
-    return i2->second;
-}
-
-double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
-{
-
-    assert(a.getGrid()==grid); //Check shared pointers.
-    assert(b.getGrid()==grid);
-    double ret=0;
-    sup_t sab=a.calcIntersection(b);
-    for (size_t i=0;i<sab.numberOfIntervals();i++)
-    {
-        size_t ia=sab.absoluteFromRelative(i);
-        ret+=itsGLs[ia].Integrate(f);
-    }
-    return ret;
-}
-
-double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const
-{
-    if (rmin==rmax) return 0.0;
-    if (!(rmin<rmax)) cout << "rmin,rmax=" << rmin << " " << rmax << endl;
-    assert(rmin<rmax);
-    assert(a.getGrid()==grid);
-    assert(b.getGrid()==grid);
-    assert(std::isfinite(f(rmin)));
-    assert(std::isfinite(f(rmax)));
-    sup_t sab=a.calcIntersection(b);
-    if (!sab.containsIntervals()) return 0.0; //No support overlap, so interal=0;
-    if (rmin<=sab.front() && rmax>=sab.back()) return Integrate(f,a,b); //Integration falls outside support so return full integral.
-    auto it_min= std::lower_bound(grid.begin(),grid.end(), rmin); //Get iterator to first grid point *after* rmin
-    auto it_max= std::lower_bound(grid.begin(),grid.end(), rmax); //Get iterator to first grid point *after* rmax
-    assert(it_min!=grid.end());
-    assert(it_max!=grid.end());
-    if(it_min!=grid.begin()) it_min--; //Go back one segment
-    // cout << grid.front() << " " << *it_min << " " << rmin << " " << rmax << " " << *it_max << " " << grid.back() << endl;
-    
-    size_t imin= std::distance(grid.begin(), it_min); //These are already absolute.
-    size_t imax= std::distance(grid.begin(), it_max);
-
-    size_t iab_min=sab.absoluteFromRelative(0);
-    size_t iab_max=sab.absoluteFromRelative(sab.numberOfIntervals());
-    double ret=0;
-    // cout << iab_min << " " << imin << " " << imax << " " << iab_max << endl;
-    for (size_t i=std::max(imin,iab_min);i<std::min(imax,iab_max);i++)
-        ret+=itsGLs[i].Integrate(f,rmin,rmax);
-    return ret;
-}
+};

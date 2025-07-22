@@ -1,13 +1,11 @@
-// File: BSpline/BFGrouper.H  Group BSpline basis functions by support start positions.
-#ifndef _BSpline_BFGrouper_H_
-#define _BSpline_BFGrouper_H_
-
+// File: BSpline/BFGrouper.C  Group BSpline basis functions by support start positions.
+module;
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
 #include "radial/BSpline/IBS_Common.H"
-
-class GLCache;
+export module qchem.Basisset.Atom.radial.BSpline.BFGrouper;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 // 
 // Keep a list of unique exponents for Group Slater or Gaussian basis functions.
 // For each unique exponent also store am index and the maximum l angular momentum used
@@ -28,7 +26,7 @@ template <class T, size_t K> struct cmpSplines {
 };
 
 
-template <size_t K> class BFGrouper
+export template <size_t K> class BFGrouper
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;
@@ -46,5 +44,3 @@ private:
 
 }
 
-
-#endif // _BFGrouper_H_

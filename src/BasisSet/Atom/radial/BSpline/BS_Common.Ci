@@ -1,8 +1,9 @@
 // File: Atom/radial/BSpline/BS_Common.H  l/ml/kappa/mj independent part of BasisSet for atom BSpline Basis Sets.
-
+#include <cassert>
 #include "radial/BSpline/BS_Common.H"
 import qchem.Irrep_BS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import oml;
 
 namespace BSpline

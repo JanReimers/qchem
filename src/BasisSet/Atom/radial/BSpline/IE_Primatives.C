@@ -1,11 +1,10 @@
-// File: BSpline/IE_Primatives.H get all calculation of primative integrals in one place.
-#ifndef _BSpline_IE_Primatives_H_
-#define _BSpline_IE_Primatives_H_
+// File: BSpline/IE_Primatives.C get all calculation of primative integrals in one place.
+module;
 #include <bspline/Core.h>
-
+export module qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import qchem.Basisset.Atom.radial.BSpline.IE;
 
-namespace BSpline
+export namespace BSpline
 {
 template <size_t K> class IE_Primatives
     : public virtual Primative_Overlap  <double,K>
@@ -26,6 +25,4 @@ protected:
 };
 
 }
-
-#endif // _BSpline_IE_Primatives_H_
    

@@ -1,26 +1,21 @@
 // File: Atom/radial/BSpline/Instance.C  Make instance of BSpline templates
 
 #include <cmath>
-#include "radial/BSpline/IE_Primatives.H"
-#include "BFGrouper.Ci"
 import qchem.BasisSet.Imp.IEClient;
 
 #include "BS_Common.Ci"
 #include "IBS_Common.Ci"
-#include "IE_Primatives.Ci"
 import qchem.Basisset.Atom.radial.BSpline.IEC;
-// #include "Imp/Rk.Ci"
 import qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.BasisSet.Atom.ml.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Imp.IEClient;
+import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 
 namespace BSpline
 {
     template class IrrepBasisSet<6>;
-    template class BFGrouper<5>;
-    template class BFGrouper<6>;
-    template class BFGrouper<7>;
+    
     // template class RkEngine<6>;
     // template class IE_Fit<6>;
     // template class IE_DFT<double,6>;

@@ -2,10 +2,12 @@
 module;
 #include <cstddef>
 #include <vector>
+#include <cassert>
+#include <cmath>
 #include <bspline/Core.h>
-#include "radial/BSpline/GLQuadrature.H"
 
 module qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import qchem.stl_io;
 
 namespace BSpline

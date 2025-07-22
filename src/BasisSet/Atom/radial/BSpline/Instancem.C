@@ -1,6 +1,5 @@
 module;
 #include "radial/BSpline/IBS_Common.H"
-#include "radial/BSpline/IE_Primatives.H"
 #include <iostream>
 #include <cassert>
 #include <bspline/operators/Derivative.h>
@@ -14,6 +13,7 @@ import qchem.Symmetry.Yl;
 import qchem.BasisSet.Imp.HeapDB;
 import Common.IntPow;
 import qchem.BasisSet.Imp.Cache4;
+import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import oml;
 
 #include "../../l/Imp/BSpline_BS.Ci"

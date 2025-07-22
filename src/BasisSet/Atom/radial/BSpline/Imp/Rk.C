@@ -1,7 +1,13 @@
 // File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
 module;
-#include "radial/BSpline/GLQuadrature.H"
+#include <cstddef>
+#include <iostream>
+#include <vector>
+#include <functional>
+#include <cassert>
+#include <bspline/Core.h>
 module qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 
 import Common.IntPow;
 import oml;

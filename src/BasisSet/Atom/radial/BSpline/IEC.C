@@ -1,8 +1,9 @@
 // File: BSpline/IEC.C Common IE client code for all atom BSpline basis sets and IEs.
 module;
+#include <cassert>
 #include <bspline/Core.h>
-#include "radial/BSpline/GLQuadrature.H"
 export module qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import qchem.BasisSet.Atom.IEClient;
 import oml;
 

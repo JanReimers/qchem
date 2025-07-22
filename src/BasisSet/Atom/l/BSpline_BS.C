@@ -3,9 +3,7 @@ module;
 #include <bspline/Core.h>
 #include <iosfwd>
 #include "radial/BSpline/BS_Common.H"
-#include "radial/BSpline/IE_Primatives.H"
 #include "radial/BSpline/IBS_Common.H"
-#include "radial/BSpline/BFGrouper.H"
 
 export module qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IE;
@@ -17,6 +15,8 @@ import qchem.BasisSet.Imp.HeapDB;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
 import qchem.BasisSet;
+import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
+import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 
 export namespace Atoml
 {

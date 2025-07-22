@@ -1,12 +1,13 @@
 // File: BSpline/IE_Primatives.C get all calculation of primative integrals in one place.
-
-#include "radial/BSpline/IE_Primatives.H"
-#include "radial/BSpline/Integrals.H"
+module;
+#include <cassert>
+#include <bspline/Core.h>
+using namespace bspline::operators; 
+using namespace bspline::integration; 
+module qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import Common.Constants;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 
-using namespace bspline::operators; 
-using namespace bspline::integration; 
 
 namespace BSpline
 {
@@ -44,5 +45,7 @@ template <size_t K> double IE_Primatives<K>::Charge(const spline_t& a , size_t l
     return LinearForm{X<2>{}}(a);
 }
 
+#define INSTANCEk(k) template class IE_Primatives<k>;
+#include "../../../Instance.hpp"
 
 } //namespace

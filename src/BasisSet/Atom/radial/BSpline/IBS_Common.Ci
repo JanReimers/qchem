@@ -1,6 +1,7 @@
 // File: Atom/radial/BSpline/IBS_Common.H  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom BSpline functions.
 
 #include <iosfwd>
+#include <iostream>
 #include "radial/BSpline/IBS_Common.H"
 import qchem.BasisFunction;
 import qchem.Symmetry;
