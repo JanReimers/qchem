@@ -1,14 +1,13 @@
-// File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
-#ifndef _BSpline_RkEngine_H_
-#define _BSpline_RkEngine_H_
-
+// File: BasisSet/Atom/radial/BSpline/Rk.C  4 electron Charge distribution of BSpline orbitals. 
+module;
 #include <map>
 #include <bspline/Core.h>
+class GLCache;
+export module qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.BasisSet.Imp.Cache4;
 import oml;
 
-class GLCache;
-namespace BSpline
+export namespace BSpline
 {
 //
 //  Calculate and store all off diagonal and diagonal cell slater integrals.
@@ -53,4 +52,3 @@ private:
 
 } //namespace
 
-#endif // _BSpline_RkEngine_H_

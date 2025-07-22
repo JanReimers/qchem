@@ -1,13 +1,12 @@
-// File: BSpline/IEC.H Common IE client code for all atom BSpline basis sets and IEs.
-#ifndef _BSplineIEClient_H_
-#define _BSplineIEClient_H_
-
+// File: BSpline/IEC.C Common IE client code for all atom BSpline basis sets and IEs.
+module;
 #include <bspline/Core.h>
-#include "GLQuadrature.H"
+#include "radial/BSpline/GLQuadrature.H"
+export module qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Atom.IEClient;
 import oml;
 
-namespace BSpline
+export namespace BSpline
 {
 template <size_t K> struct IrrepIEClient 
     : public virtual ::IrrepIEClient
@@ -42,4 +41,3 @@ private:
 };
 } //namespace
 
-#endif // _BSplineIEClient_H_

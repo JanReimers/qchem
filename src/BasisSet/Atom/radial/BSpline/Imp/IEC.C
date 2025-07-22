@@ -1,6 +1,11 @@
 // File: BSpline/IEC.C Common IE client code for all atom BSpline basis sets and IEs.
+module;
+#include <cstddef>
+#include <vector>
+#include <bspline/Core.h>
+#include "radial/BSpline/GLQuadrature.H"
 
-#include "radial/BSpline/IEC.H"
+module qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.stl_io;
 
 namespace BSpline
@@ -58,5 +63,7 @@ template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ng
     // std::cout << knots << std::endl;
     return knots;
 }
+
+template class IrrepIEClient<6>;
 
 } //namespace

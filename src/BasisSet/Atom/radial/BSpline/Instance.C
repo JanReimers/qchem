@@ -7,10 +7,12 @@
 #include "IBS_Common.Ci"
 #include "IE_Primatives.Ci"
 #include "IE.Ci"
-#include "IEC.Ci"
-#include "Rk.Ci"
+import qchem.Basisset.Atom.radial.BSpline.IEC;
+// #include "Imp/Rk.Ci"
 import qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.BasisSet.Atom.ml.BSplineBS;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
+
 namespace BSpline
 {
     template class IrrepBasisSet<6>;

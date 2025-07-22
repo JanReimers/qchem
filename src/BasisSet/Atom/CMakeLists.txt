@@ -32,8 +32,10 @@ radial/Gaussian/Imp/BS_Common.C
 radial/BSpline/Instance.C
 radial/BSpline/Instancem.C
 radial/BSpline/Instance_ml.C
+radial/BSpline/Instance_radial.C 
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
+radial/BSpline/Imp/IEC.C
 radial/Triangle2D.C
 radial/PascalTriangle.C
 radial/Slater/Imp/IE_Primatives.C
@@ -76,6 +78,8 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   radial/Slater/ExponentScaler.C
   radial/Slater/Integrals.C
   radial/Slater/BS_Common.C
+  radial/BSpline/Rk.C
+  radial/BSpline/IEC.C
 
 )
 target_include_directories(qcAtom_BS PRIVATE 

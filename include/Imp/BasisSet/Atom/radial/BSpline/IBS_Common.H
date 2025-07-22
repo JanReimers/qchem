@@ -1,9 +1,11 @@
 // File: Atom/radial/BSpline/IBS_Common.H  l/ml/kappa/mj independent part of Irrep Basis Set (IBS) for atom BSpline functions.
 #ifndef _Atom_radial_BSpline_IBS_Common_H_
 #define _Atom_radial_BSpline_IBS_Common_H_
-
-#include "IEC.H"
+#include <cstddef>
+#include <vector>
+#include <iosfwd>
 import qchem.BasisSet.qchem.BasisSet.IBS_Common;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 
 namespace BSpline
 {

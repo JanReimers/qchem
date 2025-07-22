@@ -3,9 +3,9 @@
 #define _BSpline_IE_HF_H_
 
 #include "IE.H"
-#include "IEC.H"
 #include "BFGrouper.H"
 // import qchem.BasisSet.Atom.BFGrouper;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Imp.HeapDB;

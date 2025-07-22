@@ -1,10 +1,5 @@
 // File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
 
-#include "radial/BSpline/Rk.H"
-#include "radial/BSpline/GLQuadrature.H"
-
-import Common.IntPow;
-import oml;
 
 using std::cout;
 using std::endl;

@@ -8,7 +8,7 @@
 #include <valarray>
 #include <iomanip>
 
-#include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 
 import qchem.LAParams;
 

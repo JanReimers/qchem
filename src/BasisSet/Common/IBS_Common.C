@@ -9,7 +9,7 @@ import qchem.LASolver;
 import qchem.BasisSet.Imp.HeapDB;
 import qchem.BasisSet.Imp.IEClient;
 import qchem.BasisSet.Imp.HeapDB;
-import qchem.Irrep_BS;
+export import qchem.Irrep_BS;
 import qchem.Fit_IBS;
 import qchem.DFT_IBS;
 import qchem.HF_IBS;

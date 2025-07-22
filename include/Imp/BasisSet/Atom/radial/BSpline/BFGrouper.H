@@ -5,6 +5,7 @@
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
+#include "radial/BSpline/IBS_Common.H"
 
 class GLCache;
 // 
@@ -26,7 +27,6 @@ template <class T, size_t K> struct cmpSplines {
     }
 };
 
-template <size_t K> class IrrepIEClient;
 
 template <size_t K> class BFGrouper
 {

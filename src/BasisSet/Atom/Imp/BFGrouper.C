@@ -4,7 +4,6 @@ module;
 #include <iostream>
 #include <string>
 #include <complex>
-#include "radial/BSpline/IEC.H"
 module qchem.BasisSet.Atom.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 

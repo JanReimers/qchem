@@ -4,11 +4,11 @@
 
 #include "IE_HF.H"
 import qchem.BasisSet.Common;
+import qchem.Basisset.Atom.radial.BSpline.Rk;
 
 
 namespace BSpline
 {
-template <size_t> class RkCache;
 
 // Common base handles all the radial aspects.
 template <size_t K> class BS_Common

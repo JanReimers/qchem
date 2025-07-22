@@ -2,8 +2,8 @@
 
 #include "radial/BSpline/IE_Primatives.H"
 #include "radial/BSpline/Integrals.H"
-#include "radial/BSpline/Rk.H"
 import Common.Constants;
+import qchem.Basisset.Atom.radial.BSpline.Rk;
 
 using namespace bspline::operators; 
 using namespace bspline::integration; 

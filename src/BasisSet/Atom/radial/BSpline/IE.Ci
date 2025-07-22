@@ -1,7 +1,7 @@
 // File: BSpline/IE.C Common IE code for BSpline basis sets.
 
 #include "radial/BSpline/IE.H"
-#include "radial/BSpline/IEC.H"
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Fit_IBS;
 import qchem.Irrep_BS;
 import qchem.BasisSet.ERI4;
