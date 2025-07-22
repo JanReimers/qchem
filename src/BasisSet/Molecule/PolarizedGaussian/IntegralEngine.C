@@ -38,8 +38,8 @@ Fit_IE::Mat Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     assert(b); 
     int Na=a->size(),Nb=b->size();
     Mat s(Na,Nb);
-    for (index_t ia=0;ia<Na;ia++)
-        for (index_t ib=0;ib<Nb;ib++)
+    for (size_t ia=0;ia<Na;ia++)
+        for (size_t ib=0;ib<Nb;ib++)
             s(ia+1,ib+1)=a->radials[ia]->Integrate(qchem::Repulsion2C,
                 b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
     assert(!isnan(s));
@@ -52,8 +52,8 @@ IE_Common::SMat IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) c
     assert(ab);
     int N=ab->size();
     SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
+    for (size_t ia=0;ia<N;ia++)
+        for (size_t ib=ia;ib<N;ib++)
             s(ia+1,ib+1)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns(ia+1)*ab->ns(ib+1);
 
     return s;
@@ -64,7 +64,7 @@ Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
     ERI3 s3;
-    for (index_t ic=0;ic<Nc;ic++)
+    for (size_t ic=0;ic<Nc;ic++)
     {
         SMat s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
         s*=c->ns(ic+1);
@@ -77,7 +77,7 @@ Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
     ERI3 s3;
-    for (index_t ic=0;ic<Nc;ic++)
+    for (size_t ic=0;ic<Nc;ic++)
     {
         SMat s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
         s*=c->ns(ic+1);
@@ -90,8 +90,8 @@ Orbital_IE::SMat Orbital_IE::Integrate(qchem::IType3C type , const RadialFunctio
     auto ab=dynamic_cast<const IrrepIEClient*>(this);
     int N=ab->size();
     SMat s(N);
-    for (index_t ia=0;ia<N;ia++)
-        for (index_t ib=ia;ib<N;ib++)
+    for (size_t ia=0;ia<N;ia++)
+        for (size_t ib=ia;ib<N;ib++)
             s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns(ia+1)*ab->ns(ib+1);
         
     return s;    
@@ -108,12 +108,12 @@ ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
     size_t Na=a->size(), Nc=c->size();
     ERI4 J(Na,Nc);
     
-    for (index_t ia:a->ns.indices())
-        for (index_t ib:a->ns.indices(ia))
+    for (size_t ia:a->ns.indices())
+        for (size_t ib:a->ns.indices(ia))
         {
             SMat& Jab=J(ia,ib);
-            for (index_t ic:c->ns.indices())
-                for (index_t id:c->ns.indices(ic))
+            for (size_t ic:c->ns.indices())
+                for (size_t id:c->ns.indices(ic))
                 {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                         double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
@@ -132,13 +132,13 @@ ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
     assert(b);
     size_t Na=a->size(), Nb=b->size();
     ERI4 K(Na,Nb);
-    for (index_t ia:a->ns.indices())
-        for (index_t ib:b->ns.indices())
+    for (size_t ia:a->ns.indices())
+        for (size_t ib:b->ns.indices())
            
-            for (index_t ic:a->ns.indices(ia))
+            for (size_t ic:a->ns.indices(ia))
             {
                 SMat& Kac=K(ia,ic);
-                for (index_t id:b->ns.indices())
+                for (size_t id:b->ns.indices())
                 {
                   //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);

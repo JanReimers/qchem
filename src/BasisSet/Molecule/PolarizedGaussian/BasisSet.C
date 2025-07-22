@@ -32,12 +32,12 @@ ERI4 BasisSet::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c
     size_t Na=a->size(), Nc=c->size();
     ERI4 J(Na,Nc);
     
-    for (index_t ia:a->ns.indices())
-        for (index_t ib:a->ns.indices(ia))
+    for (size_t ia:a->ns.indices())
+        for (size_t ib:a->ns.indices(ia))
         {
             SMatrix<double>& Jab=J(ia,ib);
-            for (index_t ic:c->ns.indices())
-                for (index_t id:c->ns.indices(ic))
+            for (size_t ic:c->ns.indices())
+                for (size_t id:c->ns.indices(ic))
                 {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                         double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
@@ -56,13 +56,13 @@ ERI4 BasisSet::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b
     assert(b);
     size_t Na=a->size(), Nb=b->size();
     ERI4 K(Na,Nb);
-    for (index_t ia:a->ns.indices())
-        for (index_t ib:b->ns.indices())
+    for (size_t ia:a->ns.indices())
+        for (size_t ib:b->ns.indices())
            
-            for (index_t ic:a->ns.indices(ia))
+            for (size_t ic:a->ns.indices(ia))
             {
                 SMatrix<double>& Kac=K(ia,ic);
-                for (index_t id:b->ns.indices())
+                for (size_t id:b->ns.indices())
                 {
                   //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                     double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);

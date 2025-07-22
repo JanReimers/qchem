@@ -33,8 +33,8 @@ public:
     MatLimits GetLimits() const {return itsData.GetLimits();}
     auto rows() const {return itsData.rows();}
     auto cols() const {return itsData.cols();}
-    auto rows(index_t i) const {return itsData.rows(i);}
-    auto cols(index_t i) const {return itsData.cols(i);}
+    auto rows(size_t i) const {return itsData.rows(i);}
+    auto cols(size_t i) const {return itsData.cols(i);}
 private:
     M<M<T> > itsData;
 };
