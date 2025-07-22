@@ -1,5 +1,10 @@
 // File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
+module;
+#include "radial/BSpline/GLQuadrature.H"
+module qchem.Basisset.Atom.radial.BSpline.Rk;
 
+import Common.IntPow;
+import oml;
 
 using std::cout;
 using std::endl;
@@ -169,7 +174,11 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     return Rk;
  }
  
- 
+#define INSTANCEk(k) template class RkCache<k>;
+#include "../../../Instance.hpp"
+#define INSTANCEk(k) template class RkEngine<k>;
+#include "../../../Instance.hpp"
+
 } //namespace
 
 

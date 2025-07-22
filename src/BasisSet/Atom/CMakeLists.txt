@@ -32,10 +32,11 @@ radial/Gaussian/Imp/BS_Common.C
 radial/BSpline/Instance.C
 radial/BSpline/Instancem.C
 radial/BSpline/Instance_ml.C
-radial/BSpline/Instance_radial.C 
+#radial/BSpline/Instance_radial.C 
 radial/BSpline/GLQuadrature.C
 radial/BSpline/gauleg.f
 radial/BSpline/Imp/IEC.C
+radial/BSpline/Imp/Rk.C
 radial/Triangle2D.C
 radial/PascalTriangle.C
 radial/Slater/Imp/IE_Primatives.C

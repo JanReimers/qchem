@@ -64,6 +64,9 @@ template <size_t K> std::vector<double> IrrepIEClient<K>::MakeLogKnots(size_t Ng
     return knots;
 }
 
-template class IrrepIEClient<6>;
+#define INSTANCEk(k) template class IrrepIEClient<k>;
+#include "../../../Instance.hpp"
 
 } //namespace
+
+

@@ -6,6 +6,8 @@ Priority 1:
         size_t;
     -Migrate from index_t to int or size_t.
     -Try and simplify BSpling template instancing
+        constexpr Loop example: https://indii.org/blog/cplusplus-static-for-loop/
+            Won;t compile]
     -use std::vector<double> for anything not involing lin-alg 
         -i.e. exponents
     -Design flaw
