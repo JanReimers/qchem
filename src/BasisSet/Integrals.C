@@ -27,10 +27,6 @@ export template <class T> class Integrals_Base
 public:
     typedef  Vector<T>  Vec;
     typedef  Matrix<T>  Mat;
-    typedef SMatrix<T> SMat;
-    // typedef const  Vec&  Vec_ref;
-    // typedef const  Mat&  Mat_ref;
-    // typedef const SMat& const SMatrix<T>&;
 };
 
 //! \brief Interface for overlap integrals.

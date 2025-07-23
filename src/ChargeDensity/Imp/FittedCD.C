@@ -20,7 +20,7 @@ public:
     virtual double GetSelfRepulsion(                      ) const;  //Does GetRepulsion(*this);
     
     virtual double operator()(const RVec3&) const; // No UT coverage
-    virtual Vec3   Gradient  (const RVec3&) const; // No UT coverage
+    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
 
     virtual FittedCD* Clone(        ) const;
 

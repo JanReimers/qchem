@@ -19,7 +19,7 @@ Vnn::Vnn(const cl_t& cl)
     , theCluster(cl)
 {};
 
-Static_HT::SMat Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
+ SMatrix<double>  Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     SMatrix<double> ret(n,n);

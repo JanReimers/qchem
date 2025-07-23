@@ -34,7 +34,7 @@ public:
     virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const RVec3&) const;
-    virtual Vec3   Gradient  (const RVec3&) const;
+    virtual RVec3  Gradient  (const RVec3&) const;
 
 private:
     Composite_CD(const Composite_CD&);

@@ -11,9 +11,9 @@ import qchem.Symmetry.Irrep;
 export class HT_Common
 {
 protected:
-    typedef std::map<Irrep_QNs,Static_HT::SMat> CacheMap;
-    typedef std::map<Irrep_QNs,const Static_HT::ibs_t*> BSMap;
-    mutable CacheMap   itsCache;       //Cache the H matricies for total energy calculations.
+    typedef std::map<Irrep_QNs,SMatrix<double>> CacheMap;
+    // typedef std::map<Irrep_QNs,const Static_HT::ibs_t*> BSMap;
+    mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
 };
 
 
@@ -22,7 +22,7 @@ export class Static_HT_Imp
     , protected HT_Common
 {
 public:
-    virtual const SMat& GetMatrix(const ibs_t* bs,const Spin&) const;
+    virtual const SMatrix<double>& GetMatrix(const ibs_t* bs,const Spin&) const;
 
 protected:
     // Unconditional calculation, does no use cache.
@@ -35,7 +35,7 @@ export class Dynamic_HT_Imp
 {
 public:
     Dynamic_HT_Imp();
-    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
+    virtual const  SMatrix<double>& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
     // Unconditional calculation, does not use cache.
@@ -50,7 +50,7 @@ export class Dynamic_HT_Imp_NoCache
 : public virtual Dynamic_HT
 {
 public:
-    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
+    virtual const  SMatrix<double>& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
     virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;

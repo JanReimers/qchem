@@ -51,7 +51,6 @@ public:
     virtual double GetTotalCharge  () const=0;  // <ro>
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
-    typedef SMatrix<double> SMat;
     virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const=0;
     virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const=0;
 

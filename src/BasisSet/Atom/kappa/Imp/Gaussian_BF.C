@@ -38,19 +38,19 @@ std::ostream& Large_BasisFunction::Write(std::ostream& os) const
     return os;
 }
 
-double Large_BasisFunction::operator()(const Vec3& r) const
+double Large_BasisFunction::operator()(const RVec3& r) const
 {
     return itsNormalization*uintpow(norm(r),l)*exp(-itsExponent*r*r);
 }
 
-Large_BasisFunction::Vec3 Large_BasisFunction::Gradient(const Vec3& r) const
+RVec3 Large_BasisFunction::Gradient(const RVec3& r) const
 {
-    Vec3 ret(0,0,0);
+    RVec3 ret(0,0,0);
     double gr=operator()(r);
     double mr=norm(r);
     if (mr>0)
     {
-        Vec3 Rhat=r/mr;
+        RVec3 Rhat=r/mr;
         ret = Rhat*gr*(l/mr-2.0*mr*itsExponent);
     }
     return ret;
@@ -80,7 +80,7 @@ std::ostream& Small_BasisFunction::Write(std::ostream& os) const
 //
 //  Y_lm is complex.  To keep it real, just output the radial part for now.
 //
-double Small_BasisFunction::operator()(const Vec3& r) const
+double Small_BasisFunction::operator()(const RVec3& r) const
 {
     double e=Pr->itsExponent; 
     double mr=norm(r);
@@ -89,7 +89,7 @@ double Small_BasisFunction::operator()(const Vec3& r) const
     return n*f*(*Pr)(r); 
 }
 
-Large_BasisFunction::Vec3 Small_BasisFunction::Gradient(const Vec3& r) const
+RVec3 Small_BasisFunction::Gradient(const RVec3& r) const
 {
    assert(false);
     return Pr->Gradient(r);

@@ -28,8 +28,6 @@ public:
    
 protected:
     IE_Common(const DB_cache<double>* db) : DB_Overlap<double>(db) {};
-    typedef Integrals_Base<double> Base;
-    typedef Base::SMat SMat;
     
     virtual SMatrix<double> MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
 
@@ -45,8 +43,6 @@ class Orbital_IE
 , public DB_2E<double>
 , public DB_DFT<double>
 {
-    typedef Integrals_Base<double> Base;
-    typedef Base::SMat SMat;
     typedef Integrals_DFT<double>::ERI3 ERI3;
     typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
@@ -75,7 +71,6 @@ class Fit_IE
 
 {
     typedef Integrals_Base<double> Base;
-    typedef Base::SMat SMat;
     typedef Base::Mat Mat;
     typedef DB_Fit::Vec Vec;
 public:

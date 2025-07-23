@@ -41,9 +41,9 @@ private:
 
 export class ERI4 : public ERI4T<double,SMatrix>
 {
+    typedef SMatrix<double> SMat;
 public:
     typedef ERI4T<double,SMatrix> Base;
-    typedef SMatrix<double> SMat;
     ERI4() : Base() {};
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
     friend SMatrix<double> MatMul(const ERI4& gabcd,const SMat& Scd);

@@ -16,7 +16,6 @@ class PlaneWaveIE
     typedef AnalyticIE<std::complex<double>> IE;
     typedef ScalarFunction <double> SF;
     typedef IE::Mat Mat;
-    typedef IE::SMat SMat;
     typedef IE::iev_t iev_t;
     typedef IE::jk_t jk_t;
 public:

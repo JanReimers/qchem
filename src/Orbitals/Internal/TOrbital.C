@@ -35,16 +35,14 @@ export template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
     , protected      OrbitalImp  
 {
-    typedef ScalarFunction<T> Base;
-    typedef typename Base::SMat SMat;
-    typedef typename Base::Vec  Vec;
-    typedef typename Base::Vec3 Vec3;
-    typedef typename Base::Vec3Vec Vec3Vec;
+    typedef Vector<T>  Vec;
+    typedef Vector3D<T> Vec3;
+    typedef Vector<Vector3D<T>> Vec3Vec;
 public:
     TOrbitalImp() {};
     TOrbitalImp(const TOrbital_IBS<T>*,const Vec& C, const Vec& CPrime, double e, const Orbital_QNs&);
 
-    virtual void   AddDensityMatrix(SMat& D, SMat& DPrime) const;
+    virtual void   AddDensityMatrix(SMatrix<T>& D, SMatrix<T>& DPrime) const;
 
     virtual T      operator()      (const RVec3&) const;
     virtual Vec3   Gradient        (const RVec3&) const;

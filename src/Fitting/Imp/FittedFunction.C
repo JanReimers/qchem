@@ -88,12 +88,12 @@ FitGet2CenterRepulsion(const Fit_IBS* bs) const
 template <class T> SMatrix<T> FittedFunctionImp<T>::
 FitGet3CenterOverlap(const TOrbital_DFT_IBS<double>* bs) const
 {
-    const std::vector<SMat>& O3=bs->Overlap3C(*itsBasisSet);
+    const Integrals_DFT<double>::ERI3& O3=bs->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMatrix<T> J(n,n);
     Fill(J,0.0);
     size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMat(c*O3[i++]);
+    for (auto c:itsFitCoeff) J+=SMatrix<double>(c*O3[i++]);
     assert(!isnan(J));
     return J;
 }
@@ -171,10 +171,10 @@ template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
 
 template <class T> RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {
-    Vec3Vec br = itsBasisSet->Gradient(r);
+    Vector<RVec3> br = itsBasisSet->Gradient(r);
     RVec3 ret(0,0,0);
-    typename Vec    ::const_iterator c(itsFitCoeff.begin());
-    typename Vec3Vec::const_iterator b(br.begin());
+    auto c(itsFitCoeff.begin());
+    auto b(br.begin());
     for (; b!=br.end()&&c!=itsFitCoeff.end(); b++,c++) ret+=(*c) * (*b);
     return ret;
 }

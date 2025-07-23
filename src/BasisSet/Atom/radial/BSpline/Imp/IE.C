@@ -222,7 +222,7 @@ template <size_t K> typename Integrals_Base<double>::Vec  IE_Fit<K>::MakeCharge(
     for (auto i:a->indices())  c(i)=Charge((*a)(i),a->l)*a->ns(i);
     return c;
 }
-template <size_t K> typename Integrals_Base<double>::SMat IE_Fit<K>::MakeRepulsion() const
+template <size_t K> SMatrix<double>  IE_Fit<K>::MakeRepulsion() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);

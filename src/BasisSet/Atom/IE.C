@@ -122,8 +122,6 @@ template <class T> class AtomIE_DFT
 , public virtual Primative_Repulsion<T>
 , public DB_DFT<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat SMat;
     typedef typename Integrals_DFT<T>::ERI3 ERI3;
 protected:
     AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};

@@ -14,7 +14,7 @@ RestMass::RestMass()
 {};
 
 
-Static_HT::SMat RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
+SMatrix<double> RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     static const double f=-2.0*c_light*c_light;
     // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;

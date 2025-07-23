@@ -1,3 +1,4 @@
+Turn on/off vscode popups: search quickSuggestions
 
 Priority 1:
     -Move CreateSolver() const=0; to TOrbital_IBS

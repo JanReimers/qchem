@@ -121,8 +121,6 @@ template <class T, size_t K> class IE_DFT
 , public virtual Primative_Repulsion<T,K>
 , public DB_DFT<T>
 {
-    typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat SMat;
     typedef typename Integrals_DFT<double>::ERI3 ERI3;
     typedef bspline::Spline<T, K> spline_t;
 protected:

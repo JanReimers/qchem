@@ -299,7 +299,7 @@ const Matrix<double>& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 }
 
 
-DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 
+SMatrix<double> DB_Fit::MakeInverse(const SMatrix<double>& S,const LAParams& lap) 
 {
     LASolver<double>* las=LASolver<double>::Factory(lap);
     SMatrix<double> Sinv=las->Inverse(S);

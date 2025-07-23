@@ -42,7 +42,7 @@ FittedVxcPol::~FittedVxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-Static_HT::SMat FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+ SMatrix<double>  FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

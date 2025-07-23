@@ -12,7 +12,6 @@ export class FittedCD
 {
 public:
     using FittedFunction::DoFit;
-    typedef SMatrix<double> SMat;
     
     virtual double GetSelfRepulsion    (                       ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>
     virtual SMatrix<double>   GetRepulsion(const TOrbital_DFT_IBS<double>*) const=0;

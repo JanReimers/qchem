@@ -21,7 +21,7 @@ template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
     s->InsertBasisFunctions(itsRKBL);
 }
 
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMat& l,const SMat& s)
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMatrix<T>& l,const SMatrix<T>& s)
 {
     size_t Nl=l.GetNumRows();
     size_t Ns=s.GetNumRows();

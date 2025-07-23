@@ -12,7 +12,7 @@ DiracKinetic::DiracKinetic()
 {};
 
 
-Static_HT::SMat DiracKinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
+ SMatrix<double>  DiracKinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
     return c_light*bs->Kinetic();

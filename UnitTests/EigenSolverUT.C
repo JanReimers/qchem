@@ -64,7 +64,7 @@ double Norm(const SMatrix<double>& s)
 
 TEST_F(OrthogonalizeTests, Types)
 {
-    typedef LASolver<double>::RSMat SMat;
+    typedef SMatrix<double> SMat;
     int NMax=21;
     for (int N=3;N<=NMax;N++)
     {

@@ -13,7 +13,7 @@ AtomIE_Fit::Vec  AtomIE_Fit::MakeCharge() const
     for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
     return c;
 }
-AtomIE_Fit::SMat AtomIE_Fit::MakeRepulsion() const
+SMatrix<double> AtomIE_Fit::MakeRepulsion() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //Cross cast
     assert(a);

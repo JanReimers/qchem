@@ -181,18 +181,6 @@ template <class T> std::ostream& IrrepCD<T>::Write(std::ostream& os) const
     return os << itsDensityMatrix;
 }
 
-template <class T> std::istream& IrrepCD<T>::Read(std::istream& is)
-{
-    is >> itsDensityMatrix;
-
-//    TIrrepBasisSet<T>* tbs = dynamic_cast<TIrrepBasisSet<T>*>(IrrepBasisSet::Factory(is));
-//    assert(tbs);
-//    is >> *tbs;
-//    itsBasisSet.reset(tbs);
-
-    return is;
-}
-
 template class IrrepCD<double>;
 //template class ExactIrrepCD<std::complex<double> >;
 

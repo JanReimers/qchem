@@ -19,13 +19,13 @@ TOrbitalImp(const TOrbital_IBS<T>* bs,const Vec& _C,const Vec& _CPrime,double e,
 {
 };
 
-template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMat& D, SMat& DPrime) const
+template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMatrix<T>& D, SMatrix<T>& DPrime) const
 {
     
     if (IsOccupied()) 
     {
-        D     +=SMat(OuterProduct(itsCoeff     )*GetOccupation());
-        DPrime+=SMat(OuterProduct(itsCoeffPrime)*GetOccupation());
+        D     +=SMatrix<T>(OuterProduct(itsCoeff     )*GetOccupation());
+        DPrime+=SMatrix<T>(OuterProduct(itsCoeffPrime)*GetOccupation());
     }
 }
 

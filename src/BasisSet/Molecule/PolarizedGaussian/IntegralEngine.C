@@ -46,7 +46,7 @@ Fit_IE::Mat Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     return s;
 }
 
-IE_Common::SMat IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
+SMatrix<double> IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
     assert(ab);
@@ -85,7 +85,7 @@ Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
     }    
     return s3;
 }
-Orbital_IE::SMat Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
+SMatrix<double> Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
 {
     auto ab=dynamic_cast<const IrrepIEClient*>(this);
     int N=ab->size();
@@ -111,7 +111,7 @@ ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
     for (size_t ia:a->ns.indices())
         for (size_t ib:a->ns.indices(ia))
         {
-            SMat& Jab=J(ia,ib);
+            SMatrix<double>& Jab=J(ia,ib);
             for (size_t ic:c->ns.indices())
                 for (size_t id:c->ns.indices(ic))
                 {
@@ -137,7 +137,7 @@ ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
            
             for (size_t ic:a->ns.indices(ia))
             {
-                SMat& Kac=K(ia,ic);
+                SMatrix<double>& Kac=K(ia,ic);
                 for (size_t id:b->ns.indices())
                 {
                   //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;

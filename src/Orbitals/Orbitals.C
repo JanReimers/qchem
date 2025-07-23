@@ -43,9 +43,8 @@ export template <class T> class TOrbital
     : public virtual Orbital
     , public virtual ScalarFunction<T>
 {
-    typedef typename ScalarFunction<T>::SMat SMat;
 public:
-    virtual void AddDensityMatrix(SMat& D, SMat& DPrime) const=0;
+    virtual void AddDensityMatrix(SMatrix<T> & D, SMatrix<T> & DPrime) const=0;
 };
 
 
@@ -108,13 +107,13 @@ export template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
 {
+    typedef  Matrix<T>  Mat;
+    typedef SMatrix<T> SMat;
 public:
     virtual size_t GetVectorSize() const
     {
         return GetNumOrbitals();
     }
-    typedef  Matrix<T>  Mat;
-    typedef SMatrix<T> SMat;
     typedef std::tuple<double,SMat> ds_t;
 
     virtual void  UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)=0;

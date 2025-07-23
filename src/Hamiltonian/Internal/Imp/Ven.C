@@ -20,7 +20,7 @@ Ven::Ven(const cl_t& cl)
 };
 
 
-Static_HT::SMat Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
+ SMatrix<double>  Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
     return bs->Nuclear(&*theCluster);

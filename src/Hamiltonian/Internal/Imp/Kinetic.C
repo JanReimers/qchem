@@ -13,7 +13,7 @@ Kinetic::Kinetic()
 {};
 
 
-Static_HT::SMat Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
+SMatrix<double> Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     return 0.5*bs->Kinetic();
 }

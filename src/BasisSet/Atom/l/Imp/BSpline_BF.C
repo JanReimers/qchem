@@ -24,20 +24,20 @@ template <size_t K> std::ostream& BasisFunction<K>::Write(std::ostream& os) cons
 {
     return os << "[" << itsSpline.front() << "," << itsSpline.back() << "] ";
 }
-template <size_t K> double BasisFunction<K>::operator()(const Vec3& r) const
+template <size_t K> double BasisFunction<K>::operator()(const RVec3& r) const
 {
     double mr=norm(r);
     if (mr<itsSpline.front() || mr>itsSpline.back()) return 0.0;
     return itsNormalization*itsSpline(mr);
 }
-template <size_t K> typename BasisFunction<K>::Vec3 BasisFunction<K>::Gradient(const Vec3& r) const
+template <size_t K> RVec3 BasisFunction<K>::Gradient(const RVec3& r) const
 {
-    Vec3 ret(0,0,0);
+    RVec3 ret(0,0,0);
     if (r==ret) return ret; //Cusp at the origin so grad is undefined.
     double mr=norm(r);
     assert(mr>0);
     if (mr<itsSpline.front() || mr>itsSpline.back()) return ret;
-    Vec3 rhat=r/mr;
+    RVec3 rhat=r/mr;
     return rhat*itsNormalization*itsDxSpline(mr);
 }
 template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const

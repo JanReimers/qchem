@@ -24,7 +24,7 @@ export template  <class T> class DB_cache  : virtual public Integrals_Base<T>
 {
     typedef UniqueID::IDtype IDType;
     typedef Integrals_Base<T> Base;
-    typedef typename Base::SMat SMat;    
+    typedef SMatrix<T> SMat;    
     typedef typename Base::Mat Mat;    
     typedef typename Base::Vec Vec;    
     typedef typename Integrals_DFT<T>::ERI3 ERI3;    

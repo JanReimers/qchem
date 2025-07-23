@@ -8,7 +8,6 @@ export import oml;
 
 export template <class T> class ScalarFunction
 {
-public:
     typedef Matrix<T>        Mat;  //Matrix.
     typedef SMatrix<T>       SMat; //Symmetrix matrix.
     typedef Vector<T>        Vec;  //Vector of scalars.
@@ -16,6 +15,7 @@ public:
     typedef Vector<Vec3>     Vec3Vec;//vector of 3 space vectors.
     typedef std::valarray<T> va_t;
     typedef std::valarray<double> rva_t;
+public:
 
     virtual ~ScalarFunction()  {};
 

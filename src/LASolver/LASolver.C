@@ -33,12 +33,13 @@ export import qchem.Types;
 
 export template <class T> class LASolver
 {
-public:
-    virtual ~LASolver() {};
-    
+protected:
     typedef Matrix<T>      Mat;
     typedef SMatrix<T>     SMat;
     typedef SMatrix<double> RSMat;
+public:
+    virtual ~LASolver() {};
+    
     typedef std::tuple<Mat,RVec> UdType;
     typedef std::tuple<Mat,Mat,RVec> UUdType; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 

@@ -7,8 +7,8 @@ module;
 module qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.ERI4;
 
-template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
-Direct(const SMat& Dcd, const obs_t* cd) const
+template <class T> SMatrix<T> Orbital_HF_IBS_Common<T>::
+Direct(const SMatrix<T>& Dcd, const obs_t* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
@@ -27,8 +27,8 @@ Direct(const SMat& Dcd, const obs_t* cd) const
 }
 
 #include <iomanip>
-template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
-Exchange(const SMat& Dcd, const obs_t* cd) const
+template <class T> SMatrix<T> Orbital_HF_IBS_Common<T>::
+Exchange(const SMatrix<T>& Dcd, const obs_t* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!

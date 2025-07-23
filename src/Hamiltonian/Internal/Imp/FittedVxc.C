@@ -43,7 +43,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-Static_HT::SMat FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+ SMatrix<double>  FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if (newCD(cd))
     {

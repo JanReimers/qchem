@@ -207,7 +207,6 @@ class FittedVxc
     , private        Dynamic_HT_Imp
     , public         FittedFunctionImp<double>
 {
-    typedef Static_HT::SMat SMat;
 public:
     typedef FittedFunctionImp<double>::mesh_t mesh_t;
     typedef FittedFunctionImp<double>::bs_t   bs_t;

@@ -31,7 +31,7 @@ void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
     Add(new Ven(cl));
 }
 
-Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
+ SMatrix<double>  HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
 {
     int n=bs->GetNumFunctions();
     SMatrix<double> H(n,n);

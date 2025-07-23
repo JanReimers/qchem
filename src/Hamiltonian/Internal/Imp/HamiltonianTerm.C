@@ -11,7 +11,7 @@ import qchem.Symmetry;
 
 Dynamic_HT_Imp::Dynamic_HT_Imp() : itsCD(0) {};
 
-const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
+const SMatrix<double>& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(s,bs->GetSymmetry());
@@ -22,7 +22,7 @@ const Static_HT::SMat& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) c
         return i->second;
 }
 
-const Dynamic_HT::SMat& Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+const SMatrix<double>& Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(bs);
     Irrep_QNs qns(s,bs->GetSymmetry());
@@ -46,7 +46,7 @@ bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const
 
 }
 
-const Dynamic_HT::SMat& Dynamic_HT_Imp_NoCache::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+const SMatrix<double>& Dynamic_HT_Imp_NoCache::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     return itsMat=CalcMatrix(bs,s,cd);
 }

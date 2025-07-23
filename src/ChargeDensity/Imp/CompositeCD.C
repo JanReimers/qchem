@@ -20,7 +20,7 @@ void Composite_CD::Insert(DM_CD* cd)
 //
 //  Total energy terms for a charge density.
 //
-DM_CD::SMat Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
+SMatrix<double> Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMatrix<double> J(n,n);
@@ -29,7 +29,7 @@ DM_CD::SMat Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) con
     return J;
 }
 
-DM_CD::SMat Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
+SMatrix<double> Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMatrix<double> K(n,n);
@@ -125,10 +125,10 @@ double Composite_CD::operator()(const RVec3& r) const
     return ret;
 }
 
-DM_CD::Vec3 Composite_CD::Gradient  (const RVec3& r) const
+RVec3 Composite_CD::Gradient  (const RVec3& r) const
 {
     // No UT coverage
-    Vec3 ret(0,0,0);
+    RVec3 ret(0,0,0);
     for (auto& c:itsCDs) ret+=c->Gradient(r);
     return ret;
 }

@@ -17,7 +17,7 @@ Vxc::Vxc() {};
 //  Let the charge density do the work.
 //
 
-Static_HT::SMat Vxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+ SMatrix<double>  Vxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
     newCD(cd); //Set H matrix cache to dirty if cd really is new.
     auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);

@@ -35,8 +35,8 @@ public:
     virtual std::ostream&    Write(std::ostream&) const;
     virtual ::Real_BF* Clone(        ) const;
 
-    virtual double operator()(const Vec3&) const;
-    virtual Vec3   Gradient  (const Vec3&) const;
+    virtual double operator()(const RVec3&) const;
+    virtual RVec3  Gradient  (const RVec3&) const;
 
 private:
     spline_t itsSpline;

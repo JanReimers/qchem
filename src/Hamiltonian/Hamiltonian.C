@@ -15,12 +15,11 @@ export class Static_HT
     , public virtual Static_CC
 {
 public:
-    typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;
 
-    virtual const SMat& GetMatrix(const ibs_t*,const Spin&) const=0;
-    virtual void        GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
-    virtual bool        IsPolarized() const {return false;}
+    virtual const SMatrix<double>& GetMatrix(const ibs_t*,const Spin&) const=0;
+    virtual void                   GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
+    virtual bool                   IsPolarized() const {return false;}
 };
 
 export class Dynamic_HT
@@ -28,11 +27,10 @@ export class Dynamic_HT
     , public virtual Dynamic_CC
 {
 public:
-    typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;    
-    virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
-    virtual void        GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
-    virtual bool        IsPolarized() const {return false;}
+    virtual const SMatrix<double>& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const=0; 
+    virtual void                   GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
+    virtual bool                   IsPolarized() const {return false;}
 };
 
 
@@ -43,12 +41,11 @@ export class Hamiltonian
     : public virtual Streamable
 {
 public:
-    typedef SMatrix<double> SMat;
     typedef TOrbital_IBS<double> ibs_t;
 
     virtual void            Add             (      Static_HT*)      =0;
     virtual void            Add             (      Dynamic_HT*)      =0;
-    virtual SMatrix<double>            GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;
+    virtual SMatrix<double> GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;
     virtual EnergyBreakdown GetTotalEnergy  (  const DM_CD*    ) const=0;
     virtual bool            IsPolarized() const=0;
 };
