@@ -56,14 +56,14 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Inv_r1<T,K>::Mak
 
     return H;
 }
-template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeOverlap3C  (const Fit_IBS& _c) const
+template <class T,size_t K> typename IE_DFT<T,K>::ERI3 IE_DFT<T,K>::MakeOverlap3C  (const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
     ERI3 s3;
     for (auto i:c.indices()) s3.push_back(MakeOverlap(c.tuple(i)));
     return s3;
 }
-template <class T,size_t K> typename Integrals_Base<T>::ERI3 IE_DFT<T,K>::MakeRepulsion3C(const Fit_IBS& _c) const
+template <class T,size_t K> typename IE_DFT<T,K>::ERI3 IE_DFT<T,K>::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
     ERI3 s3;

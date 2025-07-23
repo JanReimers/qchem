@@ -11,6 +11,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IEClient;
 export import qchem.DHF_IBS;
 import qchem.Fit_IBS;
+import qchem.DFT_IBS;
 export import qchem.Types;
 
 export
@@ -123,7 +124,7 @@ template <class T> class AtomIE_DFT
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat SMat;
-    typedef typename Base::ERI3 ERI3;
+    typedef typename Integrals_DFT<T>::ERI3 ERI3;
 protected:
     AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
     

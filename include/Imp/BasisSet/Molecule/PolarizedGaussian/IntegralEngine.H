@@ -47,7 +47,7 @@ class Orbital_IE
 {
     typedef Integrals_Base<double> Base;
     typedef Base::SMat SMat;
-    typedef Base::ERI3 ERI3;
+    typedef Integrals_DFT<double>::ERI3 ERI3;
     typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
     virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Grad2);}

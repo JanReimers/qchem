@@ -1,6 +1,4 @@
 // File: IntegralEngine.H  Abtract integral engine interfaces.
-module;
-#include <vector>
 export module qchem.BasisSet.Integrals;
 export import qchem.Cluster;
 export import oml;
@@ -30,7 +28,6 @@ public:
     typedef  Vector<T>  Vec;
     typedef  Matrix<T>  Mat;
     typedef SMatrix<T> SMat;
-    typedef std::vector<SMat> ERI3;
     typedef const  Vec&  Vec_ref;
     typedef const  Mat&  Mat_ref;
     typedef const SMat& SMat_ref;

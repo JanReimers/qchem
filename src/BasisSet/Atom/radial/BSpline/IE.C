@@ -16,6 +16,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.HF_IBS;
 import qchem.DHF_IBS;
+import qchem.DFT_IBS;
 import qchem.Fit_IBS;
 
 export namespace BSpline
@@ -122,7 +123,7 @@ template <class T, size_t K> class IE_DFT
 {
     typedef Integrals_Base<T> Base;
     typedef typename Base::SMat SMat;
-    typedef typename Base::ERI3 ERI3;
+    typedef typename Integrals_DFT<double>::ERI3 ERI3;
     typedef bspline::Spline<T, K> spline_t;
 protected:
     IE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};

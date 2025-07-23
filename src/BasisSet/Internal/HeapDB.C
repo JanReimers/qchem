@@ -27,7 +27,7 @@ export template  <class T> class DB_cache  : virtual public Integrals_Base<T>
     typedef typename Base::SMat SMat;    
     typedef typename Base::Mat Mat;    
     typedef typename Base::Vec Vec;    
-    typedef typename Base::ERI3 ERI3;    
+    typedef typename Integrals_DFT<T>::ERI3 ERI3;    
 public:
     typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
@@ -91,7 +91,7 @@ export template <class T> class DB_DFT
     : virtual public Integrals_DFT<T>
     , public DB_Common<T>
 {
-    typedef typename Integrals_Base<T>::ERI3 ERI3;
+    typedef typename Integrals_DFT<T>::ERI3 ERI3;
 protected:
     DB_DFT(const DB_cache<T>* db) : DB_Common<T>(db) {}
     virtual const ERI3& Overlap3C  (const Fit_IBS& c) const; //<ab|c>
