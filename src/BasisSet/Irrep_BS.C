@@ -9,7 +9,7 @@ export import qchem.Symmetry;
 export import qchem.Symmetry.ElectronConfiguration;
 export import qchem.VectorFunction;
 
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 import qchem.LASolver;
 import Common.UniqueID; 
 import Common.Iterators;

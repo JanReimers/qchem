@@ -4,7 +4,7 @@ module;
 export module qchem.DFT_IBS;
 export import qchem.BasisSet;
 export import qchem.Irrep_BS;
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 
 //! \brief Interface for 3-center integrals used in DFT calculations.
 export template <class T> class Integrals_DFT 

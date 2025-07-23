@@ -1,5 +1,5 @@
 // File: IntegralEngine.H  Abtract integral engine interfaces.
-export module qchem.BasisSet.Integrals;
+export module qchem.BasisSet.Internal.Integrals;
 export import qchem.Cluster;
 export import oml;
 
@@ -16,18 +16,9 @@ export import oml;
 //!  All functions except MakeNormalization return normalized integrals.
 //!
 //
-// Interface for non-relativistic 1 electron integrals.  
-// The calls return matrix refrences which implies they are buffered behind the scenes.
+//! Interfaces for 1 electron integrals used for all IReep basis sets: Fit,HF,DFT,DHF  
+//! The calls return matrix refrences which implies they are buffered behind the scenes.
 //
-
-
-//! \brief Define all commonly used typedefs in one place.
-export template <class T> class Integrals_Base
-{
-public:
-    typedef  Vector<T>  Vec;
-    typedef  Matrix<T>  Mat;
-};
 
 //! \brief Interface for overlap integrals.
 export template <class T> class Integrals_Overlap

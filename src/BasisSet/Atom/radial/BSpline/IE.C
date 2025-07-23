@@ -11,7 +11,7 @@ import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.HF_IBS;
@@ -95,7 +95,7 @@ template <class T, size_t K> class IE_XGrad2
 {
 protected:
     using Primative_Grad2<T,K>::Grad2;
-    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
     IE_XGrad2(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
 };
 
@@ -157,9 +157,9 @@ template <size_t K> class IE_Fit
     protected:
     IE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
 
-    virtual Vec  MakeCharge() const;
+    virtual  Vector<double> MakeCharge   () const;
     virtual SMatrix<double> MakeRepulsion() const;
-    virtual  Mat MakeRepulsion(const Fit_IBS&) const;
+    virtual  Matrix<double> MakeRepulsion(const Fit_IBS&) const;
 private:
     // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide

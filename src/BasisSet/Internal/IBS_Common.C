@@ -15,7 +15,7 @@ import qchem.DFT_IBS;
 import qchem.HF_IBS;
 import qchem.DHF_IBS;
 
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 
 import qchem.Symmetry;
 import Common.UniqueIDImp;
@@ -107,15 +107,14 @@ export template <class T> class Orbital_IBS_Common
 
 export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
 {
-    typedef Integrals_Base<double>::Vec Vec;
-    typedef Integrals_Base<double>::Mat Mat;
+    
     public:
-    virtual  Vec MakeNorm   (const Mesh*        ) const; //Numerical .
-    virtual  Vec MakeCharge (const Mesh*        ) const; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+    virtual  Vector<double> MakeNorm   (const Mesh*        ) const; //Numerical .
+    virtual  Vector<double> MakeCharge (const Mesh*        ) const; //Numerical .
+    virtual  Matrix<double> MakeOverlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
-    virtual const Vec Overlap  (const Mesh*,const Sf&) const; //Numerical  
-    virtual const Vec Repulsion(const Mesh*,const Sf&) const; //Numerical 
+    virtual const Vector<double> Overlap  (const Mesh*,const Sf&) const; //Numerical  
+    virtual const Vector<double> Repulsion(const Mesh*,const Sf&) const; //Numerical 
 };
 
 export template <class T> class Orbital_DFT_IBS_Common
@@ -144,7 +143,6 @@ export template <class T> class Orbital_RKB_IBS_Common
     , public Orbital_IBS_Common<T>
     , public DB_RKB<T>
 {
-    typedef typename Integrals_Base<T>::Mat Mat;
 public:
     virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
     virtual SMatrix<T> MakeOverlap () const;
@@ -158,7 +156,7 @@ protected:
 private:
     friend DiracIntegralTests;
     static SMatrix<T> merge_diag(const SMatrix<T>& l,const SMatrix<T>& s);
-    static SMatrix<T> merge_off_diag(const Mat& ls);
+    static SMatrix<T> merge_off_diag(const Matrix<T>& ls);
 };
 
 export template <class T> class Orbital_RKBL_IBS_Common

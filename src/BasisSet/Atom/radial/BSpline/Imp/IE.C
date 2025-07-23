@@ -214,11 +214,11 @@ template <class T,size_t K> ERI4 IE_BS_2E<T,K>::MakeExchange(const ::IrrepIEClie
 
     return Kex;
 };
-template <size_t K> typename Integrals_Base<double>::Vec  IE_Fit<K>::MakeCharge() const
+template <size_t K> Vector<double>  IE_Fit<K>::MakeCharge() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);
-    Vec c(a->size());
+    Vector<double> c(a->size());
     for (auto i:a->indices())  c(i)=Charge((*a)(i),a->l)*a->ns(i);
     return c;
 }
@@ -235,21 +235,21 @@ template <size_t K> SMatrix<double>  IE_Fit<K>::MakeRepulsion() const
 
     return H;
 }
-template <size_t K> typename Integrals_Base<double>::Mat IE_Fit<K>::MakeRepulsion(const Fit_IBS& _b) const
+template <size_t K> Matrix<double> IE_Fit<K>::MakeRepulsion(const Fit_IBS& _b) const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     const IrrepIEClient<K>* b=dynamic_cast<const IrrepIEClient<K>*>(&_b);
     assert(a);
     assert(b);
     size_t Na=a->size(), Nb=b->size();
-    Mat s(Na,Nb);
+    Matrix<double> s(Na,Nb);
     for (auto i:s.rows())
         for (auto j:s.cols())
             s(i,j)=this->Repulsion((*a)(i),(*b)(j),a->l,b->l)*a->ns(i)*a->ns(j);
 
     return s;
 }
-template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T,size_t K> Matrix<T> IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     const IrrepIEClient<K>* b=dynamic_cast<const IrrepIEClient<K>*>(rkbs);
@@ -258,7 +258,7 @@ template <class T,size_t K> typename Integrals_Base<T>::Mat  IE_XGrad2<T,K>::Mak
     assert(a->l==b->l);
     size_t Na=a->size();
     size_t Nb=b->size();
-    Matrix<double> Hk(Na,Nb);
+    Matrix<T> Hk(Na,Nb);
     for (auto i:Hk.rows())
         for (auto j:Hk.cols())
             Hk(i,j)=Grad2((*a)(i),(*b)(j),a->l,b->l)*a->ns(i)*b->ns(j);

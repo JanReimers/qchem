@@ -6,13 +6,12 @@ export import qchem.Irrep_BS;
 export import qchem.Mesh;
 export import qchem.ScalarFunction;
 import qchem.LAParams;
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 
 export class Fit_IBS;
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.
  export class FitIntegrals  
- : public virtual Integrals_Base<double>
- , public virtual Integrals_Overlap<double>
+ : public virtual Integrals_Overlap<double>
 {
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
@@ -31,13 +30,13 @@ public:
     //  So they MUST not be cached.
     //
     typedef ScalarFunction<double> Sf;
-    virtual const Vec Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
-    virtual const Vec Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
+    virtual const Vector<double> Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
+    virtual const Vector<double> Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
 
 protected:
-    virtual  Vec MakeNorm   (const Mesh*        ) const=0; //Numerical .
-    virtual  Vec MakeCharge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat MakeOverlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
+    virtual  Vector<double> MakeNorm   (const Mesh*        ) const=0; //Numerical .
+    virtual  Vector<double> MakeCharge (const Mesh*        ) const=0; //Numerical .
+    virtual  Matrix<double> MakeOverlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
 };
 
 

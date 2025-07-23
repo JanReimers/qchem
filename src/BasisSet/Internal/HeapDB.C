@@ -6,7 +6,7 @@ module;
 export module qchem.BasisSet.Internal.HeapDB;
 import qchem.LAParams;
 import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.ERI4;
 
@@ -20,13 +20,12 @@ import Common.UniqueID;
 
 
 
-export template  <class T> class DB_cache  : virtual public Integrals_Base<T>
+export template  <class T> class DB_cache  
 {
     typedef UniqueID::IDtype IDType;
-    typedef Integrals_Base<T> Base;
     typedef SMatrix<T> SMat;    
-    typedef typename Base::Mat Mat;    
-    typedef typename Base::Vec Vec;    
+    typedef Matrix<T> Mat;    
+    typedef Vector<T> Vec;    
     typedef typename Integrals_DFT<T>::ERI3 ERI3;    
 public:
     typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
@@ -42,8 +41,7 @@ public:
 };
  
 export template <class T> class DB_Common 
-    : virtual public Integrals_Base<T>
-    , virtual public UniqueID
+    : virtual public UniqueID
 {
 protected:
     DB_Common(const DB_cache<T>* db) : itsCache(db) {assert(itsCache);}
@@ -77,7 +75,7 @@ export template <class T> class DB_XKinetic   : public DB_Common<T>, public virt
 protected:
     DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
     virtual const Matrix<T>& Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 export template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
 {    
@@ -121,10 +119,10 @@ protected:
 private:
     // One time calls to un-buffered integral calculations.
     using FitIntegrals::MakeCharge;
-    virtual Vec  MakeCharge() const=0;
+    virtual Vector<double>  MakeCharge() const=0;
     // virtual SMatrix<double> MakeOverlap() const=0;
     virtual SMatrix<double> MakeRepulsion() const=0;
-    virtual  Mat MakeRepulsion(const Fit_IBS&) const=0;
+    virtual  Matrix<double> MakeRepulsion(const Fit_IBS&) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

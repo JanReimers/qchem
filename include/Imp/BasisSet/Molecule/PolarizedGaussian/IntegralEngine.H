@@ -7,7 +7,7 @@
 #include "CDCache.H"
 #include "Polarization.H"
 import qchem.BasisSet.Internal.HeapDB;
-import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Fit_IBS;
 
@@ -70,14 +70,13 @@ class Fit_IE
 , public DB_Fit
 
 {
-    typedef Integrals_Base<double> Base;
-    typedef Base::Mat Mat;
-    typedef DB_Fit::Vec Vec;
+    typedef Matrix<double> Mat;
+    typedef Vector<double> Vec;
 public:
-    virtual SMatrix<double> MakeOverlap() const { return IE_Common::MakeOverlap(); } 
-    virtual Vec  MakeCharge() const;
+    virtual SMatrix<double> MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
+    virtual  Vector<double> MakeCharge   () const;
     virtual SMatrix<double> MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
-    virtual Mat  MakeRepulsion(const Fit_IBS& b) const;
+    virtual  Matrix<double> MakeRepulsion(const Fit_IBS& b) const;
 protected:
     Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}
 };

@@ -35,7 +35,7 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMatri
             ls(Nl+i,Nl+j)=s(i,j);
     return ls;
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Mat& ls)
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Matrix<T>& ls)
 {
     size_t Nl=ls.GetNumRows();
     size_t Ns=ls.GetNumCols();
@@ -56,7 +56,7 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeOverlap() const
 }
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeKinetic() const
 {
-    Mat kls=-itsRKBL->Kinetic(itsRKBS);
+    Matrix<T> kls=-itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeNuclear(const Cluster* c) const
