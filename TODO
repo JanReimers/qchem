@@ -3,6 +3,7 @@ Priority 1:
     -Move CreateSolver() const=0; to TOrbital_IBS
         now Orbital_IBS==IrrepBasisSet so get rid of Orbital_IBS?
     Done: -Get ERI3 out of IntegralsBase.
+    -BasisSet.Integrals should be internal.
     -Get rid of IntegralsBase<T>, types don't propagate through template inheritance anyway!
         T dependence is the key
     -Clean up lower libs to adhere to module naming conventions.

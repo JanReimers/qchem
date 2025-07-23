@@ -34,31 +34,31 @@ public:
 };
 
 //! \brief Interface for overlap integrals.
-export template <class T> class Integrals_Overlap : public virtual Integrals_Base<T>
+export template <class T> class Integrals_Overlap
 {
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    virtual typename Integrals_Base<T>::SMat_ref Overlap() const=0;
+    virtual const SMatrix<T>& Overlap() const=0;
 };
 //! \brief Interface for Laplacian integrals using in kinetic energy calculations.
-export template <class T> class Integrals_Kinetic : public virtual Integrals_Base<T>
+export template <class T> class Integrals_Kinetic
 {
 public:
     //! Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const=0;
+    virtual const SMatrix<T>& Kinetic() const=0;
 };
 //! \brief Interface for electron-nucleus attraction integrals.
-export template <class T> class Integrals_Nuclear : public virtual Integrals_Base<T>
+export template <class T> class Integrals_Nuclear
 {
 public:
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
-    virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const=0;   
+    virtual const SMatrix<T>& Nuclear(const Cluster*) const=0;   
 };
 //! \brief Interface for rest mass matrix used to shift relativistic energies.
-export template <class T> class Integrals_RestMass : public virtual Integrals_Base<T>
+export template <class T> class Integrals_RestMass 
 {
 public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
-    virtual typename Integrals_Base<T>::SMat_ref RestMass() const=0;   
+    virtual const SMatrix<T>& RestMass() const=0;   
 };
 

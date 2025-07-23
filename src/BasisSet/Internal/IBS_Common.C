@@ -121,13 +121,11 @@ export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegral
 export template <class T> class Orbital_DFT_IBS_Common
     : public virtual TOrbital_DFT_IBS<T>
 {
-    typedef typename Integrals_Base<T>::SMat SMat;
-    typedef typename Integrals_DFT<T>::Vec  Vec;
 public:
     using Integrals_DFT<T>::Overlap3C; //Unhide
     using Integrals_DFT<T>::Repulsion3C; //Unhide
-    virtual Vec Overlap3C  (const SMat& Dcd, const Fit_IBS* ff) const;
-    virtual Vec Repulsion3C(const SMat& Dcd, const Fit_IBS* ff) const;
+    virtual Vector<T> Overlap3C  (const SMatrix<T>& Dcd, const Fit_IBS* ff) const;
+    virtual Vector<T> Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const;
 };
 
 export template <class T> class Orbital_HF_IBS_Common

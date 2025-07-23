@@ -4,20 +4,20 @@ module;
 module qchem.BasisSet.Internal.IBS_Common;
 import oml;
 
-template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
-Overlap3C(const SMat& Dcd, const Fit_IBS* ff) const
+template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
+Overlap3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
 {
-    Vec ret(ff->size());
+    Vector<T> ret(ff->size());
     auto& S=this->Overlap3C(*ff);
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,S[i-1]);
     return ret;
 }
 
-template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::
-Repulsion3C(const SMat& Dcd, const Fit_IBS* ff) const
+template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
+Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
 {
-    Vec ret(ff->size());
+    Vector<T> ret(ff->size());
     auto& repulsion=this->Repulsion3C(*ff);
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,repulsion[i-1]);
