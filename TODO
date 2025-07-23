@@ -3,7 +3,7 @@ Priority 1:
     -Clean up lower libs to adhere to module naming conventions.
         Done: Mesh
         Done: Symmetry
-        Cluster
+        Done: Cluster
         BasisSet
     
 /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
@@ -12,7 +12,7 @@ Priority 1:
 [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Large_Orbital_IBS<double>::Large_Orbital_IBS' requested here
 [build]    33 |         , new Large_Orbital_IBS<double>(db,exponents, kappa)
 [build]       |              
-    -Get rid of index_t 
+    Done: -Get rid of index_t 
     -Find the largest pcm/gcm files,  Why do sbig.
     -Sort out compile options in CMake for gcc and clang.
         Anything BSpline is huge.
@@ -20,7 +20,7 @@ Priority 1:
         RVec3
         RVec
         size_t;
-    -Migrate from index_t to int or size_t.
+    Done: -Migrate from index_t to int or size_t.
     Done -Try and simplify BSpling template instancing
         constexpr Loop example: https://indii.org/blog/cplusplus-static-for-loop/
             Won;t compile]
