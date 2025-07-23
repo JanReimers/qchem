@@ -6,9 +6,9 @@
 #include "RadialFunction.H"
 #include "CDCache.H"
 #include "Polarization.H"
-import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Integrals;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 import qchem.Fit_IBS;
 
 import qchem.Irrep_BS;

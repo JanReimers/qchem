@@ -3,10 +3,10 @@ module;
 #include <vector>
 #include <iosfwd>
 export module qchem.BasisSet.Atom.radial.SlaterBS;
-import qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
-import qchem.BasisSet.Common;
+import qchem.BasisSet.Internal.Common;
 export import qchem.Types;
 
 export namespace Slater

@@ -3,9 +3,9 @@ module;
 #include <iosfwd>
 
 export module qchem.Atom;
+export import qchem.Types;
 import Common.UniqueIDImp;
 import qchem.Mesh;
-import oml.Vector3D;
 import qchem.Streamable;
 
 export class Atom
@@ -13,7 +13,6 @@ export class Atom
     , public UniqueIDImp
 {
 public:
-    using RVec3=Vector3D<double>;
     Atom();
     Atom(int Z, double charge);
     Atom(int Z, double charge, const RVec3& R);

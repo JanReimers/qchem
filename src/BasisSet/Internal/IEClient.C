@@ -1,6 +1,6 @@
 // File: IEClient.H  Array like view of an Irrep basis set.
 module;
-export module qchem.BasisSet.Imp.IEClient;
+export module qchem.BasisSet.Internal.IEClient;
 import Common.UniqueID; 
 export import qchem.Types;
 //

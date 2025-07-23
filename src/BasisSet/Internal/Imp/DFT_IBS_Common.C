@@ -1,7 +1,7 @@
 // File: Imp/DFT_IBS_Common.C  Common implementation for all DFT Irrep Basis Sets.
 module;
 #include <vector>
-module qchem.BasisSet.IBS_Common;
+module qchem.BasisSet.Internal.IBS_Common;
 import oml;
 
 template <class T> typename Orbital_DFT_IBS_Common<T>::Vec Orbital_DFT_IBS_Common<T>::

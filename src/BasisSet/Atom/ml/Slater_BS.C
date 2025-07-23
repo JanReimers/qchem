@@ -5,12 +5,12 @@ module;
 export module qchem.BasisSet.Atom.ml.SlaterBS;
 import qchem.BasisSet.Atom.radial.SlaterBS;
 import qchem.BasisSet.Atom.l.SlaterBS;
-import qchem.BasisSet.IBS_Common;
-import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.HeapDB;
 import qchem.HF_IBS;
 import qchem.DFT_IBS;
 import qchem.BasisSet.Atom.ml.Angular;
-import qchem.BasisSet.Common;
+import qchem.BasisSet.Internal.Common;
 import qchem.Symmetry.ElectronConfiguration;
 
 export namespace Atom_ml

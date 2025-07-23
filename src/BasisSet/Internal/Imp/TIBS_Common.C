@@ -6,7 +6,7 @@ module;
 import qchem.LAParams;
 import qchem.LASolver;
 
-module qchem.BasisSet.IBS_Common;
+module qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisFunction;
 import oml;
 

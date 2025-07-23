@@ -3,10 +3,10 @@ module;
 #include <vector>
 #include <iosfwd>
 export module qchem.BasisSet.Atom.radial.GaussianBS;
-import qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
-import qchem.BasisSet.Common;
+import qchem.BasisSet.Internal.Common;
 
 export namespace Gaussian
 {

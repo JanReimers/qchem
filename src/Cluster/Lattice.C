@@ -5,9 +5,9 @@ module;
 
 export module qchem.Lattice;
 import Common.UniqueIDImp;
-import qchem.Cluster;
-import qchem.Atom;
-import Cluster.UnitCell;
+export import qchem.Cluster;
+export import qchem.Atom;
+export import Cluster.UnitCell;
 import qchem.Mesh;
 import oml.Vector3D;
 

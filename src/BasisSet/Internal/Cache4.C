@@ -1,7 +1,7 @@
 // File: Cache4.C Cache object based on four unsigned integer indices.
 module;
 #include <map>
-export module qchem.BasisSet.Imp.Cache4;
+export module qchem.BasisSet.Internal.Cache4;
 //
 //  Abstract base for the type being cached.
 //

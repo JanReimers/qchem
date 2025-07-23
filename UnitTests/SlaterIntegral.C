@@ -13,8 +13,8 @@ import qchem.BasisSet.Atom.IEClient;
 import qchem.LAParams;
 import qchem.Factory;
 import qchem.HF_IBS;
-import qchem.BasisSet.ERI4;
-import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.HeapDB;
 
 import qchem.BasisSet;
 import qchem.Irrep_BS;

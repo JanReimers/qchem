@@ -4,12 +4,12 @@ module;
 #include <iosfwd>
 class DiracIntegralTests;
 
-export module qchem.BasisSet.IBS_Common;
-import qchem.LASolver;
-import qchem.BasisSet.Imp.HeapDB;
-import qchem.BasisSet.Imp.IEClient;
-import qchem.BasisSet.Imp.HeapDB;
+export module qchem.BasisSet.Internal.IBS_Common;
 export import qchem.Irrep_BS;
+import qchem.LASolver;
+import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.IEClient;
+import qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
 import qchem.DFT_IBS;
 import qchem.HF_IBS;

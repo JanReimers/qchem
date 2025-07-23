@@ -2,11 +2,10 @@
 module;
 
 export module qchem.HF_IBS;
-import qchem.BasisSet.Integrals;
-import qchem.BasisSet.ERI4;
-
-import Common.UniqueID;
 export import qchem.Irrep_BS;
+import qchem.BasisSet.Integrals;
+import qchem.BasisSet.Internal.ERI4;
+import Common.UniqueID;
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
 //! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)

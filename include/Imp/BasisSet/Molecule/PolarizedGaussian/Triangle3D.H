@@ -41,7 +41,6 @@ public:
     }
 
     virtual std::ostream&  Write(std::ostream&) const;
-    static  Triangle3D* Factory(std::istream&)      ;
 
 private:
     void    Check(int,int,int) const;

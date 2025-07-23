@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
-import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Internal.IEClient;
 import qchem.Irrep_BS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;

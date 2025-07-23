@@ -1,9 +1,9 @@
 // File: DHF_IBS.H  Interface for a Dirac-Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
-import qchem.BasisSet.Integrals;
 
 export module qchem.DHF_IBS;
-import qchem.Irrep_BS;
+export import qchem.Irrep_BS;
+import qchem.BasisSet.Integrals;
 
 export template <class T> class Orbital_RKBS_IBS;
 //! \brief Interface for L-S cross kinetic matrix used in relativistic calculations.

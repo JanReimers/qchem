@@ -6,7 +6,7 @@ module;
 module qchem.BasisSet.Atom.radial.SlaterBS;
 import qchem.BasisSet.Atom.radial.Slater.Rk;
 import qchem.Irrep_BS;
-import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Internal.IEClient;
 import oml;
 
 namespace Slater

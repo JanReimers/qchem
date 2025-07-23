@@ -8,7 +8,7 @@
 #include "PolarizedGaussian/IntegralEngine.H"
 import qchem.Fit_IBS;
 import qchem.Irrep_BS;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 
 namespace PolarizedGaussian
 {

@@ -8,11 +8,11 @@ import qchem.BasisSet.Atom.radial.SlaterBS;
 import qchem.BasisSet.Atom.radial.Slater.IE_Primatives;
 
 import qchem.BasisSet;
-import qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common;
 import qchem.HF_IBS;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.l.Angular;
-import qchem.BasisSet.Common;
+import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
 
 export namespace Atoml

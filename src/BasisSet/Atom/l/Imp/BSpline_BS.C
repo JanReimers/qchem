@@ -5,7 +5,7 @@ module;
 
 module qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
-import qchem.BasisSet.Imp.Cache4;
+import qchem.BasisSet.Internal.Cache4;
 
 namespace Atoml
 {

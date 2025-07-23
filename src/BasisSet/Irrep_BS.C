@@ -2,19 +2,19 @@
 module;
 #include <vector>
 #include <memory>
-import qchem.LASolver;
 
 export module qchem.Irrep_BS;
-import qchem.BasisSet.Integrals;
-
 export import qchem.BasisFunction;
-import Common.UniqueID; 
-import Common.Iterators;
-import oml;
 export import qchem.Symmetry;
 export import qchem.Symmetry.ElectronConfiguration;
-import qchem.Streamable;
 export import qchem.VectorFunction;
+
+import qchem.BasisSet.Integrals;
+import qchem.LASolver;
+import Common.UniqueID; 
+import Common.Iterators;
+import qchem.Streamable;
+import oml;
 
 //----------------------------------------------------------------------------
 //
@@ -52,7 +52,7 @@ private:
     virtual       iterator end  ()      =0;
     
 public:
-    // These facilutate iteration but return pointers dyn-cast'ed to derived types (D);
+    // These facilutate iteration but returns pointers dyn-cast'ed to derived types (D);
     template <class D> auto Iterate() const
     {
         return D_iterator_proxy<const D,const_iterator>(begin(),end());
@@ -69,8 +69,6 @@ public:
     {
         return D_iterator_proxy<D,iterator>(begin(),end(),start);
     }
-    
-    // friend class BS_Common;
 };
 
 //----------------------------------------------------------------------------
@@ -104,6 +102,6 @@ export template <class T> class TOrbital_IBS
     , public virtual Integrals_Kinetic<T> 
     , public virtual Integrals_Nuclear<T> 
 {
-    public:
+public:    
     
 };

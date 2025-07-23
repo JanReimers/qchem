@@ -1,16 +1,16 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
-  DataBase/HeapDBImp.C
-  Imp/Cache4Imp.C
-  Imp/ERI4Imp.C
   Imp/BasisSet.C
-  Common/Imp/BS_Common.C
-  Common/Imp/IBS_Common.C
-  Common/Imp/TIBS_Common.C
-  Common/Imp/Fit_IBS_Common.C
-  Common/Imp/DFT_IBS_Common.C
-  Common/Imp/HF_IBS_Common.C
-  Common/Imp/DHF_IBS_Common.C
+  Internal/Imp/HeapDB.C
+  Internal/Imp/Cache4.C
+  Internal/Imp/ERI4.C
+  Internal/Imp/BS_Common.C
+  Internal/Imp/IBS_Common.C
+  Internal/Imp/TIBS_Common.C
+  Internal/Imp/Fit_IBS_Common.C
+  Internal/Imp/DFT_IBS_Common.C
+  Internal/Imp/HF_IBS_Common.C
+  Internal/Imp/DHF_IBS_Common.C 
 )
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   BasisSet.C
@@ -21,20 +21,17 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   DFT_IBS.C
   DHF_IBS.C
   Integrals.C
-  Imp/ERI4.C
-  Imp/Cache4.C
-  Imp/IEClient.C
-  Imp/IntegralEnums.C
-  Common/BS_Common.C
-  Common/IBS_Common.C
-  DataBase/HeapDB.C
+  Internal/ERI4.C
+  Internal/Cache4.C
+  Internal/IEClient.C
+  Internal/IntegralEnums.C
+  Internal/BS_Common.C
+  Internal/IBS_Common.C
+  Internal/HeapDB.C
 
 )
 
 target_include_directories(qcBasisSet PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include  
-    ${PROJECT_SOURCE_DIR}/include/Imp/BasisSet 
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

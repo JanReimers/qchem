@@ -7,11 +7,11 @@ export module qchem.BasisSet.Atom.l.BSplineBS;
 import qchem.BasisSet;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
-import qchem.BasisSet.IBS_Common;
-import qchem.BasisSet.Common;
+import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.Common;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.l.Angular;
-import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Internal.HeapDB;
 
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 import qchem.Basisset.Atom.radial.BSpline.IE;

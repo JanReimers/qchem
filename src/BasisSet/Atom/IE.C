@@ -1,14 +1,14 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
 module;
 export module qchem.BasisSet.Atom.IE;
-export import qchem.BasisSet.Imp.HeapDB;
-export import qchem.BasisSet.Imp.Cache4;
+export import qchem.BasisSet.Internal.HeapDB;
+export import qchem.BasisSet.Internal.Cache4;
 export import oml.Vector;
 import qchem.BasisSet.Atom.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Integrals;
-import qchem.BasisSet.ERI4;
-import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.IEClient;
 export import qchem.DHF_IBS;
 import qchem.Fit_IBS;
 export import qchem.Types;

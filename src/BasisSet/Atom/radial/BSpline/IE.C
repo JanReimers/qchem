@@ -8,11 +8,11 @@ import qchem.Basisset.Atom.radial.BSpline.IEC;
 
 import qchem.BasisSet.Atom.BFGrouper;
 import qchem.BasisSet.Atom.IE;
-import qchem.BasisSet.Imp.Cache4;
-import qchem.BasisSet.Imp.HeapDB;
-import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Integrals;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.HF_IBS;
 import qchem.DHF_IBS;

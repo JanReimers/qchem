@@ -1,20 +1,24 @@
 add_library(qcCluster) 
-target_sources(qcCluster PRIVATE AtomImp.C ClusterImp.C MoleculeImp.C AtomMeshImp.C MoleculeMeshImp.C UnitCellImp.C LatticeImp.C)
+target_sources(qcCluster PRIVATE 
+    Imp/Atom.C 
+    Imp/Cluster.C 
+    Imp/Molecule.C 
+    Imp/UnitCell.C 
+    Imp/Lattice.C
+    Internal/Imp/AtomMesh.C 
+    Internal/Imp/MoleculeMesh.C 
+    )
 target_sources(qcCluster PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Atom.C 
     Cluster.C 
     Molecule.C 
     UnitCell.C 
     Lattice.C 
-    UnitCellMesh.C 
-    AtomMesh.C 
-    MoleculeMesh.C
+    Internal/UnitCellMesh.C 
+    Internal/AtomMesh.C 
+    Internal/MoleculeMesh.C
     )
-# target_sources(qcCluster PRIVATE FILE_SET all_my_modules1 TYPE CXX_MODULES FILES AtomImp.C )
 target_include_directories(qcCluster PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/include/Imp/Cluster  
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
 target_compile_options(qcCluster PRIVATE -Wall -Wno-unknown-pragmas -fmax-errors=1

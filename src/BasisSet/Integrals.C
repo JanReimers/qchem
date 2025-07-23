@@ -2,9 +2,8 @@
 module;
 #include <vector>
 export module qchem.BasisSet.Integrals;
-import Common.UniqueID; //Need IDType
 export import qchem.Cluster;
-import oml;
+export import oml;
 
 //--------------------------------------------------------------------------------
 //

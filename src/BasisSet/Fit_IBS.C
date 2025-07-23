@@ -1,12 +1,12 @@
 // File: Fit_IBS.H  Interface for a fitting Basis Set.
 module;
-import qchem.LAParams;
-import qchem.BasisSet.Integrals;
 
 export module qchem.Fit_IBS;
 export import qchem.Irrep_BS;
 export import qchem.Mesh;
 export import qchem.ScalarFunction;
+import qchem.LAParams;
+import qchem.BasisSet.Integrals;
 
 export class Fit_IBS;
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.

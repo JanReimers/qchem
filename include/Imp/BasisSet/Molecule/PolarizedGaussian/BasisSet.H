@@ -3,10 +3,10 @@
 #define _PolarizedGaussian_BasisSet_H_
 
 #include "CDCache.H"
-import qchem.BasisSet.Imp.HeapDB;
-import qchem.BasisSet.Imp.IEClient;
-import qchem.BasisSet.Common;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.IEClient;
+import qchem.BasisSet.Internal.Common;
+import qchem.BasisSet.Internal.ERI4;
 import qchem.DFT_IBS;
 import qchem.Cluster;
 namespace PolarizedGaussian

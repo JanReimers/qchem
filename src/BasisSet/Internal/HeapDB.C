@@ -3,12 +3,12 @@ module;
 #include <map>
 #include <cassert>
 #include <vector>
+export module qchem.BasisSet.Internal.HeapDB;
 import qchem.LAParams;
-export module qchem.BasisSet.Imp.HeapDB;
-import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Integrals;
-import qchem.BasisSet.IntegralEnums;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet.Internal.ERI4;
 
 import qchem.DHF_IBS;
 import qchem.HF_IBS;

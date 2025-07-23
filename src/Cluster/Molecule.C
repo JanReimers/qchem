@@ -3,9 +3,8 @@ module;
 #include <iostream>
 
 export module qchem.Molecule;
-
-import qchem.Atom;
-import qchem.Cluster;
+export import qchem.Atom;
+export import qchem.Cluster;
 import Common.UniqueIDImp;
 import qchem.Mesh;
 

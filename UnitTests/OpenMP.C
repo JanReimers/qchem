@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include <omp.h>
 #include <chrono>
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 
 class OpenMPTests : public ::testing::Test
 {

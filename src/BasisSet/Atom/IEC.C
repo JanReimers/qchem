@@ -3,7 +3,7 @@ module;
 #include <vector>
 #include <set>
 export module qchem.BasisSet.Atom.IEClient;
-export import qchem.BasisSet.Imp.IEClient;
+export import qchem.BasisSet.Internal.IEClient;
 export import qchem.Irrep_BS;
 export import oml.Vector;
 

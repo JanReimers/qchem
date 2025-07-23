@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "Polarization.H"
-import qchem.BasisSet.Imp.IEClient;
+import qchem.BasisSet.Internal.IEClient;
 import oml;
 
 namespace PolarizedGaussian

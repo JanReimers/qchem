@@ -6,7 +6,7 @@
 
 using std::cout;
 using std::endl;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 
 
 //----------------------------------------------------------------------------------------------

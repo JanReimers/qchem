@@ -1,10 +1,16 @@
 
 Priority 1:
+    -Move CreateSolver() const=0; to TOrbital_IBS
+        now Orbital_IBS==IrrepBasisSet so get rid of Orbital_IBS?
+    -Get ERI3 out of IntegralsBase.
+        Get rid of IntegralsBase, types don't propagate through template inheritance anyway!
     -Clean up lower libs to adhere to module naming conventions.
         Done: Mesh
         Done: Symmetry
         Done: Cluster
-        BasisSet
+        Done: BasisSet
+        BasisSet.Atom
+        BasisSet.Molecule
     
 /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
 [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
@@ -33,7 +39,7 @@ Priority 1:
 
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
-    Fixed: -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAcceleratorDIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project(): Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
+    Fixed: -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAcceleratorDIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project(): Fixed Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
     -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
     
     More use of structured bindings for map iterating.
@@ -79,7 +85,7 @@ Priority 1:
         Fixed: Failed attempts:
             ScalarFunction/VectorFunction fix mesh iterator to disentagle from Mesh.
             Mesh/Factory json lib is too much for gcc-15.0
-        Deon: Sequence:
+        Done: Sequence:
             Common
             Mesh
             Cluster

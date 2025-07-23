@@ -1,5 +1,5 @@
 // File: BasisSet/Imp/IntegralEnums.C  Define some enums for integral types;
-export module qchem.BasisSet.IntegralEnums;
+export module qchem.BasisSet.Internal.IntegralEnums;
 
 export namespace qchem
 {

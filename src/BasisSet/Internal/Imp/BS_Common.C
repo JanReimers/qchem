@@ -4,7 +4,7 @@ module;
 #include <memory>
 import qchem.LAParams;
 
-module qchem.BasisSet.Common;
+module qchem.BasisSet.Internal.Common;
 import qchem.stl_io;
 import qchem.Irrep_BS;
 

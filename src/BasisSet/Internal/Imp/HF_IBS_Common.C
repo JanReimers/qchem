@@ -4,8 +4,8 @@ module;
 #include <vector>
 #include <memory>
 #include <iomanip>
-module qchem.BasisSet.IBS_Common;
-import qchem.BasisSet.ERI4;
+module qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.ERI4;
 
 template <class T> typename Orbital_HF_IBS_Common<T>::SMat Orbital_HF_IBS_Common<T>::
 Direct(const SMat& Dcd, const obs_t* cd) const

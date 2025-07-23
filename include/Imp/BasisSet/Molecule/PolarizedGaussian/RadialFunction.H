@@ -11,7 +11,7 @@ import Common.UniqueID;
 import qchem.Cluster;
 import qchem.ScalarFunction;
 import qchem.Streamable;
-import qchem.BasisSet.IntegralEnums;
+import qchem.BasisSet.Internal.IntegralEnums;
 
 class  Polarization;
 

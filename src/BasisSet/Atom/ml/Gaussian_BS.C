@@ -4,14 +4,14 @@ module;
 export module qchem.BasisSet.Atom.ml.GaussianBS;
 import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet.Atom.l.GaussianBS;
-import qchem.BasisSet.IBS_Common;
-import qchem.BasisSet.Imp.HeapDB;
+import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.HeapDB;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
 import qchem.Cluster;
 import qchem.BasisSet.Atom.ml.Angular;
 import qchem.BasisSet.Atom.IE;
-import qchem.BasisSet.Common;
+import qchem.BasisSet.Internal.Common;
 import qchem.Symmetry.ElectronConfiguration;
 
 export namespace Atom_ml

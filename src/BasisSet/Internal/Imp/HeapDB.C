@@ -8,13 +8,13 @@ module;
 import qchem.LASolver;
 import qchem.LAParams;
 
-module qchem.BasisSet.Imp.HeapDB;
+module qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
 import qchem.DHF_IBS;
 import qchem.Irrep_BS;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.BasisSet.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 import oml;
 
 //------------------------------------------------------------------------

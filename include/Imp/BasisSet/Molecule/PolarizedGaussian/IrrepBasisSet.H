@@ -8,7 +8,7 @@
 #include "Block.H"
 #include <vector>
 #include <memory>
-import qchem.BasisSet.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common;
 import qchem.DFT_IBS;
 import qchem.HF_IBS;
 

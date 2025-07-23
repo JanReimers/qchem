@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <memory>
-module qchem.BasisSet.IBS_Common;
+module qchem.BasisSet.Internal.IBS_Common;
 import qchem.Mesh.Integrator;
 import oml;
 

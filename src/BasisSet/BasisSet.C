@@ -3,16 +3,16 @@ module;
 #include <vector>
 #include <memory>
 
-import qchem.LAParams;
 export module qchem.BasisSet;
-
 export import qchem.Irrep_BS;
 export import qchem.Fit_IBS;
-import Common.UniqueID;
-import Common.Iterators;
 export import qchem.Cluster;
 export import qchem.Symmetry;
 export import qchem.Symmetry.ElectronConfiguration;
+
+import qchem.LAParams;
+import Common.UniqueID;
+import Common.Iterators;
 import qchem.Streamable;
 
 //----------------------------------------------------------------------------
