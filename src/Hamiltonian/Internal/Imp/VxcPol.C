@@ -45,7 +45,7 @@ Static_HT::SMat VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd
     const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(cd);
     assert(PolExactCD);
     const DM_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
-    SMat Kab=SpinCD->GetExchange(hf_bs)*-1.0;
+    SMatrix<double> Kab=SpinCD->GetExchange(hf_bs)*-1.0;
     return Kab;
 }
 void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

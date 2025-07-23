@@ -44,7 +44,7 @@ template <> bool IrrepCD<double>::IsZero() const
 
 template <> DM_CD::SMat IrrepCD<double>::ZeroM(size_t N) const
 {
-    SMat S(N);
+    SMatrix<double> S(N);
     Fill(S,0.0);
     return S;
 }
@@ -109,11 +109,11 @@ template <class T> double IrrepCD<T>::GetTotalCharge() const
     // int N=itsDensityMatrix.GetNumRows();
     // assert(N%2==0);
     // int NL=N/2;
-    // SMat S=itsBasisSet->GetOverlap();
-    // SMat DLL=itsDensityMatrix.SubMatrix(MatLimits(1,NL,1,NL));
-    // SMat DSS=itsDensityMatrix.SubMatrix(MatLimits(NL+1,N, NL+1,N));
-    // SMat SLL=S.SubMatrix(MatLimits(1,NL,1,NL));
-    // SMat SSS=S.SubMatrix(MatLimits(NL+1,N, NL+1,N));
+    // SMatrix<T> S=itsBasisSet->GetOverlap();
+    // SMatrix<T> DLL=itsDensityMatrix.SubMatrix(MatLimits(1,NL,1,NL));
+    // SMatrix<T> DSS=itsDensityMatrix.SubMatrix(MatLimits(NL+1,N, NL+1,N));
+    // SMatrix<T> SLL=S.SubMatrix(MatLimits(1,NL,1,NL));
+    // SMatrix<T> SSS=S.SubMatrix(MatLimits(NL+1,N, NL+1,N));
     // std::cout.precision(10);
     // std::cout << "Charge LL=" << real(Dot(DLL,SLL)) << " SS=" << real(Dot(DSS,SSS)) << std::endl;
     return real(Dot(itsDensityMatrix,itsBasisSet->Overlap()));

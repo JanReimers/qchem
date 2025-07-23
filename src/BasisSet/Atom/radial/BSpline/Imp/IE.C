@@ -14,7 +14,7 @@ import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 
 namespace BSpline
 {
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Overlap<T,K>::MakeOverlap() const
+template <class T,size_t K> SMatrix<T> IE_Overlap<T,K>::MakeOverlap() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);
@@ -27,7 +27,7 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Overlap<T,K>::Ma
 
     return H;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Kinetic  <T,K>::MakeKinetic() const
+template <class T,size_t K> SMatrix<T> IE_Kinetic  <T,K>::MakeKinetic() const
 {
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);
@@ -40,7 +40,7 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Kinetic  <T,K>::
 
     return H;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_Inv_r1<T,K>::MakeNuclear(const Cluster* cl) const
+template <class T,size_t K> SMatrix<T> IE_Inv_r1<T,K>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
     assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
@@ -70,7 +70,7 @@ template <class T,size_t K> typename IE_DFT<T,K>::ERI3 IE_DFT<T,K>::MakeRepulsio
     for (auto i:c.indices()) s3.push_back(MakeRepulsion(c.tuple(i)));
     return s3;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_DFT<T,K>::MakeOverlap  (const bf_tuple& c) const
+template <class T,size_t K> SMatrix<T> IE_DFT<T,K>::MakeOverlap  (const bf_tuple& c) const
 {    
     const IrrepIEClient<K>* ab=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(ab);
@@ -79,14 +79,14 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_DFT<T,K>::MakeOv
     const spline_t* sc;
     double nc;
     std::tie(Lc,sc,nc)=c;
-    SMat s(N);
+    SMatrix<T> s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
             s(i,j)=this->Overlap((*ab)(i)+(*ab)(j),*sc,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }
-template <class T,size_t K> typename Integrals_Base<T>::SMat IE_DFT<T,K>::MakeRepulsion(const bf_tuple& c) const
+template <class T,size_t K> SMatrix<T> IE_DFT<T,K>::MakeRepulsion(const bf_tuple& c) const
 {    
     const IrrepIEClient<K>* ab=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(ab);
@@ -95,7 +95,7 @@ template <class T,size_t K> typename Integrals_Base<T>::SMat IE_DFT<T,K>::MakeRe
     const spline_t* sc;
     double nc;
     std::tie(Lc,sc,nc)=c;
-    SMat s(N,N);
+    SMatrix<T> s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
             s(i,j)=this->Repulsion((*ab)(i)+(*ab)(j),*sc,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            

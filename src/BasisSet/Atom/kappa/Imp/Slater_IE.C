@@ -37,7 +37,7 @@ template class Orbital_RKBS_IE<double>;
 //     size_t Nl=LLLL.Nab();
 //     size_t Ns=SSSS.Nab();
 //     ERI4 K(Nl+Ns,Nl+Ns);
-//     SMat LLSS(Ns);
+//     SMatrix<T> LLSS(Ns);
 //     Fill(LLSS,0.0);
 //     for (auto i:LLLL.rows())
 //         for (auto j:LLLL.cols(i))

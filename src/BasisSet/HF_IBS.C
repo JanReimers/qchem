@@ -35,13 +35,12 @@ export template <class T> class TOrbital_HF_IBS
     , public virtual Integrals_HF<T> //Two electron integrals used for HF
 {
 protected:
-    typedef typename Integrals_Base<T>::SMat SMat;
     typedef TOrbital_HF_IBS obs_t;
 public:
     using Integrals_HF<T>::Direct;
     using Integrals_HF<T>::Exchange;
-    virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const=0;
-    virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const=0;
+    virtual SMatrix<T> Direct  (const SMatrix<T>& Dcd, const obs_t* bs_cd) const=0;
+    virtual SMatrix<T> Exchange(const SMatrix<T>& Dcd, const obs_t* bs_cd) const=0;
 
 };
 

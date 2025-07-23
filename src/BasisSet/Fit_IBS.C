@@ -17,15 +17,15 @@ export class Fit_IBS;
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     using Integrals_Overlap<double>::Overlap;
-    virtual Vec_ref  Charge   () const=0;   
-    virtual SMat_ref Repulsion() const=0;
-    virtual  Mat_ref Repulsion(const Fit_IBS&) const=0;
-    virtual SMat_ref InvOverlap(const LAParams&) const=0;
-    virtual SMat_ref InvRepulsion(const LAParams&) const=0;
+    virtual const Vector<double>&  Charge   () const=0;   
+    virtual const SMatrix<double>& Repulsion() const=0;
+    virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const=0;
+    virtual const SMatrix<double>& InvOverlap(const LAParams&) const=0;
+    virtual const SMatrix<double>& InvRepulsion(const LAParams&) const=0;
     // Pure numerial versions
-    virtual  Vec_ref Norm   (const Mesh*        ) const=0; //Numerical .
-    virtual  Vec_ref Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
+    virtual  const Vector<double>& Norm   (const Mesh*        ) const=0; //Numerical .
+    virtual  const Vector<double>& Charge (const Mesh*        ) const=0; //Numerical .
+    virtual  const  Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
     //
     //  These are used for charge and Vxc fitting.  They change with iterations
     //  So they MUST not be cached.

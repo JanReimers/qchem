@@ -26,7 +26,7 @@ SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS()
 };
 
 
-void SCFIrrepAcceleratorDIIS::UseFD(const SMat& F, const SMat& DPrime)
+void SCFIrrepAcceleratorDIIS::UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime)
 {
     itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.GetLimits()==DPrime.GetLimits());
@@ -58,7 +58,7 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
 //     return ArrayAdd(a,b);
 // }
 
-SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project()
+SMatrix<double> SCFIrrepAcceleratorDIIS::Project()
 {
     if (itsCs.size()<2) 
         return itsFPrime;
@@ -70,9 +70,9 @@ SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project()
         // assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
-        SMat Fproj;
+        SMatrix<double> Fproj;
         size_t  i=1;
-        for (const auto& f:itsFPrimes) Fproj+=SMat(itsCs(i++)*f);
+        for (const auto& f:itsFPrimes) Fproj+=SMatrix<double>(itsCs(i++)*f);
         return Fproj;
     }
 }
@@ -148,7 +148,7 @@ RVec SCFAcceleratorDIIS::SolveC(const SMat& B)
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
     size_t  N=GetNProj()+1;
-    SMat B(N);
+    SMatrix<double> B(N);
     Fill(B,0.0);
     for (size_t  i=1;i<N;i++)
     {
@@ -201,7 +201,7 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     assert(GetNProj()<=itsParams.Nproj);
     if (GetNProj()<2) return false;
     
-    SMat B=BuildPrunedB(itsParams.SVTol);
+    SMatrix<double> B=BuildPrunedB(itsParams.SVTol);
     if (B.GetNumRows()<=2) return false;
                 
     itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.

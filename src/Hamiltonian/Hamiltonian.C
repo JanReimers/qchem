@@ -48,7 +48,7 @@ public:
 
     virtual void            Add             (      Static_HT*)      =0;
     virtual void            Add             (      Dynamic_HT*)      =0;
-    virtual SMat            GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;
+    virtual SMatrix<double>            GetMatrix(const ibs_t*,const Spin&,const DM_CD*)=0;
     virtual EnergyBreakdown GetTotalEnergy  (  const DM_CD*    ) const=0;
     virtual bool            IsPolarized() const=0;
 };

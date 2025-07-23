@@ -8,12 +8,10 @@ export import qchem.LASolver;
 
 export class SCFIrrepAccelerator
 {
-protected:
-    typedef SMatrix<double> SMat;
 public:
     virtual ~SCFIrrepAccelerator() {};
-    virtual void UseFD(const SMat& F, const SMat& DPrime)=0;
-    virtual SMat Project()=0; 
+    virtual void UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime)=0;
+    virtual SMatrix<double> Project()=0; 
 };
 
 export class SCFAccelerator

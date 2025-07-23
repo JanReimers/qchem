@@ -9,7 +9,7 @@ template <class T> typename LASolver<T>::UdType LASolverOMLCommon<T>::Solve(cons
 {
     assert(!isnan(Ham));
 	Mat HPrime = Vd * Ham * V;  //Transform to orthogonal coordinates.
-    SMat HS=MakeSymmetric(HPrime,"Hamiltonian");
+    SMatrix<T> HS=MakeSymmetric(HPrime,"Hamiltonian");
     auto [U,e]  = Diagonalize(HS);  //Get eigen solution.
     U = V * U;                      //Back transform.
     return std::make_tuple(U,e);

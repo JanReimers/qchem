@@ -6,7 +6,7 @@ module;
 module qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
 
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOverlap() const
+template <class T> SMatrix<T> AtomIE_Overlap <T>::MakeOverlap() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); // Cross cast
     assert(a);
@@ -19,7 +19,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Overlap <T>::MakeOver
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKinetic() const
+template <class T> SMatrix<T> AtomIE_Kinetic <T>::MakeKinetic() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  // Cross cast
     assert(a);
@@ -32,7 +32,7 @@ template <class T> typename Integrals_Base<T>::SMat AtomIE_Kinetic <T>::MakeKine
 
     return H;
 }
-template <class T> typename Integrals_Base<T>::SMat AtomIE_Nuclear <T>::MakeNuclear(const Cluster* cl) const
+template <class T> SMatrix<T> AtomIE_Nuclear <T>::MakeNuclear(const Cluster* cl) const
 {
     assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!

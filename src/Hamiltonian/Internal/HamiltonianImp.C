@@ -14,7 +14,7 @@ public:
     virtual void Add(Static_HT* );
     virtual void Add(Dynamic_HT*);
 
-    virtual SMat            GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
+    virtual SMatrix<double>            GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
     virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual std::ostream&   Write(std::ostream&) const;

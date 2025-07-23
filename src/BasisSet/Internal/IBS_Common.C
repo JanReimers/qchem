@@ -131,11 +131,11 @@ public:
 export template <class T> class Orbital_HF_IBS_Common
     : public virtual TOrbital_HF_IBS<T>
 {
-    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef SMatrix<T> SMat;
     typedef typename TOrbital_HF_IBS<T>::obs_t obs_t;
 public:
-    virtual SMat Direct  (const SMat& Dcd, const obs_t* bs_cd) const;
-    virtual SMat Exchange(const SMat& Dcd, const obs_t* bs_cd) const;
+    virtual SMatrix<T> Direct  (const SMat& Dcd, const obs_t* bs_cd) const;
+    virtual SMatrix<T> Exchange(const SMat& Dcd, const obs_t* bs_cd) const;
 };
 
 
@@ -145,22 +145,22 @@ export template <class T> class Orbital_RKB_IBS_Common
     , public Orbital_IBS_Common<T>
     , public DB_RKB<T>
 {
-    typedef typename Integrals_Base<T>::SMat SMat;
+    typedef SMatrix<T> SMat;
     typedef typename Integrals_Base<T>::Mat Mat;
 public:
     virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
-    virtual SMat MakeOverlap () const;
-    virtual SMat MakeKinetic   () const;
-    virtual SMat MakeNuclear (const Cluster*) const;
-    virtual SMat MakeRestMass() const;
+    virtual SMatrix<T> MakeOverlap () const;
+    virtual SMatrix<T> MakeKinetic   () const;
+    virtual SMatrix<T> MakeNuclear (const Cluster*) const;
+    virtual SMatrix<T> MakeRestMass() const;
 protected:
     Orbital_RKB_IBS_Common(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;
     ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:
     friend DiracIntegralTests;
-    static SMat merge_diag(const SMat& l,const SMat& s);
-    static SMat merge_off_diag(const Mat& ls);
+    static SMatrix<T> merge_diag(const SMat& l,const SMat& s);
+    static SMatrix<T> merge_off_diag(const Mat& ls);
 };
 
 export template <class T> class Orbital_RKBL_IBS_Common

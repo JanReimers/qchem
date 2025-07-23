@@ -7,9 +7,9 @@ export class SCFIrrepAcceleratorNull : public virtual SCFIrrepAccelerator
 public:
     SCFIrrepAcceleratorNull(const LASolver<double>* las,const Irrep_QNs&) : itsLaSolver(las) {};
     virtual ~SCFIrrepAcceleratorNull() {};
-    virtual void UseFD(const SMat& F, const SMat& DPrime);
-    virtual SMat Project();
+    virtual void UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime);
+    virtual SMatrix<double> Project();
 private:
     const LASolver<double>*   itsLaSolver; //Knows the ortho transform
-    SMat   itsFPrime;
+    SMatrix<double>   itsFPrime;
 };

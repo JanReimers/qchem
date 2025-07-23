@@ -70,7 +70,7 @@ template <class T> RVec MeshIntegrator<T>::Normalize(const Vf& v) const
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap(const Vf& v) const
 {
     size_t n=v.GetVectorSize();
-    SMat ret(n);
+    SMatrix<T> ret(n);
     Fill(ret,T(0.0));
 
     const Mat& sf(v(*itsMesh));
@@ -139,7 +139,7 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Overlap(co
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap3C(const Vf& f,const Sf& g) const
 {
     size_t n=f.GetVectorSize();
-    SMat ret(n);
+    SMatrix<T> ret(n);
     Fill(ret,T(0.0));
 
     const Mat& sf(f(*itsMesh));
@@ -167,7 +167,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Overlap3C
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    SMat ret(n);
+    SMatrix<T> ret(n);
     Fill(ret,T(0.0));
 
     const Mat& sf(f(*itsMesh));
@@ -254,7 +254,7 @@ template <class T> typename MeshIntegrator<T>::Mat MeshIntegrator<T>::Repulsion(
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion3C(const Vf& f, const Sf& h) const
 {
     size_t n=f.GetVectorSize();
-    SMat ret(n,n);
+    SMatrix<T> ret(n,n);
     Fill(ret,T(0.0));
 
     const Mat& sf(f(*itsMesh));
@@ -281,7 +281,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Repulsion
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r1(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    SMat ret(n,n);
+    SMatrix<T> ret(n,n);
     Fill(ret,T(0.0));
 
     const Mat& sf(f(*itsMesh));
@@ -301,7 +301,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r1(co
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r2(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    SMat ret(n,n);
+    SMatrix<T> ret(n,n);
     Fill(ret,T(0.0));
 
     const Mat& sf(f(*itsMesh));
@@ -323,7 +323,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r2(co
 template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Grad(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    SMat ret(n);
+    SMatrix<T> ret(n);
     Fill(ret,T(0.0));
 
     const Matrix<Vec3>& sf(f.Gradient(*itsMesh));

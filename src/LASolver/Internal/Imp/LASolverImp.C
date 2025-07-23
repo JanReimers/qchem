@@ -107,7 +107,7 @@ template <class T>  void LASolverCommon<T>::Truncate(Mat& U, RVec& w,double tol)
     }
 }
 
-template <class T>  typename LASolverCommon<T>::SMat LASolverCommon<T>::MakeSymmetric(Mat& A,std::string name)
+template <class T>  SMatrix<T> LASolverCommon<T>::MakeSymmetric(Mat& A,std::string name)
 {
 #ifdef false
     double del=::MakeSymmetric(A); // A=0.5*(A+~A)

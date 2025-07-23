@@ -34,7 +34,7 @@ void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
 Hamiltonian::SMat HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
 {
     int n=bs->GetNumFunctions();
-    SMat H(n,n);
+    SMatrix<double> H(n,n);
     Fill(H,0.0);
     for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
     // Leave these terms out if we don't have guess for the charge density.

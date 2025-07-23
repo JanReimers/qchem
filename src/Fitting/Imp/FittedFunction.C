@@ -57,14 +57,14 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    SMat Sinv=itsBasisSet->InvOverlap(itsLAParams);
+    SMatrix<T> Sinv=itsBasisSet->InvOverlap(itsLAParams);
     itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
     return 0;
 }
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    SMat Sinv=itsBasisSet->InvRepulsion(itsLAParams);
+    SMatrix<T> Sinv=itsBasisSet->InvRepulsion(itsLAParams);
     itsFitCoeff=Sinv*ffc.GetRepulsion3C(itsBasisSet.get());
     return 0;
 }
@@ -85,12 +85,12 @@ FitGet2CenterRepulsion(const Fit_IBS* bs) const
     return itsFitCoeff * (itsBasisSet->Repulsion(*bs));
 }
 
-template <class T> typename FittedFunctionImp<T>::SMat FittedFunctionImp<T>::
+template <class T> SMatrix<T> FittedFunctionImp<T>::
 FitGet3CenterOverlap(const TOrbital_DFT_IBS<double>* bs) const
 {
     const std::vector<SMat>& O3=bs->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
-    SMat J(n,n);
+    SMatrix<T> J(n,n);
     Fill(J,0.0);
     size_t i=0;
     for (auto c:itsFitCoeff) J+=SMat(c*O3[i++]);

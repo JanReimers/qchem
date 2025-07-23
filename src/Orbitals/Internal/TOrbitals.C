@@ -52,6 +52,6 @@ private:
     const TOrbital_IBS<T>*  itsBasisSet;
     ov_t                    itsOrbitals;
     Irrep_QNs               itsQNs;
-    SMat                    itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    SMatrix<T>                    itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 

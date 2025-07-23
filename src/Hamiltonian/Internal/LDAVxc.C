@@ -26,7 +26,7 @@ public:
     
     virtual std::ostream&           Write(std::ostream&) const;
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     ex_t itsExchangeFunctional;
 };

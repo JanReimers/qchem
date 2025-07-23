@@ -26,7 +26,7 @@ public:
 
 protected:
     // Unconditional calculation, does no use cache.
-    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const=0;
+    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const=0;
 };
 
 export class Dynamic_HT_Imp
@@ -39,7 +39,7 @@ public:
 
 protected:
     // Unconditional calculation, does not use cache.
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     bool newCD(const DM_CD*) const;
 
     mutable const DM_CD* itsCD;      //Density matrix charge density.
@@ -53,8 +53,8 @@ public:
     virtual const SMat& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
-    mutable SMat itsMat;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    mutable SMatrix<double> itsMat;
 };
 
 export class FittablePotential

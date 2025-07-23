@@ -26,12 +26,12 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 //  Totale energy terms for a charge density.
 //
 
-template <class T> FittedCD::SMat FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
+template <class T> SMatrix<T> FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
 {
     assert(bs);
     const std::vector<SMat>& repulsions=bs->Repulsion3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
-    SMat J(n,n);
+    SMatrix<T> J(n,n);
     Fill(J,0.0);
     size_t i=0;
     for (auto c:itsFitCoeff) J+=SMat(c*repulsions[i++]);

@@ -75,8 +75,8 @@ TEST_F(OrthogonalizeTests, Types)
             {
                 LASolver<double>* las=ibs->CreateSolver();
                 const SMat& S=ibs->Overlap();
-                SMat I=las->Transform(S);
-                SMat I1(ibs->GetNumFunctions());
+                SMatrix<double> I=las->Transform(S);
+                SMatrix<double> I1(ibs->GetNumFunctions());
                 Unit(I1);
                 double eps=1e-15*pow(N,3);
                 cout << N << " " << Max(fabs(I-I1)) << " " << Norm(I-I1) << " " << eps << endl;

@@ -66,7 +66,7 @@ template <class T, size_t K> class IE_Overlap
 protected:
     typedef bspline::Spline<T, K> spline_t;
     using Primative_Overlap<T,K>::Overlap;
-    virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
+    virtual SMatrix<T> MakeOverlap() const;
     IE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
 };
 template <class T, size_t K> class IE_Kinetic
@@ -77,7 +77,7 @@ template <class T, size_t K> class IE_Kinetic
 protected:
     using Primative_Grad2 <T,K>::Grad2;
     using Primative_Inv_r2<T,K>::Inv_r2;
-    virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
+    virtual SMatrix<T> MakeKinetic() const;
     IE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
 };
 template <class T, size_t K> class IE_Inv_r1
@@ -86,7 +86,7 @@ template <class T, size_t K> class IE_Inv_r1
 {
 protected:
     using Primative_Inv_r1<T,K>::Inv_r1;
-    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
+    virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
     IE_Inv_r1(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
 };
 template <class T, size_t K> class IE_XGrad2
@@ -132,8 +132,8 @@ protected:
     virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const;
 private:
     typedef typename BSpline::IrrepIEClient<K>::bf_tuple bf_tuple;
-    SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
-    SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
+    SMatrix<T> MakeOverlap  (const bf_tuple& c) const; //ab loops
+    SMatrix<T> MakeRepulsion(const bf_tuple& c) const; //ab loops
 };
 template <class T, size_t K> class IE_RKBL 
     : public IE_Overlap<T,K>
@@ -160,7 +160,7 @@ template <size_t K> class IE_Fit
     IE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
 
     virtual Vec  MakeCharge() const;
-    virtual SMat MakeRepulsion() const;
+    virtual SMatrix<double> MakeRepulsion() const;
     virtual  Mat MakeRepulsion(const Fit_IBS&) const;
 private:
     // Derived classes must provide the actual integral calculations.

@@ -99,7 +99,7 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     //  Now the orbitals are accupied we can build the density matrix.
     //
     Fill(itsD,T(0.0));
-    SMat DPrime(itsD.GetLimits());
+    SMatrix<T> DPrime(itsD.GetLimits());
     Fill(DPrime,T(0.0));
     for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,DPrime);
     return std::make_tuple(ne,DPrime);

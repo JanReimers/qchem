@@ -11,16 +11,16 @@ import qchem.Symmetry.Spin;
 //
 DM_CD::SMat Polarized_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs) const
 {
-    SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
-    SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
+    SMatrix<double> Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
+    SMatrix<double> Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
 DM_CD::SMat Polarized_CD::GetExchange(const TOrbital_HF_IBS<double>* bs) const
 {
     // No UT coverage
-    SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
-    SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
+    SMatrix<double> Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
+    SMatrix<double> Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
     return Kab_up + Kab_down;
 }
 

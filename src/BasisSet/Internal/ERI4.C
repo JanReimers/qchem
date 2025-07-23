@@ -46,8 +46,8 @@ public:
     typedef SMatrix<double> SMat;
     ERI4() : Base() {};
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
-    friend SMat MatMul(const ERI4& gabcd,const SMat& Scd);
-    friend SMat MatMul(const SMat& Sab, const ERI4& gabcd);
+    friend SMatrix<double> MatMul(const ERI4& gabcd,const SMat& Scd);
+    friend SMatrix<double> MatMul(const SMat& Sab, const ERI4& gabcd);
 private:
     static double contract(const SMat& A,const SMat& B);
 };

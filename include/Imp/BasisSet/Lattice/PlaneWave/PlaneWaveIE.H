@@ -29,10 +29,10 @@ public:
     virtual RVec MakeNormalization() const;
     virtual RVec MakeCharge       () const;
     
-    virtual  SMat MakeOverlap  (                 ) const;
-    virtual  SMat MakeGrad2  (                 ) const;
-    virtual  SMat MakeNuclear  (const Cluster&   ) const;
-    virtual  SMat MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
+    virtual  SMatrix<T> MakeOverlap  (                 ) const;
+    virtual  SMatrix<T> MakeGrad2  (                 ) const;
+    virtual  SMatrix<T> MakeNuclear  (const Cluster&   ) const;
+    virtual  SMatrix<T> MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const; //Used for charge and Vxc fitting.
 
     virtual ERI3 MakeOverlap3C  (const AnalyticIE*) const; //Used for DFT

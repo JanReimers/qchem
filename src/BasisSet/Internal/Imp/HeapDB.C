@@ -75,7 +75,7 @@ using std::setw;
 // }
 //---------------------------------------------------------------------------------
 
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap <T>::Overlap() const
+template <class T> const SMatrix<T>& DB_Overlap <T>::Overlap() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -85,7 +85,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Overlap <T>::Overlap(
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic <T>::Kinetic() const
+template <class T> const SMatrix<T>& DB_Kinetic <T>::Kinetic() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -95,7 +95,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Kinetic <T>::Kinetic(
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(const Cluster* cl) const
+template <class T> const SMatrix<T>& DB_Nuclear <T>::Nuclear(const Cluster* cl) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -107,7 +107,7 @@ template <class T> typename Integrals_Base<T>::SMat_ref DB_Nuclear <T>::Nuclear(
 }
 
 
-template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> const Matrix<T>& DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -117,7 +117,7 @@ template <class T> typename Integrals_Base<T>:: Mat_ref DB_XKinetic<T>::Kinetic(
     else
         return i->second;
 }
-template <class T> typename Integrals_Base<T>::SMat_ref DB_RestMass<T>::RestMass() const
+template <class T> const SMatrix<T>& DB_RestMass<T>::RestMass() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -231,7 +231,7 @@ template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
-DB_Fit:: Vec_ref DB_Fit::Charge   () const
+const Vector<double>& DB_Fit::Charge   () const
 {
     assert(itsCache);
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
@@ -240,7 +240,7 @@ DB_Fit:: Vec_ref DB_Fit::Charge   () const
     else
         return i->second;
 }
-DB_Fit::SMat_ref DB_Fit::Repulsion() const
+const SMatrix<double>& DB_Fit::Repulsion() const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::Repulsion2C,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
@@ -248,7 +248,7 @@ DB_Fit::SMat_ref DB_Fit::Repulsion() const
     else
         return i->second;
 }
-DB_Fit:: Mat_ref DB_Fit::Repulsion(const Fit_IBS& b) const
+const Matrix<double>& DB_Fit::Repulsion(const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
     if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
@@ -256,7 +256,7 @@ DB_Fit:: Mat_ref DB_Fit::Repulsion(const Fit_IBS& b) const
     else
         return i->second;
 }
-DB_Fit::SMat_ref DB_Fit::InvOverlap  (const LAParams& lap) const
+const SMatrix<double>& DB_Fit::InvOverlap  (const LAParams& lap) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
@@ -264,7 +264,7 @@ DB_Fit::SMat_ref DB_Fit::InvOverlap  (const LAParams& lap) const
     else
         return i->second;
 }
-DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
+const SMatrix<double>& DB_Fit::InvRepulsion(const LAParams& lap) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
@@ -272,7 +272,7 @@ DB_Fit::SMat_ref DB_Fit::InvRepulsion(const LAParams& lap) const
     else
         return i->second;
 }
-DB_Fit:: Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
+const Vector<double>& DB_Fit::Norm   (const Mesh* m        ) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
     if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
@@ -280,7 +280,7 @@ DB_Fit:: Vec_ref DB_Fit::Norm   (const Mesh* m        ) const
     else
         return i->second;
 }
-DB_Fit:: Vec_ref DB_Fit::Charge (const Mesh* m        ) const
+const Vector<double>& DB_Fit::Charge (const Mesh* m        ) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
     if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
@@ -289,7 +289,7 @@ DB_Fit:: Vec_ref DB_Fit::Charge (const Mesh* m        ) const
         return i->second;
 
 }
-DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
+const Matrix<double>& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
     if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
@@ -302,7 +302,7 @@ DB_Fit:: Mat_ref DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 DB_Fit::SMat DB_Fit::MakeInverse(const SMat& S,const LAParams& lap) 
 {
     LASolver<double>* las=LASolver<double>::Factory(lap);
-    SMat Sinv=las->Inverse(S);
+    SMatrix<double> Sinv=las->Inverse(S);
     delete las;
     return Sinv;
 }

@@ -31,9 +31,9 @@ protected:
     typedef Integrals_Base<double> Base;
     typedef Base::SMat SMat;
     
-    virtual SMat MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
+    virtual SMatrix<double> MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
 
-    SMat MakeIntegrals(qchem::IType2C,const Cluster*cl =0) const;
+    SMatrix<double> MakeIntegrals(qchem::IType2C,const Cluster*cl =0) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 
 };
@@ -50,8 +50,8 @@ class Orbital_IE
     typedef Integrals_DFT<double>::ERI3 ERI3;
     typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
-    virtual SMat MakeKinetic() const {return MakeIntegrals(qchem::Grad2);}
-    virtual SMat MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
+    virtual SMatrix<double> MakeKinetic() const {return MakeIntegrals(qchem::Grad2);}
+    virtual SMatrix<double> MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
     virtual ERI3 MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4 MakeDirect  (const obs_t& c) const;
@@ -65,7 +65,7 @@ protected:
         , DB_DFT<double>(db) 
         {};
         
-    SMat Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
+    SMatrix<double> Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
 
 };
 
@@ -79,9 +79,9 @@ class Fit_IE
     typedef Base::Mat Mat;
     typedef DB_Fit::Vec Vec;
 public:
-    virtual SMat MakeOverlap() const { return IE_Common::MakeOverlap(); } 
+    virtual SMatrix<double> MakeOverlap() const { return IE_Common::MakeOverlap(); } 
     virtual Vec  MakeCharge() const;
-    virtual SMat MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
+    virtual SMatrix<double> MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
     virtual Mat  MakeRepulsion(const Fit_IBS& b) const;
 protected:
     Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}

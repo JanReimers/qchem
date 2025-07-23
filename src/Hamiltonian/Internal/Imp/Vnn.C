@@ -22,7 +22,7 @@ Vnn::Vnn(const cl_t& cl)
 Static_HT::SMat Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
-    SMat ret(n,n);
+    SMatrix<double> ret(n,n);
     Fill(ret,0.0); //No contribution to Hamiltonian matrix here.
     return ret;
 }

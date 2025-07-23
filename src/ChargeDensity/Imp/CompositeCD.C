@@ -23,7 +23,7 @@ void Composite_CD::Insert(DM_CD* cd)
 DM_CD::SMat Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
-    SMat J(n,n);
+    SMatrix<double> J(n,n);
     Fill(J,0.0);
     for (auto& c:itsCDs) J+=c->GetRepulsion(bs_ab);
     return J;
@@ -32,7 +32,7 @@ DM_CD::SMat Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) con
 DM_CD::SMat Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
-    SMat K(n,n);
+    SMatrix<double> K(n,n);
     Fill(K,0.0);
     for (auto& c:itsCDs) K+=c->GetExchange(bs_ab);
     return K;

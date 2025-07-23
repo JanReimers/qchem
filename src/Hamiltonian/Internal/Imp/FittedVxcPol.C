@@ -58,7 +58,7 @@ Static_HT::SMat FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_
     const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
     const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
 
-    SMat Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
+    SMatrix<double> Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
     return Kab;
 }
 

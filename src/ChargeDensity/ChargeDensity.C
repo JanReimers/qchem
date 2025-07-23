@@ -52,8 +52,8 @@ public:
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
     typedef SMatrix<double> SMat;
-    virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const=0;
-    virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const=0;
+    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const=0;
+    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const=0;
 
 };
 
@@ -76,8 +76,8 @@ public:
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
-    virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
-    virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const; 
+    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
+    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const; 
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.

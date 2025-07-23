@@ -25,7 +25,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
 };
 
 class DiracKinetic
@@ -40,7 +40,7 @@ public:
     virtual bool          IsPolarized() const {return true;}
 
 private:
-    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
 };
 
 class RestMass
@@ -54,7 +54,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
 };
 
 class Vnn
@@ -72,7 +72,7 @@ public:
     virtual std::istream& Read (std::istream&)      ;
 
 private:
-    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
     cl_t theCluster;
 };
 
@@ -91,7 +91,7 @@ public:
     virtual std::ostream&   Write(std::ostream&) const;
    
 private:
-    virtual SMat CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
 
     cl_t theCluster;
 };
@@ -119,7 +119,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 };
 
 //###############################################################################
@@ -138,7 +138,7 @@ public:
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 };
 
 //###############################################################################
@@ -160,7 +160,7 @@ public:
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
 };
 
@@ -190,7 +190,7 @@ public:
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd      ) const;
     virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     FittedCD* itsFittedChargeDensity;
 };
@@ -225,7 +225,7 @@ public:
     
 
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
 };
@@ -256,7 +256,7 @@ public:
     virtual std::istream&   Read (std::istream&)      ;
 
 private:
-    virtual SMat CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     Dynamic_HT* itsUpVxc  ; //Spin up.
     Dynamic_HT* itsDownVxc; //Spin down.

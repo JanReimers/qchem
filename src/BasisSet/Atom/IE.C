@@ -55,7 +55,7 @@ template <class T> class AtomIE_Overlap
 {
 protected:
     using Primative_Overlap<T>::Overlap;
-    virtual typename Integrals_Base<T>::SMat MakeOverlap() const;
+    virtual SMatrix<T> MakeOverlap() const;
     AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
 };
 template <class T> class AtomIE_Kinetic
@@ -66,7 +66,7 @@ template <class T> class AtomIE_Kinetic
 protected:
     using Primative_Grad2 <T>::Grad2;
     using Primative_Inv_r2<T>::Inv_r2;
-    virtual typename Integrals_Base<T>::SMat MakeKinetic() const;
+    virtual SMatrix<T> MakeKinetic() const;
     AtomIE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
 };
 template <class T> class AtomIE_Nuclear
@@ -75,7 +75,7 @@ template <class T> class AtomIE_Nuclear
 {
 protected:
     using Primative_Inv_r1<T>::Inv_r1;
-    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster* cl) const;
+    virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
     AtomIE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
 };
 template <class T> class AtomIE_XKinetic
@@ -132,8 +132,8 @@ protected:
     virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const;
 private:
     typedef AtomIrrepIEClient::bf_tuple bf_tuple;
-    SMat MakeOverlap  (const bf_tuple& c) const; //ab loops
-    SMat MakeRepulsion(const bf_tuple& c) const; //ab loops
+    SMatrix<T> MakeOverlap  (const bf_tuple& c) const; //ab loops
+    SMatrix<T> MakeRepulsion(const bf_tuple& c) const; //ab loops
 };
 // DHF
 template <class T> class AtomIE_RKBL 
@@ -162,7 +162,7 @@ class AtomIE_Fit
     AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
 
     virtual Vec  MakeCharge() const;
-    virtual SMat MakeRepulsion() const;
+    virtual SMatrix<double> MakeRepulsion() const;
     virtual  Mat MakeRepulsion(const Fit_IBS&) const;
 private:
     // Derived classes must provide the actual integral calculations.

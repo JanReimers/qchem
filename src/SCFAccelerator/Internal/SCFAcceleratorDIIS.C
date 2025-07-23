@@ -22,14 +22,14 @@ class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
 public:
     typedef Matrix<double> Mat;
     typedef std::deque<Mat   > mv_t; //matrix-vector type.
-    typedef std::deque<SMat  > sv_t; //smatrix-vector type.
+    typedef std::deque< SMatrix<double>   > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
     
     SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver<double>*,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAcceleratorDIIS();
     
-    virtual void UseFD(const SMat& F, const SMat& DPrime);
-    virtual SMat Project(); 
+    virtual void UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime);
+    virtual SMatrix<double> Project(); 
 private:
     friend class SCFAcceleratorDIIS;
     size_t GetNproj() const {return itsEs.size();}
@@ -41,7 +41,7 @@ private:
     DIISParams itsParams; 
     Irrep_QNs  itsIrrep;
     // All of these are the the most recent values
-    SMat   itsFPrime,itsDPrime;    
+    SMatrix<double>   itsFPrime,itsDPrime;    
     Mat    itsE;
     double itsEn;  // [F',D']
     // Caches for F',E,En
@@ -81,7 +81,7 @@ private:
     struct md_t{SMat B;double sv;};
 
     md_t   BuildB() const;
-    SMat   BuildPrunedB(double svmin);
+    SMatrix<double>   BuildPrunedB(double svmin);
     size_t Append1();
     size_t Purge1();
     size_t GetNProj() const;

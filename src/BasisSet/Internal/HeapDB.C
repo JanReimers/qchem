@@ -55,36 +55,36 @@ export template <class T> class DB_Overlap  : public DB_Common<T>, public virtua
 {    
 protected:
     DB_Overlap(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::SMat_ref Overlap() const;
-    virtual typename Integrals_Base<T>::SMat MakeOverlap() const=0;
+    virtual const SMatrix<T>& Overlap() const;
+    virtual SMatrix<T> MakeOverlap() const=0;
 };
 export template <class T> class DB_Kinetic    : public DB_Common<T>, public virtual Integrals_Kinetic<T>
 {    
 protected:
     DB_Kinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::SMat_ref Kinetic() const;
-    virtual typename Integrals_Base<T>::SMat MakeKinetic() const=0;
+    virtual const SMatrix<T>& Kinetic() const;
+    virtual SMatrix<T> MakeKinetic() const=0;
 };
 export template <class T> class DB_Nuclear  : public DB_Common<T>, public virtual Integrals_Nuclear<T>
 {    
 protected:
     DB_Nuclear(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::SMat_ref Nuclear(const Cluster*) const;
-    virtual typename Integrals_Base<T>::SMat MakeNuclear(const Cluster*) const=0;
+    virtual const SMatrix<T>& Nuclear(const Cluster*) const;
+    virtual SMatrix<T> MakeNuclear(const Cluster*) const=0;
 };
 export template <class T> class DB_XKinetic   : public DB_Common<T>, public virtual Integrals_XKinetic<T>
 {    
 protected:
     DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::Mat_ref Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual const Matrix<T>& Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
     virtual typename Integrals_Base<T>::Mat MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 export template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
 {    
 protected:
     DB_RestMass(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual typename Integrals_Base<T>::SMat_ref RestMass() const;
-    virtual typename Integrals_Base<T>::SMat MakeRestMass() const=0;
+    virtual const SMatrix<T>& RestMass() const;
+    virtual SMatrix<T> MakeRestMass() const=0;
 };
 
 export template <class T> class DB_DFT 
@@ -108,27 +108,27 @@ protected:
     DB_Fit(const DB_cache<double>* db) : DB_Common<double>(db) {};
 
     using Integrals_Overlap<double>::Overlap; 
-    virtual Vec_ref  Charge   () const;   
-    virtual SMat_ref Repulsion() const;
-    virtual  Mat_ref Repulsion(const Fit_IBS&) const;
-    virtual SMat_ref InvOverlap(const LAParams&) const;
-    virtual SMat_ref InvRepulsion(const LAParams&) const;
-    virtual  Vec_ref Norm   (const Mesh*        ) const; //Numerical .
-    virtual  Vec_ref Charge (const Mesh*        ) const; //Numerical .
-    virtual  Mat_ref Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+    virtual const Vector<double>&  Charge   () const;   
+    virtual const SMatrix<double>& Repulsion() const;
+    virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const;
+    virtual const SMatrix<double>& InvOverlap(const LAParams&) const;
+    virtual const SMatrix<double>& InvRepulsion(const LAParams&) const;
+    virtual  const Vector<double>& Norm   (const Mesh*        ) const; //Numerical .
+    virtual  const Vector<double>& Charge (const Mesh*        ) const; //Numerical .
+    virtual  const  Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
 
 private:
     // One time calls to un-buffered integral calculations.
     using FitIntegrals::MakeCharge;
     virtual Vec  MakeCharge() const=0;
-    // virtual SMat MakeOverlap() const=0;
-    virtual SMat MakeRepulsion() const=0;
+    // virtual SMatrix<double> MakeOverlap() const=0;
+    virtual SMatrix<double> MakeRepulsion() const=0;
     virtual  Mat MakeRepulsion(const Fit_IBS&) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
-    static  SMat MakeInverse  (SMat_ref,const LAParams&); //Numerically stable algo required.
+    static  SMatrix<double> MakeInverse  (const SMatrix<double>&,const LAParams&); //Numerically stable algo required.
 
 };
 

@@ -26,8 +26,8 @@ public:
     IrrepCD();
     IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
 
-    virtual SMat   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
-    virtual SMat   GetExchange (const TOrbital_HF_IBS<double>*) const;
+    virtual SMatrix<T>   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
+    virtual SMatrix<T>   GetExchange (const TOrbital_HF_IBS<double>*) const;
     virtual RVec   GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double DM_Contract(const Static_CC*) const;
@@ -47,7 +47,7 @@ public:
 
 private:
     bool IsZero() const;
-    SMat ZeroM(size_t N) const;
+    SMatrix<T> ZeroM(size_t N) const;
     RVec ZeroV(size_t N) const;
 
     DenSMat                itsDensityMatrix;

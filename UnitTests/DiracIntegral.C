@@ -72,12 +72,12 @@ public:
 
     
     
-    static SMat merge_diag(const SMat& l,const SMat& s)
+    static SMatrix<double> merge_diag(const SMat& l,const SMat& s)
     {
         return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
     }
 
-    static SMat merge_off_diag(const Mat& l)
+    static SMatrix<double> merge_off_diag(const Mat& l)
     {
         return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
     }
@@ -115,7 +115,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
-        SMat Snum=merge_diag(SLnum,SSnum);
+        SMatrix<double> Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
@@ -135,7 +135,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
 //        cout << SLnum << SSnum << endl;
-        SMat Snum=merge_diag(SLnum,SSnum);
+        SMatrix<double> Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }
@@ -154,7 +154,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
-        SMat Vennum=merge_diag(VenLnum,VenSnum);
+        SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
@@ -174,7 +174,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
-        SMat Vennum=merge_diag(VenLnum,VenSnum);
+        SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -194,7 +194,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
         const TIrrepBasisSet<double>* l=GetLarge(oi);
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
-        SMat Knum=merge_off_diag(KnumL);
+        SMatrix<double> Knum=merge_off_diag(KnumL);
         // cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
     }
@@ -210,7 +210,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
         const TIrrepBasisSet<double>* l=GetLarge(oi);
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
-        SMat Knum=merge_off_diag(KnumL);
+        SMatrix<double> Knum=merge_off_diag(KnumL);
         //cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
         // EXPECT_NEAR(Max(fabs(K-K1)),0.0,1e-14);      
