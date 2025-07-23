@@ -87,21 +87,12 @@ public:
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 
 //
-export class Orbital_IBS
-    : public virtual IrrepBasisSet
-{
-    public:
-    virtual LASolver<double>* CreateSolver() const=0;
-    
-};
-
 export template <class T> class TOrbital_IBS
-    : public virtual Orbital_IBS
-    , public virtual TIrrepBasisSet<T>
+    : public virtual TIrrepBasisSet<T>
     , public virtual Integrals_Overlap<T> 
     , public virtual Integrals_Kinetic<T> 
     , public virtual Integrals_Nuclear<T> 
 {
 public:    
-    
+     virtual LASolver<T>* CreateSolver() const=0;
 };

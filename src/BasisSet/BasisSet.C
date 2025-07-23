@@ -24,7 +24,7 @@ export class BasisSet
     , public virtual Streamable
 {
 public:
-    typedef Orbital_IBS bs_t; 
+    typedef TOrbital_IBS<double> bs_t; 
     typedef std::vector<std::unique_ptr<bs_t>> bsv_t;
     typedef bsv_t::const_iterator const_iterator;
     typedef std::shared_ptr<const Symmetry> sym_t;
