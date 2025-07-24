@@ -7,7 +7,7 @@
 #include <iomanip>
 
 #include "PolarizedGaussian/MnD/Hermite2.H"
-#include "PolarizedGaussian/Polarization.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import Common.IntPow;
 

@@ -7,12 +7,13 @@ MnD/Imp/AuxillaryData.C
 MnD/Imp/AuxillaryFJ.C
 Internal/Imp/CDCache.C
 Internal/Imp/Block.C
+Internal/Imp/IEClient.C
+Internal/Imp/IntegralEngine.C
+Internal/Imp/Polarization.C
 MnD/Hermite2.C
 MnD/Hermite1.C
 MnD/RNLM.C
 Readers/Gaussian94.C
-IEClient.C
-IntegralEngine.C
 Radial/GaussianH3.C
 Radial/RadialFunctionImplementation.C
 Radial/ContractedGaussianH3.C
@@ -20,7 +21,6 @@ Radial/GaussianCD.C
 Radial/ContractedGaussianRF.C
 Radial/GaussianRF.C
 
-Polarization.C
 
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -28,5 +28,8 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     MnD/AuxillaryFJ.C
     Internal/CDCache.C
     Internal/Block.C
+    Internal/IEClient.C
+    Internal/IntegralEngine.C
+    Internal/Polarization.C
 )
  

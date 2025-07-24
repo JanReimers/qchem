@@ -5,9 +5,9 @@
 
 
 #include "Common.H"
-#include "../Polarization.H"
 #include <vector>
 #include <memory>
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import oml;
 

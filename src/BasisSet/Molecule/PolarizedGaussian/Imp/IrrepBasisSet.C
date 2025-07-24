@@ -9,12 +9,12 @@ module;
 #include <memory>
 
 
-#include "PolarizedGaussian/IntegralEngine.H"
 #include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 namespace PolarizedGaussian{class Reader;}
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Atom;

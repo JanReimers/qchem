@@ -2,6 +2,8 @@
 #ifndef _Hermite3_H_
 #define _Hermite3_H_
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+
 
 namespace PolarizedGaussian
 {
@@ -16,7 +18,6 @@ namespace PolarizedGaussian
 //  This is an interface base class for primative and contracted Hermite3 blocks.
 //
 
-class Polarization;
 
 class Hermite3
 {

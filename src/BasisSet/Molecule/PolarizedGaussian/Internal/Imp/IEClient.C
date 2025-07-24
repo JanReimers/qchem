@@ -1,7 +1,7 @@
 // File: PolarizedGaussian/IEClient.C
-
-#include "PolarizedGaussian/IEClient.H"
-
+module;
+#include <vector>
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 

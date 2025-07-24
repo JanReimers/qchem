@@ -2,10 +2,10 @@
 #ifndef _Hermite1_H_
 #define _Hermite1_H_
 
-#include "../Polarization.H"
 #include <iosfwd>
 
 #define LMAX 3
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients

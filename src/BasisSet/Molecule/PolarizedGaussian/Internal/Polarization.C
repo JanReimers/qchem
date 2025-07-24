@@ -1,13 +1,12 @@
-// File: Polarization.H  Structure describing just the polarization portion of a basis function.
-#ifndef _Polarization_H_
-#define _Polarization_H_
-
+// File: Polarization.C  Structure describing just the polarization portion of a basis function.
+module;
 #include <iosfwd>
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 import Common.IntPow;
-import oml;
+import oml.Vector3D;
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
     
 class Polarization
@@ -79,4 +78,3 @@ inline int   Polarization::GetSign    () const
 
 } //namespace PolarizedGaussian
 
-#endif // _Polarization_H_

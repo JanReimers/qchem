@@ -1,11 +1,12 @@
-// File: PolarizedGaussianIE.H  Integral Engine for Spherical gaussians.
-#ifndef _PolarizedGaussianIE_H_
-#define _PolarizedGaussianIE_H_
+// File: PolarizedGaussianIE.C  Integral Engine for polarized gaussians.
+module;
 
 #include <cmath>
 #include "RadialFunction.H"
-#include "Polarization.H"
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Integrals;
@@ -16,10 +17,8 @@ import qchem.DFT_IBS;
 import qchem.Irrep_BS;
 import oml;
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
-
-class IrrepIEClient;
 
 class IE_Common
     : public virtual Integrals_Overlap<double>
@@ -84,4 +83,3 @@ protected:
 
 } //namespace PolarizedGaussian
 
-#endif //_PolarizedGaussianIE_H_

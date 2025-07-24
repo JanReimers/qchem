@@ -1,10 +1,10 @@
 // File: Block.C  A block of basis functions with the same radial function.
 module;
-
+#include <iosfwd>
 #include "RadialFunction.H"
-#include "Polarization.H"
 #include <cassert>
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Streamable;
 
 export namespace PolarizedGaussian

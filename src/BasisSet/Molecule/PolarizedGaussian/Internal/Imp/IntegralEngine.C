@@ -1,14 +1,17 @@
 // File: IntegralEngine.C  Here is where all the integral get calculated.
-
+module;
 
 #include <cassert>
 #include <memory>
 #include <cmath>
-#include "PolarizedGaussian/IEClient.H"
-#include "PolarizedGaussian/IntegralEngine.H"
+#include "RadialFunction.H"
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
+import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
 import qchem.Irrep_BS;
 import qchem.BasisSet.Internal.ERI4;
+
 
 namespace PolarizedGaussian
 {

@@ -2,15 +2,14 @@
 module;
 #include <vector>
 #include <memory>
-#include "Polarization.H"
 #include "RadialFunction.H"
-#include "Polarization.H"
-#include "IntegralEngine.H"
-#include "IEClient.H"
 namespace PolarizedGaussian{class Reader;}
 export module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;

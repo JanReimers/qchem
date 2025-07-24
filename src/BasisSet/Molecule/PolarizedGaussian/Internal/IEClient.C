@@ -1,17 +1,20 @@
-// File: PolarizedGaussian/IEClient.H
-#ifndef _PolarizedGaussianIEClient_H_
-#define _PolarizedGaussianIEClient_H_
-
+// File: PolarizedGaussian/IEClient.C
+module;
 #include <vector>
-#include "Polarization.H"
-import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
-import oml;
-
 namespace PolarizedGaussian
 {
 
 class RadialFunction;
+}
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
+import qchem.BasisSet.Internal.IEClient;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import oml;
+
+export namespace PolarizedGaussian
+{
+
 
 
 struct IEData
@@ -39,6 +42,3 @@ struct IrrepIEClient
 };
     
 } //namespace PolarizedGaussian
-
-
-#endif // _PolarizedGaussianIEClient_H_

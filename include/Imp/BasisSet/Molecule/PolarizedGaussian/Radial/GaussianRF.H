@@ -5,7 +5,7 @@
 
 
 #include "Common.H"
-#include "../Polarization.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 namespace PolarizedGaussian
 {

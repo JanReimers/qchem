@@ -5,7 +5,6 @@
 #include <vector>
 #include <set>
 #include <map>
-#include "Polarization.H"
 
 import Common.UniqueID; 
 import qchem.Cluster;
@@ -13,6 +12,8 @@ import qchem.ScalarFunction;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+
 // import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
 class  Polarization;
@@ -62,7 +63,6 @@ public:
 
     virtual RadialFunction* Clone      (const RVec3&) const=0;
     virtual RadialFunction* Clone      (            ) const=0;
-    static  RadialFunction* Factory    (std::istream&    )        ;
 };
 
 } //namespace PolarizedGaussian

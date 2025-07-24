@@ -6,7 +6,7 @@
 #include <iosfwd>
 #include <cassert>
 
-#include "../Polarization.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import oml;
 import qchem.Types;
 //#define USE_CACHE

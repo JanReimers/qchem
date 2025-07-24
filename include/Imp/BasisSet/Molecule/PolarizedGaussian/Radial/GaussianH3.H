@@ -4,9 +4,9 @@
 
 
 #include "../MnD/Hermite3.H"
-#include "../Polarization.H"
 #include <iosfwd>
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 import oml;
 

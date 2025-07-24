@@ -1,8 +1,7 @@
 // File: Polarization.C  Structure describing just the polarization portion of a basis function.
-
-
-
-#include "PolarizedGaussian/Polarization.H"
+module;
+#include <iostream>
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 namespace PolarizedGaussian
 {

@@ -3,11 +3,11 @@ module;
 #include <memory>
 #include <cmath>
 #include <cassert>
-#include "IEClient.H"
 
 namespace PolarizedGaussian{class Reader;}
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.Cluster;
 
 namespace PolarizedGaussian
