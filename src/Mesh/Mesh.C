@@ -15,7 +15,7 @@ public:
     virtual Mesh*   Clone      () const;
     
     typedef std::tuple<RVec3,double> rw_t;
-    typedef std::vector<rw_t>         vec_t;
+    typedef std::vector<rw_t>        vec_t;
     typedef vec_t::const_iterator const_iterator;
     virtual const_iterator begin() const {return itsRWs.begin();}
     virtual const_iterator end  () const {return itsRWs.end  ();}
@@ -73,9 +73,10 @@ export struct MeshParams
 
 
 
-void Mesh::ShiftOrigin(const RVec3& r)
+void Mesh::ShiftOrigin(const RVec3& origin)
 {
-    for (auto& rw:itsRWs) std::get<0>(rw)+=r;
+    for (auto&[r,w]:itsRWs) r+=origin; //g++ 15.1 thinks r in const?!? 
+    // for (vec_t::iterator rw=itsRWs.begin();rw!=itsRWs.end();rw++) std::get<0>(*rw)+=origin; //gcc-15-1 accepts this.
 }
 
 Mesh*   Mesh::Clone      () const
