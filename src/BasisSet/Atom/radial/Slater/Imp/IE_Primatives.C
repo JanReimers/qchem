@@ -2,9 +2,9 @@
 module;
 #include <cmath>
 #include <cassert>
-module qchem.BasisSet.Atom.radial.Slater.IE_Primatives;
-import qchem.BasisSet.Atom.radial.Slater.Rk;
-import qchem.BasisSet.Atom.radial.Slater.Integrals;
+module qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import Common.Constants;
 
 namespace Slater

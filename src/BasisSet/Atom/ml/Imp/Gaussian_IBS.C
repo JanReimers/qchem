@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include <vector>
 module qchem.BasisSet.Atom.Internal.ml.GaussianBS;
-import qchem.BasisSet.Atom.radial.GaussianBS;
+import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.Symmetry.Ylm;
 
 namespace Atom_ml

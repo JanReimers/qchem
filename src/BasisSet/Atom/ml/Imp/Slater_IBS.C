@@ -8,7 +8,7 @@ module;
 module qchem.BasisSet.Atom.Internal.ml.SlaterBS;
 import qchem.Symmetry.Ylm;
 import qchem.Streamable;
-import qchem.BasisSet.Atom.radial.Slater.Integrals;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 
 namespace Atom_ml
 {

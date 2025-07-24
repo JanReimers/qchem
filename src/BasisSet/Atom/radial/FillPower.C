@@ -1,7 +1,7 @@
 // File: BasisSet/Atom/radial/FillPower.C  power series to create tempered basis set exponents.
 module;
 #include <cmath>
-export module qchem.BasisSet.Atom.radial.FillPower;
+export module qchem.BasisSet.Atom.Internal.radial.FillPower;
 export import oml.Vector;
 
 export template <class T> void FillPower(Vector<T>& arr,T start, T stop)

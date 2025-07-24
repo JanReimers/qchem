@@ -1,7 +1,7 @@
 // File: Gaussian/ExponentScaler.C  Rescale Gaussian exponents based in angular momentum L.
 module;
-module qchem.BasisSet.Atom.radial.Gaussian.ExponentScaler; 
-import qchem.BasisSet.Atom.radial.FillPower;
+module qchem.BasisSet.Atom.Internal.radial.Gaussian.ExponentScaler; 
+import qchem.BasisSet.Atom.Internal.radial.FillPower;
 
 namespace Gaussian
 {

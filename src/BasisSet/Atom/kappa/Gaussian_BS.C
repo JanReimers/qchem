@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import qchem.BasisSet.Atom.radial.IE_Primatives;
+import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IBS_Common;

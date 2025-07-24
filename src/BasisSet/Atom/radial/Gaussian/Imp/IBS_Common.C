@@ -4,8 +4,8 @@ module;
 #include <iomanip>
 #include <iosfwd>
 #include <vector>
-module qchem.BasisSet.Atom.radial.GaussianBS;
-import qchem.BasisSet.Atom.radial.GaussianIntegrals;
+module qchem.BasisSet.Atom.Internal.radial.GaussianBS;
+import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
 import qchem.BasisFunction;
 import qchem.Symmetry;
 import oml;

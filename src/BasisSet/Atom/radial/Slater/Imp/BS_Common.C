@@ -3,8 +3,8 @@ module;
 #include <vector>
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.Atom.radial.SlaterBS;
-import qchem.BasisSet.Atom.radial.Slater.Rk;
+module qchem.BasisSet.Atom.Internal.radial.SlaterBS;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
 import qchem.Irrep_BS;
 import qchem.BasisSet.Internal.IEClient;
 import oml;

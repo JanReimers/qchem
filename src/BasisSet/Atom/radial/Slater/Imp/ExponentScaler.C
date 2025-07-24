@@ -1,8 +1,8 @@
 // File: ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
 module;
 #include <cmath>
-module qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
-import qchem.BasisSet.Atom.radial.FillPower;
+module qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.Internal.radial.FillPower;
 
 namespace Slater
 {

@@ -3,8 +3,8 @@ module;
 #include <vector>
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.Atom.radial.GaussianBS;
-import qchem.BasisSet.Atom.radial.GaussianRk;
+module qchem.BasisSet.Atom.Internal.radial.GaussianBS;
+import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
 import qchem.Irrep_BS;
 import qchem.BasisSet.Internal.IEClient;
 import oml;

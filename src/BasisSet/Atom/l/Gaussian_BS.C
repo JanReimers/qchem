@@ -4,8 +4,8 @@ module;
 #include <vector>
 
 export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
-import qchem.BasisSet.Atom.radial.IE_Primatives;
-import qchem.BasisSet.Atom.radial.GaussianBS;
+import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
+import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Atom.IE;

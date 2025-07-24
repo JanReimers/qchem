@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include <cmath>
-export module qchem.BasisSet.Atom.radial.Slater.Integrals;
+export module qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import Common.Constants;
 import Common.Factorials;
 import Common.IntPow;

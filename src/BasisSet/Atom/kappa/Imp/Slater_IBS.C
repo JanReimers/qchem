@@ -6,8 +6,8 @@ module;
 #include <cmath>
 #include <memory>
 module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
-import qchem.BasisSet.Atom.radial.Slater.Integrals;
+import qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
 import qchem.DHF_IBS;

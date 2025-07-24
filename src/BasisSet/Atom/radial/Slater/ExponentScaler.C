@@ -1,6 +1,6 @@
 // File: ExponentScaler.H  Rescale Slater exponents based in angular momentum L.
 module;
-export module qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
+export module qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
 export import oml.Vector;
 export import qchem.Types;
 

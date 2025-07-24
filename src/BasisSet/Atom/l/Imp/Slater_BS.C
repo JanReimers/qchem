@@ -3,8 +3,8 @@ module;
 #include <vector>
 #include <memory>
 module qchem.BasisSet.Atom.Internal.l.SlaterBS;
-import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
-import qchem.BasisSet.Atom.radial.Slater.Rk;
+import qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
 
 namespace Atoml
 {

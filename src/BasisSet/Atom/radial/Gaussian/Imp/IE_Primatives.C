@@ -2,10 +2,10 @@
 module;
 #include <cassert>
 #include <algorithm> //min/max
-module qchem.BasisSet.Atom.radial.IE_Primatives;
+module qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
 import Common.Constants;
-import qchem.BasisSet.Atom.radial.GaussianIntegrals;
-import qchem.BasisSet.Atom.radial.GaussianRk;
+import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
+import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
 namespace Gaussian
 {
 

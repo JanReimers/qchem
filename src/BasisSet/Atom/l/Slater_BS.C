@@ -4,8 +4,8 @@ module;
 #include <vector>
 
 export module qchem.BasisSet.Atom.Internal.l.SlaterBS;
-import qchem.BasisSet.Atom.radial.SlaterBS;
-import qchem.BasisSet.Atom.radial.Slater.IE_Primatives;
+import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
+import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IBS_Common;

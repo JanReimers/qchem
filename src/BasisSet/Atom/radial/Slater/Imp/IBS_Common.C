@@ -3,8 +3,8 @@ module;
 #include <iostream>
 #include <cmath>
 #include <vector>
-module qchem.BasisSet.Atom.radial.SlaterBS;
-import qchem.BasisSet.Atom.radial.Slater.Integrals;
+module qchem.BasisSet.Atom.Internal.radial.SlaterBS;
+import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import qchem.BasisFunction;
 import qchem.Symmetry;
 import oml;
