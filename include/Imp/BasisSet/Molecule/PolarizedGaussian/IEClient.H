@@ -5,12 +5,12 @@
 #include <vector>
 #include "Polarization.H"
 import qchem.BasisSet.Internal.IEClient;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import oml;
 
 namespace PolarizedGaussian
 {
 
-class Block;
 class RadialFunction;
 
 

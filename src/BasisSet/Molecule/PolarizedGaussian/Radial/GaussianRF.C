@@ -12,8 +12,9 @@
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/Radial/GaussianCD.H"
 #include "PolarizedGaussian/Radial/GaussianH3.H"
-#include "PolarizedGaussian/CDCache.H"
-#include "PolarizedGaussian/Block.H"
+
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
 import Common.Constants;
 import qchem.Cluster;
@@ -329,7 +330,7 @@ double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc
 
             double r=rnlm(abNLM + cdNLM);
             if(r!=0)
-                s+=hab*hcd*r*cdNLM.GetSign();;
+                s+=hab*hcd*r*cdNLM.GetSign();
         } //cdNLM
     } //abNLM
     s=s*lambda;

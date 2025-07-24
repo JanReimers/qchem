@@ -4,8 +4,9 @@
 
 #include <cmath>
 #include "RadialFunction.H"
-#include "CDCache.H"
 #include "Polarization.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Internal.ERI4;

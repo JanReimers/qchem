@@ -1,20 +1,21 @@
-// File: CDCache.H
-#ifndef _CDCache_H_
-#define _CDCache_H_
-
+// File: CDCache.C
+module;
 #include <tuple>
 #include <map>
 #include <iosfwd>
-
-import Common.UniqueID; 
-
 namespace PolarizedGaussian
 {
     
 class GaussianCD;
 class GaussianRF;
 class RNLM;
+}
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import Common.UniqueID; 
 
+export namespace PolarizedGaussian
+{
+    
 class CDCache
 {
 public:
@@ -45,4 +46,3 @@ private:
 
 } //namespace PolarizedGaussian
 
-#endif // _CDCache_H_

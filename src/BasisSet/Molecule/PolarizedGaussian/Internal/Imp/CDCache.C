@@ -1,10 +1,10 @@
-// File: CDCache.H
-
+// File: CDCache.C
+module;
 #include <iomanip>
-#include "PolarizedGaussian/CDCache.H"
 #include "PolarizedGaussian/Radial/GaussianCD.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/MnD/RNLM.H"
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 
 namespace PolarizedGaussian
 {

@@ -1,9 +1,9 @@
 // File: PolarizedGaussian/IEClient.C
 
 #include "PolarizedGaussian/IEClient.H"
-#include "PolarizedGaussian/CDCache.H"
-#include "PolarizedGaussian/Block.H"
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
 namespace PolarizedGaussian
 {

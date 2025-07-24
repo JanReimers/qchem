@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
-import qchem.BasisSet.Atom.Internal.AngularIntegrals;;
+import qchem.BasisSet.Atom.Internal.AngularIntegrals;
 
 export namespace Atoml
 {

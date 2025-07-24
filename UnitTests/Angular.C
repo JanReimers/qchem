@@ -2,7 +2,7 @@
 
 #include "gtest/gtest.h"
 #include <iostream>
-import qchem.BasisSet.Atom.Internal.AngularIntegrals;;
+import qchem.BasisSet.Atom.Internal.AngularIntegrals;
 
 using std::cout;
 using std::endl;

@@ -1,13 +1,13 @@
-// File: Block.H  A block of basis functions with the same radial function.
-#ifndef _Block_H_
-#define _Block_H_
+// File: Block.C  A block of basis functions with the same radial function.
+module;
 
 #include "RadialFunction.H"
 #include "Polarization.H"
 #include <cassert>
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.Streamable;
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
 
 //-----------------------------------------------------------------------
@@ -45,4 +45,3 @@ public:
 
 } //namespace PolarizedGaussian
 
-#endif //_Block_H_

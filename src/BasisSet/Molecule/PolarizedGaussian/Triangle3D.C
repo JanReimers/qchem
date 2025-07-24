@@ -52,7 +52,7 @@ void Triangle3D::Check(int i,int j,int k) const
     {
         std::cerr << "Negative indecies (" << i << "," << j << "," << k
                   << ") are not allowed in Triangle data structures"
-                  << std::endl << "MaxSum = " << N << std::endl;;
+                  << std::endl << "MaxSum = " << N << std::endl;
         assert(false);
         exit(-1);
     }

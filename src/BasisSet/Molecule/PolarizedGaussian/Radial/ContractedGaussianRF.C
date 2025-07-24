@@ -3,13 +3,13 @@
 
 #include <iostream>
 #include <iomanip>
-
+#include <cassert>
 #include "PolarizedGaussian/Radial/ContractedGaussianH3.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
-#include "PolarizedGaussian/Block.H"
 #include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
 import qchem.stl_io;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
 namespace PolarizedGaussian
 {

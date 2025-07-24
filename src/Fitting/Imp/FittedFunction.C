@@ -58,7 +58,7 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
     SMatrix<T> Sinv=itsBasisSet->InvOverlap(itsLAParams);
-    itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
+    itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
     return 0;
 }
 

@@ -12,6 +12,8 @@ import qchem.Cluster;
 import qchem.ScalarFunction;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+// import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
 class  Polarization;
 
@@ -21,8 +23,6 @@ namespace PolarizedGaussian
 class  Hermite1;
 class  Hermite3;
 class  RNLM;
-class  CDCache;
-class  Block;
 
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and

@@ -88,7 +88,7 @@ void Triangle2D::Check(size_t row,size_t j) const
     {
         std::cerr << "Illegal indices (" << row << "," << j 
                   << ") are not allowed in Triangle data structures"
-                  << std::endl << "N = " << N << std::endl;;
+                  << std::endl << "N = " << N << std::endl;
         assert(false);
         exit(-1);
     }   
@@ -96,7 +96,7 @@ void Triangle2D::Check(size_t row,size_t j) const
     {
         std::cerr << "j >row indices (" << row << "," << j 
                   << ") are not allowed in Triangle data structures"
-                  << std::endl << "N = " << N << std::endl;;
+                  << std::endl << "N = " << N << std::endl;
         assert(false);
         exit(-1);
     }
