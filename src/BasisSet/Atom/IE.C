@@ -122,12 +122,11 @@ template <class T> class AtomIE_DFT
 , public virtual Primative_Repulsion<T>
 , public DB_DFT<T>
 {
-    typedef typename Integrals_DFT<T>::ERI3 ERI3;
 protected:
     AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
     
-    virtual ERI3 MakeOverlap3C  (const Fit_IBS& c) const;
-    virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const;
+    virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const;
+    virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const;
 private:
     typedef AtomIrrepIEClient::bf_tuple bf_tuple;
     SMatrix<T> MakeOverlap  (const bf_tuple& c) const; //ab loops

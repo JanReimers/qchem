@@ -7,17 +7,17 @@ module;
 module qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
 
-template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeOverlap3C  (const Fit_IBS& _c) const
+template <class T> ERI3<T> AtomIE_DFT<T>::MakeOverlap3C  (const Fit_IBS& _c) const
 {
     auto& c=AtomIrrepIEClient::dcast(_c);
-    ERI3 s3;
+    ERI3<T> s3;
     for (auto i:c.indices()) s3.push_back(MakeOverlap(c(i)));
     return s3;
 }
-template <class T> typename AtomIE_DFT<T>::ERI3 AtomIE_DFT<T>::MakeRepulsion3C(const Fit_IBS& _c) const
+template <class T> ERI3<T> AtomIE_DFT<T>::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     auto& c=AtomIrrepIEClient::dcast(_c);
-    ERI3 s3;
+    ERI3<T> s3;
     for (auto i:c.indices()) s3.push_back(MakeRepulsion(c(i)));
     return s3;
 }

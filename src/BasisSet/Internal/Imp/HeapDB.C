@@ -129,7 +129,7 @@ template <class T> const SMatrix<T>& DB_RestMass<T>::RestMass() const
 }
 
 
-template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const Fit_IBS& c) const
+template <class T> const ERI3<T>& DB_DFT<T>::Overlap3C(const Fit_IBS& c) const
 { 
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
@@ -141,7 +141,7 @@ template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Overlap3C(const Fi
     else
         return i->second;
 }
-template <class T> const typename DB_DFT<T>::ERI3& DB_DFT<T>::Repulsion3C(const Fit_IBS& c) const
+template <class T> const ERI3<T>& DB_DFT<T>::Repulsion3C(const Fit_IBS& c) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);

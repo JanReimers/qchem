@@ -56,17 +56,17 @@ template <class T,size_t K> SMatrix<T> IE_Inv_r1<T,K>::MakeNuclear(const Cluster
 
     return H;
 }
-template <class T,size_t K> typename IE_DFT<T,K>::ERI3 IE_DFT<T,K>::MakeOverlap3C  (const Fit_IBS& _c) const
+template <class T,size_t K> ERI3<T> IE_DFT<T,K>::MakeOverlap3C  (const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
-    ERI3 s3;
+    ERI3<T> s3;
     for (auto i:c.indices()) s3.push_back(MakeOverlap(c.tuple(i)));
     return s3;
 }
-template <class T,size_t K> typename IE_DFT<T,K>::ERI3 IE_DFT<T,K>::MakeRepulsion3C(const Fit_IBS& _c) const
+template <class T,size_t K> ERI3<T> IE_DFT<T,K>::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     const IrrepIEClient<K>& c=dynamic_cast<const IrrepIEClient<K>&>(_c);
-    ERI3 s3;
+    ERI3<T> s3;
     for (auto i:c.indices()) s3.push_back(MakeRepulsion(c.tuple(i)));
     return s3;
 }

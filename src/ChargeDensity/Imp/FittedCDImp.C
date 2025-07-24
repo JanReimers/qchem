@@ -29,7 +29,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 template <class T> SMatrix<T> FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
 {
     assert(bs);
-    const Integrals_DFT<double>::ERI3& repulsions=bs->Repulsion3C(*itsBasisSet);
+    const ERI3<T>& repulsions=bs->Repulsion3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMatrix<T> J(n,n);
     Fill(J,0.0);

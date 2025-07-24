@@ -26,7 +26,6 @@ export template  <class T> class DB_cache
     typedef SMatrix<T> SMat;    
     typedef Matrix<T> Mat;    
     typedef Vector<T> Vec;    
-    typedef typename Integrals_DFT<T>::ERI3 ERI3;    
 public:
     typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
@@ -36,7 +35,7 @@ public:
     mutable std::map<id2c_t ,SMat> itsSMats; 
     mutable std::map< idx_t , Mat> itsMats; 
     mutable std::map<id2c_t , Vec> itsVecs; 
-    mutable std::map<id3c_t ,ERI3> itsERI3s; 
+    mutable std::map<id3c_t ,ERI3<T>> itsERI3s; 
     mutable erij_t Jac,Kab;
 };
  
@@ -89,13 +88,12 @@ export template <class T> class DB_DFT
     : virtual public Integrals_DFT<T>
     , public DB_Common<T>
 {
-    typedef typename Integrals_DFT<T>::ERI3 ERI3;
 protected:
     DB_DFT(const DB_cache<T>* db) : DB_Common<T>(db) {}
-    virtual const ERI3& Overlap3C  (const Fit_IBS& c) const; //<ab|c>
-    virtual const ERI3& Repulsion3C(const Fit_IBS& c) const; //<a(1)b(1)|1/r12|c(2)>
-    virtual ERI3 MakeOverlap3C  (const Fit_IBS& c) const=0;
-    virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const=0;
+    virtual const ERI3<T>& Overlap3C  (const Fit_IBS& c) const; //<ab|c>
+    virtual const ERI3<T>& Repulsion3C(const Fit_IBS& c) const; //<a(1)b(1)|1/r12|c(2)>
+    virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const=0;
+    virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const=0;
 };
 
 export class DB_Fit 

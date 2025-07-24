@@ -88,7 +88,7 @@ FitGet2CenterRepulsion(const Fit_IBS* bs) const
 template <class T> SMatrix<T> FittedFunctionImp<T>::
 FitGet3CenterOverlap(const TOrbital_DFT_IBS<double>* bs) const
 {
-    const Integrals_DFT<double>::ERI3& O3=bs->Overlap3C(*itsBasisSet);
+    const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
     SMatrix<T> J(n,n);
     Fill(J,0.0);

@@ -10,6 +10,7 @@ import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Fit_IBS;
+import qchem.DFT_IBS;
 
 import qchem.Irrep_BS;
 import oml;
@@ -43,13 +44,12 @@ class Orbital_IE
 , public DB_2E<double>
 , public DB_DFT<double>
 {
-    typedef Integrals_DFT<double>::ERI3 ERI3;
     typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
     virtual SMatrix<double> MakeKinetic() const {return MakeIntegrals(qchem::Grad2);}
     virtual SMatrix<double> MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
-    virtual ERI3 MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
-    virtual ERI3 MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
+    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4 MakeDirect  (const obs_t& c) const;
     virtual ERI4 MakeExchange(const obs_t& b) const;
 protected:

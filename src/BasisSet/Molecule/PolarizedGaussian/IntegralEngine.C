@@ -59,11 +59,11 @@ SMatrix<double> IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) c
     return s;
 }
 
-Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
+ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
-    ERI3 s3;
+    ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
         SMatrix<double> s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
@@ -72,11 +72,11 @@ Orbital_IE::ERI3 Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
     } 
     return s3;   
 }
-Orbital_IE::ERI3 Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
+ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const IrrepIEClient*>(&_c);
     int Nc=c->size();
-    ERI3 s3;
+    ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
         SMatrix<double> s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
