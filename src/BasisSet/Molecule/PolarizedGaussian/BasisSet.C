@@ -1,81 +1,122 @@
 // File PolarizedGaussian/BasisSet.C
-
+module;
+#include <vector>
 #include <memory>
-#include <cmath>
-#include "PolarizedGaussian/BasisSet.H"
-#include "PolarizedGaussian/IrrepBasisSet.H"
+#include "Polarization.H"
+#include "RadialFunction.H"
+#include "CDCache.H"
+#include "Polarization.H"
+#include "IntegralEngine.H"
+#include "IEClient.H"
+#include "Block.H"
+namespace PolarizedGaussian{class Reader;}
+export module qchem.BasisSet.Molecule.PolarizedGaussian;
+
+import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.IEClient;
+import qchem.BasisSet.Internal.Common;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.IBS_Common;
 import qchem.Cluster;
+import qchem.Types;
+import qchem.DFT_IBS;
+import qchem.HF_IBS;
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
 
-
-BasisSet::BasisSet( Reader* reader, const Cluster* cl)
+class BasisFunction : public Real_BF
 {
-    Insert(new Orbital_IBS(this,reader,cl));
-}
+public:
+    BasisFunction(                                          );
+    BasisFunction(const RadialFunction*, const Polarization&, double norm);
 
-void BasisSet::Insert(bs_t* bs)
-{
-    BS_Common::Insert(bs);
-    auto iec=dynamic_cast<const IrrepIEClient*>(bs);
-    assert(iec);
-    Append(iec);
-}
+    virtual bool   operator==(const ::Real_BF&) const;
+ 
+    virtual std::ostream&       Write(std::ostream&   ) const;
+    virtual std::istream&       Read (std::istream&   )      ;
+    virtual BasisFunction* Clone(           ) const;
 
-ERI4 BasisSet::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
-{
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
-    const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(_c);
-    assert(a);
-    assert(c);
-    size_t Na=a->size(), Nc=c->size();
-    ERI4 J(Na,Nc);
+    virtual double operator()(const RVec3&) const;
+    virtual RVec3  Gradient  (const RVec3&) const;
+
+private:
+    void Insert  (const RadialFunction* theRF,const Polarization& thePol);
+
+    const RadialFunction*  itsRadial;
+    Polarization           itsPol;
+    double                 itsNormalization;
+};
+class IrrepBasisSet
+        : public virtual ::IrrepBasisSet,
+          public IBS_Common,
+          public IrrepIEClient
+    {
+    public:
+        typedef std::vector<std::unique_ptr<Block>> bv_t;
     
-    for (size_t ia:a->ns.indices())
-        for (size_t ib:a->ns.indices(ia))
-        {
-            SMatrix<double>& Jab=J(ia,ib);
-            for (size_t ic:c->ns.indices())
-                for (size_t id:c->ns.indices(ic))
-                {
-                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                        assert(c->radials[id-1]);
-                        Jab(ic,id)=norm * c->radials[id-1]->Integrate(a->radials[ia-1],a->radials[ib-1],c->radials[ic-1],a->pols[ia-1],a->pols[ib-1],c->pols[ic-1],c->pols[id-1],cache);
-                }
-        }
-    return J;
-}
+        IrrepBasisSet(Reader *, const Cluster *);
+        IrrepBasisSet(const RVec &exponents, size_t L, const Cluster *);
+        IrrepBasisSet(const RVec &exponents, size_t L);
 
-ERI4 BasisSet::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
+        virtual std::ostream &Write(std::ostream &) const;
+
+    private:
+        
+        IrrepBasisSet(const IrrepBasisSet *bs, const bv_t&);
+        void MakeBasisFunctions(const RVec &norms);
+
+        bv_t itsBlocks;
+    };
+class Orbital_IBS
+    : public virtual TOrbital_HF_IBS<double>,
+        public virtual TOrbital_DFT_IBS<double>,
+        public IrrepBasisSet,
+        public Orbital_IBS_Common<double>,
+        public Orbital_DFT_IBS_Common<double>,
+        public Orbital_HF_IBS_Common<double>,
+        public Orbital_IE
+
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
-    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(_b);
-    assert(a);
-    assert(b);
-    size_t Na=a->size(), Nb=b->size();
-    ERI4 K(Na,Nb);
-    for (size_t ia:a->ns.indices())
-        for (size_t ib:b->ns.indices())
-           
-            for (size_t ic:a->ns.indices(ia))
-            {
-                SMatrix<double>& Kac=K(ia,ic);
-                for (size_t id:b->ns.indices())
-                {
-                  //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                    double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
-                    assert(b->radials[id-1]);
-                    if (ib==id)
-                        Kac(ib,id)=norm * b->radials[id-1]->Integrate(a->radials[ia-1],b->radials[ib-1],a->radials[ic-1],a->pols[ia-1],b->pols[ib-1],a->pols[ic-1],b->pols[id-1],cache);
-                    else if (ib<id)
-                        Kac(ib,id)+=0.5*norm * b->radials[id-1]->Integrate(a->radials[ia-1],b->radials[ib-1],a->radials[ic-1],a->pols[ia-1],b->pols[ib-1],a->pols[ic-1],b->pols[id-1],cache);
-                    else 
-                        Kac(id,ib)+=0.5*norm * b->radials[id-1]->Integrate(a->radials[ia-1],b->radials[ib-1],a->radials[ic-1],a->pols[ia-1],b->pols[ib-1],a->pols[ic-1],b->pols[id-1],cache);
-                }        
-            }
-    return K;
-}
+    typedef DB_BS_2E<double> db_t;
+public:
+    Orbital_IBS(const db_t* db, Reader *, const Cluster *);
+    Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster *);
+    Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L);
+
+    virtual ::Fit_IBS *CreateCDFitBasisSet(const ::BasisSet*,const Cluster *) const;
+    virtual ::Fit_IBS *CreateVxcFitBasisSet(const ::BasisSet*,const Cluster *) const;
+    virtual IrrepBasisSet *Clone(const RVec3 &) const;
+};
+class Fit_IBS
+    : public virtual ::Fit_IBS
+    , public virtual FitIntegrals
+    , public IrrepBasisSet
+    , public TIBS_Common<double>
+    , public Fit_IBS_Common
+    , public Fit_IE
+{
+public:
+    Fit_IBS(const DB_cache<double>* db , Reader *, const Cluster *);
+
+    virtual ::Fit_IBS *Clone(const RVec3 &) const;
+};
+class BasisSet 
+    : public BS_Common
+    , public DB_BS_2E<double>
+{
+public:
+    BasisSet() {};
+    BasisSet( Reader*, const Cluster*);
+    virtual void Insert(bs_t* bs);
+
+
+    virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
+    virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
+private:
+    mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
+};
 
 } //namespace
+
+

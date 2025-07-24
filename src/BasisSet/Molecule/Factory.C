@@ -4,7 +4,6 @@ module;
 export module qchem.BasisSet.Molecule.Factory;
 export import qchem.BasisSet;
 export import qchem.Cluster;
-export import qchem.Symmetry.ElectronConfiguration;
 
 export namespace BasisSetMolecule
 {

@@ -1,14 +1,13 @@
 // File: BasisFunction.C  Polarized Gaussian in 3D space.
-
-
+module;
 #include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 #include <vector>
+#include "RadialFunction.H"
 
-#include "PolarizedGaussian/BasisFunction.H"
-
+module qchem.BasisSet.Molecule.PolarizedGaussian;
 namespace PolarizedGaussian
 {
 

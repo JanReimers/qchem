@@ -3,11 +3,9 @@
 #include "gtest/gtest.h"
 
 #include "PolarizedGaussian/IntegralEngine.H"
-#include "PolarizedGaussian/BasisSet.H"
-#include "PolarizedGaussian/IrrepBasisSet.H"
 import qchem.LAParams;
 #include <iomanip>
-
+qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;

@@ -1,20 +1,20 @@
 // File: BasisSet.C  Polarized Gaussian basis set, for MO calculations.
-
+module;
 #include <cassert>
 #include <algorithm> //Need std::max
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <memory>
 
 
-#include "PolarizedGaussian/BasisFunction.H"
 #include "PolarizedGaussian/IntegralEngine.H"
 #include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
+namespace PolarizedGaussian{class Reader;}
 
-#include "PolarizedGaussian/IrrepBasisSet.H"
-
+module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Atom;
