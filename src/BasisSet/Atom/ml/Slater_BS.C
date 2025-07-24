@@ -2,14 +2,14 @@
 module;
 #include <vector>
 
-export module qchem.BasisSet.Atom.ml.SlaterBS;
+export module qchem.BasisSet.Atom.Internal.ml.SlaterBS;
 import qchem.BasisSet.Atom.radial.SlaterBS;
-import qchem.BasisSet.Atom.l.SlaterBS;
+import qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.HF_IBS;
 import qchem.DFT_IBS;
-import qchem.BasisSet.Atom.ml.Angular;
+import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.BasisSet.Internal.Common;
 import qchem.Symmetry.ElectronConfiguration;
 

@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 class DiracIntegralTests;
-export module qchem.BasisSet.Atom.kappa.GaussianBS;
+export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
 import qchem.BasisSet.Atom.radial.IE_Primatives;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;

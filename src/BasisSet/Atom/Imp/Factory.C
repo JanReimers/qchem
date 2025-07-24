@@ -6,14 +6,14 @@ module;
 using json = nlohmann::json;
 module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
-import qchem.BasisSet.Atom.kappa.GaussianBS;
-import qchem.BasisSet.Atom.kappa.SlaterBS;
-import qchem.BasisSet.Atom.l.GaussianBS;
-import qchem.BasisSet.Atom.l.SlaterBS;
-import qchem.BasisSet.Atom.l.BSplineBS;
-import qchem.BasisSet.Atom.ml.GaussianBS;
-import qchem.BasisSet.Atom.ml.SlaterBS;
-import qchem.BasisSet.Atom.ml.BSplineBS;
+import qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
+import qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
+import qchem.BasisSet.Atom.Internal.l.GaussianBS;
+import qchem.BasisSet.Atom.Internal.l.SlaterBS;
+import qchem.BasisSet.Atom.Internal.l.BSplineBS;
+import qchem.BasisSet.Atom.Internal.ml.GaussianBS;
+import qchem.BasisSet.Atom.Internal.ml.SlaterBS;
+import qchem.BasisSet.Atom.Internal.ml.BSplineBS;
 
 namespace BasisSetAtom
 {

@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.Atom.ml.SlaterBS;
+module qchem.BasisSet.Atom.Internal.ml.SlaterBS;
 import Common.IntPow;
 import oml;
 

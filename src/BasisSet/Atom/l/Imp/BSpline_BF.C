@@ -6,7 +6,7 @@ module;
 #include <bspline/operators/Derivative.h>
 
 
-module qchem.BasisSet.Atom.l.BSplineBS;
+module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 
 namespace Atoml
 {

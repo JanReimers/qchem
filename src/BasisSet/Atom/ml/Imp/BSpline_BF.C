@@ -1,7 +1,7 @@
 // File: Atom/ml/BSpline_BF.C  B-Spline basis function.
 module;
 
-module qchem.BasisSet.Atom.ml.BSplineBS;
+module qchem.BasisSet.Atom.Internal.ml.BSplineBS;
 
 namespace Atom_ml
 {

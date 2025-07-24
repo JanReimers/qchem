@@ -6,7 +6,7 @@ module;
 #include <vector>
 
 
-module qchem.BasisSet.Atom.ml.BSplineBS;
+module qchem.BasisSet.Atom.Internal.ml.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import qchem.Symmetry.Ylm;

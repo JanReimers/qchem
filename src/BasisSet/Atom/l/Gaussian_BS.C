@@ -3,11 +3,11 @@ module;
 #include <iosfwd>
 #include <vector>
 
-export module qchem.BasisSet.Atom.l.GaussianBS;
+export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.radial.IE_Primatives;
 import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet.Internal.Common;
-import qchem.BasisSet.Atom.l.Angular;
+import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IBS_Common;

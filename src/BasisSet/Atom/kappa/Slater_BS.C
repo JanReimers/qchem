@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 class DiracIntegralTests;
 
-export module qchem.BasisSet.Atom.kappa.SlaterBS;
+export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
 import qchem.Irrep_BS;

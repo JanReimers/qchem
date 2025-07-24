@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 #include <vector>
-module qchem.BasisSet.Atom.ml.SlaterBS;
+module qchem.BasisSet.Atom.Internal.ml.SlaterBS;
 import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
 import qchem.Symmetry.AtomEC;
 import qchem.stl_io;

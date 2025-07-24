@@ -3,15 +3,15 @@ module;
 #include <bspline/Core.h>
 #include <iosfwd>
 
-export module qchem.BasisSet.Atom.ml.BSplineBS;
-import qchem.BasisSet.Atom.l.BSplineBS;
+export module qchem.BasisSet.Atom.Internal.ml.BSplineBS;
+import qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.Common;
 
 import qchem.BasisFunction;
-import qchem.BasisSet.Atom.ml.Angular;
+import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.HF_IBS;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;

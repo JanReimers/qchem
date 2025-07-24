@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.Atom.l.GaussianBS;
+module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.radial.GaussianIntegrals;
 import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet;

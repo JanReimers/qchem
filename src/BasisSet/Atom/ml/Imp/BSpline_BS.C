@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 
-module qchem.BasisSet.Atom.ml.BSplineBS;
+module qchem.BasisSet.Atom.Internal.ml.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.AtomEC;

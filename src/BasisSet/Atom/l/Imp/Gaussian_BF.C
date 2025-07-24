@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-module qchem.BasisSet.Atom.l.GaussianBS;
+module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import Common.IntPow;
 import oml;
 

@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-module qchem.BasisSet.Atom.kappa.GaussianBS;
+module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
 import qchem.BasisSet.Atom.radial.GaussianBS;
 import qchem.BasisSet.Atom.radial.GaussianIntegrals;
 import qchem.BasisSet.Atom.radial.GaussianRk;

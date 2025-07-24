@@ -2,7 +2,7 @@
 module;
 #include <memory>
 #include <cmath>
-module qchem.BasisSet.Atom.kappa.SlaterBS;
+module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Atom.radial.Slater.Integrals;
 
 namespace Atom_kappa

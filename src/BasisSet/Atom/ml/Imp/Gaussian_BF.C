@@ -1,7 +1,7 @@
 // File: Atom/ml/Gaussian_BF.C r^l exp(-a*r^2) type Gaussian basis function.
 module;
 #include <cassert>
-module qchem.BasisSet.Atom.ml.GaussianBS;
+module qchem.BasisSet.Atom.Internal.ml.GaussianBS;
 
 namespace Atom_ml
 {

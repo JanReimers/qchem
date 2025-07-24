@@ -1,7 +1,7 @@
 // File: Atom_ml_IE_HF_Angular.C  Angular 2e-Integrals for atom-ml HF basis sets.
 module;
 #include <vector>
-export module qchem.BasisSet.Atom.ml.Angular;
+export module qchem.BasisSet.Atom.Internal.ml.Angular;
 
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;

@@ -5,7 +5,7 @@ module;
 #include <iomanip>
 #include <cmath>
 #include <memory>
-module qchem.BasisSet.Atom.kappa.SlaterBS;
+module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Atom.radial.Slater.ExponentScaler;
 import qchem.BasisSet.Atom.radial.Slater.Integrals;
 import qchem.Symmetry.Okmj;

@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-module qchem.BasisSet.Atom.l.SlaterBS;
+module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import qchem.BasisSet.Atom.radial.SlaterBS;
 import qchem.BasisSet.Atom.radial.Slater.Integrals;
 import qchem.BasisSet;

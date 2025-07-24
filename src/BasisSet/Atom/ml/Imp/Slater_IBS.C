@@ -5,7 +5,7 @@ module;
 #include <cmath>
 #include <memory>
 #include <vector>
-module qchem.BasisSet.Atom.ml.SlaterBS;
+module qchem.BasisSet.Atom.Internal.ml.SlaterBS;
 import qchem.Symmetry.Ylm;
 import qchem.Streamable;
 import qchem.BasisSet.Atom.radial.Slater.Integrals;

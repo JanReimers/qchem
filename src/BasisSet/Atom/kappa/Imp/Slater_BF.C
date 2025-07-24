@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-module qchem.BasisSet.Atom.kappa.SlaterBS;
+module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import Common.IntPow;
 import qchem.Symmetry.Okmj;
 import oml;

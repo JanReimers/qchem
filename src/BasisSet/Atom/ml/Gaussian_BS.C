@@ -1,15 +1,15 @@
 // File: Atom/ml/Gaussian_BS.H  r^l exp(-ar^2)*Y_lm type basis set.
 module;
 #include <vector>
-export module qchem.BasisSet.Atom.ml.GaussianBS;
+export module qchem.BasisSet.Atom.Internal.ml.GaussianBS;
 import qchem.BasisSet.Atom.radial.GaussianBS;
-import qchem.BasisSet.Atom.l.GaussianBS;
+import qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
 import qchem.Cluster;
-import qchem.BasisSet.Atom.ml.Angular;
+import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Common;
 import qchem.Symmetry.ElectronConfiguration;

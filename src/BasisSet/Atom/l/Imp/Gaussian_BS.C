@@ -3,7 +3,7 @@ module;
 #include <cmath>
 #include <vector>
 #include <iostream>
-module qchem.BasisSet.Atom.l.GaussianBS;
+module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.radial.Gaussian.ExponentScaler; 
 
 namespace Atoml
