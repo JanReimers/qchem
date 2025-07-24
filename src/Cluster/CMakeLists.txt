@@ -21,7 +21,7 @@ target_sources(qcCluster PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 target_include_directories(qcCluster PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
-target_compile_options(qcCluster PRIVATE -Wall -Wno-unknown-pragmas -fmax-errors=1
+target_compile_options(qcCluster PRIVATE -Wall -Wno-unknown-pragmas 
     $<$<CONFIG:Debug>:-g -O0 >
     $<$<CONFIG:Release>: -O2 >
 )

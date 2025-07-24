@@ -16,7 +16,7 @@ add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C Electro
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
-target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp -fmax-errors=1
+target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )
