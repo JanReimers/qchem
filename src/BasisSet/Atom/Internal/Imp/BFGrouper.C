@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <string>
 #include <complex>
-module qchem.BasisSet.Atom.BFGrouper;
+module qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 
 using std::cout;

@@ -11,8 +11,10 @@ Priority 1:
     Done: -BasisSet.Integrals should be internal.
     Done: -Get rid of IntegralsBase<T>, types don't propagate through template inheritance anyway!
         T dependence is the key
-    -TOrbital_DFT_IBS defines some integrals, and Integrals_DFT defines other similar integrals/
+    Done: -TOrbital_DFT_IBS defines some integrals, and Integrals_DFT defines other similar integrals/
         Why?  can we clean this up?
+            No: TOrbital_DFT_IBS does basis set independent constractions with the density matrix.
+                Integrals_DFT does basis set specific triple (three center) integrals.
     -Clean up lower libs to adhere to module naming conventions.
         Done: Mesh
         Done: Symmetry

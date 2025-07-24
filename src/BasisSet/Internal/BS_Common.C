@@ -5,10 +5,10 @@ class SlaterRadialIntegralTests;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Internal.Common;
+export import qchem.Types;
 import qchem.LAParams;
 import Common.UniqueIDImp;
 import qchem.BasisSet;
-export import qchem.Types;
 
 
 export class BS_Common

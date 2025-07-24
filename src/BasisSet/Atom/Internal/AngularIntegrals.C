@@ -1,5 +1,5 @@
 // File: AngularIntegrals.C  Handle the angular part of 2-electron ERIs
-export module qchem.BasisSet.Atom.AngularIntegrals;
+export module qchem.BasisSet.Atom.Internal.AngularIntegrals;
 export import qchem.Types;
 
 export namespace AngularIntegrals

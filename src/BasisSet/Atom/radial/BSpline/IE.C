@@ -6,7 +6,7 @@ export module qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 
-import qchem.BasisSet.Atom.BFGrouper;
+import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.HeapDB;

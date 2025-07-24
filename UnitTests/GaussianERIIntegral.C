@@ -7,7 +7,7 @@
 #include <fstream>
 #include <cmath>
 
-import qchem.BasisSet.Atom.Wigner3j;
+import qchem.BasisSet.Atom.Internal.Wigner3j;
 import Common.Constants;
 
 using std::cout;

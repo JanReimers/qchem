@@ -2,7 +2,7 @@ module;
 #include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cassert>
 #include <iostream>
-module qchem.BasisSet.Atom.Wigner3j;
+module qchem.BasisSet.Atom.Internal.Wigner3j;
 
 Wigner3j Wigner3j::w3j;
 

@@ -2,7 +2,7 @@
 module;
 #include <vector>
 #include <map>
-export module qchem.BasisSet.Atom.BFGrouper;
+export module qchem.BasisSet.Atom.Internal.BFGrouper;
 export import qchem.BasisSet.Atom.IEClient;
 
 // 

@@ -1,108 +1,32 @@
 add_library(qcAtom_BS) 
 target_sources(qcAtom_BS PRIVATE 
-Imp/FactoryImp.C
-Imp/IE_DHF.C
-Imp/IE_DFT.C
-Imp/IEC.C
-Imp/IE.C
-Imp/IE_Fit.C
-Imp/IE_HF.C
-Imp/AngularIntegrals.C
-Imp/BFGrouper.C
-Imp/Wigner3j.C
-l/Imp/Slater_BS.C
-l/Imp/Slater_IBS.C
-l/Imp/Slater_BF.C 
-l/Imp/Gaussian_IBS.C 
-l/Imp/Gaussian_BS.C
-l/Imp/Gaussian_BF.C 
-l/Imp/BSpline_BS.C
-l/Imp/BSpline_IBS.C
-l/Imp/BSpline_BF.C 
-kappa/Imp/Slater_IBS.C
-kappa/Imp/Gaussian_BS.C
-kappa/Imp/Slater_BS.C
-kappa/Imp/Slater_IE.C
-kappa/Imp/Slater_BF.C
-kappa/Imp/Gaussian_IE.C
-kappa/Imp/Gaussian_IBS.C
-kappa/Imp/Gaussian_BF.C
-radial/Gaussian/Imp/IE_Primatives.C
-radial/Gaussian/Imp/Rk.C
-radial/Gaussian/Imp/ExponentScaler.C
-radial/Gaussian/Imp/IBS_Common.C
-radial/Gaussian/Imp/BS_Common.C
-radial/BSpline/GLQuadrature.C
-radial/BSpline/gauleg.f
-radial/BSpline/Imp/IE.C
-radial/BSpline/Imp/IE_Primatives.C
-radial/BSpline/Imp/IEC.C
-radial/BSpline/Imp/Rk.C
-radial/BSpline/Imp/BFGrouper.C
-radial/BSpline/Imp/GLQuadrature.C
-radial/BSpline/Imp/BS_Common.C
-radial/BSpline/Imp/IBS_Common.C
-radial/Slater/Imp/IE_Primatives.C
-radial/Slater/Imp/Rk.C
-radial/Slater/Imp/ExponentScaler.C
-radial/Slater/Imp/IBS_Common.C
-radial/Slater/Imp/BS_Common.C
-ml/Imp/Slater_IBS.C
-ml/Imp/Gaussian_BS.C
-ml/Imp/Slater_BS.C
-ml/Imp/Slater_BF.C
-ml/Imp/Gaussian_BF.C
-ml/Imp/Gaussian_IBS.C
-ml/Imp/BSpline_BS.C
-ml/Imp/BSpline_IBS.C
-ml/Imp/BSpline_BF.C 
-
+    Imp/IEC.C
+    Imp/IE.C
+    Imp/Factory.C
+    Imp/IE_DHF.C
+    Imp/IE_DFT.C
+    Imp/IE_Fit.C
+    Imp/IE_HF.C
+    Internal/Imp/AngularIntegrals.C
+    Internal/Imp/BFGrouper.C
+    Internal/Imp/Wigner3j.C
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-  Factory.C
-  IE.C
-  IEC.C
-  AngularIntegrals.C
-  BFGrouper.C
-  Wigner3j.C
-  kappa/Gaussian_BS.C
-  kappa/Slater_BS.C
-  l/IE_HF_Angular.C
-  l/Gaussian_BS.C
-  l/Slater_BS.C
-  l/BSpline_BS.C
-  ml/IE_HF_Angular.C
-  ml/Gaussian_BS.C
-  ml/Slater_BS.C
-  ml/BSpline_BS.C
-  radial/PascalTriangle.C
-  radial/FillPower.C
-  radial/Gaussian/IE_Primatives.C
-  radial/Gaussian/Rk.C
-  radial/Gaussian/ExponentScaler.C
-  radial/Gaussian/Integrals.C
-  radial/Gaussian/BS_Common.C
-  radial/Slater/IE_Primatives.C
-  radial/Slater/Rk.C
-  radial/Slater/ExponentScaler.C
-  radial/Slater/Integrals.C
-  radial/Slater/BS_Common.C
-  radial/BSpline/Rk.C
-  radial/BSpline/IEC.C
-  radial/BSpline/IE.C
-  radial/BSpline/IE_Primatives.C
-  radial/BSpline/BFGrouper.C
-  radial/BSpline/GLQuadrature.C
-  radial/BSpline/BS_Common.C
-
+    Factory.C
+    IE.C
+    IEC.C
+    Internal/AngularIntegrals.C
+    Internal/BFGrouper.C
+    Internal/Wigner3j.C
 )
 target_include_directories(qcAtom_BS PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include  
-    ${PROJECT_SOURCE_DIR}/include/Imp/BasisSet/Atom 
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
+add_subdirectory(l)
+add_subdirectory(ml)
+add_subdirectory(kappa)
+add_subdirectory(radial)

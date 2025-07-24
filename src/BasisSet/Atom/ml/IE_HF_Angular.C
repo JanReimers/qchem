@@ -5,7 +5,7 @@ export module qchem.BasisSet.Atom.ml.Angular;
 
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
-import qchem.BasisSet.Atom.AngularIntegrals;
+import qchem.BasisSet.Atom.Internal.AngularIntegrals;
 export import qchem.Types;
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
