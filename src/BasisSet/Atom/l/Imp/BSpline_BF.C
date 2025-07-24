@@ -46,6 +46,6 @@ template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const
 }
 
 #define INSTANCEk(k) template class BasisFunction<k>;
-#include "../../Instance.hpp"
+#include "../../radial/BSpline/Instance.hpp"
 
 }} //namespace

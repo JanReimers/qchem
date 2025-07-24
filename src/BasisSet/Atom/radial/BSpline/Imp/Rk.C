@@ -180,9 +180,9 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
  }
  
 #define INSTANCEk(k) template class RkCache<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class RkEngine<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 
 } //namespace
 

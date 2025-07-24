@@ -49,6 +49,6 @@ namespace BSpline
     }
     
 #define INSTANCEk(k) template class BS_Common<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
     
 }

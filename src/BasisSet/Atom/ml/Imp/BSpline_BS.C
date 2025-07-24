@@ -32,5 +32,5 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
     this->BuildCache(LMax);
 }
 #define INSTANCEk(k) template class BasisSet<k>;
-#include "../../Instance.hpp"
+#include "../../radial/BSpline/Instance.hpp"
 }} //namespace

@@ -29,6 +29,6 @@ template <size_t K> Vector<double> BasisSet<K>::loop_4_direct(size_t id, size_t 
         return rk;
     }
 #define INSTANCEk(k) template class BasisSet<k>;
-#include "../../Instance.hpp"
+#include "../../radial/BSpline/Instance.hpp"
 
 }} //namespace

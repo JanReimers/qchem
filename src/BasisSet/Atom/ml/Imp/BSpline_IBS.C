@@ -58,6 +58,6 @@ template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const RVec3&) const
 }
 
 #define INSTANCEk(k) template class Orbital_IBS<k>;
-#include "../../Instance.hpp"
+#include "../../radial/BSpline/Instance.hpp"
 
 }} //namespace

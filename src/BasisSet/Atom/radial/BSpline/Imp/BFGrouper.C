@@ -52,6 +52,6 @@ template <size_t K> const GLCache* BFGrouper<K>::GetGL(size_t l) const
 }
 
 #define INSTANCEk(k) template class BFGrouper<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 
 } // namespace

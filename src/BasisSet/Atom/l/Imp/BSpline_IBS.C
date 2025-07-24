@@ -81,8 +81,8 @@ template <size_t K> ::Fit_IBS* Fit_IBS<K>::Clone(const RVec3&) const
 }
 
 #define INSTANCEk(k) template class Orbital_IBS<k>;
-#include "../../Instance.hpp"
+#include "../../radial/BSpline/Instance.hpp"
 #define INSTANCEk(k) template class Fit_IBS<k>;
-#include "../../Instance.hpp"
+#include "../../radial/BSpline/Instance.hpp"
 
 }} //namespace

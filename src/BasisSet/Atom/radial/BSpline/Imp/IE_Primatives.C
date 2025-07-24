@@ -46,6 +46,6 @@ template <size_t K> double IE_Primatives<K>::Charge(const spline_t& a , size_t l
 }
 
 #define INSTANCEk(k) template class IE_Primatives<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 
 } //namespace

@@ -268,18 +268,18 @@ template <class T,size_t K> Matrix<T> IE_XGrad2<T,K>::MakeKinetic(const Orbital_
 
 
 #define INSTANCEk(k) template class IE_Overlap<double,k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_Kinetic<double,k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_Inv_r1<double,k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_DFT<double,k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_BS_2E<double,k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_Fit<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_XGrad2<double,k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 
 } //namespace

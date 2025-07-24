@@ -35,6 +35,6 @@ template <size_t K> std::ostream&  IrrepBasisSet<K>::Write(std::ostream& os) con
 }
 
 #define INSTANCEk(k) template class IrrepBasisSet<k>;
-#include "../../../Instance.hpp"
+#include "../Instance.hpp"
 
 } //namespace 
