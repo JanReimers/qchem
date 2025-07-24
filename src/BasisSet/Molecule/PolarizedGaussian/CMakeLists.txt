@@ -3,8 +3,8 @@ Imp/BasisSet.C
 Imp/IrrepBasisSet.C
 Imp/BasisFunction.C
 Triangle3D.C
-AuxillaryData.C
-AuxillaryFJ.C
+MnD/Imp/AuxillaryData.C
+MnD/Imp/AuxillaryFJ.C
 CDCache.C
 Block.C
 MnD/Hermite2.C
@@ -25,5 +25,6 @@ Polarization.C
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
    BasisSet.C
+   MnD/AuxillaryFJ.C
 )
  

@@ -6,8 +6,8 @@
 #include <cassert>
 #include <vector>
 #include "PolarizedGaussian/MnD/RNLM.H"
-#include "PolarizedGaussian/AuxillaryFJ.H"
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import Common.IntPow;
 import oml;
 

@@ -1,9 +1,9 @@
 // File:  AuxillaryFJ.C  Class for calculating the auxiliary function.
-
+module;
 #include <cmath>
 #include <cassert>
-#include "PolarizedGaussian/AuxillaryFJ.H"
 
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import Common.Constants;
 import Common.IntPow;
 import oml;
