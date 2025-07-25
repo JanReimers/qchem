@@ -4,7 +4,7 @@
 
 
 
-#include "PolarizedGaussian/Triangle3D.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 import oml;

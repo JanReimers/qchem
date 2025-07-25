@@ -2,15 +2,16 @@
 module;
 
 #include <cmath>
-#include "RadialFunction.H"
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
 import qchem.DFT_IBS;
 

@@ -2,7 +2,7 @@ target_sources(qcMolecule_BS PRIVATE
 Imp/BasisSet.C
 Imp/IrrepBasisSet.C
 Imp/BasisFunction.C
-Triangle3D.C
+MnD/Imp/Triangle3D.C
 MnD/Imp/AuxillaryData.C
 MnD/Imp/AuxillaryFJ.C
 Internal/Imp/CDCache.C
@@ -25,11 +25,14 @@ Radial/GaussianRF.C
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     BasisSet.C
+    RadialFunction.C;
+
     MnD/AuxillaryFJ.C
     Internal/CDCache.C
     Internal/Block.C
     Internal/IEClient.C
     Internal/IntegralEngine.C
     Internal/Polarization.C
+    MnD/Triangle.C
 )
  

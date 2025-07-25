@@ -5,9 +5,9 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <vector>
-#include "RadialFunction.H"
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 namespace PolarizedGaussian
 {
 

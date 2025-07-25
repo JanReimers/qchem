@@ -1,8 +1,9 @@
-// File: Triangle.C  A triangular data structure.
-#include "PolarizedGaussian/Triangle3D.H"
+// File: BasisSet/Molecule/PolarizedGaussian/MnD/Imp/Triangle3D.C  A 3-index triangular data structure.
+module;
 #include <cassert>
 #include <iostream>
-
+#include <vector>
+module qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
 import qchem.stl_io;
 
 Triangle3D::Triangle3D()

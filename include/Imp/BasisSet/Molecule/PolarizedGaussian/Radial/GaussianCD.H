@@ -6,13 +6,14 @@
 #include "PolarizedGaussian/MnD/Hermite2.H"
 
 import Common.UniqueIDImp;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 
 namespace PolarizedGaussian
 {
 
 class RNLM;
 class GaussianRF;
-class RadialFunction;
 class Hermite1;
 
 class GaussianCD : public UniqueIDImp

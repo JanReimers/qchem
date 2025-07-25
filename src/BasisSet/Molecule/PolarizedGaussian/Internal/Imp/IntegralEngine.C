@@ -4,9 +4,9 @@ module;
 #include <cassert>
 #include <memory>
 #include <cmath>
-#include "RadialFunction.H"
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
 import qchem.Irrep_BS;

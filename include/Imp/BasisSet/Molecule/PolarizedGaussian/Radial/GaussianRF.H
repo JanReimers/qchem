@@ -5,8 +5,12 @@
 
 
 #include "Common.H"
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+#include "../MnD/Hermite3.H"
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.Cluster;
 namespace PolarizedGaussian
 {
 

@@ -2,11 +2,11 @@
 #ifndef _RadialCommon_H_
 #define _RadialCommon_H_
 
+#include "../MnD/Hermite1.H"
 
-
-#include "../RadialFunction.H"
-
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import Common.UniqueIDImp;
+import qchem.Types;
 
 namespace PolarizedGaussian
 {

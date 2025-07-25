@@ -1,9 +1,8 @@
-// File: Triangle.H  A triangular data structure.
-#ifndef _Triangle_H_
-#define _Triangle_H_
-
+// File: BasisSet/Molecule/PolarizedGaussian/MnD/Triangle3D.C  A 3-index triangular data structure.
+module;
 #include <iosfwd>
 #include <vector>
+export module qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
 import qchem.Streamable;
 
 #if DEBUG
@@ -14,7 +13,7 @@ import qchem.Streamable;
 //
 //  Implements an triangle data structure, where N+L+M is always < MaxSum.
 //
-class Triangle3D
+export class Triangle3D
     : public virtual Streamable
 {
 public:
@@ -51,4 +50,3 @@ private:
 
 #undef CHECK
 
-#endif //_Triangle_H_

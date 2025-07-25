@@ -1,11 +1,16 @@
-// File: RadialFunction.H  Abstract interface for the radial part of a basis function.
-#ifndef _RadialFunction_H_
-#define _RadialFunction_H_
-
+// File: RadialFunction.C  Abstract interface for the radial part of a basis function.
+module;
 #include <vector>
 #include <set>
 #include <map>
+namespace PolarizedGaussian
+{
 
+class  Hermite1;
+class  Hermite3;
+class  RNLM;
+}
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import Common.UniqueID; 
 import qchem.Cluster;
 import qchem.ScalarFunction;
@@ -18,12 +23,8 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 class  Polarization;
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
-
-class  Hermite1;
-class  Hermite3;
-class  RNLM;
 
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and
@@ -67,4 +68,3 @@ public:
 
 } //namespace PolarizedGaussian
 
-#endif //_RadialFunction_H_
