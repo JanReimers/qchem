@@ -37,7 +37,7 @@ CDCache::ids_t CDCache::Sort(UniqueID::IDtype i1,UniqueID::IDtype i2)
     return i1<=i2 ? std::make_pair(i1,i2) : std::make_pair(i2,i1);
 }
 
-const GaussianCD& CDCache::find(const GaussianRF* a,const GaussianRF* b)
+const GaussianCD& CDCache::findCD(const GaussianRF* a,const GaussianRF* b)
 {
     assert(a);
     assert(b);

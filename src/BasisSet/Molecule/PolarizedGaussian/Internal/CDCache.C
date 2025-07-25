@@ -21,7 +21,7 @@ class CDCache
 public:
     CDCache();
     ~CDCache();
-    const GaussianCD& find(const GaussianRF*,const GaussianRF*);
+    const GaussianCD& findCD(const GaussianRF*,const GaussianRF*);
     const RNLM&       find(const GaussianCD&,const GaussianRF*);
     const RNLM&       find(const GaussianCD&,const GaussianCD&);
     const RNLM&       find(const GaussianCD&);

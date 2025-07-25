@@ -23,7 +23,7 @@ public:
     ~GaussianCD();
     
     virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
+    // virtual std::istream& Read (std::istream&)      ;
 
 
 private:
@@ -32,8 +32,8 @@ private:
 //
 //  Raw data defining the charge distribution, all pickeled.
 //
-    const RadialFunction&  r1;           //All this stuff gets pickled.
-    const RadialFunction&  r2;           //All this stuff gets pickled.
+    // const RadialFunction&  r1;           //All this stuff gets pickled.
+    // const RadialFunction&  r2;           //All this stuff gets pickled.
     int                    Ltotal;       //Total angular momentum.
     double                 a,b;          //exponents.
     double                 ab,AlphaP;    //a*b, a+b.

@@ -88,7 +88,7 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
         return rb->Integrate(type,this,pb,pa,cache,cl); 
 
     Polarization zero(0,0,0);
-    const GaussianCD& ab=cache.find(this,gb);
+    const GaussianCD& ab=cache.findCD(this,gb);
     switch (type)
     {
         case qchem::Overlap2C :
@@ -208,7 +208,7 @@ double GaussianRF::Integrate3C(qchem::IType3C type,grf_t* ga,grf_t* gb, po_t& pa
             break;
         case qchem::Repulsion3C :
             {
-                const GaussianCD& ab(cache.find(ga,gb));
+                const GaussianCD& ab(cache.findCD(ga,gb));
                 const RNLM&        R(cache.find(ab,gc));
 
                 auto  NLMs=GaussianCD::GetNMLs(ab.Ltotal);
@@ -300,8 +300,8 @@ double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc
     assert(gc);
     assert(gd);
     
-    const GaussianCD& ab(cache.find(ga,gb));
-    const GaussianCD& cd(cache.find(gc,gd));
+    const GaussianCD& ab(cache.findCD(ga,gb));
+    const GaussianCD& cd(cache.findCD(gc,gd));
 
 //    std::cout.precision(5);
 //    std::cout.width(8);

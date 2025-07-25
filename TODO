@@ -2,7 +2,26 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
-    -import std; or header units?
+    -Disentangle the coupling between PolarizedGaussian:
+        -RadialFunction 
+            Integrate(...,CDCache& cache)
+        -CDCache
+            findCD(GaussianRF,GaussianRF)   //uses ID,l,alpha,R
+            findRNLM(GaussianCD,GaussianRF)
+            findRNLM(GaussianCD,GaussianCD)
+            findRNLM(GaussianCD)
+            GaussianCD[]
+            RNLM[]
+
+        -GaussianCD
+            RadialFunction a,b;
+            GaussianCD(GaussianRF,GaussianRF)
+        -GaussianRF --> RadialFunction
+                    --> CDCache
+                
+
+    Fail: -import std; or header units?
+        No idea how std.pcm is made or how cmake/clang is supposed to find it.
     Fail: -build with gcc-15.1
         -Still failing with  error: cannot import module in its own purview
         -it is interpreting the dots in module names as if this were pything modules.                 

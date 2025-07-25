@@ -29,18 +29,18 @@ void GaussianCD::MakeNMLs()
 //  Construction zone
 //
 
-GaussianCD::GaussianCD(const GaussianRF& the_g1,const GaussianRF& the_g2)
-    : r1    (the_g1)
-    , r2    (the_g2)
-    , Ltotal(r1.GetL() + r2.GetL())
-    , a     (the_g1.itsExponent)
-    , b     (the_g2.itsExponent)
+GaussianCD::GaussianCD(const GaussianRF& g1,const GaussianRF& g2)
+    // : r1    (the_g1)
+    // , r2    (the_g2)
+    : Ltotal(g1.GetL() + g2.GetL())
+    , a     (g1.itsExponent)
+    , b     (g2.itsExponent)
     , ab    (a * b)
     , AlphaP(a + b)
-    , AB    (r1.GetCenter() - r2.GetCenter())
-    , P     ( (a*r1.GetCenter() + b*r2.GetCenter()) / AlphaP)
+    , AB    (g1.GetCenter() - g2.GetCenter())
+    , P     ( (a*g1.GetCenter() + b*g2.GetCenter()) / AlphaP)
     , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
-    , H2    (AlphaP, P - r1.GetCenter(), P - r2.GetCenter(), r1.GetL()+1, r2.GetL()+1)
+    , H2    (AlphaP, P - g1.GetCenter(), P - g2.GetCenter(), g1.GetL()+1, g2.GetL()+1)
 {
     if (theNMLs.size()==0) MakeNMLs();
 };
@@ -52,6 +52,5 @@ GaussianCD::~GaussianCD()
 
 
 std::ostream& GaussianCD::Write(std::ostream& os) const {return os;}
-std::istream& GaussianCD::Read (std::istream& is)       {return is;}
 
 } //namespace PolarizedGaussian
