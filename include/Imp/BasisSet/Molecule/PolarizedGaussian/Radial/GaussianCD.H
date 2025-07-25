@@ -8,6 +8,7 @@
 import Common.UniqueIDImp;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
 
 namespace PolarizedGaussian
 {
@@ -16,10 +17,13 @@ class RNLM;
 class GaussianRF;
 class Hermite1;
 
+
+
 class GaussianCD : public UniqueIDImp
 {
 public:
     GaussianCD(const GaussianRF&,const GaussianRF&);
+    GaussianCD(const GData&,const GData&);
     ~GaussianCD();
     
     virtual std::ostream& Write(std::ostream&) const;

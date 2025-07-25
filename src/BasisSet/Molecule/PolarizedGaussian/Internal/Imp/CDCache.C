@@ -52,6 +52,19 @@ const GaussianCD& CDCache::findCD(const GaussianRF* a,const GaussianRF* b)
         return *(i->second);
 }
 
+const GaussianCD& CDCache::findCD(const GData& a,const GData& b)
+{
+    CDlookups++;
+    ids_t key=std::make_pair(a.ID,b.ID);
+    if (auto i=GCDcache.find(key);i==GCDcache.end())
+    {
+        CDinserts++;
+        return *(GCDcache[key]=new GaussianCD(a,b));
+    }
+    else
+        return *(i->second);
+}
+
 const RNLM& CDCache::find(const GaussianCD& ab,const GaussianRF* c)
 {
     RNLMlookups++;

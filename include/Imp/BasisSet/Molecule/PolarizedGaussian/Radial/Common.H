@@ -40,7 +40,7 @@ public:
     using UniqueIDImp::GetID;
     virtual std::ostream&           Write(std::ostream&) const;
 
-private:
+protected:
     virtual Hermite1* MakeH1() const=0;
 
     RVec3             itsCenter;

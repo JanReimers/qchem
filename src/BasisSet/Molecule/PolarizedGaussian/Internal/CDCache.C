@@ -5,16 +5,18 @@ module;
 #include <iosfwd>
 namespace PolarizedGaussian
 {
-    
 class GaussianCD;
 class GaussianRF;
 class RNLM;
 }
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+
 import Common.UniqueID; 
 
 export namespace PolarizedGaussian
 {
+
     
 class CDCache
 {
@@ -22,6 +24,7 @@ public:
     CDCache();
     ~CDCache();
     const GaussianCD& findCD(const GaussianRF*,const GaussianRF*);
+    const GaussianCD& findCD(const GData&,const GData&);
     const RNLM&       find(const GaussianCD&,const GaussianRF*);
     const RNLM&       find(const GaussianCD&,const GaussianCD&);
     const RNLM&       find(const GaussianCD&);

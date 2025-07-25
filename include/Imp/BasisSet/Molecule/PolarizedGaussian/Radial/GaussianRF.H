@@ -9,6 +9,8 @@
 
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Cluster;
 namespace PolarizedGaussian
@@ -53,6 +55,8 @@ public:
 
     virtual double      operator()(const RVec3&) const;
     virtual RVec3       Gradient  (const RVec3&) const;
+
+    GData GetGData() const {return GData{GetID(),itsExponent,itsCenter,itsL};};
 
 private:
     double GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const;

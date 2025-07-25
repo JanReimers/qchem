@@ -34,5 +34,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/IntegralEngine.C
     Internal/Polarization.C
     MnD/Triangle.C
+    Radial/GData.C
 )
  

@@ -30,8 +30,6 @@ void GaussianCD::MakeNMLs()
 //
 
 GaussianCD::GaussianCD(const GaussianRF& g1,const GaussianRF& g2)
-    // : r1    (the_g1)
-    // , r2    (the_g2)
     : Ltotal(g1.GetL() + g2.GetL())
     , a     (g1.itsExponent)
     , b     (g2.itsExponent)
@@ -41,6 +39,20 @@ GaussianCD::GaussianCD(const GaussianRF& g1,const GaussianRF& g2)
     , P     ( (a*g1.GetCenter() + b*g2.GetCenter()) / AlphaP)
     , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
     , H2    (AlphaP, P - g1.GetCenter(), P - g2.GetCenter(), g1.GetL()+1, g2.GetL()+1)
+{
+    if (theNMLs.size()==0) MakeNMLs();
+};
+
+GaussianCD::GaussianCD(const GData& g1,const GData& g2)
+    : Ltotal(g1.L + g2.L)
+    , a     (g1.Alpha)
+    , b     (g2.Alpha)
+    , ab    (a * b)
+    , AlphaP(a + b)
+    , AB    (g1.R - g2.R)
+    , P     ( (a*g1.R + b*g2.R) / AlphaP)
+    , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
+    , H2    (AlphaP, P - g1.R, P - g2.R, g1.L+1, g2.L+1)
 {
     if (theNMLs.size()==0) MakeNMLs();
 };
