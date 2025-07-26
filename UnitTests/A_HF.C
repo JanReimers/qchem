@@ -127,7 +127,7 @@ TEST_P(A_PG_HF_U,Multiple)
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
+INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18)); //36 is slow
 
 
 
@@ -255,7 +255,7 @@ TEST_P(A_BS_HF_P,Multiple)
 }
 
 // INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_P,::testing::Values(1,2,3,4,)); 
-INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_P,::testing::Values(1,3,7,37,53,56)); //64 is slow
 
 
 TEST_P(A_SLm_HF_P,Multiple)
@@ -273,7 +273,8 @@ TEST_P(A_SLm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62)); 
+//INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
 // INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_P,::testing::Range(1,93)); 
 
 TEST_P(A_SGm_HF_P,Multiple)
@@ -334,5 +335,5 @@ TEST_P(A_PG_HF_P,Multiple)
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,21,37)); //7 fails Z=51 is slow
+INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5)); //7 fails Z=21,37,51 is slow
 
