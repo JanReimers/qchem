@@ -10,7 +10,7 @@ Internal/Imp/Block.C
 Internal/Imp/IEClient.C
 Internal/Imp/IntegralEngine.C
 Internal/Imp/Polarization.C
-MnD/Hermite2.C
+MnD/Imp/Hermite2.C
 MnD/Imp/Hermite1.C
 MnD/RNLM.C
 Readers/Imp/Gaussian94.C
@@ -36,6 +36,8 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/Polarization.C
     MnD/Triangle.C
     MnD/Hermite1.C
+    MnD/Hermite2.C
+
     Radial/GData.C
     Radial/Common.C
     Radial/GaussianH3.C
