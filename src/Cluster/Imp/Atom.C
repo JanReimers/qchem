@@ -52,7 +52,7 @@ std::ostream& Atom::Write  (std::ostream& os) const
     os.setf(std::ios::fixed,std::ios::floatfield);
     os << std::setw(4) << itsZ << "    "
     << std::setw(5) << std::setprecision(2) << itsR << "     ";
-    os << std::endl;
+    // os << std::endl; let the caller decide
     return os;
 }
 

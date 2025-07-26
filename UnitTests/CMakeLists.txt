@@ -30,16 +30,14 @@ target_include_directories(UTMain PRIVATE
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon omlm)
 
-add_executable(UTModules UTModules.C)
-set_property(TARGET UTModules PROPERTY CXX_STANDARD 20)
-target_compile_options(UTModules PRIVATE -Wall -Wno-unknown-pragmas -fmodules 
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2>
-)
 # Symmetry module
 add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)
-target_link_libraries(UTSym qcSymmetry gtest)
-
+target_link_libraries(UTSym PUBLIC qcSymmetry gtest)
+# Cluster module
+add_executable(UTCluster UTCluster.C)
+target_link_libraries(UTCluster PUBLIC qcCluster gtest)
+set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
+ 
 # setup testing
 enable_testing()
 include(CTest)

@@ -27,7 +27,7 @@ public:
     RVec3   itsR;      //Spatial position.
 
 private:
-    Atom& operator=(const Atom&);
+    Atom& operator=(const Atom&); //Why?  Rule of 5/6
 };
 
 

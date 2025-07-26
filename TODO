@@ -2,6 +2,8 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
+    -A_BSm_HF_P.Multiple/0 gives a very low energy?!?  V/K=-2.07327386808252  Only 4 electrons?!?!?
+    -Rename Cluster to Structure.
     -PG refactor
         Hermite2 only used by CDCache
         -Move all Hermite related classes into MnD folder?
