@@ -95,7 +95,9 @@
 			"codecvt": "cpp",
 			"regex": "cpp",
 			"ranges": "cpp",
-			"shared_mutex": "cpp"
+			"shared_mutex": "cpp",
+			"queue": "cpp",
+			"stack": "cpp"
 		}
 	}
 }

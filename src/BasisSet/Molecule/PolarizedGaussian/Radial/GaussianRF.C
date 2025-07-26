@@ -77,7 +77,34 @@ RadialFunction::vd_t GaussianRF::GetCoeff() const
     ret.push_back(1.0);
     return ret;
 }
-    
+
+//
+//  Messy helper function for Laplacian operator.
+//
+double GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& ab)
+{
+    static Polarization p0(0,0,0),x(1,0,0),y(0,1,0),z(0,0,1);
+    const  Polarization& P1= p1;
+    const  Polarization& P2= p2;
+
+    double txx=   P1.n * P2.n * ab.H2(p0,P1-x,P2-x)
+                  - 2*P1.n * ab.b    * ab.H2(p0,P1-x,P2+x)
+                  - 2*P2.n * ab.a    * ab.H2(p0,P1+x,P2-x)
+                  + 4*ab.ab          * ab.H2(p0,P1+x,P2+x);
+
+    double tyy=   P1.l * P2.l * ab.H2(p0,P1-y,P2-y)
+                  - 2*P1.l * ab.b    * ab.H2(p0,P1-y,P2+y)
+                  - 2*P2.l * ab.a    * ab.H2(p0,P1+y,P2-y)
+                  + 4*ab.ab          * ab.H2(p0,P1+y,P2+y);
+
+    double tzz=   P1.m * P2.m * ab.H2(p0,P1-z,P2-z)
+                  - 2*P1.m * ab.b    * ab.H2(p0,P1-z,P2+z)
+                  - 2*P2.m * ab.a    * ab.H2(p0,P1+z,P2-z)
+                  + 4*ab.ab          * ab.H2(p0,P1+z,P2+z);
+
+    return txx+tyy+tzz;
+}
+
 
 
 double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
@@ -88,7 +115,7 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
         return rb->Integrate(type,this,pb,pa,cache,cl); 
 
     Polarization zero(0,0,0);
-    const GaussianCD& ab=cache.findCD(this,gb);
+    const GaussianCD& ab=cache.findCD(this->GetGData(),gb->GetGData());
     switch (type)
     {
         case qchem::Overlap2C :
@@ -208,8 +235,8 @@ double GaussianRF::Integrate3C(qchem::IType3C type,grf_t* ga,grf_t* gb, po_t& pa
             break;
         case qchem::Repulsion3C :
             {
-                const GaussianCD& ab(cache.findCD(ga,gb));
-                const RNLM&        R(cache.find(ab,gc));
+                const GaussianCD& ab(cache.findCD(ga->GetGData(),gb->GetGData()));
+                const RNLM&        R(cache.find(ab.GetGData(),gc->GetGData()));
 
                 auto  NLMs=GaussianCD::GetNMLs(ab.Ltotal);
                 const Hermite1& Hc=gc->GetH1();
@@ -300,8 +327,8 @@ double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc
     assert(gc);
     assert(gd);
     
-    const GaussianCD& ab(cache.findCD(ga,gb));
-    const GaussianCD& cd(cache.findCD(gc,gd));
+    const GaussianCD& ab(cache.findCD(ga->GetGData(),gb->GetGData()));
+    const GaussianCD& cd(cache.findCD(gc->GetGData(),gd->GetGData()));
 
 //    std::cout.precision(5);
 //    std::cout.width(8);
@@ -312,7 +339,7 @@ double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc
 
     double lambda=2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
     lambda*=ab.Eij*cd.Eij; //M&D 2.25
-    const RNLM& rnlm(cache.find(ab,cd)); //M&D section 4A
+    const RNLM& rnlm(cache.find(ab.GetGData(),cd.GetGData())); //M&D section 4A
 
     double s=0.0;
     const Polarization Pab = pa + pb;
@@ -342,29 +369,6 @@ double GaussianRF::Integrate4C(grf_t* ga,grf_t* gb, po_t& pa, po_t& pb, po_t& pc
 
 
 
-double GaussianRF::GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const
-{
-    static Polarization p0(0,0,0),x(1,0,0),y(0,1,0),z(0,0,1);
-    const  Polarization& P1= p1;
-    const  Polarization& P2= p2;
-
-    double txx=   P1.n * P2.n * ab.H2(p0,P1-x,P2-x)
-                  - 2*P1.n * ab.b    * ab.H2(p0,P1-x,P2+x)
-                  - 2*P2.n * ab.a    * ab.H2(p0,P1+x,P2-x)
-                  + 4*ab.ab          * ab.H2(p0,P1+x,P2+x);
-
-    double tyy=   P1.l * P2.l * ab.H2(p0,P1-y,P2-y)
-                  - 2*P1.l * ab.b    * ab.H2(p0,P1-y,P2+y)
-                  - 2*P2.l * ab.a    * ab.H2(p0,P1+y,P2-y)
-                  + 4*ab.ab          * ab.H2(p0,P1+y,P2+y);
-
-    double tzz=   P1.m * P2.m * ab.H2(p0,P1-z,P2-z)
-                  - 2*P1.m * ab.b    * ab.H2(p0,P1-z,P2+z)
-                  - 2*P2.m * ab.a    * ab.H2(p0,P1+z,P2-z)
-                  + 4*ab.ab          * ab.H2(p0,P1+z,P2+z);
-
-    return txx+tyy+tzz;
-}
 //---------------------------------------------------------------------------------------
 //
 //  Calculate 3 center hermite functions.

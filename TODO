@@ -2,23 +2,30 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
-    -Disentangle the coupling between PolarizedGaussian:
-        -RadialFunction 
-            Integrate(...,CDCache& cache)
-        -CDCache
-            findCD(GaussianRF,GaussianRF)   //uses ID,l,alpha,R
-            findRNLM(GaussianCD,GaussianRF)
-            findRNLM(GaussianCD,GaussianCD)
-            findRNLM(GaussianCD)
-            GaussianCD[]
-            RNLM[]
+-Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
+    wrong occ/degen in spin down column.
+-Disentangle the coupling between PolarizedGaussian:
+    -RadialFunction 
+        Integrate(...,CDCache& cache)
+    -CDCache
+        findCD(GaussianRF,GaussianRF)   //uses ID,l,alpha,R
+        findRNLM(GaussianCD,GaussianRF)
+        findRNLM(GaussianCD,GaussianCD)
+        findRNLM(GaussianCD)
+        GaussianCD[]
+        RNLM[]
 
-        -GaussianCD
-            Remove: RadialFunction a,b;
-            GaussianCD(GaussianRF,GaussianRF)
-        -GaussianRF --> RadialFunction
-                    --> CDCache
-                
+    -GaussianCD
+        Remove: RadialFunction a,b;
+        GaussianCD(GaussianRF,GaussianRF)
+    -GaussianRF --> RadialFunction
+                --> CDCache
+    -GaussianCD and GaussianRF
+        Can store a GData struct.
+        Define GData = GData*GData  (how t handdle IDs?)
+    -GaussianRF
+        GetGrad2 is static, can be moved anywhere.
+            
 
     Fail: -import std; or header units?
         No idea how std.pcm is made or how cmake/clang is supposed to find it.

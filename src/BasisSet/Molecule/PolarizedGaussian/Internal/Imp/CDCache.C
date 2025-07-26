@@ -37,21 +37,6 @@ CDCache::ids_t CDCache::Sort(UniqueID::IDtype i1,UniqueID::IDtype i2)
     return i1<=i2 ? std::make_pair(i1,i2) : std::make_pair(i2,i1);
 }
 
-const GaussianCD& CDCache::findCD(const GaussianRF* a,const GaussianRF* b)
-{
-    assert(a);
-    assert(b);
-    CDlookups++;
-    ids_t key=std::make_pair(a->GetID(),b->GetID());
-    if (auto i=GCDcache.find(key);i==GCDcache.end())
-    {
-        CDinserts++;
-        return *(GCDcache[key]=new GaussianCD(*a,*b));
-    }
-    else
-        return *(i->second);
-}
-
 const GaussianCD& CDCache::findCD(const GData& a,const GData& b)
 {
     CDlookups++;
@@ -65,30 +50,15 @@ const GaussianCD& CDCache::findCD(const GData& a,const GData& b)
         return *(i->second);
 }
 
-const RNLM& CDCache::find(const GaussianCD& ab,const GaussianRF* c)
+const RNLM& CDCache::find(const GData& ab,const GData& c)
 {
     RNLMlookups++;
-    ids_t key=std::make_pair(ab.GetID(),c->GetID());
+    ids_t key=std::make_pair(ab.ID,c.ID);
     if (auto i=RNLMcache.find(key);i==RNLMcache.end())
     {
         RNLMinserts++;
-        double alpha =ab.AlphaP*c->itsExponent/(ab.AlphaP+c->itsExponent);
-        return *(RNLMcache[key]=new RNLM(ab.Ltotal+c->GetL(),alpha,ab.P-c->GetCenter()));
-    }
-    else
-        return *(i->second);
-}
-
-const RNLM& CDCache::find(const GaussianCD& ab,const GaussianCD& cd)
-{
-    RNLMlookups++;
-    ids_t key=std::make_pair(ab.GetID(),cd.GetID());
-    if (auto i=RNLMcache.find(key);i==RNLMcache.end())
-    {
-        RNLMinserts++;
-        double alpha=ab.AlphaP*cd.AlphaP/(ab.AlphaP+cd.AlphaP); //M&D 3.32
-        RVec3 PQ = ab.P-cd.P; //M&D 3.32
-        return *(RNLMcache[key]=new RNLM(ab.Ltotal+cd.Ltotal,alpha,PQ)) ;
+        double alpha =ab.Alpha*c.Alpha/(ab.Alpha+c.Alpha);
+        return *(RNLMcache[key]=new RNLM(ab.L+c.L,alpha,ab.R-c.R));
     }
     else
         return *(i->second);

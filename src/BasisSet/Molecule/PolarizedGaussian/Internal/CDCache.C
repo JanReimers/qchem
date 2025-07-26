@@ -6,7 +6,6 @@ module;
 namespace PolarizedGaussian
 {
 class GaussianCD;
-class GaussianRF;
 class RNLM;
 }
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
@@ -23,10 +22,8 @@ class CDCache
 public:
     CDCache();
     ~CDCache();
-    const GaussianCD& findCD(const GaussianRF*,const GaussianRF*);
     const GaussianCD& findCD(const GData&,const GData&);
-    const RNLM&       find(const GaussianCD&,const GaussianRF*);
-    const RNLM&       find(const GaussianCD&,const GaussianCD&);
+    const RNLM&       find(const GData&,const GData&);
     const RNLM&       find(const GaussianCD&);
     
     void Report(std::ostream&) const;

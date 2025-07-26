@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include "PolarizedGaussian/Radial/GaussianCD.H"
-#include "PolarizedGaussian/Radial/GaussianRF.H"
 
 namespace PolarizedGaussian
 {
@@ -28,21 +27,6 @@ void GaussianCD::MakeNMLs()
 //
 //  Construction zone
 //
-
-GaussianCD::GaussianCD(const GaussianRF& g1,const GaussianRF& g2)
-    : Ltotal(g1.GetL() + g2.GetL())
-    , a     (g1.itsExponent)
-    , b     (g2.itsExponent)
-    , ab    (a * b)
-    , AlphaP(a + b)
-    , AB    (g1.GetCenter() - g2.GetCenter())
-    , P     ( (a*g1.GetCenter() + b*g2.GetCenter()) / AlphaP)
-    , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
-    , H2    (AlphaP, P - g1.GetCenter(), P - g2.GetCenter(), g1.GetL()+1, g2.GetL()+1)
-{
-    if (theNMLs.size()==0) MakeNMLs();
-};
-
 GaussianCD::GaussianCD(const GData& g1,const GData& g2)
     : Ltotal(g1.L + g2.L)
     , a     (g1.Alpha)
@@ -57,12 +41,6 @@ GaussianCD::GaussianCD(const GData& g1,const GData& g2)
     if (theNMLs.size()==0) MakeNMLs();
 };
 
-GaussianCD::~GaussianCD()
-{
-    
-}
 
-
-std::ostream& GaussianCD::Write(std::ostream& os) const {return os;}
 
 } //namespace PolarizedGaussian

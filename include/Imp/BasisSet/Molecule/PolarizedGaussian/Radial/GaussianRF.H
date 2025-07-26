@@ -16,8 +16,6 @@ import qchem.Cluster;
 namespace PolarizedGaussian
 {
 
-class GaussianCD;
-
 class GaussianRF
     : public virtual RadialFunction
     , public RadialCommon
@@ -59,11 +57,7 @@ public:
     GData GetGData() const {return GData{GetID(),itsExponent,itsCenter,itsL};};
 
 private:
-    double GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& ab) const;
 
-    friend class  GaussianCD;
-    friend class PolarizedGaussianIE;
-    friend class CDCache;
     virtual Hermite1* MakeH1() const;
 
     double        itsExponent;
