@@ -1,8 +1,8 @@
 // File: CDCache.C
 module;
 #include <iomanip>
-#include "PolarizedGaussian/MnD/RNLM.H"
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 import Common.UniqueID; 
 namespace PolarizedGaussian
 {

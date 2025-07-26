@@ -12,7 +12,7 @@ Internal/Imp/IntegralEngine.C
 Internal/Imp/Polarization.C
 MnD/Imp/Hermite2.C
 MnD/Imp/Hermite1.C
-MnD/RNLM.C
+MnD/Imp/RNLM.C
 Readers/Imp/Gaussian94.C
 Radial/Imp/GaussianH3.C
 Radial/Imp/Common.C
@@ -37,6 +37,7 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     MnD/Triangle.C
     MnD/Hermite1.C
     MnD/Hermite2.C
+    MnD/RNLM.C
 
     Radial/GData.C
     Radial/Common.C
