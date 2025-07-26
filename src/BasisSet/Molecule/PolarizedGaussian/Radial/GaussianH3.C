@@ -1,8 +1,8 @@
 // File: GaussianH3.C  Class for managing 3 function Hermite coefficients.
 module;
-#include "MnD/Hermite3.H"
 #include <iosfwd>
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 import oml; 

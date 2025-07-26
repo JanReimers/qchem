@@ -3,12 +3,6 @@ module;
 #include <vector>
 #include <set>
 #include <map>
-namespace PolarizedGaussian
-{
-
-class  Hermite3;
-class  RNLM;
-}
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import Common.UniqueID; 
 import qchem.Cluster;
@@ -18,6 +12,8 @@ import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 
 
 // import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;

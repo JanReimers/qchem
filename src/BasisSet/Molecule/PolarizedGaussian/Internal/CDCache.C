@@ -5,13 +5,10 @@ module;
 #include <vector>
 #include <iosfwd>
 
-namespace PolarizedGaussian
-{
-class RNLM;
-}
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import Common.UniqueIDImp; 

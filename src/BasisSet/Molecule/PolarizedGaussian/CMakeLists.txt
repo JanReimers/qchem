@@ -37,6 +37,7 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     MnD/Triangle.C
     MnD/Hermite1.C
     MnD/Hermite2.C
+    MnD/Hermite3.C
     MnD/RNLM.C
 
     Radial/GData.C

@@ -3,8 +3,9 @@ module;
 
 #include <vector>
 #include <memory>
-#include "PolarizedGaussian/MnD/Hermite3.H"
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianH3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import oml;
 

@@ -1,16 +1,14 @@
-// File: Hermite3.H  Interface class for managing 3 function Hermite coefficients
-#ifndef _Hermite3_H_
-#define _Hermite3_H_
-
+// File: PolarizedGaussian/MnD/Hermite3.C  Interface class for managing 3 function Hermite coefficients
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
 
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients
-//    _=
+//
 //   nnn
 //  d
 //   0
@@ -28,4 +26,3 @@ public:
 
 } //namespace PolarizedGaussian
 
-#endif //_Hermite3_H_
