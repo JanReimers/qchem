@@ -1,28 +1,32 @@
-#include "Common/stl_io.h"
+// File: Common/stl_io.C
+module;
+#include <iostream>
+#include <vector>
+#include <set>
+#include <memory>
+export module qchem.stl_io;
 
-//
-//  W/R headers with output mode and typename
-//
-void WriteHeader(std::ostream& os,c_str type)
+export 
 {
-  assert(os);
-  assert(type);
-  if (!StreamableObject::Pretty())  os << (int)StreamableObject::GetOutputMode() << " " << type << " ";
-  assert(type);
-  assert(os);
+//
+//  W/R size and data
+//
+template <template<class> class V,class T> std::ostream& Write(std::ostream& os,const V<T>& v)
+{
+    // os << v.size() << " ";
+    for (auto i:v) os << i << " ";
+    return os;
+}
+template <template<class> class V,class T> std::ostream& Write(std::ostream& os,const V<std::unique_ptr<T>>& v)
+{
+    for (auto& i:v) os << *i.get() << " ";
+    return os;
 }
 
-StreamableObject::Mode ReadHeader(std::istream& is,c_str type)
-{
-    assert(is);
-    assert(type);
-    StreamableObject::Mode current,temp;
-    int itemp;
-    is >> itemp;
-    temp=static_cast<StreamableObject::Mode>(itemp);
-    assert(temp!=StreamableObject::pretty);
-    current=StreamableObject::SetOutputMode(temp);
-    StreamableObject::CheckName(is,type);
-    assert(is);
-    return current;
-}
+//
+//  Generic streaming operators.
+//
+template <class T> std::ostream& operator<<(std::ostream& os,const std::vector<T>& v) {return Write(os,v);}
+template <class T> std::ostream& operator<<(std::ostream& os,const std::set   <T>& s) {return Write(os,s);}
+
+} //export block

@@ -1,8 +1,12 @@
-// File: Atom_ml_IE_HF_Angular.H  Angular 2e-Integrals for atom-ml HF basis sets.
+// File: Atom_ml_IE_HF_Angular.C  Angular 2e-Integrals for atom-ml HF basis sets.
+module;
+#include <vector>
+export module qchem.BasisSet.Atom.Internal.ml.Angular;
 
-#include "ml/IE_HF_Angular.H"
-#include "AngularIntegrals.H"
-#include "IEC.H"
+import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.Internal.AngularIntegrals;
+export import qchem.Types;
 
 template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {
@@ -16,8 +20,14 @@ template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 
 namespace Atom_ml
 {
+export class IE_BS_2E_Angular : public virtual ::AtomIE_BS_2E_Angular
+{
+public:
+    virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const;
+    virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const;
+};
 
-IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
+RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const
  {
     RVec Ak;
     size_t nac=a->ml.size()*c->ml.size();
@@ -38,7 +48,7 @@ IE_BS_2E_Angular::RVec IE_BS_2E_Angular::Coulomb_AngularIntegrals(const iec_t* a
     return Ak;
     
  }
-IE_BS_2E_Angular::RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
+RVec IE_BS_2E_Angular::ExchangeAngularIntegrals(const iec_t* a,const iec_t* b) const
 {
     
     RVec Ak;

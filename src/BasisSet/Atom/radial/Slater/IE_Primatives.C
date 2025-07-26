@@ -1,47 +1,28 @@
-// File: Slater/IE_Primatives.C get all calculation of primative integrals in one place.
+// File: Slater/IE_Primatives.H get all calculation of primative integrals in one place.
+module;
+export module qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
+import qchem.BasisSet.Atom.IE;
+export import qchem.Types;
 
-#include "radial/Slater/IE_Primatives.H"
-#include "radial/Slater/Integrals.H"
-#include "radial/Slater/Rk.H"
-
-namespace Slater
+export namespace Slater
 {
-    double IE_Primatives::Repulsion(double eab, double ec,size_t la,size_t lc) const
-{    
-    Slater::RkEngine cd(eab,ec,std::max(la,lc));
-    return 4*4*Pi*Pi*cd.Coulomb_R0(la,lc);
+    class IE_Primatives 
+    : public virtual Primative_Overlap  <double>
+    , public virtual Primative_Grad2    <double>
+    , public virtual Primative_Inv_r1   <double>
+    , public virtual Primative_Inv_r2   <double>
+    , public virtual Primative_Repulsion<double>
+    , public virtual Primative_Charge   <double>
+{
+    protected:
+    virtual double Overlap  (double ea, double eb,size_t l_total) const;
+    virtual double Grad2    (double ea, double eb,size_t la, size_t lb) const;
+    virtual double Inv_r1   (double ea, double eb,size_t l_total) const;
+    virtual double Inv_r2   (double ea, double eb,size_t l_total) const;
+    virtual double Repulsion(double ea, double ec,size_t la,size_t lc) const;
+    virtual double Charge   (double ea,           size_t l) const;
+};
+
 }
 
-double  IE_Primatives::Overlap(double ea , double eb,size_t l_total) const
-{
-    return Slater::Integral(ea+eb,l_total); //Already has 4*Pi and r^2 from dr.
-}
-
-double IE_Primatives::Grad2(double ea , double eb,size_t la, size_t lb) const
-{
-    assert(la==lb);
-    double ab=ea+eb;
-    int l=la; //Safer to do formulas with int.
-    // int ll=l*(l+1);
-    double Term1=(l+1)*(l+1)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-    double Term2=-(l+1)*ab* Slater::Integral(ab,2*l-1);
-    double Term3=ea*eb*Slater::Integral(ab,2*l);
-    return Term1+Term2+Term3;
-}
-
-double IE_Primatives::Inv_r1(double ea , double eb,size_t l_total) const
-{
-    return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
-}
-double IE_Primatives::Inv_r2(double ea , double eb,size_t l_total) const
-{
-    return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
-}
-
-double IE_Primatives::Charge(double ea, size_t l) const
-{
-    return ::Slater::Integral(ea,l);
-}
-
-
-} //namespace
+   

@@ -2,15 +2,14 @@
 // stl_io.C Develop stl io code.
 
 #include "gtest/gtest.h"
-#include "oml/vector.h"
-#include "oml/imp/stream.h"
-#include "Common/stl_io.h"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
 #include <vector>
 #include <ostream>
 #include <sstream>
 #include <fstream>
+
+import qchem.Atom;
+import qchem.Molecule;
+import qchem.stl_io;
 
 using std::ostream;
 using std::istream;
@@ -97,7 +96,7 @@ TEST_P(STLTesting,FileIO)
     StreamableObject::SetOutputMode(mode);
 }
 
-INSTANTIATE_TEST_CASE_P(FileIO,STLTesting,
+INSTANTIATE_TEST_SUITE_P(FileIO,STLTesting,
                         ::testing::Values(StreamableObject::ascii,StreamableObject::binary));
 
                         

@@ -1,141 +1,45 @@
-// File: CompositeCD.C  Exact implementation of the charged density.
+// File: CompositeCD.C  Composite charged density, which is any array of Irrep DM_CDs.
+module;
+#include <vector>
+#include <memory>
+export module qchem.CompositeCD;
+export import qchem.ChargeDensity;
+export import qchem.HF_IBS;
+export import qchem.Fit_IBS;
 
-
-
-#include <ChargeDensity/CompositeCD.H>
-#include <BasisSet/HF_IBS.H>
-#include <BasisSet/Fit_IBS.H>
-#include "oml/smatrix.h"
-#include "oml/vector.h"
-#include <cassert>
-
-//------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 //
-//  Construction zone.
+//  Full charge density represented Compositely as sum of density matricies.
 //
-Composite_CD::Composite_CD()
-{};
-
-void Composite_CD::Insert(DM_CD* cd)
+export class Composite_CD
+    : public virtual DM_CD
 {
-    itsCDs.push_back(std::unique_ptr<DM_CD>(cd));
-}
+public:
+    Composite_CD();
+    void Insert(DM_CD*);
 
-//-----------------------------------------------------------------------------
-//
-//  Total energy terms for a charge density.
-//
-DM_CD::SMat Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
-{
-    int n=bs_ab->GetNumFunctions();
-    SMat J(n,n);
-    Fill(J,0.0);
-    for (auto& c:itsCDs) J+=c->GetRepulsion(bs_ab);
-    return J;
-}
+    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const; 
+    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const; 
 
-DM_CD::SMat Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
-{
-    int n=bs_ab->GetNumFunctions();
-    SMat K(n,n);
-    Fill(K,0.0);
-    for (auto& c:itsCDs) K+=c->GetExchange(bs_ab);
-    return K;
-}
+    virtual double DM_Contract(const Static_CC*) const;
+    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
 
-double Composite_CD::DM_Contract(const Static_CC* v) const
-{
-    double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->DM_Contract(v);
-    return ret;
-}
+    virtual double GetTotalCharge      (                     ) const;
 
-double Composite_CD::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
-{
-    double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->DM_Contract(v,cd);
-    return ret;
-}
+    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
 
-double Composite_CD::GetTotalCharge() const
-{
-    double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->GetTotalCharge();
-    return ret;
-}
+    virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
+    virtual void   ShiftOrigin  (const RVec3&          )      ;  // No UT coverage
+    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
 
-//------------------------------------------------------------------------------
-//
-//  Required by fitting routines.
-//
-Vector<double> Composite_CD::GetRepulsion3C(const Fit_IBS* fbs) const
-{
-    Vector<double> ret(fbs->size());
-    Fill(ret,0.0);
-    for (auto& c:itsCDs) ret+=c->GetRepulsion3C(fbs);
-    return ret;
-}
+    virtual double operator()(const RVec3&) const;
+    virtual RVec3  Gradient  (const RVec3&) const;
 
-//-------------------------------------------------------------------------
-//
-//  SCF convergence stuff.
-//
-void Composite_CD::ReScale(double factor)
-{
-    // No UT coverage
-    for (auto& c:itsCDs) c->ReScale(factor);
-}
+private:
+    Composite_CD(const Composite_CD&);
 
-void Composite_CD::ShiftOrigin(const RVec3& newCenter)
-{
-    // No UT coverage
-    for (auto& c:itsCDs) c->ShiftOrigin(newCenter);
-}
-
-void Composite_CD::MixIn(const DM_CD& cd,double f)
-{
-    const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);
-    assert(ecd);
-    auto  b(ecd->itsCDs.begin());
-    for (auto& c:itsCDs)
-    {
-        c->MixIn(**b,f);
-        b++;
-    }
-}
-
-double Composite_CD::GetChangeFrom(const DM_CD& cd) const
-{
-    const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);
-    assert(ecd);
-    assert(itsCDs.size()==ecd->itsCDs.size());
-    auto  b(ecd->itsCDs.begin());
-    double ret=0;
-    for (auto& c:itsCDs)
-    {
-        ret += c->GetChangeFrom(**b);
-        b++;
-    }
-    return ret;
-}
-
-//-------------------------------------------------------------------------
-//
-//  Real space function stuff.
-//
-double Composite_CD::operator()(const RVec3& r) const
-{
-    double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->operator()(r);
-    return ret;
-}
-
-DM_CD::Vec3 Composite_CD::Gradient  (const RVec3& r) const
-{
-    // No UT coverage
-    Vec3 ret(0,0,0);
-    for (auto& c:itsCDs) ret+=c->Gradient(r);
-    return ret;
-}
-
+    typedef std::vector<std::unique_ptr<DM_CD>> cdv_t;
+    cdv_t itsCDs;
+};
 

@@ -1,27 +1,18 @@
-// File: ElectronConfiguration.C
+// File: Symmetry/Molecule_EC.C  Electron configuration for a Molecule.
+export module qchem.Symmetry.MoleculeEC;
+export import qchem.Symmetry.ElectronConfiguration;
 
-#include "Symmetry/Molecule_EC.H"
-#include <Symmetry/Irrep_QNs.H>
-#include <cassert>
-#include <iostream>
-
-using std::cout;
-using std::endl;
-
-int Molecule_EC::GetN(const Irrep_QNs& qns) const
+export class Molecule_EC : public virtual ElectronConfiguration
 {
-    return GetN(qns.ms);
-}
-int Molecule_EC::GetN(const Spin& s) const
-{
-    if (s==Spin::None) return GetN();
-    if (Ne%2==0)
-        return Ne/2;
-    else
-        return s==Spin::Up ? (Ne+1)/2 : (Ne-1)/2;
-}
-
-void Molecule_EC::Display() const
-{
-    cout << "Ne: " << Ne << endl;
-}
+public: 
+    Molecule_EC() : Ne(0) {};
+    Molecule_EC(int _Ne) : Ne(_Ne) {};
+    
+    virtual int GetN(const Irrep_QNs& qns) const;
+    virtual void Display() const;
+private:
+    int GetN() const {return Ne;}
+    int GetN(const Spin&) const;
+    int GetN(const Symmetry&) const {return Ne;}
+    int Ne;
+};

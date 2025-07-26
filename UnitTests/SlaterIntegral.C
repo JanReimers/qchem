@@ -2,26 +2,29 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/DataBase/DB_HF.H"
-#include "Imp/BasisSet/Atom/IEC.H"
-#include "Imp/BasisSet/ERI4.H"
-#include "Symmetry/Angular.H"
-
-#include "Mesh/MeshIntegrator.H"
-#include "Common/DFTDefines.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
-#include <BasisSet/Factory.H>
-#include <LASolver/LAParams.H>
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Irrep_BS.H>
-#include <BasisSet/HF_IBS.H>
-#include <Mesh/MeshParams.H>
-#include <Cluster/Cluster.H>
-#include "oml/imp/ran250.h"
+#include "nlohmann/json.hpp"
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <iomanip>
+
+import qchem.BasisSet.Atom.IEClient;
+
+import qchem.LAParams;
+import qchem.Factory;
+import qchem.HF_IBS;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.HeapDB;
+
+import qchem.BasisSet;
+import qchem.Irrep_BS;
+import Common.Constants;
+import qchem.Mesh.Integrator;
+import qchem.Cluster;
+import qchem.Atom;
+import qchem.Molecule;
+import qchem.Symmetry.Angular;
+import oml;
 
 using std::cout;
 using std::endl;
@@ -80,7 +83,7 @@ double SlaterRadialIntegralTests::R0(const AtomIrrepIEClient& ab, const AtomIrre
     double b=cd.es(ic)+cd.es(id);
     int nab=ab.n+ab.n;
     int ncd=cd.n+cd.n;
-    double f=4*4*Pi*Pi/(a*b*(a+b));
+    double f=FourPi2/(a*b*(a+b));
     if (nab==2 && ncd==2)
         return 2*f*( 
                     1/(pow(a,1)*pow(b,1)*pow(a+b,0))
@@ -287,7 +290,7 @@ TEST_F(SlaterRadialIntegralTests, CoulombExchange)
 //TEST_F(SlaterRadialIntegralTests, Numerical)
 //{
 //    TIrrepBasisSet<double>* vf=*bs->beginT();
-//    TBasisFunction<double>* sf=*vf->beginT();
+//    Real_BF* sf=*vf->beginT();
 //
 //    Vector<double> cnum=mintegrator->Integrate(*vf);
 //    Vector<double> c=ie->MakeCharge(vf);

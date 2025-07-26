@@ -1,61 +1,32 @@
 add_library(qcAtom_BS) 
 target_sources(qcAtom_BS PRIVATE 
-Factory.C
-IE_DHF.C
-IE_DFT.C
-IEC.C
-IE.C
-IE_Fit.C
-IE_HF.C
-Angular.C
-AngularIntegrals.C
-BFGrouper.C
-Wigner3j.C
-l/IE_HF_Angular.C
-l/Slater_IBS.C
-l/Gaussian_BS.C
-l/Slater_BS.C
-l/Slater_BF.C
-l/Gaussian_BF..C
-l/Gaussian_IBS.C
-kappa/Slater_IBS.C
-kappa/Gaussian_BS.C
-kappa/Slater_BS.C
-kappa/Slater_IE.C
-kappa/Slater_BF.C
-kappa/Gaussian_IE.C
-kappa/Gaussian_IBS.C
-kappa/Gaussian_BF.C
-radial/Gaussian/IE_Primatives.C
-radial/Gaussian/Rk.C
-radial/Gaussian/ExponentScaler.C
-radial/Gaussian/IBS_Common.C
-radial/Gaussian/Integrals.C
-radial/Gaussian/BS_Common.C
-radial/BSpline/Instance.C
-radial/BSpline/GLQuadrature.C
-radial/BSpline/gauleg.f
-radial/Triangle2D.C
-radial/PascalTriangle.C
-radial/Slater/IE_Primatives.C
-radial/Slater/Rk.C
-radial/Slater/ExponentScaler.C
-radial/Slater/IBS_Common.C
-radial/Slater/BS_Common.C
-ml/Slater_IBS.C
-ml/IE_HF_Angular.C
-ml/Gaussian_BS.C
-ml/Slater_BS.C
-ml/Ylm.C
-ml/Slater_BF.C
-ml/Gaussian_BF..C
-ml/Gaussian_IBS.C
+    Imp/IEC.C
+    Imp/IE.C
+    Imp/Factory.C
+    Imp/IE_DHF.C
+    Imp/IE_DFT.C
+    Imp/IE_Fit.C
+    Imp/IE_HF.C
+    Internal/Imp/AngularIntegrals.C
+    Internal/Imp/BFGrouper.C
+    Internal/Imp/Wigner3j.C
+)
+target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+    Factory.C
+    IE.C
+    IEC.C
+    Internal/AngularIntegrals.C
+    Internal/BFGrouper.C
+    Internal/Wigner3j.C
 )
 target_include_directories(qcAtom_BS PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include  
-    ${PROJECT_SOURCE_DIR}/include/Imp/BasisSet/Atom 
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
+set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
+target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
+add_subdirectory(l)
+add_subdirectory(ml)
+add_subdirectory(kappa)
+add_subdirectory(radial)

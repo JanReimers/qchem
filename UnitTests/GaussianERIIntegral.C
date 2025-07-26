@@ -3,12 +3,12 @@
 
 #include "gtest/gtest.h"
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
-#include "Imp/Integrals/Wigner3j.H"
-#include "Common/DFTDefines.H"
-#include "oml/imp/ran250.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
+
+import qchem.BasisSet.Atom.Internal.Wigner3j;
+import Common.Constants;
 
 using std::cout;
 using std::endl;
@@ -29,10 +29,8 @@ public:
     }
 
     double ab,cd;
-    static const double FourPi2;
 };
 
-const double GaussianRadialERITests::FourPi2=4*4*Pi*Pi;
 
 TEST_F(GaussianRadialERITests, R0_0000)
 {

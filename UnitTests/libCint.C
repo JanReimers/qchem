@@ -1,22 +1,22 @@
 // File libCint.C   test the libCint molecular integral library
 
 #include "gtest/gtest.h"
-#include "PolarizedGaussian/BasisSet.H"
 //#include "PolarizedGaussian/IEClient.H"
 #include "PolarizedGaussian/IntegralEngine.H"
-#include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Block.H"
-#include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
-#include <BasisSet/Integrals.H>
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 
-#include <LASolver/LAParams.H>
+import qchem.BasisSet.Internal.Integrals;
+import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.LAParams;
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
 #include <vector>
 #include <iostream>
 
-typedef Vector3D<double> RVec3;
+import qchem.Atom;
+import qchem.Molecule;
+import qchem.Types;
 
 extern "C" {
 #include "cint.h"

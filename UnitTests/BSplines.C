@@ -2,24 +2,29 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/Atom/radial/BSpline/IEC.H"
-
-#include "Common/stl_io.h"
-#include "Mesh/MeshIntegrator.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
-#include <Mesh/MeshParams.H>
-#include <Cluster/Cluster.H>
-#include <Symmetry/Symmetry.H>
-#include <BasisSet/Factory.H>
-#include <LASolver/LAParams.H>
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Irrep_BS.H>
-
-#include "oml/vector.h"
-#include "oml/smatrix.h"
+#include "nlohmann/json.hpp"
 #include <bspline/Core.h>
 #include <iostream>
+#include <valarray>
+#include <iomanip>
+
+import qchem.Basisset.Atom.radial.BSpline.IEC;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+import qchem.Symmetry.Angular;
+
+import qchem.LAParams;
+
+
+import qchem.Factory;
+import qchem.BasisSet;
+import qchem.Irrep_BS;
+import qchem.Mesh.Integrator;
+import qchem.Cluster;
+import qchem.Atom;
+import qchem.Molecule;
+import qchem.Symmetry;
+import oml;
+import qchem.stl_io;
 
 using std::cout;
 using std::endl;
@@ -150,8 +155,7 @@ TEST_F(BSplineTests, SplineMap)
     }
 }
 
-#include "Imp/BasisSet/Atom/radial/BSpline/GLQuadrature.H"
-#include <Symmetry/Angular.H>
+
 TEST_F(BSplineTests,GLQIntegration)
 {
     Init(10,.1,10);

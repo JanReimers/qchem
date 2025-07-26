@@ -2,21 +2,25 @@
 
 
 #include "gtest/gtest.h"
-#include "Imp/BasisSet/DHF_IBS_Common.H"
-#include "Imp/BasisSet/ERI4.H"
-// #include "Symmetry/Okmj.H"
-#include <BasisSet/Factory.H>
-#include <LASolver/LAParams.H>
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Irrep_BS.H>
-#include "Mesh/MeshIntegrator.H"
-#include "Common/DFTDefines.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
-
-#include <Mesh/MeshParams.H>
-#include <Cluster/Cluster.H>
+#include "nlohmann/json.hpp"
 #include <iostream>
+#include <valarray>
+#include <cmath>
+#include <iomanip>
+
+import qchem.LAParams;
+
+import qchem.BasisSet.Internal.IBS_Common;
+
+import qchem.Factory;
+import qchem.BasisSet;
+import qchem.Irrep_BS;
+import qchem.BasisSet.Internal.ERI4;
+import Common.Constants;
+import qchem.Cluster;
+import qchem.Mesh.Integrator;
+import qchem.Atom;
+import qchem.Molecule;
 
 using std::cout;
 using std::endl;
@@ -68,12 +72,12 @@ public:
 
     
     
-    static SMat merge_diag(const SMat& l,const SMat& s)
+    static SMatrix<double> merge_diag(const SMat& l,const SMat& s)
     {
         return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
     }
 
-    static SMat merge_off_diag(const Mat& l)
+    static SMatrix<double> merge_off_diag(const Mat& l)
     {
         return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
     }
@@ -111,7 +115,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
-        SMat Snum=merge_diag(SLnum,SSnum);
+        SMatrix<double> Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
@@ -131,7 +135,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
 //        cout << SLnum << SSnum << endl;
-        SMat Snum=merge_diag(SLnum,SSnum);
+        SMatrix<double> Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }
@@ -150,7 +154,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
-        SMat Vennum=merge_diag(VenLnum,VenSnum);
+        SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
@@ -170,7 +174,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
-        SMat Vennum=merge_diag(VenLnum,VenSnum);
+        SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -190,7 +194,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
         const TIrrepBasisSet<double>* l=GetLarge(oi);
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
-        SMat Knum=merge_off_diag(KnumL);
+        SMatrix<double> Knum=merge_off_diag(KnumL);
         // cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
     }
@@ -206,7 +210,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
         const TIrrepBasisSet<double>* l=GetLarge(oi);
         const TIrrepBasisSet<double>* s=GetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
-        SMat Knum=merge_off_diag(KnumL);
+        SMatrix<double> Knum=merge_off_diag(KnumL);
         //cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
         // EXPECT_NEAR(Max(fabs(K-K1)),0.0,1e-14);      

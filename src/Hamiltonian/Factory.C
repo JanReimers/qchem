@@ -1,91 +1,21 @@
-// File: Hamiltonian/Factory.C  Interface a Hamiltonian operator.
+// File: Hamiltonian/Factory.C Construct and return various Hamiltonian types.
+module;
+#include <memory>
+export module qchem.Hamiltonian.Factory;
+export import qchem.Hamiltonian;
+import qchem.Hamiltonian.Internal.ExFunctional;
+import qchem.Mesh;
+import qchem.Cluster;
+import qchem.BasisSet;
 
-#include <Hamiltonian/Factory.H>
-#include "Hamiltonians.H"
-#include <cassert>
-
-namespace HamiltonianF
+typedef std::shared_ptr<const Cluster> cl_t;
+export namespace HamiltonianF
 {
-    
-    Hamiltonian* Factory(Model m,Pol p, const cl_t& cl)
-    {
-        Hamiltonian* h=0;
-        switch (p)
-        {
-            case Pol::UnPolarized:
-            {
-                switch (m)
-                {
-                    case Model::E1:
-                        h=new Ham_1E(cl);
-                        break;
-                    case Model::HF:
-                        h=new Ham_HF_U(cl);
-                        break;
-                    case Model::DE1:
-                        h=new Ham_DHF_1E(cl);
-                        break;
-                    case Model::DHF:
-                        assert(false); //DHF is always polarized?
-                        h=new Ham_DHF(cl);
-                        break;
-                }
-                break;
-            }
-            case Pol::Polarized:
-            {
-                switch (m)
-                {
-                case Model::E1:
-                    h=new Ham_1E(cl);
-                    break;
-                case Model::HF:
-                    h=new Ham_HF_P(cl);
-                    break;
-                case Model::DE1:
-                    h=new Ham_DHF_1E(cl);
-                    break;
-                case Model::DHF:
-                    h=new Ham_DHF(cl);
-                    break;
-                }
-            break;
-            }
-        }
-        assert(h);
-        return h;
-    }
-    //DFT version
-    Hamiltonian* Factory(Pol p,const cl_t& cl,ExFunctional* ex  , const MeshParams& mp, const BasisSet* bs)
-    {
-        Hamiltonian* h=0;
-        switch (p)
-        {
-            case Pol::UnPolarized:
-                h=new Ham_DFT_U(cl,ex,mp,bs);
-                break;
-            case Pol::Polarized:
-                h=new Ham_DFT_P(cl,ex,mp,bs);
-                break;
-        }
-        assert(h);
-        return h;
-    }
-
-    Hamiltonian* Factory(Pol p,const cl_t& cl,double alpha  , const MeshParams& mp, const BasisSet* bs)
-    {
-        Hamiltonian* h=0;
-        switch (p)
-        {
-            case Pol::UnPolarized:
-                h=new Ham_DFT_U(cl,alpha,mp,bs);
-                break;
-            case Pol::Polarized:
-                h=new Ham_DFT_P(cl,alpha,mp,bs);
-                break;
-        }
-        assert(h);
-        return h;
-    }
+    enum class Model {E1,HF,DE1,DHF}; //E1 is 1 electron. DE1 is Dirac 1 electron.
+    enum class Pol   {UnPolarized,Polarized};
+    Hamiltonian* Factory(Model,Pol,const cl_t& cl);
+    Hamiltonian* Factory(Pol,const cl_t& cl,ExFunctional* , const MeshParams&, const BasisSet*); //DFT version
+    Hamiltonian* Factory(Pol,const cl_t& cl,double alpha  , const MeshParams&, const BasisSet*); //DFT version
 
 }
+

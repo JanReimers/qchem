@@ -1,111 +1,100 @@
-// File: ChargeDensity.C  Interface for the charge density category.
-#include <ChargeDensity/ChargeDensity.H>
-#include <Symmetry/Spin.H>
-#include "oml/smatrix.h"
-#include "oml/vector.h"
-//----------------------------------------------------------------------------
+// File: ChargeDensity.C  Interface for a charge density 
+export module qchem.ChargeDensity;
+import qchem.FittedFunctionClient;
+export import qchem.HF_IBS;
+export import qchem.Fit_IBS;
+export import qchem.Symmetry.Spin;
+import qchem.Symmetry.ElectronConfiguration;
+import qchem.ScalarFunction;
 //
-//  Various integrals.
 //
-DM_CD::SMat Polarized_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs) const
+//  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
+export class Static_CC //Contract client for static Ham terms.
 {
-    SMat Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
-    SMat Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
-    return Jab_up + Jab_down;
-}
+public:
+    virtual const SMatrix<double>& GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;    
+};
 
-DM_CD::SMat Polarized_CD::GetExchange(const TOrbital_HF_IBS<double>* bs) const
+export class DM_CD;
+export class Dynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
-    // No UT coverage
-    SMat Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
-    SMat Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
-    return Kab_up + Kab_down;
-}
-
-double Polarized_CD::DM_Contract(const Static_CC* v) const
-{
-    return GetChargeDensity(Spin::Up  )->DM_Contract(v)+GetChargeDensity(Spin::Down)->DM_Contract(v);
-}
-
-double Polarized_CD::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
-{
-    return GetChargeDensity(Spin::Up  )->DM_Contract(v,cd)+GetChargeDensity(Spin::Down)->DM_Contract(v,cd);
-}
-
-
-double Polarized_CD::GetTotalCharge() const
-{
-    return GetChargeDensity(Spin::Up)->GetTotalCharge() + GetChargeDensity(Spin::Down)->GetTotalCharge() ;
-}
-
-double Polarized_CD::GetTotalSpin() const
-{
-    // No UT coverage
-    return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
-}
-
-Vector<double> Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
-{
-    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
-        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
-}
-
-//-----------------------------------------------------------------------
-//
-//  Convergence and origin shifting.
-//
-void   Polarized_CD::ShiftOrigin(const RVec3& newcenter)
-{
-    // No UT coverage
-    GetChargeDensity(Spin::Up)  ->ShiftOrigin(newcenter) ;
-    GetChargeDensity(Spin::Down)->ShiftOrigin(newcenter) ;
-}
-
-void Polarized_CD::MixIn(const DM_CD& cd,double c)
-{
-    const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
-    if (!pcd)
-    {
-        std::cerr << "PolarizedCD::MixIn could not cast cd" << std::endl;
-        exit(-1);
-    }
-    GetChargeDensity(Spin::Up)  -> MixIn(*pcd->GetChargeDensity(Spin::Up  ),c);
-    GetChargeDensity(Spin::Down)-> MixIn(*pcd->GetChargeDensity(Spin::Down),c);
-}
-
-double Polarized_CD::GetChangeFrom(const DM_CD& cd) const
-{
-    const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
-    if (!pcd)
-    {
-        std::cerr << "PolarizedCD::GetChangeFrom could not cast cd" << std::endl;
-        exit(-1);
-    }
-    return GetChargeDensity(Spin::Up)  ->GetChangeFrom(*pcd->GetChargeDensity(Spin::Up  ))
-           + GetChargeDensity(Spin::Down)->GetChangeFrom(*pcd->GetChargeDensity(Spin::Down)) ;
-}
-
-void Polarized_CD::ReScale(double factor)
-{
-    // No UT coverage
-    GetChargeDensity(Spin::Up)  ->ReScale(factor);
-    GetChargeDensity(Spin::Down)->ReScale(factor);
-}
+public:
+    virtual const SMatrix<double>& GetMatrix(const TOrbital_IBS<double>*,const Spin&,const DM_CD*) const=0;    
+};
 
 //----------------------------------------------------------------------------------
 //
-//  Real space function stuff.
+//  Charge density has a simple mandate:
+//    1) Provide numerical evluation of ro(r).
+//    2) Calculate the Coulomb self energy = sum ni <i(1)|Ro(2)/r12|i(1)> = sum Dab <a(1)|Ro(2)/r12|b(1)>
+//    3) Calculate Vcoul(0) = <Ro(r)/r>.
+//    4) Calculate the overlap   integrals  < ro(1)| b(1) > for some basis set b.
+//    5) Calculate the repulsion integrals  < ro(1)/r12 | b(2) > for some basis set b.
+//    6) Calculate the orbital repulsion integrals  < i(1) | ro(2)/r12 | j(1) > for orbitals i,j.
+//    7) calculate the self repulsion = 1/2 <ro(1)|1/r12|ro(2)>
 //
-double Polarized_CD::operator()(const RVec3& r) const
+//  This is the interface for a charge density representation based on the density matrix.
+//
+export class DM_CD 
+: public virtual ScalarFunction<double>
+, public virtual DensityFFClient //Fitted function can be fit to this.
 {
-    // No UT coverage
-    return (*GetChargeDensity(Spin::Up))(r) + (*GetChargeDensity(Spin::Down))(r);
-}
+public:
+    virtual double DM_Contract(const Static_CC*) const=0; //Amounts to Integral(ro*V*d3r);
+    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const=0; //Amounts to Integral(ro*V(ro)*d3r);
 
-DM_CD::RVec3 Polarized_CD::Gradient  (const RVec3& r) const
+    virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
+    virtual void   ShiftOrigin  (const RVec3&          )      =0;  //Usefull for single atom charge densities.
+    virtual void   MixIn        (const DM_CD&,double)      =0;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const DM_CD&       ) const=0;  //Convergence check.
+
+    virtual double GetTotalCharge  () const=0;  // <ro>
+    virtual double FitGetConstraint() const {return  GetTotalCharge();}
+
+    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const=0;
+    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const=0;
+
+};
+
+//---------------------------------------------------------------------------------------
+//
+//  Store spin up and spin down as a ChargeDensity
+//  Generic: Could be fitted or exact.
+//
+export class Polarized_CD
+    : public virtual DM_CD
 {
-    // No UT coverage
-    return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
-}
+public:
+    virtual       DM_CD* GetChargeDensity(const Spin&)      =0;
+    virtual const DM_CD* GetChargeDensity(const Spin&) const=0;
 
+    virtual double DM_Contract(const Static_CC*) const;
+    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
 
+    virtual double GetTotalCharge() const;  // <ro>
+    virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
+
+    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
+    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
+    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const; 
+
+    virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
+    virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
+    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const DM_CD&       ) const;  //Convergence check.
+
+    virtual double operator()(const RVec3&) const; // No UT coverage
+    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
+};
+
+export class SpinDensity : public virtual ScalarFunction<double>
+{
+public:
+    SpinDensity(DM_CD* up,DM_CD* down);
+    ~SpinDensity();
+    virtual double operator()(const RVec3&) const; // No UT coverage
+    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
+private:
+    DM_CD* itsSpinUpCD;
+    DM_CD* itsSpinDownCD;
+};

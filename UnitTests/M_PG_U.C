@@ -2,11 +2,11 @@
 
 #include "QchemTester.H"
 
-#include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
-#include <Mesh/MeshParams.H>
-#include <Hamiltonian/Factory.H>
 
+import qchem.Hamiltonian.Factory;
+import qchem.Atom;
+import qchem.Molecule;
+import oml;
 
 Molecule* MakeN2()
 {

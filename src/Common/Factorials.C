@@ -1,7 +1,25 @@
 // File: Factorials.C
-
-#include "Common/Factorials.H"
+module;
 #include <iostream>
+
+export module Common.Factorials;
+
+
+
+export namespace qchem {
+    const int NMax=19; //Should enable up to f orbitals.
+    struct FactorialTables 
+    {
+        FactorialTables();
+    };
+
+    extern double DFact[]; //Double factorials 1,3,3*5,3*5*7 etc. lookup table.
+    extern double Fact[]; //Factorials 1,2,2*3,2*3*4 etc. lookup table.
+    extern double Twon[];  //2^n lookup table.
+}
+
+
+
 namespace qchem
 {
     static FactorialTables theFactoriTables; //Force call to InitFactorials() before main().
@@ -15,7 +33,7 @@ namespace qchem
         Twon[0]=1.0;
         Fact[1]=1.0;
         Twon[1]=2.0;
-        for (int n=2; n<=qchem::NMax; n++)
+        for (int n=2; n<=NMax; n++)
         {
             DFact[n]=DFact[n-2]*n;
             Fact[n]=Fact[n-1]*n;

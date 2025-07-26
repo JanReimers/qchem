@@ -2,24 +2,22 @@
 
 
 #include "gtest/gtest.h"
-#include "Symmetry/Yl.H"
-#include <BasisSet/Factory.H>
-#include <LASolver/LAParams.H>
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Irrep_BS.H>
-#include "Mesh/MeshIntegrator.H"
-#include "Common/DFTDefines.H"
-#include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
-#include <Mesh/MeshParams.H>
-#include <Cluster/Cluster.H>
-#include "oml/vector.h"
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
-#include "oml/imp/ran250.h"
+#include "nlohmann/json.hpp"
+import qchem.LAParams;
 #include <iostream>
 #include <fstream>
 #include <cmath>
+
+import qchem.Factory;
+import qchem.BasisSet;
+import qchem.Irrep_BS;
+import Common.Constants;
+import qchem.Mesh.Integrator;
+import qchem.Cluster;
+import qchem.Atom;
+import qchem.Molecule;
+import qchem.Symmetry.Yl;
+import oml;
 
 using std::cout;
 using std::endl;

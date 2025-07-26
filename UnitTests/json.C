@@ -1,9 +1,9 @@
 // File: json.C  Test out basis set factory using the json header library 
 
 #include "gtest/gtest.h"
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Factory.H>
 #include <nlohmann/json.hpp>
+import qchem.Factory;
+import qchem.BasisSet;
 using json = nlohmann::json;
 
 class jsonTests : public ::testing::Test
@@ -11,7 +11,6 @@ class jsonTests : public ::testing::Test
 public:
     jsonTests()
     {
-        StreamableObject::SetToPretty();
     }
 };
 

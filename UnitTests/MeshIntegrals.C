@@ -3,17 +3,14 @@
 #include "gtest/gtest.h"
 
 #include "PolarizedGaussian/IntegralEngine.H"
-#include "PolarizedGaussian/BasisSet.H"
-#include "PolarizedGaussian/IrrepBasisSet.H"
-#include "Mesh/MeshIntegrator.H"
-#include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
-#include <LASolver/LAParams.H>
-#include <Mesh/MeshParams.H>
-#include <Symmetry/Symmetry.H>
-#include "oml/smatrix.h"
-#include "oml/matrix.h"
+import qchem.LAParams;
 #include <iomanip>
+qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.Mesh.Integrator;
+import qchem.Atom;
+import qchem.Molecule;
+import qchem.Symmetry;
+import oml;
 
 
 using std::cout;

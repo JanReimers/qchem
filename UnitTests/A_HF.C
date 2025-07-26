@@ -1,10 +1,10 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 
 #include "QchemTester.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
-#include <BasisSet/Factory.H> //Just to get the types.
-#include <Hamiltonian/Factory.H>
+
+import qchem.Hamiltonian.Factory;
+import qchem.Factory;
+import qchem.Atom;
 
 const bool verbose=true;
 inline SCFParams scf_params(int Z) 
@@ -87,7 +87,7 @@ TEST_P(A_SG_HF_U,Multiple)
     EXPECT_LE(GetIterationCount(),ic_expected);
     EXPECT_EQ(GetIterationCount(),ic_expected);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 
 TEST_P(A_SL_HF_U,Multiple)
@@ -104,7 +104,7 @@ TEST_P(A_SL_HF_U,Multiple)
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));
 
 TEST_P(A_BS_HF_U,Multiple)
 {
@@ -118,7 +118,7 @@ TEST_P(A_BS_HF_U,Multiple)
     EXPECT_LT(RelativeHFError(),1e-9);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_U,::testing::Values(2,4,10,12,18)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_U,::testing::Values(2,4,10,12,18)); 
 
 TEST_P(A_PG_HF_U,Multiple)
 {
@@ -127,7 +127,7 @@ TEST_P(A_PG_HF_U,Multiple)
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
+INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18,36));
 
 
 
@@ -221,7 +221,7 @@ TEST_P(A_SG_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),1e-6);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,25,37,47,63,75)); //Can't do boron or Sc, need SGm basis for that.
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_HF_P,::testing::Values(1,3,7,25,37,47,63,75)); //Can't do boron or Sc, need SGm basis for that.
 
 
 TEST_P(A_SL_HF_P,Multiple)
@@ -239,7 +239,7 @@ TEST_P(A_SL_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,11,15,19,25,29,30,31,33,34,35,37,53,56,64)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_HF_P,::testing::Values(1,3,7,11,15,19,25,29,30,31,33,34,35,37,53,56,64)); 
 
 
 TEST_P(A_BS_HF_P,Multiple)
@@ -254,8 +254,8 @@ TEST_P(A_BS_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-// INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_P,::testing::Values(1,2,3,4,)); 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BS_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
+// INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_P,::testing::Values(1,2,3,4,)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_P,::testing::Values(1,3,7,37,53,56,64)); 
 
 
 TEST_P(A_SLm_HF_P,Multiple)
@@ -273,8 +273,8 @@ TEST_P(A_SLm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
-// INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_P,::testing::Range(1,93)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
+// INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_P,::testing::Range(1,93)); 
 
 TEST_P(A_SGm_HF_P,Multiple)
 {
@@ -291,8 +291,8 @@ TEST_P(A_SGm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
-// INSTANTIATE_TEST_CASE_P(Multiple,A_SGm_HF_P,::testing::Range(1,93)); //Only goes to 92?!?
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SGm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
+// INSTANTIATE_TEST_SUITE_P(Multiple,A_SGm_HF_P,::testing::Range(1,93)); //Only goes to 92?!?
 
 
 TEST_P(A_BSm_HF_P,Multiple)
@@ -308,8 +308,8 @@ TEST_P(A_BSm_HF_P,Multiple)
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
 
-// INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
-INSTANTIATE_TEST_CASE_P(Multiple,A_BSm_HF_P,::testing::Values(5,6,8,9)); 
+// INSTANTIATE_TEST_SUITE_P(Multiple,A_BSm_HF_P,::testing::Values(5,6,8,9,13,14,16,17,21,22,23,26,27,28,39,40,41,44,45,57,58,59,60,61,62,65,66,67,68,69,91,92)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_BSm_HF_P,::testing::Values(5,6,8,9)); 
 
 
 class A_PG_HF_P : public ::testing::TestWithParam<int>
@@ -334,5 +334,5 @@ TEST_P(A_PG_HF_P,Multiple)
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
-INSTANTIATE_TEST_CASE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,21,37)); //7 fails Z=51 is slow
+INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5,21,37)); //7 fails Z=51 is slow
 

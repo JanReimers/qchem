@@ -1,22 +1,16 @@
 // File A_DHF.C  Atom Dirac-Hartree-Fock tests.
 
-#include "QchemTester.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
-#include <Orbitals/Orbitals.H>
-#include <Symmetry/Spin.H>
-#include <Symmetry/Irrep_QNs.H>
-#include <Symmetry/Symmetry.H>
 #include <iostream>
-#include <Common/DFTDefines.H>
-#include "oml/io3d.h"
 #include <iomanip>
-#include "Mesh/MeshIntegrator.H"
-#include <Mesh/MeshParams.H>
-#include <Mesh/Mesh.H>
-#include <BasisSet/Factory.H>
-#include <Hamiltonian/Factory.H>
 
+#include "QchemTester.H"
+import qchem.Hamiltonian.Factory;
+import qchem.Factory;
+import Common.Constants;
+import qchem.Mesh;
+import qchem.Mesh.Integrator;
+import qchem.Atom;
+import qchem.Molecule;
 
 using std::cout;
 using std::endl;
@@ -77,7 +71,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); //37,53
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); //37,53
 
 
 class A_SLmj_DHF : public ::testing::TestWithParam<int>
@@ -122,7 +116,7 @@ TEST_P(A_SLmj_DHF,Multiple)
    
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SLmj_DHF,::testing::Values(1,20,60,86,100)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLmj_DHF,::testing::Values(1,20,60,86,100)); 
 
 //--------------------------------------------------------------------------------------------
 //
@@ -193,7 +187,7 @@ TEST_P(A_SG_DHF,Multiple)
 
 }
 
-INSTANTIATE_TEST_CASE_P(Multiple,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53
 
 
 
@@ -218,10 +212,10 @@ class A_SL_DHF_H : public A_SLmj_DHF
 
 double S12g(double r,double alpha)
 {
-    if (alpha==0.0) return exp(-r)/sqrt(Pi);
+    if (alpha==0.0) return exp(-r)/Pi12;
     double a2=alpha*alpha;
     double g=sqrt(1.0-a2*1.0);
-    double n=4.*Pi*tgamma(2*g+1.)/pow(2.,2.*g+1.);  
+    double n=FourPi*tgamma(2*g+1.)/pow(2.,2.*g+1.);  
     return pow(r,g-1.0)*exp(-r)/sqrt(n);
 }
 

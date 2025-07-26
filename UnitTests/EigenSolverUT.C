@@ -1,15 +1,18 @@
 // file: EigenSolverUT.C  Unit test for the eigen solver
 
-#include "gtest/gtest.h"
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Irrep_BS.H>
-#include <LASolver/LAParams.H>
-#include <LASolver/LASolver.H>
-#include <BasisSet/Factory.H>
-#include <iostream> 
+#include <iostream>
+#include <iomanip> 
 #include <cassert>
-#include "oml/smatrix.h"
+#include <cmath>
+#include "nlohmann/json.hpp"
+#include "gtest/gtest.h"
+import qchem.LAParams;
+import qchem.LASolver;
 
+import qchem.Factory;
+import qchem.Irrep_BS;
+import qchem.BasisSet;
+import oml;
 using std::cout;
 using std::endl;
 
@@ -61,7 +64,7 @@ double Norm(const SMatrix<double>& s)
 
 TEST_F(OrthogonalizeTests, Types)
 {
-    typedef LASolver<double>::RSMat SMat;
+    typedef SMatrix<double> SMat;
     int NMax=21;
     for (int N=3;N<=NMax;N++)
     {
@@ -72,8 +75,8 @@ TEST_F(OrthogonalizeTests, Types)
             {
                 LASolver<double>* las=ibs->CreateSolver();
                 const SMat& S=ibs->Overlap();
-                SMat I=las->Transform(S);
-                SMat I1(ibs->GetNumFunctions());
+                SMatrix<double> I=las->Transform(S);
+                SMatrix<double> I1(ibs->GetNumFunctions());
                 Unit(I1);
                 double eps=1e-15*pow(N,3);
                 cout << N << " " << Max(fabs(I-I1)) << " " << Norm(I-I1) << " " << eps << endl;

@@ -1,221 +1,40 @@
-// File: FittedFunctionImp.C  Common imp for Fitted Functions.
+// File: FittedFunction.C  Linear fitted function interface
+module;
 
-#include "FittedFunction.H"
-#include <ChargeDensity/ChargeDensity.H>
-#include <BasisSet/Fit_IBS.H>
-#include <BasisSet/DFT_IBS.H>
-#include <Mesh/Mesh.H>
-#include "oml/vector.h"
-#include "oml/matrix.h"
-#include "oml/smatrix.h"
-#include "oml/imp/binio.h"
-#include <iostream>
-#include <cassert>
+export module qchem.FittedFunction;
+import qchem.ScalarFunction;
+import qchem.FittedFunctionClient;
 
-//---------------------------------------------------------------------
+//----------------------------------------------------------------------------------
 //
-//  Construction zone.  The CDFit flag indicates to fit the electric
-//  instead of the charge density.  The only difference in practice
-//  is that all overlap integrals are replaced with repulsion integrals.
-//
-template <class T> FittedFunctionImp<T>::
-FittedFunctionImp(bs_t& fbs,mesh_t& m)
-    : itsBasisSet(fbs)
-    , itsFitCoeff(fbs->GetNumFunctions())
-    , itsMesh    (m)
-    , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
+//!  Interface for a real space function that can be fit with a basis set.\n
+//! \f$ F\left(\vec{r}\right)\sim\sum_{a}c_{a}f_{a}\left(\vec{r}\right) \f$ \n
+//! The expansion coefficients are calculated by least squares:\n
+//! \f$ \frac{\partial}{\partial c_{b}}\int d^{3}\vec{r}\left[F\left(\vec{r}\right)-\sum_{a}c_{a}f_{a}\left(\vec{r}\right)\right]^{2}=0 \f$ \n
+//! \f$ \int d^{3}\vec{r}F\left(\vec{r}\right)f_{b}\left(\vec{r}\right)=F_{b}=\sum_{a}c_{a}\int d^{3}\vec{r}f_{a}\left(\vec{r}\right)f_{b}\left(\vec{r}\right) \f$ 
+//! or \f$ F_{b}=\sum_{a}c_{a}S_{ab} \f$ \n
+//!  The DoFit member function calculates the expansion coefficients as: \f$ c_{b}=\sum_{a}F_{a}S_{ab}^{-1} \f$ 
+//!  where \f$ S_{ab}^{-1} \f$ is the Penrose inverse of the fit basis overlap matrix. The Pensrose inverse avoids problems
+//!  with linear dependensices in the fit basis.  
+//!  
+//!  The GetFunctionOverlap is supplied by the client (derived) class to calculate a vector of 
+//! \f$ \int d^{3}\vec{r}F\left(\vec{r}\right)f_{b}\left(\vec{r}\right)=F_{b} \f$ values.
+//! 
+export class FittedFunction
+    : public virtual ScalarFunction<double>
 {
-    assert(itsMesh);
-    Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/itsBasisSet->Charge()(1); //Wild guess with the correct total charge.
+public:
+    //! Find \f$ c_{b}=\sum_{a}F_{a}S_{ab}^{-1} \f$ , where \f$ F\left(\vec{r}\right) \f$ is evaluated numerically.
+    virtual double DoFit(const ScalarFFClient&)=0;
+    //! For the case where \f$ F\left(\vec{r}\right)=\sum_{ab}b_{a}\left(\vec{r}\right)b_{b}\left(\vec{r}\right)D_{ab} \f$ is calculated from a density matrix.
+    virtual double DoFit(const DensityFFClient&)=0;
+    //! do \f$ c_{b}*=factor \f$
+    virtual void   ReScale         (double factor )=0; 
+    //! do \f$ f_{a}\left(\vec{r}\right) = f_{a}\left(\vec{r}+\vec{c}\right) \f$ 
+    virtual void   ShiftOrigin     (const RVec3& c)=0;
+    //! do \f$ c_{a}=(1-f)c_{a} + fg_{a} \f$.  Assumes same basis set, and just mixes the coefficients.
+    virtual void   FitMixIn        (const FittedFunction& g,double f)=0; 
+    //! returns \f$ \sum_{a}\left(c_{a}-g_{a}\right)\int d^{3}\vec{r}f_{a}\left(\vec{r}\right) \f$
+    virtual double FitGetChangeFrom(const FittedFunction& g) const=0;
 };
 
-template <class T> FittedFunctionImp<T>::FittedFunctionImp()
-    : itsBasisSet (    )
-    , itsFitCoeff (    )
-    , itsMesh     (0   )
-{
-    Fill(itsFitCoeff,0.0);
-};
-
-template <class T> FittedFunctionImp<T>::~FittedFunctionImp()
-{
-}
-
-
-//--------------------------------------------------------------------------
-//
-//  Implement all DoFit functions.  The overlaps will be accumulated in
-//  itsFitCoeff by the call to GetRepulsions or GetOverlap.
-//
-template <class T> double FittedFunctionImp<T>::DoFit(const ScalarFFClient& ffc)
-{
-    return DoFitInternal(ffc,0); //No contraint.
-}
-template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc)
-{
-    return DoFitInternal(ffc,0); //No contraint.
-}
-
-template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
-{
-    SMat Sinv=itsBasisSet->InvOverlap(itsLAParams);
-    itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());;
-    return 0;
-}
-
-template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
-{
-    SMat Sinv=itsBasisSet->InvRepulsion(itsLAParams);
-    itsFitCoeff=Sinv*ffc.GetRepulsion3C(itsBasisSet.get());
-    return 0;
-}
-
-//---------------------------------------------------------------------------
-//
-//  Provide Overlap and Repulsion matricies for derived classes.
-//
-template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
-FitGet2CenterOverlap(const Fit_IBS* bs) const
-{
-    return itsFitCoeff * (itsBasisSet->Overlap(itsMesh.get(),*bs));
-}
-
-template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
-FitGet2CenterRepulsion(const Fit_IBS* bs) const
-{
-    return itsFitCoeff * (itsBasisSet->Repulsion(*bs));
-}
-
-template <class T> typename FittedFunctionImp<T>::SMat FittedFunctionImp<T>::
-FitGet3CenterOverlap(const TOrbital_DFT_IBS<double>* bs) const
-{
-    const std::vector<SMat>& O3=bs->Overlap3C(*itsBasisSet);
-    int n=bs->GetNumFunctions();
-    SMat J(n,n);
-    Fill(J,0.0);
-    size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMat(c*O3[i++]);
-    assert(!isnan(J));
-    return J;
-}
-
-//-------------------------------------------------------------------------------------
-//
-//  Get overlap and repulsion with a charge density.  And total charge.
-//  Again only for derived classes.
-//
-template <class T> double FittedFunctionImp<T>::
-FitGetOverlap(const FittedFunctionImp<T>* ffi) const
-{
-    return
-        itsFitCoeff *
-        itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
-        ffi->itsFitCoeff;
-}
-
-template <class T> double FittedFunctionImp<T>::
-FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
-{
-    return
-        itsFitCoeff * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
-        ffi->itsFitCoeff;
-}
-
-template <class T> double FittedFunctionImp<T>::FitGetCharge() const
-{
-    return itsFitCoeff * itsBasisSet->Charge();
-}
-
-//------------------------------------------------------------------------
-//
-//  Handy utilities for fitted functions.
-//
-template <class T> void FittedFunctionImp<T>::ShiftOrigin(const RVec3& newCenter)
-{
-    itsBasisSet.reset(itsBasisSet->Clone(newCenter)); //TOT Clone
-}
-
-template <class T> void FittedFunctionImp<T>::FitMixIn(const FittedFunction& ff,double c)
-{
-    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
-    assert(ffi);
-    assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
-    itsFitCoeff = itsFitCoeff*(1-c) + ffi->itsFitCoeff*c;
-}
-
-template <class T> double FittedFunctionImp<T>::FitGetChangeFrom(const FittedFunction& ff) const
-{
-    const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
-    assert(ffi);
-    assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
-    return Max(fabs(itsFitCoeff - ffi->itsFitCoeff));
-}
-
-template <class T> void FittedFunctionImp<T>::ReScale(double factor)
-{
-    itsFitCoeff*=factor;
-}
-
-//-------------------------------------------------------------------------
-//
-//  Real space function stuff.
-//
-template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) const
-{
-    return itsFitCoeff * (*itsBasisSet)(r);
-}
-
-template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
-{
-    v += Vec(itsFitCoeff * (*itsBasisSet)(m));
-}
-
-template <class T> typename FittedFunctionImp<T>::RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
-{
-    Vec3Vec br = itsBasisSet->Gradient(r);
-    RVec3 ret(0,0,0);
-    typename Vec    ::const_iterator c(itsFitCoeff.begin());
-    typename Vec3Vec::const_iterator b(br.begin());
-    for (; b!=br.end()&&c!=itsFitCoeff.end(); b++,c++) ret+=(*c) * (*b);
-    return ret;
-}
-
-//-----------------------------------------------------------------------
-//
-//  Streamable stuff.
-//
-template <class T> std::ostream& FittedFunctionImp<T>::Write(std::ostream& os) const
-{
-//    if (StreamableObject::Binary())
-//       
-//    else if (StreamableObject::Ascii())
-//        
-//    else
-        os << "Fit Function: " << std::endl;
-
-    os << *itsBasisSet;
-    if (!StreamableObject::Pretty())
-    os << itsFitCoeff;
-    else
-    {
-        os << std::endl;
-        os << "  Coeff=" << itsFitCoeff << std::endl;
-    }
-
-    return os;
-}
-
-template <class T> std::istream& FittedFunctionImp<T>::Read (std::istream& is)
-{
-//    if (StreamableObject::Binary())
-//        BinaryRead(itsCDFitFlag,is);
-//    else
-//        is >> itsCDFitFlag;
-
-    //itsBasisSet.reset(IrrepBasisSet::Factory(is));
-    //is >> *itsBasisSet >> itsFitCoeff;
-    return is;
-}
-
-template class FittedFunctionImp<double>;
