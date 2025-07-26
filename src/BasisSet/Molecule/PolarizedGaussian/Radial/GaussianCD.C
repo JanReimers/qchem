@@ -1,7 +1,9 @@
 // File: GaussianCD.C  Charge distribution for two  gaussians.
-
+module;
 #include <cmath>
-#include "PolarizedGaussian/Radial/GaussianCD.H"
+#include <vector>
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 namespace PolarizedGaussian
 {

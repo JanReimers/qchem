@@ -4,9 +4,11 @@
 
 
 
-#include "Common.H"
+#include "../MnD/Hermite1.H"
 #include "../MnD/Hermite3.H"
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;

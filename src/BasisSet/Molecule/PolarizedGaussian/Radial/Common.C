@@ -1,14 +1,13 @@
-// File: RadialCommon.H  Partial implementation for the radial part of a basis function.
-#ifndef _RadialCommon_H_
-#define _RadialCommon_H_
+// File: Radial/Common.C  Partial implementation for the radial part of a basis function.
+module;
+#include "PolarizedGaussian/MnD/Hermite1.H"
 
-#include "../MnD/Hermite1.H"
-
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import Common.UniqueIDImp;
 import qchem.Types;
 
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
 
 //
@@ -50,4 +49,4 @@ protected:
 
 } //namespace PolarizedGaussian
 
-#endif //_RadialCommon_H_
+

@@ -4,11 +4,10 @@
 
 
 
-#include "Common.H"
 #include <vector>
 #include <memory>
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
 import oml;
 
 namespace PolarizedGaussian

@@ -10,9 +10,8 @@
 #include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/MnD/RNLM.H"
 #include "PolarizedGaussian/Radial/GaussianRF.H"
-#include "PolarizedGaussian/Radial/GaussianCD.H"
-#include "PolarizedGaussian/Radial/GaussianH3.H"
 
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
