@@ -1,12 +1,10 @@
 // File: Gaussian94Reader.H  Class for reading basis sets from a Gaussian 94 formatted file.
 #ifndef _Gaussian94Reader_H_
 #define _Gaussian94Reader_H_
-
-
-
 #include <fstream>
 #include <string>
-#include "Reader.H"
+#include <vector>
+import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 
 namespace PolarizedGaussian
 {

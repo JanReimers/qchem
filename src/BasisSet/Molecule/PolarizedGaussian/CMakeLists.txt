@@ -26,7 +26,8 @@ Radial/Imp/GaussianRF.C
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     BasisSet.C
     RadialFunction.C;
-
+    Reader.C
+    
     MnD/AuxillaryFJ.C
     Internal/CDCache.C
     Internal/Block.C

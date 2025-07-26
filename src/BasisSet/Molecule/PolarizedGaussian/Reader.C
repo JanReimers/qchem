@@ -1,14 +1,14 @@
-// File: Reader.h  Abstract interface for a basis set reader.
-#ifndef _Reader_h_
-#define _Reader_h_
+// File: Reader.C  Abstract interface for a basis set reader.
+module;
 
 #include <vector>
-import qchem.Atom;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+export import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+export import qchem.Atom;
  
-namespace PolarizedGaussian
+export namespace PolarizedGaussian
 {
 
-class RadialFunction;
 //-------------------------------------------------------------------------
 //
 //  Derived classes all read particular formats for the basis sets.
@@ -25,4 +25,3 @@ public:
 
 } //namespace PolarizedGaussian
 
-#endif
