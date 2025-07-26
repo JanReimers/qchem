@@ -26,7 +26,7 @@ class Large_BasisFunction
 {
 public:
     Large_BasisFunction() {};
-    Large_BasisFunction(double ex, int kappa, int mj, double norm);
+    Large_BasisFunction(double ex, int kappa, double mj, double norm);
     
     virtual std::ostream&    Write(std::ostream&) const;
     virtual ::Real_BF* Clone(        ) const;
@@ -36,7 +36,9 @@ public:
 private:
     friend class Small_BasisFunction;
     double itsExponent;
-    int kappa,mj,l;
+    int kappa;
+    double mj;
+    int l;
     double itsNormalization;
 };
 

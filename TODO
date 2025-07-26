@@ -6,13 +6,12 @@ Priority 1:
 Done: -Remove some of the slowest tests.
 -PG refactor
     Hermite2 only used by CDCache
--Clean up all warnings.
 -Move all Hermite related classes into MnD folder?
 -Move GaussianCD.C
--PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet is factory
+-PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet use factory
 -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
     wrong occ/degen in spin down column.
--Disentangle the coupling between PolarizedGaussian:
+Done: -Disentangle the coupling between PolarizedGaussian:
     -RadialFunction 
         Integrate(...,CDCache& cache)
     -CDCache
@@ -56,14 +55,14 @@ Done: -Remove some of the slowest tests.
         Done: Cluster
         Done: BasisSet
         Done: BasisSet.Atom
-        BasisSet.Molecule
+        Done: BasisSet.Molecule
     
-/home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
-[build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
-[build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
-[build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Large_Orbital_IBS<double>::Large_Orbital_IBS' requested here
-[build]    33 |         , new Large_Orbital_IBS<double>(db,exponents, kappa)
-[build]       |              
+    Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
+        [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
+        [build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
+        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Large_Orbital_IBS<double>::Large_Orbital_IBS' requested here
+        [build]    33 |         , new Large_Orbital_IBS<double>(db,exponents, kappa)
+        [build]       |              
     Done: -Get rid of index_t 
     -Find the largest pcm/gcm files,  Why do sbig.
     -Sort out compile options in CMake for gcc and clang.
