@@ -5,8 +5,8 @@ module;
 #include <cassert>
 #include <vector>
 #include <iomanip>
-#include "PolarizedGaussian/MnD/Hermite1.H"
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 
 namespace PolarizedGaussian
 {

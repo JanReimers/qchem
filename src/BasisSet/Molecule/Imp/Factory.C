@@ -4,8 +4,8 @@ module;
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-#include "PolarizedGaussian/Readers/Gaussian94.H"
 module qchem.BasisSet.Molecule.Factory;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PolarizedGaussian;
 
 namespace BasisSetMolecule

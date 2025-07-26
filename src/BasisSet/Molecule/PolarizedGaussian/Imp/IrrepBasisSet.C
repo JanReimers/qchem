@@ -7,13 +7,13 @@ module;
 #include <string>
 #include <cmath>
 #include <memory>
+#include <vector>
 
-
-#include "PolarizedGaussian/Readers/Gaussian94.H"
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Atom;

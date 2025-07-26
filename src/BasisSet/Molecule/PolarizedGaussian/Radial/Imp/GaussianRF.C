@@ -6,7 +6,6 @@ module;
 #include <cassert>
 #include <vector>
 
-#include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/MnD/Hermite3.H"
 #include "PolarizedGaussian/MnD/RNLM.H"
 
@@ -14,6 +13,7 @@ module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 
 import Common.Constants;
 import qchem.Cluster;

@@ -2,6 +2,10 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
+-Clean up all warnings.
+-Move all Hermite related classes into MnD folder?
+-Move GaussianCD.C
+-PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet is factory
 -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
     wrong occ/degen in spin down column.
 -Disentangle the coupling between PolarizedGaussian:

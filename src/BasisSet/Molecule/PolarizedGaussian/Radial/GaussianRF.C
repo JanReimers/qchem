@@ -1,6 +1,6 @@
 // File: GaussianRF.H  Radial Gaussian function, no polarization.
 module;
-#include "MnD/Hermite1.H"
+#include <iosfwd>
 #include "MnD/Hermite3.H"
 
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
@@ -9,6 +9,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Cluster;

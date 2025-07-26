@@ -6,7 +6,6 @@ module;
 namespace PolarizedGaussian
 {
 
-class  Hermite1;
 class  Hermite3;
 class  RNLM;
 }
@@ -18,6 +17,8 @@ import qchem.Streamable;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+
 
 // import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 

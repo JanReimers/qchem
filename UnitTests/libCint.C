@@ -3,8 +3,9 @@
 #include "gtest/gtest.h"
 //#include "PolarizedGaussian/IEClient.H"
 #include "PolarizedGaussian/IntegralEngine.H"
-#include "PolarizedGaussian/Readers/Gaussian94.H"
 #include "PolarizedGaussian/Block.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+
 import qchem.BasisSet.Internal.Integrals;
 import qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.LAParams;
