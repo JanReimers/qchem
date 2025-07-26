@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "QchemTester.H"
-#include <SCFIterator.H>
 
+import qchem.SCFIterator;
 import qchem.SCFAccelerator.Factory;
 import qchem.WaveFunction;
 import qchem.ChargeDensity;

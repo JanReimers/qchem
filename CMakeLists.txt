@@ -10,14 +10,14 @@ include(CTest)
 include(GoogleTest)
 
 add_library(qchem)  
-target_sources(qchem PRIVATE src/SCFIterator.C)
+target_sources(qchem PRIVATE )
 set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
 # set(CMAKE_CXX_STANDARD_REQUIRED YES)
 # set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CXX_SCAN_FOR_MODULES on)
 
-add_subdirectory(./src)
+add_subdirectory(src)
 
 # -Wno-unknown-pragmas
 target_compile_options(qchem PRIVATE -Wall -Wno-unknown-pragmas 
@@ -28,7 +28,6 @@ target_compile_definitions(qchem PRIVATE
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )
-target_include_directories(qchem PRIVATE include )
 target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry  omlm wignerSymbols lapack blas gtest )
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)

@@ -4,9 +4,8 @@
 #include "gtest/gtest.h"
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <SCFIteratorfwd.H>
-#include <SCFParams.H>
 
+import qchem.SCFIterator;
 import qchem.LAParams;
 import qchem.Hamiltonian;
 import qchem.BasisSet;

@@ -1,7 +1,7 @@
 // File: WaveFunction/Factory.H  Create wavefunctions.
 module;
-import qchem.SCFAccelerator;
 export module qchem.WaveFunction.Factory;
+export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 export import qchem.Hamiltonian;
 export import qchem.BasisSet;

@@ -1,10 +1,8 @@
-// File: SCFParams.H Parameters used for controling SCF iteration and convergence.
-#ifndef _SCFParams_H_
-#define _SCFParams_H_
-
+// File: SCFParams.C Parameters used for controling SCF iteration and convergence.
+export module qchem.SCFParams;
 import qchem.Types;
 
-struct SCFParams
+export struct SCFParams
 {
     size_t NMaxIter;         //Max allowed number of iterations
     double MinDeltaRo;       //Minimum delta in charge density for convergence.
@@ -16,4 +14,3 @@ struct SCFParams
 };
 
 
-#endif // _SCFParams_H_

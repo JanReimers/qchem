@@ -1,9 +1,11 @@
-// File: SCFIterator.H  Interface for an object that manages SCF convergence.
+// File: SCFIterator/SCFIterator.C  Interface for an object that manages SCF convergence.
+export module qchem.SCFIterator;
+export import qchem.SCFAccelerator;
+export import qchem.WaveFunction;
+export import qchem.SCFParams;
+export import qchem.BasisSet;
 
-import qchem.SCFAccelerator;
-import qchem.WaveFunction;
-
-class SCFIterator
+export class SCFIterator
 {
 public:
     SCFIterator(const BasisSet*, const ElectronConfiguration*, Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);

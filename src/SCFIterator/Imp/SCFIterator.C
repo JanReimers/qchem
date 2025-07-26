@@ -1,14 +1,15 @@
-// File: SCFIteratorImplementation.C  Partial common implementation for an object that manages SCF convergence.
+// File: SCFIterator/Imp/SCFIterator.C  Partial common implementation for an object that manages SCF convergence.
+module;
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 #include <cmath>
 #include <vector>
 
+module qchem.SCFIterator;
+import qchem.SCFParams;
 import qchem.SCFAccelerator;
-#include <SCFIteratorfwd.H>
-import qchem.SCFAccelerator;
-#include <SCFParams.H>
+
 import qchem.WaveFunction;
 import qchem.WaveFunction.Factory;
 
@@ -25,7 +26,6 @@ using std::setprecision;
 using std::ios;
 
 
-#include <SCFIterator.H>
 
 
 SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
