@@ -1,13 +1,17 @@
 // File: ContractedGaussianRF.H  Radial Contracted Gaussian, no polarization.
 #ifndef _ContractedGaussianRF_H_
 #define _ContractedGaussianRF_H_
-
-
-
 #include <vector>
 #include <memory>
+#include "MnD/Hermite1.H"
+#include "MnD/Hermite3.H"
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.Cluster;
+import qchem.Types;
 import oml;
 
 namespace PolarizedGaussian

@@ -10,10 +10,10 @@ module;
 
 
 #include "PolarizedGaussian/Readers/Gaussian94.H"
-#include "PolarizedGaussian/Radial/GaussianRF.H"
 namespace PolarizedGaussian{class Reader;}
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet;
 import qchem.Cluster;

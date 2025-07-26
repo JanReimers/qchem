@@ -4,10 +4,11 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/MnD/Hermite1.H"
 #include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianH3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+
 import qchem.stl_io;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 

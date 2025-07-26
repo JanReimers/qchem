@@ -9,8 +9,9 @@
 #include <algorithm>
 #include <unistd.h>
 #include "PolarizedGaussian/Readers/Gaussian94.H"
-#include "PolarizedGaussian/Radial/GaussianRF.H"
 #include "PolarizedGaussian/Radial/ContractedGaussianRF.H"
+
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 
 import Common.PeriodicTable;
 import qchem.Atom;
