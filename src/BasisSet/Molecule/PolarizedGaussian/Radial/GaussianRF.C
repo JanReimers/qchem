@@ -32,7 +32,7 @@ public:
      
     typedef RadialFunction::rf_t rf_t;
     typedef RadialFunction::po_t po_t;
-    virtual double Integrate(qchem::IType2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache&,const Cluster* cl=0) const;
+    virtual double Integrate(       IType  ,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache&,const Cluster* cl=0) const;
     virtual double Integrate(qchem::IType3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDCache&) const;
     virtual double Integrate(qchem::IType3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDCache&, rf_t* rc) const;
 

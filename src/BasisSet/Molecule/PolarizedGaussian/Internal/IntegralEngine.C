@@ -31,9 +31,9 @@ public:
 protected:
     IE_Common(const DB_cache<double>* db) : DB_Overlap<double>(db) {};
     
-    virtual SMatrix<double> MakeOverlap() const {return MakeIntegrals(qchem::Overlap2C);}
+    virtual SMatrix<double> MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C);}
 
-    SMatrix<double> MakeIntegrals(qchem::IType2C,const Cluster*cl =0) const;
+    SMatrix<double> MakeIntegrals(PolarizedGaussian::IType,const Cluster*cl =0) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 
 };
@@ -47,8 +47,8 @@ class Orbital_IE
 {
     typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
-    virtual SMatrix<double> MakeKinetic() const {return MakeIntegrals(qchem::Grad2);}
-    virtual SMatrix<double> MakeNuclear(const Cluster* cl) const {return MakeIntegrals(qchem::Nuclear,cl);}
+    virtual SMatrix<double> MakeKinetic() const {return MakeIntegrals(Grad2);}
+    virtual SMatrix<double> MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,cl);}
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4 MakeDirect  (const obs_t& c) const;
@@ -76,7 +76,7 @@ class Fit_IE
 public:
     virtual SMatrix<double> MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
     virtual  Vector<double> MakeCharge   () const;
-    virtual SMatrix<double> MakeRepulsion() const {return MakeIntegrals(qchem::Repulsion2C);}
+    virtual SMatrix<double> MakeRepulsion() const {return MakeIntegrals(Repulsion2C);}
     virtual  Matrix<double> MakeRepulsion(const Fit_IBS& b) const;
 protected:
     Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}

@@ -23,6 +23,8 @@ class  Polarization;
 export namespace PolarizedGaussian
 {
 
+    enum IType {Overlap2C, Repulsion2C,Grad2,Nuclear};
+    
 //
 //  Radial functions will be shared by many basis functions, for example 2Px, 2Py and
 //  2Pz all have the same radial part, just different polarizations.
@@ -48,7 +50,7 @@ public:
     typedef const RadialFunction rf_t;
     typedef const Polarization   po_t;
     
-    virtual double Integrate(qchem::IType2C,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache& cache,const Cluster* cl=0) const=0;
+    virtual double Integrate(       IType  ,rf_t* rb,           po_t& pa, po_t& pb          ,CDCache& cache,const Cluster* cl=0) const=0;
     virtual double Integrate(qchem::IType3C,rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc,CDCache& cache) const=0;
     virtual double Integrate(qchem::IType3C,rf_t* ra,           po_t& pa, po_t& pb, po_t& pc,CDCache& cache, rf_t* rc) const=0;
     

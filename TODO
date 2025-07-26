@@ -2,80 +2,15 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
--Fix all the CLang warnings.
-Done: -Remove some of the slowest tests.
--PG refactor
-    Hermite2 only used by CDCache
--Move all Hermite related classes into MnD folder?
--Move GaussianCD.C
--PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet use factory
--Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
-    wrong occ/degen in spin down column.
-Done: -Disentangle the coupling between PolarizedGaussian:
-    -RadialFunction 
-        Integrate(...,CDCache& cache)
-    -CDCache
-        findCD(GaussianRF,GaussianRF)   //uses ID,l,alpha,R
-        findRNLM(GaussianCD,GaussianRF)
-        findRNLM(GaussianCD,GaussianCD)
-        findRNLM(GaussianCD)
-        GaussianCD[]
-        RNLM[]
-
-    -GaussianCD
-        Remove: RadialFunction a,b;
-        GaussianCD(GaussianRF,GaussianRF)
-    -GaussianRF --> RadialFunction
-                --> CDCache
-    -GaussianCD and GaussianRF
-        Can store a GData struct.
-        Define GData = GData*GData  (how t handdle IDs?)
-    -GaussianRF
-        GetGrad2 is static, can be moved anywhere.
-            
-
-    Fail: -import std; or header units?
-        No idea how std.pcm is made or how cmake/clang is supposed to find it.
-    Fail: -build with gcc-15.1
-        -Still failing with  error: cannot import module in its own purview
-        -it is interpreting the dots in module names as if this were pything modules.                 
-    Done: -Move CreateSolver() const=0; to TOrbital_IBS
-        Done: now Orbital_IBS==IrrepBasisSet so get rid of Orbital_IBS?
-    Done: -Get ERI3 out of IntegralsBase.
-    Done: -BasisSet.Integrals should be internal.
-    Done: -Get rid of IntegralsBase<T>, types don't propagate through template inheritance anyway!
-        T dependence is the key
-    Done: -TOrbital_DFT_IBS defines some integrals, and Integrals_DFT defines other similar integrals/
-        Why?  can we clean this up?
-            No: TOrbital_DFT_IBS does basis set independent constractions with the density matrix.
-                Integrals_DFT does basis set specific triple (three center) integrals.
-    -Clean up lower libs to adhere to module naming conventions.
-        Done: Mesh
-        Done: Symmetry
-        Done: Cluster
-        Done: BasisSet
-        Done: BasisSet.Atom
-        Done: BasisSet.Molecule
-    
-    Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
-        [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
-        [build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
-        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Large_Orbital_IBS<double>::Large_Orbital_IBS' requested here
-        [build]    33 |         , new Large_Orbital_IBS<double>(db,exponents, kappa)
-        [build]       |              
-    Done: -Get rid of index_t 
-    -Find the largest pcm/gcm files,  Why do sbig.
+    -PG refactor
+        Hermite2 only used by CDCache
+        -Move all Hermite related classes into MnD folder?
+        -Move GaussianCD.C
+        -PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet use factory
+    -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
+        wrong occ/degen in spin down column.
     -Sort out compile options in CMake for gcc and clang.
         Anything BSpline is huge.
-    Done: -Make a qchem.Types module with:
-        RVec3
-        RVec
-        size_t;
-    Done: -Migrate from index_t to int or size_t.
-    Done -Try and simplify BSpling template instancing
-        constexpr Loop example: https://indii.org/blog/cplusplus-static-for-loop/
-            Won;t compile]
-        Preprocessor works,  a bit ugly.
     -use std::vector<double> for anything not involing lin-alg 
         -i.e. exponents
     -Design flaw
@@ -84,11 +19,10 @@ Done: -Disentangle the coupling between PolarizedGaussian:
 
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
-    Fixed: -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAcceleratorDIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project(): Fixed Fixed: Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
-        Now a warning.
+
     -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
     
-    More use of structured bindings for map iterating.
+    -More use of structured bindings for map iterating.
     -Convergence acceleration.
         Geometric Direct Minimization (GDM)
             Read up on BFDS method, Numerical Recipes section 10.7
@@ -116,38 +50,6 @@ Done: -Disentangle the coupling between PolarizedGaussian:
         1) riterator
         2) witerator
         3) rwiterator
-    -C++ Modules  Try making a C++20 module 
-        Issues:
-            1) gcc-15.0.1 is grabbing symbols from the global modules space and incorportating them into my exports
-                resulting in mutliple deifinitions.
-            2) internal compiler error: in finish_member_declaration, at cp/semantics.cc:4210 when parsing
-                stream.h.  We should just get the hell rid of StreamableObject at least in qchem.
-                clang-20 handles this fine.
-            3) gcc-15.0.1 incorrect purview error for submodules.
-            -THis might have been caused by importing in the middle of various header include.  Try to keep imports after all includes are done.
-            -Progress is grinding to a waiding through molasses pace.  We must fiddle with include orders to prevent gcc complaining
-             multiple definitions of std:: redefinition of ‘struct std::numeric_limits<_Tp>’
-            -build and try with gcc-15.1
-        Fixed: Failed attempts:
-            ScalarFunction/VectorFunction fix mesh iterator to disentagle from Mesh.
-            Mesh/Factory json lib is too much for gcc-15.0
-        Done: Sequence:
-            Common
-            Mesh
-            Cluster
-            Symmetry
-            BasisSet
-                Molecule
-                Atom
-        done: use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
-        create system modules 
-            g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 
-            First try import std;
-
-        Done: Wait for gcc-15
-        Done: need a recent version of CMake (on 3.31.6)
-        Done: -Scalar/VectorFunction depend on Mesh?  Only at the header level.
-            Move Scalar/VectorFunction into the mesh module
             
     -Play around with plane wave basis sets
         -Make some UTs for the lattice class.
@@ -457,6 +359,104 @@ Priority 3:
 
 
 
+        Done: -C++ Modules  Try making a C++20 module 
+        Issues:
+            1) gcc-15.0.1 is grabbing symbols from the global modules space and incorportating them into my exports
+                resulting in mutliple deifinitions.
+            2) internal compiler error: in finish_member_declaration, at cp/semantics.cc:4210 when parsing
+                stream.h.  We should just get the hell rid of StreamableObject at least in qchem.
+                clang-20 handles this fine.
+            3) gcc-15.0.1 incorrect purview error for submodules.
+            -THis might have been caused by importing in the middle of various header include.  Try to keep imports after all includes are done.
+            -Progress is grinding to a waiding through molasses pace.  We must fiddle with include orders to prevent gcc complaining
+             multiple definitions of std:: redefinition of ‘struct std::numeric_limits<_Tp>’
+            -build and try with gcc-15.1
+        Fixed: Failed attempts:
+            ScalarFunction/VectorFunction fix mesh iterator to disentagle from Mesh.
+            Mesh/Factory json lib is too much for gcc-15.0
+        Done: Sequence:
+            Common
+            Mesh
+            Cluster
+            Symmetry
+            BasisSet
+                Molecule
+                Atom
+        done: use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
+        create system modules 
+            g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 
+            First try import std;
+
+        Done: Wait for gcc-15
+        Done: need a recent version of CMake (on 3.31.6)
+        Done: -Scalar/VectorFunction depend on Mesh?  Only at the header level.
+            Move Scalar/VectorFunction into the mesh module
+    Done: -Make a qchem.Types module with:
+        RVec3
+        RVec
+        size_t;
+    Done: -Migrate from index_t to int or size_t.
+    Done -Try and simplify BSpling template instancing
+        constexpr Loop example: https://indii.org/blog/cplusplus-static-for-loop/
+            Won;t compile]
+        Preprocessor works,  a bit ugly.
+    Fixed: -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAcceleratorDIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project(): Fixed Fixed: Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
+        Now a warning.Done: -Fix all the CLang warnings.
+    Done: -Remove some of the slowest tests.
+    Done: -Disentangle the coupling between PolarizedGaussian:
+    -RadialFunction 
+        Integrate(...,CDCache& cache)
+    -CDCache
+        findCD(GaussianRF,GaussianRF)   //uses ID,l,alpha,R
+        findRNLM(GaussianCD,GaussianRF)
+        findRNLM(GaussianCD,GaussianCD)
+        findRNLM(GaussianCD)
+        GaussianCD[]
+        RNLM[]
+
+    -GaussianCD
+        Remove: RadialFunction a,b;
+        GaussianCD(GaussianRF,GaussianRF)
+    -GaussianRF --> RadialFunction
+                --> CDCache
+    -GaussianCD and GaussianRF
+        Can store a GData struct.
+        Define GData = GData*GData  (how t handdle IDs?)
+    -GaussianRF
+        GetGrad2 is static, can be moved anywhere.
+            
+
+    Fail: -import std; or header units?
+        No idea how std.pcm is made or how cmake/clang is supposed to find it.
+    Fail: -build with gcc-15.1
+        -Still failing with  error: cannot import module in its own purview
+        -it is interpreting the dots in module names as if this were pything modules.                 
+    Done: -Move CreateSolver() const=0; to TOrbital_IBS
+        Done: now Orbital_IBS==IrrepBasisSet so get rid of Orbital_IBS?
+    Done: -Get ERI3 out of IntegralsBase.
+    Done: -BasisSet.Integrals should be internal.
+    Done: -Get rid of IntegralsBase<T>, types don't propagate through template inheritance anyway!
+        T dependence is the key
+    Done: -TOrbital_DFT_IBS defines some integrals, and Integrals_DFT defines other similar integrals/
+        Why?  can we clean this up?
+            No: TOrbital_DFT_IBS does basis set independent constractions with the density matrix.
+                Integrals_DFT does basis set specific triple (three center) integrals.
+    -Clean up lower libs to adhere to module naming conventions.
+        Done: Mesh
+        Done: Symmetry
+        Done: Cluster
+        Done: BasisSet
+        Done: BasisSet.Atom
+        Done: BasisSet.Molecule
+    
+    Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
+        [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
+        [build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
+        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Large_Orbital_IBS<double>::Large_Orbital_IBS' requested here
+        [build]    33 |         , new Large_Orbital_IBS<double>(db,exponents, kappa)
+        [build]       |              
+    Done: -Get rid of index_t 
+    Done: -Find the largest pcm/gcm files,  Why do sbig.
     Fixed: -eigen tables, hide border dark problem for Hydrogen (one row in table).
     Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
         Either combine yl and ylm tests or make sure we are not duplicating.

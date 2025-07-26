@@ -106,7 +106,7 @@ double GetGrad2(const Polarization& p1,const Polarization& p2,const GaussianCD& 
 
 
 
-double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
+double GaussianRF::Integrate(IType type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0.0;
     const GaussianRF* gb=dynamic_cast<const GaussianRF*>(rb);
@@ -117,10 +117,10 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
     const GaussianCD& ab=cache.findCD(this->GetGData(),gb->GetGData());
     switch (type)
     {
-        case qchem::Overlap2C :
+        case Overlap2C :
             s=pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
             break;
-        case qchem::Repulsion2C :
+        case Repulsion2C :
             {
                 auto NLMs=GaussianCD::GetNMLs(this->GetL());
                 const Hermite1& H1a=this->GetH1();
@@ -151,14 +151,14 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
                 s*=2*Pi52*factor;
             }  // case          
             break;
-        case qchem::Grad2 :
+        case Grad2 :
             {
                 double factor=pow(Pi/ab.AlphaP,1.5)*ab.Eij;
                 double h = GetGrad2(pa,pb,ab);
                 if (h!=0) s=factor*h;
                 break;
             }
-        case qchem::Nuclear :
+        case Nuclear :
             {
                 assert(cl);
                 RNLM R; //Create and empty aux function.
@@ -178,12 +178,6 @@ double GaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const
                 s*=2*Pi/ab.AlphaP*ab.Eij;
             }
             break;
-        case qchem::InvOverlap :
-        case qchem::InvRepulsion :
-        case qchem::Charge :
-        case qchem::Normalization :
-        case qchem::RestMass :
-            std::cerr << "GaussianRF::Integrate switch case not handled." <<  std::endl;
     } //switch
   
     return s;

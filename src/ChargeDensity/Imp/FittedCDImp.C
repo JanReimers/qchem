@@ -17,7 +17,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 {
     FittedFunctionImp<double>::ReScale(totalCharge);
     assert(totalCharge>0);
-    assert(abs(totalCharge-FitGetCharge())<1e-10);
+    assert(fabs(totalCharge-FitGetCharge())<1e-10);
 };
 
 

@@ -43,13 +43,13 @@ Fit_IE::Mat Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     Mat s(Na,Nb);
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
-            s(ia+1,ib+1)=a->radials[ia]->Integrate(qchem::Repulsion2C,
+            s(ia+1,ib+1)=a->radials[ia]->Integrate(Repulsion2C,
                 b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
     assert(!isnan(s));
     return s;
 }
 
-SMatrix<double> IE_Common::MakeIntegrals(qchem::IType2C t2C,const Cluster* cl) const
+SMatrix<double> IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
     assert(ab);

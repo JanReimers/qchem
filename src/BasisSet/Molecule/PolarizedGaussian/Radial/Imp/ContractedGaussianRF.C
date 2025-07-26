@@ -102,7 +102,7 @@ RadialFunction::vd_t ContractedGaussianRF::GetCoeff() const
 }
  
 
-double ContractedGaussianRF::Integrate(qchem::IType2C type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
+double ContractedGaussianRF::Integrate(IType type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0;
     size_t i=1;
