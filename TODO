@@ -2,6 +2,7 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
+-Remove some of the slowest tests.
 -PG refactor
     Hermite2 only used by CDCache
 -Clean up all warnings.

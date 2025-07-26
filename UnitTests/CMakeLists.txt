@@ -24,7 +24,6 @@ set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
 target_link_options(UTMain PRIVATE )
 target_include_directories(UTMain PRIVATE 
-    ../include 
     ../submodules/BSplinebasis/include
       ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 
@@ -39,9 +38,6 @@ target_compile_options(UTModules PRIVATE -Wall -Wno-unknown-pragmas -fmodules
 )
 # Symmetry module
 add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)
-target_include_directories(UTSym PRIVATE 
-    ../include 
-)
 target_link_libraries(UTSym qcSymmetry gtest)
 
 # setup testing

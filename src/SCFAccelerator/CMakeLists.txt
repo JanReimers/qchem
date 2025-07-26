@@ -8,9 +8,6 @@ target_sources(qcSCFAccelerator PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES 
 )
 
 target_include_directories(qcSCFAccelerator PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include  
-    ${PROJECT_SOURCE_DIR}/include/Imp/SCFAccelerator  
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     )
  
