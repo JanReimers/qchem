@@ -16,7 +16,7 @@ MnD/RNLM.C
 Readers/Gaussian94.C
 Radial/Imp/GaussianH3.C
 Radial/Imp/Common.C
-Radial/ContractedGaussianH3.C
+Radial/Imp/ContractedGaussianH3.C
 Radial/GaussianCD.C
 Radial/ContractedGaussianRF.C
 Radial/GaussianRF.C
@@ -37,5 +37,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Radial/GData.C
     Radial/Common.C
     Radial/GaussianH3.C
+    Radial/ContractedGaussianH3.C
 )
  
