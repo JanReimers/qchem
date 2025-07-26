@@ -1,0 +1,44 @@
+target_sources(qcAtom_BS PRIVATE 
+    Gaussian/Imp/IE_Primatives.C
+    Gaussian/Imp/Rk.C
+    Gaussian/Imp/ExponentScaler.C
+    Gaussian/Imp/IBS_Common.C
+    Gaussian/Imp/BS_Common.C
+    BSpline/GLQuadrature.C
+    BSpline/gauleg.f
+    BSpline/Imp/IE.C
+    BSpline/Imp/IE_Primatives.C
+    BSpline/Imp/IEC.C
+    BSpline/Imp/Rk.C
+    BSpline/Imp/BFGrouper.C
+    BSpline/Imp/GLQuadrature.C
+    BSpline/Imp/BS_Common.C
+    BSpline/Imp/IBS_Common.C
+    Slater/Imp/IE_Primatives.C
+    Slater/Imp/Rk.C
+    Slater/Imp/ExponentScaler.C
+    Slater/Imp/IBS_Common.C
+    Slater/Imp/BS_Common.C
+)
+target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+    PascalTriangle.C
+    FillPower.C
+    Gaussian/IE_Primatives.C
+    Gaussian/Rk.C
+    Gaussian/ExponentScaler.C
+    Gaussian/Integrals.C
+    Gaussian/BS_Common.C
+    Slater/IE_Primatives.C
+    Slater/Rk.C
+    Slater/ExponentScaler.C
+    Slater/Integrals.C
+    Slater/BS_Common.C
+    BSpline/Rk.C
+    BSpline/IEC.C
+    BSpline/IE.C
+    BSpline/IE_Primatives.C
+    BSpline/BFGrouper.C
+    BSpline/GLQuadrature.C
+    BSpline/BS_Common.C
+
+)

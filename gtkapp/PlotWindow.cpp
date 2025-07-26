@@ -3,6 +3,7 @@
 #include "PlotWindow.H"
 #include <gtkmm-plplot/plotobject2dtext.h>
 #include <gtkmm-plplot/plotobject2dline.h>
+// import import qchem.BasisSet.Atom.Internal.radial.FillPower;
 
 PlotWindow::PlotWindow()
 : plot("X")
@@ -40,7 +41,7 @@ template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
 
 #include <WaveFunction.H>
 #include <BasisSet/BasisSet.H>
-#include <Orbitals/Orbitals.H>
+import qchem.Orbitals;
 #include <Symmetry/Orbital_QNs.H>
 void Orbital_PW::AddLines(const BasisSet* bs, const WaveFunction* wf, Spin s, Glib::ustring symbol)
 {
@@ -130,7 +131,7 @@ const double dx_sym=1.0;
 const double dx_arrow=0.1;
 const double dx_spin=dx_arrow+0.001;
 
-#include <WaveFunction/EnergyLevel.H>
+import qchem.EnergyLevel;
 
 //
 //  Common construction

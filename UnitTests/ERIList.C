@@ -1,12 +1,12 @@
 // File: ERIList.C  Test the DFT persistance classes
 
 #include "gtest/gtest.h"
-#include "ERI4.H"
 #include <iostream>
 #include <fstream>
 
 using std::cout;
 using std::endl;
+import qchem.BasisSet.Internal.ERI4;
 
 
 //----------------------------------------------------------------------------------------------

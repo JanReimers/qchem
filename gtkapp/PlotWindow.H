@@ -55,7 +55,7 @@ public:
 
 #include <Symmetry/Symmetry.H>
 #include <Symmetry/Spin.H>
-#include <WaveFunction/EnergyLevel.H>
+import qchem.EnergyLevel;
 class EnergyLevel_PW : public PlotWindow
 {
 public:
@@ -96,7 +96,7 @@ public:
 
 };
 
-#include <LASolver/LAParams.H>
+import qchem.LAParams;
 class Diagonal_PW : public PlotWindow
 {
 public:

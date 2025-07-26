@@ -1,8 +1,9 @@
 // File: GaussianCD.C  Charge distribution for two  gaussians.
-
-
-#include "PolarizedGaussian/Radial/GaussianCD.H"
-#include "PolarizedGaussian/Radial/GaussianRF.H"
+module;
+#include <cmath>
+#include <vector>
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 namespace PolarizedGaussian
 {
@@ -28,30 +29,20 @@ void GaussianCD::MakeNMLs()
 //
 //  Construction zone
 //
-
-GaussianCD::GaussianCD(const GaussianRF& the_g1,const GaussianRF& the_g2)
-    : r1    (the_g1)
-    , r2    (the_g2)
-    , Ltotal(r1.GetL() + r2.GetL())
-    , a     (the_g1.itsExponent)
-    , b     (the_g2.itsExponent)
+GaussianCD::GaussianCD(const GData& g1,const GData& g2)
+    : Ltotal(g1.L + g2.L)
+    , a     (g1.Alpha)
+    , b     (g2.Alpha)
     , ab    (a * b)
     , AlphaP(a + b)
-    , AB    (r1.GetCenter() - r2.GetCenter())
-    , P     ( (a*r1.GetCenter() + b*r2.GetCenter()) / AlphaP)
+    , AB    (g1.R - g2.R)
+    , P     ( (a*g1.R + b*g2.R) / AlphaP)
     , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
-    , H2    (AlphaP, P - r1.GetCenter(), P - r2.GetCenter(), r1.GetL()+1, r2.GetL()+1)
+    , H2    (AlphaP, P - g1.R, P - g2.R, g1.L+1, g2.L+1)
 {
     if (theNMLs.size()==0) MakeNMLs();
 };
 
-GaussianCD::~GaussianCD()
-{
-    
-}
 
-
-std::ostream& GaussianCD::Write(std::ostream& os) const {return os;}
-std::istream& GaussianCD::Read (std::istream& is)       {return is;}
 
 } //namespace PolarizedGaussian

@@ -1,7 +1,7 @@
 #include "QchemTester.H"
 
 #include <Cluster/Cluster.H>
-#include <Hamiltonian/Hamiltonian.H>
+import qchem.Hamiltonian;
 #include <iostream> 
 #include <fstream>
 
@@ -32,7 +32,7 @@ public:
 };
 
 
-template <class T> T* OutIn(const PMStreamableObject* pout,c_str filename,StreamableObject::Mode m)
+template <class T> T* OutIn(const Streamable* pout,c_str filename,StreamableObject::Mode m)
 {
     StreamableObject::Mode current=StreamableObject::SetOutputMode(m);
     std::ofstream out(filename);

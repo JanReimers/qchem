@@ -1,35 +1,25 @@
 // File:  ElectronCounts.C  Simple structure that store electron configuration counts for each l state.
+export module qchem.Symmetry.ElectronCounts;
+export import qchem.Symmetry.Spin;
 
-#include "Symmetry/ElectronCounts.H"
-#include <Symmetry/Spin.H>
-#include <cassert>
+export const int LMax=3;
 
-
-int ElCounts_l::GetN(Spin s) const
+export struct ElCounts
 {
-    assert(s!=Spin::None);
-    return s==Spin::Up ? (N+Nu)/2 : (N-Nu)/2;  
-}
+    ElCounts() : N{0,0,0,0}, Nf{0,0,0,0},Nv{0,0,0,0},Nu{0,0,0,0} {};
+    void DebugCheck() const; //Check self consistency
+    int GetNv(int l, Spin s) const;
 
-int ElCounts::GetNv(int l, Spin s) const
-{
-    assert(s!=Spin::None);
-    return s==Spin::Up ? (Nv[l]+Nu[l])/2 : (Nv[l]-Nu[l])/2;  
-}
+    int N [LMax+1]; //Total N[l]
+    int Nf[LMax+1]; //Full shell or core, N[l]
+    int Nv[LMax+1]; //Valance shell N[l].  He is considered to have no valance electrons ... all are core.
+    int Nu[LMax+1]; //# of unpaired electrons for a given l.
+};
 
-void ElCounts::DebugCheck() const
+
+export struct ElCounts_l
 {
-    for (size_t l=0;l<=LMax;l++)
-    {
-        assert(Nv[l]>=Nu[l]);
-        assert((Nv[l]-Nu[l])%2==0); 
-        assert(N[l]==Nv[l]+Nf[l]);
-        #ifndef NDEBUG
-        int g=(2*l+1); //degenracy
-        #endif
-        assert(g>=Nu[l]);
-        assert(2*g>=Nv[l]);
-        assert(Nf[l]%(2*g)==0);
-    }
-}
-    
+    int N;  //# Total electrons for a given l
+    int Nu; //# of un paired electrons (for a given l)
+    int GetN(Spin s) const;
+};

@@ -1,12 +1,13 @@
 // File: SymQN.C  Unite tests for symmetrys and QN classes
 
 #include "gtest/gtest.h"
-#include <Symmetry/Yl.H>
-#include <Symmetry/Ylm.H>
-#include <Symmetry/Okmj.H>
-#include <Symmetry/Orbital_QNs.H>
 #include <set>
 #include <iostream>
+import qchem.Symmetry.Orbital;
+import qchem.Symmetry.Yl;
+import qchem.Symmetry.Ylm;
+import qchem.Symmetry.Okmj;
+import qchem.Streamable;
 
 using std::cout;
 using std::endl;
@@ -151,7 +152,6 @@ TEST_F(SymQNTests, Orbital_QNs_set)
         qns.insert(Orbital_QNs(n1,s1,yl1));
         // delete yl1;
     }
-    StreamableObject::SetToPretty();
     for (auto qn:qns) cout << qn << " ";
     cout << endl;
 }

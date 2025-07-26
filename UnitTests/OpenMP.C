@@ -1,11 +1,9 @@
 // File: OpenMP.C  
 
 #include "gtest/gtest.h"
-#include "ERI4.H"
-#include "oml/vector.h"
-#include "oml/smatrix.h"
 #include <omp.h>
 #include <chrono>
+import qchem.BasisSet.Internal.ERI4;
 
 class OpenMPTests : public ::testing::Test
 {

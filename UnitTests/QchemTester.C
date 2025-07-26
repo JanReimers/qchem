@@ -1,18 +1,19 @@
 
-#include "QchemTester.H"
-#include <SCFAccelerator/SCFAccelerator.H>
-#include <SCFAccelerator/Factory.H>
-#include <Mesh/MeshParams.H>
-#include <SCFIterator.H>
-#include <WaveFunction/WaveFunction.H>
-#include <Hamiltonian/Hamiltonian.H>
-#include <Cluster/Cluster.H>
-#include <BasisSet/BasisSet.H>
-#include <BasisSet/Irrep_BS.H>
-#include <Hamiltonian/TotalEnergy.H>
-#include <Orbitals/Orbitals.H>
-#include <ChargeDensity/ChargeDensity.H>
 #include <memory>
+#include <cmath>
+#include <memory>
+
+#include "QchemTester.H"
+
+import qchem.SCFIterator;
+import qchem.SCFAccelerator.Factory;
+import qchem.WaveFunction;
+import qchem.ChargeDensity;
+import qchem.Factory;
+import qchem.Irrep_BS;
+import qchem.Cluster;
+import qchem.Atom;
+import qchem.Molecule;
 
 PeriodicTable QchemTester::itsPT;
 
@@ -43,13 +44,12 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     itsBasisSet->Set(lap);
     if (verbose)
     {
-        StreamableObject::SetToPretty();
         std::cout << " " << *itsBasisSet << std::endl;
     }
     int Z=GetZ();
     nlohmann::json jsacc={{"NProj",8},{"EMax",Z*Z*0.1/16},{"EMin",1e-7},{"SVTol",1e-9}};
     SCFAccelerator* acc=SCFAcceleratorF::Factory(SCFAcceleratorF::Type::DIIS,jsacc);
-    // SCFAccelerator* acc=new SCFAccelerator_DIIS({8,Z*Z*0.1/16,1e-7,1e-9});
+    // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }
@@ -103,7 +103,6 @@ size_t QchemTester::GetIterationCount() const
     return itsSCFIterator->GetIterationCount();
 }
 
-#include <cmath> //fabs
 double QchemTester::RelativeError(double E,bool quiet) const
 {
     double error=(E-TotalEnergy())/E;
@@ -146,8 +145,6 @@ QchemTester::symv_t QchemTester::GetSymmetries() const
 
 
 
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
 TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 {
     itsZ=Z-q;
@@ -161,7 +158,6 @@ MeshParams TestAtom::GetMeshParams() const
     return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
 }
 
-#include <BasisSet/Factory.H>
 BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSetAtom::Factory(js,itsZ);

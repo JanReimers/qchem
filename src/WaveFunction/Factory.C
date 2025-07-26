@@ -1,16 +1,14 @@
-// File: WaveFunction/Factory.C  Create wavefunctions.
+// File: WaveFunction/Factory.H  Create wavefunctions.
+module;
+export module qchem.WaveFunction.Factory;
+export import qchem.SCFAccelerator;
+export import qchem.WaveFunction;
+export import qchem.Hamiltonian;
+export import qchem.BasisSet;
+export import qchem.Symmetry.ElectronConfiguration;
 
-#include <WaveFunction/Factory.H>
-#include <Hamiltonian/Hamiltonian.H>
-#include "UnPolarized_WF.H"
-#include "Polarized_WF.H"
-
-namespace WaveFunctionF
+export namespace WaveFunctionF
 {
-    WaveFunction* Factory(const Hamiltonian* h, const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
-    {
-        return h->IsPolarized() ? (WaveFunction*)new Polarized_WF(bs,ec,acc) : (WaveFunction*)new UnPolarized_WF(bs,ec,acc);
-    }
+    WaveFunction* Factory(const Hamiltonian*, const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc);
 }
-
 

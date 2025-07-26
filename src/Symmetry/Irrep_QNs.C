@@ -1,40 +1,32 @@
-// File: Orbital_QNs.C  Encapsulate and sort a group of QNs associated with Atom/Molecule/LAttice orbitals.
+// File: Irrep_QNs.C  Combine Symmetry with Spin.
+module;
+#include <memory>
 
-#include <Symmetry/Irrep_QNs.H>
-#include <Symmetry/Symmetry.H>
-#include <cassert>
-#include <iostream>
+export module qchem.Symmetry.Irrep;
+export import qchem.Symmetry;
+export import qchem.Symmetry.Spin;
+import qchem.Streamable;
 
-const size_t Irrep_QNs::ms_max=3; //three states Up/Down and None.
+export struct Irrep_QNs
+    : public virtual Streamable
+{   
+    typedef std::shared_ptr<const Symmetry> sym_t;
+    Irrep_QNs() : ms(Spin::None), sym(0) {};
+    Irrep_QNs(Spin _ms,const sym_t& _sym);
+    ~Irrep_QNs();
 
-Irrep_QNs::Irrep_QNs(Spin _ms,const sym_t& _sym) 
-    : ms(_ms)
-    , sym(_sym) 
-{
-    assert(sym);
-}
+    virtual size_t  SequenceIndex() const; //Used for op<
 
+    friend bool operator<(const Irrep_QNs& a, const Irrep_QNs& b)
+    {
+        return a.SequenceIndex()<b.SequenceIndex();
+    }
+    virtual size_t GetDegeneracy() const;
 
-
-Irrep_QNs::~Irrep_QNs()
-{
-   
-}
-size_t Irrep_QNs::SequenceIndex() const
-{
-    assert(::SequenceIndex(ms)<ms_max);
-    size_t is=sym->SequenceIndex();
-    return is*ms_max+::SequenceIndex(ms);
-}
-size_t Irrep_QNs::GetDegeneracy() const
-{
-    return sym->GetDegeneracy()*::GetDegeneracy(ms);
-}
-
-std::string spins[]={"↓"," ","↑"};
-std::ostream& Irrep_QNs::Write(std::ostream& os) const
-{
-    return os  << *sym << spins[static_cast<int>(ms)];
-}
-
+    std::ostream& Write(std::ostream&) const;
     
+    Spin  ms;
+    sym_t sym;
+
+    static const size_t ms_max; //Used for calculating sequenxe indexes.
+};

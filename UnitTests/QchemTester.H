@@ -2,19 +2,18 @@
 #define QchemTester_H
 
 #include "gtest/gtest.h"
-#include <Mesh/fwd.H>
-#include <Hamiltonian/fwd.H>
-#include <Orbitals/fwd.H>
-#include <SCFIteratorfwd.H>
-
-#include <BasisSet/BasisSet.H>
-#include <SCFParams.H>
-#include <LASolver/LAParams.H>
-#include "Common/PeriodicTable.H"
-#include <Hamiltonian/TotalEnergy.H>
+#include <memory>
 #include <nlohmann/json.hpp>
 
-#include <memory>
+import qchem.SCFIterator;
+import qchem.LAParams;
+import qchem.Hamiltonian;
+import qchem.BasisSet;
+import Common.PeriodicTable;
+import qchem.Molecule;
+import qchem.Symmetry.AtomEC;
+import qchem.Orbitals;
+import qchem.Mesh; //To get Meshparams
 
 class QchemTester
 {
@@ -59,7 +58,6 @@ public:
 };
 
 
-#include "Symmetry/Atom_EC.H"
 //----------------------------------------------------------------------------------
 //
 //  Atoms and Molecules
@@ -76,8 +74,7 @@ private:
     int itsZ;
 };
 
-#include "Symmetry/Molecule_EC.H"
-
+import qchem.Symmetry.MoleculeEC;
 class TestMolecule : public virtual QchemTester
 {
 public:

@@ -1,55 +1,36 @@
 // File: AtomIEClient.C Common IE client code for all atom basis sets and IEs.
+module; 
+#include <vector>
+#include <set>
+export module qchem.BasisSet.Atom.IEClient;
+export import qchem.BasisSet.Internal.IEClient;
+export import qchem.Irrep_BS;
+export import oml.Vector;
 
-#include "IEC.H"
-#include <BasisSet/Irrep_BS.H>
-
-
-void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l)
+export struct AtomIrrepIEClient : public virtual ::IrrepIEClient
 {
-    n=_l+1;
-    l=_l;
+    AtomIrrepIEClient(size_t N) :  es(N), ns(N) {};
+    Vector<double> es; //The orbital exponents.
+    Vector<double> ns; //Normalization constants
+    std::vector<size_t> es_indices; //Unique exponent index
+    
+    size_t n,l;
+    std::vector<int> ml;
+    
+    void Init(const Vector  <double>& exponents,const Vector<double>& norms, size_t l);
+    void Init(const Vector  <double>& exponents,const Vector<double>& norms, size_t l,  const std::vector<int>& ml);
+    
+    virtual size_t size() const {return es.size();}
+    typedef std::tuple<int,int,double,double> bf_tuple;
+    bf_tuple operator()(size_t i) const {return std::make_tuple(n,l,es(i),ns(i));}
+    auto indices() const {return es.indices();}
+    auto indices(size_t i) const {return es.indices(i);}
 
-    es=exponents;
-    ns=norms;
-}
+    static       AtomIrrepIEClient* dcast(      ::IrrepIEClient*);
+    static const AtomIrrepIEClient* dcast(const ::IrrepIEClient*);
+    static const AtomIrrepIEClient& dcast(const ::IrrepIEClient& iec) {return *dcast(&iec);}
+    static       AtomIrrepIEClient* dcast(      ::IrrepBasisSet*);
+    static const AtomIrrepIEClient* dcast(const ::IrrepBasisSet*);
+    static const AtomIrrepIEClient& dcast(const ::IrrepBasisSet& ibs) {return *dcast(&ibs);}
+};
 
-void AtomIrrepIEClient::Init(const Vector<double>& exponents,const Vector<double>& norms,size_t _l, const std::vector<int>& _ml)
-{
-    n=_l+1;
-    l=_l;
-    ml=_ml;
-    assert(ml.size()>0);
-
-    es=exponents;
-    ns=norms;
-}
-
-AtomIrrepIEClient* AtomIrrepIEClient::dcast(::IrrepIEClient* iec)
-{
-    assert(iec);
-    AtomIrrepIEClient* aiec=dynamic_cast< AtomIrrepIEClient*>(iec);
-    assert(aiec);
-    return aiec;
-}
-const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepIEClient* iec)
-{
-    assert(iec);
-    const AtomIrrepIEClient* aiec=dynamic_cast< const AtomIrrepIEClient*>(iec);
-    assert(aiec);
-    return aiec;
-}
-
-AtomIrrepIEClient* AtomIrrepIEClient::dcast(::IrrepBasisSet* ibs)
-{
-    assert(ibs);
-    AtomIrrepIEClient* aiec=dynamic_cast< AtomIrrepIEClient*>(ibs);
-    assert(aiec);
-    return aiec;
-}
-const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepBasisSet* ibs)
-{
-    assert(ibs);
-    const AtomIrrepIEClient* aiec=dynamic_cast< const AtomIrrepIEClient*>(ibs);
-    assert(aiec);
-    return aiec;
-}

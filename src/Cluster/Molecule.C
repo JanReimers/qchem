@@ -1,82 +1,38 @@
 // File: Molecule.C  Implementation for A cluster of atoms.
-
-
-
-#include <Cluster/Molecule.H>
-#include "Cluster/Atom.H"
-#include "MoleculeMesh.H"
-#include "Common/stl_io.h"
-#include "oml/imp/binio.h"
+module;
 #include <iostream>
-#include <iomanip>
-#include <cassert>
 
-Molecule::Molecule()
-    : itsNumElectrons(0)
-    , itsAtoms    ( )
-{};
+export module qchem.Molecule;
+export import qchem.Atom;
+export import qchem.Cluster;
+import Common.UniqueIDImp;
+import qchem.Mesh;
 
-void Molecule::Insert(Atom* a)
+export class Molecule 
+    : public virtual Cluster
+    , public UniqueIDImp
 {
-    itsAtoms.push_back(std::unique_ptr<Atom>(a));
-    itsNumElectrons+=a->GetNumElectrons();
-}
+public:
+    Molecule();
 
-size_t Molecule::GetNumAtoms() const
-{
-    return itsAtoms.size();
-}
+    virtual void   Insert        (Atom*)      ;
+    virtual size_t GetNumAtoms        () const;
+    virtual int    GetNuclearCharge   () const;
+    virtual double GetNetCharge       () const;
+    virtual double GetNumElectrons    () const;
+    virtual Mesh*  CreateMesh(const MeshParams&) const;
+    
+    virtual const_iterator begin() const {return itsAtoms.begin();}
+    virtual const_iterator end  () const {return itsAtoms.end  ();} 
+    virtual       iterator begin()       {return itsAtoms.begin();}
+    virtual       iterator end  ()       {return itsAtoms.end  ();} 
 
-int Molecule::GetNuclearCharge() const
-{
-    int chg=0;
-    for(auto& b:*this) chg+=b->itsZ;
-    return chg;
-}
+    virtual std::ostream& Write(std::ostream&) const;
 
-double Molecule::GetNetCharge() const
-{
-    return GetNuclearCharge()-itsNumElectrons;
-}
-
-double Molecule::GetNumElectrons() const
-{
-    return itsNumElectrons;
-}
-
-Mesh*  Molecule::CreateMesh(const MeshParams& mp) const
-{
-    return new MoleculeMesh(*this,mp);
-}
-
-std::ostream& Molecule::Write(std::ostream& os) const
-{
-    if (!StreamableObject::Pretty())
-    {
-        UniqueIDImp::Write(os);
-        if (StreamableObject::Binary())
-        {
-            BinaryWrite(GetNumElectrons(),os);
-        }
-        else
-        {
-            os << GetNumElectrons() << " ";
-        }
-        os << itsAtoms;
-    }
-    else
-    {
-        os << "Molecule with " << GetNumAtoms() << " atoms"
-        << ", nuclear charge " << GetNuclearCharge() << "(e)"
-        << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
-        os << "Atom #  Element  Position vector     Mesh file    Charge density file" << std::endl;
-        int i=1;
-        for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b;
-        os << std::endl;
-    }
-
-    return os;
-}
+private:
+    double       itsNumElectrons;
+    av_t         itsAtoms;
+};
 
 
 

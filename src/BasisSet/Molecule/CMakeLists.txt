@@ -1,34 +1,10 @@
 add_library(qcMolecule_BS) 
-target_sources(qcMolecule_BS PRIVATE 
-Factory.C
-Unit.C
-PolarizedGaussian/Triangle3D.C
-PolarizedGaussian/AuxillaryData.C
-PolarizedGaussian/AuxillaryFJ.C
-PolarizedGaussian/CDCache.C
-PolarizedGaussian/IrrepBasisSet.C
-PolarizedGaussian/Block.C
-PolarizedGaussian/MnD/Hermite2.C
-PolarizedGaussian/MnD/Hermite1.C
-PolarizedGaussian/MnD/RNLM.C
-PolarizedGaussian/Readers/Gaussian94.C
-PolarizedGaussian/IEClient.C
-PolarizedGaussian/IntegralEngine.C
-PolarizedGaussian/Radial/GaussianH3.C
-PolarizedGaussian/Radial/RadialFunctionImplementation.C
-PolarizedGaussian/Radial/ContractedGaussianH3.C
-PolarizedGaussian/Radial/GaussianCD.C
-PolarizedGaussian/Radial/ContractedGaussianRF.C
-PolarizedGaussian/Radial/GaussianRF.C
-PolarizedGaussian/BasisFunction.C
-PolarizedGaussian/Polarization.C
-PolarizedGaussian/BasisSet.C
+target_sources(qcMolecule_BS PRIVATE Imp/Factory.C
+PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Factory.C
 )
 target_include_directories(qcMolecule_BS PRIVATE 
-    ${PROJECT_SOURCE_DIR}/include  
-    ${PROJECT_SOURCE_DIR}/include/Imp/BasisSet/Molecule
-    ${PROJECT_SOURCE_DIR}/submodules/oml/include 
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
+set_property(TARGET qcMolecule_BS PROPERTY CXX_STANDARD 20)
+target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
+add_subdirectory(PolarizedGaussian)
