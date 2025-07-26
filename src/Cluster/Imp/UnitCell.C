@@ -8,21 +8,21 @@ module Cluster.UnitCell;
 import Common.Constants;
 
 
-UnitCell::UnitCell()
-    : itsA    (10.0)
-    , itsB    (10.0)
-    , itsC    (10.0)
-    , itsAlpha(Rad90)
-    , itsBeta (Rad90)
-    , itsGamma(Rad90)
-    , itsMetricTensor
-    (
-        itsA*itsA              , itsB*itsA*cos(itsGamma), itsC*itsA*cos(itsBeta ),
-        itsA*itsB*cos(itsGamma), itsB*itsB              , itsC*itsB*cos(itsAlpha),
-        itsA*itsC*cos(itsBeta ), itsB*itsC*cos(itsAlpha), itsC*itsC
-    )
-{
-}
+// UnitCell::UnitCell()
+//     : itsA    (10.0)
+//     , itsB    (10.0)
+//     , itsC    (10.0)
+//     , itsAlpha(Rad90)
+//     , itsBeta (Rad90)
+//     , itsGamma(Rad90)
+//     , itsMetricTensor
+//     (
+//         itsA*itsA              , itsB*itsA*cos(itsGamma), itsC*itsA*cos(itsBeta ),
+//         itsA*itsB*cos(itsGamma), itsB*itsB              , itsC*itsB*cos(itsAlpha),
+//         itsA*itsC*cos(itsBeta ), itsB*itsC*cos(itsAlpha), itsC*itsC
+//     )
+// {
+// }
 
 UnitCell::UnitCell(double a, double b, double c, double alpha, double beta, double gamma)
     : itsA    (a)
@@ -38,6 +38,7 @@ UnitCell::UnitCell(double a, double b, double c, double alpha, double beta, doub
         itsA*itsC*cos(itsBeta ), itsB*itsC*cos(itsAlpha), itsC*itsC
     )
 {};
+UnitCell::UnitCell(double a) : UnitCell(a,a,a,90,90,90) {};
 
 UnitCell::UnitCell(const Matrix3D<double> m)
     : itsA    (sqrt(m(1,1)))

@@ -51,10 +51,10 @@ std::ostream& Molecule::Write(std::ostream& os) const
     os << "Molecule with " << GetNumAtoms() << " atoms"
     << ", nuclear charge " << GetNuclearCharge() << "(e)"
     << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
-    os << "Atom #  Element  Position vector     Mesh file    Charge density file" << std::endl;
+    os << "Atom #  Element  Position vector" << std::endl;
     int i=1;
-    for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b;
-    os << std::endl;
+    for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b << std::endl;
+    // os << std::endl;
 
     return os;
 }

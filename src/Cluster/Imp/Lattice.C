@@ -15,12 +15,12 @@ import qchem.Cluster.MoleculeMesh;
 //
 //  Construction zone.
 //
-Lattice::Lattice(            )
-    : itsUnitCell (            )
-    , itsLimits   (0,0,0       )
-    , itsAtoms    (new Molecule)
-    , itsTolerence(0.0001      )
-{}
+// Lattice::Lattice(            )
+//     : itsUnitCell (            )
+//     , itsLimits   (0,0,0       )
+//     , itsAtoms    (new Molecule)
+//     , itsTolerence(0.0001      )
+// {}
 
 Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
     : itsUnitCell (cell        )
@@ -325,7 +325,7 @@ using std::endl;
 //
 std::ostream& Lattice::Write(std::ostream& os) const
 {
-    // os << itsUnitCell << endl << itsLimits << endl << itsAtoms << std::endl;
+    os << itsUnitCell << endl << itsLimits << endl << *itsAtoms << std::endl;
     return os;
 }
 

@@ -10,7 +10,7 @@ export class UnitCell
     : public virtual Streamable
 {
 public:
-    UnitCell();
+    UnitCell(double a); //Assume cubic
     UnitCell(double a, double b, double c, double alpha, double beta, double gamma);
     UnitCell(const Matrix3D<double> MetricTensor);
 

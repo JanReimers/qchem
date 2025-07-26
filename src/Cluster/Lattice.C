@@ -29,7 +29,7 @@ export class Lattice
     , public UniqueIDImp
 {
 public:
-    Lattice();
+    // Lattice();
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
     Lattice(const UnitCell&, const Vector3D<int>&,Cluster* Atoms); //Full  unit cell.
     ~Lattice();
