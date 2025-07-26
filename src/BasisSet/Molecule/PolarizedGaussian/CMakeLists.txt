@@ -18,7 +18,7 @@ Radial/Imp/GaussianH3.C
 Radial/Imp/Common.C
 Radial/Imp/ContractedGaussianH3.C
 Radial/GaussianCD.C
-Radial/ContractedGaussianRF.C
+Radial/Imp/ContractedGaussianRF.C
 Radial/Imp/GaussianRF.C
 
 
@@ -39,5 +39,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Radial/GaussianH3.C
     Radial/ContractedGaussianH3.C
     Radial/GaussianRF.C
+    Radial/ContractedGaussianRF.C
 )
  
