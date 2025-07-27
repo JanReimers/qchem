@@ -33,6 +33,7 @@ target_link_libraries(UTMain PUBLIC qchem qcCommon omlm)
 # Symmetry module
 add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)
 target_link_libraries(UTSym PUBLIC qcSymmetry gtest)
+set_property(TARGET UTSym PROPERTY CXX_STANDARD 20)
 # Cluster module
 add_executable(UTCluster UTCluster.C)
 target_link_libraries(UTCluster PUBLIC qcCluster gtest)

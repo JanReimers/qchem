@@ -7,6 +7,7 @@ import qchem.Symmetry.Orbital;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 import qchem.Symmetry.Okmj;
+import qchem.Symmetry.BlochQN;
 import qchem.Streamable;
 
 using std::cout;
@@ -154,4 +155,28 @@ TEST_F(SymQNTests, Orbital_QNs_set)
     }
     for (auto qn:qns) cout << qn << " ";
     cout << endl;
+}
+
+
+TEST_F(SymQNTests, BlochQNs)
+{
+    IVec3 N(5,6,7);
+    IVec3 k1;
+    
+    for (k1.x=-N.x;k1.x<=N.x;k1.x++)
+    for (k1.y=-N.y;k1.y<=N.y;k1.y++)
+    for (k1.z=-N.z;k1.z<=N.z;k1.z++)
+    {
+        BlochQN bq1(N,k1);
+        // cout << k1 << " " << bq1 << " " << bq1.SequenceIndex() << endl;
+        IVec3 k2;
+        for (k2.x=k1.x;k2.x<=N.x;k2.x++)
+        for (k2.y=k1.y;k2.y<=N.y;k2.y++)
+        for (k2.z=k1.z;k2.z<=N.z;k2.z++)
+        {
+            if (k1==k2) continue;
+            BlochQN bq2(N,k2);
+            EXPECT_NE(bq1.SequenceIndex(),bq2.SequenceIndex());
+        }
+    }
 }

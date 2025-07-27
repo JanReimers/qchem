@@ -9,7 +9,9 @@ target_sources(qcSymmetry PRIVATE
     Imp/Unit.C 
     Imp/Yl.C  
     Imp/Ylm.C 
-    Imp/Okmj.C)
+    Imp/Okmj.C
+    Imp/BlochQN.C
+    )
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
     Symmetry.C 
@@ -17,7 +19,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Orbital_QNs.C 
     ElectronCounts.C 
     Angular.C 
-    Yl.C Ylm.C Okmj.C
+    Yl.C Ylm.C Okmj.C BlochQN.C
     Unit.C
     ElectronConfiguration.C
     Atom_EC.C 
