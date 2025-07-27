@@ -58,6 +58,7 @@ TEST_F(ClusterTests, UnitCell)
 
 TEST_F(ClusterTests, Lattice)
 {
+    double a_0=0.529177; //Ångstrom
     Molecule* SiBasis=new Molecule();
     SiBasis->Insert(new Atom(14,0,RVec3{ 0, 0, 0}));
     SiBasis->Insert(new Atom(14,0,RVec3{.5,.5, 0}));
@@ -67,7 +68,7 @@ TEST_F(ClusterTests, Lattice)
     SiBasis->Insert(new Atom(14,0,RVec3{.75,.75,.25}));
     SiBasis->Insert(new Atom(14,0,RVec3{.25,.75,.75}));
     SiBasis->Insert(new Atom(14,0,RVec3{.75,.25,.75}));
-    UnitCell SiCell(5.43);
-    Lattice Si(SiCell,Vector3D<int>(1,1,1),SiBasis);
+    UnitCell SiCell(5.43/a_0); //Convert Ångstrom to atomic units a.u.
+    Lattice Si(SiCell,Vector3D<int>(2,2,2),SiBasis);
     std::cout << "Si lattice = " << Si << std::endl;
 }
