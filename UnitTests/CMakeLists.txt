@@ -38,6 +38,10 @@ set_property(TARGET UTSym PROPERTY CXX_STANDARD 20)
 add_executable(UTCluster UTCluster.C)
 target_link_libraries(UTCluster PUBLIC qcCluster gtest)
 set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
+# BasisSet module
+add_executable(UTBasisSet UTBasisSet.C)
+target_link_libraries(UTBasisSet PUBLIC qcLattice_BS gtest)
+set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
  
 # setup testing
 enable_testing()
