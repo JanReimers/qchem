@@ -17,5 +17,5 @@ public:
     virtual TBasisFunction* Clone() const=0;
 };
 
-export using Real_BF=TBasisFunction<double>;
-// export using Complex_BF=TBasisFunction<std::complex<double>>;
+export using    Real_BF=TBasisFunction<double>;
+export using Complex_BF=TBasisFunction<dcmplx>;
