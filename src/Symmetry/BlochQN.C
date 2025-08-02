@@ -21,7 +21,7 @@ public:
     RVec3   Getk() const {return k;}
 
 private:
-    IVec3 N;  //This is the Brillouin zone grid size which gice context for the k vector. Used for calculating the sequence index.
+    IVec3 N;  //This is the Brillouin zone grid size which gives context for the k vector. Used for calculating the sequence index.
     IVec3 ik; //Integer rep. of k.
     RVec3 k;  //Real values.
 };
