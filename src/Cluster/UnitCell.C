@@ -16,10 +16,10 @@ public:
 
     UnitCell      MakeReciprocalCell() const;
 
-    double        GetCellVolume     (                  ) const;
-    double        GetMinimumCellEdge(                  ) const;
-    double        GetDistance       (const RVec3& r    ) const;
-    Vector3D<int> GetNumCells       (double MaxDistance) const;
+    double GetCellVolume     (                  ) const;
+    double GetMinimumCellEdge(                  ) const;
+    double GetDistance       (const RVec3& r    ) const;
+    IVec3  GetNumCells       (double MaxDistance) const;
 
     std::ostream&  Write(std::ostream&) const;
 

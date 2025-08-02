@@ -2,6 +2,7 @@
 module;
 #include <vector>
 #include <iosfwd>
+#include <memory>
 
 export module qchem.Lattice;
 import Common.UniqueIDImp;
@@ -30,9 +31,9 @@ export class Lattice
 {
 public:
     // Lattice();
+    typedef std::shared_ptr<Cluster> cl_t;
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
-    Lattice(const UnitCell&, const Vector3D<int>&,Cluster* Atoms); //Full  unit cell.
-    ~Lattice();
+    Lattice(const UnitCell&, const Vector3D<int>&,const cl_t& Atoms); //Full  unit cell.
 
     virtual void   Insert        (Atom*)      ;
     virtual size_t GetNumAtoms        () const;
@@ -52,6 +53,10 @@ public:
     {
         return GetNumSites()*itsUnitCell.GetCellVolume();
     }
+    Lattice   Reciprocal      (double Emax) const;  //Create the assosiated  reciprical Lattice;
+    std::vector<RVec3>  GetReciprocalGrid() const;
+    IVec3     GetLimits() const {return itsLimits;}
+
     size_t    GetNumSites     () const;
     size_t    GetNumBasisSites() const;
     size_t    GetNumUnitCells () const;
@@ -67,6 +72,7 @@ public:
     std::vector<double> GetDistances    (size_t NumShells) const;
     std::vector<RVec3>  GetBonds        (size_t BasisNumber, double distance) const;
     std::vector<RVec3>  GetBondsInSphere(size_t BasisNumber, double distance) const;
+    std::vector<IVec3>  GetCellsInSphere(double distance);
 
     virtual const_iterator begin() const {return itsAtoms->begin();}
     virtual const_iterator end  () const {return itsAtoms->end  ();} 
@@ -83,7 +89,7 @@ private:
 
     UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
     Vector3D<int>  itsLimits;    //Number of unit cell in each direction.
-    Cluster*       itsAtoms;     //List of atoms in the unit cell.
+    cl_t           itsAtoms;     //List of atoms in the unit cell.
     double         itsTolerence; //Positions closer than this are considered the same.
 };
 

@@ -29,17 +29,13 @@ Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
     , itsTolerence(0.0001      )
 {}
 
-Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits,Cluster* Atoms)
+Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits,const cl_t& Atoms)
     : itsUnitCell (cell  )
     , itsLimits   (Limits)
     , itsAtoms    (Atoms )
     , itsTolerence(0.0001)
 {}
 
-Lattice::~Lattice()
-{
-    delete itsAtoms;
-}
 
 //---------------------------------------------------------
 //
@@ -75,10 +71,13 @@ Mesh*  Lattice::CreateMesh(const MeshParams& mp) const
     return new MoleculeMesh(*itsAtoms,mp);
 }
 
-//ChargeDensity* Lattice::GetChargeDensity() const
-//{
-//    return itsAtoms->GetChargeDensity();
-//}
+Lattice Lattice::Reciprocal(double Emax) const
+{
+    UnitCell RLCell=itsUnitCell.MakeReciprocalCell();
+    IVec3 Nr=RLCell.GetNumCells(Emax);
+    return Lattice(RLCell,Nr,itsAtoms); //This should automatically be move op.
+
+}
 
 
 //----------------------------------------------------------
@@ -116,6 +115,9 @@ size_t Lattice::GetSiteNumber(const RVec3& r) const
     size_t sitenum=ib + GetNumBasisSites()*(cell.z + itsLimits.z*(cell.y + itsLimits.y*cell.x));
     assert(sitenum<GetNumSites());
     assert(sitenum>=0);
+    // std::cout << "GetCoordinate(sitenum)="  << GetCoordinate(sitenum) << std::endl;
+    // std::cout << "RVec3(cell.x,cell.y,cell.z)="  << RVec3(cell.x,cell.y,cell.z) << std::endl;
+    // std::cout << "basis="  << basis << std::endl;
     assert(itsUnitCell.GetDistance(GetCoordinate(sitenum)-RVec3(cell.x,cell.y,cell.z)-basis) < itsTolerence);
     return sitenum;
 }
@@ -256,7 +258,30 @@ std::vector<RVec3> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance
     return ret;
 }
 
+std::vector<IVec3>  Lattice::GetCellsInSphere(double rmax)
+{
+    assert(rmax>0);
+    std::vector<IVec3> ret;
+    IVec3 nc=itsUnitCell.GetNumCells(rmax);
+    IVec3 i;
+    for (i.x=-nc.x; i.x<=nc.x; i.x++)
+        for (i.y=-nc.y; i.y<=nc.y; i.y++)
+            for (i.z=-nc.z; i.z<=nc.z; i.z++)
+                if (itsUnitCell.GetDistance(i)<=rmax) ret.push_back(i);
+                
+    return ret;
+}
 
+std::vector<RVec3>  Lattice::GetReciprocalGrid() const
+{
+    std::vector<RVec3> grid;
+    RVec3 k;
+    for (k.x=0; k.x<itsLimits.x; k.x++)
+        for (k.y=0; k.y<itsLimits.y; k.y++)
+            for (k.z=0; k.z<itsLimits.z; k.z++)
+                grid.push_back(RVec3(k.x/itsLimits.x,k.y/itsLimits.y,k.z/itsLimits.z));
+    return grid;
+}
 //--------------------------------------------------------
 //
 //  Private unitilities.
@@ -267,12 +292,12 @@ size_t  Lattice::Find(const RVec3& r) const //Search within the primary unit cel
     size_t i=0;
     for (auto& a:*itsAtoms)
     {
-        i++;
         if (itsUnitCell.GetDistance(r - a->itsR) < itsTolerence)
         {
             ret=i;
             break;
         }
+        i++;
     } 
     return ret;
 }
@@ -296,7 +321,7 @@ std::vector<RVec3> Lattice::GetSuperCells(double MaxDistance) const
     for (int ix=-nc.x; ix<=nc.x; ix++)
         for (int iy=-nc.y; iy<=nc.y; iy++)
             for (int iz=-nc.z; iz<=nc.z; iz++)
-                ret.push_back(RVec3(ix,iy,iz));
+                ret.push_back(IVec3(ix,iy,iz));
     return ret;
 }
 
