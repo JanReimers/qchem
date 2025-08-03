@@ -19,6 +19,7 @@ template <class T> Orbital_RKB_IBS_Common1<T>::Orbital_RKB_IBS_Common1
     assert(itsRKBL);
     assert(itsRKBS);
     s->InsertBasisFunctions(itsRKBL);
+    s->Insert(itsRKBL);
 }
 
 template <class T> Orbital_RKB_IBS_Common1<T>::Vec     Orbital_RKB_IBS_Common1<T>::operator() (const RVec3&) const
@@ -96,10 +97,16 @@ template <class T> Orbital_RKBS_IBS_Common1<T>::Orbital_RKBS_IBS_Common1
 (Symmetry* sym,int _kappa)
     : TIBS_Common1<T>(sym)
     , kappa(_kappa)
+    , large(0)
 {
     assert(kappa!=0);
 }
 
+template <class T> void Orbital_RKBS_IBS_Common1<T>::Insert(const Orbital_RKBL_IBS<T>* l)
+{
+    assert(l);
+    large=l;
+}
 template class Orbital_RKB_IBS_Common1<double>;
 template class Orbital_RKBL_IBS_Common1<double>;
 template class Orbital_RKBS_IBS_Common1<double>;

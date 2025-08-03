@@ -148,12 +148,21 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
 }
 template <class T> Small_Orbital_IBS<T>::Vec     Small_Orbital_IBS<T>::operator() (const RVec3& r) const
 {
+    const Large_Orbital_IBS<T>* l1=dynamic_cast<const Large_Orbital_IBS<T>*>(large);
     double mr=norm(r);
-    return uintpow(mr,l)*DirectMultiply(ns,exp(-mr*es));
+    Vec f=-es;
+    if (l1->kappa >0) 
+        f+=(2*l1->kappa+1)/mr;
+        
+    Vec n=DirectDivide(ns,l1->ns); //Pr(r) is already normalized.
+    Vec nf=DirectMultiply(n,f);
+    return DirectMultiply(nf,(*large)(r)); 
+
 }
 
 template <class T> Small_Orbital_IBS<T>::Vec3Vec Small_Orbital_IBS<T>::Gradient   (const RVec3& r) const
 {
+    assert(false);
     Vec3Vec ret(size());
     double mr=norm(r);
     if (mr==0.0) 

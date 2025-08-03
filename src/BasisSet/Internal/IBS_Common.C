@@ -66,19 +66,8 @@ export template <class T> class TIBS_Common1
     : public virtual TIrrepBasisSet<T>
     , public IBS_Common1
 {
-protected:
-    typedef IrrepBasisSet Base;
-    typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
-    typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-  
 public:
     TIBS_Common1(Symmetry* sym) : IBS_Common1(sym) {};
-    using TIrrepBasisSet<T>::GetVectorSize;
-    using TIrrepBasisSet<T>::size;
-
-    // virtual Vec     operator() (const RVec3&) const;
-    // virtual Vec3Vec Gradient   (const RVec3&) const;
-
 };
 
 export template <class T> class Orbital_IBS_Common1
@@ -173,7 +162,9 @@ export template <class T> class Orbital_RKBS_IBS_Common1
 {
 protected:
     Orbital_RKBS_IBS_Common1(Symmetry*,int kappa);
+    virtual void Insert(const Orbital_RKBL_IBS<T>* l);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l) {};
 
     int kappa;
+    const Orbital_RKBL_IBS<T>* large;
 };

@@ -69,5 +69,6 @@ public:
     // using IrrepBasisSet::size;
     //int GetKappa() const;
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l)=0;
+    virtual void Insert(const Orbital_RKBL_IBS<T>* l)=0;
 };
 

@@ -112,13 +112,16 @@ template <class T> class Large_Orbital_IBS
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
 public:
+    using AtomIrrepIEClient::es;
+    using AtomIrrepIEClient::ns;
+    
     Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-private:
+//private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
     using Orbital_RKBL_IBS_Common1<T>::kappa;
 };
@@ -131,6 +134,7 @@ template <class T> class Small_Orbital_IBS
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
+    using Orbital_RKBS_IBS_Common1<T>::large;
 public:
     Small_Orbital_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l);

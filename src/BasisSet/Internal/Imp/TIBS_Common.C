@@ -33,38 +33,6 @@ template <class T>  LASolver<double>* Orbital_IBS_Common1<T>::CreateSolver() con
 }
 
 
-//-----------------------------------------------------------------------------
-//
-//  VectorFunction stuff.
-//
-// template <class T> typename TIBS_Common1<T>::Vec TIBS_Common1<T>::
-// operator() (const RVec3& r) const
-// {
-//     Vec  ret(size());
-//     typename Vec::iterator i(ret.begin());
-//     for(auto b:IrrepBasisSet::Iterate<TBasisFunction<T> >()) 
-//     {
-//         *i=(*b)(r);
-//         i++;
-//     }
-
-//     return ret;
-// }
-
-// template <class T> typename TIBS_Common1<T>::Vec3Vec TIBS_Common1<T>::
-// Gradient(const RVec3& r) const
-// {
-//     // No UT coverage
-//     Vec3Vec  ret(size());
-//     typename Vec3Vec::iterator i(ret.begin());
-//     for(auto b:IrrepBasisSet::Iterate<TBasisFunction<T> >()) 
-//     {
-//         *i=b->Gradient(r);
-//         i++;
-//     }
-
-//     return ret;
-// }
 
 template class TIBS_Common1<double>;
 template class Orbital_IBS_Common1<double>;

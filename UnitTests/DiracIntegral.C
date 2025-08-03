@@ -116,7 +116,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
         SMatrix<double> Snum=merge_diag(SLnum,SSnum);
-        // cout << Snum << S << endl;
+        cout << Snum << S << endl;
 
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }
