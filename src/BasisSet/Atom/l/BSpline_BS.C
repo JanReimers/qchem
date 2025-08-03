@@ -8,6 +8,7 @@ import qchem.BasisSet;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.Internal.l.Angular;
@@ -82,7 +83,7 @@ protected:
 template <size_t K> class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     , public         ::BSpline::IrrepBasisSet<K>
-    , public         Orbital_IBS_Common<double>
+    , public         Orbital_IBS_Common1<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
     , public         Orbital_IE<K>
@@ -101,7 +102,6 @@ template <size_t K> class Fit_IBS
 : public virtual ::Fit_IBS
 , public virtual FitIntegrals
 , public ::BSpline::IrrepBasisSet<K>
-, public TIBS_Common<double>
 , public Fit_IBS_Common
 , public Fit_IE<K>
 

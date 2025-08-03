@@ -19,7 +19,7 @@ namespace BSpline
 
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
     : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Ylm_Sym(L,ml),L,ml)
-    , Orbital_IBS_Common<double>()
+    , Orbital_IBS_Common1<double>()
     , Atoml::BSpline::Orbital_IE<K>(db)
     {
         ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
@@ -34,7 +34,7 @@ template <size_t K> void Orbital_IBS<K>::InsertBasisFunctions()
     size_t i=1;
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     for (auto s:iec.splines) 
-        IBS_Common::Insert(new BasisFunction<K>(s,iec.l,iec.ml[0],iec.ns(i++))); //ns from SlaterIEClient
+        IBS_Common1::Insert(new BasisFunction<K>(s,iec.l,iec.ml[0],iec.ns(i++))); //ns from SlaterIEClient
 }
 
 template <size_t K>  ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const

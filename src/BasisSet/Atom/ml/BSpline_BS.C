@@ -8,6 +8,7 @@ import qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Internal.Common;
 
 import qchem.BasisFunction;
@@ -40,7 +41,7 @@ template <size_t K> class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     // , public virtual TOrbital_DFT_IBS<double>
     , public         ::BSpline::IrrepBasisSet<K>
-    , public         Orbital_IBS_Common<double>
+    , public         Orbital_IBS_Common1<double>
     // , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
     , public         Atoml::BSpline::Orbital_IE<K>

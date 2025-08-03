@@ -5,6 +5,7 @@ export module qchem.BasisSet.Atom.Internal.ml.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.HF_IBS;
 import qchem.Fit_IBS;
@@ -32,7 +33,7 @@ class Orbital_IBS
 : public virtual TOrbital_HF_IBS<double>
 // , public virtual TOrbital_DFT_IBS<double>
 , public         ::Gaussian::IrrepBasisSet
-, public         Orbital_IBS_Common<double>
+, public         Orbital_IBS_Common1<double>
 // , public         Orbital_DFT_IBS_Common<double>
 , public         Orbital_HF_IBS_Common<double>
 , public         Atoml::Gaussian::Orbital_IE

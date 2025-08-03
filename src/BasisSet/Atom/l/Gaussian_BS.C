@@ -11,6 +11,7 @@ import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.HF_IBS;
 import qchem.BasisFunction;
 
@@ -72,7 +73,7 @@ protected:
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     , public         ::Gaussian::IrrepBasisSet
-    , public         Orbital_IBS_Common<double>
+    , public         Orbital_IBS_Common1<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
     , public         Orbital_IE
@@ -89,7 +90,6 @@ private:
 class Fit_IBS 
 : public virtual ::Fit_IBS
 , public         ::Gaussian::IrrepBasisSet
-, public         TIBS_Common<double>
 , public Fit_IBS_Common
 , public Atoml::Gaussian::Fit_IE
 {

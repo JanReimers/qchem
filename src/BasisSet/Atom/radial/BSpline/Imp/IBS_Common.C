@@ -16,11 +16,11 @@ namespace BSpline
 //
 
 template <size_t K> IrrepBasisSet<K>::IrrepBasisSet(size_t Ngrid, double rmin, double rmax, Symmetry* sym, size_t L)
-    : IBS_Common(sym)
+    : TIBS_Common1<double>(sym)
     , BSpline::IrrepIEClient<K>(Ngrid,rmin, rmax,L)
 {};
 template <size_t K> IrrepBasisSet<K>::IrrepBasisSet(size_t Ngrid, double rmin, double rmax, Symmetry* sym, size_t L, const std::vector<int>& ml)
-    : IBS_Common(sym)
+    : TIBS_Common1<double>(sym)
     , BSpline::IrrepIEClient<K>(Ngrid,rmin, rmax,L,ml)
 {};
 

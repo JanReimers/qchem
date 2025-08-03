@@ -14,7 +14,7 @@ namespace Gaussian
 
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
     : ::Gaussian::IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
-    , Orbital_IBS_Common<double>()
+    , Orbital_IBS_Common1<double>()
     , Atoml::Gaussian::Orbital_IE(db)
 {
     InsertBasisFunctions();   
@@ -25,7 +25,7 @@ void Orbital_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IBS_Common::Insert(new BasisFunction(e,l+1,l,ml[0],ns(i++))); 
+        IBS_Common1::Insert(new BasisFunction(e,l+1,l,ml[0],ns(i++))); 
 }
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster*) const

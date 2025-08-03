@@ -19,7 +19,7 @@ namespace BSpline
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L)
 : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
-, Orbital_IBS_Common<double>()
+, Orbital_IBS_Common1<double>()
 , Orbital_IE<K>(db)
 {
     ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
@@ -37,7 +37,7 @@ template <size_t K> void Orbital_IBS<K>::InsertBasisFunctions()
     // std::cout << "InsertBasisFunctions &sp[0]=" << (void*)&(iec.splines[0]) << std::endl;
 
     for (auto s: this->splines) 
-        IBS_Common::Insert(new BasisFunction<K>(s,this->l,this->ns(i++))); //ns from IEClient
+        IBS_Common1::Insert(new BasisFunction<K>(s,this->l,this->ns(i++))); //ns from IEClient
 }
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
@@ -62,7 +62,6 @@ template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const RVec3&) const
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
     : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
-    , TIBS_Common<double>()
     , Fit_IE<K>(db)
 {
     InsertBasisFunctions();
@@ -72,7 +71,7 @@ template <size_t K> void Fit_IBS<K>::InsertBasisFunctions()
     size_t i=1;
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     for (auto s:iec.splines) 
-        IBS_Common::Insert(new BasisFunction<K>(s,iec.l,iec.ns(i++))); //ns from SlaterIEClient
+        IBS_Common1::Insert(new BasisFunction<K>(s,iec.l,iec.ns(i++))); //ns from SlaterIEClient
 }
 template <size_t K> ::Fit_IBS* Fit_IBS<K>::Clone(const RVec3&) const
 {
