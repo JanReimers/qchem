@@ -9,6 +9,7 @@ import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.HF_IBS;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.Internal.l.Angular;
@@ -77,7 +78,7 @@ protected:
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     , public         ::Slater::IrrepBasisSet
-    , public         Orbital_IBS_Common<double>
+    , public         Orbital_IBS_Common1<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
     , public         Orbital_IE
@@ -96,7 +97,6 @@ class Fit_IBS
 : public virtual ::Fit_IBS
 , public virtual FitIntegrals
 , public ::Slater::IrrepBasisSet
-, public TIBS_Common<double>
 , public Fit_IBS_Common
 , public Fit_IE
 

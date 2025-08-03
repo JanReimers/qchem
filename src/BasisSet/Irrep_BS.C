@@ -36,7 +36,6 @@ public:
     typedef bfv_t::const_iterator const_iterator;
     typedef std::shared_ptr<const Symmetry> sym_t;
 
-    virtual void   Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
     virtual size_t size() const {return GetNumFunctions();}
     virtual sym_t  GetSymmetry() const=0;
@@ -94,5 +93,6 @@ export template <class T> class TOrbital_IBS
     , public virtual Integrals_Nuclear<T> 
 {
 public:    
-     virtual LASolver<T>* CreateSolver() const=0;
+    virtual void   Set(const LAParams&)=0;
+    virtual LASolver<T>* CreateSolver() const=0;
 };

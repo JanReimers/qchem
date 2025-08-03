@@ -77,19 +77,12 @@ protected:
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
   
 public:
-    TIBS_Common(                              );
-    TIBS_Common(const TIBS_Common&);
-    ~TIBS_Common(                              );
-
-    virtual void Set(const LAParams&);
 
     using TIrrepBasisSet<T>::GetVectorSize;
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-protected:
-    LAParams          itsLAParams; //Numerical control of general eigen solution.
 };
 
 export template <class T> class Orbital_IBS_Common
@@ -97,11 +90,14 @@ export template <class T> class Orbital_IBS_Common
     , public  TIBS_Common<T> 
 {
     public:
-    Orbital_IBS_Common() {};
+    Orbital_IBS_Common();
+    virtual void Set(const LAParams&);
     //
     //  Make a gen/ EV solver that already has the overlap S factorized.
     //
     virtual LASolver<double>* CreateSolver() const;
+protected:
+    LAParams          itsLAParams; //Numerical control of general eigen solution.
 
 };
 

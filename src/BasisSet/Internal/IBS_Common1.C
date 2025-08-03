@@ -78,7 +78,7 @@ protected:
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
   
 public:
-   
+    TIBS_Common1(Symmetry* sym) : IBS_Common1(sym) {};
     using TIrrepBasisSet<T>::GetVectorSize;
     using TIrrepBasisSet<T>::size;
 

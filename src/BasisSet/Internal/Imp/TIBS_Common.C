@@ -15,27 +15,20 @@ LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
 //
 //  Construction zone
 //
-template <class T> TIBS_Common<T>::TIBS_Common()
+template <class T> Orbital_IBS_Common<T>::Orbital_IBS_Common()
     : itsLAParams      (DefaultLAP) //gcc-15.0.1 segfault here
 {
 };
 
-template <class T> TIBS_Common<T>::TIBS_Common(const TIBS_Common<T>& bs)
-    : itsLAParams      (bs.itsLAParams)
-{};
 
-template <class T> TIBS_Common<T>::~TIBS_Common()
-{
-}
-
-template <class T> void TIBS_Common<T>::Set(const LAParams& lap)
+template <class T> void Orbital_IBS_Common<T>::Set(const LAParams& lap)
 {
     itsLAParams=lap;
 } 
 
 template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() const
 {
-    LASolver<double>* las=LASolver<double>::Factory(TIBS_Common<T>::itsLAParams);
+    LASolver<double>* las=LASolver<double>::Factory(itsLAParams);
     las->SetBasisOverlap(this->Overlap());
     return las;
 }

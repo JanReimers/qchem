@@ -19,7 +19,7 @@ namespace Slater
 //
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
 : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-, Orbital_IBS_Common<double>()
+, Orbital_IBS_Common1<double>()
 , Orbital_IE(db)
 {
     InsertBasisFunctions();
@@ -31,7 +31,7 @@ void Orbital_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IBS_Common::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
+        IBS_Common1::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
 }
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
@@ -57,7 +57,6 @@ void Orbital_IBS::InsertBasisFunctions()
 //
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
     : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , TIBS_Common<double>()
     , Fit_IE(db)
     {
         InsertBasisFunctions();
@@ -67,7 +66,7 @@ void Fit_IBS::InsertBasisFunctions()
 {
     size_t i=1;
     for (auto e:es) 
-        IBS_Common::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
+        IBS_Common1::Insert(new BasisFunction(e,l+1,l,ns(i++))); //ns from SlaterIEClient
 }
 
 ::Fit_IBS* Fit_IBS::Clone(const RVec3&) const

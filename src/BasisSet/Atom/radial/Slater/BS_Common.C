@@ -4,6 +4,7 @@ module;
 #include <iosfwd>
 export module qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Common;
@@ -14,7 +15,7 @@ export namespace Slater
 // Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
     : public virtual ::IrrepBasisSet
-    , public         IBS_Common
+    , public         TIBS_Common1<double>
     , public         AtomIrrepIEClient
 {
 public:
