@@ -26,11 +26,6 @@ CVec3 BasisFunction::Gradient  (const RVec3& r) const
     return (*this)(r)*I*k;
 }
 
-Complex_BF* BasisFunction::Clone() const
-{
-    return new BasisFunction(*this);
-}
-
 IrrepBasisSet::IrrepBasisSet(IVec3 N, RVec3 k, const std::vector<IVec3>& Gs,double V)
     : IBS_Common(new BlochQN(N,k))
     , IrrepIEClient(k,Gs,1.0/sqrt(V))

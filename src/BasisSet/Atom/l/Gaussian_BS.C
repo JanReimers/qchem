@@ -29,8 +29,7 @@ public:
     virtual ~BasisFunction();
     
     virtual std::ostream&  Write(std::ostream&) const;
-    virtual BasisFunction* Clone(        ) const;
-
+    
     virtual double operator()(const RVec3&) const;
     virtual RVec3  Gradient  (const RVec3&) const;
 

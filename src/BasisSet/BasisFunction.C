@@ -14,7 +14,6 @@ export template <class T> class TBasisFunction
 {
 public:
     virtual ~TBasisFunction()  {};
-    virtual TBasisFunction* Clone() const=0;
 };
 
 export using    Real_BF=TBasisFunction<double>;

@@ -27,7 +27,6 @@ public:
     virtual dcmplx  operator()(const RVec3&) const;
     virtual CVec3   Gradient  (const RVec3&) const;
 
-    virtual Complex_BF* Clone() const;
 
 private:
     RVec3 k; //Wave vector, k+G.

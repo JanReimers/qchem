@@ -14,9 +14,5 @@ BasisFunction::BasisFunction(double e,int n, int l, int _ml, double norm)
 {};
 
 
-BasisFunction* BasisFunction::Clone() const
-{
-    return new  BasisFunction(*this);
-}
 
 }}//namespace

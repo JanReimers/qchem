@@ -31,7 +31,6 @@ public:
     // BasisFunction();
     BasisFunction(const spline_t&, int l, int ml, double norm);
     
-    virtual ::Real_BF* Clone(        ) const;
 
 private:
     int      ml;

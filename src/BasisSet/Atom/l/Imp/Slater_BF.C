@@ -50,9 +50,5 @@ RVec3 BasisFunction::Gradient(const RVec3& r) const
     return r_hat*gr*(itsL/mr-itsExponent);
 }
 
-BasisFunction* BasisFunction::Clone() const
-{
-    return new  BasisFunction(*this);
-}
 
 }} //namespace

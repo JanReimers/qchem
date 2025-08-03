@@ -23,7 +23,6 @@ class BasisFunction : public Atoml::Gaussian::BasisFunction
     public:
         BasisFunction(double theExponent,int n, int l, int ml, double norm);
         
-        virtual BasisFunction* Clone(        ) const;
     private:
         typedef Atoml::Gaussian::BasisFunction Base;
         int ml;

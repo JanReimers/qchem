@@ -56,11 +56,6 @@ RVec3 Large_BasisFunction::Gradient(const RVec3& r) const
     return ret;
 }
 
-Real_BF* Large_BasisFunction::Clone() const
-{
-    return new  Large_BasisFunction(*this);
-}
-
 
 Small_BasisFunction::Small_BasisFunction(const Large_BasisFunction* _Pr,double norm)
 : Pr(_Pr)
@@ -94,11 +89,5 @@ RVec3 Small_BasisFunction::Gradient(const RVec3& r) const
    assert(false);
     return Pr->Gradient(r);
 }
-
-::Real_BF* Small_BasisFunction::Clone() const
-{
-    return new  Small_BasisFunction(*this);
-}
-
 
 }} //namespace

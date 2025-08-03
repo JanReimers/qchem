@@ -22,7 +22,6 @@ class BasisFunction : public Atoml::Slater::BasisFunction
 public:
     BasisFunction(double ex, int n, int l, int ml, double norm);
     
-    virtual BasisFunction* Clone(        ) const;
 private:
     typedef Atoml::Slater::BasisFunction Base;
     int ml;

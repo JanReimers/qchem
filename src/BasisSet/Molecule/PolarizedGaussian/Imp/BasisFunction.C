@@ -80,10 +80,4 @@ RVec3 BasisFunction::Gradient(const RVec3& r) const
     return itsNormalization*(itsPol.Gradient(dr) * rf(r) + itsPol(dr) * rf.Gradient(r));
 }
 
-BasisFunction* BasisFunction::Clone() const
-{
-    assert(itsRadial);
-    return new  BasisFunction(*this);
-}
-
 } //namespace PolarizedGaussian

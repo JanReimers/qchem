@@ -29,7 +29,6 @@ public:
     Large_BasisFunction(double ex, int kappa, double mj, double norm);
     
     virtual std::ostream&    Write(std::ostream&) const;
-    virtual ::Real_BF* Clone(        ) const;
 
     virtual double operator()(const RVec3&) const;
     virtual RVec3  Gradient  (const RVec3&) const;
@@ -57,7 +56,6 @@ public:
     Small_BasisFunction(const Large_BasisFunction*,double norm);
     
     virtual std::ostream&    Write(std::ostream&) const;
-    virtual ::Real_BF* Clone(        ) const;
 
     virtual double operator()(const RVec3&) const;
     virtual RVec3   Gradient  (const RVec3&) const;

@@ -40,10 +40,6 @@ template <size_t K> RVec3 BasisFunction<K>::Gradient(const RVec3& r) const
     RVec3 rhat=r/mr;
     return rhat*itsNormalization*itsDxSpline(mr);
 }
-template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const
-{
-    return new  BasisFunction<K>(*this);
-}
 
 #define INSTANCEk(k) template class BasisFunction<k>;
 #include "../../radial/BSpline/Instance.hpp"

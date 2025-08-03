@@ -16,10 +16,6 @@ template <size_t K> BasisFunction<K>::BasisFunction(const spline_t& sp, int l, i
 };
 
 
-template <size_t K> ::Real_BF* BasisFunction<K>::Clone() const
-{
-    return new  BasisFunction<K>(*this);
-}
 
 #define INSTANCEk(k) template class BasisFunction<k>;
 #include "../../radial/BSpline/Instance.hpp"
