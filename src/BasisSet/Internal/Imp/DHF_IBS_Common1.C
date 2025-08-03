@@ -11,6 +11,7 @@ import oml;
 template <class T> Orbital_RKB_IBS_Common1<T>::Orbital_RKB_IBS_Common1
 (const DB_cache<T>* db, Symmetry* sym,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
     : Orbital_IBS_Common1<T>()
+    , TIBS_Common1<T>(sym)
     , DB_RKB<T>(db)
     , itsRKBL(l)
     , itsRKBS(s)

@@ -8,6 +8,7 @@ import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
 import qchem.Irrep_BS;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
@@ -92,7 +93,7 @@ protected:
 // specific.
 class Orbital_IBS
     : public virtual TOrbital_IBS<double>
-    , public         Orbital_RKB_IBS_Common<double> 
+    , public         Orbital_RKB_IBS_Common1<double> 
 {
 public:
     Orbital_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);

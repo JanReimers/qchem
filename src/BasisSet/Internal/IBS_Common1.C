@@ -106,6 +106,7 @@ protected:
 export template <class T> class Orbital_RKB_IBS_Common1
     : public virtual Orbital_RKB_IBS<T>
     , public Orbital_IBS_Common1<T>
+    , public TIBS_Common1<T>
     , public DB_RKB<T>
 {
 public:

@@ -20,11 +20,11 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t lMax)
         double j=l-0.5;
         if (j>0) //skip j=-0.5 for l=0;
 //            for (double mj=-j;mj<=j;mj+=1.0)
-        Insert(new Orbital_IBS(db,ss.Get_es(l),l));            
+        Insert(new Atom_kappa::Slater::Orbital_IBS(db,ss.Get_es(l),l));            
         // j=l+0.5 sector, kappa = -l -1 < 0
         j=l+0.5;
 //        for (double mj=-j;mj<=j;mj+=1.0)
-            Insert(new Orbital_IBS(db,ss.Get_es(l),-l-1));            
+            Insert(new Atom_kappa::Slater::Orbital_IBS(db,ss.Get_es(l),-l-1));            
         
     }
 
