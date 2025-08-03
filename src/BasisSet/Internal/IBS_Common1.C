@@ -103,5 +103,25 @@ protected:
 };
 
 
+export template <class T> class Orbital_RKB_IBS_Common1
+    : public virtual Orbital_RKB_IBS<T>
+    , public Orbital_IBS_Common1<T>
+    , public DB_RKB<T>
+{
+public:
+    virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
+    virtual SMatrix<T> MakeOverlap () const;
+    virtual SMatrix<T> MakeKinetic () const;
+    virtual SMatrix<T> MakeNuclear (const Cluster*) const;
+    virtual SMatrix<T> MakeRestMass() const;
+protected:
+    Orbital_RKB_IBS_Common1(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
+    ::Orbital_RKBL_IBS<T>* itsRKBL;
+    ::Orbital_RKBS_IBS<T>* itsRKBS;
+private:
+    friend DiracIntegralTests;
+    static SMatrix<T> merge_diag(const SMatrix<T>& l,const SMatrix<T>& s);
+    static SMatrix<T> merge_off_diag(const Matrix<T>& ls);
+};
 
 
