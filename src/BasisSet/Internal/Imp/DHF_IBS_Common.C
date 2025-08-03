@@ -21,6 +21,17 @@ template <class T> Orbital_RKB_IBS_Common1<T>::Orbital_RKB_IBS_Common1
     s->InsertBasisFunctions(itsRKBL);
 }
 
+template <class T> Orbital_RKB_IBS_Common1<T>::Vec     Orbital_RKB_IBS_Common1<T>::operator() (const RVec3&) const
+{
+    assert(false);
+    return Vec();
+}
+template <class T> Orbital_RKB_IBS_Common1<T>::Vec3Vec Orbital_RKB_IBS_Common1<T>::Gradient   (const RVec3&) const
+{
+    assert(false);
+    return Vec3Vec();
+}
+
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::merge_diag(const SMatrix<T>& l,const SMatrix<T>& s)
 {
     size_t Nl=l.GetNumRows();

@@ -76,8 +76,8 @@ public:
     using TIrrepBasisSet<T>::GetVectorSize;
     using TIrrepBasisSet<T>::size;
 
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    // virtual Vec     operator() (const RVec3&) const;
+    // virtual Vec3Vec Gradient   (const RVec3&) const;
 
 };
 
@@ -135,12 +135,17 @@ export template <class T> class Orbital_RKB_IBS_Common1
     , public TIBS_Common1<T>
     , public DB_RKB<T>
 {
+    typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
+    typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
 public:
     virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
     virtual SMatrix<T> MakeOverlap () const;
     virtual SMatrix<T> MakeKinetic () const;
     virtual SMatrix<T> MakeNuclear (const Cluster*) const;
     virtual SMatrix<T> MakeRestMass() const;
+
+    virtual Vec     operator() (const RVec3&) const;
+    virtual Vec3Vec Gradient   (const RVec3&) const;
 protected:
     Orbital_RKB_IBS_Common1(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;

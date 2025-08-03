@@ -11,6 +11,7 @@ import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
 import qchem.DHF_IBS;
+import Common.IntPow;
 
 using std::endl;
 
@@ -66,6 +67,30 @@ template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<doubl
     for (auto e:es) ns(++i)=::Gaussian::Norm(e,l);
     return ns;
 }
+template <class T> Large_Orbital_IBS<T>::Vec     Large_Orbital_IBS<T>::operator() (const RVec3& r) const
+{
+    double mr=norm(r);
+    return uintpow(mr,l)*DirectMultiply(ns,exp(-mr*mr*es));
+}
+
+template <class T> Large_Orbital_IBS<T>::Vec3Vec Large_Orbital_IBS<T>::Gradient   (const RVec3& r) const
+{
+    Vec3Vec ret(size());
+    double mr=norm(r);
+    if (mr==0.0) 
+    {   
+        Fill(ret,RVec3(0,0,0));
+        return ret; //Cusp at the origin so grad is undefined.
+    }
+    assert(mr>0);
+    Fill(ret,r/mr);
+    Vec gr=DirectMultiply(operator()(r),(l/mr-2*mr*es));
+    size_t i=0;
+    for (auto& ir:ret) ir*=gr(++i);
+    return ret;
+
+}
+
 template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
 {
     os << "Gaussian     " << this->GetSymmetry()
@@ -105,6 +130,30 @@ template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<doubl
     int i=0;
     for (auto e:es) ns(++i)=1.0/sqrt(::Gaussian::IE_Primatives::Grad2(e,e,l,l));
     return ns;
+}
+template <class T> Small_Orbital_IBS<T>::Vec     Small_Orbital_IBS<T>::operator() (const RVec3& r) const
+{
+    double mr=norm(r);
+    return uintpow(mr,l)*DirectMultiply(ns,exp(-mr*mr*es));
+}
+
+template <class T> Small_Orbital_IBS<T>::Vec3Vec Small_Orbital_IBS<T>::Gradient   (const RVec3& r) const
+{
+    Vec3Vec ret(size());
+    double mr=norm(r);
+    if (mr==0.0) 
+    {
+        
+        Fill(ret,RVec3(0,0,0));
+        return ret; //Cusp at the origin so grad is undefined.
+    }
+    assert(mr>0);
+    Fill(ret,r/mr);
+    Vec gr=DirectMultiply(operator()(r),(l/mr-2*mr*es));
+    size_t i=0;
+    for (auto& ir:ret) ir*=gr(++i);
+    return ret;
+
 }
 template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
 {
