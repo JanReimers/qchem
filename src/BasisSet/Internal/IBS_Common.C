@@ -31,11 +31,7 @@ export class IBS_Common1
     , private UniqueIDImp
 {
 public:
-    IBS_Common1(              );
     IBS_Common1(Symmetry*);
-    IBS_Common1(const IBS_Common1&);
-
-    virtual ~IBS_Common1();
 
     virtual size_t  GetNumFunctions(               ) const;
     virtual sym_t   GetSymmetry() const
@@ -58,11 +54,9 @@ public:
 protected:
     virtual void  Insert(bf_t* );
     void  EmptyBasisFunctions();
-    std::ostream& WriteBasisFunctions(std::ostream&) const;
-    std::istream& ReadBasisFunctions (std::istream&)      ;
+   
 
 // private:
-    IBS_Common1& operator=(const IBS_Common1&);
 
     sym_t itsSymmetry;
     bfv_t itsBasisFunctions;

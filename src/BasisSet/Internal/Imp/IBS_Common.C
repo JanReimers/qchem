@@ -13,10 +13,6 @@ import qchem.stl_io;
 //
 //  Construction zone
 //
-IBS_Common1::IBS_Common1()
-    : itsSymmetry(0)
-{
-};
 
 IBS_Common1::IBS_Common1(Symmetry* theQN)
     : itsSymmetry(theQN)
@@ -24,16 +20,6 @@ IBS_Common1::IBS_Common1(Symmetry* theQN)
     assert(itsSymmetry);
 };
 
-IBS_Common1::IBS_Common1(const IBS_Common1& bs)
-  : itsSymmetry (bs.itsSymmetry)
-  , itsBasisFunctions(bs.itsBasisFunctions)
-  {
-    assert(itsSymmetry);
-  };
-
-IBS_Common1::~IBS_Common1()
-{
-}
 
 //-----------------------------------------------------------------------------
 //
@@ -80,22 +66,4 @@ std::ostream& IBS_Common1::Write(std::ostream& os) const
 
     return os;
 }
-
-//-----------------------------------------------------------------------------
-//
-//  Controlled by derived class for IO.
-//
-std::ostream& IBS_Common1::WriteBasisFunctions(std::ostream& os) const
-{
-    os << itsBasisFunctions;
-    return os;
-}
-
-std::istream& IBS_Common1::ReadBasisFunctions(std::istream& is)
-{
-    // is >> itsBasisFunctions;
-    return is;
-}
-
-
 
