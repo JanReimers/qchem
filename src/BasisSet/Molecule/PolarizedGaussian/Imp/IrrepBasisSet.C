@@ -53,7 +53,7 @@ std::vector<Polarization> MakePolarizations(int L)
 //  Common implementation for orbital and fit basis sets.
 //
 IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
-    : IBS_Common(new UnitQN)
+    : TIBS_Common1<double>(new UnitQN)
 {
     //
     //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
@@ -122,7 +122,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 };
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
-    : IBS_Common(new UnitQN)
+    : TIBS_Common1<double>(new UnitQN)
 {
     int nbasis=1;
     for (auto& atom:*cl)
@@ -155,7 +155,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
 }
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
-    : IBS_Common(new UnitQN())
+    : TIBS_Common1<double>(new UnitQN())
 {
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
@@ -183,7 +183,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
 //  This contructor is used by Clone(RVec); only.
 //
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
-    : IBS_Common(*bs)
+    : TIBS_Common1<double>(*bs)
     // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
     // , IE_Common(db)
     //, itsBlocks(theBlocks) //Need to clone all the blocks.
@@ -199,7 +199,7 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
-    IBS_Common::Write(os);
+    IBS_Common1::Write(os);
     return os << itsBlocks;
 }
 
@@ -209,7 +209,7 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
     size_t i=1;
     for (auto& bl:itsBlocks)
         for (std::vector<Polarization>::const_iterator p(bl->itsPols.begin()); p!=bl->itsPols.end(); p++)
-            IBS_Common::Insert(new BasisFunction(bl->itsRadial,*p,norms(i++)));
+            IBS_Common1::Insert(new BasisFunction(bl->itsRadial,*p,norms(i++)));
 }
 
 //----------------------------------------------------------------
@@ -218,17 +218,17 @@ void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 //
 Orbital_IBS::Orbital_IBS(const db_t* db, Reader* bsr, const Cluster* cl)
     : IrrepBasisSet(bsr,cl)
-    , Orbital_IBS_Common<double>()
+    , Orbital_IBS_Common1<double>()
     , Orbital_IE(db)
 {};
 Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
     : IrrepBasisSet(exponents,L,cl)
-    , Orbital_IBS_Common<double>()
+    , Orbital_IBS_Common1<double>()
     , Orbital_IE(db)
 {};
 Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common<double>()
+    , Orbital_IBS_Common1<double>()
     , Orbital_IE(db)
 {};
     
@@ -259,7 +259,6 @@ IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
 //
 Fit_IBS::Fit_IBS(const DB_cache<double>* db , Reader* bsr, const Cluster* cl)
 : IrrepBasisSet(bsr,cl)
-, TIBS_Common<double>()
 , Fit_IE(db)
 {};
 

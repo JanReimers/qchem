@@ -16,6 +16,7 @@ import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.Cluster;
 import qchem.Types;
 import qchem.DFT_IBS;
@@ -48,7 +49,7 @@ private:
 };
 class IrrepBasisSet
         : public virtual ::IrrepBasisSet,
-          public IBS_Common,
+          public TIBS_Common1<double>,
           public IrrepIEClient
     {
     public:
@@ -71,7 +72,7 @@ class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>,
         public virtual TOrbital_DFT_IBS<double>,
         public IrrepBasisSet,
-        public Orbital_IBS_Common<double>,
+        public Orbital_IBS_Common1<double>,
         public Orbital_DFT_IBS_Common<double>,
         public Orbital_HF_IBS_Common<double>,
         public Orbital_IE
@@ -91,7 +92,6 @@ class Fit_IBS
     : public virtual ::Fit_IBS
     , public virtual FitIntegrals
     , public IrrepBasisSet
-    , public TIBS_Common<double>
     , public Fit_IBS_Common
     , public Fit_IE
 {
