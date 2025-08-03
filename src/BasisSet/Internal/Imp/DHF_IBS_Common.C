@@ -8,10 +8,10 @@ module qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.HeapDB;
 import oml;
 
-template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
+template <class T> Orbital_RKB_IBS_Common1<T>::Orbital_RKB_IBS_Common1
 (const DB_cache<T>* db, Symmetry* sym,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
-    : IBS_Common(sym)
-    , Orbital_IBS_Common<T>()
+    : Orbital_IBS_Common1<T>()
+    , TIBS_Common1<T>(sym)
     , DB_RKB<T>(db)
     , itsRKBL(l)
     , itsRKBS(s)
@@ -21,7 +21,7 @@ template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
     s->InsertBasisFunctions(itsRKBL);
 }
 
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMatrix<T>& l,const SMatrix<T>& s)
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::merge_diag(const SMatrix<T>& l,const SMatrix<T>& s)
 {
     size_t Nl=l.GetNumRows();
     size_t Ns=s.GetNumRows();
@@ -35,7 +35,7 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMatri
             ls(Nl+i,Nl+j)=s(i,j);
     return ls;
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Matrix<T>& ls)
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::merge_off_diag(const Matrix<T>& ls)
 {
     size_t Nl=ls.GetNumRows();
     size_t Ns=ls.GetNumCols();
@@ -48,24 +48,24 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Ma
    
     return k;
 }    
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeOverlap() const
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeOverlap() const
 {
     SMatrix<T> ol=itsRKBL->Overlap();
     SMatrix<T> os=itsRKBS->Kinetic();
     return merge_diag(ol,os);
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeKinetic() const
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeKinetic() const
 {
     Matrix<T> kls=-itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeNuclear(const Cluster* c) const
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeNuclear(const Cluster* c) const
 {
     SMatrix<T> nl=itsRKBL->Nuclear(c);
     SMatrix<T> ns=itsRKBS->Nuclear(c);
     return merge_diag(nl,ns);
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeRestMass() const
+template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeRestMass() const
 {
     SMatrix<T> rl(itsRKBL->size());
     Fill(rl,0.0);
@@ -73,24 +73,22 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeRestMass() const
     return merge_diag(rl,rs);
 }
 
-template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common
+template <class T> Orbital_RKBL_IBS_Common1<T>::Orbital_RKBL_IBS_Common1
 (Symmetry* sym,int _kappa)
-    : IBS_Common(sym)
-    , TIBS_Common<T>()
+    : TIBS_Common1<T>(sym)
     , kappa(_kappa)
 {
     assert(kappa!=0);
 }
 
-template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common
+template <class T> Orbital_RKBS_IBS_Common1<T>::Orbital_RKBS_IBS_Common1
 (Symmetry* sym,int _kappa)
-    : IBS_Common(sym)
-    , TIBS_Common<T>()
+    : TIBS_Common1<T>(sym)
     , kappa(_kappa)
 {
     assert(kappa!=0);
 }
 
-template class Orbital_RKB_IBS_Common<double>;
-template class Orbital_RKBL_IBS_Common<double>;
-template class Orbital_RKBS_IBS_Common<double>;
+template class Orbital_RKB_IBS_Common1<double>;
+template class Orbital_RKBL_IBS_Common1<double>;
+template class Orbital_RKBS_IBS_Common1<double>;

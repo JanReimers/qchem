@@ -16,7 +16,6 @@ import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IBS_Common;
-import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.Cluster;
 import qchem.Types;
 import qchem.DFT_IBS;

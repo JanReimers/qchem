@@ -8,7 +8,6 @@ import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
 import qchem.Irrep_BS;
 import qchem.BasisSet.Internal.IBS_Common;
-import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisFunction;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
@@ -108,7 +107,7 @@ private:
 
 template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
-    , public     Orbital_RKBL_IBS_Common<T> 
+    , public     Orbital_RKBL_IBS_Common1<T> 
     , public     Orbital_RKBL_IE<T>
     , public     AtomIrrepIEClient
 {
@@ -119,12 +118,12 @@ template <class T> class Large_Orbital_IBS
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-    using Orbital_RKBL_IBS_Common<T>::kappa;
+    using Orbital_RKBL_IBS_Common1<T>::kappa;
 };
 
 template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
-    , public     Orbital_RKBS_IBS_Common<T> 
+    , public     Orbital_RKBS_IBS_Common1<T> 
     , public     Orbital_RKBS_IE<T>
     , public     AtomIrrepIEClient
 {
@@ -136,7 +135,7 @@ public:
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-    using Orbital_RKBS_IBS_Common<T>::kappa;
+    using Orbital_RKBS_IBS_Common1<T>::kappa;
 };
 
 // Full basis set

@@ -4,7 +4,6 @@ module;
 #include <iosfwd>
 export module qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Internal.IBS_Common;
-import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Common;

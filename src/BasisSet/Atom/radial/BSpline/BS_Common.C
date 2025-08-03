@@ -8,7 +8,6 @@ import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Internal.IBS_Common;
-import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.Cache4;
 import oml.Vector;

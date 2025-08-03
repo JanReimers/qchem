@@ -25,17 +25,17 @@ import Common.UniqueIDImp;
 //  This class implements functionality common to all real/complex irrep basis sets.  
 //  It stores a list of BasisFunction*'s and Quantum number.
 //
-export class IBS_Common
+export class IBS_Common1
     : public virtual IrrepBasisSet
     , public virtual IrrepIEClient
     , private UniqueIDImp
 {
 public:
-    IBS_Common(              );
-    IBS_Common(Symmetry*);
-    IBS_Common(const IBS_Common&);
+    IBS_Common1(              );
+    IBS_Common1(Symmetry*);
+    IBS_Common1(const IBS_Common1&);
 
-    virtual ~IBS_Common();
+    virtual ~IBS_Common1();
 
     virtual size_t  GetNumFunctions(               ) const;
     virtual sym_t   GetSymmetry() const
@@ -62,14 +62,15 @@ protected:
     std::istream& ReadBasisFunctions (std::istream&)      ;
 
 // private:
-    IBS_Common& operator=(const IBS_Common&);
+    IBS_Common1& operator=(const IBS_Common1&);
 
     sym_t itsSymmetry;
     bfv_t itsBasisFunctions;
 };
 
-export template <class T> class TIBS_Common
+export template <class T> class TIBS_Common1
     : public virtual TIrrepBasisSet<T>
+    , public IBS_Common1
 {
 protected:
     typedef IrrepBasisSet Base;
@@ -77,29 +78,30 @@ protected:
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
   
 public:
-
+    TIBS_Common1(Symmetry* sym) : IBS_Common1(sym) {};
     using TIrrepBasisSet<T>::GetVectorSize;
+    using TIrrepBasisSet<T>::size;
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
 };
 
-export template <class T> class Orbital_IBS_Common
+export template <class T> class Orbital_IBS_Common1
     : public virtual TOrbital_IBS<T>
-    , public  TIBS_Common<T> 
 {
     public:
-    Orbital_IBS_Common();
-    virtual void Set(const LAParams&);
+    Orbital_IBS_Common1();
     //
     //  Make a gen/ EV solver that already has the overlap S factorized.
     //
     virtual LASolver<double>* CreateSolver() const;
+    virtual void Set(const LAParams&);
 protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 
 };
+
 
 export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
 {
@@ -133,10 +135,10 @@ public:
 };
 
 
-export template <class T> class Orbital_RKB_IBS_Common
+export template <class T> class Orbital_RKB_IBS_Common1
     : public virtual Orbital_RKB_IBS<T>
-    , public IBS_Common
-    , public Orbital_IBS_Common<T>
+    , public Orbital_IBS_Common1<T>
+    , public TIBS_Common1<T>
     , public DB_RKB<T>
 {
 public:
@@ -146,7 +148,7 @@ public:
     virtual SMatrix<T> MakeNuclear (const Cluster*) const;
     virtual SMatrix<T> MakeRestMass() const;
 protected:
-    Orbital_RKB_IBS_Common(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
+    Orbital_RKB_IBS_Common1(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;
     ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:
@@ -155,26 +157,24 @@ private:
     static SMatrix<T> merge_off_diag(const Matrix<T>& ls);
 };
 
-export template <class T> class Orbital_RKBL_IBS_Common
+
+export template <class T> class Orbital_RKBL_IBS_Common1
     : public virtual Orbital_RKBL_IBS<T>
-    , public  IBS_Common
-    , public TIBS_Common<T> 
+    , public TIBS_Common1<T> 
 {
 protected:
-    Orbital_RKBL_IBS_Common(Symmetry*,int kappa);
+    Orbital_RKBL_IBS_Common1(Symmetry*,int kappa);
 
     int kappa;
 };
 
-export template <class T> class Orbital_RKBS_IBS_Common
+export template <class T> class Orbital_RKBS_IBS_Common1
     : public virtual Orbital_RKBS_IBS<T>
-    , public  IBS_Common
-    , public TIBS_Common<T> 
+    , public TIBS_Common1<T> 
 {
 protected:
-    Orbital_RKBS_IBS_Common(Symmetry*,int kappa);
+    Orbital_RKBS_IBS_Common1(Symmetry*,int kappa);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l) {};
 
     int kappa;
 };
-

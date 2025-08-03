@@ -8,7 +8,6 @@ import qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 
 import qchem.BasisSet.Internal.IBS_Common;
-import qchem.BasisSet.Internal.IBS_Common1;
 import qchem.BasisSet.Internal.Common;
 
 import qchem.BasisFunction;

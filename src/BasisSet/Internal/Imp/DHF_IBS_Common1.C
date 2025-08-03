@@ -73,24 +73,22 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeRestMass() const
     return merge_diag(rl,rs);
 }
 
-// template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common
-// (Symmetry* sym,int _kappa)
-//     : IBS_Common(sym)
-//     , TIBS_Common<T>()
-//     , kappa(_kappa)
-// {
-//     assert(kappa!=0);
-// }
+template <class T> Orbital_RKBL_IBS_Common1<T>::Orbital_RKBL_IBS_Common1
+(Symmetry* sym,int _kappa)
+    : TIBS_Common1<T>(sym)
+    , kappa(_kappa)
+{
+    assert(kappa!=0);
+}
 
-// template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common
-// (Symmetry* sym,int _kappa)
-//     : IBS_Common(sym)
-//     , TIBS_Common<T>()
-//     , kappa(_kappa)
-// {
-//     assert(kappa!=0);
-// }
+template <class T> Orbital_RKBS_IBS_Common1<T>::Orbital_RKBS_IBS_Common1
+(Symmetry* sym,int _kappa)
+    : TIBS_Common1<T>(sym)
+    , kappa(_kappa)
+{
+    assert(kappa!=0);
+}
 
 template class Orbital_RKB_IBS_Common1<double>;
-// template class Orbital_RKBL_IBS_Common<double>;
-// template class Orbital_RKBS_IBS_Common<double>;
+template class Orbital_RKBL_IBS_Common1<double>;
+template class Orbital_RKBS_IBS_Common1<double>;

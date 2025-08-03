@@ -49,7 +49,7 @@ std::ostream&  Orbital_IBS::Write(std::ostream& os) const
 
 template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
     const Vector<T>& exponents,int kappa)
-    : Orbital_RKBL_IBS_Common<T>(new Omega_k_Sym(kappa),kappa)
+    : Orbital_RKBL_IBS_Common1<T>(new Omega_k_Sym(kappa),kappa)
     , Orbital_RKBL_IE<T>(db)
     , AtomIrrepIEClient(exponents.size())
 {
@@ -57,7 +57,7 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
     AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);    
     size_t i=1;
     for (auto e:es) 
-        IBS_Common::Insert(new Large_BasisFunction(e,kappa,ns(i++))); //ns from Slater_mj::IEClient
+        IBS_Common1::Insert(new Large_BasisFunction(e,kappa,ns(i++))); //ns from Slater_mj::IEClient
 };
 template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
@@ -83,7 +83,7 @@ template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) co
 
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
     const Vector<T>& exponents,int kappa)
-    : Orbital_RKBS_IBS_Common<T>(new Omega_k_Sym(-kappa),kappa)
+    : Orbital_RKBS_IBS_Common1<T>(new Omega_k_Sym(-kappa),kappa)
     , Orbital_RKBS_IE<T>(db)
     , AtomIrrepIEClient(exponents.size())
 {
@@ -96,7 +96,7 @@ template <class T> void Small_Orbital_IBS<T>::InsertBasisFunctions(const Orbital
 {
     size_t i=1;
     for (auto lb:lbs->template Iterate<Large_BasisFunction>()) 
-        IBS_Common::Insert(new Small_BasisFunction(lb,ns(i++))); 
+        IBS_Common1::Insert(new Small_BasisFunction(lb,ns(i++))); 
 }
 
 template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const

@@ -58,14 +58,14 @@ public:
     static const TIrrepBasisSet<double>* GetLarge(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const Orbital_RKB_IBS_Common<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common<double>*>(ibs);
+        const Orbital_RKB_IBS_Common1<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common1<double>*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
     static const TIrrepBasisSet<double>* GetSmall(const IrrepBasisSet* ibs)
     {
         assert(ibs);
-        const Orbital_RKB_IBS_Common<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common<double>*>(ibs);
+        const Orbital_RKB_IBS_Common1<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common1<double>*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBS;
     }
@@ -74,12 +74,12 @@ public:
     
     static SMatrix<double> merge_diag(const SMat& l,const SMat& s)
     {
-        return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
+        return Orbital_RKB_IBS_Common1<double>::merge_diag(l,s);
     }
 
     static SMatrix<double> merge_off_diag(const Mat& l)
     {
-        return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
+        return Orbital_RKB_IBS_Common1<double>::merge_off_diag(l);
     }
 
     int Lmax, Z;

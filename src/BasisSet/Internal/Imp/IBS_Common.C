@@ -13,25 +13,25 @@ import qchem.stl_io;
 //
 //  Construction zone
 //
-IBS_Common::IBS_Common()
+IBS_Common1::IBS_Common1()
     : itsSymmetry(0)
 {
 };
 
-IBS_Common::IBS_Common(Symmetry* theQN)
+IBS_Common1::IBS_Common1(Symmetry* theQN)
     : itsSymmetry(theQN)
 {
     assert(itsSymmetry);
 };
 
-IBS_Common::IBS_Common(const IBS_Common& bs)
+IBS_Common1::IBS_Common1(const IBS_Common1& bs)
   : itsSymmetry (bs.itsSymmetry)
   , itsBasisFunctions(bs.itsBasisFunctions)
   {
     assert(itsSymmetry);
   };
 
-IBS_Common::~IBS_Common()
+IBS_Common1::~IBS_Common1()
 {
 }
 
@@ -39,13 +39,13 @@ IBS_Common::~IBS_Common()
 //
 //  Post construction initializations called by dervied classes.
 //
-void IBS_Common::Insert(bf_t* bf)
+void IBS_Common1::Insert(bf_t* bf)
 {
     assert(bf);
     itsBasisFunctions.push_back(std::shared_ptr<bf_t>(bf));
 }
 
-void IBS_Common::EmptyBasisFunctions()
+void IBS_Common1::EmptyBasisFunctions()
 {
     itsBasisFunctions.clear();
 }
@@ -57,7 +57,7 @@ void IBS_Common::EmptyBasisFunctions()
 //
 
 
-size_t IBS_Common::GetNumFunctions() const
+size_t IBS_Common1::GetNumFunctions() const
 {
     return itsBasisFunctions.size();
 }
@@ -66,7 +66,7 @@ size_t IBS_Common::GetNumFunctions() const
 //
 //  Streamable stuff.
 //
-std::ostream& IBS_Common::Write(std::ostream& os) const
+std::ostream& IBS_Common1::Write(std::ostream& os) const
 {
     assert(itsSymmetry);
     os << "IrrepBasisSet " << " with " << GetNumFunctions() << " basis functions"
@@ -85,16 +85,17 @@ std::ostream& IBS_Common::Write(std::ostream& os) const
 //
 //  Controlled by derived class for IO.
 //
-std::ostream& IBS_Common::WriteBasisFunctions(std::ostream& os) const
+std::ostream& IBS_Common1::WriteBasisFunctions(std::ostream& os) const
 {
     os << itsBasisFunctions;
     return os;
 }
 
-std::istream& IBS_Common::ReadBasisFunctions(std::istream& is)
+std::istream& IBS_Common1::ReadBasisFunctions(std::istream& is)
 {
     // is >> itsBasisFunctions;
     return is;
 }
+
 
 

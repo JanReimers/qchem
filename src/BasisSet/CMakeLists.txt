@@ -6,14 +6,11 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/ERI4.C
   Internal/Imp/BS_Common.C
   Internal/Imp/IBS_Common.C
-  Internal/Imp/IBS_Common1.C
   Internal/Imp/TIBS_Common.C
-  Internal/Imp/TIBS_Common1.C
   Internal/Imp/Fit_IBS_Common.C
   Internal/Imp/DFT_IBS_Common.C
   Internal/Imp/HF_IBS_Common.C
-  Internal/Imp/DHF_IBS_Common.C 
-  Internal/Imp/DHF_IBS_Common1.C
+  Internal/Imp/DHF_IBS_Common.C
 )
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   BasisSet.C
@@ -30,7 +27,6 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/IntegralEnums.C
   Internal/BS_Common.C
   Internal/IBS_Common.C
-  Internal/IBS_Common1.C
   Internal/HeapDB.C
 
 )
