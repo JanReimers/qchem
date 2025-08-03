@@ -10,6 +10,7 @@ module qchem.BasisSet.Atom.Internal.ml.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import qchem.Symmetry.Ylm;
+import qchem.BasisSet.Atom.IEClient;
 
 
 namespace Atom_ml
@@ -25,7 +26,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_
         ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     size_t i=1;
     for (auto sp: iec.splines)
-        this->ns(i++)=1.0/sqrt(::BSpline::IE_Primatives<K>::Overlap(sp,sp,L));
+        AtomIrrepIEClient::ns(i++)=1.0/sqrt(::BSpline::IE_Primatives<K>::Overlap(sp,sp,L));
     InsertBasisFunctions();
     };
 

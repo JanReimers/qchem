@@ -10,6 +10,8 @@ import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Atom.IEClient;
+
 import oml.Vector;
 export import qchem.Types;
 
@@ -20,11 +22,18 @@ template <size_t K> class IrrepBasisSet
     , public         TIBS_Common1<double>
     , public         IrrepIEClient<K>
 {
+    typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
+    typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
+    using  ::IrrepBasisSet::size;
+    typedef typename BSpline::IrrepIEClient<K> IEC;
+    using IEC::splines;
+    using AtomIrrepIEClient::ns;
 public:
     IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L);
     IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L, const std::vector<int>& ml);
+    virtual Vec     operator() (const RVec3&) const;
+    virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
-
 };
 template <size_t K> class BS_Common
 : public ::BS_Common

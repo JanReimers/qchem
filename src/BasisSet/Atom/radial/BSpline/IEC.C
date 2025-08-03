@@ -13,6 +13,7 @@ template <size_t K> struct IrrepIEClient
     : public virtual ::IrrepIEClient
     , public AtomIrrepIEClient
 {
+    using AtomIrrepIEClient::ns;
     typedef bspline::Spline<double, K> spline_t;
     std::vector<spline_t> splines;
     // Vector<double> ns; //Normalization constants

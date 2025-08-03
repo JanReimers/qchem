@@ -50,12 +50,17 @@ class IrrepBasisSet
           public TIBS_Common1<double>,
           public IrrepIEClient
     {
+        typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
+        typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
+        using  ::IrrepBasisSet::size;
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
         IrrepBasisSet(Reader *, const Cluster *);
         IrrepBasisSet(const RVec &exponents, size_t L, const Cluster *);
         IrrepBasisSet(const RVec &exponents, size_t L);
+        virtual Vec     operator() (const RVec3&) const;
+        virtual Vec3Vec Gradient   (const RVec3&) const;
 
         virtual std::ostream &Write(std::ostream &) const;
 

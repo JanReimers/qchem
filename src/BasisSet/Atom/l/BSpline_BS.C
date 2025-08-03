@@ -17,6 +17,8 @@ import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 import qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
+import qchem.BasisSet.Atom.IEClient;
+import qchem.Basisset.Atom.radial.BSpline.IEC;
 
 export namespace Atoml
 {
@@ -87,6 +89,9 @@ template <size_t K> class Orbital_IBS
     , public         Orbital_IE<K>
 {
 public:
+    // using AtomIrrepIEClient::ns;
+    typedef typename ::BSpline::IrrepIEClient<K> IEC;
+    using IEC::splines;
     Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
