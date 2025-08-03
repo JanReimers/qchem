@@ -36,5 +36,5 @@ target_link_libraries(qcBasisSet PUBLIC qcLASolver  qcSymmetry qcCluster qcMesh 
 
 add_subdirectory(Atom)
 add_subdirectory(Molecule)
-add_subdirectory(Lattice)
+#add_subdirectory(Lattice)
 
