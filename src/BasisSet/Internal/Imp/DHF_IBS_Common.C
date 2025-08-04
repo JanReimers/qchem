@@ -10,8 +10,8 @@ import oml;
 
 template <class T> Orbital_RKB_IBS_Common1<T>::Orbital_RKB_IBS_Common1
 (const DB_cache<T>* db, Symmetry* sym,int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
-    : Orbital_IBS_Common1<T>()
-    , TIBS_Common1<T>(sym)
+    : Orbital_IBS_Common<T>()
+    , IrrepBasisSet_Common<T>(sym)
     , DB_RKB<T>(db)
     , itsRKBL(l)
     , itsRKBS(s)
@@ -86,7 +86,7 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeRestMass() const
 
 template <class T> Orbital_RKBL_IBS_Common1<T>::Orbital_RKBL_IBS_Common1
 (Symmetry* sym,int _kappa)
-    : TIBS_Common1<T>(sym)
+    : IrrepBasisSet_Common<T>(sym)
     , kappa(_kappa)
 {
     assert(kappa!=0);
@@ -94,7 +94,7 @@ template <class T> Orbital_RKBL_IBS_Common1<T>::Orbital_RKBL_IBS_Common1
 
 template <class T> Orbital_RKBS_IBS_Common1<T>::Orbital_RKBS_IBS_Common1
 (Symmetry* sym,int _kappa)
-    : TIBS_Common1<T>(sym)
+    : IrrepBasisSet_Common<T>(sym)
     , kappa(_kappa)
     , large(0)
 {

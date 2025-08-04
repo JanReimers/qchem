@@ -26,14 +26,14 @@ import Common.UniqueIDImp;
 //  It does 2 things 1) Provide UniqueID, 2) Holds the Symmetry.
 //
 
-export template <class T> class TIBS_Common1
+export template <class T> class IrrepBasisSet_Common
     : public virtual IrrepBasisSet<T>
     , public virtual IrrepIEClient
     , private UniqueIDImp
 {
     using sym_t=IrrepBasisSet<T>::sym_t;
 public:
-    TIBS_Common1(Symmetry* sym) : itsSymmetry(sym) 
+    IrrepBasisSet_Common(Symmetry* sym) : itsSymmetry(sym) 
     {
         assert(itsSymmetry);
     };
@@ -51,11 +51,11 @@ private:
     sym_t itsSymmetry;
 };
 
-export template <class T> class Orbital_IBS_Common1
+export template <class T> class Orbital_IBS_Common
     : public virtual Orbital_IBS<T>
 {
     public:
-    Orbital_IBS_Common1();
+    Orbital_IBS_Common();
     //
     //  Make a gen/ EV solver that already has the overlap S factorized.
     //
@@ -101,8 +101,8 @@ public:
 
 export template <class T> class Orbital_RKB_IBS_Common1
     : public virtual Orbital_RKB_IBS<T>
-    , public Orbital_IBS_Common1<T>
-    , public TIBS_Common1<T>
+    , public Orbital_IBS_Common<T>
+    , public IrrepBasisSet_Common<T>
     , public DB_RKB<T>
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
@@ -130,7 +130,7 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS_Common1
     : public virtual Orbital_RKBL_IBS<T>
-    , public TIBS_Common1<T> 
+    , public IrrepBasisSet_Common<T> 
 {
 protected:
     Orbital_RKBL_IBS_Common1(Symmetry*,int kappa);
@@ -140,7 +140,7 @@ protected:
 
 export template <class T> class Orbital_RKBS_IBS_Common1
     : public virtual Orbital_RKBS_IBS<T>
-    , public TIBS_Common1<T> 
+    , public IrrepBasisSet_Common<T> 
 {
 protected:
     Orbital_RKBS_IBS_Common1(Symmetry*,int kappa);

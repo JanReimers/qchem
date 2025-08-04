@@ -17,7 +17,7 @@ namespace Slater
 //  Common implementation for orbital and fit basis sets.
 //
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym,size_t L)
-    : TIBS_Common1<double>(sym)
+    : IrrepBasisSet_Common<double>(sym)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,L),L);
@@ -25,7 +25,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym,size_
 };
 
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& exponents,Symmetry* sym, size_t L, const std::vector<int>& ml)
-    : TIBS_Common1<double>(sym)
+    : IrrepBasisSet_Common<double>(sym)
     , AtomIrrepIEClient(exponents.size())
 {
     Init(exponents,Norms(exponents,L),L,ml);

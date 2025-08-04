@@ -24,7 +24,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/IEClient.C
   Internal/IntegralEnums.C
   Internal/BS_Common.C
-  Internal/IBS_Common.C
+  Internal/IrrepBasisSet.C
   Internal/HeapDB.C
 
 )

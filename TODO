@@ -44,7 +44,7 @@ Priority 1:
         -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
          Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
     Naming consistency:
-       
+       Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
                                                                     
     
     
@@ -59,7 +59,7 @@ Priority 1:
                 up the class hierarcy
     Done: -Get rid og IrrepBasisSet* Clone  (const RVec3&) const=0;
         Done: Need to get rid of IrrepCD::ShiftOrigin
-    Done: -Get rid of TIBS_Common1,
+    Done: -Get rid of IrrepBasisSet_Common,
     Done: -Merge IrrepBasisSet & TIrrepBasisSet
     Done: -Lose some T prefixes
 

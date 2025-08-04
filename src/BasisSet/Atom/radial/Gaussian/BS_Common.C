@@ -13,7 +13,7 @@ export namespace Gaussian
 // Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
 : public virtual Real_IBS
-, public         TIBS_Common1<double>
+, public         IrrepBasisSet_Common<double>
 , public         AtomIrrepIEClient
 {
     typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.

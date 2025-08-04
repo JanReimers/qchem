@@ -19,7 +19,7 @@ export namespace BSpline
 {
 template <size_t K> class IrrepBasisSet
     : public virtual Real_IBS
-    , public         TIBS_Common1<double>
+    , public         IrrepBasisSet_Common<double>
     , public         IrrepIEClient<K>
 {
     typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.

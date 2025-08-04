@@ -22,7 +22,7 @@ class Orbital_IBS
 : public virtual Orbital_HF_IBS<double>
 // , public virtual Orbital_DFT_IBS<double>
 , public         ::Gaussian::IrrepBasisSet
-, public         Orbital_IBS_Common1<double>
+, public         Orbital_IBS_Common<double>
 // , public         Orbital_DFT_IBS_Common<double>
 , public         Orbital_HF_IBS_Common<double>
 , public         Atoml::Gaussian::Orbital_IE

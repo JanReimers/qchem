@@ -19,7 +19,7 @@ namespace Slater
 //
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
 : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-, Orbital_IBS_Common1<double>()
+, Orbital_IBS_Common<double>()
 , Orbital_IE(db)
 {
 };

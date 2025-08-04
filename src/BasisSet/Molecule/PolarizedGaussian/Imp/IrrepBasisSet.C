@@ -53,7 +53,7 @@ std::vector<Polarization> MakePolarizations(int L)
 //  Common implementation for orbital and fit basis sets.
 //
 IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
-    : TIBS_Common1<double>(new UnitQN)
+    : IrrepBasisSet_Common<double>(new UnitQN)
 {
     //
     //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
@@ -118,7 +118,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     IrrepIEClient::Init(bls);
 };
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
-    : TIBS_Common1<double>(new UnitQN)
+    : IrrepBasisSet_Common<double>(new UnitQN)
 {
     int nbasis=1;
     for (auto& atom:*cl)
@@ -147,7 +147,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
 }
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
-    : TIBS_Common1<double>(new UnitQN())
+    : IrrepBasisSet_Common<double>(new UnitQN())
 {
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
@@ -171,7 +171,7 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
 //  This contructor is used by Clone(RVec); only.
 //
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
-    : TIBS_Common1<double>(*bs)
+    : IrrepBasisSet_Common<double>(*bs)
     // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
     // , IE_Common(db)
     //, itsBlocks(theBlocks) //Need to clone all the blocks.
@@ -218,17 +218,17 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 //
 Orbital_IBS::Orbital_IBS(const db_t* db, Reader* bsr, const Cluster* cl)
     : IrrepBasisSet(bsr,cl)
-    , Orbital_IBS_Common1<double>()
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
 {};
 Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
     : IrrepBasisSet(exponents,L,cl)
-    , Orbital_IBS_Common1<double>()
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
 {};
 Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common1<double>()
+    , Orbital_IBS_Common<double>()
     , Orbital_IE(db)
 {};
     

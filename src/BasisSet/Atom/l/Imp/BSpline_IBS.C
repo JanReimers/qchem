@@ -21,7 +21,7 @@ namespace BSpline
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L)
 : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
-, Orbital_IBS_Common1<double>()
+, Orbital_IBS_Common<double>()
 , Orbital_IE<K>(db)
 {
     ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
