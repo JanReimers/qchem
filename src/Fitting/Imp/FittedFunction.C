@@ -129,11 +129,6 @@ template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 //
 //  Handy utilities for fitted functions.
 //
-template <class T> void FittedFunctionImp<T>::ShiftOrigin(const RVec3& newCenter)
-{
-    itsBasisSet.reset(itsBasisSet->Clone(newCenter)); //TOT Clone
-}
-
 template <class T> void FittedFunctionImp<T>::FitMixIn(const FittedFunction& ff,double c)
 {
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);

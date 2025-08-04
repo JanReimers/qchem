@@ -246,12 +246,6 @@ Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t
     PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_exch.bsd");
     return new Fit_IBS(db,&reader,cl);
 }
-IrrepBasisSet* Orbital_IBS::Clone(const RVec3& newCenter) const
-{
-    // No UT coverage
-    assert(false);
-    return 0;
-}
 
 //----------------------------------------------------------------
 //
@@ -262,11 +256,5 @@ Fit_IBS::Fit_IBS(const DB_cache<double>* db , Reader* bsr, const Cluster* cl)
 , Fit_IE(db)
 {};
 
-::Fit_IBS*Fit_IBS::Clone(const RVec3&) const
-{
-// No UT coverage
-    assert(false);
-    return 0;
-}
  
 } //namespace PolarizedGaussian

@@ -54,15 +54,8 @@ Vector<double> Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 
 //-----------------------------------------------------------------------
 //
-//  Convergence and origin shifting.
+//  Convergence.
 //
-void   Polarized_CD::ShiftOrigin(const RVec3& newcenter)
-{
-    // No UT coverage
-    GetChargeDensity(Spin::Up)  ->ShiftOrigin(newcenter) ;
-    GetChargeDensity(Spin::Down)->ShiftOrigin(newcenter) ;
-}
-
 void Polarized_CD::MixIn(const DM_CD& cd,double c)
 {
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);

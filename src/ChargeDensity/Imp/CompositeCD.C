@@ -81,12 +81,6 @@ void Composite_CD::ReScale(double factor)
     for (auto& c:itsCDs) c->ReScale(factor);
 }
 
-void Composite_CD::ShiftOrigin(const RVec3& newCenter)
-{
-    // No UT coverage
-    for (auto& c:itsCDs) c->ShiftOrigin(newCenter);
-}
-
 void Composite_CD::MixIn(const DM_CD& cd,double f)
 {
     const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);

@@ -73,7 +73,7 @@ public:
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
 };
 
 template <size_t K> class Fit_IBS 
@@ -87,7 +87,6 @@ template <size_t K> class Fit_IBS
 public:
     Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
    
-    virtual ::Fit_IBS* Clone(const RVec3&) const;
 };
 
     // Full basis set.

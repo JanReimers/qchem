@@ -44,8 +44,6 @@ export class Fit_IBS
     : public virtual TIrrepBasisSet<double>
     , public virtual FitIntegrals 
 {
-    public:
-    virtual Fit_IBS* Clone  (const RVec3&) const=0;  
 
 };
 

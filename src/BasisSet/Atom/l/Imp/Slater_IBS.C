@@ -39,11 +39,6 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
     return new Fit_IBS(db,es*2.0/3.0,0);    
 }
 
-::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
-    return 0;
-}
 //----------------------------------------------------------------
 //
 //  Fit with Slater_l  basis set.
@@ -55,10 +50,5 @@ Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, siz
     };
 
 
-::Fit_IBS* Fit_IBS::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
-    return 0;
-}
 
 }} //namespace

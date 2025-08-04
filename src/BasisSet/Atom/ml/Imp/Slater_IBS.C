@@ -38,13 +38,4 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 }
 
 
-
-::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return 0;
-}
-
-
-
 }} //namespace

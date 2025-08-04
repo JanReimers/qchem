@@ -52,7 +52,6 @@ public:
     Orbital_IBS(const DB_cache<double>*, const Vector<double>& exponents, int kappa);
    
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 
 private:
     friend class ::DiracIntegralTests;
@@ -74,7 +73,6 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 //private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
     using Orbital_RKBL_IBS_Common1<T>::kappa;
@@ -97,7 +95,6 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
     using Orbital_RKBS_IBS_Common1<T>::kappa;

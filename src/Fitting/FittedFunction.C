@@ -30,8 +30,6 @@ public:
     virtual double DoFit(const DensityFFClient&)=0;
     //! do \f$ c_{b}*=factor \f$
     virtual void   ReScale         (double factor )=0; 
-    //! do \f$ f_{a}\left(\vec{r}\right) = f_{a}\left(\vec{r}+\vec{c}\right) \f$ 
-    virtual void   ShiftOrigin     (const RVec3& c)=0;
     //! do \f$ c_{a}=(1-f)c_{a} + fg_{a} \f$.  Assumes same basis set, and just mixes the coefficients.
     virtual void   FitMixIn        (const FittedFunction& g,double f)=0; 
     //! returns \f$ \sum_{a}\left(c_{a}-g_{a}\right)\int d^{3}\vec{r}f_{a}\left(\vec{r}\right) \f$

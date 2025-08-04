@@ -31,7 +31,6 @@ public:
     virtual double DoFit           (const ScalarFFClient& )      ;
     virtual double DoFit           (const DensityFFClient& )      ;
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
-    virtual void   ShiftOrigin     (const RVec3& newCenter      )      ;
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 

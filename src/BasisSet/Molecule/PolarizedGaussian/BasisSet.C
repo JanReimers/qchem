@@ -67,7 +67,6 @@ public:
 
     virtual ::Fit_IBS *CreateCDFitBasisSet(const ::BasisSet*,const Cluster *) const;
     virtual ::Fit_IBS *CreateVxcFitBasisSet(const ::BasisSet*,const Cluster *) const;
-    virtual IrrepBasisSet *Clone(const RVec3 &) const;
 };
 class Fit_IBS
     : public virtual ::Fit_IBS
@@ -79,7 +78,6 @@ class Fit_IBS
 public:
     Fit_IBS(const DB_cache<double>* db , Reader *, const Cluster *);
 
-    virtual ::Fit_IBS *Clone(const RVec3 &) const;
 };
 class BasisSet 
     : public BS_Common

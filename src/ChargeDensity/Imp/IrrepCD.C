@@ -35,7 +35,6 @@ public:
     virtual double GetTotalCharge(                      ) const;
 
     virtual void   ReScale      (double factor         )      ; // No UT coverage
-    virtual void   ShiftOrigin  (const RVec3&          )      ; // No UT coverage
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
 

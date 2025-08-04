@@ -42,11 +42,6 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0);    
 }
-template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
-    return 0;
-}
 //----------------------------------------------------------------
 //
 //  Fit with Slater_l  basis set.
@@ -56,11 +51,6 @@ template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, dou
     , Fit_IE<K>(db)
 {
 };
-template <size_t K> ::Fit_IBS* Fit_IBS<K>::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a spherical Slater basis set?!" << std::endl;
-    return 0;
-}
 
 #define INSTANCEk(k) template class Orbital_IBS<k>;
 #include "../../radial/BSpline/Instance.hpp"

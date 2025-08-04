@@ -33,7 +33,7 @@ public:
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
-    virtual ::IrrepBasisSet* Clone(const RVec3&) const;
+
 };
 class BasisSet 
 : public ::Gaussian::BS_Common

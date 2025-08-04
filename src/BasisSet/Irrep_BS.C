@@ -33,10 +33,6 @@ public:
 
     virtual size_t GetNumFunctions() const=0;
     virtual sym_t  GetSymmetry() const=0;
-//
-//  Streamable stuff.
-//
-    virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
 
 };
 

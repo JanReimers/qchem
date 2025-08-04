@@ -44,7 +44,6 @@ public:
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const=0; //Amounts to Integral(ro*V(ro)*d3r);
 
     virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
-    virtual void   ShiftOrigin  (const RVec3&          )      =0;  //Usefull for single atom charge densities.
     virtual void   MixIn        (const DM_CD&,double)      =0;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const DM_CD&       ) const=0;  //Convergence check.
 
@@ -79,7 +78,6 @@ public:
     virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const; 
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
-    virtual void   ShiftOrigin  (const RVec3&               )      ;  // No UT coverage//Usefull for single atom charge densities.
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const DM_CD&       ) const;  //Convergence check.
 

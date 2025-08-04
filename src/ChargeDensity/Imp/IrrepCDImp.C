@@ -150,13 +150,6 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
 //
 //  Real space function stuff.
 //
-template <class T> void IrrepCD<T>::ShiftOrigin(const RVec3& newCenter)
-{
-    // No UT coverage
-    std::cerr << "ExactIrrepCD::ShiftOrigin this is an odd thing to do for an exact charge density" << std::endl;
-    itsBasisSet=dynamic_cast<const TOrbital_IBS<T>*>(itsBasisSet->Clone(newCenter));
-}
-
 template <class T> double IrrepCD<T>::operator()(const RVec3& r) const
 {
     Vector<T> phir=(*itsBasisSet)(r);

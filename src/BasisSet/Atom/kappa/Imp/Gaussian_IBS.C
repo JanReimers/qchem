@@ -40,11 +40,6 @@ std::ostream&  Orbital_IBS::Write(std::ostream& os) const
     os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
     return os;
 }
-::IrrepBasisSet* Orbital_IBS::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return 0;
-}
 
 
 template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
@@ -95,12 +90,6 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
     for (auto e:es) os << e << ",";
     os << "}";
     return os;
-}
-template <class T> ::IrrepBasisSet* Large_Orbital_IBS<T>::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    assert(false);
-    return 0;
 }
 
 template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS(const DB_cache<T>* db,
@@ -165,11 +154,6 @@ template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) 
     for (auto e:es) os << e << ",";
     os << "}";
     return os;
-}
-template <class T> ::IrrepBasisSet* Small_Orbital_IBS<T>::Clone(const RVec3&) const
-{
-    std::cerr << "Why are you relocating a Slater atomic basis set?!" << std::endl;
-    return 0;
 }
 
 
