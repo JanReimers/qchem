@@ -25,7 +25,7 @@ class Orbital_IE
 , public AtomIE_Overlap<double>
 , public AtomIE_Kinetic<double>
 , public AtomIE_Nuclear<double>
-, public DB_2E<double>
+// , public DB_2E<double>
 , public AtomIE_DFT<double>
 {
 protected:
@@ -33,7 +33,7 @@ protected:
         : AtomIE_Overlap<double>(db)
         , AtomIE_Kinetic<double>(db)
         , AtomIE_Nuclear<double>(db)
-        , DB_2E<double>(db)
+        // , DB_2E<double>(db)
         , AtomIE_DFT<double>(db) {};
 
 };

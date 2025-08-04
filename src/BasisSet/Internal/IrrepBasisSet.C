@@ -87,9 +87,11 @@ public:
 
 export template <class T> class Orbital_HF_IBS_Common
     : public virtual Orbital_HF_IBS<T>
+    , public DB_2E<T>
 {
     typedef typename Orbital_HF_IBS<T>::obs_t obs_t;
 public:
+    Orbital_HF_IBS_Common(const DB_BS_2E<double>* db) : DB_2E<T>(db) {};
     virtual SMatrix<T> Direct  (const SMatrix<T>& Dcd, const obs_t* bs_cd) const;
     virtual SMatrix<T> Exchange(const SMatrix<T>& Dcd, const obs_t* bs_cd) const;
 };

@@ -38,12 +38,12 @@ protected:
 
 template <size_t K> class Orbital_IE
 : public IE_Common<K>
-, public DB_2E<double>
+// , public DB_2E<double>
 , public ::BSpline::IE_DFT<double,K>
 {
 public:
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common<K>(db), DB_2E<double>(db), ::BSpline::IE_DFT<double,K>(db) {};
+    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common<K>(db), ::BSpline::IE_DFT<double,K>(db) {};
 
 };
 

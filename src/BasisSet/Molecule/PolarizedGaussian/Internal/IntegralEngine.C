@@ -42,10 +42,11 @@ class Orbital_IE
 : public IE_Common
 , public DB_Kinetic<double>
 , public DB_Nuclear<double>
-, public DB_2E<double>
+// , public DB_2E<double>
 , public DB_DFT<double>
 {
-    typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
+    typedef Orbital_IBS<double> obs_t;
+    // typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
     virtual SMatrix<double> MakeKinetic() const {return MakeIntegrals(Grad2);}
     virtual SMatrix<double> MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,cl);}
@@ -58,7 +59,7 @@ protected:
         : IE_Common(db)
         , DB_Kinetic<double>(db)
         , DB_Nuclear<double>(db)
-        , DB_2E<double>(db)
+        // , DB_2E<double>(db)
         , DB_DFT<double>(db) 
         {};
         

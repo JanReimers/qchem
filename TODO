@@ -29,7 +29,7 @@ Priority 1:
             This is only wierd while FitIntegrals is separated from Fit_IBS (which is currenty empty!)
         3) Integrals_RKB needs to derive from Irrep_IBS (again temporary Wierd)
         4) Ditto PolarizedGaussian::IE_Common
-    Failed: -What happens if we try and inherite from all DB_xxx clases at the IBS_Common level?
+    -What happens if we try and inherite from all DB_xxx clases at the IBS_Common level?
         i.e. outside Atom/MoleculeLattice levels?
         -Chain:
             DB_Overlap converts Overlap() into MakeOverlap()
@@ -41,6 +41,8 @@ Priority 1:
                 Orbital_IBS -->Orbital_IE
                 Fit_IBS -->Fit_IE
                 Orbital_IBS is used directly for basis set construction
+        -We can do this for HF orbitals and DB_2E.
+        
         -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
          Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
     Done: Naming consistency:

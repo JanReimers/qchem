@@ -33,12 +33,12 @@ protected:
 
 class Orbital_IE
 : public IE_Common
-, public DB_2E<double>
+// , public DB_2E<double>
 , public AtomIE_DFT<double>
 {
 public:
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common(db), DB_2E<double>(db), AtomIE_DFT<double>(db) {};
+    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common(db), AtomIE_DFT<double>(db) {};
 
 };
 
