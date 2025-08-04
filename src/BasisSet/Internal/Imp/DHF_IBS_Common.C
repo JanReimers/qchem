@@ -18,7 +18,6 @@ template <class T> Orbital_RKB_IBS_Common1<T>::Orbital_RKB_IBS_Common1
 {
     assert(itsRKBL);
     assert(itsRKBS);
-    s->InsertBasisFunctions(itsRKBL);
     s->Insert(itsRKBL);
 }
 

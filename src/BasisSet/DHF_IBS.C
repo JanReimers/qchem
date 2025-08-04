@@ -73,9 +73,6 @@ export template <class T> class Orbital_RKBS_IBS
     , public virtual Integrals_RKBS<T> //One electron integrals used for everything
 {
 public:
-    // using IrrepBasisSet::size;
-    //int GetKappa() const;
-    virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l)=0;
     virtual void Insert(const Orbital_RKBL_IBS<T>* l)=0;
 };
 

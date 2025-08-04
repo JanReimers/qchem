@@ -145,7 +145,6 @@ export template <class T> class Orbital_RKBS_IBS_Common1
 protected:
     Orbital_RKBS_IBS_Common1(Symmetry*,int kappa);
     virtual void Insert(const Orbital_RKBL_IBS<T>* l);
-    virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l) {};
 
     int kappa;
     const Orbital_RKBL_IBS<T>* large;

@@ -18,12 +18,38 @@ Priority 1:
             So module separating integrals from IBS make no sense.
                 Does class separation make any sense?
 
-        Possible design:
+        Done: Possible design:
             Irrep_BS include overlap
             Fit_IBS --> Irrep_BS adds many fit integrals.
             Orbital_IBS's = {1E,DFT,HF,DHF}-->Fit,Irrep
                 Orbital_1E_IBS
-
+    -What happens if we move the overlap integral into Irrep_IBS? 
+        1) class DB_Overlap needs to derive from Irrep_IBS (OK)
+        2) FitIntegrals needs to derive from Irrep_IBS (Wierd)
+            This is only wierd while FitIntegrals is separated from Fit_IBS (which is currenty empty!)
+        3) Integrals_RKB needs to derive from Irrep_IBS (again temporary Wierd)
+        4) Ditto PolarizedGaussian::IE_Common
+    Failed: -What happens if we try and inherite from all DB_xxx clases at the IBS_Common level?
+        i.e. outside Atom/MoleculeLattice levels?
+        -Chain:
+            DB_Overlap converts Overlap() into MakeOverlap()
+            AtomIE_Overlap converts MakeOverlap() into N^2 x Primative_Overlap
+            Atoml::Slater::
+                IE_Common --> AtomIE_Overlap
+                Orbital_IE-->IE_Common
+                Fit_IE -->AtomIE_Overlap
+                Orbital_IBS -->Orbital_IE
+                Fit_IBS -->Fit_IE
+                Orbital_IBS is used directly for basis set construction
+        -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
+         Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
+    Naming consistency:
+       
+                                                                    
+    
+    
+    
+    
     -Lose some of the typedefs in the integral interfaces.
     Done: -Refactor:
         Eliminte basis functions.   IBS can do vector op(r) using ieclient info.
