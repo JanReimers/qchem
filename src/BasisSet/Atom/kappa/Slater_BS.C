@@ -18,28 +18,6 @@ export namespace Atom_kappa
 namespace Slater
 {
 
-// Basis function
-class Small_BasisFunction;
-    
-class Large_BasisFunction
-    : public virtual ::Real_BF
-{
-public:
-    Large_BasisFunction() {};
-    Large_BasisFunction(double ex, int kappa, double mj, double norm);
-    
-    virtual std::ostream&    Write(std::ostream&) const;
-
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const;
-private:
-    friend class Small_BasisFunction;
-    double itsExponent;
-    int kappa;
-    double mj;
-    int l;
-    double itsNormalization;
-};
 
 //
 //  Derived from the LargeBF P(r)=r^l*exp(-e*r) as:
@@ -48,21 +26,6 @@ private:
 //     Q(r)=(d/dr+(1+kappa)/r)g = {
 //                                  ((2l+1)/r-e)*r^lexp(-e*r), kappa>0
 //
-class Small_BasisFunction
-    : public virtual ::Real_BF
-{
-public:
-    Small_BasisFunction();
-    Small_BasisFunction(const Large_BasisFunction*,double norm);
-    
-    virtual std::ostream&    Write(std::ostream&) const;
-
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3   Gradient  (const RVec3&) const;
-private:
-    const Large_BasisFunction* Pr;
-    double itsNormalization;
-};
 
 
 // Integral engine
