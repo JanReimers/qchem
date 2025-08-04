@@ -35,8 +35,7 @@ Orbital_IBS::Orbital_IBS
         , new Small_Orbital_IBS<double>(db,exponents,kappa)
         )
 {
-    for (auto b:itsRKBL->Iterate<Real_BF>()) Insert(b);
-    for (auto b:itsRKBS->Iterate<Real_BF>()) Insert(b);
+    
 };
 
 
@@ -64,9 +63,7 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
 {
     size_t l=Omega_kmj_Sym::l(kappa);
     Init(exponents,Norms(exponents,l),l);
-    size_t i=1;
-    for (auto e:es) 
-        IBS_Common1::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
+   
 
 };
 
@@ -105,7 +102,7 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
 {
     os << "Slater     " << this->GetSymmetry()
     << "             r^" << l << "*exp(-e*r), e={";
-    for (auto b:*this) os << *b;
+    for (auto e:es) os << e << ",";
     os << "}";
     return os;
 }
@@ -134,9 +131,7 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS
 
 template <class T> void Small_Orbital_IBS<T>::InsertBasisFunctions(const Orbital_RKBL_IBS<T>* lbs)
 {
-    size_t i=1;
-    for (auto lb:lbs->template Iterate<Large_BasisFunction>()) 
-        IBS_Common1::Insert(new Small_BasisFunction(lb,ns(i++))); 
+   
 }
 
 template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
@@ -186,7 +181,7 @@ template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) 
     else
         os << "[       -e ]";
     os << "*r^" << l << "*exp(-e*r), e={";
-    for (auto b:*this) os << *b;
+    for (auto e:es) os << e << ",";
     os << "}";
     return os;
 }

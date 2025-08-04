@@ -221,13 +221,11 @@ IrrepBasisSet::Vec3Vec IrrepBasisSet::Gradient   (const RVec3& r) const
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
-    IBS_Common1::Write(os);
     return os << itsBlocks;
 }
 
 void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
 {
-    EmptyBasisFunctions();
     size_t i=1;
     for (auto& bl:itsBlocks)
         for (std::vector<Polarization>::const_iterator p(bl->itsPols.begin()); p!=bl->itsPols.end(); p++)

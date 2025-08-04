@@ -40,20 +40,11 @@ public:
         return itsSymmetry;
     }
 
-    virtual const_iterator begin() const {return itsBasisFunctions.begin();}
-    virtual const_iterator end  () const {return itsBasisFunctions.end  ();} 
-    virtual       iterator begin()       {return itsBasisFunctions.begin();}
-    virtual       iterator end  ()       {return itsBasisFunctions.end  ();} 
-    
-    auto front() const {return itsBasisFunctions.front();}
-    auto back () const {return itsBasisFunctions.back ();} 
-
     using UniqueIDImp::GetID;
-    virtual std::ostream& Write(std::ostream&) const;
 
 protected:
     virtual void  Insert(bf_t* );
-    void  EmptyBasisFunctions();
+   
    
 
 // private:

@@ -26,6 +26,8 @@ template <size_t K> class IrrepBasisSet
     typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     typedef typename BSpline::IrrepIEClient<K> IEC;
     using IEC::splines;
+    using IEC::rmin;
+    using IEC::rmax;
     using AtomIrrepIEClient::ns;
 public:
     IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L);

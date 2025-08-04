@@ -64,8 +64,7 @@ template <size_t K> std::ostream&  IrrepBasisSet<K>::Write(std::ostream& os) con
 {
     os << "Spherical BSpline L=" << *GetSymmetry()
     << " with " << GetNumFunctions() << " basis functions, {";
-    // for (auto b:*this) os << *b;
-    os << *front() << " ... " << *back();
+    os << rmin << " ... " << rmax;
     os << "}" << std::endl;
     return os;
 }

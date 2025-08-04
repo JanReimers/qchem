@@ -37,37 +37,12 @@ public:
     typedef std::shared_ptr<const Symmetry> sym_t;
 
     virtual size_t GetNumFunctions() const=0;
-    // virtual size_t size() const {return GetNumFunctions();}
     virtual sym_t  GetSymmetry() const=0;
 //
 //  Streamable stuff.
 //
     virtual IrrepBasisSet* Clone  (const RVec3&) const=0;
 
-private:
-    virtual const_iterator begin() const=0;
-    virtual const_iterator end  () const=0;
-    virtual       iterator begin()      =0;
-    virtual       iterator end  ()      =0;
-    
-public:
-    // These facilutate iteration but returns pointers dyn-cast'ed to derived types (D);
-    template <class D> auto Iterate() const
-    {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end());
-    }
-    template <class D> auto Iterate(const D* start) const
-    {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
-    }
-    template <class D> auto Iterate() 
-    {
-        return D_iterator_proxy<D,iterator>(begin(),end());
-    }
-    template <class D> auto Iterate(D* start) 
-    {
-        return D_iterator_proxy<D,iterator>(begin(),end(),start);
-    }
 };
 
 //----------------------------------------------------------------------------

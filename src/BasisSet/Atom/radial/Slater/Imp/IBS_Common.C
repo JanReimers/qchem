@@ -69,7 +69,7 @@ std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
     os << "Spherical Slater L=" << *GetSymmetry()
     << " with " << GetNumFunctions() << " basis functions, alpha={";
     // for (auto b:*this) os << *b;
-    os << *front() << " ... " << *back();
+    os << es(1) << " ... " << es(GetNumFunctions());
     os << "}" << std::endl;
     return os;
 }
