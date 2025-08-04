@@ -4,7 +4,6 @@ module;
 #include <memory>
 
 export module qchem.Irrep_BS;
-export import qchem.BasisFunction;
 export import qchem.Symmetry;
 export import qchem.Symmetry.ElectronConfiguration;
 export import qchem.VectorFunction;
@@ -30,10 +29,6 @@ export class IrrepBasisSet
     , public virtual Streamable
 {
 public:
-    typedef Real_BF bf_t;
-    typedef std::vector<std::shared_ptr<bf_t>> bfv_t;
-    typedef bfv_t::      iterator       iterator;
-    typedef bfv_t::const_iterator const_iterator;
     typedef std::shared_ptr<const Symmetry> sym_t;
 
     virtual size_t GetNumFunctions() const=0;

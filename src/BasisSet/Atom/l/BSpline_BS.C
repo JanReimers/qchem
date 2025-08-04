@@ -9,7 +9,6 @@ import qchem.HF_IBS;
 import qchem.Fit_IBS;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.Common;
-import qchem.BasisFunction;
 import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Internal.HeapDB;
 

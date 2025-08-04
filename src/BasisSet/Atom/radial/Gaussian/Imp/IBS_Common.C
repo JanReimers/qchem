@@ -7,7 +7,6 @@ module;
 #include <cassert>
 module qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
-import qchem.BasisFunction;
 import qchem.Symmetry;
 import Common.IntPow;
 import oml;

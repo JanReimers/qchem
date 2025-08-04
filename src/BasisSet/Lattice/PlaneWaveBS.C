@@ -7,7 +7,6 @@ export module qchem.BasisSet.Lattice.PlaneWave;
 export import qchem.Lattice;
 export import qchem.Types;
 
-import qchem.BasisFunction;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IBS_Common;
 // import qchem.BasisSet.Internal.IEClient;

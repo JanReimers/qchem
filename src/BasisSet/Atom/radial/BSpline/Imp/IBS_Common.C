@@ -6,7 +6,6 @@ module;
 #include <cassert>
 #include "bspline/operators/Derivative.h"
 module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
-import qchem.BasisFunction;
 import qchem.Symmetry;
 
 

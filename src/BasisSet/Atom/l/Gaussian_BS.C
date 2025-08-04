@@ -12,7 +12,6 @@ import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.HF_IBS;
-import qchem.BasisFunction;
 
 export namespace Atoml
 {

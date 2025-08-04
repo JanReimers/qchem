@@ -6,7 +6,6 @@ module;
 #include <cassert>
 module qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
-import qchem.BasisFunction;
 import qchem.Symmetry;
 import Common.IntPow;
 import oml;

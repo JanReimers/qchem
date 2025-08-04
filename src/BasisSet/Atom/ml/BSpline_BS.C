@@ -10,7 +10,6 @@ import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.Common;
 
-import qchem.BasisFunction;
 import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.HF_IBS;
 import qchem.BasisSet.Internal.HeapDB;
