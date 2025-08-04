@@ -7,7 +7,7 @@ import oml;
 template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
 Overlap3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
 {
-    Vector<T> ret(ff->size());
+    Vector<T> ret(ff->GetNumFunctions());
     auto& S=this->Overlap3C(*ff);
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,S[i-1]);
@@ -17,7 +17,7 @@ Overlap3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
 template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
 Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
 {
-    Vector<T> ret(ff->size());
+    Vector<T> ret(ff->GetNumFunctions());
     auto& repulsion=this->Repulsion3C(*ff);
     for(auto i:ret.indices())
         ret(i)=Dot(Dcd,repulsion[i-1]);

@@ -61,7 +61,7 @@ template <> RVec IrrepCD<double>::ZeroV(size_t N) const
 //
 template <> DM_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab->size());
+    if (IsZero()) return ZeroM(bs_ab->GetNumFunctions());
     const TOrbital_HF_IBS<double>* bs_cd=dynamic_cast<const TOrbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
     return bs_ab->Direct(itsDensityMatrix,bs_cd);
@@ -69,7 +69,7 @@ template <> DM_CD::SMat IrrepCD<double>::GetRepulsion(const TOrbital_HF_IBS<doub
 
 template <> DM_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab->size());
+    if (IsZero()) return ZeroM(bs_ab->GetNumFunctions());
     const TOrbital_HF_IBS<double>* bs_cd=dynamic_cast<const TOrbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
     return bs_ab->Exchange(itsDensityMatrix,bs_cd);
@@ -81,7 +81,7 @@ template <> DM_CD::SMat IrrepCD<double>::GetExchange(const TOrbital_HF_IBS<doubl
 //
 template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    if (IsZero()) return ZeroV(fbs->size());
+    if (IsZero()) return ZeroV(fbs->GetNumFunctions());
     auto dftbs=dynamic_cast<const TOrbital_DFT_IBS<T>*>(itsBasisSet);
     assert(dftbs);
     return dftbs->Repulsion3C(itsDensityMatrix,fbs);

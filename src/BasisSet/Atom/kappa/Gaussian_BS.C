@@ -109,6 +109,7 @@ template <class T> class Large_Orbital_IBS
 public:
     Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
 
+    virtual size_t  GetNumFunctions() const {return size();}
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
@@ -131,6 +132,7 @@ public:
     Small_Orbital_IBS(const DB_cache<T>*,const Vector<T>& exponents,int kappa);
     virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l);
 
+    virtual size_t  GetNumFunctions() const {return size();}
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;

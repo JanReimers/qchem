@@ -45,13 +45,13 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::Basis
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    return new Fit_IBS<K>(db,size(),iec.rmin,iec.rmax,0); 
+    return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0); 
 }
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    return new Fit_IBS<K>(db,size(),iec.rmin,iec.rmax,0);    
+    return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0);    
 }
 template <size_t K> ::IrrepBasisSet* Orbital_IBS<K>::Clone(const RVec3&) const
 {

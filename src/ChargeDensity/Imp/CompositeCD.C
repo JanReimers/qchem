@@ -65,7 +65,7 @@ double Composite_CD::GetTotalCharge() const
 //
 Vector<double> Composite_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    Vector<double> ret(fbs->size());
+    Vector<double> ret(fbs->GetNumFunctions());
     Fill(ret,0.0);
     for (auto& c:itsCDs) ret+=c->GetRepulsion3C(fbs);
     return ret;

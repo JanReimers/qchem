@@ -24,13 +24,13 @@ template <size_t K> class IrrepBasisSet
 {
     typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    using  ::IrrepBasisSet::size;
     typedef typename BSpline::IrrepIEClient<K> IEC;
     using IEC::splines;
     using AtomIrrepIEClient::ns;
 public:
     IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L);
     IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L, const std::vector<int>& ml);
+    virtual size_t  GetNumFunctions() const {return size();}
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;

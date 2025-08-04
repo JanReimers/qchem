@@ -79,7 +79,7 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeNuclear(const Clus
 }
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common1<T>::MakeRestMass() const
 {
-    SMatrix<T> rl(itsRKBL->size());
+    SMatrix<T> rl(itsRKBL->GetNumFunctions());
     Fill(rl,0.0);
     SMatrix<T> rs=itsRKBS->Kinetic();
     return merge_diag(rl,rs);

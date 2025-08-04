@@ -37,7 +37,7 @@ public:
     typedef std::shared_ptr<const Symmetry> sym_t;
 
     virtual size_t GetNumFunctions() const=0;
-    virtual size_t size() const {return GetNumFunctions();}
+    // virtual size_t size() const {return GetNumFunctions();}
     virtual sym_t  GetSymmetry() const=0;
 //
 //  Streamable stuff.

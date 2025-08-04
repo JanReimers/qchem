@@ -33,7 +33,7 @@ export class IBS_Common1
 public:
     IBS_Common1(Symmetry*);
 
-    virtual size_t  GetNumFunctions(               ) const;
+    // virtual size_t  GetNumFunctions(               ) const;
     virtual sym_t   GetSymmetry() const
     {
         assert(itsSymmetry);
@@ -127,7 +127,8 @@ export template <class T> class Orbital_RKB_IBS_Common1
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
 public:
-    virtual size_t size() const {return itsRKBL->size()+itsRKBS->size();}
+    virtual size_t size() const {return itsRKBL->GetNumFunctions()+itsRKBS->GetNumFunctions();}
+    virtual size_t  GetNumFunctions() const {return size();}
     virtual SMatrix<T> MakeOverlap () const;
     virtual SMatrix<T> MakeKinetic () const;
     virtual SMatrix<T> MakeNuclear (const Cluster*) const;

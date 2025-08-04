@@ -43,10 +43,10 @@ void IBS_Common1::EmptyBasisFunctions()
 //
 
 
-size_t IBS_Common1::GetNumFunctions() const
-{
-    return itsBasisFunctions.size();
-}
+// size_t IBS_Common1::GetNumFunctions() const
+// {
+//     return IrrepIEClient.size();
+// }
 
 //-----------------------------------------------------------------------------
 //
