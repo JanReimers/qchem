@@ -23,15 +23,8 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
     , Orbital_IBS_Common1<double>()
     , Orbital_IE(db)
     {
-        InsertBasisFunctions();   
     };
 
-void Orbital_IBS::InsertBasisFunctions()
-{
-    size_t i=1;
-    for (auto e:es) 
-        IBS_Common1::Insert(new BasisFunction(e,l,ns(i++)));
-}
 
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
@@ -56,15 +49,7 @@ Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, siz
 : ::Gaussian::IrrepBasisSet(exponents,new Yl_Sym(L), L)
 , Fit_IE(db)
 {
-    InsertBasisFunctions();   
 };
-
-void Fit_IBS::InsertBasisFunctions()
-{
-    size_t i=1;
-    for (auto e:es) 
-        IBS_Common1::Insert(new BasisFunction(e,l,ns(i++)));
-}
 
 ::Fit_IBS* Fit_IBS::Clone(const RVec3&) const
 {

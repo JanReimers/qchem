@@ -116,10 +116,6 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
-//
-//  Now insert the basis functions.
-//
-    MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 };
 IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
     : TIBS_Common1<double>(new UnitQN)
@@ -147,10 +143,6 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
-//
-//  Now insert the basis functions.
-//
-    MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
     
 }
 // Single atom version
@@ -173,10 +165,6 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
-//
-//  Now insert the basis functions.
-//
-    MakeBasisFunctions(ns); //ns from PolarizedGaussianIEClient
 }
 //----------------------------------------------------------------
 //
@@ -222,14 +210,6 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 {
     // No UT coverage
     return os << itsBlocks;
-}
-
-void IrrepBasisSet::MakeBasisFunctions(const RVec& norms)
-{
-    size_t i=1;
-    for (auto& bl:itsBlocks)
-        for (std::vector<Polarization>::const_iterator p(bl->itsPols.begin()); p!=bl->itsPols.end(); p++)
-            IBS_Common1::Insert(new BasisFunction(bl->itsRadial,*p,norms(i++)));
 }
 
 //----------------------------------------------------------------

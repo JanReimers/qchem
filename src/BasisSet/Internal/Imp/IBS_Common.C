@@ -21,18 +21,5 @@ IBS_Common1::IBS_Common1(Symmetry* theQN)
 };
 
 
-//-----------------------------------------------------------------------------
-//
-//  Post construction initializations called by dervied classes.
-//
-void IBS_Common1::Insert(bf_t* bf)
-{
-    assert(bf);
-    itsBasisFunctions.push_back(std::shared_ptr<bf_t>(bf));
-}
-
-
-
-
 
 

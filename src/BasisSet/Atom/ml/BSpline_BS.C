@@ -51,8 +51,6 @@ public:
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-private:
-    void InsertBasisFunctions();
 
 };
 template <size_t K> class BasisSet 

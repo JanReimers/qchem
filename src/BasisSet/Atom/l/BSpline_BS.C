@@ -89,7 +89,6 @@ template <size_t K> class Orbital_IBS
     , public         Orbital_IE<K>
 {
 public:
-    // using AtomIrrepIEClient::ns;
     typedef typename ::BSpline::IrrepIEClient<K> IEC;
     using IEC::splines;
     Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
@@ -97,8 +96,6 @@ public:
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-private:
-    void InsertBasisFunctions();
 };
 
 template <size_t K> class Fit_IBS 
@@ -113,8 +110,6 @@ public:
     Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;
-private:
-    void InsertBasisFunctions();
 };
 
     // Full basis set.

@@ -33,7 +33,6 @@ export class IBS_Common1
 public:
     IBS_Common1(Symmetry*);
 
-    // virtual size_t  GetNumFunctions(               ) const;
     virtual sym_t   GetSymmetry() const
     {
         assert(itsSymmetry);
@@ -42,15 +41,9 @@ public:
 
     using UniqueIDImp::GetID;
 
-protected:
-    virtual void  Insert(bf_t* );
-   
-   
-
 // private:
 
     sym_t itsSymmetry;
-    bfv_t itsBasisFunctions;
 };
 
 export template <class T> class TIBS_Common1

@@ -67,8 +67,7 @@ class IrrepBasisSet
     private:
         
         IrrepBasisSet(const IrrepBasisSet *bs, const bv_t&);
-        void MakeBasisFunctions(const RVec &norms);
-
+    
         bv_t itsBlocks;
     };
 class Orbital_IBS

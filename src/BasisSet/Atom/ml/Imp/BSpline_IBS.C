@@ -27,16 +27,8 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_
     size_t i=1;
     for (auto sp: iec.splines)
         AtomIrrepIEClient::ns(i++)=1.0/sqrt(::BSpline::IE_Primatives<K>::Overlap(sp,sp,L));
-    InsertBasisFunctions();
     };
 
-template <size_t K> void Orbital_IBS<K>::InsertBasisFunctions()
-{
-    size_t i=1;
-    const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    for (auto s:iec.splines) 
-        IBS_Common1::Insert(new BasisFunction<K>(s,iec.l,iec.ml[0],iec.ns(i++))); //ns from SlaterIEClient
-}
 
 template <size_t K>  ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const
 {

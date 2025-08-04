@@ -81,8 +81,6 @@ public:
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::IrrepBasisSet* Clone(const RVec3&) const;
-private:
-    void InsertBasisFunctions();
 };
 
 class Fit_IBS 
@@ -95,8 +93,6 @@ public:
     Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
    
     virtual ::Fit_IBS* Clone(const RVec3&) const;
-private:
-    void InsertBasisFunctions();
 };
 
     // Full basis set.
