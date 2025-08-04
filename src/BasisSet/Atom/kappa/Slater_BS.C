@@ -6,7 +6,7 @@ class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;

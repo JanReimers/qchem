@@ -6,7 +6,7 @@ module;
 #include <iomanip>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 
 using std::cout;
 using std::endl;

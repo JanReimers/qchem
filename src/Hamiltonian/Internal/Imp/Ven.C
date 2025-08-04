@@ -8,7 +8,7 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 
 Ven::Ven() : Static_HT_Imp() , theCluster() {};
 

@@ -5,7 +5,7 @@ module;
 #include <memory>
 #include <vector>
 module qchem.Hamiltonian.Internal.Terms;
-import qchem.HF_IBS;
+import qchem.Orbital_HF_IBS;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
@@ -39,7 +39,7 @@ VxcPol::~VxcPol()
         std::cerr << "PolarizedHartreeFockVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
     }
-    auto hf_bs = dynamic_cast<const TOrbital_HF_IBS<double>*>(bs);
+    auto hf_bs = dynamic_cast<const Orbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
 
     const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(cd);

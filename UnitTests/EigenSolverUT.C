@@ -10,7 +10,7 @@ import qchem.LAParams;
 import qchem.LASolver;
 
 import qchem.Factory;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.BasisSet;
 import oml;
 using std::cout;

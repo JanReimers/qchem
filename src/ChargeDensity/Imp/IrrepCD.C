@@ -6,8 +6,8 @@ export module qchem.ChargeDensity.Imp.IrrepCD;
 export import qchem.ChargeDensity;
 import oml;
 export import qchem.Symmetry.Irrep;
-import qchem.Irrep_BS;
-export import qchem.HF_IBS;
+import qchem.IrrepBasisSet;
+export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 
 //------------------------------------------------------------------------------------
@@ -26,8 +26,8 @@ public:
     IrrepCD();
     IrrepCD(const DenSMat&,const Orbital_IBS<T>*, Irrep_QNs);
 
-    virtual SMatrix<T>   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
-    virtual SMatrix<T>   GetExchange (const TOrbital_HF_IBS<double>*) const;
+    virtual SMatrix<T>   GetRepulsion(const Orbital_HF_IBS<double>*) const;
+    virtual SMatrix<T>   GetExchange (const Orbital_HF_IBS<double>*) const;
     virtual RVec   GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double DM_Contract(const Static_CC*) const;

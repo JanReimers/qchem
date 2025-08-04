@@ -10,8 +10,8 @@ import qchem.LAParams;
 
 module qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
-import qchem.DHF_IBS;
-import qchem.Irrep_BS;
+import qchem.Orbital_DHF_IBS;
+import qchem.IrrepBasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.BasisSet.Internal.ERI4;

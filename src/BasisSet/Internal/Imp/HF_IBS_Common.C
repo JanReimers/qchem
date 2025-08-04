@@ -12,7 +12,7 @@ Direct(const SMatrix<T>& Dcd, const obs_t* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    const TOrbital_HF_IBS<T>* ab=this;
+    const Orbital_HF_IBS<T>* ab=this;
     
     if (ab->GetID()<=cd->GetID())
     {
@@ -32,7 +32,7 @@ Exchange(const SMatrix<T>& Dcd, const obs_t* cd) const
 {
     assert(!isnan(Dcd));
     assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
-    const TOrbital_HF_IBS<T>* ab=this;
+    const Orbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())
         return MatMul(ab->Exchange(*cd),Dcd); // ERI4 Kabcd=ab->Exchange(*cd);

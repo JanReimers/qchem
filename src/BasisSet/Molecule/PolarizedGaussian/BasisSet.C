@@ -18,8 +18,8 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.Cluster;
 import qchem.Types;
-import qchem.DFT_IBS;
-import qchem.HF_IBS;
+import qchem.Orbital_DFT_IBS;
+import qchem.Orbital_HF_IBS;
 
 export namespace PolarizedGaussian
 {
@@ -50,8 +50,8 @@ class IrrepBasisSet
         bv_t itsBlocks;
     };
 class Orbital_IBS
-    : public virtual TOrbital_HF_IBS<double>,
-        public virtual TOrbital_DFT_IBS<double>,
+    : public virtual Orbital_HF_IBS<double>,
+        public virtual Orbital_DFT_IBS<double>,
         public IrrepBasisSet,
         public Orbital_IBS_Common1<double>,
         public Orbital_DFT_IBS_Common<double>,

@@ -7,7 +7,7 @@ module;
 module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.Symmetry;
 import Common.Constants; //c_light
 import qchem.stl_io;

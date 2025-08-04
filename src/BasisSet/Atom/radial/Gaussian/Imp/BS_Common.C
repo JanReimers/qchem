@@ -5,7 +5,7 @@ module;
 #include <cassert>
 module qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.IEClient;
 import oml;
 

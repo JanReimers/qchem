@@ -4,7 +4,7 @@ module;
 #include <memory>
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
-export import qchem.HF_IBS;
+export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 
 //--------------------------------------------------------------------------
@@ -18,8 +18,8 @@ public:
     Composite_CD();
     void Insert(DM_CD*);
 
-    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const; 
-    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const; 
+    virtual SMatrix<double>   GetRepulsion(const Orbital_HF_IBS<double>*) const; 
+    virtual SMatrix<double>   GetExchange (const Orbital_HF_IBS<double>*) const; 
 
     virtual double DM_Contract(const Static_CC*) const;
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;

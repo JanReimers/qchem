@@ -9,7 +9,7 @@ Priority 1:
     -Now the whole IEClient view seems useless.
     -Refactor:
         Dependency problems:
-            TOrbital_DFT_IBS-->Fit_IBS (OK)
+            Orbital_DFT_IBS-->Fit_IBS (OK)
                             -->Irrep_BS
             Fit_IBS -->FitIntegrals (tightly coupledmust be in one module)
                     -->Real_IBS
@@ -544,7 +544,7 @@ Priority 3:
         T dependence is the key
     Done: -TOrbital_DFT_IBS defines some integrals, and Integrals_DFT defines other similar integrals/
         Why?  can we clean this up?
-            No: TOrbital_DFT_IBS does basis set independent constractions with the density matrix.
+            No: Orbital_DFT_IBS does basis set independent constractions with the density matrix.
                 Integrals_DFT does basis set specific triple (three center) integrals.
     -Clean up lower libs to adhere to module naming conventions.
         Done: Mesh
@@ -600,7 +600,7 @@ Priority 3:
             No: -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
                 BasisFunction.  Irrep_BS iterator returns BasisFunction.
             Done: <BasisSet/XXX_IE> are included by <BasisSet/XXX_IBS> *and* various internal DB headers
-                We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see TOrbital_HF_IBS interfaces
+                We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see Orbital_HF_IBS interfaces
                 which is more than they need.  Small problem to eliminate 4 public/internal headers?
             Done: Breakout Atom and Molecule pseudo modules.
                 libqcAtom_BS

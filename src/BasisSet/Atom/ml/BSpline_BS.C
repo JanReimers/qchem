@@ -11,7 +11,7 @@ import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.Common;
 
 import qchem.BasisSet.Atom.Internal.ml.Angular;
-import qchem.HF_IBS;
+import qchem.Orbital_HF_IBS;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
 import qchem.BasisSet;
@@ -23,8 +23,8 @@ namespace BSpline
 {
 
 template <size_t K> class Orbital_IBS
-    : public virtual TOrbital_HF_IBS<double>
-    // , public virtual TOrbital_DFT_IBS<double>
+    : public virtual Orbital_HF_IBS<double>
+    // , public virtual Orbital_DFT_IBS<double>
     , public         ::BSpline::IrrepBasisSet<K>
     , public         Orbital_IBS_Common1<double>
     // , public         Orbital_DFT_IBS_Common<double>

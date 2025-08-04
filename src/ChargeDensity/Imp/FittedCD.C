@@ -16,7 +16,7 @@ export template <class T> class FittedCDImp
 public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
-    virtual SMatrix<T>   GetRepulsion    (const TOrbital_DFT_IBS<double>*) const;
+    virtual SMatrix<T>   GetRepulsion    (const Orbital_DFT_IBS<double>*) const;
     virtual double GetSelfRepulsion(                      ) const;  //Does GetRepulsion(*this);
     
     virtual double operator()(const RVec3&) const; // No UT coverage

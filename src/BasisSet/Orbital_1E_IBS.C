@@ -1,7 +1,7 @@
 module;
 
 export module qchem.Orbital_1E_IBS;
-export import qchem.Irrep_BS;
+export import qchem.IrrepBasisSet;
 export import qchem.Cluster;
 
 import qchem.LASolver;

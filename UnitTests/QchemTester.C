@@ -10,7 +10,7 @@ import qchem.SCFAccelerator.Factory;
 import qchem.WaveFunction;
 import qchem.ChargeDensity;
 import qchem.Factory;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;

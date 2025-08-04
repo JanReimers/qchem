@@ -2,7 +2,7 @@
 module;
 
 export module qchem.Fit_IBS;
-export import qchem.Irrep_BS;
+export import qchem.IrrepBasisSet;
 export import qchem.Mesh;
 export import qchem.ScalarFunction;
 import qchem.LAParams;

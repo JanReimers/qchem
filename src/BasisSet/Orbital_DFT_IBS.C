@@ -1,7 +1,7 @@
 // File: DFT_IBS.H  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
 module;
 #include <vector>
-export module qchem.DFT_IBS;
+export module qchem.Orbital_DFT_IBS;
 export import qchem.BasisSet;
 export import qchem.Orbital_1E_IBS;
 
@@ -20,7 +20,7 @@ public:
 };
 
 
-export template <class T> class TOrbital_DFT_IBS
+export template <class T> class Orbital_DFT_IBS
     : public virtual Orbital_IBS<T>
     , public virtual Integrals_DFT<T> //DFT integrals
     

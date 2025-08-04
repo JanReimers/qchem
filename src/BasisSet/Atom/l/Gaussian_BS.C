@@ -11,7 +11,7 @@ import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IBS_Common;
-import qchem.HF_IBS;
+import qchem.Orbital_HF_IBS;
 
 export namespace Atoml
 {
@@ -49,7 +49,7 @@ protected:
 
     // Irrep basis set
 class Orbital_IBS
-    : public virtual TOrbital_HF_IBS<double>
+    : public virtual Orbital_HF_IBS<double>
     , public         ::Gaussian::IrrepBasisSet
     , public         Orbital_IBS_Common1<double>
     , public         Orbital_DFT_IBS_Common<double>

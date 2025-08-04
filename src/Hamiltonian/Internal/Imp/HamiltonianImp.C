@@ -7,7 +7,7 @@ module qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.stl_io;
 
 HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)

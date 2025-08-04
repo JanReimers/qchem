@@ -14,7 +14,7 @@ import qchem.BasisSet.Internal.IBS_Common;
 
 import qchem.Factory;
 import qchem.BasisSet;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
 import Common.Constants;
 import qchem.Cluster;

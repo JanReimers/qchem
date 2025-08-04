@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 export module qchem.Orbitals.Internal.OrbitalsImp;
 export import qchem.Orbitals;
-export import qchem.Irrep_BS;
+export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 

@@ -4,7 +4,7 @@ module;
 #include <iomanip>
 #include <complex>
 module qchem.Orbitals.Internal.OrbitalImp;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 
 //-----------------------------------------------------------------
 //

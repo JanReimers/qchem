@@ -1,7 +1,7 @@
 // File: DHF_IBS.H  Interface for a Dirac-Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
 
-export module qchem.DHF_IBS;
+export module qchem.Orbital_DHF_IBS;
 export import qchem.Orbital_1E_IBS;
 
 //! \brief Interface for rest mass matrix used to shift relativistic energies.

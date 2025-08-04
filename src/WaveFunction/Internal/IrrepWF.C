@@ -6,7 +6,7 @@ export import qchem.EnergyLevel;
 export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
-export import qchem.Irrep_BS;
+export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Symmetry.ElectronConfiguration;
 

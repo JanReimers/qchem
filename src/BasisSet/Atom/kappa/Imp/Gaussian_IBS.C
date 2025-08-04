@@ -10,7 +10,7 @@ import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
 import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
-import qchem.DHF_IBS;
+import qchem.Orbital_DHF_IBS;
 import Common.IntPow;
 
 using std::endl;

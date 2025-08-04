@@ -6,7 +6,7 @@ module;
 module qchem.FittedFunctionImp;
 import qchem.FittedFunction;
 import qchem.Fit_IBS;
-import qchem.DFT_IBS;
+import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
 import oml;
 
@@ -86,7 +86,7 @@ FitGet2CenterRepulsion(const Fit_IBS* bs) const
 }
 
 template <class T> SMatrix<T> FittedFunctionImp<T>::
-FitGet3CenterOverlap(const TOrbital_DFT_IBS<double>* bs) const
+FitGet3CenterOverlap(const Orbital_DFT_IBS<double>* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
     int n=bs->GetNumFunctions();

@@ -7,9 +7,9 @@ module;
 module qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Fit_IBS;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.DHF_IBS;
+import qchem.Orbital_DHF_IBS;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 
 namespace BSpline

@@ -10,10 +10,10 @@ import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.ERI4;
 
-import qchem.DHF_IBS;
-import qchem.HF_IBS;
+import qchem.Orbital_DHF_IBS;
+import qchem.Orbital_HF_IBS;
 import qchem.Fit_IBS;
-import qchem.DFT_IBS;
+import qchem.Orbital_DFT_IBS;
 
 import Common.UniqueID;
 

@@ -10,7 +10,7 @@ import qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import qchem.Symmetry.Okmj;
 import qchem.Streamable;
-import qchem.DHF_IBS;
+import qchem.Orbital_DHF_IBS;
 import Common.IntPow;
 
 using std::endl;

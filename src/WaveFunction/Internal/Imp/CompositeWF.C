@@ -5,7 +5,7 @@ module;
 import qchem.SCFAccelerator;
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.BasisSet;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.CompositeCD;
 import qchem.Symmetry.ElectronConfiguration;
 

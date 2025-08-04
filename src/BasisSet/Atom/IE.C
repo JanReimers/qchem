@@ -3,7 +3,7 @@ export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Internal.HeapDB;
 export import qchem.BasisSet.Internal.Cache4;
 export import oml.Vector;
-export import qchem.DHF_IBS;
+export import qchem.Orbital_DHF_IBS;
 export import qchem.Types;
 import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
@@ -11,7 +11,7 @@ import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;
-import qchem.DFT_IBS;
+import qchem.Orbital_DFT_IBS;
 
 export
 {

@@ -6,7 +6,7 @@ import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Internal.IBS_Common;
 import qchem.BasisSet.Internal.HeapDB;
-import qchem.HF_IBS;
+import qchem.Orbital_HF_IBS;
 import qchem.Fit_IBS;
 import qchem.Cluster;
 import qchem.BasisSet.Atom.Internal.ml.Angular;
@@ -19,8 +19,8 @@ export namespace Atom_ml
 namespace Gaussian
 {
 class Orbital_IBS
-: public virtual TOrbital_HF_IBS<double>
-// , public virtual TOrbital_DFT_IBS<double>
+: public virtual Orbital_HF_IBS<double>
+// , public virtual Orbital_DFT_IBS<double>
 , public         ::Gaussian::IrrepBasisSet
 , public         Orbital_IBS_Common1<double>
 // , public         Orbital_DFT_IBS_Common<double>

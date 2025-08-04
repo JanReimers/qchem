@@ -9,7 +9,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
 
 

@@ -6,7 +6,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Term;
 import qchem.ChargeDensity;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import qchem.Symmetry;
 
 Dynamic_HT_Imp::Dynamic_HT_Imp() : itsCD(0) {};

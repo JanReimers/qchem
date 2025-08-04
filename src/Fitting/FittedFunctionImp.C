@@ -5,7 +5,7 @@ import qchem.LAParams;
 export module qchem.FittedFunctionImp;
 export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;
-import qchem.DFT_IBS;
+import qchem.Orbital_DFT_IBS;
 import qchem.Fit_IBS;
 export import qchem.Mesh;
 import oml;
@@ -45,7 +45,7 @@ protected:
 
     virtual Vec    FitGet2CenterOverlap  (const Fit_IBS*) const;
     virtual Vec    FitGet2CenterRepulsion(const Fit_IBS*) const;
-    virtual SMatrix<T>   FitGet3CenterOverlap  (const TOrbital_DFT_IBS<double>*) const;
+    virtual SMatrix<T>   FitGet3CenterOverlap  (const Orbital_DFT_IBS<double>*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;

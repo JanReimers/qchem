@@ -5,7 +5,7 @@ module;
 #include <memory>
 #include <vector>
 module qchem.ChargeDensity.Imp.FittedCD;
-import qchem.DFT_IBS;
+import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
 
 //------------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 //  Totale energy terms for a charge density.
 //
 
-template <class T> SMatrix<T> FittedCDImp<T>::GetRepulsion(const TOrbital_DFT_IBS<double>* bs) const
+template <class T> SMatrix<T> FittedCDImp<T>::GetRepulsion(const Orbital_DFT_IBS<double>* bs) const
 {
     assert(bs);
     const ERI3<T>& repulsions=bs->Repulsion3C(*itsBasisSet);

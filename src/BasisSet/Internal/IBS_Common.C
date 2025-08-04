@@ -5,15 +5,15 @@ module;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Internal.IBS_Common;
-export import qchem.Irrep_BS;
+export import qchem.IrrepBasisSet;
 import qchem.LASolver;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
-import qchem.DFT_IBS;
-import qchem.HF_IBS;
-import qchem.DHF_IBS;
+import qchem.Orbital_DFT_IBS;
+import qchem.Orbital_HF_IBS;
+import qchem.Orbital_DHF_IBS;
 
 
 
@@ -80,7 +80,7 @@ export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegral
 };
 
 export template <class T> class Orbital_DFT_IBS_Common
-    : public virtual TOrbital_DFT_IBS<T>
+    : public virtual Orbital_DFT_IBS<T>
 {
 public:
     using Integrals_DFT<T>::Overlap3C; //Unhide
@@ -90,9 +90,9 @@ public:
 };
 
 export template <class T> class Orbital_HF_IBS_Common
-    : public virtual TOrbital_HF_IBS<T>
+    : public virtual Orbital_HF_IBS<T>
 {
-    typedef typename TOrbital_HF_IBS<T>::obs_t obs_t;
+    typedef typename Orbital_HF_IBS<T>::obs_t obs_t;
 public:
     virtual SMatrix<T> Direct  (const SMatrix<T>& Dcd, const obs_t* bs_cd) const;
     virtual SMatrix<T> Exchange(const SMatrix<T>& Dcd, const obs_t* bs_cd) const;

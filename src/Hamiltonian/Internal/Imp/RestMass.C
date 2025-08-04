@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <memory>
 module qchem.Hamiltonian.Internal.Terms;
-import qchem.DHF_IBS;
+import qchem.Orbital_DHF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import Common.Constants;

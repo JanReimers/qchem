@@ -4,7 +4,7 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import Common.Constants;
 
 DiracKinetic::DiracKinetic()

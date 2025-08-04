@@ -2,12 +2,9 @@
 module;
 #include <memory>
 
-export module qchem.Irrep_BS;
+export module qchem.IrrepBasisSet;
 export import qchem.Symmetry;
 export import qchem.VectorFunction;
-
-
-import qchem.LASolver;
 import Common.UniqueID; 
 import qchem.Streamable;
 

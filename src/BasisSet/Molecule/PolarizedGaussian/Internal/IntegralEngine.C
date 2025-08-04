@@ -13,9 +13,9 @@ import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
-import qchem.DFT_IBS;
+import qchem.Orbital_DFT_IBS;
 
-import qchem.Irrep_BS;
+import qchem.IrrepBasisSet;
 import oml;
 
 export namespace PolarizedGaussian

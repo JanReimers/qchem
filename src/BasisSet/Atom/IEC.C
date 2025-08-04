@@ -4,7 +4,7 @@ module;
 #include <set>
 export module qchem.BasisSet.Atom.IEClient;
 export import qchem.BasisSet.Internal.IEClient;
-export import qchem.Irrep_BS;
+export import qchem.IrrepBasisSet;
 export import oml.Vector;
 
 export struct AtomIrrepIEClient : public virtual ::IrrepIEClient

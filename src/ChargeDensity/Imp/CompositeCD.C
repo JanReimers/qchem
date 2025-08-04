@@ -20,7 +20,7 @@ void Composite_CD::Insert(DM_CD* cd)
 //
 //  Total energy terms for a charge density.
 //
-SMatrix<double> Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab) const
+SMatrix<double> Composite_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMatrix<double> J(n,n);
@@ -29,7 +29,7 @@ SMatrix<double> Composite_CD::GetRepulsion(const TOrbital_HF_IBS<double>* bs_ab)
     return J;
 }
 
-SMatrix<double> Composite_CD::GetExchange(const TOrbital_HF_IBS<double>* bs_ab) const
+SMatrix<double> Composite_CD::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
     SMatrix<double> K(n,n);

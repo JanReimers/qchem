@@ -1,7 +1,7 @@
 // File: HF_IBS.H  Interface for a Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
 
-export module qchem.HF_IBS;
+export module qchem.Orbital_HF_IBS;
 export import qchem.Orbital_1E_IBS;
 
 import qchem.BasisSet.Internal.ERI4;
@@ -30,12 +30,12 @@ public:
 };
 
 
-export template <class T> class TOrbital_HF_IBS
+export template <class T> class Orbital_HF_IBS
     : public virtual Orbital_IBS<T>
     , public virtual Integrals_HF<T> //Two electron integrals used for HF
 {
 protected:
-    typedef TOrbital_HF_IBS obs_t;
+    typedef Orbital_HF_IBS obs_t;
 public:
     using Integrals_HF<T>::Direct;
     using Integrals_HF<T>::Exchange;

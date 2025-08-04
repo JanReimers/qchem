@@ -1,7 +1,7 @@
 // File: ChargeDensity.C  Interface for a charge density 
 export module qchem.ChargeDensity;
 import qchem.FittedFunctionClient;
-export import qchem.HF_IBS;
+export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 export import qchem.Symmetry.Spin;
 import qchem.Symmetry.ElectronConfiguration;
@@ -50,8 +50,8 @@ public:
     virtual double GetTotalCharge  () const=0;  // <ro>
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
-    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const=0;
-    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const=0;
+    virtual SMatrix<double>   GetRepulsion(const Orbital_HF_IBS<double>*) const=0;
+    virtual SMatrix<double>   GetExchange (const Orbital_HF_IBS<double>*) const=0;
 
 };
 
@@ -74,8 +74,8 @@ public:
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
     virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
-    virtual SMatrix<double>   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
-    virtual SMatrix<double>   GetExchange (const TOrbital_HF_IBS<double>*) const; 
+    virtual SMatrix<double>   GetRepulsion(const Orbital_HF_IBS<double>*) const;
+    virtual SMatrix<double>   GetExchange (const Orbital_HF_IBS<double>*) const; 
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
