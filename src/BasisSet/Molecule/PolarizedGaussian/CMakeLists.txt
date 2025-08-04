@@ -1,7 +1,6 @@
 target_sources(qcMolecule_BS PRIVATE 
 Imp/BasisSet.C
 Imp/IrrepBasisSet.C
-Imp/BasisFunction.C
 MnD/Imp/Triangle3D.C
 MnD/Imp/AuxillaryData.C
 MnD/Imp/AuxillaryFJ.C
