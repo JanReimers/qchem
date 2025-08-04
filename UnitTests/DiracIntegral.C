@@ -55,14 +55,14 @@ public:
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }
     
-    static const TIrrepBasisSet<double>* GetLarge(const IrrepBasisSet* ibs)
+    static const Real_IBS* GetLarge(const Real_IBS* ibs)
     {
         assert(ibs);
         const Orbital_RKB_IBS_Common1<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common1<double>*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
-    static const TIrrepBasisSet<double>* GetSmall(const IrrepBasisSet* ibs)
+    static const Real_IBS* GetSmall(const Real_IBS* ibs)
     {
         assert(ibs);
         const Orbital_RKB_IBS_Common1<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common1<double>*>(ibs);
@@ -106,7 +106,7 @@ TEST_F(DiracIntegralTests, GaussianBasisSet)
 TEST_F(DiracIntegralTests, SlaterOverlap)
 {
     StreamableObject::SetToPretty();
-    for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
@@ -125,7 +125,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
 TEST_F(DiracIntegralTests, GaussianOverlap)
 {
     StreamableObject::SetToPretty();
-    for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
@@ -146,7 +146,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
 {
     StreamableObject::SetToPretty();
     int Z=cl->GetNuclearCharge();
-    for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> Ven=oi->Nuclear(cl);
 
@@ -166,7 +166,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 {
     StreamableObject::SetToPretty();
     int Z=cl->GetNuclearCharge();
-    for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> Ven=oi->Nuclear(cl);
 
@@ -186,7 +186,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 TEST_F(DiracIntegralTests, SlaterKinetic)
 {
     StreamableObject::SetToPretty();
-    for (auto oi:sbs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> K=oi->Kinetic();
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
@@ -202,7 +202,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
 TEST_F(DiracIntegralTests, GaussianKinetic)
 {
     StreamableObject::SetToPretty();
-    for (auto oi:gbs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> K=oi->Kinetic();
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);

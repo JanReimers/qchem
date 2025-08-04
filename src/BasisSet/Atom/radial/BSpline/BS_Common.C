@@ -18,7 +18,7 @@ export import qchem.Types;
 export namespace BSpline
 {
 template <size_t K> class IrrepBasisSet
-    : public virtual ::IrrepBasisSet
+    : public virtual Real_IBS
     , public         TIBS_Common1<double>
     , public         IrrepIEClient<K>
 {

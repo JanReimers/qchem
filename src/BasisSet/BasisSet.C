@@ -38,7 +38,6 @@ public:
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;
-    static  BasisSet*  Factory(std::istream&    )      ;
 
 private:
     virtual const_iterator begin() const=0;

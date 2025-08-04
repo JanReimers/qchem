@@ -25,7 +25,7 @@ export namespace PolarizedGaussian
 {
 
 class IrrepBasisSet
-        : public virtual ::IrrepBasisSet,
+        : public virtual Real_IBS,
           public TIBS_Common1<double>,
           public IrrepIEClient
     {

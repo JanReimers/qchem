@@ -18,35 +18,25 @@ import oml;
 //----------------------------------------------------------------------------
 //
 //  Interface for an irreducible representation basis sets.  H is block diagonal with one
-//  block for  IrrepBasisSet,  For atoms each L get.s an IrrepBasisSet and an H  block. 
-//  
-//  The quantum number could be L for atoms, Irreducable rep for molecules, or
-//  the wave vector k for solids.
-//
-
-export class IrrepBasisSet
-    : public virtual UniqueID
-    , public virtual Streamable
-{
-public:
-    typedef std::shared_ptr<const Symmetry> sym_t;
-
-    virtual size_t GetNumFunctions() const=0;
-    virtual sym_t  GetSymmetry() const=0;
-
-};
-
-//----------------------------------------------------------------------------
-//
-//  Extend basis to be a set of real or complex valued functions
+//  block for each IrrepBasisSet,  For atoms each L gets an IrrepBasisSet and an H  block. 
+//  The Symmetry could be spherical (l,m QNs) for atoms, point group for molecules, or
+//  transational (with wave vector k) for solids.
 //
 export template <class T> class TIrrepBasisSet
-    : public virtual IrrepBasisSet
+    : public virtual UniqueID
+    , public virtual Streamable
     , public virtual VectorFunction<T>
 {
 public:
+    typedef std::shared_ptr<const Symmetry> sym_t;
+    virtual sym_t  GetSymmetry() const=0;
+    
+    virtual size_t GetNumFunctions() const=0;
     size_t GetVectorSize() const {return GetNumFunctions();}
 };
+
+export typedef TIrrepBasisSet<double>    Real_IBS;
+export typedef TIrrepBasisSet<dcmplx> Complex_IBS;
 
 //
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
@@ -59,6 +49,9 @@ export template <class T> class TOrbital_IBS
     , public virtual Integrals_Nuclear<T> 
 {
 public:    
-    virtual void   Set(const LAParams&)=0;
+    virtual void         Set(const LAParams&)=0;
     virtual LASolver<T>* CreateSolver() const=0;
 };
+
+export typedef TOrbital_IBS<double>    Real_OIBS;
+export typedef TOrbital_IBS<dcmplx> Complex_OIBS;

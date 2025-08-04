@@ -23,15 +23,20 @@ import Common.UniqueIDImp;
 //---------------------------------------------------------------------
 //
 //  This class implements functionality common to all real/complex irrep basis sets.  
-//  It stores a list of BasisFunction*'s and Quantum number.
+//  It does 2 things 1) Provide UniqueID, 2) Holds the Symmetry.
 //
-export class IBS_Common1
-    : public virtual IrrepBasisSet
+
+export template <class T> class TIBS_Common1
+    : public virtual TIrrepBasisSet<T>
     , public virtual IrrepIEClient
     , private UniqueIDImp
 {
+    using sym_t=TIrrepBasisSet<T>::sym_t;
 public:
-    IBS_Common1(Symmetry*);
+    TIBS_Common1(Symmetry* sym) : itsSymmetry(sym) 
+    {
+        assert(itsSymmetry);
+    };
 
     virtual sym_t   GetSymmetry() const
     {
@@ -41,17 +46,9 @@ public:
 
     using UniqueIDImp::GetID;
 
-// private:
+private:
 
     sym_t itsSymmetry;
-};
-
-export template <class T> class TIBS_Common1
-    : public virtual TIrrepBasisSet<T>
-    , public IBS_Common1
-{
-public:
-    TIBS_Common1(Symmetry* sym) : IBS_Common1(sym) {};
 };
 
 export template <class T> class Orbital_IBS_Common1

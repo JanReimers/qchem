@@ -18,8 +18,9 @@ Priority 1:
     -IBS_Common1  only does 2 things:
         1) UniqueIDImp
         2) Holds Symmetry*
-    -Get rid of TIBS_Common1,
-    -Merge IrrepBasisSet & TIrrepBasisSet
+    Done: -Get rid of TIBS_Common1,
+    Deon: -Merge IrrepBasisSet & TIrrepBasisSet
+    -Lose some T prefixes
 
     
 

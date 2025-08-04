@@ -33,7 +33,7 @@ private:
 };
 
 class IrrepBasisSet
-        : public virtual ::IrrepBasisSet,
+        : public virtual Real_IBS,
           public IBS_Common,
           public IrrepIEClient
 {

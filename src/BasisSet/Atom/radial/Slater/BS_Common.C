@@ -13,7 +13,7 @@ export namespace Slater
 {
 // Common implementation for orbital and fit basis sets.
 class IrrepBasisSet
-    : public virtual ::IrrepBasisSet
+    : public virtual Real_IBS
     , public         TIBS_Common1<double>
     , public         AtomIrrepIEClient
 {

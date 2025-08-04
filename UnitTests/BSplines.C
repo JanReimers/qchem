@@ -34,7 +34,7 @@ class BSplineTests : public ::testing::Test
 public:
     static constexpr size_t K=6; //Spline order.
     typedef bspline::Spline<double, K> spline_t;
-    typedef TOrbital_IBS<double> ibs_t;
+    typedef Real_OIBS ibs_t;
     typedef SMatrix<double> smat_t;
     BSplineTests() 
         : LMax(4)
@@ -207,7 +207,7 @@ TEST_F(BSplineTests, Overlap)
     cout << "Overlap ";
     cout.precision(3);
     Init(10,.1,40.);
-    for (auto ibs:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto ibs:bs->Iterate<Real_OIBS >())
     {
         cout << *ibs->GetSymmetry();
         SMatrix<double> S=ibs->Overlap();
@@ -250,10 +250,10 @@ TEST_F(BSplineTests, Nuclear)
     cout << "Nuclear ";
     cout.precision(3);
     Init(10,.1,40.);
-    for (auto ibs:bs->Iterate<const TOrbital_IBS<double>>())
+    for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << *ibs->GetSymmetry();
-        // const TOrbital_IBS<double>* ibs1=ibs;
+        // const Real_OIBS* ibs1=ibs;
         SMatrix<double> Ven=ibs->Nuclear(cl);
         for (auto i:Ven.rows()) //Check banded
             for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
@@ -271,7 +271,7 @@ TEST_F(BSplineTests, Kinetic)
     cout << "Kinetic ";
     cout.precision(3);
     Init(10,.1,40.);
-    for (auto ibs:bs->Iterate<const TOrbital_IBS<double>>())
+    for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << *ibs->GetSymmetry();
         SMatrix<double> T=ibs->Kinetic();

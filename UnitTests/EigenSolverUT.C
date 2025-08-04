@@ -71,7 +71,7 @@ TEST_F(OrthogonalizeTests, Types)
         for (auto lap:laps)
         {
             Set(N,lap);
-            for (auto ibs:bs->Iterate<TOrbital_IBS<double>>())
+            for (auto ibs:bs->Iterate<Real_OIBS>())
             {
                 LASolver<double>* las=ibs->CreateSolver();
                 const SMat& S=ibs->Overlap();

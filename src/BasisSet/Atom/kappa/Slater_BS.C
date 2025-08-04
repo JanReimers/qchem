@@ -51,7 +51,7 @@ protected:
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
 // specific.
 class Orbital_IBS
-    : public virtual TOrbital_IBS<double>
+    : public virtual Real_OIBS
     , public         Orbital_RKB_IBS_Common1<double> 
 {
 public:

@@ -63,7 +63,7 @@ public:
 
 TEST_F(GaussianRadialIntegralTests, Overlap)
 {
-    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:bs->Iterate<Real_OIBS >())
     {
         SMatrix<double> S=oi->Overlap();
 
@@ -77,7 +77,7 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 
 TEST_F(GaussianRadialIntegralTests, Nuclear)
 {
-    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:bs->Iterate<Real_OIBS >())
     {
         SMatrix<double> Hn=oi->Nuclear(cl);
         //cout << S << endl;
@@ -90,7 +90,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
 TEST_F(GaussianRadialIntegralTests, Kinetic)
 {
     
-    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:bs->Iterate<Real_OIBS >())
     {
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;

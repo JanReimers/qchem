@@ -169,7 +169,7 @@ double SlaterRadialIntegralTests::R0(const AtomIrrepIEClient& ab, const AtomIrre
 
 TEST_F(SlaterRadialIntegralTests, Overlap)
 {
-    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:bs->Iterate<Real_OIBS >())
     {
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
@@ -180,7 +180,7 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
 
 TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
-    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:bs->Iterate<Real_OIBS >())
     {
         SMatrix<double> Hn=oi->Nuclear(cl);
         SMatrix<double> Hnnum = -1*mintegrator->Inv_r1(*oi);
@@ -191,7 +191,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 
 TEST_F(SlaterRadialIntegralTests, Kinetic)
 {
-    for (auto oi:bs->Iterate<TOrbital_IBS<double> >())
+    for (auto oi:bs->Iterate<Real_OIBS >())
     {
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;

@@ -29,8 +29,8 @@ export struct AtomIrrepIEClient : public virtual ::IrrepIEClient
     static       AtomIrrepIEClient* dcast(      ::IrrepIEClient*);
     static const AtomIrrepIEClient* dcast(const ::IrrepIEClient*);
     static const AtomIrrepIEClient& dcast(const ::IrrepIEClient& iec) {return *dcast(&iec);}
-    static       AtomIrrepIEClient* dcast(      ::IrrepBasisSet*);
-    static const AtomIrrepIEClient* dcast(const ::IrrepBasisSet*);
-    static const AtomIrrepIEClient& dcast(const ::IrrepBasisSet& ibs) {return *dcast(&ibs);}
+    static       AtomIrrepIEClient* dcast(      Real_IBS*);
+    static const AtomIrrepIEClient* dcast(const Real_IBS*);
+    static const AtomIrrepIEClient& dcast(const Real_IBS& ibs) {return *dcast(&ibs);}
 };
 

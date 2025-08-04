@@ -41,14 +41,14 @@ const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepIEClient* iec)
     return aiec;
 }
 
-AtomIrrepIEClient* AtomIrrepIEClient::dcast(::IrrepBasisSet* ibs)
+AtomIrrepIEClient* AtomIrrepIEClient::dcast(Real_IBS* ibs)
 {
     assert(ibs);
     AtomIrrepIEClient* aiec=dynamic_cast< AtomIrrepIEClient*>(ibs);
     assert(aiec);
     return aiec;
 }
-const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const ::IrrepBasisSet* ibs)
+const AtomIrrepIEClient* AtomIrrepIEClient::dcast(const Real_IBS* ibs)
 {
     assert(ibs);
     const AtomIrrepIEClient* aiec=dynamic_cast< const AtomIrrepIEClient*>(ibs);
