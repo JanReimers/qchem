@@ -50,12 +50,12 @@ protected:
 
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
 // specific.
-class Orbital_IBS
+class Orbital_RKB_IBS
     : public virtual Real_OIBS
     , public         Orbital_RKB_IBS_Common<double> 
 {
 public:
-    Orbital_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
 

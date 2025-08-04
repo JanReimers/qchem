@@ -20,7 +20,7 @@ namespace Atom_kappa
 namespace Gaussian
 {
   
-Orbital_IBS::Orbital_IBS
+Orbital_RKB_IBS::Orbital_RKB_IBS
     (const DB_cache<double>* db
         , const Vector<double>& exponents
         , int kappa)
@@ -35,7 +35,7 @@ Orbital_IBS::Orbital_IBS
     
 };
 
-std::ostream&  Orbital_IBS::Write(std::ostream& os) const
+std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 {
     os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
     return os;
