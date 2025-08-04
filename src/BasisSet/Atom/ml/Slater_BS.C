@@ -17,15 +17,6 @@ export namespace Atom_ml
 {
 namespace Slater
 {
-class BasisFunction : public Atoml::Slater::BasisFunction
-{
-public:
-    BasisFunction(double ex, int n, int l, int ml, double norm);
-    
-private:
-    typedef Atoml::Slater::BasisFunction Base;
-    int ml;
-};
 class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     , public virtual TOrbital_DFT_IBS<double>

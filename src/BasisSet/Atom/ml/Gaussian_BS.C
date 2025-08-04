@@ -18,15 +18,6 @@ export namespace Atom_ml
 {
 namespace Gaussian
 {
-class BasisFunction : public Atoml::Gaussian::BasisFunction
-    {
-    public:
-        BasisFunction(double theExponent,int n, int l, int ml, double norm);
-        
-    private:
-        typedef Atoml::Gaussian::BasisFunction Base;
-        int ml;
-    };
 class Orbital_IBS
 : public virtual TOrbital_HF_IBS<double>
 // , public virtual TOrbital_DFT_IBS<double>

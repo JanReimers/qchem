@@ -19,25 +19,6 @@ export namespace Atoml
 {
 namespace Slater
 {
-    // Basis function
-class BasisFunction
-    : public virtual ::Real_BF
-{
-public:
-    BasisFunction();
-    BasisFunction(double ex, int n, int l, double norm);
-    
-    virtual std::ostream&  Write(std::ostream&) const;
-    
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const;
-
-private:
-    double itsExponent;
-    int    itsN;
-    int    itsL;
-    double itsNormalization;
-};
 
     // Integral engine
 class IE_Common

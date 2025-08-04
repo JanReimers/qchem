@@ -24,27 +24,6 @@ export namespace Atoml
 {
 namespace BSpline
 {
-    // Basis function
-template <size_t K> class BasisFunction
-    : public virtual ::Real_BF
-{
-protected:
-    typedef bspline::Spline<double, K> spline_t;
-public:
-    // BasisFunction();
-    BasisFunction(const spline_t&, int l, double norm);
-    
-    virtual std::ostream&    Write(std::ostream&) const;
-  
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const;
-
-private:
-    spline_t itsSpline;
-    bspline::Spline<double, K-1> itsDxSpline;
-    int      itsL;
-    double   itsNormalization;
-};
 
     // Integral engine
 template <size_t K> class IE_Common

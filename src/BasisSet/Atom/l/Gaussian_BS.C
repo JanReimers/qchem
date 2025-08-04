@@ -19,25 +19,6 @@ export namespace Atoml
 namespace Gaussian
 {
 
-    // Basis function
-class BasisFunction
-    : public virtual ::Real_BF
-{
-public:
-    BasisFunction(                             );
-    BasisFunction(double theExponent, int theL, double norm);
-    virtual ~BasisFunction();
-    
-    virtual std::ostream&  Write(std::ostream&) const;
-    
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const;
-
-private:
-    double itsExponent;
-    int    itsL;
-    double itsNormalization;
-};
 
     // Integral engine
 class Orbital_IE

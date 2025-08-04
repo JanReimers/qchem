@@ -22,19 +22,7 @@ export namespace Atom_ml
 {
 namespace BSpline
 {
-template <size_t K> class BasisFunction
-    : public Atoml::BSpline::BasisFunction<K>
-{
-    typedef Atoml::BSpline::BasisFunction<K> Base;
-    typedef typename Base::spline_t spline_t;
-public:
-    // BasisFunction();
-    BasisFunction(const spline_t&, int l, int ml, double norm);
-    
 
-private:
-    int      ml;
-};
 template <size_t K> class Orbital_IBS
     : public virtual TOrbital_HF_IBS<double>
     // , public virtual TOrbital_DFT_IBS<double>
