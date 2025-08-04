@@ -7,7 +7,7 @@ import qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Atom.IEClient;

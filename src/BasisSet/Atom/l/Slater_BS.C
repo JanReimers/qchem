@@ -8,7 +8,7 @@ import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 
 import qchem.BasisSet;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Orbital_HF_IBS;
 import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Internal.Common;

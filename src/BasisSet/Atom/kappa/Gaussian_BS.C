@@ -6,7 +6,7 @@ export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 
@@ -46,7 +46,7 @@ protected:
 // specific.
 class Orbital_IBS
     : public virtual Real_OIBS
-    , public Orbital_RKB_IBS_Common1<double>
+    , public Orbital_RKB_IBS_Common<double>
 {
 public:
     Orbital_IBS(const DB_cache<double>*, const Vector<double>& exponents, int kappa);
@@ -60,7 +60,7 @@ private:
 
 template <class T> class Large_Orbital_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
-    , public Orbital_RKBL_IBS_Common1<T> 
+    , public Orbital_RKBL_IBS_Common<T> 
     , public Orbital_RKBL_IE<T>
     , public AtomIrrepIEClient
 {
@@ -75,18 +75,18 @@ public:
     virtual std::ostream&  Write(std::ostream&    ) const;
 //private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-    using Orbital_RKBL_IBS_Common1<T>::kappa;
+    using Orbital_RKBL_IBS_Common<T>::kappa;
 };
 
 template <class T> class Small_Orbital_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
-    , public     Orbital_RKBS_IBS_Common1<T> 
+    , public     Orbital_RKBS_IBS_Common<T> 
     , public     Orbital_RKBS_IE<T>
     , public     AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    using Orbital_RKBS_IBS_Common1<T>::large;
+    using Orbital_RKBS_IBS_Common<T>::large;
 public:
     Small_Orbital_IBS(const DB_cache<T>*,const Vector<T>& exponents,int kappa);
 
@@ -97,7 +97,7 @@ public:
     virtual const SMatrix<T>& Overlap() const {return DB_Kinetic<T>::Kinetic();}
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-    using Orbital_RKBS_IBS_Common1<T>::kappa;
+    using Orbital_RKBS_IBS_Common<T>::kappa;
 };
 
 

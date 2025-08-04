@@ -10,7 +10,7 @@
 
 import qchem.LAParams;
 
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 
 import qchem.Factory;
 import qchem.BasisSet;
@@ -58,14 +58,14 @@ public:
     static const Real_IBS* GetLarge(const Real_IBS* ibs)
     {
         assert(ibs);
-        const Orbital_RKB_IBS_Common1<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common1<double>*>(ibs);
+        const Orbital_RKB_IBS_Common<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common<double>*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
     static const Real_IBS* GetSmall(const Real_IBS* ibs)
     {
         assert(ibs);
-        const Orbital_RKB_IBS_Common1<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common1<double>*>(ibs);
+        const Orbital_RKB_IBS_Common<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common<double>*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBS;
     }
@@ -74,12 +74,12 @@ public:
     
     static SMatrix<double> merge_diag(const SMat& l,const SMat& s)
     {
-        return Orbital_RKB_IBS_Common1<double>::merge_diag(l,s);
+        return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
     }
 
     static SMatrix<double> merge_off_diag(const Mat& l)
     {
-        return Orbital_RKB_IBS_Common1<double>::merge_off_diag(l);
+        return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
     }
 
     int Lmax, Z;

@@ -7,7 +7,7 @@ export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.BasisSet;
 import qchem.Orbital_HF_IBS;
 import qchem.Fit_IBS;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Internal.HeapDB;

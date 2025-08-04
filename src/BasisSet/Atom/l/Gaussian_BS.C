@@ -10,7 +10,7 @@ import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Orbital_HF_IBS;
 
 export namespace Atoml

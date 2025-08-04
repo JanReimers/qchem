@@ -4,8 +4,8 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/HeapDB.C
   Internal/Imp/Cache4.C
   Internal/Imp/ERI4.C
-  Internal/Imp/BS_Common.C
-  Internal/Imp/TIBS_Common.C
+  Internal/Imp/BasisSet.C
+  Internal/Imp/IrrepBasisSet.C
   Internal/Imp/Fit_IBS_Common.C
   Internal/Imp/DFT_IBS_Common.C
   Internal/Imp/HF_IBS_Common.C

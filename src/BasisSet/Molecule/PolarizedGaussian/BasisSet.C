@@ -15,7 +15,7 @@ import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Types;
 import qchem.Orbital_DFT_IBS;

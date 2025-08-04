@@ -1,15 +1,13 @@
 // File: IBS_Common.C  Irrep Basis set common implementation.
 module;
 #include <cassert>
-#include <iosfwd>
 class DiracIntegralTests;
 
-export module qchem.BasisSet.Internal.IBS_Common;
+export module qchem.BasisSet.Internal.IrrepBasisSet;
 export import qchem.IrrepBasisSet;
 import qchem.LASolver;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 import qchem.Orbital_HF_IBS;
@@ -56,9 +54,7 @@ export template <class T> class Orbital_IBS_Common
 {
     public:
     Orbital_IBS_Common();
-    //
-    //  Make a gen/ EV solver that already has the overlap S factorized.
-    //
+    //!  Make a general eigen solver that caches the factorized overlap matrix.
     virtual LASolver<double>* CreateSolver() const;
     virtual void Set(const LAParams&);
 protected:
@@ -99,7 +95,7 @@ public:
 };
 
 
-export template <class T> class Orbital_RKB_IBS_Common1
+export template <class T> class Orbital_RKB_IBS_Common
     : public virtual Orbital_RKB_IBS<T>
     , public Orbital_IBS_Common<T>
     , public IrrepBasisSet_Common<T>
@@ -118,7 +114,7 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 protected:
-    Orbital_RKB_IBS_Common1(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
+    Orbital_RKB_IBS_Common(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;
     ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:
@@ -128,22 +124,22 @@ private:
 };
 
 
-export template <class T> class Orbital_RKBL_IBS_Common1
+export template <class T> class Orbital_RKBL_IBS_Common
     : public virtual Orbital_RKBL_IBS<T>
     , public IrrepBasisSet_Common<T> 
 {
 protected:
-    Orbital_RKBL_IBS_Common1(Symmetry*,int kappa);
+    Orbital_RKBL_IBS_Common(Symmetry*,int kappa);
 
     int kappa;
 };
 
-export template <class T> class Orbital_RKBS_IBS_Common1
+export template <class T> class Orbital_RKBS_IBS_Common
     : public virtual Orbital_RKBS_IBS<T>
     , public IrrepBasisSet_Common<T> 
 {
 protected:
-    Orbital_RKBS_IBS_Common1(Symmetry*,int kappa);
+    Orbital_RKBS_IBS_Common(Symmetry*,int kappa);
     virtual void Insert(const Orbital_RKBL_IBS<T>* l);
 
     int kappa;

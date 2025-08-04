@@ -8,7 +8,7 @@ export import qchem.Lattice;
 export import qchem.Types;
 
 import qchem.BasisSet.Internal.Common;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 // import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Lattice.Internal.IEClient;
 

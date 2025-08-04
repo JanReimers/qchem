@@ -6,7 +6,7 @@ module;
 import qchem.LAParams;
 import qchem.LASolver;
 
-module qchem.BasisSet.Internal.IBS_Common;
+module qchem.BasisSet.Internal.IrrepBasisSet;
 import oml;
 
 LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});

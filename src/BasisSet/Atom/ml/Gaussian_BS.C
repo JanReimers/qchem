@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet.Atom.Internal.ml.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.l.GaussianBS;
-import qchem.BasisSet.Internal.IBS_Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.Orbital_HF_IBS;
 import qchem.Fit_IBS;
