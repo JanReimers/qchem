@@ -31,8 +31,8 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
         (db
         , new Omega_k_Sym(kappa)
         , kappa
-        , new Large_Orbital_IBS<double>(db,exponents, kappa)
-        , new Small_Orbital_IBS<double>(db,exponents,kappa)
+        , new Orbital_RKBL_IBS<double>(db,exponents, kappa)
+        , new Orbital_RKBS_IBS<double>(db,exponents,kappa)
         )
 {
     
@@ -50,7 +50,7 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //
 //  Large sector
 //
-template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db,
+template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,
         const Vector<T>& exponents,int kappa)
     : Orbital_RKBL_IBS_Common<T>(new Omega_k_Sym(kappa),kappa)
     , Orbital_RKBL_IE<T>(db)
@@ -62,7 +62,7 @@ template <class T> Large_Orbital_IBS<T>::Large_Orbital_IBS(const DB_cache<T>* db
 
 };
 
-template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
+template <class T> Vector<double> Orbital_RKBL_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());
     int i=0;
@@ -70,12 +70,12 @@ template <class T> Vector<double> Large_Orbital_IBS<T>::Norms(const Vector<doubl
     return ns;
 }
 
-template <class T> Large_Orbital_IBS<T>::Vec     Large_Orbital_IBS<T>::operator() (const RVec3& r) const
+template <class T> Orbital_RKBL_IBS<T>::Vec     Orbital_RKBL_IBS<T>::operator() (const RVec3& r) const
 {
     double mr=norm(r);
     return uintpow(mr,l)*DirectMultiply(ns,exp(-mr*es));
 }
-template <class T> Large_Orbital_IBS<T>::Vec3Vec Large_Orbital_IBS<T>::Gradient   (const RVec3& r) const
+template <class T> Orbital_RKBL_IBS<T>::Vec3Vec Orbital_RKBL_IBS<T>::Gradient   (const RVec3& r) const
 {
     Vec3Vec ret(size());
     double mr=norm(r);
@@ -93,7 +93,7 @@ template <class T> Large_Orbital_IBS<T>::Vec3Vec Large_Orbital_IBS<T>::Gradient 
     return ret;
 }
 
-template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) const
+template <class T> std::ostream&  Orbital_RKBL_IBS<T>::Write(std::ostream& os) const
 {
     os << "Slater     " << this->GetSymmetry()
     << "             r^" << l << "*exp(-e*r), e={";
@@ -106,7 +106,7 @@ template <class T> std::ostream&  Large_Orbital_IBS<T>::Write(std::ostream& os) 
 //
 //  Small sector
 //
-template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS
+template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
     (const DB_cache<double>* db,
         const Vector<T>& exponents
         , int kappa)
@@ -118,16 +118,16 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS
     Init(exponents,Norms(exponents,l),l);
 };
 
-template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
+template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());
     int i=0;
     for (auto e:es) ns(++i)=1.0/sqrt(::Slater::IE_Primatives::Grad2(e,e,l,l));
     return ns;
 }
-template <class T> Small_Orbital_IBS<T>::Vec     Small_Orbital_IBS<T>::operator() (const RVec3& r) const
+template <class T> Orbital_RKBS_IBS<T>::Vec     Orbital_RKBS_IBS<T>::operator() (const RVec3& r) const
 {
-    const Large_Orbital_IBS<T>* l1=dynamic_cast<const Large_Orbital_IBS<T>*>(large);
+    const Orbital_RKBL_IBS<T>* l1=dynamic_cast<const Orbital_RKBL_IBS<T>*>(large);
     double mr=norm(r);
     Vec f=-es;
     if (l1->kappa >0) 
@@ -139,7 +139,7 @@ template <class T> Small_Orbital_IBS<T>::Vec     Small_Orbital_IBS<T>::operator(
 
 }
 
-template <class T> Small_Orbital_IBS<T>::Vec3Vec Small_Orbital_IBS<T>::Gradient   (const RVec3& r) const
+template <class T> Orbital_RKBS_IBS<T>::Vec3Vec Orbital_RKBS_IBS<T>::Gradient   (const RVec3& r) const
 {
     assert(false);
     Vec3Vec ret(size());
@@ -157,7 +157,7 @@ template <class T> Small_Orbital_IBS<T>::Vec3Vec Small_Orbital_IBS<T>::Gradient 
     for (auto& ir:ret) ir*=gr(++i);
     return ret;
 }
-template <class T> std::ostream&  Small_Orbital_IBS<T>::Write(std::ostream& os) const
+template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const
 {
     os << "Slater RKB " << this->GetSymmetry();
     if (kappa>0)

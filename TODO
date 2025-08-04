@@ -43,7 +43,7 @@ Priority 1:
                 Orbital_IBS is used directly for basis set construction
         -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
          Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
-    Naming consistency:
+    Done: Naming consistency:
        Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
     -Design flaw
         src/BasisSet/Common/IBS_Common.C Orbital_RKB_IBS_Common incorporates DB, none of the other Common classes do this.
@@ -557,8 +557,8 @@ Priority 3:
     Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
         [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
         [build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
-        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Large_Orbital_IBS<double>::Large_Orbital_IBS' requested here
-        [build]    33 |         , new Large_Orbital_IBS<double>(db,exponents, kappa)
+        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Orbital_RKBL_IBS<double>::Orbital_RKBL_IBS' requested here
+        [build]    33 |         , new Orbital_RKBL_IBS<double>(db,exponents, kappa)
         [build]       |              
     Done: -Get rid of index_t 
     Done: -Find the largest pcm/gcm files,  Why do sbig.

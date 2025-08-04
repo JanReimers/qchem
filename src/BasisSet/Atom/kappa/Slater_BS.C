@@ -64,7 +64,7 @@ private:
 
 };
 
-template <class T> class Large_Orbital_IBS
+template <class T> class Orbital_RKBL_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
     , public     Orbital_RKBL_IBS_Common<T> 
     , public     Orbital_RKBL_IE<T>
@@ -76,7 +76,7 @@ public:
     using AtomIrrepIEClient::es;
     using AtomIrrepIEClient::ns;
     
-    Large_Orbital_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
@@ -88,7 +88,7 @@ public:
     using Orbital_RKBL_IBS_Common<T>::kappa;
 };
 
-template <class T> class Small_Orbital_IBS
+template <class T> class Orbital_RKBS_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
     , public     Orbital_RKBS_IBS_Common<T> 
     , public     Orbital_RKBS_IE<T>
@@ -98,7 +98,7 @@ template <class T> class Small_Orbital_IBS
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
-    Small_Orbital_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
