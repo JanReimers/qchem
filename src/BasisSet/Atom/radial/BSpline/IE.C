@@ -11,7 +11,7 @@ import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Internal.Integrals;
+
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.HF_IBS;

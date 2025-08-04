@@ -3,7 +3,14 @@ module;
 
 export module qchem.DHF_IBS;
 export import qchem.Orbital_1E_IBS;
-import qchem.BasisSet.Internal.Integrals;
+
+//! \brief Interface for rest mass matrix used to shift relativistic energies.
+export template <class T> class Integrals_RestMass 
+{
+public:
+    //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
+    virtual const SMatrix<T>& RestMass() const=0;   
+};
 
 export template <class T> class Orbital_RKBS_IBS;
 //! \brief Interface for L-S cross kinetic matrix used in relativistic calculations.

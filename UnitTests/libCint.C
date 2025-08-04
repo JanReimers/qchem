@@ -6,7 +6,7 @@
 #include "PolarizedGaussian/Block.H"
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 
-import qchem.BasisSet.Internal.Integrals;
+
 import qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.LAParams;
 #include "oml/vector3d.h"

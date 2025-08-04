@@ -3,7 +3,7 @@ module;
 
 export module qchem.HF_IBS;
 export import qchem.Orbital_1E_IBS;
-import qchem.BasisSet.Internal.Integrals;
+
 import qchem.BasisSet.Internal.ERI4;
 import Common.UniqueID;
 

@@ -6,10 +6,20 @@ export module qchem.Irrep_BS;
 export import qchem.Symmetry;
 export import qchem.VectorFunction;
 
-import qchem.BasisSet.Internal.Integrals;
+
 import qchem.LASolver;
 import Common.UniqueID; 
 import qchem.Streamable;
+
+
+//--------------------------------------------------------------------------------
+//
+//! The method of integral evaluation is of course strongly dependant on the
+//! precise details of basis functions or basis set.  
+//! All integral functions except MakeNormalization return normalized integrals.
+//! Interfaces for 1 electron integrals used for all IReep basis sets: Fit,HF,DFT,DHF  
+//! The calls return matrix refrences which implies they are buffered behind the scenes.
+//
 
 //! \brief Interface for overlap integrals.
 export template <class T> class Integrals_Overlap

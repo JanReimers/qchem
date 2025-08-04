@@ -7,7 +7,7 @@ export import qchem.DHF_IBS;
 export import qchem.Types;
 import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
-import qchem.BasisSet.Internal.Integrals;
+
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;

@@ -6,7 +6,7 @@ module;
 export module qchem.BasisSet.Internal.HeapDB;
 import qchem.LAParams;
 import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Internal.Integrals;
+
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.ERI4;
 

@@ -6,7 +6,7 @@ export import qchem.Irrep_BS;
 export import qchem.Mesh;
 export import qchem.ScalarFunction;
 import qchem.LAParams;
-import qchem.BasisSet.Internal.Integrals;
+
 
 export class Fit_IBS;
  //! \brief Interface for integrals required by least squares Fitting Basis Sets.
@@ -15,7 +15,7 @@ export class Fit_IBS;
 {
 public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    using Integrals_Overlap<double>::Overlap;
+    using Integrals_Overlap<double>::Overlap; //We this to implement InvOverlap
     virtual const Vector<double>&  Charge   () const=0;   
     virtual const SMatrix<double>& Repulsion() const=0;
     virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const=0;
