@@ -17,7 +17,7 @@ import qchem.stl_io;
 //  Construction zone
 //
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const TOrbital_IBS<T>* bs, Spin ms)
+TOrbitalsImp(const Orbital_IBS<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsQNs(ms,bs->GetSymmetry())
     , itsD     (bs->GetNumFunctions())

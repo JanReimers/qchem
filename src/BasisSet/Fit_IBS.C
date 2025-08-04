@@ -41,7 +41,7 @@ protected:
 
 
 export class Fit_IBS
-    : public virtual TIrrepBasisSet<double>
+    : public virtual Real_IBS //Real Irrep basis Set
     , public virtual FitIntegrals 
 {
 

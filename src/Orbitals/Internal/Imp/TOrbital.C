@@ -11,7 +11,7 @@ import qchem.Irrep_BS;
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const TOrbital_IBS<T>* bs,const Vec& _C,const Vec& _CPrime,double e, const Orbital_QNs& qns)
+TOrbitalImp(const Orbital_IBS<T>* bs,const Vec& _C,const Vec& _CPrime,double e, const Orbital_QNs& qns)
     : OrbitalImp   (e,qns)
     , itsCoeff     (_C)
     , itsCoeffPrime(_CPrime)

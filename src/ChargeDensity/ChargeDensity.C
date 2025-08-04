@@ -12,14 +12,14 @@ import qchem.ScalarFunction;
 export class Static_CC //Contract client for static Ham terms.
 {
 public:
-    virtual const SMatrix<double>& GetMatrix(const TOrbital_IBS<double>*,const Spin&) const=0;    
+    virtual const SMatrix<double>& GetMatrix(const Orbital_IBS<double>*,const Spin&) const=0;    
 };
 
 export class DM_CD;
 export class Dynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
-    virtual const SMatrix<double>& GetMatrix(const TOrbital_IBS<double>*,const Spin&,const DM_CD*) const=0;    
+    virtual const SMatrix<double>& GetMatrix(const Orbital_IBS<double>*,const Spin&,const DM_CD*) const=0;    
 };
 
 //----------------------------------------------------------------------------------

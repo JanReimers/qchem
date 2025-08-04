@@ -4,6 +4,6 @@ import qchem.Orbitals.Internal.OrbitalsImp;
 
 export namespace OrbitalsF
 {
-    TOrbitals<double>* Factory(const TOrbital_IBS<double>* bs, Spin ms);
+    TOrbitals<double>* Factory(const Orbital_IBS<double>* bs, Spin ms);
 }
 

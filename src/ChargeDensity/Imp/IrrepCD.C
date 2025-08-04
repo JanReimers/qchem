@@ -24,7 +24,7 @@ public:
     typedef SMatrix<T> DenSMat; //Type for the density matrix.
     
     IrrepCD();
-    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
+    IrrepCD(const DenSMat&,const Orbital_IBS<T>*, Irrep_QNs);
 
     virtual SMatrix<T>   GetRepulsion(const TOrbital_HF_IBS<double>*) const;
     virtual SMatrix<T>   GetExchange (const TOrbital_HF_IBS<double>*) const;
@@ -49,7 +49,7 @@ private:
     RVec ZeroV(size_t N) const;
 
     DenSMat                itsDensityMatrix;
-    const TOrbital_IBS<T>* itsBasisSet;
+    const Orbital_IBS<T>* itsBasisSet;
     Spin                   itsSpin;
     Irrep_QNs              itsIrrep;
 };

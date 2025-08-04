@@ -27,11 +27,11 @@ import Common.UniqueIDImp;
 //
 
 export template <class T> class TIBS_Common1
-    : public virtual TIrrepBasisSet<T>
+    : public virtual IrrepBasisSet<T>
     , public virtual IrrepIEClient
     , private UniqueIDImp
 {
-    using sym_t=TIrrepBasisSet<T>::sym_t;
+    using sym_t=IrrepBasisSet<T>::sym_t;
 public:
     TIBS_Common1(Symmetry* sym) : itsSymmetry(sym) 
     {
@@ -52,7 +52,7 @@ private:
 };
 
 export template <class T> class Orbital_IBS_Common1
-    : public virtual TOrbital_IBS<T>
+    : public virtual Orbital_IBS<T>
 {
     public:
     Orbital_IBS_Common1();

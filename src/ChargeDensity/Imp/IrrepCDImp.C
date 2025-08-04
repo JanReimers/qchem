@@ -27,7 +27,7 @@ template <class T> IrrepCD<T>::IrrepCD()
 
 template <class T> IrrepCD<T>::IrrepCD
     (const DenSMat& D,
-    const TOrbital_IBS<T>* theBasisSet,
+    const Orbital_IBS<T>* theBasisSet,
     Irrep_QNs qns)
     : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)

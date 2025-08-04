@@ -24,7 +24,7 @@ CompositeWF::CompositeWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFA
 void CompositeWF::MakeIrrepWFs(Spin s)
 {
 
-    for (auto b:itsBS->Iterate<TOrbital_IBS<double> >())
+    for (auto b:itsBS->Iterate<Orbital_IBS<double> >())
     {
         auto las=b->CreateSolver(); //IrrepWF will own delete this thing.
         Irrep_QNs qns(s,b->GetSymmetry());

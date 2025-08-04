@@ -28,7 +28,7 @@ public:
 //
     virtual std::ostream&  Write(std::ostream&    ) const;
 protected:
-    typedef TOrbital_IBS<double> bs_t; 
+    typedef Orbital_IBS<double> bs_t; 
     virtual void Insert(bs_t*);
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}

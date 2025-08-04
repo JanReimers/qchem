@@ -22,7 +22,7 @@ export template <class T> class TOrbitalsImp
     typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
     typedef typename TOrbitals<T>::ds_t ds_t; //{double,SMat}}
 public:
-    TOrbitalsImp(const TOrbital_IBS<T>*, Spin s);
+    TOrbitalsImp(const Orbital_IBS<T>*, Spin s);
     virtual ~TOrbitalsImp();
 
 
@@ -49,7 +49,7 @@ public:
 private:
     TOrbitalsImp(const TOrbitalsImp&);
 
-    const TOrbital_IBS<T>*  itsBasisSet;
+    const Orbital_IBS<T>*  itsBasisSet;
     ov_t                    itsOrbitals;
     Irrep_QNs               itsQNs;
     SMatrix<T>                    itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)

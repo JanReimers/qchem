@@ -22,7 +22,7 @@ import oml;
 //  The Symmetry could be spherical (l,m QNs) for atoms, point group for molecules, or
 //  transational (with wave vector k) for solids.
 //
-export template <class T> class TIrrepBasisSet
+export template <class T> class IrrepBasisSet
     : public virtual UniqueID
     , public virtual Streamable
     , public virtual VectorFunction<T>
@@ -35,15 +35,15 @@ public:
     size_t GetVectorSize() const {return GetNumFunctions();}
 };
 
-export typedef TIrrepBasisSet<double>    Real_IBS;
-export typedef TIrrepBasisSet<dcmplx> Complex_IBS;
+export typedef IrrepBasisSet<double>    Real_IBS;
+export typedef IrrepBasisSet<dcmplx> Complex_IBS;
 
 //
 // Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
 // Mix-in the integral interfaces required for an orbital basis. 
 //
-export template <class T> class TOrbital_IBS
-    : public virtual TIrrepBasisSet<T>
+export template <class T> class Orbital_IBS
+    : public virtual IrrepBasisSet<T>
     , public virtual Integrals_Overlap<T> 
     , public virtual Integrals_Kinetic<T> 
     , public virtual Integrals_Nuclear<T> 
@@ -53,5 +53,5 @@ public:
     virtual LASolver<T>* CreateSolver() const=0;
 };
 
-export typedef TOrbital_IBS<double>    Real_OIBS;
-export typedef TOrbital_IBS<dcmplx> Complex_OIBS;
+export typedef Orbital_IBS<double>    Real_OIBS;
+export typedef Orbital_IBS<dcmplx> Complex_OIBS;

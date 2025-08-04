@@ -46,7 +46,7 @@ public:
 
  
 export template <class T> class Orbital_RKB_IBS
-    : public virtual TIrrepBasisSet<T>
+    : public virtual IrrepBasisSet<T>
     , public virtual Integrals_RKB<T> 
 {
 public:
@@ -54,7 +54,7 @@ public:
 };
 
 export template <class T> class Orbital_RKBL_IBS
-    : public virtual TIrrepBasisSet<T>
+    : public virtual IrrepBasisSet<T>
     , public virtual Integrals_RKBL<T> //One electron integrals used for everything
 {
 public:
@@ -62,7 +62,7 @@ public:
 };
 
 export template <class T> class Orbital_RKBS_IBS
-    : public virtual TIrrepBasisSet<T>
+    : public virtual IrrepBasisSet<T>
     , public virtual Integrals_RKBS<T> //One electron integrals used for everything
 {
 public:

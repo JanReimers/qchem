@@ -40,7 +40,7 @@ export template <class T> class TOrbitalImp
     typedef Vector<Vector3D<T>> Vec3Vec;
 public:
     TOrbitalImp() {};
-    TOrbitalImp(const TOrbital_IBS<T>*,const Vec& C, const Vec& CPrime, double e, const Orbital_QNs&);
+    TOrbitalImp(const Orbital_IBS<T>*,const Vec& C, const Vec& CPrime, double e, const Orbital_QNs&);
 
     virtual void   AddDensityMatrix(SMatrix<T>& D, SMatrix<T>& DPrime) const;
 
@@ -52,6 +52,6 @@ public:
 private:
     Vec                    itsCoeff;  //C=V*CPrime
     Vec                    itsCoeffPrime; //Un transdormed coefficients.
-    const TOrbital_IBS<T>* itsBasisSet;
+    const Orbital_IBS<T>* itsBasisSet;
 };
 

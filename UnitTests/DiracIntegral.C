@@ -111,8 +111,8 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        const TIrrepBasisSet<double>* l=GetLarge(oi);
-        const TIrrepBasisSet<double>* s=GetSmall(oi);
+        const IrrepBasisSet<double>* l=GetLarge(oi);
+        const IrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
         SMatrix<double> Snum=merge_diag(SLnum,SSnum);
@@ -130,8 +130,8 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
         SMatrix<double> S=oi->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        const TIrrepBasisSet<double>* l=GetLarge(oi);
-        const TIrrepBasisSet<double>* s=GetSmall(oi);
+        const IrrepBasisSet<double>* l=GetLarge(oi);
+        const IrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
 //        cout << SLnum << SSnum << endl;
@@ -150,8 +150,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     {
         SMatrix<double> Ven=oi->Nuclear(cl);
 
-        const TIrrepBasisSet<double>* l=GetLarge(oi);
-        const TIrrepBasisSet<double>* s=GetSmall(oi);
+        const IrrepBasisSet<double>* l=GetLarge(oi);
+        const IrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
         SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
@@ -170,8 +170,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     {
         SMatrix<double> Ven=oi->Nuclear(cl);
 
-        const TIrrepBasisSet<double>* l=GetLarge(oi);
-        const TIrrepBasisSet<double>* s=GetSmall(oi);
+        const IrrepBasisSet<double>* l=GetLarge(oi);
+        const IrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> VenLnum = -Z*mintegrator->Inv_r1(*l);
         SMatrix<double> VenSnum = -Z*mintegrator->Inv_r1(*s);
         SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
@@ -191,8 +191,8 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
         SMatrix<double> K=oi->Kinetic();
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-        const TIrrepBasisSet<double>* l=GetLarge(oi);
-        const TIrrepBasisSet<double>* s=GetSmall(oi);
+        const IrrepBasisSet<double>* l=GetLarge(oi);
+        const IrrepBasisSet<double>* s=GetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMatrix<double> Knum=merge_off_diag(KnumL);
         // cout << "K=" << K << endl << "Knum=" << Knum << endl;
@@ -207,8 +207,8 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
         SMatrix<double> K=oi->Kinetic();
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-        const TIrrepBasisSet<double>* l=GetLarge(oi);
-        const TIrrepBasisSet<double>* s=GetSmall(oi);
+        const IrrepBasisSet<double>* l=GetLarge(oi);
+        const IrrepBasisSet<double>* s=GetSmall(oi);
         Matrix<double> KnumL = mintegrator->Grada_b(*l,*s);
         SMatrix<double> Knum=merge_off_diag(KnumL);
         //cout << "K=" << K << endl << "Knum=" << Knum << endl;

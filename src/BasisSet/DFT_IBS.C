@@ -21,7 +21,7 @@ public:
 
 
 export template <class T> class TOrbital_DFT_IBS
-    : public virtual TOrbital_IBS<T>
+    : public virtual Orbital_IBS<T>
     , public virtual Integrals_DFT<T> //DFT integrals
     
 {

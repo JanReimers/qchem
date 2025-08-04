@@ -12,7 +12,7 @@ import Common.UniqueID;
 export template <class T> class Integrals_HF 
 {
 public:
-    typedef TOrbital_IBS<T> obs_t;
+    typedef Orbital_IBS<T> obs_t;
     virtual ERI4 Direct  (const obs_t& c) const=0; //! <ab|1/r_12|cd>, this=a.
     virtual ERI4 Exchange(const obs_t& b) const=0; //! <ac|1/r_12|bd>, this=a.
 
@@ -31,7 +31,7 @@ public:
 
 
 export template <class T> class TOrbital_HF_IBS
-    : public virtual TOrbital_IBS<T>
+    : public virtual Orbital_IBS<T>
     , public virtual Integrals_HF<T> //Two electron integrals used for HF
 {
 protected:

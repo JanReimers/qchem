@@ -11,7 +11,7 @@ import qchem.Orbitals.Factory;
 using std::cout;
 using std::endl;
 
-IrrepWF::IrrepWF(const TOrbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (las)
     , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))

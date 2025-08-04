@@ -6,7 +6,7 @@ import qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.ChargeDensity.Imp.FittedCD;
 import qchem.ChargeDensity.Imp.PolarizedCD;
 
-DM_CD*     IrrepCD_Factory(const Matrix<double>& dm,const TOrbital_IBS<double>* bs, Irrep_QNs qns)
+DM_CD*     IrrepCD_Factory(const Matrix<double>& dm,const Orbital_IBS<double>* bs, Irrep_QNs qns)
 {
     return new IrrepCD<double>(dm,bs,qns);
 }
