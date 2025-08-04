@@ -24,7 +24,7 @@ public:
     // Pure numerial versions
     virtual  const Vector<double>& Norm   (const Mesh*        ) const=0; //Numerical .
     virtual  const Vector<double>& Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  const  Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
+    virtual  const Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
     //
     //  These are used for charge and Vxc fitting.  They change with iterations
     //  So they MUST not be cached.

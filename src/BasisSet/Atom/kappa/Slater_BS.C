@@ -99,12 +99,13 @@ template <class T> class Small_Orbital_IBS
     using Orbital_RKBS_IBS_Common1<T>::large;
 public:
     Small_Orbital_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
-    virtual void InsertBasisFunctions(const Orbital_RKBL_IBS<T>* l);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
     virtual std::ostream&  Write(std::ostream&    ) const;
+
+    virtual const SMatrix<T>& Overlap() const {return DB_Kinetic<T>::Kinetic();}
 
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;

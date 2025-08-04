@@ -2,7 +2,7 @@
 module;
 
 export module qchem.DHF_IBS;
-export import qchem.Irrep_BS;
+export import qchem.Orbital_1E_IBS;
 import qchem.BasisSet.Internal.Integrals;
 
 export template <class T> class Orbital_RKBS_IBS;

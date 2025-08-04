@@ -18,6 +18,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   HF_IBS.C
   DFT_IBS.C
   DHF_IBS.C
+  Orbital_1E_IBS.C
   Internal/Integrals.C
   Internal/ERI4.C
   Internal/Cache4.C

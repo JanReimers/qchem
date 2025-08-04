@@ -1,20 +1,23 @@
 // File: Irrep_BS.C  Interface for an Irrep Basis Set
 module;
-#include <vector>
 #include <memory>
 
 export module qchem.Irrep_BS;
 export import qchem.Symmetry;
-export import qchem.Symmetry.ElectronConfiguration;
 export import qchem.VectorFunction;
 
 import qchem.BasisSet.Internal.Integrals;
 import qchem.LASolver;
 import Common.UniqueID; 
-import Common.Iterators;
 import qchem.Streamable;
-import oml;
 
+//! \brief Interface for overlap integrals.
+export template <class T> class Integrals_Overlap
+{
+public:
+    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+    virtual const SMatrix<T>& Overlap() const=0;
+};
 //----------------------------------------------------------------------------
 //
 //  Interface for an irreducible representation basis sets.  H is block diagonal with one
@@ -26,6 +29,7 @@ export template <class T> class IrrepBasisSet
     : public virtual UniqueID
     , public virtual Streamable
     , public virtual VectorFunction<T>
+    , public virtual Integrals_Overlap<T>
 {
 public:
     typedef std::shared_ptr<const Symmetry> sym_t;
@@ -38,20 +42,3 @@ public:
 export typedef IrrepBasisSet<double>    Real_IBS;
 export typedef IrrepBasisSet<dcmplx> Complex_IBS;
 
-//
-// Define an orbital irrep basis set which supports integrals for SCF orbital calculations.
-// Mix-in the integral interfaces required for an orbital basis. 
-//
-export template <class T> class Orbital_IBS
-    : public virtual IrrepBasisSet<T>
-    , public virtual Integrals_Overlap<T> 
-    , public virtual Integrals_Kinetic<T> 
-    , public virtual Integrals_Nuclear<T> 
-{
-public:    
-    virtual void         Set(const LAParams&)=0;
-    virtual LASolver<T>* CreateSolver() const=0;
-};
-
-export typedef Orbital_IBS<double>    Real_OIBS;
-export typedef Orbital_IBS<dcmplx> Complex_OIBS;

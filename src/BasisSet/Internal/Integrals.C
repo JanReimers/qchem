@@ -20,13 +20,7 @@ export import oml;
 //! The calls return matrix refrences which implies they are buffered behind the scenes.
 //
 
-//! \brief Interface for overlap integrals.
-export template <class T> class Integrals_Overlap
-{
-public:
-    //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-    virtual const SMatrix<T>& Overlap() const=0;
-};
+
 //! \brief Interface for Laplacian integrals using in kinetic energy calculations.
 export template <class T> class Integrals_Kinetic
 {

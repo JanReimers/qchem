@@ -118,11 +118,6 @@ template <class T> Small_Orbital_IBS<T>::Small_Orbital_IBS
     Init(exponents,Norms(exponents,l),l);
 };
 
-template <class T> void Small_Orbital_IBS<T>::InsertBasisFunctions(const Orbital_RKBL_IBS<T>* lbs)
-{
-   
-}
-
 template <class T> Vector<double> Small_Orbital_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());

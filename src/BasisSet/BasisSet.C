@@ -4,7 +4,7 @@ module;
 #include <memory>
 
 export module qchem.BasisSet;
-export import qchem.Irrep_BS;
+export import qchem.Orbital_1E_IBS;
 export import qchem.Fit_IBS;
 export import qchem.Cluster;
 export import qchem.Symmetry;

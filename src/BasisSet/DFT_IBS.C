@@ -3,7 +3,7 @@ module;
 #include <vector>
 export module qchem.DFT_IBS;
 export import qchem.BasisSet;
-export import qchem.Irrep_BS;
+export import qchem.Orbital_1E_IBS;
 import qchem.BasisSet.Internal.Integrals;
 
 export template <class T> using ERI3=std::vector<SMatrix<T>>;
