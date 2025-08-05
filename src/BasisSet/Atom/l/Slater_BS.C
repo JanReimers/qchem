@@ -8,6 +8,7 @@ import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 import qchem.BasisSet.Atom.Orbital_1E_IBS;
 import qchem.BasisSet.Atom.Orbital_DFT_IBS;
+import qchem.BasisSet.Atom.Fit_IBS;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Orbital_HF_IBS;
@@ -20,19 +21,7 @@ export namespace Atoml
 namespace Slater
 {
 
-class Fit_IE
-: public AtomIE_Fit
-, public AtomIE_Overlap<double>
-, public ::Slater::IE_Primatives
-
-{
-protected:
-    Fit_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) 
-    : AtomIE_Fit(db,pie)
-    , AtomIE_Overlap<double>(db,pie) {};
-};
-
-    // Irrep basis set
+// Irrep basis set
 class Orbital_IBS
     : public virtual Orbital_HF_IBS<double>
     , public         ::Slater::IrrepBasisSet
@@ -56,7 +45,7 @@ class Fit_IBS
 , public virtual FitIntegrals
 , public ::Slater::IrrepBasisSet
 , public Fit_IBS_Common
-, public Fit_IE
+, public Atom::Fit_IBS
 
 {
 public:

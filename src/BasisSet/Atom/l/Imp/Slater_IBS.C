@@ -59,7 +59,7 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,con
 //
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L)
     : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , Fit_IE(db,pie)
+    , Atom::Fit_IBS(db,pie)
     {
     };
 

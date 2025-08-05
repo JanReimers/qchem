@@ -1,4 +1,4 @@
-// File: Fit_IBS.H  Interface for a fitting Basis Set.
+// File: BasisSet/Fit_IBS.C  Interface for a fitting Basis Set.
 module;
 
 export module qchem.Fit_IBS;

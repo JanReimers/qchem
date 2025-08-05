@@ -1,6 +1,4 @@
 // File: BasisSet/Atom/Orbital_1E_IBS.C Orbital that knows enough integrals for a 1 electron atom calculation.
-
-
 export module qchem.BasisSet.Atom.Orbital_1E_IBS;
 import qchem.Orbital_1E_IBS;
 import qchem.BasisSet.Atom.IE;
