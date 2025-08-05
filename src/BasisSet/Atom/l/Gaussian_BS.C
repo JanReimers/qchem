@@ -44,7 +44,7 @@ class Fit_IE
 {
 protected:
     Fit_IE(const DB_cache<double>* db,const IE_Primatives* pie) 
-    : AtomIE_Fit(db)
+    : AtomIE_Fit(db,pie)
     , AtomIE_Overlap<double>(db,pie) {};
 };
 

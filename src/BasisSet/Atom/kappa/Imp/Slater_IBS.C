@@ -122,7 +122,8 @@ template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double
 {
     Vector<double> ns(es.size());
     int i=0;
-    for (auto e:es) ns(++i)=1.0/sqrt(::Slater::IE_Primatives::Grad2(e,e,l,l));
+    ::Slater::IE_Primatives pie;
+    for (auto e:es) ns(++i)=1.0/sqrt(pie.Grad2(e,e,l,l));
     return ns;
 }
 template <class T> Orbital_RKBS_IBS<T>::Vec     Orbital_RKBS_IBS<T>::operator() (const RVec3& r) const

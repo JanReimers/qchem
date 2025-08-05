@@ -29,51 +29,6 @@ public:
     virtual double Charge   (double ea, size_t l) const=0;
 };
 
-// class AtomIE
-// : public DB_Overlap<T>
-// , public DB_Kinetic<T>
-// , public DB_Nuclear<T>
-// , public DB_XKinetic<T>
-
-// {
-// protected:
-//     using Primative_Overlap<T>::Overlap;
-//     virtual SMatrix<T> MakeOverlap() const;
-//     AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
-// };
-
-
-//  Generic
-// template <class T> class Primative_Overlap
-// {
-// public:
-//     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
-// };
-// template <class T> class Primative_Grad2
-// {
-// public:
-//     virtual double Grad2(double ea ,double eb,size_t la, size_t lb) const=0;
-// };
-// template <class T> class Primative_Inv_r1
-// {
-// public:
-//     virtual double Inv_r1(double ea ,double eb,size_t l_total) const=0;
-// };
-// template <class T> class Primative_Inv_r2
-// {
-// public:
-//     virtual double Inv_r2(double ea ,double eb,size_t l_total) const=0;
-// };
-template <class T> class Primative_Repulsion
-{
-public:
-    virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
-};
-template <class T> class Primative_Charge
-{
-public:
-    virtual double Charge   (double ea, size_t l) const=0;
-};
 
 template <class T> class AtomIE_Overlap
 : public DB_Overlap<T>
@@ -180,22 +135,20 @@ protected:
 };
 // Fit
 class AtomIE_Fit 
-: public virtual Primative_Repulsion<double>
-, public virtual Primative_Charge<double>
-, public DB_Fit
+: public DB_Fit
 {
     protected:
-    AtomIE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
+    AtomIE_Fit(const DB_cache<double>* db,const IE_Primatives* _pie) : DB_Fit(db), pie(_pie) {};
 
     virtual  Vector<double> MakeCharge() const;
     virtual SMatrix<double> MakeRepulsion() const;
     virtual  Matrix<double> MakeRepulsion(const Fit_IBS&) const;
 private:
-    // Derived classes must provide the actual integral calculations.
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
-    using Primative_Repulsion<double>::Repulsion;
-    using Primative_Charge   <double>::Charge;
+private:
+    const IE_Primatives* pie;
+
 };
 
 } // export block

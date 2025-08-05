@@ -27,7 +27,7 @@ public:
 // Mix-in the integral interfaces required for an orbital basis. 
 //
 export template <class T> class Orbital_IBS
-    : public virtual IrrepBasisSet<T>
+    : public virtual IrrepBasisSet<T> //brings in Integrals_Overlap<T>
     , public virtual Integrals_Kinetic<T> 
     , public virtual Integrals_Nuclear<T> 
 {

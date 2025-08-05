@@ -10,7 +10,7 @@ Vector<double>  AtomIE_Fit::MakeCharge() const
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //Cross cast
     assert(a);
     Vector<double>  c(a->size());
-    for (auto i:a->es.indices())  c(i)=Charge(a->es(i),a->l)*a->ns(i);
+    for (auto i:a->es.indices())  c(i)=pie->Charge(a->es(i),a->l)*a->ns(i);
     return c;
 }
 SMatrix<double> AtomIE_Fit::MakeRepulsion() const
@@ -22,7 +22,7 @@ SMatrix<double> AtomIE_Fit::MakeRepulsion() const
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Repulsion(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
+            H(i,j)= pie->Repulsion(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -35,7 +35,7 @@ Matrix<double>   AtomIE_Fit::MakeRepulsion(const Fit_IBS& _b) const
     Matrix<double> s(Na,Nb);
     for (auto i:s.rows())
         for (auto j:s.cols())
-            s(i,j)=this->Repulsion(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*a->ns(j);
+            s(i,j)=pie->Repulsion(a->es(i),b->es(j),a->l,b->l)*a->ns(i)*a->ns(j);
 
     return s;
 }
