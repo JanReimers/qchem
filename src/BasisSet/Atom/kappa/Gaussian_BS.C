@@ -13,7 +13,12 @@ import qchem.BasisSet.Atom.IE;
 export namespace Atom_kappa
 {
 namespace Gaussian
+{ 
+
+class IE_Primatives_sgkappa : public ::Gaussian::IE_Primatives 
 {
+    virtual double Inv_r1   (double ea, double eb,size_t l_total) const;
+};
 
 //
 //  Derived from the LargeBF P(r)=r^l*exp(-e*r^2) as:

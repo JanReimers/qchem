@@ -32,7 +32,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
         , new Omega_k_Sym(kappa)
         , kappa
         , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,pie,exponents,kappa)
+        , new Orbital_RKBS_IBS<double>(db,new IE_Primatives_slkappa,exponents,kappa) //Known memory leak, need redesign
         )
 {
     
@@ -107,7 +107,7 @@ template <class T> std::ostream&  Orbital_RKBL_IBS<T>::Write(std::ostream& os) c
 //  Small sector
 //
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
-    (const DB_cache<double>* db,const IE_Primatives* pie,
+    (const DB_cache<double>* db,const ::IE_Primatives* pie,
         const Vector<T>& exponents
         , int kappa)
     : Orbital_RKBS_IBS_Common<T>(new Omega_k_Sym(-kappa),kappa)

@@ -2,6 +2,7 @@
 module;
 #include <cmath>
 #include <cassert>
+#include <iostream>
 module qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;

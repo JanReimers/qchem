@@ -29,7 +29,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
         , new Omega_k_Sym(kappa)
         , kappa
         , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,pie,exponents,kappa)
+        , new Orbital_RKBS_IBS<double>(db,new IE_Primatives_sgkappa,exponents,kappa) //Known memory leak, need redesign
         )
 {
     

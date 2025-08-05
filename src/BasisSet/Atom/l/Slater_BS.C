@@ -38,7 +38,7 @@ protected:
 class Fit_IE
 : public AtomIE_Fit
 , public AtomIE_Overlap<double>
-, public virtual ::Slater::IE_Primatives
+, public ::Slater::IE_Primatives
 
 {
 protected:

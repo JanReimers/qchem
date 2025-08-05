@@ -423,6 +423,11 @@ namespace Gaussian
 // }
 // 
 
+double IE_Primatives_sgkappa::Inv_r1(double ea, double eb,size_t l_total) const
+{
+    return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
+
+}
 template <class T> double Orbital_RKBS_IE<T>::Inv_r1(double ea , double eb,size_t l_total) const
 {
     assert(l_total==0);

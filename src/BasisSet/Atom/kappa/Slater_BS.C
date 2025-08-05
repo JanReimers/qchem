@@ -17,6 +17,10 @@ export namespace Atom_kappa
 namespace Slater
 {
 
+class IE_Primatives_slkappa : public ::Slater::IE_Primatives 
+{
+    virtual double Inv_r1   (double ea, double eb,size_t l_total) const;
+};
 
 //
 //  Derived from the LargeBF P(r)=r^l*exp(-e*r) as:
@@ -30,7 +34,7 @@ namespace Slater
 // Integral engine
 template <class T> class Orbital_RKBL_IE
     : public     AtomIE_RKBL<T>
-    , public virtual ::Slater::IE_Primatives
+    , public ::Slater::IE_Primatives
 {
 protected:
     Orbital_RKBL_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) : AtomIE_RKBL<T>(db,pie) {};
@@ -38,7 +42,7 @@ protected:
 
 template <class T> class Orbital_RKBS_IE
     : public     AtomIE_RKBS<T>
-    , public virtual ::Slater::IE_Primatives
+    , public  ::Slater::IE_Primatives
 {
 protected:
     Orbital_RKBS_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) : AtomIE_RKBS<T>(db,pie) {};
@@ -55,7 +59,7 @@ class Orbital_RKB_IBS
     , public         Orbital_RKB_IBS_Common<double> 
 {
 public:
-    Orbital_RKB_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
 
@@ -76,7 +80,7 @@ public:
     using AtomIrrepIEClient::es;
     using AtomIrrepIEClient::ns;
     
-    Orbital_RKBL_IBS(const DB_cache<T>*,const IE_Primatives* pie, const Vector<T>& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const ::IE_Primatives* pie, const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
@@ -98,7 +102,7 @@ template <class T> class Orbital_RKBS_IBS
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*, const IE_Primatives* pie,const Vector<T>& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*, const ::IE_Primatives* pie,const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;

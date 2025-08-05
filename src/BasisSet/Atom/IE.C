@@ -94,13 +94,13 @@ private:
     const IE_Primatives* pie;
 };
 template <class T> class AtomIE_Nuclear
-: public virtual Primative_Inv_r1<T>
-, public DB_Nuclear<T>
+: public DB_Nuclear<T>
 {
 protected:
-    using Primative_Inv_r1<T>::Inv_r1;
     virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
-    AtomIE_Nuclear(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_Nuclear<T>(db) {};
+    AtomIE_Nuclear(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_Nuclear<T>(db), pie(_pie) {};
+private:
+    const IE_Primatives* pie;
 };
 template <class T> class AtomIE_XKinetic
 : public virtual Primative_Grad2<T>

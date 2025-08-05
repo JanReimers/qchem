@@ -2,6 +2,7 @@
 module;
 #include <memory>
 #include <cmath>
+#include <iostream>
 module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 
@@ -10,6 +11,11 @@ namespace Atom_kappa
 namespace Slater
 {
    
+double IE_Primatives_slkappa::Inv_r1(double ea, double eb,size_t l_total) const
+{
+    return ea*eb*::Slater::Integral(ea+eb,l_total-1);
+}
+
 template <class T> double Orbital_RKBS_IE<T>::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return ea*eb*::Slater::Integral(ea+eb,l_total-1);
