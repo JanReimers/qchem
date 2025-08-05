@@ -6,7 +6,8 @@ module;
 export module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
-
+import qchem.BasisSet.Atom.Orbital_1E_IBS;
+import qchem.BasisSet.Atom.Orbital_DFT_IBS;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Orbital_HF_IBS;
@@ -19,22 +20,6 @@ export namespace Atoml
 namespace Slater
 {
 
-    // Integral engine
-class IE_Common
-    : public virtual ::Slater::IE_Primatives
-    , public AtomIE_Overlap<double>
-    , public AtomIE_Kinetic<double>
-    , public AtomIE_Nuclear<double>
-{
-public:
-protected:
-    IE_Common(const DB_cache<double>* db,const IE_Primatives* pie) 
-    : AtomIE_Overlap<double>(db,pie)
-    , AtomIE_Kinetic<double>(db,pie)
-    , AtomIE_Nuclear<double>(db,pie) {};
-};
-
-
 class Fit_IE
 : public AtomIE_Fit
 , public AtomIE_Overlap<double>
@@ -42,7 +27,7 @@ class Fit_IE
 
 {
 protected:
-    Fit_IE(const DB_cache<double>* db,const IE_Primatives* pie) 
+    Fit_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) 
     : AtomIE_Fit(db,pie)
     , AtomIE_Overlap<double>(db,pie) {};
 };
@@ -54,8 +39,8 @@ class Orbital_IBS
     , public         Orbital_IBS_Common<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
-    , public         IE_Common
-    , public AtomIE_DFT<double>
+    , public Atom::Orbital_IBS<double>
+    , public Atom::Orbital_DFT_IBS<double>
 {
 public:
     Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L);
@@ -75,7 +60,7 @@ class Fit_IBS
 
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L);
    
 };
 

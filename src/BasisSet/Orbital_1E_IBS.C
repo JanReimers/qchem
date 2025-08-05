@@ -1,3 +1,4 @@
+// File: BasisSet/Orbital_1E_IBS.C Orbital that knows enough integrals for a 1 electron calculation.
 module;
 
 export module qchem.Orbital_1E_IBS;

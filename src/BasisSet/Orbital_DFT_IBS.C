@@ -1,4 +1,4 @@
-// File: DFT_IBS.H  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
+// File: BasisSet/Orbital_DFT_IBS.C  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
 module;
 #include <vector>
 export module qchem.Orbital_DFT_IBS;
