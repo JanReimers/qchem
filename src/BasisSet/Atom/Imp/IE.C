@@ -15,7 +15,7 @@ template <class T> SMatrix<T> AtomIE_Overlap <T>::MakeOverlap() const
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Overlap(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
+            H(i,j)= pie->Overlap(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -28,7 +28,7 @@ template <class T> SMatrix<T> AtomIE_Kinetic <T>::MakeKinetic() const
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= (Grad2(a->es(i),a->es(j),l,l) + l*(l+1)*Inv_r2(a->es(i),a->es(j),2*l))*a->ns(i)*a->ns(j);
+            H(i,j)= (pie->Grad2(a->es(i),a->es(j),l,l) + l*(l+1)*pie->Inv_r2(a->es(i),a->es(j),2*l))*a->ns(i)*a->ns(j);
 
     return H;
 }

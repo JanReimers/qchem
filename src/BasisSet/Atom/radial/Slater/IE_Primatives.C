@@ -7,7 +7,8 @@ export import qchem.Types;
 export namespace Slater
 {
     class IE_Primatives 
-    : public virtual Primative_Overlap  <double>
+    : public virtual ::IE_Primatives
+    , public virtual Primative_Overlap  <double>
     , public virtual Primative_Grad2    <double>
     , public virtual Primative_Inv_r1   <double>
     , public virtual Primative_Inv_r2   <double>

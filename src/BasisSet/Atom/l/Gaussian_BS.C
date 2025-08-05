@@ -28,11 +28,10 @@ class Orbital_IE
 , public AtomIE_DFT<double>
 {
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) 
-        : AtomIE_Overlap<double>(db)
-        , AtomIE_Kinetic<double>(db)
-        , AtomIE_Nuclear<double>(db)
-        // , DB_2E<double>(db)
+    Orbital_IE(const DB_BS_2E<double>* db,const IE_Primatives* pie) 
+        : AtomIE_Overlap<double>(db,pie)
+        , AtomIE_Kinetic<double>(db,pie)
+        , AtomIE_Nuclear<double>(db,pie)
         , AtomIE_DFT<double>(db) {};
 
 };
@@ -43,7 +42,9 @@ class Fit_IE
 , public ::Gaussian::IE_Primatives
 {
 protected:
-    Fit_IE(const DB_cache<double>* db) : AtomIE_Fit(db), AtomIE_Overlap<double>(db) {};
+    Fit_IE(const DB_cache<double>* db,const IE_Primatives* pie) 
+    : AtomIE_Fit(db)
+    , AtomIE_Overlap<double>(db,pie) {};
 };
 
     // Irrep basis set
@@ -56,8 +57,8 @@ class Orbital_IBS
     , public         Orbital_IE
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 };
@@ -69,14 +70,15 @@ class Fit_IBS
 , public Atoml::Gaussian::Fit_IE
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L);
    
 };
 
     // Full basis set.
 
 class BasisSet 
-: public ::Gaussian::BS_Common
+    : public ::Gaussian::BS_Common
+    , public ::Gaussian::IE_Primatives
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);

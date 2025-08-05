@@ -18,6 +18,31 @@ import qchem.Orbital_DFT_IBS;
 export
 {
 
+class IE_Primatives
+{
+public:
+    virtual double Overlap  (double ea ,double eb,size_t l_total) const=0;
+    virtual double Grad2    (double ea ,double eb,size_t la, size_t lb) const=0;
+    virtual double Inv_r1   (double ea ,double eb,size_t l_total) const=0;
+    virtual double Inv_r2   (double ea ,double eb,size_t l_total) const=0;
+    virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
+    virtual double Charge   (double ea, size_t l) const=0;
+};
+
+// class AtomIE
+// : public DB_Overlap<T>
+// , public DB_Kinetic<T>
+// , public DB_Nuclear<T>
+// , public DB_XKinetic<T>
+
+// {
+// protected:
+//     using Primative_Overlap<T>::Overlap;
+//     virtual SMatrix<T> MakeOverlap() const;
+//     AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
+// };
+
+
 //  Generic
 template <class T> class Primative_Overlap
 {
@@ -51,24 +76,22 @@ public:
 };
 
 template <class T> class AtomIE_Overlap
-: public virtual Primative_Overlap<T>
-, public DB_Overlap<T>
+: public DB_Overlap<T>
 {
 protected:
-    using Primative_Overlap<T>::Overlap;
+    AtomIE_Overlap(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_Overlap<T>(db), pie(_pie) {};
     virtual SMatrix<T> MakeOverlap() const;
-    AtomIE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
+private:
+    const IE_Primatives* pie;
 };
 template <class T> class AtomIE_Kinetic
-: public virtual Primative_Grad2<T>
-, public virtual Primative_Inv_r2<T> //for centrifugal term.
-, public DB_Kinetic<T>
+: public DB_Kinetic<T>
 {
 protected:
-    using Primative_Grad2 <T>::Grad2;
-    using Primative_Inv_r2<T>::Inv_r2;
+    AtomIE_Kinetic(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_Kinetic<T>(db), pie(_pie) {};
     virtual SMatrix<T> MakeKinetic() const;
-    AtomIE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+private:
+    const IE_Primatives* pie;
 };
 template <class T> class AtomIE_Nuclear
 : public virtual Primative_Inv_r1<T>
@@ -77,7 +100,7 @@ template <class T> class AtomIE_Nuclear
 protected:
     using Primative_Inv_r1<T>::Inv_r1;
     virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
-    AtomIE_Nuclear(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
+    AtomIE_Nuclear(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_Nuclear<T>(db) {};
 };
 template <class T> class AtomIE_XKinetic
 : public virtual Primative_Grad2<T>
@@ -143,7 +166,11 @@ template <class T> class AtomIE_RKBL
     , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBL(const DB_cache<T>* db) : AtomIE_Overlap<T>(db),AtomIE_XKinetic<T>(db),AtomIE_Nuclear<T>(db) {};
+    AtomIE_RKBL(const DB_cache<T>* db,const IE_Primatives* pie) 
+    : AtomIE_Overlap<T>(db,pie)
+    , AtomIE_XKinetic<T>(db)
+    , AtomIE_Nuclear<T>(db,pie) 
+    {};
 
 };
 template <class T> class AtomIE_RKBS 
@@ -151,7 +178,7 @@ template <class T> class AtomIE_RKBS
 , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBS(const DB_cache<T>* db) : AtomIE_Kinetic<T>(db), AtomIE_Nuclear<T>(db) {};
+    AtomIE_RKBS(const DB_cache<T>* db,const ::IE_Primatives* pie) : AtomIE_Kinetic<T>(db,pie), AtomIE_Nuclear<T>(db,pie) {};
 };
 // Fit
 class AtomIE_Fit 

@@ -19,19 +19,21 @@ namespace Slater
 //
 // Orbital SL basis set.
 //
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L)
 : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-, Orbital_IBS_Common<double>()
-, Orbital_HF_IBS_Common<double>(db)
-, Orbital_IE(db)
+    , Orbital_IBS_Common<double>()
+    , Orbital_HF_IBS_Common<double>(db)
+    , IE_Common(db,pie)
+    , AtomIE_DFT<double>(db)
 {
 };
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
     : IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
-    , Atoml::Slater::Orbital_IE(db)
+    , IE_Common(db,pie)
+    , AtomIE_DFT<double>(db)
     {
     };
 
@@ -40,22 +42,24 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    return new Fit_IBS(db,es*2,0);
+    auto pie=dynamic_cast<const IE_Primatives*>(bs);
+    return new Fit_IBS(db,pie,es*2,0);
 }
 
 ::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    return new Fit_IBS(db,es*2.0/3.0,0);    
+    auto pie=dynamic_cast<const IE_Primatives*>(bs);
+    return new Fit_IBS(db,pie,es*2.0/3.0,0);    
 }
 
 //----------------------------------------------------------------
 //
 //  Fit with Slater_l  basis set.
 //
-Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
+Fit_IBS::Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L)
     : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , Fit_IE(db)
+    , Fit_IE(db,pie)
     {
     };
 

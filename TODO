@@ -20,7 +20,7 @@ Priority 1:
         Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
     -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
     Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
-
+    -Use the same dependency inject for IE_Primatives?
     -Refactor:
         Dependency problems:
             Orbital_DFT_IBS-->Fit_IBS (OK)

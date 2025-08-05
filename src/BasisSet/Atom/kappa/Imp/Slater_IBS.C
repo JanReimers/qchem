@@ -24,15 +24,15 @@ namespace Slater
 //
 
 Orbital_RKB_IBS::Orbital_RKB_IBS
-    (const DB_cache<double>* db
+    (const DB_cache<double>* db,const ::IE_Primatives* pie
         , const Vector<double>& exponents
         , int kappa)
     : Orbital_RKB_IBS_Common<double>
         (db
         , new Omega_k_Sym(kappa)
         , kappa
-        , new Orbital_RKBL_IBS<double>(db,exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,exponents,kappa)
+        , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
+        , new Orbital_RKBS_IBS<double>(db,pie,exponents,kappa)
         )
 {
     
@@ -50,10 +50,10 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //
 //  Large sector
 //
-template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,
+template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,const ::IE_Primatives* pie,
         const Vector<T>& exponents,int kappa)
     : Orbital_RKBL_IBS_Common<T>(new Omega_k_Sym(kappa),kappa)
-    , Orbital_RKBL_IE<T>(db)
+    , Orbital_RKBL_IE<T>(db,pie)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);
@@ -107,11 +107,11 @@ template <class T> std::ostream&  Orbital_RKBL_IBS<T>::Write(std::ostream& os) c
 //  Small sector
 //
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
-    (const DB_cache<double>* db,
+    (const DB_cache<double>* db,const IE_Primatives* pie,
         const Vector<T>& exponents
         , int kappa)
     : Orbital_RKBS_IBS_Common<T>(new Omega_k_Sym(-kappa),kappa)
-    , Orbital_RKBS_IE<T>(db)
+    , Orbital_RKBS_IE<T>(db,pie)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);

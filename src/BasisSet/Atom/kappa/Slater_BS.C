@@ -33,7 +33,7 @@ template <class T> class Orbital_RKBL_IE
     , public virtual ::Slater::IE_Primatives
 {
 protected:
-    Orbital_RKBL_IE(const DB_cache<double>* db) : AtomIE_RKBL<T>(db) {};
+    Orbital_RKBL_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) : AtomIE_RKBL<T>(db,pie) {};
 };
 
 template <class T> class Orbital_RKBS_IE
@@ -41,7 +41,7 @@ template <class T> class Orbital_RKBS_IE
     , public virtual ::Slater::IE_Primatives
 {
 protected:
-    Orbital_RKBS_IE(const DB_cache<double>* db) : AtomIE_RKBS<T>(db) {};
+    Orbital_RKBS_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) : AtomIE_RKBS<T>(db,pie) {};
     virtual double Inv_r1(double ea , double eb,size_t l_total) const;
 };
 
@@ -55,7 +55,7 @@ class Orbital_RKB_IBS
     , public         Orbital_RKB_IBS_Common<double> 
 {
 public:
-    Orbital_RKB_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, int kappa);
 
     virtual std::ostream&  Write(std::ostream&    ) const;
 
@@ -76,7 +76,7 @@ public:
     using AtomIrrepIEClient::es;
     using AtomIrrepIEClient::ns;
     
-    Orbital_RKBL_IBS(const DB_cache<T>*, const Vector<T>& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const IE_Primatives* pie, const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
@@ -98,7 +98,7 @@ template <class T> class Orbital_RKBS_IBS
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*, const Vector<T>& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*, const IE_Primatives* pie,const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
@@ -116,6 +116,7 @@ private:
 class BasisSet 
     : public ::BS_Common
     , public DB_cache<double>
+    , public ::Slater::IE_Primatives
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t lMax);
