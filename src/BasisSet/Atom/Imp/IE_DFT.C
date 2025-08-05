@@ -32,7 +32,7 @@ template <class T>  SMatrix<T>  AtomIE_DFT<T>::MakeOverlap  (const bf_tuple& c) 
     SMatrix<T> s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=this->Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=pie->Overlap(ab->es(i)+ab->es(j),ec,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }
@@ -47,7 +47,7 @@ template <class T>  SMatrix<T>  AtomIE_DFT<T>::MakeRepulsion(const bf_tuple& c) 
     SMatrix<T> s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=this->Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=pie->Repulsion(ab->es(i)+ab->es(j),ec,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }

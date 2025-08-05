@@ -24,7 +24,7 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,con
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , IE_Common(db,pie)
-    , AtomIE_DFT<double>(db)
+    , AtomIE_DFT<double>(db,pie)
 {
 };
 
@@ -33,7 +33,7 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,con
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , IE_Common(db,pie)
-    , AtomIE_DFT<double>(db)
+    , AtomIE_DFT<double>(db,pie)
     {
     };
 

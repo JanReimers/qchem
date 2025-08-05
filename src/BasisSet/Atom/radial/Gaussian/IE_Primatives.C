@@ -8,10 +8,6 @@ export namespace Gaussian
 {
 class IE_Primatives 
     : public virtual ::IE_Primatives
-    , public virtual Primative_Overlap  <double>
-    , public virtual Primative_Grad2    <double>
-    , public virtual Primative_Inv_r1  <double>
-    , public virtual Primative_Inv_r2  <double>
     , public virtual Primative_Repulsion<double>
     , public virtual Primative_Charge   <double>
 {

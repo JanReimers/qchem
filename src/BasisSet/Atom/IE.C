@@ -44,26 +44,26 @@ public:
 
 
 //  Generic
-template <class T> class Primative_Overlap
-{
-public:
-    virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
-};
-template <class T> class Primative_Grad2
-{
-public:
-    virtual double Grad2(double ea ,double eb,size_t la, size_t lb) const=0;
-};
-template <class T> class Primative_Inv_r1
-{
-public:
-    virtual double Inv_r1(double ea ,double eb,size_t l_total) const=0;
-};
-template <class T> class Primative_Inv_r2
-{
-public:
-    virtual double Inv_r2(double ea ,double eb,size_t l_total) const=0;
-};
+// template <class T> class Primative_Overlap
+// {
+// public:
+//     virtual double Overlap(double ea ,double eb,size_t l_total) const=0;
+// };
+// template <class T> class Primative_Grad2
+// {
+// public:
+//     virtual double Grad2(double ea ,double eb,size_t la, size_t lb) const=0;
+// };
+// template <class T> class Primative_Inv_r1
+// {
+// public:
+//     virtual double Inv_r1(double ea ,double eb,size_t l_total) const=0;
+// };
+// template <class T> class Primative_Inv_r2
+// {
+// public:
+//     virtual double Inv_r2(double ea ,double eb,size_t l_total) const=0;
+// };
 template <class T> class Primative_Repulsion
 {
 public:
@@ -103,15 +103,13 @@ private:
     const IE_Primatives* pie;
 };
 template <class T> class AtomIE_XKinetic
-: public virtual Primative_Grad2<T>
-, public virtual Primative_Inv_r2<T>
-, public DB_XKinetic<T>
+: public DB_XKinetic<T>
 {
 protected:
-    using Primative_Grad2<T>::Grad2;
-    using Primative_Inv_r2<T>::Inv_r2;
     virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    AtomIE_XKinetic(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
+    AtomIE_XKinetic(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_XKinetic<T>(db), pie(_pie) {};
+private:
+    const IE_Primatives* pie;
 };
 
 // HF
@@ -145,12 +143,10 @@ private:
 
 // DFT
 template <class T> class AtomIE_DFT 
-: public virtual Primative_Overlap<T>
-, public virtual Primative_Repulsion<T>
-, public DB_DFT<T>
+: public DB_DFT<T>
 {
 protected:
-    AtomIE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
+    AtomIE_DFT(const DB_cache<T>* db,const IE_Primatives* _pie) : DB_DFT<T>(db), pie(_pie) {};
     
     virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const;
     virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const;
@@ -158,6 +154,8 @@ private:
     typedef AtomIrrepIEClient::bf_tuple bf_tuple;
     SMatrix<T> MakeOverlap  (const bf_tuple& c) const; //ab loops
     SMatrix<T> MakeRepulsion(const bf_tuple& c) const; //ab loops
+private:
+    const IE_Primatives* pie;
 };
 // DHF
 template <class T> class AtomIE_RKBL 
@@ -168,7 +166,7 @@ template <class T> class AtomIE_RKBL
 protected:
     AtomIE_RKBL(const DB_cache<T>* db,const IE_Primatives* pie) 
     : AtomIE_Overlap<T>(db,pie)
-    , AtomIE_XKinetic<T>(db)
+    , AtomIE_XKinetic<T>(db,pie)
     , AtomIE_Nuclear<T>(db,pie) 
     {};
 

@@ -17,7 +17,7 @@ template <class T> Matrix<T>  AtomIE_XKinetic<T>::MakeKinetic(const Orbital_RKBS
     Matrix<T> Hk(Na,Nb);
     for (auto i:Hk.rows())
         for (auto j:Hk.cols())
-            Hk(i,j)=(Grad2(a->es(i),b->es(j),l,l) + l*(l+1)*Inv_r2(a->es(i),b->es(j),2*l))*a->ns(i)*b->ns(j);
+            Hk(i,j)=(pie->Grad2(a->es(i),b->es(j),l,l) + l*(l+1)*pie->Inv_r2(a->es(i),b->es(j),2*l))*a->ns(i)*b->ns(j);
 
     return Hk;
 }

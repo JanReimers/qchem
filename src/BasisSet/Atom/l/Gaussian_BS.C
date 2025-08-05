@@ -32,7 +32,8 @@ protected:
         : AtomIE_Overlap<double>(db,pie)
         , AtomIE_Kinetic<double>(db,pie)
         , AtomIE_Nuclear<double>(db,pie)
-        , AtomIE_DFT<double>(db) {};
+        , AtomIE_DFT    <double>(db,pie) 
+        {};
 
 };
 
