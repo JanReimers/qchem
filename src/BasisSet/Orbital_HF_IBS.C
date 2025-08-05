@@ -1,4 +1,4 @@
-// File: HF_IBS.H  Interface for a Hartree-Fock (HF) Orbital Irrep Basis Set.
+// File: BasisSet/Orbital_HF_IBS.C  Interface for a Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
 
 export module qchem.Orbital_HF_IBS;

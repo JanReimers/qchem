@@ -18,6 +18,7 @@ Priority 1:
         Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
         I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
             Try Atom:: namespace.  Risk of more compiler scope deduction problems.
+        Isolate IE_Primatives
     -Then can we fold IEClient data into Orbital_XX_IBS
         Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
     -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?

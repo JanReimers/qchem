@@ -7,6 +7,7 @@ import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.Common;
+export import qchem.BasisSet;
 export import qchem.Types;
 
 export namespace Slater

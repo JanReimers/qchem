@@ -2,11 +2,13 @@
 export module qchem.BasisSet.Atom.Orbital_1E_IBS;
 import qchem.Orbital_1E_IBS;
 import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 
 export namespace Atom
 {
 template <class T> class Orbital_IBS
     : public virtual ::Orbital_IBS<T> //brings in Integrals_Overlap<T>
+    , public Orbital_IBS_Common<double>
     , public AtomIE_Overlap<double>
     , public AtomIE_Kinetic<double>
     , public AtomIE_Nuclear<double>

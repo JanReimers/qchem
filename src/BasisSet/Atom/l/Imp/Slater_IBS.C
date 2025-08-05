@@ -1,13 +1,7 @@
-// File: Atom/l/Slater_IBS.H  Slater Irrep Basis Set (IBS) with orbital angular momentum l.
+// File: BasisSet/Atom/l/Imp/Slater_IBS.C  Slater Irrep Basis Set (IBS) with orbital angular momentum l.
 module;
-#include <iostream>
-#include <cassert>
-#include <cmath>
 #include <vector>
 module qchem.BasisSet.Atom.Internal.l.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
-import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 
@@ -19,23 +13,19 @@ namespace Slater
 //
 // Orbital SL basis set.
 //
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L)
 : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , Orbital_IBS_Common<double>()
-    , Orbital_HF_IBS_Common<double>(db)
-    , Atom::Orbital_IBS<double>(db,pie)
+    , Atom::Orbital_HF_IBS <double>(db)
+    , Atom::Orbital_IBS    <double>(db,pie)
     , Atom::Orbital_DFT_IBS<double>(db,pie)
-{
-};
+{};
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
     : IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
-    , Orbital_IBS_Common<double>()
-    , Orbital_HF_IBS_Common<double>(db)
-    , Atom::Orbital_IBS<double>(db,pie)
+    , Atom::Orbital_HF_IBS <double>(db)
+    , Atom::Orbital_IBS    <double>(db,pie)
     , Atom::Orbital_DFT_IBS<double>(db,pie)
-    {
-    };
+{};
 
 
 
@@ -60,9 +50,6 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,con
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L)
     : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
     , Atom::Fit_IBS(db,pie)
-    {
-    };
-
-
+    {};
 
 }} //namespace
