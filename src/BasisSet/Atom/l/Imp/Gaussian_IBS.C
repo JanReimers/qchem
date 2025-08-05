@@ -2,11 +2,13 @@
 module;
 #include <iostream>
 #include <cassert>
+#include <vector>
 module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
+import qchem.Symmetry.Ylm;
 
 namespace Atoml
 {
@@ -25,6 +27,15 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
     , Orbital_IE(db)
     {
     };
+
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+    : ::Gaussian::IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
+    , Orbital_IBS_Common<double>()
+    , Orbital_HF_IBS_Common<double>(db)
+    , Atoml::Gaussian::Orbital_IE(db)
+{
+
+};
 
 
 

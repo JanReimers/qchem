@@ -8,6 +8,7 @@ import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
+import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -58,9 +59,9 @@ class Orbital_IBS
 {
 public:
     Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
-
 };
 
 class Fit_IBS 
@@ -87,3 +88,19 @@ public:
 
 } //namespace
 } //namespace
+
+export namespace Atom_ml
+{
+namespace Gaussian
+{
+class BasisSet 
+: public ::Gaussian::BS_Common
+, public IE_BS_2E_Angular //Pick angular integrals.
+{
+public:
+    BasisSet() {};
+    BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
+};
+
+} //namespace 
+} //namespace 
