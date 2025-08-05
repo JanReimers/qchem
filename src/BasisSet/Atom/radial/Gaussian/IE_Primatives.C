@@ -1,7 +1,7 @@
-// File: Gaussian/IE_Primatives.H get all calculation of primative integrals in one place.
+// File: BasisSet/Atom/radial/Gaussian/IE_Primatives.C get all calculation of primative integrals in one place.
 module;
-export module qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
-import qchem.BasisSet.Atom.IE;
+export module qchem.BasisSet.Atom.Internal.radial.Gaussian.IE_Primatives;
+export import qchem.BasisSet.Atom.IE_Primatives;
 export import qchem.Types;
 
 export namespace Gaussian

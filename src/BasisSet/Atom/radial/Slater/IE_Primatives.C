@@ -1,4 +1,4 @@
-// File: Slater/IE_Primatives.H get all calculation of primative integrals in one place.
+// File: BasisSet/Atom/radial/Slater/IE_Primatives.C get all calculation of primative integrals in one place.
 module;
 export module qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 export import qchem.BasisSet.Atom.IE_Primatives;

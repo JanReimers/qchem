@@ -1,81 +1,36 @@
 // File: Atom/l/Gaussian_BS.H Gaussian Basis Set for atoms.
 module;
-#include <iosfwd>
 #include <vector>
-
 export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
+import qchem.BasisSet.Atom.Internal.radial.Gaussian.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
-import qchem.BasisSet.Internal.Common;
-import qchem.BasisSet.Atom.IE;
-import qchem.BasisSet;
-import qchem.BasisSet.Internal.IrrepBasisSet;
-import qchem.Orbital_HF_IBS;
+import qchem.BasisSet.Atom.IBS;
 
 export namespace Atoml
 {
 namespace Gaussian
 {
 
-
-    // Integral engine
-class Orbital_IE
-: public ::Gaussian::IE_Primatives
-, public AtomIE_Overlap<double>
-, public AtomIE_Kinetic<double>
-, public AtomIE_Nuclear<double>
-// , public DB_2E<double>
-, public AtomIE_DFT<double>
-{
-protected:
-    Orbital_IE(const DB_BS_2E<double>* db,const IE_Primatives* pie) 
-        : AtomIE_Overlap<double>(db,pie)
-        , AtomIE_Kinetic<double>(db,pie)
-        , AtomIE_Nuclear<double>(db,pie)
-        , AtomIE_DFT    <double>(db,pie) 
-        {};
-
-};
-
-class Fit_IE
-: public AtomIE_Fit
-, public AtomIE_Overlap<double>
-, public ::Gaussian::IE_Primatives
-{
-protected:
-    Fit_IE(const DB_cache<double>* db,const IE_Primatives* pie) 
-    : AtomIE_Fit(db,pie)
-    , AtomIE_Overlap<double>(db,pie) {};
-};
-
-    // Irrep basis set
 class Orbital_IBS
-    : public virtual Orbital_HF_IBS<double>
-    , public         ::Gaussian::IrrepBasisSet
-    , public         Orbital_IBS_Common<double>
-    , public         Orbital_DFT_IBS_Common<double>
-    , public         Orbital_HF_IBS_Common<double>
-    , public         Orbital_IE
+    : public         ::Gaussian::IrrepBasisSet
+    , public Atom::Orbital_HF_IBS <double>
+    , public Atom::Orbital_IBS    <double>
+    , public Atom::Orbital_DFT_IBS<double>
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 };
 
 class Fit_IBS 
-: public virtual ::Fit_IBS
-, public         ::Gaussian::IrrepBasisSet
-, public Fit_IBS_Common
-, public Atoml::Gaussian::Fit_IE
+    : public ::Gaussian::IrrepBasisSet
+    , public Atom::Fit_IBS
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L);
-   
+    Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L);
 };
-
-    // Full basis set.
 
 class BasisSet 
     : public ::Gaussian::BS_Common
