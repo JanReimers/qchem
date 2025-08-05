@@ -1,7 +1,7 @@
 // File: BSpline/IE.C Common IE code for BSpline basis sets.
 module;
 #include <bspline/Core.h>
-
+#include <memory>
 export module qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
@@ -100,12 +100,12 @@ protected:
 };
 
 template <class T, size_t K> class IE_BS_2E 
-    : public virtual ::AtomIE_BS_2E_Angular
-    , public virtual Cache4
+    : public virtual Cache4
     , public DB_BS_2E<T>
     , public BFGrouper<K>
 {
 public:
+    IE_BS_2E(AtomIE_BS_2E_Angular* a) : itsAngular(a) {};
     virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
 
@@ -114,6 +114,8 @@ public:
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 protected:
     virtual void Append(const ::IrrepIEClient*);
+private: 
+    std::unique_ptr<AtomIE_BS_2E_Angular> itsAngular;
 };
 
 template <class T, size_t K> class IE_DFT 

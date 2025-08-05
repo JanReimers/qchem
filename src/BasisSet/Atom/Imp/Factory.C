@@ -46,7 +46,7 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
             break;
         
         case AngularType::Ylm:
-            bs=new Atoml::Slater::BasisSet_ml(N,emin,emax,ec);
+            bs=new Atoml::Slater::BasisSet(N,emin,emax,ec);
         }
         break;
     }
@@ -60,7 +60,7 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
             break;
         
         case AngularType::Ylm:
-            bs=new Atoml::Gaussian::BasisSet_ml(N,emin,emax,ec);
+            bs=new Atoml::Gaussian::BasisSet(N,emin,emax,ec);
         }
         break;
     }
@@ -74,7 +74,7 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
             break;
         
         case AngularType::Ylm:
-            bs=new Atoml::BSpline::BasisSet_ml<6>(N,rmin,rmax,ec);
+            bs=new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,ec);
         }
         break;   
     } 

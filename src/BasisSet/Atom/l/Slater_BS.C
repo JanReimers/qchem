@@ -10,7 +10,6 @@ import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Orbital_HF_IBS;
-import qchem.BasisSet.Atom.Internal.Angular;
 
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
@@ -89,20 +88,10 @@ public:
 
 class BasisSet 
     : public ::Slater::BS_Common
-    , public IE_BS_2E_Angular_l //Pick angular integrals.
 {
 public:
-    BasisSet() {};
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax); 
-};
-
-class BasisSet_ml 
-    : public ::Slater::BS_Common
-    , public IE_BS_2E_Angular_ml
-{
-public:
-    BasisSet_ml(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
-    
+    BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
 };
 
 }} //namespace Slater::l

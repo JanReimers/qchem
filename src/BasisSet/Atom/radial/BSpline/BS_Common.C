@@ -11,6 +11,7 @@ import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.IE;
 
 import oml.Vector;
 export import qchem.Types;
@@ -42,7 +43,7 @@ template <size_t K> class BS_Common
 , public IE_BS_2E<double,K>
 {
 protected:
-    BS_Common() : itsRkCache(0) {};
+    BS_Common(AtomIE_BS_2E_Angular* a) : IE_BS_2E<double,K>(a), itsRkCache(0) {};
     ~BS_Common();
     virtual void Insert(bs_t* bs);
     void BuildCache(size_t lmax);

@@ -28,7 +28,7 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, c
         {
             loop_2(c->es_indices[ic-1]);
             int la=a->l, lc=c->l;
-            RVec Akac=Coulomb_AngularIntegrals(a,c);
+            RVec Akac=itsAngular->Coulomb_AngularIntegrals(a,c);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 
@@ -66,7 +66,7 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const IrrepIEClient* _a, c
         for (size_t ic:c->indices())
         {
             int la=a->l, lc=c->l;
-            RVec Akac=ExchangeAngularIntegrals(a,c);
+            RVec Akac=itsAngular->ExchangeAngularIntegrals(a,c);
             double nac=na*c->ns(ic);
             for (size_t ib:a->indices(ia))
             {

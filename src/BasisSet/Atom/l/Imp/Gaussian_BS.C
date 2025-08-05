@@ -5,6 +5,7 @@ module;
 #include <iostream>
 module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.ExponentScaler; 
+import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.Symmetry.AtomEC;
 
 namespace Atoml
@@ -13,13 +14,15 @@ namespace Gaussian
 {
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
+: ::Gaussian::BS_Common(new IE_BS_2E_Angular_l)
 {
     ::Gaussian::ExponentScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,gs.Get_es(L),L)); 
 }
 
-BasisSet_ml::BasisSet_ml(size_t N, double emin, double emax, const ElectronConfiguration& ec)
+BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
+: ::Gaussian::BS_Common(new IE_BS_2E_Angular_ml)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());

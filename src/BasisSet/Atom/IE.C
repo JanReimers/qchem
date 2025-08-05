@@ -1,4 +1,6 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
+module;
+#include <memory>
 export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Internal.HeapDB;
 export import qchem.BasisSet.Internal.Cache4;
@@ -93,18 +95,19 @@ protected:
 class AtomIE_BS_2E_Angular
 {
 public:
+    virtual ~AtomIE_BS_2E_Angular() {};
     typedef AtomIrrepIEClient iec_t;
     virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const=0;
     virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* c) const=0;
 };
 
 template <class T> class AtomIE_BS_2E 
-    : public virtual AtomIE_BS_2E_Angular
-    , public virtual Cache4
+    : public virtual Cache4
     , public DB_BS_2E<T>
     , public BFGrouper
 {
 public:
+    AtomIE_BS_2E(AtomIE_BS_2E_Angular* a) : itsAngular(a) {};
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
 
@@ -113,6 +116,8 @@ public:
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 protected:
     virtual void Append(const IrrepIEClient*);
+private: 
+    std::unique_ptr<AtomIE_BS_2E_Angular> itsAngular;
 };
 
 // DFT
