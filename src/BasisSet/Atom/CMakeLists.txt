@@ -27,6 +27,5 @@ target_include_directories(qcAtom_BS PRIVATE
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
 add_subdirectory(l)
-add_subdirectory(ml)
 add_subdirectory(kappa)
 add_subdirectory(radial)

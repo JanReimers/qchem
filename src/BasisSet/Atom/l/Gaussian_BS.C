@@ -8,7 +8,6 @@ import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
-import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -79,7 +78,7 @@ public:
 
 class BasisSet 
 : public ::Gaussian::BS_Common
-, public IE_BS_2E_Angular //Pick angular integrals.
+, public IE_BS_2E_Angular_l //Pick angular integrals.
 {
 public:
     BasisSet() {};
@@ -95,7 +94,7 @@ namespace Gaussian
 {
 class BasisSet 
 : public ::Gaussian::BS_Common
-, public IE_BS_2E_Angular //Pick angular integrals.
+, public IE_BS_2E_Angular_ml //Pick angular integrals.
 {
 public:
     BasisSet() {};

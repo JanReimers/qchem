@@ -10,7 +10,6 @@ import qchem.Fit_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
-import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.BasisSet.Internal.HeapDB;
 
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
@@ -94,7 +93,7 @@ public:
 
 template <size_t K> class BasisSet 
     : public ::BSpline::BS_Common<K>
-    , public IE_BS_2E_Angular //Pick angular integrals.
+    , public IE_BS_2E_Angular_l //Pick angular integrals.
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
@@ -110,7 +109,7 @@ namespace BSpline
 {
     template <size_t K> class BasisSet 
     : public ::BSpline::BS_Common<K>
-    , public IE_BS_2E_Angular
+    , public IE_BS_2E_Angular_ml
     {
     public:
         BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
