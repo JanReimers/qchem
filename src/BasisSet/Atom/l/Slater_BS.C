@@ -1,23 +1,15 @@
-// File: Atom/l/Slater_BS.H Slater Basis Set for atoms.
+// File: BasisSet/Atom/l/Slater_BS.C Slater Basis Set for atoms.
 module;
 #include <vector>
-
 export module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
-import qchem.BasisSet.Atom.Orbital_1E_IBS;
-import qchem.BasisSet.Atom.Orbital_DFT_IBS;
-import qchem.BasisSet.Atom.Orbital_HF_IBS;
-import qchem.BasisSet.Atom.Fit_IBS;
-
-// import qchem.BasisSet.Internal.IrrepBasisSet;
+import qchem.BasisSet.Atom.IBS;
 
 export namespace Atoml
 {
 namespace Slater
 {
-
-// Irrep basis set
 class Orbital_IBS
     : public ::Slater::IrrepBasisSet
     , public Atom::Orbital_HF_IBS <double>
@@ -38,9 +30,6 @@ class Fit_IBS
 public:
     Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L);
 };
-
-
-    // Full basis set.
 
 class BasisSet 
     : public ::Slater::BS_Common

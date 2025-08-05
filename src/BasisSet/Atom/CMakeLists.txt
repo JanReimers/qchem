@@ -15,10 +15,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factory.C
     IE.C
     IEC.C
-    Orbital_1E_IBS.C
-    Orbital_DFT_IBS.C
-    Orbital_HF_IBS.C
-    Fit_IBS.C
+    IBS.C
     Internal/AngularIntegrals.C
     Internal/BFGrouper.C
     Internal/Wigner3j.C
