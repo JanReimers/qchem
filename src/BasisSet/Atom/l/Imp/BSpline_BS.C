@@ -32,15 +32,7 @@ template <size_t K> Vector<double> BasisSet<K>::loop_4_direct(size_t id, size_t 
 #define INSTANCEk(k) template class BasisSet<k>;
 #include "../../radial/BSpline/Instance.hpp"
 
-}} //namespace
-
-namespace Atom_ml
-{
-namespace BSpline
-{
-
-
-template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
+template <size_t K> BasisSet_ml<K>::BasisSet_ml(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
@@ -48,16 +40,19 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
     {
         auto mls=aec.GetBreadown(L);
         if (mls.ml_paired.size()>0)   
-            ::BSpline::BS_Common<K>::Insert(new Atoml::BSpline::Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_paired));            
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_paired));            
         if (mls.ml_unpaired.size()>0)   
-            ::BSpline::BS_Common<K>::Insert(new Atoml::BSpline::Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_unpaired));            
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_unpaired));            
         if (mls.ml_unoccupied.size()>0)   
-            ::BSpline::BS_Common<K>::Insert(new Atoml::BSpline::Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_unoccupied));            
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L,mls.ml_unoccupied));            
 
     
     }           
     this->BuildCache(LMax);
 }
-#define INSTANCEk(k) template class BasisSet<k>;
+#define INSTANCEk(k) template class BasisSet_ml<k>;
 #include "../../radial/BSpline/Instance.hpp"
+
+
 }} //namespace
+

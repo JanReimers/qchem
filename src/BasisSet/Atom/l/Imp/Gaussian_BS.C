@@ -19,14 +19,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
         Insert(new Orbital_IBS(this,gs.Get_es(L),L)); 
 }
 
-} //namespace
-} //namespace
-
-namespace Atom_ml
-{
-namespace Gaussian
-{
-BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
+BasisSet_ml::BasisSet_ml(size_t N, double emin, double emax, const ElectronConfiguration& ec)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());
@@ -34,13 +27,15 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
     {
         auto mls=aec.GetBreadown(L);
         if (mls.ml_paired.size()>0)   
-            Insert(new Atoml::Gaussian::Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
         if (mls.ml_unpaired.size()>0)   
-            Insert(new Atoml::Gaussian::Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
         if (mls.ml_unoccupied.size()>0)   
-            Insert(new Atoml::Gaussian::Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
+            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
     }
 }
 
 } //namespace
 } //namespace
+
+

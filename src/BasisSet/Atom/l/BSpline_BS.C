@@ -9,7 +9,7 @@ import qchem.Orbital_HF_IBS;
 import qchem.Fit_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.Common;
-import qchem.BasisSet.Atom.Internal.l.Angular;
+import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.BasisSet.Internal.HeapDB;
 
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
@@ -101,19 +101,14 @@ public:
    
 };
 
-}} //namespace Atoml::BSpline
-
-export namespace Atom_ml
-{
-namespace BSpline
-{
-    template <size_t K> class BasisSet 
+template <size_t K> class BasisSet_ml 
     : public ::BSpline::BS_Common<K>
     , public IE_BS_2E_Angular_ml
-    {
-    public:
-        BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
-        
-    };
+{
+public:
+    BasisSet_ml(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
+    
+};
 
-}} //namespace Atom_ml::BSpline
+}} //namespace Atoml::BSpline
+

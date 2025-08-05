@@ -7,7 +7,7 @@ export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Internal.Common;
-import qchem.BasisSet.Atom.Internal.l.Angular;
+import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -84,22 +84,15 @@ public:
     BasisSet() {};
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);
 };
-
-} //namespace
-} //namespace
-
-export namespace Atom_ml
-{
-namespace Gaussian
-{
-class BasisSet 
+class BasisSet_ml
 : public ::Gaussian::BS_Common
 , public IE_BS_2E_Angular_ml //Pick angular integrals.
 {
 public:
-    BasisSet() {};
-    BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
+    BasisSet_ml() {};
+    BasisSet_ml(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
 };
 
-} //namespace 
-} //namespace 
+} //namespace
+} //namespace
+
