@@ -10,6 +10,7 @@ import qchem.Fit_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.Internal.l.Angular;
+import qchem.BasisSet.Atom.Internal.ml.Angular;
 import qchem.BasisSet.Internal.HeapDB;
 
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
@@ -70,7 +71,7 @@ public:
     typedef typename ::BSpline::IrrepIEClient<K> IEC;
     using IEC::splines;
     Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
-
+    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 
@@ -103,3 +104,17 @@ public:
 
 }} //namespace Atoml::BSpline
 
+export namespace Atom_ml
+{
+namespace BSpline
+{
+    template <size_t K> class BasisSet 
+    : public ::BSpline::BS_Common<K>
+    , public IE_BS_2E_Angular
+    {
+    public:
+        BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
+        
+    };
+
+}} //namespace Atom_ml::BSpline

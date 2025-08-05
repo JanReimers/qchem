@@ -3,11 +3,12 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-
+#include <vector>
 
 module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Symmetry.Yl;
+import qchem.Symmetry.Ylm;
 import qchem.BasisSet.Atom.IEClient;
 
 
@@ -20,16 +21,29 @@ namespace BSpline
 // Orbital BSpline basis set.
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L)
-: ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
-, Orbital_IBS_Common<double>()
-, Orbital_HF_IBS_Common<double>(db)
-, Orbital_IE<K>(db)
+    : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
+    , Orbital_IBS_Common<double>()
+    , Orbital_HF_IBS_Common<double>(db)
+    , Orbital_IE<K>(db)
 {
     ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     size_t i=1;
     for (auto sp: iec.splines)
         AtomIrrepIEClient::ns(i++)=1.0/sqrt(::BSpline::IE_Primatives<K>::Overlap(sp,sp,L));
 };
+
+template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
+    : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Ylm_Sym(L,ml),L,ml)
+    , Orbital_IBS_Common<double>()
+    , Orbital_HF_IBS_Common<double>(db)
+    , Atoml::BSpline::Orbital_IE<K>(db)
+{
+    ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
+    size_t i=1;
+    for (auto sp: iec.splines)
+        AtomIrrepIEClient::ns(i++)=1.0/sqrt(::BSpline::IE_Primatives<K>::Overlap(sp,sp,L));
+};
+
 
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
