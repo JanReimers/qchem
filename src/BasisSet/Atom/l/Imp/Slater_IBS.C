@@ -3,11 +3,13 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <vector>
 module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
+import qchem.Symmetry.Ylm;
 
 namespace Atoml
 {
@@ -25,6 +27,13 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 {
 };
 
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+    : IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
+    , Orbital_IBS_Common<double>()
+    , Orbital_HF_IBS_Common<double>(db)
+    , Atoml::Slater::Orbital_IE(db)
+    {
+    };
 
 
 

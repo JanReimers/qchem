@@ -6,7 +6,20 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
-    -Now the whole IEClient view seems useless.
+    -Fold the ml sector into l.  Just use diff constructors mls.
+        l: BasisSet(... size_t Lmax); 
+            Insert Orbital_IBS(... L)
+        ml: BasisSet(.. const ElectronConfiguration& ec);
+            Orbital_IBS(... L,mls.ml_paired)
+            Orbital_IBS(... L,mls.ml_unpaired)
+            Orbital_IBS(... L,mls.ml_unoccupied)
+
+    -Fold IntegralEngines in Orbital class chain.
+        Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
+    -Then can we fold IEClient data into Orbital_XX_IBS
+        Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
+    -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
+
     -Refactor:
         Dependency problems:
             Orbital_DFT_IBS-->Fit_IBS (OK)
@@ -31,6 +44,8 @@ Priority 1:
         4) Ditto PolarizedGaussian::IE_Common
     -What happens if we try and inherite from all DB_xxx clases at the IBS_Common level?
         i.e. outside Atom/MoleculeLattice levels?
+        - From before: -Design flaw
+                src/BasisSet/Common/IBS_Common.C Orbital_RKB_IBS_Common incorporates DB, none of the other Common classes do this.
         -Chain:
             DB_Overlap converts Overlap() into MakeOverlap()
             AtomIE_Overlap converts MakeOverlap() into N^2 x Primative_Overlap
@@ -41,32 +56,33 @@ Priority 1:
                 Orbital_IBS -->Orbital_IE
                 Fit_IBS -->Fit_IE
                 Orbital_IBS is used directly for basis set construction
-        -We can do this for HF orbitals and DB_2E.
-        
+        Done: -We can do this for HF orbitals and DB_2E.
+        Stashed: -For DFT it gets messy.  You need a lot of function forwarding.
+            THis will be the same for Fit, 1E, and Irrep
+            To get around this need to insert an AtomIE class in between.  Maybe rename as Orbital for consistency.
+                How mcuh code sharing do we get frm this?
+
         -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
          Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
     Done: Naming consistency:
        Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
-    -Design flaw
-        src/BasisSet/Common/IBS_Common.C Orbital_RKB_IBS_Common incorporates DB, none of the other Common classes do this.
-        Get rid of FittedFunctionImp, less burdensome for client.
-                                                               
-    
-    
-    
-    
+    -Orbital_RKB{L,S}_IBS_Common all derive from IrrepBasisSet_Common.  Inconsistent.
+        Orbital class chain should be all about integrals using mixins.
+    -Fold the ml sector into l.  Just use diff constructors mls.
+        -Ylm  
+        Put basisset build logic in common base class.
+        Distinction between Ylm and Yl basis sets is now blurred
+        Done: -Decide Ham based on EC.
+        -Decide Yl or Ylm basis based on EC.
+        -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
+            DO we support this or just decide the correct basis and H automaically.
+
+    -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
+
     -Lose some of the typedefs in the integral interfaces.
-    Done: -Refactor:
-        Eliminte basis functions.   IBS can do vector op(r) using ieclient info.
-            Need it identify who iterates of IBS .. maby just VectorFunction.
-            Need to move 
-                template <class T> typename TIBS_Common<T>::Vec TIBS_Common<T>::operator() (const RVec3& r) const
-                up the class hierarcy
-    Done: -Get rid og IrrepBasisSet* Clone  (const RVec3&) const=0;
-        Done: Need to get rid of IrrepCD::ShiftOrigin
-    Done: -Get rid of IrrepBasisSet_Common,
-    Done: -Merge IrrepBasisSet & TIrrepBasisSet
-    Done: -Lose some T prefixes
+    -Get rid of FittedFunctionImp, less burdensome for client.
+    
+   
 
     
 
@@ -84,14 +100,12 @@ Priority 1:
     -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
         wrong occ/degen in spin down column.
     -Sort out compile options in CMake for gcc and clang.
-        Anything BSpline is huge.
     -use std::vector<double> for anything not involing lin-alg 
         -i.e. exponents
+        -valarray ?
 
     -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
-
-    -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
     
     -More use of structured bindings for map iterating.
     -Convergence acceleration.
@@ -117,6 +131,7 @@ Priority 1:
             We wave the Irrep just need to supervisor.
 
     -Redesign fitting so fitted objects contain a Fitter*
+            Anything BSpline is huge.
     -Mesh refactor Refactor mesh hold std::vector<RVec3> rs and std::vector<double> ws and make the 3 iterator proxies
         1) riterator
         2) witerator
@@ -176,13 +191,6 @@ Priority 1:
             Atom would be a std::single_view
     -convert all enums into enum classes
         General clean as well.
-    -Ylm  
-        Put basisset build logic in common base class.
-        Distinction between Ylm and Yl basis sets is now blurred
-        Done: -Decide Ham based on EC.
-        -Decide Yl or Ylm basis based on EC.
-        -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
-            DO we support this or just decide the correct basis and H automaically.
 
 
     -openmp
@@ -465,7 +473,17 @@ Priority 3:
 
 
 
-
+    Done: -Refactor:
+        Eliminte basis functions.   IBS can do vector op(r) using ieclient info.
+            Need it identify who iterates of IBS .. maby just VectorFunction.
+            Need to move 
+                template <class T> typename TIBS_Common<T>::Vec TIBS_Common<T>::operator() (const RVec3& r) const
+                up the class hierarcy
+    Done: -Get rid og IrrepBasisSet* Clone  (const RVec3&) const=0;
+        Done: Need to get rid of IrrepCD::ShiftOrigin
+    Done: -Get rid of IrrepBasisSet_Common,
+    Done: -Merge IrrepBasisSet & TIrrepBasisSet
+    Done: -Lose some T prefixes
         Done: -C++ Modules  Try making a C++20 module 
         Issues:
             1) gcc-15.0.1 is grabbing symbols from the global modules space and incorportating them into my exports
