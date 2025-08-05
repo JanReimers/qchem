@@ -7,6 +7,7 @@ export import qchem.BasisSet.Internal.Cache4;
 export import oml.Vector;
 export import qchem.Orbital_DHF_IBS;
 export import qchem.Types;
+export import qchem.BasisSet.Atom.IE_Primatives;
 import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 
@@ -17,18 +18,6 @@ import qchem.Orbital_DFT_IBS;
 
 export
 {
-
-class IE_Primatives
-{
-public:
-    virtual double Overlap  (double ea ,double eb,size_t l_total) const=0;
-    virtual double Grad2    (double ea ,double eb,size_t la, size_t lb) const=0;
-    virtual double Inv_r1   (double ea ,double eb,size_t l_total) const=0;
-    virtual double Inv_r2   (double ea ,double eb,size_t l_total) const=0;
-    virtual double Repulsion(double ea ,double ec,size_t la, size_t lc) const=0;
-    virtual double Charge   (double ea, size_t l) const=0;
-};
-
 
 template <class T> class AtomIE_Overlap
 : public DB_Overlap<T>
