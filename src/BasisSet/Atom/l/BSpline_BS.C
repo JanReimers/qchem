@@ -51,7 +51,6 @@ template <size_t K> class BasisSet
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
     BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
    
 };
 

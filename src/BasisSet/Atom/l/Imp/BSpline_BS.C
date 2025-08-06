@@ -5,9 +5,7 @@ module;
 
 module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
-import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Atom.Internal.Angular;
-
 import qchem.Symmetry.AtomEC;
 
 namespace Atoml
@@ -43,14 +41,6 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
     this->BuildCache(LMax);
 }
 
-template <size_t K> Vector<double> BasisSet<K>::loop_4_direct(size_t id, size_t la, size_t lc)  const
-{
-    Vector<double> rk(1);
-    const Cacheable* c=Cache4::loop_4(id);
-    const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
-    rk(1)= cd->Coulomb_R0();
-    return rk;
-}
 
 #define INSTANCEk(k) template class BasisSet<k>;
 #include "../../radial/BSpline/Instance.hpp"
