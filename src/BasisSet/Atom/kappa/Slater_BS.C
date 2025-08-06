@@ -17,7 +17,7 @@ export namespace Atom_kappa
 namespace Slater
 {
 
-class IE_Primatives_slkappa : public ::Slater::IE_Primatives 
+class IE_Primatives : public ::Slater::IE_Primatives 
 {
     virtual double Inv_r1   (double ea, double eb,size_t l_total) const;
 };
@@ -38,7 +38,7 @@ class IE_Primatives_slkappa : public ::Slater::IE_Primatives
 class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
-    , public IE_Primatives_slkappa
+    , public IE_Primatives
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, int kappa);

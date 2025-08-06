@@ -18,12 +18,14 @@ Priority 1:
         Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
         I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
             Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
-            Gaussian
-            Slater RKB
+            Done Slater
+            Done: Gaussian
+            Done: Slater RKB
             Gaussian RKB
             Bspline
         Done: -Isolate IE_Primatives
-        -Isolate DB_BS_2E which gets passed around the whole class lattice.
+        -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
+           
         -Refine the IE_Primatives interface so it can also work BSplines.
             Need to pass in AIEC and indexes instead of exponent values.
         -Clean up Atoml namespace.
@@ -33,7 +35,9 @@ Priority 1:
         Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
     -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
     Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
-    Deon: -Use the same dependency injection for IE_Primatives?
+    Done: -Use the same dependency injection for IE_Primatives?
+    -Use std::valarray for exponents
+        Make a template for op(r).
     -Refactor:
         Dependency problems:
             Orbital_DFT_IBS-->Fit_IBS (OK)

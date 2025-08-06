@@ -15,7 +15,7 @@ namespace Atom_kappa
 namespace Slater
 {
 
-double IE_Primatives_slkappa::Inv_r1(double ea, double eb,size_t l_total) const
+double IE_Primatives::Inv_r1(double ea, double eb,size_t l_total) const
 {
     return ea*eb*::Slater::Integral(ea+eb,l_total-1);
 }
@@ -29,7 +29,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
     , Orbital_RKB_IBS_Common<double>(db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,this,exponents,kappa) //Known memory leak, need redesign
+        , new Orbital_RKBS_IBS<double>(db,this,exponents,kappa) 
         )
 {
     

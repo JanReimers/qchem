@@ -44,7 +44,7 @@ protected:
     Orbital_HF_IBS(const DB_BS_2E<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
 };
 
-// Orbital_RKB_IBS does all its integrals at the BasisSet.Orbital_RKB_IBS_Common by 
+// Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 
 // by combining blocks from the L/S sectors.  So we just declate RKBL/RKBS here.
 
 template <class T> class Orbital_RKBL_IBS
