@@ -56,13 +56,13 @@ protected:
 // specific.
 class Orbital_RKB_IBS
     : public virtual Real_OIBS
-    , public         Orbital_RKB_IBS_Common<double> 
+    , public IrrepBasisSet_Common<double>
+    , public Orbital_RKB_IBS_Common<double> 
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, int kappa);
-
+    virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
-
 private:
     friend class ::DiracIntegralTests;
 

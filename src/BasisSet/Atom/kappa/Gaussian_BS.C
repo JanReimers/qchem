@@ -51,11 +51,12 @@ protected:
 // specific.
 class Orbital_RKB_IBS
     : public virtual Real_OIBS
+    , public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double>
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>*, const ::IE_Primatives*, const Vector<double>& exponents, int kappa);
-   
+    virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 
 private:

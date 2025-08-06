@@ -21,13 +21,10 @@ namespace Gaussian
 {
   
 Orbital_RKB_IBS::Orbital_RKB_IBS
-    (const DB_cache<double>* db,const IE_Primatives* pie
-        , const Vector<double>& exponents
-        , int kappa)
-    : Orbital_RKB_IBS_Common<double>
-        (db
-        , new Omega_k_Sym(kappa)
-        , kappa
+    (const DB_cache<double>* db,const IE_Primatives* pie, const Vector<double>& exponents, int kappa)
+    : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
+    , Orbital_RKB_IBS_Common<double>
+        (db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
         , new Orbital_RKBS_IBS<double>(db,new IE_Primatives_sgkappa,exponents,kappa) //Known memory leak, need redesign
         )

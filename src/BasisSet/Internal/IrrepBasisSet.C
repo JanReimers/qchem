@@ -100,7 +100,6 @@ public:
 export template <class T> class Orbital_RKB_IBS_Common
     : public virtual Orbital_RKB_IBS<T>
     , public Orbital_IBS_Common<T>
-    , public IrrepBasisSet_Common<T>
     , public DB_RKB<T>
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
@@ -116,7 +115,7 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 protected:
-    Orbital_RKB_IBS_Common(const DB_cache<T>* db,Symmetry*, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
+    Orbital_RKB_IBS_Common(const DB_cache<T>* db, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;
     ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:

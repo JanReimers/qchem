@@ -44,6 +44,13 @@ protected:
     Orbital_HF_IBS(const DB_BS_2E<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
 };
 
+// template <class T> class Orbital_RKBL_IBS
+//     : public virtual ::Orbital_RKBL_IBS<T>
+//     , Orbital_RKBL_IBS_Common<T>
+// {
+
+// }
+
 class Fit_IBS
     : public virtual ::Fit_IBS 
     , public Fit_IBS_Common
@@ -56,6 +63,7 @@ protected:
     , AtomIE_Fit(db,pie)
     {};
 };
+
 
 
 } //namespace
