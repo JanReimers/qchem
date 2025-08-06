@@ -14,8 +14,6 @@ namespace Atoml
 {
 namespace BSpline
 {
-
-
 template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, size_t LMax)
 : ::BSpline::BS_Common<K>(new IE_BS_2E_Angular_l)
 {

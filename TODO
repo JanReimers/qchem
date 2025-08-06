@@ -15,23 +15,26 @@ Priority 1:
             Orbital_IBS(... L,mls.ml_unoccupied)
 
     -Fold IntegralEngines in Orbital class chain.
-        Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
+        Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
         I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
             Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
             Done Slater
             Done: Gaussian
             Done: Slater RKB
             Done: Gaussian RKB
-            Bspline
+            Half Done: Bspline
+                We need to template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
         Done: -Isolate IE_Primatives
         -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
            
         -Refine the IE_Primatives interface so it can also work BSplines.
             Need to pass in AIEC and indexes instead of exponent values.
         -Clean up Atoml namespace.
-        -Put BS and IBS in one Imp file?
-        -Shoul be using private inheritance for many things
+        
+        -Should be using private inheritance for many things
+        -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
     -Then can we fold IEClient data into Orbital_XX_IBS
+        Not sure: IEClient is on the Irrep chain for size() and op(r).
         Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
     -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
     Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
