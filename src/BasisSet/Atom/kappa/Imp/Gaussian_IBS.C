@@ -19,7 +19,13 @@ namespace Atom_kappa
 {
 namespace Gaussian
 {
-  
+
+double IE_Primatives_sgkappa::Inv_r1(double ea, double eb,size_t l_total) const
+{
+    return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
+
+}
+
 Orbital_RKB_IBS::Orbital_RKB_IBS
     (const DB_cache<double>* db,const IE_Primatives* pie, const Vector<double>& exponents, int kappa)
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
@@ -43,7 +49,7 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,c
     const Vector<T>& exponents,int kappa)
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(kappa))
     , Orbital_RKBL_IBS_Common<T>(kappa)
-    , Orbital_RKBL_IE<T>(db,pie)
+    , AtomIE_RKBL<T>(db,pie)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);
@@ -94,7 +100,7 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db,c
     const Vector<T>& exponents,int kappa)
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
     , Orbital_RKBS_IBS_Common<T>(kappa)
-    , Orbital_RKBS_IE<T>(db,pie)
+    , AtomIE_RKBS<T>(db,pie)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);
