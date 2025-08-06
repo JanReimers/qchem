@@ -49,7 +49,7 @@ protected:
 //     , Orbital_RKBL_IBS_Common<T>
 // {
 
-// }
+// };
 
 class Fit_IBS
     : public virtual ::Fit_IBS 

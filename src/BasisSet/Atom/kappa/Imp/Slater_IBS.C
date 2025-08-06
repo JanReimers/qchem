@@ -52,58 +52,16 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //
 //  Large sector
 //
-template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,const ::IE_Primatives* pie,
-        const Vector<T>& exponents,int kappa)
-    : IrrepBasisSet_Common<T> (new Omega_k_Sym(kappa))
+template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
+(const DB_cache<T>* db,const ::IE_Primatives* pie, const Vector<T>& exponents,int kappa)
+    : ::Slater::IrrepBasisSet(exponents,new Omega_k_Sym(kappa),Omega_kmj_Sym::l(kappa))
     , Orbital_RKBL_IBS_Common<T>(kappa)
     , AtomIE_RKBL<T>(db,pie)
-    , AtomIrrepIEClient(exponents.size())
 {
-    size_t l=Omega_kmj_Sym::l(kappa);
-    Init(exponents,Norms(exponents,l),l);
-   
-
 };
 
-template <class T> Vector<double> Orbital_RKBL_IBS<T>::Norms(const Vector<double>& es, size_t l) const
-{
-    Vector<double> ns(es.size());
-    int i=0;
-    for (auto e:es) ns(++i)=::Slater::Norm(e,l+1);
-    return ns;
-}
 
-template <class T> Orbital_RKBL_IBS<T>::Vec     Orbital_RKBL_IBS<T>::operator() (const RVec3& r) const
-{
-    double mr=norm(r);
-    return uintpow(mr,l)*DirectMultiply(ns,exp(-mr*es));
-}
-template <class T> Orbital_RKBL_IBS<T>::Vec3Vec Orbital_RKBL_IBS<T>::Gradient   (const RVec3& r) const
-{
-    Vec3Vec ret(size());
-    double mr=norm(r);
-    if (mr==0.0) 
-    {
-        
-        Fill(ret,RVec3(0,0,0));
-        return ret; //Cusp at the origin so grad is undefined.
-    }
-    assert(mr>0);
-    Fill(ret,r/mr);
-    Vec gr=DirectMultiply(operator()(r),(l/mr-es));
-    size_t i=0;
-    for (auto& ir:ret) ir*=gr(++i);
-    return ret;
-}
 
-template <class T> std::ostream&  Orbital_RKBL_IBS<T>::Write(std::ostream& os) const
-{
-    os << "Slater     " << this->GetSymmetry()
-    << "             r^" << l << "*exp(-e*r), e={";
-    for (auto e:es) os << e << ",";
-    os << "}";
-    return os;
-}
 
 //-----------------------------------------------------------------------------------------------
 //

@@ -130,7 +130,7 @@ export template <class T> class Orbital_RKBL_IBS_Common
 {
 protected:
     Orbital_RKBL_IBS_Common(int kappa);
-
+public:
     int kappa;
 };
 
