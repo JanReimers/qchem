@@ -48,7 +48,8 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,const ::IE_Primatives* pie,
         const Vector<T>& exponents,int kappa)
-    : Orbital_RKBL_IBS_Common<T>(new Omega_k_Sym(kappa),kappa)
+    : IrrepBasisSet_Common<T> (new Omega_k_Sym(kappa))
+    , Orbital_RKBL_IBS_Common<T>(kappa)
     , Orbital_RKBL_IE<T>(db,pie)
     , AtomIrrepIEClient(exponents.size())
 {

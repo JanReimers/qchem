@@ -70,9 +70,10 @@ private:
 
 template <class T> class Orbital_RKBL_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
-    , public     Orbital_RKBL_IBS_Common<T> 
-    , public     Orbital_RKBL_IE<T>
-    , public     AtomIrrepIEClient
+    , public IrrepBasisSet_Common<T> 
+    , public Orbital_RKBL_IBS_Common<T> 
+    , public Orbital_RKBL_IE<T>
+    , public AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.

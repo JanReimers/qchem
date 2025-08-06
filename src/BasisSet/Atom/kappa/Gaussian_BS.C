@@ -66,6 +66,7 @@ private:
 
 template <class T> class Orbital_RKBL_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
+    , public IrrepBasisSet_Common<T> 
     , public Orbital_RKBL_IBS_Common<T> 
     , public Orbital_RKBL_IE<T>
     , public AtomIrrepIEClient

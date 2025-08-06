@@ -83,10 +83,8 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeRestMass() const
     return merge_diag(rl,rs);
 }
 
-template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common
-(Symmetry* sym,int _kappa)
-    : IrrepBasisSet_Common<T>(sym)
-    , kappa(_kappa)
+template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int _kappa)
+    : kappa(_kappa)
 {
     assert(kappa!=0);
 }
