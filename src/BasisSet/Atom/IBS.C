@@ -44,12 +44,30 @@ protected:
     Orbital_HF_IBS(const DB_BS_2E<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
 };
 
-// template <class T> class Orbital_RKBL_IBS
-//     : public virtual ::Orbital_RKBL_IBS<T>
-//     , Orbital_RKBL_IBS_Common<T>
-// {
+// Orbital_RKB_IBS does all its integrals at the BasisSet.Orbital_RKB_IBS_Common by 
+// by combining blocks from the L/S sectors.  So we just declate RKBL/RKBS here.
 
-// };
+template <class T> class Orbital_RKBL_IBS
+    : public Orbital_RKBL_IBS_Common<T>
+    , public AtomIE_RKBL<T>
+{
+protected:
+    Orbital_RKBL_IBS(const DB_cache<T>* db,const IE_Primatives* pie,int kappa)
+        : Orbital_RKBL_IBS_Common<T>(kappa)
+        , AtomIE_RKBL<T>(db,pie)
+        {}
+};
+
+template <class T> class Orbital_RKBS_IBS
+    : public Orbital_RKBS_IBS_Common<T>
+    , public AtomIE_RKBS<T>
+{
+protected:
+    Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,int kappa)
+        : Orbital_RKBS_IBS_Common<T>(kappa)
+        , AtomIE_RKBS<T>(db,pie)
+        {}
+};
 
 class Fit_IBS
     : public virtual ::Fit_IBS 

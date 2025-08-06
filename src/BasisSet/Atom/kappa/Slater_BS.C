@@ -4,14 +4,13 @@ module;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import qchem.BasisSet.Internal.HeapDB;
-import qchem.BasisSet.Internal.Common;
-import qchem.IrrepBasisSet;
-import qchem.BasisSet.Internal.IrrepBasisSet;
-import qchem.BasisSet.Atom.IEClient;
-import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
-import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
+import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
+import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IBS;
+import qchem.BasisSet.Internal.Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
 
 export namespace Atom_kappa
 {
@@ -37,9 +36,9 @@ class IE_Primatives_slkappa : public ::Slater::IE_Primatives
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
 // specific.
 class Orbital_RKB_IBS
-    : public virtual Real_OIBS
-    , public IrrepBasisSet_Common<double>
+    : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
+    , public IE_Primatives_slkappa
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, int kappa);
@@ -51,10 +50,8 @@ private:
 };
 
 template <class T> class Orbital_RKBL_IBS
-    : public virtual ::Orbital_RKBL_IBS<T>
-    , public ::Slater::IrrepBasisSet
-    , public Orbital_RKBL_IBS_Common<T> 
-    , public AtomIE_RKBL<T>
+    : public ::Slater::IrrepBasisSet //Use NR slater basis
+    , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
     Orbital_RKBL_IBS(const DB_cache<T>*,const ::IE_Primatives* pie, const Vector<T>& exponents, int kappa);
@@ -62,10 +59,8 @@ public:
 };
 
 template <class T> class Orbital_RKBS_IBS
-    : public virtual ::Orbital_RKBS_IBS<T>
-    , public IrrepBasisSet_Common<T> 
-    , public Orbital_RKBS_IBS_Common<T> 
-    , public AtomIE_RKBS<T>
+    : public IrrepBasisSet_Common<T> 
+    , public Atom::Orbital_RKBS_IBS<T> 
     , public AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.

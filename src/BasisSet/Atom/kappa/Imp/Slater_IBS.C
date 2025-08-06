@@ -6,14 +6,9 @@ module;
 #include <cmath>
 #include <memory>
 module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import qchem.Symmetry.Okmj;
-import qchem.Streamable;
-import qchem.Orbital_DHF_IBS;
 import Common.IntPow;
-
-using std::endl;
 
 namespace Atom_kappa
 {
@@ -34,7 +29,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
     , Orbital_RKB_IBS_Common<double>(db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,new IE_Primatives_slkappa,exponents,kappa) //Known memory leak, need redesign
+        , new Orbital_RKBS_IBS<double>(db,this,exponents,kappa) //Known memory leak, need redesign
         )
 {
     
@@ -43,7 +38,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
 
 std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 {
-    os << "Dirac basis set." << endl << "    Large: " << *itsRKBL << endl << "    Small: " << *itsRKBS << endl;
+    os << "Dirac basis set." << std::endl << "    Large: " << *itsRKBL << std::endl << "    Small: " << *itsRKBS << std::endl;
     return os;
 }
 
@@ -55,8 +50,7 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 (const DB_cache<T>* db,const ::IE_Primatives* pie, const Vector<T>& exponents,int kappa)
     : ::Slater::IrrepBasisSet(exponents,new Omega_k_Sym(kappa),Omega_kmj_Sym::l(kappa))
-    , Orbital_RKBL_IBS_Common<T>(kappa)
-    , AtomIE_RKBL<T>(db,pie)
+    , Atom::Orbital_RKBL_IBS<T>(db,pie,kappa)
 {
 };
 
@@ -70,8 +64,7 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
     (const DB_cache<double>* db,const ::IE_Primatives* pie, const Vector<T>& exponents, int kappa)
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
-    , Orbital_RKBS_IBS_Common<T>(kappa)
-    , AtomIE_RKBS<T>(db,pie)
+    , Atom::Orbital_RKBS_IBS<T>(db,pie,kappa)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);
