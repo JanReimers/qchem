@@ -136,10 +136,9 @@ protected:
 
 export template <class T> class Orbital_RKBS_IBS_Common
     : public virtual Orbital_RKBS_IBS<T>
-    , public IrrepBasisSet_Common<T> 
 {
 protected:
-    Orbital_RKBS_IBS_Common(Symmetry*,int kappa);
+    Orbital_RKBS_IBS_Common(int kappa);
     virtual void Insert(const Orbital_RKBL_IBS<T>* l);
 
     int kappa;

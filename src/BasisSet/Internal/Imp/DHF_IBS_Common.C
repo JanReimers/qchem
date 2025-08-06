@@ -89,10 +89,8 @@ template <class T> Orbital_RKBL_IBS_Common<T>::Orbital_RKBL_IBS_Common(int _kapp
     assert(kappa!=0);
 }
 
-template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common
-(Symmetry* sym,int _kappa)
-    : IrrepBasisSet_Common<T>(sym)
-    , kappa(_kappa)
+template <class T> Orbital_RKBS_IBS_Common<T>::Orbital_RKBS_IBS_Common(int _kappa)
+    : kappa(_kappa)
     , large(0)
 {
     assert(kappa!=0);

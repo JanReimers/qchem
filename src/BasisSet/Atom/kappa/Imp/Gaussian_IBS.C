@@ -92,7 +92,8 @@ template <class T> std::ostream&  Orbital_RKBL_IBS<T>::Write(std::ostream& os) c
 
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,
     const Vector<T>& exponents,int kappa)
-    : Orbital_RKBS_IBS_Common<T>(new Omega_k_Sym(-kappa),kappa)
+    : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
+    , Orbital_RKBS_IBS_Common<T>(kappa)
     , Orbital_RKBS_IE<T>(db,pie)
     , AtomIrrepIEClient(exponents.size())
 {
