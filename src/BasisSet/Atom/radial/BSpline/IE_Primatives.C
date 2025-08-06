@@ -6,8 +6,9 @@ import qchem.Basisset.Atom.radial.BSpline.IE;
 
 export namespace BSpline
 {
-template <size_t K> class IE_Primatives
-    : public virtual Primative_Overlap  <double,K>
+template <size_t K> class IE_Primatives_Imp
+    : public virtual IE_Primatives<K>
+    , public virtual Primative_Overlap  <double,K>
     , public virtual Primative_Grad2    <double,K>
     , public virtual Primative_Inv_r1   <double,K>
     , public virtual Primative_Inv_r2   <double,K>

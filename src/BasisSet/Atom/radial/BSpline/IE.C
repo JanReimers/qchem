@@ -21,6 +21,19 @@ import qchem.Fit_IBS;
 
 export namespace BSpline
 {
+
+template <size_t K> class IE_Primatives
+ {
+    typedef bspline::Spline<double, K> spline_t;
+protected:
+    virtual double Overlap  (const spline_t& a , const spline_t& b,size_t l_total     ) const=0;
+    virtual double Grad2    (const spline_t& a , const spline_t& b,size_t la,size_t lb) const=0;
+    virtual double Inv_r1   (const spline_t& a , const spline_t& b,size_t l_total     ) const=0; //! <a|1/r^1|b>
+    virtual double Inv_r2   (const spline_t& a , const spline_t& b,size_t l_total     ) const=0; //! <a|1/r^2|b>
+    virtual double Repulsion(const spline_t& a , const spline_t& b,size_t la,size_t lc) const=0;
+    virtual double Charge   (const spline_t& a ,                   size_t l           ) const=0;
+};
+
 // K is the spline order
 template <class T, size_t K> class Primative_Overlap
 {
@@ -67,7 +80,7 @@ protected:
     typedef bspline::Spline<T, K> spline_t;
     using Primative_Overlap<T,K>::Overlap;
     virtual SMatrix<T> MakeOverlap() const;
-    IE_Overlap(const DB_cache<T>* db) : DB_Overlap<T>(db) {};
+    IE_Overlap(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Overlap<T>(db) {};
 };
 template <class T, size_t K> class IE_Kinetic
 : public virtual Primative_Grad2<T,K>
@@ -78,7 +91,7 @@ protected:
     using Primative_Grad2 <T,K>::Grad2;
     using Primative_Inv_r2<T,K>::Inv_r2;
     virtual SMatrix<T> MakeKinetic() const;
-    IE_Kinetic(const DB_cache<T>* db) : DB_Kinetic<T>(db) {};
+    IE_Kinetic(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Kinetic<T>(db) {};
 };
 template <class T, size_t K> class IE_Inv_r1
 : public virtual Primative_Inv_r1<T,K>
@@ -87,7 +100,7 @@ template <class T, size_t K> class IE_Inv_r1
 protected:
     using Primative_Inv_r1<T,K>::Inv_r1;
     virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
-    IE_Inv_r1(const DB_cache<T>* db) : DB_Nuclear<T>(db) {};
+    IE_Inv_r1(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Nuclear<T>(db) {};
 };
 template <class T, size_t K> class IE_XGrad2
 : public virtual Primative_Grad2<T,K>
@@ -156,7 +169,7 @@ template <size_t K> class IE_Fit
 , public DB_Fit
 {
     protected:
-    IE_Fit(const DB_cache<double>* db) : DB_Fit(db) {};
+    IE_Fit(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Fit(db) {};
 
     virtual  Vector<double> MakeCharge   () const;
     virtual SMatrix<double> MakeRepulsion() const;

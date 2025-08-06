@@ -25,14 +25,17 @@ namespace BSpline
 
     // Integral engine
 template <size_t K> class IE_Common
-    : public virtual ::BSpline::IE_Primatives<K>
+    : public virtual ::BSpline::IE_Primatives_Imp<K>
     , public ::BSpline::IE_Overlap<double,K>
     , public ::BSpline::IE_Kinetic  <double,K>
     , public ::BSpline::IE_Inv_r1<double,K>
 {
 public:
 protected:
-    IE_Common(const DB_cache<double>* db) : ::BSpline::IE_Overlap<double,K>(db), ::BSpline::IE_Kinetic<double,K>(db), ::BSpline::IE_Inv_r1<double,K>(db) {};
+    IE_Common(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie) 
+    : ::BSpline::IE_Overlap<double,K>(db,pie)
+    , ::BSpline::IE_Kinetic<double,K>(db,pie)
+    , ::BSpline::IE_Inv_r1<double,K>(db,pie) {};
 };
 
 template <size_t K> class Orbital_IE
@@ -42,18 +45,18 @@ template <size_t K> class Orbital_IE
 {
 public:
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) : IE_Common<K>(db), ::BSpline::IE_DFT<double,K>(db) {};
+    Orbital_IE(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>* pie) : IE_Common<K>(db,pie), ::BSpline::IE_DFT<double,K>(db) {};
 
 };
 
 template <size_t K> class Fit_IE
 : public ::BSpline::IE_Fit<K>
 , public ::BSpline::IE_Overlap<double,K>
-, public virtual ::BSpline::IE_Primatives<K>
+, public virtual ::BSpline::IE_Primatives_Imp<K>
 
 {
 protected:
-    Fit_IE(const DB_cache<double>* db) : ::BSpline::IE_Fit<K>(db), ::BSpline::IE_Overlap<double,K>(db) {};
+    Fit_IE(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie) : ::BSpline::IE_Fit<K>(db,pie), ::BSpline::IE_Overlap<double,K>(db,pie) {};
 };
 
     // Irrep basis set
@@ -68,8 +71,8 @@ template <size_t K> class Orbital_IBS
 public:
     typedef typename ::BSpline::IrrepIEClient<K> IEC;
     using IEC::splines;
-    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>*,size_t N, double rmin, double rmax, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>*,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 
@@ -84,7 +87,7 @@ template <size_t K> class Fit_IBS
 
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie,size_t N, double rmin, double rmax, size_t L);
    
 };
 
@@ -92,6 +95,7 @@ public:
 
 template <size_t K> class BasisSet 
     : public ::BSpline::BS_Common<K>
+    , public ::BSpline::IE_Primatives_Imp<K>
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
