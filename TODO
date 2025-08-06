@@ -21,7 +21,7 @@ Priority 1:
             Done Slater
             Done: Gaussian
             Done: Slater RKB
-            Gaussian RKB
+            Done: Gaussian RKB
             Bspline
         Done: -Isolate IE_Primatives
         -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.

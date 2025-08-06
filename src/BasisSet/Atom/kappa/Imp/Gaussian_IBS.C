@@ -44,18 +44,26 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
     return os;
 }
 
-
+//-----------------------------------------------------------------------------------------------
+//
+//  Large sector
+//
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 (const DB_cache<T>* db,const IE_Primatives* pie,const Vector<T>& exponents,int kappa)
     : ::Gaussian::IrrepBasisSet(exponents,new Omega_k_Sym(kappa),Omega_kmj_Sym::l(kappa))
     , Atom::Orbital_RKBL_IBS<T>(db,pie,kappa)
 {};
 
+
+
+//-----------------------------------------------------------------------------------------------
+//
+//  Small sector
+//
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,
     const Vector<T>& exponents,int kappa)
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
-    , Orbital_RKBS_IBS_Common<T>(kappa)
-    , AtomIE_RKBS<T>(db,pie)
+    , Atom::Orbital_RKBS_IBS<T>(db,pie,kappa)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);

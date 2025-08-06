@@ -18,7 +18,7 @@ import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 
-export namespace Atom_kappa
+namespace Atom_kappa
 {
 namespace Gaussian
 { 
@@ -39,7 +39,7 @@ class IE_Primatives_sgkappa : public ::Gaussian::IE_Primatives
 // Irrep Basis set
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Gaussian
 // specific.
-class Orbital_RKB_IBS
+export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double>
     , public IE_Primatives_sgkappa
@@ -54,7 +54,7 @@ private:
 
 };
 
-template <class T> class Orbital_RKBL_IBS
+export template <class T> class Orbital_RKBL_IBS
     : public ::Gaussian::IrrepBasisSet //Use NR Gaussian basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
@@ -63,11 +63,9 @@ public:
     virtual size_t  GetNumFunctions() const {return size();}
 };
 
-template <class T> class Orbital_RKBS_IBS
-    : public virtual ::Orbital_RKBS_IBS<T>
-    , public IrrepBasisSet_Common<T> 
-    , public Orbital_RKBS_IBS_Common<T> 
-    , public AtomIE_RKBS<T>
+export template <class T> class Orbital_RKBS_IBS
+    : public IrrepBasisSet_Common<T> 
+    , public Atom::Orbital_RKBS_IBS<T> 
     , public AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
@@ -89,7 +87,7 @@ private:
 
 
 // Full basis set
-class BasisSet 
+export class BasisSet 
     : public ::BS_Common
     , public DB_cache<double>
     , public ::Gaussian::IE_Primatives

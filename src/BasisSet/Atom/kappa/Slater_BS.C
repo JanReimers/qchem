@@ -12,7 +12,7 @@ import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 
-export namespace Atom_kappa
+namespace Atom_kappa
 {
 namespace Slater
 {
@@ -35,7 +35,7 @@ class IE_Primatives : public ::Slater::IE_Primatives
 
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
 // specific.
-class Orbital_RKB_IBS
+export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
     , public IE_Primatives
@@ -49,7 +49,7 @@ private:
 
 };
 
-template <class T> class Orbital_RKBL_IBS
+export template <class T> class Orbital_RKBL_IBS
     : public ::Slater::IrrepBasisSet //Use NR slater basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
@@ -58,7 +58,7 @@ public:
     virtual size_t  GetNumFunctions() const {return size();}
 };
 
-template <class T> class Orbital_RKBS_IBS
+export template <class T> class Orbital_RKBS_IBS
     : public IrrepBasisSet_Common<T> 
     , public Atom::Orbital_RKBS_IBS<T> 
     , public AtomIrrepIEClient
@@ -82,7 +82,7 @@ private:
 };
 
 // Full basis set
-class BasisSet 
+export class BasisSet 
     : public ::BS_Common
     , public DB_cache<double>
     , public ::Slater::IE_Primatives
