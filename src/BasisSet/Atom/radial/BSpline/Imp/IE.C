@@ -23,7 +23,7 @@ template <class T,size_t K> SMatrix<T> IE_Overlap<T,K>::MakeOverlap() const
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= this->Overlap((*a)(i),(*a)(j),2*l)*a->ns(i)*a->ns(j);
+            H(i,j)= pie->Overlap((*a)(i),(*a)(j),2*l)*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -36,7 +36,7 @@ template <class T,size_t K> SMatrix<T> IE_Kinetic  <T,K>::MakeKinetic() const
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= (Grad2((*a)(i),(*a)(j),l,l) + l*(l+1)*Inv_r2((*a)(i),(*a)(j),l))*a->ns(i)*a->ns(j);
+            H(i,j)= (pie->Grad2((*a)(i),(*a)(j),l,l) + l*(l+1)*pie->Inv_r2((*a)(i),(*a)(j),l))*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -52,7 +52,7 @@ template <class T,size_t K> SMatrix<T> IE_Inv_r1<T,K>::MakeNuclear(const Cluster
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Z*Inv_r1((*a)(i),(*a)(j),2*l)*a->ns(i)*a->ns(j);
+            H(i,j)= Z*pie->Inv_r1((*a)(i),(*a)(j),2*l)*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -82,7 +82,7 @@ template <class T,size_t K> SMatrix<T> IE_DFT<T,K>::MakeOverlap  (const bf_tuple
     SMatrix<T> s(N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=this->Overlap((*ab)(i)+(*ab)(j),*sc,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=pie->Overlap((*ab)(i)+(*ab)(j),*sc,ab->l+ab->l+Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }
@@ -98,7 +98,7 @@ template <class T,size_t K> SMatrix<T> IE_DFT<T,K>::MakeRepulsion(const bf_tuple
     SMatrix<T> s(N,N);
     for (auto i:s.rows())
         for (auto j:s.cols(i))
-            s(i,j)=this->Repulsion((*ab)(i)+(*ab)(j),*sc,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
+            s(i,j)=pie->Repulsion((*ab)(i)+(*ab)(j),*sc,ab->l,Lc)*ab->ns(i)*ab->ns(j)*nc;            
 
     return s;
 }
@@ -219,7 +219,7 @@ template <size_t K> Vector<double>  IE_Fit<K>::MakeCharge() const
     const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
     assert(a);
     Vector<double> c(a->size());
-    for (auto i:a->indices())  c(i)=Charge((*a)(i),a->l)*a->ns(i);
+    for (auto i:a->indices())  c(i)=pie->Charge((*a)(i),a->l)*a->ns(i);
     return c;
 }
 template <size_t K> SMatrix<double>  IE_Fit<K>::MakeRepulsion() const
@@ -231,7 +231,7 @@ template <size_t K> SMatrix<double>  IE_Fit<K>::MakeRepulsion() const
     SMatrix<double> H(N);
     for (auto i:H.rows())
         for (auto j:H.cols(i))
-            H(i,j)= Repulsion((*a)(i),(*a)(j),l,l)*a->ns(i)*a->ns(j);
+            H(i,j)= pie->Repulsion((*a)(i),(*a)(j),l,l)*a->ns(i)*a->ns(j);
 
     return H;
 }
@@ -245,7 +245,7 @@ template <size_t K> Matrix<double> IE_Fit<K>::MakeRepulsion(const Fit_IBS& _b) c
     Matrix<double> s(Na,Nb);
     for (auto i:s.rows())
         for (auto j:s.cols())
-            s(i,j)=this->Repulsion((*a)(i),(*b)(j),a->l,b->l)*a->ns(i)*a->ns(j);
+            s(i,j)=pie->Repulsion((*a)(i),(*b)(j),a->l,b->l)*a->ns(i)*a->ns(j);
 
     return s;
 }

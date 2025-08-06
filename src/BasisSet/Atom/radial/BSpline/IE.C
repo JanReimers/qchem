@@ -25,7 +25,7 @@ export namespace BSpline
 template <size_t K> class IE_Primatives
  {
     typedef bspline::Spline<double, K> spline_t;
-protected:
+public:
     virtual double Overlap  (const spline_t& a , const spline_t& b,size_t l_total     ) const=0;
     virtual double Grad2    (const spline_t& a , const spline_t& b,size_t la,size_t lb) const=0;
     virtual double Inv_r1   (const spline_t& a , const spline_t& b,size_t l_total     ) const=0; //! <a|1/r^1|b>
