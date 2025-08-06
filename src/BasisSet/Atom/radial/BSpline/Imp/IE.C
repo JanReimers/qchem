@@ -249,23 +249,6 @@ template <size_t K> Matrix<double> IE_Fit<K>::MakeRepulsion(const Fit_IBS& _b) c
 
     return s;
 }
-template <class T,size_t K> Matrix<T> IE_XGrad2<T,K>::MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
-{
-    const IrrepIEClient<K>* a=dynamic_cast<const IrrepIEClient<K>*>(this);
-    const IrrepIEClient<K>* b=dynamic_cast<const IrrepIEClient<K>*>(rkbs);
-    assert(a);
-    assert(b);
-    assert(a->l==b->l);
-    size_t Na=a->size();
-    size_t Nb=b->size();
-    Matrix<T> Hk(Na,Nb);
-    for (auto i:Hk.rows())
-        for (auto j:Hk.cols())
-            Hk(i,j)=Grad2((*a)(i),(*b)(j),a->l,b->l)*a->ns(i)*b->ns(j);
-
-    return Hk;
-}
-
 
 #define INSTANCEk(k) template class IE_Overlap<double,k>;
 #include "../Instance.hpp"
@@ -278,8 +261,6 @@ template <class T,size_t K> Matrix<T> IE_XGrad2<T,K>::MakeKinetic(const Orbital_
 #define INSTANCEk(k) template class IE_BS_2E<double,k>;
 #include "../Instance.hpp"
 #define INSTANCEk(k) template class IE_Fit<k>;
-#include "../Instance.hpp"
-#define INSTANCEk(k) template class IE_XGrad2<double,k>;
 #include "../Instance.hpp"
 
 } //namespace

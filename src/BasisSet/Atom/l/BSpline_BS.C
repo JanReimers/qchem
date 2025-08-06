@@ -45,7 +45,7 @@ template <size_t K> class Orbital_IE
 {
 public:
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>* pie) : IE_Common<K>(db,pie), ::BSpline::IE_DFT<double,K>(db) {};
+    Orbital_IE(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>* pie) : IE_Common<K>(db,pie), ::BSpline::IE_DFT<double,K>(db,pie) {};
 
 };
 

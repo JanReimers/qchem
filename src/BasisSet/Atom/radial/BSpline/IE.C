@@ -80,7 +80,9 @@ protected:
     typedef bspline::Spline<T, K> spline_t;
     using Primative_Overlap<T,K>::Overlap;
     virtual SMatrix<T> MakeOverlap() const;
-    IE_Overlap(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Overlap<T>(db) {};
+    IE_Overlap(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Overlap<T>(db), pie(_pie) {};
+private:
+    const IE_Primatives<K>* pie;
 };
 template <class T, size_t K> class IE_Kinetic
 : public virtual Primative_Grad2<T,K>
@@ -91,7 +93,9 @@ protected:
     using Primative_Grad2 <T,K>::Grad2;
     using Primative_Inv_r2<T,K>::Inv_r2;
     virtual SMatrix<T> MakeKinetic() const;
-    IE_Kinetic(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Kinetic<T>(db) {};
+    IE_Kinetic(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Kinetic<T>(db), pie(_pie)  {};
+private:
+    const IE_Primatives<K>* pie;
 };
 template <class T, size_t K> class IE_Inv_r1
 : public virtual Primative_Inv_r1<T,K>
@@ -100,16 +104,9 @@ template <class T, size_t K> class IE_Inv_r1
 protected:
     using Primative_Inv_r1<T,K>::Inv_r1;
     virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
-    IE_Inv_r1(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Nuclear<T>(db) {};
-};
-template <class T, size_t K> class IE_XGrad2
-: public virtual Primative_Grad2<T,K>
-, public DB_XKinetic<T>
-{
-protected:
-    using Primative_Grad2<T,K>::Grad2;
-    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    IE_XGrad2(const DB_cache<T>* db) : DB_XKinetic<T>(db) {};
+    IE_Inv_r1(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Nuclear<T>(db), pie(_pie)  {};
+private:
+    const IE_Primatives<K>* pie;
 };
 
 template <class T, size_t K> class IE_BS_2E 
@@ -138,7 +135,7 @@ template <class T, size_t K> class IE_DFT
 {
     typedef bspline::Spline<T, K> spline_t;
 protected:
-    IE_DFT(const DB_cache<T>* db) : DB_DFT<T>(db) {};
+    IE_DFT(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_DFT<T>(db), pie(_pie)  {};
     
     virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const;
     virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const;
@@ -146,30 +143,17 @@ private:
     typedef typename BSpline::IrrepIEClient<K>::bf_tuple bf_tuple;
     SMatrix<T> MakeOverlap  (const bf_tuple& c) const; //ab loops
     SMatrix<T> MakeRepulsion(const bf_tuple& c) const; //ab loops
+private:
+    const IE_Primatives<K>* pie;
 };
-template <class T, size_t K> class IE_RKBL 
-    : public IE_Overlap<T,K>
-    , public IE_XGrad2 <T,K>
-    , public IE_Inv_r1<T,K>
-{
-protected:
-    IE_RKBL(const DB_cache<T>* db) : IE_Overlap<T,K>(db),IE_XGrad2<T,K>(db),IE_Inv_r1<T,K>(db) {};
 
-};
-template <class T, size_t K> class IE_RKBS 
-: public IE_Kinetic  <T,K>
-, public IE_Inv_r1<T,K>
-{
-protected:
-    IE_RKBS(const DB_cache<T>* db) : IE_Kinetic<T,K>(db), IE_Inv_r1<T,K>(db) {};
-};
 template <size_t K> class IE_Fit 
 : public virtual Primative_Repulsion<double,K>
 , public virtual Primative_Charge<double,K>
 , public DB_Fit
 {
     protected:
-    IE_Fit(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie) : DB_Fit(db) {};
+    IE_Fit(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Fit(db), pie(_pie)  {};
 
     virtual  Vector<double> MakeCharge   () const;
     virtual SMatrix<double> MakeRepulsion() const;
@@ -180,6 +164,8 @@ private:
     using DB_Fit::Repulsion; //un hide
     using Primative_Repulsion<double,K>::Repulsion;
     using Primative_Charge   <double,K>::Charge;
+private:
+    const IE_Primatives<K>* pie;
 };
 
 } //namespace
