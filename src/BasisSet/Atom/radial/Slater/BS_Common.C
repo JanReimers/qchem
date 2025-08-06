@@ -31,7 +31,7 @@ private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
 };
 
-// Common base handles all the radial aspects.
+// Creates the Rk tool for HF ERIs
 class BS_Common
 : public ::BS_Common
 , public ::AtomIE_BS_2E<double>
