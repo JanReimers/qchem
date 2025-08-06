@@ -3,7 +3,15 @@ module;
 #include <iosfwd>
 class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
+import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.IE_Primatives;
+import qchem.BasisSet.Atom.IEClient;
+import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Atom.IBS;
+import qchem.BasisSet.Internal.Common;
+import qchem.BasisSet.Internal.IrrepBasisSet;
+
+
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -32,9 +40,9 @@ class IE_Primatives_sgkappa : public ::Gaussian::IE_Primatives
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Gaussian
 // specific.
 class Orbital_RKB_IBS
-    : public virtual Real_OIBS
-    , public IrrepBasisSet_Common<double>
+    : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double>
+    , public IE_Primatives_sgkappa
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>*, const ::IE_Primatives*, const Vector<double>& exponents, int kappa);
@@ -47,24 +55,12 @@ private:
 };
 
 template <class T> class Orbital_RKBL_IBS
-    : public virtual ::Orbital_RKBL_IBS<T>
-    , public IrrepBasisSet_Common<T> 
-    , public Orbital_RKBL_IBS_Common<T> 
-    , public AtomIE_RKBL<T>
-    , public AtomIrrepIEClient
+    : public ::Gaussian::IrrepBasisSet //Use NR Gaussian basis
+    , public Atom::Orbital_RKBL_IBS<T>
 {
-    typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
-    typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
 public:
     Orbital_RKBL_IBS(const DB_cache<T>*,const IE_Primatives* pie, const Vector<T>& exponents, int kappa);
-
     virtual size_t  GetNumFunctions() const {return size();}
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
-    virtual std::ostream&  Write(std::ostream&    ) const;
-//private:
-    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
-    using Orbital_RKBL_IBS_Common<T>::kappa;
 };
 
 template <class T> class Orbital_RKBS_IBS

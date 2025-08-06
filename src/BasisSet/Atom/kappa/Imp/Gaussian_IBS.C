@@ -27,12 +27,12 @@ double IE_Primatives_sgkappa::Inv_r1(double ea, double eb,size_t l_total) const
 }
 
 Orbital_RKB_IBS::Orbital_RKB_IBS
-    (const DB_cache<double>* db,const IE_Primatives* pie, const Vector<double>& exponents, int kappa)
+    (const DB_cache<double>* db,const ::IE_Primatives* pie, const Vector<double>& exponents, int kappa)
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
     , Orbital_RKB_IBS_Common<double>
         (db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie,exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,new IE_Primatives_sgkappa,exponents,kappa) //Known memory leak, need redesign
+        , new Orbital_RKBS_IBS<double>(db,this,exponents,kappa) //Known memory leak, need redesign
         )
 {
     
@@ -45,56 +45,11 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 }
 
 
-template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS(const DB_cache<T>* db,const IE_Primatives* pie,
-    const Vector<T>& exponents,int kappa)
-    : IrrepBasisSet_Common<T> (new Omega_k_Sym(kappa))
-    , Orbital_RKBL_IBS_Common<T>(kappa)
-    , AtomIE_RKBL<T>(db,pie)
-    , AtomIrrepIEClient(exponents.size())
-{
-    size_t l=Omega_kmj_Sym::l(kappa);
-    AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);    
-   
-};
-template <class T> Vector<double> Orbital_RKBL_IBS<T>::Norms(const Vector<double>& es, size_t l) const
-{
-    Vector<double> ns(es.size());
-    int i=0;
-    for (auto e:es) ns(++i)=::Gaussian::Norm(e,l);
-    return ns;
-}
-template <class T> Orbital_RKBL_IBS<T>::Vec     Orbital_RKBL_IBS<T>::operator() (const RVec3& r) const
-{
-    double mr=norm(r);
-    return uintpow(mr,l)*DirectMultiply(ns,exp(-mr*mr*es));
-}
-
-template <class T> Orbital_RKBL_IBS<T>::Vec3Vec Orbital_RKBL_IBS<T>::Gradient   (const RVec3& r) const
-{
-    Vec3Vec ret(size());
-    double mr=norm(r);
-    if (mr==0.0) 
-    {   
-        Fill(ret,RVec3(0,0,0));
-        return ret; //Cusp at the origin so grad is undefined.
-    }
-    assert(mr>0);
-    Fill(ret,r/mr);
-    Vec gr=DirectMultiply(operator()(r),(l/mr-2*mr*es));
-    size_t i=0;
-    for (auto& ir:ret) ir*=gr(++i);
-    return ret;
-
-}
-
-template <class T> std::ostream&  Orbital_RKBL_IBS<T>::Write(std::ostream& os) const
-{
-    os << "Gaussian     " << this->GetSymmetry()
-    << "               r^" << l << "*exp(-e*r^2), e={";
-    for (auto e:es) os << e << ",";
-    os << "}";
-    return os;
-}
+template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
+(const DB_cache<T>* db,const IE_Primatives* pie,const Vector<T>& exponents,int kappa)
+    : ::Gaussian::IrrepBasisSet(exponents,new Omega_k_Sym(kappa),Omega_kmj_Sym::l(kappa))
+    , Atom::Orbital_RKBL_IBS<T>(db,pie,kappa)
+{};
 
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,
     const Vector<T>& exponents,int kappa)
