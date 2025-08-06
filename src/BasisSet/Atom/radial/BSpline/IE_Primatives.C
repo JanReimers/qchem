@@ -8,12 +8,6 @@ export namespace BSpline
 {
 template <size_t K> class IE_Primatives_Imp
     : public virtual IE_Primatives<K>
-    , public virtual Primative_Overlap  <double,K>
-    , public virtual Primative_Grad2    <double,K>
-    , public virtual Primative_Inv_r1   <double,K>
-    , public virtual Primative_Inv_r2   <double,K>
-    , public virtual Primative_Repulsion<double,K>
-    , public virtual Primative_Charge   <double,K>
 {
     typedef bspline::Spline<double, K> spline_t;
 protected:
