@@ -31,25 +31,6 @@ class IE_Primatives_slkappa : public ::Slater::IE_Primatives
 //
 
 
-// Integral engine
-template <class T> class Orbital_RKBL_IE
-    : public     AtomIE_RKBL<T>
-    , public ::Slater::IE_Primatives
-{
-protected:
-    Orbital_RKBL_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) : AtomIE_RKBL<T>(db,pie) {};
-};
-
-template <class T> class Orbital_RKBS_IE
-    : public     AtomIE_RKBS<T>
-    , public  ::Slater::IE_Primatives
-{
-protected:
-    Orbital_RKBS_IE(const DB_cache<double>* db,const ::IE_Primatives* pie) : AtomIE_RKBS<T>(db,pie) {};
-    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
-};
-
-
 // Irrep basis set
 
 // All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
@@ -72,7 +53,7 @@ template <class T> class Orbital_RKBL_IBS
     : public virtual ::Orbital_RKBL_IBS<T>
     , public IrrepBasisSet_Common<T> 
     , public Orbital_RKBL_IBS_Common<T> 
-    , public Orbital_RKBL_IE<T>
+    , public AtomIE_RKBL<T>
     , public AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
@@ -97,7 +78,7 @@ template <class T> class Orbital_RKBS_IBS
     : public virtual ::Orbital_RKBS_IBS<T>
     , public IrrepBasisSet_Common<T> 
     , public Orbital_RKBS_IBS_Common<T> 
-    , public Orbital_RKBS_IE<T>
+    , public AtomIE_RKBS<T>
     , public AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.

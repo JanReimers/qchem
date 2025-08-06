@@ -2,7 +2,6 @@ target_sources(qcAtom_BS PRIVATE
     Imp/Slater_IBS.C
     Imp/Gaussian_BS.C
     Imp/Slater_BS.C
-    Imp/Slater_IE.C
     Imp/Gaussian_IE.C
     Imp/Gaussian_IBS.C
 )
