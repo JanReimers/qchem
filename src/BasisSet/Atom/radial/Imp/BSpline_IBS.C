@@ -19,7 +19,7 @@ template <size_t K> double Repulsion(const spline_t<K>& ab , const spline_t<K>& 
     return 0.0;
 }
 
-template <size_t K> double Overlap(const spline_t<K>& a , const spline_t<K>& b,size_t l_total)
+template <size_t K1,size_t K2> double Overlap(const spline_t<K1>& a , const spline_t<K2>& b,size_t l_total)
 {
     return BilinearForm{X<2>{}}(a,b)*FourPi;
     // return BilinearForm{IdentityOperator{}}(a,b);
@@ -162,6 +162,50 @@ template <size_t K> BSpline_IBS<K>::omlv_t BSpline_IBS<K>::Charge() const
     return V;
 }
 
+template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const IBS_Evaluator* _c) const
+{
+    const BSpline_IBS<K>* c=dynamic_cast<const BSpline_IBS<K>*>(_c);
+    assert(c);
+    dERI3 S3;
+    for (size_t ic=0;ic<c->size();ic++) 
+    {
+        omls_t S(size());
+        for (auto i:S.rows())
+            for (auto j:S.cols(i))
+            {
+                auto ab=splines[i-1]+splines[j-1];
+                S(i,j)=::Overlap(ab,c->splines[ic],l+l+c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+            }
+        
+        S3.push_back(S);
+    }
+    return S3;
+}
+template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const IBS_Evaluator* _c) const
+{
+    const BSpline_IBS<K>* c=dynamic_cast<const BSpline_IBS<K>*>(_c);
+    assert(c);
+    dERI3 S3;
+    for (size_t ic=0;ic<c->size();ic++) 
+    {
+        omls_t S(size());
+        for (auto i:S.rows())
+            for (auto j:S.cols(i))
+                S(i,j)=::Repulsion(splines[i-1]*splines[j-1],c->splines[ic],l,c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+        
+        S3.push_back(S);
+    }
+    return S3;
+}
+
+// template <size_t K> Rk* BSpline_IBS<K>::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
+// {
+//     assert(grouper);
+//     assert(itsRkCache);
+//     size_t lmax=grouper->LMax(ia,ib,ic,id);
+//     const GLCache* gl=this->GetGL(lmax);
+//     return new BSpline::RkEngine(grouper->unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
+// }
 
 template <size_t K> BSpline_IBS<K>::Vec    BSpline_IBS<K>::operator() (const RVec3& r) const
 {
@@ -198,14 +242,7 @@ template <size_t K> BSpline_IBS<K>::Vec3Vec BSpline_IBS<K>::Gradient(const RVec3
     return ret;
 }
 
-// template <size_t K> Rk* BSpline_IBS<K>::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
-// {
-//     assert(grouper);
-//     assert(itsRkCache);
-//     size_t lmax=grouper->LMax(ia,ib,ic,id);
-//     const GLCache* gl=this->GetGL(lmax);
-//     return new BSpline::RkEngine(grouper->unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
-// }
+
 
 #define INSTANCEk(k) template class BSpline_IBS<k>;
 #include "../BSpline/Instance.hpp"

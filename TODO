@@ -41,6 +41,7 @@ Priority 1:
             Helps BFGroupe identify matching radial basis functions.
             Done: Inherits from IrrepEvaluator
             ERI3 calculations
+
         How to integrate into the old code?
             BasisSet constructor needs to create the concrete classes.
             The pass IBS_Evaluator* down to integral engine.
@@ -60,7 +61,9 @@ Priority 1:
         -BS_Rk Create RKEngines
         -Can groupers be registered at Evaluator construction?
         -Rk inconsistencies that should be cleaned up.
-            
+        -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
+            should be Overlap((*ab)(i)*(*ab)(j),  
+            Repulsion no implemented.
 
 
 

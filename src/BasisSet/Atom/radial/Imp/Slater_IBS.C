@@ -125,6 +125,48 @@ Slater_IBS::omlv_t Slater_IBS::Charge() const
     return V;
 }
 
+dERI3 Slater_IBS::Overlap  (const IBS_Evaluator* _c) const
+{
+    const Slater_IBS* c=dynamic_cast<const Slater_IBS*>(_c);
+    assert(c);
+    dERI3 S3;
+    for (size_t ic=0;ic<c->size();ic++) 
+    {
+        omls_t S(size());
+        for (auto i:S.rows())
+            for (auto j:S.cols(i))
+                S(i,j)=::Overlap(es[i-1]+es[j-1],c->es[ic],l+l+c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+        
+        S3.push_back(S);
+    }
+    return S3;
+}
+dERI3 Slater_IBS::Repulsion(const IBS_Evaluator* _c) const
+{
+    const Slater_IBS* c=dynamic_cast<const Slater_IBS*>(_c);
+    assert(c);
+    dERI3 S3;
+    for (size_t ic=0;ic<c->size();ic++) 
+    {
+        omls_t S(size());
+        for (auto i:S.rows())
+            for (auto j:S.cols(i))
+                S(i,j)=::Repulsion(es[i-1]+es[j-1],c->es[ic],l,c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+        
+        S3.push_back(S);
+    }
+    return S3;
+}
+
+Rk* Slater_IBS::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
+{
+    assert(grouper);
+    return new Slater::RkEngine(
+        grouper->unique_esv[ia]+grouper->unique_esv[ib],
+        grouper->unique_esv[ic]+grouper->unique_esv[id],
+        grouper->LMax(ia,ib,ic,id));
+}
+
 template <class T> Vector<T> convert(const std::valarray<T>& v) 
 {
     Vector<T> ret(v.size());
@@ -158,11 +200,3 @@ Slater_IBS::Vec3Vec Slater_IBS::Gradient(const RVec3& r) const
     return ret;
 }
 
-Rk* Slater_IBS::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
-{
-    assert(grouper);
-    return new Slater::RkEngine(
-        grouper->unique_esv[ia]+grouper->unique_esv[ib],
-        grouper->unique_esv[ic]+grouper->unique_esv[id],
-        grouper->LMax(ia,ib,ic,id));
-}

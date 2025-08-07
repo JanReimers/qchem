@@ -8,6 +8,8 @@ export import qchem.BasisSet.Atom.internal.Rk;
 export import qchem.VectorFunction;
 export import oml;
 
+export template <class T> using ERI3=std::vector<SMatrix<T>>;
+export using dERI3=ERI3<double>;
 
 export class IBS_Evaluator : public VectorFunction<double>
 {
@@ -29,7 +31,9 @@ public:
     virtual omls_t Repulsion() const=0;
     virtual omlv_t Charge   () const=0;
 
-    virtual Rk* CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const=0;
+    virtual dERI3  Overlap  (const IBS_Evaluator*) const=0; //3 center
+    virtual dERI3  Repulsion(const IBS_Evaluator*) const=0; //3 center
+    virtual Rk*    CreateRk (size_t ia,size_t ic,size_t ib,size_t id) const=0; //4 center
 
 
 };

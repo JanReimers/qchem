@@ -20,8 +20,8 @@ public:
     virtual omls_t Repulsion() const;
     virtual omlv_t Charge   () const;
 
-    // virtual ERI3   Overlap  (const IBS_Evaluator& c) const; //3 center
-    // virtual ERI3   Repulsion(const IBS_Evaluator& c) const; //3 center
+    virtual dERI3  Overlap  (const IBS_Evaluator*) const; //3 center
+    virtual dERI3  Repulsion(const IBS_Evaluator*) const; //3 center
     
     virtual Rk* CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const;
 
