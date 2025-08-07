@@ -19,6 +19,10 @@ target_sources(qcAtom_BS PRIVATE
     Slater/Imp/ExponentScaler.C
     Slater/Imp/IBS_Common.C
     Slater/Imp/BS_Common.C
+
+    Imp/Slater_IBS.C
+    Imp/Gaussian_IBS.C
+    Imp/BSpline_IBS.C
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     PascalTriangle.C
@@ -40,5 +44,9 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BSpline/BFGrouper.C
     BSpline/GLQuadrature.C
     BSpline/BS_Common.C
+
+    Slater_IBS.C
+    Gaussian_IBS.C
+    BSpline_IBS.C
 
 )

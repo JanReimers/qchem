@@ -17,6 +17,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     IEC.C
     IBS.C
     IE_Primatives.C
+    IBS_Evaluator.C
     Internal/AngularIntegrals.C
     Internal/BFGrouper.C
     Internal/Wigner3j.C

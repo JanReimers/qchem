@@ -6,57 +6,60 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
-    Done: -Fold the ml sector into l.  Just use diff constructors mls.
-        l: BasisSet(... size_t Lmax); 
-            Insert Orbital_IBS(... L)
-        ml: BasisSet(.. const ElectronConfiguration& ec);
-            Orbital_IBS(... L,mls.ml_paired)
-            Orbital_IBS(... L,mls.ml_unpaired)
-            Orbital_IBS(... L,mls.ml_unoccupied)
 
-    -Fold IntegralEngines in Orbital class chain.
-        Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
-        I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
-            Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
-            Done Slater
-            Done: Gaussian
-            Done: Slater RKB
-            Done: Gaussian RKB
-            Half Done: Bspline
-                We need to template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
-        Done: -Isolate IE_Primatives
-        -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
+    No: -Put atom basisset build logic in common Atom:: base class.
+        virtual CreateIBS(... ms) for paired, unpaired etc.
+        not worth, gets vry complicated very fast.
+        Some commonality but not enought
+    -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
+    -Use std::valarray for exponents
+        Make a template for op(r).
            
-        -Refine the IE_Primatives interface so it can also work BSplines.
-            Need to pass in AIEC and indexes instead of exponent values.
-        -Clean up Atoml namespace.
+    -Refine the IE_Primatives interface so it can also work BSplines.
+        Need to pass in AIEC and indexes instead of exponent values.
+        or -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
+    -Clean up Atoml namespace.
+        -using NR=NonRelativistc
+        -We have {Atom}X{NR,RKB}X{SL,SG,BS}
+        -There is some commonality between {SL,SG,BS}
+        -There is some commonality between {NR,RKB}
+            RKBL_IBS = NR_IBS for all {SL,SG,BS}
+        -What distinguishes {SL,SG,BS}
+            1) IE_{rimtatives}
+            2) op(r)
+            3) Exponent general (not needed)
+            4) ns calculation
+            5) Creates the Rk tool for HF ERIs
+    Refactor:
+        Create {SL,SG,BS}_IrrepEvaluator (need a better name)
+            Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
+            Implements op(r), grad(r) using std::valarray for exponents
+                oml::Vector<T> needs a constructor from std::valarray
+            Carries l,{ml}
+            ns calculation
+            For BSlines K should not leak out
+            Helps BFGroupe identify matching radial basis functions.
+            Inherits from IrrepEvaluator
+        BFGrouper will need to work purley with indices.
+            Finds unique BFs (exponents or splines)
+        {SL,SG,BS}_Rk
+            Create RKEngines
+        One big class or break it up
+            Data{es,l,mls,ns}
+            IrrepEvaluator_2C{Data*}
+            IrrepEvaluator_3C{Data*}
+            IrrepEvaluator_4C{Data*}
+
+
+
         
-        -Should be using private inheritance for many things
-        -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
+    -Should be using private inheritance for many things
+        Finish refactoring first.
+        
     -Then can we fold IEClient data into Orbital_XX_IBS
         Not sure: IEClient is on the Irrep chain for size() and op(r).
         Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
     -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
-    Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
-    Done: -Use the same dependency injection for IE_Primatives?
-    -Use std::valarray for exponents
-        Make a template for op(r).
-    -Refactor:
-        Dependency problems:
-            Orbital_DFT_IBS-->Fit_IBS (OK)
-                            -->Irrep_BS
-            Fit_IBS -->FitIntegrals (tightly coupledmust be in one module)
-                    -->Real_IBS
-            FitIntegrals-->Fit_IBS
-            -Similar cyclic dep. for RKB XKinetic 
-            So module separating integrals from IBS make no sense.
-                Does class separation make any sense?
-
-        Done: Possible design:
-            Irrep_BS include overlap
-            Fit_IBS --> Irrep_BS adds many fit integrals.
-            Orbital_IBS's = {1E,DFT,HF,DHF}-->Fit,Irrep
-                Orbital_1E_IBS
     -What happens if we move the overlap integral into Irrep_IBS? 
         1) class DB_Overlap needs to derive from Irrep_IBS (OK)
         2) FitIntegrals needs to derive from Irrep_IBS (Wierd)
@@ -85,25 +88,62 @@ Priority 1:
 
         -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
          Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
-    Done: Naming consistency:
-       Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
-    -Orbital_RKB{L,S}_IBS_Common all derive from IrrepBasisSet_Common.  Inconsistent.
-        Orbital class chain should be all about integrals using mixins.
-    -Fold the ml sector into l.  Just use diff constructors mls.
-        -Ylm  
-        Put basisset build logic in common base class.
-        Distinction between Ylm and Yl basis sets is now blurred
-        Done: -Decide Ham based on EC.
-        -Decide Yl or Ylm basis based on EC.
-        -Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
-            DO we support this or just decide the correct basis and H automaically.
+        
 
     -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
 
     -Lose some of the typedefs in the integral interfaces.
     -Get rid of FittedFunctionImp, less burdensome for client.
-    
-   
+    -Bug: Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
+            DO we support this or just decide the correct basis and H automaically.
+
+
+
+    -Refactor:
+        Dependency problems:
+            Orbital_DFT_IBS-->Fit_IBS (OK)
+                            -->Irrep_BS
+            Fit_IBS -->FitIntegrals (tightly coupledmust be in one module)
+                    -->Real_IBS
+            FitIntegrals-->Fit_IBS
+            -Similar cyclic dep. for RKB XKinetic 
+            So module separating integrals from IBS make no sense.
+                Does class separation make any sense?
+
+        Done: Possible design:
+            Irrep_BS include overlap
+            Fit_IBS --> Irrep_BS adds many fit integrals.
+            Orbital_IBS's = {1E,DFT,HF,DHF}-->Fit,Irrep
+                Orbital_1E_IBS
+    Done: -Fold IntegralEngines in Orbital class chain.
+        Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
+        Done: I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
+            Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
+            Done Slater
+            Done: Gaussian
+            Done: Slater RKB
+            Done: Gaussian RKB
+            Half Done: Bspline
+                We need to template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
+        Done: -Isolate IE_Primatives
+    Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
+    Done: -Use the same dependency injection for IE_Primatives?
+    Done: Naming consistency:
+       Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
+    Fixed: -Orbital_RKB{L,S}_IBS_Common all derive from IrrepBasisSet_Common.  Inconsistent.
+        Orbital class chain should be all about integrals using mixins.
+    Done: -Decide Ham based on EC.
+    Done: -Decide Yl or Ylm basis based on EC.
+    Done: -Fold the ml sector into l.  Just use diff constructors mls.
+        -Ylm  
+    Done: -Fold the ml sector into l.  Just use diff constructors mls.
+    l: BasisSet(... size_t Lmax); 
+        Insert Orbital_IBS(... L)
+    ml: BasisSet(.. const ElectronConfiguration& ec);
+        Orbital_IBS(... L,mls.ml_paired)
+        Orbital_IBS(... L,mls.ml_unpaired)
+        Orbital_IBS(... L,mls.ml_unoccupied)
+
 
     
 
