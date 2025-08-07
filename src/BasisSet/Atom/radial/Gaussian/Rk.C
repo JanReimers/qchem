@@ -2,8 +2,8 @@
 module;
 export module qchem.BasisSet.Atom.Internal.radial.GaussianRk;
 import qchem.BasisSet.Internal.Cache4;
-import oml;
-export import qchem.Types;
+export import qchem.BasisSet.Atom.internal.Rk;
+import oml.Matrix;
 
 export namespace Gaussian
 {
@@ -13,7 +13,9 @@ export namespace Gaussian
 // eab = ea + eb
 // ecd = ec + ed
 //
-class RkEngine : public virtual Cacheable
+class RkEngine    
+    : public virtual Rk
+    , public virtual Cacheable
 {
 public:
     RkEngine(double eab, double ecd, size_t LMax);

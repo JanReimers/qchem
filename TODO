@@ -54,8 +54,12 @@ Priority 1:
             Finds unique BFs based in exponents or rmin from the spline support.
             Does not need to know about Evaluators.
             Evaluators need to track the index returned.
-        {SL,SG,BS}_Rk
-            Create RKEngines
+        Done:-{SL,SG}_Rk Create RKEngines
+            Done: We need an Rk abstract interface interface
+            make an Rk function in IBS_Evaluator
+        -BS_Rk Create RKEngines
+        -Can groupers be registered at Evaluator construction?
+        -Rk inconsistencies that should be cleaned up.
             
 
 

@@ -4,6 +4,7 @@ module;
 #include <vector>
 export module BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
+export import qchem.BasisSet.Atom.internal.Rk;
 export import qchem.VectorFunction;
 export import oml;
 
@@ -18,7 +19,7 @@ public:
     using omlv_t= Vector<double>;
     virtual ~IBS_Evaluator() {};
 
-    virtual void Register(ExponentGrouper&)=0; //Set up unique spline or exponent indexes.
+    virtual void Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
     virtual size_t size() const =0;
 
     virtual omls_t Overlap  () const=0;
@@ -27,5 +28,8 @@ public:
     virtual omls_t Inv_r2   () const=0;
     virtual omls_t Repulsion() const=0;
     virtual omlv_t Charge   () const=0;
+
+    virtual Rk* CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const=0;
+
 
 };

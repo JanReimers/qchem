@@ -9,8 +9,8 @@ export class Gaussian_IBS : public virtual IBS_Evaluator
 {
 public: 
  
-    Gaussian_IBS(const ds_t& _es, int _l, const is_t& _mls) : es(_es), l(_l), mls(_mls),ns(norms()) {};
-    virtual void Register(ExponentGrouper&); //Set up unique spline or exponent indexes.
+    Gaussian_IBS(const ds_t& _es, int _l, const is_t& _mls) : es(_es), l(_l), mls(_mls),ns(norms()), grouper(0) {};
+    virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
     virtual size_t size() const {return es.size();}
 
     virtual omls_t Overlap  () const;
@@ -22,6 +22,8 @@ public:
 
     // virtual ERI3   Overlap  (const IBS_Evaluator& c) const; //3 center
     // virtual ERI3   Repulsion(const IBS_Evaluator& c) const; //3 center
+    
+    virtual Rk* CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const;
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
@@ -33,5 +35,6 @@ private:
     int  l;
     is_t mls;
     ds_t ns;
+    const ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
 };

@@ -5,7 +5,8 @@ module;
 export module qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
-import oml;
+export import qchem.BasisSet.Atom.internal.Rk;
+// import oml.Matrix;
 
 export namespace BSpline
 {
@@ -32,11 +33,14 @@ private:
 //
 // Store Slater repulsions integral for 0 <= k <= 2*LMax.
 //
-template <size_t K> class RkEngine : public virtual Cacheable
+template <size_t K> class RkEngine 
+    : public virtual Rk
+    , public virtual Cacheable
 {
     typedef bspline::Spline<double,K> sp_t;
 public:
     RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
+    double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
     double Coulomb_R0() const; //R_0(la,la,lc,lc);
     Vector<double> Coulomb_Rk(size_t la,size_t lc) const; 
     Vector<double> ExchangeRk(size_t la,size_t lb) const; 

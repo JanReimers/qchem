@@ -48,9 +48,11 @@ inline double Charge(double ea, size_t l)
 //
 //  Start member functions.
 //
-void Gaussian_IBS::Register(ExponentGrouper& grouper)
+void Gaussian_IBS::Register(ExponentGrouper* _grouper)
 {
-    for (auto e:es) es_indices.push_back(grouper.Insert(e,l));
+    assert(_grouper);
+    grouper=_grouper;
+    for (auto e:es) es_indices.push_back(_grouper->Insert(e,l));
 }
 
 Gaussian_IBS::ds_t Gaussian_IBS::norms() const
@@ -150,4 +152,13 @@ Gaussian_IBS::Vec3Vec Gaussian_IBS::Gradient(const RVec3& r) const
     size_t i=0;
     for (auto& g:grad) ret(++i)=g*rhat;
     return ret;
+}
+
+Rk* Gaussian_IBS::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
+{
+    assert(grouper);
+    return new Gaussian::RkEngine(
+        grouper->unique_esv[ia]+grouper->unique_esv[ib],
+        grouper->unique_esv[ic]+grouper->unique_esv[id],
+        grouper->LMax(ia,ib,ic,id));
 }

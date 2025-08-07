@@ -15,7 +15,7 @@ export template <size_t K> class BSpline_IBS : public virtual IBS_Evaluator
 public: 
  
     BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
-    virtual void Register(ExponentGrouper&); //Set up unique spline or exponent indexes.
+    virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
     
     virtual size_t size() const {return splines.size();}
 
@@ -28,6 +28,8 @@ public:
 
     // virtual ERI3   Overlap  (const BSpline_IBS&) const; //3 center
     // virtual ERI3   Repulsion(const BSpline_IBS&) const; //3 center
+
+    virtual Rk* CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const;
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
@@ -42,5 +44,6 @@ private:
     int  l;
     is_t mls;
     ds_t ns;
+    const ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
 };

@@ -50,9 +50,11 @@ template <size_t K> double Charge(const spline_t<K>& a , size_t l)
 //
 //  Start member functions.
 //
-template <size_t K> void BSpline_IBS<K>::Register(ExponentGrouper& grouper)
+template <size_t K> void BSpline_IBS<K>::Register(ExponentGrouper* _grouper)
 {
-    for (auto s:splines) es_indices.push_back(grouper.Insert(s.getSupport().front(),l));
+    assert(_grouper);
+    grouper=_grouper;
+    for (auto s:splines) es_indices.push_back(_grouper->Insert(s.getSupport().front(),l));
 }
 
 template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int _l, const is_t& _mls) 
@@ -195,6 +197,15 @@ template <size_t K> BSpline_IBS<K>::Vec3Vec BSpline_IBS<K>::Gradient(const RVec3
     }
     return ret;
 }
+
+// template <size_t K> Rk* BSpline_IBS<K>::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
+// {
+//     assert(grouper);
+//     assert(itsRkCache);
+//     size_t lmax=grouper->LMax(ia,ib,ic,id);
+//     const GLCache* gl=this->GetGL(lmax);
+//     return new BSpline::RkEngine(grouper->unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
+// }
 
 #define INSTANCEk(k) template class BSpline_IBS<k>;
 #include "../BSpline/Instance.hpp"
