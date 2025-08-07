@@ -3,6 +3,7 @@ module;
 #include <valarray>
 #include <vector>
 export module BasisSet.Atom.IBS_Evaluator;
+export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.VectorFunction;
 export import oml;
 
@@ -15,7 +16,9 @@ public:
     using omls_t=SMatrix<double>;
     using omlm_t= Matrix<double>;
     using omlv_t= Vector<double>;
+    virtual ~IBS_Evaluator() {};
 
+    virtual void Register(ExponentGrouper&)=0; //Set up unique spline or exponent indexes.
     virtual size_t size() const =0;
 
     virtual omls_t Overlap  () const=0;

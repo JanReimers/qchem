@@ -44,6 +44,14 @@ inline double Charge(double ea, size_t l)
 {
     return ::Gaussian::Integral(ea,l);
 }
+//---------------------------------------------------------------------------
+//
+//  Start member functions.
+//
+void Gaussian_IBS::Register(ExponentGrouper& grouper)
+{
+    for (auto e:es) es_indices.push_back(grouper.Insert(e,l));
+}
 
 Gaussian_IBS::ds_t Gaussian_IBS::norms() const
 {

@@ -32,23 +32,31 @@ Priority 1:
             5) Creates the Rk tool for HF ERIs
     Refactor:
         Create {SL,SG,BS}_IrrepEvaluator (need a better name)
-            Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
-            Implements op(r), grad(r) using std::valarray for exponents
+            Done: Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
+            Done: Implements op(r), grad(r) using std::valarray for exponents
                 oml::Vector<T> needs a constructor from std::valarray
-            Carries l,{ml}
-            ns calculation
-            For BSlines K should not leak out
+            Done: Carries l,{ml}
+            Done: ns calculation
+            Done: For BSlines K should not leak out
             Helps BFGroupe identify matching radial basis functions.
-            Inherits from IrrepEvaluator
-        BFGrouper will need to work purley with indices.
-            Finds unique BFs (exponents or splines)
+            Done: Inherits from IrrepEvaluator
+            ERI3 calculations
+        How to integrate into the old code?
+            BasisSet constructor needs to create the concrete classes.
+            The pass IBS_Evaluator* down to integral engine.
+                We already have this up an running for IE_Primatives.
+                Can we temporarily piggy back on that.
+                Stick a public IBS_Evaluator* inside IE_Primatives
+        
+        Done: ExponentGrouper 
+            //! Returns the unique (across all Irrep basis sets) index for this exponent.
+            size_t Insert(double exponent,size_t l); 
+            Finds unique BFs based in exponents or rmin from the spline support.
+            Does not need to know about Evaluators.
+            Evaluators need to track the index returned.
         {SL,SG,BS}_Rk
             Create RKEngines
-        One big class or break it up
-            Data{es,l,mls,ns}
-            IrrepEvaluator_2C{Data*}
-            IrrepEvaluator_3C{Data*}
-            IrrepEvaluator_4C{Data*}
+            
 
 
 

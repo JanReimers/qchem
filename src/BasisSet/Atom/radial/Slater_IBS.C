@@ -10,6 +10,8 @@ export class Slater_IBS : public virtual IBS_Evaluator
 public: 
  
     Slater_IBS(const ds_t& _es, int _l, const is_t& _mls) : es(_es), l(_l), mls(_mls),ns(norms()) {};
+    virtual void Register(ExponentGrouper&); //Set up unique spline or exponent indexes.
+
     virtual size_t size() const {return es.size();}
 
     virtual omls_t Overlap  () const;
@@ -32,4 +34,5 @@ private:
     int  l;
     is_t mls;
     ds_t ns;
+    std::vector<size_t> es_indices; //Unique exponent index
 };

@@ -46,11 +46,19 @@ template <size_t K> double Charge(const spline_t<K>& a , size_t l)
     return LinearForm{X<2>{}}(a);
 }
 
+//---------------------------------------------------------------------------
+//
+//  Start member functions.
+//
+template <size_t K> void BSpline_IBS<K>::Register(ExponentGrouper& grouper)
+{
+    for (auto s:splines) es_indices.push_back(grouper.Insert(s.getSupport().front(),l));
+}
 
- template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int _l, const is_t& _mls) 
- : rmin(_rmin), rmax(_rmax), l(_l), mls(_mls),ns(norms()) 
- {
-     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
+template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int _l, const is_t& _mls) 
+: rmin(_rmin), rmax(_rmax), l(_l), mls(_mls),ns(norms()) 
+{
+    std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     auto grid=splines[0].getSupport().getGrid();

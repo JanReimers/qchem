@@ -47,6 +47,16 @@ inline double Charge(double ea, size_t l)
     return ::Slater::Integral(ea,l);
 }
 
+//---------------------------------------------------------------------------
+//
+//  Start member functions.
+//
+void Slater_IBS::Register(ExponentGrouper& grouper)
+{
+    for (auto e:es) es_indices.push_back(grouper.Insert(e,l));
+}
+
+
 Slater_IBS::ds_t Slater_IBS::norms() const
 {
     ds_t ret(size());
