@@ -189,9 +189,9 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const IBS_Evaluator* _c) con
     for (size_t ic=0;ic<c->size();ic++) 
     {
         omls_t S(size());
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
-                S(i,j)=::Repulsion(splines[i-1]*splines[j-1],c->splines[ic],l,c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+        // for (auto i:S.rows())
+        //     for (auto j:S.cols(i))
+        //         S(i,j)=::Repulsion(splines[i-1]*splines[j-1],c->splines[ic],l,c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
         
         S3.push_back(S);
     }

@@ -10,7 +10,7 @@
         "name": "(gdb) Launch",
         "type": "cppdbg",
         "request": "launch",
-        "program": "${workspaceFolder}/build/Debug/UnitTests/UTMain",
+        "program": "${workspaceFolder}/build/Debug/UnitTests/UTBasisSet",
         "args": [],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}",

@@ -63,7 +63,7 @@ Priority 1:
         -Rk inconsistencies that should be cleaned up.
         -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
             should be Overlap((*ab)(i)*(*ab)(j),  
-            Repulsion no implemented.
+            Repulsion not implemented.
 
 
 

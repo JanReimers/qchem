@@ -28,6 +28,14 @@ target_include_directories(qcAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
+target_compile_definitions(qcAtom_BS PRIVATE 
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+target_compile_options(qcAtom_BS PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2>
+)
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
 add_subdirectory(l)

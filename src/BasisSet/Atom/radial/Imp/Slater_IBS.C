@@ -171,7 +171,7 @@ template <class T> Vector<T> convert(const std::valarray<T>& v)
 {
     Vector<T> ret(v.size());
     size_t i=0;
-    for (auto vi:v) ret(i)=vi;
+    for (auto vi:v) ret(++i)=vi;
     return ret;
 }
 

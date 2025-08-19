@@ -12,6 +12,7 @@ public:
     Gaussian_IBS(const ds_t& _es, int _l, const is_t& _mls) : es(_es), l(_l), mls(_mls),ns(norms()), grouper(0) {};
     virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
     virtual size_t size() const {return es.size();}
+    virtual int    Getl() const {return l;}
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;

@@ -23,6 +23,7 @@ public:
 
     virtual void Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
     virtual size_t size() const =0;
+    virtual int    Getl() const =0;
 
     virtual omls_t Overlap  () const=0;
     virtual omls_t Grad2    () const=0;

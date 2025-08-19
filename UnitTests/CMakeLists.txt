@@ -39,10 +39,21 @@ add_executable(UTCluster UTCluster.C)
 target_link_libraries(UTCluster PUBLIC qcCluster gtest)
 set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
 # BasisSet module
-add_executable(UTBasisSet UTBasisSet.C)
-target_link_libraries(UTBasisSet PUBLIC qcLattice_BS gtest)
+add_executable(UTBasisSet UTBasisSet.C BasisSet_SL.C)
+target_link_libraries(UTBasisSet PUBLIC qcAtom_BS  gtest) #qcLattice_BS
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
- 
+
+target_compile_definitions(UTBasisSet PRIVATE 
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+target_compile_options(UTBasisSet PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2>
+)
+
+
+
 # setup testing
 enable_testing()
 include(CTest)

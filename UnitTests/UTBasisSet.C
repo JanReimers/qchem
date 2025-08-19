@@ -3,11 +3,11 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet.Lattice.PlaneWave;
-// import qchem.Atom;
-// import Cluster.UnitCell;
-// import qchem.Lattice;
-// import qchem.Molecule;
+// import qchem.BasisSet.Lattice.PlaneWave;
+import qchem.Atom;
+import Cluster.UnitCell;
+import qchem.Lattice;
+import qchem.Molecule;
 
 int main(int argc, char **argv)
 {
@@ -31,12 +31,13 @@ Molecule* MakeSiBasis()
 
 class BasisSetTests : public ::testing::Test
 {
+public: 
     BasisSetTests() 
         : SiCell(5.43/a_0) //Convert Ångstrom to atomic units a.u.
         , Si(SiCell,IVec3(2,2,2),std::shared_ptr<Cluster>(MakeSiBasis()))
         {}
 
-    static const double a_0=0.529177; //Ångstrom
+    constexpr static const double a_0=0.529177; //Ångstrom
     
     UnitCell SiCell; 
     Lattice  Si;

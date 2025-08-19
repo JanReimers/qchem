@@ -18,6 +18,7 @@ public:
     virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
     
     virtual size_t size() const {return splines.size();}
+    virtual int    Getl() const {return l;}
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;
