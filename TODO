@@ -6,7 +6,9 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
-
+    BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
+        Affects CD fitting for l>0
+        Maybe just do not support l>0 ?
     No: -Put atom basisset build logic in common Atom:: base class.
         virtual CreateIBS(... ms) for paired, unpaired etc.
         not worth, gets vry complicated very fast.
