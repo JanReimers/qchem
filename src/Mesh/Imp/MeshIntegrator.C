@@ -320,7 +320,7 @@ template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Inv_r2(co
     return ret;
 }
 
-template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Grad(const Vf& f) const
+template <class T> typename MeshIntegrator<T>::SMat MeshIntegrator<T>::Grad2(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
     SMatrix<T> ret(n);

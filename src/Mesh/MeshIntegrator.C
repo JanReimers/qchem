@@ -34,8 +34,8 @@ public:
     virtual SMatrix<T> Repulsion3C(const Vf& a,const Sf& b) const; // <aiaj|1/r12|b>
 
     virtual SMatrix<T> Inv_r1    (const Vf& a            ) const; // <ai|1/r|aj>
-    virtual SMatrix<T> Inv_r2     (const Vf& a            ) const; // <ai|1/r^2|aj>
-    virtual SMatrix<T> Grad       (const Vf& a            ) const; // <grad(ai)|grad(aj)>
+    virtual SMatrix<T> Inv_r2    (const Vf& a            ) const; // <ai|1/r^2|aj>
+    virtual SMatrix<T> Grad2     (const Vf& a            ) const; // <grad(ai)|grad(aj)>
     virtual  Mat Grada_b    (const Vf& a,const Vf& b) const; // <grad(ai)|bj> 
     virtual  Mat a_Gradb    (const Vf& a,const Vf& b) const; // <ai|grad(bj)> 
 

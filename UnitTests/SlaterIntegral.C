@@ -196,7 +196,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
         SMatrix<double> K=oi->Kinetic();
         //cout << S << endl;
         int l=dynamic_cast<const Angular_Sym* >(oi->GetSymmetry().get())->GetL();
-        SMatrix<double> Knum = mintegrator->Grad(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
+        SMatrix<double> Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
         
         // cout << "K=" << K << endl;
