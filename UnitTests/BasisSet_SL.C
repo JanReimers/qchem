@@ -76,3 +76,36 @@ TEST_F(BasisSet_SL,NumericalOverlap)
     }
         
 }
+
+TEST_F(BasisSet_SL,Grad2)
+{
+    for (auto ev:evals)
+    {
+        omls_t S=ev->Grad2();
+        omls_t Snum = mintegrator->Grad2(*ev);
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,2e-15);
+    }
+        
+}
+
+TEST_F(BasisSet_SL,Inv_r1)
+{
+    for (auto ev:evals)
+    {
+        omls_t S=ev->Inv_r1();
+        omls_t Snum = mintegrator->Inv_r1(*ev);
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,3e-14);
+    }
+        
+}
+
+TEST_F(BasisSet_SL,Inv_r2)
+{
+    for (auto ev:evals)
+    {
+        omls_t S=ev->Inv_r2();
+        omls_t Snum = mintegrator->Inv_r2(*ev);
+        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,4e-9);
+    }
+        
+}

@@ -3,6 +3,7 @@ module;
 #include <valarray>
 #include <cmath>
 #include <cassert>
+#include <iostream>
 module BasisSet.Atom.Slater_IBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
@@ -192,11 +193,23 @@ Slater_IBS::Vec    Slater_IBS::operator() (const RVec3& r) const
 
 Slater_IBS::Vec3Vec Slater_IBS::Gradient(const RVec3& r) const
 {
-    ds_t grad=grad_slater(norm(r),l,es,ns);
-    RVec3 rhat=r/norm(r);
     Vec3Vec ret(size());
+    double mr=norm(r);
+    if (mr==0.0)
+    {
+        Fill(ret,RVec3{0,0,0});
+        return ret;
+    }
+    ds_t grad=grad_slater(norm(r),l,es,ns);
+    // std::cout << "grad=";
+    // for (auto g:grad) std::cout << g << " ";
+    // std::cout << std::endl;
+    RVec3 rhat=r/norm(r);
     size_t i=0;
     for (auto& g:grad) ret(++i)=g*rhat;
+    // std::cout << "ret=";
+    // for (auto g:ret) std::cout << g << " ";
+    // std::cout << std::endl;
     return ret;
 }
 
