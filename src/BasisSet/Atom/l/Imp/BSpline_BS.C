@@ -4,6 +4,7 @@ module;
 #include <cassert>
 
 module qchem.BasisSet.Atom.Internal.l.BSplineBS;
+import BasisSet.Atom.BSpline_IBS;
 import qchem.Basisset.Atom.radial.BSpline.Rk;
 import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.Symmetry.AtomEC;
@@ -16,7 +17,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
 : ::BSpline::BS_Common<K>(new IE_BS_2E_Angular_l)
 {
     for (size_t L=0;L<=LMax;L++)
-        this->Insert(new Orbital_IBS<K>(this,this,N,rmin,rmax,L));
+        this->Insert(new Orbital_IBS<K>(this,this,new BSpline_IBS<K>(N,rmin,rmax,L,{}),N,rmin,rmax,L));
     this->BuildCache(LMax);
 }
 
@@ -30,11 +31,11 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
     {
         auto mls=aec.GetBreadown(L);
         if (mls.ml_paired.size()>0)   
-            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,this,N,rmin,rmax,L,mls.ml_paired));            
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,this,new BSpline_IBS<K>(N,rmin,rmax,L,mls.ml_paired),N,rmin,rmax,L,mls.ml_paired));            
         if (mls.ml_unpaired.size()>0)   
-            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,this,N,rmin,rmax,L,mls.ml_unpaired));            
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,this,new BSpline_IBS<K>(N,rmin,rmax,L,mls.ml_unpaired),N,rmin,rmax,L,mls.ml_unpaired));            
         if (mls.ml_unoccupied.size()>0)   
-            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,this,N,rmin,rmax,L,mls.ml_unoccupied));            
+            ::BSpline::BS_Common<K>::Insert(new Orbital_IBS<K>(this,this,new BSpline_IBS<K>(N,rmin,rmax,L,mls.ml_unoccupied),N,rmin,rmax,L,mls.ml_unoccupied));            
 
     
     }           

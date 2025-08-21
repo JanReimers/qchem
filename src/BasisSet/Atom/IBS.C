@@ -18,10 +18,10 @@ template <class T> class Orbital_IBS
     , public AtomIE_Nuclear<double>
 {
 protected:
-    Orbital_IBS(const DB_cache<double>* db,const IE_Primatives* pie) 
-    : AtomIE_Overlap<double>(db,pie)
-    , AtomIE_Kinetic<double>(db,pie)
-    , AtomIE_Nuclear<double>(db,pie) 
+    Orbital_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
+    : AtomIE_Overlap<double>(db,pie,eval)
+    , AtomIE_Kinetic<double>(db,pie,eval)
+    , AtomIE_Nuclear<double>(db,pie,eval) 
     {};
 };
 
@@ -31,8 +31,8 @@ template <class T> class Orbital_DFT_IBS
     , public AtomIE_DFT<double>
 {
 protected:
-    Orbital_DFT_IBS(const DB_cache<double>* db,const IE_Primatives* pie) 
-    : AtomIE_DFT<double>(db,pie)
+    Orbital_DFT_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
+    : AtomIE_DFT<double>(db,pie,eval)
     {};
 };
 
@@ -52,9 +52,9 @@ template <class T> class Orbital_RKBL_IBS
     , public AtomIE_RKBL<T>
 {
 protected:
-    Orbital_RKBL_IBS(const DB_cache<T>* db,const IE_Primatives* pie,int kappa)
+    Orbital_RKBL_IBS(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval,int kappa)
         : Orbital_RKBL_IBS_Common<T>(kappa)
-        , AtomIE_RKBL<T>(db,pie)
+        , AtomIE_RKBL<T>(db,pie,eval)
         {}
 };
 
@@ -63,9 +63,9 @@ template <class T> class Orbital_RKBS_IBS
     , public AtomIE_RKBS<T>
 {
 protected:
-    Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,int kappa)
+    Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval,int kappa)
         : Orbital_RKBS_IBS_Common<T>(kappa)
-        , AtomIE_RKBS<T>(db,pie)
+        , AtomIE_RKBS<T>(db,pie,eval)
         {}
 };
 
@@ -76,9 +76,9 @@ class Fit_IBS
     , public AtomIE_Fit
 {
 protected:
-    Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie) 
-    : AtomIE_Overlap<double>(db,pie)
-    , AtomIE_Fit(db,pie)
+    Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
+    : AtomIE_Overlap<double>(db,pie,eval)
+    , AtomIE_Fit(db,pie,eval)
     {};
 };
 

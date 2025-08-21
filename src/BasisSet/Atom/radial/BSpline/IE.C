@@ -41,7 +41,7 @@ template <class T, size_t K> class IE_Overlap
 protected:
     typedef bspline::Spline<T, K> spline_t;
     virtual SMatrix<T> MakeOverlap() const;
-    IE_Overlap(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Overlap<T>(db), pie(_pie) {};
+    IE_Overlap(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie,const IBS_Evaluator* eval) : DB_Overlap<T>(db), pie(_pie) {};
 private:
     const IE_Primatives<K>* pie;
 };
@@ -50,7 +50,7 @@ template <class T, size_t K> class IE_Kinetic
 {
 protected:
     virtual SMatrix<T> MakeKinetic() const;
-    IE_Kinetic(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Kinetic<T>(db), pie(_pie)  {};
+    IE_Kinetic(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie,const IBS_Evaluator* eval) : DB_Kinetic<T>(db), pie(_pie)  {};
 private:
     const IE_Primatives<K>* pie;
 };
@@ -59,7 +59,7 @@ template <class T, size_t K> class IE_Inv_r1
 {
 protected:
     virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
-    IE_Inv_r1(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Nuclear<T>(db), pie(_pie)  {};
+    IE_Inv_r1(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie,const IBS_Evaluator* eval) : DB_Nuclear<T>(db), pie(_pie)  {};
 private:
     const IE_Primatives<K>* pie;
 };
@@ -88,7 +88,7 @@ template <class T, size_t K> class IE_DFT
 {
     typedef bspline::Spline<T, K> spline_t;
 protected:
-    IE_DFT(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_DFT<T>(db), pie(_pie)  {};
+    IE_DFT(const DB_cache<T>* db,const ::BSpline::IE_Primatives<K>* _pie,const IBS_Evaluator* eval) : DB_DFT<T>(db), pie(_pie)  {};
     
     virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const;
     virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const;
@@ -104,7 +104,7 @@ template <size_t K> class IE_Fit
 : public DB_Fit
 {
     protected:
-    IE_Fit(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* _pie) : DB_Fit(db), pie(_pie)  {};
+    IE_Fit(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* _pie,const IBS_Evaluator* eval) : DB_Fit(db), pie(_pie)  {};
 
     virtual  Vector<double> MakeCharge   () const;
     virtual SMatrix<double> MakeRepulsion() const;

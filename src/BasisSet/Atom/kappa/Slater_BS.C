@@ -41,7 +41,7 @@ export class Orbital_RKB_IBS
     , public IE_Primatives
 {
 public:
-    Orbital_RKB_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const IBS_Evaluator* eval,const Vector<double>& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
@@ -54,7 +54,7 @@ export template <class T> class Orbital_RKBL_IBS
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const ::IE_Primatives* pie, const Vector<T>& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const ::IE_Primatives* pie,const IBS_Evaluator* eval, const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 };
 
@@ -67,7 +67,7 @@ export template <class T> class Orbital_RKBS_IBS
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*, const ::IE_Primatives* pie,const Vector<T>& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*, const ::IE_Primatives* pie,const IBS_Evaluator* eval,const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;
