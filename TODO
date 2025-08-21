@@ -15,10 +15,11 @@ Priority 1:
         not worth, gets vry complicated very fast.
         Some commonality but not enought
     -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
-    -Use std::valarray for exponents
+    Done: -Use std::valarray for exponents
         Make a template for op(r).
+        now in IE_Primatives class hierarcy.
            
-    -Refine the IE_Primatives interface so it can also work BSplines.
+    Done: -Refine the IE_Primatives interface so it can also work with BSplines.
         Need to pass in AIEC and indexes instead of exponent values.
         or -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
     -Clean up Atoml namespace.
@@ -44,6 +45,8 @@ Priority 1:
             Helps BFGroupe identify matching radial basis functions.
             Done: Inherits from IrrepEvaluator
             ERI3 calculations
+            Make Unit tests
+
 
         How to integrate into the old code?
             BasisSet constructor needs to create the concrete classes.

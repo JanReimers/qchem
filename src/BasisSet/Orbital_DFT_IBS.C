@@ -4,9 +4,7 @@ module;
 export module qchem.Orbital_DFT_IBS;
 export import qchem.BasisSet;
 export import qchem.Orbital_1E_IBS;
-
-
-export template <class T> using ERI3=std::vector<SMatrix<T>>;
+export import qchem.BasisSet.Internal.ERI3;
 
 //! \brief Interface for 3-center integrals used in DFT calculations.
 export template <class T> class Integrals_DFT 

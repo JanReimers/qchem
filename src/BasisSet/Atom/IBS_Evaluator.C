@@ -5,10 +5,10 @@ module;
 export module BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Atom.internal.Rk;
+export import qchem.BasisSet.Internal.ERI3;
 export import qchem.VectorFunction;
 export import oml;
 
-export template <class T> using ERI3=std::vector<SMatrix<T>>;
 export using dERI3=ERI3<double>;
 
 export class IBS_Evaluator : public VectorFunction<double>
