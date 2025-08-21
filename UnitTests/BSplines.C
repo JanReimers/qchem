@@ -279,7 +279,7 @@ TEST_F(BSplineTests, Kinetic)
             for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
         
         int l=dynamic_cast<const Angular_Sym* >(ibs->GetSymmetry().get())->GetL();
-        SMatrix<double> Tnum = mintegrator->Grad(*ibs);
+        SMatrix<double> Tnum = mintegrator->Grad2(*ibs);
         SMatrix<double> Cen = mintegrator->Inv_r2(*ibs);
         Tnum+=l*(l+1)*Cen;
         EXPECT_NEAR(Max(fabs(T-Tnum)),0.0,3e-5);
