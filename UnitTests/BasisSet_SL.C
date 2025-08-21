@@ -8,6 +8,7 @@ using std::endl;
 
 import BasisSet.Atom.Slater_IBS;
 import BasisSet.Atom.Gaussian_IBS;
+import BasisSet.Atom.BSpline_IBS;
 import qchem.Mesh.Integrator;
 import qchem.Molecule;
 import Common.Constants;
@@ -58,6 +59,8 @@ void BasisSet_Common::TestOverlap(double eps) const
         omls_t S=ev->Overlap();
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         omls_t Snum = mintegrator->Overlap(*ev);
+        cout.precision(2);
+        // cout << S-Snum << endl;
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,eps);
     }
 }
@@ -101,9 +104,6 @@ void BasisSet_Common::TestCharge (double eps) const
     }
         
 }
-
-
-
 
 //----------------------------------------------------------------------------------------
 //
@@ -257,7 +257,6 @@ TEST_F(BasisSet_SG,AnalyticOverlap)
     }
         
 }
-
 TEST_F(BasisSet_SG,AnalyticRepulsion)
 {
     using ds_t=IBS_Evaluator::ds_t;
@@ -279,3 +278,25 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
         
 }
 
+//----------------------------------------------------------------------------------------
+//
+//  Testing atom Gaussian basis set evaluators
+//
+
+class BasisSet_BS: public BasisSet_Common
+{
+public:
+
+    BasisSet_BS() : BasisSet_Common()
+    {
+        for (size_t l=0;l<=0;l++)
+            evals.push_back(new BSpline_IBS<6>(9+2*l,0.01,20.0,l,{}));    
+    }
+   
+};
+
+TEST_F(BasisSet_BS,Overlap) {TestOverlap(4e-8);}
+TEST_F(BasisSet_BS,Grad2  ) {TestGrad2  (7e-3);}
+TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (4e-6);}
+// TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (4e-8);}
+TEST_F(BasisSet_BS,Charge ) {TestCharge (2e-5);}

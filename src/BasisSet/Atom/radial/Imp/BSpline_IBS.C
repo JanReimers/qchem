@@ -43,7 +43,7 @@ template <size_t K> double Inv_r2(const spline_t<K>& a , const spline_t<K>& b,si
 
 template <size_t K> double Charge(const spline_t<K>& a , size_t l)
 {
-    return LinearForm{X<2>{}}(a);
+    return LinearForm{X<2>{}}(a)*FourPi;
 }
 
 //---------------------------------------------------------------------------
@@ -198,14 +198,16 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const IBS_Evaluator* _c) con
     return S3;
 }
 
-// template <size_t K> Rk* BSpline_IBS<K>::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
-// {
-//     assert(grouper);
-//     assert(itsRkCache);
-//     size_t lmax=grouper->LMax(ia,ib,ic,id);
-//     const GLCache* gl=this->GetGL(lmax);
-//     return new BSpline::RkEngine(grouper->unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
-// }
+template <size_t K> Rk* BSpline_IBS<K>::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
+{
+    assert(false);
+    return 0;
+    // assert(grouper);
+    // assert(itsRkCache);
+    // size_t lmax=grouper->LMax(ia,ib,ic,id);
+    // const GLCache* gl=this->GetGL(lmax);
+    // return new BSpline::RkEngine(grouper->unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
+}
 
 template <size_t K> BSpline_IBS<K>::Vec    BSpline_IBS<K>::operator() (const RVec3& r) const
 {
