@@ -167,7 +167,7 @@ template <class T> Vector<T> convert(const std::valarray<T>& v)
 {
     Vector<T> ret(v.size());
     size_t i=0;
-    for (auto vi:v) ret(i)=vi;
+    for (auto vi:v) ret(++i)=vi;
     return ret;
 }
 
@@ -188,9 +188,15 @@ Gaussian_IBS::Vec    Gaussian_IBS::operator() (const RVec3& r) const
 
 Gaussian_IBS::Vec3Vec Gaussian_IBS::Gradient(const RVec3& r) const
 {
+    Vec3Vec ret(size());
+    double mr=norm(r);
+    if (mr==0.0)
+    {
+        Fill(ret,RVec3{0,0,0});
+        return ret;
+    }
     ds_t grad=grad_gaussian(norm(r),l,es,ns);
     RVec3 rhat=r/norm(r);
-    Vec3Vec ret(size());
     size_t i=0;
     for (auto& g:grad) ret(++i)=g*rhat;
     return ret;
