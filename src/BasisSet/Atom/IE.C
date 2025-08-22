@@ -24,10 +24,9 @@ template <class T> class AtomIE_Overlap
 : public DB_Overlap<T>
 {
 protected:
-    AtomIE_Overlap(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_Overlap<T>(db), pie(_pie), eval(_eval) {};
+    AtomIE_Overlap(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_Overlap<T>(db), eval(_eval) {};
     virtual SMatrix<T> MakeOverlap() const {return eval->Overlap();}
 private:
-    const IE_Primatives* pie;
     const IBS_Evaluator* eval;
 };
 template <class T> class AtomIE_Kinetic
@@ -115,7 +114,7 @@ template <class T> class AtomIE_RKBL
 {
 protected:
     AtomIE_RKBL(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
-    : AtomIE_Overlap <T>(db,pie,eval)
+    : AtomIE_Overlap <T>(db,eval)
     , AtomIE_XKinetic<T>(db,pie,eval)
     , AtomIE_Nuclear <T>(db,pie,eval) 
     {};
