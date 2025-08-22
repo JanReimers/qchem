@@ -20,7 +20,7 @@ template <class T> class Orbital_IBS
 protected:
     Orbital_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
     : AtomIE_Overlap<double>(db,eval)
-    , AtomIE_Kinetic<double>(db,pie,eval)
+    , AtomIE_Kinetic<double>(db,eval)
     , AtomIE_Nuclear<double>(db,pie,eval) 
     {};
 };

@@ -33,14 +33,13 @@ template <class T> class AtomIE_Kinetic
 : public DB_Kinetic<T>
 {
 protected:
-    AtomIE_Kinetic(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_Kinetic<T>(db), pie(_pie), eval(_eval) {};
+    AtomIE_Kinetic(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_Kinetic<T>(db), eval(_eval) {};
     virtual SMatrix<T> MakeKinetic() const
     {
         int l=eval->Getl();
         return eval->Grad2() + l*(l+1)*eval->Inv_r2();
     }
 private:
-    const IE_Primatives* pie;
     const IBS_Evaluator* eval;
 };
 template <class T> class AtomIE_Nuclear
@@ -129,7 +128,9 @@ template <class T> class AtomIE_RKBS
 , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBS(const DB_cache<T>* db,const ::IE_Primatives* pie,const IBS_Evaluator* eval) : AtomIE_Kinetic<T>(db,pie,eval), AtomIE_Nuclear<T>(db,pie,eval) {};
+    AtomIE_RKBS(const DB_cache<T>* db,const ::IE_Primatives* pie,const IBS_Evaluator* eval) 
+    : AtomIE_Kinetic<T>(db,eval)
+    , AtomIE_Nuclear<T>(db,pie,eval) {};
 };
 // Fit
 class AtomIE_Fit 
