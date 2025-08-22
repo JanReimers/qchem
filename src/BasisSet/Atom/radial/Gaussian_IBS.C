@@ -47,6 +47,6 @@ protected:
 export class Gaussian_RKBS_IBS : public Gaussian_IBS
 {
     public:
-    Gaussian_RKBS_IBS(const omlv_t& es, int l, const is_t& mls) : Gaussian_IBS(es,l,mls) {};
+    Gaussian_RKBS_IBS(const omlv_t& es, int l, const is_t& mls) : Gaussian_IBS(es,l,mls) {ns=norms();}
     virtual ds_t norms() const; //assumes es,l are already initialized
 };

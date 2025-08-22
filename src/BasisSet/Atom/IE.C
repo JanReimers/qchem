@@ -34,7 +34,11 @@ template <class T> class AtomIE_Kinetic
 {
 protected:
     AtomIE_Kinetic(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_Kinetic<T>(db), pie(_pie), eval(_eval) {};
-    virtual SMatrix<T> MakeKinetic() const;
+    virtual SMatrix<T> MakeKinetic() const
+    {
+        int l=eval->Getl();
+        return eval->Grad2() + l*(l+1)*eval->Inv_r2();
+    }
 private:
     const IE_Primatives* pie;
     const IBS_Evaluator* eval;

@@ -46,9 +46,12 @@ Priority 1:
             Done: Inherits from IrrepEvaluator
             ERI3 calculations
             Make Unit tests
+            Derive IBS from Evaluator, and pass this in constructor.
+            Clean up RKBS evaluators norms handling.
 
 
-        How to integrate into the old code?
+
+        Done: How to integrate into the old code?
             BasisSet constructor needs to create the concrete classes.
             The pass IBS_Evaluator* down to integral engine.
                 We already have this up an running for IE_Primatives.
