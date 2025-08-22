@@ -18,7 +18,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
 {
     ::Slater::ExponentScaler ss(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
-        Insert(new Orbital_IBS(this,this,new Slater_IBS(ss.Get_es(L),L,{}),ss.Get_es(L),L,));
+        Insert(new Orbital_IBS(this,new Slater_IBS(ss.Get_es(L),L,{}),ss.Get_es(L),L,));
         
 }
 
@@ -31,11 +31,11 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
     {
         auto mls=aec.GetBreadown(L);
         if (mls.ml_paired.size()>0)   
-            Insert(new Orbital_IBS(this,this,new Slater_IBS(ss.Get_es(L),L,mls.ml_paired),ss.Get_es(L),L,mls.ml_paired));            
+            Insert(new Orbital_IBS(this,new Slater_IBS(ss.Get_es(L),L,mls.ml_paired),ss.Get_es(L),L,mls.ml_paired));            
         if (mls.ml_unpaired.size()>0)   
-            Insert(new Orbital_IBS(this,this,new Slater_IBS(ss.Get_es(L),L,mls.ml_unpaired),ss.Get_es(L),L,mls.ml_unpaired));            
+            Insert(new Orbital_IBS(this,new Slater_IBS(ss.Get_es(L),L,mls.ml_unpaired),ss.Get_es(L),L,mls.ml_unpaired));            
         if (mls.ml_unoccupied.size()>0)   
-            Insert(new Orbital_IBS(this,this,new Slater_IBS(ss.Get_es(L),L,mls.ml_unoccupied),ss.Get_es(L),L,mls.ml_unoccupied));            
+            Insert(new Orbital_IBS(this,new Slater_IBS(ss.Get_es(L),L,mls.ml_unoccupied),ss.Get_es(L),L,mls.ml_unoccupied));            
 
     
     }

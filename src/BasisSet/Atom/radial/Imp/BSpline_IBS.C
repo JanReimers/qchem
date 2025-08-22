@@ -173,36 +173,36 @@ template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XRepulsion(const Fit_I
 }
 
 
-template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const IBS_Evaluator* _c) const
+template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
 {
-    const BSpline_IBS<K>* c=dynamic_cast<const BSpline_IBS<K>*>(_c);
+    const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
     assert(c);
     dERI3 S3;
-    for (size_t ic=0;ic<c->size();ic++) 
+    for (size_t ic=0;ic<c.size();ic++) 
     {
         omls_t S(size());
         for (auto i:S.rows())
             for (auto j:S.cols(i))
             {
                 auto ab=splines[i-1]+splines[j-1];
-                S(i,j)=::Overlap(ab,c->splines[ic],l+l+c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+                S(i,j)=::Overlap(ab,c.splines[ic],l+l+c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
             }
         
         S3.push_back(S);
     }
     return S3;
 }
-template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const IBS_Evaluator* _c) const
+template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
 {
-    const BSpline_IBS<K>* c=dynamic_cast<const BSpline_IBS<K>*>(_c);
+    const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
     assert(c);
     dERI3 S3;
-    for (size_t ic=0;ic<c->size();ic++) 
+    for (size_t ic=0;ic<c.size();ic++) 
     {
         omls_t S(size());
         // for (auto i:S.rows())
         //     for (auto j:S.cols(i))
-        //         S(i,j)=::Repulsion(splines[i-1]*splines[j-1],c->splines[ic],l,c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+        //         S(i,j)=::Repulsion(splines[i-1]*splines[j-1],c.splines[ic],l,c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
         
         S3.push_back(S);
     }

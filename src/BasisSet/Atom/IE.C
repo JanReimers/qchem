@@ -103,16 +103,11 @@ template <class T> class AtomIE_DFT
 : public DB_DFT<T>
 {
 protected:
-    AtomIE_DFT(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_DFT<T>(db), pie(_pie), eval(_eval) {};
+    AtomIE_DFT(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_DFT<T>(db), eval(_eval) {};
     
-    virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const;
-    virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const;
+    virtual ERI3<T> MakeOverlap3C  (const Fit_IBS& c) const {return eval->Overlap  (c);}
+    virtual ERI3<T> MakeRepulsion3C(const Fit_IBS& c) const {return eval->Repulsion(c);}
 private:
-    typedef AtomIrrepIEClient::bf_tuple bf_tuple;
-    SMatrix<T> MakeOverlap  (const bf_tuple& c) const; //ab loops
-    SMatrix<T> MakeRepulsion(const bf_tuple& c) const; //ab loops
-private:
-    const IE_Primatives* pie;
     const IBS_Evaluator* eval;
 };
 // DHF

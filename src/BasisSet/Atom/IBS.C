@@ -31,8 +31,8 @@ template <class T> class Orbital_DFT_IBS
     , public AtomIE_DFT<double>
 {
 protected:
-    Orbital_DFT_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
-    : AtomIE_DFT<double>(db,pie,eval)
+    Orbital_DFT_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval) 
+    : AtomIE_DFT<double>(db,eval)
     {};
 };
 

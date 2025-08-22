@@ -135,33 +135,31 @@ IBS_Evaluator::omlm_t Gaussian_IBS::XRepulsion(const Fit_IBS& _b) const
 }
 
 
-dERI3 Gaussian_IBS::Overlap  (const IBS_Evaluator* _c) const
+dERI3 Gaussian_IBS::Overlap  (const Fit_IBS& _c) const
 {
-    const Gaussian_IBS* c=dynamic_cast<const Gaussian_IBS*>(_c);
-    assert(c);
+    const Gaussian_IBS& c=dynamic_cast<const Gaussian_IBS&>(_c);
     dERI3 S3;
-    for (size_t ic=0;ic<c->size();ic++) 
+    for (size_t ic=0;ic<c.size();ic++) 
     {
         omls_t S(size());
         for (auto i:S.rows())
             for (auto j:S.cols(i))
-                S(i,j)=::Overlap(es[i-1]+es[j-1],c->es[ic],l+l+c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+                S(i,j)=::Overlap(es[i-1]+es[j-1],c.es[ic],l+l+c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
         
         S3.push_back(S);
     }
     return S3;
 }
-dERI3 Gaussian_IBS::Repulsion(const IBS_Evaluator* _c) const
+dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
 {
-    const Gaussian_IBS* c=dynamic_cast<const Gaussian_IBS*>(_c);
-    assert(c);
+    const Gaussian_IBS& c=dynamic_cast<const Gaussian_IBS&>(_c);
     dERI3 S3;
-    for (size_t ic=0;ic<c->size();ic++) 
+    for (size_t ic=0;ic<c.size();ic++) 
     {
         omls_t S(size());
         for (auto i:S.rows())
             for (auto j:S.cols(i))
-                S(i,j)=::Repulsion(es[i-1]+es[j-1],c->es[ic],l,c->l)*ns[i-1]*ns[j-1]*c->ns[ic];  
+                S(i,j)=::Repulsion(es[i-1]+es[j-1],c.es[ic],l,c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
         
         S3.push_back(S);
     }
