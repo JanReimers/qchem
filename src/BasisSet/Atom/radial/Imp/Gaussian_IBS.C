@@ -25,10 +25,6 @@ inline double Grad2(double ea , double eb,size_t la, size_t lb)
             +4*ea*eb  * Gaussian::Integral(t,2*la+2);
 }
 
-inline double Inv_r1(double ea , double eb,size_t l_total)
-{
-    return Gaussian::Integral(ea+eb,l_total-1); //Already has 4*Pi
-}
 inline double Inv_r2(double ea , double eb,size_t l_total)
 {
     return Gaussian::Integral(ea+eb,l_total-2); //Already has 4*Pi
@@ -54,6 +50,13 @@ void Gaussian_IBS::Register(ExponentGrouper* _grouper)
     grouper=_grouper;
     for (auto e:es) es_indices.push_back(_grouper->Insert(e,l));
 }
+
+// This need overridability.
+double Gaussian_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+{
+    return Gaussian::Integral(ea+eb,l_total-1); //Already has 4*Pi
+}
+
 
 Gaussian_IBS::ds_t Gaussian_IBS::norms() const
 {
@@ -87,7 +90,7 @@ Gaussian_IBS::omls_t Gaussian_IBS::Inv_r1() const
     omls_t S(size());
     for (auto i:S.rows())
         for (auto j:S.cols(i))
-            S(i,j)= ::Inv_r1(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
+            S(i,j)= Inv_r1(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
 
     return S;
 }
@@ -204,4 +207,9 @@ Gaussian_IBS::ds_t Gaussian_RKBS_IBS::norms() const
         ret[i]=1.0/sqrt(k); 
     }
     return ret;
+}
+
+double Gaussian_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+{
+    return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
 }

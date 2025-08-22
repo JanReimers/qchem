@@ -34,6 +34,7 @@ public:
 
 protected:
     ds_t norms() const; //assumes es,l are already initialized
+    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
 
     ds_t es; 
     int  l;
@@ -49,4 +50,5 @@ export class Gaussian_RKBS_IBS : public Gaussian_IBS
     public:
     Gaussian_RKBS_IBS(const omlv_t& es, int l, const is_t& mls) : Gaussian_IBS(es,l,mls) {ns=norms();}
     virtual ds_t norms() const; //assumes es,l are already initialized
+    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
 };

@@ -28,10 +28,6 @@ inline double Grad2(double ea , double eb,size_t la, size_t lb)
     return Term1+Term2+Term3;
 }
 
-inline double Inv_r1(double ea , double eb,size_t l_total)
-{
-    return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
-}
 inline double Inv_r2(double ea , double eb,size_t l_total)
 {
     return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
@@ -59,6 +55,11 @@ void Slater_IBS::Register(ExponentGrouper* _grouper)
     for (auto e:es) es_indices.push_back(_grouper->Insert(e,l));
 }
 
+// This need overridability.
+double Slater_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+{
+    return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
+}
 
 Slater_IBS::ds_t Slater_IBS::norms() const
 {
@@ -92,7 +93,7 @@ Slater_IBS::omls_t Slater_IBS::Inv_r1() const
     omls_t S(size());
     for (auto i:S.rows())
         for (auto j:S.cols(i))
-            S(i,j)= ::Inv_r1(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
+            S(i,j)= Inv_r1(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
 
     return S;
 }
@@ -217,3 +218,7 @@ Slater_IBS::ds_t Slater_RKBS_IBS::norms() const
     return ret;
 }
 
+double Slater_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+{
+    return ea*eb*::Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
+}
