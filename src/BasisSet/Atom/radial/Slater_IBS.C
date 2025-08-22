@@ -33,8 +33,8 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-private:
-    ds_t norms() const; //assumes es,l are already initialized
+protected:
+    virtual ds_t norms() const; //assumes es,l are already initialized
 
     ds_t es; 
     int  l;
@@ -42,4 +42,11 @@ private:
     ds_t ns;
     const ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
+};
+
+export class Slater_RKBS_IBS : public Slater_IBS
+{
+    public:
+    Slater_RKBS_IBS(const omlv_t& es, int l, const is_t& mls) : Slater_IBS(es,l,mls) {};
+    virtual ds_t norms() const; //assumes es,l are already initialized
 };

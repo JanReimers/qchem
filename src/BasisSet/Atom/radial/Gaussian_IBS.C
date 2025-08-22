@@ -32,7 +32,7 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-private:
+protected:
     ds_t norms() const; //assumes es,l are already initialized
 
     ds_t es; 
@@ -41,4 +41,12 @@ private:
     ds_t ns;
     const ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
+};
+
+
+export class Gaussian_RKBS_IBS : public Gaussian_IBS
+{
+    public:
+    Gaussian_RKBS_IBS(const omlv_t& es, int l, const is_t& mls) : Gaussian_IBS(es,l,mls) {};
+    virtual ds_t norms() const; //assumes es,l are already initialized
 };

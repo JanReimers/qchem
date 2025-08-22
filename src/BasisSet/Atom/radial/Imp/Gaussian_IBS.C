@@ -195,3 +195,13 @@ Gaussian_IBS::Vec3Vec Gaussian_IBS::Gradient(const RVec3& r) const
     return ret;
 }
 
+Gaussian_IBS::ds_t Gaussian_RKBS_IBS::norms() const
+{
+    ds_t ret(size());
+    for (size_t i=0;i<size();i++) 
+    {
+        double k=::Grad2(es[i],es[i],l,l) + l*(l+1)*::Inv_r2(es[i],es[i],2*l);
+        ret[i]=1.0/sqrt(k); 
+    }
+    return ret;
+}

@@ -33,7 +33,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
     , Orbital_RKB_IBS_Common<double>
         (db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie ,new Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,this,new Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents,kappa) //Known memory leak, need redesign
+        , new Orbital_RKBS_IBS<double>(db,this,new Gaussian_RKBS_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents,kappa) //Known memory leak, need redesign
         )
 {
     
