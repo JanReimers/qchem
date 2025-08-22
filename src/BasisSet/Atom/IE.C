@@ -25,7 +25,7 @@ template <class T> class AtomIE_Overlap
 {
 protected:
     AtomIE_Overlap(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_Overlap<T>(db), pie(_pie), eval(_eval) {};
-    virtual SMatrix<T> MakeOverlap() const;
+    virtual SMatrix<T> MakeOverlap() const {return eval->Overlap();}
 private:
     const IE_Primatives* pie;
     const IBS_Evaluator* eval;

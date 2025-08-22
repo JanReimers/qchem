@@ -6,19 +6,19 @@ module;
 module qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
 
-template <class T> SMatrix<T> AtomIE_Overlap <T>::MakeOverlap() const
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); // Cross cast
-    assert(a);
+// template <class T> SMatrix<T> AtomIE_Overlap <T>::MakeOverlap() const
+// {
+//     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); // Cross cast
+//     assert(a);
 
-    size_t N=a->size(),l=a->l;
-    SMatrix<double> H(N);
-    for (auto i:H.rows())
-        for (auto j:H.cols(i))
-            H(i,j)= pie->Overlap(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
+//     size_t N=a->size(),l=a->l;
+//     SMatrix<double> H(N);
+//     for (auto i:H.rows())
+//         for (auto j:H.cols(i))
+//             H(i,j)= pie->Overlap(a->es(i),a->es(j),2*l)*a->ns(i)*a->ns(j);
 
-    return H;
-}
+//     return H;
+// }
 template <class T> SMatrix<T> AtomIE_Kinetic <T>::MakeKinetic() const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  // Cross cast
