@@ -6,6 +6,7 @@ export module BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Atom.internal.Rk;
 export import qchem.BasisSet.Internal.ERI3;
+export import qchem.Fit_IBS;
 export import qchem.VectorFunction;
 export import oml;
 
@@ -47,7 +48,7 @@ public:
     virtual omls_t Repulsion () const=0;
     virtual omlv_t Charge    () const=0;
     virtual ds_t   Norm      () const=0;
-    virtual omlm_t XRepulsion(const IBS_Evaluator*) const=0;
+    virtual omlm_t XRepulsion(const Fit_IBS&) const=0;
 
     virtual dERI3  Overlap  (const IBS_Evaluator*) const=0; //3 center
     virtual dERI3  Repulsion(const IBS_Evaluator*) const=0; //3 center

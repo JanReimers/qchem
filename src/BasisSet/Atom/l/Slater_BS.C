@@ -31,7 +31,7 @@ class Fit_IBS
 , public Atom::Fit_IBS
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
 };
 
 class BasisSet 

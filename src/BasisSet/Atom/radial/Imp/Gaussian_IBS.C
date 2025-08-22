@@ -124,14 +124,13 @@ Gaussian_IBS::omlv_t Gaussian_IBS::Charge() const
     return V;
 }
 
-IBS_Evaluator::omlm_t Gaussian_IBS::XRepulsion(const IBS_Evaluator* _b) const
+IBS_Evaluator::omlm_t Gaussian_IBS::XRepulsion(const Fit_IBS& _b) const
 {
-    const Gaussian_IBS* b=dynamic_cast<const Gaussian_IBS*>(_b);
-    assert(b);   
-    omlm_t M(size(),b->size());
+    const Gaussian_IBS& b=dynamic_cast<const Gaussian_IBS&>(_b);
+    omlm_t M(size(),b.size());
     for (auto i:M.rows())
             for (auto j:M.cols())
-                M(i,j)=::Repulsion(es[i-1],b->es[j-1],l,b->l)*ns[i-1]*b->ns[j-1];
+                M(i,j)=::Repulsion(es[i-1],b.es[j-1],l,b.l)*ns[i-1]*b.ns[j-1];
     return M;
 }
 

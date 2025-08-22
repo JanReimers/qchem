@@ -143,19 +143,15 @@ class AtomIE_Fit
 : public DB_Fit
 {
     protected:
-    AtomIE_Fit(const DB_cache<double>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_Fit(db), pie(_pie), eval(_eval) {};
+    AtomIE_Fit(const DB_cache<double>* db,const IBS_Evaluator* _eval) : DB_Fit(db), eval(_eval) {};
 
-    virtual  Vector<double> MakeCharge() const {return eval->Charge();}
-    virtual SMatrix<double> MakeRepulsion() const {return eval->Repulsion();}
-    virtual  Matrix<double> MakeRepulsion(const Fit_IBS& f) const; 
-    // {
-    //     return eval->XRepulsion(xeval);
-    // }
+    virtual  Vector<double> MakeCharge   (                ) const {return eval->Charge    ( );}
+    virtual SMatrix<double> MakeRepulsion(                ) const {return eval->Repulsion ( );}
+    virtual  Matrix<double> MakeRepulsion(const Fit_IBS& f) const {return eval->XRepulsion(f);}
 private:
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide
 private:
-    const IE_Primatives* pie;
     const IBS_Evaluator* eval;
 };
 

@@ -76,9 +76,9 @@ class Fit_IBS
     , public AtomIE_Fit
 {
 protected:
-    Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
+    Fit_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval) 
     : AtomIE_Overlap<double>(db,eval)
-    , AtomIE_Fit(db,pie,eval)
+    , AtomIE_Fit(db,eval)
     {};
 };
 
