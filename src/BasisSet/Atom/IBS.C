@@ -18,10 +18,10 @@ template <class T> class Orbital_IBS
     , public AtomIE_Nuclear<double>
 {
 protected:
-    Orbital_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
+    Orbital_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval) 
     : AtomIE_Overlap<double>(db,eval)
     , AtomIE_Kinetic<double>(db,eval)
-    , AtomIE_Nuclear<double>(db,pie,eval) 
+    , AtomIE_Nuclear<double>(db,eval) 
     {};
 };
 
@@ -63,9 +63,9 @@ template <class T> class Orbital_RKBS_IBS
     , public AtomIE_RKBS<T>
 {
 protected:
-    Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval,int kappa)
+    Orbital_RKBS_IBS(const DB_cache<T>* db,const IBS_Evaluator* eval,int kappa)
         : Orbital_RKBS_IBS_Common<T>(kappa)
-        , AtomIE_RKBS<T>(db,pie,eval)
+        , AtomIE_RKBS<T>(db,eval)
         {}
 };
 

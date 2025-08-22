@@ -1,7 +1,6 @@
 add_library(qcAtom_BS) 
 target_sources(qcAtom_BS PRIVATE 
     Imp/IEC.C
-    Imp/IE.C
     Imp/Factory.C
     Imp/IE_DHF.C
     Imp/IE_DFT.C

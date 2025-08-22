@@ -33,7 +33,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
     , Orbital_RKB_IBS_Common<double>
         (db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie ,new Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,this,new Gaussian_RKBS_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents,kappa) //Known memory leak, need redesign
+        , new Orbital_RKBS_IBS<double>(db,new Gaussian_RKBS_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents,kappa) //Known memory leak, need redesign
         )
 {
     
@@ -61,10 +61,10 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 //
 //  Small sector
 //
-template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval,
+template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db,const IBS_Evaluator* eval,
     const Vector<T>& exponents,int kappa)
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
-    , Atom::Orbital_RKBS_IBS<T>(db,pie,eval,kappa)
+    , Atom::Orbital_RKBS_IBS<T>(db,eval,kappa)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);

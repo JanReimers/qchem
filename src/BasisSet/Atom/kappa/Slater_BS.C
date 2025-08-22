@@ -67,7 +67,7 @@ export template <class T> class Orbital_RKBS_IBS
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*, const ::IE_Primatives* pie,const IBS_Evaluator* eval,const Vector<T>& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*, const IBS_Evaluator* eval,const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 
     virtual Vec     operator() (const RVec3&) const;

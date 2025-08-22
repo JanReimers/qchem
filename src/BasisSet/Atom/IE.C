@@ -1,6 +1,7 @@
 // File: AtomIE.C Common IE code for all atom basis sets.
 module;
 #include <memory>
+#include <cassert>
 export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Internal.HeapDB;
 export import qchem.BasisSet.Internal.Cache4;
@@ -46,10 +47,15 @@ template <class T> class AtomIE_Nuclear
 : public DB_Nuclear<T>
 {
 protected:
-    virtual SMatrix<T> MakeNuclear(const Cluster* cl) const;
-    AtomIE_Nuclear(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_Nuclear<T>(db), pie(_pie), eval(_eval) {};
+    AtomIE_Nuclear(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_Nuclear<T>(db), eval(_eval) {};
+    virtual SMatrix<T> MakeNuclear(const Cluster* cl) const
+    {
+        assert(cl);
+        assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
+        int Z=-cl->GetNuclearCharge(); 
+        return Z*eval->Inv_r1();
+    }
 private:
-    const IE_Primatives* pie;
     const IBS_Evaluator* eval;
 };
 template <class T> class AtomIE_XKinetic
@@ -119,7 +125,7 @@ protected:
     AtomIE_RKBL(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
     : AtomIE_Overlap <T>(db,eval)
     , AtomIE_XKinetic<T>(db,pie,eval)
-    , AtomIE_Nuclear <T>(db,pie,eval) 
+    , AtomIE_Nuclear <T>(db,eval) 
     {};
 
 };
@@ -128,9 +134,9 @@ template <class T> class AtomIE_RKBS
 , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBS(const DB_cache<T>* db,const ::IE_Primatives* pie,const IBS_Evaluator* eval) 
+    AtomIE_RKBS(const DB_cache<T>* db,const IBS_Evaluator* eval) 
     : AtomIE_Kinetic<T>(db,eval)
-    , AtomIE_Nuclear<T>(db,pie,eval) {};
+    , AtomIE_Nuclear<T>(db,eval) {};
 };
 // Fit
 class AtomIE_Fit 
