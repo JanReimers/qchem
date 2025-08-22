@@ -24,6 +24,7 @@ public:
     virtual omls_t Repulsion() const;
     virtual omlv_t Charge   () const;
     virtual ds_t   Norm     () const {return ns;}
+    virtual omlm_t XRepulsion(const IBS_Evaluator*) const;
 
     virtual dERI3  Overlap  (const IBS_Evaluator*) const; //3 center
     virtual dERI3  Repulsion(const IBS_Evaluator*) const; //3 center

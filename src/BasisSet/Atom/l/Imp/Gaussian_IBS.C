@@ -29,19 +29,20 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const ::IE_Primatives* pie,c
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     auto pie=dynamic_cast<const IE_Primatives*>(bs);
-    return new Fit_IBS(db,pie,new Gaussian_IBS(es*2,0,{}),es*2,0);
+    return new Fit_IBS(db,pie,es*2,0);
 }
 
 ::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     auto pie=dynamic_cast<const IE_Primatives*>(bs);
-    return new Fit_IBS(db,pie,new Gaussian_IBS(es*2.0/3.0,0,{}),es*2.0/3.0,0);    
+    return new Fit_IBS(db,pie,es*2.0/3.0,0);    
 }
 
-Fit_IBS::Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const IBS_Evaluator* eval,const Vector<double>& exponents, size_t L)
+Fit_IBS::Fit_IBS(const DB_cache<double>* db,const IE_Primatives* pie,const Vector<double>& exponents, size_t L)
     : ::Gaussian::IrrepBasisSet(exponents,new Yl_Sym(L), L)
-    , Atom::Fit_IBS(db,pie,eval)
+    , Gaussian_IBS(exponents,L,{})
+    , Atom::Fit_IBS(db,pie,this)
 {};
 
 

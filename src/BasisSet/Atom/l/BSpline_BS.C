@@ -5,6 +5,7 @@ module;
 export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import BasisSet.Atom.IBS_Evaluator;
+import BasisSet.Atom.BSpline_IBS;
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
 import qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -35,12 +36,13 @@ public:
 
 template <size_t K> class Fit_IBS 
 : public ::BSpline::IrrepBasisSet<K>
+, public BSpline_IBS<K>
 , public Fit_IBS_Common
 , public ::BSpline::IE_Fit<K>
 , public ::BSpline::IE_Overlap<double,K>
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie,size_t N, double rmin, double rmax, size_t L);
 };
 
     // Full basis set.

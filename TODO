@@ -48,7 +48,7 @@ Priority 1:
             Make Unit tests
             Derive IBS from Evaluator, and pass this in constructor.
             Clean up RKBS evaluators norms handling.
-
+            Slater_IBS make constructor with no mls
 
 
         Done: How to integrate into the old code?

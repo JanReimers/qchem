@@ -147,7 +147,10 @@ class AtomIE_Fit
 
     virtual  Vector<double> MakeCharge() const {return eval->Charge();}
     virtual SMatrix<double> MakeRepulsion() const {return eval->Repulsion();}
-    virtual  Matrix<double> MakeRepulsion(const Fit_IBS&) const;
+    virtual  Matrix<double> MakeRepulsion(const Fit_IBS& f) const; 
+    // {
+    //     return eval->XRepulsion(xeval);
+    // }
 private:
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide

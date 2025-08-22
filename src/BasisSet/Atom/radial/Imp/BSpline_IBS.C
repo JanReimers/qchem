@@ -162,6 +162,18 @@ template <size_t K> BSpline_IBS<K>::omlv_t BSpline_IBS<K>::Charge() const
     return V;
 }
 
+template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XRepulsion(const IBS_Evaluator* _b) const
+{
+    const BSpline_IBS<K>* b=dynamic_cast<const BSpline_IBS<K>*>(_b);
+    assert(b);   
+    omlm_t M(size(),b->size());
+    for (auto i:M.rows())
+            for (auto j:M.cols())
+                M(i,j)=::Repulsion(splines[i-1],b->splines[j-1],l,b->l)*ns[i-1]*b->ns[j-1];
+    return M;
+}
+
+
 template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const IBS_Evaluator* _c) const
 {
     const BSpline_IBS<K>* c=dynamic_cast<const BSpline_IBS<K>*>(_c);

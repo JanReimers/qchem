@@ -118,6 +118,18 @@ Slater_IBS::omls_t Slater_IBS::Repulsion() const
     return S;
 }
 
+IBS_Evaluator::omlm_t Slater_IBS::XRepulsion(const IBS_Evaluator* _b) const
+{
+    const Slater_IBS* b=dynamic_cast<const Slater_IBS*>(_b);
+    assert(b);   
+    omlm_t M(size(),b->size());
+    for (auto i:M.rows())
+            for (auto j:M.cols())
+                M(i,j)=::Repulsion(es[i-1],b->es[j-1],l,b->l)*ns[i-1]*b->ns[j-1];
+    return M;
+}
+
+
 Slater_IBS::omlv_t Slater_IBS::Charge() const
 {
     omlv_t V(size());

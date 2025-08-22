@@ -40,13 +40,14 @@ public:
     virtual size_t size() const =0;
     virtual int    Getl() const =0;
 
-    virtual omls_t Overlap  () const=0;
-    virtual omls_t Grad2    () const=0;
-    virtual omls_t Inv_r1   () const=0;
-    virtual omls_t Inv_r2   () const=0;
-    virtual omls_t Repulsion() const=0;
-    virtual omlv_t Charge   () const=0;
-    virtual ds_t   Norm     () const=0;
+    virtual omls_t Overlap   () const=0;
+    virtual omls_t Grad2     () const=0;
+    virtual omls_t Inv_r1    () const=0;
+    virtual omls_t Inv_r2    () const=0;
+    virtual omls_t Repulsion () const=0;
+    virtual omlv_t Charge    () const=0;
+    virtual ds_t   Norm      () const=0;
+    virtual omlm_t XRepulsion(const IBS_Evaluator*) const=0;
 
     virtual dERI3  Overlap  (const IBS_Evaluator*) const=0; //3 center
     virtual dERI3  Repulsion(const IBS_Evaluator*) const=0; //3 center

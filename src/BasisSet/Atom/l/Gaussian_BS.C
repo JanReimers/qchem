@@ -3,6 +3,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.IE_Primatives;
+import BasisSet.Atom.Gaussian_IBS;
 import BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.IBS;
@@ -27,10 +28,11 @@ public:
 
 class Fit_IBS 
     : public ::Gaussian::IrrepBasisSet
+    , public Gaussian_IBS
     , public Atom::Fit_IBS
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const IBS_Evaluator* eval,const Vector<double>& exponents, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const ::IE_Primatives* pie,const Vector<double>& exponents, size_t L);
 };
 
 class BasisSet 
