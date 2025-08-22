@@ -5,27 +5,6 @@ module;
 module qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
 
-Vector<double>  AtomIE_Fit::MakeCharge() const
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //Cross cast
-    assert(a);
-    Vector<double>  c(a->size());
-    for (auto i:a->es.indices())  c(i)=pie->Charge(a->es(i),a->l)*a->ns(i);
-    return c;
-}
-SMatrix<double> AtomIE_Fit::MakeRepulsion() const
-{
-    const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this); //Cross cast
-    assert(a);
-
-    size_t N=a->size(),l=a->l;
-    SMatrix<double> H(N);
-    for (auto i:H.rows())
-        for (auto j:H.cols(i))
-            H(i,j)= pie->Repulsion(a->es(i),a->es(j),l,l)*a->ns(i)*a->ns(j);
-
-    return H;
-}
 Matrix<double>   AtomIE_Fit::MakeRepulsion(const Fit_IBS& _b) const
 {
     const AtomIrrepIEClient* a=dynamic_cast<const AtomIrrepIEClient*>(this);  //Cross cast
