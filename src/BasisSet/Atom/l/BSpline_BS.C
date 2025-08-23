@@ -24,7 +24,7 @@ template <size_t K> class Orbital_IBS
     , public         Orbital_HF_IBS_Common<double>
     , public AtomIE_Overlap<double>
     , public AtomIE_Kinetic<double>
-    , public ::BSpline::IE_Inv_r1<double,K>
+    , public AtomIE_Nuclear<double>
     , public ::BSpline::IE_DFT<double,K>
 {
 public:
