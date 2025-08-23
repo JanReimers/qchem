@@ -3,7 +3,6 @@ module;
 #include <bspline/Core.h>
 #include <iosfwd>
 export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
-import qchem.Basisset.Atom.radial.BSpline.IE_Primatives;
 import BasisSet.Atom.IBS_Evaluator;
 import BasisSet.Atom.BSpline_IBS;
 import qchem.Basisset.Atom.radial.BSpline.BS_Common;
@@ -49,7 +48,6 @@ public:
 
 template <size_t K> class BasisSet 
     : public ::BSpline::BS_Common<K>
-    , public ::BSpline::IE_Primatives_Imp<K>
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
