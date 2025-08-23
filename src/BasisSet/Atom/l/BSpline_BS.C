@@ -28,8 +28,8 @@ template <size_t K> class Orbital_IBS
     , public AtomIE_DFT    <double>
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>*,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>*,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 };

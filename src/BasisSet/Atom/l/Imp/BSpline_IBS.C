@@ -21,7 +21,7 @@ namespace BSpline
 //
 // Orbital BSpline basis set.
 //
-template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>* pie,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L)
+template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L)
     : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
@@ -30,13 +30,10 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const
     , AtomIE_Nuclear<double>(db,eval)
     , AtomIE_DFT    <double>(db,eval)
 {
-    ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    size_t i=1;
-    for (auto sp: iec.splines)
-        AtomIrrepIEClient::ns(i++)=1.0/sqrt(pie->Overlap(sp,sp,L));
+    AtomIrrepIEClient::ns=convert(eval->Norm());
 };
 
-template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const ::BSpline::IE_Primatives<K>* pie,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
+template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
     : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Ylm_Sym(L,ml),L,ml)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
@@ -45,10 +42,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const
     , AtomIE_Nuclear<double>(db,eval)
     , AtomIE_DFT    <double>(db,eval)
 {
-    ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    size_t i=1;
-    for (auto sp: iec.splines)
-        AtomIrrepIEClient::ns(i++)=1.0/sqrt(pie->Overlap(sp,sp,L));
+    AtomIrrepIEClient::ns=convert(eval->Norm());
 };
 
 
