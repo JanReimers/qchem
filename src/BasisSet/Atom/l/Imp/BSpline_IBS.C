@@ -26,7 +26,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , AtomIE_Overlap<double>(db,eval)
-    , ::BSpline::IE_Kinetic<double,K>(db,pie,eval)
+    , AtomIE_Kinetic<double>(db,eval)
     , ::BSpline::IE_Inv_r1<double,K>(db,pie,eval)
     , ::BSpline::IE_DFT<double,K>(db,pie,eval)
 {
@@ -41,7 +41,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , AtomIE_Overlap<double>(db,eval)
-    , ::BSpline::IE_Kinetic<double,K>(db,pie,eval)
+    , AtomIE_Kinetic<double>(db,eval)
     , ::BSpline::IE_Inv_r1<double,K>(db,pie,eval)
     , ::BSpline::IE_DFT<double,K>(db,pie,eval)
 {
