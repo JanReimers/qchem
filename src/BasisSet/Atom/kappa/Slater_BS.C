@@ -37,7 +37,7 @@ export class Orbital_RKB_IBS
     , public Orbital_RKB_IBS_Common<double> 
 {
 public:
-    Orbital_RKB_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval,const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
@@ -47,11 +47,12 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS
     : public ::Slater::IrrepBasisSet //Use NR slater basis
+    , Slater_IBS
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const IBS_Evaluator* eval, const Vector<T>& exponents, int kappa);
-    virtual size_t  GetNumFunctions() const {return size();}
+    Orbital_RKBL_IBS(const DB_cache<T>*,const Vector<T>& exponents, int kappa);
+    virtual size_t  GetNumFunctions() const {return Slater_IBS::size();}
 };
 
 export template <class T> class Orbital_RKBS_IBS

@@ -14,18 +14,20 @@ namespace Slater
 //
 // Orbital SL basis set.
 //
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
 : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
+    , Slater_IBS(exponents,L,{})
     , Atom::Orbital_HF_IBS <double>(db)
-    , Atom::Orbital_IBS    <double>(db,eval)
-    , Atom::Orbital_DFT_IBS<double>(db,eval)
+    , Atom::Orbital_IBS    <double>(db,this)
+    , Atom::Orbital_DFT_IBS<double>(db,this)
 {};
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
     : IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
+    , Slater_IBS(exponents,L,ml)
     , Atom::Orbital_HF_IBS <double>(db)
-    , Atom::Orbital_IBS    <double>(db,eval)
-    , Atom::Orbital_DFT_IBS<double>(db,eval)
+    , Atom::Orbital_IBS    <double>(db,this)
+    , Atom::Orbital_DFT_IBS<double>(db,this)
 {};
 
 
@@ -33,13 +35,13 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,co
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    return new Fit_IBS(db,es*2,0);
+    return new Fit_IBS(db,AtomIrrepIEClient::es*2,0);
 }
 
 ::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    return new Fit_IBS(db,es*2.0/3.0,0);    
+    return new Fit_IBS(db,AtomIrrepIEClient::es*2.0/3.0,0);    
 }
 
 //----------------------------------------------------------------
