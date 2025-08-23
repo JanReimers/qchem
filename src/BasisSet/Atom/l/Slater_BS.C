@@ -12,7 +12,8 @@ export namespace Atoml
 namespace Slater
 {
 class Orbital_IBS
-    : public ::Slater::IrrepBasisSet
+    : public virtual IBS_Evaluator
+    , public ::Slater::IrrepBasisSet
     , Slater_IBS
     , public Atom::Orbital_HF_IBS <double>
     , public Atom::Orbital_IBS    <double>

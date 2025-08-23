@@ -13,6 +13,14 @@ template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec)
     IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
     AtomIrrepIEClient* aiec=AtomIrrepIEClient::dcast(iec);
     BFGrouper::Append(aiec);
+
+   
+}
+template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec, IBS_Evaluator* eval)
+{
+    Append(ciec);
+    assert(eval);
+    eval->Register(itsGrouper.get());
 }
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {

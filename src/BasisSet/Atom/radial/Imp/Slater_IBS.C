@@ -9,6 +9,7 @@ import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
 import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import Common.Constants;
 import Common.IntPow;
+import qchem.stl_io;
 
 
 inline double Overlap(double ea , double eb,size_t l_total)
@@ -53,6 +54,7 @@ void Slater_IBS::Register(ExponentGrouper* _grouper)
     assert(_grouper);
     grouper=_grouper;
     for (auto e:es) es_indices.push_back(_grouper->Insert(e,l));
+    // std::cout << "es_indices=" << es_indices << std::endl;
 }
 
 // This need overridability.
