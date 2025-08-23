@@ -2,7 +2,6 @@ add_library(qcAtom_BS)
 target_sources(qcAtom_BS PRIVATE 
     Imp/IEC.C
     Imp/Factory.C
-    Imp/IE_DHF.C
     Imp/IE_HF.C
     Internal/Imp/AngularIntegrals.C
     Internal/Imp/BFGrouper.C
