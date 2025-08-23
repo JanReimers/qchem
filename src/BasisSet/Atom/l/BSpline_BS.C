@@ -11,7 +11,7 @@ import qchem.Basisset.Atom.radial.BSpline.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet;
 import qchem.Fit_IBS;
-
+import qchem.BasisSet.Atom.IE;
 
 export namespace Atoml
 {
@@ -22,7 +22,7 @@ template <size_t K> class Orbital_IBS
     , public         Orbital_IBS_Common<double>
     , public         Orbital_DFT_IBS_Common<double>
     , public         Orbital_HF_IBS_Common<double>
-    , public ::BSpline::IE_Overlap<double,K>
+    , public AtomIE_Overlap<double>
     , public ::BSpline::IE_Kinetic  <double,K>
     , public ::BSpline::IE_Inv_r1<double,K>
     , public ::BSpline::IE_DFT<double,K>
