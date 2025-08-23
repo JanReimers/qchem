@@ -38,11 +38,11 @@ template <size_t K> class Fit_IBS
 : public ::BSpline::IrrepBasisSet<K>
 , public BSpline_IBS<K>
 , public Fit_IBS_Common
-, public ::BSpline::IE_Fit<K>
-, public ::BSpline::IE_Overlap<double,K>
+, public AtomIE_Fit
+, public AtomIE_Overlap<double>
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie,size_t N, double rmin, double rmax, size_t L);
+    Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
 };
 
     // Full basis set.

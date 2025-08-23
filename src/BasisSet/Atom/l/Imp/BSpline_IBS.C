@@ -56,25 +56,23 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::Basis
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    auto pie=dynamic_cast<const ::BSpline::IE_Primatives<K>*>(bs);
-    return new Fit_IBS<K>(db,pie,GetNumFunctions(),iec.rmin,iec.rmax,0); 
+    return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0); 
 }
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    auto pie=dynamic_cast<const ::BSpline::IE_Primatives<K>*>(bs);
     const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    return new Fit_IBS<K>(db,pie,GetNumFunctions(),iec.rmin,iec.rmax,0);    
+    return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0);    
 }
 //----------------------------------------------------------------
 //
 //  Fit with Slater_l  basis set.
 //
-template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,const ::BSpline::IE_Primatives<K>* pie,size_t N, double rmin, double rmax, size_t L)
+template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
     : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
     , BSpline_IBS<K>(N,rmin,rmax,L,{})
-    , ::BSpline::IE_Fit<K>(db,pie,this)
-    , ::BSpline::IE_Overlap<double,K>(db,pie,this)
+    , AtomIE_Fit(db,this)
+    , AtomIE_Overlap<double>(db,this)
 {};
 
 #define INSTANCEk(k) template class Orbital_IBS<k>;
