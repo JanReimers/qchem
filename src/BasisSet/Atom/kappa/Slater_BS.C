@@ -6,6 +6,8 @@ class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
+import BasisSet.Atom.Slater_IBS;
+
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IBS;
@@ -60,6 +62,7 @@ public:
 
 export template <class T> class Orbital_RKBS_IBS
     : public IrrepBasisSet_Common<T> 
+    , public Slater_RKBS_IBS
     , public Atom::Orbital_RKBS_IBS<T> 
     , public AtomIrrepIEClient
 {
@@ -67,14 +70,16 @@ export template <class T> class Orbital_RKBS_IBS
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*, const IBS_Evaluator* eval,const Vector<T>& exponents, int kappa);
-    virtual size_t  GetNumFunctions() const {return size();}
+    Orbital_RKBS_IBS(const DB_cache<double>*,const Vector<T>& exponents, int kappa);
+    virtual size_t  GetNumFunctions() const {return Slater_RKBS_IBS::size();}
 
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    // using Slater_RKBS_IBS::operator();
+    // using Slater_RKBS_IBS::Gradient;
+    virtual Vec     operator() (const RVec3& r) const {return Slater_RKBS_IBS::operator()(r);}
+    virtual Vec3Vec Gradient   (const RVec3& r) const {return Slater_RKBS_IBS::Gradient(r);}
     virtual std::ostream&  Write(std::ostream&    ) const;
 
-    virtual const SMatrix<T>& Overlap() const {return DB_Kinetic<T>::Kinetic();}
+    
 
 private:
     Vector<double> Norms(const Vector<double>& exponents, size_t l) const;

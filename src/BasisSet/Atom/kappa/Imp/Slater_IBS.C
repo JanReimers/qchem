@@ -31,7 +31,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
     , Orbital_RKB_IBS_Common<double>(db, kappa
         , new Orbital_RKBL_IBS<double>(db,pie ,new Slater_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents, kappa)
-        , new Orbital_RKBS_IBS<double>(db,new Slater_RKBS_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents,kappa) 
+        , new Orbital_RKBS_IBS<double>(db,exponents,kappa) 
         )
 {
     
@@ -64,9 +64,10 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 //  Small sector
 //
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
-    (const DB_cache<double>* db,const IBS_Evaluator* eval, const Vector<T>& exponents, int kappa)
+    (const DB_cache<double>* db,const Vector<T>& exponents, int kappa)
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
-    , Atom::Orbital_RKBS_IBS<T>(db,eval,kappa)
+    , Slater_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa),{})
+    , Atom::Orbital_RKBS_IBS<T>(db,this,kappa)
     , AtomIrrepIEClient(exponents.size())
 {
     size_t l=Omega_kmj_Sym::l(kappa);
@@ -81,38 +82,6 @@ template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double
     for (auto e:es) ns(++i)=1.0/sqrt(pie.Grad2(e,e,l,l));
     return ns;
 }
-template <class T> Orbital_RKBS_IBS<T>::Vec     Orbital_RKBS_IBS<T>::operator() (const RVec3& r) const
-{
-    const Orbital_RKBL_IBS<T>* l1=dynamic_cast<const Orbital_RKBL_IBS<T>*>(large);
-    double mr=norm(r);
-    Vec f=-es;
-    if (l1->kappa >0) 
-        f+=(2*l1->kappa+1)/mr;
-        
-    Vec n=DirectDivide(ns,l1->ns); //Pr(r) is already normalized.
-    Vec nf=DirectMultiply(n,f);
-    return DirectMultiply(nf,(*large)(r)); 
-
-}
-
-template <class T> Orbital_RKBS_IBS<T>::Vec3Vec Orbital_RKBS_IBS<T>::Gradient   (const RVec3& r) const
-{
-    assert(false);
-    Vec3Vec ret(size());
-    double mr=norm(r);
-    if (mr==0.0) 
-    {
-        
-        Fill(ret,RVec3(0,0,0));
-        return ret; //Cusp at the origin so grad is undefined.
-    }
-    assert(mr>0);
-    Fill(ret,r/mr);
-    Vec gr=DirectMultiply(operator()(r),(l/mr-es));
-    size_t i=0;
-    for (auto& ir:ret) ir*=gr(++i);
-    return ret;
-}
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const
 {
     os << "Slater RKB " << this->GetSymmetry();
@@ -120,8 +89,8 @@ template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) c
         os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
     else
         os << "[       -e ]";
-    os << "*r^" << l << "*exp(-e*r), e={";
-    for (auto e:es) os << e << ",";
+    os << "*r^" << Slater_IBS::l << "*exp(-e*r), e={";
+    for (auto e: Slater_IBS::es) os << e << ",";
     os << "}";
     return os;
 }
