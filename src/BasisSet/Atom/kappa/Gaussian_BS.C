@@ -46,7 +46,7 @@ export class Orbital_RKB_IBS
     , public IE_Primatives_sgkappa
 {
 public:
-    Orbital_RKB_IBS(const DB_cache<double>*, const ::IE_Primatives*, const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>*, const Vector<double>& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 
@@ -60,7 +60,7 @@ export template <class T> class Orbital_RKBL_IBS
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const IE_Primatives* pie,const IBS_Evaluator* eval, const Vector<T>& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const IBS_Evaluator* eval, const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return size();}
 };
 

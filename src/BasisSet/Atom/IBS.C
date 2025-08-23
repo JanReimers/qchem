@@ -52,9 +52,9 @@ template <class T> class Orbital_RKBL_IBS
     , public AtomIE_RKBL<T>
 {
 protected:
-    Orbital_RKBL_IBS(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval,int kappa)
+    Orbital_RKBL_IBS(const DB_cache<T>* db,const IBS_Evaluator* eval,int kappa)
         : Orbital_RKBL_IBS_Common<T>(kappa)
-        , AtomIE_RKBL<T>(db,pie,eval)
+        , AtomIE_RKBL<T>(db,eval)
         {}
 };
 

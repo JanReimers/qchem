@@ -66,9 +66,8 @@ protected:
     {
         return eval->XKinetic(rkbs);
     }
-    AtomIE_XKinetic(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_XKinetic<T>(db), pie(_pie), eval(_eval) {};
+    AtomIE_XKinetic(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_XKinetic<T>(db), eval(_eval) {};
 private:
-    const IE_Primatives* pie;
     const IBS_Evaluator* eval;
 };
 
@@ -120,9 +119,9 @@ template <class T> class AtomIE_RKBL
     , public AtomIE_Nuclear<T>
 {
 protected:
-    AtomIE_RKBL(const DB_cache<T>* db,const IE_Primatives* pie,const IBS_Evaluator* eval) 
+    AtomIE_RKBL(const DB_cache<T>* db,const IBS_Evaluator* eval) 
     : AtomIE_Overlap <T>(db,eval)
-    , AtomIE_XKinetic<T>(db,pie,eval)
+    , AtomIE_XKinetic<T>(db,eval)
     , AtomIE_Nuclear <T>(db,eval) 
     {};
 
