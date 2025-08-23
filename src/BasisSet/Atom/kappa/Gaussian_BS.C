@@ -51,11 +51,12 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS
     : public ::Gaussian::IrrepBasisSet //Use NR Gaussian basis
+    , Gaussian_IBS
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const IBS_Evaluator* eval, const Vector<T>& exponents, int kappa);
-    virtual size_t  GetNumFunctions() const {return size();}
+    Orbital_RKBL_IBS(const DB_cache<T>*,const Vector<T>& exponents, int kappa);
+    virtual size_t  GetNumFunctions() const {return Gaussian_IBS::size();}
 };
 
 export template <class T> class Orbital_RKBS_IBS

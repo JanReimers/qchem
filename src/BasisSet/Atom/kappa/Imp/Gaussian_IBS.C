@@ -26,7 +26,7 @@ Orbital_RKB_IBS::Orbital_RKB_IBS
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
     , Orbital_RKB_IBS_Common<double>
         (db, kappa
-        , new Orbital_RKBL_IBS<double>(db,new Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{}),exponents, kappa)
+        , new Orbital_RKBL_IBS<double>(db,exponents,kappa)
         , new Orbital_RKBS_IBS<double>(db,exponents,kappa) //Known memory leak, need redesign
         )
 {
@@ -44,9 +44,10 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //  Large sector
 //
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
-(const DB_cache<T>* db,const IBS_Evaluator* eval,const Vector<T>& exponents,int kappa)
+(const DB_cache<T>* db,const Vector<T>& exponents,int kappa)
     : ::Gaussian::IrrepBasisSet(exponents,new Omega_k_Sym(kappa),Omega_kmj_Sym::l(kappa))
-    , Atom::Orbital_RKBL_IBS<T>(db,eval,kappa)
+    , Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{})
+    , Atom::Orbital_RKBL_IBS<T>(db,this,kappa)
 {};
 
 
