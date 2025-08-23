@@ -6,6 +6,12 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    DHF/Dirac: Factor of 2 problem
+        -We need to stop using a normalized small sector
+            f=1/(2c) * (d/dr+(kappa+1)/r)*g
+            where g is normalized and f is *not*.
+        -Once this is done the need for cross kinetic integrals vanishes
+            Just use the RKBL kinetic integrals.
     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
     BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
         Affects CD fitting for l>0

@@ -176,7 +176,6 @@ template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XRepulsion(const Fit_I
 template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
 {
     const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
-    assert(c);
     dERI3 S3;
     for (size_t ic=0;ic<c.size();ic++) 
     {
@@ -195,7 +194,6 @@ template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
 template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
 {
     const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
-    assert(c);
     dERI3 S3;
     for (size_t ic=0;ic<c.size();ic++) 
     {
