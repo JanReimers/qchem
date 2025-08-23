@@ -24,6 +24,7 @@ public:
     virtual omlv_t Charge   () const;
     virtual ds_t   Norm     () const {return ns;}
     virtual omlm_t XRepulsion(const Fit_IBS&) const;
+    virtual omlm_t XKinetic  (const Orbital_RKBS_IBS<double>*) const;
 
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const; //3 center

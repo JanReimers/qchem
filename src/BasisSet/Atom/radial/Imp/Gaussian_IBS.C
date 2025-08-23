@@ -134,6 +134,18 @@ IBS_Evaluator::omlm_t Gaussian_IBS::XRepulsion(const Fit_IBS& _b) const
     return M;
 }
 
+IBS_Evaluator::omlm_t Gaussian_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+{
+    const Gaussian_IBS* b=dynamic_cast<const Gaussian_IBS*>(_b);
+    assert(b);
+    assert(l==b->l);
+    omlm_t M(size(),b->size());
+    for (auto i:M.rows())
+            for (auto j:M.cols())
+                M(i,j)=(::Grad2(es[i-1],b->es[j-1],l,l) + l*(l+1)*::Inv_r2(es[i-1],b->es[j-1],2*l))*ns[i-1]*b->ns[j-1];
+    return M;
+}
+
 
 dERI3 Gaussian_IBS::Overlap  (const Fit_IBS& _c) const
 {

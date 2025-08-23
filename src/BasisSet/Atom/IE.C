@@ -62,7 +62,10 @@ template <class T> class AtomIE_XKinetic
 : public DB_XKinetic<T>
 {
 protected:
-    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+    {
+        return eval->XKinetic(rkbs);
+    }
     AtomIE_XKinetic(const DB_cache<T>* db,const IE_Primatives* _pie,const IBS_Evaluator* _eval) : DB_XKinetic<T>(db), pie(_pie), eval(_eval) {};
 private:
     const IE_Primatives* pie;

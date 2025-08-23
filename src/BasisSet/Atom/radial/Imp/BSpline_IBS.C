@@ -172,6 +172,17 @@ template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XRepulsion(const Fit_I
     return M;
 }
 
+template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+{
+    const BSpline_IBS<K>* b=dynamic_cast<const BSpline_IBS<K>*>(_b);
+    assert(b);
+    assert(l==b->l);
+    omlm_t M(size(),b->size());
+    for (auto i:M.rows())
+            for (auto j:M.cols())
+                M(i,j)=(::Grad2(splines[i-1],b->splines[j-1],l,l) + l*(l+1)*::Inv_r2(splines[i-1],b->splines[j-1],2*l))*ns[i-1]*b->ns[j-1];
+    return M;
+}
 
 template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
 {

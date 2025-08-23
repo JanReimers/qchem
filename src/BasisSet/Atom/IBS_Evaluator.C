@@ -7,6 +7,7 @@ export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Atom.internal.Rk;
 export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Fit_IBS;
+export import qchem.Orbital_DHF_IBS;
 export import qchem.VectorFunction;
 export import oml;
 
@@ -49,6 +50,7 @@ public:
     virtual omlv_t Charge    () const=0;
     virtual ds_t   Norm      () const=0;
     virtual omlm_t XRepulsion(const Fit_IBS&) const=0;
+    virtual omlm_t XKinetic  (const Orbital_RKBS_IBS<double>*) const=0;
 
     virtual dERI3  Overlap  (const Fit_IBS&) const=0; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const=0; //3 center
