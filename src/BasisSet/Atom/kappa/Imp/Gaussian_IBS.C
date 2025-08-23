@@ -21,12 +21,6 @@ namespace Atom_kappa
 namespace Gaussian
 {
 
-double IE_Primatives_sgkappa::Inv_r1(double ea, double eb,size_t l_total) const
-{
-    return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
-
-}
-
 Orbital_RKB_IBS::Orbital_RKB_IBS
     (const DB_cache<double>* db, const Vector<double>& exponents, int kappa)
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
@@ -75,9 +69,7 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db, 
 template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());
-    int i=0;
-    ::Gaussian::IE_Primatives pie;
-    for (auto e:es) ns(++i)=1.0/sqrt(pie.Grad2(e,e,l,l));
+    
     return ns;
 }
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const

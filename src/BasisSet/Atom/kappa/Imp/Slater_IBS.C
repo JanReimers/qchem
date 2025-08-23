@@ -17,11 +17,6 @@ namespace Atom_kappa
 namespace Slater
 {
 
-double IE_Primatives::Inv_r1(double ea, double eb,size_t l_total) const
-{
-    return ea*eb*::Slater::Integral(ea+eb,l_total-1);
-}
-
 //
 //  Concrete  Slater basis set.
 //
@@ -77,9 +72,6 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
 template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double>& es, size_t l) const
 {
     Vector<double> ns(es.size());
-    int i=0;
-    ::Slater::IE_Primatives pie;
-    for (auto e:es) ns(++i)=1.0/sqrt(pie.Grad2(e,e,l,l));
     return ns;
 }
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const

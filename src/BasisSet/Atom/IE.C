@@ -8,7 +8,6 @@ export import qchem.BasisSet.Internal.Cache4;
 export import oml.Vector;
 export import qchem.Orbital_DHF_IBS;
 export import qchem.Types;
-export import qchem.BasisSet.Atom.IE_Primatives;
 export import BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;

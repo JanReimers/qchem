@@ -2,7 +2,6 @@
 module;
 #include <vector>
 export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.Gaussian.IE_Primatives;
 import BasisSet.Atom.Gaussian_IBS;
 import BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
@@ -37,7 +36,6 @@ public:
 
 class BasisSet 
     : public ::Gaussian::BS_Common
-    , public ::Gaussian::IE_Primatives
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);

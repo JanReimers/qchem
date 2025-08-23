@@ -1,5 +1,4 @@
 target_sources(qcAtom_BS PRIVATE 
-    Gaussian/Imp/IE_Primatives.C
     Gaussian/Imp/Rk.C
     Gaussian/Imp/ExponentScaler.C
     Gaussian/Imp/IBS_Common.C
@@ -13,7 +12,6 @@ target_sources(qcAtom_BS PRIVATE
     BSpline/Imp/GLQuadrature.C
     BSpline/Imp/BS_Common.C
     BSpline/Imp/IBS_Common.C
-    Slater/Imp/IE_Primatives.C
     Slater/Imp/Rk.C
     Slater/Imp/ExponentScaler.C
     Slater/Imp/IBS_Common.C
@@ -27,12 +25,10 @@ target_sources(qcAtom_BS PRIVATE
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     PascalTriangle.C
     FillPower.C
-    Gaussian/IE_Primatives.C
     Gaussian/Rk.C
     Gaussian/ExponentScaler.C
     Gaussian/Integrals.C
     Gaussian/BS_Common.C
-    Slater/IE_Primatives.C
     Slater/Rk.C
     Slater/ExponentScaler.C
     Slater/Integrals.C

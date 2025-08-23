@@ -4,7 +4,6 @@ module;
 class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.Gaussian.IE_Primatives;
 import BasisSet.Atom.Gaussian_IBS;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
@@ -24,10 +23,6 @@ namespace Atom_kappa
 namespace Gaussian
 { 
 
-class IE_Primatives_sgkappa : public ::Gaussian::IE_Primatives 
-{
-    virtual double Inv_r1   (double ea, double eb,size_t l_total) const;
-};
 
 //
 //  Derived from the LargeBF P(r)=r^l*exp(-e*r^2) as:
@@ -43,7 +38,6 @@ class IE_Primatives_sgkappa : public ::Gaussian::IE_Primatives
 export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double>
-    , public IE_Primatives_sgkappa
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>*, const Vector<double>& exponents, int kappa);
@@ -91,7 +85,6 @@ private:
 export class BasisSet 
     : public ::BS_Common
     , public DB_cache<double>
-    , public ::Gaussian::IE_Primatives
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t lmax);

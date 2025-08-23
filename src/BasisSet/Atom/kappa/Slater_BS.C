@@ -5,7 +5,6 @@ class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.IE_Primatives;
 import BasisSet.Atom.Slater_IBS;
 
 import qchem.BasisSet.Atom.IEClient;
@@ -19,10 +18,6 @@ namespace Atom_kappa
 namespace Slater
 {
 
-class IE_Primatives : public ::Slater::IE_Primatives 
-{
-    virtual double Inv_r1   (double ea, double eb,size_t l_total) const;
-};
 
 //
 //  Derived from the LargeBF P(r)=r^l*exp(-e*r) as:
@@ -40,7 +35,6 @@ class IE_Primatives : public ::Slater::IE_Primatives
 export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
-    , public IE_Primatives
 {
 public:
     Orbital_RKB_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval,const Vector<double>& exponents, int kappa);
@@ -90,7 +84,6 @@ private:
 export class BasisSet 
     : public ::BS_Common
     , public DB_cache<double>
-    , public ::Slater::IE_Primatives
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t lMax);
