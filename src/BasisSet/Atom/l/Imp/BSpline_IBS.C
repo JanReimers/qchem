@@ -28,7 +28,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const
     , AtomIE_Overlap<double>(db,eval)
     , AtomIE_Kinetic<double>(db,eval)
     , AtomIE_Nuclear<double>(db,eval)
-    , ::BSpline::IE_DFT<double,K>(db,pie,eval)
+    , AtomIE_DFT    <double>(db,eval)
 {
     ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     size_t i=1;
@@ -43,7 +43,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const
     , AtomIE_Overlap<double>(db,eval)
     , AtomIE_Kinetic<double>(db,eval)
     , AtomIE_Nuclear<double>(db,eval)
-    , ::BSpline::IE_DFT<double,K>(db,pie,eval)
+    , AtomIE_DFT    <double>(db,eval)
 {
     ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
     size_t i=1;
