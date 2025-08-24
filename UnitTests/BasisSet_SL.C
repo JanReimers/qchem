@@ -15,8 +15,19 @@ import qchem.Molecule;
 import Common.Constants;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet;
+import qchem.BasisSet.Atom.Internal.l.SlaterBS;
+import qchem.Orbital_HF_IBS;
 
 
+bool operator==(const ERI4& a, const ERI4& b)
+{
+    if (a.GetLimits()!=b.GetLimits()) return false;
+    for (size_t i=1;i<a.Nab();i++)
+        for (size_t j=1;j<a.Nab();j++)
+            if (a(i,j)!=b(i,j)) return false;
+    return true;
+}
 //----------------------------------------------------------------------------------------
 //
 //  Testing common to all atom basis set evaluators
@@ -128,14 +139,17 @@ class BasisSet_SL: public BasisSet_Common
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common()
+    BasisSet_SL() : BasisSet_Common(), bs(new Atoml::Slater::BasisSet(convert(es),LMax))
     {
         for (size_t l=0;l<=LMax;l++)
             Insert(new Slater_IBS(es,l,{}));    
     }
+    ~BasisSet_SL() {delete bs;}
+
     static double R0(double a, double b, int la, int lb);
 
     ERI4 Direct(const IBS_Evaluator* a, const IBS_Evaluator* b) const;
+    BasisSet* bs;
 };
 
 double BasisSet_SL::R0(double a, double b, int la, int lb) 
@@ -212,7 +226,6 @@ ERI4 BasisSet_SL::Direct(const IBS_Evaluator* a, const IBS_Evaluator* c) const
             }
         }
     }
-    cout << J(1,1) << endl;
     return J;
 }
 
@@ -261,9 +274,22 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
 
 TEST_F(BasisSet_SL,HF_ERIs)
 {
-     for (auto a:evals)
-         for (auto c:evals)
-            Direct(a,c);
+    auto a=evals.begin();
+    for (auto aibs:bs->Iterate<Orbital_HF_IBS<double>>())
+    {
+        auto c=evals.begin();
+        for (auto cibs:bs->Iterate<Orbital_HF_IBS<double>>())
+        {
+            if (aibs->GetID()<cibs->GetID())
+            {
+                ERI4 J1=Direct(*a,*c);
+                ERI4 J2=aibs->Direct(*cibs);
+                EXPECT_TRUE(J1==J2);
+            }
+            ++c;
+        }
+        ++a;
+    }
 }
 //----------------------------------------------------------------------------------------
 //

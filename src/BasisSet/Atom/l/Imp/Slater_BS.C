@@ -21,6 +21,13 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
         Insert(new Orbital_IBS(this,ss.Get_es(L),L));
         
 }
+BasisSet::BasisSet(const RVec& exponents, size_t LMax)
+: ::Slater::BS_Common(new IE_BS_2E_Angular_l)
+{
+    for (size_t L=0;L<=LMax;L++)
+        Insert(new Orbital_IBS(this,exponents,L));
+        
+}
 
 BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
 : ::Slater::BS_Common(new IE_BS_2E_Angular_ml)
