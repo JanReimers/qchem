@@ -11,10 +11,17 @@ public:
     virtual ~BS_Evaluator() {};
     virtual void Register(IBS_Evaluator*)=0;
     virtual RVec Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const;
+    virtual RVec ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const;
     virtual RVec loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
+    virtual RVec loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 };
 
 RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
 {
     return AngularIntegrals::Coulomb(a->Getl(),c->Getl());
+}
+
+RVec BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
+{
+    return AngularIntegrals::Exchange(a->Getl(),c->Getl());
 }

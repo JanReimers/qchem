@@ -22,10 +22,11 @@ import qchem.Orbital_HF_IBS;
 
 bool operator==(const ERI4& a, const ERI4& b)
 {
+    static double eps=1e-16;
     if (a.GetLimits()!=b.GetLimits()) return false;
     for (size_t i=1;i<a.Nab();i++)
         for (size_t j=1;j<a.Nab();j++)
-            if (a(i,j)!=b(i,j)) return false;
+            if (FrobeniusNorm(a(i,j)-b(i,j))>eps) return false;
     return true;
 }
 //----------------------------------------------------------------------------------------
@@ -147,8 +148,9 @@ public:
     ~BasisSet_SL() {delete bs;}
 
     static double R0(double a, double b, int la, int lb);
+    ERI4 Direct  (const IBS_Evaluator* a, const IBS_Evaluator* b) const;
+    ERI4 Exchange(const IBS_Evaluator* a, const IBS_Evaluator* b) const;
 
-    ERI4 Direct(const IBS_Evaluator* a, const IBS_Evaluator* b) const;
     BasisSet* bs;
 };
 
@@ -229,6 +231,46 @@ ERI4 BasisSet_SL::Direct(const IBS_Evaluator* a, const IBS_Evaluator* c) const
     return J;
 }
 
+ERI4 BasisSet_SL::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) const
+{
+    using SMat=IBS_Evaluator::SMat;
+    using ds_t=IBS_Evaluator::ds_t;
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 K(Na,Nc);
+    ds_t na=a->Norm(), nc=c->Norm();
+    for (size_t ia:a->indices())
+    {
+        bs_eval->loop_1(a->es_index(ia)); //Start a cache for Gaussian::RkEngine*
+        for (size_t ic:c->indices())
+        {
+            int la=a->Getl(), lc=c->Getl();
+            RVec Akac=bs_eval->ExchangeAngularIntegrals(a,c);
+            for (size_t ib:a->indices(ia))
+            {
+                SMat& Kab=K(ia+1,ib+1);
+                bs_eval->loop_2(a->es_index(ib));
+                bs_eval->loop_3(c->es_index(ic));
+                for (size_t id:c->indices())
+                {
+                    double norm=na[ia]*na[ib]*nc[ic]*nc[id]; 
+                    RVec RKac=bs_eval->loop_4_exchange(c->es_index(id),la,lc);
+                    if (ic==id)
+                        Kab(ic+1,id+1)=Akac*RKac*norm; 
+                    else if (id<ic)
+                        Kab(id+1,ic+1)+=0.5*Akac*RKac*norm; 
+                    else
+                        Kab(ic+1,id+1)+=0.5*Akac*RKac*norm; 
+
+                }
+            }
+        }
+    }
+
+    return K;
+
+}
 TEST_F(BasisSet_SL,Overlap) {TestOverlap(1e-15);}
 TEST_F(BasisSet_SL,Grad2  ) {TestGrad2  (2e-15);}
 TEST_F(BasisSet_SL,Inv_r1 ) {TestInv_r1 (3e-14);}
@@ -285,6 +327,9 @@ TEST_F(BasisSet_SL,HF_ERIs)
                 ERI4 J1=Direct(*a,*c);
                 ERI4 J2=aibs->Direct(*cibs);
                 EXPECT_TRUE(J1==J2);
+                ERI4 K1=Exchange(*a,*c);
+                ERI4 K2=aibs->Exchange(*cibs);
+                EXPECT_TRUE(K1==K2);
             }
             ++c;
         }
