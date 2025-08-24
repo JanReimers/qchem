@@ -2,18 +2,19 @@
 module;
 
 export module qchem.BasisSet.Atom.internal.Rk;
+export import qchem.BasisSet.Internal.Cache4;
 export import qchem.Types;
 //
 //  These are often called Slater integrals. They represent the radial part of the 
 //  2 electron repulsion integrals (ERIs) encountered in atomic Hartree-Fock (HF) 
 //  calculations.  For large l they can become very complicated. But recursion
-//  relations allows to calculate and store tables of the integrals in and 
+//  relations allows us to calculate and store tables of the integrals in an 
 //  efficient manner.
-//  Using this interface is part of the architecture for anabling a generic
+//  Using this interface is part of the architecture for enabling a generic
 //  quadruple nested loop required for evaluating direct and exchange integrals
 //  over gaussian/slater/b-spline irrep basis sets.
 //
-export class Rk
+export class Rk : public virtual Cacheable
 {
 public:
     virtual ~Rk() {};

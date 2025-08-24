@@ -18,6 +18,7 @@ target_sources(qcAtom_BS PRIVATE
     Slater/Imp/BS_Common.C
 
     Imp/Slater_IBS.C
+    Imp/Slater_BS.C
     Imp/Gaussian_IBS.C
     Imp/BSpline_IBS.C
     Imp/ExponentGrouper.C
@@ -41,6 +42,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BSpline/BS_Common.C
 
     Slater_IBS.C
+    Slater_BS.C
     Gaussian_IBS.C
     BSpline_IBS.C
     ExponentGrouper.C

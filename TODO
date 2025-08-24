@@ -12,6 +12,7 @@ Priority 1:
             where g is normalized and f is *not*.
         -Once this is done the need for cross kinetic integrals vanishes
             Just use the RKBL kinetic integrals.
+    -Move DiracIntegral tests over to UTBasisSet.
     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
     BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
         Affects CD fitting for l>0

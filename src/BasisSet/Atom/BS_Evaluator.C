@@ -1,13 +1,20 @@
 // File: BasisSet/Atom/BS_Evaluator.C Create Rk structures for 2 electron repulsion integrals (2ERIs).
 module;
-
 export module BasisSet.Atom.BS_Evaluator;
-export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
-export import qchem.BasisSet.Atom.internal.Rk;
+export import BasisSet.Atom.IBS_Evaluator;
+export import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Atom.Internal.AngularIntegrals;
 
-export class BS_Evaluator
+export class BS_Evaluator : public Cache4
 {
 public:
-    virtual void Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
-     virtual Rk* CreateRk (size_t ia,size_t ic,size_t ib,size_t id) const=0; //4 center
+    virtual ~BS_Evaluator() {};
+    virtual void Register(IBS_Evaluator*)=0;
+    virtual RVec Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const;
+    virtual RVec loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
 };
+
+RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
+{
+    return AngularIntegrals::Coulomb(a->Getl(),c->Getl());
+}

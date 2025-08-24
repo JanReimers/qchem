@@ -2,6 +2,7 @@
 module;
 #include <valarray>
 #include <vector>
+#include <ranges>
 export module BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Atom.internal.Rk;
@@ -30,6 +31,7 @@ export template <class T> std::valarray<T> convert(const Vector<T>& v)
 
 export class IBS_Evaluator : public VectorFunction<double>
 {
+    typedef std::ranges::iota_view<size_t,size_t> iota_view;
 public:
     using ds_t=std::valarray<double>;
     using is_t=std::vector<int>;
@@ -41,6 +43,8 @@ public:
     virtual void Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
     virtual size_t size() const =0;
     virtual int    Getl() const =0;
+    iota_view indices() const {return iota_view(size_t(0),size());}
+    virtual size_t es_index(size_t i) const=0;
 
     virtual omls_t Overlap   () const=0;
     virtual omls_t Grad2     () const=0;

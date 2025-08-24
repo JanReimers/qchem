@@ -7,11 +7,14 @@ using std::cout;
 using std::endl;
 
 import BasisSet.Atom.Slater_IBS;
+import BasisSet.Atom.Slater_BS;
 import BasisSet.Atom.Gaussian_IBS;
 import BasisSet.Atom.BSpline_IBS;
 import qchem.Mesh.Integrator;
 import qchem.Molecule;
 import Common.Constants;
+import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Internal.ERI4;
 
 
 //----------------------------------------------------------------------------------------
@@ -21,7 +24,12 @@ import Common.Constants;
 class BasisSet_Common : public ::testing::Test
 {
 public:
-    BasisSet_Common() : es{0.5,1.0,2.0}, N(es.size()), LMax(3), cl(new Molecule())
+    BasisSet_Common() 
+        : es{0.5,1.0,2.0}
+        , N(es.size())
+        , LMax(3)
+        , cl(new Molecule())
+        , bs_eval(new Slater_BS)
     {
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
@@ -33,6 +41,12 @@ public:
         for (auto ev:evals) delete ev;
         delete cl;
         delete mintegrator;
+        delete bs_eval;
+    }
+    void Insert(IBS_Evaluator* eval)
+    {
+        evals.push_back(eval);
+        bs_eval->Register(eval);
     }
 
     void TestOverlap(double eps) const;
@@ -47,7 +61,7 @@ public:
     std::vector<IBS_Evaluator*> evals;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
-
+    BS_Evaluator* bs_eval;
 };
 using omls_t=IBS_Evaluator::omls_t;
 using omlv_t=IBS_Evaluator::omlv_t;
@@ -117,9 +131,11 @@ public:
     BasisSet_SL() : BasisSet_Common()
     {
         for (size_t l=0;l<=LMax;l++)
-            evals.push_back(new Slater_IBS(es,l,{}));    
+            Insert(new Slater_IBS(es,l,{}));    
     }
     static double R0(double a, double b, int la, int lb);
+
+    ERI4 Direct(const IBS_Evaluator* a, const IBS_Evaluator* b) const;
 };
 
 double BasisSet_SL::R0(double a, double b, int la, int lb) 
@@ -155,6 +171,49 @@ double BasisSet_SL::R0(double a, double b, int la, int lb)
     assert(false);
     return 0;
 
+}
+
+ERI4 BasisSet_SL::Direct(const IBS_Evaluator* a, const IBS_Evaluator* c) const
+{
+    using SMat=IBS_Evaluator::SMat;
+    using ds_t=IBS_Evaluator::ds_t;
+    assert(a);
+    assert(c);
+    size_t Na=a->size(), Nc=c->size();
+    ERI4 J(Na,Nc);
+    ds_t na=a->Norm(), nc=c->Norm();
+
+    for (size_t ia:a->indices())
+    {
+        bs_eval->loop_1(a->es_index(ia)); //Start a cache for Gaussian::RkEngine*
+        for (size_t ic:c->indices())
+        {
+            bs_eval->loop_2(c->es_index(ic));
+            int la=a->Getl(), lc=c->Getl();
+            RVec Akac=bs_eval->Coulomb_AngularIntegrals(a,c);
+            for (size_t ib:a->indices())
+            {
+                if (ib<ia) continue; 
+                SMat& Jab=J(ia+1,ib+1);
+                bs_eval->loop_3(a->es_index(ib));
+                for (size_t id:c->indices())
+                {
+                    if (id<ic) continue;
+                    if (Jab(ic+1,id+1)!=0.0)
+                    {
+                        std::cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        std::cout << Jab(ic+1,id+1) << std::endl;    
+                        assert(false);
+                    }
+                    double norm=na[ia]*na[ib]*nc[ic]*nc[id];
+                    RVec Rkac=bs_eval->loop_4_direct(c->es_index(id),la,lc);
+                    Jab(ic+1,id+1)=Akac*Rkac*norm;
+                }
+            }
+        }
+    }
+    cout << J(1,1) << endl;
+    return J;
 }
 
 TEST_F(BasisSet_SL,Overlap) {TestOverlap(1e-15);}
@@ -200,6 +259,12 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
         
 }
 
+TEST_F(BasisSet_SL,HF_ERIs)
+{
+     for (auto a:evals)
+         for (auto c:evals)
+            Direct(a,c);
+}
 //----------------------------------------------------------------------------------------
 //
 //  Testing atom Gaussian basis set evaluators
@@ -212,7 +277,7 @@ public:
     BasisSet_SG() : BasisSet_Common()
     {
         for (size_t l=0;l<=LMax;l++)
-            evals.push_back(new Gaussian_IBS(es,l,{}));    
+            Insert(new Gaussian_IBS(es,l,{}));    
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -290,7 +355,7 @@ public:
     BasisSet_BS() : BasisSet_Common()
     {
         for (size_t l=0;l<=0;l++)
-            evals.push_back(new BSpline_IBS<6>(9+2*l,0.01,20.0,l,{}));    
+            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,l,{}));    
     }
    
 };
