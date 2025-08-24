@@ -21,6 +21,7 @@ public:
     virtual int    Getl() const {return l;}
     virtual size_t GetVectorSize() const {return size();}
     virtual size_t es_index(size_t i) const {return es_indices[i];}
+    virtual const is_t&    Getmls() const {return mls;}
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;

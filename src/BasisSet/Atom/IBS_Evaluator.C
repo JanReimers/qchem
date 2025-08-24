@@ -46,6 +46,7 @@ public:
     iota_view indices() const {return iota_view(size_t(0),size());}
     iota_view indices(size_t start) const {return iota_view(start,size());}
     virtual size_t es_index(size_t i) const=0;
+    virtual const is_t&   Getmls() const =0;
 
     virtual omls_t Overlap   () const=0;
     virtual omls_t Grad2     () const=0;
