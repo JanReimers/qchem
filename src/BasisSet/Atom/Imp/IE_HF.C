@@ -10,9 +10,6 @@ template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec, IBS_E
 {
     assert(ciec);
     DB_BS_2E<T>::Append(ciec);
-    IrrepIEClient* iec=const_cast<IrrepIEClient*>(ciec);
-    AtomIrrepIEClient* aiec=AtomIrrepIEClient::dcast(iec);
-    BFGrouper::Append(aiec);
     assert(eval);
     itsEvaluator->Register(eval);
 }

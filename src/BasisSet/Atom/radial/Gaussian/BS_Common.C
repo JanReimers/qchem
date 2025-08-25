@@ -35,12 +35,8 @@ class BS_Common
 , public ::AtomIE_BS_2E<double>
 {
 protected:
-    BS_Common(BS_Evaluator* bse, AtomIE_BS_2E_Angular* a) : AtomIE_BS_2E<double>(bse,a) {};
+    BS_Common(BS_Evaluator* bse) : AtomIE_BS_2E<double>(bse) {};
     virtual void Insert(bs_t* bs);
-private:
-    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
 };
 
 }
