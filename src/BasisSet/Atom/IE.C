@@ -98,6 +98,8 @@ public:
 protected:
     virtual void Append(const IrrepIEClient*);
     virtual void Append(const IrrepIEClient*, IBS_Evaluator*);
+    ERI4 MakeDirect1  (const IrrepIEClient* a, const IrrepIEClient* c) const;
+    ERI4 MakeExchange1(const IrrepIEClient* a, const IrrepIEClient* c) const;
 private: 
     std::unique_ptr<AtomIE_BS_2E_Angular> itsAngular;
     BS_Evaluator* itsEvaluator;
