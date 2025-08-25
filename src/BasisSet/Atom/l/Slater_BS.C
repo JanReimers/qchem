@@ -3,6 +3,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import BasisSet.Atom.Slater_IBS;
+import BasisSet.Atom.Slater_BS;
 import BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.IBS;
@@ -36,7 +37,9 @@ public:
 };
 
 class BasisSet 
-    : public ::Slater::BS_Common
+    : public Slater_BS 
+    , public ::Slater::BS_Common
+
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax); 

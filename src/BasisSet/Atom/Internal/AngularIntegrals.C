@@ -2,6 +2,16 @@
 export module qchem.BasisSet.Atom.Internal.AngularIntegrals;
 export import qchem.Types;
 
+export template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
+{
+    if (a.size()==0) 
+    {
+        a.SetLimits(b.GetLimits());
+        Fill(a,0.0);
+    }
+    return ArrayAdd(a,b);
+}
+
 export namespace AngularIntegrals
 {
     double Exchange(int k,int la,int lb);

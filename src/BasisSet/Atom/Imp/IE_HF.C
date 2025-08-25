@@ -20,7 +20,7 @@ template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec, IBS_E
 {
     Append(ciec);
     assert(eval);
-    eval->Register(itsGrouper.get());
+    itsEvaluator->Register(eval);
 }
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const 
 {

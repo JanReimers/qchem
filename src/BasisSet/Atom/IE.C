@@ -9,6 +9,7 @@ export import oml.Vector;
 export import qchem.Orbital_DHF_IBS;
 export import qchem.Types;
 export import BasisSet.Atom.IBS_Evaluator;
+export import BasisSet.Atom.BS_Evaluator;
 import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 
@@ -16,7 +17,6 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
-import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 
 export
 {
@@ -87,7 +87,8 @@ template <class T> class AtomIE_BS_2E
     , public BFGrouper
 {
 public:
-    AtomIE_BS_2E(AtomIE_BS_2E_Angular* a) : itsAngular(a), itsGrouper(new ExponentGrouper) {};
+    AtomIE_BS_2E(AtomIE_BS_2E_Angular* a) : itsAngular(a), itsEvaluator(0) {};
+    AtomIE_BS_2E(BS_Evaluator* bse,AtomIE_BS_2E_Angular* a) : itsAngular(a), itsEvaluator(bse) {};
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
 
@@ -99,7 +100,7 @@ protected:
     virtual void Append(const IrrepIEClient*, IBS_Evaluator*);
 private: 
     std::unique_ptr<AtomIE_BS_2E_Angular> itsAngular;
-    std::unique_ptr<ExponentGrouper> itsGrouper;
+    BS_Evaluator* itsEvaluator;
 };
 
 // DFT

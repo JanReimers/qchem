@@ -18,15 +18,15 @@ public:
     virtual RVec loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 };
 
-template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
-{
-    if (a.size()==0) 
-    {
-        a.SetLimits(b.GetLimits());
-        Fill(a,0.0);
-    }
-    return ArrayAdd(a,b);
-}
+// template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b);
+// {
+//     if (a.size()==0) 
+//     {
+//         a.SetLimits(b.GetLimits());
+//         Fill(a,0.0);
+//     }
+//     return ArrayAdd(a,b);
+// }
 
 RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
 {

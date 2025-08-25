@@ -14,7 +14,7 @@ namespace Slater
 
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
-: ::Slater::BS_Common(new IE_BS_2E_Angular_l)
+: ::Slater::BS_Common(this,new IE_BS_2E_Angular_l)
 {
     ::Slater::ExponentScaler ss(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
@@ -22,7 +22,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
         
 }
 BasisSet::BasisSet(const RVec& exponents, size_t LMax)
-: ::Slater::BS_Common(new IE_BS_2E_Angular_l)
+: ::Slater::BS_Common(this,new IE_BS_2E_Angular_l)
 {
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,exponents,L));
@@ -30,7 +30,7 @@ BasisSet::BasisSet(const RVec& exponents, size_t LMax)
 }
 
 BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
-: ::Slater::BS_Common(new IE_BS_2E_Angular_ml)
+: ::Slater::BS_Common(this,new IE_BS_2E_Angular_ml)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     ::Slater::ExponentScaler ss(N,emin,emax,aec.GetLMax());
