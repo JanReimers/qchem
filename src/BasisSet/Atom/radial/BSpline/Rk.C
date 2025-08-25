@@ -2,11 +2,11 @@
 module;
 #include <map>
 #include <bspline/Core.h>
-export module qchem.Basisset.Atom.radial.BSpline.Rk;
+export module qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.internal.Rk;
-// import oml.Matrix;
+// import oml.Matrix; 
 
 export namespace BSpline
 {

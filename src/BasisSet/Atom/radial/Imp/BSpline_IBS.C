@@ -7,7 +7,7 @@ module;
 using namespace bspline::operators; 
 using namespace bspline::integration; 
 module BasisSet.Atom.BSpline_IBS;
-import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
 import Common.Constants;
 // import Common.IntPow;
 

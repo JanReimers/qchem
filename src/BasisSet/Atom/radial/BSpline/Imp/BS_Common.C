@@ -4,7 +4,7 @@ module;
 module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
 import qchem.BasisSet.Internal.IEClient;
 import qchem.IrrepBasisSet;
-import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import oml;
 

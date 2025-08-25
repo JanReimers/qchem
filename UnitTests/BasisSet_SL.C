@@ -9,7 +9,9 @@ using std::endl;
 import BasisSet.Atom.Slater_IBS;
 import BasisSet.Atom.Slater_BS;
 import BasisSet.Atom.Gaussian_IBS;
+import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.BSpline_IBS;
+import BasisSet.Atom.BSpline_BS;
 import qchem.Mesh.Integrator;
 import qchem.Molecule;
 import Common.Constants;
@@ -17,6 +19,7 @@ import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.BasisSet.Atom.Internal.l.SlaterBS;
+import qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.Orbital_HF_IBS;
 
 
@@ -36,12 +39,13 @@ bool operator==(const ERI4& a, const ERI4& b)
 class BasisSet_Common : public ::testing::Test
 {
 public:
-    BasisSet_Common() 
+    BasisSet_Common(BS_Evaluator* _bseval) 
         : es{0.5,1.0,2.0}
         , N(es.size())
         , LMax(3)
         , cl(new Molecule())
-        , bs_eval(new Slater_BS)
+        , bs_eval(_bseval)
+        , bs(0)
     {
         StreamableObject::SetToPretty();
         cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
@@ -54,6 +58,7 @@ public:
         delete cl;
         delete mintegrator;
         delete bs_eval;
+        delete bs;
     }
     void Insert(IBS_Evaluator* eval)
     {
@@ -74,6 +79,7 @@ public:
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     BS_Evaluator* bs_eval;
+    BasisSet* bs;
 };
 using omls_t=IBS_Evaluator::omls_t;
 using omlv_t=IBS_Evaluator::omlv_t;
@@ -140,16 +146,16 @@ class BasisSet_SL: public BasisSet_Common
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common(), bs(new Atoml::Slater::BasisSet(convert(es),LMax))
+    BasisSet_SL() : BasisSet_Common(new Slater_BS)
     {
         for (size_t l=0;l<=LMax;l++)
-            Insert(new Slater_IBS(es,l,{}));    
+            Insert(new Slater_IBS(es,l,{})); 
+        bs=new Atoml::Slater::BasisSet(convert(es),LMax);
     }
-    ~BasisSet_SL() {delete bs;}
-
+    
     static double R0(double a, double b, int la, int lb);
 
-    BasisSet* bs;
+   
 };
 
 double BasisSet_SL::R0(double a, double b, int la, int lb) 
@@ -261,10 +267,11 @@ class BasisSet_SG: public BasisSet_Common
 {
 public:
 
-    BasisSet_SG() : BasisSet_Common()
+    BasisSet_SG() : BasisSet_Common(new Gaussian_BS)
     {
         for (size_t l=0;l<=LMax;l++)
             Insert(new Gaussian_IBS(es,l,{}));    
+        bs=new Atoml::Gaussian::BasisSet(convert(es),LMax);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -329,6 +336,28 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
     }
         
 }
+TEST_F(BasisSet_SG,HF_ERIs)
+{
+    auto a=evals.begin();
+    for (auto aibs:bs->Iterate<Orbital_HF_IBS<double>>())
+    {
+        auto c=evals.begin();
+        for (auto cibs:bs->Iterate<Orbital_HF_IBS<double>>())
+        {
+            if (aibs->GetID()<cibs->GetID())
+            {
+                ERI4 J1=bs_eval->Direct(*a,*c);
+                ERI4 J2=aibs->Direct(*cibs);
+                EXPECT_TRUE(J1==J2);
+                ERI4 K1=bs_eval->Exchange(*a,*c);
+                ERI4 K2=aibs->Exchange(*cibs);
+                EXPECT_TRUE(K1==K2);
+            }
+            ++c;
+        }
+        ++a;
+    }
+}
 
 //----------------------------------------------------------------------------------------
 //
@@ -339,7 +368,7 @@ class BasisSet_BS: public BasisSet_Common
 {
 public:
 
-    BasisSet_BS() : BasisSet_Common()
+    BasisSet_BS() : BasisSet_Common(new BSpline_BS)
     {
         for (size_t l=0;l<=0;l++)
             Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,l,{}));    

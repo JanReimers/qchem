@@ -4,7 +4,7 @@ module;
 #include <cmath>
 #include <cassert>
 module BasisSet.Atom.Gaussian_IBS;
-import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
+import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
 import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
 import Common.Constants;
 import Common.IntPow;

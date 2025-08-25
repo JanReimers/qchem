@@ -3,6 +3,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
+import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.IBS;
@@ -36,10 +37,12 @@ public:
 };
 
 class BasisSet 
-    : public ::Gaussian::BS_Common
+    : public Gaussian_BS 
+    , public ::Gaussian::BS_Common
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);
+    BasisSet(const RVec& exponents, size_t Lmax); 
     BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
 };
 

@@ -4,7 +4,7 @@ module;
 #include <iostream>
 export module qchem.Basisset.Atom.radial.BSpline.BS_Common; 
 import qchem.Basisset.Atom.radial.BSpline.IE;
-import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
 import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Internal.IrrepBasisSet;

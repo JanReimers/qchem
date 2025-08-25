@@ -5,7 +5,7 @@ module;
 
 module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import BasisSet.Atom.BSpline_IBS;
-import qchem.Basisset.Atom.radial.BSpline.Rk;
+import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
 import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.Symmetry.AtomEC;
 

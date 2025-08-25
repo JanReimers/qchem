@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <cassert>
 module qchem.BasisSet.Atom.Internal.radial.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.GaussianRk;
+import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
 import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.IEClient;
 import oml;
@@ -17,7 +17,9 @@ void BS_Common::Insert(bs_t* bs)
     ::BS_Common::Insert(bs);
     auto iec=dynamic_cast<const IrrepIEClient*>(bs);
     assert(iec);
-    Append(iec);
+    IBS_Evaluator* eval=dynamic_cast<IBS_Evaluator*>(bs);
+    assert(eval);
+    Append(iec,eval);
 }
 
 const Cacheable* BS_Common::Create(size_t ia,size_t ic,size_t ib,size_t id) const
