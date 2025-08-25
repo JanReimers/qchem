@@ -34,6 +34,7 @@ class Fit_IBS
 {
 public:
     Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L);
 };
 
 class BasisSet 
