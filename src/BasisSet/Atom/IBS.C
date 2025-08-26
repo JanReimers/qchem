@@ -1,4 +1,6 @@
 // File: BasisSet/Atom/IBS.C Atom specific irrep basis sets.
+module;
+#include <iosfwd>
 export module qchem.BasisSet.Atom.IBS;
 export import qchem.Orbital_1E_IBS;
 export import qchem.Orbital_DFT_IBS;
@@ -10,6 +12,27 @@ import qchem.BasisSet.Internal.IrrepBasisSet;
 
 export namespace Atom
 {
+
+class IrrepBasisSet
+    : public virtual Real_IBS
+    , public         IrrepBasisSet_Common<double>
+{
+    typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
+    typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
+public:
+    IrrepBasisSet(IBS_Evaluator* eval, Symmetry* sym)
+    : IrrepBasisSet_Common<double>(sym)
+    , itsEval(eval)
+    {};
+    virtual size_t  GetNumFunctions() const {return itsEval->size();}
+    virtual size_t  size           () const {return itsEval->size();}
+    virtual Vec     operator() (const RVec3& r) const {return itsEval->operator()(r);}
+    virtual Vec3Vec Gradient   (const RVec3& r) const {return itsEval->Gradient(r);}
+    virtual std::ostream&  Write(std::ostream&) const;
+private:
+    IBS_Evaluator* itsEval;
+};
+
 template <class T> class Orbital_IBS
     : public virtual ::Orbital_IBS<T> //brings in Integrals_Overlap<T>
     , public Orbital_IBS_Common<double>

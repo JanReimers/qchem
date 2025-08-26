@@ -4,9 +4,8 @@ module;
 export module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import BasisSet.Atom.Slater_IBS;
 import BasisSet.Atom.Slater_BS;
-import BasisSet.Atom.IBS_Evaluator;
-import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import qchem.BasisSet.Atom.IBS;
+import qchem.BasisSet.Atom.BS;
 
 export namespace Atoml
 {
@@ -15,7 +14,7 @@ namespace Slater
 class Orbital_IBS
     : public virtual IBS_Evaluator
     , public Slater_IBS
-    , public ::Slater::IrrepBasisSet
+    , public Atom::IrrepBasisSet
     , public Atom::Orbital_HF_IBS <double>
     , public Atom::Orbital_IBS    <double>
     , public Atom::Orbital_DFT_IBS<double>
@@ -29,7 +28,7 @@ public:
 
 class Fit_IBS 
 : public Slater_IBS
-, public ::Slater::IrrepBasisSet
+, public Atom::IrrepBasisSet
 , public Atom::Fit_IBS
 {
 public:
@@ -39,7 +38,7 @@ public:
 
 class BasisSet 
     : public Slater_BS 
-    , public ::Slater::BS_Common
+    , public Atom::BS_Common
 
 {
 public:

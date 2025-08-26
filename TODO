@@ -1,7 +1,25 @@
 Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
+class Slater::Orbital_IBS
+    : public virtual IBS_Evaluator
+    , public Slater_IBS
 
+    , public ::Slater::IrrepBasisSet
+        : public virtual Real_IBS
+        , public         IrrepBasisSet_Common<double>
+            : public virtual IrrepBasisSet<T>
+            , public virtual IrrepIEClient
+            , private UniqueIDImp
+    , public Atom::Orbital_HF_IBS <double>
+    , public Atom::Orbital_IBS    <double>
+        : public virtual ::Orbital_IBS<T> //brings in Integrals_Overlap<T>
+        , public Orbital_IBS_Common<double>
+        , public AtomIE_Overlap<double>
+        , public AtomIE_Kinetic<double>
+        , public AtomIE_Nuclear<double>
+    , public Atom::Orbital_DFT_IBS<double>
+{
 
 
 

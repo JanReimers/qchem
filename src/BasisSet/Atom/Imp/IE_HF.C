@@ -6,12 +6,13 @@ module;
 module qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IEClient;
 
-template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* ciec, IBS_Evaluator* eval)
+template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* , IBS_Evaluator* eval)
 {
-    assert(ciec);
-    DB_BS_2E<T>::Append(ciec);
     assert(eval);
     itsEvaluator->Register(eval);
+    auto ciec=dynamic_cast<const IrrepIEClient*>(eval);
+    assert(ciec);
+    DB_BS_2E<T>::Append(ciec);
 }
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const
 {

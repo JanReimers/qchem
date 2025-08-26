@@ -3,6 +3,8 @@ target_sources(qcAtom_BS PRIVATE
     Imp/IEC.C
     Imp/Factory.C
     Imp/IE_HF.C
+    Imp/BS.C
+    Imp/IBS.C
     Internal/Imp/AngularIntegrals.C
     Internal/Imp/BFGrouper.C
     Internal/Imp/Wigner3j.C
@@ -12,6 +14,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     IE.C
     IEC.C
     IBS.C
+    BS.C
     IBS_Evaluator.C
     BS_Evaluator.C
     Rk.C

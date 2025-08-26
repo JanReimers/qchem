@@ -3,7 +3,6 @@ module;
 #include <vector>
 #include <valarray>
 module qchem.BasisSet.Atom.Internal.l.SlaterBS;
-import BasisSet.Atom.Slater_IBS;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 
@@ -17,7 +16,7 @@ namespace Slater
 //
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
     : Slater_IBS(exponents,L,{})
-    , ::Slater::IrrepBasisSet(this,new Yl_Sym(L))
+    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
@@ -25,7 +24,7 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
     : Slater_IBS(exponents,L,ml)
-    , IrrepBasisSet(this,new Ylm_Sym(L,ml))
+    , Atom::IrrepBasisSet(this,new Ylm_Sym(L,ml))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
@@ -51,12 +50,12 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 //
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L)
     : Slater_IBS(exponents,L,{})
-    , ::Slater::IrrepBasisSet(this,new Yl_Sym(L))
+    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
     {};
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
     : Slater_IBS(exponents,L,{})
-    , ::Slater::IrrepBasisSet(this,new Yl_Sym(L))
+    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
     {};
 

@@ -14,8 +14,6 @@ target_sources(qcAtom_BS PRIVATE
     BSpline/Imp/IBS_Common.C
     Slater/Imp/Rk.C
     Slater/Imp/ExponentScaler.C
-    Slater/Imp/IBS_Common.C
-    Slater/Imp/BS_Common.C
 
     Imp/Slater_IBS.C
     Imp/Slater_BS.C
@@ -35,7 +33,6 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Slater/Rk.C
     Slater/ExponentScaler.C
     Slater/Integrals.C
-    Slater/BS_Common.C
     BSpline/Rk.C
     BSpline/IEC.C
     BSpline/IE.C

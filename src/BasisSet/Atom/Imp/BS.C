@@ -1,15 +1,10 @@
-// File: Atom/radial/Slater/BS_Common.C  l/ml/kappa/mj independent part of BasisSet for atom Slater basis functions.
+// File: BasisSet/Atom/Imp/BS.C Common for all atom basis sets.
 module;
-#include <vector>
-#include <iostream>
 #include <cassert>
-module qchem.BasisSet.Atom.Internal.radial.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
-import qchem.IrrepBasisSet;
+module qchem.BasisSet.Atom.BS;
 import qchem.BasisSet.Internal.IEClient;
-import oml;
 
-namespace Slater
+namespace Atom
 {
     void BS_Common::Insert(bs_t* bs)
     {
@@ -20,7 +15,4 @@ namespace Slater
         assert(eval);
         Append(iec,eval);
     }
-    
-    
-    
 }

@@ -4,7 +4,6 @@ module;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.SlaterBS;
 import BasisSet.Atom.Slater_IBS;
 
 import qchem.BasisSet.Atom.IEClient;
@@ -47,7 +46,7 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS
     : Slater_IBS
-    , public ::Slater::IrrepBasisSet //Use NR slater basis
+    , public Atom::IrrepBasisSet //Use NR slater basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
