@@ -3,6 +3,7 @@ module;
 #include <valarray>
 #include <vector>
 #include <ranges>
+#include <iosfwd>
 export module BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Atom.internal.Rk;
@@ -40,13 +41,16 @@ public:
     using omlv_t= Vector<double>;
     virtual ~IBS_Evaluator() {};
 
-    virtual void Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
-    virtual size_t size() const =0;
-    virtual int    Getl() const =0;
-    iota_view indices() const {return iota_view(size_t(0),size());}
-    iota_view indices(size_t start) const {return iota_view(start,size());}
-    virtual size_t es_index(size_t i) const=0;
-    virtual const is_t&   Getmls() const =0;
+    virtual void          Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
+    virtual size_t        size    (             ) const=0;
+    virtual int           Getl    (             ) const=0;
+    iota_view             indices (             ) const {return iota_view(size_t(0),size());}
+    iota_view             indices (size_t start ) const {return iota_view(start,size());}
+    virtual size_t        es_index(size_t i     ) const=0;
+    virtual const is_t&   Getmls  (             ) const=0;
+    virtual std::ostream& Write   (std::ostream&) const=0;
+
+    virtual size_t        GetVectorSize() const {return size();}
 
     virtual omls_t Overlap   () const=0;
     virtual omls_t Grad2     () const=0;

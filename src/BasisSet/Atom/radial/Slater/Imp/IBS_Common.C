@@ -24,11 +24,8 @@ IrrepBasisSet::IrrepBasisSet(IBS_Evaluator* eval, Symmetry* sym)
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
-    os << "Spherical Slater L=" << *GetSymmetry()
-    << " with " << GetNumFunctions() << " basis functions, alpha={";
-    // for (auto b:*this) os << *b;
-    //os << es(1) << " ... " << es(GetNumFunctions());
-    os << "}" << std::endl;
+    os << "Spherical Slater L=" << *GetSymmetry();
+    itsEval->Write(os);
     return os;
 }
 

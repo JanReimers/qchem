@@ -230,6 +230,14 @@ Slater_IBS::Vec3Vec Slater_IBS::Gradient(const RVec3& r) const
     return ret;
 }
 
+
+std::ostream&  Slater_IBS::Write(std::ostream& os) const
+{
+    return os << " with " << size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
+}
+
+
+
 Slater_IBS::ds_t Slater_RKBS_IBS::norms() const
 {
     ds_t ret(size());

@@ -2,6 +2,7 @@
 module;
 #include <valarray>
 #include <vector>
+#include <iosfwd>
 export module BasisSet.Atom.Slater_IBS;
 export import BasisSet.Atom.IBS_Evaluator;
 
@@ -9,15 +10,15 @@ export class Slater_IBS : public virtual IBS_Evaluator
 {
 public: 
  
-    Slater_IBS(const ds_t& _es, int _l, const is_t& _mls) : es(_es), l(_l), mls(_mls),ns(norms()),grouper(0) {};
+    Slater_IBS(const   ds_t& _es, int _l, const is_t& _mls) : es(_es), l(_l), mls(_mls),ns(norms()),grouper(0) {};
     Slater_IBS(const omlv_t& _es, int _l, const is_t& _mls) : es(convert(_es)), l(_l), mls(_mls),ns(norms()),grouper(0) {};
     virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
 
-    virtual size_t size() const {return es.size();}
-    virtual int    Getl() const {return l;}
-    virtual size_t GetVectorSize() const {return size();}
-    virtual size_t es_index(size_t i) const {return es_indices[i];}
-    virtual const is_t&    Getmls() const {return mls;}
+    virtual size_t        size    (             ) const {return es.size();}
+    virtual int           Getl    (             ) const {return l;}
+    virtual size_t        es_index(size_t i     ) const {return es_indices[i];}
+    virtual const is_t&   Getmls  (             ) const {return mls;}
+    virtual std::ostream& Write   (std::ostream&) const;
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;

@@ -4,6 +4,7 @@ module;
 #include <valarray>
 #include <cmath>
 #include <cassert>
+#include <iostream>
 using namespace bspline::operators; 
 using namespace bspline::integration; 
 module BasisSet.Atom.BSpline_IBS;
@@ -264,6 +265,10 @@ template <size_t K> BSpline_IBS<K>::Vec3Vec BSpline_IBS<K>::Gradient(const RVec3
     return ret;
 }
 
+template <size_t K> std::ostream&  BSpline_IBS<K>::Write(std::ostream& os) const
+{
+    return os << " with " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
+}
 
 
 #define INSTANCEk(k) template class BSpline_IBS<k>;

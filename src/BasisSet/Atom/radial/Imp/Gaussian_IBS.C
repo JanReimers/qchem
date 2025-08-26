@@ -3,6 +3,7 @@ module;
 #include <valarray>
 #include <cmath>
 #include <cassert>
+#include <iostream>
 module BasisSet.Atom.Gaussian_IBS;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
 import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
@@ -218,6 +219,13 @@ Gaussian_IBS::Vec3Vec Gaussian_IBS::Gradient(const RVec3& r) const
     for (auto& g:grad) ret(++i)=g*rhat;
     return ret;
 }
+
+std::ostream&  Gaussian_IBS::Write(std::ostream& os) const
+{
+    return os << " with " << size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
+}
+
+
 
 Gaussian_IBS::ds_t Gaussian_RKBS_IBS::norms() const
 {

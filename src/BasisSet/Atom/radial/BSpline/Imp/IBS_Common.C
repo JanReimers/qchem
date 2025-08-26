@@ -61,10 +61,8 @@ template <size_t K> IrrepBasisSet<K>::Vec3Vec IrrepBasisSet<K>::Gradient   (cons
 
 template <size_t K> std::ostream&  IrrepBasisSet<K>::Write(std::ostream& os) const
 {
-    os << "Spherical BSpline L=" << *GetSymmetry()
-    << " with " << GetNumFunctions() << " basis functions, {";
-    os << rmin << " ... " << rmax;
-    os << "}" << std::endl;
+    os << "Spherical BSpline L=" << *GetSymmetry();
+    // itsEval->Write(os);
     return os;
 }
 

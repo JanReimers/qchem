@@ -4,6 +4,7 @@ module;
 #include <valarray>
 #include <vector>
 #include <memory>
+#include <iosfwd>
 export module BasisSet.Atom.BSpline_IBS;
 import BasisSet.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
@@ -17,11 +18,11 @@ public:
     BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
     virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
     
-    virtual size_t size() const {return splines.size();}
-    virtual int    Getl() const {return l;}
-    virtual size_t GetVectorSize() const {return size();}
-    virtual size_t es_index(size_t i) const {return es_indices[i];}
-    virtual const is_t&    Getmls() const {return mls;}
+    virtual size_t        size    (             ) const {return splines.size();}
+    virtual int           Getl    (             ) const {return l;}
+    virtual size_t        es_index(size_t i     ) const {return es_indices[i];}
+    virtual const is_t&   Getmls  (             ) const {return mls;}
+    virtual std::ostream& Write   (std::ostream&) const;
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;
