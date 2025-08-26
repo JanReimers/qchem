@@ -1,8 +1,9 @@
 target_sources(qcAtom_BS PRIVATE 
+    Slater/Imp/Rk.C
+    Slater/Imp/ExponentScaler.C
     Gaussian/Imp/Rk.C
     Gaussian/Imp/ExponentScaler.C
-    Gaussian/Imp/IBS_Common.C
-    Gaussian/Imp/BS_Common.C
+
     BSpline/GLQuadrature.C
     BSpline/gauleg.f
     BSpline/Imp/IE.C
@@ -12,8 +13,6 @@ target_sources(qcAtom_BS PRIVATE
     BSpline/Imp/GLQuadrature.C
     BSpline/Imp/BS_Common.C
     BSpline/Imp/IBS_Common.C
-    Slater/Imp/Rk.C
-    Slater/Imp/ExponentScaler.C
 
     Imp/Slater_IBS.C
     Imp/Slater_BS.C
@@ -29,7 +28,6 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Gaussian/Rk.C
     Gaussian/ExponentScaler.C
     Gaussian/Integrals.C
-    Gaussian/BS_Common.C
     Slater/Rk.C
     Slater/ExponentScaler.C
     Slater/Integrals.C

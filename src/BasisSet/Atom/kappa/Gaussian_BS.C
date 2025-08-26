@@ -3,7 +3,6 @@ module;
 #include <iosfwd>
 class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
 import qchem.BasisSet.Atom.IEClient;
 import qchem.BasisSet.Atom.IE;
@@ -51,7 +50,7 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS
     : public Gaussian_IBS
-    , public ::Gaussian::IrrepBasisSet //Use NR Gaussian basis
+    , public Atom::IrrepBasisSet //Use NR Gaussian basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:

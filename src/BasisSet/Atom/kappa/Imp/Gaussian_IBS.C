@@ -5,7 +5,6 @@ module;
 #include <cassert>
 #include <cmath>
 module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.GaussianBS;
 import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
 import BasisSet.Atom.Gaussian_IBS;
@@ -46,7 +45,7 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 (const DB_cache<T>* db,const Vector<T>& exponents,int kappa)
     : Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{})
-    , ::Gaussian::IrrepBasisSet(this,new Omega_k_Sym(kappa))
+    , Atom::IrrepBasisSet(this,new Omega_k_Sym(kappa))
     , Atom::Orbital_RKBL_IBS<T>(db,this,kappa)
 {};
 
