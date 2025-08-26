@@ -16,16 +16,16 @@ namespace Slater
 // Orbital SL basis set.
 //
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
-: ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , Slater_IBS(exponents,L,{})
+    : Slater_IBS(exponents,L,{})
+    , ::Slater::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
 {};
 
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
-    : IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
-    , Slater_IBS(exponents,L,ml)
+    : Slater_IBS(exponents,L,ml)
+    , IrrepBasisSet(this,new Ylm_Sym(L,ml))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
@@ -50,13 +50,13 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 //  Fit with Slater_l  basis set.
 //
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L)
-    : ::Slater::IrrepBasisSet(convert(exponents),new Yl_Sym(L),L)
-    , Slater_IBS(exponents,L,{})
+    : Slater_IBS(exponents,L,{})
+    , ::Slater::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
     {};
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : ::Slater::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , Slater_IBS(exponents,L,{})
+    : Slater_IBS(exponents,L,{})
+    , ::Slater::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
     {};
 

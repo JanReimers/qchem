@@ -46,13 +46,14 @@ private:
 };
 
 export template <class T> class Orbital_RKBL_IBS
-    : public ::Slater::IrrepBasisSet //Use NR slater basis
-    , Slater_IBS
+    : Slater_IBS
+    , public ::Slater::IrrepBasisSet //Use NR slater basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:
     Orbital_RKBL_IBS(const DB_cache<T>*,const Vector<T>& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return Slater_IBS::size();}
+    virtual size_t  size() const {return Slater_IBS::size();}
 };
 
 export template <class T> class Orbital_RKBS_IBS
