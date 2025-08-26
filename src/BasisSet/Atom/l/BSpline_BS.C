@@ -17,25 +17,26 @@ export namespace Atoml
 namespace BSpline
 {
 template <size_t K> class Orbital_IBS
-    : public         ::BSpline::IrrepBasisSet<K>
-    , public         Orbital_IBS_Common<double>
-    , public         Orbital_DFT_IBS_Common<double>
-    , public         Orbital_HF_IBS_Common<double>
+    : public BSpline_IBS<K>
+    , public ::BSpline::IrrepBasisSet<K>
+    , public Orbital_IBS_Common<double>
+    , public Orbital_DFT_IBS_Common<double>
+    , public Orbital_HF_IBS_Common<double>
     , public AtomIE_Overlap<double>
     , public AtomIE_Kinetic<double>
     , public AtomIE_Nuclear<double>
     , public AtomIE_DFT    <double>
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 };
 
 template <size_t K> class Fit_IBS 
-: public ::BSpline::IrrepBasisSet<K>
-, public BSpline_IBS<K>
+: public BSpline_IBS<K>
+, public ::BSpline::IrrepBasisSet<K>
 , public Fit_IBS_Common
 , public AtomIE_Fit
 , public AtomIE_Overlap<double>

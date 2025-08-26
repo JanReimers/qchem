@@ -21,28 +21,30 @@ namespace BSpline
 //
 // Orbital BSpline basis set.
 //
-template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L)
-    : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
+template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db ,size_t N, double rmin, double rmax, size_t L)
+    : BSpline_IBS<K>(N,rmin,rmax,L,{})
+    , ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
-    , AtomIE_Overlap<double>(db,eval)
-    , AtomIE_Kinetic<double>(db,eval)
-    , AtomIE_Nuclear<double>(db,eval)
-    , AtomIE_DFT    <double>(db,eval)
+    , AtomIE_Overlap<double>(db,this)
+    , AtomIE_Kinetic<double>(db,this)
+    , AtomIE_Nuclear<double>(db,this)
+    , AtomIE_DFT    <double>(db,this)
 {
-    AtomIrrepIEClient::ns=convert(eval->Norm());
+    AtomIrrepIEClient::ns=convert(BSpline_IBS<K>::Norm());
 };
 
-template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,const IBS_Evaluator* eval,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
-    : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Ylm_Sym(L,ml),L,ml)
+template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
+    : BSpline_IBS<K>(N,rmin,rmax,L,ml)
+    , ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Ylm_Sym(L,ml),L,ml)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
-    , AtomIE_Overlap<double>(db,eval)
-    , AtomIE_Kinetic<double>(db,eval)
-    , AtomIE_Nuclear<double>(db,eval)
-    , AtomIE_DFT    <double>(db,eval)
+    , AtomIE_Overlap<double>(db,this)
+    , AtomIE_Kinetic<double>(db,this)
+    , AtomIE_Nuclear<double>(db,this)
+    , AtomIE_DFT    <double>(db,this)
 {
-    AtomIrrepIEClient::ns=convert(eval->Norm());
+    AtomIrrepIEClient::ns=convert(BSpline_IBS<K>::Norm());
 };
 
 
@@ -63,8 +65,8 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
 //  Fit with Slater_l  basis set.
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
-    : ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
-    , BSpline_IBS<K>(N,rmin,rmax,L,{})
+    : BSpline_IBS<K>(N,rmin,rmax,L,{})
+    , ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
     , AtomIE_Fit(db,this)
     , AtomIE_Overlap<double>(db,this)
 {};
