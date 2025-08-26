@@ -49,11 +49,12 @@ inline double Charge(double ea, size_t l)
 //
 //  Start member functions.
 //
-void Slater_IBS::Register(ExponentGrouper* _grouper)
+void Slater_IBS::Register(Grouper* _grouper)
 {
     assert(_grouper);
-    grouper=_grouper;
-    for (auto e:es) es_indices.push_back(_grouper->Insert(e,l));
+    auto grouper=static_cast<ExponentGrouper*>(_grouper);
+    assert(grouper);
+    for (auto e:es) es_indices.push_back(grouper->Insert(e,l));
     // std::cout << "es_indices=" << es_indices << std::endl;
 }
 

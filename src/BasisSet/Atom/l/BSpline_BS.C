@@ -13,6 +13,7 @@ import qchem.Fit_IBS;
 import qchem.BasisSet.Atom.IE;
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.BasisSet.Atom.IBS;
+import BasisSet.Atom.BSpline_BS;;
 
 export namespace Atoml
 {
@@ -54,7 +55,8 @@ public:
     // Full basis set.
 
 template <size_t K> class BasisSet 
-    : public ::BSpline::BS_Common<K>
+    : public BSpline_BS<K> 
+    , public ::BSpline::BS_Common<K>
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 

@@ -41,7 +41,7 @@ public:
     using omlv_t= Vector<double>;
     virtual ~IBS_Evaluator() {};
 
-    virtual void          Register(ExponentGrouper*)=0; //Set up unique spline or exponent indexes.
+    virtual void          Register(Grouper*)=0; //Set up unique spline or exponent indexes.
     virtual size_t        size    (             ) const=0;
     virtual int           Getl    (             ) const=0;
     iota_view             indices (             ) const {return iota_view(size_t(0),size());}

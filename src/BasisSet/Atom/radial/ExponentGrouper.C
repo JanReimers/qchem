@@ -14,17 +14,22 @@ export module qchem.BasisSet.Atom.Internal.ExponentGrouper;
 // For now just assume if two spline have the same rmin then they also have the same rmax
 // So just pass in rmin instead of the exponent.
 //  
-export class ExponentGrouper
+export class Grouper
+{
+public:
+    size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
+protected:
+    std::map<double,size_t> unique_es; //Unique exponents or rmins for splines.
+    //! For each unique exponent, store the maximum l value.
+    std::vector<size_t> maxls; 
+};
+
+export class ExponentGrouper : public Grouper
 {
 public:
     //! Returns the unique (across all Irrep basis sets) index for this exponent.
     size_t Insert(double exponent,size_t l); 
-    size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 
-private:
-    std::map<double,size_t> unique_es; //Unique exponents.
-    //! For each unique exponent, store the maximum l value.
-    std::vector<size_t> maxls; 
 };
 

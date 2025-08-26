@@ -10,6 +10,7 @@ target_sources(qcAtom_BS PRIVATE
     BSpline/Imp/IEC.C
     BSpline/Imp/Rk.C
     BSpline/Imp/BFGrouper.C
+    BSpline/Imp/SplineGrouper.C
     BSpline/Imp/GLQuadrature.C
     BSpline/Imp/BS_Common.C
     
@@ -34,6 +35,7 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BSpline/IEC.C
     BSpline/IE.C
     BSpline/BFGrouper.C
+    BSpline/SplineGrouper.C
     BSpline/GLQuadrature.C
     BSpline/BS_Common.C
 

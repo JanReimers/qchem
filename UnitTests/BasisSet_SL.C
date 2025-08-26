@@ -368,7 +368,7 @@ class BasisSet_BS: public BasisSet_Common
 {
 public:
 
-    BasisSet_BS() : BasisSet_Common(new BSpline_BS)
+    BasisSet_BS() : BasisSet_Common(new BSpline_BS<6>)
     {
         for (size_t l=0;l<=0;l++)
             Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,l,{}));    

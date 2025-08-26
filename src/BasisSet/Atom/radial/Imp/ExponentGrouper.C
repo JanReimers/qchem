@@ -24,7 +24,7 @@ size_t ExponentGrouper::Insert(double e,size_t l)
 
 
 //  indices should already be zero based.
-size_t ExponentGrouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
+size_t Grouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
 {
     size_t lmax_ab=std::max(maxls[ia],maxls[ib]);
     size_t lmax_cd=std::max(maxls[ic],maxls[id]);

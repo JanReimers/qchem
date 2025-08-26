@@ -16,7 +16,7 @@ export template <size_t K> class BSpline_IBS : public virtual IBS_Evaluator
 public: 
  
     BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
-    virtual void Register(ExponentGrouper*); //Set up unique spline or exponent indexes.
+    virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
     virtual size_t        size    (             ) const {return splines.size();}
     virtual int           Getl    (             ) const {return l;}

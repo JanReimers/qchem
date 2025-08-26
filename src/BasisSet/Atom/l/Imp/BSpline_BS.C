@@ -14,7 +14,7 @@ namespace Atoml
 namespace BSpline
 {
 template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, size_t LMax)
-: ::BSpline::BS_Common<K>(new IE_BS_2E_Angular_l)
+: ::BSpline::BS_Common<K>(this,new IE_BS_2E_Angular_l)
 {
     for (size_t L=0;L<=LMax;L++)
         this->Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L));
@@ -23,7 +23,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
 
 
 template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
-: ::BSpline::BS_Common<K>(new IE_BS_2E_Angular_ml)
+: ::BSpline::BS_Common<K>(this, new IE_BS_2E_Angular_ml)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();

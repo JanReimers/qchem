@@ -2,10 +2,10 @@
 module;
 export module BasisSet.Atom.BSpline_BS;
 export import BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Atom.Internal.ExponentGrouper;
+import qchem.BasisSet.Atom.Internal.SplineGrouper;
 
 
-export class BSpline_BS 
+export template <size_t K> class BSpline_BS 
     : public virtual BS_Evaluator
 {
 public:
@@ -14,7 +14,7 @@ public:
     virtual RVec loop_4_direct  (size_t id, size_t la, size_t lc) const;
     virtual RVec loop_4_exchange(size_t id, size_t la, size_t lc) const;
 private:
-    ExponentGrouper grouper;
+    SplineGrouper<K> grouper;
     // RkCache<K>* itsRkCache;
 };
 

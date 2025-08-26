@@ -9,6 +9,7 @@ using namespace bspline::operators;
 using namespace bspline::integration; 
 module BasisSet.Atom.BSpline_IBS;
 import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
+import qchem.BasisSet.Atom.Internal.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
 
@@ -51,11 +52,12 @@ template <size_t K> double Charge(const spline_t<K>& a , size_t l)
 //
 //  Start member functions.
 //
-template <size_t K> void BSpline_IBS<K>::Register(ExponentGrouper* _grouper)
+template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
 {
     assert(_grouper);
-    grouper=_grouper;
-    for (auto s:splines) es_indices.push_back(_grouper->Insert(s.getSupport().front(),l));
+    auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
+    assert(grouper);
+    for (auto s:splines) es_indices.push_back(grouper->Insert(s,l));
 }
 
 template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int _l, const is_t& _mls) 
