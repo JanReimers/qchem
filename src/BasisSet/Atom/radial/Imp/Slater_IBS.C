@@ -183,16 +183,6 @@ dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-Rk* Slater_IBS::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
-{
-    assert(grouper);
-    return new Slater::RkEngine(
-        grouper->unique_esv[ia]+grouper->unique_esv[ib],
-        grouper->unique_esv[ic]+grouper->unique_esv[id],
-        grouper->LMax(ia,ib,ic,id));
-}
-
-
 template <class v> v slater(double r,size_t l,const v& e, const v& n)
 {
     return n*uintpow(r,l)*exp(-e*r);

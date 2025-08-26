@@ -179,15 +179,6 @@ dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-Rk* Gaussian_IBS::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
-{
-    assert(grouper);
-    return new Gaussian::RkEngine(
-        grouper->unique_esv[ia]+grouper->unique_esv[ib],
-        grouper->unique_esv[ic]+grouper->unique_esv[id],
-        grouper->LMax(ia,ib,ic,id));
-}
-
 
 template <class v> v gaussian(double r,size_t l,const v& e, const v& n)
 {

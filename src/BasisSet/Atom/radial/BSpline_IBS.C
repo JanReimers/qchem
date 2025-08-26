@@ -37,8 +37,6 @@ public:
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const; //3 center
 
-    virtual Rk* CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const;
-
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 

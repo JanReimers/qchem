@@ -219,17 +219,6 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-template <size_t K> Rk* BSpline_IBS<K>::CreateRk(size_t ia,size_t ic,size_t ib,size_t id) const
-{
-    assert(false);
-    return 0;
-    // assert(grouper);
-    // assert(itsRkCache);
-    // size_t lmax=grouper->LMax(ia,ib,ic,id);
-    // const GLCache* gl=this->GetGL(lmax);
-    // return new BSpline::RkEngine(grouper->unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
-}
-
 template <size_t K> BSpline_IBS<K>::Vec    BSpline_IBS<K>::operator() (const RVec3& r) const
 {
     Vec ret(size());
