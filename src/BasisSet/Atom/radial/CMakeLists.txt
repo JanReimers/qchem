@@ -12,8 +12,7 @@ target_sources(qcAtom_BS PRIVATE
     BSpline/Imp/BFGrouper.C
     BSpline/Imp/GLQuadrature.C
     BSpline/Imp/BS_Common.C
-    BSpline/Imp/IBS_Common.C
-
+    
     Imp/Slater_IBS.C
     Imp/Slater_BS.C
     Imp/Gaussian_IBS.C

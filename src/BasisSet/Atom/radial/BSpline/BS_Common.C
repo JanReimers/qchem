@@ -18,25 +18,6 @@ export import qchem.Types;
 
 export namespace BSpline
 {
-template <size_t K> class IrrepBasisSet
-    : public virtual Real_IBS
-    , public         IrrepBasisSet_Common<double>
-{
-    typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
-    typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-public:
-    IrrepBasisSet(IBS_Evaluator* eval, Symmetry* sym)
-    : IrrepBasisSet_Common<double>(sym)
-    , itsEval(eval)
-    {};
-    virtual size_t  GetNumFunctions() const {return itsEval->size();}
-    virtual size_t  size           () const {return itsEval->size();}
-    virtual Vec     operator() (const RVec3& r) const {return itsEval->operator()(r);}
-    virtual Vec3Vec Gradient   (const RVec3& r) const {return itsEval->Gradient(r);}
-    virtual std::ostream&  Write(std::ostream&    ) const;
-private:
-    IBS_Evaluator* itsEval;
-};
 template <size_t K> class BS_Common
 : public ::BS_Common
 , public IE_BS_2E<double,K>
