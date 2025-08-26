@@ -6,7 +6,6 @@ target_sources(qcAtom_BS PRIVATE
     Imp/BS.C
     Imp/IBS.C
     Internal/Imp/AngularIntegrals.C
-    Internal/Imp/BFGrouper.C
     Internal/Imp/Wigner3j.C
 )
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -19,7 +18,6 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BS_Evaluator.C
     Rk.C
     Internal/AngularIntegrals.C
-    Internal/BFGrouper.C
     Internal/Wigner3j.C
 )
 target_include_directories(qcAtom_BS PRIVATE 

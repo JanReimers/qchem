@@ -10,7 +10,6 @@ export import qchem.Orbital_DHF_IBS;
 export import qchem.Types;
 export import BasisSet.Atom.IBS_Evaluator;
 export import BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Atom.Internal.BFGrouper;
 import qchem.BasisSet.Atom.IEClient;
 
 import qchem.BasisSet.Internal.ERI4;
