@@ -21,22 +21,21 @@ export namespace BSpline
 template <size_t K> class IrrepBasisSet
     : public virtual Real_IBS
     , public         IrrepBasisSet_Common<double>
-    , public         IrrepIEClient<K>
 {
     typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    typedef typename BSpline::IrrepIEClient<K> IEC;
-    using IEC::splines;
-    using IEC::rmin;
-    using IEC::rmax;
-    using AtomIrrepIEClient::ns;
 public:
-    IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L);
-    IrrepBasisSet(size_t Ngrid,double rmin, double rmax, Symmetry*,size_t L, const std::vector<int>& ml);
-    virtual size_t  GetNumFunctions() const {return size();}
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    IrrepBasisSet(IBS_Evaluator* eval, Symmetry* sym)
+    : IrrepBasisSet_Common<double>(sym)
+    , itsEval(eval)
+    {};
+    virtual size_t  GetNumFunctions() const {return itsEval->size();}
+    virtual size_t  size           () const {return itsEval->size();}
+    virtual Vec     operator() (const RVec3& r) const {return itsEval->operator()(r);}
+    virtual Vec3Vec Gradient   (const RVec3& r) const {return itsEval->Gradient(r);}
     virtual std::ostream&  Write(std::ostream&    ) const;
+private:
+    IBS_Evaluator* itsEval;
 };
 template <size_t K> class BS_Common
 : public ::BS_Common

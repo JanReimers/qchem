@@ -40,7 +40,7 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
-private:
+protected:
     std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax);
     ds_t norms() const; //assumes es,l are already initialized
 

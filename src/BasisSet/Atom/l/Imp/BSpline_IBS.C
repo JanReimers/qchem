@@ -23,26 +23,28 @@ namespace BSpline
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db ,size_t N, double rmin, double rmax, size_t L)
     : BSpline_IBS<K>(N,rmin,rmax,L,{})
-    , ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
+    , ::BSpline::IrrepBasisSet<K>(this,new Yl_Sym(L))
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , AtomIE_Overlap<double>(db,this)
     , AtomIE_Kinetic<double>(db,this)
     , AtomIE_Nuclear<double>(db,this)
     , AtomIE_DFT    <double>(db,this)
+    , ::BSpline::IrrepIEClient<K>(N,rmin,rmax,L)
 {
     AtomIrrepIEClient::ns=convert(BSpline_IBS<K>::Norm());
 };
 
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
     : BSpline_IBS<K>(N,rmin,rmax,L,ml)
-    , ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Ylm_Sym(L,ml),L,ml)
+    , ::BSpline::IrrepBasisSet<K>(this,new Ylm_Sym(L,ml))
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , AtomIE_Overlap<double>(db,this)
     , AtomIE_Kinetic<double>(db,this)
     , AtomIE_Nuclear<double>(db,this)
     , AtomIE_DFT    <double>(db,this)
+    , ::BSpline::IrrepIEClient<K>(N,rmin,rmax,L,ml)
 {
     AtomIrrepIEClient::ns=convert(BSpline_IBS<K>::Norm());
 };
@@ -51,14 +53,12 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0); 
+    return new Fit_IBS<K>(db,GetNumFunctions(),BSpline_IBS<K>::rmin,BSpline_IBS<K>::rmax,0); 
 }
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    const ::BSpline::IrrepIEClient<K>& iec=*this; //Help the compiler find the IE clent bass class.
-    return new Fit_IBS<K>(db,GetNumFunctions(),iec.rmin,iec.rmax,0);    
+    return new Fit_IBS<K>(db,GetNumFunctions(),BSpline_IBS<K>::rmin,BSpline_IBS<K>::rmax,0);    
 }
 //----------------------------------------------------------------
 //
@@ -66,7 +66,7 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
     : BSpline_IBS<K>(N,rmin,rmax,L,{})
-    , ::BSpline::IrrepBasisSet<K>(N,rmin,rmax,new Yl_Sym(L),L)
+    , ::BSpline::IrrepBasisSet<K>(this,new Yl_Sym(L))
     , AtomIE_Fit(db,this)
     , AtomIE_Overlap<double>(db,this)
 {};
