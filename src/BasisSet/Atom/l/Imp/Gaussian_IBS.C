@@ -1,6 +1,7 @@
 // File: Atom/l/Gaussian_IBS.H  Gaussian Irrep Basis Set (IBS) with orbital angular momentum l.
 module;
 #include <vector>
+#include <valarray>
 module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
 import qchem.Symmetry.Yl;
@@ -12,16 +13,16 @@ namespace Gaussian
 {
   
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
-    : ::Gaussian::IrrepBasisSet(exponents,new Yl_Sym(L),L)
-    , Gaussian_IBS(exponents,L,{})
+    : Gaussian_IBS(exponents,L,{})
+    , ::Gaussian::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
 {};
 
 Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
-    : ::Gaussian::IrrepBasisSet(exponents,new Ylm_Sym(L,ml),L,ml)
-    , Gaussian_IBS(exponents,L,ml)
+    : Gaussian_IBS(exponents,L,ml)
+    , ::Gaussian::IrrepBasisSet(this,new Ylm_Sym(L,ml))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
@@ -30,18 +31,23 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    return new Fit_IBS(db,AtomIrrepIEClient::es*2,0);
+    return new Fit_IBS(db,Gaussian_IBS::es*2.0,0);
 }
 
 ::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {
     auto db=dynamic_cast<const DB_cache<double>*>(bs);
-    return new Fit_IBS(db,AtomIrrepIEClient::es*2.0/3.0,0);    
+    return new Fit_IBS(db,Gaussian_IBS::es*2.0/3.0,0);    
 }
 
+Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L)
+    : Gaussian_IBS(exponents,L,{})
+    , ::Gaussian::IrrepBasisSet(this,new Yl_Sym(L))
+    , Atom::Fit_IBS(db,this)
+    {};
 Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : ::Gaussian::IrrepBasisSet(exponents,new Yl_Sym(L), L)
-    , Gaussian_IBS(exponents,L,{})
+    : Gaussian_IBS(exponents,L,{})
+    , ::Gaussian::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
 {};
 

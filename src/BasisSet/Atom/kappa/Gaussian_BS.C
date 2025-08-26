@@ -50,8 +50,8 @@ private:
 };
 
 export template <class T> class Orbital_RKBL_IBS
-    : public ::Gaussian::IrrepBasisSet //Use NR Gaussian basis
-    , Gaussian_IBS
+    : public Gaussian_IBS
+    , public ::Gaussian::IrrepBasisSet //Use NR Gaussian basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
 public:

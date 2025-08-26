@@ -14,20 +14,18 @@ export namespace Gaussian
 class IrrepBasisSet
 : public virtual Real_IBS
 , public         IrrepBasisSet_Common<double>
-, public         AtomIrrepIEClient
 {
     typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
 public:
-    IrrepBasisSet(const Vector<double>& exponents, Symmetry*, size_t l);
-    IrrepBasisSet(const Vector<double>& exponents, Symmetry*, size_t l, const std::vector<int>& ml);
+    IrrepBasisSet(IBS_Evaluator*, Symmetry*);
     virtual size_t  GetNumFunctions() const {return size();}
-
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    virtual size_t  size() const {return itsEval->size();}
+    virtual Vec     operator() (const RVec3& r) const {return itsEval->operator()(r);}
+    virtual Vec3Vec Gradient   (const RVec3& r) const {return itsEval->Gradient(r);}
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
-    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
+    IBS_Evaluator* itsEval;
 };
 // Common base handles all the radial aspects.
 class BS_Common

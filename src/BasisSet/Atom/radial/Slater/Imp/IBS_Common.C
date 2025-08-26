@@ -19,10 +19,7 @@ namespace Slater
 IrrepBasisSet::IrrepBasisSet(IBS_Evaluator* eval, Symmetry* sym)
     : IrrepBasisSet_Common<double>(sym)
     , itsEval(eval)
-{
-    
-
-};
+{};
 
 
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const

@@ -14,8 +14,8 @@ namespace Gaussian
 {
 
 class Orbital_IBS
-    : public         ::Gaussian::IrrepBasisSet
-    , public Gaussian_IBS
+    : public Gaussian_IBS
+    , public ::Gaussian::IrrepBasisSet
     , public Atom::Orbital_HF_IBS <double>
     , public Atom::Orbital_IBS    <double>
     , public Atom::Orbital_DFT_IBS<double>
@@ -28,12 +28,13 @@ public:
 };
 
 class Fit_IBS 
-    : public ::Gaussian::IrrepBasisSet
-    , public Gaussian_IBS
+    : public Gaussian_IBS
+    , public ::Gaussian::IrrepBasisSet
     , public Atom::Fit_IBS
 {
 public:
     Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
+    Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L);
 };
 
 class BasisSet 

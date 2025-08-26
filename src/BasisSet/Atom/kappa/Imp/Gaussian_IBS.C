@@ -45,8 +45,8 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 (const DB_cache<T>* db,const Vector<T>& exponents,int kappa)
-    : ::Gaussian::IrrepBasisSet(exponents,new Omega_k_Sym(kappa),Omega_kmj_Sym::l(kappa))
-    , Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{})
+    : Gaussian_IBS(exponents,Omega_k_Sym::l(kappa),{})
+    , ::Gaussian::IrrepBasisSet(this,new Omega_k_Sym(kappa))
     , Atom::Orbital_RKBL_IBS<T>(db,this,kappa)
 {};
 
