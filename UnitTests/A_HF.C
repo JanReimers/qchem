@@ -6,7 +6,7 @@ import qchem.Hamiltonian.Factory;
 import qchem.Factory;
 import qchem.Atom;
 
-const bool verbose=true;
+const bool verbose=false;
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
