@@ -4,7 +4,6 @@ module;
 module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.ExponentScaler; 
-import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.Symmetry.AtomEC;
 
 namespace Atoml

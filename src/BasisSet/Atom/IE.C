@@ -71,14 +71,6 @@ private:
 };
 
 // HF
-class AtomIE_BS_2E_Angular
-{
-public:
-    virtual ~AtomIE_BS_2E_Angular() {};
-    typedef AtomIrrepIEClient iec_t;
-    virtual RVec Coulomb_AngularIntegrals(const iec_t* a,const iec_t* c) const=0;
-    virtual RVec ExchangeAngularIntegrals(const iec_t* a,const iec_t* c) const=0;
-};
 
 template <class T> class AtomIE_BS_2E 
     : public DB_BS_2E<T>
