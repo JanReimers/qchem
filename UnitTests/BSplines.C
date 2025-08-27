@@ -8,7 +8,6 @@
 #include <valarray>
 #include <iomanip>
 
-import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import qchem.Symmetry.Angular;
 import BasisSet.Atom.BSpline_IBS;

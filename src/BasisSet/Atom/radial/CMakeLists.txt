@@ -6,14 +6,10 @@ target_sources(qcAtom_BS PRIVATE
 
     BSpline/GLQuadrature.C
     BSpline/gauleg.f
-    BSpline/Imp/IE.C
-    BSpline/Imp/IEC.C
     BSpline/Imp/Rk.C
-    BSpline/Imp/BFGrouper.C
     BSpline/Imp/SplineGrouper.C
     BSpline/Imp/GLQuadrature.C
-    BSpline/Imp/BS_Common.C
-    
+
     Imp/Slater_IBS.C
     Imp/Slater_BS.C
     Imp/Gaussian_IBS.C
@@ -32,12 +28,8 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Slater/ExponentScaler.C
     Slater/Integrals.C
     BSpline/Rk.C
-    BSpline/IEC.C
-    BSpline/IE.C
-    BSpline/BFGrouper.C
     BSpline/SplineGrouper.C
     BSpline/GLQuadrature.C
-    BSpline/BS_Common.C
 
     Slater_IBS.C
     Slater_BS.C
