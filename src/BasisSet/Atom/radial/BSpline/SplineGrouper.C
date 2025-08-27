@@ -5,6 +5,7 @@ module;
 #include <map>
 export module qchem.BasisSet.Atom.Internal.SplineGrouper;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
+import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 // 
 // We can use this class for splines by using the support window {rmin,rmax}.
 // For now just assume if two spline have the same rmin then they also have the same rmax
@@ -24,5 +25,6 @@ public:
     size_t Insert(const spline_t&,size_t l); 
     //! Linear array of unique exponents.
     std::vector<spline_t> unique_spv; 
+    std::map<size_t,const GLCache*> itsGLs;
 };
 

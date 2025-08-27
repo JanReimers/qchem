@@ -3,13 +3,25 @@ module;
 #include <cassert>
 module BasisSet.Atom.BSpline_BS;
 import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
-       
 
 template <size_t K> void BSpline_BS<K>::Register(IBS_Evaluator * eval)
 {
     assert(eval);
     eval->Register(&grouper);
 }
+
+template <size_t K> const GLCache* BSpline_BS<K>::GetGL(size_t l) const
+{
+    auto i=grouper.itsGLs.find(l);
+    assert(i!=grouper.itsGLs.end());
+    return i->second;
+}
+
+template <size_t K> void BSpline_BS<K>::BuildCache(size_t lmax)
+{
+    itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*this->GetGL(lmax),lmax);
+}
+
 
 template <size_t K> Rk* BSpline_BS<K>::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {

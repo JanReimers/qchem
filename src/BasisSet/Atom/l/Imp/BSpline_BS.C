@@ -18,7 +18,8 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
 {
     for (size_t L=0;L<=LMax;L++)
         this->Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L));
-    this->BuildCache(LMax);
+    ::BSpline::BS_Common<K>::BuildCache(LMax);
+    BSpline_BS<K>::BuildCache(LMax);
 }
 
 
@@ -39,7 +40,8 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
 
     
     }           
-    this->BuildCache(LMax);
+    ::BSpline::BS_Common<K>::BuildCache(LMax);
+    BSpline_BS<K>::BuildCache(LMax);
 }
 
 

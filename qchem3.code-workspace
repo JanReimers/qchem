@@ -104,7 +104,8 @@
 			"__split_buffer": "cpp",
 			"__tree": "cpp",
 			"ios": "cpp",
-			"print": "cpp"
+			"print": "cpp",
+			"__bit_reference": "cpp"
 		}
 	}
 }
