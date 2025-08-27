@@ -20,19 +20,19 @@ export namespace BSpline
 {
 template <size_t K> class BS_Common
 : public ::BS_Common
-, public IE_BS_2E<double,K>
+, public AtomIE_BS_2E<double>
 {
 protected:
-    BS_Common(BS_Evaluator* eval, AtomIE_BS_2E_Angular* a) : IE_BS_2E<double,K>(eval,a), itsRkCache(0), itsEval(eval) {};
+    BS_Common(BS_Evaluator* eval, AtomIE_BS_2E_Angular* a) : AtomIE_BS_2E<double>(eval), itsRkCache(0), itsEval(eval) {};
     ~BS_Common();
     virtual void Insert(bs_t* bs);
     void BuildCache(size_t lmax);
 private:
-    using BSpline::BFGrouper<K>::unique_spv;
-    using BSpline::BFGrouper<K>::LMax;
-    virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
-    virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
+    // using BSpline::BFGrouper<K>::unique_spv;
+    // using BSpline::BFGrouper<K>::LMax;
+    // virtual const Cacheable* Create(size_t ia,size_t ic,size_t ib,size_t id) const;
+    // virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc)  const;
+    // virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc)  const;
 
     RkCache<K>* itsRkCache;
     BS_Evaluator* itsEval;

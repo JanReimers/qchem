@@ -3,17 +3,22 @@ module;
 #include <bspline/Core.h>
 #include <iosfwd>
 export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
-import BasisSet.Atom.IBS_Evaluator;
+
 import BasisSet.Atom.BSpline_IBS;
-import qchem.Basisset.Atom.radial.BSpline.BS_Common;
-import qchem.Basisset.Atom.radial.BSpline.IE;
-import qchem.BasisSet.Internal.IrrepBasisSet;
-import qchem.BasisSet;
-import qchem.Fit_IBS;
-import qchem.BasisSet.Atom.IE;
-import qchem.Basisset.Atom.radial.BSpline.IEC;
+import BasisSet.Atom.BSpline_BS;
 import qchem.BasisSet.Atom.IBS;
-import BasisSet.Atom.BSpline_BS;;
+import qchem.BasisSet.Atom.BS;
+
+// import qchem.Basisset.Atom.radial.BSpline.BS_Common;
+// import qchem.Basisset.Atom.radial.BSpline.IE;
+// import qchem.BasisSet.Internal.IrrepBasisSet;
+// import qchem.BasisSet;
+// import qchem.Fit_IBS;
+// import qchem.BasisSet.Atom.IE;
+ import qchem.Basisset.Atom.radial.BSpline.IEC;
+// import qchem.BasisSet.Atom.IBS;
+// import BasisSet.Atom.BSpline_BS;
+// import qchem.BasisSet.Atom.BS;
 
 export namespace Atoml
 {
@@ -22,13 +27,9 @@ namespace BSpline
 template <size_t K> class Orbital_IBS
     : public BSpline_IBS<K>
     , public Atom::IrrepBasisSet
-    , public Orbital_IBS_Common<double>
-    , public Orbital_DFT_IBS_Common<double>
-    , public Orbital_HF_IBS_Common<double>
-    , public AtomIE_Overlap<double>
-    , public AtomIE_Kinetic<double>
-    , public AtomIE_Nuclear<double>
-    , public AtomIE_DFT    <double>
+    , public Atom::Orbital_HF_IBS <double>
+    , public Atom::Orbital_IBS    <double>
+    , public Atom::Orbital_DFT_IBS<double>
     , public ::BSpline::IrrepIEClient<K>
 {
 public:
@@ -44,9 +45,7 @@ public:
 template <size_t K> class Fit_IBS 
 : public BSpline_IBS<K>
 , public Atom::IrrepBasisSet
-, public Fit_IBS_Common
-, public AtomIE_Fit
-, public AtomIE_Overlap<double>
+, public Atom::Fit_IBS
 {
 public:
     Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
@@ -56,7 +55,7 @@ public:
 
 template <size_t K> class BasisSet 
     : public BSpline_BS<K> 
-    , public ::BSpline::BS_Common<K>
+    , public Atom::BS_Common
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
