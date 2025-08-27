@@ -23,7 +23,7 @@ template <size_t K> class BS_Common
 , public IE_BS_2E<double,K>
 {
 protected:
-    BS_Common(BS_Evaluator* eval, AtomIE_BS_2E_Angular* a) : IE_BS_2E<double,K>(a), itsRkCache(0), itsEval(eval) {};
+    BS_Common(BS_Evaluator* eval, AtomIE_BS_2E_Angular* a) : IE_BS_2E<double,K>(eval,a), itsRkCache(0), itsEval(eval) {};
     ~BS_Common();
     virtual void Insert(bs_t* bs);
     void BuildCache(size_t lmax);

@@ -11,8 +11,10 @@ import qchem.Basisset.Atom.radial.BSpline.BFGrouper;
 
 namespace BSpline
 {
-template <class T,size_t K> void IE_BS_2E<T,K>::Append(const ::IrrepIEClient* ciec)
+template <class T,size_t K> void IE_BS_2E<T,K>::Append(const ::IrrepIEClient* ciec, IBS_Evaluator* eval)
 {
+    assert(eval);
+    itsEvaluator->Register(eval);
     assert(ciec);
     DB_BS_2E<T>::Append(ciec);
     ::IrrepIEClient* iec=const_cast<::IrrepIEClient*>(ciec);

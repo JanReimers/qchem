@@ -22,7 +22,7 @@ template <class T, size_t K> class IE_BS_2E
     , public BFGrouper<K>
 {
 public:
-    IE_BS_2E(AtomIE_BS_2E_Angular* a) : itsAngular(a) {};
+    IE_BS_2E(BS_Evaluator* bse,AtomIE_BS_2E_Angular* a) : itsAngular(a), itsEvaluator(bse) {};
     virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
 
@@ -30,9 +30,11 @@ public:
     virtual Vector<double> loop_4_direct  (size_t id, size_t la, size_t lc) const=0;
     virtual Vector<double> loop_4_exchange(size_t id, size_t la, size_t lc) const=0;
 protected:
-    virtual void Append(const ::IrrepIEClient*);
+    virtual void Append(const ::IrrepIEClient*, IBS_Evaluator*);
 private: 
     std::unique_ptr<AtomIE_BS_2E_Angular> itsAngular;
+private: 
+    BS_Evaluator* itsEvaluator;
 };
 
 

@@ -58,6 +58,7 @@ template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
     auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
     assert(grouper);
     for (auto s:splines) es_indices.push_back(grouper->Insert(s,l));
+    grouper->itsGLs[l]=itsGL.get();
 }
 
 template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int _l, const is_t& _mls) 

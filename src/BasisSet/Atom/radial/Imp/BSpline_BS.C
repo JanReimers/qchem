@@ -25,12 +25,11 @@ template <size_t K> void BSpline_BS<K>::BuildCache(size_t lmax)
 
 template <size_t K> Rk* BSpline_BS<K>::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
-    assert(false);
-    return 0;
-    // return new BSpline::RkEngine(
-    //     grouper.unique_esv[ia]+grouper.unique_esv[ib],
-    //     grouper.unique_esv[ic]+grouper.unique_esv[id],
-    //     grouper.LMax(ia,ib,ic,id));
+    assert(itsRkCache);
+    // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
+    size_t lmax=grouper.LMax(ia,ib,ic,id);
+    const GLCache* gl=this->GetGL(lmax);
+    return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
 }
 
 template <size_t K> RVec BSpline_BS<K>::loop_4_direct(size_t id, size_t la, size_t lc)  const

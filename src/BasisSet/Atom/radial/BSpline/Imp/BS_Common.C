@@ -19,7 +19,9 @@ namespace BSpline
         ::BS_Common::Insert(bs);
         auto iec=dynamic_cast<const ::IrrepIEClient*>(bs);
         assert(iec);
-        this->Append(iec);
+        IBS_Evaluator* eval=dynamic_cast<IBS_Evaluator*>(bs);
+        assert(eval);
+        this->Append(iec,eval);
 
     }
     template <size_t K> void BS_Common<K>::BuildCache(size_t lmax)
@@ -28,6 +30,7 @@ namespace BSpline
     }
     template <size_t K> const Cacheable* BS_Common<K>::Create(size_t ia,size_t ic,size_t ib,size_t id) const
     {
+        // return itsEval->Create(ia,ic,ib,id);
         assert(itsRkCache);
         // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
         size_t lmax=LMax(ia,ib,ic,id);
