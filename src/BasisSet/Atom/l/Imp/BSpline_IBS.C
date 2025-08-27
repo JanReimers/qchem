@@ -6,9 +6,6 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Atom.Internal.l.BSplineBS;
-import BasisSet.Atom.BSpline_IBS;
-import qchem.Basisset.Atom.radial.BSpline.IEC;
-import qchem.BasisSet.Atom.IEClient;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 
@@ -27,9 +24,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db ,size
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
-    , ::BSpline::IrrepIEClient<K>(N,rmin,rmax,L)
 {
-    AtomIrrepIEClient::ns=convert(BSpline_IBS<K>::Norm());
 };
 
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
@@ -38,9 +33,7 @@ template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
     , Atom::Orbital_DFT_IBS<double>(db,this)
-    , ::BSpline::IrrepIEClient<K>(N,rmin,rmax,L,ml)
 {
-    AtomIrrepIEClient::ns=convert(BSpline_IBS<K>::Norm());
 };
 
 

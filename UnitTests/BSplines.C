@@ -11,7 +11,7 @@
 import qchem.Basisset.Atom.radial.BSpline.IEC;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 import qchem.Symmetry.Angular;
-
+import BasisSet.Atom.BSpline_IBS;
 import qchem.LAParams;
 
 
@@ -56,6 +56,11 @@ public:
 
         std::vector<double> knots=MakeLogKnots(0.01,2000.0,K,10);
         splines=bspline::generateBSplines<K>(knots);
+    }
+
+    static const spline_t& GetSpline(const BSpline_IBS<K>* eval,size_t index)
+    {
+        return eval->splines[index];
     }
 
     std::vector<double> MakeLogKnots(double rmin, double rmax, size_t SPLINE_ORDER, size_t numberOfGridPoints);
@@ -221,15 +226,16 @@ TEST_F(BSplineTests, Overlap)
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
         // Now try GLQ integration.
-        const BSpline::IrrepIEClient<K>* iec=dynamic_cast<const BSpline::IrrepIEClient<K>*>(ibs);
-        auto grid=iec->splines[0].getSupport().getGrid();
+        const BSpline_IBS<K>* eval=dynamic_cast<const BSpline_IBS<K>*>(ibs);
+        auto ns=eval->Norm();
+        auto grid=GetSpline(eval,0).getSupport().getGrid();
         GLCache cache2(grid,K+3);
         std::function< double (double)> w2 = [](double x){return x*x;};
         for (auto ia:S.rows())
             for (auto ib:S.cols(ia)) 
             {
-                double nab=iec->ns(ia)*iec->ns(ib)*4*M_PI;
-                auto a=iec->splines[ia-1],b=iec->splines[ib-1];
+                double nab=ns[ia-1]*ns[ib-1]*4*M_PI;
+                auto a=GetSpline(eval,ia-1),b=GetSpline(eval,ib-1);
                 double Sab=cache2.Integrate(w2,a,b)*nab;
                 EXPECT_NEAR(Sab,S(ia,ib),1e-14);
                 Sab=cache2.Integrate(w2,a,b,grid.front(),grid.back())*nab;

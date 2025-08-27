@@ -9,7 +9,7 @@ export module BasisSet.Atom.BSpline_IBS;
 import BasisSet.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 
-
+class BSplineTests;
 export template <size_t K> class BSpline_IBS : public virtual IBS_Evaluator
 {
     typedef bspline::Spline<double, K> spline_t;
@@ -41,6 +41,7 @@ public:
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
 protected:
+    friend class BSplineTests;
     std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax);
     ds_t norms() const; //assumes es,l are already initialized
 

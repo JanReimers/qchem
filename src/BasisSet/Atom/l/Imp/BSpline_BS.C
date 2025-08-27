@@ -1,12 +1,6 @@
 // File: Atom/l/BSpline_BS.C BSpline Basis Set for atoms.
 module;
-#include <iostream>
-#include <cassert>
-
 module qchem.BasisSet.Atom.Internal.l.BSplineBS;
-import BasisSet.Atom.BSpline_IBS;
-import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
-import qchem.BasisSet.Atom.Internal.Angular;
 import qchem.Symmetry.AtomEC;
 
 namespace Atoml
@@ -18,7 +12,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
 {
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L));
-    BSpline_BS<K>::BuildCache(LMax);
+    BuildCache(LMax);
 }
 
 
@@ -39,7 +33,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
 
     
     }           
-    BSpline_BS<K>::BuildCache(LMax);
+    BuildCache(LMax);
 }
 
 

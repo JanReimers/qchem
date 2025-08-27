@@ -1,24 +1,12 @@
 // File: BasisSet/Atom/l/BSpline_BS.C BSpline Basis Set for atoms.
 module;
-#include <bspline/Core.h>
-#include <iosfwd>
+#include <vector>
 export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 
 import BasisSet.Atom.BSpline_IBS;
 import BasisSet.Atom.BSpline_BS;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Atom.BS;
-
-// import qchem.Basisset.Atom.radial.BSpline.BS_Common;
-// import qchem.Basisset.Atom.radial.BSpline.IE;
-// import qchem.BasisSet.Internal.IrrepBasisSet;
-// import qchem.BasisSet;
-// import qchem.Fit_IBS;
-// import qchem.BasisSet.Atom.IE;
- import qchem.Basisset.Atom.radial.BSpline.IEC;
-// import qchem.BasisSet.Atom.IBS;
-// import BasisSet.Atom.BSpline_BS;
-// import qchem.BasisSet.Atom.BS;
 
 export namespace Atoml
 {
@@ -30,7 +18,6 @@ template <size_t K> class Orbital_IBS
     , public Atom::Orbital_HF_IBS <double>
     , public Atom::Orbital_IBS    <double>
     , public Atom::Orbital_DFT_IBS<double>
-    , public ::BSpline::IrrepIEClient<K>
 {
 public:
     Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
@@ -60,7 +47,7 @@ template <size_t K> class BasisSet
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
     BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
-   
+    using BSpline_BS<K>::BuildCache;
 };
 
 }} //namespace Atoml::BSpline
