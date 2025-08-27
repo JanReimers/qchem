@@ -49,7 +49,7 @@ template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,
 //  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
 template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax, const GLCache& gl, const RkCache<K>& rkcache)
- : LMax(_LMax), Rabcd_k(VecLimits(0,2*LMax))
+ : LMax(_LMax), Rabcd_k(VecLimits(0,2*LMax),0.0)
  {
     sp_t a=splines[ia];
     sp_t b=splines[ib];
@@ -62,8 +62,16 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
 
     bspline::Support<double> sab=sa.calcIntersection(sb);
     bspline::Support<double> scd=sc.calcIntersection(sd);
-    assert(sab.containsIntervals());
-    assert(scd.containsIntervals());
+    if (!sab.containsIntervals())
+    {
+        return;
+    }
+    if (!scd.containsIntervals())
+    {
+        return;
+    }
+    // assert(sab.containsIntervals());
+    // assert(scd.containsIntervals());
     auto Sabcd=sab.calcIntersection(scd);
     
     assert(sc.hasSameGrid(sd));

@@ -24,6 +24,9 @@ class Slater::Orbital_IBS
 
 
 Priority 1:
+    -Re-establish index range limits for Direct and Exchange ERIs.
+        Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
+            in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C
     DHF/Dirac: Factor of 2 problem
         -We need to stop using a normalized small sector
             f=1/(2c) * (d/dr+(kappa+1)/r)*g
