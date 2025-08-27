@@ -24,6 +24,8 @@ class Slater::Orbital_IBS
 
 
 Priority 1:
+    -Move unique_es up toe ExponentGrouper.  No usable for splines.
+    
     -Re-establish index range limits for Direct and Exchange ERIs.
         Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
             in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C
