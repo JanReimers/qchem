@@ -23,6 +23,7 @@ public:
     virtual size_t        es_index(size_t i     ) const {return es_indices[i];}
     virtual const is_t&   Getmls  (             ) const {return mls;}
     virtual std::ostream& Write   (std::ostream&) const;
+    virtual size_t maxSpan() const {return l<=K ? K-l : 0;}  //assume no overlap for indeces separated by > maxSpan
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;

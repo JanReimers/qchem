@@ -49,6 +49,7 @@ public:
     virtual size_t        es_index(size_t i     ) const=0;
     virtual const is_t&   Getmls  (             ) const=0;
     virtual std::ostream& Write   (std::ostream&) const=0;
+    virtual size_t maxSpan() const {return size();}  //assume no overlap for indeces separated by > maxSpan
 
     virtual size_t        GetVectorSize() const {return size();}
 

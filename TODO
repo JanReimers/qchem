@@ -4,8 +4,9 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
     Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
-
-    -Re-establish index range limits for Direct and Exchange ERIs.
+    -Fix warnings for Insert override.
+    -Refactor common behaviour for Slater/Gaussian BS_Evaluator,IBS_Evaluator
+    Done: -Re-establish index range limits for Direct and Exchange ERIs.
         Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
             in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C
     DHF/Dirac: Factor of 2 problem
@@ -16,6 +17,7 @@ Priority 1:
             Just use the RKBL kinetic integrals.
     -Move DiracIntegral tests over to UTBasisSet.
     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
+        Happens when splines are too closely packed.  (even though overlap is nowhere near singular)
     BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
         Affects CD fitting for l>0
         Maybe just do not support l>0 ?

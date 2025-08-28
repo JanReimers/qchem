@@ -64,14 +64,16 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     bspline::Support<double> scd=sc.calcIntersection(sd);
     if (!sab.containsIntervals())
     {
+        std::cerr << "BSpline::RkEngine<K>::RkEngine no ab overlap!" << std::endl;
         return;
     }
     if (!scd.containsIntervals())
     {
+        std::cerr << "BSpline::RkEngine<K>::RkEngine no cd overlap!" << std::endl;
         return;
     }
-    // assert(sab.containsIntervals());
-    // assert(scd.containsIntervals());
+    assert(sab.containsIntervals());
+    assert(scd.containsIntervals());
     auto Sabcd=sab.calcIntersection(scd);
     
     assert(sc.hasSameGrid(sd));

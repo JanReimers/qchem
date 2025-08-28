@@ -105,7 +105,8 @@
 			"__tree": "cpp",
 			"ios": "cpp",
 			"print": "cpp",
-			"__bit_reference": "cpp"
+			"__bit_reference": "cpp",
+			"__locale": "cpp"
 		}
 	}
 }
