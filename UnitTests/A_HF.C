@@ -124,6 +124,7 @@ TEST_P(A_BS_HF_U,Multiple)
     QchemTester::Init(1e-3,js);
     Iterate(scf_params_BS(Z));
     EXPECT_LT(RelativeHFError(),1e-9);
+    EXPECT_GT(RelativeHFError(),-3e-9);
 }
 
 #ifdef NDEBUG
@@ -265,11 +266,12 @@ TEST_P(A_BS_HF_P,Multiple)
     int Z=GetParam();
     nlohmann::json js = {
         {"type",BasisSetAtom::Type::BSpline},
-        {"N", 20}, {"rmin", 1.0/Z}, {"rmax", 30},
+        {"N", 30}, {"rmin", 0.01}, {"rmax", 50},
     };
     QchemTester::Init(1e-3,js);
     Iterate(scf_params(Z));
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+    EXPECT_LT(RelativeHFError(), 25e-6);
+    EXPECT_GT(RelativeHFError(),-70e-6);
 }
 
 // INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_P,::testing::Values(1,2,3,4,)); 
@@ -329,12 +331,13 @@ TEST_P(A_BSm_HF_P,Multiple)
     int Z=GetParam();
      nlohmann::json js = {
         {"type",BasisSetAtom::Type::BSpline},
-        {"N", 30}, {"rmin", 1.0/Z}, {"rmax", 30},
+        {"N", 30}, {"rmin", 0.01}, {"rmax", 30},
     };
     QchemTester::Init(1e-3,js);
    
     Iterate(scf_params(Z));
-    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+    EXPECT_LT(RelativeHFError(),0.0);
+    EXPECT_GT(RelativeHFError(),-60e-6);
 }
 
 #ifdef NDEBUG
