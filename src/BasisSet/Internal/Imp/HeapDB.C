@@ -161,12 +161,12 @@ template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db)
     {
         assert(itsDB_BS_2E);
     };
-template <class T> ERI4 DB_2E<T>::Direct(const obs_t& c) const
+template <class T> ERI4 DB_2E<T>::Direct(const Orbital_HF_IBS<T>& c) const
 {
     assert(itsDB_BS_2E);
     return itsDB_BS_2E->Direct(this->GetID(),c.GetID());
 }
-template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
+template <class T> ERI4 DB_2E<T>::Exchange(const Orbital_HF_IBS<T>& b) const
 {
     assert(itsDB_BS_2E);
     return itsDB_BS_2E->Exchange(this->GetID(),b.GetID()); 

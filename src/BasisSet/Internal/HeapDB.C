@@ -151,9 +151,8 @@ export template <class T> class DB_2E
     , virtual public UniqueID
 {
 public:
-    typedef typename Integrals_HF<T>::obs_t obs_t;
-    virtual ERI4 Direct  (const obs_t& c) const;
-    virtual ERI4 Exchange(const obs_t& b) const;
+    virtual ERI4 Direct  (const Orbital_HF_IBS<T>& c) const;
+    virtual ERI4 Exchange(const Orbital_HF_IBS<T>& b) const;
 protected:
     DB_2E() : itsDB_BS_2E(0) {};
     DB_2E(const DB_BS_2E<T>* db);
