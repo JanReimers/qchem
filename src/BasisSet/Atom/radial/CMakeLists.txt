@@ -38,4 +38,5 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BSpline_IBS.C
     BSpline_BS.C
     ExponentGrouper.C
+    Exponential_Evaluator.C
 )
