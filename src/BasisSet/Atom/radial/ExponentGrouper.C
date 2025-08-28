@@ -19,7 +19,6 @@ export class Grouper
 public:
     size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
 protected:
-    std::map<double,size_t> unique_es; //Unique exponents or rmins for splines.
     //! For each unique exponent, store the maximum l value.
     std::vector<size_t> maxls; 
 };
@@ -31,5 +30,7 @@ public:
     size_t Insert(double exponent,size_t l); 
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 
+private:
+    std::map<double,size_t> unique_es; //Unique exponents or rmins for splines.
 };
 

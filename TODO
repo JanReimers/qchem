@@ -3,7 +3,7 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
-    -Move unique_es up to ExponentGrouper.  Not usable for splines.
+    Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
 
     -Re-establish index range limits for Direct and Exchange ERIs.
         Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
