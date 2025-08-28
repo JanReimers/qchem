@@ -1,31 +1,10 @@
 Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
-class Slater::Orbital_IBS
-    : public virtual IBS_Evaluator
-    , public Slater_IBS
-
-    , public ::Slater::IrrepBasisSet
-        : public virtual Real_IBS
-        , public         IrrepBasisSet_Common<double>
-            : public virtual IrrepBasisSet<T>
-            , public virtual IrrepIEClient
-            , private UniqueIDImp
-    , public Atom::Orbital_HF_IBS <double>
-    , public Atom::Orbital_IBS    <double>
-        : public virtual ::Orbital_IBS<T> //brings in Integrals_Overlap<T>
-        , public Orbital_IBS_Common<double>
-        , public AtomIE_Overlap<double>
-        , public AtomIE_Kinetic<double>
-        , public AtomIE_Nuclear<double>
-    , public Atom::Orbital_DFT_IBS<double>
-{
-
-
 
 Priority 1:
-    -Move unique_es up toe ExponentGrouper.  No usable for splines.
-    
+    -Move unique_es up to ExponentGrouper.  Not usable for splines.
+
     -Re-establish index range limits for Direct and Exchange ERIs.
         Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
             in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C

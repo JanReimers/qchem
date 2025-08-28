@@ -5,13 +5,8 @@ module;
 #include <cassert>
 #include <cmath>
 module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
-import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
 import BasisSet.Atom.Gaussian_IBS;
 import qchem.Symmetry.Okmj;
-import qchem.Streamable;
-import qchem.Orbital_DHF_IBS;
-import Common.IntPow;
 
 using std::endl;
 
@@ -59,19 +54,10 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db, 
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
     , Gaussian_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa),{})
     , Atom::Orbital_RKBS_IBS<T>(db,this,kappa)
-    , AtomIrrepIEClient(exponents.size())
 {
-    size_t l=Omega_kmj_Sym::l(kappa);
-    AtomIrrepIEClient::Init(exponents,Norms(exponents,l),l);  
     
 }
 
-template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double>& es, size_t l) const
-{
-    Vector<double> ns(es.size());
-    
-    return ns;
-}
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const
 {
     os << "Gaussian     " << this->GetSymmetry()

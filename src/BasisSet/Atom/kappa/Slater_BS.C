@@ -5,9 +5,6 @@ class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import BasisSet.Atom.Slater_IBS;
-
-import qchem.BasisSet.Atom.IEClient;
-import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -59,13 +56,13 @@ export template <class T> class Orbital_RKBS_IBS
     : public IrrepBasisSet_Common<T> 
     , public Slater_RKBS_IBS
     , public Atom::Orbital_RKBS_IBS<T> 
-    , public AtomIrrepIEClient
 {
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
 public:
     Orbital_RKBS_IBS(const DB_cache<double>*,const Vector<T>& exponents, int kappa);
+    virtual size_t  size() const {return Slater_RKBS_IBS::size();}
     virtual size_t  GetNumFunctions() const {return Slater_RKBS_IBS::size();}
 
     // using Slater_RKBS_IBS::operator();
@@ -77,7 +74,6 @@ public:
     
 
 private:
-    Vector<double> Norms(const Vector<double>& exponents, size_t l) const;
     using Orbital_RKBS_IBS_Common<T>::kappa;
 };
 

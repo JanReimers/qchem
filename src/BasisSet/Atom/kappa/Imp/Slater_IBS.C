@@ -3,14 +3,10 @@ module;
 #include <iostream>
 #include <cassert>
 #include <iomanip>
-#include <cmath>
 #include <memory>
 module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
 import BasisSet.Atom.Slater_IBS;
-
 import qchem.Symmetry.Okmj;
-import Common.IntPow;
 
 namespace Atom_kappa
 {
@@ -64,17 +60,9 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
     : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
     , Slater_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa),{})
     , Atom::Orbital_RKBS_IBS<T>(db,this,kappa)
-    , AtomIrrepIEClient(exponents.size())
 {
-    size_t l=Omega_kmj_Sym::l(kappa);
-    Init(exponents,Norms(exponents,l),l);
 };
 
-template <class T> Vector<double> Orbital_RKBS_IBS<T>::Norms(const Vector<double>& es, size_t l) const
-{
-    Vector<double> ns(es.size());
-    return ns;
-}
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const
 {
     os << "Slater RKB " << this->GetSymmetry();
