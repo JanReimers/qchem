@@ -4,8 +4,7 @@ module;
 #include <memory>
 #include <cassert>
 module qchem.BasisSet.Atom.IE;
-import qchem.BasisSet.Atom.IEClient;
-
+ 
 template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* , IBS_Evaluator* eval)
 {
     assert(eval);
