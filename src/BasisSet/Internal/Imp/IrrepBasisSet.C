@@ -28,6 +28,7 @@ template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() cons
 {
     LASolver<double>* las=LASolver<double>::Factory(itsLAParams);
     las->SetBasisOverlap(this->Overlap());
+    // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
     return las;
 }
 
