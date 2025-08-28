@@ -22,9 +22,9 @@ BasisSet::BasisSet( Reader* reader, const Cluster* cl)
 void BasisSet::Insert(bs_t* bs)
 {
     BS_Common::Insert(bs);
-    auto iec=dynamic_cast<const IrrepIEClient*>(bs);
-    assert(iec);
-    Append(iec);
+    auto oibs=dynamic_cast<const Orbital_HF_IBS<double>*>(bs);
+    assert(oibs);
+    Append(oibs);
 }
 
 ERI4 BasisSet::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const

@@ -135,7 +135,7 @@ public:
     virtual ERI4 Direct  (IDType a,IDType c) const;
     virtual ERI4 Exchange(IDType a,IDType b) const;
 protected:
-    void Append(const IrrepIEClient*);
+    void Append(const Orbital_HF_IBS<T>*);
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
 private:

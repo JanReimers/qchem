@@ -4,14 +4,15 @@ module;
 #include <memory>
 #include <cassert>
 module qchem.BasisSet.Atom.IE;
- 
-template <class T> void AtomIE_BS_2E<T>::Append(const IrrepIEClient* , IBS_Evaluator* eval)
+import qchem.Orbital_HF_IBS;
+
+template <class T> void AtomIE_BS_2E<T>::Append(IBS_Evaluator* eval)
 {
     assert(eval);
     itsEvaluator->Register(eval);
-    auto ciec=dynamic_cast<const IrrepIEClient*>(eval);
-    assert(ciec);
-    DB_BS_2E<T>::Append(ciec);
+    auto oibs=dynamic_cast<const Orbital_HF_IBS<T>*>(eval);
+    assert(oibs);
+    DB_BS_2E<T>::Append(oibs);
 }
 template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const IrrepIEClient* _a, const IrrepIEClient* _c) const
 {

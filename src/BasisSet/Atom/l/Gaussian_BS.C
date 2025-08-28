@@ -5,7 +5,8 @@ export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
 import BasisSet.Atom.Gaussian_BS;
 import qchem.BasisSet.Atom.IBS;
-import qchem.BasisSet.Atom.BS;
+import qchem.BasisSet.Internal.Common;
+import qchem.BasisSet.Atom.IE;
 
 export namespace Atoml
 {
@@ -38,12 +39,15 @@ public:
 
 class BasisSet 
     : public Gaussian_BS 
-    , public Atom::BS_Common
+    , public ::BS_Common
+    , public AtomIE_BS_2E<double> //HF support
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);
     BasisSet(const RVec& exponents, size_t Lmax); 
     BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
+private:
+    void Insert(Orbital_IBS*);
 };
 
 } //namespace

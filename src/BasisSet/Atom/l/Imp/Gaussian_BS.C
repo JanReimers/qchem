@@ -12,14 +12,14 @@ namespace Gaussian
 {
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
-: Atom::BS_Common(this)
+: AtomIE_BS_2E(this)
 {
     ::Gaussian::ExponentScaler gs(N,emin,emax,LMax);
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,gs.Get_es(L),L)); 
 }
 BasisSet::BasisSet(const RVec& exponents, size_t LMax)
-: Atom::BS_Common(this)
+: AtomIE_BS_2E(this)
 {
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,exponents,L));
@@ -27,7 +27,7 @@ BasisSet::BasisSet(const RVec& exponents, size_t LMax)
 }
 
 BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
-: Atom::BS_Common(this)
+: AtomIE_BS_2E(this)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());
@@ -42,6 +42,13 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
             Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
     }
 }
+
+void BasisSet::Insert(Orbital_IBS* oibs)
+{
+    ::BS_Common::Insert(oibs);
+    AtomIE_BS_2E<double>::Append(oibs);
+}
+
 
 } //namespace
 } //namespace

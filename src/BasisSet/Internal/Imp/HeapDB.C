@@ -172,8 +172,9 @@ template <class T> ERI4 DB_2E<T>::Exchange(const obs_t& b) const
     return itsDB_BS_2E->Exchange(this->GetID(),b.GetID()); 
 }
 
-template <class T> void DB_BS_2E<T>::Append(const IrrepIEClient* iec)
+template <class T> void DB_BS_2E<T>::Append(const Orbital_HF_IBS<T>* oibs)
 {
+    auto iec=dynamic_cast<const IrrepIEClient*>(oibs);
     itsIrreps.push_back(iec);
 }
 template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const

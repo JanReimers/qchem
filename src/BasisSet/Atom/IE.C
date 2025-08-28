@@ -79,7 +79,7 @@ public:
     virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
     virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
 protected:
-    virtual void Append(const IrrepIEClient*, IBS_Evaluator*);
+    virtual void Append(IBS_Evaluator*);
 
 private: 
     BS_Evaluator* itsEvaluator;

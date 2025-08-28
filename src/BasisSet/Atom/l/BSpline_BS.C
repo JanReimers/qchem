@@ -6,7 +6,8 @@ export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
 import BasisSet.Atom.BSpline_IBS;
 import BasisSet.Atom.BSpline_BS;
 import qchem.BasisSet.Atom.IBS;
-import qchem.BasisSet.Atom.BS;
+import qchem.BasisSet.Internal.Common;
+import qchem.BasisSet.Atom.IE;
 
 export namespace Atoml
 {
@@ -42,12 +43,15 @@ public:
 
 template <size_t K> class BasisSet 
     : public BSpline_BS<K> 
-    , public Atom::BS_Common
+    , public ::BS_Common
+    , public AtomIE_BS_2E<double> //HF support
 {
 public:
     BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
     BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
     using BSpline_BS<K>::BuildCache;
+private:
+    void Insert(Orbital_IBS<K>*);
 };
 
 }} //namespace Atoml::BSpline

@@ -2,7 +2,6 @@ add_library(qcAtom_BS)
 target_sources(qcAtom_BS PRIVATE 
     Imp/Factory.C
     Imp/IE_HF.C
-    Imp/BS.C
     Imp/IBS.C
     Internal/Imp/AngularIntegrals.C
     Internal/Imp/Wigner3j.C
@@ -11,7 +10,6 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factory.C
     IE.C
     IBS.C
-    BS.C
     IBS_Evaluator.C
     BS_Evaluator.C
     Rk.C

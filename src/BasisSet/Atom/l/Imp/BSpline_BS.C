@@ -8,7 +8,7 @@ namespace Atoml
 namespace BSpline
 {
 template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, size_t LMax)
-: Atom::BS_Common(this)
+: AtomIE_BS_2E(this)
 {
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS<K>(this,N,rmin,rmax,L));
@@ -17,7 +17,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, si
 
 
 template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
-: Atom::BS_Common(this)
+: AtomIE_BS_2E(this)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
@@ -36,6 +36,11 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
     BuildCache(LMax);
 }
 
+template <size_t K> void BasisSet<K>::Insert(Orbital_IBS<K>* oibs)
+{
+    ::BS_Common::Insert(oibs);
+    AtomIE_BS_2E<double>::Append(oibs);
+}
 
 #define INSTANCEk(k) template class BasisSet<k>;
 #include "../../radial/BSpline/Instance.hpp"
