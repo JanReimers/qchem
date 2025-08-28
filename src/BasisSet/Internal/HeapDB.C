@@ -136,13 +136,13 @@ public:
     virtual ERI4 Exchange(IDType a,IDType b) const;
 protected:
     void Append(const Orbital_HF_IBS<T>*);
-    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const=0;
-    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* b) const=0;
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const=0;
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* b) const=0;
 private:
     //! Internally called once to build direct and exchange supermatrix tables.
     virtual void MakeDirect  () const; 
     virtual void MakeExchange() const; 
-    std::vector<const IrrepIEClient*> itsIrreps; //Used for 2-electron integrals.
+    std::vector<const Orbital_HF_IBS<T>*> itsIrreps; //Used for 2-electron integrals.
     using DB_cache<T>::Jac;
     using DB_cache<T>::Kab;
 };

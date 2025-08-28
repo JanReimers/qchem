@@ -46,7 +46,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
 void BasisSet::Insert(Orbital_IBS* oibs)
 {
     ::BS_Common::Insert(oibs);
-    AtomIE_BS_2E<double>::Append(oibs);
+    AtomIE_BS_2E<double>::Append(oibs,oibs); //implicit casts to two different intefraces.
 }
 
 

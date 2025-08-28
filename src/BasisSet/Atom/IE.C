@@ -15,6 +15,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
+import qchem.Orbital_HF_IBS;
 
 export
 {
@@ -76,10 +77,10 @@ template <class T> class AtomIE_BS_2E
 {
 public:
     AtomIE_BS_2E(BS_Evaluator* bse) : itsEvaluator(bse) {};
-    virtual ERI4 MakeDirect  (const IrrepIEClient* a, const IrrepIEClient* c) const;
-    virtual ERI4 MakeExchange(const IrrepIEClient* a, const IrrepIEClient* c) const;
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const;
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const;
 protected:
-    virtual void Append(IBS_Evaluator*);
+    virtual void Append(const Orbital_HF_IBS<T>*, IBS_Evaluator*);
 
 private: 
     BS_Evaluator* itsEvaluator;

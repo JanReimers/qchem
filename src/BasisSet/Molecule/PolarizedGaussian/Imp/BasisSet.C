@@ -27,7 +27,7 @@ void BasisSet::Insert(bs_t* bs)
     Append(oibs);
 }
 
-ERI4 BasisSet::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c) const
+ERI4 BasisSet::MakeDirect  (const Orbital_HF_IBS<double>* _a, const Orbital_HF_IBS<double>* _c) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(_c);
@@ -52,7 +52,7 @@ ERI4 BasisSet::MakeDirect  (const ::IrrepIEClient* _a, const ::IrrepIEClient* _c
     return J;
 }
 
-ERI4 BasisSet::MakeExchange(const ::IrrepIEClient* _a, const ::IrrepIEClient* _b) const
+ERI4 BasisSet::MakeExchange(const Orbital_HF_IBS<double>* _a, const Orbital_HF_IBS<double>* _b) const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(_a);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(_b);

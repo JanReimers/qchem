@@ -89,8 +89,8 @@ public:
     virtual void Insert(bs_t* bs);
 
 
-    virtual ERI4 MakeDirect  (const ::IrrepIEClient* a, const ::IrrepIEClient* c) const;
-    virtual ERI4 MakeExchange(const ::IrrepIEClient* a, const ::IrrepIEClient* b) const;
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>* a, const Orbital_HF_IBS<double>* c) const;
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>* a, const Orbital_HF_IBS<double>* b) const;
 private:
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };

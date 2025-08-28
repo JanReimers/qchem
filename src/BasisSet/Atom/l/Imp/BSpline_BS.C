@@ -39,7 +39,7 @@ template <size_t K> BasisSet<K>::BasisSet(size_t N, double rmin, double rmax, co
 template <size_t K> void BasisSet<K>::Insert(Orbital_IBS<K>* oibs)
 {
     ::BS_Common::Insert(oibs);
-    AtomIE_BS_2E<double>::Append(oibs);
+    AtomIE_BS_2E<double>::Append(oibs,oibs); //implicit casts to two different intefraces.
 }
 
 #define INSTANCEk(k) template class BasisSet<k>;
