@@ -61,8 +61,8 @@ template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
     grouper->itsGLs[l]=itsGL.get();
 }
 
-template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int _l, const is_t& _mls) 
-: rmin(_rmin), rmax(_rmax), l(_l), mls(_mls),ns(norms()) 
+template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int l, const is_t& mls) 
+: IBS_Evaluator(l,mls), rmin(_rmin), rmax(_rmax) 
 {
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
@@ -73,6 +73,7 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     // std::cout << std::endl;
     itsGL.reset(new GLCache(grid,K+2*l));
     ns=norms();
+    assert(size()==splines.size());
 };
 
  template <size_t K> std::vector<double> BSpline_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
@@ -102,8 +103,9 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
 
 template <size_t K> BSpline_IBS<K>::ds_t BSpline_IBS<K>::norms() const
 {
-    ds_t ret(size());
-    for (size_t i=0;i<size();i++) ret[i]=1.0/sqrt(::Overlap(splines[i],splines[i],2*l)); 
+    size_t N=splines.size();
+    ds_t ret(N);
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(splines[i],splines[i],2*l)); 
     return ret;
 }
 

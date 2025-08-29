@@ -39,15 +39,18 @@ public:
     using omls_t=SMatrix<double>;
     using omlm_t= Matrix<double>;
     using omlv_t= Vector<double>;
+
+    IBS_Evaluator(int _l, const is_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
     virtual ~IBS_Evaluator() {};
 
     virtual void          Register(Grouper*)=0; //Set up unique spline or exponent indexes.
-    virtual size_t        size    (             ) const=0;
-    virtual int           Getl    (             ) const=0;
+    virtual size_t        size    (             ) const {return ns.size();}
+    virtual int           Getl    (             ) const {return l;}
+    virtual size_t        es_index(size_t i     ) const {return es_indices[i];}
+    virtual const is_t&   Getmls  (             ) const {return mls;}
+
     iota_view             indices (             ) const {return iota_view(size_t(0),size());}
     iota_view             indices (size_t start ) const {return iota_view(start,size());}
-    virtual size_t        es_index(size_t i     ) const=0;
-    virtual const is_t&   Getmls  (             ) const=0;
     virtual std::ostream& Write   (std::ostream&) const=0;
     virtual size_t maxSpan() const {return size();}  //assume no overlap for indeces separated by > maxSpan
 
@@ -65,4 +68,11 @@ public:
 
     virtual dERI3  Overlap  (const Fit_IBS&) const=0; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const=0; //3 center
+protected:
+    int  l;
+    is_t mls;
+    ds_t ns;
+    const ExponentGrouper* grouper;
+    std::vector<size_t> es_indices; //Unique exponent index
+
 };

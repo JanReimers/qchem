@@ -12,7 +12,6 @@ public:
  
     Slater_IBS(const   ds_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Slater_IBS(const omlv_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
 
    
     virtual std::ostream& Write   (std::ostream&) const;

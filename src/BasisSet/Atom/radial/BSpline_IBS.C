@@ -10,7 +10,7 @@ import BasisSet.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
 
 class BSplineTests;
-export template <size_t K> class BSpline_IBS : public virtual IBS_Evaluator
+export template <size_t K> class BSpline_IBS : public IBS_Evaluator
 {
     typedef bspline::Spline<double, K> spline_t;
 public: 
@@ -18,12 +18,8 @@ public:
     BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
-    virtual size_t        size    (             ) const {return splines.size();}
-    virtual int           Getl    (             ) const {return l;}
-    virtual size_t        es_index(size_t i     ) const {return es_indices[i];}
-    virtual const is_t&   Getmls  (             ) const {return mls;}
     virtual std::ostream& Write   (std::ostream&) const;
-    virtual size_t maxSpan() const {return l<=K ? K-l : 0;}  //assume no overlap for indeces separated by > maxSpan
+    virtual size_t maxSpan() const {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan
 
     virtual omls_t Overlap  () const;
     virtual omls_t Grad2    () const;
@@ -49,9 +45,4 @@ protected:
     double rmin,rmax; //This might be needed for creating fit basis sets.
     std::vector<spline_t> splines;
     std::unique_ptr<GLCache> itsGL;
-    int  l;
-    is_t mls;
-    ds_t ns;
-    const ExponentGrouper* grouper;
-    std::vector<size_t> es_indices; //Unique exponent index
 };

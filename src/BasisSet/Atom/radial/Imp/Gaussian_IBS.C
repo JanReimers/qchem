@@ -45,13 +45,6 @@ inline double Charge(double ea, size_t l)
 //
 //  Start member functions.
 //
-void Gaussian_IBS::Register(Grouper* _grouper)
-{
-    assert(_grouper);
-    auto grouper=static_cast<ExponentGrouper*>(_grouper);
-    assert(grouper);
-    for (auto e:es) es_indices.push_back(grouper->Insert(e,l));
-}
 
 // This need overridability.
 double Gaussian_IBS::Inv_r1(double ea , double eb,size_t l_total) const
@@ -62,8 +55,9 @@ double Gaussian_IBS::Inv_r1(double ea , double eb,size_t l_total) const
 
 Gaussian_IBS::ds_t Gaussian_IBS::norms() const
 {
-    ds_t ret(size());
-    for (size_t i=0;i<size();i++) ret[i]=1.0/sqrt(::Overlap(es[i],es[i],2*l)); 
+    size_t N=es.size();    
+    ds_t ret(N);
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(es[i],es[i],2*l)); 
     return ret;
 }
 
@@ -221,8 +215,9 @@ std::ostream&  Gaussian_IBS::Write(std::ostream& os) const
 
 Gaussian_IBS::ds_t Gaussian_RKBS_IBS::norms() const
 {
-    ds_t ret(size());
-    for (size_t i=0;i<size();i++) 
+    size_t N=es.size();
+    ds_t ret(N);
+    for (size_t i=0;i<N;i++) 
     {
         double k=::Grad2(es[i],es[i],l,l) + l*(l+1)*::Inv_r2(es[i],es[i],2*l);
         ret[i]=1.0/sqrt(k); 
