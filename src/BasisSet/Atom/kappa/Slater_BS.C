@@ -1,6 +1,7 @@
 // File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 module;
 #include <iosfwd>
+#include <valarray>
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
@@ -32,8 +33,9 @@ export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
 {
+    using ds_t=std::valarray<double>;
 public:
-    Orbital_RKB_IBS(const DB_cache<double>* db,const Vector<double>& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const ds_t& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
@@ -46,8 +48,9 @@ export template <class T> class Orbital_RKBL_IBS
     , public Atom::IrrepBasisSet //Use NR slater basis
     , public Atom::Orbital_RKBL_IBS<T>
 {
+    using ds_t=std::valarray<T>;
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const Vector<T>& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const ds_t& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return Slater_IBS::size();}
     virtual size_t  size() const {return Slater_IBS::size();}
 };
@@ -60,8 +63,9 @@ export template <class T> class Orbital_RKBS_IBS
     typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
     typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
+    using ds_t=std::valarray<T>;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*,const Vector<T>& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*,const ds_t& exponents, int kappa);
     virtual size_t  size() const {return Slater_RKBS_IBS::size();}
     virtual size_t  GetNumFunctions() const {return Slater_RKBS_IBS::size();}
 

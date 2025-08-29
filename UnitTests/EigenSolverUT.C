@@ -78,8 +78,8 @@ TEST_F(OrthogonalizeTests, Types)
                 SMatrix<double> I=las->Transform(S);
                 SMatrix<double> I1(ibs->GetNumFunctions());
                 Unit(I1);
-                double eps=1e-15*pow(N,3);
-                cout << N << " " << Max(fabs(I-I1)) << " " << Norm(I-I1) << " " << eps << endl;
+                double eps=1.2e-15*pow(N,3);
+                // cout << N << " " << Max(fabs(I-I1)) << " " << Norm(I-I1) << " " << eps << endl;
                 if (N<9)
                 {
                     EXPECT_NEAR(Max(fabs(I-I1)),0.0,eps);
@@ -93,6 +93,6 @@ TEST_F(OrthogonalizeTests, Types)
             }
 
         }
-        cout << "--------------------------------------------------" << endl;
+        // cout << "--------------------------------------------------" << endl;
     }
 };

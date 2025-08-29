@@ -19,9 +19,10 @@ class Orbital_IBS
     , public Atom::Orbital_IBS    <double>
     , public Atom::Orbital_DFT_IBS<double>
 {
+    using ds_t=std::valarray<double>;
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ds_t& exponents, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ds_t& exponents, size_t L, const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 };
@@ -41,9 +42,10 @@ class BasisSet
     , public ::BS_Common
     , public AtomIE_BS_2E<double> //HF support
 {
+    using ds_t=std::valarray<double>;
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax); 
-    BasisSet(const RVec& exponents, size_t Lmax); 
+    BasisSet(const ds_t& exponents, size_t Lmax); 
     BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
 private:
     void Insert(Orbital_IBS*);

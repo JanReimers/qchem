@@ -3,6 +3,16 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -BasisSet::Atom  reorg
+        Option 1
+            BasisSet::Atom::NR   ::{CommonNR,SL,SG,BS}
+            BasisSet::Atom::Dirac::{CommonDirac,SL,SG,BS}
+        Option 2
+            BasisSet::Atom::SL::{CommonSL,NR,Dirac}
+            BasisSet::Atom::SG::{CommonSG,NR,Dirac}
+            BasisSet::Atom::BS::{CommonBS,NR,Dirac}
+        How big are those Common chunks?
+
     -Stop using Vector for exponent lists.
     Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
     Done: -Fix warnings for Insert override.
