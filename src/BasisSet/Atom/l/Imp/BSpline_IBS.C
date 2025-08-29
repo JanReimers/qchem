@@ -19,7 +19,7 @@ namespace BSpline
 // Orbital BSpline basis set.
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db ,size_t N, double rmin, double rmax, size_t L)
-    : BSpline_IBS<K>(N,rmin,rmax,L,{})
+    : BSpline_IBS<K>(N,rmin,rmax,L)
     , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Orbital_HF_IBS <double>(db)
     , Atom::Orbital_IBS    <double>(db,this)
@@ -52,7 +52,7 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
 //  Fit with Slater_l  basis set.
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
-    : BSpline_IBS<K>(N,rmin,rmax,L,{})
+    : BSpline_IBS<K>(N,rmin,rmax,L)
     , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
 {};

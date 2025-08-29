@@ -11,7 +11,9 @@ export class Slater_IBS : public Exponential_IBS_Evaluator
 public: 
  
     Slater_IBS(const   ds_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Slater_IBS(const omlv_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Slater_IBS(const omlv_t& es, int l, const is_t& mls) : Slater_IBS(convert(es),l,mls) {}
+    Slater_IBS(const   ds_t& es, int l) : Slater_IBS(es,l,{}) {}
+    Slater_IBS(const omlv_t& es, int l) : Slater_IBS(es,l,{}) {}
 
    
     virtual std::ostream& Write   (std::ostream&) const;
@@ -42,7 +44,8 @@ protected:
 export class Slater_RKBS_IBS : public Slater_IBS
 {
 public:
-    Slater_RKBS_IBS(const omlv_t& es, int _kappa, int l,const is_t& mls) : Slater_IBS(es,l,mls), kappa(_kappa) {ns=norms();};
+    Slater_RKBS_IBS(const omlv_t& es, int _kappa, int l,const is_t& mls) : Slater_IBS(es,l,mls), kappa(_kappa) {ns=norms();}
+    Slater_RKBS_IBS(const omlv_t& es, int _kappa, int l) : Slater_RKBS_IBS(es,_kappa,l,{}) {}
     ds_t norms() const; //assumes es,l are already initialized
     virtual double Inv_r1(double ea , double eb,size_t l_total) const;
 

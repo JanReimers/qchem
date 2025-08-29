@@ -16,6 +16,7 @@ export template <size_t K> class BSpline_IBS : public IBS_Evaluator
 public: 
  
     BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
+    BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l) : BSpline_IBS(Ngrid,rmin,rmax,_l,{}) {};
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
     virtual std::ostream& Write   (std::ostream&) const;

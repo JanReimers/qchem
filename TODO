@@ -3,6 +3,7 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -Stop using Vector for exponent lists.
     Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
     Done: -Fix warnings for Insert override.
     Done: -Refactor common behaviour for Slater/Gaussian BS_Evaluator,IBS_Evaluator
@@ -26,8 +27,8 @@ Priority 1:
         Maybe just do not support l>0 ?
     No: -Put atom basisset build logic in common Atom:: base class.
         virtual CreateIBS(... ms) for paired, unpaired etc.
-        not worth, gets vry complicated very fast.
-        Some commonality but not enought
+        not worth it, gets very complicated very fast.
+        Some commonality but not enough
     -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
     Done: -Use std::valarray for exponents
         Make a template for op(r).
@@ -49,20 +50,20 @@ Priority 1:
             4) ns calculation
             5) Creates the Rk tool for HF ERIs
     Refactor:
-        Create {SL,SG,BS}_IrrepEvaluator (need a better name)
+        Done: Create {SL,SG,BS}_IrrepEvaluator (need a better name)
             Done: Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
             Done: Implements op(r), grad(r) using std::valarray for exponents
                 oml::Vector<T> needs a constructor from std::valarray
             Done: Carries l,{ml}
             Done: ns calculation
             Done: For BSlines K should not leak out
-            Helps BFGroupe identify matching radial basis functions.
+            Done: Helps BFGrouper identify matching radial basis functions.
             Done: Inherits from IrrepEvaluator
-            ERI3 calculations
-            Make Unit tests
-            Derive IBS from Evaluator, and pass this in constructor.
-            Clean up RKBS evaluators norms handling.
-            Slater_IBS make constructor with no mls
+            Done: ERI3 calculations
+            Done: Make Unit tests
+            Done: Derive IBS from Evaluator, and pass this in constructor.
+            Done: Clean up RKBS evaluators norms handling.
+            Done: Slater_IBS make constructor with no mls
 
 
         Done: How to integrate into the old code?
@@ -81,7 +82,7 @@ Priority 1:
         Done:-{SL,SG}_Rk Create RKEngines
             Done: We need an Rk abstract interface interface
             make an Rk function in IBS_Evaluator
-        -BS_Rk Create RKEngines
+        Done: -BS_Rk Create RKEngines
         -Can groupers be registered at Evaluator construction?
         -Rk inconsistencies that should be cleaned up.
         -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),

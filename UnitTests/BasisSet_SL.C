@@ -149,7 +149,7 @@ public:
     BasisSet_SL() : BasisSet_Common(new Slater_BS)
     {
         for (size_t l=0;l<=LMax;l++)
-            Insert(new Slater_IBS(es,l,{})); 
+            Insert(new Slater_IBS(es,l)); 
         bs=new Atoml::Slater::BasisSet(convert(es),LMax);
     }
     
@@ -270,7 +270,7 @@ public:
     BasisSet_SG() : BasisSet_Common(new Gaussian_BS)
     {
         for (size_t l=0;l<=LMax;l++)
-            Insert(new Gaussian_IBS(es,l,{}));    
+            Insert(new Gaussian_IBS(es,l));    
         bs=new Atoml::Gaussian::BasisSet(convert(es),LMax);
     }
     static double R0(double a, double b, int la, int lb);
@@ -371,7 +371,7 @@ public:
     BasisSet_BS() : BasisSet_Common(new BSpline_BS<6>)
     {
         for (size_t l=0;l<=0;l++)
-            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,l,{}));    
+            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,l));    
     }
    
 };
