@@ -51,8 +51,8 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 //  Small sector
 //
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db, const ds_t& exponents,int kappa)
-    : IrrepBasisSet_Common<T> (new Omega_k_Sym(-kappa))
-    , Gaussian_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa))
+    : Gaussian_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa))
+    , Atom::IrrepBasisSet(this,new Omega_k_Sym(-kappa))
     , Atom::Orbital_RKBS_IBS<T>(db,this,kappa)
 {
     

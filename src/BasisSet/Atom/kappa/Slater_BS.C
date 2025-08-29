@@ -23,12 +23,6 @@ namespace Slater
 //     Q(r)=(d/dr+(1+kappa)/r)g = {
 //                                  ((2l+1)/r-e)*r^lexp(-e*r), kappa>0
 //
-
-
-// Irrep basis set
-
-// All integrals are handled at the Orbital_RKB_IBS_Common.  i.e. they are not Slater function
-// specific.
 export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
@@ -51,32 +45,18 @@ export template <class T> class Orbital_RKBL_IBS
     using ds_t=std::valarray<T>;
 public:
     Orbital_RKBL_IBS(const DB_cache<T>*,const ds_t& exponents, int kappa);
-    virtual size_t  GetNumFunctions() const {return Slater_IBS::size();}
-    virtual size_t  size() const {return Slater_IBS::size();}
 };
 
 export template <class T> class Orbital_RKBS_IBS
-    : public IrrepBasisSet_Common<T> 
-    , public Slater_RKBS_IBS
+    : public Slater_RKBS_IBS
+    , public Atom::IrrepBasisSet
     , public Atom::Orbital_RKBS_IBS<T> 
 {
-    typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
-    typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     using Orbital_RKBS_IBS_Common<T>::large;
     using ds_t=std::valarray<T>;
 public:
     Orbital_RKBS_IBS(const DB_cache<double>*,const ds_t& exponents, int kappa);
-    virtual size_t  size() const {return Slater_RKBS_IBS::size();}
-    virtual size_t  GetNumFunctions() const {return Slater_RKBS_IBS::size();}
-
-    // using Slater_RKBS_IBS::operator();
-    // using Slater_RKBS_IBS::Gradient;
-    virtual Vec     operator() (const RVec3& r) const {return Slater_RKBS_IBS::operator()(r);}
-    virtual Vec3Vec Gradient   (const RVec3& r) const {return Slater_RKBS_IBS::Gradient(r);}
     virtual std::ostream&  Write(std::ostream&    ) const;
-
-    
-
 private:
     using Orbital_RKBS_IBS_Common<T>::kappa;
 };
