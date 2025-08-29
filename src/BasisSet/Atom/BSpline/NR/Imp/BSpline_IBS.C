@@ -58,8 +58,8 @@ template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, dou
 {};
 
 #define INSTANCEk(k) template class Orbital_IBS<k>;
-#include "../../radial/BSpline/Instance.hpp"
+#include "../../Instance.hpp"
 #define INSTANCEk(k) template class Fit_IBS<k>;
-#include "../../radial/BSpline/Instance.hpp"
+#include "../../Instance.hpp"
 
 }} //namespace

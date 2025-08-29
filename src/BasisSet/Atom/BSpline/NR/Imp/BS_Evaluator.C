@@ -46,4 +46,4 @@ template <size_t K> RVec BSpline_BS<K>::loop_4_exchange(size_t id, size_t la, si
 }
 
 #define INSTANCEk(k) template class BSpline_BS<k>;
-#include "../BSpline/Instance.hpp"
+#include "../../Instance.hpp"

@@ -11,7 +11,8 @@ Priority 1:
             BasisSet::Atom::SL::{CommonSL,NR,Dirac}
             BasisSet::Atom::SG::{CommonSG,NR,Dirac}
             BasisSet::Atom::BS::{CommonBS,NR,Dirac}
-        How big are those Common chunks?
+        How big are those Common chunks? SL/SG/BS common chunks are bigger.
+        Let's go with 2.
     -Clean up Atoml namespace.
         -using NR=NonRelativistc
         -We have {Atom}X{NR,RKB}X{SL,SG,BS}

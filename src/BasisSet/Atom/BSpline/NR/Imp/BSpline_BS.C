@@ -43,7 +43,7 @@ template <size_t K> void BasisSet<K>::Insert(Orbital_IBS<K>* oibs)
 }
 
 #define INSTANCEk(k) template class BasisSet<k>;
-#include "../../radial/BSpline/Instance.hpp"
+#include "../../Instance.hpp"
 
 
 }} //namespace
