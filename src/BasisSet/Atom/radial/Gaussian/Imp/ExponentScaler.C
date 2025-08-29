@@ -2,7 +2,7 @@
 module;
 #include <valarray>
 module qchem.BasisSet.Atom.Internal.radial.Gaussian.ExponentScaler; 
-import qchem.BasisSet.Atom.Internal.radial.FillPower1;
+import qchem.BasisSet.Atom.Internal.radial.FillPower;
 
 namespace Gaussian
 {

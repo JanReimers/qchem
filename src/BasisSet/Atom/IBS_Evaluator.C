@@ -15,21 +15,6 @@ export import oml;
 
 export using dERI3=ERI3<double>;
 
-export template <class T> Vector<T> convert(const std::valarray<T>& v) 
-{
-    Vector<T> ret(v.size());
-    size_t i=0;
-    for (auto vi:v) ret(++i)=vi;
-    return ret;
-}
-export template <class T> std::valarray<T> convert(const Vector<T>& v) 
-{
-    std::valarray<T> ret(v.size());
-    size_t i=0;
-    for (auto vi:v) ret[i++]=vi;
-    return ret;
-}
-
 export class IBS_Evaluator : public VectorFunction<double>
 {
     typedef std::ranges::iota_view<size_t,size_t> iota_view;

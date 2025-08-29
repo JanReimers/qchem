@@ -185,6 +185,15 @@ template <class v> v grad_gaussian(double r,size_t l,const v& e, const v& n)
     return (lr-2*r*e)*gaussian(r,l,e,n);
 }
 
+template <class T> Vector<T> convert(const std::valarray<T>& v) 
+{
+    Vector<T> ret(v.size());
+    size_t i=0;
+    for (auto vi:v) ret(++i)=vi;
+    return ret;
+}
+
+
 Gaussian_IBS::Vec    Gaussian_IBS::operator() (const RVec3& r) const
 {
     return convert(gaussian(norm(r),l,es,ns));

@@ -1,15 +1,26 @@
-// File: BasisSet/Atom/radial/FillPower.C  power series to create tempered basis set exponents.
+// File: BasisSet/Atom/radial/FillPower1.C  power series to create tempered basis set exponents.
 module;
 #include <cmath>
+#include <valarray>
+#include <cassert>
 export module qchem.BasisSet.Atom.Internal.radial.FillPower;
-export import oml.Vector;
 
-export template <class T> void FillPower(Vector<T>& arr,T start, T stop)
+export template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
 {
-  double del=0.5*(start+stop); //n=1 case
-  if (arr.size()>1)
-    del=(std::log(stop/start))/(double)(arr.size()-1);
-  typename Vector<T>::iterator i=arr.begin();
-  for (int n=0;i!=arr.end();i++,n++) *i=T(start*std::exp(n*del));
+  size_t N=arr.size();
+  assert(N>0);
+  double beta=N>1 ? std::pow(stop/start,1.0/(N-1)) : 1.0;
+  for (auto& a:arr) 
+  {
+    a=start;
+    start*=beta;
+  }
 }
 
+// export template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
+// {
+//   double del=0.5*(start+stop); //n=1 case
+//   if (arr.size()>1)
+//     del=(std::log(stop/start))/(double)(arr.size()-1);
+//   for (int n=0;n<arr.size();n++) arr[n]=T(start*std::exp(n*del));
+// }

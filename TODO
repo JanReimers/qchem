@@ -12,17 +12,23 @@ Priority 1:
             BasisSet::Atom::SG::{CommonSG,NR,Dirac}
             BasisSet::Atom::BS::{CommonBS,NR,Dirac}
         How big are those Common chunks?
+    -Clean up Atoml namespace.
+        -using NR=NonRelativistc
+        -We have {Atom}X{NR,RKB}X{SL,SG,BS}
+        -There is some commonality between {SL,SG,BS}
+        -There is some commonality between {NR,RKB}
+            RKBL_IBS = NR_IBS for all {SL,SG,BS}
+        -What distinguishes {SL,SG,BS}
+            1) IE_{rimtatives}
+            2) op(r)
+            3) Exponent general (not needed)
+            4) ns calculation
+            5) Creates the Rk tool for HF ERIs
 
-    -Stop using Vector for exponent lists.
-    Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
-    Done: -Fix warnings for Insert override.
-    Done: -Refactor common behaviour for Slater/Gaussian BS_Evaluator,IBS_Evaluator
     -Maybe: Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
         -Or: Function forward and pass lambdas to base class.
 
-    Done: -Re-establish index range limits for Direct and Exchange ERIs.
-        Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
-            in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C
+
     DHF/Dirac: Factor of 2 problem
         -We need to stop using a normalized small sector
             f=1/(2c) * (d/dr+(kappa+1)/r)*g
@@ -40,64 +46,12 @@ Priority 1:
         not worth it, gets very complicated very fast.
         Some commonality but not enough
     -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
-    Done: -Use std::valarray for exponents
-        Make a template for op(r).
-        now in IE_Primatives class hierarcy.
-           
-    Done: -Refine the IE_Primatives interface so it can also work with BSplines.
-        Need to pass in AIEC and indexes instead of exponent values.
-        or -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
-    -Clean up Atoml namespace.
-        -using NR=NonRelativistc
-        -We have {Atom}X{NR,RKB}X{SL,SG,BS}
-        -There is some commonality between {SL,SG,BS}
-        -There is some commonality between {NR,RKB}
-            RKBL_IBS = NR_IBS for all {SL,SG,BS}
-        -What distinguishes {SL,SG,BS}
-            1) IE_{rimtatives}
-            2) op(r)
-            3) Exponent general (not needed)
-            4) ns calculation
-            5) Creates the Rk tool for HF ERIs
-    Refactor:
-        Done: Create {SL,SG,BS}_IrrepEvaluator (need a better name)
-            Done: Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
-            Done: Implements op(r), grad(r) using std::valarray for exponents
-                oml::Vector<T> needs a constructor from std::valarray
-            Done: Carries l,{ml}
-            Done: ns calculation
-            Done: For BSlines K should not leak out
-            Done: Helps BFGrouper identify matching radial basis functions.
-            Done: Inherits from IrrepEvaluator
-            Done: ERI3 calculations
-            Done: Make Unit tests
-            Done: Derive IBS from Evaluator, and pass this in constructor.
-            Done: Clean up RKBS evaluators norms handling.
-            Done: Slater_IBS make constructor with no mls
-
-
-        Done: How to integrate into the old code?
-            BasisSet constructor needs to create the concrete classes.
-            The pass IBS_Evaluator* down to integral engine.
-                We already have this up an running for IE_Primatives.
-                Can we temporarily piggy back on that.
-                Stick a public IBS_Evaluator* inside IE_Primatives
-        
-        Done: ExponentGrouper 
-            //! Returns the unique (across all Irrep basis sets) index for this exponent.
-            size_t Insert(double exponent,size_t l); 
-            Finds unique BFs based in exponents or rmin from the spline support.
-            Does not need to know about Evaluators.
-            Evaluators need to track the index returned.
-        Done:-{SL,SG}_Rk Create RKEngines
-            Done: We need an Rk abstract interface interface
-            make an Rk function in IBS_Evaluator
-        Done: -BS_Rk Create RKEngines
-        -Can groupers be registered at Evaluator construction?
-        -Rk inconsistencies that should be cleaned up.
-        -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
-            should be Overlap((*ab)(i)*(*ab)(j),  
-            Repulsion not implemented.
+    
+    -Can groupers be registered at Evaluator construction?
+    -Rk inconsistencies that should be cleaned up.
+    -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
+        should be Overlap((*ab)(i)*(*ab)(j),  
+        Repulsion not implemented.
 
 
 
@@ -211,7 +165,7 @@ Priority 1:
         wrong occ/degen in spin down column.
     -Sort out compile options in CMake for gcc and clang.
     -use std::vector<double> for anything not involing lin-alg 
-        -i.e. exponents
+        Done: -i.e. exponents
         -valarray ?
 
     -DFT need to force Yl basis set instead of auto pick Ylm.
@@ -582,6 +536,54 @@ Priority 3:
 
 
 
+    Done: -Stop using Vector for exponent lists.
+    Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
+    Done: -Fix warnings for Insert override.
+    Done: -Refactor common behaviour for Slater/Gaussian BS_Evaluator,IBS_Evaluator
+    Done: -Re-establish index range limits for Direct and Exchange ERIs.
+        Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
+            in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C
+    Done: -Use std::valarray for exponents
+        Make a template for op(r).
+        now in IE_Primatives class hierarcy.
+           
+    Done: -Refine the IE_Primatives interface so it can also work with BSplines.
+        Need to pass in AIEC and indexes instead of exponent values.
+        or -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
+    Done: Refactor:
+        Done: Create {SL,SG,BS}_IrrepEvaluator (need a better name)
+            Done: Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
+            Done: Implements op(r), grad(r) using std::valarray for exponents
+                oml::Vector<T> needs a constructor from std::valarray
+            Done: Carries l,{ml}
+            Done: ns calculation
+            Done: For BSlines K should not leak out
+            Done: Helps BFGrouper identify matching radial basis functions.
+            Done: Inherits from IrrepEvaluator
+            Done: ERI3 calculations
+            Done: Make Unit tests
+            Done: Derive IBS from Evaluator, and pass this in constructor.
+            Done: Clean up RKBS evaluators norms handling.
+            Done: Slater_IBS make constructor with no mls
+
+
+        Done: How to integrate into the old code?
+            BasisSet constructor needs to create the concrete classes.
+            The pass IBS_Evaluator* down to integral engine.
+                We already have this up an running for IE_Primatives.
+                Can we temporarily piggy back on that.
+                Stick a public IBS_Evaluator* inside IE_Primatives
+        
+        Done: ExponentGrouper 
+            //! Returns the unique (across all Irrep basis sets) index for this exponent.
+            size_t Insert(double exponent,size_t l); 
+            Finds unique BFs based in exponents or rmin from the spline support.
+            Does not need to know about Evaluators.
+            Evaluators need to track the index returned.
+        Done:-{SL,SG}_Rk Create RKEngines
+            Done: We need an Rk abstract interface interface
+            make an Rk function in IBS_Evaluator
+        Done: -BS_Rk Create RKEngines
 
     Done: -Refactor:
         Eliminte basis functions.   IBS can do vector op(r) using ieclient info.
