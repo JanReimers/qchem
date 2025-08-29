@@ -17,3 +17,10 @@ export template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
   }
 }
 
+// export template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
+// {
+//   double del=0.5*(start+stop); //n=1 case
+//   if (arr.size()>1)
+//     del=(std::log(stop/start))/(double)(arr.size()-1);
+//   for (int n=0;n<arr.size();n++) arr[n]=T(start*std::exp(n*del));
+// }

@@ -1,6 +1,7 @@
 // File: Atom/l/Gaussian_BS.H
 module;
 #include <vector>
+#include <valarray>
 module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
 import qchem.BasisSet.Atom.Internal.radial.Gaussian.ExponentScaler; 
@@ -18,7 +19,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
     for (size_t L=0;L<=LMax;L++)
         Insert(new Orbital_IBS(this,gs.Get_es(L),L)); 
 }
-BasisSet::BasisSet(const RVec& exponents, size_t LMax)
+BasisSet::BasisSet(const ds_t& exponents, size_t LMax)
 : AtomIE_BS_2E(this)
 {
     for (size_t L=0;L<=LMax;L++)

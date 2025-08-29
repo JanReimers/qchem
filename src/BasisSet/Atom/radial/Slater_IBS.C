@@ -11,9 +11,7 @@ export class Slater_IBS : public Exponential_IBS_Evaluator
 public: 
  
     Slater_IBS(const   ds_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Slater_IBS(const omlv_t& es, int l, const is_t& mls) : Slater_IBS(convert(es),l,mls) {}
     Slater_IBS(const   ds_t& es, int l) : Slater_IBS(es,l,{}) {}
-    Slater_IBS(const omlv_t& es, int l) : Slater_IBS(es,l,{}) {}
 
    
     virtual std::ostream& Write   (std::ostream&) const;

@@ -12,7 +12,7 @@ namespace Atoml
 namespace Gaussian
 {
   
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const ds_t& exponents, size_t L)
     : Gaussian_IBS(exponents,L)
     , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Orbital_HF_IBS <double>(db)
@@ -20,7 +20,7 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& expone
     , Atom::Orbital_DFT_IBS<double>(db,this)
 {};
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml)
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const ds_t& exponents, size_t L, const std::vector<int>& ml)
     : Gaussian_IBS(exponents,L,ml)
     , Atom::IrrepBasisSet(this,new Ylm_Sym(L,ml))
     , Atom::Orbital_HF_IBS <double>(db)
@@ -45,11 +45,6 @@ Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L)
     , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
     {};
-Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : Gaussian_IBS(exponents,L)
-    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
-    , Atom::Fit_IBS(db,this)
-{};
 
 
 } //namespace

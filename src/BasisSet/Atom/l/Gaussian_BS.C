@@ -1,12 +1,14 @@
 // File: Atom/l/Gaussian_BS.H Gaussian Basis Set for atoms.
 module;
 #include <vector>
+#include <valarray>
 export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import BasisSet.Atom.Gaussian_IBS;
 import BasisSet.Atom.Gaussian_BS;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
+using ds_t=std::valarray<double>;
 
 export namespace Atoml
 {
@@ -21,8 +23,8 @@ class Orbital_IBS
     , public Atom::Orbital_DFT_IBS<double>
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,const Vector<double>& exponents, size_t L, const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ds_t& exponents, size_t L);
+    Orbital_IBS(const DB_BS_2E<double>* db,const ds_t& exponents, size_t L, const std::vector<int>& ml);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 };
@@ -33,7 +35,6 @@ class Fit_IBS
     , public Atom::Fit_IBS
 {
 public:
-    Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L);
     Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L);
 };
 
@@ -44,7 +45,7 @@ class BasisSet
 {
 public:
     BasisSet(size_t N, double minexp, double maxexp, size_t Lmax);
-    BasisSet(const RVec& exponents, size_t Lmax); 
+    BasisSet(const ds_t& exponents, size_t Lmax); 
     BasisSet(size_t N, double minexp, double maxexp, const ElectronConfiguration& ec);
 private:
     void Insert(Orbital_IBS*);

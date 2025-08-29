@@ -8,8 +8,6 @@ import qchem.BasisSet.Atom.Internal.radial.FillPower1;
 namespace Slater
 {
 
-
-
 ExponentScaler::ExponentScaler(size_t N, double emin, double emax, size_t LMax)
     : itsN(N)
     , itsLMax(LMax)

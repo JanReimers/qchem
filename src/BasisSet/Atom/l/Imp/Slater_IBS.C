@@ -53,10 +53,5 @@ Fit_IBS::Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L)
     , Atom::IrrepBasisSet(this,new Yl_Sym(L))
     , Atom::Fit_IBS(db,this)
     {};
-Fit_IBS::Fit_IBS(const DB_cache<double>* db,const Vector<double>& exponents, size_t L)
-    : Slater_IBS(exponents,L)
-    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
-    , Atom::Fit_IBS(db,this)
-    {};
 
 }} //namespace
