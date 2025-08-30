@@ -60,6 +60,8 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
     assert(c);
     size_t spanab=a->maxSpan(),spancd=c->maxSpan();
     size_t Na=a->size(), Nc=c->size();
+    int la=a->Getl(), lc=c->Getl();
+    RVec Akac=Coulomb_AngularIntegrals(a,c);
     ERI4 J(Na,Nc);
     ds_t na=a->Norm(), nc=c->Norm();
 
@@ -69,8 +71,6 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
         for (size_t ic:c->indices())
         {
             loop_2(c->es_index(ic));
-            int la=a->Getl(), lc=c->Getl();
-            RVec Akac=Coulomb_AngularIntegrals(a,c);
             for (size_t ib:a->indices())
             {
                 if (ib<ia) continue; 

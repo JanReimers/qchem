@@ -3,7 +3,7 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
-    -BasisSet::Atom  reorg
+    Done: -BasisSet::Atom  reorg
         Option 1
             BasisSet::Atom::NR   ::{CommonNR,SL,SG,BS}
             BasisSet::Atom::Dirac::{CommonDirac,SL,SG,BS}
@@ -13,7 +13,7 @@ Priority 1:
             BasisSet::Atom::BS::{CommonBS,NR,Dirac}
         How big are those Common chunks? SL/SG/BS common chunks are bigger.
         Let's go with 2.
-    -Clean up Atoml namespace.
+    Done: -Clean up Atoml namespace.
         -using NR=NonRelativistc
         -We have {Atom}X{NR,RKB}X{SL,SG,BS}
         -There is some commonality between {SL,SG,BS}
@@ -49,7 +49,7 @@ Priority 1:
     -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
     
     -Can groupers be registered at Evaluator construction?
-    -Rk inconsistencies that should be cleaned up.
+    Done: -Rk inconsistencies that should be cleaned up.
     -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
         should be Overlap((*ab)(i)*(*ab)(j),  
         Repulsion not implemented.
