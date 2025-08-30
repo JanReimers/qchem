@@ -10,8 +10,8 @@ export import qchem.Orbital_DFT_IBS;
 export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 
-export import BasisSet.Atom.IBS_Evaluator;
-import BasisSet.Atom.BS_Evaluator;
+export import qchem.BasisSet.Atom.IBS_Evaluator;
+import qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.Types;
 
 

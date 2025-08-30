@@ -4,7 +4,7 @@ module;
 #include <vector>
 #include <ranges>
 #include <iosfwd>
-export module BasisSet.Atom.IBS_Evaluator;
+export module qchem.BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Fit_IBS;

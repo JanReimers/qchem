@@ -6,7 +6,7 @@ module;
 
 export module BasisSet.Atom.Exponential_IBS_Evaluator;
 
-export import BasisSet.Atom.IBS_Evaluator;
+export import qchem.BasisSet.Atom.IBS_Evaluator;
 
 export class Exponential_IBS_Evaluator : public IBS_Evaluator
 {
