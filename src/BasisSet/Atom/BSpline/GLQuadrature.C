@@ -6,7 +6,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <map>
-export module qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+export module qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 export class GLCache;
 export class GLQuadrature

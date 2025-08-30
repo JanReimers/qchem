@@ -2,9 +2,9 @@
 module;
 export module BasisSet.Atom.BSpline_BS;
 export import qchem.BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Atom.Internal.SplineGrouper;
-import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
-import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+import qchem.BasisSet.Atom.BSpline.SplineGrouper;
+import qchem.BasisSet.Atom.BSpline.Rk;
+import qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 export template <size_t K> class BSpline_BS 
     : public virtual BS_Evaluator

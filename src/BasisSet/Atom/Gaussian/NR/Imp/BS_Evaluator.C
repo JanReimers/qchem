@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module BasisSet.Atom.Gaussian_BS;
-import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
+import qchem.BasisSet.Atom.Gaussian.Rk;
 
 void Gaussian_BS::Register(IBS_Evaluator * eval)
 {

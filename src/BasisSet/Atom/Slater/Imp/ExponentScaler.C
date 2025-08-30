@@ -2,7 +2,7 @@
 module;
 #include <cmath>
 #include <valarray>
-module qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
+module qchem.BasisSet.Atom.Slater.ExponentScaler;
 import  qchem.BasisSet.Atom.Internal.FillPower;
 
 namespace Slater

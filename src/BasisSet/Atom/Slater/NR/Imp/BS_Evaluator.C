@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module BasisSet.Atom.Slater_BS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
+import qchem.BasisSet.Atom.Slater.Rk;
 
 void Slater_BS::Register(IBS_Evaluator * eval)
 {

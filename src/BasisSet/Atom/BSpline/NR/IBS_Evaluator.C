@@ -7,7 +7,7 @@ module;
 #include <iosfwd>
 export module BasisSet.Atom.BSpline_IBS;
 import qchem.BasisSet.Atom.IBS_Evaluator;
-import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+import qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 class BSplineTests;
 export template <size_t K> class BSpline_IBS : public IBS_Evaluator

@@ -9,7 +9,7 @@ module;
 
 using std::cout;
 using std::endl;
-module qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+module qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 // see gauleg.f 
 extern "C"

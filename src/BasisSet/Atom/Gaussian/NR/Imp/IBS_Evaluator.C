@@ -5,8 +5,8 @@ module;
 #include <cassert>
 #include <iostream>
 module BasisSet.Atom.Gaussian_IBS;
-import qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
-import qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
+import qchem.BasisSet.Atom.Gaussian.Rk;
+import qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
 import Common.IntPow;
 

@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include <cmath>
-export module qchem.BasisSet.Atom.Internal.radial.GaussianIntegrals;
+export module qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
 import Common.Factorials;
 //###################################################################

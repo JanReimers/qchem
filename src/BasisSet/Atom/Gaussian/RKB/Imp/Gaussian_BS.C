@@ -3,7 +3,7 @@ module;
 #include <memory>
 
 module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import qchem.BasisSet.Atom.Internal.radial.Gaussian.ExponentScaler; 
+import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
 import qchem.Streamable;
 
 namespace Atom_kappa

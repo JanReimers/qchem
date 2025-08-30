@@ -3,7 +3,7 @@ module;
 #include <memory>
 module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
 import BasisSet.Atom.Slater_IBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.Slater.ExponentScaler;
 import qchem.Streamable;
 
 namespace Atom_kappa

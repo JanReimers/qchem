@@ -2,8 +2,8 @@
 module;
 #include <map>
 #include <bspline/Core.h>
-export module qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
-import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+export module qchem.BasisSet.Atom.BSpline.Rk;
+import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.Rk;
 // import oml.Matrix; 

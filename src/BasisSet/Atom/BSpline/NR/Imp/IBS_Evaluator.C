@@ -8,8 +8,8 @@ module;
 using namespace bspline::operators; 
 using namespace bspline::integration; 
 module BasisSet.Atom.BSpline_IBS;
-import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
-import qchem.BasisSet.Atom.Internal.SplineGrouper;
+import qchem.BasisSet.Atom.BSpline.Rk;
+import qchem.BasisSet.Atom.BSpline.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
 

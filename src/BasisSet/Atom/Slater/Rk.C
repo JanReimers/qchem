@@ -1,7 +1,6 @@
 // File: Slater::RkEngine.H  4 electron Charge distribution of Slater orbitals. 
 module;
-export module qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
-import qchem.BasisSet.Internal.Cache4;
+export module qchem.BasisSet.Atom.Slater.Rk;
 export import qchem.BasisSet.Atom.Rk;
 import oml.Matrix;
 

@@ -3,7 +3,7 @@ module;
 #include <vector>
 module qchem.BasisSet.Atom.Internal.l.SlaterBS;
 import BasisSet.Atom.Slater_IBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.ExponentScaler;
+import qchem.BasisSet.Atom.Slater.ExponentScaler;
 import qchem.Symmetry.AtomEC;
 
 namespace Atoml

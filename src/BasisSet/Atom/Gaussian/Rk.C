@@ -1,7 +1,6 @@
 // File: Gaussian::Rk.H  2 electron Charge distribution of Gaussian orbitals. 
 module;
-export module qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
-import qchem.BasisSet.Internal.Cache4;
+export module qchem.BasisSet.Atom.Gaussian.Rk;
 export import qchem.BasisSet.Atom.Rk;
 import oml.Matrix;
 

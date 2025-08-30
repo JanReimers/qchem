@@ -5,8 +5,8 @@ module;
 #include <cassert>
 #include <iostream>
 module BasisSet.Atom.Slater_IBS;
-import qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
-import qchem.BasisSet.Atom.Internal.radial.Slater.Integrals;
+import qchem.BasisSet.Atom.Slater.Rk;
+import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
 import Common.IntPow;
 import qchem.stl_io;

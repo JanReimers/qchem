@@ -3,9 +3,9 @@ module;
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
-export module qchem.BasisSet.Atom.Internal.SplineGrouper;
+export module qchem.BasisSet.Atom.BSpline.SplineGrouper;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
-import qchem.Basisset.Atom.radial.BSpline.GLQuadrature;
+import qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 // 
 // We can use this class for splines by using the support window {rmin,rmax}.

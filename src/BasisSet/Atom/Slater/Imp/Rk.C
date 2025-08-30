@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <cmath>
 #include <vector>
-module qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
+module qchem.BasisSet.Atom.Slater.Rk;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import Common.Factorials;
 import oml;

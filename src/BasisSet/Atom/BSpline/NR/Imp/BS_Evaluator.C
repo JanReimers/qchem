@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module BasisSet.Atom.BSpline_BS;
-import qchem.BasisSet.Atom.Internal.radial.BSpline.Rk;
+import qchem.BasisSet.Atom.BSpline.Rk;
 
 template <size_t K> void BSpline_BS<K>::Register(IBS_Evaluator * eval)
 {
