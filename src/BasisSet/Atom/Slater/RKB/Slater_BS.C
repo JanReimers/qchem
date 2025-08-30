@@ -5,7 +5,8 @@ module;
 class DiracIntegralTests;
 
 export module qchem.BasisSet.Atom.Slater.RKB.BS;
-import BasisSet.Atom.Slater.NR.IBS_Evaluator;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator; //Used for large sector
+import BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
