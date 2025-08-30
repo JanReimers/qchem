@@ -5,6 +5,7 @@ module;
 #include <iosfwd>
 export module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
+import Common.IntPow;
 
 export class Slater_IBS : public Exponential_IBS_Evaluator
 {
@@ -34,7 +35,27 @@ public:
 
 protected:
     ds_t norms() const; //assumes es,l are already initialized
-    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
+    virtual double Inv_r1(double ea , double eb,size_t l_total) const; //Needs an override for RKB.
+    static  double Grad2 (double ea , double eb,size_t la, size_t lb); //RKB needs access
+    static  double Inv_r2(double ea , double eb,size_t l_total); //RKB needs access
+
+    template <class v> static v slater(double r,size_t l,const v& e, const v& n)
+    {
+        return n*uintpow(r,l)*exp(-e*r);
+    }
+    template <class v> static v grad_slater(double r,size_t l,const v& e, const v& n)
+    {
+        double lr= r==0 ? 0 : l/r;
+        return (lr-e)*slater(r,l,e,n);
+    }
+    template <class T> static Vector<T> convert(const std::valarray<T>& v) 
+    {
+        Vector<T> ret(v.size());
+        size_t i=0;
+        for (auto vi:v) ret(++i)=vi;
+        return ret;
+    }
+
 
    
 };

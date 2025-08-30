@@ -8,7 +8,6 @@ module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Rk;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
-import Common.IntPow;
 import qchem.stl_io;
 
 
@@ -17,22 +16,6 @@ inline double Overlap(double ea , double eb,size_t l_total)
     return Slater::Integral(ea+eb,l_total); //Already has 4*Pi and r^2 from dr.
 }
 
-inline double Grad2(double ea , double eb,size_t la, size_t lb)
-{
-    assert(la==lb);
-    double ab=ea+eb;
-    int l=la; //Safer to do formulas with int.
-    // int ll=l*(l+1);
-    double Term1=(l+1)*(l+1)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-    double Term2=-(l+1)*ab* Slater::Integral(ab,2*l-1);
-    double Term3=ea*eb*Slater::Integral(ab,2*l);
-    return Term1+Term2+Term3;
-}
-
-inline double Inv_r2(double ea , double eb,size_t l_total)
-{
-    return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
-}
 
 inline double Repulsion(double eab, double ec,size_t la,size_t lc)
 {    
@@ -51,6 +34,23 @@ inline double Charge(double ea, size_t l)
 //
 
 // This need overridability.
+double Slater_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
+{
+    assert(la==lb);
+    double ab=ea+eb;
+    int l=la; //Safer to do formulas with int.
+    // int ll=l*(l+1);
+    double Term1=(l+1)*(l+1)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+    double Term2=-(l+1)*ab* Slater::Integral(ab,2*l-1);
+    double Term3=ea*eb*Slater::Integral(ab,2*l);
+    return Term1+Term2+Term3;
+}
+
+double Slater_IBS::Inv_r2(double ea , double eb,size_t l_total)
+{
+    return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
+}
+
 double Slater_IBS::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
@@ -79,7 +79,7 @@ Slater_IBS::omls_t Slater_IBS::Grad2() const
     omls_t S(size());
     for (auto i:S.rows())
         for (auto j:S.cols(i))
-            S(i,j)= ::Grad2(es[i-1],es[j-1],l,l)*ns[i-1]*ns[j-1];
+            S(i,j)= Grad2(es[i-1],es[j-1],l,l)*ns[i-1]*ns[j-1];
 
     return S;
 }
@@ -99,7 +99,7 @@ Slater_IBS::omls_t Slater_IBS::Inv_r2() const
     omls_t S(size());
     for (auto i:S.rows())
         for (auto j:S.cols(i))
-            S(i,j)= ::Inv_r2(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
+            S(i,j)= Inv_r2(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
 
     return S;
 }
@@ -132,7 +132,7 @@ IBS_Evaluator::omlm_t Slater_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) c
     omlm_t M(size(),b->size());
     for (auto i:M.rows())
             for (auto j:M.cols())
-                M(i,j)=(::Grad2(es[i-1],b->es[j-1],l,l) + l*(l+1)*::Inv_r2(es[i-1],b->es[j-1],2*l))*ns[i-1]*b->ns[j-1];
+                M(i,j)=(Grad2(es[i-1],b->es[j-1],l,l) + l*(l+1)*Inv_r2(es[i-1],b->es[j-1],2*l))*ns[i-1]*b->ns[j-1];
     return M;
 }
 
@@ -177,23 +177,7 @@ dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-template <class v> v slater(double r,size_t l,const v& e, const v& n)
-{
-    return n*uintpow(r,l)*exp(-e*r);
-}
-template <class v> v grad_slater(double r,size_t l,const v& e, const v& n)
-{
-    double lr= r==0 ? 0 : l/r;
-    return (lr-e)*slater(r,l,e,n);
-}
 
-template <class T> Vector<T> convert(const std::valarray<T>& v) 
-{
-    Vector<T> ret(v.size());
-    size_t i=0;
-    for (auto vi:v) ret(++i)=vi;
-    return ret;
-}
 
 Slater_IBS::Vec    Slater_IBS::operator() (const RVec3& r) const
 {
@@ -236,7 +220,7 @@ Slater_IBS::ds_t Slater_RKBS_IBS::norms() const
     ds_t ret(N);
     for (size_t i=0;i<N;i++) 
     {
-        double k=::Grad2(es[i],es[i],l,l) + l*(l+1)*::Inv_r2(es[i],es[i],2*l);
+        double k=Grad2(es[i],es[i],l,l) + l*(l+1)*Inv_r2(es[i],es[i],2*l);
         ret[i]=1.0/sqrt(k); 
     }
     return ret;
