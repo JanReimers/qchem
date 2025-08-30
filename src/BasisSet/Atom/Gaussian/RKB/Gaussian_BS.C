@@ -4,7 +4,8 @@ module;
 #include <valarray>
 class DiracIntegralTests;
 export module qchem.BasisSet.Atom.Gaussian.RKB.BS;
-import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
+import BasisSet.Atom.Gaussian.NR.IBS_EValuator; //Used for large sector
+import BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
