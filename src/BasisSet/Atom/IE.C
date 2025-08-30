@@ -11,7 +11,7 @@ export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 
 export import qchem.BasisSet.Atom.IBS_Evaluator;
-import qchem.BasisSet.Atom.BS_Evaluator;
+import qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.Types;
 
 

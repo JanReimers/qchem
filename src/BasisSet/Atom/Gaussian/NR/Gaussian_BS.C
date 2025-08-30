@@ -1,9 +1,9 @@
-// File: Atom/l/Gaussian_BS.H Gaussian Basis Set for atoms.
+// File: BasisSet/Atom/Gaussian/NR/Gaussian_BS.C Gaussian Basis Set for atoms.
 module;
 #include <vector>
 #include <valarray>
-export module qchem.BasisSet.Atom.Internal.l.GaussianBS;
-import BasisSet.Atom.Gaussian_IBS;
+export module qchem.BasisSet.Atom.Gaussian.NR.BS;
+import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import BasisSet.Atom.Gaussian_BS;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;

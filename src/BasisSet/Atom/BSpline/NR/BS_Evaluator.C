@@ -1,7 +1,7 @@
 // File: BasisSet/Atom/radial/BSpline_BS.C
 module;
 export module BasisSet.Atom.BSpline_BS;
-export import qchem.BasisSet.Atom.BS_Evaluator;
+export import qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.SplineGrouper;
 import qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;

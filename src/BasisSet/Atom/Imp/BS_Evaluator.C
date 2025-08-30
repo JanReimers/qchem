@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include <iostream>
 
-module qchem.BasisSet.Atom.BS_Evaluator;
+module qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.Internal.AngularIntegrals; 
 
 RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const

@@ -1,7 +1,7 @@
 // File: BasisSet/Atom/Slater/NR/BS_Evaluator.C
 module;
 export module BasisSet.Atom.Slater.NR.BS_Evaluator;
-export import qchem.BasisSet.Atom.BS_Evaluator;
+export import qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Atom.Rk;
 

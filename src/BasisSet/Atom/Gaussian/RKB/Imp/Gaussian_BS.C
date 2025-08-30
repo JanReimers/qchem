@@ -2,7 +2,7 @@
 module;
 #include <memory>
 
-module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
+module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
 import qchem.Streamable;
 

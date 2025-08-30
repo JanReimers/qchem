@@ -4,8 +4,8 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
-module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import BasisSet.Atom.Gaussian_IBS;
+module qchem.BasisSet.Atom.Gaussian.RKB.BS;
+import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Symmetry.Okmj;
 
 using std::endl;

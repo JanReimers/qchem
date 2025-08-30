@@ -1,9 +1,9 @@
-// File: BasisSet/Atom/radial/Gaussian_IBS.C
+// File: BasisSet/Atom/Gaussian/NR/IBS_Evaluator.C
 module;
 #include <valarray>
 #include <vector>
 #include <iosfwd>
-export module BasisSet.Atom.Gaussian_IBS;
+export module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 export class Gaussian_IBS : public Exponential_IBS_Evaluator

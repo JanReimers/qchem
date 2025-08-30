@@ -1,10 +1,10 @@
-// File: Atom/kappa/Gaussian_BS.H  Restricted Kinetic Balance (RKB) Basis Set (BS).
+// File: BasisSet/Atom/Gaussian/RKB/Gaussian_BS.C  Restricted Kinetic Balance (RKB) Basis Set (BS).
 module;
 #include <iosfwd>
 #include <valarray>
 class DiracIntegralTests;
-export module qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import BasisSet.Atom.Gaussian_IBS;
+export module qchem.BasisSet.Atom.Gaussian.RKB.BS;
+import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;

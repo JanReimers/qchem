@@ -2,8 +2,8 @@
 module;
 #include <vector>
 #include <valarray>
-module qchem.BasisSet.Atom.Internal.l.GaussianBS;
-// import BasisSet.Atom.Gaussian_IBS;
+module qchem.BasisSet.Atom.Gaussian.NR.BS;
+// import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 

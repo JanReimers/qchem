@@ -1,6 +1,6 @@
 // File: BasisSet/Atom/BS_Evaluator.C Generic hot loop 2 electron repulsion integrals (2ERIs).
 module;
-export module qchem.BasisSet.Atom.BS_Evaluator;
+export module qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 export import qchem.BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Internal.ERI4;
