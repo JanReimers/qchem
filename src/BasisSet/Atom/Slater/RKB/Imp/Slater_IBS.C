@@ -8,9 +8,9 @@ module qchem.BasisSet.Atom.Slater.RKB.BS;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.Symmetry.Okmj;
 
-namespace Atom_kappa
+namespace Atom
 {
-namespace Slater
+namespace Slater_RKB
 {
 
 //

@@ -6,9 +6,9 @@ import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.ExponentScaler;
 import qchem.Streamable;
 
-namespace Atom_kappa
+namespace Atom
 {
-namespace Slater
+namespace Slater_RKB
 {
 
 BasisSet::BasisSet(size_t N, double emin, double emax, size_t lMax)
@@ -21,11 +21,11 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t lMax)
         double j=l-0.5;
         if (j>0) //skip j=-0.5 for l=0;
 //            for (double mj=-j;mj<=j;mj+=1.0)
-        Insert(new Atom_kappa::Slater::Orbital_RKB_IBS(db,ss.Get_es(l),l));            
+        Insert(new Orbital_RKB_IBS(db,ss.Get_es(l),l));            
         // j=l+0.5 sector, kappa = -l -1 < 0
         j=l+0.5;
 //        for (double mj=-j;mj<=j;mj+=1.0)
-            Insert(new Atom_kappa::Slater::Orbital_RKB_IBS(db,ss.Get_es(l),-l-1));            
+            Insert(new Orbital_RKB_IBS(db,ss.Get_es(l),-l-1));            
         
     }
 

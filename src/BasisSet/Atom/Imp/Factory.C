@@ -42,11 +42,11 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
         switch (atype)
         {
         case AngularType::Yl:
-            bs=new Atoml::Slater::BasisSet(N,emin,emax,LMax);
+            bs=new Atom::Slater::BasisSet(N,emin,emax,LMax);
             break;
         
         case AngularType::Ylm:
-            bs=new Atoml::Slater::BasisSet(N,emin,emax,ec);
+            bs=new Atom::Slater::BasisSet(N,emin,emax,ec);
         }
         break;
     }
@@ -56,11 +56,11 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
         switch (atype)
         {
         case AngularType::Yl:
-            bs=new Atoml::Gaussian::BasisSet(N,emin,emax,LMax);
+            bs=new Atom::Gaussian::BasisSet(N,emin,emax,LMax);
             break;
         
         case AngularType::Ylm:
-            bs=new Atoml::Gaussian::BasisSet(N,emin,emax,ec);
+            bs=new Atom::Gaussian::BasisSet(N,emin,emax,ec);
         }
         break;
     }
@@ -70,11 +70,11 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
         switch (atype)
         {
         case AngularType::Yl:
-            bs=new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
+            bs=new Atom::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
             break;
         
         case AngularType::Ylm:
-            bs=new Atoml::BSpline::BasisSet<6>(N,rmin,rmax,ec);
+            bs=new Atom::BSpline::BasisSet<6>(N,rmin,rmax,ec);
         }
         break;   
     } 
@@ -82,13 +82,13 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
     case Type::Slater_RKB:
     {
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new Atom_kappa::Slater::BasisSet(N,emin,emax,LMax);
+        bs=new Atom::Slater_RKB::BasisSet(N,emin,emax,LMax);
         break;
     }
     case Type::Gaussian_RKB:
     {
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new Atom_kappa::Gaussian::BasisSet(N,emin,emax,LMax);
+        bs=new Atom::Gaussian_RKB::BasisSet(N,emin,emax,LMax);
         break;
     }
     case Type::BSpline_RKB:

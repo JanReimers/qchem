@@ -8,7 +8,7 @@ import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
 
-export namespace Atoml
+export namespace Atom
 {
 namespace Slater
 {

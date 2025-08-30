@@ -10,9 +10,9 @@ import qchem.Symmetry.Okmj;
 
 using std::endl;
 
-namespace Atom_kappa
+namespace Atom
 {
-namespace Gaussian
+namespace Gaussian_RKB
 {
 
 Orbital_RKB_IBS::Orbital_RKB_IBS

@@ -10,7 +10,7 @@ import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
 using ds_t=std::valarray<double>;
 
-export namespace Atoml
+export namespace Atom
 {
 namespace Gaussian
 {

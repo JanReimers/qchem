@@ -10,9 +10,9 @@ import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
 
-namespace Atom_kappa
+namespace Atom
 {
-namespace Gaussian
+namespace Gaussian_RKB
 { 
 
 

@@ -3,7 +3,7 @@ module;
 module qchem.BasisSet.Atom.BSpline.NR.BS;
 import qchem.Symmetry.AtomEC;
 
-namespace Atoml
+namespace Atom
 {
 namespace BSpline
 {

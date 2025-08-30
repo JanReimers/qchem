@@ -10,7 +10,7 @@ import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 
 
-namespace Atoml
+namespace Atom
 {
 namespace BSpline
 {

@@ -4,6 +4,7 @@ export module qchem.BasisSet.Atom.Slater.Rk;
 export import qchem.BasisSet.Atom.Rk;
 import oml.Matrix;
 
+
 export namespace Slater
 {
 //

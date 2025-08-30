@@ -7,7 +7,7 @@ import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
 import qchem.Symmetry.AtomEC;
 
-namespace Atoml
+namespace Atom
 {
 namespace Gaussian
 {
