@@ -2,11 +2,6 @@
 module;
 #include <iosfwd>
 export module qchem.BasisSet.Atom.IBS;
-export import qchem.Orbital_1E_IBS;
-export import qchem.Orbital_DFT_IBS;
-export import qchem.Orbital_HF_IBS;
-export import qchem.Fit_IBS;
-export import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 

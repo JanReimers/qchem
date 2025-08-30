@@ -2,7 +2,7 @@
 module;
 export module qchem.BasisSet.Atom.Internal.radial.Slater.Rk;
 import qchem.BasisSet.Internal.Cache4;
-export import qchem.BasisSet.Atom.internal.Rk;
+export import qchem.BasisSet.Atom.Rk;
 import oml.Matrix;
 
 export namespace Slater
@@ -13,18 +13,13 @@ export namespace Slater
 // eab = ea + eb
 // ecd = ec + ed
 //
-class RkEngine 
-    : public virtual Rk
-    , public virtual Cacheable
+class RkEngine : public virtual Rk
 {
 public:
     RkEngine(double eab, double ecd, size_t LMax);
     double Coulomb_R0(size_t la,size_t lc) const; //R_0(la,la,lc,lc);
-    Vector<double> Coulomb_Rk(size_t la,size_t lc) const; //R_k(la,la,lc,lc);
-    Vector<double> ExchangeRk(size_t la,size_t lb) const; //R_k(la,lb,la,lb);
-    //! R_k(la,lb,la,lb) with |Ala-Alb| <= k <= Ala+Alb
-    Vector<double> ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const; 
-    
+    RVec   Coulomb_Rk(size_t la,size_t lc) const; //R_k(la,la,lc,lc);
+    RVec   ExchangeRk(size_t la,size_t lb) const; //R_k(la,lb,la,lb);
 private:
     static double fk(double a, double ab, size_t k,size_t n);
     

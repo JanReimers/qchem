@@ -8,6 +8,7 @@ import BasisSet.Atom.Gaussian_IBS;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
+import qchem.BasisSet.Internal.HeapDB;
 
 namespace Atom_kappa
 {

@@ -1,21 +1,19 @@
-// File: AtomIE.C Common IE code for all atom basis sets.
+// File: BasisSet/Atom/IE.C Common Integral Engine (IE) code for all atom basis sets.
 module;
-#include <memory>
 #include <cassert>
 export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Internal.HeapDB;
-export import qchem.BasisSet.Internal.Cache4;
-export import oml.Vector;
-export import qchem.Orbital_DHF_IBS;
-export import qchem.Types;
-export import BasisSet.Atom.IBS_Evaluator;
-export import BasisSet.Atom.BS_Evaluator;
+export import qchem.BasisSet.Internal.ERI4;
 
-import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.IEClient;
-import qchem.Fit_IBS;
-import qchem.Orbital_DFT_IBS;
-import qchem.Orbital_HF_IBS;
+export import qchem.Orbital_DHF_IBS;
+export import qchem.Orbital_DFT_IBS;
+export import qchem.Orbital_HF_IBS;
+export import qchem.Fit_IBS;
+
+export import BasisSet.Atom.IBS_Evaluator;
+import BasisSet.Atom.BS_Evaluator;
+import qchem.Types;
+
 
 export
 {

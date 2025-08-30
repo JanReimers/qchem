@@ -6,7 +6,6 @@ module;
 #include <iosfwd>
 export module BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
-export import qchem.BasisSet.Atom.internal.Rk;
 export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Fit_IBS;
 export import qchem.Orbital_DHF_IBS;
