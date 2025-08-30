@@ -4,7 +4,7 @@ module;
 #include <vector>
 #include <iosfwd>
 export module BasisSet.Atom.Gaussian_IBS;
-import BasisSet.Atom.Exponential_IBS_Evaluator;
+import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 export class Gaussian_IBS : public Exponential_IBS_Evaluator
 {

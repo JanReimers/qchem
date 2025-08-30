@@ -3,7 +3,7 @@
 #include "PlotWindow.H"
 #include <gtkmm-plplot/plotobject2dtext.h>
 #include <gtkmm-plplot/plotobject2dline.h>
-// import import qchem.BasisSet.Atom.Internal.radial.FillPower;
+// import import  qchem.BasisSet.Atom.Internal.FillPower;
 
 PlotWindow::PlotWindow()
 : plot("X")

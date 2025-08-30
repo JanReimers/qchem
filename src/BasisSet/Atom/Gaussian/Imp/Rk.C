@@ -5,7 +5,7 @@ module;
 #include <cmath>
 #include <vector>
 module qchem.BasisSet.Atom.Internal.radial.Gaussian.Rk;
-import qchem.BasisSet.Atom.Internal.radial.PascalTriangle;
+import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import Common.Constants;
 import Common.Factorials;
 import oml;

@@ -1,9 +1,9 @@
-// File: BasisSet/Atom/radial/PascalTriangle.C
+// File: BasisSet/Atom/Internal/PascalTriangle.C
 module;
 #include <vector>
 #include <iostream>
 #include <cassert>
-export module qchem.BasisSet.Atom.Internal.radial.PascalTriangle;
+export module qchem.BasisSet.Atom.Internal.PascalTriangle;
 
 #if DEBUG
 #define CHECK(i,j) Check(i,j)

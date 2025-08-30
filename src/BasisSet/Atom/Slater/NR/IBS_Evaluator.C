@@ -4,7 +4,7 @@ module;
 #include <vector>
 #include <iosfwd>
 export module BasisSet.Atom.Slater_IBS;
-export import BasisSet.Atom.Exponential_IBS_Evaluator;
+export import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 export class Slater_IBS : public Exponential_IBS_Evaluator
 {

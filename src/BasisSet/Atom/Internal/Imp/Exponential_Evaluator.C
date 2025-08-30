@@ -5,7 +5,7 @@ module;
 #include <cassert>
 #include <iostream>
 
-module BasisSet.Atom.Exponential_IBS_Evaluator;
+module qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
 {
