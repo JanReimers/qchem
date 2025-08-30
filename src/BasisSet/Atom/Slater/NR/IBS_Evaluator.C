@@ -1,9 +1,9 @@
-// File: BasisSet/Atom/radial/Slater_IBS.C
+// File: BasisSet/Atom/Slater/NR/IBS_Evaluator.C
 module;
 #include <valarray>
 #include <vector>
 #include <iosfwd>
-export module BasisSet.Atom.Slater_IBS;
+export module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 export class Slater_IBS : public Exponential_IBS_Evaluator

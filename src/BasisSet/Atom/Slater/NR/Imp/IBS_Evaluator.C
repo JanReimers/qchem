@@ -4,7 +4,7 @@ module;
 #include <cmath>
 #include <cassert>
 #include <iostream>
-module BasisSet.Atom.Slater_IBS;
+module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Rk;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;

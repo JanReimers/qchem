@@ -7,9 +7,9 @@ using json = nlohmann::json;
 module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
 import qchem.BasisSet.Atom.Internal.kappa.GaussianBS;
-import qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
+import qchem.BasisSet.Atom.Slater.RKB.BS;
 import qchem.BasisSet.Atom.Internal.l.GaussianBS;
-import qchem.BasisSet.Atom.Internal.l.SlaterBS;
+import qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.BasisSet.Atom.Internal.l.BSplineBS;
 
 namespace BasisSetAtom

@@ -2,7 +2,7 @@
 module;
 #include <vector>
 #include <valarray>
-module qchem.BasisSet.Atom.Internal.l.SlaterBS;
+module qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 

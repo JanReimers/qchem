@@ -23,7 +23,7 @@ import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry.Angular;
-import BasisSet.Atom.Slater_IBS;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import oml;
 
 using std::cout;

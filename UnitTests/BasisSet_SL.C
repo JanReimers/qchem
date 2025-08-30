@@ -6,8 +6,8 @@
 using std::cout;
 using std::endl;
 
-import BasisSet.Atom.Slater_IBS;
-import BasisSet.Atom.Slater_BS;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
+import BasisSet.Atom.Slater.NR.BS_Evaluator;
 import BasisSet.Atom.Gaussian_IBS;
 import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.BSpline_IBS;
@@ -18,7 +18,7 @@ import Common.Constants;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
-import qchem.BasisSet.Atom.Internal.l.SlaterBS;
+import qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.BasisSet.Atom.Internal.l.GaussianBS;
 import qchem.Orbital_HF_IBS;
 

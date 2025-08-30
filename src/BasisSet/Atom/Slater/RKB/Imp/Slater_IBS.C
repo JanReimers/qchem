@@ -4,8 +4,8 @@ module;
 #include <cassert>
 #include <iomanip>
 #include <memory>
-module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import BasisSet.Atom.Slater_IBS;
+module qchem.BasisSet.Atom.Slater.RKB.BS;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.Symmetry.Okmj;
 
 namespace Atom_kappa

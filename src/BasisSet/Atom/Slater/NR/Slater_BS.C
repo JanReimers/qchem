@@ -1,9 +1,9 @@
-// File: BasisSet/Atom/l/Slater_BS.C Slater Basis Set for atoms.
+// File: BasisSet/Atom/Slater/NR/Slater_BS.C Slater Basis Set for atoms.
 module;
 #include <vector>
-export module qchem.BasisSet.Atom.Internal.l.SlaterBS;
-import BasisSet.Atom.Slater_IBS;
-import BasisSet.Atom.Slater_BS;
+export module qchem.BasisSet.Atom.Slater.NR.BS;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
+import BasisSet.Atom.Slater.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;

@@ -1,8 +1,8 @@
 // File: BasisSet/Atom/l/Imp/Slater_BS.C Slater Basis Set for atoms.
 module;
 #include <vector>
-module qchem.BasisSet.Atom.Internal.l.SlaterBS;
-import BasisSet.Atom.Slater_IBS;
+module qchem.BasisSet.Atom.Slater.NR.BS;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.ExponentScaler;
 import qchem.Symmetry.AtomEC;
 

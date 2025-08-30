@@ -1,11 +1,11 @@
-// File: Atom/kappa/Slater_BS.H  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
+// File: BasisSet/Atom/Slater/RKB/Slater_BS.C  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 module;
 #include <iosfwd>
 #include <valarray>
 class DiracIntegralTests;
 
-export module qchem.BasisSet.Atom.Internal.kappa.SlaterBS;
-import BasisSet.Atom.Slater_IBS;
+export module qchem.BasisSet.Atom.Slater.RKB.BS;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
