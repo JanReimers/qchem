@@ -1,6 +1,6 @@
-// File: BasisSet/Atom/radial/BSpline_BS.C
+// File: BasisSet/Atom/BSpline/NR/BS_Evaluator.C
 module;
-export module BasisSet.Atom.BSpline_BS;
+export module BasisSet.Atom.BSpline.NR.BS_Evaluator;
 export import qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.SplineGrouper;
 import qchem.BasisSet.Atom.BSpline.Rk;

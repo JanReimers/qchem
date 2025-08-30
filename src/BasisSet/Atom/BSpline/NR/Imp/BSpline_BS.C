@@ -1,6 +1,6 @@
 // File: Atom/l/BSpline_BS.C BSpline Basis Set for atoms.
 module;
-module qchem.BasisSet.Atom.Internal.l.BSplineBS;
+module qchem.BasisSet.Atom.BSpline.NR.BS;
 import qchem.Symmetry.AtomEC;
 
 namespace Atoml

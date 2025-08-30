@@ -1,11 +1,11 @@
-// File: BasisSet/Atom/radial/BSpline_IBS.C
+// File: BasisSet/Atom/BSpline/NR/IBS_Evaluator.C
 module;
 #include <bspline/Core.h>
 #include <valarray>
 #include <vector>
 #include <memory>
 #include <iosfwd>
-export module BasisSet.Atom.BSpline_IBS;
+export module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 

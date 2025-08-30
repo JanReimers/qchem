@@ -10,7 +10,7 @@ import qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import qchem.BasisSet.Atom.Slater.RKB.BS;
 import qchem.BasisSet.Atom.Gaussian.NR.BS;
 import qchem.BasisSet.Atom.Slater.NR.BS;
-import qchem.BasisSet.Atom.Internal.l.BSplineBS;
+import qchem.BasisSet.Atom.BSpline.NR.BS;
 
 namespace BasisSetAtom
 {

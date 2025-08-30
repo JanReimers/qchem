@@ -7,7 +7,7 @@ module;
 #include <iostream>
 using namespace bspline::operators; 
 using namespace bspline::integration; 
-module BasisSet.Atom.BSpline_IBS;
+module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.BasisSet.Atom.BSpline.SplineGrouper;
 import Common.Constants;

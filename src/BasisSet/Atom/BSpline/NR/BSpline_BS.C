@@ -1,10 +1,10 @@
-// File: BasisSet/Atom/l/BSpline_BS.C BSpline Basis Set for atoms.
+// File: BasisSet/Atom/BSpline/NR/BSpline_BS.C BSpline Basis Set for atoms.
 module;
 #include <vector>
-export module qchem.BasisSet.Atom.Internal.l.BSplineBS;
+export module qchem.BasisSet.Atom.BSpline.NR.BS;
 
-import BasisSet.Atom.BSpline_IBS;
-import BasisSet.Atom.BSpline_BS;
+import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
+import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;

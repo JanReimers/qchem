@@ -5,7 +5,7 @@ module;
 #include <cmath>
 #include <vector>
 
-module qchem.BasisSet.Atom.Internal.l.BSplineBS;
+module qchem.BasisSet.Atom.BSpline.NR.BS;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 
