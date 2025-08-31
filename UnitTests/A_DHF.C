@@ -57,13 +57,12 @@ public:
 TEST_P(A_SLm_HF_ion,Multiple)
 {
     int Z=GetParam();
-    int N=9;
-    if (Z>12) N=14;
-    // if (Z>50) N=16;
-    //Init(N,1.0,1.0,GetLMax(Z));
+    int N=25;
+    if (Z>12) N=35;
+    if (Z>50) N=40;
     nlohmann::json js = {
         {"type",BasisSetAtom::Type::Slater},
-        {"N", N}, {"emin", Z/100.}, {"emax", Z*100.},
+        {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
     QchemTester::Init(1e-3,js);
    //  NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
@@ -71,7 +70,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
 }
 
-INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); //37,53
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); 
 
 
 class A_SLmj_DHF : public ::testing::TestWithParam<int>
