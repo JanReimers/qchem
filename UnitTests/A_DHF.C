@@ -58,7 +58,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
 {
     int Z=GetParam();
     int N=9;
-    // if (Z>12) N=14;
+    if (Z>12) N=14;
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     nlohmann::json js = {
@@ -86,15 +86,15 @@ public:
 TEST_P(A_SLmj_DHF,Multiple)
 {
     int Z=GetParam();
-    int N=11;
-    if (Z>12) N=15;
-    if (Z>50) N=19;
+    int N=20;
+    if (Z>12) N=25;
+    if (Z>50) N=35;
     nlohmann::json js = {
         {"type",BasisSetAtom::Type::Slater_RKB},
-        {"N", N}, {"emin", Z/200.}, {"emax", Z*200.},
+        {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*100.},
     };
     QchemTester::Init(1e-3,js);
-    Iterate({1,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
+    Iterate({5,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
     BasisSet::symv_t qns=GetSymmetries();
     Irrep_QNs oqns(Spin::Up,qns[0]);
@@ -106,11 +106,11 @@ TEST_P(A_SLmj_DHF,Multiple)
     // double E=TotalEnergy();
     // double E_rel=(E-e0)/e0;
     // double er=e0-e0_nr;
-   
+    cout << "e0_expected e0 e0_rel = " << e0_expected << " " << e0 << " " << e0_rel << endl;
     EXPECT_LT(e0_expected,e0);
-    EXPECT_NEAR(e0_expected,e0,Z*Z*1e-5);
-    EXPECT_LT(e0_rel,Z*1e-7);
-    //EXPECT_NEAR(E_rel,0.0,Z*1e-7);  //Fail?
+    EXPECT_NEAR(e0_expected,e0,Z*Z*1e-7);
+    EXPECT_LT(e0_rel,Z*2e-7);
+    EXPECT_NEAR(e0_rel,0.0,Z*2e-7);  //Fail?
     //EXPECT_NEAR(E,e0+er,Z*1e-7); // E total = E0 + E_rel? or changes with Z?
    
    

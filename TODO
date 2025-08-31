@@ -3,28 +3,6 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
-    Done: -BasisSet::Atom  reorg
-        Option 1
-            BasisSet::Atom::NR   ::{CommonNR,SL,SG,BS}
-            BasisSet::Atom::Dirac::{CommonDirac,SL,SG,BS}
-        Option 2
-            BasisSet::Atom::SL::{CommonSL,NR,Dirac}
-            BasisSet::Atom::SG::{CommonSG,NR,Dirac}
-            BasisSet::Atom::BS::{CommonBS,NR,Dirac}
-        How big are those Common chunks? SL/SG/BS common chunks are bigger.
-        Let's go with 2.
-    Done: -Clean up Atoml namespace.
-        -using NR=NonRelativistc
-        -We have {Atom}X{NR,RKB}X{SL,SG,BS}
-        -There is some commonality between {SL,SG,BS}
-        -There is some commonality between {NR,RKB}
-            RKBL_IBS = NR_IBS for all {SL,SG,BS}
-        -What distinguishes {SL,SG,BS}
-            1) IE_{rimtatives}
-            2) op(r)
-            3) Exponent general (not needed)
-            4) ns calculation
-            5) Creates the Rk tool for HF ERIs
 
     -Maybe: Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
         -Or: Function forward and pass lambdas to base class.
@@ -536,6 +514,28 @@ Priority 3:
 
 
 
+    Done: -BasisSet::Atom  reorg
+        Option 1
+            BasisSet::Atom::NR   ::{CommonNR,SL,SG,BS}
+            BasisSet::Atom::Dirac::{CommonDirac,SL,SG,BS}
+        Option 2
+            BasisSet::Atom::SL::{CommonSL,NR,Dirac}
+            BasisSet::Atom::SG::{CommonSG,NR,Dirac}
+            BasisSet::Atom::BS::{CommonBS,NR,Dirac}
+        How big are those Common chunks? SL/SG/BS common chunks are bigger.
+        Let's go with 2.
+    Done: -Clean up Atoml namespace.
+        -using NR=NonRelativistc
+        -We have {Atom}X{NR,RKB}X{SL,SG,BS}
+        -There is some commonality between {SL,SG,BS}
+        -There is some commonality between {NR,RKB}
+            RKBL_IBS = NR_IBS for all {SL,SG,BS}
+        -What distinguishes {SL,SG,BS}
+            1) IE_{rimtatives}
+            2) op(r)
+            3) Exponent general (not needed)
+            4) ns calculation
+            5) Creates the Rk tool for HF ERIs
 
     Done: -Stop using Vector for exponent lists.
     Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.

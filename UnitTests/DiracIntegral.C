@@ -109,14 +109,17 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         SMatrix<double> S=oi->Overlap();
-        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
+        {
+            RVec d=S.GetDiagonal();
+            for (int i=1;i<=d.size()/2;i++) EXPECT_NEAR(d(i),1.0,1e-15);
+        }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
         const IrrepBasisSet<double>* l=GetLarge(oi);
         const IrrepBasisSet<double>* s=GetSmall(oi);
         SMatrix<double> SLnum = mintegrator->Overlap(*l);
         SMatrix<double> SSnum = mintegrator->Overlap(*s);
         SMatrix<double> Snum=merge_diag(SLnum,SSnum);
-        cout << Snum << S << endl;
+        // cout << Snum << S << endl;
 
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
     }

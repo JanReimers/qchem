@@ -93,7 +93,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
     EnergyBreakdown eb;
 
     for (itsIterationCount=1; 
-        itsIterationCount   < ipar.NMaxIter && ( 
+        itsIterationCount   <= ipar.NMaxIter && ( 
         ChargeDensityChange > ipar.MinDeltaRo ||
         fabs(dE)            > ipar.MinDelE ||
         Error               > ipar.MinError );
@@ -146,8 +146,8 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         << "Eex      : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
         cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(nprec) << eb.GetVirial() << "  ";
         if (eb.Exc!=0.0)
-            cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc << endl;
-
+            cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc ;
+        cout << endl;
         DisplayEigen();
     }
 
