@@ -19,7 +19,7 @@ public:
 export class Cache4
 {
 public:
-    ~Cache4();
+    virtual ~Cache4();
     void       loop_1(size_t i1) const;
     void       loop_2(size_t i2) const;
     void       loop_3(size_t i3) const;

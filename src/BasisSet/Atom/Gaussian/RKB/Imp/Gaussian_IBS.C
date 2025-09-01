@@ -10,7 +10,7 @@ import qchem.Symmetry.Okmj;
 
 using std::endl;
 
-namespace Atom
+namespace AtomBS
 {
 namespace Gaussian_RKB
 {
@@ -40,8 +40,8 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 (const DB_cache<T>* db,const ds_t& exponents,int kappa)
     : Gaussian_IBS(exponents,Omega_k_Sym::l(kappa))
-    , Atom::IrrepBasisSet(this,new Omega_k_Sym(kappa))
-    , Atom::Orbital_RKBL_IBS<T>(db,this,kappa)
+    , AtomBS::IrrepBasisSet(this,new Omega_k_Sym(kappa))
+    , AtomBS::Orbital_RKBL_IBS<T>(db,this,kappa)
 {};
 
 
@@ -52,8 +52,8 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 //
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db, const ds_t& exponents,int kappa)
     : Gaussian_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa))
-    , Atom::IrrepBasisSet(this,new Omega_k_Sym(-kappa))
-    , Atom::Orbital_RKBS_IBS<T>(db,this,kappa)
+    , AtomBS::IrrepBasisSet(this,new Omega_k_Sym(-kappa))
+    , AtomBS::Orbital_RKBS_IBS<T>(db,this,kappa)
 {
     
 }

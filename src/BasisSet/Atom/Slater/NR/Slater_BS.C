@@ -8,16 +8,16 @@ import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
 
-export namespace Atom
+export namespace AtomBS
 {
 namespace Slater
 {
 class Orbital_IBS
     : public Slater_IBS
-    , public Atom::IrrepBasisSet
-    , public Atom::Orbital_HF_IBS <double>
-    , public Atom::Orbital_IBS    <double>
-    , public Atom::Orbital_DFT_IBS<double>
+    , public AtomBS::IrrepBasisSet
+    , public AtomBS::Orbital_HF_IBS <double>
+    , public AtomBS::Orbital_IBS    <double>
+    , public AtomBS::Orbital_DFT_IBS<double>
 {
     using ds_t=std::valarray<double>;
 public:
@@ -29,8 +29,8 @@ public:
 
 class Fit_IBS 
 : public Slater_IBS
-, public Atom::IrrepBasisSet
-, public Atom::Fit_IBS
+, public AtomBS::IrrepBasisSet
+, public AtomBS::Fit_IBS
 {
 public:
     Fit_IBS(const DB_cache<double>* db,const ds_t& exponents, size_t L);

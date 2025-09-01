@@ -10,7 +10,7 @@ import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 
 
-namespace Atom
+namespace AtomBS
 {
 namespace BSpline
 {
@@ -20,19 +20,19 @@ namespace BSpline
 //
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db ,size_t N, double rmin, double rmax, size_t L)
     : BSpline_IBS<K>(N,rmin,rmax,L)
-    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
-    , Atom::Orbital_HF_IBS <double>(db)
-    , Atom::Orbital_IBS    <double>(db,this)
-    , Atom::Orbital_DFT_IBS<double>(db,this)
+    , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
+    , AtomBS::Orbital_HF_IBS <double>(db)
+    , AtomBS::Orbital_IBS    <double>(db,this)
+    , AtomBS::Orbital_DFT_IBS<double>(db,this)
 {
 };
 
 template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
     : BSpline_IBS<K>(N,rmin,rmax,L,ml)
-    , Atom::IrrepBasisSet(this,new Ylm_Sym(L,ml))
-    , Atom::Orbital_HF_IBS <double>(db)
-    , Atom::Orbital_IBS    <double>(db,this)
-    , Atom::Orbital_DFT_IBS<double>(db,this)
+    , AtomBS::IrrepBasisSet(this,new Ylm_Sym(L,ml))
+    , AtomBS::Orbital_HF_IBS <double>(db)
+    , AtomBS::Orbital_IBS    <double>(db,this)
+    , AtomBS::Orbital_DFT_IBS<double>(db,this)
 {
 };
 
@@ -53,8 +53,8 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
     : BSpline_IBS<K>(N,rmin,rmax,L)
-    , Atom::IrrepBasisSet(this,new Yl_Sym(L))
-    , Atom::Fit_IBS(db,this)
+    , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
+    , AtomBS::Fit_IBS(db,this)
 {};
 
 #define INSTANCEk(k) template class Orbital_IBS<k>;

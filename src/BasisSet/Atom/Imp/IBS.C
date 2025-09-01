@@ -3,7 +3,7 @@ module;
 #include <iostream>
 module qchem.BasisSet.Atom.IBS;
 
-namespace Atom
+namespace AtomBS
 {
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {

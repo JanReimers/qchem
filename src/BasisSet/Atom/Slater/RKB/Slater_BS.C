@@ -12,7 +12,7 @@ import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
 
-namespace Atom
+namespace AtomBS
 {
 namespace Slater_RKB
 {
@@ -41,8 +41,8 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS
     : Slater_IBS
-    , public Atom::IrrepBasisSet //Use NR slater basis
-    , public Atom::Orbital_RKBL_IBS<T>
+    , public AtomBS::IrrepBasisSet //Use NR slater basis
+    , public AtomBS::Orbital_RKBL_IBS<T>
 {
     using ds_t=std::valarray<T>;
 public:
@@ -51,8 +51,8 @@ public:
 
 export template <class T> class Orbital_RKBS_IBS
     : public Slater_RKBS_IBS
-    , public Atom::IrrepBasisSet
-    , public Atom::Orbital_RKBS_IBS<T> 
+    , public AtomBS::IrrepBasisSet
+    , public AtomBS::Orbital_RKBS_IBS<T> 
 {
     using Orbital_RKBS_IBS_Common<T>::large;
     using ds_t=std::valarray<T>;
@@ -73,5 +73,5 @@ public:
     
 };
 
-}} //namespace Atom_kappa::Slater
+}} //namespace AtomBS_kappa::Slater
 

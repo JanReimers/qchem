@@ -6,7 +6,7 @@ import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.ExponentScaler;
 import qchem.Streamable;
 
-namespace Atom
+namespace AtomBS
 {
 namespace Slater_RKB
 {

@@ -6,7 +6,7 @@ module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
 import qchem.Streamable;
 
-namespace Atom
+namespace AtomBS
 {
 namespace Gaussian_RKB
 {

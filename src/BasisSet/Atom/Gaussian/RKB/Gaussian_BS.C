@@ -11,7 +11,7 @@ import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
 
-namespace Atom
+namespace AtomBS
 {
 namespace Gaussian_RKB
 { 
@@ -41,8 +41,8 @@ private:
 
 export template <class T> class Orbital_RKBL_IBS
     : public Gaussian_IBS
-    , public Atom::IrrepBasisSet //Use NR Gaussian basis
-    , public Atom::Orbital_RKBL_IBS<T>
+    , public AtomBS::IrrepBasisSet //Use NR Gaussian basis
+    , public AtomBS::Orbital_RKBL_IBS<T>
 {
     using ds_t=std::valarray<T>;
 public:
@@ -52,8 +52,8 @@ public:
 
 export template <class T> class Orbital_RKBS_IBS
     : public Gaussian_RKBS_IBS
-    , public Atom::IrrepBasisSet //Use NR Gaussian basis
-    , public Atom::Orbital_RKBS_IBS<T> 
+    , public AtomBS::IrrepBasisSet //Use NR Gaussian basis
+    , public AtomBS::Orbital_RKBS_IBS<T> 
 {
     using Orbital_RKBS_IBS_Common<T>::large;
     using ds_t=std::valarray<T>;

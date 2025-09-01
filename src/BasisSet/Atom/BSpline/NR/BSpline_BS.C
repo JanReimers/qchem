@@ -9,16 +9,16 @@ import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
 
-export namespace Atom
+export namespace AtomBS
 {
 namespace BSpline
 {
 template <size_t K> class Orbital_IBS
     : public BSpline_IBS<K>
-    , public Atom::IrrepBasisSet
-    , public Atom::Orbital_HF_IBS <double>
-    , public Atom::Orbital_IBS    <double>
-    , public Atom::Orbital_DFT_IBS<double>
+    , public AtomBS::IrrepBasisSet
+    , public AtomBS::Orbital_HF_IBS <double>
+    , public AtomBS::Orbital_IBS    <double>
+    , public AtomBS::Orbital_DFT_IBS<double>
 {
 public:
     Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
@@ -32,8 +32,8 @@ public:
 
 template <size_t K> class Fit_IBS 
 : public BSpline_IBS<K>
-, public Atom::IrrepBasisSet
-, public Atom::Fit_IBS
+, public AtomBS::IrrepBasisSet
+, public AtomBS::Fit_IBS
 {
 public:
     Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L);
@@ -54,5 +54,5 @@ private:
     void Insert(Orbital_IBS<K>*);
 };
 
-}} //namespace Atoml::BSpline
+}} //namespace AtomBSl::BSpline
 

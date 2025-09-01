@@ -5,7 +5,7 @@ export module qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;
 
-export namespace Atom
+export namespace AtomBS
 {
 
 class IrrepBasisSet

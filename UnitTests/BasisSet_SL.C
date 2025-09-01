@@ -150,7 +150,7 @@ public:
     {
         for (size_t l=0;l<=LMax;l++)
             Insert(new Slater_IBS(es,l)); 
-        bs=new Atoml::Slater::BasisSet(convert(es),LMax);
+        bs=new AtomBS::Slater::BasisSet(es,LMax);
     }
     
     static double R0(double a, double b, int la, int lb);
@@ -271,7 +271,7 @@ public:
     {
         for (size_t l=0;l<=LMax;l++)
             Insert(new Gaussian_IBS(es,l));    
-        bs=new Atoml::Gaussian::BasisSet(convert(es),LMax);
+        bs=new AtomBS::Gaussian::BasisSet(es,LMax);
     }
     static double R0(double a, double b, int la, int lb);
 };
