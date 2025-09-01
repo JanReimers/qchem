@@ -57,7 +57,7 @@ public:
 TEST_P(A_SLm_HF_ion,Multiple)
 {
     int Z=GetParam();
-    int N=25;
+    int N=21;
     if (Z>12) N=35;
     if (Z>50) N=40;
     nlohmann::json js = {
@@ -66,7 +66,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     };
     QchemTester::Init(1e-3,js);
    //  NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
+    Iterate({2,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
     EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
 }
 
@@ -88,6 +88,8 @@ TEST_P(A_SLmj_DHF,Multiple)
     int N=20;
     if (Z>12) N=25;
     if (Z>50) N=35;
+    // DHF wave functions have a weak singulatory at the origin.  We need very large exponents in order
+    // mock that singularity.  Hence Z*Z*100 for emax.
     nlohmann::json js = {
         {"type",BasisSetAtom::Type::Slater_RKB},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*100.},
@@ -161,7 +163,7 @@ TEST_P(A_SG_DHF,Multiple)
     };
     QchemTester::Init(1e-3,js);
     // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
-    Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
+    Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
 
     BasisSet::symv_t qns=GetSymmetries();
     cout << "QN=" << *qns[0] << endl;

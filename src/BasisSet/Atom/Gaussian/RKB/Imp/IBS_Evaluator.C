@@ -5,17 +5,11 @@ module;
 #include <cassert>
 module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import qchem.BasisSet.Atom.GaussianIntegrals;
+import Common.Constants;
 
 Gaussian_IBS::ds_t Gaussian_RKBS_IBS::norms() const
 {
-    size_t N=es.size();
-    ds_t ret(N);
-    for (size_t i=0;i<N;i++) 
-    {
-        double k=Grad2(es[i],es[i],l,l) + l*(l+1)*Inv_r2(es[i],es[i],2*l);
-        ret[i]=1.0/sqrt(k); 
-    }
-    return ret;
+    return Gaussian_IBS::norms()/(2*c_light);
 }
 
 double Gaussian_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
