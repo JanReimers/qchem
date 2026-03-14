@@ -20,7 +20,7 @@ set(CXX_SCAN_FOR_MODULES on)
 add_subdirectory(src)
 
 # -Wno-unknown-pragmas
-target_compile_options(qchem PRIVATE -Wall -Wno-unknown-pragmas 
+target_compile_options(qchem PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 >
 )

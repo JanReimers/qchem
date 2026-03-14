@@ -32,7 +32,7 @@ target_compile_definitions(qcAtom_BS PRIVATE
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )
-target_compile_options(qcAtom_BS PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
+target_compile_options(qcAtom_BS PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )

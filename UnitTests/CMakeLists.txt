@@ -16,7 +16,7 @@ add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C Electro
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
-target_compile_options(UTMain PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
+target_compile_options(UTMain PRIVATE -Wall 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2>
 )
@@ -39,7 +39,7 @@ add_executable(UTCluster UTCluster.C)
 target_link_libraries(UTCluster PUBLIC qcCluster gtest)
 set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
 # BasisSet module
-add_executable(UTBasisSet UTBasisSet.C BasisSet_SL.C)
+add_executable(UTBasisSet UTBasisSet.C BasisSet_Atom.C)
 target_link_libraries(UTBasisSet PUBLIC qcAtom_BS wignerSymbols gtest) #qcLattice_BS
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
 
