@@ -9,36 +9,22 @@ export import qchem.Types;
 
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
-// import qchem.BasisSet.Internal.IEClient;
-import qchem.BasisSet.Lattice.Internal.IEClient;
+import qchem.BasisSet.Lattice.Internal.IBS_Evaluator;
 
 namespace PlaneWave
 {
 
-class BasisFunction
-    : public Complex_BF
-{
-public:
-    BasisFunction(const RVec3& _k,double _norm) : k(_k), norm(_norm) {};
-   
-    virtual std::ostream&  Write(std::ostream&   ) const;
-
-    virtual dcmplx  operator()(const RVec3&) const;
-    virtual CVec3   Gradient  (const RVec3&) const;
-
-
-private:
-    RVec3 k; //Wave vector, k+G.
-    double norm;
-};
 
 class IrrepBasisSet
-        : public virtual Real_IBS,
-          public IBS_Common,
-          public IrrepIEClient
+        : public virtual Complex_IBS
+        , public IrrepBasisSet_Common<dcmplx>
+        , public IBS_Evaluator
 {
 public:
-    IrrepBasisSet(IVec3 N, RVec3 k, const std::vector<IVec3>& Gs,double V);
+    IrrepBasisSet(IVec3 N, RVec3 k, const std::valarray<IVec3>& Gs,double V);
+    virtual size_t size() const {return IBS_Evaluator::size();}
+    virtual size_t GetNumFunctions() const {return size();}
+    virtual const SMatrix<dcmplx>& Overlap() const;
     virtual std::ostream& Write(std::ostream&) const;
 
 };
