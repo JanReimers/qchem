@@ -38,6 +38,8 @@ public:
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
 
+    const spline_t& operator[](int index) const {return splines[index];}
+
 protected:
     friend class BSplineTests;
     std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax);

@@ -59,7 +59,7 @@ public:
 
     static const spline_t& GetSpline(const BSpline_IBS<K>* eval,size_t index)
     {
-        return eval->splines[index];
+        return (*eval)[index];
     }
 
     std::vector<double> MakeLogKnots(double rmin, double rmax, size_t SPLINE_ORDER, size_t numberOfGridPoints);

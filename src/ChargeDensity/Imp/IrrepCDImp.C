@@ -42,7 +42,7 @@ template <> bool IrrepCD<double>::IsZero() const
     return Max(fabs(itsDensityMatrix))==0.0;
 }
 
-template <> DM_CD::SMat IrrepCD<double>::ZeroM(size_t N) const
+template <> SMatrix<double> IrrepCD<double>::ZeroM(size_t N) const
 {
     SMatrix<double> S(N);
     Fill(S,0.0);
@@ -59,7 +59,7 @@ template <> RVec IrrepCD<double>::ZeroV(size_t N) const
 //
 //  Total energy terms for a charge density.
 //
-template <> DM_CD::SMat IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
+template <> SMatrix<double> IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
@@ -67,7 +67,7 @@ template <> DM_CD::SMat IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<doubl
     return bs_ab->Direct(itsDensityMatrix,bs_cd);
 }
 
-template <> DM_CD::SMat IrrepCD<double>::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
+template <> SMatrix<double> IrrepCD<double>::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
 {
     if (IsZero()) return ZeroM(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
