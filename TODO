@@ -3,15 +3,28 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -Blaze:
+	-Add as submodule
+	-Make oml->blaze, blaze->oml conversion functions.
+	-Test supermatrix SMat<SMat<double>>
+	-Make a blaze version of LASolver.
+		oml->blaze Conversions inside
+		Put blaze in the interface
+	-Start working outwards.
+	
+    	
 
+    -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
+        In the long run we need ween off oml in preparation for Blaze for linear algebra.  (exp templates are not the right solution)
     -Maybe: Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
         -Or: Function forward and pass lambdas to base class.
 
 
     DHF/Dirac: Factor of 2 problem
-        -We need to stop using a normalized small sector
+        Done: -We need to stop using a normalized small sector
             f=1/(2c) * (d/dr+(kappa+1)/r)*g
             where g is normalized and f is *not*.
+            Still get the same wrong results.
         -Once this is done the need for cross kinetic integrals vanishes
             Just use the RKBL kinetic integrals.
     -Move DiracIntegral tests over to UTBasisSet.
