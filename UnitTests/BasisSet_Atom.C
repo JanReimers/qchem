@@ -1,4 +1,4 @@
-// File: UnitTests/BasisSet_SL.C  unit test the Slater_IBS Evaluator
+// File: UnitTests/BasisSet_Atom.C  Unit test the Atom IBS Evaluators
 #include "gtest/gtest.h"
 #include <iostream>
 #include <cmath>
