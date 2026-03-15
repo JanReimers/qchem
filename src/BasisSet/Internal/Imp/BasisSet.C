@@ -7,6 +7,7 @@ import qchem.LAParams;
 module qchem.BasisSet.Internal.Common;
 import qchem.stl_io;
 import qchem.IrrepBasisSet;
+import qchem.Streamable;
 
 void BS_Common::Insert(bs_t* bs)
 {

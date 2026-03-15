@@ -2,13 +2,13 @@
 module;
 #include <iomanip>
 #include <iostream>
-import qchem.SCFAccelerator;
 #include "tabulate/table.hpp"
 using namespace tabulate;
 
 extern Color l_colors[];
 
 module qchem.WaveFunction.Internal.UnPolarizedWF;
+import qchem.SCFAccelerator;
 import qchem.Symmetry;
 import qchem.Streamable;
 

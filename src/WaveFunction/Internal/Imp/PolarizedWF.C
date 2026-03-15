@@ -4,17 +4,15 @@ module;
 #include <iostream>
 #include <iomanip>
 #include "tabulate/table.hpp"
-import qchem.SCFAccelerator;
+
 using namespace tabulate;
 
 Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
 
 module qchem.WaveFunction.Internal.PolarizedWF;
-
-// import qchem.ChargeDensity;
+import qchem.SCFAccelerator;
 import qchem.ChargeDensity.Factory;
-// import qchem.Symmetry;
-// import qchem.Streamable;
+import qchem.Streamable;
 
 using std::cout;
 using std::endl;

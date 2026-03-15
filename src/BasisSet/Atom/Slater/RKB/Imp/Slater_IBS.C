@@ -7,6 +7,7 @@ module;
 module qchem.BasisSet.Atom.Slater.RKB.BS;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.Symmetry.Okmj;
+import qchem.Streamable;
 
 namespace AtomBS
 {

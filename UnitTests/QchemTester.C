@@ -14,6 +14,7 @@ import qchem.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Streamable;
 
 PeriodicTable QchemTester::itsPT;
 

@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <iomanip>
 module qchem.EnergyLevel;
+import qchem.Streamable;
 
 EnergyLevel::EnergyLevel(const Orbital* o)
     : e(o->GetEigenEnergy()), occ(o->GetOccupation()), degen(o->GetDegeneracy()), qns(o->GetQNs())

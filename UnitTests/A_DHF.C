@@ -11,6 +11,7 @@ import qchem.Mesh;
 import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
+import qchem.Streamable;
 
 using std::cout;
 using std::endl;

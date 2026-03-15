@@ -8,6 +8,8 @@ import qchem.FittedFunction;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
+import qchem.LAParams;
+import qchem.Streamable;
 import oml;
 
 //---------------------------------------------------------------------

@@ -19,6 +19,7 @@ import qchem.Cluster;
 import qchem.Atom;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
+import qchem.Streamable;
 
 namespace PolarizedGaussian
 {

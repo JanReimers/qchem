@@ -7,6 +7,7 @@ module;
 module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Symmetry.Okmj;
+import qchem.Streamable;
 
 using std::endl;
 

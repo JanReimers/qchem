@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 import qchem.Factory;
 import qchem.BasisSet;
+import qchem.Streamable;
 using json = nlohmann::json;
 
 class jsonTests : public ::testing::Test

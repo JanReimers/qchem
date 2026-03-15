@@ -24,6 +24,7 @@ import qchem.Molecule;
 import qchem.Symmetry;
 import oml;
 import qchem.stl_io;
+import qchem.Streamable;
 
 using std::cout;
 using std::endl;

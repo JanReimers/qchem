@@ -5,6 +5,7 @@ module;
 #include <memory>
 module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.ChargeDensity;
+import qchem.Streamable;
 
 LDAVxc::LDAVxc()
     : itsExchangeFunctional  (0)

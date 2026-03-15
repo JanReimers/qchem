@@ -10,6 +10,7 @@ module qchem.Lattice;
 
 import qchem.Molecule;
 import qchem.Cluster.MoleculeMesh;
+import qchem.Streamable;
 
 //--------------------------------------------------------------------------
 //

@@ -6,6 +6,7 @@ module;
 import qchem.EnergyLevel;
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Symmetry;
+import qchem.Streamable;
 
 OrbitalImp::OrbitalImp(double e, const Orbital_QNs& qns)
     : itsEigenEnergy(e)

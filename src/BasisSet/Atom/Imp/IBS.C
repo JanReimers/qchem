@@ -2,6 +2,7 @@
 module;
 #include <iostream>
 module qchem.BasisSet.Atom.IBS;
+import qchem.Streamable;
 
 namespace AtomBS
 {
