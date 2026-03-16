@@ -1,7 +1,6 @@
 // File: ScalarFunction.C  Mixin interface for real space functions.
 module;
-namespace std {template <class T> class valarray;}
-
+#include <valarray>
 export module qchem.ScalarFunction;
 export import qchem.Mesh;
 export import oml;

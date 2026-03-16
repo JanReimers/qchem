@@ -2,11 +2,11 @@
 module;
 #include <cassert>
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 module qchem.BasisSet.Molecule.Factory;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PolarizedGaussian;
+using json = nlohmann::json;
 
 namespace BasisSetMolecule
 {

@@ -1,6 +1,6 @@
 // File: VectorFunction.C  Mixin interface for real space vector functions.
 module;
-namespace std {template <class T> class valarray;}
+#include <valarray>
 export module qchem.VectorFunction;
 export import qchem.Mesh;
 export import oml;

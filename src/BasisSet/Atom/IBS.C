@@ -1,6 +1,9 @@
 // File: BasisSet/Atom/IBS.C Atom specific irrep basis sets.
 module;
 #include <iosfwd>
+#include <memory>
+#include "forward.H"
+
 export module qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;

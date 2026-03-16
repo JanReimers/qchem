@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
 module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
 import qchem.BasisSet.Atom.Gaussian.RKB.BS;
@@ -11,6 +10,7 @@ import qchem.BasisSet.Atom.Slater.RKB.BS;
 import qchem.BasisSet.Atom.Gaussian.NR.BS;
 import qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.BasisSet.Atom.BSpline.NR.BS;
+using json = nlohmann::json;
 
 namespace BasisSetAtom
 {

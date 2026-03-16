@@ -1,7 +1,7 @@
 // File: IBS_Common.C  Irrep Basis set common implementation.
 module;
 #include <cassert>
-class DiracIntegralTests;
+#include "forward.H"
 
 export module qchem.BasisSet.Internal.IrrepBasisSet;
 export import qchem.IrrepBasisSet;

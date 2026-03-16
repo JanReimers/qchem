@@ -3,10 +3,11 @@ module;
 #include <vector>
 #include <map>
 #include <memory>
-import qchem.SCFAccelerator;
+#include "tabulate/table.hpp"
 export module qchem.WaveFunction.Internal.CompositeWF;
 export import qchem.WaveFunction;
 export import qchem.BasisSet;
+import qchem.SCFAccelerator;
 import qchem.WaveFunction.Internal.IrrepWF;
 
 export class CompositeWF
@@ -28,6 +29,7 @@ public:
 
 protected:
     void MakeIrrepWFs(Spin);
+    static tabulate::Color l_colors[];  //Colour enums for s,p,d,f orbitals in display tables.
 
 private:
     typedef std::unique_ptr<IrrepWF> uiwf_t;

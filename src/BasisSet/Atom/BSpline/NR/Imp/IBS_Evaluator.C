@@ -5,13 +5,13 @@ module;
 #include <cmath>
 #include <cassert>
 #include <iostream>
-using namespace bspline::operators; 
-using namespace bspline::integration; 
 module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.BasisSet.Atom.BSpline.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
+using namespace bspline::operators; 
+using namespace bspline::integration; 
 
 template<size_t K> using spline_t = bspline::Spline<double, K>;
 

@@ -2,7 +2,7 @@
 module;
 #include <vector>
 #include <memory>
-class ElectronConfigurationTests;
+#include "forward.H"
 
 export module qchem.Symmetry.AtomEC;
 import qchem.Symmetry;

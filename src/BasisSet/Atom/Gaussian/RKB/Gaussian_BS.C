@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 #include <valarray>
-class DiracIntegralTests;
+#include "forward.H"
 export module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator; //Used for large sector
 import BasisSet.Atom.Gaussian.RKB.IBS_EValuator;

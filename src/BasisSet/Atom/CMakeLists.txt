@@ -27,6 +27,7 @@ target_include_directories(qcAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/src
 )
 target_compile_definitions(qcAtom_BS PRIVATE 
     $<$<CONFIG:Debug>:-DDEBUG>

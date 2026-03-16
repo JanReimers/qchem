@@ -1,9 +1,11 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
   Imp/BasisSet.C
+  Imp/IrrepBasisSet.C
   Internal/Imp/HeapDB.C
   Internal/Imp/Cache4.C
   Internal/Imp/ERI4.C
+  Internal/Imp/ERI4T.C
   Internal/Imp/BasisSet.C
   Internal/Imp/IrrepBasisSet.C
   Internal/Imp/Fit_IBS_Common.C
@@ -20,6 +22,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_DHF_IBS.C
   Orbital_1E_IBS.C
   Internal/ERI3.C
+  Internal/ERI4T.C
   Internal/ERI4.C
   Internal/Cache4.C
   Internal/IEClient.C
@@ -29,7 +32,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/HeapDB.C
 
 )
-
+target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcBasisSet PUBLIC qcLASolver  qcSymmetry qcCluster qcMesh qcCommon) 
 

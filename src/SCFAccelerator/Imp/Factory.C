@@ -2,9 +2,9 @@
 module;
 #include <cassert>
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 module qchem.SCFAccelerator.Factory;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
+using json = nlohmann::json;
 
 namespace SCFAcceleratorF
 {

@@ -2,12 +2,18 @@
 module;
 #include <cassert>
 #include <memory>
-import qchem.SCFAccelerator;
+#include "tabulate/table.hpp"
+
 module qchem.WaveFunction.Internal.CompositeWF;
+import qchem.SCFAccelerator;
 import qchem.BasisSet;
 import qchem.IrrepBasisSet;
 import qchem.CompositeCD;
 import qchem.Symmetry.ElectronConfiguration;
+
+using namespace tabulate;
+Color CompositeWF::l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
+
 
 CompositeWF::CompositeWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)

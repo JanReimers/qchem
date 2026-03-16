@@ -7,9 +7,9 @@ module;
 #include <map>
 #include <bspline/Core.h>
 
+module qchem.Basisset.Atom.BSpline.GLQuadrature;
 using std::cout;
 using std::endl;
-module qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 // see gauleg.f 
 extern "C"

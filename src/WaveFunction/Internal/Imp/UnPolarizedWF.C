@@ -3,14 +3,13 @@ module;
 #include <iomanip>
 #include <iostream>
 #include "tabulate/table.hpp"
-using namespace tabulate;
-
-extern Color l_colors[];
 
 module qchem.WaveFunction.Internal.UnPolarizedWF;
 import qchem.SCFAccelerator;
 import qchem.Symmetry;
 import qchem.Streamable;
+
+using namespace tabulate;
 
 UnPolarizedWF::UnPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
     : CompositeWF(bs,ec,acc)
@@ -41,7 +40,7 @@ void UnPolarizedWF::DisplayEigen() const
         eigen_table.add_row(rs);
         // Row formatting
         size_t n=eigen_table.size()-1;
-        eigen_table[n].format().font_color(l_colors[l]);
+        eigen_table[n].format().font_color(CompositeWF::l_colors[l]);
     }
     // Final table formatting.
     size_t N=eigen_table.size();

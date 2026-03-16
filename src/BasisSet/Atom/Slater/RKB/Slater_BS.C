@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 #include <valarray>
-class DiracIntegralTests;
+#include "forward.H"
 
 export module qchem.BasisSet.Atom.Slater.RKB.BS;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator; //Used for large sector
