@@ -22,3 +22,6 @@
 [submodule "submodules/json"]
 	path = submodules/json
 	url = https://github.com/nlohmann/json
+[submodule "submodules/blaze"]
+	path = submodules/blaze
+	url = https://github.com/live-clones/blaze
