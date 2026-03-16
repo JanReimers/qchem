@@ -9,6 +9,8 @@ export import qchem.BasisSet.Internal.ERI4;
 export class BS_Evaluator : public Cache4
 {
 public:
+    virtual ~BS_Evaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created.
+
     virtual void Register(IBS_Evaluator*)=0; //Used for grouping all unique exponents or splines.
     virtual RVec loop_4_direct  (size_t id, size_t la, size_t lc) const=0; //Return a vector of R[k] values 
     virtual RVec loop_4_exchange(size_t id, size_t la, size_t lc) const=0; //Return a vector of R[k] values 

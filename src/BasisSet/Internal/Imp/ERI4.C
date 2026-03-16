@@ -2,23 +2,6 @@ module;
 #include <cassert>
 module qchem.BasisSet.Internal.ERI4;
 
-template <class T,template<class> class M> ERI4T<T,M>::ERI4T(size_t Nab, size_t Ncd) : itsData(Nab,Nab)
-{
-    M<T> Jcd(Ncd,Ncd);
-    Fill(Jcd,0.0);
-    Fill(itsData,Jcd);
-}
-
-template <class T,template<class> class M> size_t ERI4T<T,M>::size() const
-{
-    size_t Nab=itsData.size();
-    size_t Ncd=itsData(1,1).size();
-    return Nab*Ncd;
-}
-
-template class ERI4T<double,SMatrix>;
-template class ERI4T<double, Matrix>;
-
 ERI4::SMat MatMul(const ERI4& gabcd,const ERI4::SMat& Scd)
 {
     //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
@@ -72,4 +55,3 @@ double ERI4::contract(const ERI4::SMat& A,const ERI4::SMat& B)
             ret+=2*A(ia,ib)*B(ia,ib);
     return ret;         
 }
-

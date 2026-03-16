@@ -3,11 +3,21 @@ module;
 #include <tuple>
 #include <iostream>
 #include <vector>
+#include <memory>
+#include <cassert>
+
 import qchem.LAParams;
 import qchem.LASolver;
 
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import oml;
+
+template <class T> IrrepBasisSet_Common<T>::sym_t IrrepBasisSet_Common<T>::GetSymmetry() const
+    {
+        assert(itsSymmetry);
+        return itsSymmetry;
+    }
+
 
 LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
 //-----------------------------------------------------------------------------

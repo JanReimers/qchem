@@ -24,7 +24,7 @@ public:
     Block(                         );
     Block(RadialFunction*, size_t  );
     Block(const Block&);
-    ~Block(                         );
+    ~Block(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
     void Add(const Polarization& p)
     {

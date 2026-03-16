@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include <vector>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianH3;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import oml;
 

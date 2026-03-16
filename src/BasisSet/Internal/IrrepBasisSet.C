@@ -35,12 +35,7 @@ public:
     {
         assert(itsSymmetry);
     };
-
-    virtual sym_t   GetSymmetry() const
-    {
-        assert(itsSymmetry);
-        return itsSymmetry;
-    }
+    virtual sym_t GetSymmetry() const;
 
     using UniqueIDImp::GetID;
 

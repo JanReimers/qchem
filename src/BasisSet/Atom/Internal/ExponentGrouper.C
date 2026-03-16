@@ -26,6 +26,7 @@ protected:
 export class ExponentGrouper : public Grouper
 {
 public:
+    ~ExponentGrouper() {}; //g++ 15.2 BUG compiler generated version will not instance std::map::~map()
     //! Returns the unique (across all Irrep basis sets) index for this exponent.
     size_t Insert(double exponent,size_t l); 
     //! Linear array of unique exponents.

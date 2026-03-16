@@ -1,4 +1,4 @@
-// File: Irrep_BS.C  Interface for an Irrep Basis Set
+// File: BasisSet/IrrepBasisSet.C  Interface for an Irrep Basis Set
 module;
 #include <memory>
 
@@ -43,7 +43,8 @@ public:
     virtual sym_t  GetSymmetry() const=0;
     
     virtual size_t GetNumFunctions() const=0;
-    size_t GetVectorSize() const {return GetNumFunctions();}
+    // virtual size_t GetVectorSize() const {return GetNumFunctions();} //This is all we need in clang++ 20,21
+    virtual size_t GetVectorSize() const; // g++ 15.2 BUG very hard to instance this intermediary class.
 };
 
 export typedef IrrepBasisSet<double>    Real_IBS;

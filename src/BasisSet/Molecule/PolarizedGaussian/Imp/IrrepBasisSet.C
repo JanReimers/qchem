@@ -184,6 +184,8 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
 //    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
+IrrepBasisSet::~IrrepBasisSet() {};
+
 IrrepBasisSet::Vec     IrrepBasisSet::operator() (const RVec3& r) const
 {
     Vec ret(size());

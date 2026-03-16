@@ -3,10 +3,12 @@ module;
 #include <memory>
 #include <cmath>
 #include <cassert>
+#include <vector>
 
-namespace PolarizedGaussian{class Reader;}
+// namespace PolarizedGaussian{class Reader;} /* g++-15.2 BUG? not handling forward class decs as well as clang++ 20,21*/
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.Cluster;
 

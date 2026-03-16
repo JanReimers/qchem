@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <iomanip>
 #include <memory>
+#include <valarray>
 module qchem.BasisSet.Atom.Slater.RKB.BS;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.Symmetry.Okmj;

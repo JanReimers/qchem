@@ -7,7 +7,7 @@ import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 
 
 export class Gaussian_BS 
-    : public virtual BS_Evaluator
+    : public /* virtual g++-15.2 BUG failed to read compiled module cluster 32: Bad file data */ BS_Evaluator
 {
 public:
     virtual void Register(IBS_Evaluator *);

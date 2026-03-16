@@ -42,7 +42,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Radial/GData.C
     Radial/Common.C
     Radial/GaussianH3.C
-    Radial/ContractedGaussianH3.C
     Radial/GaussianRF.C
     Radial/ContractedGaussianRF.C
     Readers/Gaussian94.C

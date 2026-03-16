@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <valarray>
 module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Symmetry.Okmj;
