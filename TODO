@@ -4,14 +4,15 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
     -Blaze:
-	-Add as submodule
-	-Make oml->blaze, blaze->oml conversion functions.
-	-Test supermatrix SMat<SMat<double>>
-	-Make a blaze version of LASolver.
-		oml->blaze Conversions inside
-		Put blaze in the interface
-	-Start working outwards.
-	
+        -Add as submodule
+        -Make oml->blaze, blaze->oml conversion functions.
+        -Test supermatrix SMat<SMat<double>>
+        -Make a blaze version of LASolver.
+            oml->blaze Conversions inside
+            Put blaze in the interface
+        -Start working outwards.
+	-GetSymmetry() should return a const Symmetry* instead of a shared ptr instance?
+    -CopySymmetry() can return the shared ptr.
     	
 
     -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
