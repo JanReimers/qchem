@@ -8,6 +8,8 @@ enable_language (Fortran)
 enable_testing()
 include(CTest)
 include(GoogleTest)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/submodules/blaze/cmake )
+include(Blaze_Import)
 
 add_library(qchem)  
 target_sources(qchem PRIVATE )
@@ -28,11 +30,21 @@ target_compile_definitions(qchem PRIVATE
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry  omlm wignerSymbols lapack blas gtest )
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry omlm wignerSymbols lapack blas gtest )
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 add_subdirectory(./submodules/oml)
 add_subdirectory(./submodules/wignerSymbols)
 
-
+Blaze_Import(
+   QUIET
+   BLAS on
+   LAPACK on
+   #THREADING Boost
+   CACHE_SIZE auto
+   VECTORIZATION on
+   STORAGE_ORDER rowMajor
+   THRESHOLD_DMATDVECMULT 100000UL
+   THRESHOLD_SMP_DVECDVECADD 1000000UL
+)
 

@@ -26,6 +26,7 @@ target_link_options(UTMain PRIVATE )
 target_include_directories(UTMain PRIVATE 
     ../submodules/BSplinebasis/include
       ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+      ${PROJECT_SOURCE_DIR}/submodules/blaze
 
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon omlm)

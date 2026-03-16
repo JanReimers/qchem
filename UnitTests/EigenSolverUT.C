@@ -6,6 +6,8 @@
 #include <cmath>
 #include "nlohmann/json.hpp"
 #include "gtest/gtest.h"
+#include "blaze/Math.h" 
+
 import qchem.LAParams;
 import qchem.LASolver;
 
@@ -38,6 +40,15 @@ public:
         };
         bs=BasisSetAtom::Factory(js,75);
         bs->Set(lap);
+    }
+    void Set(int N)
+    {
+        if (bs) delete bs;
+        nlohmann::json js = {
+        {"type",BasisSetAtom::Type::Slater},
+        {"N", N}, {"emin", 0.1}, {"emax", 10.0},
+        };
+        bs=BasisSetAtom::Factory(js,75);
     }    
     
     int Lmax;
@@ -96,3 +107,20 @@ TEST_F(OrthogonalizeTests, Types)
         // cout << "--------------------------------------------------" << endl;
     }
 };
+
+TEST_F(OrthogonalizeTests, Blaze)
+{
+    typedef  blaze::SymmetricMatrix < blaze::DynamicMatrix <double ,blaze::columnMajor >> bSMat;
+    typedef  blaze::DynamicMatrix <double ,blaze::columnMajor > bMat;
+    Set(5);
+    for (auto ibs:bs->Iterate<Real_OIBS>())
+    {
+        size_t N=ibs->GetNumFunctions();
+        const SMatrix<double>& S=ibs->Overlap();
+        bSMat bS(N);
+        for (auto i:S.rows())
+            for (auto j:S.cols(i))
+                bS(i-1,j-1)=S(i,j);
+        cout << S << bS;
+    }
+}
