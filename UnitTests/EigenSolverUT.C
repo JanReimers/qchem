@@ -25,9 +25,7 @@ using std::endl;
 class OrthogonalizeTests : public ::testing::Test
 {
 public:
-    OrthogonalizeTests()
-    : Lmax(0) //Higher L gets easier to orthogonalize
-    , bs(0)
+    OrthogonalizeTests() : bs(0), Z(75)
     {
         StreamableObject::SetToPretty();
     }
@@ -38,7 +36,7 @@ public:
         {"type",BasisSetAtom::Type::Slater},
         {"N", N}, {"emin", 0.1}, {"emax", 10.0},
         };
-        bs=BasisSetAtom::Factory(js,75);
+        bs=BasisSetAtom::Factory(js,Z);
         bs->Set(lap);
     }
     void Set(int N)
@@ -48,11 +46,10 @@ public:
         {"type",BasisSetAtom::Type::Slater},
         {"N", N}, {"emin", 0.1}, {"emax", 10.0},
         };
-        bs=BasisSetAtom::Factory(js,75);
+        bs=BasisSetAtom::Factory(js,Z);
     }    
-    
-    int Lmax;
     BasisSet* bs;
+    int Z;
  };
 
  const double trunc_tol=1e-12;
@@ -108,19 +105,63 @@ TEST_F(OrthogonalizeTests, Types)
     }
 };
 
+typedef blaze::SymmetricMatrix < blaze::DynamicMatrix <double ,blaze::columnMajor >> bSMat;
+typedef blaze::DynamicMatrix <double ,blaze::columnMajor > bMat;
+typedef blaze::IdentityMatrix<double,blaze::columnMajor> bUnit;
+typedef blaze::UpperMatrix< bMat > bU;
+typedef blaze::LowerMatrix< bMat > bL;
+
+
+bSMat to_bSMat(const SMatrix<double>& S)
+{
+    size_t N=S.GetNumRows();
+    bSMat bS(N);
+    for (auto i:S.rows())
+            for (auto j:S.cols(i))
+                bS(i-1,j-1)=S(i,j);
+    return bS;
+}
+bMat to_bMat(const SMatrix<double>& S)
+{
+    size_t N=S.GetNumRows();
+    bMat bM(N,N);
+    for (auto i:S.rows())
+            for (auto j:S.cols(i))
+                bM(j-1,i-1)=bM(i-1,j-1)=S(i,j);
+    return bM;
+}
+
+void zeroLower(bMat& m)
+{
+    size_t N=m.rows();
+    for (size_t i=0;i<N;i++)
+            for (size_t j=i+1;j<N;j++)
+                m(j,i)=0;
+}
+
+
 TEST_F(OrthogonalizeTests, Blaze)
 {
-    typedef  blaze::SymmetricMatrix < blaze::DynamicMatrix <double ,blaze::columnMajor >> bSMat;
-    typedef  blaze::DynamicMatrix <double ,blaze::columnMajor > bMat;
-    Set(5);
+    
+    Set(10);
     for (auto ibs:bs->Iterate<Real_OIBS>())
     {
         size_t N=ibs->GetNumFunctions();
         const SMatrix<double>& S=ibs->Overlap();
-        bSMat bS(N);
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
-                bS(i-1,j-1)=S(i,j);
-        cout << S << bS;
+        bMat  bM=to_bMat(S);
+        
+        blaze::potrf( bM, 'U' );
+        blaze::trtri( bM, 'U', 'N' );
+        // blaze::potri( bM, 'U' ); gives the wrong answer!!
+        
+        zeroLower(bM);
+      
+        bU U(bM);
+        bL L(blaze::trans(U));
+        bSMat bS=to_bSMat(S);
+        double err=blaze::norm(L*bS*U-bUnit(N));
+        cout << "N=" << N << ", error=" << err << endl;
+        cout << "------------------------------------" << endl;
+        EXPECT_NEAR(err,0.0,N*N*N*1e-14);
     }
 }
