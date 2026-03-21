@@ -1,4 +1,14 @@
 {
+    "files.exclude": {
+  "**/.bin": true,
+  "**/.dd": true,
+  "**/.ddi": true,
+  "**/.ddi.d": true,
+  "**/.gcm": true,
+  "**/.pcm": true,
+  "**/.json": true,
+  "**/.ninja": true
+    },
     "files.associations": {
         "*.C": "cpp",
         "*.H": "cpp",
