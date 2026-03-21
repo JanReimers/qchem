@@ -24,4 +24,4 @@
 	url = https://github.com/nlohmann/json
 [submodule "submodules/blaze"]
 	path = submodules/blaze
-	url = https://github.com/live-clones/blaze
+	url = https://github.com/JanReimers/blaze
