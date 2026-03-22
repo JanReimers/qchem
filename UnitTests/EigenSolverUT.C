@@ -15,6 +15,9 @@ import qchem.LASolver_blaze;
 import qchem.Factory;
 import qchem.IrrepBasisSet;
 import qchem.BasisSet;
+import qchem.Molecule;
+import qchem.Hamiltonian.Factory;
+import qchem.Symmetry.Spin;
 import oml;
 using std::cout;
 using std::endl;
@@ -26,21 +29,16 @@ using std::endl;
 class OrthogonalizeTests : public ::testing::Test
 {
 public:
-    OrthogonalizeTests() : bs(0), Z(75)
+    OrthogonalizeTests() : bs(0)
     {
         StreamableObject::SetToPretty();
     }
-    void Set(int N, LAParams lap)
+    void Set(int N, int Z, LAParams lap)
     {
-        if (bs) delete bs;
-        nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Slater},
-        {"N", N}, {"emin", 0.1}, {"emax", 10.0},
-        };
-        bs=BasisSetAtom::Factory(js,Z);
+        Set(N,Z);
         bs->Set(lap);
     }
-    void Set(int N)
+    void Set(int N, int Z)
     {
         if (bs) delete bs;
         nlohmann::json js = {
@@ -50,7 +48,6 @@ public:
         bs=BasisSetAtom::Factory(js,Z);
     }    
     BasisSet* bs;
-    int Z;
  };
 
  const double trunc_tol=1e-12;
@@ -79,7 +76,7 @@ TEST_F(OrthogonalizeTests, Types)
     {
         for (auto lap:laps)
         {
-            Set(N,lap);
+            Set(N,75,lap);
             for (auto ibs:bs->Iterate<Real_OIBS>())
             {
                 LASolver<double>* las=ibs->CreateSolver();
@@ -108,6 +105,7 @@ TEST_F(OrthogonalizeTests, Types)
 
 typedef blaze::SymmetricMatrix < blaze::DynamicMatrix <double ,blaze::columnMajor >> bSMat;
 typedef blaze::DynamicMatrix <double ,blaze::columnMajor > bMat;
+typedef blaze::DynamicVector <double ,blaze::columnMajor > bVec;
 typedef blaze::IdentityMatrix<double,blaze::columnMajor> bUnit;
 typedef blaze::UpperMatrix< bMat > bU;
 typedef blaze::LowerMatrix< bMat > bL;
@@ -144,7 +142,7 @@ void zeroLower(bMat& m)
 TEST_F(OrthogonalizeTests, BlazeDemo)
 {
     
-    Set(10);
+    Set(10,75);
     for (auto ibs:bs->Iterate<Real_OIBS>())
     {
         size_t N=ibs->GetNumFunctions();
@@ -176,7 +174,7 @@ TEST_F(OrthogonalizeTests, Blaze)
     int NMax=21;
     for (int N=3;N<=NMax;N++)
     {
-        Set(N);
+        Set(N,75);
         for (auto ibs:bs->Iterate<Real_OIBS>())
         {
             for (auto ortho:orthos)
@@ -205,3 +203,25 @@ TEST_F(OrthogonalizeTests, Blaze)
         // cout << "--------------------------------------------------" << endl;
     }
 };
+
+TEST_F(OrthogonalizeTests, BlazeHydrogen)
+{
+    typedef std::shared_ptr<const Cluster> cl_t;
+    Cluster* cla=new Molecule();
+    cla->Insert(new Atom(1,0));
+    // cl_t cl(cla);
+    Hamiltonian* Ham=HamiltonianF::Factory(HamiltonianF::Model::E1,HamiltonianF::Pol::Polarized,cl_t(cla));
+    Set(21,1);
+    for (auto ibs:bs->Iterate<Real_OIBS>())
+    {
+        for (auto ortho:orthos)
+        {
+            LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol/10);
+            las->SetBasisOverlap(to_bSMat(ibs->Overlap()));
+            auto [U,e]=las->Solve(to_bSMat(Ham->GetMatrix(ibs,Spin::Down,0)));
+            cout << OrthStrs[ortho] << " " << *ibs->GetSymmetry() << " " << e[0]+0.5 << " " << e[1]+0.125 << endl;
+            EXPECT_NEAR(e[0],-0.5  ,4e-14);
+            EXPECT_NEAR(e[1],-0.125,8e-13);
+        }
+    }
+}
