@@ -4,6 +4,7 @@ export module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 export import qchem.EnergyLevel;
 export import qchem.LASolver;
+export import qchem.LASolver_blaze;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.IrrepBasisSet;
@@ -15,7 +16,7 @@ import oml;
 export class IrrepWF
 {
 public:
-    IrrepWF(const Real_OIBS*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
+    IrrepWF(const Real_OIBS*, LASolver<double>*,LASolver_blaze<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
     ~IrrepWF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
@@ -33,6 +34,7 @@ public:
 
     const Real_OIBS*  itsBasisSet;
     LASolver<double>*            itsLASolver;
+    LASolver_blaze<double>*            itsLASolver_blaze;
     TOrbitals<double>*           itsOrbitals; //Owned
     Irrep_QNs                    itsIrrep;
     EnergyLevels                 itsELevels;

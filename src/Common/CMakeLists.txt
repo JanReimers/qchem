@@ -21,4 +21,7 @@ target_compile_options(qcCommon PRIVATE -Wall
     $<$<CONFIG:Debug>:-g -O0 >
     $<$<CONFIG:Release>: -O2 >
 )
+target_include_directories(qcCommon PRIVATE 
+      ${PROJECT_SOURCE_DIR}/submodules/blaze
+)
 target_link_libraries(qcCommon PUBLIC omlm )

@@ -25,7 +25,7 @@ public:
     typedef std::deque< SMatrix<double>   > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
     
-    SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver<double>*,const Irrep_QNs&,const RVec& cs);
+    SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver<double>*,const LASolver_blaze<double>*,const Irrep_QNs&,const RVec& cs);
     virtual ~SCFIrrepAcceleratorDIIS();
     
     virtual void UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime);
@@ -53,6 +53,7 @@ private:
     const RVec&                  itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
 
     const LASolver   <double>*   itsLaSolver; //Knows the ortho transform
+    const LASolver_blaze   <double>*   itsLaSolver_blaze; //Knows the ortho transform
 
 };
 
@@ -63,7 +64,7 @@ public:
 
     SCFAcceleratorDIIS(const DIISParams&);
     ~SCFAcceleratorDIIS();
-    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&, int occ);
+    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const LASolver_blaze<double>*,const Irrep_QNs&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;

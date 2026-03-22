@@ -5,19 +5,19 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 Priority 1:
     -Blaze:
         Done: -Add as submodule
-        -Make unit test to try out some simple ops
+        Done: -Make unit test to try out some simple ops
         -Make oml->blaze, blaze->oml conversion functions.
         -Test supermatrix SMat<SMat<double>>
-        -Make a blaze version of LASolver.
-            oml->blaze Conversions inside
+        Done: -Make a blaze version of LASolver.
+            No: oml->blaze Conversions inside
             Put blaze types in the interface
         -Start working outwards.
         -Blaze distinguishes between row and column vectors.  Maybe this good.
 
 	-GetSymmetry() should return a const Symmetry* instead of a shared ptr instance?
-    -CopySymmetry() can return the shared ptr.
+        -CopySymmetry() can return the shared ptr.
     	
-
+    -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
     -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
         In the long run we need ween off oml in preparation for Blaze for linear algebra.  (exp templates are not the right solution)
     -Maybe: Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.

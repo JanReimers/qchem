@@ -11,9 +11,10 @@ import qchem.Orbitals.Factory;
 using std::cout;
 using std::endl;
 
-IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* las, const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* las, LASolver_blaze<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (las)
+    , itsLASolver_blaze   (lasb)
     , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
@@ -28,6 +29,7 @@ IrrepWF::~IrrepWF()
 {
     delete itsOrbitals;
     delete itsLASolver;
+    delete itsLASolver_blaze;
     delete itsAccelerator;
 }
 
@@ -46,8 +48,11 @@ void IrrepWF::DoSCFIteration()
 {
     assert(itsOrbitals);
     //project F' using pre calculated coefficients. And then diagonalize it.
-    auto [U,Up,e]=itsLASolver->SolveOrtho(itsAccelerator->Project());
-    itsOrbitals->UpdateOrbitals(U,Up,e);
+    // auto [U,Up,e]=itsLASolver->SolveOrtho(itsAccelerator->Project());
+    // itsOrbitals->UpdateOrbitals(U,Up,e);
+
+    auto [U,Up,e]=itsLASolver_blaze->SolveOrtho(convert(itsAccelerator->Project()));
+    itsOrbitals->UpdateOrbitals(convert(U),convert(Up),convert(e));
 }
 //
 //  Now populate the orbitals with electrons.  The ElectronConfiguration knows how many electrons

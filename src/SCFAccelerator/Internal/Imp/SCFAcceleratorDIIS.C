@@ -11,14 +11,16 @@ import qchem.IrrepBasisSet;
 using std::cout;
 using std::endl;
 
-SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* las,const Irrep_QNs& qns,const RVec& cs) 
+SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* las,const LASolver_blaze<double>* lasb,const Irrep_QNs& qns,const RVec& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
     , itsCs(cs)
     , itsLaSolver(las)
+    , itsLaSolver_blaze(lasb)
 {
     assert(itsLaSolver);
+    assert(itsLaSolver_blaze);
 };
 SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS() 
 {
@@ -28,7 +30,10 @@ SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS()
 
 void SCFIrrepAcceleratorDIIS::UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime)
 {
-    itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
+    // SMatrix<double> Fb=LASolver_blaze<double>::convert(itsLaSolver_blaze->Transform(LASolver_blaze<double>::convert(F))); // Fprime = Vd*F*V
+    // itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
+    // cout << "Fb-FPrime=" << Fb-itsFPrime << endl;
+    itsFPrime=convert(itsLaSolver_blaze->Transform(convert(F))); // Fprime = Vd*F*V
     assert(itsFPrime.GetLimits()==DPrime.GetLimits());
     itsDPrime=DPrime;
     itsE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
@@ -105,15 +110,15 @@ SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p)
 {};
 
 SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
-SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* las,const Irrep_QNs& qns, int occ) 
+SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* las,const LASolver_blaze<double>* lasb,const Irrep_QNs& qns, int occ) 
 {
     if (occ>0)
     {
-        itsIrreps.push_back(new SCFIrrepAcceleratorDIIS(itsParams,las,qns,itsCs));
+        itsIrreps.push_back(new SCFIrrepAcceleratorDIIS(itsParams,las,lasb,qns,itsCs));
         return itsIrreps.back();
     }
     else
-        return new SCFIrrepAcceleratorNull(las,qns);
+        return new SCFIrrepAcceleratorNull(las,lasb,qns);
 }
 
 size_t SCFAcceleratorDIIS::GetNProj() const

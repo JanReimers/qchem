@@ -8,6 +8,7 @@ module;
 
 import qchem.LAParams;
 import qchem.LASolver;
+import qchem.LASolver_blaze;
 
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import oml;
@@ -34,10 +35,17 @@ template <class T> void Orbital_IBS_Common<T>::Set(const LAParams& lap)
     itsLAParams=lap;
 } 
 
-template <class T>  LASolver<double>* Orbital_IBS_Common<T>::CreateSolver() const
+template <class T>  LASolver<T>* Orbital_IBS_Common<T>::CreateSolver() const
 {
-    LASolver<double>* las=LASolver<double>::Factory(itsLAParams);
+    LASolver<T>* las=LASolver<T>::Factory(itsLAParams);
     las->SetBasisOverlap(this->Overlap());
+    // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
+    return las;
+}
+template <class T>  LASolver_blaze<T>* Orbital_IBS_Common<T>::CreateSolver_blaze() const
+{
+    LASolver_blaze<T>* las=LASolver_blaze<T>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
+    las->SetBasisOverlap(LASolver_blaze<T>::convert(this->Overlap()));
     // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
     return las;
 }

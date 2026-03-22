@@ -6,6 +6,7 @@ module;
 export module qchem.BasisSet.Internal.IrrepBasisSet;
 export import qchem.IrrepBasisSet;
 import qchem.LASolver;
+import qchem.LASolver_blaze;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;
@@ -50,8 +51,9 @@ export template <class T> class Orbital_IBS_Common
     public:
     Orbital_IBS_Common();
     //!  Make a general eigen solver that caches the factorized overlap matrix.
-    virtual LASolver<double>* CreateSolver() const;
+    virtual LASolver<T>* CreateSolver() const;
     virtual void Set(const LAParams&);
+    virtual LASolver_blaze<T>* CreateSolver_blaze() const;
 protected:
     LAParams          itsLAParams; //Numerical control of general eigen solution.
 

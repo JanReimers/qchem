@@ -5,6 +5,7 @@ export module qchem.SCFAccelerator;
 export import oml;
 export import qchem.Symmetry.Irrep;
 export import qchem.LASolver;
+export import qchem.LASolver_blaze;
 
 export class SCFIrrepAccelerator
 {
@@ -18,7 +19,7 @@ export class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
-    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep_QNs&, int occ)=0;
+    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const LASolver_blaze<double>*,const Irrep_QNs&, int occ)=0;
     virtual bool CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;

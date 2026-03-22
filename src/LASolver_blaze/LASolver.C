@@ -7,6 +7,8 @@ export import qchem.LAParams;
 export import oml;
 export import qchem.Types;
 
+
+
 //#################################################################################
 //
 //  The goal here is to provide solutions to the generalized eigen problem:
@@ -62,4 +64,48 @@ public:
     // For unit testing
     virtual rsmat_t Transform(const rsmat_t& M) const=0; // M' = Vd * M * V, where S = V * Vd
     virtual   mat_t Transform(const   mat_t& M) const=0; // M' = Vd * M * V, where S = V * Vd
+
+    static smat_t convert(const SMatrix<double>& S)
+    {
+        size_t N=S.GetNumRows();
+        smat_t bS(N);
+        for (auto i:S.rows())
+                for (auto j:S.cols(i))
+                    bS(i-1,j-1)=S(i,j);
+        return bS;
+    }
+    static mat_t convert(const Matrix<double>& M)
+    {
+        size_t N=M.GetNumRows();
+        mat_t bM(N,N);
+        for (auto i:M.rows())
+                for (auto j:M.cols())
+                    bM(i-1,j-1)=M(i,j);
+        return bM;
+    }
+    static SMatrix<T> convert(const smat_t& bS)
+    {
+        SMatrix<T> S(bS.rows());
+        for (auto i:S.rows())
+                for (auto j:S.cols(i))
+                    S(i,j)=bS(i-1,j-1);
+        return S;
+    }
+    static Matrix<T> convert(const mat_t& bM)
+    {
+        Matrix<T> M(bM.rows(),bM.columns());
+        for (auto i:M.rows())
+                for (auto j:M.cols())
+                    M(i,j)=bM(i-1,j-1);
+        return M;
+    }
+    static Vector<double> convert(const rvec_t& bV)
+    {
+        Vector<double> V(bV.size());
+        for (auto i:V.indices())
+                    V(i)=bV[i-1];
+        return V;
+    }
 };
+
+
