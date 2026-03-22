@@ -1,13 +1,20 @@
 {
     "files.exclude": {
-  "**/.bin": true,
-  "**/.dd": true,
-  "**/.ddi": true,
-  "**/.ddi.d": true,
-  "**/.gcm": true,
-  "**/.pcm": true,
-  "**/.json": true,
-  "**/.ninja": true
+    "**/.bin": true,
+    "**/.dd": true,
+    "**/.ddi": true,
+    "**/.ddi.d": true,
+    "**/.gcm": true,
+    "**/.pcm": true,
+    "**/.json": true,
+    "**/.ninja": true,
+    "${workspaceFolder}/submodules/": true,
+    "/bin": true,
+    "/boot": true,
+    "/cdrom": true,
+    "/dev": true,
+    "/proc": true,
+    "/etc":true
     },
     "files.associations": {
         "*.C": "cpp",
