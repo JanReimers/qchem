@@ -1,47 +1,28 @@
-// File: Imp/Factory.C  
+// File: LASolver_blaze/Imp/Factory.C
 module;
 #include <cassert>
-module qchem.LASolver;
-import qchem.LASolver.Internal.Lapack;
-import qchem.LASolver.Internal.OML;
+module qchem.LASolver_blaze;
+import qchem.LASolver_blaze.Internal.Lapack;
 
-template <class T> LASolver<T>* LASolver<T>::
-    Factory(const LAParams& lap)
+template <class T> LASolver_blaze<T>* LASolver_blaze<T>::
+    Factory(qchem::Ortho ortho, double TruncationTolerance)
 {
-    LASolver<T>* ret=0;
-    switch (lap.LinearAlgebraPackage)
+    LASolver_blaze<T>* ret=0;
+    switch (ortho)
     {
-    case qchem::OML:
-        switch (lap.BasisOrthoAlgorithm)
-        {
-        case qchem::Cholsky :
-            ret=new LASolverOMLCholsky<T>(lap);
-            break;
-        case qchem::Eigen :
-            ret=new LASolverOMLEigen<T>(lap);
-            break;
-        case qchem::SVD :
-            ret=new LASolverOMLSVD<T>(lap);
-            break;
-        }
+    case qchem::Cholsky :
+        ret=new LASolverLapackCholsky_blaze<T>(TruncationTolerance);
         break;
-   case qchem::Lapack:
-        switch (lap.BasisOrthoAlgorithm)
-        {
-        case qchem::Cholsky :
-            ret=new LASolverLapackCholsky<T>(lap);
-            break;
-        case qchem::Eigen :
-            ret=new LASolverLapackEigen<T>(lap);
-            break;
-        case qchem::SVD :
-            ret=new LASolverLapackSVD<T>(lap);
-            break;
+    case qchem::Eigen :
+        ret=new LASolverLapackEigen_blaze<T>(TruncationTolerance);
         break;
-        }
+    case qchem::SVD :
+        ret=new LASolverLapackSVD_blaze<T>(TruncationTolerance);
+        break;
+    break;
     }
     assert(ret);
     return ret;
 }
 
-template LASolver<double>* LASolver<double>::Factory(const LAParams& lap);
+template LASolver_blaze<double>* LASolver_blaze<double>::Factory(qchem::Ortho ortho, double TruncationTolerance);

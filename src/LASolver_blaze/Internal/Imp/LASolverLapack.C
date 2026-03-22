@@ -9,8 +9,8 @@ module qchem.LASolver_blaze.Internal.Lapack;
 //
 //  Lapack specific code
 //
-template <class T> LASolverLapackCommon_blaze<T>::LASolverLapackCommon_blaze(const LAParams& lap)
-    : LASolverCommon_blaze<T>(lap)
+template <class T> LASolverLapackCommon_blaze<T>::LASolverLapackCommon_blaze(double truncationTolerance)
+    : LASolverCommon_blaze<T>(truncationTolerance)
     {
     }
 template <class T> LASolverLapackCommon_blaze<T>::~LASolverLapackCommon_blaze()
@@ -46,7 +46,7 @@ template <class T> void LASolverLapackEigen_blaze<T>::SetBasisOverlap(const smat
     mat_t  U;
     blaze::eigen(S,d,U);
     // auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),itsParams.abstol);
-    LASolverCommon_blaze<T>::Truncate(U,d,itsParams.TruncationTolerance);
+    LASolverCommon_blaze<T>::Truncate(U,d,itsTruncationTolerance);
     LASolverCommon_blaze<T>::Rescale(U,d);
     LASolverCommon_blaze<T>::AssignVs(U,trans(U));
     LASolverCommon_blaze<T>::Diag=d; //Preserve eigend values.
@@ -58,7 +58,7 @@ template <class T> typename LASolver_blaze<T>::rsmat_t LASolverLapackEigen_blaze
     mat_t  U;
     blaze::eigen(S,d,U);
     // auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),itsParams.abstol);
-    LASolverCommon_blaze<T>::Truncate(U,d,itsParams.TruncationTolerance);
+    LASolverCommon_blaze<T>::Truncate(U,d,itsTruncationTolerance);
     dmat_t winv(d.size());
     blaze::diagonal(winv)=1.0/d;
     mat_t Sfull(U*winv*trans(U));
@@ -70,7 +70,7 @@ template <class T> void LASolverLapackSVD_blaze<T>::SetBasisOverlap(const smat_t
     rvec_t s;
     mat_t  U,Vt;
     blaze::svd(S,U,s,Vt);
-    LASolverCommon_blaze<T>::Truncate(U,s,Vt,itsParams.TruncationTolerance);
+    LASolverCommon_blaze<T>::Truncate(U,s,Vt,itsTruncationTolerance);
     LASolverCommon_blaze<T>::Rescale(U,s,Vt);
     LASolverCommon_blaze<T>::AssignVs(U,Vt);
     LASolverCommon_blaze<T>::Diag=s; //Preserve SVs.
@@ -81,7 +81,7 @@ template <class T> typename LASolverLapackSVD_blaze<T>::rsmat_t LASolverLapackSV
     rvec_t s;
     mat_t  U,Vt;
     blaze::svd(S,U,s,Vt);
-    LASolverCommon_blaze<T>::Truncate(U,s,Vt,itsParams.TruncationTolerance);
+    LASolverCommon_blaze<T>::Truncate(U,s,Vt,itsTruncationTolerance);
     dmat_t sinv(s.size());
     blaze::diagonal(sinv)=1.0/s;
     mat_t  Sfull(trans(Vt)*sinv*trans(U));

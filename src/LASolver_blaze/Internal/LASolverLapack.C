@@ -18,7 +18,7 @@ export template <class T> class LASolverLapackCommon_blaze
     typedef typename Base::   Ud_t    Ud_t;
     typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 public:
-    LASolverLapackCommon_blaze(const LAParams&);
+    LASolverLapackCommon_blaze(double truncationTolerance);
     ~LASolverLapackCommon_blaze();
     
     virtual  Ud_t Solve     (const smat_t& H) const;
@@ -26,7 +26,7 @@ public:
     virtual UUd_t SolveOrtho(const smat_t& Hprime) const; //Hprime = Vd * H * V Hamiltonian/Fock matrix.
    
     using  LASolverCommon_blaze<T>::MakeSymmetric;
-    using  LASolverCommon_blaze<T>::itsParams;
+    using  LASolverCommon_blaze<T>::itsTruncationTolerance;
 
     using LASolverCommon_blaze<T>::V;
     using LASolverCommon_blaze<T>::Vd;
@@ -46,14 +46,14 @@ export template <class T> class LASolverLapackEigen_blaze
     typedef typename Base:: dmat_t  dmat_t;
     typedef typename Base::   Ud_t    Ud_t;
     typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.public:
-
-    LASolverLapackEigen_blaze(const LAParams& lap) : LASolverLapackCommon_blaze<T>(lap) {};
+public:
+    LASolverLapackEigen_blaze(double truncationTolerance) : LASolverLapackCommon_blaze<T>(truncationTolerance) {};
 
     virtual void    SetBasisOverlap(const  smat_t& S);
     virtual rsmat_t         Inverse(const rsmat_t& S) const;
 
     using  LASolverCommon_blaze<T>::MakeSymmetric;
-    using  LASolverCommon_blaze<T>::itsParams;
+    using  LASolverCommon_blaze<T>::itsTruncationTolerance;
 
 };
 
@@ -72,13 +72,13 @@ export template <class T> class LASolverLapackSVD_blaze
     typedef typename Base::   Ud_t    Ud_t;
     typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.public:
 public:
-    LASolverLapackSVD_blaze(const LAParams& lap) : LASolverLapackCommon_blaze<T>(lap) {};
+    LASolverLapackSVD_blaze(double truncationTolerance) : LASolverLapackCommon_blaze<T>(truncationTolerance) {};
 
     virtual void    SetBasisOverlap(const  smat_t& S);
     virtual rsmat_t         Inverse(const rsmat_t& S) const;
 
     using  LASolverCommon_blaze<T>::MakeSymmetric;
-    using  LASolverCommon_blaze<T>::itsParams;
+    using  LASolverCommon_blaze<T>::itsTruncationTolerance;
 };
 
 export template <class T> class LASolverLapackCholsky_blaze
@@ -96,7 +96,7 @@ export template <class T> class LASolverLapackCholsky_blaze
     typedef typename Base::   Ud_t    Ud_t;
     typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.public:
 public:
-    LASolverLapackCholsky_blaze(const LAParams& lap) : LASolverLapackCommon_blaze<T>(lap) {};
+    LASolverLapackCholsky_blaze(double truncationTolerance) : LASolverLapackCommon_blaze<T>(truncationTolerance) {};
     virtual void    SetBasisOverlap(const  smat_t& S);
     virtual rsmat_t         Inverse(const rsmat_t& S) const;
 };

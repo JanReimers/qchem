@@ -50,7 +50,7 @@ public:
     typedef std::tuple<mat_t,rvec_t> Ud_t;
     typedef std::tuple<mat_t,mat_t,rvec_t> UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
-    static  LASolver_blaze* Factory(const LAParams&);  
+    static  LASolver_blaze* Factory(qchem::Ortho ortho, double TruncationTolerance);  
       
     //! Factor S=U*Ud then invert U, V=U^-1  and store V and Vd.
     virtual void    SetBasisOverlap(const smat_t& S)=0;

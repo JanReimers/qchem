@@ -10,6 +10,7 @@
 
 import qchem.LAParams;
 import qchem.LASolver;
+import qchem.LASolver_blaze;
 
 import qchem.Factory;
 import qchem.IrrepBasisSet;
@@ -140,7 +141,7 @@ void zeroLower(bMat& m)
 }
 
 
-TEST_F(OrthogonalizeTests, Blaze)
+TEST_F(OrthogonalizeTests, BlazeDemo)
 {
     
     Set(10);
@@ -165,3 +166,42 @@ TEST_F(OrthogonalizeTests, Blaze)
         EXPECT_NEAR(err,0.0,N*N*N*1e-14);
     }
 }
+
+
+qchem::Ortho orthos[] = {qchem::SVD,qchem::Eigen,qchem::Cholsky};
+std::string OrthStrs[]={"Cholsky","Eigen  ","SVD    "};
+
+TEST_F(OrthogonalizeTests, Blaze)
+{
+    int NMax=21;
+    for (int N=3;N<=NMax;N++)
+    {
+        Set(N);
+        for (auto ibs:bs->Iterate<Real_OIBS>())
+        {
+            for (auto ortho:orthos)
+            {
+                bSMat S=to_bSMat(ibs->Overlap());
+                LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol);
+                las->SetBasisOverlap(S);
+                auto I=las->Transform(S);
+                bUnit I1(I.rows());
+                
+                double eps=1.2e-15*pow(N,3);
+                cout << OrthStrs[ortho] << " " << *ibs->GetSymmetry() << " " << N << " " << blaze::norm(I-I1) << " " << eps << endl;
+                if (N<9)
+                {
+                    EXPECT_NEAR(blaze::norm(I-I1),0.0,eps);
+                    // EXPECT_NEAR(Norm(I-I1),0.0,eps);
+                }
+                else if (N<12)
+                {
+                    EXPECT_NEAR(blaze::norm(I-I1),0.0,N*eps);
+                    // EXPECT_NEAR(Norm(I-I1),0.0,N*eps);
+                }
+            }
+
+        }
+        // cout << "--------------------------------------------------" << endl;
+    }
+};

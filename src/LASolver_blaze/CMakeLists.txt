@@ -1,12 +1,10 @@
 add_library(qcLASolver_blaze) 
 target_sources(qcLASolver_blaze PRIVATE 
-#     Imp/LAParams.C  
     Internal/Imp/LASolverImp.C  
     Internal/Imp/LASolverLapack.C  
-#     Imp/Factory.C
+    Imp/Factory.C
     )
 target_sources(qcLASolver_blaze PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-    # LAParams.C
     LASolver.C
     Internal/LASolverImp.C  
     Internal/LASolverLapack.C  

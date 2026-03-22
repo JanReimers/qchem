@@ -5,6 +5,9 @@ module;
 #include <cmath>
 #include "blaze/Math.h" 
 module qchem.LASolver_blaze.Internal.Common;
+
+using std::cout;
+using std::endl;
 //-------------------------------------------------------------------------
 //
 //  Common level.
@@ -53,11 +56,11 @@ template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& s, 
         else
             break;
     size_t n=s.size();
-    assert(s[index]>=tol);
-    assert(index==n || s[index+1]<tol);
+    assert(s[index-1]>=tol);
+    assert(index==n || s[index]<tol);
     if (n-index >0)
         std::cout << "LASolverCommon truncating " << n-index << " singular values." << 
-        " Min(s)="<< s[n] << " tol=" << tol << std::endl;
+        " Min(s)="<< s[n-1] << " tol=" << tol << std::endl;
     //
     //  Two sets of vector limits
     //
@@ -67,9 +70,13 @@ template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& s, 
     //
     //  Truncate
     //
-    U =blaze::submatrix(U, 0,n,0,index);
-    s =blaze::subvector(s ,0,index);
-    Vt=blaze::submatrix(Vt,0,index,0,n);
+    if (index<n)
+    {
+        U =blaze::submatrix(U, 0,0,n    ,index);
+        s =blaze::subvector(s ,0  ,index);
+        Vt=blaze::submatrix(Vt,0,0,index,n    );
+
+    }
     // U =U.SubMatrix(MatLimits(vl,vlt));
     // s =s.SubVector(vlt);
     // Vt=Vt.SubMatrix(MatLimits(vlt,vl));
@@ -89,12 +96,13 @@ template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& w,d
         else
             break;
 
+    size_t n=w.size();
     assert(w[index]>=tol);
     if (index>0)
     {
-        assert(w[index]<tol);
-        std::cout << "LASolverCommon truncating " << index+1 << " eigen values." << 
-            " Min(w)="<< w[0] << " yol=" << tol << std::endl;
+        assert(w[index-1]<tol);
+        std::cout << "LASolverCommon truncating " << index << " eigen values." << 
+            " Min(w)="<< w[0] << " tol=" << tol << std::endl;
         //
         //  Two sets of vector limits
         //
@@ -103,11 +111,11 @@ template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& w,d
         // VecLimits vlt(index,nr);
         //
         //  Truncate
-        //
-        U=blaze::submatrix( U, 0UL, nr, index, nr );
+        // 
+        U=blaze::submatrix( U, 0, index, nr, nr-index );
         // U =U .SubMatrix(MatLimits(vl,vlt));
         // U.ReBase(1,1);
-        w=blaze::subvector(w,index,nr);
+        w=blaze::subvector(w,index,nr-index);
         // w =w .SubVector(vlt);
         // w.ReBase(1);
     }

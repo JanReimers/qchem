@@ -44,7 +44,7 @@ export template <class T> class LASolverCommon_blaze
     virtual rvec_t   Get_BS_Diagonal() const {return Diag;}
 
 protected:
-    LASolverCommon_blaze(const LAParams& lap) : itsParams(lap) {};
+    LASolverCommon_blaze(double truncationTolerance) : itsTruncationTolerance(truncationTolerance) {};
     ~LASolverCommon_blaze() {};
     //
     //  Helper functions used by derived classes.
@@ -57,7 +57,7 @@ protected:
     
     void AssignVs(const mat_t& _V, const mat_t& _Vd) {V=_V;Vd=_Vd;}
 
-    LAParams itsParams;
+    double itsTruncationTolerance;
     mat_t V;
     mat_t Vd;  //Basis Overlap S = V*Vd
     rvec_t Diag; //s for SVD, e for eigen, diag for Cholsky.
