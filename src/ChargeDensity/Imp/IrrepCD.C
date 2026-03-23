@@ -20,8 +20,8 @@ export template <class T> class IrrepCD
     : public virtual DM_CD
 {
 public:
-    typedef Matrix<T>  DenMat;
-    typedef SMatrix<T> DenSMat; //Type for the density matrix.
+    typedef  mat_t<T>  DenMat;
+    typedef smat_t<T> DenSMat; //Type for the density matrix.
     
     IrrepCD();
     IrrepCD(const DenSMat&,const Orbital_IBS<T>*, Irrep_QNs);

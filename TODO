@@ -13,6 +13,12 @@ Priority 1:
             Put blaze types in the interface
         -Start working outwards.
         -Blaze distinguishes between row and column vectors.  Maybe this good.
+    -Blaze improvements
+        modules, dif build target
+        SymmetrixMatrix
+            isZero
+            S(N,3.14) initialize constructor
+            S=3.14 set to constant
 
 	-GetSymmetry() should return a const Symmetry* instead of a shared ptr instance?
         -CopySymmetry() can return the shared ptr.

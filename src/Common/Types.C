@@ -69,8 +69,8 @@ template <typename T> smat_t<T> convert(const SMatrix<T>& S)
     template <typename T>  vec_t<T> convert(const Vector<T>& V)
     {
         vec_t<T> bV(V.size());
-        for (auto i:bV.indices())
-            V[i-1]=bV(i);
+        for (auto i:V.indices())
+            bV[i-1]=V(i);
         return bV;
     }
     template <typename T> Vector<T> convert(const vec_t<T>& bV)
