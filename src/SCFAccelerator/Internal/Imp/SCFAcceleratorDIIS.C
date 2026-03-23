@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <cmath>
 #include <iomanip>
+#include "blaze/Math.h" 
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.IrrepBasisSet;
@@ -28,15 +29,17 @@ SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS()
 };
 
 
-void SCFIrrepAcceleratorDIIS::UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime)
+void SCFIrrepAcceleratorDIIS::UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)
 {
     // SMatrix<double> Fb=LASolver_blaze<double>::convert(itsLaSolver_blaze->Transform(LASolver_blaze<double>::convert(F))); // Fprime = Vd*F*V
     // itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
     // cout << "Fb-FPrime=" << Fb-itsFPrime << endl;
-    itsFPrime=convert(itsLaSolver_blaze->Transform(convert(F))); // Fprime = Vd*F*V
-    assert(itsFPrime.GetLimits()==DPrime.GetLimits());
+    itsFPrime=itsLaSolver_blaze->Transform(F); // Fprime = Vd*F*V
+    assert(itsFPrime.rows()==DPrime.rows());
+    assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
-    itsE=Mat(itsFPrime*itsDPrime-itsDPrime*itsFPrime);
+    mat_t<double> e=itsFPrime*itsDPrime-itsDPrime*itsFPrime;
+    itsE=convert(e);
     itsEn=FrobeniusNorm(itsE);
 }
 
@@ -63,7 +66,7 @@ template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>&
 //     return ArrayAdd(a,b);
 // }
 
-SMatrix<double> SCFIrrepAcceleratorDIIS::Project()
+smat_t<double> SCFIrrepAcceleratorDIIS::Project()
 {
     if (itsCs.size()<2) 
         return itsFPrime;
@@ -77,8 +80,8 @@ SMatrix<double> SCFIrrepAcceleratorDIIS::Project()
         // Now do the projection for the Fock matrix.
         SMatrix<double> Fproj;
         size_t  i=1;
-        for (const auto& f:itsFPrimes) Fproj+=SMatrix<double>(itsCs(i++)*f);
-        return Fproj;
+        for (const auto& f:itsFPrimes) Fproj+=SMatrix<double>(itsCs(i++)*convert(f));
+        return convert(Fproj);
     }
 }
 

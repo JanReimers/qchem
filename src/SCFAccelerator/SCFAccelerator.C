@@ -11,8 +11,8 @@ export class SCFIrrepAccelerator
 {
 public:
     virtual ~SCFIrrepAccelerator() {};
-    virtual void UseFD(const SMatrix<double>& F, const SMatrix<double>& DPrime)=0;
-    virtual SMatrix<double> Project()=0; 
+    virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)=0;
+    virtual smat_t<double> Project()=0; 
 };
 
 export class SCFAccelerator

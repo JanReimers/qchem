@@ -37,7 +37,7 @@ void IrrepWF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
     itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd); //Hamiltonian or Fock matrix in the non-orthogonal basis.
-    itsAccelerator->UseFD(itsF,convert(itsDPrime)); //Feed non-ortho F into the accelerator along with density matrix (in the orthogonal basis).
+    itsAccelerator->UseFD(convert(itsF),itsDPrime); //Feed non-ortho F into the accelerator along with density matrix (in the orthogonal basis).
 }
 
 //----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ void IrrepWF::DoSCFIteration()
     // auto [U,Up,e]=itsLASolver->SolveOrtho(itsAccelerator->Project());
     // itsOrbitals->UpdateOrbitals(U,Up,e);
 
-    auto [U,Up,e]=itsLASolver_blaze->SolveOrtho(convert(itsAccelerator->Project()));
+    auto [U,Up,e]=itsLASolver_blaze->SolveOrtho(itsAccelerator->Project());
     itsOrbitals->UpdateOrbitals(U,Up,e);
 }
 //

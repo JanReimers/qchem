@@ -12,4 +12,7 @@ target_include_directories(qcSCFAccelerator PRIVATE
     )
  
 set_property(TARGET qcSCFAccelerator PROPERTY CXX_STANDARD 20)
+target_include_directories(qcSCFAccelerator PRIVATE 
+      ${PROJECT_SOURCE_DIR}/submodules/blaze
+)
 target_link_libraries(qcSCFAccelerator PUBLIC qcLASolver qcBasisSet qcSymmetry qcCluster qcMesh qcCommon) 
