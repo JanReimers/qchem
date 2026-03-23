@@ -34,11 +34,12 @@ public:
 
     const Real_OIBS*  itsBasisSet;
     LASolver<double>*            itsLASolver;
-    LASolver_blaze<double>*            itsLASolver_blaze;
+    LASolver_blaze<double>*      itsLASolver_blaze;
     TOrbitals<double>*           itsOrbitals; //Owned
     Irrep_QNs                    itsIrrep;
     EnergyLevels                 itsELevels;
     SCFIrrepAccelerator*         itsAccelerator;
-    SMatrix<double>              itsDPrime,itsF; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    smat_t<double>               itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    SMatrix<double>       itsF;
 }; 
 

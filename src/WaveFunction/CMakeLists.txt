@@ -13,4 +13,7 @@ target_include_directories(qcWaveFunction PRIVATE
     
     )
 set_property(TARGET qcWaveFunction PROPERTY CXX_STANDARD 20)
+target_include_directories(qcWaveFunction PRIVATE 
+      ${PROJECT_SOURCE_DIR}/submodules/blaze
+)
 target_link_libraries(qcWaveFunction PUBLIC qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcBasisSet qcSymmetry qcCluster qcMesh qcCommon) 

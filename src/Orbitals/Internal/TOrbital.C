@@ -42,7 +42,7 @@ public:
     TOrbitalImp() {};
     TOrbitalImp(const Orbital_IBS<T>*,const vec_t<T>& C, const vec_t<T>& CPrime, double e, const Orbital_QNs&);
 
-    virtual void   AddDensityMatrix(SMatrix<T>& D, SMatrix<T>& DPrime) const;
+    virtual void   AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const;
 
     virtual T      operator()      (const RVec3&) const;
     virtual Vec3   Gradient        (const RVec3&) const;

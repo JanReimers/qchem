@@ -23,12 +23,9 @@ template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const Orbital_IBS<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsQNs(ms,bs->GetSymmetry())
-    , itsD     (bs->GetNumFunctions())
+    , itsD(zero<T>( bs->GetNumFunctions()))
 {
-    assert(itsBasisSet->GetNumFunctions()>0);
-    
-    Fill(itsD,0.0);
-  
+    assert(itsBasisSet->GetNumFunctions()>0);  
 };
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
@@ -101,16 +98,15 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     //
     //  Now the orbitals are accupied we can build the density matrix.
     //
-    Fill(itsD,T(0.0));
-    SMatrix<T> DPrime(itsD.GetLimits());
-    Fill(DPrime,T(0.0));
+    itsD=zero<T>(itsD.rows());
+    smat_t<T> DPrime(zero<T>(itsD.rows()));
     for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,DPrime);
     return std::make_tuple(ne,DPrime);
 }
 
 template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 {
-    return IrrepCD_Factory(itsD,itsBasisSet,GetQNs());
+    return IrrepCD_Factory(convert(itsD),itsBasisSet,GetQNs());
 }
 
 

@@ -81,4 +81,11 @@ template <typename T> smat_t<T> convert(const SMatrix<T>& S)
         return V;
     }
 
+    template <typename T> smat_t<T> zero(size_t N)
+    {
+        smat_t<T> z(N);
+        for ( size_t j=0; j<z.columns(); ++j) column(z,j)=0.0;
+        return z;
+    }
+
 }

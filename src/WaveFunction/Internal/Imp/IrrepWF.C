@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
+#include "blaze/Math.h" 
 import qchem.SCFAccelerator;
 module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.Orbitals.Factory;
@@ -18,11 +19,10 @@ IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* las, LASolver_
     , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
-    , itsDPrime     (bs->GetNumFunctions())
+    , itsDPrime    (zero<double>(bs->GetNumFunctions()))
 {
     assert(itsOrbitals);
     assert(itsAccelerator);
-    Fill(itsDPrime,0.0);
 };
 
 IrrepWF::~IrrepWF()
@@ -37,7 +37,7 @@ void IrrepWF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
     itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd); //Hamiltonian or Fock matrix in the non-orthogonal basis.
-    itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator along with density matrix (in the orthogonal basis).
+    itsAccelerator->UseFD(itsF,convert(itsDPrime)); //Feed non-ortho F into the accelerator along with density matrix (in the orthogonal basis).
 }
 
 //----------------------------------------------------------------------------

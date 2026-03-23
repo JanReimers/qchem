@@ -20,15 +20,15 @@ TOrbitalImp(const Orbital_IBS<T>* bs,const vec_t<T>& _C,const vec_t<T>& _CPrime,
 {
 };
 
-template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMatrix<T>& D, SMatrix<T>& DPrime) const
+template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const
 {
     
     if (IsOccupied()) 
     {
         smat_t<T> CCd=blaze::outer(itsCoeff,conj(itsCoeff))*GetOccupation();
-        D+=convert(CCd);
+        D+=CCd;
         smat_t<T> CCd_prime=blaze::outer(itsCoeffPrime,conj(itsCoeffPrime))*GetOccupation();
-        DPrime+=convert(CCd_prime);
+        DPrime+=CCd_prime;
         // D     +=SMatrix<T>(OuterProduct(itsCoeff     )*GetOccupation());
         // DPrime+=SMatrix<T>(OuterProduct(itsCoeffPrime)*GetOccupation());
     }

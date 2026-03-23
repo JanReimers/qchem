@@ -50,8 +50,8 @@ private:
     TOrbitalsImp(const TOrbitalsImp&);
 
     const Orbital_IBS<T>*  itsBasisSet;
-    ov_t                    itsOrbitals;
-    Irrep_QNs               itsQNs;
-    SMatrix<T>                    itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    ov_t                   itsOrbitals;
+    Irrep_QNs              itsQNs;
+    smat_t<T>              itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 
