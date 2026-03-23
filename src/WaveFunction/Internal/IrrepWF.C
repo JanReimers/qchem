@@ -16,7 +16,7 @@ import oml;
 export class IrrepWF
 {
 public:
-    IrrepWF(const Real_OIBS*, LASolver<double>*,LASolver_blaze<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
+    IrrepWF(const Real_OIBS*, LASolver_blaze<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
     ~IrrepWF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
@@ -33,7 +33,6 @@ public:
     IrrepWF(const IrrepWF&);
 
     const Real_OIBS*  itsBasisSet;
-    LASolver<double>*            itsLASolver;
     LASolver_blaze<double>*      itsLASolver_blaze;
     TOrbitals<double>*           itsOrbitals; //Owned
     Irrep_QNs                    itsIrrep;

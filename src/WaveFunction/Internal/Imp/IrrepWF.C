@@ -12,9 +12,8 @@ import qchem.Orbitals.Factory;
 using std::cout;
 using std::endl;
 
-IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* las, LASolver_blaze<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver_blaze<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
-    , itsLASolver   (las)
     , itsLASolver_blaze   (lasb)
     , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
     , itsIrrep      (qns)
@@ -28,7 +27,6 @@ IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* las, LASolver_
 IrrepWF::~IrrepWF()
 {
     delete itsOrbitals;
-    delete itsLASolver;
     delete itsLASolver_blaze;
     delete itsAccelerator;
 }
@@ -93,8 +91,8 @@ Orbitals* IrrepWF::GetOrbitals()
 
 Vector<double> IrrepWF::Get_BS_Diagonal() const
 {
-    assert(itsLASolver);
-    return itsLASolver->Get_BS_Diagonal();
+    assert(itsLASolver_blaze);
+    return convert(itsLASolver_blaze->Get_BS_Diagonal());
 }
 
 void  IrrepWF::DisplayEigen() const
