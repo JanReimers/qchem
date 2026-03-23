@@ -4,6 +4,8 @@ module;
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include "blaze/Math.h" 
+
 module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
@@ -69,7 +71,7 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 //
 //  This is where the real SCF work gets done.
 //
-template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)
+template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)
 {
     itsOrbitals.clear();
     size_t  n=e.size();
@@ -78,12 +80,12 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const Mat& U, const Mat&
     //
     static const double e_positron=-c_light*c_light; //Max positron energy = -2mc^2.
     size_t index=1;
-    for (size_t  i=1; i<=n; i++)
+    for (size_t  i=0; i<n; i++)
     {
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
-        if (e(i)<=e_positron) continue; //Strip out all the positron orbitals.
+        if (e[i]<=e_positron) continue; //Strip out all the positron orbitals.
         size_t principle_QN=itsQNs.sym->GetPrincipleOffset() + index++;
-        Orbital* o=new TOrbitalImp<T>(itsBasisSet,U.GetColumn(i), UPrime.GetColumn(i), e(i),Orbital_QNs(principle_QN,itsQNs));
+        Orbital* o=new TOrbitalImp<T>(itsBasisSet,blaze::column(U,i), blaze::column(UPrime,i), e[i],Orbital_QNs(principle_QN,itsQNs));
         itsOrbitals.push_back(std::unique_ptr<Orbital>(o));
 
     }

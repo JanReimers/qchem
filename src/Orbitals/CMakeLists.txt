@@ -8,4 +8,7 @@ target_sources(qcOrbitals PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/TOrbitals.C
 )
 set_property(TARGET qcOrbitals PROPERTY CXX_STANDARD 20)
+target_include_directories(qcOrbitals PRIVATE 
+      ${PROJECT_SOURCE_DIR}/submodules/blaze
+)
 target_link_libraries(qcOrbitals PUBLIC qcChargeDensity qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)

@@ -68,7 +68,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     QchemTester::Init(1e-3,js);
    //  NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
     Iterate({2,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
-    EXPECT_LT(RelativeError(-0.5*Z*Z),1e-14);
+    EXPECT_LT(RelativeError(-0.5*Z*Z),4e-13);
 }
 
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); 

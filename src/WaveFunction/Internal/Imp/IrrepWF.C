@@ -52,7 +52,7 @@ void IrrepWF::DoSCFIteration()
     // itsOrbitals->UpdateOrbitals(U,Up,e);
 
     auto [U,Up,e]=itsLASolver_blaze->SolveOrtho(convert(itsAccelerator->Project()));
-    itsOrbitals->UpdateOrbitals(convert(U),convert(Up),convert(e));
+    itsOrbitals->UpdateOrbitals(U,Up,e);
 }
 //
 //  Now populate the orbitals with electrons.  The ElectronConfiguration knows how many electrons

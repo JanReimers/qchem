@@ -107,7 +107,6 @@ export template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
 {
-    typedef  Matrix<T>  Mat;
     typedef SMatrix<T> SMat;
 public:
     virtual size_t GetVectorSize() const
@@ -116,7 +115,7 @@ public:
     }
     typedef std::tuple<double,SMat> ds_t;
 
-    virtual void  UpdateOrbitals(const Mat& U, const Mat& UPrime, const RVec& e)=0;
+    virtual void  UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)=0;
     virtual ds_t TakeElectrons (double ne)=0;
 
 };

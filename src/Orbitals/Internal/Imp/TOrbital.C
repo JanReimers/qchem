@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <iomanip>
 #include <complex>
+#include "blaze/Math.h" 
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.IrrepBasisSet;
 
@@ -11,7 +12,7 @@ import qchem.IrrepBasisSet;
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const Orbital_IBS<T>* bs,const Vec& _C,const Vec& _CPrime,double e, const Orbital_QNs& qns)
+TOrbitalImp(const Orbital_IBS<T>* bs,const vec_t<T>& _C,const vec_t<T>& _CPrime,double e, const Orbital_QNs& qns)
     : OrbitalImp   (e,qns)
     , itsCoeff     (_C)
     , itsCoeffPrime(_CPrime)
@@ -24,8 +25,12 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMatrix<T>& D, SMatrix<
     
     if (IsOccupied()) 
     {
-        D     +=SMatrix<T>(OuterProduct(itsCoeff     )*GetOccupation());
-        DPrime+=SMatrix<T>(OuterProduct(itsCoeffPrime)*GetOccupation());
+        smat_t<T> CCd=blaze::outer(itsCoeff,conj(itsCoeff))*GetOccupation();
+        D+=convert(CCd);
+        smat_t<T> CCd_prime=blaze::outer(itsCoeffPrime,conj(itsCoeffPrime))*GetOccupation();
+        DPrime+=convert(CCd_prime);
+        // D     +=SMatrix<T>(OuterProduct(itsCoeff     )*GetOccupation());
+        // DPrime+=SMatrix<T>(OuterProduct(itsCoeffPrime)*GetOccupation());
     }
 }
 
@@ -37,7 +42,7 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(SMatrix<T>& D, SMatrix<
 //
 template <class T> T TOrbitalImp<T>::operator()(const RVec3& r) const
 {
-    return itsCoeff * (*itsBasisSet)(r);
+    return convert(itsCoeff) * (*itsBasisSet)(r);
 }
 
 //BUG
@@ -65,4 +70,4 @@ template <class T> std::ostream& TOrbitalImp<T>::Write(std::ostream& os) const
 
 
 template class TOrbitalImp<double>;
-template class TOrbitalImp<std::complex<double> >;
+// template class TOrbitalImp<std::complex<double> >;

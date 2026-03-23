@@ -31,7 +31,7 @@ public:
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
     virtual DM_CD*    GetChargeDensity   () const;
-    virtual void      UpdateOrbitals     (const Mat& U, const Mat& UPrime, const RVec& e);
+    virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep_QNs GetQNs() const;
     
     virtual Vec     operator()(const RVec3&) const;
