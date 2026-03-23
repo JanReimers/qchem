@@ -16,7 +16,6 @@ Priority 1:
     -Blaze improvements
         modules, dif build target
         SymmetrixMatrix
-            isZero
             S(N,3.14) initialize constructor
             S=3.14 set to constant
 

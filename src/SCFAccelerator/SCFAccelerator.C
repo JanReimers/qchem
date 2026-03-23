@@ -4,7 +4,6 @@ module;
 export module qchem.SCFAccelerator;
 export import oml;
 export import qchem.Symmetry.Irrep;
-export import qchem.LASolver;
 export import qchem.LASolver_blaze;
 
 export class SCFIrrepAccelerator

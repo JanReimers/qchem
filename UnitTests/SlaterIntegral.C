@@ -40,7 +40,7 @@ public:
     SlaterRadialIntegralTests()
     : Lmax(4    )
     , Z(1)
-    , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
+    , lap({qchem::SVD,1e-6})
     , bs(0)
     , cl(new Molecule())
     {

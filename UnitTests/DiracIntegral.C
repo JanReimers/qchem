@@ -40,7 +40,7 @@ public:
     DiracIntegralTests()
     : Lmax(0   )
     , Z(1)
-    , lap({qchem::Lapack,qchem::SVD,1e-6,1e-12})
+    , lap({qchem::SVD,1e-6})
     , sbs(0)
     , gbs(0)
     , cl(new Molecule())

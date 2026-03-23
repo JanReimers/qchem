@@ -21,7 +21,7 @@ public:
     typedef BasisSet::symv_t symv_t;
     QchemTester();
     virtual ~QchemTester();
-    void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Lapack,qchem::Cholsky,1e-9,1e-12});
+    void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
     void   Iterate(const SCFParams&);
     double TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;

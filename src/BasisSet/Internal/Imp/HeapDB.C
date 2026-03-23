@@ -5,7 +5,7 @@ module;
 #include <memory>
 #include <map>
 #include <cassert>
-import qchem.LASolver;
+#include "blaze/Math.h" 
 import qchem.LAParams;
 
 module qchem.BasisSet.Internal.HeapDB;
@@ -15,6 +15,7 @@ import qchem.IrrepBasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.Conversions;
 import oml;
 
 //------------------------------------------------------------------------
@@ -301,8 +302,6 @@ const Matrix<double>& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 
 SMatrix<double> DB_Fit::MakeInverse(const SMatrix<double>& S,const LAParams& lap) 
 {
-    LASolver<double>* las=LASolver<double>::Factory(lap);
-    SMatrix<double> Sinv=las->Inverse(S);
-    delete las;
-    return Sinv;
+    rsmat_t Sinv=inv(convert(S));
+    return convert(Sinv);
 }

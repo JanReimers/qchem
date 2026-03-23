@@ -5,7 +5,6 @@ export module qchem.Orbital_1E_IBS;
 export import qchem.IrrepBasisSet;
 export import qchem.Cluster;
 
-import qchem.LASolver;
 import qchem.LASolver_blaze;
 
 
@@ -35,7 +34,6 @@ export template <class T> class Orbital_IBS
 {
 public:    
     virtual void         Set(const LAParams&)=0;
-    virtual LASolver<T>* CreateSolver() const=0;
     virtual LASolver_blaze<T>* CreateSolver_blaze() const=0;
 };
 

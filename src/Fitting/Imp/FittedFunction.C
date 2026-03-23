@@ -23,7 +23,7 @@ FittedFunctionImp(bs_t& fbs,mesh_t& m)
     : itsBasisSet(fbs)
     , itsFitCoeff(fbs->GetNumFunctions())
     , itsMesh    (m)
-    , itsLAParams({qchem::Lapack,qchem::SVD,1e-10,1e-12})
+    , itsLAParams({qchem::Cholsky,1e-12})
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);

@@ -7,7 +7,6 @@ module;
 #include <cassert>
 
 import qchem.LAParams;
-import qchem.LASolver;
 import qchem.LASolver_blaze;
 
 module qchem.BasisSet.Internal.IrrepBasisSet;
@@ -20,7 +19,7 @@ template <class T> IrrepBasisSet_Common<T>::sym_t IrrepBasisSet_Common<T>::GetSy
     }
 
 
-LAParams DefaultLAP({qchem::Lapack,qchem::SVD,1e-10,1e-12});
+LAParams DefaultLAP({qchem::Cholsky,1e-12});
 //-----------------------------------------------------------------------------
 //
 //  Construction zone
@@ -35,13 +34,6 @@ template <class T> void Orbital_IBS_Common<T>::Set(const LAParams& lap)
     itsLAParams=lap;
 } 
 
-template <class T>  LASolver<T>* Orbital_IBS_Common<T>::CreateSolver() const
-{
-    LASolver<T>* las=LASolver<T>::Factory(itsLAParams);
-    las->SetBasisOverlap(this->Overlap());
-    // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
-    return las;
-}
 template <class T>  LASolver_blaze<T>* Orbital_IBS_Common<T>::CreateSolver_blaze() const
 {
     LASolver_blaze<T>* las=LASolver_blaze<T>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);

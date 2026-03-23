@@ -173,15 +173,9 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
 //
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
     : IrrepBasisSet_Common<double>(*bs)
-    // , Orbital_IBS_Common<double>(bs->itsLAParams,theDB)
-    // , IE_Common(db)
-    //, itsBlocks(theBlocks) //Need to clone all the blocks.
 {
     assert(false);
-    //Need to clone all the blocks.
     // No UT coverage
-    //MakeBasisFunctions(); //Compiler says these calls are ambiguous.  BUG
-//    TBasisSetImplementation<double>::Insert(bs->GetIntegralEngine()->Clone());
 }
 
 IrrepBasisSet::~IrrepBasisSet() {};

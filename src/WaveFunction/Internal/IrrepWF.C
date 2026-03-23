@@ -3,7 +3,6 @@ module;
 export module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 export import qchem.EnergyLevel;
-export import qchem.LASolver;
 export import qchem.LASolver_blaze;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
