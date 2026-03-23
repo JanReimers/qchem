@@ -8,6 +8,7 @@ module;
 import qchem.SCFAccelerator;
 module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.Orbitals.Factory;
+import qchem.Conversions;
 
 using std::cout;
 using std::endl;

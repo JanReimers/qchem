@@ -14,6 +14,7 @@ import qchem.Orbital_DFT_IBS;
 // import qchem.Fit_IBS;
 import qchem.Symmetry;
 import qchem.Molecule;
+import qchem.Conversions;
 
 typedef Vector3D<std::complex<double> > Vec3;
 
@@ -146,8 +147,7 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
-    return FrobeniusNorm(convert(itsDensityMatrix) - convert(eicd->itsDensityMatrix));
-    // return norm(itsDensityMatrix - eicd->itsDensityMatrix);
+    return norm(itsDensityMatrix - eicd->itsDensityMatrix);
 }
 
 //-------------------------------------------------------------------------

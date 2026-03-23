@@ -6,6 +6,7 @@ module;
 #include "blaze/Math.h" 
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.IrrepBasisSet;
+import qchem.Conversions;
 
 //-----------------------------------------------------------------
 //
