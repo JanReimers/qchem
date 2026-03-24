@@ -13,14 +13,14 @@ export template <class T> class Integrals_Kinetic
 {
 public:
     //! Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual const SMatrix<T>& Kinetic() const=0;
+    virtual const smat_t<T>& Kinetic() const=0;
 };
 //! \brief Interface for electron-nucleus attraction integrals.
 export template <class T> class Integrals_Nuclear
 {
 public:
     //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
-    virtual const SMatrix<T>& Nuclear(const Cluster*) const=0;   
+    virtual const smat_t<T>& Nuclear(const Cluster*) const=0;   
 };
 
 //
