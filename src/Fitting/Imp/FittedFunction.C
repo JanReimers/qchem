@@ -26,7 +26,7 @@ FittedFunctionImp(bs_t& fbs,mesh_t& m)
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/itsBasisSet->Charge()(1); //Wild guess with the correct total charge.
+    itsFitCoeff(1)=1.0/itsBasisSet->Charge()[0]; //Wild guess with the correct total charge.
 };
 
 template <class T> FittedFunctionImp<T>::FittedFunctionImp()
@@ -123,7 +123,7 @@ FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 
 template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 {
-    return itsFitCoeff * itsBasisSet->Charge();
+    return itsFitCoeff * convert(itsBasisSet->Charge());
 }
 
 //------------------------------------------------------------------------

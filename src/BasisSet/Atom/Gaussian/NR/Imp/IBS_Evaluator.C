@@ -116,11 +116,11 @@ rsmat_t Gaussian_IBS::Repulsion() const
     return S;
 }
 
-Gaussian_IBS::omlv_t Gaussian_IBS::Charge() const
+rvec_t Gaussian_IBS::Charge() const
 {
-    omlv_t V(size());
-    for (auto i:V.indices())
-            V(i)= ::Charge(es[i-1],l)*ns[i-1];
+    rvec_t V(size());
+    for (auto i:iv_t(0,size()))
+            V[i]= ::Charge(es[i],l)*ns[i];
 
     return V;
 }

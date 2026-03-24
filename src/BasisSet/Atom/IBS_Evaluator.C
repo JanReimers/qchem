@@ -45,7 +45,7 @@ public:
     virtual rsmat_t Inv_r1    () const=0;
     virtual rsmat_t Inv_r2    () const=0;
     virtual rsmat_t Repulsion () const=0;
-    virtual omlv_t Charge    () const=0;
+    virtual  rvec_t Charge    () const=0;
     virtual ds_t   Norm      () const=0;
     virtual rmat_t XRepulsion(const Fit_IBS&) const=0;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const=0;

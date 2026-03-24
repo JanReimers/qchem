@@ -211,12 +211,12 @@ template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;
 
-const Vector<double>& DB_Fit::Charge   () const
+const rvec_t& DB_Fit::Charge   () const
 {
     assert(itsCache);
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::Charge,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeCharge();
+    if (auto i = itsCache->itsbVecs.find(key); i==itsCache->itsbVecs.end())
+        return itsCache->itsbVecs[key] = MakeCharge();
     else
         return i->second;
 }

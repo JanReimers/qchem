@@ -164,11 +164,11 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Repulsion() const
     return S;
 }
 
-template <size_t K> BSpline_IBS<K>::omlv_t BSpline_IBS<K>::Charge() const
+template <size_t K> rvec_t BSpline_IBS<K>::Charge() const
 {
-    omlv_t V(size());
-    for (auto i:V.indices())
-            V(i)= ::Charge(splines[i-1],l)*ns[i-1];
+    rvec_t V(size());
+    for (auto i:iv_t(0,size()))
+            V[i]= ::Charge(splines[i],l)*ns[i];
 
     return V;
 }

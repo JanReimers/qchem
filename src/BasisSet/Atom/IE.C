@@ -127,7 +127,7 @@ class AtomIE_Fit
     protected:
     AtomIE_Fit(const DB_cache<double>* db,const IBS_Evaluator* _eval) : DB_Fit(db), eval(_eval) {};
 
-    virtual  Vector<double> MakeCharge   (                ) const {return eval->Charge    ( );}
+    virtual  rvec_t MakeCharge   (                ) const {return eval->Charge    ( );}
     virtual rsmat_t MakeRepulsion(                ) const {return eval->Repulsion ( );}
     virtual  rmat_t MakeRepulsion(const Fit_IBS& f) const {return eval->XRepulsion(f);}
 private:

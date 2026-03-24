@@ -33,6 +33,7 @@ public:
     
     mutable std::map<id2c_t ,rsmat_t> itsbSMats; 
     mutable std::map< idx_t , rmat_t> itsbMats; 
+    mutable std::map<id2c_t , rvec_t> itsbVecs; 
     mutable std::map<id2c_t ,SMat> itsSMats; 
     mutable std::map< idx_t , Mat> itsMats; 
     mutable std::map<id2c_t , Vec> itsVecs; 
@@ -105,7 +106,7 @@ protected:
     DB_Fit(const DB_cache<double>* db) : DB_Common<double>(db) {};
 
     using Integrals_Overlap<double>::Overlap; 
-    virtual const Vector<double>&  Charge   () const;   
+    virtual const rvec_t&  Charge   () const;   
     virtual const rsmat_t& Repulsion() const;
     virtual const  rmat_t& Repulsion(const Fit_IBS&) const;
     virtual const rsmat_t& InvOverlap() const;
@@ -118,8 +119,7 @@ protected:
 private:
     // One time calls to un-buffered integral calculations.
     using FitIntegrals::MakeCharge;
-    virtual Vector<double>  MakeCharge() const=0;
-    // virtual SMatrix<double> MakeOverlap() const=0;
+    virtual  rvec_t MakeCharge() const=0;
     virtual rsmat_t MakeRepulsion() const=0;
     virtual  rmat_t MakeRepulsion(const Fit_IBS&) const=0;
     

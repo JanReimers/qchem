@@ -17,15 +17,15 @@ import qchem.BasisSet.Internal.ERI4;
 namespace PolarizedGaussian
 {
 
-Fit_IE::Vec Fit_IE::MakeCharge() const
+rvec_t Fit_IE::MakeCharge() const
 {
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     assert(a);
-    Vec c(a->size());
+    rvec_t c(a->size());
     int i=0;
     for (auto r:a->radials)
     {
-        c(i+1)=r->GetCharge(a->pols[i])*a->ns(i+1); 
+        c[i]=r->GetCharge(a->pols[i])*a->ns(i+1); 
         i++;       
     }
 

@@ -77,7 +77,7 @@ class Fit_IE
     typedef Vector<double> Vec;
 public:
     virtual rsmat_t MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
-    virtual  Vector<double> MakeCharge   () const;
+    virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return convert(MakeIntegrals(Repulsion2C));}
     virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
 protected:
