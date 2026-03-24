@@ -14,7 +14,13 @@ Priority 1:
         -Start working outwards.
         -Blaze distinguishes between row and column vectors.  Maybe this good.
     -Blaze improvements
-        modules, dif build target
+        modules, Header unit.
+            -Still experimental in clang++ 21
+            -cd submodules/blaze
+            -/opt/LLVM-21.1.6-Linux-X64/bin/clang++ -I. -std=gnu++20 -fmodule-header=user -xc++-user-header blaze/Math.h -o Math.pcm
+            -Add to target_compile_options
+                -fmodule-file=${PROJECT_SOURCE_DIR}/submodules/blaze/Math.pcm
+            -Get odd compiler errors later on.
         SymmetrixMatrix
             S(N,3.14) initialize constructor
             S=3.14 set to constant
