@@ -6,7 +6,6 @@ module;
 #include <map>
 #include <cassert>
 #include "blaze/Math.h" 
-import qchem.LAParams;
 
 module qchem.BasisSet.Internal.HeapDB;
 import qchem.Fit_IBS;
@@ -17,26 +16,6 @@ import qchem.Cluster;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Conversions;
 import oml;
-
-//------------------------------------------------------------------------
-//
-//  Construction zone.
-//
-// template <class T> HeapDB<T>::HeapDB()
-//     :itsAnalyticIE   (0)
-// {}
-
-// template <class T> HeapDB<T>::HeapDB(AnalyticIE<T>* ie)
-//     :itsAnalyticIE(ie)   
-// {
-//     assert(itsAnalyticIE);
-// }
-
-// template <class T> HeapDB<T>::~HeapDB()
-// {
-//     //Report(std::cout);
-//     delete itsAnalyticIE;
-// }
 
 template <class T> size_t Size(const Vector <T>& m) {return m.size();}
 template <class T> size_t Size(const Matrix <T>& m) {return m.size();}
@@ -257,19 +236,19 @@ const Matrix<double>& DB_Fit::Repulsion(const Fit_IBS& b) const
     else
         return i->second;
 }
-const SMatrix<double>& DB_Fit::InvOverlap  (const LAParams& lap) const
+const SMatrix<double>& DB_Fit::InvOverlap  () const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Overlap(),lap);
+        return itsCache->itsSMats[key] = MakeInverse(Overlap());
     else
         return i->second;
 }
-const SMatrix<double>& DB_Fit::InvRepulsion(const LAParams& lap) const
+const SMatrix<double>& DB_Fit::InvRepulsion() const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
     if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Repulsion(),lap);
+        return itsCache->itsSMats[key] = MakeInverse(Repulsion());
     else
         return i->second;
 }
@@ -300,7 +279,7 @@ const Matrix<double>& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 }
 
 
-SMatrix<double> DB_Fit::MakeInverse(const SMatrix<double>& S,const LAParams& lap) 
+SMatrix<double> DB_Fit::MakeInverse(const SMatrix<double>& S) 
 {
     rsmat_t Sinv=inv(convert(S));
     return convert(Sinv);

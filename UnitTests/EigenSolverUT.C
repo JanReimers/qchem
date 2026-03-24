@@ -50,8 +50,7 @@ public:
  };
 
  const double trunc_tol=1e-12;
- const double alg_tol=1e-15;
-
+ 
 
 
 double Norm(const SMatrix<double>& s)

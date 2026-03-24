@@ -20,7 +20,7 @@ template <class T> ConstrainedFF<T>::
 ConstrainedFF(bs_t& fbs, const Vec& theg, mesh_t&  m)
     : FittedFunctionImp<T>(fbs,m)
     , g  (theg)
-    , gS (g*fbs->InvRepulsion(itsLAParams))
+    , gS (g*fbs->InvRepulsion())
     , gSg(gS*g)
 {	
 }

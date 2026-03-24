@@ -4,7 +4,6 @@ module;
 #include <cassert>
 #include <vector>
 export module qchem.BasisSet.Internal.HeapDB;
-import qchem.LAParams;
 import qchem.BasisSet.Internal.IEClient;
 
 import qchem.BasisSet.Internal.IntegralEnums;
@@ -107,8 +106,8 @@ protected:
     virtual const Vector<double>&  Charge   () const;   
     virtual const SMatrix<double>& Repulsion() const;
     virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const;
-    virtual const SMatrix<double>& InvOverlap(const LAParams&) const;
-    virtual const SMatrix<double>& InvRepulsion(const LAParams&) const;
+    virtual const SMatrix<double>& InvOverlap() const;
+    virtual const SMatrix<double>& InvRepulsion() const;
     virtual  const Vector<double>& Norm   (const Mesh*        ) const; //Numerical .
     virtual  const Vector<double>& Charge (const Mesh*        ) const; //Numerical .
     virtual  const  Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
@@ -124,7 +123,7 @@ private:
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
-    static  SMatrix<double> MakeInverse  (const SMatrix<double>&,const LAParams&); //Numerically stable algo required.
+    static  SMatrix<double> MakeInverse  (const SMatrix<double>&); //Numerically stable algo required.
 
 };
 

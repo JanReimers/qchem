@@ -1,7 +1,6 @@
 // File: FittedFunctionImp.C  Implementation for Fitted Functions.
 module;
 #include <memory> // for std::shared_ptr
-import qchem.LAParams;
 export module qchem.FittedFunctionImp;
 export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;
@@ -56,8 +55,6 @@ public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
     Vec      itsFitCoeff;
     mesh_t   itsMesh;
-protected:
-    LAParams itsLAParams; //Decides about matrix inversion.
 };
 
 export template <class T> class ConstrainedFF
@@ -77,7 +74,6 @@ public:
 
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    using Base::itsLAParams;
     Vec g,gS;
     T   gSg;
 };

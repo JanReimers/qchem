@@ -11,7 +11,6 @@
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.Symmetry.Angular;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
-import qchem.LAParams;
 
 
 import qchem.Factory;

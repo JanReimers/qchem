@@ -8,7 +8,6 @@ import qchem.FittedFunction;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
-import qchem.LAParams;
 import qchem.Streamable;
 import oml;
 
@@ -23,7 +22,6 @@ FittedFunctionImp(bs_t& fbs,mesh_t& m)
     : itsBasisSet(fbs)
     , itsFitCoeff(fbs->GetNumFunctions())
     , itsMesh    (m)
-    , itsLAParams({qchem::Cholsky,1e-12})
 {
     assert(itsMesh);
     Fill(itsFitCoeff,0.0);
@@ -59,14 +57,14 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    SMatrix<T> Sinv=itsBasisSet->InvOverlap(itsLAParams);
+    SMatrix<T> Sinv=itsBasisSet->InvOverlap();
     itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
     return 0;
 }
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    SMatrix<T> Sinv=itsBasisSet->InvRepulsion(itsLAParams);
+    SMatrix<T> Sinv=itsBasisSet->InvRepulsion();
     itsFitCoeff=Sinv*ffc.GetRepulsion3C(itsBasisSet.get());
     return 0;
 }

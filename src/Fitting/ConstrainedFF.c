@@ -21,7 +21,6 @@ public:
 
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    using Base::itsLAParams;
     Vec g,gS;
     T   gSg;
 };
