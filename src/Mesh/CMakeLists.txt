@@ -27,5 +27,6 @@ target_include_directories(qcMesh PRIVATE
 # We have to be on cxx-20 or high again for cmake/gcc to find .gcm binaru module  interfact (BMI) files!
 # If you leave this out it does not complain about the import statement, in compains that it can;t find the .gcm file.
 set_property(TARGET qcMesh PROPERTY CXX_STANDARD 20)
+target_include_directories(qcMesh PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 target_link_libraries(qcMesh PUBLIC qcCommon omlm) 

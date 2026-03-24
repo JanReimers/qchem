@@ -5,12 +5,13 @@ module;
 #include <memory>
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Mesh.Integrator;
+import qchem.Conversions;
 import oml;
 
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeNorm   (const Mesh* m) const
 {
     MeshIntegrator<double> mintegrator(m);
-    return mintegrator.Normalize(*this);
+    return convert(mintegrator.Normalize(*this));
 }
 Fit_IBS_Common::Vec Fit_IBS_Common::MakeCharge (const Mesh*  m) const
 {
@@ -26,13 +27,13 @@ const Fit_IBS_Common::Vec Fit_IBS_Common::Overlap  (const Mesh* m,const Sf& f) c
 {
     const Vec& n=Norm(m);
     MeshIntegrator<double> mintegrator(m);
-    return DirectMultiply(mintegrator.Overlap(f,*this),n);
+    return DirectMultiply(convert(mintegrator.Overlap(f,*this)),n);
 }  
 const Fit_IBS_Common::Vec Fit_IBS_Common::Repulsion(const Mesh* m,const Sf& f) const
 {
     const Vec& n=Norm(m);
     MeshIntegrator<double> mintegrator(m);
-    return DirectMultiply(mintegrator.Repulsion(f,*this),n);
+    return DirectMultiply(convert(mintegrator.Repulsion(f,*this)),n);
 }
 
 

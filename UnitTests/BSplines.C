@@ -220,7 +220,7 @@ TEST_F(BSplineTests, Overlap)
         for (auto i:S.rows()) //Check banded
             for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
         
-        SMatrix<double> Snum = mintegrator->Overlap(*ibs);
+        SMatrix<double> Snum = convert(mintegrator->Overlap(*ibs));
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,3e-6);
 
         // cout << "S=" << S << endl;
@@ -264,7 +264,7 @@ TEST_F(BSplineTests, Nuclear)
         for (auto i:Ven.rows()) //Check banded
             for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
         
-        SMatrix<double> Vennum = -cl->GetNuclearCharge()*mintegrator->Inv_r1(*ibs);
+        SMatrix<double> Vennum = -cl->GetNuclearCharge()*convert(mintegrator->Inv_r1(*ibs));
         EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
@@ -285,8 +285,8 @@ TEST_F(BSplineTests, Kinetic)
             for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
         
         int l=dynamic_cast<const Angular_Sym* >(ibs->GetSymmetry().get())->GetL();
-        SMatrix<double> Tnum = mintegrator->Grad2(*ibs);
-        SMatrix<double> Cen = mintegrator->Inv_r2(*ibs);
+        SMatrix<double> Tnum = convert(mintegrator->Grad2(*ibs));
+        SMatrix<double> Cen  = convert(mintegrator->Inv_r2(*ibs));
         Tnum+=l*(l+1)*Cen;
         EXPECT_NEAR(Max(fabs(T-Tnum)),0.0,3e-5);
         

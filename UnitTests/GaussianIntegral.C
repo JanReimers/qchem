@@ -71,7 +71,7 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         //cout << S << endl;
-        SMatrix<double> Snum = mintegrator->Overlap(*oi);
+        SMatrix<double> Snum = convert(mintegrator->Overlap(*oi));
         EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
        
     }
@@ -83,7 +83,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
     {
         SMatrix<double> Hn=convert(oi->Nuclear(cl));
         //cout << S << endl;
-        SMatrix<double> Hnnum = -1*mintegrator->Inv_r1(*oi);
+        SMatrix<double> Hnnum = -1*convert(mintegrator->Inv_r1(*oi));
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
 
     }
@@ -97,7 +97,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         SMatrix<double> K=convert(oi->Kinetic());
         //cout << S << endl;
         int l=dynamic_cast<const Angular_Sym* >(oi->GetSymmetry().get())->GetL();
-        SMatrix<double> Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
+        SMatrix<double> Knum = convert(mintegrator->Grad2(*oi)) + l*(l+1)*convert(mintegrator->Inv_r2(*oi));
         EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
         
     }
