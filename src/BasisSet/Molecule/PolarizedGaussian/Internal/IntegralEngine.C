@@ -16,6 +16,7 @@ import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 
 import qchem.IrrepBasisSet;
+import qchem.Conversions;
 import oml;
 
 export namespace PolarizedGaussian
@@ -31,7 +32,7 @@ public:
 protected:
     IE_Common(const DB_cache<double>* db) : DB_Overlap<double>(db) {};
     
-    virtual SMatrix<double> MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C);}
+    virtual smat_t<double> MakeOverlap() const {return convert(MakeIntegrals(PolarizedGaussian::Overlap2C));}
 
     SMatrix<double> MakeIntegrals(PolarizedGaussian::IType,const Cluster*cl =0) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
@@ -75,7 +76,7 @@ class Fit_IE
     typedef Matrix<double> Mat;
     typedef Vector<double> Vec;
 public:
-    virtual SMatrix<double> MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
+    virtual rsmat_t MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
     virtual  Vector<double> MakeCharge   () const;
     virtual SMatrix<double> MakeRepulsion() const {return MakeIntegrals(Repulsion2C);}
     virtual  Matrix<double> MakeRepulsion(const Fit_IBS& b) const;

@@ -24,6 +24,7 @@ import qchem.Symmetry;
 import oml;
 import qchem.stl_io;
 import qchem.Streamable;
+import qchem.Conversions;
 
 using std::cout;
 using std::endl;
@@ -214,7 +215,7 @@ TEST_F(BSplineTests, Overlap)
     for (auto ibs:bs->Iterate<Real_OIBS >())
     {
         cout << *ibs->GetSymmetry();
-        SMatrix<double> S=ibs->Overlap();
+        SMatrix<double> S=convert(ibs->Overlap());
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:S.rows()) //Check banded
             for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);

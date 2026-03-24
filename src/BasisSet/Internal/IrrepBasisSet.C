@@ -101,7 +101,7 @@ export template <class T> class Orbital_RKB_IBS_Common
 public:
     virtual size_t size() const {return itsRKBL->GetNumFunctions()+itsRKBS->GetNumFunctions();}
     virtual size_t  GetNumFunctions() const {return size();}
-    virtual SMatrix<T> MakeOverlap () const;
+    virtual smat_t <T> MakeOverlap () const;
     virtual SMatrix<T> MakeKinetic () const;
     virtual SMatrix<T> MakeNuclear (const Cluster*) const;
     virtual SMatrix<T> MakeRestMass() const;
@@ -114,6 +114,7 @@ protected:
     ::Orbital_RKBS_IBS<T>* itsRKBS;
 private:
     friend DiracIntegralTests;
+    static smat_t<T> merge_diag(const smat_t<T>& l,const smat_t<T>& s);
     static SMatrix<T> merge_diag(const SMatrix<T>& l,const SMatrix<T>& s);
     static SMatrix<T> merge_off_diag(const Matrix<T>& ls);
 };

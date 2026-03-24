@@ -17,6 +17,8 @@ import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry.Yl;
+import qchem.Conversions;
+
 import oml;
 
 using std::cout;
@@ -65,7 +67,7 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=oi->Overlap();
+        SMatrix<double> S=convert(oi->Overlap());
 
         for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
         //cout << S << endl;

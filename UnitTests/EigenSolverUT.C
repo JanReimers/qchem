@@ -102,8 +102,7 @@ TEST_F(OrthogonalizeTests, BlazeDemo)
     for (auto ibs:bs->Iterate<Real_OIBS>())
     {
         size_t N=ibs->GetNumFunctions();
-        const SMatrix<double>& S=ibs->Overlap();
-        bMat  bM=to_bMat(S);
+        bMat  bM=ibs->Overlap();
         
         blaze::potrf( bM, 'U' );
         blaze::trtri( bM, 'U', 'N' );
@@ -113,7 +112,7 @@ TEST_F(OrthogonalizeTests, BlazeDemo)
       
         bU U(bM);
         bL L(blaze::trans(U));
-        bSMat bS=to_bSMat(S);
+        bSMat bS=ibs->Overlap();
         double err=blaze::norm(L*bS*U-bUnit(N));
         cout << "N=" << N << ", error=" << err << endl;
         cout << "------------------------------------" << endl;
@@ -135,7 +134,7 @@ TEST_F(OrthogonalizeTests, Blaze)
         {
             for (auto ortho:orthos)
             {
-                bSMat S=to_bSMat(ibs->Overlap());
+                bSMat S=ibs->Overlap();
                 LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol);
                 las->SetBasisOverlap(S);
                 auto I=las->Transform(S);
@@ -173,7 +172,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
         for (auto ortho:orthos)
         {
             LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol/10);
-            las->SetBasisOverlap(to_bSMat(ibs->Overlap()));
+            las->SetBasisOverlap(ibs->Overlap());
             auto [U,e]=las->Solve(to_bSMat(Ham->GetMatrix(ibs,Spin::Down,0)));
             cout << OrthStrs[ortho] << " " << *ibs->GetSymmetry() << " " << e[0]+0.5 << " " << e[1]+0.125 << endl;
             EXPECT_NEAR(e[0],-0.5  ,4e-14);

@@ -4,8 +4,10 @@ module;
 #include <memory>
 #include <iostream>
 #include <cassert>
+#include <ranges>
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
+import qchem.Conversions;
 import oml;
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
@@ -45,6 +47,19 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMatri
             ls(Nl+i,Nl+j)=s(i,j);
     return ls;
 }
+template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::merge_diag(const smat_t<T>& l,const smat_t<T>& s)
+{
+    size_t Nl=l.rows();
+    size_t Ns=s.rows();
+    smat_t<T> ls=zero<T>(Nl+Ns);
+    for (auto i:iv_t(0,Nl))
+        for (auto j:iv_t(i,Nl))
+            ls(i,j)=l(i,j);
+    for (auto i:iv_t(0,Ns))
+        for (auto j:iv_t(i,Ns))
+            ls(Nl+i,Nl+j)=s(i,j);
+    return ls;
+}
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Matrix<T>& ls)
 {
     size_t Nl=ls.GetNumRows();
@@ -58,10 +73,10 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Ma
    
     return k;
 }    
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeOverlap() const
+template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::MakeOverlap() const
 {
-    SMatrix<T> ol=itsRKBL->Overlap();
-    SMatrix<T> os=itsRKBS->Kinetic();
+    smat_t<T> ol=itsRKBL->Overlap();
+    smat_t<T> os=convert(itsRKBS->Kinetic());
     return merge_diag(ol,os);
 }
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeKinetic() const

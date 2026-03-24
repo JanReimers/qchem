@@ -40,7 +40,7 @@ public:
 
     virtual size_t        GetVectorSize() const {return size();}
 
-    virtual omls_t Overlap   () const=0;
+    virtual rsmat_t Overlap   () const=0;
     virtual omls_t Grad2     () const=0;
     virtual omls_t Inv_r1    () const=0;
     virtual omls_t Inv_r2    () const=0;

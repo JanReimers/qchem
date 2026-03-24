@@ -31,6 +31,7 @@ public:
     typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
     typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
     
+    mutable std::map<id2c_t ,rsmat_t> itsbSMats; 
     mutable std::map<id2c_t ,SMat> itsSMats; 
     mutable std::map< idx_t , Mat> itsMats; 
     mutable std::map<id2c_t , Vec> itsVecs; 
@@ -51,8 +52,8 @@ export template <class T> class DB_Overlap  : public DB_Common<T>, public virtua
 {    
 protected:
     DB_Overlap(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual const SMatrix<T>& Overlap() const;
-    virtual SMatrix<T> MakeOverlap() const=0;
+    virtual const smat_t<T>& Overlap() const;
+    virtual smat_t<T> MakeOverlap() const=0;
 };
 export template <class T> class DB_Kinetic    : public DB_Common<T>, public virtual Integrals_Kinetic<T>
 {    
@@ -106,8 +107,8 @@ protected:
     virtual const Vector<double>&  Charge   () const;   
     virtual const SMatrix<double>& Repulsion() const;
     virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const;
-    virtual const SMatrix<double>& InvOverlap() const;
-    virtual const SMatrix<double>& InvRepulsion() const;
+    virtual const rsmat_t& InvOverlap() const;
+    virtual const rsmat_t& InvRepulsion() const;
     virtual  const Vector<double>& Norm   (const Mesh*        ) const; //Numerical .
     virtual  const Vector<double>& Charge (const Mesh*        ) const; //Numerical .
     virtual  const  Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
@@ -123,7 +124,7 @@ private:
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$
-    static  SMatrix<double> MakeInverse  (const SMatrix<double>&); //Numerically stable algo required.
+    static  rsmat_t MakeInverse  (const rsmat_t&); //Numerically stable algo required.
 
 };
 

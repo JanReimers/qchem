@@ -22,6 +22,7 @@ import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Streamable;
+import qchem.Conversions;
 
 using std::cout;
 using std::endl;
@@ -109,7 +110,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     StreamableObject::SetToPretty();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=oi->Overlap();
+        SMatrix<double> S=convert(oi->Overlap());
         {
             RVec d=S.GetDiagonal();
             for (size_t i=1;i<=d.size()/2;i++) EXPECT_NEAR(d(i),1.0,1e-15);
@@ -131,7 +132,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
     StreamableObject::SetToPretty();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=oi->Overlap();
+        SMatrix<double> S=convert(oi->Overlap());
         {
             RVec d=S.GetDiagonal();
             for (size_t i=1;i<=d.size()/2;i++) EXPECT_NEAR(d(i),1.0,1e-15);

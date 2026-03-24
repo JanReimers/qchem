@@ -16,7 +16,7 @@ public:
 
     virtual std::ostream& Write   (std::ostream&) const;
 
-    virtual omls_t Overlap  () const;
+    virtual rsmat_t Overlap  () const;
     virtual omls_t Grad2    () const;
     virtual omls_t Inv_r1   () const;
     virtual omls_t Inv_r2   () const;

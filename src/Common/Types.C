@@ -2,6 +2,7 @@
 module;
 #include "blaze/Math.h" 
 #include <complex>
+#include <ranges>
 export module qchem.Types;
 export import oml.Vector3D;
 export import oml.Vector;
@@ -31,6 +32,8 @@ template <typename T> using  vec_t = blaze::DynamicVector<T>;
 using  rvec_t= vec_t<double>;
 using  rmat_t= mat_t<double>;
 using rsmat_t=smat_t<double>;
+
+typedef std::ranges::iota_view<size_t,size_t> iv_t; //For range based loops
 
 
 }

@@ -9,6 +9,7 @@ import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
 import qchem.Streamable;
+import qchem.Conversions;
 import oml;
 
 //---------------------------------------------------------------------
@@ -57,14 +58,14 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    SMatrix<T> Sinv=itsBasisSet->InvOverlap();
+    SMatrix<T> Sinv=convert(itsBasisSet->InvOverlap());
     itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
     return 0;
 }
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    SMatrix<T> Sinv=itsBasisSet->InvRepulsion();
+    SMatrix<T> Sinv=convert(itsBasisSet->InvRepulsion());
     itsFitCoeff=Sinv*ffc.GetRepulsion3C(itsBasisSet.get());
     return 0;
 }

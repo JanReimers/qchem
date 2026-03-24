@@ -63,12 +63,13 @@ Slater_IBS::ds_t Slater_IBS::norms() const
     return ret;
 }
 
-Slater_IBS::omls_t Slater_IBS::Overlap() const
+rsmat_t Slater_IBS::Overlap() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Overlap(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Overlap(es[i],es[j],2*l)*ns[i]*ns[j];
 
     return S;
 }

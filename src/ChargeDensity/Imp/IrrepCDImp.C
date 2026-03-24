@@ -120,7 +120,7 @@ template <class T> double IrrepCD<T>::GetTotalCharge() const
     // SMatrix<T> SSS=S.SubMatrix(MatLimits(NL+1,N, NL+1,N));
     // std::cout.precision(10);
     // std::cout << "Charge LL=" << real(Dot(DLL,SLL)) << " SS=" << real(Dot(DSS,SSS)) << std::endl;
-    return real(sum(itsDensityMatrix%convert(itsBasisSet->Overlap()))); //% is the blaze op for the Shur (direct) product.
+    return real(sum(itsDensityMatrix%itsBasisSet->Overlap())); //% is the blaze op for the Shur (direct) product.
 }
 
 

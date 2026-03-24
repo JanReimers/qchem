@@ -55,13 +55,13 @@ using std::setw;
 // }
 //---------------------------------------------------------------------------------
 
-template <class T> const SMatrix<T>& DB_Overlap <T>::Overlap() const
+template <class T> const smat_t<T>& DB_Overlap <T>::Overlap() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
     typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Overlap2C,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeOverlap();
+    if (auto i = cache->itsbSMats.find(key); i==cache->itsbSMats.end())
+        return cache->itsbSMats[key] = MakeOverlap();
     else
         return i->second;
 }
@@ -236,19 +236,19 @@ const Matrix<double>& DB_Fit::Repulsion(const Fit_IBS& b) const
     else
         return i->second;
 }
-const SMatrix<double>& DB_Fit::InvOverlap  () const
+const rsmat_t& DB_Fit::InvOverlap  () const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvOverlap,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Overlap());
+    if (auto i = itsCache->itsbSMats.find(key); i==itsCache->itsbSMats.end())
+        return itsCache->itsbSMats[key] = MakeInverse(Overlap());
     else
         return i->second;
 }
-const SMatrix<double>& DB_Fit::InvRepulsion() const
+const rsmat_t& DB_Fit::InvRepulsion() const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeInverse(Repulsion());
+    if (auto i = itsCache->itsbSMats.find(key); i==itsCache->itsbSMats.end())
+        return itsCache->itsbSMats[key] = MakeInverse(convert(Repulsion()));
     else
         return i->second;
 }
@@ -279,8 +279,7 @@ const Matrix<double>& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 }
 
 
-SMatrix<double> DB_Fit::MakeInverse(const SMatrix<double>& S) 
+rsmat_t DB_Fit::MakeInverse(const rsmat_t& S) 
 {
-    rsmat_t Sinv=inv(convert(S));
-    return convert(Sinv);
+    return inv(S);
 }

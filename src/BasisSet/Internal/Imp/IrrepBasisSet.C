@@ -37,7 +37,7 @@ template <class T> void Orbital_IBS_Common<T>::Set(const LAParams& lap)
 template <class T>  LASolver_blaze<T>* Orbital_IBS_Common<T>::CreateSolver_blaze() const
 {
     LASolver_blaze<T>* las=LASolver_blaze<T>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
-    las->SetBasisOverlap(LASolver_blaze<T>::convert(this->Overlap()));
+    las->SetBasisOverlap(this->Overlap());
     // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
     return las;
 }

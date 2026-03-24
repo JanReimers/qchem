@@ -109,12 +109,13 @@ template <size_t K> BSpline_IBS<K>::ds_t BSpline_IBS<K>::norms() const
     return ret;
 }
 
-template <size_t K> BSpline_IBS<K>::omls_t BSpline_IBS<K>::Overlap() const
+template <size_t K> rsmat_t BSpline_IBS<K>::Overlap() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Overlap(splines[i-1],splines[j-1],2*l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Overlap(splines[i],splines[j],2*l)*ns[i]*ns[j];
 
     return S;
 }

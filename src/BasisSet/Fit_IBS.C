@@ -18,8 +18,8 @@ public:
     virtual const Vector<double>&  Charge   () const=0;   
     virtual const SMatrix<double>& Repulsion() const=0;
     virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const=0;
-    virtual const SMatrix<double>& InvOverlap() const=0;
-    virtual const SMatrix<double>& InvRepulsion() const=0;
+    virtual const rsmat_t& InvOverlap() const=0;
+    virtual const rsmat_t& InvRepulsion() const=0;
     // Pure numerial versions
     virtual  const Vector<double>& Norm   (const Mesh*        ) const=0; //Numerical .
     virtual  const Vector<double>& Charge (const Mesh*        ) const=0; //Numerical .
