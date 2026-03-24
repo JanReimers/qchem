@@ -156,12 +156,13 @@ dERI3 Slater_IBS::Overlap  (const Fit_IBS& _c) const
 {
     const Slater_IBS& c=dynamic_cast<const Slater_IBS&>(_c);
     dERI3 S3;
+    size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
     {
-        omls_t S(size());
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
-                S(i,j)=::Overlap(es[i-1]+es[j-1],c.es[ic],l+l+c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)=::Overlap(es[i]+es[j],c.es[ic],l+l+c.l)*ns[i]*ns[j]*c.ns[ic];  
         
         S3.push_back(S);
     }
@@ -171,12 +172,13 @@ dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
 {
     const Slater_IBS& c=dynamic_cast<const Slater_IBS&>(_c);
     dERI3 S3;
+    size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
     {
-        omls_t S(size());
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
-                S(i,j)=::Repulsion(es[i-1]+es[j-1],c.es[ic],l,c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)=::Repulsion(es[i]+es[j],c.es[ic],l,c.l)*ns[i]*ns[j]*c.ns[ic];  
         
         S3.push_back(S);
     }

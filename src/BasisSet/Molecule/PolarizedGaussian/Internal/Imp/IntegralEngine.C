@@ -70,7 +70,7 @@ ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
-        SMatrix<double> s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
+        rsmat_t s=convert(Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]));
         s*=c->ns(ic+1);
         s3.push_back(s);
     } 
@@ -83,7 +83,7 @@ ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
-        SMatrix<double> s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
+        rsmat_t s=convert(Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]));
         s*=c->ns(ic+1);
         s3.push_back(s);
     }    

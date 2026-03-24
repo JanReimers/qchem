@@ -94,7 +94,7 @@ FitGet3CenterOverlap(const Orbital_DFT_IBS<double>* bs) const
     SMatrix<T> J(n,n);
     Fill(J,0.0);
     size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMatrix<double>(c*O3[i++]);
+    for (auto c:itsFitCoeff) J+=SMatrix<double>(c*convert(O3[i++]));
     assert(!isnan(J));
     return J;
 }

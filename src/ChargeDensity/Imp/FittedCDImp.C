@@ -7,6 +7,7 @@ module;
 module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
+import qchem.Conversions;
 
 //------------------------------------------------------------------------------------
 //
@@ -34,7 +35,7 @@ template <class T> SMatrix<T> FittedCDImp<T>::GetRepulsion(const Orbital_DFT_IBS
     SMatrix<T> J(n,n);
     Fill(J,0.0);
     size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMatrix<T>(c*repulsions[i++]);
+    for (auto c:itsFitCoeff) J+=SMatrix<T>(c*convert(repulsions[i++]));
     assert(!isnan(J));
     return J;
 }

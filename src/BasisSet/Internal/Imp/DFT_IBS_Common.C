@@ -2,6 +2,7 @@
 module;
 #include <vector>
 module qchem.BasisSet.Internal.IrrepBasisSet;
+import qchem.Conversions;
 import oml;
 
 template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
@@ -10,7 +11,7 @@ Overlap3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
     Vector<T> ret(ff->GetNumFunctions());
     auto& S=this->Overlap3C(*ff);
     for(auto i:ret.indices())
-        ret(i)=Dot(Dcd,S[i-1]);
+        ret(i)=Dot(Dcd,convert(S[i-1]));
     return ret;
 }
 
@@ -20,7 +21,7 @@ Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
     Vector<T> ret(ff->GetNumFunctions());
     auto& repulsion=this->Repulsion3C(*ff);
     for(auto i:ret.indices())
-        ret(i)=Dot(Dcd,repulsion[i-1]);
+        ret(i)=Dot(Dcd,convert(repulsion[i-1]));
     return ret;
 }
 

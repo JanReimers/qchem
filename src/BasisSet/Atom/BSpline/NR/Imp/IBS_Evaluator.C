@@ -201,11 +201,12 @@ template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
 {
     const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
     dERI3 S3;
+    size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
     {
-        omls_t S(size());
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
             {
                 auto ab=splines[i-1]+splines[j-1];
                 S(i,j)=::Overlap(ab,c.splines[ic],l+l+c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
@@ -219,12 +220,13 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
 {
     const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
     dERI3 S3;
+    size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
     {
-        omls_t S(size());
-        // for (auto i:S.rows())
-        //     for (auto j:S.cols(i))
-        //         S(i,j)=::Repulsion(splines[i-1]*splines[j-1],c.splines[ic],l,c.l)*ns[i-1]*ns[j-1]*c.ns[ic];  
+        rsmat_t S(size());
+        // for (auto i:iv_t(0,N))
+        //     for (auto j:iv_t(i,N))
+        //         S(i,j)=::Repulsion(splines[i]*splines[j],c.splines[ic],l,c.l)*ns[i]*ns[j]*c.ns[ic];  
         
         S3.push_back(S);
     }

@@ -20,9 +20,7 @@ export class IBS_Evaluator : public VectorFunction<double>
 public:
     using ds_t=std::valarray<double>;
     using is_t=std::vector<int>;
-    using omls_t=SMatrix<double>;
-    using omlm_t= Matrix<double>;
-    using omlv_t= Vector<double>;
+    
 
     IBS_Evaluator(int _l, const is_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
     virtual ~IBS_Evaluator() {};
