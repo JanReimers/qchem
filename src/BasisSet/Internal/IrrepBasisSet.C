@@ -101,10 +101,10 @@ export template <class T> class Orbital_RKB_IBS_Common
 public:
     virtual size_t size() const {return itsRKBL->GetNumFunctions()+itsRKBS->GetNumFunctions();}
     virtual size_t  GetNumFunctions() const {return size();}
-    virtual smat_t <T> MakeOverlap () const;
-    virtual SMatrix<T> MakeKinetic () const;
-    virtual SMatrix<T> MakeNuclear (const Cluster*) const;
-    virtual SMatrix<T> MakeRestMass() const;
+    virtual smat_t<T> MakeOverlap () const;
+    virtual smat_t<T> MakeKinetic () const;
+    virtual smat_t<T> MakeNuclear (const Cluster*) const;
+    virtual smat_t<T> MakeRestMass() const;
 
     virtual Vec     operator() (const RVec3&) const;
     virtual Vec3Vec Gradient   (const RVec3&) const;
@@ -115,6 +115,7 @@ protected:
 private:
     friend DiracIntegralTests;
     static smat_t<T> merge_diag(const smat_t<T>& l,const smat_t<T>& s);
+    static smat_t<T> merge_off_diag(const mat_t<T>& ls);
     static SMatrix<T> merge_diag(const SMatrix<T>& l,const SMatrix<T>& s);
     static SMatrix<T> merge_off_diag(const Matrix<T>& ls);
 };

@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <memory>
 #include <cmath>
+#include "blaze/Math.h"
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
@@ -33,17 +34,17 @@ Fit_IE::Vec Fit_IE::MakeCharge() const
     return c;
 }
 
-Fit_IE::Mat Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
+rmat_t Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
 {   
     const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
     const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
     assert(a);
     assert(b); 
     int Na=a->size(),Nb=b->size();
-    Mat s(Na,Nb);
+    rmat_t s(Na,Nb);
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
-            s(ia+1,ib+1)=a->radials[ia]->Integrate(Repulsion2C,
+            s(ia,ib)=a->radials[ia]->Integrate(Repulsion2C,
                 b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
     assert(!isnan(s));
     return s;

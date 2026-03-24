@@ -9,6 +9,7 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
+import qchem.Conversions;
 
 Ven::Ven() : Static_HT_Imp() , theCluster() {};
 
@@ -23,7 +24,7 @@ Ven::Ven(const cl_t& cl)
  SMatrix<double>  Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
-    return bs->Nuclear(&*theCluster);
+    return convert(bs->Nuclear(&*theCluster));
 }
 
 void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

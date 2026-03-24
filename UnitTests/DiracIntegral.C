@@ -156,7 +156,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Ven=oi->Nuclear(cl);
+        SMatrix<double> Ven=convert(oi->Nuclear(cl));
 
         const IrrepBasisSet<double>* l=GetLarge(oi);
         const IrrepBasisSet<double>* s=GetSmall(oi);
@@ -176,7 +176,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Ven=oi->Nuclear(cl);
+        SMatrix<double> Ven=convert(oi->Nuclear(cl));
 
         const IrrepBasisSet<double>* l=GetLarge(oi);
         const IrrepBasisSet<double>* s=GetSmall(oi);
@@ -196,7 +196,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=oi->Kinetic();
+        SMatrix<double> K=convert(oi->Kinetic());
         for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const IrrepBasisSet<double>* l=GetLarge(oi);
@@ -212,7 +212,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=oi->Kinetic();
+        SMatrix<double> K=convert(oi->Kinetic());
         // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
         const IrrepBasisSet<double>* l=GetLarge(oi);

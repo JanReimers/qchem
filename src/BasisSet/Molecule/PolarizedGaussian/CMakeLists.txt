@@ -46,4 +46,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Radial/ContractedGaussianRF.C
     Readers/Gaussian94.C
 )
+target_include_directories(qcMolecule_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+
  

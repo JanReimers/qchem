@@ -8,6 +8,7 @@ import qchem.Orbital_DHF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import Common.Constants;
+import qchem.Conversions;
 
 RestMass::RestMass()
     : Static_HT_Imp()
@@ -20,7 +21,7 @@ SMatrix<double> RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
     // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;
     auto sbs=dynamic_cast<const Orbital_RKB_IBS<double>*>(bs);
     assert(sbs);
-    return f*sbs->RestMass();
+    return f*convert(sbs->RestMass());
 }
 
 void RestMass::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

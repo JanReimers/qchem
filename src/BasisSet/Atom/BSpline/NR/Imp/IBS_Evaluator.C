@@ -120,42 +120,46 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Overlap() const
     return S;
 }
 
-template <size_t K> BSpline_IBS<K>::omls_t BSpline_IBS<K>::Grad2() const
+template <size_t K> rsmat_t BSpline_IBS<K>::Grad2() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Grad2(splines[i-1],splines[j-1],l,l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Grad2(splines[i],splines[j],l,l)*ns[i]*ns[j];
 
     return S;
 }
 
-template <size_t K> BSpline_IBS<K>::omls_t BSpline_IBS<K>::Inv_r1() const
+template <size_t K> rsmat_t BSpline_IBS<K>::Inv_r1() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Inv_r1(splines[i-1],splines[j-1],2*l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Inv_r1(splines[i],splines[j],2*l)*ns[i]*ns[j];
 
     return S;
 }
 
-template <size_t K> BSpline_IBS<K>::omls_t BSpline_IBS<K>::Inv_r2() const
+template <size_t K> rsmat_t BSpline_IBS<K>::Inv_r2() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Inv_r2(splines[i-1],splines[j-1],2*l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Inv_r2(splines[i],splines[j],2*l)*ns[i]*ns[j];
 
     return S;
 }
 
-template <size_t K> BSpline_IBS<K>::omls_t BSpline_IBS<K>::Repulsion() const
+template <size_t K> rsmat_t BSpline_IBS<K>::Repulsion() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Repulsion(splines[i-1],splines[j-1],l,l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Repulsion(splines[i],splines[j],l,l)*ns[i]*ns[j];
 
     return S;
 }
@@ -169,25 +173,27 @@ template <size_t K> BSpline_IBS<K>::omlv_t BSpline_IBS<K>::Charge() const
     return V;
 }
 
-template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XRepulsion(const Fit_IBS& _b) const
+template <size_t K> rmat_t BSpline_IBS<K>::XRepulsion(const Fit_IBS& _b) const
 {
     const BSpline_IBS<K>& b=dynamic_cast<const BSpline_IBS<K>&>(_b);
-    omlm_t M(size(),b.size());
-    for (auto i:M.rows())
-            for (auto j:M.cols())
-                M(i,j)=::Repulsion(splines[i-1],b.splines[j-1],l,b.l)*ns[i-1]*b.ns[j-1];
+    size_t Nr=size(), Nc=b.size();
+    rmat_t M(Nr,Nc);
+    for (auto i:iv_t(0,Nr))
+            for (auto j:iv_t(0,Nc))
+                M(i,j)=::Repulsion(splines[i],b.splines[j],l,b.l)*ns[i]*b.ns[j];
     return M;
 }
 
-template <size_t K> IBS_Evaluator::omlm_t BSpline_IBS<K>::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+template <size_t K> rmat_t BSpline_IBS<K>::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
 {
     const BSpline_IBS<K>* b=dynamic_cast<const BSpline_IBS<K>*>(_b);
     assert(b);
     assert(l==b->l);
-    omlm_t M(size(),b->size());
-    for (auto i:M.rows())
-            for (auto j:M.cols())
-                M(i,j)=(::Grad2(splines[i-1],b->splines[j-1],l,l) + l*(l+1)*::Inv_r2(splines[i-1],b->splines[j-1],2*l))*ns[i-1]*b->ns[j-1];
+    size_t Nr=size(), Nc=b->size();
+    rmat_t M(Nr,Nc);
+    for (auto i:iv_t(0,Nr))
+            for (auto j:iv_t(0,Nc))
+                M(i,j)=(::Grad2(splines[i],b->splines[j],l,l) + l*(l+1)*::Inv_r2(splines[i],b->splines[j],2*l))*ns[i]*b->ns[j];
     return M;
 }
 

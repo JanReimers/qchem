@@ -260,7 +260,7 @@ TEST_F(BSplineTests, Nuclear)
     {
         cout << *ibs->GetSymmetry();
         // const Real_OIBS* ibs1=ibs;
-        SMatrix<double> Ven=ibs->Nuclear(cl);
+        SMatrix<double> Ven=convert(ibs->Nuclear(cl));
         for (auto i:Ven.rows()) //Check banded
             for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
         
@@ -280,7 +280,7 @@ TEST_F(BSplineTests, Kinetic)
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << *ibs->GetSymmetry();
-        SMatrix<double> T=ibs->Kinetic();
+        SMatrix<double> T=convert(ibs->Kinetic());
         for (auto i:T.rows()) //Check banded
             for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
         

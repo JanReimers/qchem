@@ -16,8 +16,8 @@ public:
     //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
     using Integrals_Overlap<double>::Overlap; //We this to implement InvOverlap
     virtual const Vector<double>&  Charge   () const=0;   
-    virtual const SMatrix<double>& Repulsion() const=0;
-    virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const=0;
+    virtual const rsmat_t& Repulsion() const=0;
+    virtual const  rmat_t& Repulsion(const Fit_IBS&) const=0;
     virtual const rsmat_t& InvOverlap() const=0;
     virtual const rsmat_t& InvRepulsion() const=0;
     // Pure numerial versions

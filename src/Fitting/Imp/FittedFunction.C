@@ -83,7 +83,7 @@ FitGet2CenterOverlap(const Fit_IBS* bs) const
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterRepulsion(const Fit_IBS* bs) const
 {
-    return itsFitCoeff * (itsBasisSet->Repulsion(*bs));
+    return itsFitCoeff * convert(itsBasisSet->Repulsion(*bs));
 }
 
 template <class T> SMatrix<T> FittedFunctionImp<T>::
@@ -117,7 +117,7 @@ template <class T> double FittedFunctionImp<T>::
 FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 {
     return
-        itsFitCoeff * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
+        itsFitCoeff * convert(itsBasisSet->Repulsion(*ffi->itsBasisSet.get())) *
         ffi->itsFitCoeff;
 }
 

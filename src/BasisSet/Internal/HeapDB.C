@@ -32,6 +32,7 @@ public:
     typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
     
     mutable std::map<id2c_t ,rsmat_t> itsbSMats; 
+    mutable std::map< idx_t , rmat_t> itsbMats; 
     mutable std::map<id2c_t ,SMat> itsSMats; 
     mutable std::map< idx_t , Mat> itsMats; 
     mutable std::map<id2c_t , Vec> itsVecs; 
@@ -59,29 +60,29 @@ export template <class T> class DB_Kinetic    : public DB_Common<T>, public virt
 {    
 protected:
     DB_Kinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual const SMatrix<T>& Kinetic() const;
-    virtual SMatrix<T> MakeKinetic() const=0;
+    virtual const smat_t<T>& Kinetic() const;
+    virtual smat_t<T> MakeKinetic() const=0;
 };
 export template <class T> class DB_Nuclear  : public DB_Common<T>, public virtual Integrals_Nuclear<T>
 {    
 protected:
     DB_Nuclear(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual const SMatrix<T>& Nuclear(const Cluster*) const;
-    virtual SMatrix<T> MakeNuclear(const Cluster*) const=0;
+    virtual const smat_t<T>& Nuclear(const Cluster*) const;
+    virtual smat_t<T> MakeNuclear(const Cluster*) const=0;
 };
 export template <class T> class DB_XKinetic   : public DB_Common<T>, public virtual Integrals_XKinetic<T>
 {    
 protected:
     DB_XKinetic(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual const Matrix<T>& Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
-    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual const mat_t<T>& Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const;
+    virtual mat_t<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 export template <class T> class DB_RestMass : public DB_Common<T>, public virtual Integrals_RestMass<T>
 {    
 protected:
     DB_RestMass(const DB_cache<T>* db) : DB_Common<T>(db) {};
-    virtual const SMatrix<T>& RestMass() const;
-    virtual SMatrix<T> MakeRestMass() const=0;
+    virtual const smat_t<T>& RestMass() const;
+    virtual smat_t<T> MakeRestMass() const=0;
 };
 
 export template <class T> class DB_DFT 
@@ -105,8 +106,8 @@ protected:
 
     using Integrals_Overlap<double>::Overlap; 
     virtual const Vector<double>&  Charge   () const;   
-    virtual const SMatrix<double>& Repulsion() const;
-    virtual const  Matrix<double>& Repulsion(const Fit_IBS&) const;
+    virtual const rsmat_t& Repulsion() const;
+    virtual const  rmat_t& Repulsion(const Fit_IBS&) const;
     virtual const rsmat_t& InvOverlap() const;
     virtual const rsmat_t& InvRepulsion() const;
     virtual  const Vector<double>& Norm   (const Mesh*        ) const; //Numerical .
@@ -119,8 +120,8 @@ private:
     using FitIntegrals::MakeCharge;
     virtual Vector<double>  MakeCharge() const=0;
     // virtual SMatrix<double> MakeOverlap() const=0;
-    virtual SMatrix<double> MakeRepulsion() const=0;
-    virtual  Matrix<double> MakeRepulsion(const Fit_IBS&) const=0;
+    virtual rsmat_t MakeRepulsion() const=0;
+    virtual  rmat_t MakeRepulsion(const Fit_IBS&) const=0;
     
     //! \brief Return the Penrose inverse of a symmetric matrix using SVD decomposition
     //! If \f$ S=UsV^{\dagger} \f$, then \f$ S^{-1}=V\frac{1}{s}U^{\dagger} \f$

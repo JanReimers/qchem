@@ -1,6 +1,7 @@
 // File: BasisSet/Atom/IE.C Common Integral Engine (IE) code for all atom basis sets.
 module;
 #include <cassert>
+#include "blaze/Math.h"
 export module qchem.BasisSet.Atom.IE;
 export import qchem.BasisSet.Internal.HeapDB;
 export import qchem.BasisSet.Internal.ERI4;
@@ -32,7 +33,7 @@ template <class T> class AtomIE_Kinetic
 {
 protected:
     AtomIE_Kinetic(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_Kinetic<T>(db), eval(_eval) {};
-    virtual SMatrix<T> MakeKinetic() const
+    virtual smat_t<T> MakeKinetic() const
     {
         int l=eval->Getl();
         return eval->Grad2() + l*(l+1)*eval->Inv_r2();
@@ -45,7 +46,7 @@ template <class T> class AtomIE_Nuclear
 {
 protected:
     AtomIE_Nuclear(const DB_cache<T>* db,const IBS_Evaluator* _eval) : DB_Nuclear<T>(db), eval(_eval) {};
-    virtual SMatrix<T> MakeNuclear(const Cluster* cl) const
+    virtual smat_t<T> MakeNuclear(const Cluster* cl) const
     {
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
@@ -59,7 +60,7 @@ template <class T> class AtomIE_XKinetic
 : public DB_XKinetic<T>
 {
 protected:
-    virtual Matrix<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+    virtual mat_t<T> MakeKinetic(const Orbital_RKBS_IBS<T>* rkbs) const
     {
         return eval->XKinetic(rkbs);
     }
@@ -127,8 +128,8 @@ class AtomIE_Fit
     AtomIE_Fit(const DB_cache<double>* db,const IBS_Evaluator* _eval) : DB_Fit(db), eval(_eval) {};
 
     virtual  Vector<double> MakeCharge   (                ) const {return eval->Charge    ( );}
-    virtual SMatrix<double> MakeRepulsion(                ) const {return eval->Repulsion ( );}
-    virtual  Matrix<double> MakeRepulsion(const Fit_IBS& f) const {return eval->XRepulsion(f);}
+    virtual rsmat_t MakeRepulsion(                ) const {return eval->Repulsion ( );}
+    virtual  rmat_t MakeRepulsion(const Fit_IBS& f) const {return eval->XRepulsion(f);}
 private:
     using DB_Fit::Charge; //un hide
     using DB_Fit::Repulsion; //un hide

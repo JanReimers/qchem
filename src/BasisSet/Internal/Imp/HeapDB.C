@@ -65,45 +65,45 @@ template <class T> const smat_t<T>& DB_Overlap <T>::Overlap() const
     else
         return i->second;
 }
-template <class T> const SMatrix<T>& DB_Kinetic <T>::Kinetic() const
+template <class T> const smat_t<T>& DB_Kinetic <T>::Kinetic() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
     typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Grad2,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeKinetic();
+    if (auto i = cache->itsbSMats.find(key); i==cache->itsbSMats.end())
+        return cache->itsbSMats[key] = MakeKinetic();
     else
         return i->second;
 }
-template <class T> const SMatrix<T>& DB_Nuclear <T>::Nuclear(const Cluster* cl) const
+template <class T> const smat_t<T>& DB_Nuclear <T>::Nuclear(const Cluster* cl) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
     typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::Nuclear,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeNuclear(cl);
+    if (auto i = cache->itsbSMats.find(key); i==cache->itsbSMats.end())
+        return cache->itsbSMats[key] = MakeNuclear(cl);
     else
         return i->second;
 }
 
 
-template <class T> const Matrix<T>& DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> const mat_t<T>& DB_XKinetic<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
     typename DB_cache<T>::idx_t key=std::make_tuple(qchem::Grad2,this->GetID(),rkbs->GetID());
-    if (auto i = cache->itsMats.find(key); i==cache->itsMats.end())
-        return cache->itsMats[key] = MakeKinetic(rkbs);
+    if (auto i = cache->itsbMats.find(key); i==cache->itsbMats.end())
+        return cache->itsbMats[key] = MakeKinetic(rkbs);
     else
         return i->second;
 }
-template <class T> const SMatrix<T>& DB_RestMass<T>::RestMass() const
+template <class T> const smat_t<T>& DB_RestMass<T>::RestMass() const
 {
     auto cache(DB_Common<T>::itsCache);
     assert(cache);
     typename DB_cache<T>::id2c_t key=std::make_tuple(qchem::RestMass,this->GetID());
-    if (auto i = cache->itsSMats.find(key); i==cache->itsSMats.end())
-        return cache->itsSMats[key] = MakeRestMass();
+    if (auto i = cache->itsbSMats.find(key); i==cache->itsbSMats.end())
+        return cache->itsbSMats[key] = MakeRestMass();
     else
         return i->second;
 }
@@ -220,19 +220,19 @@ const Vector<double>& DB_Fit::Charge   () const
     else
         return i->second;
 }
-const SMatrix<double>& DB_Fit::Repulsion() const
+const rsmat_t& DB_Fit::Repulsion() const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::Repulsion2C,this->GetID());
-    if (auto i = itsCache->itsSMats.find(key); i==itsCache->itsSMats.end())
-        return itsCache->itsSMats[key] = MakeRepulsion();
+    if (auto i = itsCache->itsbSMats.find(key); i==itsCache->itsbSMats.end())
+        return itsCache->itsbSMats[key] = MakeRepulsion();
     else
         return i->second;
 }
-const Matrix<double>& DB_Fit::Repulsion(const Fit_IBS& b) const
+const rmat_t& DB_Fit::Repulsion(const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::Repulsion2C,this->GetID(),b.GetID());
-    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
-        return itsCache->itsMats[key] = MakeRepulsion(b);
+    if (auto i = itsCache->itsbMats.find(key); i==itsCache->itsbMats.end())
+        return itsCache->itsbMats[key] = MakeRepulsion(b);
     else
         return i->second;
 }
@@ -248,7 +248,7 @@ const rsmat_t& DB_Fit::InvRepulsion() const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::InvRepulsion,this->GetID());
     if (auto i = itsCache->itsbSMats.find(key); i==itsCache->itsbSMats.end())
-        return itsCache->itsbSMats[key] = MakeInverse(convert(Repulsion()));
+        return itsCache->itsbSMats[key] = MakeInverse(Repulsion());
     else
         return i->second;
 }

@@ -49,8 +49,8 @@ class Orbital_IE
     typedef Orbital_IBS<double> obs_t;
     // typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
-    virtual SMatrix<double> MakeKinetic() const {return MakeIntegrals(Grad2);}
-    virtual SMatrix<double> MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,cl);}
+    virtual smat_t<double> MakeKinetic() const {return convert(MakeIntegrals(Grad2));}
+    virtual smat_t<double> MakeNuclear(const Cluster* cl) const {return convert(MakeIntegrals(PolarizedGaussian::Nuclear,cl));}
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4 MakeDirect  (const obs_t& c) const;
@@ -78,8 +78,8 @@ class Fit_IE
 public:
     virtual rsmat_t MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
     virtual  Vector<double> MakeCharge   () const;
-    virtual SMatrix<double> MakeRepulsion() const {return MakeIntegrals(Repulsion2C);}
-    virtual  Matrix<double> MakeRepulsion(const Fit_IBS& b) const;
+    virtual rsmat_t MakeRepulsion() const {return convert(MakeIntegrals(Repulsion2C));}
+    virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
 protected:
     Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}
 };

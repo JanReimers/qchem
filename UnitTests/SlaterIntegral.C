@@ -183,7 +183,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Hn=oi->Nuclear(cl);
+        SMatrix<double> Hn=convert(oi->Nuclear(cl));
         SMatrix<double> Hnnum = -1*mintegrator->Inv_r1(*oi);
         EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
 
@@ -194,7 +194,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=oi->Kinetic();
+        SMatrix<double> K=convert(oi->Kinetic());
         //cout << S << endl;
         int l=dynamic_cast<const Angular_Sym* >(oi->GetSymmetry().get())->GetL();
         SMatrix<double> Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);

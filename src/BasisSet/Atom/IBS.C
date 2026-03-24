@@ -84,18 +84,13 @@ template <class T> class Orbital_RKBS_IBS
     : public Orbital_RKBS_IBS_Common<T>
     , public AtomIE_RKBS<T>
 {
-    virtual const smat_t<T>& Overlap() const 
-    {
-        K=convert(DB_Kinetic<T>::Kinetic());
-        return K;
-    }
+    virtual const smat_t<T>& Overlap() const {return DB_Kinetic<T>::Kinetic();}
 protected:
     Orbital_RKBS_IBS(const DB_cache<T>* db,const IBS_Evaluator* eval,int kappa)
         : Orbital_RKBS_IBS_Common<T>(kappa)
         , AtomIE_RKBS<T>(db,eval)
         {}
 
-    mutable smat_t<T> K;
 };
 
 class Fit_IBS

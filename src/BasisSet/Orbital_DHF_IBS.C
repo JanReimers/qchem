@@ -9,7 +9,7 @@ export template <class T> class Integrals_RestMass
 {
 public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
-    virtual const SMatrix<T>& RestMass() const=0;   
+    virtual const smat_t<T>& RestMass() const=0;   
 };
 
 export template <class T> class Orbital_RKBS_IBS;
@@ -18,7 +18,7 @@ export template <class T> class Integrals_XKinetic
 {
 public:
     //! L/S cross Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-    virtual const Matrix<T>& Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
+    virtual const mat_t<T>& Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const=0;
 };
 
 //! \brief Interface for one electron integrals used in Dirac-Hartree-Fock (DHF) calculations.

@@ -7,6 +7,7 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
+import qchem.Conversions;
 
 Kinetic::Kinetic()
     : Static_HT_Imp()
@@ -15,7 +16,7 @@ Kinetic::Kinetic()
 
 SMatrix<double> Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
-    return 0.5*bs->Kinetic();
+    return 0.5*convert(bs->Kinetic());
 }
 
 void Kinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

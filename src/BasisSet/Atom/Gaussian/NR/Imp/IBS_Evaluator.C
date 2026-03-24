@@ -72,42 +72,46 @@ rsmat_t Gaussian_IBS::Overlap() const
     return S;
 }
 
-Gaussian_IBS::omls_t Gaussian_IBS::Grad2() const
+rsmat_t Gaussian_IBS::Grad2() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= Grad2(es[i-1],es[j-1],l,l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= Grad2(es[i],es[j],l,l)*ns[i]*ns[j];
 
     return S;
 }
 
-Gaussian_IBS::omls_t Gaussian_IBS::Inv_r1() const
+rsmat_t Gaussian_IBS::Inv_r1() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= Inv_r1(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= Inv_r1(es[i],es[j],2*l)*ns[i]*ns[j];
 
     return S;
 }
 
-Gaussian_IBS::omls_t Gaussian_IBS::Inv_r2() const
+rsmat_t Gaussian_IBS::Inv_r2() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= Inv_r2(es[i-1],es[j-1],2*l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= Inv_r2(es[i],es[j],2*l)*ns[i]*ns[j];
 
     return S;
 }
 
-Gaussian_IBS::omls_t Gaussian_IBS::Repulsion() const
+rsmat_t Gaussian_IBS::Repulsion() const
 {
-    omls_t S(size());
-    for (auto i:S.rows())
-        for (auto j:S.cols(i))
-            S(i,j)= ::Repulsion(es[i-1],es[j-1],l,l)*ns[i-1]*ns[j-1];
+    size_t N=size();
+    rsmat_t S(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+            S(i,j)= ::Repulsion(es[i],es[j],l,l)*ns[i]*ns[j];
 
     return S;
 }
@@ -121,25 +125,27 @@ Gaussian_IBS::omlv_t Gaussian_IBS::Charge() const
     return V;
 }
 
-IBS_Evaluator::omlm_t Gaussian_IBS::XRepulsion(const Fit_IBS& _b) const
+rmat_t Gaussian_IBS::XRepulsion(const Fit_IBS& _b) const
 {
     const Gaussian_IBS& b=dynamic_cast<const Gaussian_IBS&>(_b);
-    omlm_t M(size(),b.size());
-    for (auto i:M.rows())
-            for (auto j:M.cols())
-                M(i,j)=::Repulsion(es[i-1],b.es[j-1],l,b.l)*ns[i-1]*b.ns[j-1];
+    size_t Nr=size(), Nc=b.size();
+    rmat_t M(Nr,Nc);
+    for (auto i:iv_t(0,Nr))
+            for (auto j:iv_t(0,Nc))
+                M(i,j)=::Repulsion(es[i],b.es[j],l,b.l)*ns[i]*b.ns[j];
     return M;
 }
 
-IBS_Evaluator::omlm_t Gaussian_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+rmat_t Gaussian_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
 {
     const Gaussian_IBS* b=dynamic_cast<const Gaussian_IBS*>(_b);
     assert(b);
     assert(l==b->l);
-    omlm_t M(size(),b->size());
-    for (auto i:M.rows())
-            for (auto j:M.cols())
-                M(i,j)=(Grad2(es[i-1],b->es[j-1],l,l) + l*(l+1)*Inv_r2(es[i-1],b->es[j-1],2*l))*ns[i-1]*b->ns[j-1];
+    size_t Nr=size(), Nc=b->size();
+    rmat_t M(Nr,Nc);
+    for (auto i:iv_t(0,Nr))
+            for (auto j:iv_t(0,Nc))
+                M(i,j)=(Grad2(es[i],b->es[j],l,l) + l*(l+1)*Inv_r2(es[i],b->es[j],2*l))*ns[i]*b->ns[j];
     return M;
 }
 

@@ -5,6 +5,7 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
+import qchem.Conversions;
 import Common.Constants;
 
 DiracKinetic::DiracKinetic()
@@ -15,7 +16,7 @@ DiracKinetic::DiracKinetic()
  SMatrix<double>  DiracKinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
-    return c_light*bs->Kinetic();
+    return c_light*convert(bs->Kinetic());
 }
 
 void DiracKinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

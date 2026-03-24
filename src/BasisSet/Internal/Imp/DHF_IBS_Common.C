@@ -5,6 +5,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <ranges>
+#include "blaze/Math.h"
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.Conversions;
@@ -60,6 +61,18 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::merge_diag(const smat_t<
             ls(Nl+i,Nl+j)=s(i,j);
     return ls;
 }
+template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const mat_t<T>& ls)
+{
+    size_t Nl=ls.rows();
+    size_t Ns=ls.columns();
+    assert(Nl==Ns);
+    smat_t<T> k=zero<T>(Nl+Ns);
+    for (auto i:iv_t(0,Nl))
+        for (auto j:iv_t(0,Nl))
+            k(i,Ns+j)=ls(i,j);
+   
+    return k;
+}    
 template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Matrix<T>& ls)
 {
     size_t Nl=ls.GetNumRows();
@@ -76,25 +89,24 @@ template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Ma
 template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::MakeOverlap() const
 {
     smat_t<T> ol=itsRKBL->Overlap();
-    smat_t<T> os=convert(itsRKBS->Kinetic());
+    smat_t<T> os=itsRKBS->Kinetic();
     return merge_diag(ol,os);
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeKinetic() const
+template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::MakeKinetic() const
 {
-    Matrix<T> kls=-itsRKBL->Kinetic(itsRKBS);
+    mat_t<T> kls=-itsRKBL->Kinetic(itsRKBS);
     return merge_off_diag(kls);
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeNuclear(const Cluster* c) const
+template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::MakeNuclear(const Cluster* c) const
 {
-    SMatrix<T> nl=itsRKBL->Nuclear(c);
-    SMatrix<T> ns=itsRKBS->Nuclear(c);
+    smat_t<T> nl=itsRKBL->Nuclear(c);
+    smat_t<T> ns=itsRKBS->Nuclear(c);
     return merge_diag(nl,ns);
 }
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::MakeRestMass() const
+template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::MakeRestMass() const
 {
-    SMatrix<T> rl(itsRKBL->GetNumFunctions());
-    Fill(rl,0.0);
-    SMatrix<T> rs=itsRKBS->Kinetic();
+    smat_t<T> rl=zero<T>(itsRKBL->GetNumFunctions());
+    smat_t<T> rs=itsRKBS->Kinetic();
     return merge_diag(rl,rs);
 }
 
