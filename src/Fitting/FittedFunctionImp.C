@@ -1,6 +1,8 @@
 // File: FittedFunctionImp.C  Implementation for Fitted Functions.
 module;
 #include <memory> // for std::shared_ptr
+#include "blaze/Math.h"
+
 export module qchem.FittedFunctionImp;
 export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;
@@ -49,11 +51,11 @@ protected:
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;
 
-    virtual void  Eval(const Mesh&, Vec&) const;
+    // virtual void  Eval(const Mesh&, Vec&) const;
 
 public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
-    Vec      itsFitCoeff;
+    vec_t<T> itsFitCoeff;
     mesh_t   itsMesh;
 };
 
@@ -74,8 +76,9 @@ public:
 
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    Vec g,gS;
-    T   gSg;
+    vec_t<T> g;
+    blaze::DynamicVector<T,blaze::rowVector> gS;
+    T        gSg;
 };
 
 export template <class T> class IntegralConstrainedFF

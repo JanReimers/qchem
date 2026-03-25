@@ -22,12 +22,11 @@ import oml;
 template <class T> FittedFunctionImp<T>::
 FittedFunctionImp(bs_t& fbs,mesh_t& m)
     : itsBasisSet(fbs)
-    , itsFitCoeff(fbs->GetNumFunctions())
+    , itsFitCoeff(fbs->GetNumFunctions(),0.0)
     , itsMesh    (m)
 {
     assert(itsMesh);
-    Fill(itsFitCoeff,0.0);
-    itsFitCoeff(1)=1.0/itsBasisSet->Charge()[0]; //Wild guess with the correct total charge.
+    itsFitCoeff[0]=1.0/itsBasisSet->Charge()[0]; //Wild guess with the correct total charge.
 };
 
 template <class T> FittedFunctionImp<T>::FittedFunctionImp()
@@ -35,7 +34,7 @@ template <class T> FittedFunctionImp<T>::FittedFunctionImp()
     , itsFitCoeff (    )
     , itsMesh     (0   )
 {
-    Fill(itsFitCoeff,0.0);
+    
 };
 
 template <class T> FittedFunctionImp<T>::~FittedFunctionImp()
@@ -62,7 +61,7 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClie
     smat_t<T> Sinv=itsBasisSet->InvOverlap();
     vec_t<T> r=(itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction()));
     vec_t<T> c=Sinv*r;
-    itsFitCoeff=convert(c);
+    itsFitCoeff=c;
     return 0;
 }
 
@@ -71,7 +70,7 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFCli
     smat_t<T> Sinv=itsBasisSet->InvRepulsion();
     vec_t<T> r=convert(ffc.GetRepulsion3C(itsBasisSet.get()));
     vec_t<T> c=Sinv*r;
-    itsFitCoeff=convert(c);
+    itsFitCoeff=c;
     return 0;
 }
 
@@ -82,13 +81,20 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFCli
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterOverlap(const Fit_IBS* bs) const
 {
-    return itsFitCoeff * convert(itsBasisSet->Overlap(itsMesh.get(),*bs));
+    smat_t<T> O=itsBasisSet->Overlap(itsMesh.get(),*bs);
+    blaze::DynamicVector<T,blaze::rowVector> ct=trans(itsFitCoeff);
+    blaze::DynamicVector<T,blaze::rowVector> cO=ct*O;
+    vec_t<T> tCo=trans(cO);
+    return convert(tCo);
 }
 
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterRepulsion(const Fit_IBS* bs) const
 {
-    return itsFitCoeff * convert(itsBasisSet->Repulsion(*bs));
+    smat_t<T> R=itsBasisSet->Repulsion(*bs);
+    blaze::DynamicVector<T,blaze::rowVector> cR=trans(itsFitCoeff) * R;
+    vec_t<T> tcR=trans(cR);
+    return convert(tcR);
 }
 
 template <class T> SMatrix<T> FittedFunctionImp<T>::
@@ -113,8 +119,8 @@ template <class T> double FittedFunctionImp<T>::
 FitGetOverlap(const FittedFunctionImp<T>* ffi) const
 {
     return
-        itsFitCoeff *
-        convert(itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet)) *
+        trans(itsFitCoeff) *
+        itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
         ffi->itsFitCoeff;
 }
 
@@ -122,13 +128,13 @@ template <class T> double FittedFunctionImp<T>::
 FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 {
     return
-        itsFitCoeff * convert(itsBasisSet->Repulsion(*ffi->itsBasisSet.get())) *
+        trans(itsFitCoeff) * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
 }
 
 template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 {
-    return itsFitCoeff * convert(itsBasisSet->Charge());
+    return trans(itsFitCoeff) * itsBasisSet->Charge();
 }
 
 //------------------------------------------------------------------------
@@ -148,7 +154,7 @@ template <class T> double FittedFunctionImp<T>::FitGetChangeFrom(const FittedFun
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
     assert(ffi);
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
-    return Max(fabs(itsFitCoeff - ffi->itsFitCoeff));
+    return max(abs(itsFitCoeff - ffi->itsFitCoeff));
 }
 
 template <class T> void FittedFunctionImp<T>::ReScale(double factor)
@@ -162,13 +168,13 @@ template <class T> void FittedFunctionImp<T>::ReScale(double factor)
 //
 template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) const
 {
-    return itsFitCoeff * (*itsBasisSet)(r);
+    return trans(itsFitCoeff) * convert((*itsBasisSet)(r));
 }
 
-template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
-{
-    v += Vec(itsFitCoeff * (*itsBasisSet)(m));
-}
+// template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
+// {
+//     v += Vec(itsFitCoeff * (*itsBasisSet)(m));
+// }
 
 template <class T> RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {

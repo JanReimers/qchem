@@ -6,8 +6,6 @@ module;
 #include "blaze/Math.h"
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Mesh.Integrator;
-import qchem.Conversions;
-import oml;
 
 rvec_t Fit_IBS_Common::MakeNorm   (const Mesh* m) const
 {

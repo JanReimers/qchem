@@ -4,6 +4,8 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
+#include "blaze/Math.h"
+
 module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
@@ -56,11 +58,11 @@ template <class T> double FittedCDImp<T>::operator()(const RVec3& r) const
     return FittedFunctionImp<T>::operator()(r);
 }
 
-template <class T> void FittedCDImp<T>::Eval(const Mesh& m, Vector<double>& v) const
-{
-    // No UT coverage
-    FittedFunctionImp<T>::Eval(m,v);
-}
+// template <class T> void FittedCDImp<T>::Eval(const Mesh& m, Vector<double>& v) const
+// {
+//     // No UT coverage
+//     FittedFunctionImp<T>::Eval(m,v);
+// }
 
 template <class T> RVec3 FittedCDImp<T>::Gradient(const RVec3& r) const
 {

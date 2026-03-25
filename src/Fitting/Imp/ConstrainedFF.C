@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include "blaze/Math.h"
 module qchem.FittedFunctionImp;
 import qchem.FittedFunctionClient;
 import qchem.Fit_IBS;
@@ -20,8 +21,8 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 template <class T> ConstrainedFF<T>::
 ConstrainedFF(bs_t& fbs, const Vec& theg, mesh_t&  m)
     : FittedFunctionImp<T>(fbs,m)
-    , g  (theg)
-    , gS (g*convert(fbs->InvRepulsion()))
+    , g  (convert(theg))
+    , gS (blaze::trans(g)*fbs->InvRepulsion())
     , gSg(gS*g)
 {	
 }
