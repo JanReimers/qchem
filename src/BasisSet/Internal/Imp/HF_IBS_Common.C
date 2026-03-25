@@ -4,14 +4,16 @@ module;
 #include <vector>
 #include <memory>
 #include <iomanip>
+#include <blaze/Math.h>
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.Conversions;
 
 template <class T> SMatrix<T> Orbital_HF_IBS_Common<T>::
-Direct(const SMatrix<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
+Direct(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 {
     assert(!isnan(Dcd));
-    assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
+    assert(max(abs(Dcd))>0.0);  //Don't waste time!
     const Orbital_HF_IBS<T>* ab=this;
     
     if (ab->GetID()<=cd->GetID())
@@ -28,10 +30,10 @@ Direct(const SMatrix<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 
 #include <iomanip>
 template <class T> SMatrix<T> Orbital_HF_IBS_Common<T>::
-Exchange(const SMatrix<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
+Exchange(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 {
     assert(!isnan(Dcd));
-    assert(Max(fabs(Dcd))>0.0);  //Don't waste time!
+    assert(max(abs(Dcd))>0.0);  //Don't waste time!
     const Orbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())

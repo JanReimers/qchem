@@ -1,27 +1,28 @@
 module;
 #include <cassert>
 module qchem.BasisSet.Internal.ERI4;
+import qchem.Conversions;
 
-ERI4::SMat MatMul(const ERI4& gabcd,const ERI4::SMat& Scd)
+ERI4::SMat MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 {
     //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
     ERI4::SMat Sab(gabcd.GetLimits());
     for (auto ia:Sab.rows())
         for (auto ib:Sab.cols(ia))
-            Sab(ia,ib)=ERI4::contract(gabcd(ia,ib),Scd); //Dot(DirectMultiply(A,B))
+            Sab(ia,ib)=ERI4::contract(gabcd(ia,ib),convert(Scd)); //Dot(DirectMultiply(A,B))
     return Sab;
 }
 
 // Profiling hot loop
-ERI4::SMat MatMul(const ERI4::SMat& Sab, const ERI4& gabcd)
+ERI4::SMat MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 {
     ERI4::SMat Scd(gabcd(1,1).GetLimits());
     Fill(Scd,0.0);
-    for (auto ia:Sab.rows())
+    for (auto ia:gabcd.rows())
     {
-        Scd+=gabcd(ia,ia)*Sab(ia,ia);
-        for (auto ib:Sab.cols(ia+1))
-            Scd+=2*gabcd(ia,ib)*Sab(ia,ib);
+        Scd+=gabcd(ia,ia)*Sab(ia-1,ia-1);
+        for (auto ib:gabcd.cols(ia+1))
+            Scd+=2*gabcd(ia,ib)*Sab(ia-1,ib-1);
     }
     return Scd;
 }

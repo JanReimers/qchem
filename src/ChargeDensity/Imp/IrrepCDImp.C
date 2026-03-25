@@ -68,7 +68,7 @@ template <> smat_t<double> IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<do
     if (IsZero()) return zero<double>(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
-    return convert(bs_ab->Direct(convert(itsDensityMatrix),bs_cd));
+    return convert(bs_ab->Direct(itsDensityMatrix,bs_cd));
 }
 
 template <> smat_t<double> IrrepCD<double>::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
@@ -76,7 +76,7 @@ template <> smat_t<double> IrrepCD<double>::GetExchange(const Orbital_HF_IBS<dou
     if (IsZero()) return zero<double>(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
-    return convert(bs_ab->Exchange(convert(itsDensityMatrix),bs_cd));
+    return convert(bs_ab->Exchange(itsDensityMatrix,bs_cd));
 }
 
 //------------------------------------------------------------------------------
