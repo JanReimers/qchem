@@ -75,21 +75,21 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
             {
                 if (ib<ia) continue; 
                 if (ib>ia+spanab) continue;
-                SMat& Jab=J(ia+1,ib+1);
+                rsmat_t& Jab=J(ia,ib);
                 loop_3(a->es_index(ib));
                 for (size_t id:c->indices())
                 {
                     if (id<ic) continue;
                     if (id>ic+spancd) continue;
-                    if (Jab(ic+1,id+1)!=0.0)
+                    if (Jab(ic,id)!=0.0)
                     {
                         std::cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
-                        std::cout << Jab(ic+1,id+1) << std::endl;    
+                        std::cout << Jab(ic,id) << std::endl;    
                         assert(false);
                     }
                     double norm=na[ia]*na[ib]*nc[ic]*nc[id];
                     RVec Rkac=loop_4_direct(c->es_index(id),la,lc);
-                    Jab(ic+1,id+1)=Akac*Rkac*norm;
+                    Jab(ic,id)=Akac*Rkac*norm;
                 }
             }
         }
@@ -116,7 +116,7 @@ ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) cons
             if (ia>ic+spanab || ic>ia+spancd) continue;
             for (size_t ib:a->indices(ia))
             {
-                SMat& Kab=K(ia+1,ib+1);
+                rsmat_t& Kab=K(ia,ib);
                 loop_2(a->es_index(ib));
                 loop_3(c->es_index(ic));
                 for (size_t id:c->indices())
@@ -125,11 +125,11 @@ ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) cons
                     double norm=na[ia]*na[ib]*nc[ic]*nc[id]; 
                     RVec RKac=loop_4_exchange(c->es_index(id),la,lc);
                     if (ic==id)
-                        Kab(ic+1,id+1)=Akac*RKac*norm; 
+                        Kab(ic,id)=Akac*RKac*norm; 
                     else if (id<ic)
-                        Kab(id+1,ic+1)+=0.5*Akac*RKac*norm; 
+                        Kab(id,ic)+=0.5*Akac*RKac*norm; 
                     else
-                        Kab(ic+1,id+1)+=0.5*Akac*RKac*norm; 
+                        Kab(ic,id)+=0.5*Akac*RKac*norm; 
 
                 }
             }

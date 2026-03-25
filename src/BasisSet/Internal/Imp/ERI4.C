@@ -7,25 +7,25 @@ import qchem.Conversions;
 rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 {
     //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
-    size_t N=gabcd.GetLimits().GetNumRows();
-    rsmat_t Sab(N);
-    for (auto ia:iv_t(0,N))
-        for (auto ib:iv_t(ia,N))
-            Sab(ia,ib)=ERI4::contract(gabcd(ia+1,ib+1),Scd); //Dot(DirectMultiply(A,B))
+    size_t Nab=gabcd.Nab();
+    rsmat_t Sab(Nab);
+    for (auto ia:iv_t(0,Nab))
+        for (auto ib:iv_t(ia,Nab))
+            Sab(ia,ib)=ERI4::contract(convert(gabcd(ia,ib)),Scd); //Dot(DirectMultiply(A,B))
     return Sab;
 }
 
 // Profiling hot loop
 rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 {
-    size_t Nab=gabcd.GetLimits().GetNumRows();
-    size_t Ncd=gabcd(1,1).GetLimits().GetNumRows();
+    size_t Nab=gabcd.Nab();
+    size_t Ncd=gabcd(0,0).rows();
     rsmat_t Scd=zero<double>(Ncd);
     for (auto ia:iv_t(0,Nab))
     {
-        Scd+=convert(gabcd(ia+1,ia+1))*Sab(ia,ia);
+        Scd+=gabcd(ia,ia)*Sab(ia,ia);
         for (auto ib:iv_t(ia+1,Nab))
-            Scd+=2*convert(gabcd(ia+1,ib+1))*Sab(ia,ib);
+            Scd+=2*gabcd(ia,ib)*Sab(ia,ib);
     }
     return Scd;
 }

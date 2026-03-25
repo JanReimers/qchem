@@ -1,7 +1,7 @@
 // File ERI4T.C  Generical containter for and ERI (Electron Repulsion Integral) 4 index super matrix.
 module;
+#include <blaze/Math.h>
 export module qchem.BasisSet.Internal.ERI4T;
-import oml;
 export import qchem.Types;
 //------------------------------------------------------------------
 //
@@ -23,18 +23,18 @@ export template <class T,template<class> class M> class ERI4T
 public:
     ERI4T() {};
     ERI4T(size_t Nab, size_t Ncd);
-    const M<T>& operator()(size_t a, size_t b) const {return itsData.ref(a,b);}
+    const M<T>& operator()(size_t a, size_t b) const {return itsData(a,b);}
           M<T>& operator()(size_t a, size_t b)       {return itsData(a,b);}
     
 
     size_t size() const;
-    size_t Nab() const {return itsData.GetNumRows();}
-    size_t Ncd() const {return itsData(1,1).GetNumRows();}
-    MatLimits GetLimits() const {return itsData.GetLimits();}
-    auto rows() const {return itsData.rows();}
-    auto cols() const {return itsData.cols();}
-    auto rows(size_t i) const {return itsData.rows(i);}
-    auto cols(size_t i) const {return itsData.cols(i);}
+    size_t Nab() const {return itsData.rows();}
+    size_t Ncd() const {return itsData(0,0).rows();}
+    // MatLimits GetLimits() const {return itsData.GetLimits();}
+    // auto rows() const {return itsData.rows();}
+    // auto cols() const {return itsData.cols();}
+    // auto rows(size_t i) const {return itsData.rows(i);}
+    // auto cols(size_t i) const {return itsData.cols(i);}
 private:
     M<M<T> > itsData;
 };
