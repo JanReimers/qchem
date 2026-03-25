@@ -111,9 +111,9 @@ protected:
     virtual const  rmat_t& Repulsion(const Fit_IBS&) const;
     virtual const rsmat_t& InvOverlap() const;
     virtual const rsmat_t& InvRepulsion() const;
-    virtual  const Vector<double>& Norm   (const Mesh*        ) const; //Numerical .
-    virtual  const Vector<double>& Charge (const Mesh*        ) const; //Numerical .
-    virtual  const  Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+    virtual const  rvec_t& Norm   (const Mesh*        ) const; //Numerical .
+    virtual const  rvec_t& Charge (const Mesh*        ) const; //Numerical .
+    virtual const  rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
 
 private:

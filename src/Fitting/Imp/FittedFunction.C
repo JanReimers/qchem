@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include "blaze/Math.h"
 module qchem.FittedFunctionImp;
 import qchem.FittedFunction;
 import qchem.Fit_IBS;
@@ -58,15 +59,19 @@ template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    SMatrix<T> Sinv=convert(itsBasisSet->InvOverlap());
-    itsFitCoeff=Sinv*itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
+    smat_t<T> Sinv=itsBasisSet->InvOverlap();
+    vec_t<T> r=(itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction()));
+    vec_t<T> c=Sinv*r;
+    itsFitCoeff=convert(c);
     return 0;
 }
 
 template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
 {
-    SMatrix<T> Sinv=convert(itsBasisSet->InvRepulsion());
-    itsFitCoeff=Sinv*ffc.GetRepulsion3C(itsBasisSet.get());
+    smat_t<T> Sinv=itsBasisSet->InvRepulsion();
+    vec_t<T> r=convert(ffc.GetRepulsion3C(itsBasisSet.get()));
+    vec_t<T> c=Sinv*r;
+    itsFitCoeff=convert(c);
     return 0;
 }
 
@@ -77,7 +82,7 @@ template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFCli
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
 FitGet2CenterOverlap(const Fit_IBS* bs) const
 {
-    return itsFitCoeff * (itsBasisSet->Overlap(itsMesh.get(),*bs));
+    return itsFitCoeff * convert(itsBasisSet->Overlap(itsMesh.get(),*bs));
 }
 
 template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
@@ -109,7 +114,7 @@ FitGetOverlap(const FittedFunctionImp<T>* ffi) const
 {
     return
         itsFitCoeff *
-        itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
+        convert(itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet)) *
         ffi->itsFitCoeff;
 }
 

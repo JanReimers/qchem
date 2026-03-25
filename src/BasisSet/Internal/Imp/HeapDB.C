@@ -252,28 +252,28 @@ const rsmat_t& DB_Fit::InvRepulsion() const
     else
         return i->second;
 }
-const Vector<double>& DB_Fit::Norm   (const Mesh* m        ) const
+const rvec_t& DB_Fit::Norm   (const Mesh* m        ) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumNormalization,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeNorm(m);
+    if (auto i = itsCache->itsbVecs.find(key); i==itsCache->itsbVecs.end())
+        return itsCache->itsbVecs[key] = MakeNorm(m);
     else
         return i->second;
 }
-const Vector<double>& DB_Fit::Charge (const Mesh* m        ) const
+const rvec_t& DB_Fit::Charge (const Mesh* m        ) const
 {
     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
-    if (auto i = itsCache->itsVecs.find(key); i==itsCache->itsVecs.end())
-        return itsCache->itsVecs[key] = MakeCharge(m);
+    if (auto i = itsCache->itsbVecs.find(key); i==itsCache->itsbVecs.end())
+        return itsCache->itsbVecs[key] = MakeCharge(m);
     else
         return i->second;
 
 }
-const Matrix<double>& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
+const rmat_t& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());
-    if (auto i = itsCache->itsMats.find(key); i==itsCache->itsMats.end())
-        return itsCache->itsMats[key] = MakeOverlap(m,b);
+    if (auto i = itsCache->itsbMats.find(key); i==itsCache->itsbMats.end())
+        return itsCache->itsbMats[key] = MakeOverlap(m,b);
     else
         return i->second;
 }

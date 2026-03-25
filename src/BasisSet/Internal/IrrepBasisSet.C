@@ -62,12 +62,12 @@ export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegral
 {
     
     public:
-    virtual  Vector<double> MakeNorm   (const Mesh*        ) const; //Numerical .
-    virtual  Vector<double> MakeCharge (const Mesh*        ) const; //Numerical .
-    virtual  Matrix<double> MakeOverlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+    virtual  rvec_t MakeNorm   (const Mesh*        ) const; //Numerical .
+    virtual  rvec_t MakeCharge (const Mesh*        ) const; //Numerical .
+    virtual  rmat_t MakeOverlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
-    virtual const Vector<double> Overlap  (const Mesh*,const Sf&) const; //Numerical  
-    virtual const Vector<double> Repulsion(const Mesh*,const Sf&) const; //Numerical 
+    virtual const rvec_t Overlap  (const Mesh*,const Sf&) const; //Numerical  
+    virtual const rvec_t Repulsion(const Mesh*,const Sf&) const; //Numerical 
 };
 
 export template <class T> class Orbital_DFT_IBS_Common

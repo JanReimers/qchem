@@ -21,21 +21,21 @@ public:
     virtual const rsmat_t& InvOverlap() const=0;
     virtual const rsmat_t& InvRepulsion() const=0;
     // Pure numerial versions
-    virtual  const Vector<double>& Norm   (const Mesh*        ) const=0; //Numerical .
-    virtual  const Vector<double>& Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  const Matrix<double>& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
+    virtual  const rvec_t& Norm   (const Mesh*        ) const=0; //Numerical .
+    virtual  const rvec_t& Charge (const Mesh*        ) const=0; //Numerical .
+    virtual  const rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
     //
     //  These are used for charge and Vxc fitting.  They change with iterations
     //  So they MUST not be cached.
     //
     typedef ScalarFunction<double> Sf;
-    virtual const Vector<double> Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
-    virtual const Vector<double> Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
+    virtual const rvec_t Overlap    (const Mesh*,const Sf&) const=0; //Numerical  
+    virtual const rvec_t Repulsion  (const Mesh*,const Sf&) const=0; //Numerical 
 
 protected:
-    virtual  Vector<double> MakeNorm   (const Mesh*        ) const=0; //Numerical .
-    virtual  Vector<double> MakeCharge (const Mesh*        ) const=0; //Numerical .
-    virtual  Matrix<double> MakeOverlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
+    virtual  rvec_t MakeNorm   (const Mesh*        ) const=0; //Numerical .
+    virtual  rvec_t MakeCharge (const Mesh*        ) const=0; //Numerical .
+    virtual  rmat_t MakeOverlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
 };
 
 
