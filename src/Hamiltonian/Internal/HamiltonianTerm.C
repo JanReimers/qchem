@@ -11,7 +11,7 @@ import qchem.Symmetry.Irrep;
 export class HT_Common
 {
 protected:
-    typedef std::map<Irrep_QNs,SMatrix<double>> CacheMap;
+    typedef std::map<Irrep_QNs,rsmat_t> CacheMap;
     // typedef std::map<Irrep_QNs,const Static_HT::ibs_t*> BSMap;
     mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
 };
@@ -22,11 +22,11 @@ export class Static_HT_Imp
     , protected HT_Common
 {
 public:
-    virtual const SMatrix<double>& GetMatrix(const ibs_t* bs,const Spin&) const;
+    virtual const rsmat_t& GetMatrix(const ibs_t* bs,const Spin&) const;
 
 protected:
     // Unconditional calculation, does no use cache.
-    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const=0;
+    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const=0;
 };
 
 export class Dynamic_HT_Imp
@@ -35,11 +35,11 @@ export class Dynamic_HT_Imp
 {
 public:
     Dynamic_HT_Imp();
-    virtual const  SMatrix<double>& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
+    virtual const rsmat_t& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
     // Unconditional calculation, does not use cache.
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
     bool newCD(const DM_CD*) const;
 
     mutable const DM_CD* itsCD;      //Density matrix charge density.
@@ -50,11 +50,11 @@ export class Dynamic_HT_Imp_NoCache
 : public virtual Dynamic_HT
 {
 public:
-    virtual const  SMatrix<double>& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
+    virtual const rsmat_t& GetMatrix(const ibs_t*,const Spin&,const DM_CD*) const; 
 
 protected:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
-    mutable SMatrix<double> itsMat;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const=0;
+    mutable rsmat_t itsMat;
 };
 
 export class FittablePotential

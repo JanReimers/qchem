@@ -10,10 +10,10 @@ export class ExFunctional
 public:
     ExFunctional(               );
 
-    virtual void           InsertChargeDensity(const DM_CD*);
-    virtual Vector<double> GetVxcs(const Vector<double>& ChargeDensities) const;
-    virtual double         GetVxc(                double ChargeDensity) const=0;
-    virtual void           SetPolarized(bool p) {isPolarized=p;}
+    virtual void   InsertChargeDensity(const DM_CD*);
+    virtual rvec_t GetVxcs(const Vector<double>& ChargeDensities) const;
+    virtual double GetVxc(                double ChargeDensity) const=0;
+    virtual void   SetPolarized(bool p) {isPolarized=p;}
 
 protected:
 

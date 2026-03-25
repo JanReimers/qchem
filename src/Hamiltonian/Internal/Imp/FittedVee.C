@@ -11,10 +11,7 @@ import qchem.Orbital_DFT_IBS;
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
-
-FittedVee::FittedVee()
-  
-{};
+import qchem.Conversions;
 
 FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElectrons)
     : itsFittedChargeDensity(FittedCD_Factory(chargeDensityFitBasisSet,m,numElectrons))
@@ -32,11 +29,11 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
 //  Where ro is the fitted charge density.
 //
 
- SMatrix<double>  FittedVee::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVee::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs);
-    return itsFittedChargeDensity->GetRepulsion(dft_bs);
+    return convert(itsFittedChargeDensity->GetRepulsion(dft_bs));
 }
 
 void FittedVee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

@@ -11,8 +11,6 @@ import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
 import qchem.Conversions;
 
-Ven::Ven() : Static_HT_Imp() , theCluster() {};
-
 Ven::Ven(const cl_t& cl)
     : Static_HT_Imp()
     , theCluster(cl)
@@ -21,10 +19,10 @@ Ven::Ven(const cl_t& cl)
 };
 
 
- SMatrix<double>  Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
-    return convert(bs->Nuclear(&*theCluster));
+    return bs->Nuclear(&*theCluster);
 }
 
 void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

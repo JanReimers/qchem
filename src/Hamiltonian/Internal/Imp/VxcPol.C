@@ -4,19 +4,14 @@ module;
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "blaze/Math.h" 
+
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Orbital_HF_IBS;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
-
-VxcPol::VxcPol()
-{
-};
-
-VxcPol::~VxcPol()
-{
-}
+import qchem.Conversions;
 
 
 //########################################################################
@@ -32,7 +27,7 @@ VxcPol::~VxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
- SMatrix<double>  VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if  (s==Spin::None)
     {
@@ -45,7 +40,7 @@ VxcPol::~VxcPol()
     const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(cd);
     assert(PolExactCD);
     const DM_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
-    SMatrix<double> Kab=SpinCD->GetExchange(hf_bs)*-1.0;
+    rsmat_t Kab=convert(SpinCD->GetExchange(hf_bs))*-1.0;
     return Kab;
 }
 void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

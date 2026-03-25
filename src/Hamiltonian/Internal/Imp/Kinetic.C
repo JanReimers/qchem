@@ -3,20 +3,19 @@ module;
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "blaze/Math.h" 
+
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
 import qchem.Conversions;
 
-Kinetic::Kinetic()
-    : Static_HT_Imp()
-{};
 
 
-SMatrix<double> Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
-    return 0.5*convert(bs->Kinetic());
+    return 0.5*bs->Kinetic();
 }
 
 void Kinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

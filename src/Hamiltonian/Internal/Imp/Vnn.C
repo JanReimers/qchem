@@ -8,22 +8,17 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
 import qchem.Atom;
-
-Vnn::Vnn()
-    : Static_HT_Imp()
-    , theCluster()
-{};
+import qchem.Conversions;
 
 Vnn::Vnn(const cl_t& cl)
     : Static_HT_Imp()
     , theCluster(cl)
 {};
 
- SMatrix<double>  Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
-    SMatrix<double> ret(n,n);
-    Fill(ret,0.0); //No contribution to Hamiltonian matrix here.
+    rsmat_t ret=zero<double>(n);
     return ret;
 }
 
@@ -45,10 +40,5 @@ std::ostream& Vnn::Write(std::ostream& os) const
     size_t Na=theCluster->GetNumAtoms();
     os << "    Nuclear-Nuclear potential ZiZj/|Ri-Rj| with " << Na*(Na-1) << " nucleus pairs." << std::endl;
     return os;
-}
-
-std::istream& Vnn::Read (std::istream& is)
-{
-    return is;
 }
 

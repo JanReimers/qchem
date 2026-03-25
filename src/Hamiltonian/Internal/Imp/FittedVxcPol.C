@@ -9,11 +9,6 @@ import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Symmetry.Spin;
 
-FittedVxcPol::FittedVxcPol()
-    : itsUpVxc                    (0)
-    , itsDownVxc                  (0)
-{};
-
 FittedVxcPol::FittedVxcPol(bs_t& bs, ex_t& lda, mesh_t& m)
     : itsUpVxc               (new FittedVxc(bs,lda,m))
     , itsDownVxc             (new FittedVxc(bs,lda,m))
@@ -42,7 +37,7 @@ FittedVxcPol::~FittedVxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
- SMatrix<double>  FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -58,7 +53,7 @@ FittedVxcPol::~FittedVxcPol()
     const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
     const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
 
-    SMatrix<double> Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
+    rsmat_t Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
     return Kab;
 }
 
@@ -83,11 +78,5 @@ std::ostream& FittedVxcPol::Write(std::ostream& os) const
     assert(itsDownVxc);
 
     return os << itsUpVxc << itsDownVxc;
-}
-
-std::istream& FittedVxcPol::Read (std::istream& is)
-{
-   
-    return is;
 }
 

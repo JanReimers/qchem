@@ -1,6 +1,7 @@
 // File: Imp/ExchangeFunctional.C   Exchange potential for DFT.
 module;
 #include <cassert>
+#include "blaze/Math.h"
 module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.ChargeDensity;
  
@@ -16,11 +17,11 @@ void ExFunctional::InsertChargeDensity(const DM_CD* cd)
     itsChargeDensity=cd;
 }
 
-Vector<double> ExFunctional::GetVxcs(const Vector<double>& ros) const
+rvec_t ExFunctional::GetVxcs(const Vector<double>& ros) const
 {
-    Vector<double> ret(ros.size());
-    Vector<double>::iterator i(ret.begin());
-    Vector<double>::const_iterator  b(ros.begin());
+    rvec_t ret(ros.size());
+    auto i(ret.begin());
+    auto b(ros.begin());
     for (; i!=ret.end()&&b!=ros.end(); i++,b++) *i=GetVxc(*b);
     return ret;
 }

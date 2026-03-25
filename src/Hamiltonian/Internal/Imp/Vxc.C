@@ -4,25 +4,26 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
+#include "blaze/Math.h" 
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Orbital_HF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
+import qchem.Conversions;
 
-Vxc::Vxc() {};
 
 //########################################################################
 //
 //  Let the charge density do the work.
 //
 
- SMatrix<double>  Vxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+rsmat_t Vxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
     newCD(cd); //Set H matrix cache to dirty if cd really is new.
     auto hf_bs = dynamic_cast<const Orbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
-    SMatrix<double> Kab=cd->GetExchange(hf_bs);
+    rsmat_t Kab=convert(cd->GetExchange(hf_bs));
     return Kab*-0.5;
 }
 void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

@@ -27,11 +27,11 @@ void LDAVxc::UseChargeDensity(const DM_CD* cd)
 //  Here Vxc is not fit to the exchange functional, so the Matrix and energy.
 //  cannot be calculated analytically.
 //
-SMatrix<double> LDAVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
+rsmat_t LDAVxc::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
 {
     std::cerr << "LDAVxc::CalcMatrix not implementated yet" << std::endl;
     exit(-1);
-    return SMatrix<double>();
+    return rsmat_t();
 }
 void LDAVxc::GetEnergy(EnergyBreakdown&,const DM_CD* cd) const
 {

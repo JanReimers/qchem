@@ -35,7 +35,7 @@ IrrepWF::~IrrepWF()
 void IrrepWF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 {
     assert(itsOrbitals);
-    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd); //Hamiltonian or Fock matrix in the non-orthogonal basis.
+    itsF=convert(ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd)); //Hamiltonian or Fock matrix in the non-orthogonal basis.
     itsAccelerator->UseFD(convert(itsF),itsDPrime); //Feed non-ortho F into the accelerator along with density matrix (in the orthogonal basis).
 }
 

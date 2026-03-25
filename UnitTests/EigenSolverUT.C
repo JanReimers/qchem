@@ -173,7 +173,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
         {
             LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol/10);
             las->SetBasisOverlap(ibs->Overlap());
-            auto [U,e]=las->Solve(to_bSMat(Ham->GetMatrix(ibs,Spin::Down,0)));
+            auto [U,e]=las->Solve(Ham->GetMatrix(ibs,Spin::Down,0));
             cout << OrthStrs[ortho] << " " << *ibs->GetSymmetry() << " " << e[0]+0.5 << " " << e[1]+0.125 << endl;
             EXPECT_NEAR(e[0],-0.5  ,4e-14);
             EXPECT_NEAR(e[1],-0.125,8e-13);

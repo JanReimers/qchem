@@ -9,12 +9,6 @@ import qchem.ChargeDensity;
 import qchem.Orbital_DFT_IBS;
 import qchem.Conversions;
 
-FittedVxc::FittedVxc()
-    : FittedFunctionImp<double>( )
-    , itsLDAVxc                 (0)
-{};
-
-
 FittedVxc::FittedVxc(bs_t& bs, ex_t& lda,mesh_t& m)
     : FittedFunctionImp<double>(bs,m) //Use regular overlap for fitting.
     , itsLDAVxc                (new LDAVxc(lda))
@@ -44,7 +38,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
- SMatrix<double>  FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if (newCD(cd))
     {
@@ -53,7 +47,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
         cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
     }
     auto dftbs=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs);
-    return convert(FitGet3CenterOverlap(dftbs));
+    return FitGet3CenterOverlap(dftbs);
 }
 
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

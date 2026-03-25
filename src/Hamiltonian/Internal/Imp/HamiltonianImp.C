@@ -10,6 +10,7 @@ import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
 import qchem.stl_io;
 import qchem.Streamable;
+import qchem.Conversions;
 
 HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
 {};
@@ -32,11 +33,10 @@ void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
     Add(new Ven(cl));
 }
 
- SMatrix<double>  HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
+rsmat_t HamiltonianImp::GetMatrix(const ibs_t* bs,const Spin& S,const DM_CD* cd)
 {
     int n=bs->GetNumFunctions();
-    SMatrix<double> H(n,n);
-    Fill(H,0.0);
+    rsmat_t H=zero<double>(n);
     for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)

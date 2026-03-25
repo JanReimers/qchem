@@ -19,13 +19,11 @@ class Kinetic
     , private        Static_HT_Imp
 {
 public:
-    Kinetic(                         );
-    // Required by HamiltonianTerm
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
 };
 
 class DiracKinetic
@@ -33,14 +31,12 @@ class DiracKinetic
     , private        Static_HT_Imp
 {
 public:
-    DiracKinetic(                         );
-    // Required by HamiltonianTerm
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
     virtual bool          IsPolarized() const {return true;}
 
 private:
-    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
 };
 
 class RestMass
@@ -48,13 +44,11 @@ class RestMass
     , private        Static_HT_Imp
 {
 public:
-    RestMass(                         );
-    // Required by HamiltonianTerm
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
 };
 
 class Vnn
@@ -63,16 +57,13 @@ class Vnn
 {
 public:
     typedef std::shared_ptr<const Cluster> cl_t;
-    Vnn(                         );
     Vnn(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd               ) const;
     // Required by Streamable
     virtual std::ostream& Write(std::ostream&) const;
-    virtual std::istream& Read (std::istream&)      ;
-
 private:
-    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
     cl_t theCluster;
 };
 
@@ -82,7 +73,6 @@ class Ven
 {
 public:
     typedef std::shared_ptr<const Cluster> cl_t;
-    Ven(                         );
     Ven(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd               ) const;
@@ -91,7 +81,7 @@ public:
     virtual std::ostream&   Write(std::ostream&) const;
    
 private:
-    virtual SMatrix<double> CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
 
     cl_t theCluster;
 };
@@ -113,13 +103,11 @@ class Vee
     , private Dynamic_HT_Imp
 {
 public:
-    Vee();
-    // Required by HamiltonianTerm
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 };
 
 //###############################################################################
@@ -131,14 +119,11 @@ class Vxc
     , private        Dynamic_HT_Imp
 {
 public:
-    Vxc();
-
-    // Required by HamiltonianTerm
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 };
 
 //###############################################################################
@@ -152,15 +137,12 @@ class VxcPol
     , private        Dynamic_HT_Imp_NoCache
 {
 public:
-    VxcPol();
-    ~VxcPol();
-    // Required by HamiltonianTerm
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
 };
 
@@ -184,13 +166,11 @@ class FittedVee
 public:
     typedef std::shared_ptr<const Mesh>    mesh_t;
     typedef std::shared_ptr<const Fit_IBS> bs_t;
-    FittedVee();
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
-    // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd      ) const;
     virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     FittedCD* itsFittedChargeDensity;
 };
@@ -212,10 +192,8 @@ public:
     typedef FittedFunctionImp<double>::bs_t   bs_t;
     typedef std::shared_ptr<ExFunctional>     ex_t;
 
-    FittedVxc();
     FittedVxc(bs_t& VxcFitBasisSet, ex_t&, mesh_t&);
     ~FittedVxc();
-    // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd              ) const;
     // Required by FittablePotential.
     virtual void UseChargeDensity(const DM_CD* exact);
@@ -224,7 +202,7 @@ public:
     
 
 private:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
 };
@@ -244,7 +222,6 @@ public:
     typedef std::shared_ptr<const Fit_IBS>       bs_t;
     typedef std::shared_ptr<      ExFunctional>  ex_t;
     
-    FittedVxcPol();
     FittedVxcPol(bs_t&, ex_t&, mesh_t& );
    ~FittedVxcPol();
     // Required by HamiltonianTerm
@@ -252,10 +229,8 @@ public:
     virtual bool IsPolarized() const {return true;}
 
     virtual std::ostream&   Write(std::ostream&) const;
-    virtual std::istream&   Read (std::istream&)      ;
-
 private:
-    virtual SMatrix<double> CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
     Dynamic_HT* itsUpVxc  ; //Spin up.
     Dynamic_HT* itsDownVxc; //Spin down.

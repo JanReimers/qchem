@@ -94,14 +94,14 @@ template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs)
 
 template <class T> double IrrepCD<T>::DM_Contract(const Static_CC* v) const
 {
-    T ComplexE=sum(itsDensityMatrix % convert(v->GetMatrix(itsBasisSet,itsSpin))); //% is the blaze op for the Shur (direct) product.
+    T ComplexE=sum(itsDensityMatrix % v->GetMatrix(itsBasisSet,itsSpin)); //% is the blaze op for the Shur (direct) product.
     assert(fabs(imag(ComplexE))<1e-8);
     return real(ComplexE);
 }
 
 template <class T> double IrrepCD<T>::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
 {
-    T ComplexE=sum(itsDensityMatrix % convert(v->GetMatrix(itsBasisSet,itsSpin,cd))); //% is the blaze op for the Shur (direct) product.
+    T ComplexE=sum(itsDensityMatrix % v->GetMatrix(itsBasisSet,itsSpin,cd)); //% is the blaze op for the Shur (direct) product.
     assert(fabs(imag(ComplexE))<1e-8);
     return real(ComplexE);
 }
