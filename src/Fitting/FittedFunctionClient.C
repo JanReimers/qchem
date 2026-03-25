@@ -26,6 +26,6 @@ export class DensityFFClient
 {
 public:
     virtual double FitGetConstraint() const=0;
-    virtual RVec   GetRepulsion3C(const Fit_IBS*) const=0;
+    virtual rvec_t GetRepulsion3C(const Fit_IBS*) const=0;
 };
 

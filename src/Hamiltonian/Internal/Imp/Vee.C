@@ -27,7 +27,7 @@ rsmat_t Vee::CalcMatrix(const ibs_t* bs,const Spin&,const DM_CD* cd) const
     newCD(cd); //Set H matrix cache to dirty if cd really is new.
     auto hf_bs = dynamic_cast<const Orbital_HF_IBS<double>*>(bs);
     assert(hf_bs);
-    return convert(cd->GetRepulsion(hf_bs));
+    return cd->GetRepulsion(hf_bs);
 }
 
 void Vee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

@@ -63,32 +63,32 @@ template <> RVec IrrepCD<double>::ZeroV(size_t N) const
 //
 //  Total energy terms for a charge density.
 //
-template <> SMatrix<double> IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
+template <> smat_t<double> IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab->GetNumFunctions());
+    if (IsZero()) return zero<double>(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
-    return bs_ab->Direct(convert(itsDensityMatrix),bs_cd);
+    return convert(bs_ab->Direct(convert(itsDensityMatrix),bs_cd));
 }
 
-template <> SMatrix<double> IrrepCD<double>::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
+template <> smat_t<double> IrrepCD<double>::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return ZeroM(bs_ab->GetNumFunctions());
+    if (IsZero()) return zero<double>(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
-    return bs_ab->Exchange(convert(itsDensityMatrix),bs_cd);
+    return convert(bs_ab->Exchange(convert(itsDensityMatrix),bs_cd));
 }
 
 //------------------------------------------------------------------------------
 //
 //  Required by fitting routines.
 //
-template <class T> Vector<double> IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
+template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    if (IsZero()) return ZeroV(fbs->GetNumFunctions());
+    if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
     auto dftbs=dynamic_cast<const Orbital_DFT_IBS<T>*>(itsBasisSet);
     assert(dftbs);
-    return dftbs->Repulsion3C(convert(itsDensityMatrix),fbs);
+    return convert(dftbs->Repulsion3C(convert(itsDensityMatrix),fbs));
 }
 
 

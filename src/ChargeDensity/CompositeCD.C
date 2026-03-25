@@ -18,15 +18,15 @@ public:
     Composite_CD();
     void Insert(DM_CD*);
 
-    virtual SMatrix<double>   GetRepulsion(const Orbital_HF_IBS<double>*) const; 
-    virtual SMatrix<double>   GetExchange (const Orbital_HF_IBS<double>*) const; 
+    virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const; 
+    virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const; 
 
     virtual double DM_Contract(const Static_CC*) const;
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
 
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual Vector<double> GetRepulsion3C(const Fit_IBS*) const;
+    virtual rvec_t GetRepulsion3C(const Fit_IBS*) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.

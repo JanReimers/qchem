@@ -13,8 +13,8 @@ export class FittedCD
 public:
     using FittedFunction::DoFit;
     
-    virtual double GetSelfRepulsion    (                       ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>
-    virtual SMatrix<double>   GetRepulsion(const Orbital_DFT_IBS<double>*) const=0;
+    virtual double  GetSelfRepulsion    (                       ) const=0;  // 1/2 <ro(1) | 1/r12 | ro(2)>
+    virtual rsmat_t GetRepulsion(const Orbital_DFT_IBS<double>*) const=0;
     //Required for creating a polarized CD from and un-polarized CD
     virtual FittedCD*  Clone  (        ) const=0;
 };

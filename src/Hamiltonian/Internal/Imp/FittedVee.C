@@ -33,7 +33,7 @@ rsmat_t FittedVee::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) con
 {
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs);
-    return convert(itsFittedChargeDensity->GetRepulsion(dft_bs));
+    return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 
 void FittedVee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

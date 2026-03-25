@@ -4,6 +4,7 @@ module;
 #include <vector>
 #include <memory>
 module qchem.CompositeCD;
+import qchem.Conversions;
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.
@@ -20,20 +21,18 @@ void Composite_CD::Insert(DM_CD* cd)
 //
 //  Total energy terms for a charge density.
 //
-SMatrix<double> Composite_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
+rsmat_t Composite_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
-    SMatrix<double> J(n,n);
-    Fill(J,0.0);
+    rsmat_t J=zero<double>(n);
     for (auto& c:itsCDs) J+=c->GetRepulsion(bs_ab);
     return J;
 }
 
-SMatrix<double> Composite_CD::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
+rsmat_t Composite_CD::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
 {
     int n=bs_ab->GetNumFunctions();
-    SMatrix<double> K(n,n);
-    Fill(K,0.0);
+    rsmat_t K=zero<double>(n);
     for (auto& c:itsCDs) K+=c->GetExchange(bs_ab);
     return K;
 }
@@ -63,10 +62,9 @@ double Composite_CD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-Vector<double> Composite_CD::GetRepulsion3C(const Fit_IBS* fbs) const
+rvec_t Composite_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
-    Vector<double> ret(fbs->GetNumFunctions());
-    Fill(ret,0.0);
+    rvec_t ret(fbs->GetNumFunctions(),0);
     for (auto& c:itsCDs) ret+=c->GetRepulsion3C(fbs);
     return ret;
 }

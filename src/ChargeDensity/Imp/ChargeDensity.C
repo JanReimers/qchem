@@ -2,6 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
+#include <blaze/Math.h>
 module qchem.ChargeDensity;
 
 import qchem.Symmetry.Spin;
@@ -9,18 +10,18 @@ import qchem.Symmetry.Spin;
 //
 //  Various integrals.
 //
-SMatrix<double> Polarized_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs) const
+rsmat_t Polarized_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs) const
 {
-    SMatrix<double> Jab_up=GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
-    SMatrix<double> Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
+    rsmat_t Jab_up  =GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
+    rsmat_t Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
     return Jab_up + Jab_down;
 }
 
-SMatrix<double> Polarized_CD::GetExchange(const Orbital_HF_IBS<double>* bs) const
+rsmat_t Polarized_CD::GetExchange(const Orbital_HF_IBS<double>* bs) const
 {
     // No UT coverage
-    SMatrix<double> Kab_up=GetChargeDensity(Spin::Up  )->GetExchange(bs);
-    SMatrix<double> Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
+    rsmat_t Kab_up  =GetChargeDensity(Spin::Up  )->GetExchange(bs);
+    rsmat_t Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
     return Kab_up + Kab_down;
 }
 
@@ -46,7 +47,7 @@ double Polarized_CD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-Vector<double> Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
+rvec_t Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
 {
     return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
         +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
