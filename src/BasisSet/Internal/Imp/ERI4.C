@@ -18,12 +18,14 @@ rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 // Profiling hot loop
 rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 {
-    rsmat_t Scd=zero<double>(gabcd(1,1).GetLimits().GetNumRows());
-    for (auto ia:gabcd.rows())
+    size_t Nab=gabcd.GetLimits().GetNumRows();
+    size_t Ncd=gabcd(1,1).GetLimits().GetNumRows();
+    rsmat_t Scd=zero<double>(Ncd);
+    for (auto ia:iv_t(0,Nab))
     {
-        Scd+=convert(gabcd(ia,ia))*Sab(ia-1,ia-1);
-        for (auto ib:gabcd.cols(ia+1))
-            Scd+=2*convert(gabcd(ia,ib))*Sab(ia-1,ib-1);
+        Scd+=convert(gabcd(ia+1,ia+1))*Sab(ia,ia);
+        for (auto ib:iv_t(ia+1,Nab))
+            Scd+=2*convert(gabcd(ia+1,ib+1))*Sab(ia,ib);
     }
     return Scd;
 }
