@@ -9,7 +9,7 @@ module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Conversions;
 
-template <class T> SMatrix<T> Orbital_HF_IBS_Common<T>::
+template <class T> smat_t<T> Orbital_HF_IBS_Common<T>::
 Direct(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 {
     assert(!isnan(Dcd));
@@ -19,7 +19,7 @@ Direct(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
     if (ab->GetID()<=cd->GetID())
     {
          ERI4 Jabcd=ab->Direct(*cd);
-        return convert(MatMul(Jabcd,Dcd));
+        return MatMul(Jabcd,Dcd);
     }
     else
     {
@@ -29,7 +29,7 @@ Direct(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 }
 
 #include <iomanip>
-template <class T> SMatrix<T> Orbital_HF_IBS_Common<T>::
+template <class T> smat_t<T> Orbital_HF_IBS_Common<T>::
 Exchange(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 {
     assert(!isnan(Dcd));
@@ -37,7 +37,7 @@ Exchange(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
     const Orbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())
-        return convert(MatMul(ab->Exchange(*cd),Dcd)); // ERI4 Kabcd=ab->Exchange(*cd);
+        return MatMul(ab->Exchange(*cd),Dcd); // ERI4 Kabcd=ab->Exchange(*cd);
     else
         return MatMul(Dcd,cd->Exchange(*ab)); // ERI4 Kcdab=cd->Exchange(*ab);    
 

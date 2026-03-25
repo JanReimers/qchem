@@ -37,8 +37,8 @@ export template <class T> class Orbital_HF_IBS
 public:
     using Integrals_HF<T>::Direct;
     using Integrals_HF<T>::Exchange;
-    virtual SMatrix<T> Direct  (const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const=0;
-    virtual SMatrix<T> Exchange(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const=0;
+    virtual smat_t<T> Direct  (const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const=0;
+    virtual smat_t<T> Exchange(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const=0;
 
 };
 

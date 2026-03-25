@@ -15,7 +15,7 @@ rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 }
 
 // Profiling hot loop
-ERI4::SMat MatMul(const rsmat_t& Sab, const ERI4& gabcd)
+rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 {
     ERI4::SMat Scd(gabcd(1,1).GetLimits());
     Fill(Scd,0.0);
@@ -25,7 +25,7 @@ ERI4::SMat MatMul(const rsmat_t& Sab, const ERI4& gabcd)
         for (auto ib:gabcd.cols(ia+1))
             Scd+=2*gabcd(ia,ib)*Sab(ia-1,ib-1);
     }
-    return Scd;
+    return convert(Scd);
 }
 
 //  openmp version ... no speed improvement!!!
