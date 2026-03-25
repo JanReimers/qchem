@@ -7,25 +7,25 @@ import qchem.Conversions;
 rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 {
     //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
-    rsmat_t Sab(gabcd.GetLimits().GetNumRows());
-    for (auto ia:gabcd.rows())
-        for (auto ib:gabcd.cols(ia))
-            Sab(ia-1,ib-1)=ERI4::contract(gabcd(ia,ib),Scd); //Dot(DirectMultiply(A,B))
+    size_t N=gabcd.GetLimits().GetNumRows();
+    rsmat_t Sab(N);
+    for (auto ia:iv_t(0,N))
+        for (auto ib:iv_t(ia,N))
+            Sab(ia,ib)=ERI4::contract(gabcd(ia+1,ib+1),Scd); //Dot(DirectMultiply(A,B))
     return Sab;
 }
 
 // Profiling hot loop
 rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 {
-    ERI4::SMat Scd(gabcd(1,1).GetLimits());
-    Fill(Scd,0.0);
+    rsmat_t Scd=zero<double>(gabcd(1,1).GetLimits().GetNumRows());
     for (auto ia:gabcd.rows())
     {
-        Scd+=gabcd(ia,ia)*Sab(ia-1,ia-1);
+        Scd+=convert(gabcd(ia,ia))*Sab(ia-1,ia-1);
         for (auto ib:gabcd.cols(ia+1))
-            Scd+=2*gabcd(ia,ib)*Sab(ia-1,ib-1);
+            Scd+=2*convert(gabcd(ia,ib))*Sab(ia-1,ib-1);
     }
-    return convert(Scd);
+    return Scd;
 }
 
 //  openmp version ... no speed improvement!!!
