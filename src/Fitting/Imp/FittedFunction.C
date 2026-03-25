@@ -47,65 +47,48 @@ template <class T> FittedFunctionImp<T>::~FittedFunctionImp()
 //  Implement all DoFit functions.  The overlaps will be accumulated in
 //  itsFitCoeff by the call to GetRepulsions or GetOverlap.
 //
-template <class T> double FittedFunctionImp<T>::DoFit(const ScalarFFClient& ffc)
+template <class T> void FittedFunctionImp<T>::DoFit(const ScalarFFClient& ffc)
 {
-    return DoFitInternal(ffc,0); //No contraint.
+    DoFitInternal(ffc,0); //No contraint.
 }
-template <class T> double FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc)
+template <class T> void FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc)
 {
-    return DoFitInternal(ffc,0); //No contraint.
-}
-
-template <class T> double FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
-{
-    smat_t<T> Sinv=itsBasisSet->InvOverlap();
-    vec_t<T> r=(itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction()));
-    vec_t<T> c=Sinv*r;
-    itsFitCoeff=c;
-    return 0;
+    DoFitInternal(ffc,0); //No contraint.
 }
 
-template <class T> double FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
+template <class T> void FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    smat_t<T> Sinv=itsBasisSet->InvRepulsion();
-    vec_t<T> r=convert(ffc.GetRepulsion3C(itsBasisSet.get()));
-    vec_t<T> c=Sinv*r;
-    itsFitCoeff=c;
-    return 0;
+    itsFitCoeff=itsBasisSet->InvOverlap() * itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
+}
+
+template <class T> void FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
+{
+    itsFitCoeff=itsBasisSet->InvRepulsion() * convert(ffc.GetRepulsion3C(itsBasisSet.get()));
 }
 
 //---------------------------------------------------------------------------
 //
 //  Provide Overlap and Repulsion matricies for derived classes.
 //
-template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
+template <class T> vec_t<T> FittedFunctionImp<T>::
 FitGet2CenterOverlap(const Fit_IBS* bs) const
 {
-    smat_t<T> O=itsBasisSet->Overlap(itsMesh.get(),*bs);
-    blaze::DynamicVector<T,blaze::rowVector> ct=trans(itsFitCoeff);
-    blaze::DynamicVector<T,blaze::rowVector> cO=ct*O;
-    vec_t<T> tCo=trans(cO);
-    return convert(tCo);
+    return trans(itsBasisSet->Overlap(itsMesh.get(),*bs))*itsFitCoeff;
 }
 
-template <class T> typename FittedFunctionImp<T>::Vec FittedFunctionImp<T>::
+template <class T> vec_t<T> FittedFunctionImp<T>::
 FitGet2CenterRepulsion(const Fit_IBS* bs) const
 {
-    smat_t<T> R=itsBasisSet->Repulsion(*bs);
-    blaze::DynamicVector<T,blaze::rowVector> cR=trans(itsFitCoeff) * R;
-    vec_t<T> tcR=trans(cR);
-    return convert(tcR);
+    return trans(itsBasisSet->Repulsion(*bs))*itsFitCoeff;
 }
 
-template <class T> SMatrix<T> FittedFunctionImp<T>::
+template <class T> smat_t<T> FittedFunctionImp<T>::
 FitGet3CenterOverlap(const Orbital_DFT_IBS<double>* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
-    int n=bs->GetNumFunctions();
-    SMatrix<T> J(n,n);
-    Fill(J,0.0);
+    smat_t<T> J=zero<T>(bs->GetNumFunctions());
     size_t i=0;
-    for (auto c:itsFitCoeff) J+=SMatrix<double>(c*convert(O3[i++]));
+    for (auto c:itsFitCoeff) J+=c*O3[i++];
     assert(!isnan(J));
     return J;
 }
@@ -170,11 +153,6 @@ template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) cons
 {
     return trans(itsFitCoeff) * convert((*itsBasisSet)(r));
 }
-
-// template <class T> void  FittedFunctionImp<T>::Eval(const Mesh& m, Vec& v) const
-// {
-//     v += Vec(itsFitCoeff * (*itsBasisSet)(m));
-// }
 
 template <class T> RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {

@@ -9,7 +9,7 @@ export import qchem.FittedFunction;
 import qchem.Orbital_DFT_IBS;
 import qchem.Fit_IBS;
 export import qchem.Mesh;
-import oml;
+// import oml;
 
 
 //--------------------------------------------------------------------------
@@ -21,7 +21,6 @@ export template <class T> class FittedFunctionImp
     : public virtual FittedFunction
 {
 public:
-    typedef Vector<T> Vec;
     typedef std::shared_ptr<const Mesh>    mesh_t;
     typedef std::shared_ptr<const Fit_IBS> bs_t;
     
@@ -29,8 +28,8 @@ public:
     FittedFunctionImp(bs_t&, mesh_t&);
     ~FittedFunctionImp();
     
-    virtual double DoFit           (const ScalarFFClient& )      ;
-    virtual double DoFit           (const DensityFFClient& )      ;
+    virtual void   DoFit           (const ScalarFFClient& )      ;
+    virtual void   DoFit           (const DensityFFClient& )      ;
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
@@ -40,18 +39,15 @@ public:
 
     virtual std::ostream& Write(std::ostream&) const;
 protected:
-    virtual double DoFitInternal(const ScalarFFClient&,double constraint=0);
-    virtual double DoFitInternal(const DensityFFClient&,double constraint=0);
+    virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
+    virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
 
-
-    virtual Vec    FitGet2CenterOverlap  (const Fit_IBS*) const;
-    virtual Vec    FitGet2CenterRepulsion(const Fit_IBS*) const;
-    virtual SMatrix<T>   FitGet3CenterOverlap  (const Orbital_DFT_IBS<double>*) const;
+    virtual vec_t<T>    FitGet2CenterOverlap  (const Fit_IBS*) const;
+    virtual vec_t<T>    FitGet2CenterRepulsion(const Fit_IBS*) const;
+    virtual smat_t<T>   FitGet3CenterOverlap  (const Orbital_DFT_IBS<double>*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;
-
-    // virtual void  Eval(const Mesh&, Vec&) const;
 
 public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
@@ -63,21 +59,20 @@ export template <class T> class ConstrainedFF
     : public FittedFunctionImp<T>
 {
     typedef FittedFunctionImp<T> Base;
-    typedef typename Base::Vec Vec;
 public:
     typedef typename Base::mesh_t mesh_t;
     typedef typename Base::bs_t   bs_t;
 
     ConstrainedFF();
-    ConstrainedFF(bs_t&, const Vec&, mesh_t&  m);
+    ConstrainedFF(bs_t&, const vec_t<T>& g, mesh_t&  m);
 
-    virtual double DoFit(const ScalarFFClient&);
-    virtual double DoFit(const DensityFFClient&);
+    virtual void   DoFit(const ScalarFFClient&);
+    virtual void   DoFit(const DensityFFClient&);
 
     virtual std::ostream& Write    (std::ostream&) const;
 private:
     vec_t<T> g;
-    blaze::DynamicVector<T,blaze::rowVector> gS;
+    row_t<T> gS;
     T        gSg;
 };
 

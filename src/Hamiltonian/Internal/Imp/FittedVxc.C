@@ -7,6 +7,7 @@ import qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Orbital_DFT_IBS;
+import qchem.Conversions;
 
 FittedVxc::FittedVxc()
     : FittedFunctionImp<double>( )
@@ -52,7 +53,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
         cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
     }
     auto dftbs=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs);
-    return FitGet3CenterOverlap(dftbs);
+    return convert(FitGet3CenterOverlap(dftbs));
 }
 
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

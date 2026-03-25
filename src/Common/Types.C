@@ -28,8 +28,12 @@ typedef Vector<double>   RVec;
 template <typename T> using  mat_t = blaze::DynamicMatrix<T,blaze::columnMajor>;
 template <typename T> using smat_t = blaze::SymmetricMatrix<mat_t<T>>;
 template <typename T> using  vec_t = blaze::DynamicVector<T>;
+template <typename T> using  row_t = blaze::DynamicVector<T,blaze::rowVector>;
+template <typename T> using  col_t = blaze::DynamicVector<T,blaze::columnVector>;
 
 using  rvec_t= vec_t<double>;
+using  rrow_t= row_t<double>;
+using  rcol_t= col_t<double>;
 using  rmat_t= mat_t<double>;
 using rsmat_t=smat_t<double>;
 

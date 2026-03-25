@@ -25,9 +25,9 @@ export class FittedFunction
 {
 public:
     //! Find \f$ c_{b}=\sum_{a}F_{a}S_{ab}^{-1} \f$ , where \f$ F\left(\vec{r}\right) \f$ is evaluated numerically.
-    virtual double DoFit(const ScalarFFClient&)=0;
+    virtual void DoFit(const ScalarFFClient&)=0;
     //! For the case where \f$ F\left(\vec{r}\right)=\sum_{ab}b_{a}\left(\vec{r}\right)b_{b}\left(\vec{r}\right)D_{ab} \f$ is calculated from a density matrix.
-    virtual double DoFit(const DensityFFClient&)=0;
+    virtual void DoFit(const DensityFFClient&)=0;
     //! do \f$ c_{b}*=factor \f$
     virtual void   ReScale         (double factor )=0; 
     //! do \f$ c_{a}=(1-f)c_{a} + fg_{a} \f$.  Assumes same basis set, and just mixes the coefficients.

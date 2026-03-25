@@ -31,6 +31,5 @@ private:
     using FittedFunctionImp<T>::itsFitCoeff;
     using FittedFunctionImp<T>::itsBasisSet;
     
-    // virtual void Eval(const Mesh&, Vector<double>&) const; // No UT coverage
 };
 
