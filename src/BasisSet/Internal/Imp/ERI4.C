@@ -1,15 +1,16 @@
 module;
 #include <cassert>
+#include <blaze/Math.h>
 module qchem.BasisSet.Internal.ERI4;
 import qchem.Conversions;
 
-ERI4::SMat MatMul(const ERI4& gabcd,const rsmat_t& Scd)
+rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 {
     //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
-    ERI4::SMat Sab(gabcd.GetLimits());
-    for (auto ia:Sab.rows())
-        for (auto ib:Sab.cols(ia))
-            Sab(ia,ib)=ERI4::contract(gabcd(ia,ib),convert(Scd)); //Dot(DirectMultiply(A,B))
+    rsmat_t Sab(gabcd.GetLimits().GetNumRows());
+    for (auto ia:gabcd.rows())
+        for (auto ib:gabcd.cols(ia))
+            Sab(ia-1,ib-1)=ERI4::contract(gabcd(ia,ib),Scd); //Dot(DirectMultiply(A,B))
     return Sab;
 }
 
@@ -54,5 +55,17 @@ double ERI4::contract(const ERI4::SMat& A,const ERI4::SMat& B)
     for (auto ia:A.rows())
         for (auto ib:A.cols(ia+1))
             ret+=2*A(ia,ib)*B(ia,ib);
+    return ret;         
+}
+
+double ERI4::contract(const ERI4::SMat& A,const rsmat_t& B)
+{
+    //std::cout << "ERI4::contract " << A.GetLimits() << " " << B.GetLimits() << std::endl;
+    assert(A.GetLimits().GetNumRows()==B.rows());
+    rvec_t dB=diagonal(B);
+    double ret=Dot(A.GetDiagonal(),convert(dB));
+    for (auto ia:A.rows())
+        for (auto ib:A.cols(ia+1))
+            ret+=2*A(ia,ib)*B(ia-1,ib-1);
     return ret;         
 }

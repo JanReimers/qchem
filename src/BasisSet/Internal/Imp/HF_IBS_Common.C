@@ -19,7 +19,7 @@ Direct(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
     if (ab->GetID()<=cd->GetID())
     {
          ERI4 Jabcd=ab->Direct(*cd);
-        return MatMul(Jabcd,Dcd);
+        return convert(MatMul(Jabcd,Dcd));
     }
     else
     {
@@ -37,7 +37,7 @@ Exchange(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
     const Orbital_HF_IBS<T>* ab=this;
 
     if (ab->GetID()<=cd->GetID())
-        return MatMul(ab->Exchange(*cd),Dcd); // ERI4 Kabcd=ab->Exchange(*cd);
+        return convert(MatMul(ab->Exchange(*cd),Dcd)); // ERI4 Kabcd=ab->Exchange(*cd);
     else
         return MatMul(Dcd,cd->Exchange(*ab)); // ERI4 Kcdab=cd->Exchange(*ab);    
 

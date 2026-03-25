@@ -12,10 +12,11 @@ public:
     typedef ERI4T<double,SMatrix> Base;
     ERI4() : Base() {};
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
-    friend SMatrix<double> MatMul(const ERI4& gabcd,const rsmat_t& Scd);
+    friend rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd);
     friend SMatrix<double> MatMul(const rsmat_t& Sab, const ERI4& gabcd);
 private:
     static double contract(const SMat& A,const SMat& B);
+    static double contract(const SMat& A,const rsmat_t& B);
 };
 
 export class M4 : public ERI4T<double,Matrix>
