@@ -4,7 +4,6 @@ module;
 #include <cassert>
 #include <vector>
 export module qchem.BasisSet.Internal.HeapDB;
-import qchem.BasisSet.Internal.IEClient;
 
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.ERI4;
@@ -22,9 +21,6 @@ import Common.UniqueID;
 export template  <class T> class DB_cache  
 {
     typedef UniqueID::IDtype IDType;
-    typedef SMatrix<T> SMat;    
-    typedef Matrix<T> Mat;    
-    typedef Vector<T> Vec;    
 public:
     typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
     typedef std::tuple<qchem::IType2C,IDType> id2c_t;
@@ -34,9 +30,6 @@ public:
     mutable std::map<id2c_t ,rsmat_t> itsbSMats; 
     mutable std::map< idx_t , rmat_t> itsbMats; 
     mutable std::map<id2c_t , rvec_t> itsbVecs; 
-    mutable std::map<id2c_t ,SMat> itsSMats; 
-    mutable std::map< idx_t , Mat> itsMats; 
-    mutable std::map<id2c_t , Vec> itsVecs; 
     mutable std::map<id3c_t ,ERI3<T>> itsERI3s; 
     mutable erij_t Jac,Kab;
 };

@@ -34,20 +34,6 @@ template <class T> Orbital_RKB_IBS_Common<T>::Vec3Vec Orbital_RKB_IBS_Common<T>:
     return Vec3Vec();
 }
 
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_diag(const SMatrix<T>& l,const SMatrix<T>& s)
-{
-    size_t Nl=l.GetNumRows();
-    size_t Ns=s.GetNumRows();
-    SMatrix<T> ls(Nl+Ns);
-    Fill(ls,0.0);
-    for (auto i:l.rows())
-        for (auto j:l.cols(i))
-            ls(i,j)=l(i,j);
-    for (auto i:s.rows())
-        for (auto j:s.cols(i))
-            ls(Nl+i,Nl+j)=s(i,j);
-    return ls;
-}
 template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::merge_diag(const smat_t<T>& l,const smat_t<T>& s)
 {
     size_t Nl=l.rows();
@@ -69,19 +55,6 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const mat
     smat_t<T> k=zero<T>(Nl+Ns);
     for (auto i:iv_t(0,Nl))
         for (auto j:iv_t(0,Nl))
-            k(i,Ns+j)=ls(i,j);
-   
-    return k;
-}    
-template <class T> SMatrix<T> Orbital_RKB_IBS_Common<T>::merge_off_diag(const Matrix<T>& ls)
-{
-    size_t Nl=ls.GetNumRows();
-    size_t Ns=ls.GetNumCols();
-    assert(Nl==Ns);
-    SMatrix<T> k(Nl+Ns);
-    Fill(k,0.0);
-    for (auto i:ls.rows())
-        for (auto j:ls.cols())
             k(i,Ns+j)=ls(i,j);
    
     return k;

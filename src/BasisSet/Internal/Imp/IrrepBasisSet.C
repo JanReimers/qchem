@@ -10,7 +10,6 @@ import qchem.LAParams;
 import qchem.LASolver_blaze;
 
 module qchem.BasisSet.Internal.IrrepBasisSet;
-import oml;
 
 template <class T> IrrepBasisSet_Common<T>::sym_t IrrepBasisSet_Common<T>::GetSymmetry() const
     {

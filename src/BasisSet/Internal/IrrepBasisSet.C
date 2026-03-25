@@ -116,8 +116,6 @@ private:
     friend DiracIntegralTests;
     static smat_t<T> merge_diag(const smat_t<T>& l,const smat_t<T>& s);
     static smat_t<T> merge_off_diag(const mat_t<T>& ls);
-    static SMatrix<T> merge_diag(const SMatrix<T>& l,const SMatrix<T>& s);
-    static SMatrix<T> merge_off_diag(const Matrix<T>& ls);
 };
 
 

@@ -15,27 +15,27 @@ import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Conversions;
-import oml;
+// import oml;
 
-template <class T> size_t Size(const Vector <T>& m) {return m.size();}
-template <class T> size_t Size(const Matrix <T>& m) {return m.size();}
-template <class T> size_t Size(const SMatrix<T>& m) {return m.size();}
-                   size_t Size(const ERI4      & m) {return m.size();}
-template <class M> size_t Size(const std::vector<M> & v) 
-{
-    size_t N=0;
-    for (auto i:v) 
-        N+=Size(i);
-    return N;
-}
+// template <class T> size_t Size(const Vector <T>& m) {return m.size();}
+// template <class T> size_t Size(const Matrix <T>& m) {return m.size();}
+// template <class T> size_t Size(const SMatrix<T>& m) {return m.size();}
+//                    size_t Size(const ERI4      & m) {return m.size();}
+// template <class M> size_t Size(const std::vector<M> & v) 
+// {
+//     size_t N=0;
+//     for (auto i:v) 
+//         N+=Size(i);
+//     return N;
+// }
 
-template <class K, class M> size_t Size(const std::map<K,M>& m)
-{
-    size_t N=0;
-    for (auto i:m) 
-        N+=Size(i.second);
-    return N;
-}
+// template <class K, class M> size_t Size(const std::map<K,M>& m)
+// {
+//     size_t N=0;
+//     for (auto i:m) 
+//         N+=Size(i.second);
+//     return N;
+// }
 
 using std::setw;
 

@@ -7,7 +7,7 @@
 #include <valarray>
 #include <cmath>
 #include <iomanip>
-
+#include "blaze/Math.h"
 import qchem.LAParams;
 
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -74,12 +74,12 @@ public:
 
     
     
-    static SMatrix<double> merge_diag(const SMat& l,const SMat& s)
+    static rsmat_t merge_diag(const rsmat_t& l,const rsmat_t& s)
     {
         return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
     }
 
-    static SMatrix<double> merge_off_diag(const Mat& l)
+    static rsmat_t merge_off_diag(const rmat_t& l)
     {
         return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
     }
@@ -110,20 +110,18 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     StreamableObject::SetToPretty();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=convert(oi->Overlap());
+        rsmat_t S=oi->Overlap();
         {
-            RVec d=S.GetDiagonal();
-            for (size_t i=1;i<=d.size()/2;i++) EXPECT_NEAR(d(i),1.0,1e-15);
+            rvec_t d=blaze::diagonal(S);
+            for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        const IrrepBasisSet<double>* l=GetLarge(oi);
-        const IrrepBasisSet<double>* s=GetSmall(oi);
-        SMatrix<double> SLnum = convert(mintegrator->Overlap(*l));
-        SMatrix<double> SSnum = convert(mintegrator->Overlap(*s));
-        SMatrix<double> Snum=merge_diag(SLnum,SSnum);
+        rsmat_t SLnum = mintegrator->Overlap(*GetLarge(oi));
+        rsmat_t SSnum = mintegrator->Overlap(*GetSmall(oi));
+        rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-14);
     }
 }
 
@@ -132,20 +130,18 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
     StreamableObject::SetToPretty();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=convert(oi->Overlap());
+        rsmat_t S=oi->Overlap();
         {
-            RVec d=S.GetDiagonal();
-            for (size_t i=1;i<=d.size()/2;i++) EXPECT_NEAR(d(i),1.0,1e-15);
+            rvec_t d=blaze::diagonal(S);
+            for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        const IrrepBasisSet<double>* l=GetLarge(oi);
-        const IrrepBasisSet<double>* s=GetSmall(oi);
-        SMatrix<double> SLnum = convert(mintegrator->Overlap(*l));
-        SMatrix<double> SSnum = convert(mintegrator->Overlap(*s));
+        rsmat_t SLnum = mintegrator->Overlap(*GetLarge(oi));
+        rsmat_t SSnum = mintegrator->Overlap(*GetSmall(oi));
 //        cout << SLnum << SSnum << endl;
-        SMatrix<double> Snum=merge_diag(SLnum,SSnum);
+        rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-14);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-14);
     }
 }
 
@@ -156,16 +152,13 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Ven=convert(oi->Nuclear(cl));
-
-        const IrrepBasisSet<double>* l=GetLarge(oi);
-        const IrrepBasisSet<double>* s=GetSmall(oi);
-        SMatrix<double> VenLnum = -Z*convert(mintegrator->Inv_r1(*l));
-        SMatrix<double> VenSnum = -Z*convert(mintegrator->Inv_r1(*s));
-        SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
+        rsmat_t Ven=oi->Nuclear(cl);
+        rsmat_t VenLnum = -Z*mintegrator->Inv_r1(*GetLarge(oi));
+        rsmat_t VenSnum = -Z*mintegrator->Inv_r1(*GetSmall(oi));
+        rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
-        EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
+        EXPECT_NEAR(max(abs(Ven-Vennum)),0.0,1e-11);        
     }
 }
 
@@ -176,17 +169,14 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Ven=convert(oi->Nuclear(cl));
-
-        const IrrepBasisSet<double>* l=GetLarge(oi);
-        const IrrepBasisSet<double>* s=GetSmall(oi);
-        SMatrix<double> VenLnum = -Z*convert(mintegrator->Inv_r1(*l));
-        SMatrix<double> VenSnum = -Z*convert(mintegrator->Inv_r1(*s));
-        SMatrix<double> Vennum=merge_diag(VenLnum,VenSnum);
+        rsmat_t Ven=oi->Nuclear(cl);
+        rsmat_t VenLnum = -Z*mintegrator->Inv_r1(*GetLarge(oi));
+        rsmat_t VenSnum = -Z*mintegrator->Inv_r1(*GetSmall(oi));
+        rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
-        EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-11);        
+        EXPECT_NEAR(max(abs(Ven-Vennum)),0.0,1e-11);        
     }
 }
 
@@ -196,15 +186,14 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=convert(oi->Kinetic());
-        for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
+        rsmat_t K=oi->Kinetic();
+        rvec_t d=blaze::diagonal(K);    
+        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-        const IrrepBasisSet<double>* l=GetLarge(oi);
-        const IrrepBasisSet<double>* s=GetSmall(oi);
-        Matrix<double> KnumL = convert(mintegrator->Grada_b(*l,*s));
-        SMatrix<double> Knum=merge_off_diag(KnumL);
+         rmat_t KnumL = mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
+        rsmat_t Knum=merge_off_diag(KnumL);
         // cout << "K=" << K << endl << "Knum=" << Knum << endl;
-        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
+        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-11);      
     }
 }
 TEST_F(DiracIntegralTests, GaussianKinetic)
@@ -212,16 +201,14 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     StreamableObject::SetToPretty();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=convert(oi->Kinetic());
-        // for (auto d:Vector<double>(K.GetDiagonal())) EXPECT_NEAR(d,0.0,1e-15);
+        rsmat_t K=oi->Kinetic();
+        rvec_t d=blaze::diagonal(K);    
+        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-        const IrrepBasisSet<double>* l=GetLarge(oi);
-        const IrrepBasisSet<double>* s=GetSmall(oi);
-        Matrix<double> KnumL = convert(mintegrator->Grada_b(*l,*s));
-        SMatrix<double> Knum=merge_off_diag(KnumL);
-        //cout << "K=" << K << endl << "Knum=" << Knum << endl;
-        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-11);      
-        // EXPECT_NEAR(Max(fabs(K-K1)),0.0,1e-14);      
+         rmat_t KnumL = mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
+        rsmat_t Knum=merge_off_diag(KnumL);
+        // cout << "K=" << K << endl << "Knum=" << Knum << endl;
+        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-11);         
     }
 }
 
