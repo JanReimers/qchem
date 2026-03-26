@@ -122,10 +122,10 @@ size_t SCFAcceleratorDIIS::GetNProj() const
 
 double SCFAcceleratorDIIS::GetMinSV(const SMat& B)
 {
-    static oml::LapackSVDSolver<double> solver;
-    auto [U,s,V]=solver.SolveAll(convert(B));
-    size_t N=s.GetNumRows();
-    return s(N,N);
+    rvec_t s;
+    rmat_t  U,Vt;
+    blaze::svd(B,U,s,Vt);
+    return s[s.size()-1];
 }
 
 rvec_t SCFAcceleratorDIIS::SolveC(const SMat& B) 
@@ -142,17 +142,16 @@ rvec_t SCFAcceleratorDIIS::SolveC(const SMat& B)
 }
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
-    size_t  N=GetNProj()+1;
-    SMatrix<double> B(N);
-    Fill(B,0.0);
-    for (size_t  i=1;i<N;i++)
+    size_t  N=GetNProj();
+    rsmat_t B=zero<double>(N+1);
+    for (size_t  i=0;i<N;i++)
     {
         B(i,N)=1.0; //B is symmetric so no need to set B(N,i)=1.0
         for (size_t  j=i;j<N;j++)
-            for (auto k:itsIrreps) B(i,j)+=k->GetError(i-1,j-1);
+            for (auto k:itsIrreps) B(i,j)+=k->GetError(i,j);
     }
     // B(N,N)=0.0;  should already be true
-    return {convert(B),GetMinSV(convert(B))};    
+    return {B,GetMinSV(B)};    
 }
 SCFAcceleratorDIIS::SMat SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 {
