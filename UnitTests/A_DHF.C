@@ -236,7 +236,7 @@ std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, 
     {
         Vector3D<double> vr=r(rw);
         if (norm(vr)==0.0) continue;
-        double phir=-to->operator()(vr),phir_expected=S12g(vr.x,alpha);//,PhiNRL=S12g(vr.x,0.0);
+        double phir=fabs(to->operator()(vr)),phir_expected=S12g(vr.x,alpha);//,PhiNRL=S12g(vr.x,0.0);
         double dphir=phir-phir_expected;
 
         n1+=phir*phir*w(rw);

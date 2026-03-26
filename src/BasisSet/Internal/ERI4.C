@@ -7,7 +7,6 @@ export import qchem.Types;
 
 export class ERI4 : public ERI4T<double,smat_t>
 {
-    typedef SMatrix<double> SMat;
 public:
     typedef ERI4T<double,smat_t> Base;
     ERI4() : Base() {};
@@ -15,8 +14,7 @@ public:
     friend rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd);
     friend rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd);
 private:
-    static double contract(const SMat& A,const SMat& B);
-    static double contract(const SMat& A,const rsmat_t& B);
+    static double contract(const rsmat_t& A,const rsmat_t& B);
 };
 
 export class M4 : public ERI4T<double,mat_t>

@@ -11,7 +11,7 @@ rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
     rsmat_t Sab(Nab);
     for (auto ia:iv_t(0,Nab))
         for (auto ib:iv_t(ia,Nab))
-            Sab(ia,ib)=ERI4::contract(convert(gabcd(ia,ib)),Scd); //Dot(DirectMultiply(A,B))
+            Sab(ia,ib)=sum(gabcd(ia,ib) % Scd); //Dot(DirectMultiply(A,B))
     return Sab;
 }
 
@@ -49,25 +49,14 @@ rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 //     return Scd;
 // }
 
-double ERI4::contract(const ERI4::SMat& A,const ERI4::SMat& B)
+double ERI4::contract(const rsmat_t& A,const rsmat_t& B)
 {
     //std::cout << "ERI4::contract " << A.GetLimits() << " " << B.GetLimits() << std::endl;
-    assert(A.GetLimits()==B.GetLimits());
-    double ret=Dot(A.GetDiagonal(),B.GetDiagonal());
-    for (auto ia:A.rows())
-        for (auto ib:A.cols(ia+1))
+    assert(A.rows()==B.rows());
+    size_t N=A.rows();
+    double ret=trans(diagonal(A)) * diagonal(B);
+    for (auto ia:iv_t(0,N))
+        for (auto ib:iv_t(ia+1,N))
             ret+=2*A(ia,ib)*B(ia,ib);
-    return ret;         
-}
-
-double ERI4::contract(const ERI4::SMat& A,const rsmat_t& B)
-{
-    //std::cout << "ERI4::contract " << A.GetLimits() << " " << B.GetLimits() << std::endl;
-    assert(A.GetLimits().GetNumRows()==B.rows());
-    rvec_t dB=diagonal(B);
-    double ret=Dot(A.GetDiagonal(),convert(dB));
-    for (auto ia:A.rows())
-        for (auto ib:A.cols(ia+1))
-            ret+=2*A(ia,ib)*B(ia-1,ib-1);
     return ret;         
 }
