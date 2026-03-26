@@ -3,6 +3,7 @@ module;
 #include <deque>
 #include <vector>
 #include <iostream>
+#include <blaze/Math.h>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 export import qchem.SCFAccelerator;
 
@@ -20,12 +21,12 @@ export class SCFAcceleratorDIIS;
 class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    typedef Matrix<double> Mat;
+    typedef mat_t<double> Mat;
     typedef std::deque<Mat   > mv_t; //matrix-vector type.
     typedef std::deque< smat_t<double>   > sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
     
-    SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver_blaze<double>*,const Irrep_QNs&,const RVec& cs);
+    SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver_blaze<double>*,const Irrep_QNs&,const rvec_t& cs);
     virtual ~SCFIrrepAcceleratorDIIS();
     
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
@@ -34,14 +35,14 @@ private:
     friend class SCFAcceleratorDIIS;
     size_t GetNproj() const {return itsEs.size();}
     double GetError() const {return itsEn;}
-    double GetError(size_t i, size_t j) const {return Dot(itsEs[i],itsEs[j]);}
+    double GetError(size_t i, size_t j) const {return sum(itsEs[i] % itsEs[j]);}
     void Append1();
     void Purge1();
     
     DIISParams itsParams; 
     Irrep_QNs  itsIrrep;
     // All of these are the the most recent values
-    smat_t<double>   itsFPrime,itsDPrime;    
+    rsmat_t   itsFPrime,itsDPrime;    
     Mat    itsE;
     double itsEn;  // [F',D']
     // Caches for F',E,En
@@ -50,7 +51,7 @@ private:
     dv_t itsEns; //Errors ||E||=FNorm[F',D']
     
 
-    const RVec&                  itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
+    const rvec_t&                  itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
 
     const LASolver_blaze   <double>*   itsLaSolver_blaze; //Knows the ortho transform
 
@@ -70,18 +71,18 @@ public:
     virtual double GetError() const;
 
 private:
-    typedef  Matrix<double>  Mat;
-    typedef SMatrix<double> SMat;
+    typedef  mat_t<double>  Mat;
+    typedef smat_t<double> SMat;
     typedef std::vector< Mat> mv_t; //matrix-vector type.
 
 
     static double GetMinSV(const SMat& B);
-    static RVec   SolveC  (const SMat& B);
+    static rvec_t SolveC  (const SMat& B);
     
     struct md_t{SMat B;double sv;};
 
     md_t   BuildB() const;
-    SMatrix<double>   BuildPrunedB(double svmin);
+    SMat   BuildPrunedB(double svmin);
     size_t Append1();
     size_t Purge1();
     size_t GetNProj() const;
@@ -92,6 +93,6 @@ private:
     std::vector<SCFIrrepAcceleratorDIIS*> itsIrreps;
 
     double itsEn,itsLastSVMin;
-    RVec   itsCs;
+    rvec_t itsCs;
 };
 

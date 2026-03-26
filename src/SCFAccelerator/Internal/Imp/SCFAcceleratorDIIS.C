@@ -13,7 +13,7 @@ import qchem.Conversions;
 using std::cout;
 using std::endl;
 
-SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver_blaze<double>* lasb,const Irrep_QNs& qns,const RVec& cs) 
+SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver_blaze<double>* lasb,const Irrep_QNs& qns,const rvec_t& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
@@ -37,32 +37,20 @@ void SCFIrrepAcceleratorDIIS::UseFD(const smat_t<double>& F, const smat_t<double
     assert(itsFPrime.rows()==DPrime.rows());
     assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
-    mat_t<double> e=itsFPrime*itsDPrime-itsDPrime*itsFPrime;
-    itsE=convert(e);
-    itsEn=FrobeniusNorm(itsE);
+    itsE=itsFPrime*itsDPrime-itsDPrime*itsFPrime;
+    itsEn=norm(itsE);
 }
 
-template <class T> const SMatrix<T>& operator+=(SMatrix<T>& a, const SMatrix<T>& b)
-{
-    if (a.size()==0) 
-    {
-        a.SetLimits(b.GetLimits());
-        Fill(a,0.0);
-    }
-    else
-        assert(a.GetLimits()==b.GetLimits());
-    return ArrayAdd(a,b);
-}
-// template <class T> const Matrix<T>& operator+=(Matrix<T>& a, const Matrix<T>& b)
+// template <class T> const smat_t<T>& operator+=(smat_t<T>& a, const smat_t<T>& b)
 // {
 //     if (a.size()==0) 
 //     {
-//         a.SetLimits(b.GetLimits());
-//         Fill(a,0.0);
+//         a=zero<double>(b.rows());
 //     }
 //     else
-//         assert(a.GetLimits()==b.GetLimits());
-//     return ArrayAdd(a,b);
+//         assert(a.rows()==b.rows());
+//     a=a+b;
+//     return a;
 // }
 
 smat_t<double> SCFIrrepAcceleratorDIIS::Project()
@@ -71,16 +59,16 @@ smat_t<double> SCFIrrepAcceleratorDIIS::Project()
         return itsFPrime;
     else
     {
-        double err=fabs(Sum(itsCs)-1.0);
+        double err=fabs(sum(itsCs)-1.0);
         if (err>1e-13)
             cout << "Warning: SCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
         // assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
-        SMatrix<double> Fproj;
-        size_t  i=1;
-        for (const auto& f:itsFPrimes) Fproj+=SMatrix<double>(itsCs(i++)*convert(f));
-        return convert(Fproj);
+        rsmat_t Fproj=zero<double>(itsFPrime.rows()) ;
+        size_t  i=0;
+        for (const auto& f:itsFPrimes) Fproj+=itsCs[i++]*f;
+        return Fproj;
     }
 }
 
@@ -135,22 +123,22 @@ size_t SCFAcceleratorDIIS::GetNProj() const
 double SCFAcceleratorDIIS::GetMinSV(const SMat& B)
 {
     static oml::LapackSVDSolver<double> solver;
-    auto [U,s,V]=solver.SolveAll(B);
+    auto [U,s,V]=solver.SolveAll(convert(B));
     size_t N=s.GetNumRows();
     return s(N,N);
 }
 
-RVec SCFAcceleratorDIIS::SolveC(const SMat& B) 
+rvec_t SCFAcceleratorDIIS::SolveC(const SMat& B) 
 {
     static oml::LapackLinearSolver<double> solver;
-    size_t N=B.GetNumRows();
+    size_t N=B.rows();
     RVec v(N);
     Fill(v,0.0); 
     v(N)=1.0;
-    RVec C=solver.Solve(B,v);
+    RVec C=solver.Solve(convert(B),v);
     // std:: cout << B << C << v << del <<std::endl;
     // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
-    return C.SubVector(N-1);   
+    return convert(C.SubVector(N-1));   
 }
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
@@ -164,7 +152,7 @@ SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
             for (auto k:itsIrreps) B(i,j)+=k->GetError(i-1,j-1);
     }
     // B(N,N)=0.0;  should already be true
-    return {B,GetMinSV(B)};    
+    return {convert(B),GetMinSV(convert(B))};    
 }
 SCFAcceleratorDIIS::SMat SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 {
@@ -192,7 +180,7 @@ size_t SCFAcceleratorDIIS::Append1()
 
 bool SCFAcceleratorDIIS::CalculateProjections()
 {
-    itsCs.SetLimits(0);
+    blaze::clear(itsCs);
     itsEn=0.0;
     for (auto k:itsIrreps) 
     {
@@ -208,8 +196,8 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     assert(GetNProj()<=itsParams.Nproj);
     if (GetNProj()<2) return false;
     
-    SMatrix<double> B=BuildPrunedB(itsParams.SVTol);
-    if (B.GetNumRows()<=2) return false;
+    SMat B=BuildPrunedB(itsParams.SVTol);
+    if (B.rows()<=2) return false;
                 
     itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
    
