@@ -7,9 +7,6 @@ export import qchem.VectorFunction;
 
 export template <class T> class MeshIntegrator
 {
-    typedef Matrix<T>      Mat;
-    typedef SMatrix<T>     SMat;
-    typedef Vector<T>      Vec;
     typedef Vector3D<T>    Vec3;
 public:
  

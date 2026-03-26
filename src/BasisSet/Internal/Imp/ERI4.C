@@ -32,15 +32,15 @@ rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
 
 //  openmp version ... no speed improvement!!!
 
-// ERI4::SMat operator*(const ERI4::SMat& Sab, const ERI4& gabcd)
+// rsmat_t operator*(const rsmat_t& Sab, const ERI4& gabcd)
 // {
-//     ERI4::SMat Scd(gabcd(1,1).GetLimits());
+//     rsmat_t Scd(gabcd(1,1).GetLimits());
 //     Fill(Scd,0.0);
 //     int N=Scd.GetNumRows();
 //     #pragma omp parallel for collapse(1) 
 //     for (int ia=1;ia<=N;ia++)
 //     {
-//         ERI4::SMat d=gabcd(ia,ia)*Sab(ia,ia);
+//         rsmat_t d=gabcd(ia,ia)*Sab(ia,ia);
 //         for (auto ib:Sab.cols(ia+1))
 //             d+=2*gabcd(ia,ib)*Sab(ia,ib);
 //         # pragma omp critical

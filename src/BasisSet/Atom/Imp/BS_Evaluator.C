@@ -54,7 +54,6 @@ RVec BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Eva
 
 ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) const
 {
-    using SMat=IBS_Evaluator::SMat;
     using ds_t=IBS_Evaluator::ds_t;
     assert(a);
     assert(c);
@@ -98,7 +97,6 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
 }
 ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) const
 {
-    using SMat=IBS_Evaluator::SMat;
     using ds_t=IBS_Evaluator::ds_t;
     assert(a);
     assert(c);

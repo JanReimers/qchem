@@ -14,12 +14,8 @@ export template <class T> class TOrbitalsImp
     , public virtual TOrbitals<T>
 {
     typedef VectorFunction<T> Base;
-    typedef typename Base::Mat     Mat;  //Matrix.
-    typedef typename Base::SMat    SMat; //Symmetrix matrix.
     typedef typename Base::Vec     Vec;  //Vector of scalars.
-    typedef typename Base::Vec3    Vec3;   //3 vector (possibly complex).
     typedef typename Base::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    typedef typename Base::Vec3Mat Vec3Mat;//matrix of 3 space vectors.
     typedef typename TOrbitals<T>::ds_t ds_t; //{double,SMat}}
 public:
     TOrbitalsImp(const Orbital_IBS<T>*, Spin s);

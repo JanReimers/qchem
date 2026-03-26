@@ -4,7 +4,6 @@ module;
 export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
-import oml;
 export import qchem.Symmetry.Irrep;
 import qchem.IrrepBasisSet;
 export import qchem.Orbital_HF_IBS;
@@ -45,12 +44,10 @@ public:
 
 private:
     bool IsZero() const;
-    SMatrix<T> ZeroM(size_t N) const;
-    RVec ZeroV(size_t N) const;
-
-    DenSMat                itsDensityMatrix;
+    
+    DenSMat               itsDensityMatrix;
     const Orbital_IBS<T>* itsBasisSet;
-    Spin                   itsSpin;
-    Irrep_QNs              itsIrrep;
+    Spin                  itsSpin;
+    Irrep_QNs             itsIrrep;
 };
 
