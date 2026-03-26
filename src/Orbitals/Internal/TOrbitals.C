@@ -16,7 +16,7 @@ export template <class T> class TOrbitalsImp
     typedef VectorFunction<T> Base;
     typedef typename Base::Vec     Vec;  //Vector of scalars.
     typedef typename Base::Vec3Vec Vec3Vec;//vector of 3 space vectors.
-    typedef typename TOrbitals<T>::ds_t ds_t; //{double,SMat}}
+    typedef typename TOrbitals<T>::ds_t ds_t; //{double,smat_t}
 public:
     TOrbitalsImp(const Orbital_IBS<T>*, Spin s);
     virtual ~TOrbitalsImp();

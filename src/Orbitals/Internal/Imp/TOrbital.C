@@ -30,8 +30,6 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>
         D+=CCd;
         smat_t<T> CCd_prime=blaze::outer(itsCoeffPrime,conj(itsCoeffPrime))*GetOccupation();
         DPrime+=CCd_prime;
-        // D     +=SMatrix<T>(OuterProduct(itsCoeff     )*GetOccupation());
-        // DPrime+=SMatrix<T>(OuterProduct(itsCoeffPrime)*GetOccupation());
     }
 }
 

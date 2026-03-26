@@ -26,7 +26,7 @@ public:
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     void                DisplayEigen    () const;
     const Irrep_QNs&    GetQNs          () const {return itsIrrep;}
-    Vector<double>      Get_BS_Diagonal () const;
+    rvec_t      Get_BS_Diagonal () const;
 
  private:
     IrrepWF(const IrrepWF&);
@@ -37,7 +37,7 @@ public:
     Irrep_QNs                    itsIrrep;
     EnergyLevels                 itsELevels;
     SCFIrrepAccelerator*         itsAccelerator;
-    smat_t<double>               itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
-    SMatrix<double>       itsF;
+    rsmat_t               itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    rsmat_t       itsF;
 }; 
 
