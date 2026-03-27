@@ -1,27 +1,28 @@
 // File: Imp/DFT_IBS_Common.C  Common implementation for all DFT Irrep Basis Sets.
 module;
 #include <vector>
+#include <blaze/Math.h>
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Conversions;
 import oml;
 
-template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
-Overlap3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
+template <class T> vec_t<T> Orbital_DFT_IBS_Common<T>::
+Overlap3C(const smat_t<T>& Dcd, const Fit_IBS* ff) const
 {
-    Vector<T> ret(ff->GetNumFunctions());
+    vec_t<T> ret(ff->GetNumFunctions());
     auto& S=this->Overlap3C(*ff);
-    for(auto i:ret.indices())
-        ret(i)=Dot(Dcd,convert(S[i-1]));
+    for(auto i:iv_t(0,S.size()))
+        ret[i]=sum(Dcd%S[i]);
     return ret;
 }
 
-template <class T> Vector<T> Orbital_DFT_IBS_Common<T>::
-Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const
+template <class T> vec_t<T> Orbital_DFT_IBS_Common<T>::
+Repulsion3C(const smat_t<T>& Dcd, const Fit_IBS* ff) const
 {
-    Vector<T> ret(ff->GetNumFunctions());
-    auto& repulsion=this->Repulsion3C(*ff);
-    for(auto i:ret.indices())
-        ret(i)=Dot(Dcd,convert(repulsion[i-1]));
+    vec_t<T> ret(ff->GetNumFunctions());
+    auto& R=this->Repulsion3C(*ff);
+    for(auto i:iv_t(0,R.size()))
+        ret[i]=sum(Dcd%R[i]);
     return ret;
 }
 

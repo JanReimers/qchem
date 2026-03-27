@@ -76,8 +76,8 @@ export template <class T> class Orbital_DFT_IBS_Common
 public:
     using Integrals_DFT<T>::Overlap3C; //Unhide
     using Integrals_DFT<T>::Repulsion3C; //Unhide
-    virtual Vector<T> Overlap3C  (const SMatrix<T>& Dcd, const Fit_IBS* ff) const;
-    virtual Vector<T> Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const;
+    virtual vec_t<T> Overlap3C  (const smat_t<T>& Dcd, const Fit_IBS* ff) const;
+    virtual vec_t<T> Repulsion3C(const smat_t<T>& Dcd, const Fit_IBS* ff) const;
 };
 
 export template <class T> class Orbital_HF_IBS_Common

@@ -28,7 +28,7 @@ public:
     virtual Fit_IBS*    CreateVxcFitBasisSet(const BasisSet*,const Cluster*) const=0;
     using Integrals_DFT<T>::Overlap3C; //Unhide
     using Integrals_DFT<T>::Repulsion3C; //Unhide
-    virtual Vector<T> Overlap3C  (const SMatrix<T>& Dcd, const Fit_IBS* ff) const=0;
-    virtual Vector<T> Repulsion3C(const SMatrix<T>& Dcd, const Fit_IBS* ff) const=0;
+    virtual vec_t<T> Overlap3C  (const smat_t<T>& Dcd, const Fit_IBS* ff) const=0;
+    virtual vec_t<T> Repulsion3C(const smat_t<T>& Dcd, const Fit_IBS* ff) const=0;
 };
 

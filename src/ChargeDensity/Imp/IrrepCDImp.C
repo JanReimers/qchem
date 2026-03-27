@@ -73,7 +73,7 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
     if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
     auto dftbs=dynamic_cast<const Orbital_DFT_IBS<T>*>(itsBasisSet);
     assert(dftbs);
-    return convert(dftbs->Repulsion3C(convert(itsDensityMatrix),fbs));
+    return dftbs->Repulsion3C(itsDensityMatrix,fbs);
 }
 
 
