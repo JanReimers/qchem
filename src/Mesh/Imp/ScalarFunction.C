@@ -12,8 +12,7 @@ import oml;
 
 template <class T> typename ScalarFunction<T>::Vec ScalarFunction<T>::operator() (const Mesh& mesh) const
 {
-    Vec v(mesh.size());
-    Fill(v,T(0.0));
+    Vec v(mesh.size(),T(0.0));
     auto i(v.begin());
     for (auto rw:mesh) (*i++) += (*this)(r(rw));
     return v;
@@ -30,8 +29,7 @@ template <class T> typename ScalarFunction<T>::va_t ScalarFunction<T>::operator(
 
 template <class T> typename ScalarFunction<T>::Vec3Vec ScalarFunction<T>::Gradient(const Mesh& mesh) const
 {
-    Vec3Vec v(mesh.size());
-    Fill(v,Vec3(0,0,0));
+    Vec3Vec v(mesh.size(),Vec3(0,0,0));
     auto i(v.begin());
     for (auto rw:mesh) (*i++) += this->Gradient(r(rw));
     return v;

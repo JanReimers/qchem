@@ -240,8 +240,8 @@ template <size_t K> BSpline_IBS<K>::Vec    BSpline_IBS<K>::operator() (const RVe
     size_t i=0;
     for (auto s:splines) 
     {
+        ret[i]=ns[i]*s(mr);
         ++i;
-        ret(i)=ns[i-1]*s(mr);
     }
     return ret;
 }
@@ -253,17 +253,17 @@ template <size_t K> BSpline_IBS<K>::Vec3Vec BSpline_IBS<K>::Gradient(const RVec3
     if (mr==0.0) 
     {
         
-        Fill(ret,RVec3(0,0,0));
+        ret=RVec3(0,0,0);
         return ret; //Cusp at the origin so grad is undefined.
     }
     assert(mr>0);
-    Fill(ret,r/mr);
+    ret=r/mr;
     size_t i=0;
     for (auto s:splines) 
     {
         auto dsdx=transformSpline(bspline::operators::Dx<1>{},s);
+        ret[i]*=ns[i]*dsdx(mr);
         ++i;
-        ret(i)*=ns[i-1]*dsdx(mr);
     }
     return ret;
 }

@@ -24,7 +24,7 @@ Priority 1:
         SymmetrixMatrix
             S(N,3.14) initialize constructor
             S=3.14 set to constant
-
+        Bounds checking in DEBUG mode.
 	-GetSymmetry() should return a const Symmetry* instead of a shared ptr instance?
         -CopySymmetry() can return the shared ptr.
     	

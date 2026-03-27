@@ -151,12 +151,12 @@ template <class T> void FittedFunctionImp<T>::ReScale(double factor)
 //
 template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) const
 {
-    return trans(itsFitCoeff) * convert((*itsBasisSet)(r));
+    return trans(itsFitCoeff) * (*itsBasisSet)(r);
 }
 
 template <class T> RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
 {
-    Vector<RVec3> br = itsBasisSet->Gradient(r);
+    vec_t<RVec3> br = itsBasisSet->Gradient(r);
     RVec3 ret(0,0,0);
     auto c(itsFitCoeff.begin());
     auto b(br.begin());

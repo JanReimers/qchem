@@ -187,7 +187,7 @@ IrrepBasisSet::Vec     IrrepBasisSet::operator() (const RVec3& r) const
     {
         const RadialFunction& rf=*radials[i];
         RVec3 dr=r-rf.GetCenter();
-        ret(i+1)= ns[i]*pols[i](dr) * rf(r);
+        ret[i]= ns[i]*pols[i](dr) * rf(r);
     }
     return ret;
 }
@@ -198,7 +198,7 @@ IrrepBasisSet::Vec3Vec IrrepBasisSet::Gradient   (const RVec3& r) const
     {
         const RadialFunction& rf=*radials[i];
         RVec3 dr=r-rf.GetCenter();
-        ret(i+1)= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
+        ret[i]= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
     }
     return ret;
 }

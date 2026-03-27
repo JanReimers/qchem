@@ -35,9 +35,9 @@ export template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
     , protected      OrbitalImp  
 {
-    typedef Vector<T>  Vec;
+    typedef vec_t<T>  Vec;
     typedef Vector3D<T> Vec3;
-    typedef Vector<Vector3D<T>> Vec3Vec;
+    typedef vec_t<Vector3D<T>> Vec3Vec;
 public:
     TOrbitalImp() {};
     TOrbitalImp(const Orbital_IBS<T>*,const vec_t<T>& C, const vec_t<T>& CPrime, double e, const Orbital_QNs&);

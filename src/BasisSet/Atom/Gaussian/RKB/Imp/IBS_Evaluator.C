@@ -6,6 +6,7 @@ module;
 module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
+import qchem.Conversions;
 
 Gaussian_IBS::ds_t Gaussian_RKBS_IBS::norms() const
 {
@@ -30,7 +31,7 @@ Gaussian_IBS::ds_t Gaussian_RKBS_IBS::eval(const RVec3& r) const
 
 Gaussian_IBS::Vec    Gaussian_RKBS_IBS::operator() (const RVec3& r) const
 {
-   return convert(eval(r)); 
+   return convert1(eval(r)); //valarray -> rvec_t 
 }
 
 Gaussian_IBS::Vec3Vec Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
@@ -39,7 +40,7 @@ Gaussian_IBS::Vec3Vec Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
     double mr=norm(r);
     if (mr==0.0)
     {
-        Fill(ret,RVec3{0,0,0});
+        ret=RVec3{0,0,0};
         return ret;
     }
     ds_t grad=eval(r)*(l/mr-2*mr*es);
@@ -49,7 +50,7 @@ Gaussian_IBS::Vec3Vec Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
     // std::cout << std::endl;
     RVec3 rhat=r/norm(r);
     size_t i=0;
-    for (auto& g:grad) ret(++i)=g*rhat;
+    for (auto& g:grad) ret[i++]=g*rhat;
     // std::cout << "ret=";
     // for (auto g:ret) std::cout << g << " ";
     // std::cout << std::endl;

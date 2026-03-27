@@ -125,7 +125,7 @@ template <class T> typename TOrbitalsImp<T>::Vec TOrbitalsImp<T>::
 operator()(const RVec3& r) const
 {
     Vec ret(GetNumOrbitals());
-    typename Vec::iterator i(ret.begin());
+    auto i(ret.begin());
     // No UT coverage
     for (auto b:Iterate<TOrbital<double>>()) 
     {
@@ -140,7 +140,7 @@ Gradient(const RVec3& r) const
 {
     // No UT coverage
     Vec3Vec ret(GetNumOrbitals());
-    typename Vec3Vec::iterator i(ret.begin());
+    auto i(ret.begin());
     for (auto b:Iterate<TOrbital<double>>()) 
     {
         *i=b->Gradient(r);

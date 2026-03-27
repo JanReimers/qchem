@@ -6,6 +6,7 @@ module;
 module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
+import qchem.Conversions;
 
 Slater_IBS::ds_t Slater_RKBS_IBS::norms() const
 {
@@ -29,7 +30,7 @@ Slater_IBS::ds_t Slater_RKBS_IBS::eval(const RVec3& r) const
 
 Slater_IBS::Vec    Slater_RKBS_IBS::operator() (const RVec3& r) const
 {
-   return convert(eval(r)); 
+   return convert1(eval(r)); 
 }
 
 Slater_IBS::Vec3Vec Slater_RKBS_IBS::Gradient(const RVec3& r) const
@@ -38,7 +39,7 @@ Slater_IBS::Vec3Vec Slater_RKBS_IBS::Gradient(const RVec3& r) const
     double mr=norm(r);
     if (mr==0.0)
     {
-        Fill(ret,RVec3{0,0,0});
+        ret=RVec3{0,0,0};
         return ret;
     }
     ds_t grad=eval(r)*(l/mr-es);
@@ -48,7 +49,7 @@ Slater_IBS::Vec3Vec Slater_RKBS_IBS::Gradient(const RVec3& r) const
     // std::cout << std::endl;
     RVec3 rhat=r/norm(r);
     size_t i=0;
-    for (auto& g:grad) ret(++i)=g*rhat;
+    for (auto& g:grad) ret[i++]=g*rhat;
     // std::cout << "ret=";
     // for (auto g:ret) std::cout << g << " ";
     // std::cout << std::endl;

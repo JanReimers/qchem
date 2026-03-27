@@ -8,6 +8,7 @@ module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.Rk;
 import qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
+import qchem.Conversions;
 
 
 inline double Overlap(double ea , double eb,size_t l_total)
@@ -188,7 +189,7 @@ dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
 
 Gaussian_IBS::Vec    Gaussian_IBS::operator() (const RVec3& r) const
 {
-    return convert(gaussian(norm(r),l,es,ns));
+    return convert1(gaussian(norm(r),l,es,ns)); //convert valarray -> blaze::rvec_t
 }
 
 Gaussian_IBS::Vec3Vec Gaussian_IBS::Gradient(const RVec3& r) const
@@ -197,13 +198,13 @@ Gaussian_IBS::Vec3Vec Gaussian_IBS::Gradient(const RVec3& r) const
     double mr=norm(r);
     if (mr==0.0)
     {
-        Fill(ret,RVec3{0,0,0});
+        ret=RVec3{0,0,0};
         return ret;
     }
     ds_t grad=grad_gaussian(norm(r),l,es,ns);
     RVec3 rhat=r/norm(r);
     size_t i=0;
-    for (auto& g:grad) ret(++i)=g*rhat;
+    for (auto& g:grad) ret[i++]=g*rhat;
     return ret;
 }
 

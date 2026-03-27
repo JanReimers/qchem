@@ -69,6 +69,13 @@ template <typename T> smat_t<T> convert(const SMatrix<T>& S)
             bV[i-1]=V(i);
         return bV;
     }
+    template <typename T>  vec_t<T> convert1(const std::valarray<T>& V)
+    {
+        vec_t<T> bV(V.size());
+        for (auto i:iv_t(0,V.size()))
+            bV[i]=V[i];
+        return bV;
+    }
     template <typename T> Vector<T> convert(const vec_t<T>& bV)
     {
         Vector<double> V(bV.size());

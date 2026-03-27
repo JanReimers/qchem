@@ -30,12 +30,12 @@ template <class T> rvec_t MeshIntegrator<T>::Integrate(const Vf& v) const
     size_t n=v.GetVectorSize();
     rvec_t ret(n,0.0);
 
-    const Matrix<T>& sv(v(*itsMesh));
-    int iw=1;
+    const mat_t<T>& sv(v(*itsMesh));
+    int iw=0;
     for (auto rw:*itsMesh)
     {
-        for (size_t i=1; i<=n; i++)
-            ret[i-1]+=real(sv(i,iw))*w(rw);
+        for (size_t i=0; i<n; i++)
+            ret[i]+=real(sv(i,iw))*w(rw);
         iw++;
     }
 
@@ -48,12 +48,12 @@ template <class T> rvec_t MeshIntegrator<T>::Normalize(const Vf& v) const
     size_t n=v.GetVectorSize();
     rvec_t ret(n,0.0);
 
-    const Matrix<T>& sv(v(*itsMesh));
-    int iw=1;
+    const mat_t<T>& sv(v(*itsMesh));
+    int iw=0;
     for (auto rw:*itsMesh)
     {
-        for (size_t i=1; i<=n; i++)
-            ret[i-1]+=real(sv(i,iw)*conj(sv(i,iw))*w(rw));
+        for (size_t i=0; i<n; i++)
+            ret[i]+=real(sv(i,iw)*conj(sv(i,iw))*w(rw));
         iw++;          
     }
 
@@ -70,13 +70,13 @@ template <class T> smat_t<T> MeshIntegrator<T>::Overlap(const Vf& v) const
     size_t n=v.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<T>& sf(v(*itsMesh));
-    int iw=1;
+    const mat_t<T>& sf(v(*itsMesh));
+    int iw=0;
     for (auto rw:*itsMesh)
     {
-        for (size_t i=1; i<=n; i++)
-            for (size_t j=i; j<=n; j++)
-                ret(i-1,j-1)+=sf(i,iw)*conj(sf(j,iw))*w(rw);
+        for (size_t i=0; i<n; i++)
+            for (size_t j=i; j<n; j++)
+                ret(i,j)+=sf(i,iw)*conj(sf(j,iw))*w(rw);
         iw++;
     }
 
@@ -88,15 +88,15 @@ template <class T> vec_t<T> MeshIntegrator<T>::Overlap(const Rf& f,const Vf& v) 
     size_t n=v.GetVectorSize();
     vec_t<T> ret(n,T(0.0));
 
-    const Matrix<T> & sv(v(*itsMesh));
+    const mat_t<T> & sv(v(*itsMesh));
     assert(!isnan(sv));
-    const RVec& sf(f(*itsMesh));
+    const rvec_t& sf(f(*itsMesh));
     assert(!isnan(sf));
-    int iw=1;
+    int iw=0;
     for (auto rw:*itsMesh)
     {
-        for (size_t i=1; i<=n; i++)
-            ret[i-1]+=sv(i,iw)*conj(sf(iw))*w(rw);
+        for (size_t i=0; i<n; i++)
+            ret[i]+=sv(i,iw)*conj(sf[iw])*w(rw);
         
         iw++;
     }
@@ -110,15 +110,15 @@ template <class T> mat_t<T> MeshIntegrator<T>::Overlap(const Vf& f,const Vf& g) 
     size_t ng=g.GetVectorSize();
     mat_t<T> ret(nf,ng,T(0.0));
 
-    const Matrix<T>& sf(f(*itsMesh));
-    const Matrix<T>& sg(g(*itsMesh));
+    const mat_t<T>& sf(f(*itsMesh));
+    const mat_t<T>& sg(g(*itsMesh));
 
-    int iw=1;
+    int iw=0;
     for (auto rw:*itsMesh)
     {
-        for (size_t fi=1; fi<=nf; fi++)
-            for (size_t gi=1; gi<=ng; gi++)
-                ret(fi-1,gi-1)+=conj(sf(fi,iw))*sg(gi,iw)*w(rw);
+        for (size_t fi=0; fi<nf; fi++)
+            for (size_t gi=0; gi<ng; gi++)
+                ret(fi,gi)+=conj(sf(fi,iw))*sg(gi,iw)*w(rw);
         iw++;
     }
 
@@ -135,16 +135,16 @@ template <class T> smat_t<T> MeshIntegrator<T>::Overlap3C(const Vf& f,const Sf& 
     size_t n=f.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<T>& sf(f(*itsMesh));
-    const Vector<T>& sg(g(*itsMesh));
+    const mat_t<T>& sf(f(*itsMesh));
+    const vec_t<T>& sg(g(*itsMesh));
 
-    for (size_t i=1; i<=n; i++)
-        for (size_t j=i; j<=n; j++)
+    for (size_t i=0; i<n; i++)
+        for (size_t j=0; j<n; j++)
         {
-            int wi=1;
+            int wi=0;
             for (auto rw:*itsMesh)
             {
-                ret(i-1,j-1)+=conj(sf(i,wi)*sf(j,wi))*sg(wi)*w(rw);
+                ret(i,j)+=conj(sf(i,wi)*sf(j,wi))*sg[wi]*w(rw);
                 wi++;
             }
         }
@@ -162,8 +162,8 @@ template <class T> smat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f) const
     size_t n=f.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<T>& sf(f(*itsMesh));
-    int iw=1;
+    const mat_t<T>& sf(f(*itsMesh));
+    int iw=0;
     for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
         int jw=iw+1;
@@ -172,9 +172,9 @@ template <class T> smat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f) const
             if (r(*rw1)==r(*rw2)) continue;
             double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
             assert(!std::isnan(oor));
-            for (size_t i=1; i<=n; i++)
-                for (size_t j=i; j<=n; j++)
-                    ret(i-1,j-1)+=(conj(sf(i,iw))*sf(j,jw)+conj(sf(i,jw))*sf(j,iw))*oor;
+            for (size_t i=0; i<n; i++)
+                for (size_t j=i; j<n; j++)
+                    ret(i,j)+=(conj(sf(i,iw))*sf(j,jw)+conj(sf(i,jw))*sf(j,iw))*oor;
         }
     }
     assert(!isnan(ret));
@@ -187,10 +187,10 @@ template <class T> vec_t<T> MeshIntegrator<T>::Repulsion(const Rf& h, const Vf& 
     size_t n=f.GetVectorSize();
     vec_t<T> ret(n,T(0.0));
 
-    const Matrix<T> & sf(f(*itsMesh));
-    const RVec& sh(h(*itsMesh));
+    const mat_t<T> & sf(f(*itsMesh));
+    const rvec_t& sh(h(*itsMesh));
     
-    int iw=1;
+    int iw=0;
     for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
         int jw=iw+1;
@@ -199,8 +199,8 @@ template <class T> vec_t<T> MeshIntegrator<T>::Repulsion(const Rf& h, const Vf& 
             if (r(*rw1)==r(*rw2)) continue;
             double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
             assert(!std::isnan(oor));
-            for (size_t i=1; i<=n; i++)
-                ret[i-1]+=(sf(i,iw)*conj(sh(jw))+sf(i,jw)*conj(sh(iw)))*oor;
+            for (size_t i=0; i<n; i++)
+                ret[i]+=(sf(i,iw)*conj(sh[jw])+sf(i,jw)*conj(sh[iw]))*oor;
         }
     }
     assert(!isnan(ret));
@@ -214,10 +214,10 @@ template <class T> mat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f,const Vf& g
     size_t ng=g.GetVectorSize();
     mat_t<T> ret(nf,ng,T(0.0));
 
-    const Matrix<T>& sf(f(*itsMesh));
-    const Matrix<T>& sg(g(*itsMesh));
+    const mat_t<T>& sf(f(*itsMesh));
+    const mat_t<T>& sg(g(*itsMesh));
 
-    int iw=1;
+    int iw=0;
     for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
         int jw=iw+1;
@@ -227,9 +227,9 @@ template <class T> mat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f,const Vf& g
             double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
             assert(!std::isnan(oor));
 
-            for (size_t i=1; i<=nf; i++)
-                for (size_t j=1; j<=ng; j++)
-                    ret(i-1,j-1)+=(conj(sf(i,iw))*sg(j,jw)+conj(sf(i,jw))*sg(j,iw))*oor;
+            for (size_t i=0; i<nf; i++)
+                for (size_t j=0; j<ng; j++)
+                    ret(i,j)+=(conj(sf(i,iw))*sg(j,jw)+conj(sf(i,jw))*sg(j,iw))*oor;
         }
     }
     assert(!isnan(ret));
@@ -246,10 +246,10 @@ template <class T> smat_t<T> MeshIntegrator<T>::Repulsion3C(const Vf& f, const S
     size_t n=f.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<T>& sf(f(*itsMesh));
-    const Vector<T>& sh(h(*itsMesh));
+    const mat_t<T>& sf(f(*itsMesh));
+    const vec_t<T>& sh(h(*itsMesh));
 
-    int iw=1;
+    int iw=0;
     for (auto rw1=itsMesh->begin();rw1!=itsMesh->end();rw1++,iw++)
     {
         int jw=iw+1;
@@ -258,9 +258,9 @@ template <class T> smat_t<T> MeshIntegrator<T>::Repulsion3C(const Vf& f, const S
             if (r(*rw1)==r(*rw2)) continue;
             double oor=w(*rw1)*w(*rw2)/norm(r(*rw1)-r(*rw2));
             assert(!std::isnan(oor));
-            for (size_t i=1; i<=n; i++)
-                for (size_t j=i; j<=n; j++)
-                    ret(i-1,j-1)+=(conj(sf(i,iw)*sf(j,iw))*sh(jw) + conj(sf(i,jw)*sf(j,jw))*sh(iw))*oor;
+            for (size_t i=0; i<n; i++)
+                for (size_t j=0; j<n; j++)
+                    ret(i,j)+=(conj(sf(i,iw)*sf(j,iw))*sh[jw] + conj(sf(i,jw)*sf(j,jw))*sh[iw])*oor;
         }
     }
     return ret;
@@ -272,15 +272,15 @@ template <class T> smat_t<T> MeshIntegrator<T>::Inv_r1(const Vf& f) const
     size_t n=f.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<T>& sf(f(*itsMesh));
+    const mat_t<T>& sf(f(*itsMesh));
 
-    for (size_t i=1; i<=n; i++)
-        for (size_t j=i; j<=n; j++)
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
         {
-            int wi=1;
+            int wi=0;
             for (auto rw:*itsMesh)
             {
-                if (norm(r(rw))!=0) ret(i-1,j-1)+=conj(sf(i,wi))*sf(j,wi)*w(rw)/norm(r(rw));
+                if (norm(r(rw))!=0) ret(i,j)+=conj(sf(i,wi))*sf(j,wi)*w(rw)/norm(r(rw));
                 wi++;
             }
         }
@@ -291,16 +291,16 @@ template <class T> smat_t<T> MeshIntegrator<T>::Inv_r2(const Vf& f) const
     size_t n=f.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<T>& sf(f(*itsMesh));
+    const mat_t<T>& sf(f(*itsMesh));
 
-    for (size_t i=1; i<=n; i++)
-        for (size_t j=i; j<=n; j++)
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
         {
-            int wi=1;
+            int wi=0;
             for (auto rw:*itsMesh)
             {
                 double mr=norm(r(rw));
-                if (mr!=0) ret(i-1,j-1)+=conj(sf(i,wi))*sf(j,wi)*w(rw)/(mr*mr);
+                if (mr!=0) ret(i,j)+=conj(sf(i,wi))*sf(j,wi)*w(rw)/(mr*mr);
                 wi++;
             }
         }
@@ -312,15 +312,15 @@ template <class T> smat_t<T> MeshIntegrator<T>::Grad2(const Vf& f) const
     size_t n=f.GetVectorSize();
     smat_t<T> ret=zero<T>(n);
 
-    const Matrix<Vec3>& sf(f.Gradient(*itsMesh));
+    const mat_t<Vec3>& sf(f.Gradient(*itsMesh));
 
-    for (size_t i=1; i<=n; i++)
-        for (size_t j=i; j<=n; j++)
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
         {
-            int wi=1;
+            int wi=0;
             for (auto rw:*itsMesh)
             {
-                 ret(i-1,j-1)+=conj(sf(i,wi))*sf(j,wi)*w(rw);
+                 ret(i,j)+=conj(sf(i,wi))*sf(j,wi)*w(rw);
                  wi++;
             }
         }
@@ -334,16 +334,16 @@ template <class T> mat_t<T> MeshIntegrator<T>::Grada_b(const Vf& a,const Vf& b) 
     size_t nb=b.GetVectorSize();
     mat_t<T> ret(na,nb,T(0.0));
  
-    const Matrix<Vec3>& sa(a.Gradient(*itsMesh));
-    const Matrix<T>& sb(b(*itsMesh));
+    const mat_t<Vec3>& sa(a.Gradient(*itsMesh));
+    const mat_t<T>& sb(b(*itsMesh));
 
-    for (size_t i=1; i<=na; i++)
-        for (size_t j=1; j<=nb; j++)
+    for (size_t i=0; i<na; i++)
+        for (size_t j=0; j<nb; j++)
         {
-            int wi=1;
+            int wi=0;
             for (auto rw:*itsMesh)
             {
-                ret(i-1,j-1)+=conj(norm(sa(i,wi)))*sb(j,wi)*w(rw);
+                ret(i,j)+=conj(norm(sa(i,wi)))*sb(j,wi)*w(rw);
                 wi++;
             }
         }
@@ -356,16 +356,16 @@ template <class T> mat_t<T> MeshIntegrator<T>::a_Gradb(const Vf& a,const Vf& b) 
     size_t nb=b.GetVectorSize();
     mat_t<T> ret(na,nb,T(0.0));
    
-    const Matrix<T>& sa(a(*itsMesh));
-    const Matrix<Vec3>& sb(b.Gradient(*itsMesh));
+    const mat_t<T>& sa(a(*itsMesh));
+    const mat_t<Vec3>& sb(b.Gradient(*itsMesh));
 
-    for (size_t i=1; i<=na; i++)
-        for (size_t j=1; j<=nb; j++)
+    for (size_t i=0; i<na; i++)
+        for (size_t j=0; j<nb; j++)
         {
-            int wi=1;
+            int wi=0;
             for (auto rw:*itsMesh)
             {
-                ret(i-1,j-1)+=conj(sa(i,wi))*norm(sb(j,wi))*w(rw);
+                ret(i,j)+=conj(sa(i,wi))*norm(sb(j,wi))*w(rw);
                 wi++;
             }
         }
