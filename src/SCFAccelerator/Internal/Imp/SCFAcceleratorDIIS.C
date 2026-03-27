@@ -28,12 +28,9 @@ SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS()
 };
 
 
-void SCFIrrepAcceleratorDIIS::UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)
+void SCFIrrepAcceleratorDIIS::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
 {
-    // SMatrix<double> Fb=LASolver_blaze<double>::convert(itsLaSolver_blaze->Transform(LASolver_blaze<double>::convert(F))); // Fprime = Vd*F*V
-    // itsFPrime=itsLaSolver->Transform(F); // Fprime = Vd*F*V
-    // cout << "Fb-FPrime=" << Fb-itsFPrime << endl;
-    itsFPrime=itsLaSolver_blaze->Transform(F); // Fprime = Vd*F*V
+     itsFPrime=itsLaSolver_blaze->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.rows()==DPrime.rows());
     assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
@@ -41,19 +38,7 @@ void SCFIrrepAcceleratorDIIS::UseFD(const smat_t<double>& F, const smat_t<double
     itsEn=norm(itsE);
 }
 
-// template <class T> const smat_t<T>& operator+=(smat_t<T>& a, const smat_t<T>& b)
-// {
-//     if (a.size()==0) 
-//     {
-//         a=zero<double>(b.rows());
-//     }
-//     else
-//         assert(a.rows()==b.rows());
-//     a=a+b;
-//     return a;
-// }
-
-smat_t<double> SCFIrrepAcceleratorDIIS::Project()
+rsmat_t SCFIrrepAcceleratorDIIS::Project()
 {
     if (itsCs.size()<2) 
         return itsFPrime;
@@ -62,7 +47,6 @@ smat_t<double> SCFIrrepAcceleratorDIIS::Project()
         double err=fabs(sum(itsCs)-1.0);
         if (err>1e-13)
             cout << "Warning: SCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
-        // assert(fabs(Sum(itsCs)-1.0)<1e-13); //Check that the constraint worked.
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
         rsmat_t Fproj=zero<double>(itsFPrime.rows()) ;
@@ -120,7 +104,7 @@ size_t SCFAcceleratorDIIS::GetNProj() const
     return N;
 }
 
-double SCFAcceleratorDIIS::GetMinSV(const SMat& B)
+double SCFAcceleratorDIIS::GetMinSV(const rsmat_t& B)
 {
     rvec_t s;
     rmat_t  U,Vt;
@@ -128,17 +112,13 @@ double SCFAcceleratorDIIS::GetMinSV(const SMat& B)
     return s[s.size()-1];
 }
 
-rvec_t SCFAcceleratorDIIS::SolveC(const SMat& B) 
+rvec_t SCFAcceleratorDIIS::SolveC(const rsmat_t& B) 
 {
-    static oml::LapackLinearSolver<double> solver;
     size_t N=B.rows();
-    RVec v(N);
-    Fill(v,0.0); 
-    v(N)=1.0;
-    RVec C=solver.Solve(convert(B),v);
-    // std:: cout << B << C << v << del <<std::endl;
-    // std:: cout << "del,[F,D] = " << sqrt(del*del) << " " << C(N) << std::endl;
-    return convert(C.SubVector(N-1));   
+    rvec_t v(N,0.0);
+    v[N-1]=1.0;
+    rvec_t C=blaze::solve(B,v);
+    return subvector(C,0,N-1);   
 }
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
@@ -153,10 +133,10 @@ SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
     // B(N,N)=0.0;  should already be true
     return {B,GetMinSV(B)};    
 }
-SCFAcceleratorDIIS::SMat SCFAcceleratorDIIS::BuildPrunedB(double svmin)
+rsmat_t SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 {
     md_t B=BuildB(); //Returns a SMat,double struct.
-    while (B.sv<svmin &&GetNProj()>=2) 
+    while (B.sv<svmin && GetNProj()>=2) 
     {
         Purge1(); //Must be a member function for this.
         B=BuildB();
@@ -195,7 +175,7 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     assert(GetNProj()<=itsParams.Nproj);
     if (GetNProj()<2) return false;
     
-    SMat B=BuildPrunedB(itsParams.SVTol);
+    rsmat_t B=BuildPrunedB(itsParams.SVTol);
     if (B.rows()<=2) return false;
                 
     itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.

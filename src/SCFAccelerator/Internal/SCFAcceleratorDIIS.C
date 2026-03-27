@@ -21,16 +21,15 @@ export class SCFAcceleratorDIIS;
 class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
 {
 public:
-    typedef mat_t<double> Mat;
-    typedef std::deque<Mat   > mv_t; //matrix-vector type.
-    typedef std::deque< smat_t<double>   > sv_t; //smatrix-vector type.
+    typedef std::deque< rmat_t> mv_t; //matrix-vector type.
+    typedef std::deque<rsmat_t> sv_t; //smatrix-vector type.
     typedef std::deque<double> dv_t ; //doubles
     
     SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver_blaze<double>*,const Irrep_QNs&,const rvec_t& cs);
     virtual ~SCFIrrepAcceleratorDIIS();
     
-    virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
-    virtual smat_t<double> Project(); 
+    virtual void UseFD(const rsmat_t& F, const rsmat_t& DPrime);
+    virtual rsmat_t Project(); 
 private:
     friend class SCFAcceleratorDIIS;
     size_t GetNproj() const {return itsEs.size();}
@@ -42,16 +41,16 @@ private:
     DIISParams itsParams; 
     Irrep_QNs  itsIrrep;
     // All of these are the the most recent values
-    rsmat_t   itsFPrime,itsDPrime;    
-    Mat    itsE;
-    double itsEn;  // [F',D']
+    rsmat_t    itsFPrime,itsDPrime;    
+    rmat_t     itsE;
+    double     itsEn;  // [F',D']
     // Caches for F',E,En
     sv_t itsFPrimes;
     mv_t itsEs; //Error matrices [F',D']
     dv_t itsEns; //Errors ||E||=FNorm[F',D']
     
 
-    const rvec_t&                  itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
+    const rvec_t& itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
 
     const LASolver_blaze   <double>*   itsLaSolver_blaze; //Knows the ortho transform
 
@@ -71,22 +70,20 @@ public:
     virtual double GetError() const;
 
 private:
-    typedef  mat_t<double>  Mat;
-    typedef smat_t<double> SMat;
-    typedef std::vector< Mat> mv_t; //matrix-vector type.
+    typedef std::vector<rmat_t> mv_t; //matrix-vector type.
 
 
-    static double GetMinSV(const SMat& B);
-    static rvec_t SolveC  (const SMat& B);
+    static double GetMinSV(const rsmat_t& B);
+    static rvec_t SolveC  (const rsmat_t& B);
     
-    struct md_t{SMat B;double sv;};
+    struct md_t{rsmat_t B;double sv;};
 
-    md_t   BuildB() const;
-    SMat   BuildPrunedB(double svmin);
-    size_t Append1();
-    size_t Purge1();
-    size_t GetNProj() const;
-    bool   HasProjection() const {return itsCs.size()>=2;}
+    md_t    BuildB() const;
+    rsmat_t BuildPrunedB(double svmin);
+    size_t  Append1();
+    size_t  Purge1();
+    size_t  GetNProj() const;
+    bool    HasProjection() const {return itsCs.size()>=2;}
 
   
     DIISParams itsParams;
