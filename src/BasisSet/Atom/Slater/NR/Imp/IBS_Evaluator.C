@@ -188,25 +188,25 @@ dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
 
 
 
-Slater_IBS::Vec    Slater_IBS::operator() (const RVec3& r) const
+rvec_t Slater_IBS::operator() (const RVec3& r) const
 {
     return convert1(slater(norm(r),l,es,ns));
 }
 
-Slater_IBS::Vec3Vec Slater_IBS::Gradient(const RVec3& r) const
+rvec3vec_t Slater_IBS::Gradient(const RVec3& r) const
 {
-    Vec3Vec ret(size());
+    rvec3vec_t ret(size());
     double mr=norm(r);
     if (mr==0.0)
     {
-        ret=RVec3{0,0,0};
+        ret=rvec3_t{0,0,0};
         return ret;
     }
     ds_t grad=grad_slater(norm(r),l,es,ns);
     // std::cout << "grad=";
     // for (auto g:grad) std::cout << g << " ";
     // std::cout << std::endl;
-    RVec3 rhat=r/norm(r);
+    rvec3_t rhat=r/norm(r);
     size_t i=0;
     for (auto& g:grad) ret[i++]=g*rhat;
     // std::cout << "ret=";

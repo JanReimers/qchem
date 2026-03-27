@@ -35,17 +35,14 @@ export template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
     , protected      OrbitalImp  
 {
-    typedef vec_t<T>  Vec;
-    typedef Vector3D<T> Vec3;
-    typedef vec_t<Vector3D<T>> Vec3Vec;
 public:
     TOrbitalImp() {};
     TOrbitalImp(const Orbital_IBS<T>*,const vec_t<T>& C, const vec_t<T>& CPrime, double e, const Orbital_QNs&);
 
     virtual void   AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const;
 
-    virtual T      operator()      (const RVec3&) const;
-    virtual Vec3   Gradient        (const RVec3&) const;
+    virtual T         operator()(const RVec3&) const;
+    virtual vec3_t<T> Gradient  (const RVec3&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
    

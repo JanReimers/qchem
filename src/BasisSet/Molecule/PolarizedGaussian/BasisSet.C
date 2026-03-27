@@ -29,8 +29,6 @@ class IrrepBasisSet
           public IrrepBasisSet_Common<double>,
           public IrrepIEClient
     {
-        typedef typename VectorFunction<double>::Vec     Vec;  //Vector of scalars.
-        typedef typename VectorFunction<double>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
@@ -40,8 +38,8 @@ class IrrepBasisSet
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
         virtual size_t  GetNumFunctions() const {return size();}
-        virtual Vec     operator() (const RVec3&) const;
-        virtual Vec3Vec Gradient   (const RVec3&) const;
+        virtual rvec_t     operator() (const RVec3&) const;
+        virtual rvec3vec_t Gradient   (const RVec3&) const;
 
         virtual std::ostream &Write(std::ostream &) const;
 

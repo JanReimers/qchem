@@ -96,8 +96,6 @@ export template <class T> class Orbital_RKB_IBS_Common
     , public Orbital_IBS_Common<T>
     , public DB_RKB<T>
 {
-    typedef typename VectorFunction<T>::Vec     Vec;  //Vector of scalars.
-    typedef typename VectorFunction<T>::Vec3Vec Vec3Vec;//vector of 3 space vectors.
 public:
     virtual size_t size() const {return itsRKBL->GetNumFunctions()+itsRKBS->GetNumFunctions();}
     virtual size_t  GetNumFunctions() const {return size();}
@@ -106,8 +104,8 @@ public:
     virtual smat_t<T> MakeNuclear (const Cluster*) const;
     virtual smat_t<T> MakeRestMass() const;
 
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    virtual vec_t    <T> operator() (const RVec3&) const;
+    virtual vec3vec_t<T> Gradient   (const RVec3&) const;
 protected:
     Orbital_RKB_IBS_Common(const DB_cache<T>* db, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;

@@ -22,15 +22,13 @@ export namespace PlaneWave
 
 struct IBS_Evaluator : public virtual VectorFunction<dcmplx>
 {
-    using Vec    =VectorFunction<dcmplx>::Vec;
-    using Vec3Vec=VectorFunction<dcmplx>::Vec3Vec;
 
     IBS_Evaluator(RVec3 _k,const std::valarray<IVec3>& _Gs,double _norm)
         : k(_k), Gs(torvec(_Gs)), norm(_norm)
         {}
 
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    virtual vec_t    <dcmplx> operator() (const RVec3&) const;
+    virtual vec3vec_t<dcmplx> Gradient   (const RVec3&) const;
     virtual size_t size() const {return Gs.size();}
 
 

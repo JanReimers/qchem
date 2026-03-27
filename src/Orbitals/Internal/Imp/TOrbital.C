@@ -45,10 +45,10 @@ template <class T> T TOrbitalImp<T>::operator()(const RVec3& r) const
 }
 
 //BUG
-template <class T> typename TOrbitalImp<T>::Vec3 TOrbitalImp<T>::Gradient(const RVec3& r) const
+template <class T> vec3_t<T> TOrbitalImp<T>::Gradient(const RVec3& r) const
 {
-    Vec3 ret(0,0,0);
-    Vec3Vec grads=itsBasisSet->Gradient(r);
+    vec3_t<T> ret(0,0,0);
+    vec3vec_t<T> grads=itsBasisSet->Gradient(r);
     auto c(itsCoeff.begin());
     for (auto b:grads) ret+=(*c++) * b;
     return ret;

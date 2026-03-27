@@ -30,8 +30,8 @@ public:
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const; //3 center
 
-    virtual Vec     operator() (const RVec3&) const;
-    virtual Vec3Vec Gradient   (const RVec3&) const;
+    virtual rvec_t     operator() (const RVec3&) const;
+    virtual rvec3vec_t Gradient   (const RVec3&) const;
 
 protected:
     ds_t norms() const; //assumes es,l are already initialized

@@ -180,24 +180,24 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
 
 IrrepBasisSet::~IrrepBasisSet() {};
 
-IrrepBasisSet::Vec     IrrepBasisSet::operator() (const RVec3& r) const
+rvec_t IrrepBasisSet::operator() (const RVec3& r) const
 {
-    Vec ret(size());
+    rvec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
         const RadialFunction& rf=*radials[i];
-        RVec3 dr=r-rf.GetCenter();
+        rvec3_t dr=r-rf.GetCenter();
         ret[i]= ns[i]*pols[i](dr) * rf(r);
     }
     return ret;
 }
-IrrepBasisSet::Vec3Vec IrrepBasisSet::Gradient   (const RVec3& r) const
+rvec3vec_t IrrepBasisSet::Gradient   (const RVec3& r) const
 {
-    Vec3Vec ret(size());
+    rvec3vec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
         const RadialFunction& rf=*radials[i];
-        RVec3 dr=r-rf.GetCenter();
+        rvec3_t dr=r-rf.GetCenter();
         ret[i]= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
     }
     return ret;

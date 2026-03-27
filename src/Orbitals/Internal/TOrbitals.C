@@ -13,9 +13,6 @@ export template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
 {
-    typedef VectorFunction<T> Base;
-    typedef typename Base::Vec     Vec;  //Vector of scalars.
-    typedef typename Base::Vec3Vec Vec3Vec;//vector of 3 space vectors.
     typedef typename TOrbitals<T>::ds_t ds_t; //{double,smat_t}
 public:
     TOrbitalsImp(const Orbital_IBS<T>*, Spin s);
@@ -30,8 +27,8 @@ public:
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep_QNs GetQNs() const;
     
-    virtual Vec     operator()(const RVec3&) const;
-    virtual Vec3Vec Gradient  (const RVec3&) const;
+    virtual vec_t    <T> operator() (const RVec3&) const;
+    virtual vec3vec_t<T> Gradient   (const RVec3&) const;
 
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}

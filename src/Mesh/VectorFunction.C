@@ -3,7 +3,7 @@ module;
 #include <valarray>
 export module qchem.VectorFunction;
 export import qchem.Mesh;
-export import oml;
+export import oml.Vector3D;
 export import qchem.Types;
 //--------------------------------------------------------------------------
 //
@@ -15,20 +15,13 @@ export import qchem.Types;
 export template <class T> class VectorFunction
 {
 public:
-    typedef mat_t<T>        Mat;  //Matrix.
-    typedef smat_t<T>       SMat; //Symmetrix matrix.
-    typedef vec_t<T>        Vec;  //Vector of scalars.
-    typedef Vector3D<T>     Vec3;   //3 vector (possibly complex).
-    typedef vec_t<Vec3>     Vec3Vec;//vector of 3 space vectors.
-    typedef mat_t<Vec3>     Vec3Mat;//matrix of 3 space vectors.
-
     virtual ~VectorFunction()  {};
 
     virtual size_t  GetVectorSize() const=0;
 
-    virtual Vec     operator() (const RVec3&     ) const=0;
-    virtual Mat     operator() (const Mesh&      ) const  ;
+    virtual vec_t<T> operator() (const RVec3&) const=0;
+    virtual mat_t<T> operator() (const Mesh& ) const  ;
 
-    virtual Vec3Vec Gradient   (const RVec3&         ) const=0;
-    virtual Vec3Mat Gradient   (const Mesh&          ) const  ;
+    virtual vec3vec_t<T> Gradient(const RVec3&) const=0;
+    virtual vec3mat_t<T> Gradient(const Mesh& ) const  ;
 };

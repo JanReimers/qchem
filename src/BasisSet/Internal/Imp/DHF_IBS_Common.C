@@ -23,15 +23,15 @@ template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
     s->Insert(itsRKBL);
 }
 
-template <class T> Orbital_RKB_IBS_Common<T>::Vec     Orbital_RKB_IBS_Common<T>::operator() (const RVec3&) const
+template <class T> vec_t<T> Orbital_RKB_IBS_Common<T>::operator() (const RVec3&) const
 {
     assert(false);
-    return Vec();
+    return vec_t<T>();
 }
-template <class T> Orbital_RKB_IBS_Common<T>::Vec3Vec Orbital_RKB_IBS_Common<T>::Gradient   (const RVec3&) const
+template <class T> vec3vec_t<T> Orbital_RKB_IBS_Common<T>::Gradient   (const RVec3&) const
 {
     assert(false);
-    return Vec3Vec();
+    return vec3vec_t<T>();
 }
 
 template <class T> smat_t<T> Orbital_RKB_IBS_Common<T>::merge_diag(const smat_t<T>& l,const smat_t<T>& s)

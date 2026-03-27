@@ -29,18 +29,18 @@ Gaussian_IBS::ds_t Gaussian_RKBS_IBS::eval(const RVec3& r) const
     return f*gaussian(mr,l,es,ns);
 }
 
-Gaussian_IBS::Vec    Gaussian_RKBS_IBS::operator() (const RVec3& r) const
+rvec_t Gaussian_RKBS_IBS::operator() (const RVec3& r) const
 {
    return convert1(eval(r)); //valarray -> rvec_t 
 }
 
-Gaussian_IBS::Vec3Vec Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
+rvec3vec_t Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
 {
-    Vec3Vec ret(size());
+    rvec3vec_t ret(size());
     double mr=norm(r);
     if (mr==0.0)
     {
-        ret=RVec3{0,0,0};
+        ret=rvec3_t{0,0,0};
         return ret;
     }
     ds_t grad=eval(r)*(l/mr-2*mr*es);
@@ -48,7 +48,7 @@ Gaussian_IBS::Vec3Vec Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
     // std::cout << "grad=";
     // for (auto g:grad) std::cout << g << " ";
     // std::cout << std::endl;
-    RVec3 rhat=r/norm(r);
+    rvec3_t rhat=r/norm(r);
     size_t i=0;
     for (auto& g:grad) ret[i++]=g*rhat;
     // std::cout << "ret=";

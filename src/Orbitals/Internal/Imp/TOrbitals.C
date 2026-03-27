@@ -121,13 +121,12 @@ template <class T>  Irrep_QNs TOrbitalsImp<T>::GetQNs() const
 //
 //  VectorFunction stuff.
 //
-template <class T> typename TOrbitalsImp<T>::Vec TOrbitalsImp<T>::
-operator()(const RVec3& r) const
+template <class T> vec_t<T> TOrbitalsImp<T>::operator()(const RVec3& r) const
 {
-    Vec ret(GetNumOrbitals());
+    vec_t<T> ret(GetNumOrbitals());
     auto i(ret.begin());
     // No UT coverage
-    for (auto b:Iterate<TOrbital<double>>()) 
+    for (auto b:Iterate<TOrbital<T>>()) 
     {
         *i=(*b)(r);
         i++;
@@ -135,13 +134,12 @@ operator()(const RVec3& r) const
     return ret;
 }
 
-template <class T> typename TOrbitalsImp<T>::Vec3Vec TOrbitalsImp<T>::
-Gradient(const RVec3& r) const
+template <class T> vec3vec_t<T> TOrbitalsImp<T>::Gradient(const RVec3& r) const
 {
     // No UT coverage
-    Vec3Vec ret(GetNumOrbitals());
+    vec3vec_t<T> ret(GetNumOrbitals());
     auto i(ret.begin());
-    for (auto b:Iterate<TOrbital<double>>()) 
+    for (auto b:Iterate<TOrbital<T>>()) 
     {
         *i=b->Gradient(r);
         i++;

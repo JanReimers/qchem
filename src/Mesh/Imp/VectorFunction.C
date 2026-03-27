@@ -3,30 +3,30 @@ module;
 #include <cassert>
 #include <complex>
 module qchem.VectorFunction;
-import oml;
+import oml.Vector3D;
 
-template <class T> typename VectorFunction<T>::Mat VectorFunction<T>::operator() (const Mesh& mesh) const
+template <class T> mat_t<T> VectorFunction<T>::operator() (const Mesh& mesh) const
 {
     size_t n=GetVectorSize();
-    Mat m(n,mesh.size(),T(0.0));
+    mat_t<T> m(n,mesh.size(),T(0.0));
     int i=0;
     for (auto rw:mesh) 
     {
-        const Vec& v((*this)(r(rw)));
+        const vec_t<T>& v((*this)(r(rw)));
         for (int j=0; j<n; j++) m(j,i) += v[j];
         i++;
     }
     return m;
 }
 
-template <class T> typename VectorFunction<T>::Vec3Mat VectorFunction<T>::Gradient(const Mesh& mesh) const
+template <class T> vec3mat_t<T> VectorFunction<T>::Gradient(const Mesh& mesh) const
 {
     size_t n=GetVectorSize();
-    Vec3Mat m(n,mesh.size(),Vec3(0,0,0));
+    vec3mat_t<T> m(n,mesh.size(),vec3_t<T>(0,0,0));
     int i=0;
     for (auto rw:mesh) 
     {
-        const Vec3Vec& v(Gradient(r(rw)));
+        const vec3vec_t<T>& v(Gradient(r(rw)));
         for (int j=0; j<n; j++) m(j,i) += v[j];
         i++;
     }

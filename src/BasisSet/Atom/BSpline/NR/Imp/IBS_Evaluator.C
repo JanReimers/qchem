@@ -233,9 +233,9 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-template <size_t K> BSpline_IBS<K>::Vec    BSpline_IBS<K>::operator() (const RVec3& r) const
+template <size_t K> rvec_t BSpline_IBS<K>::operator() (const RVec3& r) const
 {
-    Vec ret(size());
+    rvec_t ret(size());
     double mr=norm(r);
     size_t i=0;
     for (auto s:splines) 
@@ -246,14 +246,14 @@ template <size_t K> BSpline_IBS<K>::Vec    BSpline_IBS<K>::operator() (const RVe
     return ret;
 }
 
-template <size_t K> BSpline_IBS<K>::Vec3Vec BSpline_IBS<K>::Gradient(const RVec3& r) const
+template <size_t K> rvec3vec_t BSpline_IBS<K>::Gradient(const RVec3& r) const
 {
-    Vec3Vec ret(size());
+    rvec3vec_t ret(size());
     double mr=norm(r);
     if (mr==0.0) 
     {
         
-        ret=RVec3(0,0,0);
+        ret=rvec3_t(0,0,0);
         return ret; //Cusp at the origin so grad is undefined.
     }
     assert(mr>0);

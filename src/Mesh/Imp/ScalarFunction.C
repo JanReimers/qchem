@@ -6,13 +6,12 @@ module;
 #include <valarray>
 
 module qchem.ScalarFunction;
+import oml.Vector3D;
 
-import oml;
 
-
-template <class T> typename ScalarFunction<T>::Vec ScalarFunction<T>::operator() (const Mesh& mesh) const
+template <class T> vec_t<T> ScalarFunction<T>::operator() (const Mesh& mesh) const
 {
-    Vec v(mesh.size(),T(0.0));
+    vec_t<T> v(mesh.size(),T(0.0));
     auto i(v.begin());
     for (auto rw:mesh) (*i++) += (*this)(r(rw));
     return v;
@@ -27,9 +26,9 @@ template <class T> typename ScalarFunction<T>::va_t ScalarFunction<T>::operator(
     return v;
 }
 
-template <class T> typename ScalarFunction<T>::Vec3Vec ScalarFunction<T>::Gradient(const Mesh& mesh) const
+template <class T> vec3vec_t<T> ScalarFunction<T>::Gradient(const Mesh& mesh) const
 {
-    Vec3Vec v(mesh.size(),Vec3(0,0,0));
+    vec3vec_t<T> v(mesh.size(),rvec3_t(0,0,0));
     auto i(v.begin());
     for (auto rw:mesh) (*i++) += this->Gradient(r(rw));
     return v;
