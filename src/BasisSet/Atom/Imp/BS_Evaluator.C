@@ -87,8 +87,8 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
                         assert(false);
                     }
                     double norm=na[ia]*na[ib]*nc[ic]*nc[id];
-                    rvec11_t Rkac=loop_4_direct(c->es_index(id),la,lc);
-                    Jab(ic,id)=trans(Akac)*Rkac*norm;
+                    double AkacRkac=loop_4_direct(c->es_index(id),la,lc,Akac);
+                    Jab(ic,id)=AkacRkac*norm;
                 }
             }
         }
@@ -121,13 +121,13 @@ ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) cons
                 {
                     if (id>ib+spancd || ib>id+spanab) continue;
                     double norm=na[ia]*na[ib]*nc[ic]*nc[id]; 
-                    rvec11_t RKac=loop_4_exchange(c->es_index(id),la,lc);
+                    double AkacRKac=loop_4_exchange(c->es_index(id),la,lc,Akac);
                     if (ic==id)
-                        Kab(ic,id)=trans(Akac)*RKac*norm; 
+                        Kab(ic,id)=AkacRKac*norm; 
                     else if (id<ic)
-                        Kab(id,ic)+=0.5*trans(Akac)*RKac*norm; 
+                        Kab(id,ic)+=0.5*AkacRKac*norm; 
                     else
-                        Kab(ic,id)+=0.5*trans(Akac)*RKac*norm; 
+                        Kab(ic,id)+=0.5*AkacRKac*norm; 
 
                 }
             }

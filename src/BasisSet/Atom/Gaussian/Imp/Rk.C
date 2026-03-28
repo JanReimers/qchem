@@ -84,11 +84,12 @@ double RkEngine::Coulomb_R0(size_t la,size_t lc) const
     return Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
-Rk::rvec11_t RkEngine::Coulomb_Rk(size_t la,size_t lc) const
+
+double RkEngine::Coulomb_Rk(size_t la,size_t lc, rvec11_t Ak) const
 {
     assert(la<=LMax);
     assert(lc<=LMax);
-    rvec11_t ret(0.0);
+    double ret(0.0);
     for (size_t k=0,i=0;k<=2*std::min(la,lc);k+=2,i++)
     {
         size_t Lab_p=la+1+k/2; 
@@ -96,19 +97,19 @@ Rk::rvec11_t RkEngine::Coulomb_Rk(size_t la,size_t lc) const
         size_t Lab_m=la-k/2; 
         size_t Lcd_p=lc+1+k/2;
         //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        ret[i]=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+        ret+=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p))*Ak[i];
     }
     return ret;
 }
 
-Rk::rvec11_t RkEngine::ExchangeRk(size_t la,size_t lb) const
+double RkEngine::ExchangeRk(size_t la,size_t lb, rvec11_t Ak) const
 {
     assert(la<=LMax);
     assert(lb<=LMax);
     size_t kmin=std::abs((int)la-(int)lb);
     size_t kmax=la+lb;
     size_t N=(kmax-kmin)/2+1;
-    rvec11_t ret(0.0);
+    double ret(0.0);
     for (size_t k=kmin,i=0;k<=kmax;k+=2,i++)
     {
         assert((la+lb+k)%2==0);
@@ -117,7 +118,7 @@ Rk::rvec11_t RkEngine::ExchangeRk(size_t la,size_t lb) const
         size_t Lab_m=(la+lb-k)/2; 
         size_t Lcd_p=(la+lb+k)/2+1;
 
-        ret[i]=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
+        ret+=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p))*Ak[i]; //(2*k+1)???
     }
     return ret;
 }

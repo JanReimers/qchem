@@ -38,10 +38,10 @@ template <size_t K> class RkEngine  : public virtual Rk
     typedef bspline::Spline<double,K> sp_t;
 public:
     RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
-    double   Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
     double   Coulomb_R0() const; //R_0(la,la,lc,lc);
-    rvec11_t Coulomb_Rk(size_t la,size_t lc) const; 
-    rvec11_t ExchangeRk(size_t la,size_t lb) const; 
+    virtual double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
+    virtual double Coulomb_Rk(size_t la,size_t lc,rvec11_t Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
+    virtual double ExchangeRk(size_t la,size_t lb,rvec11_t Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
 private:
     size_t LMax;
     Vector<double> Rabcd_k;
