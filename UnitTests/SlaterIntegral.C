@@ -25,7 +25,6 @@ import qchem.Molecule;
 import qchem.Symmetry.Angular;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.Conversions;
-import oml;
 
 using std::cout;
 using std::endl;

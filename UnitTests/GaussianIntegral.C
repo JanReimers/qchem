@@ -19,8 +19,6 @@ import qchem.Molecule;
 import qchem.Symmetry.Yl;
 import qchem.Conversions;
 
-import oml;
-
 using std::cout;
 using std::endl;
 

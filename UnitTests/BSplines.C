@@ -21,7 +21,6 @@ import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry;
-import oml;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Conversions;

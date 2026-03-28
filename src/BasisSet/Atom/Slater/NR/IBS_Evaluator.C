@@ -48,13 +48,7 @@ protected:
         double lr= r==0 ? 0 : l/r;
         return (lr-e)*slater(r,l,e,n);
     }
-    template <class T> static Vector<T> convert(const std::valarray<T>& v) 
-    {
-        Vector<T> ret(v.size());
-        size_t i=0;
-        for (auto vi:v) ret(++i)=vi;
-        return ret;
-    }
+    
 
 
    

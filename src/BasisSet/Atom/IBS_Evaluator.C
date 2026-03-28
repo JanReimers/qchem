@@ -10,7 +10,6 @@ export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Fit_IBS;
 export import qchem.Orbital_DHF_IBS;
 export import qchem.VectorFunction;
-export import oml;
 
 export using dERI3=ERI3<double>;
 

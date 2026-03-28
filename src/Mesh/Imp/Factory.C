@@ -3,7 +3,6 @@ module;
 module qchem.Mesh.Factory;
 import qchem.Mesh.Internal.Types;
 import qchem.Mesh.Internal.RadialTypes;
-import oml;
 using json = nlohmann::json;
 
 namespace MeshF

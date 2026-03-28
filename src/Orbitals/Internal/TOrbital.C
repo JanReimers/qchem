@@ -3,7 +3,6 @@ module;
 #include <string>
 export module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Orbitals;
-import oml;
 import qchem.IrrepBasisSet;
 import qchem.Symmetry.Orbital;
 

@@ -5,7 +5,6 @@ export module qchem.Hamiltonian.Internal.Term;
 export import qchem.Hamiltonian;
 export import qchem.FittedFunctionClient;
 
-import oml;
 import qchem.Symmetry.Irrep;
 
 export class HT_Common

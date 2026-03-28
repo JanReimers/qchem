@@ -17,7 +17,6 @@ import qchem.BasisSet;
 import qchem.Molecule;
 import qchem.Hamiltonian.Factory;
 import qchem.Symmetry.Spin;
-import oml;
 using std::cout;
 using std::endl;
 
@@ -53,11 +52,6 @@ public:
  
 
 
-double Norm(const SMatrix<double>& s)
-{
-    return sqrt(Sum(DirectMultiply(s,s)));
-}
-
 
 typedef blaze::SymmetricMatrix < blaze::DynamicMatrix <double ,blaze::columnMajor >> bSMat;
 typedef blaze::DynamicMatrix <double ,blaze::columnMajor > bMat;
@@ -67,24 +61,6 @@ typedef blaze::UpperMatrix< bMat > bU;
 typedef blaze::LowerMatrix< bMat > bL;
 
 
-bSMat to_bSMat(const SMatrix<double>& S)
-{
-    size_t N=S.GetNumRows();
-    bSMat bS(N);
-    for (auto i:S.rows())
-            for (auto j:S.cols(i))
-                bS(i-1,j-1)=S(i,j);
-    return bS;
-}
-bMat to_bMat(const SMatrix<double>& S)
-{
-    size_t N=S.GetNumRows();
-    bMat bM(N,N);
-    for (auto i:S.rows())
-            for (auto j:S.cols(i))
-                bM(j-1,i-1)=bM(i-1,j-1)=S(i,j);
-    return bM;
-}
 
 void zeroLower(bMat& m)
 {

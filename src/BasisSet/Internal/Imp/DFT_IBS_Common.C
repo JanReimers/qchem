@@ -4,7 +4,6 @@ module;
 #include <blaze/Math.h>
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.Conversions;
-import oml;
 
 template <class T> vec_t<T> Orbital_DFT_IBS_Common<T>::
 Overlap3C(const smat_t<T>& Dcd, const Fit_IBS* ff) const

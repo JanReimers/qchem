@@ -4,7 +4,6 @@ module;
 module qchem.Mesh.Internal.RadialTypes;
 import Common.Constants;
 import qchem.RadialMesh;
-// import oml;
 
 
 LogRadialMesh::LogRadialMesh(double start, double stop, int NumPoints)

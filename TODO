@@ -3,6 +3,7 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -Do something with MeshIntegrals.C
     -Blaze:
         Done: -Add as submodule
         Done: -Make unit test to try out some simple ops
