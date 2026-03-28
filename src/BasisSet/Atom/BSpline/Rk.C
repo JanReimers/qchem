@@ -6,7 +6,6 @@ export module qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.Rk;
-import oml.Vector; 
 
 export namespace BSpline
 {
@@ -44,7 +43,7 @@ public:
     virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
 private:
     size_t LMax;
-    Vector<double> Rabcd_k;
+    rvec_t Rabcd_k;
 };
 
 

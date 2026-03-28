@@ -9,7 +9,6 @@ module qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 import Common.IntPow;
-import oml;
 
 using std::cout;
 using std::endl;
@@ -49,7 +48,7 @@ template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,
 //  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
 template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax, const GLCache& gl, const RkCache<K>& rkcache)
- : LMax(_LMax), Rabcd_k(VecLimits(0,2*LMax),0.0)
+ : LMax(_LMax), Rabcd_k(2*LMax+1,0.0)
  {
     sp_t a=splines[ia];
     sp_t b=splines[ib];
@@ -133,27 +132,27 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                 RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
                 RkDiag+=Idiag;
             }
-            Rabcd_k(k)=RkDiag + RkOff;
+            Rabcd_k[k]=RkDiag + RkOff;
         }
         else if (sab.back()<=scd.front())
         {
             std::vector<double> mp=rkcache.find_plus(ia,ib);
             std::vector<double> mm=rkcache.find_minus(ic,id);
-            Rabcd_k(k)=mp[k]*mm[k];
+            Rabcd_k[k]=mp[k]*mm[k];
         }
         else
         {
             assert(sab.front()>=scd.back());
             std::vector<double> mm=rkcache.find_minus(ia,ib);
             std::vector<double> mp=rkcache.find_plus(ic,id);
-            Rabcd_k(k)=mp[k]*mm[k];
+            Rabcd_k[k]=mp[k]*mm[k];
         }
     }
  }
 
  template <size_t K> double RkEngine<K>::Coulomb_R0() const
  {
-    return Rabcd_k(0);
+    return Rabcd_k[0];
  }
 
  template <size_t K> double RkEngine<K>::Coulomb_Rk(size_t la,size_t lc, const rvec11_t& Ak) const
@@ -165,7 +164,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     double Rk(0.0);
     for (size_t k=0;k<=2*std::min(la,lc);k+=2)
     {
-        Rk+=Rabcd_k(k)*Ak[k]; 
+        Rk+=Rabcd_k[k]*Ak[k]; 
     }
     return Rk;
  }
@@ -181,7 +180,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
-        Rk+=Rabcd_k(k)*Ak[k]; 
+        Rk+=Rabcd_k[k]*Ak[k]; 
     }
     return Rk;
  }
