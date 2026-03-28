@@ -2,8 +2,6 @@
 module;
 export module qchem.BasisSet.Atom.Slater.Rk;
 export import qchem.BasisSet.Atom.Rk;
-import oml.Matrix;
-
 
 export namespace Slater
 {
@@ -25,7 +23,7 @@ private:
     
     double eab, ecd;
     size_t LMax;
-    Matrix<double> Iab,Icd; //Derivative tables.
+    rmat_t Iab,Icd; //Derivative tables.
 };
 
 } //namespace

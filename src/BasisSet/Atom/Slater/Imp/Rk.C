@@ -6,7 +6,6 @@ module;
 module qchem.BasisSet.Atom.Slater.Rk;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import Common.Factorials;
-import oml;
 
 namespace Slater
 {
@@ -21,28 +20,25 @@ namespace Slater
 //  Build up the derivative look up tables.
 //
 RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
- : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,2*LMax+1,3,4*LMax+3), Icd(0,2*LMax+1,3,4*LMax+3)
+ : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(2*LMax+2,4*LMax+4,0.0), Icd(2*LMax+2,4*LMax+4,0.0)
  {
-    assert(Iab.GetLimits()==Icd.GetLimits());
-    Fill(Iab,0.0);
-    Fill(Icd,0.0);
-    Vector<double> f(0,2*LMax,0.0);
+    rvec_t f(2*LMax+1,0.0);
     const PascalTriangle& c1(PascalTriangle::thePascalTriangle); //Binomial coefficients.
     double eabcd=eab+ecd;
-    for (size_t L2:Iab.cols())
+    for (size_t L2:iv_t(3,4*LMax+4))
     {
         double fL2=qchem::Fact[L2-1]; //(L2-1)!
-        for (auto ik:f.indices()) f(ik)=fk(eab,eabcd,ik,L2);
+        for (auto ik:iv_t(0,2*LMax+1)) f[ik]=fk(eab,eabcd,ik,L2);
         Iab(0,L2)=fL2/(eab*pow(eabcd,L2)); //This is what gets differentiated.
         for (size_t ik=1;ik<=2*LMax+1;ik++)
             for (size_t jk=0;jk<=ik-1;jk++)
-                Iab(ik,L2)+=c1(ik-1,jk)*Iab(jk,L2)*f(ik-1-jk);  
+                Iab(ik,L2)+=c1(ik-1,jk)*Iab(jk,L2)*f[ik-1-jk];  
             
-        for (auto ik:f.indices()) f(ik)=fk(ecd,eabcd,ik,L2);
+        for (auto ik:iv_t(0,2*LMax+1)) f[ik]=fk(ecd,eabcd,ik,L2);
         Icd(0,L2)=fL2/(ecd*pow(eabcd,L2)); //This is what gets differentiated.
         for (size_t ik=1;ik<=2*LMax+1;ik++)
             for (size_t jk=0;jk<=ik-1;jk++)
-                Icd(ik,L2)+=c1(ik-1,jk)*Icd(jk,L2)*f(ik-1-jk);  
+                Icd(ik,L2)+=c1(ik-1,jk)*Icd(jk,L2)*f[ik-1-jk];  
     }
         
  }
