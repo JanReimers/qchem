@@ -7,7 +7,7 @@ module;
 module qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.Internal.AngularIntegrals; 
 
-RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
+AngularIntegrals::RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
 {
     RVec Ak;
     int la=a->Getl(),lc=c->Getl();
@@ -31,7 +31,7 @@ RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Eva
     
 }
 
-RVec BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* b) const
+AngularIntegrals::RVec BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* b) const
 {
     RVec Ak;
     int la=a->Getl(),lb=b->Getl();

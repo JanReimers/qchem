@@ -5,7 +5,7 @@ module;
 
 module qchem.Cluster;
  
-size_t Cluster::GetAtomIndex(const RVec3& r, double tol) const
+size_t Cluster::GetAtomIndex(const rvec3_t& r, double tol) const
 {
     size_t ret=0;
     for (auto& a:*this)

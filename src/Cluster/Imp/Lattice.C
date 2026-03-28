@@ -75,7 +75,7 @@ Mesh*  Lattice::CreateMesh(const MeshParams& mp) const
 Lattice Lattice::Reciprocal(double Emax) const
 {
     UnitCell RLCell=itsUnitCell.MakeReciprocalCell();
-    IVec3 Nr=RLCell.GetNumCells(Emax);
+    ivec3_t Nr=RLCell.GetNumCells(Emax);
     return Lattice(RLCell,Nr,itsAtoms); //This should automatically be move op.
 
 }
@@ -104,9 +104,9 @@ size_t Lattice::GetNumUnitCells() const
 //
 //  Coordinate to site number translations.
 //
-size_t Lattice::GetSiteNumber(const RVec3& r) const
+size_t Lattice::GetSiteNumber(const rvec3_t& r) const
 {
-    RVec3 basis;
+    rvec3_t basis;
     Vector3D<int> cell;
     SplitCoordinate(r,basis,cell);
 
@@ -117,15 +117,15 @@ size_t Lattice::GetSiteNumber(const RVec3& r) const
     assert(sitenum<GetNumSites());
     assert(sitenum>=0);
     // std::cout << "GetCoordinate(sitenum)="  << GetCoordinate(sitenum) << std::endl;
-    // std::cout << "RVec3(cell.x,cell.y,cell.z)="  << RVec3(cell.x,cell.y,cell.z) << std::endl;
+    // std::cout << "rvec3_t(cell.x,cell.y,cell.z)="  << rvec3_t(cell.x,cell.y,cell.z) << std::endl;
     // std::cout << "basis="  << basis << std::endl;
-    assert(itsUnitCell.GetDistance(GetCoordinate(sitenum)-RVec3(cell.x,cell.y,cell.z)-basis) < itsTolerence);
+    assert(itsUnitCell.GetDistance(GetCoordinate(sitenum)-rvec3_t(cell.x,cell.y,cell.z)-basis) < itsTolerence);
     return sitenum;
 }
 
-size_t Lattice::GetBasisNumber(const RVec3& r) const
+size_t Lattice::GetBasisNumber(const rvec3_t& r) const
 {
-    RVec3 basis;
+    rvec3_t basis;
     Vector3D<int> cell;
     SplitCoordinate(r,basis,cell);
 
@@ -141,7 +141,7 @@ size_t Lattice::GetBasisNumber(size_t SiteNumber) const
     return SiteNumber%GetNumBasisSites();
 }
 
-void Lattice::SplitCoordinate(const RVec3& r, RVec3& basis, Vector3D<int>& cell) const
+void Lattice::SplitCoordinate(const rvec3_t& r, rvec3_t& basis, Vector3D<int>& cell) const
 {
     cell.x=(int)floor(r.x);
     cell.y=(int)floor(r.y);
@@ -160,21 +160,21 @@ void Lattice::SplitCoordinate(const RVec3& r, RVec3& basis, Vector3D<int>& cell)
     if (cell.z < 0) cell.z+=itsLimits.z;
 }
 
-Vector3D<int> Lattice::GetCellCoord (const RVec3& r) const
+Vector3D<int> Lattice::GetCellCoord (const rvec3_t& r) const
 {
-    RVec3 basis;
+    rvec3_t basis;
     Vector3D<int> ret;
     SplitCoordinate(r,basis,ret);
     return ret;
 }
 
 
-RVec3 Lattice::GetCoordinate(size_t SiteNumber) const
+rvec3_t Lattice::GetCoordinate(size_t SiteNumber) const
 {
     assert(SiteNumber>=0);
     assert(SiteNumber<GetNumSites());
     size_t ib=GetBasisNumber(SiteNumber);
-    RVec3 ret=GetBasisVector(ib);
+    rvec3_t ret=GetBasisVector(ib);
 
     SiteNumber-=ib;
     SiteNumber/=GetNumBasisSites();
@@ -194,7 +194,7 @@ RVec3 Lattice::GetCoordinate(size_t SiteNumber) const
     assert(ix>=0);
     assert(ix<itsLimits.x);
 
-    ret+=RVec3(ix,iy,iz);
+    ret+=rvec3_t(ix,iy,iz);
     return ret;
 }
 
@@ -207,11 +207,11 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
     double maxd=itsUnitCell.GetMinimumCellEdge()*NumShells; //Initial guess.
     std::vector<double> distances;
 
-    std::vector<RVec3> super_cells=GetSuperCells(maxd);
+    std::vector<rvec3_t> super_cells=GetSuperCells(maxd);
 
     for (auto& a1:*itsAtoms)
         for (auto& a2:*itsAtoms)
-            for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
+            for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
             {
                 double d=itsUnitCell.GetDistance(*c + a2->itsR - a1->itsR);
                 if(d>0 && d<=maxd && Find(d,distances)==distances.size()) distances.push_back(d);
@@ -221,50 +221,50 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
     return std::vector<double>(distances.begin(),distances.begin()+NumShells);
 }
 
-std::vector<RVec3> Lattice::GetBonds(size_t BasisNumber, double Distance) const
+std::vector<rvec3_t> Lattice::GetBonds(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber>=0 && BasisNumber<GetNumBasisSites());
     assert(Distance>0);
 
-    std::vector<RVec3> ret;
-    RVec3 rb=GetBasisVector(BasisNumber);
-    std::vector<RVec3> super_cells=GetSuperCells(Distance);
+    std::vector<rvec3_t> ret;
+    rvec3_t rb=GetBasisVector(BasisNumber);
+    std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
 
     for (auto& a:*itsAtoms)
-        for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
+        for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
-            RVec3 bond = a->itsR + *c - rb;
+            rvec3_t bond = a->itsR + *c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (fabs(mbond-Distance) < itsTolerence) ret.push_back(bond);
         }
     return ret;
 }
 
-std::vector<RVec3> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
+std::vector<rvec3_t> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber>=0 && BasisNumber<GetNumBasisSites());
     assert(Distance>0);
 
-    std::vector<RVec3> ret;
-    RVec3 rb=GetBasisVector(BasisNumber);
-    std::vector<RVec3> super_cells=GetSuperCells(Distance);
+    std::vector<rvec3_t> ret;
+    rvec3_t rb=GetBasisVector(BasisNumber);
+    std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
 
     for (auto& a:*itsAtoms)
-        for (std::vector<RVec3>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
+        for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
-            RVec3 bond = a->itsR + *c - rb;
+            rvec3_t bond = a->itsR + *c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (mbond<Distance+itsTolerence) ret.push_back(bond);
         }
     return ret;
 }
 
-std::vector<IVec3>  Lattice::GetCellsInSphere(double rmax)
+std::vector<ivec3_t>  Lattice::GetCellsInSphere(double rmax)
 {
     assert(rmax>0);
-    std::vector<IVec3> ret;
-    IVec3 nc=itsUnitCell.GetNumCells(rmax);
-    IVec3 i;
+    std::vector<ivec3_t> ret;
+    ivec3_t nc=itsUnitCell.GetNumCells(rmax);
+    ivec3_t i;
     for (i.x=-nc.x; i.x<=nc.x; i.x++)
         for (i.y=-nc.y; i.y<=nc.y; i.y++)
             for (i.z=-nc.z; i.z<=nc.z; i.z++)
@@ -273,21 +273,21 @@ std::vector<IVec3>  Lattice::GetCellsInSphere(double rmax)
     return ret;
 }
 
-std::vector<RVec3>  Lattice::GetReciprocalGrid() const
+std::vector<rvec3_t>  Lattice::GetReciprocalGrid() const
 {
-    std::vector<RVec3> grid;
-    RVec3 k;
+    std::vector<rvec3_t> grid;
+    rvec3_t k;
     for (k.x=0; k.x<itsLimits.x; k.x++)
         for (k.y=0; k.y<itsLimits.y; k.y++)
             for (k.z=0; k.z<itsLimits.z; k.z++)
-                grid.push_back(RVec3(k.x/itsLimits.x,k.y/itsLimits.y,k.z/itsLimits.z));
+                grid.push_back(rvec3_t(k.x/itsLimits.x,k.y/itsLimits.y,k.z/itsLimits.z));
     return grid;
 }
 //--------------------------------------------------------
 //
 //  Private unitilities.
 //
-size_t  Lattice::Find(const RVec3& r) const //Search within the primary unit cell.
+size_t  Lattice::Find(const rvec3_t& r) const //Search within the primary unit cell.
 {
     size_t ret=GetNumBasisSites();
     size_t i=0;
@@ -315,21 +315,21 @@ size_t  Lattice::Find(double r,const std::vector<double>& lis) const
     return ret;
 }
 
-std::vector<RVec3> Lattice::GetSuperCells(double MaxDistance) const
+std::vector<rvec3_t> Lattice::GetSuperCells(double MaxDistance) const
 {
-    std::vector<RVec3> ret;
+    std::vector<rvec3_t> ret;
     Vector3D<int> nc=itsUnitCell.GetNumCells(MaxDistance);
     for (int ix=-nc.x; ix<=nc.x; ix++)
         for (int iy=-nc.y; iy<=nc.y; iy++)
             for (int iz=-nc.z; iz<=nc.z; iz++)
-                ret.push_back(IVec3(ix,iy,iz));
+                ret.push_back(ivec3_t(ix,iy,iz));
     return ret;
 }
 
-RVec3 Lattice::GetBasisVector(size_t BasisNumber) const
+rvec3_t Lattice::GetBasisVector(size_t BasisNumber) const
 {
     assert(BasisNumber<GetNumBasisSites());
-    RVec3 ret;
+    rvec3_t ret;
     {
         for (auto& b:*this)
         {

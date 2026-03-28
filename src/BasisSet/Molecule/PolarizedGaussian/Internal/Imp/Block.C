@@ -54,7 +54,7 @@ Block* Block::Clone() const
     return new Block(*this);
 }
 
-Block* Block::Clone(const RVec3& newCenter) const
+Block* Block::Clone(const rvec3_t& newCenter) const
 {
     RadialFunction* newRF=itsRadial->Clone(newCenter);
     Block* ret= new Block(newRF,itsN);

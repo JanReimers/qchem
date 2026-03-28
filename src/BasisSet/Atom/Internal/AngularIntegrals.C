@@ -1,6 +1,7 @@
 // File: AngularIntegrals.C  Handle the angular part of 2-electron ERIs
 export module qchem.BasisSet.Atom.Internal.AngularIntegrals;
 export import qchem.Types;
+import oml.Vector;
 
 export template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
 {
@@ -14,6 +15,8 @@ export template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector
 
 export namespace AngularIntegrals
 {
+    typedef Vector<double> RVec;
+
     double Exchange(int k,int la,int lb);
     double Coulomb (int k,int la,int lc,int ma,int mc);            
     double Exchange(int k,int la,int lb,int ma,int mb);            

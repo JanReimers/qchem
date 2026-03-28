@@ -25,7 +25,7 @@ UnitCellMesh::UnitCellMesh(const UnitCell& cell, size_t NumPoints)
     for(size_t i1=0; i1<NumPoints; i1++)
         for(size_t i2=0; i2<NumPoints; i2++)
             for(size_t i3=0; i3<NumPoints; i3++)
-                push_back(RVec3(i1*del,i2*del,i3*del),w);
+                push_back(rvec3_t(i1*del,i2*del,i3*del),w);
 }
 
 Mesh* UnitCellMesh::Clone() const

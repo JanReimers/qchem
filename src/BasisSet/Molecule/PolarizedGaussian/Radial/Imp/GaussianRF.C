@@ -33,7 +33,7 @@ GaussianRF::GaussianRF()
     , itsExponent(0)
 {};
 
-GaussianRF::GaussianRF(double theExponent, const RVec3& theCenter, int theL)
+GaussianRF::GaussianRF(double theExponent, const rvec3_t& theCenter, int theL)
     : RadialCommon(theCenter,theL)
     , itsExponent(theExponent)
 {
@@ -375,15 +375,15 @@ Hermite3* GaussianRF::GetH3(const RadialFunction& r1, const RadialFunction& r2) 
     assert(g2);
 
     const double& a =g1->itsExponent, b =g2->itsExponent, c =itsExponent;
-    const RVec3  & A =g1->GetCenter(), B =g2->GetCenter(), C =GetCenter();
+    const rvec3_t  & A =g1->GetCenter(), B =g2->GetCenter(), C =GetCenter();
     const int   & La=g1->GetL     (), Lb=g2->GetL     () ,Lc=GetL     ();
 
     double alphaQ = a+b+c;
 
-    RVec3   AB=A-B;
-    RVec3   AC=A-C;
-    RVec3   BC=B-C;
-    RVec3   Q = (a*A+b*B+c*C)/alphaQ;
+    rvec3_t   AB=A-B;
+    rvec3_t   AC=A-C;
+    rvec3_t   BC=B-C;
+    rvec3_t   Q = (a*A+b*B+c*C)/alphaQ;
 
     double Eabc = pow(Pi/alphaQ,1.5)*exp( -(a*b*AB*AB + a*c*AC*AC + b*c*BC*BC) / alphaQ );
 
@@ -441,7 +441,7 @@ RadialFunction* GaussianRF::Clone() const
     return new  GaussianRF(*this);
 }
 
-RadialFunction* GaussianRF::Clone(const RVec3& newCenter) const
+RadialFunction* GaussianRF::Clone(const rvec3_t& newCenter) const
 {
     return new GaussianRF(itsExponent,newCenter,GetL());
 }
@@ -450,15 +450,15 @@ RadialFunction* GaussianRF::Clone(const RVec3& newCenter) const
 //
 //  Scalar function stuff.
 //
-double GaussianRF::operator()(const RVec3& r) const
+double GaussianRF::operator()(const rvec3_t& r) const
 {
-    RVec3 dr=GetCenter()-r;
+    rvec3_t dr=GetCenter()-r;
     return exp(-itsExponent*dr*dr);
 }
 
-RVec3 GaussianRF::Gradient(const RVec3& r) const
+rvec3_t GaussianRF::Gradient(const rvec3_t& r) const
 {
-    RVec3 dr=GetCenter()-r;
+    rvec3_t dr=GetCenter()-r;
     return -2*itsExponent* (*this)(r) * dr;
 }
 

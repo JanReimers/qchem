@@ -203,7 +203,7 @@ Priority 1:
 
     -Redesign fitting so fitted objects contain a Fitter*
             Anything BSpline is huge.
-    -Mesh refactor Refactor mesh hold std::vector<RVec3> rs and std::vector<double> ws and make the 3 iterator proxies
+    -Mesh refactor Refactor mesh hold std::vector<rvec3_t> rs and std::vector<double> ws and make the 3 iterator proxies
         1) riterator
         2) witerator
         3) rwiterator
@@ -219,7 +219,7 @@ Priority 1:
                 One G for each basis function
                 One k for each irrep.
             -Basis set is constructed from a finite Lattice object
-                IVec3 N=(Nx,Ny,Nz) decide the BZ grid {k}
+                ivec3_t N=(Nx,Ny,Nz) decide the BZ grid {k}
                     each k_i is an irrep.
                 We also need a reciprocal lattice grid {G}
                     All G_i such that G_i^2 = G_i*M*G_i < Emax;
@@ -391,7 +391,7 @@ Priority 1:
     -Slater_m, SG_m basis sets:
         Add real spherical harmonic angular functions for g(r).
         replace m with ml?  or m = {mj,ml} depending on context?
-    -Distinguish multi center and single center basis sets.  Clone(RVec3)
+    -Distinguish multi center and single center basis sets.  Clone(rvec3_t)
     -Relativistic:
         https://github.com/drjuls/AMBiT/tree/master/src
         https://diracprogram.org/doku.php?id=start
@@ -513,7 +513,7 @@ Priority 3:
         With separate Vee and Vxc it seems we need to store J and K separatly.
         We could just store JK=J-0.5*K to save space, but then we need a combined Ham term.
         How doe PolG do it with just J?
-    -typedefs for std::vector<Polarization>, std::vector<SMat>, List<RVec3>
+    -typedefs for std::vector<Polarization>, std::vector<SMat>, List<rvec3_t>
     -Lattice unit tests?
     -template <class T> T Max(const std::vector<T>& v) in one place
     -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
@@ -618,9 +618,9 @@ Priority 3:
         Eliminte basis functions.   IBS can do vector op(r) using ieclient info.
             Need it identify who iterates of IBS .. maby just VectorFunction.
             Need to move 
-                template <class T> typename TIBS_Common<T>::Vec TIBS_Common<T>::operator() (const RVec3& r) const
+                template <class T> typename TIBS_Common<T>::Vec TIBS_Common<T>::operator() (const rvec3_t& r) const
                 up the class hierarcy
-    Done: -Get rid og IrrepBasisSet* Clone  (const RVec3&) const=0;
+    Done: -Get rid og IrrepBasisSet* Clone  (const rvec3_t&) const=0;
         Done: Need to get rid of IrrepCD::ShiftOrigin
     Done: -Get rid of IrrepBasisSet_Common,
     Done: -Merge IrrepBasisSet & TIrrepBasisSet
@@ -658,7 +658,7 @@ Priority 3:
         Done: -Scalar/VectorFunction depend on Mesh?  Only at the header level.
             Move Scalar/VectorFunction into the mesh module
     Done: -Make a qchem.Types module with:
-        RVec3
+        rvec3_t
         RVec
         size_t;
     Done: -Migrate from index_t to int or size_t.

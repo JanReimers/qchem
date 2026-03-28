@@ -26,7 +26,7 @@ GaussianH3::GaussianH3()
     , itsScale(-1.0)
 {};
 
-GaussianH3::GaussianH3(double AlphaP, const RVec3& PA, const RVec3& PB, const RVec3& PC, int LA, int LB, int LC, double Scale)
+GaussianH3::GaussianH3(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale)
     : itsLA   (LA)
     , itsLB   (LB)
     , itsLC   (LC)

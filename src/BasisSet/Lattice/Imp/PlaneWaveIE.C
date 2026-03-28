@@ -102,10 +102,10 @@ PlaneWaveIE::Mat PlaneWaveIE::MakeOverlap(const TBasisSet<std::complex<double> >
     Mat ret(itsN,OtherIE->itsN);
     Fill(ret,std::complex<double>(0.0));
     int i1=1;
-    for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+    for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
     {
         int i2=1;
-        for (List<RVec3>::const_iterator b2(OtherIE->itsGs.begin()); b2!=OtherIE->itsGs.end(); b2++,i2++)
+        for (List<rvec3_t>::const_iterator b2(OtherIE->itsGs.begin()); b2!=OtherIE->itsGs.end(); b2++,i2++)
             if (*b1==*b2) ret(i1,i2)=1.0;
     }
 
@@ -121,7 +121,7 @@ PlaneWaveIE::Vec PlaneWaveIE::MakeOverlap(const ScalarFunction<double>& f) const
     Vec ret(itsN);
     Fill(ret,std::complex<double>(0.0));
     int i1=1;
-    for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+    for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
         if (*b1==pwbf->itsG) ret(i1)=1.0;
 
     return ret;
@@ -141,13 +141,13 @@ void PlaneWaveIE::MakeOverlap3C(MList& ret, const TBasisSet<std::complex<double>
         Fill(m,std::complex<double>(0.0));
         const PlaneWaveBF* pwbf=dynamic_cast<const PlaneWaveBF*>(&*b);
         assert(pwbf);
-        RVec3 G3=pwbf->itsG;
+        rvec3_t G3=pwbf->itsG;
 
         int i1=1;
-        for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+        for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
         {
             int i2=i1;
-            for (List<RVec3>::const_iterator b2(b1); b2!=itsGs.end(); b2++,i2++)
+            for (List<rvec3_t>::const_iterator b2(b1); b2!=itsGs.end(); b2++,i2++)
                 if (itsRLCell.GetDistance(*b1-*b2+G3)<epsilon) m(i1,i2)=1.0;
         }
         ret.Add(m);
@@ -167,7 +167,7 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeRepulsion() const
     SMat ret(itsN,itsN);
     Fill(ret,std::complex<double>(0.0));
     int i1=1;
-    for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+    for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
     {
         double G=itsRLCell.GetDistance(*b1);
         if (G>epsilon) ret(i1,i1)=4*Pi/(G*G);
@@ -189,11 +189,11 @@ PlaneWaveIE::Mat PlaneWaveIE::MakeRepulsion(const TBasisSet<std::complex<double>
     Mat ret(itsN,OtherIE->itsN);
     Fill(ret,std::complex<double>(0.0));
     int i1=1;
-    for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+    for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
     {
         int i2=1;
         double G=itsRLCell.GetDistance(*b1);
-        for (List<RVec3>::const_iterator b2(OtherIE->itsGs.begin()); b2!=OtherIE->itsGs.end(); b2++,i2++)
+        for (List<rvec3_t>::const_iterator b2(OtherIE->itsGs.begin()); b2!=OtherIE->itsGs.end(); b2++,i2++)
             if (*b1==*b2 && G>epsilon) ret(i1,i2)=4*Pi/(G*G);
     }
 
@@ -211,7 +211,7 @@ PlaneWaveIE::Vec PlaneWaveIE::MakeRepulsion(const ScalarFunction<double>& f) con
     double G=itsRLCell.GetDistance(pwbf->itsG);
 
     if (G>epsilon)
-        for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+        for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
             if (*b1==pwbf->itsG) ret(i1)=4*Pi/(G*G);
 
     return ret;
@@ -232,15 +232,15 @@ void PlaneWaveIE::MakeRepulsion3C(MList& ret, const TBasisSet<std::complex<doubl
         Fill(m,std::complex<double>(0.0));
         const PlaneWaveBF* pwbf=dynamic_cast<const PlaneWaveBF*>(&*b);
         assert(pwbf);
-        RVec3 G3=pwbf->itsG;
+        rvec3_t G3=pwbf->itsG;
         double G=itsRLCell.GetDistance(G3);
 
         int i1=1;
         if (G>epsilon)
-            for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+            for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
             {
                 int i2=i1;
-                for (List<RVec3>::const_iterator b2(b1); b2!=itsGs.end(); b2++,i2++)
+                for (List<rvec3_t>::const_iterator b2(b1); b2!=itsGs.end(); b2++,i2++)
                     if (!(*b1-*b2+G3)<epsilon) m(i1,i2)=4*Pi/(G*G);
             }
 
@@ -266,7 +266,7 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeGrad2() const
     SMat ret(itsN,itsN);
     Fill(ret,std::complex<double>(0.0));
     int i1=1;
-    for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+    for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
     {
         double G=itsRLCell.GetDistance(*b1+itsK);
         ret(i1,i1)=G*G;
@@ -274,7 +274,7 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeGrad2() const
     return ret;
 }
 
-double FormFactor(const Cluster&, const RVec3& G);
+double FormFactor(const Cluster&, const rvec3_t& G);
 
 PlaneWaveIE::SMat PlaneWaveIE::MakeNuclear(const Cluster& theCluster) const
 {
@@ -282,12 +282,12 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeNuclear(const Cluster& theCluster) const
     SMat ret(itsN,itsN);
     Fill(ret,std::complex<double>(0.0));
     int i1=1;
-    for (List<RVec3>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
+    for (List<rvec3_t>::const_iterator b1(itsGs.begin()); b1!=itsGs.end(); b1++,i1++)
     {
         int i2=i1;
-        for (List<RVec3>::const_iterator b2(b1); b2!=itsGs.end(); b2++,i2++)
+        for (List<rvec3_t>::const_iterator b2(b1); b2!=itsGs.end(); b2++,i2++)
         {
-            RVec3 G=*b1-*b2;
+            rvec3_t G=*b1-*b2;
             double mG=itsRLCell.GetDistance(G);
             if (mG > epsilon) ret(i1,i2)=4*Pi*FormFactor(theCluster,G)/(mG*mG);
         }
@@ -295,7 +295,7 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeNuclear(const Cluster& theCluster) const
     return ret;
 }
 
-double FormFactor(const Cluster& cl, const RVec3& G)
+double FormFactor(const Cluster& cl, const rvec3_t& G)
 {
     double ret=0;
     for (ClusterBrowser b(cl); b; b++)

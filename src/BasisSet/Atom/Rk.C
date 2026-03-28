@@ -3,6 +3,7 @@ module;
 
 export module qchem.BasisSet.Atom.Rk;
 export import qchem.BasisSet.Internal.Cache4;
+export import oml.Vector;
 export import qchem.Types;
 //
 //  These are often called Slater integrals. They represent the radial part of the 
@@ -17,6 +18,7 @@ export import qchem.Types;
 export class Rk : public virtual Cacheable
 {
 public:
+    typedef Vector<double> RVec;
     virtual ~Rk() {};
     virtual double Coulomb_R0(size_t la,size_t lc) const=0; //R_0(la,la,lc,lc);
     virtual RVec   Coulomb_Rk(size_t la,size_t lc) const=0; //R_k(la,la,lc,lc);

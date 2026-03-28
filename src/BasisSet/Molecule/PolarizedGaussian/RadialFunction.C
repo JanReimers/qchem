@@ -40,7 +40,7 @@ public:
     typedef std::set   <double> sd_t;
     typedef std::vector<double> vd_t;
     virtual       bool      operator==      (const RadialFunction&) const=0; //Ignores L!
-    virtual const RVec3&    GetCenter       (                     ) const=0;
+    virtual const rvec3_t&    GetCenter       (                     ) const=0;
     virtual       int       GetL            (                     ) const=0; //N+L+M?
     virtual       double    GetNormalization(const Polarization&  ) const=0;
     virtual       double    GetCharge       (const Polarization&  ) const=0;
@@ -61,7 +61,7 @@ public:
     virtual       Hermite3* GetH3 (const RadialFunction&, const RadialFunction&) const=0;
     virtual const Hermite1& GetH1 (                                            ) const=0;
 
-    virtual RadialFunction* Clone      (const RVec3&) const=0;
+    virtual RadialFunction* Clone      (const rvec3_t&) const=0;
     virtual RadialFunction* Clone      (            ) const=0;
 };
 

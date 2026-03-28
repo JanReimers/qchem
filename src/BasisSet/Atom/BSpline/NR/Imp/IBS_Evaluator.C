@@ -233,7 +233,7 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-template <size_t K> rvec_t BSpline_IBS<K>::operator() (const RVec3& r) const
+template <size_t K> rvec_t BSpline_IBS<K>::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
     double mr=norm(r);
@@ -246,7 +246,7 @@ template <size_t K> rvec_t BSpline_IBS<K>::operator() (const RVec3& r) const
     return ret;
 }
 
-template <size_t K> rvec3vec_t BSpline_IBS<K>::Gradient(const RVec3& r) const
+template <size_t K> rvec3vec_t BSpline_IBS<K>::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

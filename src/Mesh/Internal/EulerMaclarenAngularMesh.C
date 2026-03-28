@@ -15,7 +15,7 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
     int numPhi   = (L+1);
     int numDir   = numTheta*numPhi;
 
-    Vector<RVec3>  D(numDir);
+    Vector<rvec3_t>  D(numDir);
     Vector<double> W(numDir);
 //
 //  Get a bunch of thetas with weights.
@@ -71,7 +71,7 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
 //
 //  Now take the direct product of the
 //
-    Vector<RVec3 >::iterator d(D.begin());
+    Vector<rvec3_t >::iterator d(D.begin());
     Vector<double>::iterator w(W.begin());
 
     Vector<double>::const_iterator t (thetas.begin());

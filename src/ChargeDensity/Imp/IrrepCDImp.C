@@ -15,8 +15,8 @@ import qchem.Conversions;
 
 typedef Vector3D<std::complex<double> > Vec3;
 
-RVec3  GradientContraction(const vec_t<RVec3 >&, const vec_t<double>&, const rsmat_t&);
-// RVec3  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<double> >&, const smat_t<std::complex<double> >&);
+rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const rsmat_t&);
+// rvec3_t  GradientContraction(const Vector<Vec3 >&, const Vector<std::complex<double> >&, const smat_t<std::complex<double> >&);
 
 //------------------------------------------------------------------------------------
 //
@@ -127,17 +127,17 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
 //
 //  Real space function stuff.
 //
-template <class T> double IrrepCD<T>::operator()(const RVec3& r) const
+template <class T> double IrrepCD<T>::operator()(const rvec3_t& r) const
 {
     vec_t<T> phir=(*itsBasisSet)(r);
     return real(trans(phir)*itsDensityMatrix*conj(phir));
 }
 
-template <class T> RVec3 IrrepCD<T>::Gradient(const RVec3& r) const
+template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
 {
     // No UT coverage
     vec_t<T> phir=(*itsBasisSet)(r);
-    vec_t<RVec3 > gphir=itsBasisSet->Gradient(r);
+    vec_t<rvec3_t > gphir=itsBasisSet->Gradient(r);
     return GradientContraction(gphir,phir,itsDensityMatrix);
 }
 
@@ -157,20 +157,20 @@ template class IrrepCD<double>;
 
 
 
-RVec3 GradientContraction(const vec_t<RVec3>& g, const vec_t<double>& v, const rsmat_t& m)
+rvec3_t GradientContraction(const vec_t<rvec3_t>& g, const vec_t<double>& v, const rsmat_t& m)
 {
     // No UT coverage
     assert(v.size      ()==m.columns());
     assert(g.size      ()==m.columns());
 
-    RVec3 ret(0,0,0);
+    rvec3_t ret(0,0,0);
     for (unsigned int i=0; i<v.size(); i++)
         for (unsigned int j=0; j<v.size(); j++)
             ret+=m(i,j)*(g[i]*v[j]+v[i]*g[j]);
     return ret;
 }
 
-// RVec3 GradientContraction(const Vector<Vec3>& g, const Vector<std::complex<double> >& v, const smat_t<std::complex<double> >& m)
+// rvec3_t GradientContraction(const Vector<Vec3>& g, const Vector<std::complex<double> >& v, const smat_t<std::complex<double> >& m)
 // {
 //     // No UT coverage
 //     assert(v.size      ()==m.columns());

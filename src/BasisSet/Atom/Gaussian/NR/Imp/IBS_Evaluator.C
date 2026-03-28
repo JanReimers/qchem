@@ -187,12 +187,12 @@ dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
 
 
 
-rvec_t Gaussian_IBS::operator() (const RVec3& r) const
+rvec_t Gaussian_IBS::operator() (const rvec3_t& r) const
 {
     return convert1(gaussian(norm(r),l,es,ns)); //convert valarray -> blaze::rvec_t
 }
 
-rvec3vec_t Gaussian_IBS::Gradient(const RVec3& r) const
+rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

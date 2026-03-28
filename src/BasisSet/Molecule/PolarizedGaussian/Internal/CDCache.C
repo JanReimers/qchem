@@ -26,7 +26,7 @@ struct GaussianCD : public UniqueIDImp
     int                    Ltotal;       //Total angular momentum.
     double                 a,b;          //exponents.
     double                 ab,AlphaP;    //a*b, a+b.
-    RVec3                  AB,P;         //A-B, new center.
+    rvec3_t                  AB,P;         //A-B, new center.
     double                 Eij;          //scale factor.
     Hermite2               H2;           //Hermite coefficients.
 //

@@ -10,7 +10,7 @@ struct GData
 {
     UniqueID::IDtype  ID;
     double            Alpha; //Exponent;
-    RVec3             R;     //Center
+    rvec3_t             R;     //Center
     int               L;     //Actually a maximum L
 
 };

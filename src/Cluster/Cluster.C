@@ -32,7 +32,7 @@ public:
     virtual double GetNetCharge     () const=0;
     virtual double GetNumElectrons  () const=0;
 
-    virtual size_t GetAtomIndex(const RVec3&, double tol=0.0) const;
+    virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
     virtual Mesh*  CreateMesh(const MeshParams&) const=0;
     
     virtual const_iterator begin() const=0;

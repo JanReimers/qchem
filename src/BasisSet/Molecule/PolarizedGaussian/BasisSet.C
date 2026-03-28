@@ -33,13 +33,13 @@ class IrrepBasisSet
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
         IrrepBasisSet(Reader *, const Cluster *);
-        IrrepBasisSet(const RVec &exponents, size_t L, const Cluster *);
-        IrrepBasisSet(const RVec &exponents, size_t L);
+        IrrepBasisSet(const rvec_t &exponents, size_t L, const Cluster *);
+        IrrepBasisSet(const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
         virtual size_t  GetNumFunctions() const {return size();}
-        virtual rvec_t     operator() (const RVec3&) const;
-        virtual rvec3vec_t Gradient   (const RVec3&) const;
+        virtual rvec_t     operator() (const rvec3_t&) const;
+        virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
         virtual std::ostream &Write(std::ostream &) const;
 
@@ -62,8 +62,8 @@ class Orbital_IBS
     typedef DB_BS_2E<double> db_t;
 public:
     Orbital_IBS(const db_t* db, Reader *, const Cluster *);
-    Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster *);
-    Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L);
+    Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L, const Cluster *);
+    Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L);
 
     virtual ::Fit_IBS *CreateCDFitBasisSet(const ::BasisSet*,const Cluster *) const;
     virtual ::Fit_IBS *CreateVxcFitBasisSet(const ::BasisSet*,const Cluster *) const;

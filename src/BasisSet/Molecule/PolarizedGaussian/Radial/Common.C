@@ -21,12 +21,12 @@ class RadialCommon
 {
 public:
     RadialCommon(                         );
-    RadialCommon(const RVec3& Center,int L);
+    RadialCommon(const rvec3_t& Center,int L);
     RadialCommon(const RadialCommon&);
     ~RadialCommon(                        );
 
     virtual       bool      operator==(const RadialFunction&) const;
-    virtual const RVec3&    GetCenter (                     ) const
+    virtual const rvec3_t&    GetCenter (                     ) const
     {
         return itsCenter;
     }
@@ -42,7 +42,7 @@ public:
 protected:
     virtual Hermite1* MakeH1() const=0;
 
-    RVec3             itsCenter;
+    rvec3_t             itsCenter;
     int               itsL;
     mutable Hermite1* itsH1;
 };

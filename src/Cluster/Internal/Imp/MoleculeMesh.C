@@ -23,7 +23,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
         Mesh* mesh_a= a->CreateMesh(mp);
         for (auto rw: *mesh_a)
         {
-            RVec3 r=::r(rw);
+            rvec3_t r=::r(rw);
             // Load up up matrix of cutoff profiles.
             Matrix<double> s(natom,natom);
             size_t ib=1;

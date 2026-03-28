@@ -77,24 +77,24 @@ inline bool near(double a, double b)
     return err<eps;
 }
 
-inline bool near(const RVec3& a, const RVec3& b) 
+inline bool near(const rvec3_t& a, const rvec3_t& b) 
 {
     return near(a.x,b.x) && near(a.y,b.y) &&  near(a.z,b.z);
 }
 
-inline RVec3 DirectMultiply(const RVec3& a, const RVec3& b)
+inline rvec3_t DirectMultiply(const rvec3_t& a, const rvec3_t& b)
 {
-    return RVec3(a.x*b.x, a.y*b.y, a.z*b.z);
+    return rvec3_t(a.x*b.x, a.y*b.y, a.z*b.z);
 }
 
-inline RVec3 operator*(const RVec3& a, const int& b)
+inline rvec3_t operator*(const rvec3_t& a, const int& b)
 {
-    return RVec3(a.x*b,a.y*b,a.z*b);
+    return rvec3_t(a.x*b,a.y*b,a.z*b);
 }
 
 //using std::cout;
 //using std::endl;
-Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int _LB)
+Hermite2::Hermite2(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, int _LA, int _LB)
     : LA(_LA)
     , LB(_LB)
     , LAB((LA+1)*(LB+1))
@@ -108,7 +108,7 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
    // cout << "Hermite 2 constructor" << endl;
     
     double a12=1.0/(2*AlphaP);
-    Assign(0,0,0,RVec3(1,1,1)); //d_0^00 
+    Assign(0,0,0,rvec3_t(1,1,1)); //d_0^00 
     //
     // Layered approach:  na+nb = layer.  
     //
@@ -120,7 +120,7 @@ Hermite2::Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int _LA, int
             for (int N=0;N<=layer+1;N++)
             {
                 assert(N<=na+nb+1);
-                RVec3 t1(0,0,0),ta(0,0,0),tb(0,0,0),t3(0,0,0);
+                rvec3_t t1(0,0,0),ta(0,0,0),tb(0,0,0),t3(0,0,0);
                 if (N-1>=0)
                     t1=Get(N-1,na,nb)*a12;
                 if (N<=na+nb)
@@ -144,7 +144,7 @@ Hermite2::~Hermite2()
 {
     //cout << (void*)this << " destructor! " << endl;
 }
-void Hermite2::Assign(int N,int na,int nb,const RVec3& a)
+void Hermite2::Assign(int N,int na,int nb,const rvec3_t& a)
 {
     size_t index=GetIndex(N,na,nb);
     #ifdef USE_CACHE

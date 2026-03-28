@@ -19,8 +19,8 @@ public:
     virtual smat_t<T> GetRepulsion    (const Orbital_DFT_IBS<double>*) const;
     virtual double    GetSelfRepulsion(                      ) const;  //Does GetRepulsion(*this);
     
-    virtual double operator()(const RVec3&) const; // No UT coverage
-    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
+    virtual double operator()(const rvec3_t&) const; // No UT coverage
+    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
     virtual FittedCD* Clone(        ) const;
 

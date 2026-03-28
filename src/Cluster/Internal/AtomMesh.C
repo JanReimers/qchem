@@ -7,7 +7,7 @@ export class AtomMesh : public Mesh
 {
 public:
     AtomMesh(                              ) {};
-    AtomMesh(RadialMesh*, Mesh*, const RVec3& R);
+    AtomMesh(RadialMesh*, Mesh*, const rvec3_t& R);
 
     virtual Mesh*  Clone(        ) const;
 };

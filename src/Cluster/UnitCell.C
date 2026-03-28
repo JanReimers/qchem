@@ -18,8 +18,8 @@ public:
 
     double GetCellVolume     (                  ) const;
     double GetMinimumCellEdge(                  ) const;
-    double GetDistance       (const RVec3& r    ) const;
-    IVec3  GetNumCells       (double MaxDistance) const;
+    double GetDistance       (const rvec3_t& r    ) const;
+    vec3_t<int>  GetNumCells       (double MaxDistance) const;
 
     std::ostream&  Write(std::ostream&) const;
 

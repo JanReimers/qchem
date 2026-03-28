@@ -69,10 +69,10 @@ public:
 
     virtual std::ostream&        Write(std::ostream&    ) const;
     virtual RadialFunction* Clone(            ) const;
-    virtual RadialFunction* Clone(const RVec3&) const;
+    virtual RadialFunction* Clone(const rvec3_t&) const;
 
-    virtual double          operator()(const RVec3&) const;
-    virtual RVec3           Gradient  (const RVec3&) const;
+    virtual double          operator()(const rvec3_t&) const;
+    virtual rvec3_t           Gradient  (const rvec3_t&) const;
 
 private:
     virtual Hermite1* MakeH1() const;

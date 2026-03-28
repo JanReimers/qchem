@@ -160,8 +160,8 @@ TEST_F(SymQNTests, Orbital_QNs_set)
 
 TEST_F(SymQNTests, BlochQNs)
 {
-    IVec3 N(5,6,7);
-    IVec3 k1;
+    ivec3_t N(5,6,7);
+    ivec3_t k1;
     
     for (k1.x=-N.x;k1.x<=N.x;k1.x++)
     for (k1.y=-N.y;k1.y<=N.y;k1.y++)
@@ -169,7 +169,7 @@ TEST_F(SymQNTests, BlochQNs)
     {
         BlochQN bq1(N,k1);
         // cout << k1 << " " << bq1 << " " << bq1.SequenceIndex() << endl;
-        IVec3 k2;
+        ivec3_t k2;
         for (k2.x=k1.x;k2.x<=N.x;k2.x++)
         for (k2.y=k1.y;k2.y<=N.y;k2.y++)
         for (k2.z=k1.z;k2.z<=N.z;k2.z++)

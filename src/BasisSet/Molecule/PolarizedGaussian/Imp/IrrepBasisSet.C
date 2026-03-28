@@ -8,7 +8,7 @@ module;
 #include <cmath>
 #include <memory>
 #include <vector>
-
+#include <blaze/Math.h>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
@@ -118,7 +118,8 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
 };
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluster* cl)
+
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
     : IrrepBasisSet_Common<double>(new UnitQN)
 {
     int nbasis=1;
@@ -147,14 +148,14 @@ IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t LMax, const Cluste
     
 }
 // Single atom version
-IrrepBasisSet::IrrepBasisSet(const Vector<double>& es, size_t L)
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
     : IrrepBasisSet_Common<double>(new UnitQN())
 {
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
     for (auto e:es)
     {
-        RadialFunction* r=new GaussianRF(e,RVec3(0,0,0),L);
+        RadialFunction* r=new GaussianRF(e,rvec3_t(0,0,0),L);
         Block* bfb=new Block(r,nbasis);
         for (auto& p:Ps)
         {
@@ -180,7 +181,7 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
 
 IrrepBasisSet::~IrrepBasisSet() {};
 
-rvec_t IrrepBasisSet::operator() (const RVec3& r) const
+rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
     for (size_t i=0;i<size();i++)
@@ -191,7 +192,7 @@ rvec_t IrrepBasisSet::operator() (const RVec3& r) const
     }
     return ret;
 }
-rvec3vec_t IrrepBasisSet::Gradient   (const RVec3& r) const
+rvec3vec_t IrrepBasisSet::Gradient   (const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     for (size_t i=0;i<size();i++)
@@ -219,13 +220,13 @@ Orbital_IBS::Orbital_IBS(const db_t* db, Reader* bsr, const Cluster* cl)
     , Orbital_HF_IBS_Common<double>(db)
     , Orbital_IE(db)
 {};
-Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L, const Cluster* cl)
     : IrrepBasisSet(exponents,L,cl)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , Orbital_IE(db)
 {};
-Orbital_IBS::Orbital_IBS(const db_t* db, const Vector<double>& exponents, size_t L)
+Orbital_IBS::Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
     , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)

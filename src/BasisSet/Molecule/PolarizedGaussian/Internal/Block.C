@@ -38,7 +38,7 @@ public:
 
     virtual std::ostream&       Write  (std::ostream&) const;
     virtual Block* Clone  (             ) const;
-    virtual Block* Clone  (const RVec3& ) const;
+    virtual Block* Clone  (const rvec3_t& ) const;
 
     RadialFunction*           itsRadial; //Common radial function.
     std::vector<Polarization> itsPols;   //All polarizations for this block.

@@ -46,8 +46,8 @@ public:
     virtual AnalyticIE<std::complex<double> >* Clone() const;
 
 private:
-    std::vector<RVec3> itsGs;
-    RVec3              itsK;  //Bloch wave vector.
+    std::vector<rvec3_t> itsGs;
+    rvec3_t              itsK;  //Bloch wave vector.
     UnitCell           itsRLCell;
 };
 

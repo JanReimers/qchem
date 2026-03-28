@@ -23,8 +23,8 @@ public:
     {};
     virtual size_t  GetNumFunctions() const {return itsEval->size();}
     virtual size_t  size           () const {return itsEval->size();}
-    virtual rvec_t     operator() (const RVec3& r) const {return itsEval->operator()(r);}
-    virtual rvec3vec_t Gradient   (const RVec3& r) const {return itsEval->Gradient(r);}
+    virtual rvec_t     operator() (const rvec3_t& r) const {return itsEval->operator()(r);}
+    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return itsEval->Gradient(r);}
     virtual std::ostream&  Write(std::ostream&) const;
 private:
     IBS_Evaluator* itsEval;

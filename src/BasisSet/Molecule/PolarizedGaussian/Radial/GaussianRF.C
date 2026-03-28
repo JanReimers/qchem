@@ -22,7 +22,7 @@ class GaussianRF
 {
 public:
     GaussianRF(                                   );
-    GaussianRF(double Exp,const RVec3& Center,int L);
+    GaussianRF(double Exp,const rvec3_t& Center,int L);
 
     virtual bool            operator==      (const RadialFunction&) const;
     virtual double          GetNormalization(const Polarization&  ) const;
@@ -49,10 +49,10 @@ public:
 
     virtual std::ostream&        Write(std::ostream&   ) const;
     virtual RadialFunction* Clone(           ) const;
-    virtual RadialFunction* Clone(const RVec3&) const;
+    virtual RadialFunction* Clone(const rvec3_t&) const;
 
-    virtual double      operator()(const RVec3&) const;
-    virtual RVec3       Gradient  (const RVec3&) const;
+    virtual double      operator()(const rvec3_t&) const;
+    virtual rvec3_t       Gradient  (const rvec3_t&) const;
 
     GData GetGData() const {return GData{GetID(),itsExponent,itsCenter,itsL};};
 

@@ -34,8 +34,8 @@ public:
     virtual void   FitMixIn        (const FittedFunction&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FittedFunction&       ) const;
 
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const;
+    virtual double operator()(const rvec3_t&) const;
+    virtual rvec3_t  Gradient  (const rvec3_t&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
 protected:

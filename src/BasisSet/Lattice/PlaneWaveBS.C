@@ -21,7 +21,7 @@ class IrrepBasisSet
         , public IBS_Evaluator
 {
 public:
-    IrrepBasisSet(IVec3 N, RVec3 k, const std::valarray<IVec3>& Gs,double V);
+    IrrepBasisSet(ivec3_t N, rvec3_t k, const std::valarray<ivec3_t>& Gs,double V);
     virtual size_t size() const {return IBS_Evaluator::size();}
     virtual size_t GetNumFunctions() const {return size();}
     virtual const SMatrix<dcmplx>& Overlap() const;

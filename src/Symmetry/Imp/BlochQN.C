@@ -4,7 +4,7 @@ module;
 #include <cassert>
 module qchem.Symmetry.BlochQN;
 
-BlochQN::BlochQN(IVec3 _N, IVec3 _ik) 
+BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik) 
     : N(_N)
     , ik(_ik)
     , k(ik.x/static_cast<double>(N.x),ik.y/static_cast<double>(N.y),ik.z/static_cast<double>(N.z)) 
@@ -21,7 +21,7 @@ BlochQN::BlochQN(IVec3 _N, IVec3 _ik)
 
 size_t BlochQN::SequenceIndex() const
 {
-    IVec3 kp=ik+N; //Shift to kp>=0
+    ivec3_t kp=ik+N; //Shift to kp>=0
     return (kp.x*(2*N.y+1)+kp.y)*(2*N.z+1)+kp.z;
 }
 

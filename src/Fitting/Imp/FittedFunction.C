@@ -149,15 +149,15 @@ template <class T> void FittedFunctionImp<T>::ReScale(double factor)
 //
 //  Real space function stuff.
 //
-template <class T> double  FittedFunctionImp<T>::operator()(const RVec3& r) const
+template <class T> double  FittedFunctionImp<T>::operator()(const rvec3_t& r) const
 {
     return trans(itsFitCoeff) * (*itsBasisSet)(r);
 }
 
-template <class T> RVec3  FittedFunctionImp<T>::Gradient(const RVec3& r) const
+template <class T> rvec3_t  FittedFunctionImp<T>::Gradient(const rvec3_t& r) const
 {
-    vec_t<RVec3> br = itsBasisSet->Gradient(r);
-    RVec3 ret(0,0,0);
+    vec_t<rvec3_t> br = itsBasisSet->Gradient(r);
+    rvec3_t ret(0,0,0);
     auto c(itsFitCoeff.begin());
     auto b(br.begin());
     for (; b!=br.end()&&c!=itsFitCoeff.end(); b++,c++) ret+=(*c) * (*b);

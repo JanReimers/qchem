@@ -18,7 +18,7 @@ double Slater_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
     return ea*eb*::Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-Slater_IBS::ds_t Slater_RKBS_IBS::eval(const RVec3& r) const
+Slater_IBS::ds_t Slater_RKBS_IBS::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     ds_t f=-es;
@@ -28,12 +28,12 @@ Slater_IBS::ds_t Slater_RKBS_IBS::eval(const RVec3& r) const
     return f*slater(mr,l,es,ns);
 }
 
-rvec_t Slater_RKBS_IBS::operator() (const RVec3& r) const
+rvec_t Slater_RKBS_IBS::operator() (const rvec3_t& r) const
 {
    return convert1(eval(r)); 
 }
 
-rvec3vec_t Slater_RKBS_IBS::Gradient(const RVec3& r) const
+rvec3vec_t Slater_RKBS_IBS::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

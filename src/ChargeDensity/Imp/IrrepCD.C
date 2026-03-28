@@ -37,8 +37,8 @@ public:
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
 
-    virtual double operator()(const RVec3&) const;
-    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
+    virtual double operator()(const rvec3_t&) const;
+    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
     virtual std::ostream&       Write(std::ostream&) const;
 

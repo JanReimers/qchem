@@ -10,7 +10,7 @@ import oml;
 //
 //  The full mesh is just a direct product of radial and ungular meshes.
 //
-AtomMesh::AtomMesh(RadialMesh* rm, Mesh* am, const RVec3& R)
+AtomMesh::AtomMesh(RadialMesh* rm, Mesh* am, const rvec3_t& R)
 {
     for (auto arw: *am)
         for (auto rrw: *rm)

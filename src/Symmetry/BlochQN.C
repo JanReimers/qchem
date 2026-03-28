@@ -12,17 +12,17 @@ export import qchem.Symmetry;
 export class BlochQN : public virtual Symmetry
 {
 public:
-    BlochQN(IVec3 _N, IVec3 _ik);
+    BlochQN(ivec3_t _N, ivec3_t _ik);
     virtual size_t SequenceIndex() const;
     virtual int GetDegeneracy() const {return 1;} // +/-k?
     virtual int GetPrincipleOffset() const  {return 1;}
     virtual std::ostream&  Write(std::ostream&) const;
 
-    RVec3   Getk() const {return k;}
+    rvec3_t   Getk() const {return k;}
 
 private:
-    IVec3 N;  //This is the Brillouin zone grid size which gives context for the k vector. Used for calculating the sequence index.
-    IVec3 ik; //Integer rep. of k.
-    RVec3 k;  //Real values.
+    ivec3_t N;  //This is the Brillouin zone grid size which gives context for the k vector. Used for calculating the sequence index.
+    ivec3_t ik; //Integer rep. of k.
+    rvec3_t k;  //Real values.
 };
 

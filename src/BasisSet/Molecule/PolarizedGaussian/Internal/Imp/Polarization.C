@@ -19,12 +19,12 @@ inline double DiffIntPow(double x,int n)
     return n==0 ? 0 : ((double)n)*intpow(x,n-1);
 }
 
-RVec3 Polarization::Gradient(const RVec3& r) const
+rvec3_t Polarization::Gradient(const rvec3_t& r) const
 {
     double x=intpow(r.x,n);
     double y=intpow(r.y,l);
     double z=intpow(r.z,m);
-    return RVec3(DiffIntPow(r.x,n)*y*z, DiffIntPow(r.y,l)*x*z, DiffIntPow(r.z,m)*x*y );
+    return rvec3_t(DiffIntPow(r.x,n)*y*z, DiffIntPow(r.y,l)*x*z, DiffIntPow(r.z,m)*x*y );
 }
 
 std::ostream& operator<<(std::ostream& os, const Polarization& p)

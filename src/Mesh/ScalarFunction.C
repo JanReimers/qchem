@@ -12,11 +12,11 @@ export template <class T> class ScalarFunction
 public:
     virtual ~ScalarFunction()  {};
 
-    virtual T        operator()(const RVec3&      ) const=0;
+    virtual T        operator()(const rvec3_t&      ) const=0;
     virtual vec_t<T> operator()(const Mesh&       ) const  ;
     virtual va_t     operator()(const rva_t& r,rvec3_t dir=rvec3_t(1,0,0)) const  ;
 
-    virtual vec3_t   <T> Gradient(const RVec3&) const=0;
+    virtual vec3_t   <T> Gradient(const rvec3_t&) const=0;
     virtual vec3vec_t<T> Gradient(const Mesh& ) const  ;
 };
 

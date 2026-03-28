@@ -51,13 +51,13 @@ template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 //  SCF convergence stuff.
 //
 
-template <class T> double FittedCDImp<T>::operator()(const RVec3& r) const
+template <class T> double FittedCDImp<T>::operator()(const rvec3_t& r) const
 {
     // No UT coverage
     return FittedFunctionImp<T>::operator()(r);
 }
 
-template <class T> RVec3 FittedCDImp<T>::Gradient(const RVec3& r) const
+template <class T> rvec3_t FittedCDImp<T>::Gradient(const rvec3_t& r) const
 {
     // No UT coverage
     return FittedFunctionImp<T>::Gradient(r);

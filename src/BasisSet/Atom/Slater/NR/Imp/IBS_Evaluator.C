@@ -188,12 +188,12 @@ dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
 
 
 
-rvec_t Slater_IBS::operator() (const RVec3& r) const
+rvec_t Slater_IBS::operator() (const rvec3_t& r) const
 {
     return convert1(slater(norm(r),l,es,ns));
 }
 
-rvec3vec_t Slater_IBS::Gradient(const RVec3& r) const
+rvec3vec_t Slater_IBS::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

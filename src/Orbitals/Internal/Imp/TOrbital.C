@@ -39,13 +39,13 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>
 //
 //  Real space function stuff.
 //
-template <class T> T TOrbitalImp<T>::operator()(const RVec3& r) const
+template <class T> T TOrbitalImp<T>::operator()(const rvec3_t& r) const
 {
     return trans(itsCoeff) * (*itsBasisSet)(r);
 }
 
 //BUG
-template <class T> vec3_t<T> TOrbitalImp<T>::Gradient(const RVec3& r) const
+template <class T> vec3_t<T> TOrbitalImp<T>::Gradient(const rvec3_t& r) const
 {
     vec3_t<T> ret(0,0,0);
     vec3vec_t<T> grads=itsBasisSet->Gradient(r);

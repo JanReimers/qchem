@@ -18,7 +18,7 @@ public:
     // M&D eq 3.11 Alpha=Alpha_P, dR = CP^2 for nuclear
     // M&D eq 3.32 Alpha=Alpha_P*Alpha_Q/(Alpha_P+Alpha_Q) to electron repulsion
     //             dR = PQ^2
-    RNLM(int Max, double Alpha, const RVec3& dR);
+    RNLM(int Max, double Alpha, const rvec3_t& dR);
     bool CheckLMax(int L) const {return L<=itsLMax;}
     
     double operator()(const Polarization& p) const

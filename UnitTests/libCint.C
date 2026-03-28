@@ -52,7 +52,7 @@ public:
 
 struct CAtom
 {
-    CAtom(int _Z, const RVec3& r,std::vector<double>& env) 
+    CAtom(int _Z, const rvec3_t& r,std::vector<double>& env) 
     : Z(_Z), R_index(env.size()), nuc_model(0), nuc_exponent(0)
     {
         env.push_back(r.x);
@@ -138,8 +138,8 @@ struct CBas
 //{
 //        std::vector<double> env2(PTR_ENV_START);
 //        std::vector<CAtom> atoms;
-//        atoms.push_back(CAtom(1,RVec3(0,0,-0.8),env2));
-//        atoms.push_back(CAtom(1,RVec3(0,0, 0.8),env2));
+//        atoms.push_back(CAtom(1,rvec3_t(0,0,-0.8),env2));
+//        atoms.push_back(CAtom(1,rvec3_t(0,0, 0.8),env2));
 //        
 //        std::vector<CBas> basiss;
 //        {

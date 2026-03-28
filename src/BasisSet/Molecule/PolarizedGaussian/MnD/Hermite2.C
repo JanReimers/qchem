@@ -35,7 +35,7 @@ class Hermite2
 {
 public:
     //Hermite2();
-    Hermite2(double AlphaP, const RVec3& PA, const RVec3& PB, int LA, int LB);
+    Hermite2(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, int LA, int LB);
     ~Hermite2();
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
@@ -45,12 +45,12 @@ public:
 private:
     Hermite2(const Hermite2&) {};
     Hermite2& operator=(const Hermite2&) {return *this;}
-    RVec3 Get(int N,int na,int nb) const 
+    rvec3_t Get(int N,int na,int nb) const 
     {
         size_t index=GetIndex(N,na,nb);
-        return RVec3(d[index],e[index],f[index]);
+        return rvec3_t(d[index],e[index],f[index]);
     } 
-    void Assign(int N,int na,int nb,const RVec3& a);
+    void Assign(int N,int na,int nb,const rvec3_t& a);
     //
     //  This has very high hits and total time in profiling.
     //

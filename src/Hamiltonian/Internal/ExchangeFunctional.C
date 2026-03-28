@@ -11,7 +11,7 @@ public:
     ExFunctional(               );
 
     virtual void   InsertChargeDensity(const DM_CD*);
-    virtual rvec_t GetVxcs(const Vector<double>& ChargeDensities) const;
+    virtual rvec_t GetVxcs(const rvec_t& ChargeDensities) const;
     virtual double GetVxc(                double ChargeDensity) const=0;
     virtual void   SetPolarized(bool p) {isPolarized=p;}
 

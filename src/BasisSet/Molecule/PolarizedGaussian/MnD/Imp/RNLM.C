@@ -16,7 +16,7 @@ namespace PolarizedGaussian
 
 RNLM::RNLM() : itsData() {};
 
-RNLM::RNLM(int Max, double Alpha, const RVec3& dR)
+RNLM::RNLM(int Max, double Alpha, const rvec3_t& dR)
     : itsLMax(Max)
     , itsData()
 {

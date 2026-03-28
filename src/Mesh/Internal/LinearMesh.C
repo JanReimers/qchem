@@ -4,9 +4,9 @@ module;
 module qchem.Mesh.Internal.Types;
 import oml;
 
-LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, int NumPoints)
+LinearMesh::LinearMesh(double start, double stop, const rvec3_t& direction, int NumPoints)
 {
-    RVec3 nd=normalize(direction); //Make sure its normailized.
+    rvec3_t nd=normalize(direction); //Make sure its normailized.
 
     Vector<double> R(NumPoints);
     Vector<double> W(NumPoints);
@@ -16,9 +16,9 @@ LinearMesh::LinearMesh(double start, double stop, const RVec3& direction, int Nu
     for (auto i:R.indices())
         push_back(R(i)*nd,W(i));
 
-//    Vector<RVec3> Rv(NumPoints);
+//    Vector<rvec3_t> Rv(NumPoints);
 //    Vector<double>::const_iterator b(R.begin());
-//    for(Vector<RVec3> ::iterator i(Rv.begin()); i!=Rv.end(); i++,b++) *i=*b*nd;
+//    for(Vector<rvec3_t> ::iterator i(Rv.begin()); i!=Rv.end(); i++,b++) *i=*b*nd;
 //
 //    Initialize(Rv,W);
 }

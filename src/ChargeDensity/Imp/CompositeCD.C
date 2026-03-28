@@ -110,17 +110,17 @@ double Composite_CD::GetChangeFrom(const DM_CD& cd) const
 //
 //  Real space function stuff.
 //
-double Composite_CD::operator()(const RVec3& r) const
+double Composite_CD::operator()(const rvec3_t& r) const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->operator()(r);
     return ret;
 }
 
-RVec3 Composite_CD::Gradient  (const RVec3& r) const
+rvec3_t Composite_CD::Gradient  (const rvec3_t& r) const
 {
     // No UT coverage
-    RVec3 ret(0,0,0);
+    rvec3_t ret(0,0,0);
     for (auto& c:itsCDs) ret+=c->Gradient(r);
     return ret;
 }

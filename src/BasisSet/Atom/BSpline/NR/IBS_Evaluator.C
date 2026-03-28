@@ -35,8 +35,8 @@ public:
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const; //3 center
 
-    virtual rvec_t     operator() (const RVec3&) const;
-    virtual rvec3vec_t Gradient   (const RVec3&) const;
+    virtual rvec_t     operator() (const rvec3_t&) const;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
     const spline_t& operator[](int index) const {return splines[index];}
 

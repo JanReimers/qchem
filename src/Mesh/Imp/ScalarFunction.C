@@ -17,7 +17,7 @@ template <class T> vec_t<T> ScalarFunction<T>::operator() (const Mesh& mesh) con
     return v;
 }
 
-template <class T> typename ScalarFunction<T>::va_t ScalarFunction<T>::operator() (const rva_t& rs,RVec3 dir) const
+template <class T> typename ScalarFunction<T>::va_t ScalarFunction<T>::operator() (const rva_t& rs,rvec3_t dir) const
 {
     assert(norm(dir)==1.0);
     va_t v(T(0),rs.size());

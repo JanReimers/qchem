@@ -24,6 +24,6 @@ public:
 export class LinearMesh : public Mesh
 {
 public:
-    LinearMesh(double start, double stop, const RVec3& direction, int numPoints);
+    LinearMesh(double start, double stop, const rvec3_t& direction, int numPoints);
     Mesh*  Clone() const;
 };

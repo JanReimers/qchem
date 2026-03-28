@@ -104,8 +104,8 @@ public:
     virtual smat_t<T> MakeNuclear (const Cluster*) const;
     virtual smat_t<T> MakeRestMass() const;
 
-    virtual vec_t    <T> operator() (const RVec3&) const;
-    virtual vec3vec_t<T> Gradient   (const RVec3&) const;
+    virtual vec_t    <T> operator() (const rvec3_t&) const;
+    virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
 protected:
     Orbital_RKB_IBS_Common(const DB_cache<T>* db, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;

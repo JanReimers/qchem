@@ -189,7 +189,7 @@ std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
 }
 
 
-double ContractedGaussianRF::operator()(const RVec3& r) const
+double ContractedGaussianRF::operator()(const rvec3_t& r) const
 {
     double ret=0;
     size_t i=1;
@@ -197,9 +197,9 @@ double ContractedGaussianRF::operator()(const RVec3& r) const
     return ret;
 }
 
-RVec3 ContractedGaussianRF::Gradient(const RVec3& r) const
+rvec3_t ContractedGaussianRF::Gradient(const rvec3_t& r) const
 {
-    RVec3 ret(0,0,0);
+    rvec3_t ret(0,0,0);
     size_t i=1;
     for (auto& g:gs) ret+=cs(i++)* g->Gradient(r);
     return ret;
@@ -216,7 +216,7 @@ RVec3 ContractedGaussianRF::Gradient(const RVec3& r) const
 //     }
 // }
 
-// void ContractedGaussianRF::EvalGrad(const Mesh& mesh, Vector<RVec3>& vec) const
+// void ContractedGaussianRF::EvalGrad(const Mesh& mesh, Vector<rvec3_t>& vec) const
 // {
 // //    CVITER c(cs.begin());
 // //    CITER p(gs.begin());
@@ -224,8 +224,8 @@ RVec3 ContractedGaussianRF::Gradient(const RVec3& r) const
 //     size_t ig=1;
 //     for (auto& g:gs)
 //     {
-//         Vector<RVec3>::iterator i(vec.begin());
-//         Vector<RVec3>::const_iterator  v(g->Gradient(mesh).begin());
+//         Vector<rvec3_t>::iterator i(vec.begin());
+//         Vector<rvec3_t>::const_iterator  v(g->Gradient(mesh).begin());
 //         for (; i&&v; i++,v++) *i += cs(ig++)* (*v);
 //     }
 // }
@@ -240,7 +240,7 @@ RadialFunction* ContractedGaussianRF::Clone() const
 
 
 
-RadialFunction* ContractedGaussianRF::Clone(const RVec3& newCenter) const
+RadialFunction* ContractedGaussianRF::Clone(const rvec3_t& newCenter) const
 {
     std::vector<RadialFunction*> newList;
     for (auto& g:gs) newList.push_back(g->Clone(newCenter));
@@ -252,7 +252,7 @@ RadialFunction* ContractedGaussianRF::Clone(const RVec3& newCenter) const
 //
 void ContractedGaussianRF::Check() const
 {
-    const RVec3& center=gs[0]->GetCenter();
+    const rvec3_t& center=gs[0]->GetCenter();
     int          L     =gs[0]->GetL     ();
     for(unsigned i=1; i<gs.size(); i++)
     {

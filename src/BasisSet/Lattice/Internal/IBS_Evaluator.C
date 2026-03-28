@@ -8,9 +8,9 @@ export import qchem.Types;
 import qchem.Conversions;
 import oml.Vector;
 
-std::valarray<RVec3> torvec(const std::valarray<IVec3> i3)
+std::valarray<rvec3_t> torvec(const std::valarray<ivec3_t> i3)
 {
-    std::valarray<RVec3> r3(i3.size());
+    std::valarray<rvec3_t> r3(i3.size());
     size_t n=0;
     for (auto i:i3) r3[n++]=i;
     return r3;
@@ -23,22 +23,22 @@ export namespace PlaneWave
 struct IBS_Evaluator : public virtual VectorFunction<dcmplx>
 {
 
-    IBS_Evaluator(RVec3 _k,const std::valarray<IVec3>& _Gs,double _norm)
+    IBS_Evaluator(rvec3_t _k,const std::valarray<ivec3_t>& _Gs,double _norm)
         : k(_k), Gs(torvec(_Gs)), norm(_norm)
         {}
 
-    virtual vec_t    <dcmplx> operator() (const RVec3&) const;
-    virtual vec3vec_t<dcmplx> Gradient   (const RVec3&) const;
+    virtual vec_t    <dcmplx> operator() (const rvec3_t&) const;
+    virtual vec3vec_t<dcmplx> Gradient   (const rvec3_t&) const;
     virtual size_t size() const {return Gs.size();}
 
 
-    RVec3 k;
-    std::valarray<RVec3> Gs;
+    rvec3_t k;
+    std::valarray<rvec3_t> Gs;
     double norm;
 
 };
 
-IBS_Evaluator::Vec IBS_Evaluator::operator() (const RVec3& r) const
+IBS_Evaluator::Vec IBS_Evaluator::operator() (const rvec3_t& r) const
 {
     std::valarray<dcmplx> ephi(size());
     size_t n=0;

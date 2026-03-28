@@ -92,13 +92,13 @@ void Polarized_CD::ReScale(double factor)
 //
 //  Real space function stuff.
 //
-double Polarized_CD::operator()(const RVec3& r) const
+double Polarized_CD::operator()(const rvec3_t& r) const
 {
     // No UT coverage
     return (*GetChargeDensity(Spin::Up))(r) + (*GetChargeDensity(Spin::Down))(r);
 }
 
-RVec3 Polarized_CD::Gradient  (const RVec3& r) const
+rvec3_t Polarized_CD::Gradient  (const rvec3_t& r) const
 {
     // No UT coverage
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
@@ -118,13 +118,13 @@ SpinDensity::~SpinDensity()
     delete itsSpinDownCD;
 }
 
-double SpinDensity::operator()(const RVec3& r) const
+double SpinDensity::operator()(const rvec3_t& r) const
 {
     // No UT coverage
     return (*itsSpinUpCD)(r) - (*itsSpinDownCD)(r);
 }
 
-RVec3 SpinDensity::Gradient  (const RVec3& r) const
+rvec3_t SpinDensity::Gradient  (const rvec3_t& r) const
 {
     // No UT coverage
     return itsSpinUpCD->Gradient(r) - itsSpinDownCD->Gradient(r);

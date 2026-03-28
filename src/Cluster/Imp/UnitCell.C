@@ -78,7 +78,7 @@ Vector3D<int> UnitCell::GetNumCells(double MaxDistance) const
     return Vector3D<int>((int)ceil(MaxDistance/itsA),(int)ceil(MaxDistance/itsB),(int)ceil(MaxDistance/itsC));
 }
 
-double UnitCell::GetDistance(const RVec3& r) const
+double UnitCell::GetDistance(const rvec3_t& r) const
 {
     double ret=sqrt(r*itsMetricTensor*r);
     return ret;

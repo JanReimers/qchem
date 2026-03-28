@@ -5,9 +5,6 @@ module;
 #include <ranges>
 export module qchem.Types;
 export import oml.Vector3D;
-export import oml.Vector;
-export import oml.Matrix;
-export import oml.SMatrix;
 
 export
 {
@@ -17,14 +14,6 @@ using std::size_t; //gcc-15-1 rejects this.
 // export typedef std::size_t size_t; //gcc-15-1 rejects this.
 
 using dcmplx=std::complex<double>;
-
-typedef Vector3D<double> RVec3;
-typedef Vector3D<dcmplx> CVec3;
-typedef Vector3D<int>    IVec3;
-typedef Vector3D<size_t> UVec3;
-
-typedef Vector<double>   RVec;
-
 
 template <typename T> using vec3_t = Vector3D<T>;
 template <typename T> using  mat_t = blaze::DynamicMatrix<T,blaze::columnMajor>;
@@ -42,6 +31,7 @@ using  rmat_t= mat_t<double>;
 using rsmat_t=smat_t<double>;
 using rvec3_t=vec3_t<double>;
 using rvec3vec_t=vec3vec_t<double>;
+using ivec3_t = vec3_t<int>;
 
 typedef std::ranges::iota_view<size_t,size_t> iv_t; //For range based loops
 

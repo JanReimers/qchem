@@ -41,8 +41,8 @@ public:
 
     virtual void   AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const;
 
-    virtual T         operator()(const RVec3&) const;
-    virtual vec3_t<T> Gradient  (const RVec3&) const;
+    virtual T         operator()(const rvec3_t&) const;
+    virtual vec3_t<T> Gradient  (const rvec3_t&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
    

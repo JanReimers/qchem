@@ -21,7 +21,7 @@ RadialCommon::RadialCommon()
     , itsH1    (0)
 {};
 
-RadialCommon::RadialCommon(const RVec3& theCenter, int theL)
+RadialCommon::RadialCommon(const rvec3_t& theCenter, int theL)
     : itsCenter(theCenter)
     , itsL     (theL     )
     , itsH1    (0)

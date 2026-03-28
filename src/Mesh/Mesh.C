@@ -11,10 +11,10 @@ export class Mesh
 public:
     virtual ~Mesh () {};
 
-    virtual void    ShiftOrigin(const RVec3&);
+    virtual void    ShiftOrigin(const rvec3_t&);
     virtual Mesh*   Clone      () const;
     
-    typedef std::tuple<RVec3,double> rw_t;
+    typedef std::tuple<rvec3_t,double> rw_t;
     typedef std::vector<rw_t>        vec_t;
     typedef vec_t::const_iterator const_iterator;
     virtual const_iterator begin() const {return itsRWs.begin();}
@@ -22,12 +22,12 @@ public:
     virtual size_t         size () const {return itsRWs.size ();}
 
 protected:
-    void push_back(const RVec3& r, const double& w) {itsRWs.push_back(std::make_tuple(r,w));}
+    void push_back(const rvec3_t& r, const double& w) {itsRWs.push_back(std::make_tuple(r,w));}
 private:
     vec_t itsRWs;
 };
 
-export inline const RVec3 & r(const Mesh::rw_t& rw) {return std::get<0>(rw);}
+export inline const rvec3_t & r(const Mesh::rw_t& rw) {return std::get<0>(rw);}
 export inline const double& w(const Mesh::rw_t& rw) {return std::get<1>(rw);}
 
 export namespace qchem
@@ -73,7 +73,7 @@ export struct MeshParams
 
 
 
-void Mesh::ShiftOrigin(const RVec3& origin)
+void Mesh::ShiftOrigin(const rvec3_t& origin)
 {
     for (auto&[r,w]:itsRWs) r+=origin; //g++ 15.1 thinks r in const?!? 
     // for (vec_t::iterator rw=itsRWs.begin();rw!=itsRWs.end();rw++) std::get<0>(*rw)+=origin; //gcc-15-1 accepts this.

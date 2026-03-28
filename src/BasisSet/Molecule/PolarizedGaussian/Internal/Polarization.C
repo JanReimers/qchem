@@ -50,11 +50,11 @@ public:
         return i1<i2;
     }
 
-    double operator   ()(const RVec3& r) const
+    double operator   ()(const rvec3_t& r) const
     {
         return intpow(r.x,n)*intpow(r.y,l)*intpow(r.z,m);
     }
-    RVec3  Gradient     (const RVec3& r) const;
+    rvec3_t  Gradient     (const rvec3_t& r) const;
 
     int   GetTotalL  () const;
     int   GetMaximumL() const;

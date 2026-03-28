@@ -19,7 +19,7 @@ double Gaussian_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
 }
 
 
-Gaussian_IBS::ds_t Gaussian_RKBS_IBS::eval(const RVec3& r) const
+Gaussian_IBS::ds_t Gaussian_RKBS_IBS::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     ds_t f=-2*es*mr;
@@ -29,12 +29,12 @@ Gaussian_IBS::ds_t Gaussian_RKBS_IBS::eval(const RVec3& r) const
     return f*gaussian(mr,l,es,ns);
 }
 
-rvec_t Gaussian_RKBS_IBS::operator() (const RVec3& r) const
+rvec_t Gaussian_RKBS_IBS::operator() (const rvec3_t& r) const
 {
    return convert1(eval(r)); //valarray -> rvec_t 
 }
 
-rvec3vec_t Gaussian_RKBS_IBS::Gradient(const RVec3& r) const
+rvec3vec_t Gaussian_RKBS_IBS::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

@@ -43,19 +43,19 @@ TEST_F(ClusterTests, UnitCell)
     UnitCell cubic(4,4,4,90,90,90);
     EXPECT_EQ(cubic.GetCellVolume(),64);
     EXPECT_EQ(cubic.GetMinimumCellEdge(),4);
-    EXPECT_EQ(cubic.GetDistance(RVec3{1,1,1}),4*sqrt(3));
+    EXPECT_EQ(cubic.GetDistance(rvec3_t{1,1,1}),4*sqrt(3));
     EXPECT_EQ(cubic.GetNumCells(9),Vector3D<int>(3,3,3));
     cout << "       cubic = " << cubic << endl;
     UnitCell ortho(4,5,6,90,90,90);
     EXPECT_EQ(ortho.GetCellVolume(),120);
     EXPECT_EQ(ortho.GetMinimumCellEdge(),4);
-    EXPECT_EQ(ortho.GetDistance(RVec3{1,1,1}),sqrt(4*4+5*5+6*6));
+    EXPECT_EQ(ortho.GetDistance(rvec3_t{1,1,1}),sqrt(4*4+5*5+6*6));
     EXPECT_EQ(ortho.GetNumCells(9),Vector3D<int>(3,2,2));
     cout << "orthorhombic = " << ortho << endl;
     UnitCell tri(4,5,6,80,95,75);
     EXPECT_EQ(tri.GetCellVolume(),113.04412274615466);
     EXPECT_EQ(tri.GetMinimumCellEdge(),4);
-    EXPECT_EQ(tri.GetDistance(RVec3{1,1,1}),9.6740982428456377);
+    EXPECT_EQ(tri.GetDistance(rvec3_t{1,1,1}),9.6740982428456377);
     EXPECT_EQ(tri.GetNumCells(12),Vector3D<int>(3,3,2));
     cout << "   triclinic = " << tri << endl;
 }
@@ -64,16 +64,16 @@ TEST_F(ClusterTests, Lattice)
 {
     double a_0=0.529177; //Ångstrom
     Molecule* SiBasis=new Molecule();
-    SiBasis->Insert(new Atom(14,0,RVec3{ 0, 0, 0}));
-    SiBasis->Insert(new Atom(14,0,RVec3{.5,.5, 0}));
-    SiBasis->Insert(new Atom(14,0,RVec3{ 0,.5,.5}));
-    SiBasis->Insert(new Atom(14,0,RVec3{.5, 0,.5}));
-    SiBasis->Insert(new Atom(14,0,RVec3{.25,.25,.25}));
-    SiBasis->Insert(new Atom(14,0,RVec3{.75,.75,.25}));
-    SiBasis->Insert(new Atom(14,0,RVec3{.25,.75,.75}));
-    SiBasis->Insert(new Atom(14,0,RVec3{.75,.25,.75}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{ 0, 0, 0}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{.5,.5, 0}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{ 0,.5,.5}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{.5, 0,.5}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{.25,.25,.25}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{.75,.75,.25}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{.25,.75,.75}));
+    SiBasis->Insert(new Atom(14,0,rvec3_t{.75,.25,.75}));
     UnitCell SiCell(5.43/a_0); //Convert Ångstrom to atomic units a.u.
-    Lattice Si(SiCell,IVec3(2,2,2),std::shared_ptr<Cluster>(SiBasis));
+    Lattice Si(SiCell,ivec3_t(2,2,2),std::shared_ptr<Cluster>(SiBasis));
     // cout << "Si lattice = " << Si << endl;
     EXPECT_EQ(Si.GetNumAtoms(),8);
     EXPECT_EQ(Si.GetNuclearCharge(),8*14);
@@ -83,8 +83,8 @@ TEST_F(ClusterTests, Lattice)
     EXPECT_EQ(Si.GetNumSites(),64);
     EXPECT_EQ(Si.GetNumBasisSites(),8);
     EXPECT_EQ(Si.GetNumUnitCells(),8);
-    EXPECT_EQ(Si.GetSiteNumber (RVec3(1.75,0.75,1.25)),45);
-    EXPECT_EQ(Si.GetBasisNumber(RVec3(1.75,0.75,1.25)),5);
+    EXPECT_EQ(Si.GetSiteNumber (rvec3_t(1.75,0.75,1.25)),45);
+    EXPECT_EQ(Si.GetBasisNumber(rvec3_t(1.75,0.75,1.25)),5);
     EXPECT_EQ(Si.GetBasisNumber(13),5);
 
     for (size_t i=0;i<Si.GetNumSites();i++)
@@ -93,12 +93,12 @@ TEST_F(ClusterTests, Lattice)
     double Emax=2.0;
     Lattice Rl=Si.Reciprocal(Emax);
     // cout << "Si reciprocal lattice = " << Rl << endl;
-    std::vector<IVec3> cells =Rl.GetCellsInSphere(Emax);
+    std::vector<ivec3_t> cells =Rl.GetCellsInSphere(Emax);
     UnitCell Rc=Rl.GetUnitCell();
     for (auto c:cells)
         EXPECT_LT(Rc.GetDistance(c),Emax);
 
-    std::vector<RVec3> ks=Si.GetReciprocalGrid();
+    std::vector<rvec3_t> ks=Si.GetReciprocalGrid();
     cout << "BZ grid:" << endl;
     for (auto k:ks) cout << "   "  << k << endl;
 }

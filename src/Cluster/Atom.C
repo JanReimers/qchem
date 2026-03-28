@@ -15,7 +15,7 @@ export class Atom
 public:
     Atom();
     Atom(int Z, double charge);
-    Atom(int Z, double charge, const RVec3& R);
+    Atom(int Z, double charge, const rvec3_t& R);
 
     virtual double GetNumElectrons      () const;
     virtual Mesh*  CreateMesh(const MeshParams&) const;
@@ -24,7 +24,7 @@ public:
 
     int     itsZ;      //Atomic number.
     double  itsCharge; //Net charge. Z-numElectrons.
-    RVec3   itsR;      //Spatial position.
+    rvec3_t   itsR;      //Spatial position.
 
 private:
     Atom& operator=(const Atom&); //Why?  Rule of 5/6

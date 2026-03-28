@@ -17,7 +17,7 @@ void ExFunctional::InsertChargeDensity(const DM_CD* cd)
     itsChargeDensity=cd;
 }
 
-rvec_t ExFunctional::GetVxcs(const Vector<double>& ros) const
+rvec_t ExFunctional::GetVxcs(const rvec_t& ros) const
 {
     rvec_t ret(ros.size());
     auto i(ret.begin());

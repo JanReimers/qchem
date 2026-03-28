@@ -27,8 +27,8 @@ public:
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep_QNs GetQNs() const;
     
-    virtual vec_t    <T> operator() (const RVec3&) const;
-    virtual vec3vec_t<T> Gradient   (const RVec3&) const;
+    virtual vec_t    <T> operator() (const rvec3_t&) const;
+    virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
 
 
     virtual const_iterator begin() const {return itsOrbitals.begin();}

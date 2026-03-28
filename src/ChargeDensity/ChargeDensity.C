@@ -81,8 +81,8 @@ public:
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const DM_CD&       ) const;  //Convergence check.
 
-    virtual double operator()(const RVec3&) const; // No UT coverage
-    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
+    virtual double operator()(const rvec3_t&) const; // No UT coverage
+    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 };
 
 export class SpinDensity : public virtual ScalarFunction<double>
@@ -90,8 +90,8 @@ export class SpinDensity : public virtual ScalarFunction<double>
 public:
     SpinDensity(DM_CD* up,DM_CD* down);
     ~SpinDensity();
-    virtual double operator()(const RVec3&) const; // No UT coverage
-    virtual RVec3  Gradient  (const RVec3&) const; // No UT coverage
+    virtual double operator()(const rvec3_t&) const; // No UT coverage
+    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 private:
     DM_CD* itsSpinUpCD;
     DM_CD* itsSpinDownCD;

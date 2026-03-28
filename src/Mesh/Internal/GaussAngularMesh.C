@@ -11,61 +11,61 @@ import oml;
 
 GaussAngularMesh::GaussAngularMesh(int numDir)
 {
-    Vector<RVec3>  D(numDir);
+    Vector<rvec3_t>  D(numDir);
     Vector<double> W(numDir);
     for (int i=1; i<=numDir; i++) W(i)=1.0/numDir; //Default weights.
     switch(numDir)
     {
     case (1) : //L=0.
     {
-        D(1) =RVec3(1,0,0);
+        D(1) =rvec3_t(1,0,0);
         break;
     }
     case (2) : //L=0.
     {
-        D(1) =RVec3( 1,0,0);
-        D(2) =RVec3(-1,0,0);
+        D(1) =rvec3_t( 1,0,0);
+        D(2) =rvec3_t(-1,0,0);
         break;
     }
     case (6) : //L=1.
     {
-        D(1)=RVec3( 1, 0, 0);
-        D(2)=RVec3( 0 ,1, 0);
-        D(3)=RVec3( 0, 0, 1);
-        D(4)=RVec3(-1, 0, 0);
-        D(5)=RVec3( 0,-1, 0);
-        D(6)=RVec3( 0, 0,-1);
+        D(1)=rvec3_t( 1, 0, 0);
+        D(2)=rvec3_t( 0 ,1, 0);
+        D(3)=rvec3_t( 0, 0, 1);
+        D(4)=rvec3_t(-1, 0, 0);
+        D(5)=rvec3_t( 0,-1, 0);
+        D(6)=rvec3_t( 0, 0,-1);
         break;
     }
     case (8) : //L=3;
     {
         double r=1.0/sqrt(3);
-        D(1)=RVec3( r, r, r);
-        D(2)=RVec3(-r, r, r);
-        D(3)=RVec3( r,-r, r);
-        D(4)=RVec3( r, r,-r);
-        D(5)=RVec3(-r,-r, r);
-        D(6)=RVec3( r,-r,-r);
-        D(7)=RVec3(-r, r,-r);
-        D(8)=RVec3(-r,-r,-r);
+        D(1)=rvec3_t( r, r, r);
+        D(2)=rvec3_t(-r, r, r);
+        D(3)=rvec3_t( r,-r, r);
+        D(4)=rvec3_t( r, r,-r);
+        D(5)=rvec3_t(-r,-r, r);
+        D(6)=rvec3_t( r,-r,-r);
+        D(7)=rvec3_t(-r, r,-r);
+        D(8)=rvec3_t(-r,-r,-r);
         break;
     }
     case (12) : //L=5.
     {
         double r=sqrt((5+sqrt(5.0))/10.0);
         double s=sqrt((5-sqrt(5.0))/10.0);
-        D(1 )=RVec3( r, s, 0);
-        D(2 )=RVec3(-r, s, 0);
-        D(3 )=RVec3( r,-s, 0);
-        D(4 )=RVec3(-r,-s, 0);
-        D(5 )=RVec3( 0, r, s);
-        D(6 )=RVec3( 0,-r, s);
-        D(7 )=RVec3( 0, r,-s);
-        D(8 )=RVec3( 0,-r,-s);
-        D(9 )=RVec3( s, 0, r);
-        D(10)=RVec3(-s, 0, r);
-        D(11)=RVec3( s, 0,-r);
-        D(12)=RVec3(-s, 0,-r);
+        D(1 )=rvec3_t( r, s, 0);
+        D(2 )=rvec3_t(-r, s, 0);
+        D(3 )=rvec3_t( r,-s, 0);
+        D(4 )=rvec3_t(-r,-s, 0);
+        D(5 )=rvec3_t( 0, r, s);
+        D(6 )=rvec3_t( 0,-r, s);
+        D(7 )=rvec3_t( 0, r,-s);
+        D(8 )=rvec3_t( 0,-r,-s);
+        D(9 )=rvec3_t( s, 0, r);
+        D(10)=rvec3_t(-s, 0, r);
+        D(11)=rvec3_t( s, 0,-r);
+        D(12)=rvec3_t(-s, 0,-r);
         break;
     }
     case (24) : //L=7.
@@ -73,35 +73,35 @@ GaussAngularMesh::GaussAngularMesh(int numDir)
         double r=0.866246818107820;
         double s=0.422518653761111;
         double t=0.266635401516705;
-        D(1 )=RVec3( r, s, t);
-        D(2 )=RVec3( r,-s,-t);
-        D(3 )=RVec3( r, t,-s);
-        D(4 )=RVec3( r,-t, s);
+        D(1 )=rvec3_t( r, s, t);
+        D(2 )=rvec3_t( r,-s,-t);
+        D(3 )=rvec3_t( r, t,-s);
+        D(4 )=rvec3_t( r,-t, s);
 
-        D(5 )=RVec3(-r, t, s);
-        D(6 )=RVec3(-r,-t,-s);
-        D(7 )=RVec3(-r, s,-t);
-        D(8 )=RVec3(-r,-s, t);
+        D(5 )=rvec3_t(-r, t, s);
+        D(6 )=rvec3_t(-r,-t,-s);
+        D(7 )=rvec3_t(-r, s,-t);
+        D(8 )=rvec3_t(-r,-s, t);
 
-        D(9 )=RVec3( s, t, r);
-        D(10)=RVec3( s,-t,-r);
-        D(11)=RVec3( s, r,-t);
-        D(12)=RVec3( s,-r, t);
+        D(9 )=rvec3_t( s, t, r);
+        D(10)=rvec3_t( s,-t,-r);
+        D(11)=rvec3_t( s, r,-t);
+        D(12)=rvec3_t( s,-r, t);
 
-        D(13)=RVec3(-s, r, t);
-        D(14)=RVec3(-s,-r,-t);
-        D(15)=RVec3(-s, t,-r);
-        D(16)=RVec3(-s,-t, r);
+        D(13)=rvec3_t(-s, r, t);
+        D(14)=rvec3_t(-s,-r,-t);
+        D(15)=rvec3_t(-s, t,-r);
+        D(16)=rvec3_t(-s,-t, r);
 
-        D(17)=RVec3( t, r, s);
-        D(18)=RVec3( t,-r,-s);
-        D(19)=RVec3( t, s,-r);
-        D(20)=RVec3( t,-s, r);
+        D(17)=rvec3_t( t, r, s);
+        D(18)=rvec3_t( t,-r,-s);
+        D(19)=rvec3_t( t, s,-r);
+        D(20)=rvec3_t( t,-s, r);
 
-        D(21)=RVec3(-t, s, r);
-        D(22)=RVec3(-t,-s,-r);
-        D(23)=RVec3(-t, r,-s);
-        D(24)=RVec3(-t,-r, s);
+        D(21)=rvec3_t(-t, s, r);
+        D(22)=rvec3_t(-t,-s,-r);
+        D(23)=rvec3_t(-t, r,-s);
+        D(24)=rvec3_t(-t,-r, s);
         break;
     }
     case (30) : //L=8.
@@ -109,42 +109,42 @@ GaussAngularMesh::GaussAngularMesh(int numDir)
         double r=0.818413042659382;
         double s=0.516469254306672;
         double t=0.251911909717204;
-        D(1 )=RVec3( r, s, t);
-        D(2 )=RVec3( r,-s,-t);
-        D(3 )=RVec3( r, t,-s);
-        D(4 )=RVec3( r,-t, s);
+        D(1 )=rvec3_t( r, s, t);
+        D(2 )=rvec3_t( r,-s,-t);
+        D(3 )=rvec3_t( r, t,-s);
+        D(4 )=rvec3_t( r,-t, s);
 
-        D(5 )=RVec3(-r, t, s);
-        D(6 )=RVec3(-r,-t,-s);
-        D(7 )=RVec3(-r, s,-t);
-        D(8 )=RVec3(-r,-s, t);
+        D(5 )=rvec3_t(-r, t, s);
+        D(6 )=rvec3_t(-r,-t,-s);
+        D(7 )=rvec3_t(-r, s,-t);
+        D(8 )=rvec3_t(-r,-s, t);
 
-        D(9 )=RVec3( s, t, r);
-        D(10)=RVec3( s,-t,-r);
-        D(11)=RVec3( s, r,-t);
-        D(12)=RVec3( s,-r, t);
+        D(9 )=rvec3_t( s, t, r);
+        D(10)=rvec3_t( s,-t,-r);
+        D(11)=rvec3_t( s, r,-t);
+        D(12)=rvec3_t( s,-r, t);
 
-        D(13)=RVec3(-s, r, t);
-        D(14)=RVec3(-s,-r,-t);
-        D(15)=RVec3(-s, t,-r);
-        D(16)=RVec3(-s,-t, r);
+        D(13)=rvec3_t(-s, r, t);
+        D(14)=rvec3_t(-s,-r,-t);
+        D(15)=rvec3_t(-s, t,-r);
+        D(16)=rvec3_t(-s,-t, r);
 
-        D(17)=RVec3( t, r, s);
-        D(18)=RVec3( t,-r,-s);
-        D(19)=RVec3( t, s,-r);
-        D(20)=RVec3( t,-s, r);
+        D(17)=rvec3_t( t, r, s);
+        D(18)=rvec3_t( t,-r,-s);
+        D(19)=rvec3_t( t, s,-r);
+        D(20)=rvec3_t( t,-s, r);
 
-        D(21)=RVec3(-t, s, r);
-        D(22)=RVec3(-t,-s,-r);
-        D(23)=RVec3(-t, r,-s);
-        D(24)=RVec3(-t,-r, s);
+        D(21)=rvec3_t(-t, s, r);
+        D(22)=rvec3_t(-t,-s,-r);
+        D(23)=rvec3_t(-t, r,-s);
+        D(24)=rvec3_t(-t,-r, s);
 
-        D(25)=RVec3( 1, 0, 0);
-        D(26)=RVec3(-1, 0, 0);
-        D(27)=RVec3( 0, 1, 0);
-        D(28)=RVec3( 0,-1, 0);
-        D(29)=RVec3( 0, 0, 1);
-        D(30)=RVec3( 0, 0,-1);
+        D(25)=rvec3_t( 1, 0, 0);
+        D(26)=rvec3_t(-1, 0, 0);
+        D(27)=rvec3_t( 0, 1, 0);
+        D(28)=rvec3_t( 0,-1, 0);
+        D(29)=rvec3_t( 0, 0, 1);
+        D(30)=rvec3_t( 0, 0,-1);
 
         for (int i=1 ; i<=24; i++) W(i)=21.0/600.0;
         for (int i=25; i<=30; i++) W(i)=16.0/600.0;
@@ -159,40 +159,40 @@ GaussAngularMesh::GaussAngularMesh(int numDir)
         double v=sqrt((3.0+r5)/6.0);
         double t=sqrt(1.0/3.0);
 
-        D( 1)=RVec3( r, s, 0);
-        D( 2)=RVec3(-r, s, 0);
-        D( 3)=RVec3( r,-s, 0);
-        D( 4)=RVec3(-r,-s, 0);
-        D( 5)=RVec3( 0, r, s);
-        D( 6)=RVec3( 0,-r, s);
-        D( 7)=RVec3( 0, r,-s);
-        D( 8)=RVec3( 0,-r,-s);
-        D( 9)=RVec3( s, 0, r);
-        D(10)=RVec3( s, 0,-r);
-        D(11)=RVec3(-s, 0, r);
-        D(12)=RVec3(-s, 0,-r);
+        D( 1)=rvec3_t( r, s, 0);
+        D( 2)=rvec3_t(-r, s, 0);
+        D( 3)=rvec3_t( r,-s, 0);
+        D( 4)=rvec3_t(-r,-s, 0);
+        D( 5)=rvec3_t( 0, r, s);
+        D( 6)=rvec3_t( 0,-r, s);
+        D( 7)=rvec3_t( 0, r,-s);
+        D( 8)=rvec3_t( 0,-r,-s);
+        D( 9)=rvec3_t( s, 0, r);
+        D(10)=rvec3_t( s, 0,-r);
+        D(11)=rvec3_t(-s, 0, r);
+        D(12)=rvec3_t(-s, 0,-r);
 
-        D(13)=RVec3( u, v, 0);
-        D(14)=RVec3(-u, v, 0);
-        D(15)=RVec3( u,-v, 0);
-        D(16)=RVec3(-u,-v, 0);
-        D(17)=RVec3( 0, u, v);
-        D(18)=RVec3( 0,-u, v);
-        D(19)=RVec3( 0, u,-v);
-        D(20)=RVec3( 0,-u,-v);
-        D(21)=RVec3( v, 0, u);
-        D(22)=RVec3( v, 0,-u);
-        D(23)=RVec3(-v, 0, u);
-        D(24)=RVec3(-v, 0,-u);
+        D(13)=rvec3_t( u, v, 0);
+        D(14)=rvec3_t(-u, v, 0);
+        D(15)=rvec3_t( u,-v, 0);
+        D(16)=rvec3_t(-u,-v, 0);
+        D(17)=rvec3_t( 0, u, v);
+        D(18)=rvec3_t( 0,-u, v);
+        D(19)=rvec3_t( 0, u,-v);
+        D(20)=rvec3_t( 0,-u,-v);
+        D(21)=rvec3_t( v, 0, u);
+        D(22)=rvec3_t( v, 0,-u);
+        D(23)=rvec3_t(-v, 0, u);
+        D(24)=rvec3_t(-v, 0,-u);
 
-        D(25)=RVec3( t, t, t);
-        D(26)=RVec3(-t, t, t);
-        D(27)=RVec3( t,-t, t);
-        D(28)=RVec3( t, t,-t);
-        D(29)=RVec3(-t,-t, t);
-        D(30)=RVec3( t,-t,-t);
-        D(31)=RVec3(-t, t,-t);
-        D(32)=RVec3(-t,-t,-t);
+        D(25)=rvec3_t( t, t, t);
+        D(26)=rvec3_t(-t, t, t);
+        D(27)=rvec3_t( t,-t, t);
+        D(28)=rvec3_t( t, t,-t);
+        D(29)=rvec3_t(-t,-t, t);
+        D(30)=rvec3_t( t,-t,-t);
+        D(31)=rvec3_t(-t, t,-t);
+        D(32)=rvec3_t(-t,-t,-t);
 
         for (int i=1 ; i<=24; i++) W(i)=25.0/840.0;
         for (int i=25; i<=32; i++) W(i)=27.0/840.0;
@@ -204,61 +204,61 @@ GaussAngularMesh::GaussAngularMesh(int numDir)
         double t=sqrt(1.0/3.0);
         double u=sqrt(1.0/11.0);
         double v=sqrt(9.0/11.0);
-        D( 1)=RVec3( 1, 0, 0);
-        D( 2)=RVec3(-1, 0, 0);
-        D( 3)=RVec3( 0, 1, 0);
-        D( 4)=RVec3( 0,-1, 0);
-        D( 5)=RVec3( 0, 0, 1);
-        D( 6)=RVec3( 0, 0,-1);
+        D( 1)=rvec3_t( 1, 0, 0);
+        D( 2)=rvec3_t(-1, 0, 0);
+        D( 3)=rvec3_t( 0, 1, 0);
+        D( 4)=rvec3_t( 0,-1, 0);
+        D( 5)=rvec3_t( 0, 0, 1);
+        D( 6)=rvec3_t( 0, 0,-1);
 
-        D( 7)=RVec3( s, s, 0);
-        D( 8)=RVec3(-s, s, 0);
-        D( 9)=RVec3( s,-s, 0);
-        D(10)=RVec3(-s,-s, 0);
-        D(11)=RVec3( 0, s, s);
-        D(12)=RVec3( 0,-s, s);
-        D(13)=RVec3( 0, s,-s);
-        D(14)=RVec3( 0,-s,-s);
-        D(15)=RVec3( s, 0, s);
-        D(16)=RVec3(-s, 0, s);
-        D(17)=RVec3( s, 0,-s);
-        D(18)=RVec3(-s, 0,-s);
+        D( 7)=rvec3_t( s, s, 0);
+        D( 8)=rvec3_t(-s, s, 0);
+        D( 9)=rvec3_t( s,-s, 0);
+        D(10)=rvec3_t(-s,-s, 0);
+        D(11)=rvec3_t( 0, s, s);
+        D(12)=rvec3_t( 0,-s, s);
+        D(13)=rvec3_t( 0, s,-s);
+        D(14)=rvec3_t( 0,-s,-s);
+        D(15)=rvec3_t( s, 0, s);
+        D(16)=rvec3_t(-s, 0, s);
+        D(17)=rvec3_t( s, 0,-s);
+        D(18)=rvec3_t(-s, 0,-s);
 
-        D(19)=RVec3( t, t, t);
-        D(20)=RVec3(-t, t, t);
-        D(21)=RVec3( t,-t, t);
-        D(22)=RVec3( t, t,-t);
-        D(23)=RVec3(-t,-t, t);
-        D(24)=RVec3( t,-t,-t);
-        D(25)=RVec3(-t, t,-t);
-        D(26)=RVec3(-t,-t,-t);
+        D(19)=rvec3_t( t, t, t);
+        D(20)=rvec3_t(-t, t, t);
+        D(21)=rvec3_t( t,-t, t);
+        D(22)=rvec3_t( t, t,-t);
+        D(23)=rvec3_t(-t,-t, t);
+        D(24)=rvec3_t( t,-t,-t);
+        D(25)=rvec3_t(-t, t,-t);
+        D(26)=rvec3_t(-t,-t,-t);
 
-        D(27)=RVec3( u, u, v);
-        D(28)=RVec3(-u, u, v);
-        D(29)=RVec3( u,-u, v);
-        D(30)=RVec3(-u,-u, v);
-        D(31)=RVec3( u, u,-v);
-        D(32)=RVec3(-u, u,-v);
-        D(33)=RVec3( u,-u,-v);
-        D(34)=RVec3(-u,-u,-v);
+        D(27)=rvec3_t( u, u, v);
+        D(28)=rvec3_t(-u, u, v);
+        D(29)=rvec3_t( u,-u, v);
+        D(30)=rvec3_t(-u,-u, v);
+        D(31)=rvec3_t( u, u,-v);
+        D(32)=rvec3_t(-u, u,-v);
+        D(33)=rvec3_t( u,-u,-v);
+        D(34)=rvec3_t(-u,-u,-v);
 
-        D(35)=RVec3( v, u, u);
-        D(36)=RVec3(-v, u, u);
-        D(37)=RVec3( v,-u, u);
-        D(38)=RVec3(-v,-u, u);
-        D(39)=RVec3( v, u,-u);
-        D(40)=RVec3(-v, u,-u);
-        D(41)=RVec3( v,-u,-u);
-        D(42)=RVec3(-v,-u,-u);
+        D(35)=rvec3_t( v, u, u);
+        D(36)=rvec3_t(-v, u, u);
+        D(37)=rvec3_t( v,-u, u);
+        D(38)=rvec3_t(-v,-u, u);
+        D(39)=rvec3_t( v, u,-u);
+        D(40)=rvec3_t(-v, u,-u);
+        D(41)=rvec3_t( v,-u,-u);
+        D(42)=rvec3_t(-v,-u,-u);
 
-        D(43)=RVec3( u, v, u);
-        D(44)=RVec3(-u, v, u);
-        D(45)=RVec3( u,-v, u);
-        D(46)=RVec3(-u,-v, u);
-        D(47)=RVec3( u, v,-u);
-        D(48)=RVec3(-u, v,-u);
-        D(49)=RVec3( u,-v,-u);
-        D(50)=RVec3(-u,-v,-u);
+        D(43)=rvec3_t( u, v, u);
+        D(44)=rvec3_t(-u, v, u);
+        D(45)=rvec3_t( u,-v, u);
+        D(46)=rvec3_t(-u,-v, u);
+        D(47)=rvec3_t( u, v,-u);
+        D(48)=rvec3_t(-u, v,-u);
+        D(49)=rvec3_t( u,-v,-u);
+        D(50)=rvec3_t(-u,-v,-u);
 
         for (int i=1 ; i<= 6; i++) W(i)= 9216.0/725760.0;
         for (int i=7 ; i<=18; i++) W(i)=16384.0/725760.0;
