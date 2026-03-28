@@ -6,7 +6,7 @@ export module qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.Rk;
-// import oml.Matrix; 
+import oml.Vector; 
 
 export namespace BSpline
 {
@@ -38,10 +38,10 @@ template <size_t K> class RkEngine  : public virtual Rk
     typedef bspline::Spline<double,K> sp_t;
 public:
     RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
-    double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
-    double Coulomb_R0() const; //R_0(la,la,lc,lc);
-    RVec   Coulomb_Rk(size_t la,size_t lc) const; 
-    RVec   ExchangeRk(size_t la,size_t lb) const; 
+    double   Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
+    double   Coulomb_R0() const; //R_0(la,la,lc,lc);
+    rvec11_t Coulomb_Rk(size_t la,size_t lc) const; 
+    rvec11_t ExchangeRk(size_t la,size_t lb) const; 
 private:
     size_t LMax;
     Vector<double> Rabcd_k;

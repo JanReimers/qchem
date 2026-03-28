@@ -67,13 +67,13 @@ double RkEngine::Coulomb_R0(size_t la,size_t lc) const
     return (Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
 }
 
-Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
+Rk::rvec11_t RkEngine::Coulomb_Rk(size_t la,size_t lc) const
 {
     assert(la>=0);
     assert(lc>=0);
     assert(la<=LMax);
     assert(lc<=LMax);
-    Vector<double> ret(la+lc+1,0.0);
+    rvec11_t ret(0.0);
     size_t i=1;
     for (size_t k=0;k<=2*std::min(la,lc);k+=2)
     {
@@ -82,12 +82,12 @@ Vector<double> RkEngine::Coulomb_Rk(size_t la,size_t lc) const
         size_t Lab_m=2*la+1-k; // second term r_1
         size_t Lcd_p=2*lc+3+k; // second term r_2^2
         //cout << la << " " << lc << " " << k << " " << Lab_p << " " << Lcd_p << endl;
-        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
+        ret[i++]=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p));
     }
     return ret;
 }
 
-Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
+Rk::rvec11_t RkEngine::ExchangeRk(size_t la,size_t lb) const
 {
     assert(la>=0);
     assert(lb>=0);
@@ -96,7 +96,7 @@ Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
     size_t kmin=std::abs((int)la-(int)lb);
     size_t kmax=la+lb;
     size_t N=(kmax-kmin)/2+1;
-    Vector<double> ret(N,0.0);
+    rvec11_t ret(0.0);
     size_t i=1;
     for (size_t k=kmin;k<=kmax;k+=2)
     {
@@ -104,40 +104,10 @@ Vector<double> RkEngine::ExchangeRk(size_t la,size_t lb) const
         size_t Lcd_m=la+lb+1-k; // first term r_2
         size_t Lab_m=la+lb+1-k; // second term r_1
         size_t Lcd_p=la+lb+3+k; 
-        ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
+        ret[i++]=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
     }
     return ret;
 }
 
-// Vector<double> RkEngine::ExchangeRk(size_t Ala,size_t Alb, size_t la,size_t lb) const
-// {
-//     assert (Ala>=la);
-//     assert (Alb>=lb);
-//     assert(la>=0);
-//     assert(lb>=0);
-//     assert(la<=LMax);
-//     assert(lb<=LMax);
-//     size_t kmin=std::abs((int)Ala-(int)Alb);
-//     size_t kmax=Ala+Alb;
-//     size_t N=(kmax-kmin)/2+1;
-//     Vector<double> ret(N,0.0);
-//     size_t i=1;
-//     for (size_t k=kmin;k<=kmax;k+=2)
-//     {
-//         if (k>la+lb+1)
-//         {
-//             //std::cerr << "Slater::RkEngine::ExchangeRk: Divergent integral R_" << k << "(" << la << "," << lb << ")" << std::endl;
-//             ret(i++)=0.0;
-//             continue;
-//         }
-//         assert(k<=la+lb+1);
-//         size_t Lab_p=la+lb+3+k; // first term r_1^2
-//         size_t Lcd_m=la+lb+1-k; // first term r_2
-//         size_t Lab_m=la+lb+1-k; // second term r_1
-//         size_t Lcd_p=la+lb+3+k; 
-//         ret(i++)=(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p)); //(2*k+1)???
-//     }
-//     return ret;
-// }
 
 } //namespace

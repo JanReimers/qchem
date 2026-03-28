@@ -3,13 +3,13 @@ module;
 #include <vector>
 #include <cassert>
 #include <iostream>
-
+#include <blaze/Math.h>
 module qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.Internal.AngularIntegrals; 
 
-AngularIntegrals::RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
+BS_Evaluator::rvec11_t BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
 {
-    RVec Ak;
+    rvec11_t Ak(0.0);
     int la=a->Getl(),lc=c->Getl();
     const IBS_Evaluator::is_t& amls=a->Getmls(),cmls=c->Getmls();
     size_t nac=amls.size()*cmls.size();
@@ -25,15 +25,15 @@ AngularIntegrals::RVec BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluato
         for (auto ma:amls)
         for (auto mc:cmls)
             Ak+=AngularIntegrals::Coulomb(la,lc,ma,mc);
-        Ak/=nac;
+        Ak/=(double)nac;
     }
     return Ak;
     
 }
 
-AngularIntegrals::RVec BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* b) const
+BS_Evaluator::rvec11_t BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* b) const
 {
-    RVec Ak;
+    rvec11_t Ak(0.0);
     int la=a->Getl(),lb=b->Getl();
     const IBS_Evaluator::is_t& amls=a->Getmls(),bmls=b->Getmls();
     size_t nab=amls.size()*bmls.size();
@@ -60,7 +60,7 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
     size_t spanab=a->maxSpan(),spancd=c->maxSpan();
     size_t Na=a->size(), Nc=c->size();
     int la=a->Getl(), lc=c->Getl();
-    RVec Akac=Coulomb_AngularIntegrals(a,c);
+    rvec11_t Akac=Coulomb_AngularIntegrals(a,c);
     ERI4 J(Na,Nc);
     ds_t na=a->Norm(), nc=c->Norm();
 
@@ -87,8 +87,8 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
                         assert(false);
                     }
                     double norm=na[ia]*na[ib]*nc[ic]*nc[id];
-                    RVec Rkac=loop_4_direct(c->es_index(id),la,lc);
-                    Jab(ic,id)=Akac*Rkac*norm;
+                    rvec11_t Rkac=loop_4_direct(c->es_index(id),la,lc);
+                    Jab(ic,id)=trans(Akac)*Rkac*norm;
                 }
             }
         }
@@ -105,7 +105,7 @@ ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) cons
     ERI4 K(Na,Nc);
     ds_t na=a->Norm(), nc=c->Norm();
     int la=a->Getl(), lc=c->Getl();
-    RVec Akac=ExchangeAngularIntegrals(a,c);
+    rvec11_t Akac=ExchangeAngularIntegrals(a,c);
     for (size_t ia:a->indices())
     {
         loop_1(a->es_index(ia)); //Start a cache for Gaussian::RkEngine*
@@ -121,13 +121,13 @@ ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) cons
                 {
                     if (id>ib+spancd || ib>id+spanab) continue;
                     double norm=na[ia]*na[ib]*nc[ic]*nc[id]; 
-                    RVec RKac=loop_4_exchange(c->es_index(id),la,lc);
+                    rvec11_t RKac=loop_4_exchange(c->es_index(id),la,lc);
                     if (ic==id)
-                        Kab(ic,id)=Akac*RKac*norm; 
+                        Kab(ic,id)=trans(Akac)*RKac*norm; 
                     else if (id<ic)
-                        Kab(id,ic)+=0.5*Akac*RKac*norm; 
+                        Kab(id,ic)+=0.5*trans(Akac)*RKac*norm; 
                     else
-                        Kab(ic,id)+=0.5*Akac*RKac*norm; 
+                        Kab(ic,id)+=0.5*trans(Akac)*RKac*norm; 
 
                 }
             }
