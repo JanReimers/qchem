@@ -2,7 +2,6 @@
 module;
 export module qchem.BasisSet.Atom.Gaussian.Rk;
 export import qchem.BasisSet.Atom.Rk;
-import oml.Matrix;
 
 export namespace Gaussian
 {
@@ -25,7 +24,7 @@ public:
     
     double eab, ecd;
     size_t LMax;
-    Matrix<double> Iab,Icd; //Derivative tables.
+    rmat_t Iab,Icd; //Derivative tables.
 };
 
 };

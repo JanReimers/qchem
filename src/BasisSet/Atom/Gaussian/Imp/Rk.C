@@ -8,7 +8,6 @@ module qchem.BasisSet.Atom.Gaussian.Rk;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import Common.Constants;
 import Common.Factorials;
-import oml;
 
 using std::cout;
 using std::endl;
@@ -26,33 +25,30 @@ namespace Gaussian
 //  Build up the derivative look up tables.
 //
 RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
- : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(0,LMax,1,2*LMax+1), Icd(0,LMax,1,2*LMax+1)
+ : eab(_eab), ecd(_ecd), LMax(_LMax), Iab(LMax+1,2*LMax+2,0.0), Icd(LMax+1,2*LMax+2,0.0)
  {
  //   cout << "RkEngine eab,ecd,LMax=" << eab << " " << ecd << " " << LMax << endl;
-    assert(Iab.GetLimits()==Icd.GetLimits());
-    Fill(Iab,0.0);
-    Fill(Icd,0.0);
-    Vector<double> f(0,LMax,0.0);
+    rvec_t f(LMax+1,0.0);
     const PascalTriangle& c1(PascalTriangle::thePascalTriangle); //Binomial coefficients.
     double eabcd=eab+ecd;
     
-    for (size_t L2:Iab.cols())
+    for (size_t L2:iv_t(1,Iab.columns()))
     {
         double fL2=qchem::DFact[2*L2-1]/pow(2,L2-1); //sqrt(pi)*(2*n-1)!!/2^n/4
-        for (auto ik:f.indices()) f(ik)=fk(eab,eabcd,ik,L2);
+        for (auto ik:iv_t(0,LMax+1)) f[ik]=fk(eab,eabcd,ik,L2);
         Iab(0,L2)=fL2/(eab*pow(eabcd,L2+0.5)); //This is what gets differentiated.
         //cout << "L2,Iab(0,L2) " << L2 << " " << Iab(0,L2) << endl;
         for (size_t ik=1;ik<=LMax;ik++)
             for (size_t jk=0;jk<=ik-1;jk++)
-                Iab(ik,L2)+=c1(ik-1,jk)*Iab(jk,L2)*f(ik-1-jk);  
+                Iab(ik,L2)+=c1(ik-1,jk)*Iab(jk,L2)*f[ik-1-jk];  
             
-        for (auto ik:f.indices()) f(ik)=fk(ecd,eabcd,ik,L2);
+        for (auto ik:iv_t(0,LMax+1)) f[ik]=fk(ecd,eabcd,ik,L2);
         Icd(0,L2)=fL2/(ecd*pow(eabcd,L2+0.5)); //This is what gets differentiated.
         //cout << "L2,Icd(0,L2) " << L2 << " " << Icd(0,L2) << endl;
         for (size_t ik=1;ik<=LMax;ik++)
             for (size_t jk=0;jk<=ik-1;jk++)
             {
-                Icd(ik,L2)+=c1(ik-1,jk)*Icd(jk,L2)*f(ik-1-jk);  
+                Icd(ik,L2)+=c1(ik-1,jk)*Icd(jk,L2)*f[ik-1-jk];  
 //                if (ik==1 && L2==1)
 //                {
 //                    cout << jk << " " << c1(ik-1,jk) << " " << Icd(jk,L2) << " " << f(ik-1-jk) << endl;
