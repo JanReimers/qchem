@@ -69,12 +69,11 @@ rvec11_t Exchange(int la,int lb)
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
     rvec11_t Ak(0.0);
-    assert((kmax-kmin)/2+1<=Ak.size());
-    int i=0;
-    for (int k=kmin;k<=kmax;k+=2,i++)
+    assert(kmax<=Ak.size());
+    for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
-        Ak[i]=Exchange(k,la,lb); //What about *(2k+1) ??
+        Ak[k]=Exchange(k,la,lb); //What about *(2k+1) ??
     }
     return Ak;
 }
@@ -83,16 +82,16 @@ rvec11_t Exchange(int la,int lb)
 rvec11_t Coulomb (int la,int lc,int ma,int mc)
 {    
     rvec11_t Ak(0.0);
-    assert(la+lc+1<=Ak.size());
     int kmax=2*std::min(la,lc);
+    assert(kmax<=Ak.size());
     int phase=intpow(-1,ma+mc);
-    for (int k=0,i=0;k<=kmax;k+=2,i++)
+    for (int k=0;k<=kmax;k+=2)
     {
         double w3a=Wigner3j::w3j(la,la,k);
         double w3c=Wigner3j::w3j(lc,lc,k);
         double w3am=Wigner3j::w3j(la,la,k,ma,-ma);
         double w3cm=Wigner3j::w3j(lc,lc,k,mc,-mc);
-        Ak[i]= FourPi2*phase*(2*la+1)*(2*lc+1)*w3a*w3am*w3c*w3cm;
+        Ak[k]= FourPi2*phase*(2*la+1)*(2*lc+1)*w3a*w3am*w3c*w3cm;
     }
     return Ak;
 }
@@ -108,13 +107,13 @@ rvec11_t Exchange(int la,int lb,int ma,int mb)
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
     rvec11_t Ak(0.0);
-    assert((kmax-kmin)/2+1<=Ak.size());
-    for (int k=kmin,i=0;k<=kmax;k+=2,i++)
+    assert(kmax<=Ak.size());
+    for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
         double w3ab=Wigner3j::w3j(la,lb,k);
         double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
-        Ak[i]=FourPi2*(2*la+1)*(2*lb+1)*w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
+        Ak[k]=FourPi2*(2*la+1)*(2*lb+1)*w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
     }
     return Ak;
 }
