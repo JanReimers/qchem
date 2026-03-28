@@ -18,8 +18,8 @@ class RkEngine : public virtual Rk
 public:
     RkEngine(double eab, double ecd, size_t LMax);
     virtual double Coulomb_R0(size_t la,size_t lc) const; //R_0(la,la,lc,lc);
-    virtual double Coulomb_Rk(size_t la,size_t lc,rvec11_t Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
-    virtual double ExchangeRk(size_t la,size_t lb,rvec11_t Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
+    virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
+    virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
 private:
     static double fk(double a, double ab, size_t k,size_t n);
     

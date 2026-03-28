@@ -18,13 +18,13 @@ Rk* Gaussian_BS::Create(size_t ia,size_t ic,size_t ib,size_t id) const
         grouper.LMax(ia,ib,ic,id));
 }
 
-double Gaussian_BS::loop_4_direct(size_t id, size_t la, size_t lc,rvec11_t Ak)  const
+double Gaussian_BS::loop_4_direct(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
     return cd->Coulomb_Rk(la,lc,Ak);
 }
-double Gaussian_BS::loop_4_exchange(size_t id, size_t la, size_t lc,rvec11_t Ak)  const
+double Gaussian_BS::loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);

@@ -32,13 +32,13 @@ template <size_t K> Rk* BSpline_BS<K>::Create(size_t ia,size_t ic,size_t ib,size
     return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
 }
 
-template <size_t K> double BSpline_BS<K>::loop_4_direct(size_t id, size_t la, size_t lc, rvec11_t Ak)  const
+template <size_t K> double BSpline_BS<K>::loop_4_direct(size_t id, size_t la, size_t lc, const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const BSpline::RkEngine<6>* cd = dynamic_cast<const BSpline::RkEngine<6>*>(c);
     return cd->Coulomb_Rk(la,lc,Ak);
 }
-template <size_t K> double BSpline_BS<K>::loop_4_exchange(size_t id, size_t la, size_t lc, rvec11_t Ak)  const
+template <size_t K> double BSpline_BS<K>::loop_4_exchange(size_t id, size_t la, size_t lc, const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const BSpline::RkEngine<6>* cd = dynamic_cast<const BSpline::RkEngine<6>*>(c);

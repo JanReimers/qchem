@@ -13,8 +13,8 @@ public:
     virtual ~BS_Evaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created.
 
     virtual void Register(IBS_Evaluator*)=0; //Used for grouping all unique exponents or splines.
-    virtual double loop_4_direct  (size_t id, size_t la, size_t lc,rvec11_t Ak) const=0; //Return vector dot product A[k]*R[k] 
-    virtual double loop_4_exchange(size_t id, size_t la, size_t lc,rvec11_t Ak) const=0; //Return vector dot product A[k]*R[k] 
+    virtual double loop_4_direct  (size_t id, size_t la, size_t lc,const rvec11_t& Ak) const=0; //Return vector dot product A[k]*R[k] 
+    virtual double loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak) const=0; //Return vector dot product A[k]*R[k] 
     // Angular integrals use Wigner-3j symbols and are basis set independent.
     rvec11_t Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const;
     rvec11_t ExchangeAngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const;

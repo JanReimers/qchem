@@ -21,6 +21,6 @@ public:
     typedef AngularIntegrals::rvec11_t rvec11_t;
     virtual ~Rk() {};
     virtual double Coulomb_R0(size_t la,size_t lc) const=0; //R_0(la,la,lc,lc);
-    virtual double Coulomb_Rk(size_t la,size_t lc,rvec11_t Ak) const=0; //sum{k,A_k*R_k(la,la,lc,lc)};
-    virtual double ExchangeRk(size_t la,size_t lb,rvec11_t Ak) const=0; //sum{k,A_k*R_k(la,lb,la,lb)};
+    virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const=0; //sum{k,A_k*R_k(la,la,lc,lc)};
+    virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const=0; //sum{k,A_k*R_k(la,lb,la,lb)};
 };
