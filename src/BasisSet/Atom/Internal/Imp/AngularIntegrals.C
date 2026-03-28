@@ -57,7 +57,7 @@ double Exchange(int k,int la,int lb,int ma,int mb)
 rvec11_t Coulomb(int la,int lb)
 {    
     rvec11_t Ak(0.0);
-    Ak[1]=FourPi2;
+    Ak[0]=FourPi2;
     return Ak;
 }
 
@@ -68,19 +68,13 @@ rvec11_t Exchange(int la,int lb)
     assert(lb>=0);
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
-    // int N=(kmax-kmin)/2+1;
-    // if (N>) 
-    // {
-    //     cout << "Exchange l Angular N=" << N << endl;
-    //     exit(-1);
-    // }
     rvec11_t Ak(0.0);
     assert((kmax-kmin)/2+1<=Ak.size());
-    int i=1;
-    for (int k=kmin;k<=kmax;k+=2)
+    int i=0;
+    for (int k=kmin;k<=kmax;k+=2,i++)
     {
         assert((k+la+lb)%2==0);
-        Ak[i++]=Exchange(k,la,lb); //What about *(2k+1) ??
+        Ak[i]=Exchange(k,la,lb); //What about *(2k+1) ??
     }
     return Ak;
 }
@@ -88,18 +82,11 @@ rvec11_t Exchange(int la,int lb)
 
 rvec11_t Coulomb (int la,int lc,int ma,int mc)
 {    
-    //  if (la+lc+1>7) 
-    // {
-    //     cout << "Coulomb Angular la+lc+1=" << la+lc+1 << endl;
-    //     exit(-1);
-    // }
-    // RVec Ak(la+lc+1,0.0);
     rvec11_t Ak(0.0);
     assert(la+lc+1<=Ak.size());
     int kmax=2*std::min(la,lc);
     int phase=intpow(-1,ma+mc);
-    int i=1;
-    for (int k=0;k<=kmax;k+=2,i++)
+    for (int k=0,i=0;k<=kmax;k+=2,i++)
     {
         double w3a=Wigner3j::w3j(la,la,k);
         double w3c=Wigner3j::w3j(lc,lc,k);
@@ -120,22 +107,14 @@ rvec11_t Exchange(int la,int lb,int ma,int mb)
     assert(mb<= lb);
     int kmin=std::abs(la-lb);
     int kmax=la+lb;
-    // int N=(kmax-kmin)/2+1;
-    // if (N>4) 
-    // {
-    //     cout << "Exchange m Angular N=" << N << endl;
-    //     exit(-1);
-    // }
-    // RVec Ak(N,0.0);
     rvec11_t Ak(0.0);
     assert((kmax-kmin)/2+1<=Ak.size());
-    int i=1;
-    for (int k=kmin;k<=kmax;k+=2)
+    for (int k=kmin,i=0;k<=kmax;k+=2,i++)
     {
         assert((k+la+lb)%2==0);
         double w3ab=Wigner3j::w3j(la,lb,k);
         double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
-        Ak[i++]=FourPi2*(2*la+1)*(2*lb+1)*w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
+        Ak[i]=FourPi2*(2*la+1)*(2*lb+1)*w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
     }
     return Ak;
 }

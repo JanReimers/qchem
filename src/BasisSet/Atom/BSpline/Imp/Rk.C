@@ -163,10 +163,9 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     assert(la<=LMax);
     assert(lc<=LMax);
     rvec11_t Rk(0.0);
-    size_t i=1;
-    for (size_t k=0;k<=2*std::min(la,lc);k+=2)
+    for (size_t k=0,i=0;k<=2*std::min(la,lc);k+=2,i++)
     {
-        Rk[i++]=Rabcd_k(k); 
+        Rk[i]=Rabcd_k(k); 
     }
     return Rk;
  }
@@ -178,13 +177,12 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     assert(lb<=LMax);
     int kmin=std::abs((int)la-(int)lb);
     int kmax=la+lb;
-    int N=(kmax-kmin)/2+1;
+    // int N=(kmax-kmin)/2+1;
     rvec11_t Rk(0.0);
-    int i=1;
-    for (int k=kmin;k<=kmax;k+=2)
+    for (int k=kmin,i=0;k<=kmax;k+=2,i++)
     {
         assert((k+la+lb)%2==0);
-        Rk[i++]=Rabcd_k(k); 
+        Rk[i]=Rabcd_k(k); 
     }
     return Rk;
  }
