@@ -25,7 +25,7 @@ rvec_t Fit_IE::MakeCharge() const
     int i=0;
     for (auto r:a->radials)
     {
-        c[i]=r->GetCharge(a->pols[i])*a->ns(i+1); 
+        c[i]=r->GetCharge(a->pols[i])*a->ns[i]; 
         i++;       
     }
 
@@ -45,7 +45,7 @@ rmat_t Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
             s(ia,ib)=a->radials[ia]->Integrate(Repulsion2C,
-                b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns(ia+1)*b->ns(ib+1);
+                b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns[ia]*b->ns[ib];
     assert(!isnan(s));
     return s;
 }
@@ -58,7 +58,7 @@ SMatrix<double> IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
     SMatrix<double> s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns(ia+1)*ab->ns(ib+1);
+            s(ia+1,ib+1)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns[ia]*ab->ns[ib];
 
     return s;
 }
@@ -71,7 +71,7 @@ ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
     for (size_t ic=0;ic<Nc;ic++)
     {
         rsmat_t s=convert(Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]));
-        s*=c->ns(ic+1);
+        s*=c->ns[ic];
         s3.push_back(s);
     } 
     return s3;   
@@ -84,7 +84,7 @@ ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
     for (size_t ic=0;ic<Nc;ic++)
     {
         rsmat_t s=convert(Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]));
-        s*=c->ns(ic+1);
+        s*=c->ns[ic];
         s3.push_back(s);
     }    
     return s3;
@@ -96,7 +96,7 @@ SMatrix<double> Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction
     SMatrix<double> s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns(ia+1)*ab->ns(ib+1);
+            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns[ia]*ab->ns[ib];
         
     return s;    
 }
@@ -112,17 +112,17 @@ ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
     size_t Na=a->size(), Nc=c->size();
     ERI4 J(Na,Nc);
     
-    for (size_t ia:a->ns.indices())
-        for (size_t ib:a->ns.indices(ia))
+    for (size_t ia:iv_t(0,Na))
+        for (size_t ib:iv_t(ia,Na))
         {
-            rsmat_t& Jab=J(ia-1,ib-1);
-            for (size_t ic:c->ns.indices())
-                for (size_t id:c->ns.indices(ic))
+            rsmat_t& Jab=J(ia,ib);
+            for (size_t ic:iv_t(0,Nc))
+                for (size_t id:iv_t(ic,Nc))
                 {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=a->ns(ia)*a->ns(ib)*c->ns(ic)*c->ns(id);
-                        assert(c->radials[id-1]);
-                        Jab(ic-1,id-1)=norm * c->radials[id-1]->Integrate(a->radials[ia-1],a->radials[ib-1],c->radials[ic-1],a->pols[ia-1],a->pols[ib-1],c->pols[ic-1],c->pols[id-1],cache);
+                        double norm=a->ns[ia]*a->ns[ib]*c->ns[ic]*c->ns[id];
+                        assert(c->radials[id]);
+                        Jab(ic,id)=norm * c->radials[id]->Integrate(a->radials[ia],a->radials[ib],c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id],cache);
                 }
         }
     return J;
@@ -136,23 +136,23 @@ ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
     assert(b);
     size_t Na=a->size(), Nb=b->size();
     ERI4 K(Na,Nb);
-    for (size_t ia:a->ns.indices())
-        for (size_t ib:b->ns.indices())
+    for (size_t ia:iv_t(0,Na))
+        for (size_t ib:iv_t(0,Nb))
            
-            for (size_t ic:a->ns.indices(ia))
+            for (size_t ic:iv_t(ia,Na))
             {
-                rsmat_t& Kac=K(ia-1,ic-1);
-                for (size_t id:b->ns.indices())
+                rsmat_t& Kac=K(ia,ic);
+                for (size_t id:iv_t(0,Nb))
                 {
                   //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                    double norm=a->ns(ia)*b->ns(ib)*a->ns(ic)*b->ns(id);
-                    assert(b->radials[id-1]);
+                    double norm=a->ns[ia]*b->ns[ib]*a->ns[ic]*b->ns[id];
+                    assert(b->radials[id]);
                     if (ib==id)
-                        Kac(ib-1,id-1)=norm * b->radials[id-1]->Integrate(a->radials[ia-1],b->radials[ib-1],a->radials[ic-1],a->pols[ia-1],b->pols[ib-1],a->pols[ic-1],b->pols[id-1],cache);
+                        Kac(ib,id)=norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                     else if (ib<id)
-                        Kac(ib-1,id-1)+=0.5*norm * b->radials[id-1]->Integrate(a->radials[ia-1],b->radials[ib-1],a->radials[ic-1],a->pols[ia-1],b->pols[ib-1],a->pols[ic-1],b->pols[id-1],cache);
+                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                     else 
-                        Kac(id-1,ib-1)+=0.5*norm * b->radials[id-1]->Integrate(a->radials[ia-1],b->radials[ib-1],a->radials[ic-1],a->pols[ia-1],b->pols[ib-1],a->pols[ic-1],b->pols[id-1],cache);
+                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                 }        
             }
     return K;

@@ -19,7 +19,7 @@ struct IEData
     void Init(std::vector<const Block*>&);
     std::vector<const RadialFunction*> radials; // Flattened radials
     std::vector<Polarization>          pols;    // Flattened polarizations
-    Vector<double>                     ns;      //Norm constants
+    rvec_t                             ns;      //Norm constants
 
 };
 

@@ -1,6 +1,7 @@
 // File: PolarizedGaussian/IEClient.C
 module;
 #include <vector>
+#include <blaze/Math.h>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
@@ -19,10 +20,10 @@ void IEData::Init(std::vector<const Block*>& blocks)
    
     
     size_t N=radials.size();
-    ns.SetLimits(N);
+    ns.resize(N);
     CDCache cache;
     for (size_t i=0;i<N;i++)
-        ns(i+1)=radials[i]->Integrate(Overlap2C,radials[i],pols[i],pols[i],cache);
+        ns[i]=radials[i]->Integrate(Overlap2C,radials[i],pols[i],pols[i],cache);
     ns=1.0/sqrt(ns);
 }
 
