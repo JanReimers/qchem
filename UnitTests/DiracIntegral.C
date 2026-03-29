@@ -7,7 +7,7 @@
 #include <valarray>
 #include <cmath>
 #include <iomanip>
-#include "blaze/Math.h"
+#include <blaze/Math.h>
 import qchem.LAParams;
 
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -22,10 +22,6 @@ import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Streamable;
-import qchem.Conversions;
-import oml.SMatrix;
-import oml.Vector;
-import oml.Matrix;
 
 using std::cout;
 using std::endl;
@@ -38,9 +34,6 @@ using std::endl;
 class DiracIntegralTests : public ::testing::Test
 {
 public:
-    typedef SMatrix<double> SMat;
-    typedef  Matrix<double>  Mat;
-    
     DiracIntegralTests()
     : Lmax(0   )
     , Z(1)
@@ -219,89 +212,16 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
 TEST_F(DiracIntegralTests, Contraction)
 {
     size_t N=5;
-    SMatrix<double> H(N),D(N);
-    FillRandomPositive(H);
-    FillRandomPositive(D);
-    Matrix<double> Hf(H),Df(D);
-    double c=Sum(DirectMultiply(H,D));
-    double cf=Sum(DirectMultiply(Hf,Df));
+    rsmat_t H(N),D(N);
+    for (auto i:iv_t(0,N))
+        for (auto j:iv_t(i,N))
+        {
+            H(i,j)=std::rand();
+            D(i,j)=std::rand();
+        }
+    rmat_t Hf(H),Df(D);
+    double c =sum(H %D );
+    double cf=sum(Hf%Df);
     EXPECT_NEAR(c,cf,5e-15);
 }
 
-/*
-TEST_F(DiracIntegralTests, Overlap3C)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        ERI3 Sabc=ie->MakeOverlap3C(*i,*i);
-        
-        auto c=i->beginT();
-        for (auto sab:Sabc)
-        {
-            SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
-            EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
-            c++;
-        }
-    }
-}
-
-TEST_F(DiracIntegralTests, Repulsion)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        SMatrix<double> S=ie->MakeRepulsion(*i);
-        for (auto j=i;j!=bs->end();j++)
-        {
-            Matrix<double> Sx=ie->MakeRepulsion(*i,*j);
-            
-        }
-    }
-}
-
-TEST_F(DiracIntegralTests, Repulsion3C)
-{
-    for (auto i=bs->beginT();i!=bs->end();i++)
-    {
-        ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
-    }
-}
-
-
-TEST_F(DiracIntegralTests, CoulombExchange)
-{
-    for (auto iabt=bs->beginT();iabt!=bs->end();iabt++)
-    for (auto icdt=bs->beginT();icdt!=bs->end();icdt++)
-    {
-        const Slater::IrrepBasisSet* iab=dynamic_cast<const Slater::IrrepBasisSet*>(*iabt);
-        const Slater::IrrepBasisSet* icd=dynamic_cast<const Slater::IrrepBasisSet*>(*icdt);
-        int Nab=iab->GetNumFunctions(), Ncd=icd->GetNumFunctions();
-        ERI4 J=ie->MakeDirect(*iabt,*icdt);
-       
-        for (int ia=1 ;ia<=Nab;ia++)
-        for (int ib=ia;ib<=Nab;ib++)
-        {
-            SMatrix<double> Jab=J(ia,ib);
-            for (int ic=1 ;ic<=Ncd;ic++)
-            for (int id=ic;id<=Ncd;id++)
-            {
-                double norm=iab->ns(ia)*iab->ns(ib)*icd->ns(ic)*icd->ns(id);
-                if (supported(*iab,*icd,ia,ib,ic,id))
-                {
-                        
-                    double jv=Jab(ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
-                    if (fabs(jv-r0)/jv>1e-12)
-                    {
-                        cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
-                        cout << iab->GetSymmetry() << " " << icd->GetSymmetry() << endl; 
-                        cout << "j,r=" << jv << " " << r0 << endl;
-                        assert(false);                 
-                    }
-                    // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;
-                    double rerr=fabs(jv-r0)/jv;
-                    EXPECT_NEAR(rerr,0.0,1e-13);
-                }
-            }
-        }
-    }
-}
-*/

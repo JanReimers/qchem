@@ -16,7 +16,6 @@ import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 
 import qchem.IrrepBasisSet;
-import qchem.Conversions;
 
 export namespace PolarizedGaussian
 {

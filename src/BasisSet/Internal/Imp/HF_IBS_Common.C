@@ -7,7 +7,6 @@ module;
 #include <blaze/Math.h>
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.Conversions;
 
 template <class T> smat_t<T> Orbital_HF_IBS_Common<T>::
 Direct(const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const

@@ -10,7 +10,6 @@ import qchem.Orbital_DHF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import Common.Constants;
-import qchem.Conversions;
 
 rsmat_t RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {

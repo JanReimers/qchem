@@ -7,7 +7,6 @@ import qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Orbital_DFT_IBS;
-import qchem.Conversions;
 
 FittedVxc::FittedVxc(bs_t& bs, ex_t& lda,mesh_t& m)
     : FittedFunctionImp<double>(bs,m) //Use regular overlap for fitting.

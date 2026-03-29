@@ -7,7 +7,6 @@ module;
 export module qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;
-import qchem.Conversions;
 
 export namespace AtomBS
 {

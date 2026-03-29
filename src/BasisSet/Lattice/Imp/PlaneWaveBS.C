@@ -6,7 +6,6 @@ module;
 
 module qchem.BasisSet.Lattice.PlaneWave;
 import qchem.Symmetry.BlochQN;
-import qchem.Conversions;
 
 namespace PlaneWave
 {

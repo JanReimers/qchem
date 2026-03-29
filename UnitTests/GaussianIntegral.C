@@ -7,6 +7,7 @@ import qchem.LAParams;
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <blaze/Math.h>
 
 import qchem.Factory;
 import qchem.BasisSet;
@@ -17,9 +18,6 @@ import qchem.Cluster;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry.Yl;
-import qchem.Conversions;
-import oml.SMatrix;
-import oml.Vector;
 
 using std::cout;
 using std::endl;
@@ -67,12 +65,12 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=convert(oi->Overlap());
+        rsmat_t S=oi->Overlap();
 
-        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
+        for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         //cout << S << endl;
-        SMatrix<double> Snum = convert(mintegrator->Overlap(*oi));
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+        rsmat_t Snum = mintegrator->Overlap(*oi);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-8);
        
     }
 }
@@ -81,10 +79,10 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Hn=convert(oi->Nuclear(cl));
+        rsmat_t Hn=oi->Nuclear(cl);
         //cout << S << endl;
-        SMatrix<double> Hnnum = -1*convert(mintegrator->Inv_r1(*oi));
-        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-8);
+        rsmat_t Hnnum = -1*mintegrator->Inv_r1(*oi);
+        EXPECT_NEAR(max(abs(Hn-Hnnum)),0.0,1e-8);
 
     }
 }
@@ -94,11 +92,11 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=convert(oi->Kinetic());
+        rsmat_t K=oi->Kinetic();
         //cout << S << endl;
         int l=dynamic_cast<const Angular_Sym* >(oi->GetSymmetry().get())->GetL();
-        SMatrix<double> Knum = convert(mintegrator->Grad2(*oi)) + l*(l+1)*convert(mintegrator->Inv_r2(*oi));
-        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-12);
+        rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
+        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-12);
         
     }
 }

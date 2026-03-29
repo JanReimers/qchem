@@ -9,7 +9,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
-import qchem.Conversions;
 
 
 

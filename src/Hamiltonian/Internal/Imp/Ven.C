@@ -9,7 +9,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
-import qchem.Conversions;
 
 Ven::Ven(const cl_t& cl)
     : Static_HT_Imp()

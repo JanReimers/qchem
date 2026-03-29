@@ -7,6 +7,7 @@
 #include <iostream>
 #include <valarray>
 #include <iomanip>
+#include <blaze/Math.h>
 
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.Symmetry.Angular;
@@ -23,9 +24,6 @@ import qchem.Molecule;
 import qchem.Symmetry;
 import qchem.stl_io;
 import qchem.Streamable;
-import qchem.Conversions;
-import oml.SMatrix;
-import oml.Vector;
 using std::cout;
 using std::endl;
 
@@ -35,7 +33,6 @@ public:
     static constexpr size_t K=6; //Spline order.
     typedef bspline::Spline<double, K> spline_t;
     typedef Real_OIBS ibs_t;
-    typedef SMatrix<double> smat_t;
     BSplineTests() 
         : LMax(4)
         , cl(new Molecule())
@@ -64,7 +61,7 @@ public:
     }
 
     std::vector<double> MakeLogKnots(double rmin, double rmax, size_t SPLINE_ORDER, size_t numberOfGridPoints);
-    template <class S,class B> SMatrix<double> MakeSMat(const std::vector<S>& splines, const B&);
+    template <class S,class B> rsmat_t MakeSMat(const std::vector<S>& splines, const B&);
    
     size_t LMax;
     BasisSet* bs;
@@ -91,13 +88,13 @@ std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t 
         knots.push_back(rmin * pow(step, i));
     return knots;
 }
-template <class S,class B> SMatrix<double> BSplineTests::MakeSMat(const std::vector<S>& splines, const B& integrator)
+template <class S,class B> rsmat_t BSplineTests::MakeSMat(const std::vector<S>& splines, const B& integrator)
 {
     size_t N=splines.size();
-    SMatrix<double> A(N);
-    for (size_t i:A.rows())
-        for (size_t j:A.cols(i))
-            A(i,j)=integrator(splines[i-1],splines[j-1]);
+    rsmat_t A(N);
+    for (auto i:iv_t(0,A.rows()))
+        for (auto j:iv_t(i,A.rows()))
+            A(i,j)=integrator(splines[i],splines[j]);
     return A;
     
 }
@@ -129,7 +126,7 @@ TEST_F(BSplineTests, Knots)
     //     cout << r << " " << splines[5](r) << endl;
 
     const BilinearForm bilinearForm{IdentityOperator{}};
-    SMatrix<double> S=MakeSMat(splines,bilinearForm);
+    rsmat_t S=MakeSMat(splines,bilinearForm);
     // cout << "overlap=" << S << endl;
 }
 
@@ -215,13 +212,18 @@ TEST_F(BSplineTests, Overlap)
     for (auto ibs:bs->Iterate<Real_OIBS >())
     {
         cout << *ibs->GetSymmetry();
-        SMatrix<double> S=convert(ibs->Overlap());
-        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        for (auto i:S.rows()) //Check banded
-            for (auto j:S.cols(i+K+1)) EXPECT_EQ(S(i,j),0.0);
+        rsmat_t S=ibs->Overlap();
+        cout << S << endl;
+        for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
+        for (auto i:iv_t(0,S.rows()-K-1)) //Check banded
+            for (auto j:iv_t(i+K+1,S.rows())) 
+            {
+                cout << i << " " << j << endl;
+                EXPECT_EQ(S(i,j),0.0);
+            }
         
-        SMatrix<double> Snum = convert(mintegrator->Overlap(*ibs));
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,3e-6);
+        rsmat_t Snum = mintegrator->Overlap(*ibs);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,3e-6);
 
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
@@ -231,11 +233,11 @@ TEST_F(BSplineTests, Overlap)
         auto grid=GetSpline(eval,0).getSupport().getGrid();
         GLCache cache2(grid,K+3);
         std::function< double (double)> w2 = [](double x){return x*x;};
-        for (auto ia:S.rows())
-            for (auto ib:S.cols(ia)) 
+        for (auto ia:iv_t(0,S.rows()))
+            for (auto ib:iv_t(ia,S.rows())) 
             {
-                double nab=ns[ia-1]*ns[ib-1]*4*M_PI;
-                auto a=GetSpline(eval,ia-1),b=GetSpline(eval,ib-1);
+                double nab=ns[ia]*ns[ib]*4*M_PI;
+                auto a=GetSpline(eval,ia),b=GetSpline(eval,ib);
                 double Sab=cache2.Integrate(w2,a,b)*nab;
                 EXPECT_NEAR(Sab,S(ia,ib),1e-14);
                 Sab=cache2.Integrate(w2,a,b,grid.front(),grid.back())*nab;
@@ -260,12 +262,12 @@ TEST_F(BSplineTests, Nuclear)
     {
         cout << *ibs->GetSymmetry();
         // const Real_OIBS* ibs1=ibs;
-        SMatrix<double> Ven=convert(ibs->Nuclear(cl));
-        for (auto i:Ven.rows()) //Check banded
-            for (auto j:Ven.cols(i+K+1)) EXPECT_EQ(Ven(i,j),0.0);
+        rsmat_t Ven=ibs->Nuclear(cl);
+        for (auto i:iv_t(0,Ven.rows()-K-1)) //Check banded
+            for (auto j:iv_t(i+K+1,Ven.rows())) EXPECT_EQ(Ven(i,j),0.0);
         
-        SMatrix<double> Vennum = -cl->GetNuclearCharge()*convert(mintegrator->Inv_r1(*ibs));
-        EXPECT_NEAR(Max(fabs(Ven-Vennum)),0.0,1e-7);
+        rsmat_t Vennum = -cl->GetNuclearCharge()*mintegrator->Inv_r1(*ibs);
+        EXPECT_NEAR(max(abs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
         // cout << "Vennum=" << Vennum << endl;
@@ -280,15 +282,15 @@ TEST_F(BSplineTests, Kinetic)
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << *ibs->GetSymmetry();
-        SMatrix<double> T=convert(ibs->Kinetic());
-        for (auto i:T.rows()) //Check banded
-            for (auto j:T.cols(i+K+1)) EXPECT_EQ(T(i,j),0.0);
+        rsmat_t T=ibs->Kinetic();
+        for (auto i:iv_t(0,T.rows()-K-1)) //Check banded
+            for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         
         int l=dynamic_cast<const Angular_Sym* >(ibs->GetSymmetry().get())->GetL();
-        SMatrix<double> Tnum = convert(mintegrator->Grad2(*ibs));
-        SMatrix<double> Cen  = convert(mintegrator->Inv_r2(*ibs));
+        rsmat_t Tnum = mintegrator->Grad2(*ibs);
+        rsmat_t Cen  = mintegrator->Inv_r2(*ibs);
         Tnum+=l*(l+1)*Cen;
-        EXPECT_NEAR(Max(fabs(T-Tnum)),0.0,3e-5);
+        EXPECT_NEAR(max(abs(T-Tnum)),0.0,3e-5);
         
         // cout << "T=" << T << endl;
         // cout << "Tnum=" << Tnum << endl;

@@ -7,7 +7,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
-import qchem.Conversions;
 import Common.Constants;
 
 rsmat_t DiracKinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const

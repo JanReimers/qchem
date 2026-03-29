@@ -7,7 +7,7 @@
 #include <fstream>
 #include <cmath>
 #include <iomanip>
-
+#include <blaze/Math.h>
 
 import qchem.LAParams;
 import qchem.Factory;
@@ -24,9 +24,6 @@ import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry.Angular;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
-import qchem.Conversions;
-import oml.SMatrix;
-import oml.Vector;
 
 using std::cout;
 using std::endl;
@@ -73,110 +70,15 @@ public:
     MeshIntegrator<double>* rmintegrator;
 };
 
-// bool SlaterRadialIntegralTests::supported(const Slater_IBS& ab, const Slater_IBS& cd,int ia, int ib, int ic, int id) const
-// {
-//     int nab=ab.Getl()+1+ab.Getl()+1;
-//     int ncd=cd.Getl()+1+cd.Getl()+1;
-//     return nab<=6 && ncd<=6;
-// }
-// double SlaterRadialIntegralTests::R0(const Slater_IBS& ab, const Slater_IBS& cd,int ia, int ib, int ic, int id) const
-// {
-//     double a=ab.es[ia-1]+ab.es[ib-1];
-//     double b=cd.es[ic-1]+cd.es[id-1];
-//     int nab=ab.Getl()+1+ab.Getl()+1;
-//     int ncd=cd.Getl()+1+cd.Getl()+1;
-//     double f=FourPi2/(a*b*(a+b));
-//     if (nab==2 && ncd==2)
-//         return 2*f*( 
-//                     1/(pow(a,1)*pow(b,1)*pow(a+b,0))
-//                     +1/pow(a+b,2)
-//                     );
-//     if (nab==4 && ncd==2)
-//         return 12*f*( 
-//                         2/(pow(a,3)*pow(b,1)*pow(a+b,0))
-//                       + 2/(pow(a,0)*pow(b,0)*pow(a+b,4))
-//                       + 1/(pow(a,1)*pow(b,0)*pow(a+b,3))
-//                       - 1/(pow(a,3)*pow(b,0)*pow(a+b,1))
-//                         );
-//     if (nab==2 && ncd==4)
-//         return 12*f*( 
-//                        2/(pow(a,1)*pow(b,3)*pow(a+b,0))
-//                      + 2/(pow(a,0)*pow(b,0)*pow(a+b,4))
-//                      + 1/(pow(a,0)*pow(b,1)*pow(a+b,3))
-//                      - 1/(pow(a,0)*pow(b,3)*pow(a+b,1))
-//                     );
-//     if (nab==4 && ncd==4)
-//          return 144*f*( 
-//            1/(pow(a,2)*pow(b,2)*pow(a+b,2))
-//          + 2/(pow(a,1)*pow(b,1)*pow(a+b,4))
-//          + 5/(pow(a,0)*pow(b,0)*pow(a+b,6))
-//          + 1/(pow(a,3)*pow(b,3)*pow(a+b,0))
-//           );
-          
-//     if (nab==2 && ncd==6)
-//         return 240*f*( 
-//                        1/(pow(a,1)*pow(b,5)*pow(a+b,0))
-//                      + 1/(pow(a,2)*pow(b,4)*pow(a+b,0))
-//                      + 3/(pow(a,0)*pow(b,0)*pow(a+b,6))
-//                      - 2/(pow(a,1)*pow(b,0)*pow(a+b,5))
-//                      - 1/(pow(a,2)*pow(b,0)*pow(a+b,4))
-//                     );
-//      if (nab==6 && ncd==2)
-//         return 240*f*( 
-//                        1/(pow(a,5)*pow(b,1)*pow(a+b,0))
-//                      + 1/(pow(a,4)*pow(b,2)*pow(a+b,0))
-//                      + 3/(pow(a,0)*pow(b,0)*pow(a+b,6))
-//                      - 2/(pow(a,0)*pow(b,1)*pow(a+b,5))
-//                      - 1/(pow(a,0)*pow(b,2)*pow(a+b,4))
-//                     );
-//     if (nab==4 && ncd==6)
-//         return 1440*f*( 
-//                         2/(pow(a,3)*pow(b,5)*pow(a+b,0))
-//                      +  2/(pow(a,4)*pow(b,4)*pow(a+b,0))
-//                      + 28/(pow(a,0)*pow(b,0)*pow(a+b,8))
-//                      -  7/(pow(a,1)*pow(b,0)*pow(a+b,7))
-//                      - 12/(pow(a,2)*pow(b,0)*pow(a+b,6))
-//                      -  7/(pow(a,3)*pow(b,0)*pow(a+b,5))
-//                      -  2/(pow(a,4)*pow(b,0)*pow(a+b,4))
-//                     );
-//     if (nab==6 && ncd==4)
-//         return 1440*f*( 
-//                         2/(pow(a,5)*pow(b,3)*pow(a+b,0))
-//                      +  2/(pow(a,4)*pow(b,4)*pow(a+b,0))
-//                      + 28/(pow(a,0)*pow(b,0)*pow(a+b,8))
-//                      -  7/(pow(a,0)*pow(b,1)*pow(a+b,7))
-//                      - 12/(pow(a,0)*pow(b,2)*pow(a+b,6))
-//                      -  7/(pow(a,0)*pow(b,3)*pow(a+b,5))
-//                      -  2/(pow(a,0)*pow(b,4)*pow(a+b,4))
-//                     );
-    
-//     if (nab==6 && ncd==6)
-//         return 86400*f*( 
-//                         1/(pow(a,5)*pow(b,5)*pow(a+b,0))
-//                      +  1/(pow(a,6)*pow(b,4)*pow(a+b,0))
-//                      + 42/(pow(a,0)*pow(b,0)*pow(a+b,10))
-//                      - 14/(pow(a,2)*pow(b,0)*pow(a+b,8))
-//                      - 14/(pow(a,3)*pow(b,0)*pow(a+b,7))
-//                      -  9/(pow(a,4)*pow(b,0)*pow(a+b,6))
-//                      -  4/(pow(a,5)*pow(b,0)*pow(a+b,5))
-//                      -  1/(pow(a,6)*pow(b,0)*pow(a+b,4))
-//                     );
-    
-    
-                    
-//     assert(false);
-//     return 0;
-
-// }
 
 TEST_F(SlaterRadialIntegralTests, Overlap)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> S=convert(oi->Overlap());
-        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        SMatrix<double> Snum = convert(mintegrator->Overlap(*oi));
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,1e-8);
+        rsmat_t S=oi->Overlap();
+        for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
+        rsmat_t Snum = mintegrator->Overlap(*oi);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-8);
     }
 }
 
@@ -184,9 +86,9 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> Hn=convert(oi->Nuclear(cl));
-        SMatrix<double> Hnnum = -1*convert(mintegrator->Inv_r1(*oi));
-        EXPECT_NEAR(Max(fabs(Hn-Hnnum)),0.0,1e-7);
+        rsmat_t Hn=oi->Nuclear(cl);
+        rsmat_t Hnnum = -1*mintegrator->Inv_r1(*oi);
+        EXPECT_NEAR(max(abs(Hn-Hnnum)),0.0,1e-7);
 
     }
 }
@@ -195,146 +97,15 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        SMatrix<double> K=convert(oi->Kinetic());
+        rsmat_t K=oi->Kinetic();
         //cout << S << endl;
         int l=dynamic_cast<const Angular_Sym* >(oi->GetSymmetry().get())->GetL();
-        SMatrix<double> Knum = convert(mintegrator->Grad2(*oi)) + l*(l+1)*convert(mintegrator->Inv_r2(*oi));
-        EXPECT_NEAR(Max(fabs(K-Knum)),0.0,1e-10);
+        rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
+        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-10);
         
         // cout << "K=" << K << endl;
         // cout << "Knum=" << Knum << endl;
     }
 }
 
-// TEST_F(SlaterRadialIntegralTests, Overlap3C)
-// {
-//     for (auto i=bs->beginT();i!=bs->end();i++)
-//     {
-//         ERI3 Sabc=ie->MakeOverlap3C(*i,*i);       
-//         auto c=i->beginT();
-//         for (auto sab:Sabc)
-//         {
-//             SMatrix<double> Sabcnum = mintegrator->Overlap3C(**i,**c);
-//             EXPECT_NEAR(Max(fabs(sab-Sabcnum)),0.0,1e-8);
-//             c++;
-//         }
-//     }
-// }
-// TEST_F(SlaterRadialIntegralTests, Repulsion)
-// {
-//     for (auto i=bs->beginT();i!=bs->end();i++)
-//     {
-//         auto fi=dynamic_cast<const Fit_IBS*>(*i);
-//         SMatrix<double> S=fi->Repulsion();
-//         for (auto j=i;j!=bs->end();j++)
-//         {
-//             Matrix<double> Sx=ie->MakeRepulsion(*i,*j);      
-//         }
-//     }
-// }
-// TEST_F(SlaterRadialIntegralTests, Repulsion3C)
-// {
-//     for (auto i=bs->beginT();i!=bs->end();i++)
-//     {
-//         ERI3 Sabc=ie->MakeRepulsion3C(*i,*i);
-//     }
-// }
-
-
-
-// TEST_F(SlaterRadialIntegralTests, CoulombExchange)
-// {
-//     const DB_BS_2E<double>* hfdb=dynamic_cast<const DB_BS_2E<double>*>(bs);
-//     assert(hfdb);
-//     for (auto iab:bs->Iterate<Slater_IBS>())
-//     {
-//         // const Orbital_IBS* iab1=iab;
-//         // cout << (void*)iab << " " << (void*)iab1 << endl;
-//     for (auto icd:bs->Iterate<Slater_IBS>(iab))
-//     {
-//         int Nab=iab->size(), Ncd=icd->size();
-//         ERI4 J=hfdb->Direct(iab->GetID(),icd->GetID());
-       
-//         for (int ia=1 ;ia<=Nab;ia++)
-//         for (int ib=ia;ib<=Nab;ib++)
-//         {
-//             SMatrix<double> Jab=J(ia,ib);
-//             for (int ic=1 ;ic<=Ncd;ic++)
-//             for (int id=ic;id<=Ncd;id++)
-//             {
-//                 double norm=iab->ns(ia)*iab->ns(ib)*icd->ns(ic)*icd->ns(id);
-//                 if (supported(*iab,*icd,ia,ib,ic,id))
-//                 {
-                        
-//                     double jv=Jab(ic,id)/norm, r0=R0(*iab,*icd,ia,ib,ic,id);
-//                     if (fabs(jv-r0)/jv>1e-12)
-//                     {
-//                         // cout << "(a,b,c,d)=(" << ia << "," << ib << "," << ic << "," << id << ")" << endl;
-//                         // cout << iab->GetSymmetry() << " " << icd->GetSymmetry() << endl; 
-//                         // cout << "j,r=" << jv << " " << r0 << endl;
-//                         assert(false);                 
-//                     }
-//                     // cout << Jview(ia,ib,ic,id)/norm << " " << R0(*iab,*icd,ia,ib,ic,id) << endl;
-//                     double rerr=fabs(jv-r0)/jv;
-//                     EXPECT_NEAR(rerr,0.0,1e-13);
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// }
-
-//
-//
-//#ifndef DEBUG 
-//#include "oml/io3d.h"
-//TEST_F(SlaterRadialIntegralTests, Numerical)
-//{
-//    TIrrepBasisSet<double>* vf=*bs->beginT();
-//    Real_BF* sf=*vf->beginT();
-//
-//    Vector<double> cnum=mintegrator->Integrate(*vf);
-//    Vector<double> c=ie->MakeCharge(vf);
-//    EXPECT_NEAR(Max(fabs(cnum-c)),0.0,1e-13);
-//
-//    Vector<double> nnum=mintegrator->Normalize(*vf);
-//    EXPECT_NEAR(Max(fabs(nnum-1.0)),0.0,1e-12);
-//    {
-//        Vector <double> onum=mintegrator->Overlap(*sf,*vf);
-//        SMatrix<double> o=ie->MakeOverlap(vf);
-//        EXPECT_NEAR(Max(fabs(onum-o.GetRow(1))),0.0,1e-12);        
-//    }
-//    {
-//        Matrix<double> onum=mintegrator->Overlap(*vf,*vf);
-//        SMatrix<double> o=ie->MakeOverlap(vf);
-//        EXPECT_NEAR(Max(fabs(onum-o)),0.0,1e-12); 
-//    }
-//    {
-//        SMatrix<double> onum=mintegrator->Overlap3C(*vf,*sf);
-//        ERI3 o=ie->MakeOverlap3C(vf,vf);
-//        EXPECT_NEAR(Max(fabs(onum-o[0])),0.0,1e-12); 
-//    }
-//    {
-//        SMatrix<double> rnum=rmintegrator->Repulsion(*vf);
-//        SMatrix<double> r=ie->MakeRepulsion(vf);
-//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
-//    }
-//    {
-//        Vector<double> rnum=rmintegrator->Repulsion(*sf,*vf);
-//        Vector<double> r=ie->MakeRepulsion(vf).GetRow(1);
-//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
-//    }
-//    {
-//        SMatrix<double> rnum=rmintegrator->Repulsion(*vf,*vf);
-//        SMatrix<double> r=ie->MakeRepulsion(vf,vf);
-//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r,r))),0.0,0.1); 
-//    }
-//    {
-//        SMatrix<double> rnum=rmintegrator->Repulsion3C(*vf,*sf);
-//        ERI3 r=ie->MakeRepulsion3C(vf,vf);
-//        EXPECT_NEAR(Max(fabs(DirectDivide(rnum-r[0],r[0]))),0.0,0.1); 
-//    }
-//}
-// #endif
 

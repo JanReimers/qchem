@@ -11,7 +11,6 @@ import qchem.Orbital_HF_IBS;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
-import qchem.Conversions;
 
 
 //########################################################################

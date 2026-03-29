@@ -10,7 +10,6 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Orbital_HF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
-import qchem.Conversions;
 
 
 //########################################################################

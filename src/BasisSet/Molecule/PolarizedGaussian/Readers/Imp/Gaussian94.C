@@ -15,7 +15,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import Common.PeriodicTable;
 import qchem.Atom;
-import qchem.Conversions;
 
 using std::ws;
 namespace PolarizedGaussian
