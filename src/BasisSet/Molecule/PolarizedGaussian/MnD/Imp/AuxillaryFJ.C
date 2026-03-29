@@ -6,19 +6,16 @@ module;
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import Common.Constants;
 import Common.IntPow;
-import oml;
 
 
 double Factorial[]= {1,1,2,6,24,120,720};
 
-void AuxillaryFJ::GetFjAt(double T, Vector<double>& Fj) const
+void AuxillaryFJ::GetFjAt(double T, rvec_t& Fj) const
 {
-    assert(Fj.GetLimits().Low ==0        ); //Illegal lower limit for Fj.
-    assert(Fj.GetLimits().High<=thejMax+6); //Lookup table not large enough.
+    assert(Fj.size()<thejMax+6); //Lookup table not large enough.
     assert(T>=0                          );
 
-    Vector<double>::Subscriptor s(Fj);
-    int jmax=Fj.GetLimits().High;
+    int jmax=Fj.size()-1;
     double et=exp(-T);
 
     if(T<12)
@@ -29,8 +26,8 @@ void AuxillaryFJ::GetFjAt(double T, Vector<double>& Fj) const
         double* FT=&theLookUp[it][0];
         double fjmax=FT[jmax];
         for (int k=1; k<=6; k++) fjmax+=FT[k+jmax]*uintpow(dt,k)/Factorial[k];
-        s(jmax)=fjmax;
-        for (int j=jmax-1; j>=0; j--) s(j)=(2*T*s(j+1)+et)/(2*j+1);
+        Fj[jmax]=fjmax;
+        for (int j=jmax-1; j>=0; j--) Fj[j]=(2*T*Fj[j+1]+et)/(2*j+1);
     }
     if(T>=12 && T < 30.0)
     {
@@ -40,12 +37,12 @@ void AuxillaryFJ::GetFjAt(double T, Vector<double>& Fj) const
         if(T>=18 && T<24) g = 0.499093162  - 0.2152832   /T;
         if(T>=24        ) g = 0.49;
         assert(g!=0.0); // g never got assigned.
-        s(0) = 0.5*sqrt(Pi/T) - et*g/T;
-        for (int j=0; j<jmax; j++) s(j+1)=((2*j+1)*s(j)-et)/(2*T);
+        Fj[0] = 0.5*sqrt(Pi/T) - et*g/T;
+        for (int j=0; j<jmax; j++) Fj[j+1]=((2*j+1)*Fj[j]-et)/(2*T);
     }
     if (T>=30.0)
     {
-        s(0)=0.5*sqrt(Pi/T);
-        for (int j=0; j<jmax; j++) s(j+1)=((2*j+1)*s(j)-et)/(2*T);
+        Fj[0]=0.5*sqrt(Pi/T);
+        for (int j=0; j<jmax; j++) Fj[j+1]=((2*j+1)*Fj[j]-et)/(2*T);
     }
 }

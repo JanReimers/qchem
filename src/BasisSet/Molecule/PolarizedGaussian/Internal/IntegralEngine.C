@@ -17,7 +17,6 @@ import qchem.Orbital_DFT_IBS;
 
 import qchem.IrrepBasisSet;
 import qchem.Conversions;
-import oml;
 
 export namespace PolarizedGaussian
 {
@@ -32,9 +31,9 @@ public:
 protected:
     IE_Common(const DB_cache<double>* db) : DB_Overlap<double>(db) {};
     
-    virtual smat_t<double> MakeOverlap() const {return convert(MakeIntegrals(PolarizedGaussian::Overlap2C));}
+    virtual rsmat_t MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C);}
 
-    SMatrix<double> MakeIntegrals(PolarizedGaussian::IType,const Cluster*cl =0) const;
+    rsmat_t MakeIntegrals(PolarizedGaussian::IType,const Cluster*cl =0) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 
 };
@@ -49,8 +48,8 @@ class Orbital_IE
     typedef Orbital_IBS<double> obs_t;
     // typedef typename Integrals_HF<double>::obs_t obs_t; //Orbital basis
 public:
-    virtual smat_t<double> MakeKinetic() const {return convert(MakeIntegrals(Grad2));}
-    virtual smat_t<double> MakeNuclear(const Cluster* cl) const {return convert(MakeIntegrals(PolarizedGaussian::Nuclear,cl));}
+    virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2);}
+    virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,cl);}
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4 MakeDirect  (const obs_t& c) const;
@@ -64,7 +63,7 @@ protected:
         , DB_DFT<double>(db) 
         {};
         
-    SMatrix<double> Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
+    rsmat_t Integrate(qchem::IType3C , const RadialFunction* rc, const Polarization& pc) const;
 
 };
 
@@ -73,12 +72,10 @@ class Fit_IE
 , public DB_Fit
 
 {
-    typedef Matrix<double> Mat;
-    typedef Vector<double> Vec;
 public:
     virtual rsmat_t MakeOverlap  () const { return IE_Common::MakeOverlap(); } 
     virtual  rvec_t MakeCharge   () const;
-    virtual rsmat_t MakeRepulsion() const {return convert(MakeIntegrals(Repulsion2C));}
+    virtual rsmat_t MakeRepulsion() const {return MakeIntegrals(Repulsion2C);}
     virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
 protected:
     Fit_IE(const DB_cache<double>* db) : IE_Common(db), DB_Fit(db) {}

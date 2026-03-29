@@ -7,7 +7,6 @@ import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
-import oml;
 
 export namespace PolarizedGaussian
 {

@@ -1,7 +1,6 @@
 // File: AuxillaryFJ.H   Class for calculating the auxillary function.
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
-
-import oml;
+import qchem.Types;
 //
 //  This class encapsulates the calculation of:
 //
@@ -12,7 +11,7 @@ import oml;
 export class AuxillaryFJ
 {
 public:
-    void GetFjAt(double T, Vector<double>& Fj) const;
+    void GetFjAt(double T, rvec_t& Fj) const;
     static const int thejMax;
 
 private:

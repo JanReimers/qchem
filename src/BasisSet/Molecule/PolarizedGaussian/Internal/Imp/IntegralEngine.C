@@ -50,15 +50,15 @@ rmat_t Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     return s;
 }
 
-SMatrix<double> IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
+rsmat_t IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
 {
     const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
     assert(ab);
     int N=ab->size();
-    SMatrix<double> s(N);
+    rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns[ia]*ab->ns[ib];
 
     return s;
 }
@@ -70,7 +70,7 @@ ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
-        rsmat_t s=convert(Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]));
+        rsmat_t s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
         s*=c->ns[ic];
         s3.push_back(s);
     } 
@@ -83,20 +83,20 @@ ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
-        rsmat_t s=convert(Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]));
+        rsmat_t s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
         s*=c->ns[ic];
         s3.push_back(s);
     }    
     return s3;
 }
-SMatrix<double> Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
+rsmat_t Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
 {
     auto ab=dynamic_cast<const IrrepIEClient*>(this);
     int N=ab->size();
-    SMatrix<double> s(N);
+    rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia+1,ib+1)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns[ia]*ab->ns[ib];
         
     return s;    
 }
