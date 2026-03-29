@@ -23,6 +23,9 @@ import qchem.Atom;
 import qchem.Molecule;
 import qchem.Streamable;
 import qchem.Conversions;
+import oml.SMatrix;
+import oml.Vector;
+import oml.Matrix;
 
 using std::cout;
 using std::endl;

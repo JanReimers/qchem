@@ -18,6 +18,8 @@ import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry.Yl;
 import qchem.Conversions;
+import oml.SMatrix;
+import oml.Vector;
 
 using std::cout;
 using std::endl;

@@ -80,20 +80,20 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
 template <class T> double IrrepCD<T>::DM_Contract(const Static_CC* v) const
 {
     T ComplexE=sum(itsDensityMatrix % v->GetMatrix(itsBasisSet,itsSpin)); //% is the blaze op for the Shur (direct) product.
-    assert(fabs(imag(ComplexE))<1e-8);
-    return real(ComplexE);
+    assert(fabs(std::imag(ComplexE))<1e-8);
+    return std::real(ComplexE);
 }
 
 template <class T> double IrrepCD<T>::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
 {
     T ComplexE=sum(itsDensityMatrix % v->GetMatrix(itsBasisSet,itsSpin,cd)); //% is the blaze op for the Shur (direct) product.
-    assert(fabs(imag(ComplexE))<1e-8);
-    return real(ComplexE);
+    assert(fabs(std::imag(ComplexE))<1e-8);
+    return std::real(ComplexE);
 }
 
 template <class T> double IrrepCD<T>::GetTotalCharge() const
 {
-    return real(sum(itsDensityMatrix%itsBasisSet->Overlap())); //% is the blaze op for the Shur (direct) product.
+    return std::real(sum(itsDensityMatrix%itsBasisSet->Overlap())); //% is the blaze op for the Shur (direct) product.
 }
 
 
@@ -130,7 +130,7 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
 template <class T> double IrrepCD<T>::operator()(const rvec3_t& r) const
 {
     vec_t<T> phir=(*itsBasisSet)(r);
-    return real(trans(phir)*itsDensityMatrix*conj(phir));
+    return std::real(trans(phir)*itsDensityMatrix*conj(phir));
 }
 
 template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const

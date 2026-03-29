@@ -7,7 +7,6 @@ module;
 
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import oml;
 import qchem.Types;
 //#define USE_CACHE
 

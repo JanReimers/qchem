@@ -6,7 +6,6 @@ export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 import qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
-import oml;
 
 export namespace PolarizedGaussian
 {
@@ -36,7 +35,7 @@ public:
 
 private:
     int          itsLMax;
-    Triangle3D     itsData;
+    Triangle3D   itsData;
 };
 
 } //namespace PolarizedGaussian

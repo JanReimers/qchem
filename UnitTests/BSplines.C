@@ -24,7 +24,8 @@ import qchem.Symmetry;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Conversions;
-
+import oml.SMatrix;
+import oml.Vector;
 using std::cout;
 using std::endl;
 

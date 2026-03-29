@@ -6,7 +6,7 @@ module;
 #include <cassert>
 #include <vector>
 #include <memory>
-
+#include <blaze/Math.h>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
@@ -28,7 +28,7 @@ ContractedGaussianRF::ContractedGaussianRF()
     , gs          ()
 {};
 
-ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, std::vector<RadialFunction*>& rfs)
+ContractedGaussianRF::ContractedGaussianRF(const rvec_t& coeffs, std::vector<RadialFunction*>& rfs)
     : RadialCommon( rfs[0]->GetCenter (), rfs[0]->GetL())
     , cs            (coeffs)
     , unormalized_cs(coeffs)
@@ -39,16 +39,16 @@ ContractedGaussianRF::ContractedGaussianRF(const Vector<double>& coeffs, std::ve
 //
 //  Absorb normalizations into the contraction coefficients.
 //
-    size_t i=1;
-    for (auto& g:gs) cs(i++)*=g->GetNormalization(Polarization(GetL(),0,0));
+    size_t i=0;
+    for (auto& g:gs) cs[i++]*=g->GetNormalization(Polarization(GetL(),0,0));
     Check(); //Make sure all L's and centres are the same.
 };
 
 Hermite1* ContractedGaussianRF::MakeH1() const
 {
     Hermite1* ret=new Hermite1;
-    size_t i=1;
-    for (auto& g:gs) ret->Add(g->GetH1(),cs(i++));
+    size_t i=0;
+    for (auto& g:gs) ret->Add(g->GetH1(),cs[i++]);
     return ret;
 }
 
@@ -80,8 +80,8 @@ double ContractedGaussianRF::GetNormalization(const Polarization& p) const
 double ContractedGaussianRF::GetCharge(const Polarization& p) const
 {
     double ret=0.0;
-    size_t i=1;
-    for (auto& g:gs) ret += cs(i++)*g->GetCharge(p);
+    size_t i=0;
+    for (auto& g:gs) ret += cs[i++]*g->GetCharge(p);
     return ret;
 }
 
@@ -105,8 +105,8 @@ RadialFunction::vd_t ContractedGaussianRF::GetCoeff() const
 double ContractedGaussianRF::Integrate(IType type,const RadialFunction* rb, const Polarization& pa, const Polarization& pb,CDCache& cache,const Cluster* cl) const
 {
     double s=0;
-    size_t i=1;
-    for (auto& g:gs) s += cs(i++)*rb->Integrate(type,g.get(),pb,pa,cache,cl); //swap pols
+    size_t i=0;
+    for (auto& g:gs) s += cs[i++]*rb->Integrate(type,g.get(),pb,pa,cache,cl); //swap pols
     return s;
 }
 
@@ -116,18 +116,18 @@ double ContractedGaussianRF::Integrate(IType type,const RadialFunction* rb, cons
 double ContractedGaussianRF::Integrate(qchem::IType3C type,const RadialFunction* ra, const RadialFunction* rb, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache) const
 {
     double s=0;
-    size_t i=1;
+    size_t i=0;
     for (auto& g:gs) 
-        s += cs(i++)*ra->Integrate(type,rb,pb,pa,pc,cache,g.get()); //swap pols
+        s += cs[i++]*ra->Integrate(type,rb,pb,pa,pc,cache,g.get()); //swap pols
     return s;
 }
 
 double ContractedGaussianRF::Integrate(qchem::IType3C type,const RadialFunction* ra, const Polarization& pa, const Polarization& pb, const Polarization& pc,CDCache& cache,const RadialFunction* rc) const
 {
     double s=0;
-    size_t i=1;
+    size_t i=0;
     for (auto& g:gs)
-        s += cs(i++)*ra->Integrate(type,g.get(),pb,pa,pc,cache,rc); //swap pols
+        s += cs[i++]*ra->Integrate(type,g.get(),pb,pa,pc,cache,rc); //swap pols
     return s;
 }
 
@@ -135,9 +135,9 @@ double ContractedGaussianRF::Integrate(qchem::IType3C type,const RadialFunction*
 double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache) const
 {
     double s=0;
-    size_t i=1;
+    size_t i=0;
     for (auto& g:gs)
-        s += cs(i++)*rc->Integrate(ra,rb,pa,pb,pc,pd,cache,g.get()); //swap pols
+        s += cs[i++]*rc->Integrate(ra,rb,pa,pb,pc,pd,cache,g.get()); //swap pols
     return s;
 }
 
@@ -145,9 +145,9 @@ double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,rf_t* rc,po_t& pa, po_t
 double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache, rf_t* rd) const
 {
     double s=0;
-    size_t i=1;
+    size_t i=0;
     for (auto& g:gs)
-        s += cs(i++)*rb->Integrate(ra,pa,pb,pc,pd,cache,g.get(),rd); //swap pols
+        s += cs[i++]*rb->Integrate(ra,pa,pb,pc,pd,cache,g.get(),rd); //swap pols
     return s;
 }
 
@@ -155,9 +155,9 @@ double ContractedGaussianRF::Integrate(rf_t* ra,rf_t* rb,po_t& pa, po_t& pb, po_
 double ContractedGaussianRF::Integrate(rf_t* ra,po_t& pa, po_t& pb, po_t& pc, po_t& pd,CDCache& cache, rf_t* rc, rf_t* rd) const
 {
     double s=0;
-    size_t i=1;
+    size_t i=0;
     for (auto& g:gs)
-        s += cs(i++)*ra->Integrate(g.get(),pb,pa,pc,pd,cache,rc,rd); //swap pols
+        s += cs[i++]*ra->Integrate(g.get(),pb,pa,pc,pd,cache,rc,rd); //swap pols
     return s;
 }
 
@@ -192,43 +192,18 @@ std::ostream& ContractedGaussianRF::Write(std::ostream& os) const
 double ContractedGaussianRF::operator()(const rvec3_t& r) const
 {
     double ret=0;
-    size_t i=1;
-    for (auto& g:gs) ret+=cs(i++)* g->operator()(r);
+    size_t i=0;
+    for (auto& g:gs) ret+=cs[i++]* g->operator()(r);
     return ret;
 }
 
 rvec3_t ContractedGaussianRF::Gradient(const rvec3_t& r) const
 {
     rvec3_t ret(0,0,0);
-    size_t i=1;
-    for (auto& g:gs) ret+=cs(i++)* g->Gradient(r);
+    size_t i=0;
+    for (auto& g:gs) ret+=cs[i++]* g->Gradient(r);
     return ret;
 }
-
-// void ContractedGaussianRF::Eval(const Mesh& mesh, Vector<double>& vec) const
-// {
-//     size_t ig=1;
-//     for (auto& g:gs)
-//     {
-//         Vector<double>::iterator i(vec.begin());
-//         Vector<double>::const_iterator  v(g->operator()(mesh).begin());
-//         for (; i!=vec.end()&&v; i++,v++) *i += cs(ig++) * (*v);
-//     }
-// }
-
-// void ContractedGaussianRF::EvalGrad(const Mesh& mesh, Vector<rvec3_t>& vec) const
-// {
-// //    CVITER c(cs.begin());
-// //    CITER p(gs.begin());
-// //    for (; p!=gs.end()&&c!=cs.end(); c++,p++)
-//     size_t ig=1;
-//     for (auto& g:gs)
-//     {
-//         Vector<rvec3_t>::iterator i(vec.begin());
-//         Vector<rvec3_t>::const_iterator  v(g->Gradient(mesh).begin());
-//         for (; i&&v; i++,v++) *i += cs(ig++)* (*v);
-//     }
-// }
 
 
 RadialFunction* ContractedGaussianRF::Clone() const

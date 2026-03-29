@@ -5,7 +5,6 @@ export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Gaussian
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
-import oml; 
 
 #define LMAX 3
 export namespace PolarizedGaussian

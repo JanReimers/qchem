@@ -5,9 +5,9 @@ module;
 #include "blaze/Math.h" 
 export module qchem.Conversions;
 export import qchem.Types;
-export import oml.Vector;
-export import oml.Matrix;
-export import oml.SMatrix;
+import oml.Vector;
+import oml.Matrix;
+import oml.SMatrix;
 
 export 
 {

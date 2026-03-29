@@ -4,7 +4,6 @@ module;
 #include <vector>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import oml;
 
 namespace PolarizedGaussian
 {
@@ -13,7 +12,7 @@ namespace PolarizedGaussian
 //  Construction zone.
 //
 
-ContractedGaussianH3::ContractedGaussianH3(const Vector<double>& c)
+ContractedGaussianH3::ContractedGaussianH3(const rvec_t& c)
     : TheCoeff(c)
 {};
 
@@ -25,10 +24,10 @@ double ContractedGaussianH3::operator()(const Polarization& Pa,const Polarizatio
     //No UT coverage
     assert(itsH3s.size()==TheCoeff.size());
     double ret=0;
-    int i=1;
+    int i=0;
     for (auto& b:itsH3s) 
     {
-        ret+=(*b)(Pa,Pb,Pc)*TheCoeff(i);
+        ret+=(*b)(Pa,Pb,Pc)*TheCoeff[i];
         i++;
     }
     return ret;

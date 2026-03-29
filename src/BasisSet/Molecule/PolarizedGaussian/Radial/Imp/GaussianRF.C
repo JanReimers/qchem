@@ -19,7 +19,6 @@ import Common.Constants;
 import qchem.Cluster;
 import qchem.Atom;
 import Common.IntPow;
-import oml;
 
 namespace PolarizedGaussian
 {

@@ -12,7 +12,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Cluster;
 import qchem.Types;
-import oml;
 
 export namespace PolarizedGaussian
 {
@@ -23,7 +22,7 @@ export namespace PolarizedGaussian
 class ContractedGaussianH3 : public Hermite3
 {
 public:
-    ContractedGaussianH3(const Vector<double>&);
+    ContractedGaussianH3(const rvec_t&);
     virtual ~ContractedGaussianH3();
 
     virtual double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const;
@@ -37,7 +36,7 @@ private:
 
     typedef std::vector<std::unique_ptr<Hermite3>> h3v_t;
     h3v_t itsH3s;
-    const Vector<double>& TheCoeff; //Contraction coefficients.
+    const rvec_t& TheCoeff; //Contraction coefficients.
 };
 
 class ContractedGaussianRF
@@ -46,7 +45,7 @@ class ContractedGaussianRF
 {
 public:
     ContractedGaussianRF(                                                               );
-    ContractedGaussianRF(const Vector<double>& C,std::vector<RadialFunction*>& its_rfs);
+    ContractedGaussianRF(const rvec_t& C,std::vector<RadialFunction*>& its_rfs);
 
     virtual bool            operator==      (const RadialFunction&) const;
     virtual double          GetNormalization(const Polarization&  ) const;
@@ -81,9 +80,9 @@ private:
 
     typedef std::vector<std::unique_ptr<RadialFunction>> rfv_t;
 
-    Vector<double> cs;
-    Vector<double> unormalized_cs;
-    rfv_t          gs;
+    rvec_t cs;
+    rvec_t unormalized_cs;
+    rfv_t  gs;
 };
 
 } //namespace PolarizedGaussian

@@ -9,13 +9,13 @@ module;
 #include <algorithm>
 #include <unistd.h>
 #include <vector>
-
+#include <blaze/Math.h>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import Common.PeriodicTable;
 import qchem.Atom;
-import oml;
+import qchem.Conversions;
 
 using std::ws;
 namespace PolarizedGaussian
@@ -141,22 +141,22 @@ RadialFunction* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom
 {
     assert(nCont>0);
     assert(maxL>=0);
-    Matrix<double> coeff(nCont,itsLs.size());
+    rmat_t coeff(nCont,itsLs.size());
     std::vector<RadialFunction*> radials;
 
     for (int i=1; i<=nCont; i++)
     {
         double exponent=0;
         itsStream >> exponent;
-        for (unsigned int l=1; l<=itsLs.size(); l++) itsStream >> coeff(i,l);
+        for (unsigned int l=1; l<=itsLs.size(); l++) itsStream >> coeff(i-1,l-1);
         radials.push_back(new GaussianRF(exponent,atom.itsR,maxL));
     }
-    if (itsLs.size()>1 && coeff.GetColumn(1) != coeff.GetColumn(2))
+    if (itsLs.size()>1 && blaze::column(coeff,0) != blaze::column(coeff,1))
     {
         std::cerr << "Gaussian94Reader::ReadContracted contraction coeffs vary with L, not handeled yet" << std::endl;
         exit(-1);
     }
-    return new ContractedGaussianRF(coeff.GetColumn(1),radials);
+    return new ContractedGaussianRF(blaze::column(coeff,0),radials);
 }
 
 //

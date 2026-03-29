@@ -6,7 +6,6 @@ module;
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import Common.IntPow;
-import oml;
 
 #define MAX 16
 
