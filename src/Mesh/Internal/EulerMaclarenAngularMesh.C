@@ -3,10 +3,9 @@ module;
 #include <iostream>
 #include <cmath>
 #include <cassert>
-
+#include <blaze/Math.h>
 module qchem.Mesh.Internal.Types;
 import Common.Constants;
-import oml;
 
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {
@@ -15,16 +14,16 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
     int numPhi   = (L+1);
     int numDir   = numTheta*numPhi;
 
-    Vector<rvec3_t>  D(numDir);
-    Vector<double> W(numDir);
+    rvec3vec_t D(numDir);
+    rvec_t     W(numDir);
 //
 //  Get a bunch of thetas with weights.
 //
-    Vector<double> thetas(numTheta);
-    Vector<double> Wt(numTheta);
+    rvec_t thetas(numTheta);
+    rvec_t Wt(numTheta);
     {
-        Vector<double>::iterator it(thetas.begin());
-        Vector<double>::iterator iw(Wt.begin());
+        auto it(thetas.begin());
+        auto iw(Wt.begin());
         double del=Pi/numTheta;
         for (int i=0; i<numTheta; i++,it++,iw++)
         {
@@ -52,11 +51,11 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
 //
 //  Get a bunch of phi's with weights.
 //
-    Vector<double> phis(numPhi);
-    Vector<double> Wp  (numPhi);
+    rvec_t phis(numPhi);
+    rvec_t Wp  (numPhi);
     {
-        Vector<double>::iterator it(phis.begin());
-        Vector<double>::iterator iw(Wp.begin());
+        auto it(phis.begin());
+        auto iw(Wp.begin());
         double del=2*Pi /numPhi;
         for (int i=0; i<numPhi; i++,it++,iw++)
         {
@@ -71,16 +70,16 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
 //
 //  Now take the direct product of the
 //
-    Vector<rvec3_t >::iterator d(D.begin());
-    Vector<double>::iterator w(W.begin());
+    auto d(D.begin());
+    auto w(W.begin());
 
-    Vector<double>::const_iterator t (thetas.begin());
-    Vector<double>::const_iterator wt(Wt.begin());
-    for(; t; t++,wt++)
+    auto t (thetas.begin());
+    auto wt(Wt.begin());
+    for(; t!=thetas.end(); t++,wt++)
     {
-        Vector<double>::const_iterator p (phis.begin());
-        Vector<double>::const_iterator wp(Wp.begin());
-        for (; p; p++,wp++,d++,w++)
+        auto p (phis.begin());
+        auto wp(Wp.begin());
+        for (; p!=phis.end(); p++,wp++,d++,w++)
         {
             (*d).x=sin(*t)*sin(*p);
             (*d).y=sin(*t)*cos(*p);
@@ -93,7 +92,7 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
 #endif
 
     assert(W.size()==D     .size());
-    for (auto i:D.indices()) push_back(D(i),W(i));
+    for (auto i:iv_t(0,D.size())) push_back(D[i],W[i]);
 
 }
 

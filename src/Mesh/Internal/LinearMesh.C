@@ -1,26 +1,18 @@
 // File: LinearMesh.C  Linear mesh implementation.
 module;
 #include <cmath>
+// #include <blaze/math/expressions/DVecGenExpr.h>
+#include <blaze/Math.h>
 module qchem.Mesh.Internal.Types;
-import oml;
 
 LinearMesh::LinearMesh(double start, double stop, const rvec3_t& direction, int NumPoints)
 {
     rvec3_t nd=normalize(direction); //Make sure its normailized.
-
-    Vector<double> R(NumPoints);
-    Vector<double> W(NumPoints);
-    FillLinear(R,start,stop);
-    Fill(W,1.0/NumPoints);
+    rvec_t R=blaze::linspace(NumPoints,start,stop);
     
-    for (auto i:R.indices())
-        push_back(R(i)*nd,W(i));
+    for (auto r:R)
+        push_back(r*nd,1.0/NumPoints);
 
-//    Vector<rvec3_t> Rv(NumPoints);
-//    Vector<double>::const_iterator b(R.begin());
-//    for(Vector<rvec3_t> ::iterator i(Rv.begin()); i!=Rv.end(); i++,b++) *i=*b*nd;
-//
-//    Initialize(Rv,W);
 }
 
 Mesh* LinearMesh::Clone() const

@@ -4,7 +4,6 @@ module;
 #include <vector>
 
 export module qchem.RadialMesh;
-import oml;
 
 export class RadialMesh
 {

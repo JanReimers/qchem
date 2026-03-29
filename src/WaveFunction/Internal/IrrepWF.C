@@ -10,8 +10,6 @@ export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Symmetry.ElectronConfiguration;
 
-import oml;
-
 export class IrrepWF
 {
 public:
@@ -31,7 +29,7 @@ public:
  private:
     IrrepWF(const IrrepWF&);
 
-    const Real_OIBS*  itsBasisSet;
+    const Real_OIBS*    itsBasisSet;
     LASolver_blaze<double>*      itsLASolver_blaze;
     TOrbitals<double>*           itsOrbitals; //Owned
     Irrep_QNs                    itsIrrep;
