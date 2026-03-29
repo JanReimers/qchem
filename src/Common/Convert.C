@@ -12,23 +12,23 @@ import oml.SMatrix;
 export 
 {
 
-template <class T> std::valarray<T> to_valarray(const std::vector<T>& v)
-{
-    std::valarray<T> ret(v.size());
-    size_t n=0;
-    for (auto iv:v) ret[n++]=iv;
-    return ret;
-}
+    template <class T> std::valarray<T> to_valarray(const std::vector<T>& v)
+    {
+        std::valarray<T> ret(v.size());
+        size_t n=0;
+        for (auto iv:v) ret[n++]=iv;
+        return ret;
+    }
 
-template <class T> Vector<T> to_omlVector(const std::valarray<T>& v)
-{
-    Vector<T> ret(v.size());
-    size_t n=0;
-    for (auto i:v) ret(++n)=i;
-    return ret;
-}
+    template <class T> Vector<T> to_omlVector(const std::valarray<T>& v)
+    {
+        Vector<T> ret(v.size());
+        size_t n=0;
+        for (auto i:v) ret(++n)=i;
+        return ret;
+    }
 
-template <typename T> smat_t<T> convert(const SMatrix<T>& S)
+    template <typename T> smat_t<T> convert(const SMatrix<T>& S)
     {
         size_t N=S.GetNumRows();
         smat_t<T> bS(N);
@@ -37,7 +37,7 @@ template <typename T> smat_t<T> convert(const SMatrix<T>& S)
                     bS(i-1,j-1)=S(i,j);
         return bS;
     }
-    template <typename T> mat_t<T> convert(const Matrix<T>& M)
+    template <typename T>  mat_t<T> convert(const Matrix<T>& M)
     {
         size_t N=M.GetNumRows();
         mat_t<T> bM(N,N);

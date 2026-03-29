@@ -42,6 +42,7 @@ set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
 # BasisSet module
 add_executable(UTBasisSet UTBasisSet.C BasisSet_Atom.C)
 target_link_libraries(UTBasisSet PUBLIC qcAtom_BS wignerSymbols gtest) #qcLattice_BS
+target_include_directories(UTBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
 
 target_compile_definitions(UTBasisSet PRIVATE 

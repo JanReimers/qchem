@@ -6,15 +6,14 @@ export module qchem.BasisSet.Lattice.Internal.IBS_Evaluator;
 export import qchem.VectorFunction;
 export import qchem.Types;
 import qchem.Conversions;
-import oml.Vector;
 
-std::valarray<rvec3_t> torvec(const std::valarray<ivec3_t> i3)
-{
-    std::valarray<rvec3_t> r3(i3.size());
-    size_t n=0;
-    for (auto i:i3) r3[n++]=i;
-    return r3;
-}
+// std::valarray<rvec3_t> torvec(const std::valarray<ivec3_t> i3)
+// {
+//     std::valarray<rvec3_t> r3(i3.size());
+//     size_t n=0;
+//     for (auto i:i3) r3[n++]=i;
+//     return r3;
+// }
 
 
 export namespace PlaneWave

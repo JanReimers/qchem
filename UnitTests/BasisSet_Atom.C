@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 #include <iostream>
 #include <cmath>
-
+#include <blaze/Math.h>
 using std::cout;
 using std::endl;
 
@@ -26,10 +26,10 @@ import qchem.Orbital_HF_IBS;
 bool operator==(const ERI4& a, const ERI4& b)
 {
     static double eps=1e-16;
-    if (a.GetLimits()!=b.GetLimits()) return false;
-    for (size_t i=1;i<a.Nab();i++)
-        for (size_t j=1;j<a.Nab();j++)
-            if (FrobeniusNorm(a(i,j)-b(i,j))>eps) return false;
+    if (a.size()!=b.size()) return false;
+    for (size_t i=0;i<a.Nab();i++)
+        for (size_t j=0;j<a.Nab();j++)
+            if (norm(a(i,j)-b(i,j))>eps) return false;
     return true;
 }
 //----------------------------------------------------------------------------------------
@@ -81,28 +81,26 @@ public:
     BS_Evaluator* bs_eval;
     BasisSet* bs;
 };
-using omls_t=IBS_Evaluator::omls_t;
-using omlv_t=IBS_Evaluator::omlv_t;
 void BasisSet_Common::TestOverlap(double eps) const
 {
     EXPECT_GT(evals.size(),0);
     for (auto ev:evals)
     {
-        omls_t S=ev->Overlap();
-        for (auto d:Vector<double>(S.GetDiagonal())) EXPECT_NEAR(d,1.0,1e-15);
-        omls_t Snum = mintegrator->Overlap(*ev);
+        rsmat_t S=ev->Overlap();
+        for (auto d:diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
+        rsmat_t Snum = mintegrator->Overlap(*ev);
         cout.precision(2);
         // cout << S-Snum << endl;
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,eps);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
 }
 void BasisSet_Common::TestGrad2  (double eps) const
 {
     for (auto ev:evals)
     {
-        omls_t S=ev->Grad2();
-        omls_t Snum = mintegrator->Grad2(*ev);
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,eps);
+        rsmat_t S=ev->Grad2();
+        rsmat_t Snum = mintegrator->Grad2(*ev);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
@@ -110,9 +108,9 @@ void BasisSet_Common::TestInv_r1 (double eps) const
 {
     for (auto ev:evals)
     {
-        omls_t S=ev->Inv_r1();
-        omls_t Snum = mintegrator->Inv_r1(*ev);
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,eps);
+        rsmat_t S=ev->Inv_r1();
+        rsmat_t Snum = mintegrator->Inv_r1(*ev);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
@@ -120,9 +118,9 @@ void BasisSet_Common::TestInv_r2 (double eps) const
 {
     for (auto ev:evals)
     {
-        omls_t S=ev->Inv_r2();
-        omls_t Snum = mintegrator->Inv_r2(*ev);
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,eps);
+        rsmat_t S=ev->Inv_r2();
+        rsmat_t Snum = mintegrator->Inv_r2(*ev);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
@@ -130,9 +128,9 @@ void BasisSet_Common::TestCharge (double eps) const
 {
     for (auto ev:evals)
     {
-        omlv_t S=ev->Charge();
-        omlv_t Snum = mintegrator->Integrate(*ev);
-        EXPECT_NEAR(Max(fabs(S-Snum)),0.0,eps);
+        rvec_t S=ev->Charge();
+        rvec_t Snum = mintegrator->Integrate(*ev);
+        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
@@ -204,12 +202,12 @@ TEST_F(BasisSet_SL,AnalyticOverlap)
     for (auto ev:evals)
     {
         int l=ev->Getl();
-        omls_t S=ev->Overlap();
+        rsmat_t S=ev->Overlap();
         // cout << S << endl;
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
+        for (auto i:iv_t(0,S.rows()))
+            for (auto j:iv_t(i,S.rows()))
             {
-                double a=es[i-1],b=es[j-1];
+                double a=es[i],b=es[j];
                 EXPECT_NEAR(S(i,j),pow(2.0/(sqrt(a/b)+sqrt(b/a)),2*l+3),1e-15);
             }
     }
@@ -222,14 +220,14 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
     {
         int l=ev->Getl();
         if (l>=3) continue;
-        omls_t S=ev->Repulsion();
+        rsmat_t S=ev->Repulsion();
         // cout << "l=" << l << " S=" << S << endl;
         ds_t   ns=ev->Norm();
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
+        for (auto i:iv_t(0,S.rows()))
+            for (auto j:iv_t(i,S.rows()))
             {
-                double a=es[i-1],b=es[j-1];
-                double rerr=(S(i,j) - R0(a,b,l,l)*ns[i-1]*ns[j-1])/S(i,j);
+                double a=es[i],b=es[j];
+                double rerr=(S(i,j) - R0(a,b,l,l)*ns[i]*ns[j])/S(i,j);
                 EXPECT_NEAR(rerr,0.0,3e-14);
             }
     }
@@ -306,11 +304,11 @@ TEST_F(BasisSet_SG,AnalyticOverlap)
     for (auto ev:evals)
     {
         int l=ev->Getl();
-        omls_t S=ev->Overlap();
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
+        rsmat_t S=ev->Overlap();
+         for (auto i:iv_t(0,S.rows()))
+            for (auto j:iv_t(i,S.rows()))
             {
-                double a=es[i-1],b=es[j-1];
+                double a=es[i],b=es[j];
                 EXPECT_NEAR(S(i,j),pow(2.0/(sqrt(a/b)+sqrt(b/a)),(2.0*l+3.0)/2.0),1e-15);
             }
     }
@@ -323,14 +321,14 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
     {
         int l=ev->Getl();
         if (l>=3) continue;
-        omls_t S=ev->Repulsion();
+        rsmat_t S=ev->Repulsion();
         // cout << "l=" << l << " S=" << S << endl;
         ds_t   ns=ev->Norm();
-        for (auto i:S.rows())
-            for (auto j:S.cols(i))
+         for (auto i:iv_t(0,S.rows()))
+            for (auto j:iv_t(i,S.rows()))
             {
-                double a=es[i-1],b=es[j-1];
-                double rerr=(S(i,j) - R0(a,b,l,l)*ns[i-1]*ns[j-1])/S(i,j);
+                double a=es[i],b=es[j];
+                double rerr=(S(i,j) - R0(a,b,l,l)*ns[i]*ns[j])/S(i,j);
                 EXPECT_NEAR(rerr,0.0,3e-14);
             }
     }
