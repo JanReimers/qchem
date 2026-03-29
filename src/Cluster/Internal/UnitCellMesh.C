@@ -6,7 +6,6 @@ export module Cluster.UnitCellMesh;
 import Cluster.UnitCell;
 import qchem.Mesh;
 import Cluster.UnitCell;
-import oml;
 
 export class UnitCellMesh : public Mesh
 {
