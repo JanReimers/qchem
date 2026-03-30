@@ -2,9 +2,9 @@
 module;
 // #include <vector>
 // #include <valarray>
-#include <blaze/math/DynamicVector.h>
+#include <blaze/math/SymmetricMatrix.h>
 
-export module qchem.Conversions;
+export module qchem.Blaze;
 export import qchem.Types;
 
 export 

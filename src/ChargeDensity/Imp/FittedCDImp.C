@@ -9,7 +9,7 @@ module;
 module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
-import qchem.Conversions;
+import qchem.Blaze;
 
 //------------------------------------------------------------------------------------
 //

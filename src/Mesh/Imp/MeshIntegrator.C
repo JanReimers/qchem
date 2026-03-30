@@ -7,7 +7,7 @@ module;
 #include <cassert>
 #include "blaze/Math.h"
 module qchem.Mesh.Integrator;
-import qchem.Conversions;
+import qchem.Blaze;
 import qchem.Vector3D;
 using std::cout;
 using std::endl;

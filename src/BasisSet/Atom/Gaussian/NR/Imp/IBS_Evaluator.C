@@ -9,7 +9,7 @@ module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.Rk;
 import qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
-import qchem.Conversions;
+
 
 
 inline double Overlap(double ea , double eb,size_t l_total)

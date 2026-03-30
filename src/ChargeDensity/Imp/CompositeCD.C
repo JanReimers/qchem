@@ -4,7 +4,7 @@ module;
 #include <vector>
 #include <memory>
 module qchem.CompositeCD;
-import qchem.Conversions;
+import qchem.Blaze;
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.

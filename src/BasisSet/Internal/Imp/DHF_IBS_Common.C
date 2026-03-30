@@ -8,7 +8,7 @@ module;
 #include "blaze/Math.h"
 module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.BasisSet.Internal.HeapDB;
-import qchem.Conversions;
+import qchem.Blaze;
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
 (const DB_cache<T>* db, int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)

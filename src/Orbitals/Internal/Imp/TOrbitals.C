@@ -14,7 +14,7 @@ import qchem.Symmetry;
 import Common.Constants; //c_light
 import qchem.stl_io;
 import qchem.Streamable;
-import qchem.Conversions;
+import qchem.Blaze;
 
 //-----------------------------------------------------------------
 //

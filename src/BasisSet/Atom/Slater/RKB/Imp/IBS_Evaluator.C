@@ -7,7 +7,7 @@ module;
 module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
-import qchem.Conversions;
+
 
 rvec_t Slater_RKBS_IBS::norms() const
 {

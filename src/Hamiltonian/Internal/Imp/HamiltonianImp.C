@@ -10,7 +10,7 @@ import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
 import qchem.stl_io;
 import qchem.Streamable;
-import qchem.Conversions;
+import qchem.Blaze;
 
 HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
 {};

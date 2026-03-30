@@ -2,7 +2,7 @@ module;
 #include <cassert>
 #include <blaze/Math.h>
 module qchem.BasisSet.Internal.ERI4;
-import qchem.Conversions;
+import qchem.Blaze;
 
 rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd)
 {

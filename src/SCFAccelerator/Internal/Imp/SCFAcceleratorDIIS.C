@@ -8,7 +8,7 @@ module;
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.IrrepBasisSet;
-import qchem.Conversions;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;
