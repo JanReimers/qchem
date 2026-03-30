@@ -274,7 +274,7 @@ std::vector<CBas> MakeBasis(const Cluster* cl,const PolarizedGaussian::IrrepIECl
 
 TEST_F(libCintTests, Overlap)
 {
-    StreamableObject::SetToPretty();
+    
     std::vector<double> env(PTR_ENV_START);
     std::vector<CAtom> atoms=MakeAtoms(cl,env);
     int natoms=atoms.size();

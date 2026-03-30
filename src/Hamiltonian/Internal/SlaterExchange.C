@@ -4,7 +4,7 @@ module;
 export module qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Symmetry.Spin;
-import oml.Vector3D;
+import qchem.Vector3D;
 
 export class SlaterExchange
     : public  ExFunctional

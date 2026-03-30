@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <complex>
 module qchem.VectorFunction;
-import oml.Vector3D;
+import qchem.Vector3D;
 
 template <class T> mat_t<T> VectorFunction<T>::operator() (const Mesh& mesh) const
 {

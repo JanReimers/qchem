@@ -4,8 +4,8 @@
 
 #file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 link_directories( 
-    $<$<CONFIG:Debug>: ../submodules/build/oml/Debug submodules/wignerSymbols/build>
-    $<$<CONFIG:Release>: ../submodules/build/oml/Release submodules/wignerSymbols/build>
+    $<$<CONFIG:Debug>:  submodules/wignerSymbols/build>
+    $<$<CONFIG:Release>:  submodules/wignerSymbols/build>
 )
 
 #  Main
@@ -29,7 +29,7 @@ target_include_directories(UTMain PRIVATE
       ${PROJECT_SOURCE_DIR}/submodules/blaze
 
 )
-target_link_libraries(UTMain PUBLIC qchem qcCommon omlm)
+target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 # Symmetry module
 add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)

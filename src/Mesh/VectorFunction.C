@@ -3,7 +3,7 @@ module;
 #include <valarray>
 export module qchem.VectorFunction;
 export import qchem.Mesh;
-export import oml.Vector3D;
+export import qchem.Vector3D;
 export import qchem.Types;
 //--------------------------------------------------------------------------
 //

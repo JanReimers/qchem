@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 export module Cluster.UnitCell;
 export import qchem.Types;
-import oml.Matrix3D;
+import qchem.Matrix3D;
 import qchem.Streamable;
 
 export class UnitCell

@@ -90,20 +90,20 @@ public:
 
 TEST_F(DiracIntegralTests, SlaterBasisSet)
 {
-    StreamableObject::SetToPretty();
+    
     cout << *sbs << endl;
 }
 
 TEST_F(DiracIntegralTests, GaussianBasisSet)
 {
-    StreamableObject::SetToPretty();
+    
     cout << *gbs << endl;
 }
 
 
 TEST_F(DiracIntegralTests, SlaterOverlap)
 {
-    StreamableObject::SetToPretty();
+    
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t S=oi->Overlap();
@@ -123,7 +123,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
 
 TEST_F(DiracIntegralTests, GaussianOverlap)
 {
-    StreamableObject::SetToPretty();
+    
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t S=oi->Overlap();
@@ -144,7 +144,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
 
 TEST_F(DiracIntegralTests, SlaterNuclear)
 {
-    StreamableObject::SetToPretty();
+    
     int Z=cl->GetNuclearCharge();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
@@ -161,7 +161,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
 
 TEST_F(DiracIntegralTests, GaussianNuclear)
 {
-    StreamableObject::SetToPretty();
+    
     int Z=cl->GetNuclearCharge();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
@@ -179,7 +179,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 
 TEST_F(DiracIntegralTests, SlaterKinetic)
 {
-    StreamableObject::SetToPretty();
+    
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t K=oi->Kinetic();
@@ -194,7 +194,7 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
 }
 TEST_F(DiracIntegralTests, GaussianKinetic)
 {
-    StreamableObject::SetToPretty();
+    
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t K=oi->Kinetic();

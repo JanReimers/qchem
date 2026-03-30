@@ -6,7 +6,7 @@ module;
 #include <valarray>
 
 module qchem.ScalarFunction;
-import oml.Vector3D;
+import qchem.Vector3D;
 
 
 template <class T> vec_t<T> ScalarFunction<T>::operator() (const Mesh& mesh) const

@@ -10,7 +10,7 @@ class OpenMPTests : public ::testing::Test
 public:
     OpenMPTests()
     {
-        StreamableObject::SetToPretty();
+        
     }
     auto now() {return std::chrono::high_resolution_clock::now();}
     

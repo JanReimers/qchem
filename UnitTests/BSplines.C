@@ -37,7 +37,7 @@ public:
         : LMax(4)
         , cl(new Molecule())
     {
-        StreamableObject::SetToPretty();
+        
         cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,500,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));

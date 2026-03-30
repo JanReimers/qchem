@@ -27,4 +27,4 @@ target_compile_options(qcCluster PRIVATE
     $<$<CONFIG:Release>: -O2 >
 )
 set_property(TARGET qcCluster PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcCluster PUBLIC qcMesh qcCommon omlm)
+target_link_libraries(qcCluster PUBLIC qcMesh qcCommon)

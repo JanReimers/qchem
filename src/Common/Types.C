@@ -4,7 +4,7 @@ module;
 #include <complex>
 #include <ranges>
 export module qchem.Types;
-export import oml.Vector3D;
+export import qchem.Vector3D;
 
 export
 {

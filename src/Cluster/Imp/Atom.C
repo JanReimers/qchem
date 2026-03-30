@@ -4,7 +4,7 @@ module;
 module qchem.Atom;
 import qchem.Cluster.AtomMesh;
 import qchem.Mesh.Factory;
-import oml.Vector3D;
+import qchem.Vector3D;
 using json = nlohmann::json;
 
 

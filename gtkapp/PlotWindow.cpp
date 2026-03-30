@@ -210,7 +210,7 @@ void EnergyLevel_PW::LoadSymmetries(const EnergyLevels& els)
   double e_scale=fabs(els.begin()->first);
   double x=0.0;
   Nocc=0,Nup=0,Ndn=0;
-  StreamableObject::SetToPretty();
+  
   for (auto i:els)
   {
     EnergyLevel el=i.second;

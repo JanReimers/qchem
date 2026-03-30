@@ -54,7 +54,7 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
 {
     int L=itsPT.GetMaxL(::Z);
     Init(6,.01,10000.0,L);
-    StreamableObject::SetToPretty();
+    
     
     Cluster* cl=GetCluster();
     Cluster* cl1=::OutIn<Cluster>(cl,file_name.c_str(), StreamableObject::ascii);
@@ -69,7 +69,7 @@ TEST_F(qchem_PersistanceTests,AtomBasisSets)
     Hamiltonian* h1=::OutIn<Hamiltonian>(h,file_name.c_str(), StreamableObject::ascii);
     Hamiltonian* h2=::OutIn<Hamiltonian>(h,file_name.c_str(), StreamableObject::binary);
 
-    StreamableObject::SetToPretty();
+    
     cout << *h << *h1 << *h2 << endl;
     delete h1;
     delete h2;

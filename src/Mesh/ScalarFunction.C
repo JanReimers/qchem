@@ -3,7 +3,7 @@ module;
 #include <valarray>
 export module qchem.ScalarFunction;
 export import qchem.Mesh;
-export import oml.Vector3D;
+export import qchem.Vector3D;
 
 export template <class T> class ScalarFunction
 {

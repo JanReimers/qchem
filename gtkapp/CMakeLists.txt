@@ -7,10 +7,10 @@ pkg_check_modules(PLPlot REQUIRED gtkmm-plplot-3.0)
 #install(FILES qchem-gtk.ui DESTINATION bin)
 
 #file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
-link_directories( 
-    $<$<CONFIG:Debug>: ../../oml/Debug>
-    $<$<CONFIG:Release>: ../../oml/Release>
-)
+# link_directories( 
+#     $<$<CONFIG:Debug>: >
+#     $<$<CONFIG:Release>: >
+# )
 add_executable(qchem-gtk)
 target_sources(qchem-gtk PRIVATE qchem-gtk.cpp qchem-gtk.ui ControllerWindow.cpp AtomFrame.cpp BasisSetFrame.cpp HamiltonianFrame.cpp LAParamsFrame.cpp SCFFrame.cpp MeshFrame.cpp PlotWindow.cpp)
 target_compile_options(qchem-gtk PRIVATE -Wall -pg -fopenmp ${GTKMM_CFLAGS_OTHER} ${PLPlot_CFLAGS_OTHER}
@@ -18,7 +18,7 @@ target_compile_options(qchem-gtk PRIVATE -Wall -pg -fopenmp ${GTKMM_CFLAGS_OTHER
     $<$<CONFIG:Release>: -O2>
 )
 target_link_options(qchem-gtk PRIVATE -fopenmp -Wl,--export-dynamic ${GTKMM_LDFLAGS_OTHER} ${PLPlot_LDFLAGS_OTHER})
-target_include_directories(qchem-gtk PRIVATE ../include ../../oml/include ${GTKMM_INCLUDE_DIRS} ${PLPlot_INCLUDE_DIRS})
+target_include_directories(qchem-gtk PRIVATE ../include ${GTKMM_INCLUDE_DIRS} ${PLPlot_INCLUDE_DIRS})
 target_link_libraries(qchem-gtk qchem ${GTKMM_LIBRARIES} ${PLPlot_LIBRARIES})
 
 add_custom_command(TARGET qchem-gtk POST_BUILD

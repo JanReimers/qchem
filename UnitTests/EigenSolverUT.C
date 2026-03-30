@@ -29,7 +29,7 @@ class OrthogonalizeTests : public ::testing::Test
 public:
     OrthogonalizeTests() : bs(0)
     {
-        StreamableObject::SetToPretty();
+        
     }
     void Set(int N, int Z, LAParams lap)
     {

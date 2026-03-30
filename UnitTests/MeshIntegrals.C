@@ -10,7 +10,6 @@ import qchem.Mesh.Integrator;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Symmetry;
-import oml;
 
 
 using std::cout;
@@ -62,7 +61,7 @@ public:
 
 TEST_F(MeshIntegralsTests, GaussAngles)
 {
-    StreamableObject::SetToPretty();
+    
     InitAtom();
     cout << *bs << endl;
     //cout.precision(2);
@@ -89,7 +88,7 @@ TEST_F(MeshIntegralsTests, GaussAngles)
 
 TEST_F(MeshIntegralsTests, GObritals)
 {
-    StreamableObject::SetToPretty();
+    
     InitMolecule();
     cout << *bs << endl;
     auto ibs=bs->beginT();

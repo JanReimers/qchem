@@ -10,7 +10,6 @@ export import qchem.Cluster;
 export import qchem.Atom;
 export import Cluster.UnitCell;
 import qchem.Mesh;
-import oml.Vector3D;
 
 //----------------------------------------------------------------------------
 //

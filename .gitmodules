@@ -7,14 +7,9 @@
 [submodule "submodules/googletest"]
 	path = submodules/googletest
 	url = https://github.com/google/googletest
-[submodule "submodules/oml"]
-	path = submodules/oml
-	url = https://github.com/JanReimers/oml
 [submodule "submodules/wignerSymbols"]
 	path = submodules/wignerSymbols
 	url = https://github.com/joeydumont/wignerSymbols
-[submodules "oml"]
-	branch = master
 [submodules "json"]
 	branch = master
 [submodules "wignerSymbols"]

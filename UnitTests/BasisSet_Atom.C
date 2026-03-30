@@ -47,7 +47,7 @@ public:
         , bs_eval(_bseval)
         , bs(0)
     {
-        StreamableObject::SetToPretty();
+        
         cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));

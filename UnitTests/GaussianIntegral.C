@@ -44,7 +44,6 @@ public:
         };
         bs=BasisSetAtom::Factory(js,75);
         bs->Set(lap);
-        StreamableObject::SetToPretty();
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));

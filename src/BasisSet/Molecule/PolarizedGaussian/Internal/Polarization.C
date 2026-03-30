@@ -4,7 +4,6 @@ module;
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 import Common.IntPow;
-import oml.Vector3D;
 
 export namespace PolarizedGaussian
 {
