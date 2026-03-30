@@ -1,7 +1,5 @@
 // File: BasisSet/Atom/Gaussian/NR/IBS_Evaluator.C
 module;
-#include <valarray>
-#include <vector>
 #include <iosfwd>
 export module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
@@ -11,8 +9,8 @@ export class Gaussian_IBS : public Exponential_IBS_Evaluator
 {
 public: 
  
-    Gaussian_IBS(const   ds_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Gaussian_IBS(const   ds_t& es, int l) : Gaussian_IBS(es,l,{}) {}
+    Gaussian_IBS(const   rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Gaussian_IBS(const   rvec_t& es, int l) : Gaussian_IBS(es,l,{}) {}
 
     virtual std::ostream& Write   (std::ostream&) const;
 
@@ -22,7 +20,7 @@ public:
     virtual rsmat_t Inv_r2   () const;
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
-    virtual ds_t   Norm     () const {return ns;}
+    virtual  rvec_t Norm     () const {return ns;}
     virtual rmat_t XRepulsion(const Fit_IBS&) const;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const;
 
@@ -33,7 +31,7 @@ public:
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
 protected:
-    ds_t norms() const; //assumes es,l are already initialized
+    rvec_t norms() const; //assumes es,l are already initialized
     virtual double Inv_r1(double ea , double eb,size_t l_total) const; // RKB needs to override
     static double Grad2(double ea , double eb,size_t la, size_t lb); // RKB needs access
     static double Inv_r2(double ea , double eb,size_t l_total); // RKB needs access

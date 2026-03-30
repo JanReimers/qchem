@@ -1,11 +1,8 @@
 // File: Atom/kappa/Gaussian_IBS.C  Restricted Kinetic Balance (RKB) Irrep Basis Set (IBS).
 module;
-#include <memory>
 #include <iostream>
 #include <cassert>
-#include <cmath>
-#include <valarray>
-#include <blaze/Math.h>
+#include <blaze/math/DynamicVector.h>
 module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Symmetry.Okmj;

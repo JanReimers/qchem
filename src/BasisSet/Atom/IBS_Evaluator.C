@@ -1,6 +1,5 @@
 // File: BasisSet/Atom/IBS_Evaluator.C
 module;
-#include <valarray>
 #include <vector>
 #include <ranges>
 #include <iosfwd>
@@ -17,7 +16,6 @@ export class IBS_Evaluator : public VectorFunction<double>
 {
     typedef std::ranges::iota_view<size_t,size_t> iota_view;
 public:
-    using ds_t=rvec_t;
     using is_t=std::vector<int>;
     
 
@@ -43,7 +41,7 @@ public:
     virtual rsmat_t Inv_r2    () const=0;
     virtual rsmat_t Repulsion () const=0;
     virtual  rvec_t Charge    () const=0;
-    virtual ds_t   Norm      () const=0;
+    virtual  rvec_t Norm      () const=0;
     virtual rmat_t XRepulsion(const Fit_IBS&) const=0;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const=0;
 
@@ -51,8 +49,8 @@ public:
     virtual dERI3  Repulsion(const Fit_IBS&) const=0; //3 center
 protected:
     int  l;
-    is_t mls;
-    ds_t ns;
+    is_t   mls;
+    rvec_t ns;
     const ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
 

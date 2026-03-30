@@ -1,10 +1,9 @@
 // File: BasisSet/Atom/Gaussian/NR/Imp/IBS_Evaluator.C
 module;
-#include <valarray>
 #include <cmath>
 #include <cassert>
 #include <iostream>
-#include <blaze/Math.h>
+#include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.Rk;
@@ -56,10 +55,10 @@ double Gaussian_IBS::Inv_r1(double ea , double eb,size_t l_total) const
 }
 
 
-Gaussian_IBS::ds_t Gaussian_IBS::norms() const
+rvec_t Gaussian_IBS::norms() const
 {
     size_t N=es.size();    
-    ds_t ret(N);
+    rvec_t ret(N);
     for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(es[i],es[i],2*l)); 
     return ret;
 }
@@ -191,7 +190,7 @@ dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
 
 rvec_t Gaussian_IBS::operator() (const rvec3_t& r) const
 {
-    return gaussian(norm(r),l,es,ns); //convert valarray -> blaze::rvec_t
+    return gaussian(norm(r),l,es,ns); 
 }
 
 rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const
@@ -203,7 +202,7 @@ rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const
         ret=rvec3_t{0,0,0};
         return ret;
     }
-    ds_t grad=grad_gaussian(norm(r),l,es,ns);
+    rvec_t grad=grad_gaussian(norm(r),l,es,ns);
     rvec3_t rhat=r/norm(r);
     size_t i=0;
     for (auto& g:grad) ret[i++]=g*rhat;

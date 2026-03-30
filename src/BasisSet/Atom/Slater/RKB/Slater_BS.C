@@ -1,7 +1,6 @@
 // File: BasisSet/Atom/Slater/RKB/Slater_BS.C  Slater Basis Set (BS) with Restricted Kinetic Balance (RKB).
 module;
 #include <iosfwd>
-#include <valarray>
 #include "forward.H"
 
 export module qchem.BasisSet.Atom.Slater.RKB.BS;
@@ -30,8 +29,7 @@ export class Orbital_RKB_IBS
     , public Orbital_RKB_IBS_Common<double> 
 {
 public:
-    using ds_t=rvec_t;
-    Orbital_RKB_IBS(const DB_cache<double>* db,const ds_t& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>* db,const rvec_t& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
@@ -44,9 +42,8 @@ export template <class T> class Orbital_RKBL_IBS
     , public AtomBS::IrrepBasisSet //Use NR slater basis
     , public AtomBS::Orbital_RKBL_IBS<T>
 {
-    using ds_t=vec_t<T>;
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const ds_t& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const rvec_t& exponents, int kappa);
 };
 
 export template <class T> class Orbital_RKBS_IBS
@@ -55,9 +52,8 @@ export template <class T> class Orbital_RKBS_IBS
     , public AtomBS::Orbital_RKBS_IBS<T> 
 {
     using Orbital_RKBS_IBS_Common<T>::large;
-    using ds_t=rvec_t;
 public:
-    Orbital_RKBS_IBS(const DB_cache<double>*,const ds_t& exponents, int kappa);
+    Orbital_RKBS_IBS(const DB_cache<double>*,const rvec_t& exponents, int kappa);
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
     using Orbital_RKBS_IBS_Common<T>::kappa;

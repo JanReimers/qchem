@@ -1,7 +1,6 @@
 // File: BasisSet/Atom/Gaussian/RKB/Gaussian_BS.C  Restricted Kinetic Balance (RKB) Basis Set (BS).
 module;
 #include <iosfwd>
-#include <valarray>
 #include "forward.H"
 export module qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator; //Used for large sector
@@ -28,7 +27,6 @@ export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double>
 {
-    using ds_t=std::valarray<double>;
 public:
     Orbital_RKB_IBS(const DB_cache<double>*, const rvec_t& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
@@ -44,7 +42,6 @@ export template <class T> class Orbital_RKBL_IBS
     , public AtomBS::IrrepBasisSet //Use NR Gaussian basis
     , public AtomBS::Orbital_RKBL_IBS<T>
 {
-    using ds_t=std::valarray<T>;
 public:
     Orbital_RKBL_IBS(const DB_cache<T>*,const rvec_t& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return Gaussian_IBS::size();}
@@ -56,7 +53,6 @@ export template <class T> class Orbital_RKBS_IBS
     , public AtomBS::Orbital_RKBS_IBS<T> 
 {
     using Orbital_RKBS_IBS_Common<T>::large;
-    using ds_t=std::valarray<T>;
 public:
     Orbital_RKBS_IBS(const DB_cache<T>*,const rvec_t& exponents,int kappa);
     virtual std::ostream&  Write(std::ostream&    ) const;

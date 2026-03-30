@@ -1,11 +1,8 @@
 // File: Atom/l/Gaussian_IBS.H  Gaussian Irrep Basis Set (IBS) with orbital angular momentum l.
 module;
-#include <vector>
-#include <valarray>
-#include <blaze/Math.h>
+#include <blaze/math/DynamicVector.h>
 
 module qchem.BasisSet.Atom.Gaussian.NR.BS;
-// import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 

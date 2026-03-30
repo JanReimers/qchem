@@ -1,7 +1,5 @@
 // File: Atom/l/Gaussian_BS.H
 module;
-#include <vector>
-#include <valarray>
 module qchem.BasisSet.Atom.Gaussian.NR.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 

@@ -3,8 +3,6 @@ module;
 #include <iostream>
 #include <cassert>
 #include <iomanip>
-#include <memory>
-#include <valarray>
 #include <blaze/Math.h>
 module qchem.BasisSet.Atom.Slater.RKB.BS;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
@@ -21,7 +19,7 @@ namespace Slater_RKB
 //
 
 Orbital_RKB_IBS::Orbital_RKB_IBS
-    (const DB_cache<double>* db,const ds_t& exponents, int kappa)
+    (const DB_cache<double>* db,const rvec_t& exponents, int kappa)
     : IrrepBasisSet_Common<double>(new Omega_k_Sym(kappa))
     , Orbital_RKB_IBS_Common<double>(db, kappa
         , new Orbital_RKBL_IBS<double>(db,exponents, kappa)
@@ -44,7 +42,7 @@ std::ostream&  Orbital_RKB_IBS::Write(std::ostream& os) const
 //  Large sector
 //
 template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
-(const DB_cache<T>* db,const ds_t& exponents,int kappa)
+(const DB_cache<T>* db,const rvec_t& exponents,int kappa)
     : Slater_IBS(exponents,Omega_kmj_Sym::l(kappa))
     , AtomBS::IrrepBasisSet(this,new Omega_k_Sym(kappa))
     , AtomBS::Orbital_RKBL_IBS<T>(db,this,kappa)
@@ -59,7 +57,7 @@ template <class T> Orbital_RKBL_IBS<T>::Orbital_RKBL_IBS
 //  Small sector
 //
 template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
-    (const DB_cache<double>* db,const ds_t& exponents, int kappa)
+    (const DB_cache<double>* db,const rvec_t& exponents, int kappa)
     : Slater_RKBS_IBS(exponents,kappa,Omega_k_Sym::l(kappa))
     , AtomBS::IrrepBasisSet(this,new Omega_k_Sym(-kappa))
     , AtomBS::Orbital_RKBS_IBS<T>(db,this,kappa)

@@ -1,16 +1,15 @@
 // File: BasisSet/Atom/radial/Imp/Slater_IBS.C
 module;
-#include <valarray>
 #include <cmath>
 #include <cassert>
-#include <blaze/Math.h>
+#include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
 import qchem.Conversions;
 
-Slater_IBS::ds_t Slater_RKBS_IBS::norms() const
+rvec_t Slater_RKBS_IBS::norms() const
 {
     return Slater_IBS::norms()/(2*c_light);
 }
@@ -20,10 +19,10 @@ double Slater_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
     return ea*eb*::Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-Slater_IBS::ds_t Slater_RKBS_IBS::eval(const rvec3_t& r) const
+rvec_t Slater_RKBS_IBS::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
-    ds_t f=-es;
+    rvec_t f=-es;
     if (kappa >0) 
         f+=(2*kappa+1)/mr;
         
@@ -44,7 +43,7 @@ rvec3vec_t Slater_RKBS_IBS::Gradient(const rvec3_t& r) const
         ret=rvec3_t{0,0,0};
         return ret;
     }
-    ds_t grad=eval(r)*(l/mr-es);
+    rvec_t grad=eval(r)*(l/mr-es);
    
     // std::cout << "grad=";
     // for (auto g:grad) std::cout << g << " ";

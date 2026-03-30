@@ -1,10 +1,10 @@
 // File: BasisSet/Atom/radial/Imp/Exponential_Evaluator.C  Common for Slater and Gaussian evaluators
 module;
-#include <valarray>
 #include <cmath>
 #include <cassert>
 #include <iostream>
-#include <blaze/Math.h>
+#include <blaze/math/DynamicVector.h>
+
 module qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 void Exponential_IBS_Evaluator::Register(Grouper* _grouper)

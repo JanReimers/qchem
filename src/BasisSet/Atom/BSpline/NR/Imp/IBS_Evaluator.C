@@ -1,7 +1,6 @@
 // File: BasisSet/Atom/radial/Imp/BSpline_IBS.C
 module;
 #include <bspline/Core.h>
-#include <valarray>
 #include <cmath>
 #include <cassert>
 #include <iostream>
@@ -101,10 +100,10 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     return knots;
 }
 
-template <size_t K> BSpline_IBS<K>::ds_t BSpline_IBS<K>::norms() const
+template <size_t K> rvec_t BSpline_IBS<K>::norms() const
 {
     size_t N=splines.size();
-    ds_t ret(N);
+    rvec_t ret(N);
     for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(splines[i],splines[i],2*l)); 
     return ret;
 }

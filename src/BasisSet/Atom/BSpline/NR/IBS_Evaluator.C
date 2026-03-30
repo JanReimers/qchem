@@ -1,7 +1,6 @@
 // File: BasisSet/Atom/BSpline/NR/IBS_Evaluator.C
 module;
 #include <bspline/Core.h>
-#include <valarray>
 #include <vector>
 #include <memory>
 #include <iosfwd>
@@ -28,7 +27,7 @@ public:
     virtual rsmat_t Inv_r2   () const;
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
-    virtual ds_t   Norm     () const {return ns;}
+    virtual  rvec_t Norm     () const {return ns;}
     virtual rmat_t XRepulsion(const Fit_IBS&) const;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const;
 
@@ -43,7 +42,7 @@ public:
 protected:
     friend class BSplineTests;
     std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax);
-    ds_t norms() const; //assumes es,l are already initialized
+    rvec_t norms() const; //assumes es,l are already initialized
 
     double rmin,rmax; //This might be needed for creating fit basis sets.
     std::vector<spline_t> splines;

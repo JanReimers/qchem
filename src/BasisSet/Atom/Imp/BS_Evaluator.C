@@ -54,7 +54,6 @@ BS_Evaluator::rvec11_t BS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluato
 
 ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) const
 {
-    using ds_t=IBS_Evaluator::ds_t;
     assert(a);
     assert(c);
     size_t spanab=a->maxSpan(),spancd=c->maxSpan();
@@ -62,7 +61,7 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
     int la=a->Getl(), lc=c->Getl();
     rvec11_t Akac=Coulomb_AngularIntegrals(a,c);
     ERI4 J(Na,Nc);
-    ds_t na=a->Norm(), nc=c->Norm();
+    rvec_t na=a->Norm(), nc=c->Norm();
 
     for (size_t ia:a->indices())
     {
@@ -97,13 +96,12 @@ ERI4 BS_Evaluator::Direct  (const IBS_Evaluator* a, const IBS_Evaluator* c) cons
 }
 ERI4 BS_Evaluator::Exchange(const IBS_Evaluator* a, const IBS_Evaluator* c) const
 {
-    using ds_t=IBS_Evaluator::ds_t;
     assert(a);
     assert(c);
     size_t spanab=a->maxSpan(),spancd=c->maxSpan();
     size_t Na=a->size(), Nc=c->size();
     ERI4 K(Na,Nc);
-    ds_t na=a->Norm(), nc=c->Norm();
+    rvec_t na=a->Norm(), nc=c->Norm();
     int la=a->Getl(), lc=c->Getl();
     rvec11_t Akac=ExchangeAngularIntegrals(a,c);
     for (size_t ia:a->indices())

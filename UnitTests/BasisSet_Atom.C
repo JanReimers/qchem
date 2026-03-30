@@ -215,14 +215,13 @@ TEST_F(BasisSet_SL,AnalyticOverlap)
 }
 TEST_F(BasisSet_SL,AnalyticRepulsion)
 {
-    using ds_t=IBS_Evaluator::ds_t;
     for (auto ev:evals)
     {
         int l=ev->Getl();
         if (l>=3) continue;
         rsmat_t S=ev->Repulsion();
         // cout << "l=" << l << " S=" << S << endl;
-        ds_t   ns=ev->Norm();
+        rvec_t   ns=ev->Norm();
         for (auto i:iv_t(0,S.rows()))
             for (auto j:iv_t(i,S.rows()))
             {
@@ -316,14 +315,13 @@ TEST_F(BasisSet_SG,AnalyticOverlap)
 }
 TEST_F(BasisSet_SG,AnalyticRepulsion)
 {
-    using ds_t=IBS_Evaluator::ds_t;
     for (auto ev:evals)
     {
         int l=ev->Getl();
         if (l>=3) continue;
         rsmat_t S=ev->Repulsion();
         // cout << "l=" << l << " S=" << S << endl;
-        ds_t   ns=ev->Norm();
+        rvec_t   ns=ev->Norm();
          for (auto i:iv_t(0,S.rows()))
             for (auto j:iv_t(i,S.rows()))
             {

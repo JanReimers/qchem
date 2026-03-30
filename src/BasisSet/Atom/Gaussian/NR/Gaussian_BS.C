@@ -1,7 +1,6 @@
 // File: BasisSet/Atom/Gaussian/NR/Gaussian_BS.C Gaussian Basis Set for atoms.
 module;
 #include <vector>
-#include <valarray>
 export module qchem.BasisSet.Atom.Gaussian.NR.BS;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import BasisSet.Atom.Gaussian_BS;

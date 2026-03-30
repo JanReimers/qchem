@@ -6,10 +6,10 @@ export import qchem.BasisSet.Atom.IBS_Evaluator;
 export class Exponential_IBS_Evaluator : public IBS_Evaluator
 {
 public:
-    Exponential_IBS_Evaluator(const   ds_t& _es, int l, const is_t& mls) : IBS_Evaluator(l,mls), es(_es ) {};
+    Exponential_IBS_Evaluator(const   rvec_t& _es, int l, const is_t& mls) : IBS_Evaluator(l,mls), es(_es ) {};
     virtual ~Exponential_IBS_Evaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created with -O2.
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
 
 protected:
-    ds_t es; 
+    rvec_t es; 
 };

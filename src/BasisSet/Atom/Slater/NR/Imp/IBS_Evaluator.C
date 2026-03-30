@@ -1,10 +1,9 @@
 // File: BasisSet/Atom/radial/Imp/Slater_IBS.C
 module;
-#include <valarray>
 #include <cmath>
 #include <cassert>
 #include <iostream>
-#include <blaze/Math.h>
+#include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Rk;
@@ -58,10 +57,10 @@ double Slater_IBS::Inv_r1(double ea , double eb,size_t l_total) const
     return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-Slater_IBS::ds_t Slater_IBS::norms() const
+rvec_t Slater_IBS::norms() const
 {
     size_t N=es.size();    
-    ds_t ret(N);
+    rvec_t ret(N);
     for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(es[i],es[i],2*l)); 
     return ret;
 }
@@ -204,7 +203,7 @@ rvec3vec_t Slater_IBS::Gradient(const rvec3_t& r) const
         ret=rvec3_t{0,0,0};
         return ret;
     }
-    ds_t grad=grad_slater(norm(r),l,es,ns);
+    rvec_t grad=grad_slater(norm(r),l,es,ns);
     // std::cout << "grad=";
     // for (auto g:grad) std::cout << g << " ";
     // std::cout << std::endl;
