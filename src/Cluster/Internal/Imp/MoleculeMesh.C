@@ -1,9 +1,8 @@
 module;
 #include <cassert>
 #include <iostream>
-
+#include <blaze/Math.h>
 module qchem.Cluster.MoleculeMesh;
-import oml;
 import qchem.Atom;
 
 double          Poly             (double,int m_mu);
@@ -17,7 +16,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
     assert(mp.m_mu>=0);
 
     int natom=cl.GetNumAtoms();
-    size_t ia=1;
+    size_t ia=0;
     for (auto& a:cl) 
     {
         Mesh* mesh_a= a->CreateMesh(mp);
@@ -25,36 +24,38 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
         {
             rvec3_t r=::r(rw);
             // Load up up matrix of cutoff profiles.
-            Matrix<double> s(natom,natom);
-            size_t ib=1;
+            rmat_t s(natom,natom);
+            size_t ib=0;
             for (auto& b:cl)
             {
                 double Rb=norm(r-b->itsR);
                 size_t ic=0;
                 for (auto& c:cl)
                 {
+                    
+                    if (ib!=ic) 
+                    {
+                        double Rc=norm(r-c->itsR);
+                        double ubc=(Rb-Rc)/norm(b->itsR-c->itsR);
+                        s(ib,ic) = Poly(ubc,mp.m_mu);
+                    }
                     ic++;
-                    if (ib==ic) continue;
-                    double Rc=norm(r-c->itsR);
-                    double ubc=(Rb-Rc)/norm(b->itsR-c->itsR);
-                    s(ib,ic) = Poly(ubc,mp.m_mu);
                 }
                 ib++;
             }
             //cout << "s=" << s << endl;
             //  Load up and array of cell functions
-            Vector<double> P(natom);
-            Fill(P,1.0);
-            for (int i=1; i<=natom; i++)
-                for (int j=1; j<=natom; j++)
-                    if (i!=j) P(i)*=s(i,j);
+            rvec_t P(natom,1.0);
+            for (int i=0; i<natom; i++)
+                for (int j=0; j<natom; j++)
+                    if (i!=j) P[i]*=s(i,j);
             
             //std::cout << "r,w = "<< r << "," << w(rw) <<    " P=" << P(1) << " " << P(2) << std::endl;
             //std::cout << "r,w = "<< r << "," << w(rw) << std::endl;
 
-            if(natom>1 && P(ia)>0)
+            if(natom>1 && P[ia]>0)
             {
-                double relativeWeight=P(ia)/Sum(P);
+                double relativeWeight=P[ia]/blaze::sum(P);
 //                cout << "ia,r,w=" << ia << " " << r << " " << relativeWeight << endl;
                 push_back(::r(rw),::w(rw)*relativeWeight);
             }

@@ -20,6 +20,7 @@ target_sources(qcCluster PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     )
 target_include_directories(qcCluster PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
 target_compile_options(qcCluster PRIVATE 
     $<$<CONFIG:Debug>:-g -O0 >
