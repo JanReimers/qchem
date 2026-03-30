@@ -1,6 +1,7 @@
 // File: Gaussian/ExponentScaler.C  Rescale Gaussian exponents based in angular momentum L.
 module;
 #include <valarray>
+#include <blaze/math/views/Subvector.h>
 module qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
 import  qchem.BasisSet.Atom.Internal.FillPower;
 
@@ -23,7 +24,8 @@ ExponentScaler::ds_t ExponentScaler::Get_es(size_t L) const
     if (L==0) return es;
     int N=itsN-4*L;
     if (N<1) N=1;
-    return es[std::slice(0,N,1)];
+    // return es[std::slice(0,N,1)];
+    return blaze::subvector(es,0,N);
 }
 
 } //namespace

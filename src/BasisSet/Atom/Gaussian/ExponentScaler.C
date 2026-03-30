@@ -2,6 +2,7 @@
 module;
 #include <valarray>
 export module qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
+import qchem.Types;
 
 export namespace Gaussian
 {
@@ -9,7 +10,7 @@ export namespace Gaussian
 class ExponentScaler
 {
 public:
-    using ds_t=std::valarray<double>;
+    using ds_t=rvec_t;
     ExponentScaler(size_t N, double emin, double emax, size_t LMax);
     ds_t   Get_es (size_t L) const;
 private:        

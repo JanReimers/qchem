@@ -32,11 +32,7 @@ export
         return z;
     }
 
-    template <typename T> double fnorm(const smat_t<T>& S)
-    {
-        return sqrt(sum(S%conj(S)));
-    }
-
+    
 
 }
 

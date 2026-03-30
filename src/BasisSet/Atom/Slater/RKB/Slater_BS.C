@@ -29,8 +29,8 @@ export class Orbital_RKB_IBS
     : public IrrepBasisSet_Common<double>
     , public Orbital_RKB_IBS_Common<double> 
 {
-    using ds_t=std::valarray<double>;
 public:
+    using ds_t=rvec_t;
     Orbital_RKB_IBS(const DB_cache<double>* db,const ds_t& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
@@ -44,7 +44,7 @@ export template <class T> class Orbital_RKBL_IBS
     , public AtomBS::IrrepBasisSet //Use NR slater basis
     , public AtomBS::Orbital_RKBL_IBS<T>
 {
-    using ds_t=std::valarray<T>;
+    using ds_t=vec_t<T>;
 public:
     Orbital_RKBL_IBS(const DB_cache<T>*,const ds_t& exponents, int kappa);
 };
@@ -55,7 +55,7 @@ export template <class T> class Orbital_RKBS_IBS
     , public AtomBS::Orbital_RKBS_IBS<T> 
 {
     using Orbital_RKBS_IBS_Common<T>::large;
-    using ds_t=std::valarray<T>;
+    using ds_t=rvec_t;
 public:
     Orbital_RKBS_IBS(const DB_cache<double>*,const ds_t& exponents, int kappa);
     virtual std::ostream&  Write(std::ostream&    ) const;

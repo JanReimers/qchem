@@ -4,7 +4,7 @@ module;
 #include <cmath>
 #include <cassert>
 #include <iostream>
-
+#include <blaze/Math.h>
 module qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 
 void Exponential_IBS_Evaluator::Register(Grouper* _grouper)

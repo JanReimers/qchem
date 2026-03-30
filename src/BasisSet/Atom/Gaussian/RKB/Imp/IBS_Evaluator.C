@@ -3,6 +3,8 @@ module;
 #include <valarray>
 #include <cmath>
 #include <cassert>
+#include <blaze/Math.h>
+
 module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
@@ -31,7 +33,7 @@ Gaussian_IBS::ds_t Gaussian_RKBS_IBS::eval(const rvec3_t& r) const
 
 rvec_t Gaussian_RKBS_IBS::operator() (const rvec3_t& r) const
 {
-   return convert1(eval(r)); //valarray -> rvec_t 
+   return eval(r); 
 }
 
 rvec3vec_t Gaussian_RKBS_IBS::Gradient(const rvec3_t& r) const

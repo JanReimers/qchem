@@ -2,6 +2,7 @@
 module;
 #include <vector>
 #include <valarray>
+#include <blaze/Math.h>
 module qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;

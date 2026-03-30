@@ -4,6 +4,8 @@ module;
 #include <cmath>
 #include <cassert>
 #include <iostream>
+#include <blaze/Math.h>
+
 module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Rk;
 import qchem.BasisSet.Atom.Slater.Integrals;
@@ -190,7 +192,7 @@ dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
 
 rvec_t Slater_IBS::operator() (const rvec3_t& r) const
 {
-    return convert1(slater(norm(r),l,es,ns));
+    return slater(norm(r),l,es,ns);
 }
 
 rvec3vec_t Slater_IBS::Gradient(const rvec3_t& r) const

@@ -4,6 +4,8 @@ module;
 #include <cmath>
 #include <cassert>
 #include <iostream>
+#include <blaze/Math.h>
+
 module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.Rk;
 import qchem.BasisSet.Atom.GaussianIntegrals;
@@ -189,7 +191,7 @@ dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
 
 rvec_t Gaussian_IBS::operator() (const rvec3_t& r) const
 {
-    return convert1(gaussian(norm(r),l,es,ns)); //convert valarray -> blaze::rvec_t
+    return gaussian(norm(r),l,es,ns); //convert valarray -> blaze::rvec_t
 }
 
 rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const

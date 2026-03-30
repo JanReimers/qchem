@@ -2,6 +2,7 @@
 module;
 #include <cmath>
 #include <valarray>
+#include <blaze/math/Subvector.h>
 module qchem.BasisSet.Atom.Slater.ExponentScaler;
 import  qchem.BasisSet.Atom.Internal.FillPower;
 
@@ -24,7 +25,8 @@ ExponentScaler::ds_t   ExponentScaler::Get_es(size_t L) const
     int N=itsN-1*L;
     if (N<1) N=1;
     if (N+L>itsN) L=itsN-N;
-    return es[std::slice(L,N,1)];
+    // return es[std::slice(L,N,1)];
+    return blaze::subvector(es,L,N);
 }
 
 } //namespace

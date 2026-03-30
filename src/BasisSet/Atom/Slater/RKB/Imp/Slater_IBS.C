@@ -5,6 +5,7 @@ module;
 #include <iomanip>
 #include <memory>
 #include <valarray>
+#include <blaze/Math.h>
 module qchem.BasisSet.Atom.Slater.RKB.BS;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import qchem.Symmetry.Okmj;

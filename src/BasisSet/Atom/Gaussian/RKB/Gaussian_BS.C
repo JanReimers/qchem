@@ -30,7 +30,7 @@ export class Orbital_RKB_IBS
 {
     using ds_t=std::valarray<double>;
 public:
-    Orbital_RKB_IBS(const DB_cache<double>*, const ds_t& exponents, int kappa);
+    Orbital_RKB_IBS(const DB_cache<double>*, const rvec_t& exponents, int kappa);
     virtual size_t size() const {return Orbital_RKB_IBS_Common<double>::size();}
     virtual std::ostream&  Write(std::ostream&    ) const;
 
@@ -46,7 +46,7 @@ export template <class T> class Orbital_RKBL_IBS
 {
     using ds_t=std::valarray<T>;
 public:
-    Orbital_RKBL_IBS(const DB_cache<T>*,const ds_t& exponents, int kappa);
+    Orbital_RKBL_IBS(const DB_cache<T>*,const rvec_t& exponents, int kappa);
     virtual size_t  GetNumFunctions() const {return Gaussian_IBS::size();}
 };
 
@@ -58,7 +58,7 @@ export template <class T> class Orbital_RKBS_IBS
     using Orbital_RKBS_IBS_Common<T>::large;
     using ds_t=std::valarray<T>;
 public:
-    Orbital_RKBS_IBS(const DB_cache<T>*,const ds_t& exponents,int kappa);
+    Orbital_RKBS_IBS(const DB_cache<T>*,const rvec_t& exponents,int kappa);
     virtual std::ostream&  Write(std::ostream&    ) const;
 private:
     using Orbital_RKBS_IBS_Common<T>::kappa;

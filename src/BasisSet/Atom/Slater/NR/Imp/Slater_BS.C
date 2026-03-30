@@ -20,7 +20,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
         Insert(new Orbital_IBS(this,ss.Get_es(L),L));
         
 }
-BasisSet::BasisSet(const ds_t& exponents, size_t LMax)
+BasisSet::BasisSet(const rvec_t& exponents, size_t LMax)
 : AtomIE_BS_2E(this)
 {
     for (size_t L=0;L<=LMax;L++)

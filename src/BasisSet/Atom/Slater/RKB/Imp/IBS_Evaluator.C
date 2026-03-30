@@ -3,6 +3,8 @@ module;
 #include <valarray>
 #include <cmath>
 #include <cassert>
+#include <blaze/Math.h>
+
 module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
@@ -30,7 +32,7 @@ Slater_IBS::ds_t Slater_RKBS_IBS::eval(const rvec3_t& r) const
 
 rvec_t Slater_RKBS_IBS::operator() (const rvec3_t& r) const
 {
-   return convert1(eval(r)); 
+   return eval(r); 
 }
 
 rvec3vec_t Slater_RKBS_IBS::Gradient(const rvec3_t& r) const

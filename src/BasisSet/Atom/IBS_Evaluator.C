@@ -17,7 +17,7 @@ export class IBS_Evaluator : public VectorFunction<double>
 {
     typedef std::ranges::iota_view<size_t,size_t> iota_view;
 public:
-    using ds_t=std::valarray<double>;
+    using ds_t=rvec_t;
     using is_t=std::vector<int>;
     
 

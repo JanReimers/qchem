@@ -10,6 +10,7 @@ import Common.IntPow;
 export class Slater_IBS : public Exponential_IBS_Evaluator
 {
 public: 
+    using ds_t=rvec_t;
  
     Slater_IBS(const   ds_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Slater_IBS(const   ds_t& es, int l) : Slater_IBS(es,l,{}) {}
