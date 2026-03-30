@@ -9,6 +9,7 @@
     "**/.json": true,
     "**/.ninja": true,
     "${workspaceFolder}/submodules/": true,
+    "${workspaceFolder}/build/": true,
     "/bin": true,
     "/boot": true,
     "/cdrom": true,
