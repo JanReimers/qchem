@@ -117,6 +117,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dE,ChargeDensityChange);
         if (E>Eold ) 
         {
+            delete itsCD;
             itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
             itsCD->MixIn(*itsOldCD,1.0-relax/4.0); 

@@ -4,6 +4,12 @@ module;
 module BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.Rk;
 
+
+template <size_t K> BSpline_BS<K>::~BSpline_BS()
+{
+    delete itsRkCache;
+}
+
 template <size_t K> void BSpline_BS<K>::Register(IBS_Evaluator * eval)
 {
     assert(eval);
