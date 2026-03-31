@@ -10,7 +10,7 @@ const bool verbose=false;
 inline SCFParams scf_params(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,0.5     ,1e-7  ,verbose};
+    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,Z<40 ? 0.5 : 0.4     ,1e-7  ,verbose};
 }
 inline SCFParams scf_params_BS(int Z) 
 {
@@ -70,7 +70,7 @@ public:
 
 
 
-static std::map<int,size_t> expected_itartion_counts={{2,10},{4,12},{10,12},{12,14},{18,13},{20,16},{30,17},{36,12},{38,15},{46,15},{48,16},{54,13},{56,19},{70,22},{80,16},{86,15},{88,18}};
+static std::map<int,size_t> expected_itartion_counts={{2,10},{4,12},{10,12},{12,14},{18,13},{20,16},{30,15},{36,12},{38,15},{46,15},{48,16},{54,13},{56,16},{70,20},{80,18},{86,15},{88,18}};
 static std::map<int,size_t> NBasis={{2,20},{4,20},{10,22},{12,22},{18,23},{20,25},{30,25},{36,25},{38,27},{46,27},{48,27},{54,30},{56,30},{70,30},{80,30},{86,30},{88,30}};
 TEST_P(A_SG_HF_U,Multiple)
 {
@@ -90,7 +90,7 @@ TEST_P(A_SG_HF_U,Multiple)
 #ifdef NDEBUG
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 #else
-INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_HF_U,::testing::Values(2,10,12));//)); 
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_HF_U,::testing::Values(2,10,12,30));//)); 
 #endif
 
 TEST_P(A_SL_HF_U,Multiple)

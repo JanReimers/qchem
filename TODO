@@ -4,15 +4,25 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Priority 1:
     -Do something with MeshIntegrals.C
-    -Blaze:
+    -Clean up SCFiterator
+        Clean handling of E>Eold
+        Use deque<std:shared_ptr<DM_CD>>
+    -JsonTests spits out basis sets for 92 atoms.
+        Move to ElectronConfigurationTests
+        Put result in a nice table.
+    -Profile, try and ERI4 contractions to work faster.
+    Done: -Check mempory leaks
+        Missing delete itsCD; in SCFiterator
+        Missing delete cache in BSpline_BS
+    Done: -Blaze:
         Done: -Add as submodule
         Done: -Make unit test to try out some simple ops
-        -Make oml->blaze, blaze->oml conversion functions.
-        -Test supermatrix SMat<SMat<double>>
+        Done: -Make oml->blaze, blaze->oml conversion functions.
+        Done: -Test supermatrix SMat<SMat<double>>
         Done: -Make a blaze version of LASolver.
             No: oml->blaze Conversions inside
             Put blaze types in the interface
-        -Start working outwards.
+        Done: -Start working outwards.
         -Blaze distinguishes between row and column vectors.  Maybe this good.
     -Blaze improvements
         modules, Header unit.
@@ -43,6 +53,7 @@ Priority 1:
             Still get the same wrong results.
         -Once this is done the need for cross kinetic integrals vanishes
             Just use the RKBL kinetic integrals.
+        -Try getting AI to generate a c++/blaze Dirac hydrogen atom calculation with a Gaussian basis set.
     -Move DiracIntegral tests over to UTBasisSet.
     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
         Happens when splines are too closely packed.  (even though overlap is nowhere near singular)
