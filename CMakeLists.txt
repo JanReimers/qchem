@@ -24,7 +24,7 @@ add_subdirectory(src)
 # -Wno-unknown-pragmas
 target_compile_options(qchem PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2 >
+    $<$<CONFIG:Release>: -O2 -pg>
 )
 target_compile_definitions(qchem PRIVATE 
     $<$<CONFIG:Debug>:-DDEBUG>

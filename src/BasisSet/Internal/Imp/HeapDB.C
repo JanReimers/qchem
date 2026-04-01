@@ -156,7 +156,7 @@ template <class T> void DB_BS_2E<T>::Append(const Orbital_HF_IBS<T>* oibs)
 }
 template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
 {
-    assert(a<=c);
+    // assert(a<=c);
     if (Jac.size()==0) MakeDirect();
     //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
     assert(Jac.find(a)!=Jac.end());
@@ -166,7 +166,7 @@ template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
 }
 template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
 {
-    assert(a<=b);
+    // assert(a<=b);
     if (Kab.size()==0) MakeExchange(); 
     //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
     assert(Kab.find(a)!=Kab.end());
@@ -177,20 +177,14 @@ template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
 template <class T> void DB_BS_2E<T>::MakeDirect() const
 {
     Jac.clear();
-    // This crashed at run time.  Possibly because of CDcache4 index state and some other cache.
-    // #pragma omp parallel for collapse(1)
-    // for (size_t ia=0;ia<itsIrreps.size();ia++)
-    // {
-    //     auto a=itsIrreps[ia];
-   for (auto a: itsIrreps)
+    for (auto a: itsIrreps)
         for (auto c: itsIrreps) //TODO run from ia n
         {
-            if (a->GetID()>c->GetID()) continue;
+            IDType ia=a->GetID(), ic=c->GetID();
             ERI4 jac=MakeDirect(a,c);
-            # pragma omp critical
-            Jac[a->GetID()][c->GetID()]=jac;
+            Jac[ia][ic]=jac;
+            Jac[ic][ia]= ia==ic ? jac : jac.Transpose();
         }
-    // }
 }
 template <class T> void DB_BS_2E<T>::MakeExchange() const
 {
@@ -198,8 +192,10 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
     for (auto a: itsIrreps)
         for (auto b: itsIrreps) 
         {
-            if (a->GetID()>b->GetID()) continue;
-            Kab[a->GetID()][b->GetID()]=MakeExchange(a,b);            
+            IDType ia=a->GetID(), ib=b->GetID();
+            ERI4 kab=MakeExchange(a,b);
+            Kab[ia][ib]=kab;
+            Kab[ib][ia]= ia==ib ? kab : kab.Transpose();
         }
     
 }

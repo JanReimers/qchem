@@ -36,7 +36,10 @@ target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 target_link_libraries(qcBasisSet PUBLIC qcLASolver_blaze qcSymmetry qcCluster qcMesh qcCommon) 
-
+target_compile_options(qchem PRIVATE 
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2 -pg>
+)
 add_subdirectory(Atom)
 add_subdirectory(Molecule)
 add_subdirectory(Lattice)

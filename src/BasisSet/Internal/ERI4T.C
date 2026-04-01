@@ -30,11 +30,6 @@ public:
     size_t size() const;
     size_t Nab() const {return itsData.rows();}
     size_t Ncd() const {return itsData(0,0).rows();}
-    // MatLimits GetLimits() const {return itsData.GetLimits();}
-    // auto rows() const {return itsData.rows();}
-    // auto cols() const {return itsData.cols();}
-    // auto rows(size_t i) const {return itsData.rows(i);}
-    // auto cols(size_t i) const {return itsData.cols(i);}
 private:
     M<M<T> > itsData;
 };

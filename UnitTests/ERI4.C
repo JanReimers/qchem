@@ -1,0 +1,107 @@
+// File: UnitTests/ERI4.C  Test the four index supermatrix used for storing 2 electron repulsion (ERI) integrals
+
+#include "gtest/gtest.h"
+#include <iostream>
+#include <cmath>
+#include <chrono>
+#include <ctime>
+#include <blaze/Math.h>
+using std::cout;
+using std::endl;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.Blaze;
+
+
+//----------------------------------------------------------------------------------------------
+//
+//  Testing class
+//
+class ERI4Tests : public ::testing::Test
+{
+
+};
+
+rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
+{
+    size_t Nab=gabcd.Nab();
+    size_t Ncd=gabcd(0,0).rows();
+    rsmat_t Scd=zero<double>(Ncd);
+    for (auto ia:iv_t(0,Nab))
+    {
+        Scd+=gabcd(ia,ia)*Sab(ia,ia);
+        for (auto ib:iv_t(ia+1,Nab))
+            Scd+=2*gabcd(ia,ib)*Sab(ia,ib);
+    }
+    return Scd;
+}
+
+
+void random(rsmat_t& s)
+{
+    for (auto i:iv_t(0,s.rows()))
+        for (auto j:iv_t(i,s.rows()))
+            s(i,j)=random();
+}
+
+void random(ERI4& Jabcd)
+{
+    for (auto a:iv_t(0,Jabcd.Nab()))
+        for (auto b:iv_t(a,Jabcd.Nab()))
+            random(Jabcd(a,b));
+}
+
+TEST_F(ERI4Tests,MatMulTimings)
+{
+#ifdef DEBUG
+    size_t Nrep=100;
+    size_t Nab=20,Ncd=20;
+#else
+    size_t Nrep=100;
+    size_t Nab=60,Ncd=60;
+#endif
+    ERI4 Jabcd(Nab,Ncd);
+    rsmat_t Dab(Nab),Dcd(Ncd);
+    random(Jabcd);
+    random(Dab);
+    random(Dcd);
+    std::chrono::duration<double> elapsed_seconds1,elapsed_seconds2;
+    {
+        auto start = std::chrono::system_clock::now();
+        for (size_t i=0;i<Nrep;i++)
+            rsmat_t Jab=MatMul(Jabcd,Dcd);
+        auto end = std::chrono::system_clock::now();
+        elapsed_seconds1 = end-start;
+        std::cout << "MatMul(Jabcd,Dcd) elapsed time: " << elapsed_seconds1.count() << "s" << std::endl;
+    }
+    {        
+        auto start = std::chrono::system_clock::now();
+        for (size_t i=0;i<Nrep;i++)
+            rsmat_t Jcd=MatMul(Dab,Jabcd);
+        auto end = std::chrono::system_clock::now();
+        elapsed_seconds2 = end-start;
+        std::cout << "MatMul(Dab,Jabcd) elapsed time: " << elapsed_seconds2.count() << "s" << std::endl;
+    }
+    EXPECT_GT(elapsed_seconds2,elapsed_seconds1);
+#ifndef DEBUG
+    //Ratio is much lower in debug mode.
+    //Ration is also much when running the full testsuite.
+    EXPECT_GT(elapsed_seconds2/elapsed_seconds1,2.5); 
+#endif
+}
+
+TEST_F(ERI4Tests,Transpose)
+{
+    size_t Nab=30,Ncd=40;
+    ERI4 Jabcd(Nab,Ncd);
+    random(Jabcd);
+    ERI4 Jcdab=Jabcd.Transpose();
+    rsmat_t Dab(Nab),Dcd(Ncd);
+    random(Dab);
+    random(Dcd);
+    rsmat_t Jab1=MatMul(Jabcd,Dcd);
+    rsmat_t Jab2=MatMul(Dcd,Jcdab);
+    EXPECT_EQ(Jab1,Jab2);
+    rsmat_t Jcd1=MatMul(Dab,Jabcd);
+    rsmat_t Jcd2=MatMul(Jcdab,Dab);
+    EXPECT_EQ(Jcd1,Jcd2);
+}

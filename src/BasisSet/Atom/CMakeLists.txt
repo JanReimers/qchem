@@ -37,8 +37,9 @@ target_compile_definitions(qcAtom_BS PRIVATE
 )
 target_compile_options(qcAtom_BS PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2>
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C>>: -O2 -pg> #need to prevent -pg from appearing in fortran compile lines.
 )
+
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
 add_subdirectory(BSpline)

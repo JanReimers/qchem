@@ -9,7 +9,7 @@ link_directories(
 )
 
 #  Main
-add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C)
+add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C ERI4.C)
 #add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
 #GCM_PATH := $(LIB_PATH)/gcm.cache
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
@@ -18,11 +18,15 @@ add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C Electro
 
 target_compile_options(UTMain PRIVATE -Wall 
     $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2>
+    $<$<CONFIG:Release>: -O2 -pg>
+)
+target_compile_definitions(UTMain PRIVATE 
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
 )
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
-target_link_options(UTMain PRIVATE )
+target_link_options(UTMain PRIVATE -pg)
 target_include_directories(UTMain PRIVATE 
     ../submodules/BSplinebasis/include
       ${PROJECT_SOURCE_DIR}/submodules/json/single_include

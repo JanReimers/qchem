@@ -1,3 +1,5 @@
+enable_language(Fortran)
+set(CMAKE_Fortran_FLAGS "-O2 -askjdfhalsdjf")
 target_sources(qcAtom_BS PRIVATE 
   gauleg.f
   Imp/GLQuadrature.C  
@@ -17,3 +19,4 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   NR/IBS_Evaluator.C
   NR/BSpline_BS.C
 )
+

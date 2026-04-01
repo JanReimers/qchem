@@ -24,7 +24,7 @@ target_include_directories(qcCluster PRIVATE
 )
 target_compile_options(qcCluster PRIVATE 
     $<$<CONFIG:Debug>:-g -O0 >
-    $<$<CONFIG:Release>: -O2 >
+    $<$<CONFIG:Release>: -O2 -pg>
 )
 set_property(TARGET qcCluster PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcCluster PUBLIC qcMesh qcCommon)
