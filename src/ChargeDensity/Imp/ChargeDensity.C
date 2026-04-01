@@ -10,19 +10,17 @@ import qchem.Symmetry.Spin;
 //
 //  Various integrals.
 //
-rsmat_t Polarized_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs) const
+void Polarized_CD::AccumulateDirect(rsmat_t& Jab,const Orbital_HF_IBS<double>* bs) const
 {
-    rsmat_t Jab_up  =GetChargeDensity(Spin::Up  )->GetRepulsion(bs);
-    rsmat_t Jab_down=GetChargeDensity(Spin::Down)->GetRepulsion(bs);
-    return Jab_up + Jab_down;
+    GetChargeDensity(Spin::Up  )->AccumulateDirect(Jab,bs);
+    GetChargeDensity(Spin::Down)->AccumulateDirect(Jab,bs);
 }
 
-rsmat_t Polarized_CD::GetExchange(const Orbital_HF_IBS<double>* bs) const
+void Polarized_CD::AccumulateExchange(rsmat_t& Kab,const Orbital_HF_IBS<double>* bs) const
 {
     // No UT coverage
-    rsmat_t Kab_up  =GetChargeDensity(Spin::Up  )->GetExchange(bs);
-    rsmat_t Kab_down=GetChargeDensity(Spin::Down)->GetExchange(bs);
-    return Kab_up + Kab_down;
+    GetChargeDensity(Spin::Up  )->AccumulateExchange(Kab,bs);
+    GetChargeDensity(Spin::Down)->AccumulateExchange(Kab,bs);
 }
 
 double Polarized_CD::DM_Contract(const Static_CC* v) const

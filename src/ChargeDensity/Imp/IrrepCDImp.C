@@ -48,20 +48,18 @@ template <> bool IrrepCD<double>::IsZero() const
 //
 //  Total energy terms for a charge density.
 //
-template <> smat_t<double> IrrepCD<double>::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
+template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Sab, const Orbital_HF_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return zero<double>(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
-    return bs_ab->Direct(itsDensityMatrix,bs_cd);
+    if (!IsZero()) bs_ab->AccumulateDirect(Sab,itsDensityMatrix,bs_cd);
 }
 
-template <> smat_t<double> IrrepCD<double>::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
+template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const Orbital_HF_IBS<double>* bs_ab) const
 {
-    if (IsZero()) return zero<double>(bs_ab->GetNumFunctions());
     const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
     assert(bs_cd);
-    return bs_ab->Exchange(itsDensityMatrix,bs_cd);
+    if (!IsZero()) bs_ab->AccumulateExchange(Sab,itsDensityMatrix,bs_cd);
 }
 
 //------------------------------------------------------------------------------

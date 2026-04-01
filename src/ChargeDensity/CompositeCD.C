@@ -18,8 +18,8 @@ public:
     Composite_CD();
     void Insert(DM_CD*);
 
-    virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const; 
-    virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const; 
+    virtual void AccumulateDirect  (rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
+    virtual void AccumulateExchange(rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
 
     virtual double DM_Contract(const Static_CC*) const;
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;

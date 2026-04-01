@@ -10,18 +10,18 @@ Priority 1:
     -JsonTests spits out basis sets for 92 atoms.
         Move to ElectronConfigurationTests
         Put result in a nice table.
-    -Profile, try and ERI4 contractions to work faster.
+    Done: -Profile, try and ERI4 contractions to work faster.
         Done: Build full look up tables in DB_BS_2E<T>::MakeDirect() DB_BS_2E<T>::MakeExchange()
         Done: Then only the faster MatMul(const ERI4& gabcd,const rsmat_t& Scd) gets used.
         Done: Make a unit test that confirms timing difference between the two MatMul calls.
         Done: Make and supermatrix transpose function M1<M2<T>> -> M2<M1<T>> in order to avoid
             recalculating 2EI matrix elements.
-        Change charge density interfaces from:
+        Done: Change charge density interfaces from:
             virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const=0;
             virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const=0;
         to:
-            virtual rsmat_t AddDirect  (mat_t& J,const Orbital_HF_IBS<double>*) const=0;
-            virtual rsmat_t AddExchange(mat_t& K,const Orbital_HF_IBS<double>*) const=0;
+            virtual rsmat_t AccumulateDirect  (mat_t& J,const Orbital_HF_IBS<double>*) const=0;
+            virtual rsmat_t AccumulateExchange(mat_t& K,const Orbital_HF_IBS<double>*) const=0;
 
     -Blaze include specific headers instead everything in blaze/Math.h.
     Done: -Check mempory leaks

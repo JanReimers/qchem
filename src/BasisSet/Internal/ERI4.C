@@ -10,7 +10,7 @@ public:
     typedef ERI4T<double,smat_t> Base;
     ERI4() : Base() {};
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
-    friend rsmat_t MatMul(const ERI4& gabcd,const rsmat_t& Scd);
+    friend void MatMul(rsmat_t& Sab, const ERI4& gabcd,const rsmat_t& Scd);
     ERI4 Transpose() const;  //convert Jabcd->Jcdab;
 };
 

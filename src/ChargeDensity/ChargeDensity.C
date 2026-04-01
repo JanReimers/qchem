@@ -50,8 +50,8 @@ public:
     virtual double GetTotalCharge  () const=0;  // <ro>
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
-    virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const=0;
-    virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const=0;
+    virtual void AccumulateDirect  (rsmat_t& Jab, const Orbital_HF_IBS<double>*) const=0;
+    virtual void AccumulateExchange(rsmat_t& Kab, const Orbital_HF_IBS<double>*) const=0;
 
 };
 
@@ -73,9 +73,9 @@ public:
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
-    virtual  rvec_t GetRepulsion3C(const Fit_IBS*) const;
-    virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const;
-    virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const; 
+    virtual rvec_t GetRepulsion3C(const Fit_IBS*) const;
+    virtual void AccumulateDirect  (rsmat_t& Jab, const Orbital_HF_IBS<double>*) const;
+    virtual void AccumulateExchange(rsmat_t& Kab, const Orbital_HF_IBS<double>*) const;
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.

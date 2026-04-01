@@ -25,8 +25,8 @@ public:
     IrrepCD();
     IrrepCD(const DenSMat&,const Orbital_IBS<T>*, Irrep_QNs);
 
-    virtual smat_t<T> GetRepulsion(const Orbital_HF_IBS<double>*) const;
-    virtual smat_t<T> GetExchange (const Orbital_HF_IBS<double>*) const;
+    virtual void AccumulateDirect  (rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
+    virtual void AccumulateExchange(rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
     virtual rvec_t    GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double DM_Contract(const Static_CC*) const;

@@ -11,6 +11,7 @@ import qchem.Orbital_HF_IBS;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
+import qchem.Blaze;
 
 
 //########################################################################
@@ -39,8 +40,9 @@ rsmat_t VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
     const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(cd);
     assert(PolExactCD);
     const DM_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
-    rsmat_t Kab=SpinCD->GetExchange(hf_bs)*-1.0;
-    return Kab;
+    rsmat_t Kab=zero<double>(bs->GetNumFunctions());
+    SpinCD->AccumulateExchange(Kab,hf_bs);
+    return Kab*-1.0;
 }
 void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {

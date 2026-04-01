@@ -21,20 +21,14 @@ void Composite_CD::Insert(DM_CD* cd)
 //
 //  Total energy terms for a charge density.
 //
-rsmat_t Composite_CD::GetRepulsion(const Orbital_HF_IBS<double>* bs_ab) const
+void Composite_CD::AccumulateDirect(rsmat_t& Jab, const Orbital_HF_IBS<double>* bs_ab) const
 {
-    int n=bs_ab->GetNumFunctions();
-    rsmat_t J=zero<double>(n);
-    for (auto& c:itsCDs) J+=c->GetRepulsion(bs_ab);
-    return J;
+    for (auto& c:itsCDs) c->AccumulateDirect(Jab,bs_ab);
 }
 
-rsmat_t Composite_CD::GetExchange(const Orbital_HF_IBS<double>* bs_ab) const
+void Composite_CD::AccumulateExchange(rsmat_t& Kab, const Orbital_HF_IBS<double>* bs_ab) const
 {
-    int n=bs_ab->GetNumFunctions();
-    rsmat_t K=zero<double>(n);
-    for (auto& c:itsCDs) K+=c->GetExchange(bs_ab);
-    return K;
+    for (auto& c:itsCDs) c->AccumulateExchange(Kab,bs_ab);
 }
 
 double Composite_CD::DM_Contract(const Static_CC* v) const

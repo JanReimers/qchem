@@ -21,18 +21,16 @@ class ERI4Tests : public ::testing::Test
 
 };
 
-rsmat_t MatMul(const rsmat_t& Sab, const ERI4& gabcd)
+void MatMul(rsmat_t& Scd, const rsmat_t& Sab, const ERI4& gabcd)
 {
     size_t Nab=gabcd.Nab();
-    size_t Ncd=gabcd(0,0).rows();
-    rsmat_t Scd=zero<double>(Ncd);
+    assert(Scd.rows()==gabcd(0,0).rows());
     for (auto ia:iv_t(0,Nab))
     {
         Scd+=gabcd(ia,ia)*Sab(ia,ia);
         for (auto ib:iv_t(ia+1,Nab))
             Scd+=2*gabcd(ia,ib)*Sab(ia,ib);
     }
-    return Scd;
 }
 
 
@@ -66,17 +64,19 @@ TEST_F(ERI4Tests,MatMulTimings)
     random(Dcd);
     std::chrono::duration<double> elapsed_seconds1,elapsed_seconds2;
     {
+        rsmat_t Jab=zero<double>(Nab);
         auto start = std::chrono::system_clock::now();
         for (size_t i=0;i<Nrep;i++)
-            rsmat_t Jab=MatMul(Jabcd,Dcd);
+            MatMul(Jab,Jabcd,Dcd);
         auto end = std::chrono::system_clock::now();
         elapsed_seconds1 = end-start;
         std::cout << "MatMul(Jabcd,Dcd) elapsed time: " << elapsed_seconds1.count() << "s" << std::endl;
     }
     {        
+        rsmat_t Jcd=zero<double>(Ncd);
         auto start = std::chrono::system_clock::now();
         for (size_t i=0;i<Nrep;i++)
-            rsmat_t Jcd=MatMul(Dab,Jabcd);
+            MatMul(Jcd,Dab,Jabcd);
         auto end = std::chrono::system_clock::now();
         elapsed_seconds2 = end-start;
         std::cout << "MatMul(Dab,Jabcd) elapsed time: " << elapsed_seconds2.count() << "s" << std::endl;
@@ -98,10 +98,14 @@ TEST_F(ERI4Tests,Transpose)
     rsmat_t Dab(Nab),Dcd(Ncd);
     random(Dab);
     random(Dcd);
-    rsmat_t Jab1=MatMul(Jabcd,Dcd);
-    rsmat_t Jab2=MatMul(Dcd,Jcdab);
+
+    rsmat_t Jab1=zero<double>(Nab), Jab2=zero<double>(Nab);
+    MatMul(Jab1,Jabcd,Dcd);
+    MatMul(Jab2,Dcd,Jcdab);
     EXPECT_EQ(Jab1,Jab2);
-    rsmat_t Jcd1=MatMul(Dab,Jabcd);
-    rsmat_t Jcd2=MatMul(Jcdab,Dab);
+    
+    rsmat_t Jcd1=zero<double>(Ncd), Jcd2=zero<double>(Ncd);
+    MatMul(Jcd1,Dab,Jabcd);
+    MatMul(Jcd2,Jcdab,Dab);
     EXPECT_EQ(Jcd1,Jcd2);
 }
