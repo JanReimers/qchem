@@ -2,12 +2,17 @@
 
 
 #include "gtest/gtest.h"
+#include "tabulate/table.hpp"
+#include <nlohmann/json.hpp>
 #include <iostream>
 
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Ylm;
 import qchem.Symmetry.AtomEC;
+import qchem.BasisSet;
+import qchem.Factory;
+import qchem.WaveFunction.Internal.CompositeWF;
 
 using std::cout;
 using std::endl;
@@ -33,6 +38,7 @@ public:
         Irrep_QNs qns(s,sym);
         return ac.GetN(qns);
     }
+    PeriodicTable pt;
 };
 
 TEST_F(ElectronConfigurationTests, Ntotal)
@@ -353,3 +359,87 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
 //    }
 //    
 //}
+std::string superscripts[]={"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹","¹⁰","¹¹","¹²","¹³","¹⁴","¹⁵","¹⁶","¹⁷","¹⁸"};
+TEST_F(ElectronConfigurationTests, ElectronConfigurations)
+{
+    
+    
+    tabulate::Table BS_table;
+    BS_table.format().multi_byte_characters(true);
+    BS_table.add_row({"Z","Name","maxL","Nunpaired","Elconfig","s","p","d","f"});
+
+    for (size_t Z=1;Z<=92;Z++)
+    {
+        // cout << "Z=" << Z << endl;
+        Atom_EC ec(Z);
+       
+        tabulate::RowStream rs;
+        rs << Z;
+        rs << pt.GetSymbol(Z);
+        rs << pt.GetMaxL(Z);
+        rs << pt.GetNumUnpairedElectrons(Z);
+        int* v=pt.GetValanceConfiguration(Z);
+        std::ostringstream os;
+        for (size_t i=0;i<4;i++)
+        {
+            if (v[i]>0)
+                os << SPDFG[i] << superscripts[v[i]];
+        }
+        rs << os.str();
+
+        
+        for (size_t l=0;l<=ec.GetLMax();l++)
+        {
+            std::ostringstream os1;
+            ml_Breakdown ml=ec.GetBreadown(l);
+            size_t nunp=ml.ml_paired.size();
+            if (nunp!=0 && nunp!=2*l+1)
+                for (size_t m=0;m<nunp;m++) os1 << "↑↓";
+            if (nunp>0) os1 << " ";
+            for (size_t m=0;m<ml.ml_unpaired.size();m++) os1 << "↑";
+            os1 << std::ends;
+            rs << os1.str();
+        }
+        
+        
+        BS_table.add_row(rs);
+    }
+    BS_table.column(5).format().font_color(CompositeWF::l_colors[0]);
+    BS_table.column(6).format().font_color(CompositeWF::l_colors[1]);
+    BS_table.column(7).format().font_color(CompositeWF::l_colors[2]);
+    BS_table.column(8).format().font_color(CompositeWF::l_colors[3]);
+    cout << BS_table << endl;  
+
+}
+
+TEST_F(ElectronConfigurationTests, BasisSets)
+{
+    tabulate::Table BS_table;
+    BS_table.format().multi_byte_characters(true);
+    BS_table.add_row({"Z","Name","s","p","d","f"});
+    
+    nlohmann::json js = {{"N", 10},{"emin", 0.1},{"emax", 5000.0}};
+    for (size_t Z=1;Z<=92;Z++)
+    {
+        tabulate::RowStream rs;
+        rs << Z;
+        rs << pt.GetSymbol(Z);
+        BasisSet* bs=BasisSetAtom::Factory(BasisSetAtom::Type::Slater,js,Z);
+        size_t l=0;
+        std::ostringstream os[4];
+        for (auto ibs:bs->Iterate<Real_OIBS>())
+        {
+            const Angular_Sym* sym=dynamic_cast<const Angular_Sym*>(ibs->GetSymmetry().get());
+            if (l>0 && sym->GetL()==l) os[l] << endl;
+            if (sym->GetL()>l) os[l++] << std::ends;
+            os[l] << *sym;
+        }
+        for (auto& osl:os) rs << osl.str();
+        BS_table.add_row(rs);
+    }
+    BS_table.column(2).format().font_color(CompositeWF::l_colors[0]);
+    BS_table.column(3).format().font_color(CompositeWF::l_colors[1]);
+    BS_table.column(4).format().font_color(CompositeWF::l_colors[2]);
+    BS_table.column(5).format().font_color(CompositeWF::l_colors[3]);
+    cout << BS_table << endl;  
+}

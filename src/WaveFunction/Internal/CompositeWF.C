@@ -27,9 +27,9 @@ public:
     virtual DM_CD*          GetChargeDensity(Spin) const;
     virtual EnergyLevels    GetEnergyLevels (Spin) const; 
 
+    static tabulate::Color l_colors[];  //Colour enums for s,p,d,f orbitals in display tables.
 protected:
     void MakeIrrepWFs(Spin);
-    static tabulate::Color l_colors[];  //Colour enums for s,p,d,f orbitals in display tables.
 
 private:
     typedef std::unique_ptr<IrrepWF> uiwf_t;

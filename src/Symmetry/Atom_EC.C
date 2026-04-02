@@ -10,7 +10,7 @@ import qchem.Symmetry.ElectronCounts;
 import qchem.Symmetry.ElectronConfiguration;
 const int Nshell=8;
 
-struct ml_Breakdown
+export struct ml_Breakdown
 {
     std::vector<int> ml_paired;     //List of ml values for paired orbitals
     std::vector<int> ml_unpaired;   //List of ml values for unpaired orbitals

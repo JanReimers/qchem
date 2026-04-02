@@ -213,15 +213,11 @@ TEST_F(BSplineTests, Overlap)
     {
         cout << *ibs->GetSymmetry();
         rsmat_t S=ibs->Overlap();
-        cout << S << endl;
         for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:iv_t(0,S.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,S.rows())) 
-            {
-                cout << i << " " << j << endl;
                 EXPECT_EQ(S(i,j),0.0);
-            }
-        
+            
         rsmat_t Snum = mintegrator->Overlap(*ibs);
         EXPECT_NEAR(max(abs(S-Snum)),0.0,3e-6);
 

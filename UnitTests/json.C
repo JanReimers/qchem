@@ -24,7 +24,7 @@ TEST_F(jsonTests,Slater)
     };
 
     for (size_t Z=1;Z<=92;Z++)
-        std::cout << *BasisSetAtom::Factory(BasisSetAtom::Type::Slater,js,Z) << std::endl;
+        BasisSetAtom::Factory(BasisSetAtom::Type::Slater,js,Z);
 
 }
 
@@ -37,7 +37,8 @@ TEST_F(jsonTests,Gaussian)
     };
 
     for (size_t Z=1;Z<=92;Z++)
-        std::cout << *BasisSetAtom::Factory(BasisSetAtom::Type::Gaussian,js,Z) << std::endl;
+        BasisSetAtom::Factory(BasisSetAtom::Type::Gaussian,js,Z);
+
 }
 
 TEST_F(jsonTests,BSpline)
@@ -49,9 +50,5 @@ TEST_F(jsonTests,BSpline)
     };
 
     for (size_t Z=1;Z<=92;Z++)
-    {
-        std::cout << "Z = " << Z << std::endl;
-        std::cout << *BasisSetAtom::Factory(BasisSetAtom::Type::BSpline, js,Z) << std::endl;
-
-    }
+        BasisSetAtom::Factory(BasisSetAtom::Type::BSpline,js,Z);
 }
