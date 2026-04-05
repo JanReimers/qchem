@@ -3,6 +3,26 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -AI
+        Write a c++ program to calculate the ground state of the Dirac hydrogen atom.  Details:
+        1) Hint: These specifications are based on refining two previous AI attempts at this problem,
+           contained in my files UnitTests/HydrogenAI.C UnitTests/HydrogenAI2.C
+        2) Use an RKB (Restricted Kinetic Balance) Gaussian basis set. 
+        3) Use an even tempered set of exponents: alpha*beta^i, i=0...N-1.  With alpha=0.01, beta=2, N=22
+        4) Hint: Cholsky decomposition of the overlap matrix, and triangular inversion might be the most numericlly stable way to
+            orthogonalize the resulting generalized eigen system.
+        5) Use blaze library calls for any linear algebra and matrix classes. 
+        6) Hint: Make sure the Hamiltonian is symmetric (real hermitian). As such there should be no need to check complex eigen values. 
+        7) Include a rest mass term -mc2 in Hamiltonian so that electron state eigen values are comparable
+           with non-relatavistic eigen values
+        8) Throw out all positron eigen solutions (eigen values < -mc2) so we can focus on the electron
+           solutions only.
+        9) Hint use c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
+        10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
+        11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
+
+
+
     -Do something with MeshIntegrals.C
     -Clean up SCFiterator
         Clean handling of E>Eold

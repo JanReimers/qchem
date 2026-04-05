@@ -1487,6 +1487,35 @@ E_{n\kappa}=\frac{c^{2}}{\sqrt{1+\frac{Z^{2}}{c^{2}\left(\gamma+n-\left|\kappa\r
 
 \end_layout
 
+\begin_layout Standard
+For the hydrogen electron ground state 
+\begin_inset Formula $\kappa=-1$
+\end_inset
+
+,
+ 
+\begin_inset Formula $n=1$
+\end_inset
+
+ we get 
+\begin_inset Formula 
+\[
+E_{1,-1}-c^{2}=\frac{c^{2}}{\sqrt{1+\frac{1}{c^{2}\gamma^{2}}}}-c^{2}=\frac{c^{2}}{\sqrt{1+\frac{1}{c^{2}\left(1-\frac{1}{c^{2}}\right)}}}-c^{2}=\frac{c^{2}}{\sqrt{1+\frac{1}{c^{2}-1}}}-c^{2}=\frac{c^{2}}{\sqrt{\frac{c^{2}}{c^{2}-1}}}-c^{2}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{c}{\sqrt{\frac{1}{c^{2}-1}}}-c^{2}
+\]
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsection
 Orbital structure
 \end_layout
