@@ -60,7 +60,7 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS(const DB_cache<T>* db, 
 
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const
 {
-    os << "Gaussian     " << this->GetSymmetry()
+    os << "Gaussian     " << GetSymmetry()
     << "               r^" << Gaussian_IBS::l << "*exp(-e*r^2), e={";
     for (auto e:Gaussian_IBS::es) os << e << ",";
     os << "}";

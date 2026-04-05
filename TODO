@@ -22,7 +22,7 @@ Priority 1:
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
 
 
-
+    -clean up qchem.LASolver_blaze;
     -Do something with MeshIntegrals.C
     -Clean up SCFiterator
         Clean handling of E>Eold
@@ -69,8 +69,9 @@ Priority 1:
             S(N,3.14) initialize constructor
             S=3.14 set to constant
         Bounds checking in DEBUG mode.
-	-GetSymmetry() should return a const Symmetry* instead of a shared ptr instance?
-        -CopySymmetry() can return the shared ptr.
+	Done: -GetSymmetry() should return a const Symmetry& instead of a shared ptr instance?
+        No: -CopySymmetry() can return the shared ptr.
+            Instead: Irrep_QNs GetIrrep(const Spin& s) const
     	
     -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
     -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.

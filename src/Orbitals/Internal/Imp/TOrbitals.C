@@ -23,7 +23,7 @@ import qchem.Blaze;
 template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const Orbital_IBS<T>* bs, Spin ms)
     : itsBasisSet(bs)
-    , itsQNs(ms,bs->GetSymmetry())
+    , itsQNs(bs->GetIrrep(ms))
     , itsD(zero<T>( bs->GetNumFunctions()))
 {
     assert(itsBasisSet->GetNumFunctions()>0);  

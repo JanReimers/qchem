@@ -66,7 +66,7 @@ template <class T> Orbital_RKBS_IBS<T>::Orbital_RKBS_IBS
 
 template <class T> std::ostream&  Orbital_RKBS_IBS<T>::Write(std::ostream& os) const
 {
-    os << "Slater RKB " << this->GetSymmetry();
+    os << "Slater RKB " << GetSymmetry();
     if (kappa>0)
         os << "[ " << std::setw(2) << 2*kappa+1 << "/r - e ]";
     else

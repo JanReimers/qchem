@@ -8,7 +8,7 @@ namespace AtomBS
 {
 std::ostream&  IrrepBasisSet::Write(std::ostream& os) const
 {
-    os << "Spherical Slater L=" << *GetSymmetry();
+    os << "Spherical Slater L=" << GetSymmetry();
     itsEval->Write(os);
     return os;
 }

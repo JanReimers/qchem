@@ -98,9 +98,8 @@ TEST_P(A_SLmj_DHF,Multiple)
     QchemTester::Init(1e-3,js);
     Iterate({5,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
-    BasisSet::symv_t qns=GetSymmetries();
-    Irrep_QNs oqns(Spin::Up,qns[0]);
-    const Orbital* orb0=GetOrbital(0,oqns);
+    BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+    const Orbital* orb0=GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
     // double e0_nr=Enk(1,-1,Z,0.0); // Non relativistic energy
@@ -166,14 +165,12 @@ TEST_P(A_SG_DHF,Multiple)
     // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
 
-    BasisSet::symv_t qns=GetSymmetries();
-    cout << "QN=" << *qns[0] << endl;
-    Irrep_QNs oqns(Spin::Up,qns[0]);
-    const Orbital* orb0=GetOrbital(0,oqns);
+    BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+    const Orbital* orb0=GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
     double e0_rel=(e0_expected-e0)/e0_expected;
-    const Orbital* orb1=GetOrbital(1,oqns);
+    const Orbital* orb1=GetOrbital(1,qns[0]);
     double e1=orb1->GetEigenEnergy();
     double e1_expected=Enk(2,-1,Z,1.0/c_light);
     double e1_rel=(e1_expected-e1)/e1_expected;
@@ -260,9 +257,9 @@ TEST_F(A_SG_HFP_H,Phir)
     QchemTester::Init(1e-3,js,true);
     Iterate({2,1e-4,1e-7,1e-5,1.0,1e-4,true});
 
-    BasisSet::symv_t qns=GetSymmetries();
-    Irrep_QNs oqns(Spin::Up,qns[0]);
-    const Orbital* orb0=GetOrbital(0,oqns);
+    
+    BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+    const Orbital* orb0=GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),0.0);
     EXPECT_NEAR(n1,1,1e-14);
@@ -278,9 +275,8 @@ TEST_F(A_SG_HFP_H,Phir)
 //     Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
 //     Iterate({{1,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
-//     BasisSet::symv_t qns=GetSymmetries();
-//     Irrep_QNs oqns(Spin::Up,qns[0]);
-//     const Orbital* orb0=GetOrbital(0,oqns);
+    // BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+//     const Orbital* orb0=GetOrbital(0,qns[0]);
 //     double n1,n_expected,idphi;
 //     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
 //     EXPECT_NEAR(n1,1,1e-14);
@@ -295,9 +291,8 @@ TEST_F(A_SG_HFP_H,Phir)
 //     Init(N,1./100.,100.0,GetLMax(1));
 //     Iterate({{1,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
-//     BasisSet::symv_t qns=GetSymmetries();
-//     Irrep_QNs oqns(Spin::Up,qns[0]);
-//     const Orbital* orb0=GetOrbital(0,oqns);
+    // BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+//     const Orbital* orb0=GetOrbital(0,qns[0]);
 //     double n1,n_expected,idphi;
 //     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
 //     EXPECT_NEAR(n1,1,1e-14);

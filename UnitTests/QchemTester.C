@@ -139,9 +139,9 @@ int QchemTester::GetZ() const
     return GetCluster()->GetNuclearCharge();
 }
 
-QchemTester::symv_t QchemTester::GetSymmetries() const
+QchemTester::irrepv_t QchemTester::GetIrreps(const Spin& ms) const
 {
-    return itsBasisSet->GetSymmetries();
+    return itsBasisSet->GetIrreps(ms);
 }
 
 

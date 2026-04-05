@@ -33,7 +33,7 @@ void CompositeWF::MakeIrrepWFs(Spin s)
     for (auto b:itsBS->Iterate<Orbital_IBS<double> >())
     {
         auto lasb=b->CreateSolver_blaze(); //IrrepWF will own delete this thing.
-        Irrep_QNs qns(s,b->GetSymmetry());
+        Irrep_QNs qns(b->GetIrrep(s));
         SCFIrrepAccelerator* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
         
         uiwf_t wf(new IrrepWF(b,lasb,qns,acc));

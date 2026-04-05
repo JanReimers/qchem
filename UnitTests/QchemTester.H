@@ -18,7 +18,7 @@ import qchem.Mesh; //To get Meshparams
 class QchemTester
 {
 public:
-    typedef BasisSet::symv_t symv_t;
+    typedef BasisSet::irrepv_t irrepv_t;
     QchemTester();
     virtual ~QchemTester();
     void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
@@ -32,9 +32,8 @@ public:
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
-    symv_t GetSymmetries() const;
     size_t GetIterationCount() const;
-    
+    irrepv_t GetIrreps(const Spin& ms) const;
 protected:
     typedef std::shared_ptr<const Cluster> cl_t;
 

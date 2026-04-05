@@ -93,7 +93,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     {
         rsmat_t K=oi->Kinetic();
         //cout << S << endl;
-        int l=dynamic_cast<const Angular_Sym* >(oi->GetSymmetry().get())->GetL();
+        int l=oi->CastSymmetry<Angular_Sym>().GetL();
         rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
         EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-12);
         

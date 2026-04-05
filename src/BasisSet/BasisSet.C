@@ -29,12 +29,13 @@ public:
     typedef bsv_t::const_iterator const_iterator;
     typedef std::shared_ptr<const Symmetry> sym_t;
     typedef std::vector<sym_t> symv_t;
+    typedef std::vector<Irrep_QNs> irrepv_t; 
     
     BasisSet() {};
     virtual ~BasisSet() {}; 
     virtual void Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
-    virtual symv_t GetSymmetries() const=0;
+    virtual irrepv_t GetIrreps(const Spin& ms) const=0;
     
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;

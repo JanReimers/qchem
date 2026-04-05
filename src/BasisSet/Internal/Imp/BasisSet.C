@@ -28,11 +28,11 @@ size_t BS_Common::GetNumFunctions() const
     return ret;
 }
 
-BasisSet::symv_t BS_Common::GetSymmetries  () const
+BasisSet::irrepv_t BS_Common::GetIrreps(const Spin& ms) const
 {
-    symv_t symv;
-    for (auto& b:itsBasisSets) symv.push_back(b->GetSymmetry());
-    return symv;
+    irrepv_t irrepv;
+    for (auto& b:itsBasisSets) irrepv.push_back(b->GetIrrep(ms));
+    return irrepv;
 }
 
 //

@@ -429,10 +429,10 @@ TEST_F(ElectronConfigurationTests, BasisSets)
         std::ostringstream os[4];
         for (auto ibs:bs->Iterate<Real_OIBS>())
         {
-            const Angular_Sym* sym=dynamic_cast<const Angular_Sym*>(ibs->GetSymmetry().get());
-            if (l>0 && sym->GetL()==l) os[l] << endl;
-            if (sym->GetL()>l) os[l++] << std::ends;
-            os[l] << *sym;
+            const Angular_Sym& sym=ibs->CastSymmetry<Angular_Sym>();
+            if (l>0 && sym.GetL()==l) os[l] << endl;
+            if (sym.GetL()>l) os[l++] << std::ends;
+            os[l] << sym;
         }
         for (auto& osl:os) rs << osl.str();
         BS_table.add_row(rs);

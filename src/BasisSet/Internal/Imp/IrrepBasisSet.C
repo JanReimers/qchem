@@ -6,16 +6,23 @@ module;
 #include <memory>
 #include <cassert>
 
+
+module qchem.BasisSet.Internal.IrrepBasisSet;
 import qchem.LAParams;
 import qchem.LASolver_blaze;
 
-module qchem.BasisSet.Internal.IrrepBasisSet;
 
-template <class T> IrrepBasisSet_Common<T>::sym_t IrrepBasisSet_Common<T>::GetSymmetry() const
-    {
-        assert(itsSymmetry);
-        return itsSymmetry;
-    }
+template <class T> const Symmetry& IrrepBasisSet_Common<T>::GetSymmetry() const
+{
+    assert(itsSymmetry);
+    return *itsSymmetry;
+}
+
+template <class T> Irrep_QNs IrrepBasisSet_Common<T>::GetIrrep(const Spin& s) const
+{
+    assert(itsSymmetry);
+    return Irrep_QNs(s,itsSymmetry);
+}
 
 
 LAParams DefaultLAP({qchem::Cholsky,1e-12});

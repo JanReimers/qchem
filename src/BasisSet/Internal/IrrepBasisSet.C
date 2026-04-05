@@ -35,8 +35,8 @@ public:
     {
         assert(itsSymmetry);
     };
-    virtual sym_t GetSymmetry() const;
-
+    virtual const Symmetry& GetSymmetry() const;
+    virtual Irrep_QNs GetIrrep(const Spin& s) const;
     using UniqueIDImp::GetID;
 
 private:

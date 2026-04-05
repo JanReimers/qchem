@@ -19,8 +19,7 @@ public:
     virtual void Set(const LAParams&);
 
     virtual size_t GetNumFunctions() const;
-    virtual symv_t GetSymmetries  () const;
-
+    virtual irrepv_t GetIrreps(const Spin& ms) const;
 //
 //  StreamableObject stuff.
 //

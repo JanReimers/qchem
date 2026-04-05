@@ -3,7 +3,7 @@ module;
 #include <memory>
 
 export module qchem.IrrepBasisSet;
-export import qchem.Symmetry;
+export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 import Common.UniqueID; 
 import qchem.Streamable;
@@ -40,7 +40,15 @@ export template <class T> class IrrepBasisSet
 {
 public:
     typedef std::shared_ptr<const Symmetry> sym_t;
-    virtual sym_t  GetSymmetry() const=0;
+    //! Readonly ref to the polymorphic Symmetry object.
+    virtual const Symmetry& GetSymmetry() const=0;
+    //! Very often the client code needs as derived class ref.
+    template <class Sym> const Sym& CastSymmetry() const
+    {
+        return dynamic_cast<const Sym&>(GetSymmetry());
+    }
+    //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
+    virtual Irrep_QNs GetIrrep(const Spin& s) const=0;
     
     virtual size_t GetNumFunctions() const=0;
     // virtual size_t GetVectorSize() const {return GetNumFunctions();} //This is all we need in clang++ 20,21

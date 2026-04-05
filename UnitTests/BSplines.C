@@ -211,7 +211,7 @@ TEST_F(BSplineTests, Overlap)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<Real_OIBS >())
     {
-        cout << *ibs->GetSymmetry();
+        cout << ibs->GetSymmetry();
         rsmat_t S=ibs->Overlap();
         for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:iv_t(0,S.rows()-K-1)) //Check banded
@@ -256,7 +256,7 @@ TEST_F(BSplineTests, Nuclear)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
-        cout << *ibs->GetSymmetry();
+        cout << ibs->GetSymmetry();
         // const Real_OIBS* ibs1=ibs;
         rsmat_t Ven=ibs->Nuclear(cl);
         for (auto i:iv_t(0,Ven.rows()-K-1)) //Check banded
@@ -277,12 +277,12 @@ TEST_F(BSplineTests, Kinetic)
     Init(10,.1,40.);
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
-        cout << *ibs->GetSymmetry();
+        cout << ibs->GetSymmetry();
         rsmat_t T=ibs->Kinetic();
         for (auto i:iv_t(0,T.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         
-        int l=dynamic_cast<const Angular_Sym* >(ibs->GetSymmetry().get())->GetL();
+        int l=ibs->CastSymmetry<Angular_Sym>().GetL();
         rsmat_t Tnum = mintegrator->Grad2(*ibs);
         rsmat_t Cen  = mintegrator->Inv_r2(*ibs);
         Tnum+=l*(l+1)*Cen;
