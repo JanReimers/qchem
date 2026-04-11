@@ -43,15 +43,6 @@ private:
     sym_t itsSymmetry;
 };
 
-export template <class T> class Orbital_IBS_Common
-    : public virtual Orbital_IBS<T>
-{
-    public:
-    Orbital_IBS_Common();
-    //!  Make a general eigen solver that caches the factorized overlap matrix.
-protected:
-
-};
 
 
 export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegrals
@@ -89,7 +80,7 @@ public:
 
 export template <class T> class Orbital_RKB_IBS_Common
     : public virtual Orbital_RKB_IBS<T>
-    , public Orbital_IBS_Common<T>
+    , public virtual Orbital_IBS<T>
     , public DB_RKB<T>
 {
 public:

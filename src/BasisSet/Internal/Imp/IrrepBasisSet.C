@@ -23,17 +23,8 @@ template <class T> Irrep_QNs IrrepBasisSet_Common<T>::GetIrrep(const Spin& s) co
 }
 
 
-//-----------------------------------------------------------------------------
-//
-//  Construction zone
-//
-template <class T> Orbital_IBS_Common<T>::Orbital_IBS_Common()
-{
-};
-
 
 
 
 template class IrrepBasisSet_Common<double>;
-template class Orbital_IBS_Common<double>;
 

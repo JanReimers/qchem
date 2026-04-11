@@ -12,8 +12,7 @@ import qchem.Blaze;
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common
 (const DB_cache<T>* db, int kappa,::Orbital_RKBL_IBS<T>* l,::Orbital_RKBS_IBS<T>* s)
-    : Orbital_IBS_Common<T>()
-    , DB_RKB<T>(db)
+    : DB_RKB<T>(db)
     , itsRKBL(l)
     , itsRKBS(s)
 {

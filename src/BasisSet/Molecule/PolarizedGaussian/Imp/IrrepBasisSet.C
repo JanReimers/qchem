@@ -216,19 +216,16 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 //
 Orbital_IBS::Orbital_IBS(const db_t* db, Reader* bsr, const Cluster* cl)
     : IrrepBasisSet(bsr,cl)
-    , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , Orbital_IE(db)
 {};
 Orbital_IBS::Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L, const Cluster* cl)
     : IrrepBasisSet(exponents,L,cl)
-    , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , Orbital_IE(db)
 {};
 Orbital_IBS::Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
-    , Orbital_IBS_Common<double>()
     , Orbital_HF_IBS_Common<double>(db)
     , Orbital_IE(db)
 {};
