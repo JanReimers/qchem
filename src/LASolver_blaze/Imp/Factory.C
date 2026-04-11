@@ -11,13 +11,13 @@ template <class T> LASolver<T>* LASolver<T>::
     switch (ortho)
     {
     case qchem::Cholsky :
-        ret=new LASolverLapackCholsky_blaze<T>(TruncationTolerance);
+        ret=new LASolverCholsky<T>(TruncationTolerance);
         break;
     case qchem::Eigen :
-        ret=new LASolverLapackEigen_blaze<T>(TruncationTolerance);
+        ret=new LASolverEigen<T>(TruncationTolerance);
         break;
     case qchem::SVD :
-        ret=new LASolverLapackSVD_blaze<T>(TruncationTolerance);
+        ret=new LASolverSVD<T>(TruncationTolerance);
         break;
     break;
     }

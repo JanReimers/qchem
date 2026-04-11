@@ -32,17 +32,22 @@ export template <class T> class LASolverCommon
     virtual rsmat_t  Transform(const rsmat_t& M) const;
     virtual mat_t<T>    Transform(const   mat_t<T>& M) const;
     virtual rvec_t   Get_BS_Diagonal() const {return Diag;}
+    typedef LASolver<T> Base;
+    typedef blaze::   UpperMatrix< mat_t<T>> umat_t;
+    typedef blaze::   LowerMatrix< mat_t<T>> lmat_t;
+    typedef blaze::DiagonalMatrix<rmat_t   > dmat_t; //For eigen and singular values.
+    typedef typename Base::   Ud_t    Ud_t;
+    typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
 protected:
     LASolverCommon(double truncationTolerance) : itsTruncationTolerance(truncationTolerance) {};
     ~LASolverCommon() {};
+    virtual  Ud_t Solve     (const smat_t<T>& H) const;
+    //! returns U,U',E  where U' has not been back transformed, U=V*Uprime.
+    virtual UUd_t SolveOrtho(const smat_t<T>& Hprime) const; //Hprime = Vd * H * V Hamiltonian/Fock matrix.
     //
     //  Helper functions used by derived classes.
     //
-    static void Rescale (mat_t<T>& V, const rvec_t& w);
-    static void Rescale (mat_t<T>& U, const rvec_t& w, mat_t<T>& Vt);
-    static void Truncate(mat_t<T>& U, rvec_t& w, double tol);
-    static void Truncate(mat_t<T>& U, rvec_t& s, mat_t<T>& V , double tol);
     static smat_t<T> MakeSymmetric(mat_t<T>&,std::string name);
     
     void AssignVs(const mat_t<T>& _V, const mat_t<T>& _Vd) {V=_V;Vd=_Vd;}

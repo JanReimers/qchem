@@ -23,6 +23,9 @@ Priority 1:
 
 
     -clean up qchem.LASolver;
+    -Get rid of Orbital_IBS::CreateSolver
+        Only used by CompositeWF
+        Move default LAParams into CompositeWF.
     -Do something with MeshIntegrals.C
     -Clean up SCFiterator
         Clean handling of E>Eold
