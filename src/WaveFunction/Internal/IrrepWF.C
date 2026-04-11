@@ -3,7 +3,7 @@ module;
 export module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 export import qchem.EnergyLevel;
-export import qchem.LASolver_blaze;
+export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.IrrepBasisSet;
@@ -13,7 +13,7 @@ export import qchem.Symmetry.ElectronConfiguration;
 export class IrrepWF
 {
 public:
-    IrrepWF(const Real_OIBS*, LASolver_blaze<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
+    IrrepWF(const Real_OIBS*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
     ~IrrepWF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
@@ -29,13 +29,13 @@ public:
  private:
     IrrepWF(const IrrepWF&);
 
-    const Real_OIBS*    itsBasisSet;
-    LASolver_blaze<double>*      itsLASolver_blaze;
-    TOrbitals<double>*           itsOrbitals; //Owned
-    Irrep_QNs                    itsIrrep;
-    EnergyLevels                 itsELevels;
-    SCFIrrepAccelerator*         itsAccelerator;
-    rsmat_t               itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
-    rsmat_t       itsF;
+    const Real_OIBS*     itsBasisSet;
+    LASolver<double>*    itsLASolver;
+    TOrbitals<double>*   itsOrbitals; //Owned
+    Irrep_QNs            itsIrrep;
+    EnergyLevels         itsELevels;
+    SCFIrrepAccelerator* itsAccelerator;
+    rsmat_t              itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    rsmat_t              itsF;
 }; 
 

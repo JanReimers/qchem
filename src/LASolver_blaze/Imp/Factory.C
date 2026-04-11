@@ -1,13 +1,13 @@
 // File: LASolver_blaze/Imp/Factory.C
 module;
 #include <cassert>
-module qchem.LASolver_blaze;
+module qchem.LASolver;
 import qchem.LASolver_blaze.Internal.Lapack;
 
-template <class T> LASolver_blaze<T>* LASolver_blaze<T>::
+template <class T> LASolver<T>* LASolver<T>::
     Factory(qchem::Ortho ortho, double TruncationTolerance)
 {
-    LASolver_blaze<T>* ret=0;
+    LASolver<T>* ret=0;
     switch (ortho)
     {
     case qchem::Cholsky :
@@ -25,4 +25,4 @@ template <class T> LASolver_blaze<T>* LASolver_blaze<T>::
     return ret;
 }
 
-template LASolver_blaze<double>* LASolver_blaze<double>::Factory(qchem::Ortho ortho, double TruncationTolerance);
+template LASolver<double>* LASolver<double>::Factory(qchem::Ortho ortho, double TruncationTolerance);

@@ -13,13 +13,13 @@ import qchem.Blaze;
 using std::cout;
 using std::endl;
 
-IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver_blaze<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
-    , itsLASolver_blaze   (lasb)
+    , itsLASolver   (lasb)
     , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
-    , itsDPrime    (zero<double>(bs->GetNumFunctions()))
+    , itsDPrime     (zero<double>(bs->GetNumFunctions()))
 {
     assert(itsOrbitals);
     assert(itsAccelerator);
@@ -28,7 +28,7 @@ IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver_blaze<double>* lasb,con
 IrrepWF::~IrrepWF()
 {
     delete itsOrbitals;
-    delete itsLASolver_blaze;
+    delete itsLASolver;
     delete itsAccelerator;
 }
 
@@ -47,7 +47,7 @@ void IrrepWF::DoSCFIteration()
 {
     assert(itsOrbitals);
     //project F' using pre calculated coefficients. And then diagonalize it.
-    auto [U,Up,e]=itsLASolver_blaze->SolveOrtho(itsAccelerator->Project());
+    auto [U,Up,e]=itsLASolver->SolveOrtho(itsAccelerator->Project());
     itsOrbitals->UpdateOrbitals(U,Up,e);
 }
 //
@@ -89,8 +89,8 @@ Orbitals* IrrepWF::GetOrbitals()
 
 rvec_t IrrepWF::Get_BS_Diagonal() const
 {
-    assert(itsLASolver_blaze);
-    return itsLASolver_blaze->Get_BS_Diagonal();
+    assert(itsLASolver);
+    return itsLASolver->Get_BS_Diagonal();
 }
 
 void  IrrepWF::DisplayEigen() const

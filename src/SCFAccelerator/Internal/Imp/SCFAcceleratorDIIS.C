@@ -13,14 +13,14 @@ import qchem.Blaze;
 using std::cout;
 using std::endl;
 
-SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver_blaze<double>* lasb,const Irrep_QNs& qns,const rvec_t& cs) 
+SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* lasb,const Irrep_QNs& qns,const rvec_t& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
     , itsCs(cs)
-    , itsLaSolver_blaze(lasb)
+    , itsLASolver(lasb)
 {
-    assert(itsLaSolver_blaze);
+    assert(itsLASolver);
 };
 SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS() 
 {
@@ -30,7 +30,7 @@ SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS()
 
 void SCFIrrepAcceleratorDIIS::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
 {
-     itsFPrime=itsLaSolver_blaze->Transform(F); // Fprime = Vd*F*V
+    itsFPrime=itsLASolver->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.rows()==DPrime.rows());
     assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
@@ -84,7 +84,7 @@ SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p)
 {};
 
 SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
-SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver_blaze<double>* lasb,const Irrep_QNs& qns, int occ) 
+SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* lasb,const Irrep_QNs& qns, int occ) 
 {
     if (occ>0)
     {

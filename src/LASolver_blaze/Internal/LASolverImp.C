@@ -2,8 +2,8 @@
 module;
 #include <string>
 #include "blaze/Math.h" 
-export module qchem.LASolver_blaze.Internal.Common;
-export import qchem.LASolver_blaze;
+export module qchem.LASolver.Internal.Common;
+export import qchem.LASolver;
 
 //#################################################################################
 //
@@ -25,41 +25,31 @@ export import qchem.LASolver_blaze;
 //
 
 
-export template <class T> class LASolverCommon_blaze 
-    : public virtual  LASolver_blaze<T>
+export template <class T> class LASolverCommon 
+    : public virtual  LASolver<T>
 {
-    typedef LASolver_blaze<T> Base;
-    typedef typename Base:: rvec_t  rvec_t;
-    typedef typename Base::  mat_t   mat_t;
-    typedef typename Base:: smat_t  smat_t;
-    typedef typename Base:: umat_t  umat_t;
-    typedef typename Base:: lmat_t  lmat_t;
-    typedef typename Base::rsmat_t rsmat_t;
-    typedef typename Base:: dmat_t  dmat_t;
-    typedef typename Base::   Ud_t    Ud_t;
-    typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
     virtual rsmat_t  Transform(const rsmat_t& M) const;
-    virtual mat_t    Transform(const   mat_t& M) const;
+    virtual mat_t<T>    Transform(const   mat_t<T>& M) const;
     virtual rvec_t   Get_BS_Diagonal() const {return Diag;}
 
 protected:
-    LASolverCommon_blaze(double truncationTolerance) : itsTruncationTolerance(truncationTolerance) {};
-    ~LASolverCommon_blaze() {};
+    LASolverCommon(double truncationTolerance) : itsTruncationTolerance(truncationTolerance) {};
+    ~LASolverCommon() {};
     //
     //  Helper functions used by derived classes.
     //
-    static void Rescale (mat_t& V, const rvec_t& w);
-    static void Rescale (mat_t& U, const rvec_t& w, mat_t& Vt);
-    static void Truncate(mat_t& U, rvec_t& w, double tol);
-    static void Truncate(mat_t& U, rvec_t& s, mat_t& V , double tol);
-    static smat_t MakeSymmetric(mat_t&,std::string name);
+    static void Rescale (mat_t<T>& V, const rvec_t& w);
+    static void Rescale (mat_t<T>& U, const rvec_t& w, mat_t<T>& Vt);
+    static void Truncate(mat_t<T>& U, rvec_t& w, double tol);
+    static void Truncate(mat_t<T>& U, rvec_t& s, mat_t<T>& V , double tol);
+    static smat_t<T> MakeSymmetric(mat_t<T>&,std::string name);
     
-    void AssignVs(const mat_t& _V, const mat_t& _Vd) {V=_V;Vd=_Vd;}
+    void AssignVs(const mat_t<T>& _V, const mat_t<T>& _Vd) {V=_V;Vd=_Vd;}
 
     double itsTruncationTolerance;
-    mat_t V;
-    mat_t Vd;  //Basis Overlap S = V*Vd
+    mat_t<T> V;
+    mat_t<T> Vd;  //Basis Overlap S = V*Vd
     rvec_t Diag; //s for SVD, e for eigen, diag for Cholsky.
 
 };

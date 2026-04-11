@@ -22,7 +22,7 @@ Priority 1:
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
 
 
-    -clean up qchem.LASolver_blaze;
+    -clean up qchem.LASolver;
     -Do something with MeshIntegrals.C
     -Clean up SCFiterator
         Clean handling of E>Eold

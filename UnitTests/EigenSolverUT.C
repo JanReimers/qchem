@@ -9,7 +9,7 @@
 #include "blaze/Math.h" 
 
 import qchem.LAParams;
-import qchem.LASolver_blaze;
+import qchem.LASolver;
 
 import qchem.Factory;
 import qchem.IrrepBasisSet;
@@ -111,7 +111,7 @@ TEST_F(OrthogonalizeTests, Blaze)
             for (auto ortho:orthos)
             {
                 bSMat S=ibs->Overlap();
-                LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol);
+                LASolver<double>* las=LASolver<double>::Factory(ortho,trunc_tol);
                 las->SetBasisOverlap(S);
                 auto I=las->Transform(S);
                 bUnit I1(I.rows());
@@ -147,7 +147,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
     {
         for (auto ortho:orthos)
         {
-            LASolver_blaze<double>* las=LASolver_blaze<double>::Factory(ortho,trunc_tol/10);
+            LASolver<double>* las=LASolver<double>::Factory(ortho,trunc_tol/10);
             las->SetBasisOverlap(ibs->Overlap());
             auto [U,e]=las->Solve(Ham->GetMatrix(ibs,Spin::Down,0));
             cout << OrthStrs[ortho] << " " << ibs->GetSymmetry() << " " << e[0]+0.5 << " " << e[1]+0.125 << endl;

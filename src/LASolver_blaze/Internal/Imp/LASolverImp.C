@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <cmath>
 #include "blaze/Math.h" 
-module qchem.LASolver_blaze.Internal.Common;
+module qchem.LASolver.Internal.Common;
 
 using std::cout;
 using std::endl;
@@ -13,25 +13,25 @@ using std::endl;
 //  Common level.
 //
 
-template <class T> typename LASolver_blaze<T>::rsmat_t  LASolverCommon_blaze<T>::Transform(const rsmat_t& M) const
+template <class T> rsmat_t  LASolverCommon<T>::Transform(const rsmat_t& M) const
 {
-    mat_t Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
+    mat_t<T> Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
     return MakeSymmetric(Mprime,"Test matrix");
 }
-template <class T> typename LASolver_blaze<T>::mat_t  LASolverCommon_blaze<T>::Transform(const mat_t& M) const
+template <class T> mat_t<T>  LASolverCommon<T>::Transform(const mat_t<T>& M) const
 {
-    mat_t Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
+    mat_t<T> Mprime=Vd * M * V;  //Transform to orthogonal coordinates.
     return Mprime;
 }
 
-template <class T> void LASolverCommon_blaze<T>::Rescale(mat_t& V,const rvec_t& w)
+template <class T> void LASolverCommon<T>::Rescale(mat_t<T>& V,const rvec_t& w)
 {
     for (size_t j=0;j<V.columns();j++)
         column(V,j)/=sqrt(w[j]);
         
 }
 
-template <class T> void LASolverCommon_blaze<T>::Rescale(mat_t& U,const rvec_t& s, mat_t& Vt)
+template <class T> void LASolverCommon<T>::Rescale(mat_t<T>& U,const rvec_t& s, mat_t<T>& Vt)
 {
     for (size_t j=0;j<U.columns();j++)
         column(U,j)/=sqrt(s[j]);
@@ -42,7 +42,7 @@ template <class T> void LASolverCommon_blaze<T>::Rescale(mat_t& U,const rvec_t& 
 //
 //  UsV from OML SVD which returns a diag matrix for s.
 //
-template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& s, mat_t& Vt, double tol)
+template <class T>  void LASolverCommon<T>::Truncate(mat_t<T>& U, rvec_t& s, mat_t<T>& Vt, double tol)
 {
     assert(isSquare(U ));
     assert(isSquare(Vt));
@@ -85,7 +85,7 @@ template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& s, 
 //
 //  Version for eigen routines which conventionally return ascending eigen vales.
 //
-template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& w,double tol)
+template <class T>  void LASolverCommon<T>::Truncate(mat_t<T>& U, rvec_t& w,double tol)
 {
     assert(U.columns()==w.size());
     //  Find the index to truncate at.
@@ -121,7 +121,7 @@ template <class T>  void LASolverCommon_blaze<T>::Truncate(mat_t& U, rvec_t& w,d
     }
 }
 
-template <class T>  LASolver_blaze<T>::smat_t LASolverCommon_blaze<T>::MakeSymmetric(mat_t& A,std::string name)
+template <class T>  smat_t<T> LASolverCommon<T>::MakeSymmetric(mat_t<T>& A,std::string name)
 {
 #ifdef false
     double del=::MakeSymmetric(A); // A=0.5*(A+~A)
@@ -133,7 +133,7 @@ template <class T>  LASolver_blaze<T>::smat_t LASolverCommon_blaze<T>::MakeSymme
     return A;
 }
 
- template class LASolverCommon_blaze<double>;
+ template class LASolverCommon<double>;
 
 
 

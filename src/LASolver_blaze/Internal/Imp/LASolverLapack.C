@@ -10,101 +10,101 @@ module qchem.LASolver_blaze.Internal.Lapack;
 //  Lapack specific code
 //
 template <class T> LASolverLapackCommon_blaze<T>::LASolverLapackCommon_blaze(double truncationTolerance)
-    : LASolverCommon_blaze<T>(truncationTolerance)
+    : LASolverCommon<T>(truncationTolerance)
     {
     }
 template <class T> LASolverLapackCommon_blaze<T>::~LASolverLapackCommon_blaze()
 {
 }
 
-template <class T> typename LASolver_blaze<T>::Ud_t LASolverLapackCommon_blaze<T>::Solve(const smat_t& Ham) const
+template <class T> typename LASolver<T>::Ud_t LASolverLapackCommon_blaze<T>::Solve(const smat_t<T>& Ham) const
 {
     assert(!isnan(Ham));
-    mat_t Hprime = Vd * Ham * V;  //Transform to orthogonal coordinates.
-    smat_t Hsym=MakeSymmetric(Hprime,"Hamiltonian");
+    mat_t<T> Hprime = Vd * Ham * V;  //Transform to orthogonal coordinates.
+    smat_t<T> Hsym=MakeSymmetric(Hprime,"Hamiltonian");
     rvec_t d;
-    mat_t  U;
+    mat_t<T>  U;
     blaze::eigen(Hsym,d,U);
     U = V * U;                      //Back transform.
     return std::make_tuple(U,d);
 }
-template <class T> typename LASolver_blaze<T>::UUd_t LASolverLapackCommon_blaze<T>::SolveOrtho(const smat_t& Hprime) const
+template <class T> typename LASolver<T>::UUd_t LASolverLapackCommon_blaze<T>::SolveOrtho(const smat_t<T>& Hprime) const
 {
     assert(!isnan(Hprime));
     rvec_t d;
-    mat_t  Uprime;
+    mat_t<T>  Uprime;
     blaze::eigen(Hprime,d,Uprime);
     // auto [Uprime,e]  =itsLapackEigenSolver->SolveAll(HPrime,itsParams.abstol);  //Get eigen solution.
-    mat_t U = V * Uprime;                      //Back transform.
+    mat_t<T> U = V * Uprime;                      //Back transform.
     return std::make_tuple(U,Uprime,d);
 }
 
 
-template <class T> void LASolverLapackEigen_blaze<T>::SetBasisOverlap(const smat_t& S)
+template <class T> void LASolverLapackEigen_blaze<T>::SetBasisOverlap(const smat_t<T>& S)
 {
     rvec_t d;
-    mat_t  U;
+    mat_t<T>  U;
     blaze::eigen(S,d,U);
     // auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),itsParams.abstol);
-    LASolverCommon_blaze<T>::Truncate(U,d,itsTruncationTolerance);
-    LASolverCommon_blaze<T>::Rescale(U,d);
-    LASolverCommon_blaze<T>::AssignVs(U,trans(U));
-    LASolverCommon_blaze<T>::Diag=d; //Preserve eigend values.
+    LASolverCommon<T>::Truncate(U,d,itsTruncationTolerance);
+    LASolverCommon<T>::Rescale(U,d);
+    LASolverCommon<T>::AssignVs(U,trans(U));
+    LASolverCommon<T>::Diag=d; //Preserve eigend values.
 }
 
-template <class T> typename LASolver_blaze<T>::rsmat_t LASolverLapackEigen_blaze<T>::Inverse(const rsmat_t& S) const
+template <class T> rsmat_t LASolverLapackEigen_blaze<T>::Inverse(const rsmat_t& S) const
 {
     rvec_t d;
-    mat_t  U;
+    mat_t<T>  U;
     blaze::eigen(S,d,U);
     // auto [U,w] =itsLapackEigenSolver->SolveAll(Mat(S),itsParams.abstol);
-    LASolverCommon_blaze<T>::Truncate(U,d,itsTruncationTolerance);
-    dmat_t winv(d.size());
+    LASolverCommon<T>::Truncate(U,d,itsTruncationTolerance);
+    blaze::DiagonalMatrix<rmat_t> winv(d.size());
     blaze::diagonal(winv)=1.0/d;
-    mat_t Sfull(U*winv*trans(U));
+    mat_t<T> Sfull(U*winv*trans(U));
     return MakeSymmetric(Sfull,"Inverse");
 }
 
-template <class T> void LASolverLapackSVD_blaze<T>::SetBasisOverlap(const smat_t& S)
+template <class T> void LASolverLapackSVD_blaze<T>::SetBasisOverlap(const smat_t<T>& S)
 {
     rvec_t s;
-    mat_t  U,Vt;
+    mat_t<T>  U,Vt;
     blaze::svd(S,U,s,Vt);
-    LASolverCommon_blaze<T>::Truncate(U,s,Vt,itsTruncationTolerance);
-    LASolverCommon_blaze<T>::Rescale(U,s,Vt);
-    LASolverCommon_blaze<T>::AssignVs(U,Vt);
-    LASolverCommon_blaze<T>::Diag=s; //Preserve SVs.
+    LASolverCommon<T>::Truncate(U,s,Vt,itsTruncationTolerance);
+    LASolverCommon<T>::Rescale(U,s,Vt);
+    LASolverCommon<T>::AssignVs(U,Vt);
+    LASolverCommon<T>::Diag=s; //Preserve SVs.
 }
 
-template <class T> typename LASolverLapackSVD_blaze<T>::rsmat_t LASolverLapackSVD_blaze<T>::Inverse(const rsmat_t& S) const
+template <class T> rsmat_t LASolverLapackSVD_blaze<T>::Inverse(const rsmat_t& S) const
 {
     rvec_t s;
-    mat_t  U,Vt;
+    mat_t<T>  U,Vt;
     blaze::svd(S,U,s,Vt);
-    LASolverCommon_blaze<T>::Truncate(U,s,Vt,itsTruncationTolerance);
-    dmat_t sinv(s.size());
+    LASolverCommon<T>::Truncate(U,s,Vt,itsTruncationTolerance);
+    blaze::DiagonalMatrix<rmat_t> sinv(s.size());
     blaze::diagonal(sinv)=1.0/s;
-    mat_t  Sfull(trans(Vt)*sinv*trans(U));
+    mat_t<T>  Sfull(trans(Vt)*sinv*trans(U));
     return MakeSymmetric(Sfull,"Inverse");
 }
 
-template <class T> void LASolverLapackCholsky_blaze<T>::SetBasisOverlap(const smat_t& S)
+template <class T> void LASolverLapackCholsky_blaze<T>::SetBasisOverlap(const smat_t<T>& S)
 {
-    mat_t Sm(S);
+    mat_t<T> Sm(S);
     blaze::potrf( Sm, 'U' );
     blaze::trtri( Sm, 'U', 'N' );
     size_t N=Sm.rows();
     for (size_t i=0;i<N;i++)
         for (size_t j=i+1;j<N;j++)
             Sm(j,i)=0;
-    umat_t V(Sm);
+    blaze::UpperMatrix< mat_t<T>> V(Sm);
     
 
-    LASolverCommon_blaze<T>::AssignVs(V,blaze::trans(V)); //V=U^-1, Vd=transpose(U^-1)
-    LASolverCommon_blaze<T>::Diag=blaze::diagonal(V);
+    LASolverCommon<T>::AssignVs(V,blaze::trans(V)); //V=U^-1, Vd=transpose(U^-1)
+    LASolverCommon<T>::Diag=blaze::diagonal(V);
 }
 
-template <class T> typename LASolver_blaze<T>::rsmat_t LASolverLapackCholsky_blaze<T>::Inverse(const rsmat_t& S) const
+template <class T> rsmat_t LASolverLapackCholsky_blaze<T>::Inverse(const rsmat_t& S) const
 {
     return inv(S);
 }
