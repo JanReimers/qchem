@@ -1,4 +1,4 @@
-// File: LASolver_blaze/Internal/Imp/LASolverImp.C  Linear algebra for Lowden orthogonalization and eigne solutions.
+// File: LASolver/Internal/Imp/LASolverImp.C  Linear algebra for Lowden orthogonalization and eigne solutions.
 module;
 #include <cassert>
 #include <iostream>

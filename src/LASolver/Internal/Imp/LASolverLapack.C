@@ -1,22 +1,9 @@
-// File: LASolver_blaze/Internal/Imp/LASolverLapack.C  General eigen solver.
+// File: LASolver/Internal/Imp/LASolverLapack.C  General eigen solver.
 module;
 #include <cassert>
 #include <iostream>
 #include "blaze/Math.h" 
-module qchem.LASolver_blaze.Internal.Lapack;
-
-//-----------------------------------------------------------------------------
-//
-//  Lapack specific code
-//
-// template <class T> LASolverLapackCommon_blaze<T>::LASolverLapackCommon_blaze(double truncationTolerance)
-//     : LASolverCommon<T>(truncationTolerance)
-//     {
-//     }
-// template <class T> LASolverLapackCommon_blaze<T>::~LASolverLapackCommon_blaze()
-// {
-// }
-
+module qchem.LASolver.Internal.Lapack;
 
 
 template <class T> void LASolverEigen<T>::SetBasisOverlap(const smat_t<T>& S)

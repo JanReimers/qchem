@@ -5,8 +5,6 @@ export module qchem.Orbital_1E_IBS;
 export import qchem.IrrepBasisSet;
 export import qchem.Cluster;
 
-import qchem.LASolver;
-
 
 //! \brief Interface for Laplacian integrals using in kinetic energy calculations.
 export template <class T> class Integrals_Kinetic
@@ -33,8 +31,6 @@ export template <class T> class Orbital_IBS
     , public virtual Integrals_Nuclear<T> 
 {
 public:    
-    virtual void         Set(const LAParams&)=0;
-    virtual LASolver<T>* CreateSolver_blaze() const=0;
 };
 
 export typedef Orbital_IBS<double>    Real_OIBS;

@@ -1,7 +1,7 @@
-// File: LASolver_blaze/Internal/LASolverLapack.C  Use blaze interface to Lapack linrary for all linear algebra ops.
+// File: LASolver/Internal/LASolverLapack.C  Use blaze interface to Lapack linrary for all linear algebra ops.
 module;
 #include "blaze/Math.h" 
-export module qchem.LASolver_blaze.Internal.Lapack;
+export module qchem.LASolver.Internal.Lapack;
 import qchem.LASolver.Internal.Common;
 
 export template <class T> class LASolverEigen

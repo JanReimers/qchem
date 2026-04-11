@@ -15,11 +15,6 @@ void BS_Common::Insert(bs_t* bs)
     itsBasisSets.push_back(std::unique_ptr<bs_t>(bs));
 }
 
-void BS_Common::Set(const LAParams& lap)
-{
-    for (auto& b:itsBasisSets) b->Set(lap);
-}
-
 size_t BS_Common::GetNumFunctions() const
 {
     size_t ret=0;

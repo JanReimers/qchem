@@ -31,11 +31,7 @@ public:
     {
         
     }
-    void Set(int N, int Z, LAParams lap)
-    {
-        Set(N,Z);
-        bs->Set(lap);
-    }
+    
     void Set(int N, int Z)
     {
         if (bs) delete bs;

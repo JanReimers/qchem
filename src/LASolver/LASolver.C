@@ -1,4 +1,4 @@
-// File: LASolver_blaze/LASolver.C  Linear algebra for Lowden orthogonalization and eigan solutions.
+// File: LASolver/LASolver.C  Linear algebra for Lowden orthogonalization and eigan solutions.
 module;
 #include <tuple>
 #include "blaze/Math.h" 

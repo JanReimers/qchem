@@ -10,7 +10,6 @@ export import qchem.Cluster;
 export import qchem.Symmetry;
 export import qchem.Symmetry.ElectronConfiguration;
 
-import qchem.LAParams;
 import Common.UniqueID;
 import Common.Iterators;
 import qchem.Streamable;
@@ -33,7 +32,6 @@ public:
     
     BasisSet() {};
     virtual ~BasisSet() {}; 
-    virtual void Set(const LAParams&)=0;
     virtual size_t GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
     

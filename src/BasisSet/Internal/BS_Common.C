@@ -4,7 +4,6 @@ module;
 #include "forward.H"
 export module qchem.BasisSet.Internal.Common;
 export import qchem.Types;
-import qchem.LAParams;
 import Common.UniqueIDImp;
 import qchem.BasisSet;
 
@@ -16,7 +15,6 @@ export class BS_Common
 public:
     BS_Common() {};
     virtual ~BS_Common() {};
-    virtual void Set(const LAParams&);
 
     virtual size_t GetNumFunctions() const;
     virtual irrepv_t GetIrreps(const Spin& ms) const;

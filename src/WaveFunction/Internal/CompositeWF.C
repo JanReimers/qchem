@@ -38,6 +38,8 @@ private:
     const ElectronConfiguration* itsEC;
     SCFAccelerator*              itsAccelerator;
     EnergyLevels                 itsELevels;
+    LAParams                     itsLAParams; //Numerical control of general eigen solution.
+
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
 
     std::vector<uiwf_t>                   itsIWFs;

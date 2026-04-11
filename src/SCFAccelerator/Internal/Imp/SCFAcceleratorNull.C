@@ -2,7 +2,7 @@
 module qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 void SCFIrrepAcceleratorNull::UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)
 {
-    itsFPrime=itsLaSolver_blaze->Transform(F);
+    itsFPrime=itsLASolver->Transform(F);
 }
 
 smat_t<double> SCFIrrepAcceleratorNull::Project()

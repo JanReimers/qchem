@@ -10,15 +10,20 @@ import qchem.BasisSet;
 import qchem.IrrepBasisSet;
 import qchem.CompositeCD;
 import qchem.Symmetry.ElectronConfiguration;
+import qchem.LASolver;
+
 
 using namespace tabulate;
 Color CompositeWF::l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
+LAParams DefaultLAP({qchem::Cholsky,1e-12});
 
 
 CompositeWF::CompositeWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)
     , itsEC(ec)
     , itsAccelerator(acc)
+    , itsLAParams(DefaultLAP) //gcc-15.0.1 segfault here
+
 {
     assert(itsBS);
     assert(itsEC);
@@ -32,7 +37,9 @@ void CompositeWF::MakeIrrepWFs(Spin s)
 
     for (auto b:itsBS->Iterate<Orbital_IBS<double> >())
     {
-        auto lasb=b->CreateSolver_blaze(); //IrrepWF will own delete this thing.
+        LASolver<double>* lasb=LASolver<double>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
+        lasb->SetBasisOverlap(b->Overlap());
+    // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
         Irrep_QNs qns(b->GetIrrep(s));
         SCFIrrepAccelerator* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
         

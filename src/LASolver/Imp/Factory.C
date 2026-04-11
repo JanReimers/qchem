@@ -1,8 +1,8 @@
-// File: LASolver_blaze/Imp/Factory.C
+// File: LASolver/Imp/Factory.C
 module;
 #include <cassert>
 module qchem.LASolver;
-import qchem.LASolver_blaze.Internal.Lapack;
+import qchem.LASolver.Internal.Lapack;
 
 template <class T> LASolver<T>* LASolver<T>::
     Factory(qchem::Ortho ortho, double TruncationTolerance)

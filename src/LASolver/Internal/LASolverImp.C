@@ -1,4 +1,4 @@
-// File: LASolver_blaze/Internal/LASolverImp.C  Linear algebra for Lowden orthogonalization and eigen solutions.
+// File: LASolver/Internal/LASolverImp.C  Linear algebra for Lowden orthogonalization and eigen solutions.
 module;
 #include <string>
 #include "blaze/Math.h" 

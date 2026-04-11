@@ -37,17 +37,14 @@ public:
     DiracIntegralTests()
     : Lmax(0   )
     , Z(1)
-    , lap({qchem::SVD,1e-6})
     , sbs(0)
     , gbs(0)
     , cl(new Molecule())
     {
         nlohmann::json js = {{"type",BasisSetAtom::Type::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         sbs=BasisSetAtom::Factory(js,2);
-        sbs->Set(lap);
         js = {{"type",BasisSetAtom::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         gbs=BasisSetAtom::Factory(js,2);
-        gbs->Set(lap);
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
@@ -81,7 +78,6 @@ public:
     }
 
     int Lmax, Z;
-    LAParams lap;
     BasisSet* sbs;
     BasisSet* gbs;
     Cluster* cl;

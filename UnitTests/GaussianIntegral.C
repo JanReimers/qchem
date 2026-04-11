@@ -33,7 +33,6 @@ public:
     GaussianRadialIntegralTests()
     : Lmax(4    )
     , Z(1)
-    , lap({qchem::SVD,1e-6})
     , bs(0)
     , cl(new Molecule())
     , mintegrator()
@@ -43,7 +42,6 @@ public:
         {"N", 5}, {"emin", 0.01}, {"emax", 100.0},
         };
         bs=BasisSetAtom::Factory(js,75);
-        bs->Set(lap);
         cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
@@ -51,7 +49,6 @@ public:
     }
     
     int Lmax, Z;
-    LAParams lap;
     BasisSet* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;

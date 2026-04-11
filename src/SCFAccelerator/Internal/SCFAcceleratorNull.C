@@ -6,11 +6,11 @@ export class SCFIrrepAcceleratorNull : public virtual SCFIrrepAccelerator
 {
 public:
     SCFIrrepAcceleratorNull(const LASolver<double>* lasb,const Irrep_QNs&) 
-        : itsLaSolver_blaze(lasb) {};
+        : itsLASolver(lasb) {};
     virtual ~SCFIrrepAcceleratorNull() {};
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
     virtual smat_t<double> Project();
 private:
-    const LASolver<double>*   itsLaSolver_blaze; //Knows the ortho transform
+    const LASolver<double>*   itsLASolver; //Knows the ortho transform
     smat_t<double>   itsFPrime;
 };

@@ -42,7 +42,6 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     assert(&*itsCluster);
     itsBasisSet=GetBasisSet(js); //SG, PG, Slater
     assert(itsBasisSet);
-    itsBasisSet->Set(lap);
     if (verbose)
     {
         std::cout << " " << *itsBasisSet << std::endl;
