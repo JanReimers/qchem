@@ -7,6 +7,8 @@ module;
 export module qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Atom.IE;
 import qchem.BasisSet.Internal.IrrepBasisSet;
+import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.Internal.HeapDB;
 
 export namespace AtomBS
 {
@@ -30,7 +32,7 @@ private:
 };
 
 template <class T> class Orbital_IBS
-    : public virtual ::Orbital_IBS<T> //brings in Integrals_Overlap<T>
+    : public virtual ::Orbital_IBS<T> 
     , public AtomIE_Overlap<double>
     , public AtomIE_Kinetic<double>
     , public AtomIE_Nuclear<double>
@@ -59,7 +61,7 @@ template <class T> class Orbital_HF_IBS
     , public Orbital_HF_IBS_Common<T>
 {
 protected:
-    Orbital_HF_IBS(const DB_BS_2E<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
+    Orbital_HF_IBS(const Integrals_BS_2E<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
 };
 
 // Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 

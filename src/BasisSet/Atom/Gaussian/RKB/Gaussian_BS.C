@@ -8,7 +8,7 @@ import BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.IrrepBasisSet;
-import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.DB_Cache;
 
 namespace AtomBS
 {

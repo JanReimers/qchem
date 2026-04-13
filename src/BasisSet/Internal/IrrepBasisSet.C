@@ -5,6 +5,7 @@ module;
 
 export module qchem.BasisSet.Internal.IrrepBasisSet;
 export import qchem.IrrepBasisSet;
+import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;
@@ -67,12 +68,13 @@ public:
     virtual vec_t<T> Repulsion3C(const smat_t<T>& Dcd, const Fit_IBS* ff) const;
 };
 
+
 export template <class T> class Orbital_HF_IBS_Common
     : public virtual Orbital_HF_IBS<T>
     , public DB_2E<T>
 {
 public:
-    Orbital_HF_IBS_Common(const DB_BS_2E<double>* db) : DB_2E<T>(db) {};
+    Orbital_HF_IBS_Common(const Integrals_BS_2E<double>* db) : DB_2E<T>(db) {};
     virtual void AccumulateDirect  (rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
     virtual void AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
 };

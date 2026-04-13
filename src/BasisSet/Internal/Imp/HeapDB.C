@@ -134,7 +134,7 @@ template <class T> const ERI3<T>& DB_DFT<T>::Repulsion3C(const Fit_IBS& c) const
 template class DB_DFT<double>;
 
 
-template <class T> DB_2E<T>::DB_2E(const DB_BS_2E<T>* db) 
+template <class T> DB_2E<T>::DB_2E(const Integrals_BS_2E<T>* db) 
     : itsDB_BS_2E(db) 
     {
         assert(itsDB_BS_2E);
@@ -150,57 +150,7 @@ template <class T> ERI4 DB_2E<T>::Exchange(const Orbital_HF_IBS<T>& b) const
     return itsDB_BS_2E->Exchange(this->GetID(),b.GetID()); 
 }
 
-template <class T> void DB_BS_2E<T>::Append(const Orbital_HF_IBS<T>* oibs)
-{
-    itsIrreps.push_back(oibs);
-}
-template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
-{
-    // assert(a<=c);
-    if (Jac.size()==0) MakeDirect();
-    //cout << "GetRepulsion4C_new a,c=" << a.GetIndex() << " " << c.GetIndex() << endl;
-    assert(Jac.find(a)!=Jac.end());
-    assert(Jac[a].find(c)!=Jac[a].end());
-    
-    return Jac[a][c];
-}
-template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
-{
-    // assert(a<=b);
-    if (Kab.size()==0) MakeExchange(); 
-    //cout << "GetExchange4C_new a,b=" << a.GetIndex() << " " << b.GetIndex() << endl;
-    assert(Kab.find(a)!=Kab.end());
-    assert(Kab[a].find(b)!=Kab[a].end());
-    
-    return Kab[a][b];
-}
-template <class T> void DB_BS_2E<T>::MakeDirect() const
-{
-    Jac.clear();
-    for (auto a: itsIrreps)
-        for (auto c: itsIrreps) //TODO run from ia n
-        {
-            IDType ia=a->GetID(), ic=c->GetID();
-            ERI4 jac=MakeDirect(a,c);
-            Jac[ia][ic]=jac;
-            Jac[ic][ia]= ia==ic ? jac : jac.Transpose();
-        }
-}
-template <class T> void DB_BS_2E<T>::MakeExchange() const
-{
-    Kab.clear();
-    for (auto a: itsIrreps)
-        for (auto b: itsIrreps) 
-        {
-            IDType ia=a->GetID(), ib=b->GetID();
-            ERI4 kab=MakeExchange(a,b);
-            Kab[ia][ib]=kab;
-            Kab[ib][ia]= ia==ib ? kab : kab.Transpose();
-        }
-    
-}
 template class DB_2E<double>;
-template class DB_BS_2E<double>;
 template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;

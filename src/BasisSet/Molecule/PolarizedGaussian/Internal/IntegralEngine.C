@@ -9,6 +9,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 
 import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.DB_Cache;
 
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IntegralEnums;
@@ -41,7 +42,6 @@ class Orbital_IE
 : public IE_Common
 , public DB_Kinetic<double>
 , public DB_Nuclear<double>
-// , public DB_2E<double>
 , public DB_DFT<double>
 {
     typedef Orbital_IBS<double> obs_t;
@@ -58,7 +58,6 @@ protected:
         : IE_Common(db)
         , DB_Kinetic<double>(db)
         , DB_Nuclear<double>(db)
-        // , DB_2E<double>(db)
         , DB_DFT<double>(db) 
         {};
         

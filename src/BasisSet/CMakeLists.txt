@@ -3,6 +3,7 @@ target_sources(qcBasisSet PRIVATE
   Imp/BasisSet.C
   Imp/IrrepBasisSet.C
   Internal/Imp/HeapDB.C
+  Internal/Imp/DB_Cache.C
   Internal/Imp/Cache4.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
@@ -29,8 +30,8 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/IntegralEnums.C
   Internal/BS_Common.C
   Internal/IrrepBasisSet.C
+  Internal/DB_Cache.C
   Internal/HeapDB.C
-
 )
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)

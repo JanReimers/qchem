@@ -7,7 +7,6 @@ module;
 #include <ranges>
 #include "blaze/Math.h"
 module qchem.BasisSet.Internal.IrrepBasisSet;
-import qchem.BasisSet.Internal.HeapDB;
 import qchem.Blaze;
 
 template <class T> Orbital_RKB_IBS_Common<T>::Orbital_RKB_IBS_Common

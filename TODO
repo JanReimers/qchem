@@ -22,44 +22,17 @@ Priority 1:
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
 
 
-    -clean up qchem.LASolver;
-    -Get rid of Orbital_IBS::CreateSolver
+    Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
+    Done: -clean up qchem.LASolver;
+    Done: -Get rid of Orbital_IBS::CreateSolver
         Only used by CompositeWF
         Move default LAParams into CompositeWF.
     -Do something with MeshIntegrals.C
     -Clean up SCFiterator
         Clean handling of E>Eold
         Use deque<std:shared_ptr<DM_CD>>
-    Done: -JsonTests spits out basis sets for 92 atoms.
-        Move to ElectronConfigurationTests
-        Put result in a nice table.
-    Done: -Profile, try and ERI4 contractions to work faster.
-        Done: Build full look up tables in DB_BS_2E<T>::MakeDirect() DB_BS_2E<T>::MakeExchange()
-        Done: Then only the faster MatMul(const ERI4& gabcd,const rsmat_t& Scd) gets used.
-        Done: Make a unit test that confirms timing difference between the two MatMul calls.
-        Done: Make and supermatrix transpose function M1<M2<T>> -> M2<M1<T>> in order to avoid
-            recalculating 2EI matrix elements.
-        Done: Change charge density interfaces from:
-            virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const=0;
-            virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const=0;
-        to:
-            virtual rsmat_t AccumulateDirect  (mat_t& J,const Orbital_HF_IBS<double>*) const=0;
-            virtual rsmat_t AccumulateExchange(mat_t& K,const Orbital_HF_IBS<double>*) const=0;
 
     -Blaze include specific headers instead everything in blaze/Math.h.
-    Done: -Check mempory leaks
-        Missing delete itsCD; in SCFiterator
-        Missing delete cache in BSpline_BS
-    Done: -Blaze:
-        Done: -Add as submodule
-        Done: -Make unit test to try out some simple ops
-        Done: -Make oml->blaze, blaze->oml conversion functions.
-        Done: -Test supermatrix SMat<SMat<double>>
-        Done: -Make a blaze version of LASolver.
-            No: oml->blaze Conversions inside
-            Put blaze types in the interface
-        Done: -Start working outwards.
-        -Blaze distinguishes between row and column vectors.  Maybe this good.
     -Blaze improvements
         modules, Header unit.
             -Still experimental in clang++ 21
@@ -72,9 +45,6 @@ Priority 1:
             S(N,3.14) initialize constructor
             S=3.14 set to constant
         Bounds checking in DEBUG mode.
-	Done: -GetSymmetry() should return a const Symmetry& instead of a shared ptr instance?
-        No: -CopySymmetry() can return the shared ptr.
-            Instead: Irrep_QNs GetIrrep(const Spin& s) const
     	
     -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
     -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
@@ -101,10 +71,8 @@ Priority 1:
         virtual CreateIBS(... ms) for paired, unpaired etc.
         not worth it, gets very complicated very fast.
         Some commonality but not enough
-    -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class lattice.
     
     -Can groupers be registered at Evaluator construction?
-    Done: -Rk inconsistencies that should be cleaned up.
     -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
         should be Overlap((*ab)(i)*(*ab)(j),  
         Repulsion not implemented.
@@ -174,34 +142,6 @@ Priority 1:
             Fit_IBS --> Irrep_BS adds many fit integrals.
             Orbital_IBS's = {1E,DFT,HF,DHF}-->Fit,Irrep
                 Orbital_1E_IBS
-    Done: -Fold IntegralEngines in Orbital class chain.
-        Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
-        Done: I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
-            Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
-            Done Slater
-            Done: Gaussian
-            Done: Slater RKB
-            Done: Gaussian RKB
-            Half Done: Bspline
-                We need to template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
-        Done: -Isolate IE_Primatives
-    Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
-    Done: -Use the same dependency injection for IE_Primatives?
-    Done: Naming consistency:
-       Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
-    Fixed: -Orbital_RKB{L,S}_IBS_Common all derive from IrrepBasisSet_Common.  Inconsistent.
-        Orbital class chain should be all about integrals using mixins.
-    Done: -Decide Ham based on EC.
-    Done: -Decide Yl or Ylm basis based on EC.
-    Done: -Fold the ml sector into l.  Just use diff constructors mls.
-        -Ylm  
-    Done: -Fold the ml sector into l.  Just use diff constructors mls.
-    l: BasisSet(... size_t Lmax); 
-        Insert Orbital_IBS(... L)
-    ml: BasisSet(.. const ElectronConfiguration& ec);
-        Orbital_IBS(... L,mls.ml_paired)
-        Orbital_IBS(... L,mls.ml_unpaired)
-        Orbital_IBS(... L,mls.ml_unoccupied)
 
 
     
@@ -588,7 +528,67 @@ Priority 3:
 
 
 
+    Done: -Rk inconsistencies that should be cleaned up.
+	Done: -GetSymmetry() should return a const Symmetry& instead of a shared ptr instance?
+        No: -CopySymmetry() can return the shared ptr.
+            Instead: Irrep_QNs GetIrrep(const Spin& s) const
+    Done: -Fold IntegralEngines in Orbital class chain.
+        Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
+        Done: I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
+            Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
+            Done Slater
+            Done: Gaussian
+            Done: Slater RKB
+            Done: Gaussian RKB
+            Half Done: Bspline
+                We need to template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
+        Done: -Isolate IE_Primatives
+    Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
+    Done: -Use the same dependency injection for IE_Primatives?
+    Done: Naming consistency:
+       Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
+    Fixed: -Orbital_RKB{L,S}_IBS_Common all derive from IrrepBasisSet_Common.  Inconsistent.
+        Orbital class chain should be all about integrals using mixins.
+    Done: -Decide Ham based on EC.
+    Done: -Decide Yl or Ylm basis based on EC.
+    Done: -Fold the ml sector into l.  Just use diff constructors mls.
+        -Ylm  
+    Done: -Fold the ml sector into l.  Just use diff constructors mls.
+    l: BasisSet(... size_t Lmax); 
+        Insert Orbital_IBS(... L)
+    ml: BasisSet(.. const ElectronConfiguration& ec);
+        Orbital_IBS(... L,mls.ml_paired)
+        Orbital_IBS(... L,mls.ml_unpaired)
+        Orbital_IBS(... L,mls.ml_unoccupied)
+    Done: -Check mempory leaks
+        Missing delete itsCD; in SCFiterator
+        Missing delete cache in BSpline_BS
+    Done: -Blaze:
+        Done: -Add as submodule
+        Done: -Make unit test to try out some simple ops
+        Done: -Make oml->blaze, blaze->oml conversion functions.
+        Done: -Test supermatrix SMat<SMat<double>>
+        Done: -Make a blaze version of LASolver.
+            No: oml->blaze Conversions inside
+            Put blaze types in the interface
+        Done: -Start working outwards.
+        -Blaze distinguishes between row and column vectors.  Maybe this good.
 
+    Done: -JsonTests spits out basis sets for 92 atoms.
+        Move to ElectronConfigurationTests
+        Put result in a nice table.
+    Done: -Profile, try and ERI4 contractions to work faster.
+        Done: Build full look up tables in DB_BS_2E<T>::MakeDirect() DB_BS_2E<T>::MakeExchange()
+        Done: Then only the faster MatMul(const ERI4& gabcd,const rsmat_t& Scd) gets used.
+        Done: Make a unit test that confirms timing difference between the two MatMul calls.
+        Done: Make and supermatrix transpose function M1<M2<T>> -> M2<M1<T>> in order to avoid
+            recalculating 2EI matrix elements.
+        Done: Change charge density interfaces from:
+            virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const=0;
+            virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const=0;
+        to:
+            virtual rsmat_t AccumulateDirect  (mat_t& J,const Orbital_HF_IBS<double>*) const=0;
+            virtual rsmat_t AccumulateExchange(mat_t& K,const Orbital_HF_IBS<double>*) const=0;
 
 
     Done: -BasisSet::Atom  reorg

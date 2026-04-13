@@ -3,7 +3,8 @@ module;
 #include <cassert>
 #include "blaze/Math.h"
 export module qchem.BasisSet.Atom.IE;
-export import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.DB_Cache;
 export import qchem.BasisSet.Internal.ERI4;
 
 export import qchem.Orbital_DHF_IBS;

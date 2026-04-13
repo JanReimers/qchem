@@ -11,7 +11,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 
-import qchem.BasisSet.Internal.HeapDB;
+import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.ERI4;

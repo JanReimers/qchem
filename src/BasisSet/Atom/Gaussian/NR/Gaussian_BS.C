@@ -7,6 +7,7 @@ import BasisSet.Atom.Gaussian_BS;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Internal.DB_Cache;
 
 export namespace AtomBS
 {

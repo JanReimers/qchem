@@ -13,7 +13,6 @@ import qchem.LAParams;
 import qchem.Factory;
 import qchem.Orbital_HF_IBS;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.HeapDB;
 
 import qchem.BasisSet;
 import qchem.IrrepBasisSet;

@@ -8,6 +8,7 @@ import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Atom.IE;
+import qchem.BasisSet.Internal.DB_Cache;
 
 export namespace AtomBS
 {

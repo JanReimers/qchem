@@ -1,12 +1,13 @@
 // File: HeapDB.C  Implement an integral data base that uses heap for storage.
 module;
-#include <map>
+// #include <map>
 #include <cassert>
 #include <vector>
 export module qchem.BasisSet.Internal.HeapDB;
 
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.DB_Cache;
 
 import qchem.Orbital_DHF_IBS;
 import qchem.Orbital_HF_IBS;
@@ -16,24 +17,6 @@ import qchem.Orbital_DFT_IBS;
 import Common.UniqueID;
 
 
-
-
-export template  <class T> class DB_cache  
-{
-    typedef UniqueID::IDtype IDType;
-public:
-    typedef std::map<IDType,std::map<IDType,ERI4> > erij_t;
-    typedef std::tuple<qchem::IType2C,IDType> id2c_t;
-    typedef std::tuple<qchem::IType2C,IDType,IDType> idx_t;
-    typedef std::tuple<qchem::IType3C,IDType,IDType> id3c_t;
-    
-    mutable std::map<id2c_t ,rsmat_t> itsbSMats; 
-    mutable std::map< idx_t , rmat_t> itsbMats; 
-    mutable std::map<id2c_t , rvec_t> itsbVecs; 
-    mutable std::map<id3c_t ,ERI3<T>> itsERI3s; 
-    mutable erij_t Jac,Kab;
-};
- 
 export template <class T> class DB_Common 
     : virtual public UniqueID
 {
@@ -122,24 +105,6 @@ private:
 
 };
 
-export template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
-{
-    typedef UniqueID::IDtype IDType;   
-public: 
-    virtual ERI4 Direct  (IDType a,IDType c) const;
-    virtual ERI4 Exchange(IDType a,IDType b) const;
-protected:
-    void Append(const Orbital_HF_IBS<T>*);
-    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const=0;
-    virtual ERI4 MakeExchange(const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* b) const=0;
-private:
-    //! Internally called once to build direct and exchange supermatrix tables.
-    virtual void MakeDirect  () const; 
-    virtual void MakeExchange() const; 
-    std::vector<const Orbital_HF_IBS<T>*> itsIrreps; //Used for 2-electron integrals.
-    using DB_cache<T>::Jac;
-    using DB_cache<T>::Kab;
-};
 export template <class T> class DB_2E 
     : virtual public Integrals_HF<T>
     , virtual public UniqueID
@@ -149,9 +114,9 @@ public:
     virtual ERI4 Exchange(const Orbital_HF_IBS<T>& b) const;
 protected:
     DB_2E() : itsDB_BS_2E(0) {};
-    DB_2E(const DB_BS_2E<T>* db);
+    DB_2E(const Integrals_BS_2E<T>* db);
 private:
-    const DB_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
+    const Integrals_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
 };
 
 
