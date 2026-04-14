@@ -11,8 +11,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
 import qchem.IrrepBasisSet;
-import qchem.BasisSet.Internal.ERI4;
-
 
 namespace PolarizedGaussian
 {
@@ -101,61 +99,5 @@ rsmat_t Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, co
     return s;    
 }
 
-
-
-ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
-{
-    const PGData* a=dynamic_cast<const PGData* >(this);
-    const PGData* c=dynamic_cast<const PGData* >(&_c);
-    assert(a);
-    assert(c);
-    size_t Na=a->size(), Nc=c->size();
-    ERI4 J(Na,Nc);
-    
-    for (size_t ia:iv_t(0,Na))
-        for (size_t ib:iv_t(ia,Na))
-        {
-            rsmat_t& Jab=J(ia,ib);
-            for (size_t ic:iv_t(0,Nc))
-                for (size_t id:iv_t(ic,Nc))
-                {
-                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=a->ns[ia]*a->ns[ib]*c->ns[ic]*c->ns[id];
-                        assert(c->radials[id]);
-                        Jab(ic,id)=norm * c->radials[id]->Integrate(a->radials[ia],a->radials[ib],c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id],cache);
-                }
-        }
-    return J;
-}
-
-ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
-{
-    const PGData* a=dynamic_cast<const PGData* >(this);
-    const PGData* b=dynamic_cast<const PGData* >(&_b);
-    assert(a);
-    assert(b);
-    size_t Na=a->size(), Nb=b->size();
-    ERI4 K(Na,Nb);
-    for (size_t ia:iv_t(0,Na))
-        for (size_t ib:iv_t(0,Nb))
-           
-            for (size_t ic:iv_t(ia,Na))
-            {
-                rsmat_t& Kac=K(ia,ic);
-                for (size_t id:iv_t(0,Nb))
-                {
-                  //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                    double norm=a->ns[ia]*b->ns[ib]*a->ns[ic]*b->ns[id];
-                    assert(b->radials[id]);
-                    if (ib==id)
-                        Kac(ib,id)=norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
-                    else if (ib<id)
-                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
-                    else 
-                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
-                }        
-            }
-    return K;
-}
 
 } //namespace PolarizedGaussian

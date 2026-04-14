@@ -10,7 +10,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Internal.HeapDB;
 import qchem.BasisSet.Internal.DB_Cache;
 
-import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
@@ -50,8 +49,6 @@ public:
     virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,cl);}
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
-    virtual ERI4 MakeDirect  (const obs_t& c) const;
-    virtual ERI4 MakeExchange(const obs_t& b) const;
 protected:
     Orbital_IE(const DB_BS_2E<double>* db) 
         : IE_Common(db)
