@@ -22,6 +22,7 @@ Priority 1:
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
 
 
+    Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
     Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
     Done: -clean up qchem.LASolver;
     Done: -Get rid of Orbital_IBS::CreateSolver
