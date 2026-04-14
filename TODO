@@ -27,7 +27,7 @@ Priority 1:
     Done: -Get rid of Orbital_IBS::CreateSolver
         Only used by CompositeWF
         Move default LAParams into CompositeWF.
-    -Do something with MeshIntegrals.C
+    Done: -Do something with MeshIntegrals.C
     -Clean up SCFiterator
         Clean handling of E>Eold
         Use deque<std:shared_ptr<DM_CD>>
