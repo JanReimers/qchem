@@ -5,7 +5,6 @@ module;
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 
 import qchem.BasisSet.Internal.HeapDB;

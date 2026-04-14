@@ -6,14 +6,12 @@ export module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 
 import qchem.BasisSet.Internal.DB_Cache;
-import qchem.BasisSet.Internal.IEClient;
 import qchem.BasisSet.Internal.Common;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IrrepBasisSet;
@@ -28,7 +26,6 @@ export namespace PolarizedGaussian
 class IrrepBasisSet
         : public virtual Real_IBS,
           public IrrepBasisSet_Common<double>,
-          public IrrepIEClient,
           public PGData
     {
     public:
@@ -39,7 +36,8 @@ class IrrepBasisSet
         IrrepBasisSet(const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
-        virtual size_t  GetNumFunctions() const {return size();}
+        virtual size_t  GetNumFunctions() const {return size1();}
+        virtual size_t  size() const {return size1();}
         virtual rvec_t     operator() (const rvec3_t&) const;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 

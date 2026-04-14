@@ -4,7 +4,6 @@ module;
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.Types;
 

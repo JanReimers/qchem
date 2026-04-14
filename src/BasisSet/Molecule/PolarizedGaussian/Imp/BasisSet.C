@@ -9,7 +9,6 @@ module;
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.Cluster;
 
 namespace PolarizedGaussian

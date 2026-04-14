@@ -116,7 +116,6 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
-    IrrepIEClient::Init(bls);
     PGData::Init(bls);
 };
 
@@ -145,7 +144,6 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
     }
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
-    IrrepIEClient::Init(bls);
     PGData::Init(bls);
 }
 // Single atom version
@@ -167,7 +165,6 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
     }
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
-    IrrepIEClient::Init(bls);
     PGData::Init(bls);
 }
 //----------------------------------------------------------------
@@ -189,9 +186,9 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
     rvec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
-        const RadialFunction& rf=*radials[i];
+        const RadialFunction& rf=*radials1[i];
         rvec3_t dr=r-rf.GetCenter();
-        ret[i]= ns[i]*pols[i](dr) * rf(r);
+        ret[i]= ns1[i]*pols1[i](dr) * rf(r);
     }
     return ret;
 }
@@ -200,9 +197,9 @@ rvec3vec_t IrrepBasisSet::Gradient   (const rvec3_t& r) const
     rvec3vec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
-        const RadialFunction& rf=*radials[i];
+        const RadialFunction& rf=*radials1[i];
         rvec3_t dr=r-rf.GetCenter();
-        ret[i]= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
+        ret[i]= ns1[i]*(pols1[i].Gradient(dr) * rf(r) + pols1[i](dr) * rf.Gradient(r));
     }
     return ret;
 }
