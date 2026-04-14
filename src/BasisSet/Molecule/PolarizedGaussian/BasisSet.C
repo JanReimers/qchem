@@ -7,6 +7,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
@@ -27,7 +28,8 @@ export namespace PolarizedGaussian
 class IrrepBasisSet
         : public virtual Real_IBS,
           public IrrepBasisSet_Common<double>,
-          public IrrepIEClient
+          public IrrepIEClient,
+          public PGData
     {
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;

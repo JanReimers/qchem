@@ -7,6 +7,7 @@ MnD/Imp/AuxillaryFJ.C
 Internal/Imp/CDCache.C
 Internal/Imp/Block.C
 Internal/Imp/IEClient.C
+Internal/Imp/PGData.C
 Internal/Imp/IntegralEngine.C
 Internal/Imp/Polarization.C
 MnD/Imp/Hermite2.C
@@ -23,6 +24,7 @@ Radial/Imp/GaussianRF.C
 
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+    Internal/PGData.C
     BasisSet.C
     RadialFunction.C;
     Reader.C

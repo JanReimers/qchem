@@ -117,6 +117,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
+    PGData::Init(bls);
 };
 
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
@@ -145,7 +146,7 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
-    
+    PGData::Init(bls);
 }
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
@@ -167,6 +168,7 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     IrrepIEClient::Init(bls);
+    PGData::Init(bls);
 }
 //----------------------------------------------------------------
 //
@@ -180,6 +182,7 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
 }
 
 IrrepBasisSet::~IrrepBasisSet() {};
+
 
 rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 {

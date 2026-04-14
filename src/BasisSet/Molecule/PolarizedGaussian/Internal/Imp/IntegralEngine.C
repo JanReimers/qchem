@@ -1,4 +1,4 @@
-// File: IntegralEngine.C  Here is where all the integral get calculated.
+// File: BasisSet/Molecule/PolarizedGaussian/Internal/Imp/IntegralEngine.C  Here is where all the integral2 get calculated.
 module;
 
 #include <cassert>
@@ -6,8 +6,8 @@ module;
 #include <cmath>
 #include "blaze/Math.h"
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IEClient;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Fit_IBS;
 import qchem.IrrepBasisSet;
@@ -19,13 +19,13 @@ namespace PolarizedGaussian
 
 rvec_t Fit_IE::MakeCharge() const
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
+    const PGData* a=dynamic_cast<const PGData*>(this);
     assert(a);
-    rvec_t c(a->size());
+    rvec_t c(a->size1());
     int i=0;
-    for (auto r:a->radials)
+    for (auto r:a->radials1)
     {
-        c[i]=r->GetCharge(a->pols[i])*a->ns[i]; 
+        c[i]=r->GetCharge(a->pols1[i])*a->ns1[i]; 
         i++;       
     }
 
@@ -36,67 +36,67 @@ rvec_t Fit_IE::MakeCharge() const
 
 rmat_t Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
 {   
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient*>(this);
-    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient*>(&_b);
+    const PGData* a=dynamic_cast<const PGData*>(this);
+    const PGData* b=dynamic_cast<const PGData*>(&_b);
     assert(a);
     assert(b); 
-    int Na=a->size(),Nb=b->size();
+    int Na=a->size1(),Nb=b->size1();
     rmat_t s(Na,Nb);
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
-            s(ia,ib)=a->radials[ia]->Integrate(Repulsion2C,
-                b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns[ia]*b->ns[ib];
+            s(ia,ib)=a->radials1[ia]->Integrate(Repulsion2C,
+                b->radials1[ib],a->pols1[ia],b->pols1[ib],cache)*a->ns1[ia]*b->ns1[ib];
     assert(!isnan(s));
     return s;
 }
 
 rsmat_t IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
 {
-    const IrrepIEClient* ab=dynamic_cast<const IrrepIEClient*>(this);
+    const PGData* ab=dynamic_cast<const PGData*>(this);
     assert(ab);
-    int N=ab->size();
+    int N=ab->size1();
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=ab->radials1[ia]->Integrate(t2C,ab->radials1[ib],ab->pols1[ia],ab->pols1[ib],cache,cl)*ab->ns1[ia]*ab->ns1[ib];
 
     return s;
 }
 
 ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
 {
-    auto c=dynamic_cast<const IrrepIEClient*>(&_c);
-    int Nc=c->size();
+    auto c=dynamic_cast<const PGData*>(&_c);
+    int Nc=c->size1();
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
-        rsmat_t s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
-        s*=c->ns[ic];
+        rsmat_t s=Integrate(qchem::Overlap3C,c->radials1[ic],c->pols1[ic]);
+        s*=c->ns1[ic];
         s3.push_back(s);
     } 
     return s3;   
 }
 ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
 {
-    auto c=dynamic_cast<const IrrepIEClient*>(&_c);
-    int Nc=c->size();
+    auto c=dynamic_cast<const PGData*>(&_c);
+    int Nc=c->size1();
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
-        rsmat_t s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
-        s*=c->ns[ic];
+        rsmat_t s=Integrate(qchem::Repulsion3C,c->radials1[ic],c->pols1[ic]);
+        s*=c->ns1[ic];
         s3.push_back(s);
     }    
     return s3;
 }
 rsmat_t Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
 {
-    auto ab=dynamic_cast<const IrrepIEClient*>(this);
-    int N=ab->size();
+    auto ab=dynamic_cast<const PGData*>(this);
+    int N=ab->size1();
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=rc->Integrate(type,ab->radials1[ia],ab->radials1[ib],ab->pols1[ia],ab->pols1[ib],pc,cache)*ab->ns1[ia]*ab->ns1[ib];
         
     return s;    
 }
@@ -105,11 +105,11 @@ rsmat_t Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, co
 
 ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
-    const IrrepIEClient* c=dynamic_cast<const IrrepIEClient* >(&_c);
+    const PGData* a=dynamic_cast<const PGData* >(this);
+    const PGData* c=dynamic_cast<const PGData* >(&_c);
     assert(a);
     assert(c);
-    size_t Na=a->size(), Nc=c->size();
+    size_t Na=a->size1(), Nc=c->size1();
     ERI4 J(Na,Nc);
     
     for (size_t ia:iv_t(0,Na))
@@ -120,9 +120,9 @@ ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
                 for (size_t id:iv_t(ic,Nc))
                 {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=a->ns[ia]*a->ns[ib]*c->ns[ic]*c->ns[id];
-                        assert(c->radials[id]);
-                        Jab(ic,id)=norm * c->radials[id]->Integrate(a->radials[ia],a->radials[ib],c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id],cache);
+                        double norm=a->ns1[ia]*a->ns1[ib]*c->ns1[ic]*c->ns1[id];
+                        assert(c->radials1[id]);
+                        Jab(ic,id)=norm * c->radials1[id]->Integrate(a->radials1[ia],a->radials1[ib],c->radials1[ic],a->pols1[ia],a->pols1[ib],c->pols1[ic],c->pols1[id],cache);
                 }
         }
     return J;
@@ -130,11 +130,11 @@ ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
 
 ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
 {
-    const IrrepIEClient* a=dynamic_cast<const IrrepIEClient* >(this);
-    const IrrepIEClient* b=dynamic_cast<const IrrepIEClient* >(&_b);
+    const PGData* a=dynamic_cast<const PGData* >(this);
+    const PGData* b=dynamic_cast<const PGData* >(&_b);
     assert(a);
     assert(b);
-    size_t Na=a->size(), Nb=b->size();
+    size_t Na=a->size1(), Nb=b->size1();
     ERI4 K(Na,Nb);
     for (size_t ia:iv_t(0,Na))
         for (size_t ib:iv_t(0,Nb))
@@ -145,14 +145,14 @@ ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
                 for (size_t id:iv_t(0,Nb))
                 {
                   //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                    double norm=a->ns[ia]*b->ns[ib]*a->ns[ic]*b->ns[id];
-                    assert(b->radials[id]);
+                    double norm=a->ns1[ia]*b->ns1[ib]*a->ns1[ic]*b->ns1[id];
+                    assert(b->radials1[id]);
                     if (ib==id)
-                        Kac(ib,id)=norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
+                        Kac(ib,id)=norm * b->radials1[id]->Integrate(a->radials1[ia],b->radials1[ib],a->radials1[ic],a->pols1[ia],b->pols1[ib],a->pols1[ic],b->pols1[id],cache);
                     else if (ib<id)
-                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
+                        Kac(ib,id)+=0.5*norm * b->radials1[id]->Integrate(a->radials1[ia],b->radials1[ib],a->radials1[ic],a->pols1[ia],b->pols1[ib],a->pols1[ic],b->pols1[id],cache);
                     else 
-                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
+                        Kac(id,ib)+=0.5*norm * b->radials1[id]->Integrate(a->radials1[ia],b->radials1[ib],a->radials1[ic],a->pols1[ia],b->pols1[ib],a->pols1[ic],b->pols1[id],cache);
                 }        
             }
     return K;
