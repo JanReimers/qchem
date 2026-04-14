@@ -45,9 +45,9 @@ ERI4 BasisSet::MakeDirect  (const Orbital_HF_IBS<double>* _a, const Orbital_HF_I
                 for (size_t id:iv_t(ic,Nc))
                 {
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=a->ns1[ia]*a->ns1[ib]*c->ns1[ic]*c->ns1[id];
-                        assert(c->radials1[id]);
-                        Jab(ic,id)=norm * c->radials1[id]->Integrate(a->radials1[ia],a->radials1[ib],c->radials1[ic],a->pols1[ia],a->pols1[ib],c->pols1[ic],c->pols1[id],cache);
+                        double norm=a->ns[ia]*a->ns[ib]*c->ns[ic]*c->ns[id];
+                        assert(c->radials[id]);
+                        Jab(ic,id)=norm * c->radials[id]->Integrate(a->radials[ia],a->radials[ib],c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id],cache);
                 }
         }
     return J;
@@ -70,14 +70,14 @@ ERI4 BasisSet::MakeExchange(const Orbital_HF_IBS<double>* _a, const Orbital_HF_I
                 for (size_t id:iv_t(0,Nb))
                 {
                   //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                    double norm=a->ns1[ia]*b->ns1[ib]*a->ns1[ic]*b->ns1[id];
-                    assert(b->radials1[id]);
+                    double norm=a->ns[ia]*b->ns[ib]*a->ns[ic]*b->ns[id];
+                    assert(b->radials[id]);
                     if (ib==id)
-                        Kac(ib,id)=norm * b->radials1[id]->Integrate(a->radials1[ia],b->radials1[ib],a->radials1[ic],a->pols1[ia],b->pols1[ib],a->pols1[ic],b->pols1[id],cache);
+                        Kac(ib,id)=norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                     else if (ib<id)
-                        Kac(ib,id)+=0.5*norm * b->radials1[id]->Integrate(a->radials1[ia],b->radials1[ib],a->radials1[ic],a->pols1[ia],b->pols1[ib],a->pols1[ic],b->pols1[id],cache);
+                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                     else 
-                        Kac(id,ib)+=0.5*norm * b->radials1[id]->Integrate(a->radials1[ia],b->radials1[ib],a->radials1[ic],a->pols1[ia],b->pols1[ib],a->pols1[ic],b->pols1[id],cache);
+                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                 }        
             }
     return K;

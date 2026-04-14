@@ -13,11 +13,11 @@ export namespace PolarizedGaussian
 struct PGData
 {
     void Init(std::vector<const Block*>&);
-    std::vector<const RadialFunction*> radials1; // Flattened radials
-    std::vector<Polarization>          pols1;    // Flattened polarizations
-    rvec_t                             ns1;      //Norm constants
+    std::vector<const RadialFunction*> radials; // Flattened radials
+    std::vector<Polarization>          pols;    // Flattened polarizations
+    rvec_t                             ns;      //Norm constants
 
-    size_t size1() const {return radials1.size();}
+    size_t size1() const {return radials.size();}
 
 };
 

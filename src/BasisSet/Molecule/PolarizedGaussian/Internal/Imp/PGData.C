@@ -12,17 +12,17 @@ namespace PolarizedGaussian
      for (auto bl:blocks)
         for (auto p:bl->itsPols)
         {
-            radials1.push_back(bl->itsRadial);
-            pols1.push_back(p);
+            radials.push_back(bl->itsRadial);
+            pols.push_back(p);
         }
    
     
-    size_t N=radials1.size();
-    ns1.resize(N);
+    size_t N=radials.size();
+    ns.resize(N);
     CDCache cache;
     for (size_t i=0;i<N;i++)
-        ns1[i]=radials1[i]->Integrate(Overlap2C,radials1[i],pols1[i],pols1[i],cache);
-    ns1=1.0/sqrt(ns1);
+        ns[i]=radials[i]->Integrate(Overlap2C,radials[i],pols[i],pols[i],cache);
+    ns=1.0/sqrt(ns);
 }
 
 }
