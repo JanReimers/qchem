@@ -7,7 +7,6 @@ export module qchem.BasisSet.Internal.IrrepBasisSet;
 export import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.HeapDB;
-import qchem.BasisSet.Internal.IEClient;
 import qchem.Fit_IBS;
 import qchem.Orbital_DFT_IBS;
 import qchem.Orbital_HF_IBS;
@@ -26,7 +25,6 @@ import Common.UniqueIDImp;
 
 export template <class T> class IrrepBasisSet_Common
     : public virtual IrrepBasisSet<T>
-    , public virtual IrrepIEClient
     , private UniqueIDImp
 {
     using sym_t=IrrepBasisSet<T>::sym_t;

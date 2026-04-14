@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice/Internal/IEClient.C Store basis set data needed for integral engines.
+// File: BasisSet/Lattice/Internal/IBS_Evaluator.C Evaluate functions and integrals for plane waves.
 module;
 #include <valarray>
 #include <complex>
