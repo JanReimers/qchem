@@ -48,9 +48,8 @@ rmat_t Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     return s;
 }
 
-rsmat_t IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
+rsmat_t MakeIntegrals(IType t2C,const PGData* ab,CDCache& cache, const Cluster* cl) 
 {
-    const PGData* ab=dynamic_cast<const PGData*>(this);
     assert(ab);
     int N=ab->size();
     rsmat_t s(N);
