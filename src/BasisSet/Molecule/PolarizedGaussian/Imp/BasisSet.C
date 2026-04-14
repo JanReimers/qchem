@@ -34,7 +34,7 @@ ERI4 BasisSet::MakeDirect  (const Orbital_HF_IBS<double>* _a, const Orbital_HF_I
     const PGData* c=dynamic_cast<const PGData* >(_c);
     assert(a);
     assert(c);
-    size_t Na=a->size1(), Nc=c->size1();
+    size_t Na=a->size(), Nc=c->size();
     ERI4 J(Na,Nc);
     
     for (size_t ia:iv_t(0,Na))
@@ -59,7 +59,7 @@ ERI4 BasisSet::MakeExchange(const Orbital_HF_IBS<double>* _a, const Orbital_HF_I
     const PGData* b=dynamic_cast<const PGData* >(_b);
     assert(a);
     assert(b);
-    size_t Na=a->size1(), Nb=b->size1();
+    size_t Na=a->size(), Nb=b->size();
     ERI4 K(Na,Nb);
     for (size_t ia:iv_t(0,Na))
         for (size_t ib:iv_t(0,Nb))

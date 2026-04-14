@@ -36,8 +36,8 @@ class IrrepBasisSet
         IrrepBasisSet(const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
-        virtual size_t  GetNumFunctions() const {return size1();}
-        virtual size_t  size() const {return size1();}
+        virtual size_t  GetNumFunctions() const {return PGData::size();}
+        virtual size_t  size() const {return PGData::size();}
         virtual rvec_t     operator() (const rvec3_t&) const;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 

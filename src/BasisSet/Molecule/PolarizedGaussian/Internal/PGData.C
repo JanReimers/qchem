@@ -17,7 +17,7 @@ struct PGData
     std::vector<Polarization>          pols;    // Flattened polarizations
     rvec_t                             ns;      //Norm constants
 
-    size_t size1() const {return radials.size();}
+    size_t size() const {return radials.size();}
 
 };
 

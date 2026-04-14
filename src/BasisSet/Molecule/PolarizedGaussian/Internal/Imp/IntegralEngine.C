@@ -21,7 +21,7 @@ rvec_t Fit_IE::MakeCharge() const
 {
     const PGData* a=dynamic_cast<const PGData*>(this);
     assert(a);
-    rvec_t c(a->size1());
+    rvec_t c(a->size());
     int i=0;
     for (auto r:a->radials)
     {
@@ -40,7 +40,7 @@ rmat_t Fit_IE::MakeRepulsion(const Fit_IBS& _b) const
     const PGData* b=dynamic_cast<const PGData*>(&_b);
     assert(a);
     assert(b); 
-    int Na=a->size1(),Nb=b->size1();
+    int Na=a->size(),Nb=b->size();
     rmat_t s(Na,Nb);
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
@@ -54,7 +54,7 @@ rsmat_t IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
 {
     const PGData* ab=dynamic_cast<const PGData*>(this);
     assert(ab);
-    int N=ab->size1();
+    int N=ab->size();
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
@@ -66,7 +66,7 @@ rsmat_t IE_Common::MakeIntegrals(IType t2C,const Cluster* cl) const
 ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const PGData*>(&_c);
-    int Nc=c->size1();
+    int Nc=c->size();
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
@@ -79,7 +79,7 @@ ERI3<double> Orbital_IE::MakeOverlap3C(const Fit_IBS& _c) const
 ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const PGData*>(&_c);
-    int Nc=c->size1();
+    int Nc=c->size();
     ERI3<double> s3;
     for (size_t ic=0;ic<Nc;ic++)
     {
@@ -92,7 +92,7 @@ ERI3<double> Orbital_IE::MakeRepulsion3C(const Fit_IBS& _c) const
 rsmat_t Orbital_IE::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
 {
     auto ab=dynamic_cast<const PGData*>(this);
-    int N=ab->size1();
+    int N=ab->size();
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
@@ -109,7 +109,7 @@ ERI4 Orbital_IE::MakeDirect  (const obs_t& _c) const
     const PGData* c=dynamic_cast<const PGData* >(&_c);
     assert(a);
     assert(c);
-    size_t Na=a->size1(), Nc=c->size1();
+    size_t Na=a->size(), Nc=c->size();
     ERI4 J(Na,Nc);
     
     for (size_t ia:iv_t(0,Na))
@@ -134,7 +134,7 @@ ERI4 Orbital_IE::MakeExchange(const obs_t& _b) const
     const PGData* b=dynamic_cast<const PGData* >(&_b);
     assert(a);
     assert(b);
-    size_t Na=a->size1(), Nb=b->size1();
+    size_t Na=a->size(), Nb=b->size();
     ERI4 K(Na,Nb);
     for (size_t ia:iv_t(0,Na))
         for (size_t ib:iv_t(0,Nb))
