@@ -1,12 +1,12 @@
 // File: GLQuadrature.C Perform Gauss-Legendre quadrature integration over B-Splines.
 module;
-#include <valarray>
 #include <functional>
 #include <bspline/Core.h>
 #include <cassert>
 #include <iostream>
 #include <map>
 export module qchem.Basisset.Atom.BSpline.GLQuadrature;
+import qchem.Types;
 
 export class GLCache;
 export class GLQuadrature
@@ -35,7 +35,7 @@ public:
 private:
     friend class GLCache;
     double its_xmin, its_xmax;
-    std::valarray<double> xs,ws;
+    rvec_t xs,ws;
 };
 export class GLCache
 {

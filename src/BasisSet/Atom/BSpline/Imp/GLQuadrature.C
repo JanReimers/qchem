@@ -2,10 +2,10 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <valarray>
 #include <functional>
 #include <map>
 #include <bspline/Core.h>
+#include <blaze/Math.h>
 
 module qchem.Basisset.Atom.BSpline.GLQuadrature;
 using std::cout;
