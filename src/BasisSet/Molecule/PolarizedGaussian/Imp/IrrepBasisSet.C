@@ -16,7 +16,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Cluster;
-import qchem.Atom;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;

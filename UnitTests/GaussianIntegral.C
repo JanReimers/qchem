@@ -15,8 +15,6 @@ import qchem.IrrepBasisSet;
 import Common.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.Atom;
-import qchem.Molecule;
 import qchem.Symmetry.Yl;
 
 using std::cout;
@@ -34,7 +32,7 @@ public:
     : Lmax(4    )
     , Z(1)
     , bs(0)
-    , cl(new Molecule())
+    , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     , mintegrator()
     {
         nlohmann::json js = {
@@ -42,7 +40,6 @@ public:
         {"N", 5}, {"emin", 0.01}, {"emax", 100.0},
         };
         bs=BasisSetAtom::Factory(js,75);
-        cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
         

@@ -43,12 +43,11 @@ public:
         : es{0.5,1.0,2.0}
         , N(es.size())
         , LMax(3)
-        , cl(new Molecule())
+        , cl(new Atom(1,0.0,Vector3D(0,0,0)))
         , bs_eval(_bseval)
         , bs(0)
     {
         
-        cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }

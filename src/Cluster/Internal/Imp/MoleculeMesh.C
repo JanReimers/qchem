@@ -3,7 +3,6 @@ module;
 #include <iostream>
 #include <blaze/Math.h>
 module qchem.Cluster.MoleculeMesh;
-import qchem.Atom;
 
 double          Poly             (double,int m_mu);
 

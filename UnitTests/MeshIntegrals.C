@@ -7,8 +7,7 @@ import qchem.LAParams;
 import qchem.BasisSet;
 import qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.Mesh.Integrator;
-import qchem.Atom;
-import qchem.Molecule;
+import qchem.Cluster;
 import qchem.Symmetry;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 
@@ -32,7 +31,7 @@ public:
     : Z(5)
     , reader("../../../BasisSetData/dzvp.bsd")
     , bs(0)
-    , cl(new Molecule())
+    , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
         
         
@@ -40,14 +39,15 @@ public:
     
     void InitAtom()
     {
-        cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         bs=new PolarizedGaussian::BasisSet(&reader,cl);
     }
     
     void InitMolecule()
     {
-        cl->Insert(new Atom(Z,0.0,Vector3D( 1.,0.,0.)));
-        cl->Insert(new Atom(Z,0.0,Vector3D(-1.,0.,0.)));
+        Molecule* m=new Molecule();
+        m->Insert(new Atom(Z,0.0,Vector3D( 1.,0.,0.)));
+        m->Insert(new Atom(Z,0.0,Vector3D(-1.,0.,0.)));
+        cl=m;
         bs=new PolarizedGaussian::BasisSet(&reader,cl);        
     }
     

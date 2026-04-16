@@ -7,7 +7,7 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
-import qchem.Atom;
+import qchem.Cluster;
 import qchem.Blaze;
 
 Vnn::Vnn(const cl_t& cl)

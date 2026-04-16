@@ -10,7 +10,7 @@ import qchem.LAParams;
 import qchem.Hamiltonian;
 import qchem.BasisSet;
 import Common.PeriodicTable;
-import qchem.Molecule;
+import qchem.Cluster;
 import qchem.Symmetry.AtomEC;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
@@ -78,7 +78,7 @@ class TestMolecule : public virtual QchemTester
 {
 public:
     TestMolecule() {};
-    void Init(Molecule*);
+    void Init(Cluster*);
     virtual MeshParams  GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:

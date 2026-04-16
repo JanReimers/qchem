@@ -19,8 +19,6 @@ import qchem.BasisSet;
 import qchem.IrrepBasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.Atom;
-import qchem.Molecule;
 import qchem.Symmetry;
 import qchem.stl_io;
 import qchem.Streamable;
@@ -35,10 +33,9 @@ public:
     typedef Real_OIBS ibs_t;
     BSplineTests() 
         : LMax(4)
-        , cl(new Molecule())
+        , cl(new Atom(1,0.0,Vector3D(0,0,0)))
     {
         
-        cl->Insert(new Atom(1,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,500,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }

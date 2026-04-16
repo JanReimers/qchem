@@ -10,7 +10,6 @@ module;
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Orbital_DFT_IBS;
 import qchem.Symmetry;
-import qchem.Molecule;
 import qchem.Blaze;
 
 typedef Vector3D<std::complex<double> > Vec3;

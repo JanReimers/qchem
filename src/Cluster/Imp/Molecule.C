@@ -3,42 +3,33 @@ module;
 #include <cassert>
 #include <memory>
 
-module qchem.Molecule;
+module qchem.Cluster;
 import qchem.Cluster.MoleculeMesh;
 import qchem.stl_io;
 import qchem.Streamable;
 
-Molecule::Molecule()
-    : itsNumElectrons(0)
-    , itsAtoms    ( )
-{};
-
-void Molecule::Insert(Atom* a)
+Molecule::Molecule(const Molecule& m)
 {
-    itsAtoms.push_back(std::unique_ptr<Atom>(a));
-    itsNumElectrons+=a->GetNumElectrons();
+    for (auto a:m)
+    {
+        itsAtoms.push_back(new Atom(a->itsZ,a->GetNetCharge(),a->itsR));
+    }
+}
+
+Molecule::~Molecule()
+{
+    for (auto a:itsAtoms) delete a;
+}
+
+void Molecule::Insert(Atom* a, double charge)
+{
+    itsAtoms.push_back(a);
+    itsCharge+=charge;
 }
 
 size_t Molecule::GetNumAtoms() const
 {
     return itsAtoms.size();
-}
-
-int Molecule::GetNuclearCharge() const
-{
-    int chg=0;
-    for(auto& b:*this) chg+=b->itsZ;
-    return chg;
-}
-
-double Molecule::GetNetCharge() const
-{
-    return GetNuclearCharge()-itsNumElectrons;
-}
-
-double Molecule::GetNumElectrons() const
-{
-    return itsNumElectrons;
 }
 
 Mesh*  Molecule::CreateMesh(const MeshParams& mp) const

@@ -12,8 +12,6 @@ import qchem.ChargeDensity;
 import qchem.Factory;
 import qchem.IrrepBasisSet;
 import qchem.Cluster;
-import qchem.Atom;
-import qchem.Molecule;
 import qchem.Streamable;
 
 PeriodicTable QchemTester::itsPT;
@@ -148,9 +146,7 @@ QchemTester::irrepv_t QchemTester::GetIrreps(const Spin& ms) const
 TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
 {
     itsZ=Z-q;
-    Cluster* cl=new Molecule;
-    cl->Insert(new Atom(Z,q,Vector3D<double>(0,0,0)));
-    itsCluster=cl_t(cl);
+    itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
 MeshParams TestAtom::GetMeshParams() const
@@ -163,7 +159,7 @@ BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
     return BasisSetAtom::Factory(js,itsZ);
 }
 
-void TestMolecule::Init(Molecule* m)
+void TestMolecule::Init(Cluster* m)
 {
     assert(m);
     itsCluster=cl_t(m);

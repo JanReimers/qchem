@@ -17,7 +17,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 
 import Common.Constants;
 import qchem.Cluster;
-import qchem.Atom;
 import Common.IntPow;
 
 namespace PolarizedGaussian

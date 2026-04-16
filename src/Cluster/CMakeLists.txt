@@ -9,9 +9,7 @@ target_sources(qcCluster PRIVATE
     Internal/Imp/MoleculeMesh.C 
     )
 target_sources(qcCluster PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-    Atom.C 
     Cluster.C 
-    Molecule.C 
     UnitCell.C 
     Lattice.C 
     Internal/UnitCellMesh.C 

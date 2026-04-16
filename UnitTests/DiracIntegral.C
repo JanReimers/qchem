@@ -19,8 +19,6 @@ import qchem.BasisSet.Internal.ERI4;
 import Common.Constants;
 import qchem.Cluster;
 import qchem.Mesh.Integrator;
-import qchem.Atom;
-import qchem.Molecule;
 import qchem.Streamable;
 
 using std::cout;
@@ -39,13 +37,12 @@ public:
     , Z(1)
     , sbs(0)
     , gbs(0)
-    , cl(new Molecule())
+    , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
         nlohmann::json js = {{"type",BasisSetAtom::Type::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         sbs=BasisSetAtom::Factory(js,2);
         js = {{"type",BasisSetAtom::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         gbs=BasisSetAtom::Factory(js,2);
-        cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }

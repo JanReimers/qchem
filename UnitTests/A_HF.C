@@ -4,7 +4,7 @@
 
 import qchem.Hamiltonian.Factory;
 import qchem.Factory;
-import qchem.Atom;
+import qchem.Cluster;
 
 const bool verbose=false;
 inline SCFParams scf_params(int Z) 
@@ -57,12 +57,9 @@ class A_PG_HF_U : public ::testing::TestWithParam<int>
 , public TestMolecule,  HF_U
 {
 public:
-    A_PG_HF_U() : TestMolecule() {};
     void Init()
     { 
-        Molecule* m=new Molecule;
-        m->Insert(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
-        TestMolecule::Init(m);
+        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(1e-3,js);
     }
@@ -352,12 +349,9 @@ class A_PG_HF_P : public ::testing::TestWithParam<int>
 , public TestMolecule,  HF_P
 {
 public:
-    A_PG_HF_P() : TestMolecule() {};
     void Init()
     { 
-        Molecule* m=new Molecule;
-        m->Insert(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
-        TestMolecule::Init(m);
+        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(1e-3,js);
     }

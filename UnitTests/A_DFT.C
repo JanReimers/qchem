@@ -4,8 +4,7 @@
 
 import qchem.Hamiltonian.Factory;
 import qchem.Factory;
-import qchem.Atom;
-import qchem.Molecule;
+import qchem.Cluster;
 
 inline SCFParams dft_scf_params(int Z) 
 {
@@ -45,12 +44,9 @@ class A_PG_DFT_U : public ::testing::TestWithParam<int>
 , public TestMolecule,  DFT_U
 {
 public:
-    A_PG_DFT_U() : TestMolecule() {};
     void Init()
     { 
-        Molecule* m=new Molecule;
-        m->Insert(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
-        TestMolecule::Init(m);
+        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(1e-3,js);
     }
@@ -135,9 +131,7 @@ public:
     A_PG_DFT_P() : TestMolecule() {};
     void Init()
     { 
-        Molecule* m=new Molecule;
-        m->Insert(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
-        TestMolecule::Init(m);
+        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(1e-3,js);
     }

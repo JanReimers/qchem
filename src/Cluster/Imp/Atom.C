@@ -1,35 +1,30 @@
 module;
 #include <cassert>
 #include <nlohmann/json.hpp>
-module qchem.Atom;
+module qchem.Cluster;
 import qchem.Cluster.AtomMesh;
 import qchem.Mesh.Factory;
 import qchem.Vector3D;
 using json = nlohmann::json;
 
 
-Atom::Atom()
-    : itsZ(0)
-    , itsCharge(0)
-    , itsR( )
+Atom::Atom(int Z)
+    : Atom(Z,0.0,{0,0,0})
 {};
-
 Atom::Atom(int Z, double charge)
-    : itsZ(Z)
-    , itsCharge(charge)
-    , itsR(0,0,0)
-{
-    assert(itsZ>0);
-    assert(itsZ<150); //Maybe there is an island of stability at Z=140!!!!
-};
+    : Atom(Z,charge,{0,0,0})
+{};
+Atom::Atom(int Z, const rvec3_t& R)
+    : Atom(Z,0.0,R)
+{};
 
 Atom::Atom(int Z, double charge, const rvec3_t& R)
     : itsZ(Z)
-    , itsCharge(charge)
     , itsR(R)
 {
     assert(itsZ>0);
     assert(itsZ<150); //Maybe there is an island of stability at Z=140!!!!
+    dummy.push_back(this);
 };
 
 Mesh* Atom::CreateMesh(const MeshParams& mp) const
@@ -42,10 +37,6 @@ Mesh* Atom::CreateMesh(const MeshParams& mp) const
 }
 
 
-double Atom::GetNumElectrons() const
-{
-    return itsZ-itsCharge;
-}
 
 std::ostream& Atom::Write  (std::ostream& os) const
 {

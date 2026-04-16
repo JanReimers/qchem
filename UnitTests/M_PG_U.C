@@ -4,8 +4,7 @@
 
 
 import qchem.Hamiltonian.Factory;
-import qchem.Atom;
-import qchem.Molecule;
+import qchem.Cluster;
 
 Molecule* MakeN2()
 {

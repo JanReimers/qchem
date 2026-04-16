@@ -19,8 +19,6 @@ import qchem.IrrepBasisSet;
 import Common.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.Atom;
-import qchem.Molecule;
 import qchem.Symmetry.Angular;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 
@@ -39,14 +37,13 @@ public:
     : Lmax(4    )
     , Z(1)
     , bs(0)
-    , cl(new Molecule())
+    , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
         nlohmann::json js = {
         {"type",BasisSetAtom::Type::Slater},
         {"N", 6}, {"emin", 0.1}, {"emax", 10.0},
         };
         bs=BasisSetAtom::Factory(js,75);
-        cl->Insert(new Atom(Z,0.0,Vector3D(0,0,0)));
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
         MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,32,0,0,3});

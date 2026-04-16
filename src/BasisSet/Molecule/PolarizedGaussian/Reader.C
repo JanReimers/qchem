@@ -4,7 +4,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 export import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
-export import qchem.Atom;
+export import qchem.Cluster;
  
 export namespace PolarizedGaussian
 {

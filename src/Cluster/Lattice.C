@@ -7,7 +7,6 @@ module;
 export module qchem.Lattice;
 import Common.UniqueIDImp;
 export import qchem.Cluster;
-export import qchem.Atom;
 export import Cluster.UnitCell;
 import qchem.Mesh;
 
@@ -32,7 +31,7 @@ public:
     // Lattice();
     typedef std::shared_ptr<Cluster> cl_t;
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
-    Lattice(const UnitCell&, const Vector3D<int>&,const cl_t& Atoms); //Full  unit cell.
+    Lattice(const UnitCell&, const Vector3D<int>&,const Molecule& Atoms); //Full  unit cell.
 
     virtual void   Insert        (Atom*)      ;
     virtual size_t GetNumAtoms        () const;
@@ -73,10 +72,10 @@ public:
     std::vector<rvec3_t>  GetBondsInSphere(size_t BasisNumber, double distance) const;
     std::vector<ivec3_t>  GetCellsInSphere(double distance);
 
-    virtual const_iterator begin() const {return itsAtoms->begin();}
-    virtual const_iterator end  () const {return itsAtoms->end  ();} 
-    virtual       iterator begin()       {return itsAtoms->begin();}
-    virtual       iterator end  ()       {return itsAtoms->end  ();} 
+    virtual const_iterator begin() const {return itsAtoms.begin();}
+    virtual const_iterator end  () const {return itsAtoms.end  ();} 
+    virtual       iterator begin()       {return itsAtoms.begin();}
+    virtual       iterator end  ()       {return itsAtoms.end  ();} 
     
     std::ostream& Write(std::ostream&) const;
 
@@ -88,7 +87,7 @@ private:
 
     UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
     Vector3D<int>  itsLimits;    //Number of unit cell in each direction.
-    cl_t           itsAtoms;     //List of atoms in the unit cell.
+    Molecule       itsAtoms;     //List of atoms in the unit cell.
     double         itsTolerence; //Positions closer than this are considered the same.
 };
 
