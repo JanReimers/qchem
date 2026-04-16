@@ -4,7 +4,6 @@
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 #include <iostream>
-#include <valarray>
 #include <cmath>
 #include <iomanip>
 #include <blaze/Math.h>

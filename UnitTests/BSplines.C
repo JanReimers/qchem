@@ -5,7 +5,6 @@
 #include "nlohmann/json.hpp"
 #include <bspline/Core.h>
 #include <iostream>
-#include <valarray>
 #include <iomanip>
 #include <blaze/Math.h>
 

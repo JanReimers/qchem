@@ -1,9 +1,7 @@
 // File: VectorFunction.C  Mixin interface for real space vector functions.
 module;
-#include <valarray>
 export module qchem.VectorFunction;
 export import qchem.Mesh;
-export import qchem.Vector3D;
 export import qchem.Types;
 //--------------------------------------------------------------------------
 //
@@ -20,8 +18,8 @@ public:
     virtual size_t  GetVectorSize() const=0;
 
     virtual vec_t<T> operator() (const rvec3_t&) const=0;
-    virtual mat_t<T> operator() (const Mesh& ) const  ;
+    virtual mat_t<T> operator() (const Mesh&   ) const  ;
 
     virtual vec3vec_t<T> Gradient(const rvec3_t&) const=0;
-    virtual vec3mat_t<T> Gradient(const Mesh& ) const  ;
+    virtual vec3mat_t<T> Gradient(const Mesh&   ) const  ;
 };
