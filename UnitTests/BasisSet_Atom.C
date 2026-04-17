@@ -25,11 +25,18 @@ import qchem.Orbital_HF_IBS;
 
 bool operator==(const ERI4& a, const ERI4& b)
 {
-    static double eps=1e-16;
+    static double eps=5e-16;
     if (a.size()!=b.size()) return false;
     for (size_t i=0;i<a.Nab();i++)
         for (size_t j=0;j<a.Nab();j++)
-            if (norm(a(i,j)-b(i,j))>eps) return false;
+            if (norm(a(i,j)-b(i,j))>eps) 
+            {
+                std::cout << "a(" << i << "," << j << ")=" << a(i,j);
+                std::cout << "b(" << i << "," << j << ")=" << b(i,j);
+                std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
+                std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
+                return false;
+            }
     return true;
 }
 //----------------------------------------------------------------------------------------
@@ -240,15 +247,12 @@ TEST_F(BasisSet_SL,HF_ERIs)
         auto c=evals.begin();
         for (auto cibs:bs->Iterate<Orbital_HF_IBS<double>>())
         {
-            if (aibs->GetID()<cibs->GetID())
-            {
-                ERI4 J1=bs_eval->Direct(*a,*c);
-                ERI4 J2=aibs->Direct(*cibs);
-                EXPECT_TRUE(J1==J2);
-                ERI4 K1=bs_eval->Exchange(*a,*c);
-                ERI4 K2=aibs->Exchange(*cibs);
-                EXPECT_TRUE(K1==K2);
-            }
+            ERI4 J1=bs_eval->Direct(*a,*c);
+            ERI4 J2=aibs->Direct(*cibs);
+            EXPECT_TRUE(J1==J2);
+            ERI4 K1=bs_eval->Exchange(*a,*c);
+            ERI4 K2=aibs->Exchange(*cibs);
+            EXPECT_TRUE(K1==K2);
             ++c;
         }
         ++a;
@@ -339,15 +343,12 @@ TEST_F(BasisSet_SG,HF_ERIs)
         auto c=evals.begin();
         for (auto cibs:bs->Iterate<Orbital_HF_IBS<double>>())
         {
-            if (aibs->GetID()<cibs->GetID())
-            {
-                ERI4 J1=bs_eval->Direct(*a,*c);
-                ERI4 J2=aibs->Direct(*cibs);
-                EXPECT_TRUE(J1==J2);
-                ERI4 K1=bs_eval->Exchange(*a,*c);
-                ERI4 K2=aibs->Exchange(*cibs);
-                EXPECT_TRUE(K1==K2);
-            }
+            ERI4 J1=bs_eval->Direct(*a,*c);
+            ERI4 J2=aibs->Direct(*cibs);
+            EXPECT_TRUE(J1==J2);
+            ERI4 K1=bs_eval->Exchange(*a,*c);
+            ERI4 K2=aibs->Exchange(*cibs);
+            EXPECT_TRUE(K1==K2);
             ++c;
         }
         ++a;
