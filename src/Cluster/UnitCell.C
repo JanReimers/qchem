@@ -3,16 +3,23 @@ module;
 #include <iosfwd>
 export module Cluster.UnitCell;
 export import qchem.Types;
+import qchem.Cluster;
 import qchem.Matrix3D;
 import qchem.Streamable;
 
 export class UnitCell
-    : public virtual Streamable
+    : public virtual Cluster
+    , private Molecule //Hold atom basis.
 {
 public:
     UnitCell(double a); //Assume cubic
     UnitCell(double a, double b, double c, double alpha, double beta, double gamma);
     UnitCell(const Matrix3D<double> MetricTensor);
+
+    using Molecule::Insert;
+    using Molecule::GetNumAtoms;
+    using Molecule::begin;
+    using Molecule::end;
 
     UnitCell      MakeReciprocalCell() const;
 

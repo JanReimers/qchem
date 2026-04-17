@@ -20,13 +20,15 @@ Atom::Atom(int Z, const rvec3_t& R)
 
 Atom::Atom(int Z, double charge, const rvec3_t& R)
     : itsZ(Z)
+    , itsCharge(charge)
     , itsR(R)
 {
     assert(itsZ>0);
     assert(itsZ<150); //Maybe there is an island of stability at Z=140!!!!
     dummy.push_back(this);
-    itsCharge+=charge;
 };
+
+Atom::Atom(const Atom& a) : Atom(a.itsZ,a.itsCharge,a.itsR) {}
 
 Mesh* Atom::CreateMesh(const MeshParams& mp) const
 {

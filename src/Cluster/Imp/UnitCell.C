@@ -88,6 +88,7 @@ std::ostream&  UnitCell::Write(std::ostream& os) const
 {
     os << "(a,b,c)=(" << itsA << "," << itsB << "," << itsC << "),   "
     << "(alpha,beta,gamma)=(" << itsAlpha << "," << itsBeta << "," << itsGamma << ")";
+    Molecule::Write(os);
     return os;
 }
 

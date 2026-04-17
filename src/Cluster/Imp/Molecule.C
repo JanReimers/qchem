@@ -12,7 +12,7 @@ Molecule::Molecule(const Cluster& cl)
 {
     for (auto a:cl)
     {
-        itsAtoms.push_back(new Atom(a->itsZ,a->GetNetCharge(),a->itsR));
+        itsAtoms.push_back(new Atom(*a));
     }
 }
 
@@ -21,10 +21,9 @@ Molecule::~Molecule()
     for (auto a:itsAtoms) delete a;
 }
 
-void Molecule::Insert(Atom* a, double charge)
+void Molecule::Insert(Atom* a)
 {
     itsAtoms.push_back(a);
-    itsCharge+=charge;
 }
 
 size_t Molecule::GetNumAtoms() const

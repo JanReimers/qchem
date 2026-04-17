@@ -25,15 +25,7 @@ import qchem.Streamable;
 Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
     : itsUnitCell (cell        )
     , itsLimits   (Limits      )
-    , itsAtoms    ()
     , itsTolerence(0.0001      )
-{}
-
-Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits,const Cluster& Atoms)
-    : itsUnitCell (cell  )
-    , itsLimits   (Limits)
-    , itsAtoms    (Atoms )
-    , itsTolerence(0.0001)
 {}
 
 
@@ -41,41 +33,12 @@ Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits,const Cluster
 //
 //  Cluster stuff.
 //
-void Lattice::Insert(Atom* atom)
-{
-    itsAtoms.Insert(atom);
-}
-
-size_t Lattice::GetNumAtoms() const
-{
-    return itsAtoms.GetNumAtoms();
-}
-
-int Lattice::GetNuclearCharge() const
-{
-    return itsAtoms.GetNuclearCharge();
-}
-
-double Lattice::GetNetCharge() const
-{
-    return itsAtoms.GetNetCharge();
-}
-
-double Lattice::GetNumElectrons() const
-{
-    return itsAtoms.GetNumElectrons();
-}
-
-Mesh*  Lattice::CreateMesh(const MeshParams& mp) const
-{
-    return new MoleculeMesh(itsAtoms,mp);
-}
 
 Lattice Lattice::Reciprocal(double Emax) const
 {
     UnitCell RLCell=itsUnitCell.MakeReciprocalCell();
     ivec3_t Nr=RLCell.GetNumCells(Emax);
-    return Lattice(RLCell,Nr,itsAtoms); //This should automatically be move op.
+    return Lattice(RLCell,Nr); //This should automatically be move op.
 
 }
 
@@ -91,7 +54,7 @@ size_t Lattice::GetNumSites() const
 
 size_t Lattice::GetNumBasisSites() const
 {
-    return itsAtoms.GetNumAtoms();
+    return itsUnitCell.GetNumAtoms();
 }
 
 size_t Lattice::GetNumUnitCells() const
@@ -208,8 +171,8 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
 
     std::vector<rvec3_t> super_cells=GetSuperCells(maxd);
 
-    for (auto& a1:itsAtoms)
-        for (auto& a2:itsAtoms)
+    for (auto& a1:itsUnitCell)
+        for (auto& a2:itsUnitCell)
             for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
             {
                 double d=itsUnitCell.GetDistance(*c + a2->itsR - a1->itsR);
@@ -229,7 +192,7 @@ std::vector<rvec3_t> Lattice::GetBonds(size_t BasisNumber, double Distance) cons
     rvec3_t rb=GetBasisVector(BasisNumber);
     std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
 
-    for (auto& a:itsAtoms)
+    for (auto& a:itsUnitCell)
         for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
             rvec3_t bond = a->itsR + *c - rb;
@@ -248,7 +211,7 @@ std::vector<rvec3_t> Lattice::GetBondsInSphere(size_t BasisNumber, double Distan
     rvec3_t rb=GetBasisVector(BasisNumber);
     std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
 
-    for (auto& a:itsAtoms)
+    for (auto& a:itsUnitCell)
         for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
             rvec3_t bond = a->itsR + *c - rb;
@@ -290,7 +253,7 @@ size_t  Lattice::Find(const rvec3_t& r) const //Search within the primary unit c
 {
     size_t ret=GetNumBasisSites();
     size_t i=0;
-    for (auto& a:itsAtoms)
+    for (auto& a:itsUnitCell)
     {
         if (itsUnitCell.GetDistance(r - a->itsR) < itsTolerence)
         {
@@ -330,7 +293,7 @@ rvec3_t Lattice::GetBasisVector(size_t BasisNumber) const
     assert(BasisNumber<GetNumBasisSites());
     rvec3_t ret;
     {
-        for (auto& b:*this)
+        for (auto& b:itsUnitCell)
         {
             if (BasisNumber==0)
             {
@@ -350,7 +313,7 @@ using std::endl;
 //
 std::ostream& Lattice::Write(std::ostream& os) const
 {
-    os << itsUnitCell << endl << itsLimits << endl << itsAtoms;
+    os << itsUnitCell << endl << itsLimits;
 
     return os;
 }

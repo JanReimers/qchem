@@ -27,17 +27,12 @@ public:
     typedef av_t::      iterator       iterator;
     typedef av_t::const_iterator const_iterator;
 
-    Cluster() : itsCharge(0.0) {};
     virtual ~Cluster() {};
-    // virtual bool operator==(const Cluster&) const
-    // {
-    //     return false;
-    // }
-
+    
     virtual size_t GetNumAtoms      () const=0;
     virtual int    GetNuclearCharge () const;
     virtual double GetNumElectrons  () const;
-    virtual double GetNetCharge     () const {return itsCharge;}
+    virtual double GetNetCharge     () const;
 
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
     virtual Mesh*  CreateMesh(const MeshParams&) const=0;
@@ -46,8 +41,6 @@ public:
     virtual const_iterator end  () const=0;
     virtual       iterator begin()      =0;
     virtual       iterator end  ()      =0;
-protected:
-    double  itsCharge; //Net charge. Z-numElectrons.
 };
 
 export class Atom
@@ -55,6 +48,7 @@ export class Atom
     , public UniqueIDImp
 {
 public:
+    Atom(const Atom& a);
     Atom(int Z); 
     Atom(int Z, double charge);
     Atom(int Z, const rvec3_t& R);
@@ -71,6 +65,7 @@ public:
     virtual       iterator end  ()       {return dummy.end  ();} 
 
     int     itsZ;      //Atomic number.
+    double  itsCharge; //Net charge. Z-numElectrons.
     rvec3_t itsR;      //Spatial position.
 private:
     av_t  dummy; //Kludge to get iterators from Atom* .
@@ -84,10 +79,11 @@ export class Molecule
 public:
     Molecule() {};
     Molecule(const Cluster& m);
+    Molecule(const Molecule& m) : Molecule(static_cast<const Cluster&>(m)) {};
     virtual ~Molecule();
-    virtual void   Insert    (Atom* a, double charge=0);
-    virtual size_t GetNumAtoms      () const;
-    virtual Mesh*  CreateMesh(const MeshParams&) const;
+    virtual void   Insert     (Atom* a);
+    virtual size_t GetNumAtoms() const;
+    virtual Mesh*  CreateMesh (const MeshParams&) const;
        
     virtual std::ostream& Write(std::ostream&) const;
 

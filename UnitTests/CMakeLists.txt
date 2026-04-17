@@ -9,8 +9,9 @@ link_directories(
 )
 
 #  Main
-add_executable(UTMain UTMain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C 
-DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C)
+add_executable(UTMain gtestmain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C 
+DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C
+UTCluster.C UTBasisSet.C BasisSet_Atom.C)
 #add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
 #GCM_PATH := $(LIB_PATH)/gcm.cache
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
@@ -38,7 +39,7 @@ target_include_directories(UTMain PRIVATE
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 # Symmetry module
-add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)
+add_executable(UTSym gtestmain.C SymQN.C ElectronConfigurations.C)
 target_include_directories(UTSym PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
@@ -47,11 +48,11 @@ target_include_directories(UTSym PRIVATE
 target_link_libraries(UTSym PUBLIC qcFactory qcBasisSet qcSymmetry gtest lapack wignerSymbols)
 set_property(TARGET UTSym PROPERTY CXX_STANDARD 20)
 # Cluster module
-add_executable(UTCluster UTCluster.C)
+add_executable(UTCluster gtestmain.C UTCluster.C)
 target_link_libraries(UTCluster PUBLIC qcCluster gtest)
 set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
 # BasisSet module
-add_executable(UTBasisSet UTBasisSet.C BasisSet_Atom.C)
+add_executable(UTBasisSet gtestmain.C UTBasisSet.C BasisSet_Atom.C)
 target_link_libraries(UTBasisSet PUBLIC qcAtom_BS lapack wignerSymbols gtest) #qcLattice_BS
 target_include_directories(UTBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)

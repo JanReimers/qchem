@@ -13,10 +13,16 @@ int Cluster::GetNuclearCharge() const
     for(auto& b:*this) chg+=b->itsZ;
     return chg;
 }
+double Cluster::GetNetCharge() const
+{
+    int chg=0;
+    for(auto& b:*this) chg+=b->itsCharge;
+    return chg;
+}
 
 double Cluster::GetNumElectrons() const
 {
-    return GetNuclearCharge()-itsCharge;
+    return GetNuclearCharge()-GetNetCharge();
 }
 
 

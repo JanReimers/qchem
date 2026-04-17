@@ -24,21 +24,18 @@ import qchem.Mesh;
 //  primary unit cell.
 //
 export class Lattice
-    : public virtual Cluster
-    , public UniqueIDImp
 {
 public:
     // Lattice();
     typedef std::shared_ptr<Cluster> cl_t;
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
-    Lattice(const UnitCell&, const Vector3D<int>&,const Cluster& Atoms); //Full  unit cell.
-
-    virtual void   Insert        (Atom*)      ;
-    virtual size_t GetNumAtoms        () const;
-    virtual int    GetNuclearCharge   () const;
-    virtual double GetNetCharge       () const;
-    virtual double GetNumElectrons    () const;
-    virtual Mesh*  CreateMesh(const MeshParams&) const;
+    
+    // virtual void   Insert        (Atom*)      ;
+    // virtual size_t GetNumAtoms        () const;
+    // virtual int    GetNuclearCharge   () const;
+    // virtual double GetNetCharge       () const;
+    // virtual double GetNumElectrons    () const;
+    // virtual Mesh*  CreateMesh(const MeshParams&) const;
 
     //virtual ChargeDensity* GetChargeDensity   () const;
 
@@ -72,10 +69,10 @@ public:
     std::vector<rvec3_t>  GetBondsInSphere(size_t BasisNumber, double distance) const;
     std::vector<ivec3_t>  GetCellsInSphere(double distance);
 
-    virtual const_iterator begin() const {return itsAtoms.begin();}
-    virtual const_iterator end  () const {return itsAtoms.end  ();} 
-    virtual       iterator begin()       {return itsAtoms.begin();}
-    virtual       iterator end  ()       {return itsAtoms.end  ();} 
+    // virtual const_iterator begin() const {return itsUnitCell.begin();}
+    // virtual const_iterator end  () const {return itsUnitCell.end  ();} 
+    // virtual       iterator begin()       {return itsUnitCell.begin();}
+    // virtual       iterator end  ()       {return itsUnitCell.end  ();} 
     
     std::ostream& Write(std::ostream&) const;
 
@@ -87,7 +84,6 @@ private:
 
     UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
     Vector3D<int>  itsLimits;    //Number of unit cell in each direction.
-    Molecule       itsAtoms;     //List of atoms in the unit cell.
     double         itsTolerence; //Positions closer than this are considered the same.
 };
 
