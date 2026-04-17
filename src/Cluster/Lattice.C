@@ -31,7 +31,7 @@ public:
     // Lattice();
     typedef std::shared_ptr<Cluster> cl_t;
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
-    Lattice(const UnitCell&, const Vector3D<int>&,const Molecule& Atoms); //Full  unit cell.
+    Lattice(const UnitCell&, const Vector3D<int>&,const Cluster& Atoms); //Full  unit cell.
 
     virtual void   Insert        (Atom*)      ;
     virtual size_t GetNumAtoms        () const;

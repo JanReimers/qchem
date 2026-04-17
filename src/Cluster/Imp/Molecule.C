@@ -8,9 +8,9 @@ import qchem.Cluster.MoleculeMesh;
 import qchem.stl_io;
 import qchem.Streamable;
 
-Molecule::Molecule(const Molecule& m)
+Molecule::Molecule(const Cluster& cl)
 {
-    for (auto a:m)
+    for (auto a:cl)
     {
         itsAtoms.push_back(new Atom(a->itsZ,a->GetNetCharge(),a->itsR));
     }

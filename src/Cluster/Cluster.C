@@ -83,7 +83,7 @@ export class Molecule
 {
 public:
     Molecule() {};
-    Molecule(const Molecule& m);
+    Molecule(const Cluster& m);
     virtual ~Molecule();
     virtual void   Insert    (Atom* a, double charge=0);
     virtual size_t GetNumAtoms      () const;

@@ -5,10 +5,9 @@
 using std::cout;
 using std::endl;
 
-import qchem.Atom;
+import qchem.Cluster;
 import Cluster.UnitCell;
 import qchem.Lattice;
-import qchem.Molecule;
 
 int main(int argc, char **argv)
 {
@@ -23,15 +22,12 @@ class ClusterTests : public ::testing::Test
 
 TEST_F(ClusterTests, Atom)
 {
-    Atom atom;    
     Atom B(5,0);
     Atom F_minus(9,-1);
     Atom Na_plus(11,1,{1,1,1});
-    EXPECT_EQ(atom.GetNumElectrons(),0);
     EXPECT_EQ(B.GetNumElectrons(),5);
     EXPECT_EQ(F_minus.GetNumElectrons(),10);
     EXPECT_EQ(Na_plus.GetNumElectrons(),10);
-    cout << "default atom=" << atom << endl;
     cout << "           B=" << B << endl;
     cout << "          F-=" << F_minus << endl;
     cout << "         Na+=" << Na_plus << endl;
@@ -73,7 +69,7 @@ TEST_F(ClusterTests, Lattice)
     SiBasis->Insert(new Atom(14,0,rvec3_t{.25,.75,.75}));
     SiBasis->Insert(new Atom(14,0,rvec3_t{.75,.25,.75}));
     UnitCell SiCell(5.43/a_0); //Convert Ångstrom to atomic units a.u.
-    Lattice Si(SiCell,ivec3_t(2,2,2),std::shared_ptr<Cluster>(SiBasis));
+    Lattice Si(SiCell,ivec3_t(2,2,2),*SiBasis);
     // cout << "Si lattice = " << Si << endl;
     EXPECT_EQ(Si.GetNumAtoms(),8);
     EXPECT_EQ(Si.GetNuclearCharge(),8*14);

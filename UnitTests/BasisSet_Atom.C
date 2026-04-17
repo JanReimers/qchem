@@ -13,7 +13,7 @@ import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.Mesh.Integrator;
-import qchem.Molecule;
+import qchem.Cluster;
 import Common.Constants;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.ERI4;
@@ -72,7 +72,7 @@ public:
     void TestCharge (double eps) const;
 
 
-    std::valarray<double> es;
+    rvec_t es;
     size_t N,LMax;
     std::vector<IBS_Evaluator*> evals;
     Cluster* cl;

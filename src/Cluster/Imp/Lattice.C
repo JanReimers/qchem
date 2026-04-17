@@ -29,7 +29,7 @@ Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
     , itsTolerence(0.0001      )
 {}
 
-Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits,const Molecule& Atoms)
+Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits,const Cluster& Atoms)
     : itsUnitCell (cell  )
     , itsLimits   (Limits)
     , itsAtoms    (Atoms )

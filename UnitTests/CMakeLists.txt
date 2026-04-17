@@ -39,7 +39,12 @@ target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 # Symmetry module
 add_executable(UTSym UTSym.C SymQN.C ElectronConfigurations.C)
-target_link_libraries(UTSym PUBLIC qcSymmetry gtest)
+target_include_directories(UTSym PRIVATE 
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+
+)
+target_link_libraries(UTSym PUBLIC qcFactory qcBasisSet qcSymmetry gtest lapack wignerSymbols)
 set_property(TARGET UTSym PROPERTY CXX_STANDARD 20)
 # Cluster module
 add_executable(UTCluster UTCluster.C)
@@ -47,7 +52,7 @@ target_link_libraries(UTCluster PUBLIC qcCluster gtest)
 set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
 # BasisSet module
 add_executable(UTBasisSet UTBasisSet.C BasisSet_Atom.C)
-target_link_libraries(UTBasisSet PUBLIC qcAtom_BS wignerSymbols gtest) #qcLattice_BS
+target_link_libraries(UTBasisSet PUBLIC qcAtom_BS lapack wignerSymbols gtest) #qcLattice_BS
 target_include_directories(UTBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
 

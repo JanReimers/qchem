@@ -92,11 +92,11 @@ Priority 1:
     -Should be using private inheritance for many things
         Finish refactoring first.
         
-    -Then can we fold IEClient data into Orbital_XX_IBS
+    No: -Then can we fold IEClient data into Orbital_XX_IBS (IEClient is gone)
         Not sure: IEClient is on the Irrep chain for size() and op(r).
         Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
     -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
-    -What happens if we move the overlap integral into Irrep_IBS? 
+    Fixed: -What happens if we move the overlap integral into Irrep_IBS? 
         1) class DB_Overlap needs to derive from Irrep_IBS (OK)
         2) FitIntegrals needs to derive from Irrep_IBS (Wierd)
             This is only wierd while FitIntegrals is separated from Fit_IBS (which is currenty empty!)
