@@ -8,6 +8,7 @@ module qchem.WaveFunction.Internal.UnPolarizedWF;
 import qchem.SCFAccelerator;
 import qchem.Symmetry;
 import qchem.Streamable;
+import qchem.Common.Strings;
 
 using namespace tabulate;
 
@@ -40,7 +41,7 @@ void UnPolarizedWF::DisplayEigen() const
         eigen_table.add_row(rs);
         // Row formatting
         size_t n=eigen_table.size()-1;
-        eigen_table[n].format().font_color(CompositeWF::l_colors[l]);
+        eigen_table[n].format().font_color(l_colors[l]);
     }
     // Final table formatting.
     size_t N=eigen_table.size();

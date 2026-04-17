@@ -5,8 +5,9 @@ module;
 
 module qchem.Symmetry.Okmj;
 
-import qchem.Symmetry.Yl; //To get SPDFG string table.
+// import qchem.Symmetry.Yl; 
 import qchem.Symmetry.AtomEC;
+import qchem.Common.Strings; //To get SPDFG string table.
 
 using std::cout;
 using std::endl;
@@ -60,7 +61,6 @@ ElCounts_l Omega_k_Sym::GetN(const ElCounts& ec) const
     return ElCounts_l{nl,nlu};// std::make_pair(nl,nlu);
 }
 
-std::string j2s[]={"1/2","3/2","5/2","7/2","9/2"};
 
 
 std::ostream& Omega_k_Sym::Write(std::ostream& os) const

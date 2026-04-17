@@ -9,6 +9,7 @@ module qchem.WaveFunction.Internal.PolarizedWF;
 import qchem.SCFAccelerator;
 import qchem.ChargeDensity.Factory;
 import qchem.Streamable;
+import qchem.Common.Strings;
 
 using namespace tabulate;
 
@@ -61,7 +62,7 @@ void PolarizedWF::DisplayEigen() const
         eigen_table.add_row(rs);
         // Row formating.
         size_t n=eigen_table.size()-1;
-        eigen_table[n].format().font_color(CompositeWF::l_colors[l]);
+        eigen_table[n].format().font_color(l_colors[l]);
         if (dn.occ==0.0)
             for (size_t i:{3,4,5})
             {

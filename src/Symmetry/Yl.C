@@ -26,5 +26,4 @@ protected:
     static const int LMax=3;
 };
 
-export std::string SPDFG[]={"s","p","d","f","g"};
 

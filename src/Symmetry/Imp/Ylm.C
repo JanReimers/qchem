@@ -7,6 +7,7 @@ module;
 #include <vector>
 
 module qchem.Symmetry.Ylm;
+import qchem.Common.Strings;
 
 using std::cout;
 using std::endl;

@@ -4,6 +4,7 @@ module;
 #include <cassert>
 
 module qchem.Symmetry.Yl;
+import qchem.Common.Strings;
 
 Yl_Sym::Yl_Sym()
     : itsL(0)

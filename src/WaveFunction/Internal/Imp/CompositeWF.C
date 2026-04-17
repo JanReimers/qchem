@@ -13,8 +13,6 @@ import qchem.Symmetry.ElectronConfiguration;
 import qchem.LASolver;
 
 
-using namespace tabulate;
-Color CompositeWF::l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
 LAParams DefaultLAP({qchem::Cholsky,1e-12});
 
 

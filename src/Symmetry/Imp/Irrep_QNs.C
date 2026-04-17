@@ -4,6 +4,7 @@ module;
 #include <iostream>
 module qchem.Symmetry.Irrep;
 import qchem.Streamable;
+import qchem.Common.Strings;
 
 const size_t Irrep_QNs::ms_max=3; //three states Up/Down and None.
 
@@ -31,7 +32,6 @@ size_t Irrep_QNs::GetDegeneracy() const
     return sym->GetDegeneracy()*::GetDegeneracy(ms);
 }
 
-std::string spins[]={"↓"," ","↑"};
 std::ostream& Irrep_QNs::Write(std::ostream& os) const
 {
     return os  << (*sym) << spins[static_cast<int>(ms)];

@@ -12,7 +12,7 @@ import qchem.Symmetry.Ylm;
 import qchem.Symmetry.AtomEC;
 import qchem.BasisSet;
 import qchem.Factory;
-import qchem.WaveFunction.Internal.CompositeWF;
+import qchem.Common.Strings;
 
 using std::cout;
 using std::endl;
@@ -359,7 +359,6 @@ TEST_F(ElectronConfigurationTests, Dconfigs)
 //    }
 //    
 //}
-std::string superscripts[]={"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹","¹⁰","¹¹","¹²","¹³","¹⁴","¹⁵","¹⁶","¹⁷","¹⁸"};
 TEST_F(ElectronConfigurationTests, ElectronConfigurations)
 {
     
@@ -404,10 +403,10 @@ TEST_F(ElectronConfigurationTests, ElectronConfigurations)
         
         BS_table.add_row(rs);
     }
-    BS_table.column(5).format().font_color(CompositeWF::l_colors[0]);
-    BS_table.column(6).format().font_color(CompositeWF::l_colors[1]);
-    BS_table.column(7).format().font_color(CompositeWF::l_colors[2]);
-    BS_table.column(8).format().font_color(CompositeWF::l_colors[3]);
+    BS_table.column(5).format().font_color(l_colors[0]);
+    BS_table.column(6).format().font_color(l_colors[1]);
+    BS_table.column(7).format().font_color(l_colors[2]);
+    BS_table.column(8).format().font_color(l_colors[3]);
     cout << BS_table << endl;  
 
 }
@@ -437,9 +436,9 @@ TEST_F(ElectronConfigurationTests, BasisSets)
         for (auto& osl:os) rs << osl.str();
         BS_table.add_row(rs);
     }
-    BS_table.column(2).format().font_color(CompositeWF::l_colors[0]);
-    BS_table.column(3).format().font_color(CompositeWF::l_colors[1]);
-    BS_table.column(4).format().font_color(CompositeWF::l_colors[2]);
-    BS_table.column(5).format().font_color(CompositeWF::l_colors[3]);
+    BS_table.column(2).format().font_color(l_colors[0]);
+    BS_table.column(3).format().font_color(l_colors[1]);
+    BS_table.column(4).format().font_color(l_colors[2]);
+    BS_table.column(5).format().font_color(l_colors[3]);
     cout << BS_table << endl;  
 }
