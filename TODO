@@ -48,7 +48,7 @@ Priority 1:
         Bounds checking in DEBUG mode.
     	
     Done: -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
-    -Refactor Lattice and UnitCell
+    Done: -Refactor Lattice and UnitCell
         UnitCell->Cluster should hold the atom basis.
             Private inherit from Molecule?
         Lattice should hold a UnitCell, Nx Ny Nz
@@ -169,7 +169,7 @@ Priority 1:
     -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
         wrong occ/degen in spin down column.
     -Sort out compile options in CMake for gcc and clang.
-    -use std::vector<double> for anything not involing lin-alg 
+    DOne: -use std::vector<double> for anything not involing lin-alg 
         Done: -i.e. exponents
         -valarray ?
 

@@ -4837,7 +4837,7 @@ hr2i
 
 S.L. Saito / Atomic Data and Nuclear Data Tables 95 (2009) 836–870
 Table 1 (continued)
-Dy, Z = 66, [Xe]6s24f10(5I)
+Dy, Z = 66, [Xe]6s24f10 (5I)
 Total energy = -11641.4525953 ;
 Kinetic energy = 11641.4525953
 Potential energy = -23282.9051906 ;
@@ -5085,7 +5085,7 @@ hr-3i
 63.520037
 9.785372
 
-Ho, Z = 67, [Xe]6s24f11(4I)
+Ho, Z = 67, [Xe]6s24f11 (4I)
 Total energy = -12065.2898028 ;
 Kinetic energy = 12065.2898028
 Potential energy = -24130.5796056 ;
@@ -5145,7 +5145,7 @@ hr2i
 67.617859
 10.581219
 
-Er, Z = 68, [Xe]6s24f12(3H)
+Er, Z = 68, [Xe]6s24f12 (3H)
 Total energy = -12498.1527833 ;
 Kinetic energy = 12498.1527833
 Potential energy = -24996.3055667 ;
@@ -5205,7 +5205,7 @@ hr2i
 71.872296
 11.409980
 
-Tm, Z = 69, [Xe]6s24f13(2F)
+Tm, Z = 69, [Xe]6s24f13 (2F)
 Total energy = -12940.1744048 ;
 Kinetic energy = 12940.1744048
 Potential energy = -25880.3488097 ;
@@ -5271,7 +5271,7 @@ hr2i
 S.L. Saito / Atomic Data and Nuclear Data Tables 95 (2009) 836–870
 
 Table 1 (continued)
-Yb, Z = 70, [Xe]6s24f14(1S)
+Yb, Z = 70, [Xe]6s24f14 (1S)
 Total energy = -13391.4561931 ;
 Kinetic energy = 13391.4561931
 Potential energy = -26782.9123862 ;
@@ -8901,7 +8901,7 @@ hr-3i
 90.514172
 10.672907
 
-Cf, Z = 98, [Rn]7s25f10(5I)
+Cf, Z = 98, [Rn]7s25f10 (5I)
 Total energy = -29817.4189160 ;
 Kinetic energy = 29817.4189160
 Potential energy = -59634.8378321 ;
@@ -8976,7 +8976,7 @@ hr2i
 95.006248
 10.996525
 
-Es, Z = 99, [Rn]7s25f11(4I)
+Es, Z = 99, [Rn]7s25f11 (4I)
 Total energy = -30544.9721855 ;
 Kinetic energy = 30544.9721855
 Potential energy = -61089.9443711 ;
@@ -9057,7 +9057,7 @@ hr2i
 S.L. Saito / Atomic Data and Nuclear Data Tables 95 (2009) 836–870
 
 Table 1 (continued)
-Fm, Z = 100, [Rn]7s25f12(3H)
+Fm, Z = 100, [Rn]7s25f12 (3H)
 Total energy = -31282.7775990 ;
 Kinetic energy = 31282.7775990
 Potential energy = -62565.5551980 ;
@@ -9309,7 +9309,7 @@ hr-3i
 104.393526
 12.751577
 
-Md, Z = 101, [Rn]7s25f13(2F)
+Md, Z = 101, [Rn]7s25f13 (2F)
 Total energy = -32030.9329688 ;
 Kinetic energy = 32030.9329688
 Potential energy = -64061.8659376 ;
@@ -9384,7 +9384,7 @@ hr2i
 109.283612
 13.683220
 
-No, Z = 102, [Rn]7s25f14(1S)
+No, Z = 102, [Rn]7s25f14 (1S)
 Total energy = -32789.5121404 ;
 Kinetic energy = 32789.5121404
 Potential energy = -65579.0242809 ;

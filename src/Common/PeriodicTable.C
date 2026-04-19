@@ -33,6 +33,16 @@ export
 
     };
 
+    struct ElementRecord
+    {
+        size_t      Z;
+        std::string Symbol;
+        size_t      NUnpaired;
+        size_t      MaxL;
+        size_t      ValConfig[4]; //spdf
+        double      EnergyHF;     //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870
+        double      EnergyDFT;    //NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html
+    };
 
 } //export block
 
