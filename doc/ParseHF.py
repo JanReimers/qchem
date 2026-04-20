@@ -11,7 +11,10 @@ class Orbital:
     def __init__(self,name,e,rs):
         self.name=name
         self.e=float(e)
-        self.rs=rs # <r^2> <r> <1/r> <1/r^2> (for non-s orbitals <1/r^3> )
+        # <r^2> <r> <1/r> <1/r^2> (for non-s orbitals <1/r^3> )
+        self.rs=[]
+        for r in rs:
+            self.rs.append(float(r))
     def show(self):
         print("  ",self.name," e=",self.e)
 
@@ -19,7 +22,7 @@ class Element:
     def __init__(self,Z, symbol, valance,term):
         self.Z = Z
         self.symbol = symbol
-        self.valance = valance
+        self.valance = valance.strip()
         self.term = term
         self.Orbitals=[]
     def SetHF(self,e):
@@ -42,7 +45,7 @@ with open("doc/saito.txt", mode="r", encoding="utf-8") as file:
         if "Z = " in line:
             # found a new element.
             if el!=None:
-                Elements.append(el);
+                Elements.append(el)
             inOrbitals=False
             s1=line.split(',')
             symbol=s1[0]
@@ -71,7 +74,7 @@ with open("doc/saito.txt", mode="r", encoding="utf-8") as file:
             else:
                 # found and orbital record.
                 el.AddOrbital(Orbital(s1[0],s1[1],s1[2:]))
-
+    Elements.append(el)
             
 for e in Elements:
     e.show()
