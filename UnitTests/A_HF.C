@@ -115,7 +115,7 @@ TEST_P(A_BS_HF_U,Multiple)
 {
     int Z=GetParam();
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline},
+        {"type",BasisSetAtom::Type::BSpline6},
         {"N", 40}, {"rmin", 0.01}, {"rmax", 50},
     };
     QchemTester::Init(1e-3,js);
@@ -215,6 +215,7 @@ public:
     A_BSm_HF_P() : TestAtom(GetParam()) {};
 };
 
+
 TEST_P(A_SG_HF_P,Multiple)
 {
     int Z=GetParam();
@@ -262,7 +263,7 @@ TEST_P(A_BS_HF_P,Multiple)
 {
     int Z=GetParam();
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline},
+        {"type",BasisSetAtom::Type::BSpline6},
         {"N", 30}, {"rmin", 0.01}, {"rmax", 50},
     };
     QchemTester::Init(1e-3,js);
@@ -327,7 +328,7 @@ TEST_P(A_BSm_HF_P,Multiple)
 {
     int Z=GetParam();
      nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline},
+        {"type",BasisSetAtom::Type::BSpline6},
         {"N", 30}, {"rmin", 0.01}, {"rmax", 30},
     };
     QchemTester::Init(1e-3,js);
@@ -366,3 +367,35 @@ TEST_P(A_PG_HF_P,Multiple)
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5)); //7 fails Z=21,37,51 is slow
 
+
+inline SCFParams saito_params_BS(int Z) 
+{
+//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
+    return {   30     ,Z*1e-5    ,1e-10   ,Z*1e-11        ,0.5     ,1e-7  ,true};
+}
+
+class A_BS_saito_HF_P : public ::testing::TestWithParam<int>
+, public TestAtom,  HF_P
+{
+public:
+    A_BS_saito_HF_P() : TestAtom(GetParam()) {};
+};
+
+TEST_P(A_BS_saito_HF_P,Saito)
+{
+    int Z=GetParam();
+    nlohmann::json js = {
+        {"type",BasisSetAtom::Type::BSpline9},
+        {"N", 40}, {"rmin", 0.0001}, {"rmax", 40},
+    };
+    QchemTester::Init(1e-3,js);
+    Iterate(saito_params_BS(Z));
+    EXPECT_LT(RelativeHFError(),1e-9);
+    EXPECT_GT(RelativeHFError(),-1e-4);
+}
+
+#ifdef NDEBUG
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
+#else
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
+#endif

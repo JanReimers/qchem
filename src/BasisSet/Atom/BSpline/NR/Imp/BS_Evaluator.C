@@ -41,13 +41,15 @@ template <size_t K> Rk* BSpline_BS<K>::Create(size_t ia,size_t ic,size_t ib,size
 template <size_t K> double BSpline_BS<K>::loop_4_direct(size_t id, size_t la, size_t lc, const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
-    const BSpline::RkEngine<6>* cd = dynamic_cast<const BSpline::RkEngine<6>*>(c);
+    assert(c);
+    const BSpline::RkEngine<K>* cd = dynamic_cast<const BSpline::RkEngine<K>*>(c);
+    assert(cd);
     return cd->Coulomb_Rk(la,lc,Ak);
 }
 template <size_t K> double BSpline_BS<K>::loop_4_exchange(size_t id, size_t la, size_t lc, const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
-    const BSpline::RkEngine<6>* cd = dynamic_cast<const BSpline::RkEngine<6>*>(c);
+    const BSpline::RkEngine<K>* cd = dynamic_cast<const BSpline::RkEngine<K>*>(c);
     return cd->ExchangeRk(la,lc,Ak);
 }
 

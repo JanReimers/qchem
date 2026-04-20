@@ -41,7 +41,7 @@ public:
     void Init(int N, double rmin, double rmax)
     {
         nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline},
+        {"type",BasisSetAtom::Type::BSpline6},
         {"N", N}, {"rmin", rmin}, {"rmax", rmax},
         };
         bs=BasisSetAtom::Factory(js,75);

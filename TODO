@@ -22,6 +22,14 @@ Priority 1:
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
 
 
+    -Atom radial functions are often expressed as phi(r) = 1/r * Pnl(r)  where Pnl(r) is then expanded in some basis set.
+        Then the overlap S_ab = integral(Phi_a*Phi_b*r^2*dr) = integral(Pnl_a*Pnl_b*dr).
+        Currently the qchem package handles all basis sets as phi(r) = Pnl(r) without the 1/r
+        Starting with splines we should add support for 1/r * Pnl(r)
+        This might enhance numerical stability for N>40 basis functions.
+        The problem is to decide a naming convention for each case:
+            phi(r) = 1/r * Pnl(r) name= BSpline_r
+            phi(r) =       Pnl(r) name= BSpline
     Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
     Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
     Done: -clean up qchem.LASolver;

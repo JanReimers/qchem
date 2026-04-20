@@ -15,7 +15,7 @@
 
 // Instance with k={5,6,7}
 //INSTANCE((5)(6)(7)) 
-INSTANCE((6)) 
+INSTANCE((6)(9)) 
 
 #undef END
 #undef END_

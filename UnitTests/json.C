@@ -50,5 +50,5 @@ TEST_F(jsonTests,BSpline)
     };
 
     for (size_t Z=1;Z<=92;Z++)
-        BasisSetAtom::Factory(BasisSetAtom::Type::BSpline,js,Z);
+        BasisSetAtom::Factory(BasisSetAtom::Type::BSpline6,js,Z);
 }
