@@ -2,9 +2,12 @@
 module;
 #include <string>
 #include <cassert>
+#include <vector> 
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 export module Common.PeriodicTable;
-
+import qchem.Types;
 
 export 
 {
@@ -44,79 +47,197 @@ export
         double      EnergyDFT;    //NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html
     };
 
+
+    struct OrbitalRecordSaito
+    {
+        OrbitalRecordSaito(nlohmann::json& j) : Symbol(j["name"]),Energy(j["e"])
+        {
+            for (auto r:j["rs"])
+                r_moments.push_back(r);
+        }
+        std::string Symbol;
+        double      Energy;
+        std::vector<double> r_moments; //<r^2>, <r^1>, <r^-1>, <r^-2>, <r^-3>, 
+    };
+
+    struct ElementRecordSaito
+    {
+        ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j["symbol"]),  ValConfigString(j["valance"]), Term(j["term"]), MaxL(0), EnergyHF(j["HFEnergy"])
+        {
+            for (auto o:j["Orbitals"])
+                Orbitals.push_back(OrbitalRecordSaito(o));
+            NUnpaired=std::atoi(&Term[0])-1;
+            assert(NUnpaired<=8);
+            size_t spos=ValConfigString.find('s'),ppos=ValConfigString.find('p'),dpos=ValConfigString.find('d'),fpos=ValConfigString.find('f');
+            bool bs=spos!=std::string::npos,bp=ppos!=std::string::npos,bd=dpos!=std::string::npos,bf=fpos!=std::string::npos;
+            std::string nss="0",nps="0",nds="0",nfs="0";
+
+            if (bs)
+                nss=ValConfigString.substr(spos+1,1); //number of s electron is always one digit.
+            if (bp)
+                nps=ValConfigString.substr(ppos+1,1); //number of p electron is always one digit.
+            if (bd)
+            {
+                if (bp)
+                    nds=ValConfigString.substr(dpos+1,ppos-dpos-2); //d is always just before p.
+                else
+                    nds=ValConfigString.substr(dpos+1,ValConfigString.length()-dpos-1);
+            }
+            if (bf)
+            {
+                if (bd)
+                    nfs=ValConfigString.substr(fpos+1,dpos-fpos-2); //f is usually just before d.
+                else if (bp)
+                    nfs=ValConfigString.substr(fpos+1,ppos-fpos-2); //No d, so f is just before p.
+                else
+                    nfs=ValConfigString.substr(fpos+1,ValConfigString.length()-fpos-1);
+            }
+            ValConfig[0]=stoi(nss);
+            ValConfig[1]=stoi(nps);
+            ValConfig[2]=stoi(nds);
+            ValConfig[3]=stoi(nfs);
+            for (size_t l:iv_t(0,4))
+            {
+                assert(ValConfig[l]<=2*(2*l+1));
+                if (l>0 && ValConfig[l]==2*(2*l+1)) ValConfig[l]=0; //Clear out full shells.
+            }
+
+            if (Z>4) MaxL=1;
+            if (Z>20) MaxL=2;
+            if (Z>57) MaxL=3;
+        }
+
+        size_t      Z;
+        std::string Symbol;
+        std::string ValConfigString;
+        std::string Term;
+        size_t      NUnpaired;
+        size_t      MaxL;
+        size_t      ValConfig[4]; //spdf
+        double      EnergyHF;     //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870
+        std::vector<OrbitalRecordSaito> Orbitals;
+    };
+    std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)
+    {
+        os << std::fixed;
+        os << "    " << o.Symbol << " " << std::setw(14) << std::setprecision(11) << o.Energy;
+        os << std::fixed;
+        for (auto r:o.r_moments)
+            os << " " << std::setw(11) << std::setprecision(6) << r;
+        return os;
+    }
+
+    std::ostream& operator<<(std::ostream& os, const ElementRecordSaito& e)
+    {
+        os << e.Symbol << "(" << e.Z << ") " << e.ValConfigString << " " << e.Term 
+        << " E_HF=" << std::setw(14) << std::setprecision(6) << e.EnergyHF 
+        << " NUnpaired=" << e.NUnpaired << std::endl;
+        // for (auto o:e.Orbitals)
+        //     os << o << std::endl;
+        return os;
+    }
+
+
+    class PeriodicTableSaito
+    {
+        public:
+        PeriodicTableSaito()
+        {
+            std::ifstream file("../../../doc/saito.json");
+            assert(file);
+            nlohmann::json jsondata;
+            file >> jsondata;
+            for (auto e:jsondata)
+                elements.push_back(ElementRecordSaito(e));
+        }
+        std::string GetSymbol(size_t Z) const {return get(Z).Symbol;}
+        double GetEnergyHF            (size_t Z) const {return get(Z).EnergyHF;}
+        // double GetEnergyDFT           (int Z) const;
+        double GetNumUnpairedElectrons(size_t Z) const {return get(Z).NUnpaired;}
+        int    GetMaxL                (size_t Z) const {return get(Z).MaxL;}
+        const size_t*   GetValanceConfiguration(size_t Z) const {return &(get(Z).ValConfig[0]);}
+    private:
+        const ElementRecordSaito& get(size_t Z) const
+        {
+            assert(Z>=1);
+            assert(Z<=elements.size());
+            return elements[Z-1];
+        }
+        std::vector<ElementRecordSaito> elements;
+    };
 } //export block
 
 
 char PeriodicTable::theSymbols[N_Elements][3] =
 {
     "  ",
-    "H ",                                                                                                                                                                                     "He",
-    "Li", "Be",                                                                                                                                                 "B ", "C ", "N ", "O ", "F ", "Ne",
-    "Na", "Mg",                                                                                                                                                 "Al", "Si", "P ", "S ", "Cl", "Ar",
-    "K ", "Ca", "Sc",                                                                                     "Ti", "V ", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
-    "Rb", "Sr", "Y ",                                                                                     "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I ", "Xe",
-    "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W ", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn",
-    "Fr", "Ra", "Ac", "Th", "Pa", "U ", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lw", "Un", "Un", "Un", "Un", "Un", "Un"
+    "H" ,                                                                                                                                                                                     "He",
+    "Li", "Be",                                                                                                                                                 "B" , "C" , "N" , "O" , "F" , "Ne",
+    "Na", "Mg",                                                                                                                                                 "Al", "Si", "P" , "S" , "Cl", "Ar",
+    "K" , "Ca", "Sc",                                                                                     "Ti", "V" , "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
+    "Rb", "Sr", "Y" ,                                                                                     "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I" , "Xe",
+    "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W" , "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn",
+    "Fr", "Ra", "Ac", "Th", "Pa", "U" , "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lw", "Un", "Un", "Un", "Un", "Un", "Un"
 };
 
 double PeriodicTable::EnergyHF   [N_Elements]=
 {
     0.0, //filler
     -0.5, //H
-    -2.861679993  , //He
-    -7.432726924  , //Li
-    -14.57302313  , //Be
-    -24.52906073, //B ROHF Pol Gauss, Ylm basis sets can get this.  m levels split.
+    -2.86167999561  , //He
+    -7.43272693073  , //Li
+    -14.5730231683  , //Be
+    -24.5290607285, //B ROHF Pol Gauss, Ylm basis sets can get this.  m levels split.
 //    -24.41460752  , //If you assume all m in Ylm are degenerate you get this.
-    -37.68861890  , //C
-    -54.40093415  , //N
-    -74.80939840  , //O
-    -99.40934928  , //F
-    -128.5470980  , //Ne
-    -161.8589113  , //Na
-    -199.6146361  , //Mg
-    -241.8767070  , //Al
-    -288.8543622  , //Si
-    -340.7187806  , //P
-    -397.5048955  , //S
-    -459.4820719  , //Cl
-    -526.8175122  , //Ar
-    -599.1647831  , //K
-    -676.7581817  , //Ca
-    -759.7357123  , //Sc
-    -848.4059907  , //Ti
-    -942.8843308  , //V
-    -1043.356368  , //Cr
-    -1149.866243  , //Mn
-    -1262.443656  , //Fe
-    -1381.414542  , //Co
-    -1506.870896  , //Ni
-    -1638.963723  , //Cu
-    -1777.848102  , //Zn
-    -1923.261001  , //Ga
-    -2075.359726  , //Ge
-    -2234.238647  , //As
-    -2399.867604  , //Se
-    -2572.441325  , //Br
-    -2752.054969  , //Kr
-    -2938.357442  , //Rb
-    -3131.545674  , //St
-    -3331.684158  , //Y
-    -3538.995053  , //Zr
-    -3753.597716  , //Nb
-    -3975.549487  , //Mo
-    -4204.788722  , //Tc
-    -4441.539471  , //Ru
-    -4685.881686  , //Rh
-    -4937.921004  , //Pd
-    -5197.698452  , //Ag
-    -5465.133119  , //Cd
-    -5740.169136  , //In
-    -6022.931678  , //Sn
-    -6313.485304  , //Sb
-    -6611.784043  , //Te
-    -6917.980881  , //I
-    -7232.138349  , //Xe
+    -37.6886189630  , //C
+    -54.4009342085  , //N
+    -74.8093984700  , //O
+    -99.4093493867  , //F
+    -128.547098109  , //Ne
+    -161.858911617  , //Na
+    -199.614636425  , //Mg
+    -241.876707251  , //Al
+    -288.854362517  , //Si
+    -340.718780975  , //P
+    -397.504895917  , //S
+    -459.482072393  , //Cl
+    -526.817512803  , //Ar
+    -599.164786767  , //K
+    -676.758185925  , //Ca
+    -759.735718041  , //Sc
+    -848.405996991  , //Ti
+    -942.884337738  , //V
+    -1043.35637629  , //Cr
+    -1149.86625171  , //Mn
+    -1262.44366540  , //Fe
+    -1381.41455298  , //Co
+    -1506.87090819  , //Ni
+    -1638.96374218  , //Cu
+    -1777.84811619  , //Zn
+    -1923.26100961  , //Ga
+    -2075.35973391  , //Ge
+    -2234.23865428  , //As
+    -2399.86761170  , //Se
+    -2572.44133316  , //Br
+    -2752.05497735  , //Kr
+    -2938.35745426  , //Rb
+    -3131.54568644  , //St
+    -3331.68416985  , //Y
+    -3538.99506487  , //Zr
+    -3753.59772775  , //Nb
+    -3975.54949953  , //Mo
+    -4204.78873702  , //Tc
+    -4441.53948783  , //Ru
+    -4685.88170428  , //Rh
+    -4937.92102407  , //Pd
+    -5197.69847310  , //Ag
+    -5465.13314253  , //Cd
+    -5740.16915577  , //In
+    -6022.93169531  , //Sn
+    -6313.48532075  , //Sb
+    -6611.78405928  , //Te
+    -6917.98089626  , //I
+    -7232.13836387  , //Xe
     -7553.93365766, //Cs
     -7883.54382733, //Ba
     -8221.06670260, //La
@@ -409,7 +530,7 @@ int PeriodicTable::MaxL[N_Elements]=
     2,//Xe
     2,//Cs
     2,//Ba
-    3,//La
+    2,//La
     3,//Ce
     3,//Pr
     3,//Nd

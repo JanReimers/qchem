@@ -26,6 +26,7 @@ target_compile_options(qcCommon PRIVATE -Wall
 )
 target_include_directories(qcCommon PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 target_link_libraries(qcCommon PUBLIC)

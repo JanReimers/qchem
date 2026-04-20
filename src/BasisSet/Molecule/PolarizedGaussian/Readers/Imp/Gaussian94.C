@@ -63,6 +63,25 @@ void Gaussian94Reader::TopOfFile()
     itsStream >> ws;              //Done.
 }
 
+// Trim from the start (in place)
+inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+// Trim from the end (in place)
+inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+// Trim from both ends (in place)
+inline void trim(std::string &s) {
+    rtrim(s);
+    ltrim(s);
+}
 //
 //  Search for an atom
 //
@@ -78,7 +97,8 @@ bool Gaussian94Reader::FindAtom(const Atom& theAtom)
     TopOfFile();
 
     itsStream.read(atom,2);
-    std::string s=atom;
+    std::string s(atom);
+    trim(s);
     while (s!=sym && !itsStream.eof())                    //Do we have a match?
     {
         do
@@ -89,6 +109,7 @@ bool Gaussian94Reader::FindAtom(const Atom& theAtom)
         itsStream >> ws;                                                //Next atom symbol.
         itsStream.read(atom,2);
         s=atom;
+        trim(s);
     }
 
     if (!itsStream.eof())

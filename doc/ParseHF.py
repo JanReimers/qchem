@@ -39,13 +39,15 @@ class Element:
 
 with open("doc/saito.txt", mode="r", encoding="utf-8") as file:
     inOrbitals=False
-    el=None
+    el=Element(1,"H","1s1","2S")
+    el.SetHF(-0.5)
+    el.Setq0(4.0)
+    el.AddOrbital(Orbital("1s",-0.5,[3.0,1.5,1.0,2.0])) #Johnson page 34
     Elements=[]
     for line in file:
         if "Z = " in line:
             # found a new element.
-            if el!=None:
-                Elements.append(el)
+            Elements.append(el) #save the previous one
             inOrbitals=False
             s1=line.split(',')
             symbol=s1[0]
