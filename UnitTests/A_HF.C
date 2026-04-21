@@ -170,6 +170,13 @@ class HF_P : public virtual QchemTester
         return Factory(Model::HF,Pol::Polarized,cluster);
     }
 };
+class E1_P : public virtual QchemTester
+{
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::E1,Pol::Polarized,cluster);
+    }
+};
 
 class A_SG_HF_P : public ::testing::TestWithParam<int>
 , public TestAtom,  HF_P
@@ -371,7 +378,7 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5)); //7 fails Z
 inline SCFParams saito_params_BS(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   30     ,Z*1e-5    ,1e-10   ,Z*1e-11        ,0.5     ,1e-7  ,true};
+    return {   30     ,Z*1e-5    ,1e-10   ,Z*1e-11        ,0.1     ,1e-7  ,true};
 }
 
 class A_BS_saito_HF_P : public ::testing::TestWithParam<int>
@@ -385,8 +392,8 @@ TEST_P(A_BS_saito_HF_P,Saito)
 {
     int Z=GetParam();
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline9},
-        {"N", 40}, {"rmin", 0.0001}, {"rmax", 40},
+        {"type",BasisSetAtom::Type::BSpliner9},
+        {"N", 100}, {"rmin", 0.0001}, {"rmax", 80},
     };
     QchemTester::Init(1e-3,js);
     Iterate(saito_params_BS(Z));

@@ -30,6 +30,29 @@ Priority 1:
         The problem is to decide a naming convention for each case:
             phi(r) = 1/r * Pnl(r) name= BSpline_r
             phi(r) =       Pnl(r) name= BSpline
+        -In order to implement this we will need to support <a|1/r|b> and <a|1/r^2|b> integrals.  These are not directly
+         supported by c++ BSpline package.  only operator X<n> where n>=0 are supported.
+        -We can do the integrals with numerical recipes gauleg function which calculates sets {x},{w} for quadrature integration.
+        -However it seems that BilinearForm{X<2>{}}(a,b)*FourPi; and gl.Integrate(x2,a,b)*FourPi; are giving different results
+         especially near the origin.
+        Goals:
+        1) Get BilinearForm{X<2>{}}(a,b) == gl.Integrate(x2,a,b) to machine accuracy
+        2) Check all the other required integrals.
+        3) Support both basis set options above 1) phi(r) = 1/r * Pnl(r) and 2) phi(r) = Pnl(r)
+        4) Verify comments from Saito: To construct the B-spline set for atomic calculations, the knot
+            sequence must be generated in [0, R] with K-fold multiple end-
+            points. Since the first and last terms of such B-splines are nonzero
+            at r = 0 and at r = R, respectively, they were removed from the basis
+            set in order to satisfy the boundary conditions. An N-term B-spline
+            set {Bi,K}i=2,. . .,N+1 is thereby obtained...
+        5) Get He working to high precision.  In particular fabs(V/K+2) < 1e-11
+        6) Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
+        7) Try to run atoms 2->118 and compared E, Eo and <r> moments.
+            
+
+
+    -Support null accelerator.
+
     Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
     Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
     Done: -clean up qchem.LASolver;

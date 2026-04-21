@@ -92,6 +92,34 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
         }
         break;   
     } 
+case Type::BSpliner6:
+    {
+        double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
+        switch (atype)
+        {
+        case AngularType::Yl:
+            bs=new AtomBS::BSpline::BasisSet_r<6>(N,rmin,rmax,LMax);
+            break;
+        
+        case AngularType::Ylm:
+            bs=new AtomBS::BSpline::BasisSet_r<6>(N,rmin,rmax,ec);
+        }
+        break;   
+    } 
+    case Type::BSpliner9:
+    {
+        double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
+        switch (atype)
+        {
+        case AngularType::Yl:
+            bs=new AtomBS::BSpline::BasisSet_r<9>(N,rmin,rmax,LMax);
+            break;
+        
+        case AngularType::Ylm:
+            bs=new AtomBS::BSpline::BasisSet_r<9>(N,rmin,rmax,ec);
+        }
+        break;   
+    } 
 
     case Type::Slater_RKB:
     {

@@ -44,6 +44,11 @@ public:
 
     const GLQuadrature& find(double rmin, double rmax) const;
     
+    template <size_t K1, size_t K2> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K1>& a, const bspline::Spline<double,K2>& b) const
+    {
+        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        return Integrate(fwab,a.getSupport(),b.getSupport());
+    }
     template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b) const
     {
         std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};

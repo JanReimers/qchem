@@ -4,6 +4,7 @@ module;
 export module qchem.BasisSet.Atom.BSpline.NR.BS;
 
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
+import BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.Common;
@@ -30,6 +31,22 @@ public:
     virtual size_t  size           () const {return BSpline_IBS<K>::size();}
 
 };
+template <size_t K> class Orbital_IBS_r
+    : public BSpline_r_IBS<K>
+    , public AtomBS::IrrepBasisSet
+    , public AtomBS::Orbital_HF_IBS <double>
+    , public AtomBS::Orbital_IBS    <double>
+    , public AtomBS::Orbital_DFT_IBS<double>
+{
+public:
+    Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
+    Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
+    virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
+    virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
+
+    virtual size_t  size           () const {return BSpline_r_IBS<K>::size();}
+
+};
 
 template <size_t K> class Fit_IBS 
 : public BSpline_IBS<K>
@@ -53,6 +70,19 @@ public:
     using BSpline_BS<K>::BuildCache;
 private:
     void Insert(Orbital_IBS<K>*);
+};
+
+template <size_t K> class BasisSet_r
+    : public BSpline_r_BS<K> 
+    , public ::BS_Common
+    , public AtomIE_BS_2E<double> //HF support
+{
+public:
+    BasisSet_r(size_t N, double rmin, double rmax, size_t Lmax); 
+    BasisSet_r(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
+    using BSpline_r_BS<K>::BuildCache;
+private:
+    void Insert(Orbital_IBS_r<K>*);
 };
 
 }} //namespace AtomBSl::BSpline

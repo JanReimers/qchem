@@ -1,12 +1,12 @@
 // File: BasisSet/Atom/radial/Imp/BSpline_IBS.C
 module;
 #include <bspline/Core.h>
+#include <InvPosition.H> // 1/x^n operator are not provided in bspline package, so a roll our own.
 #include <cmath>
 #include <cassert>
 #include <iostream>
 #include <functional>
-
-module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
+module BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
 import qchem.BasisSet.Atom.BSpline.Rk;
 import qchem.BasisSet.Atom.BSpline.SplineGrouper;
 import Common.Constants;
@@ -24,58 +24,50 @@ template <size_t K> double Repulsion(const spline_t<K>& ab , const spline_t<K>& 
 
 template <size_t K1,size_t K2> double Overlap(const spline_t<K1>& a , const spline_t<K2>& b,size_t l_total,const GLCache& gl)
 {
-    std::function< double (double)> x2 = [](double r)
+    std::function< double (double)> x0 = [](double r)
     {
-        return r*r;
+        return 1.0;
     };
-    // return gl.Integrate(x2,a,b)*FourPi;
-    return BilinearForm{X<2>{}}(a,b)*FourPi;
+    return gl.Integrate(x0,a,b)*FourPi;
 }
 
 template <size_t K> double Grad2(const spline_t<K>& a , const spline_t<K>& b,size_t la, size_t lb,const GLCache& gl)
 {
-    // std::function< double (double)> x1 = [](double r)
-    // {
-    //     return r;
-    // };    
-    // static const auto T = -X<2>{} * Dx<2>{};
-    // assert(la==lb);
-    // auto dbdx=transformSpline(bspline::operators::Dx<1>{},b);
-    // double Iadb=gl.Integrate(x1,a,dbdx);
-    // return (BilinearForm{T}(a,b) - 2*Iadb)*FourPi;
-    static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
-    return BilinearForm{T}(a,b)*FourPi;
+    // static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
+    static const auto T = -Dx<2>{};
+    assert(la==lb);
+    return (BilinearForm{T}(a,b))*FourPi;
 }
 
 template <size_t K> double Inv_r1(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
 {
-    // std::function< double (double)> x1 = [](double r)
-    // {
-    //     return r;
-    // };
-    // return gl.Integrate(x1,a,b)*FourPi;
-    return BilinearForm{X<1>{}}(a,b)*FourPi; 
+    std::function< double (double)> xm1 = [](double r)
+    {
+        assert(r!=0.0);
+        return 1.0/r;
+    };
+    return gl.Integrate(xm1,a,b)*FourPi;
 }
 template <size_t K> double Inv_r2(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
 {
-    // std::function< double (double)> x0 = [](double r)
-    // {
-    //     return 1.0;
-    // };
-    // return gl.Integrate(x0,a,b)*FourPi;    
-    return BilinearForm{IdentityOperator{}}(a,b)*FourPi; 
+    std::function< double (double)> xm2 = [](double r)
+    {
+        assert(r!=0.0);
+        return 1.0/(r*r);
+    };
+    return gl.Integrate(xm2,a,b)*FourPi; 
 }
 
 template <size_t K> double Charge(const spline_t<K>& a , size_t l)
 {
-    return LinearForm{X<2>{}}(a)*FourPi;
+    return LinearForm{IdentityOperator{}}(a)*FourPi;
 }
 
 //---------------------------------------------------------------------------
 //
 //  Start member functions.
 //
-template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
+template <size_t K> void BSpline_r_IBS<K>::Register(Grouper* _grouper)
 {
     assert(_grouper);
     auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
@@ -84,7 +76,7 @@ template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
     grouper->itsGLs[l]=itsGL.get();
 }
 
-template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int l, const is_t& mls) 
+template <size_t K> BSpline_r_IBS<K>::BSpline_r_IBS(size_t Ngrid, double _rmin, double _rmax, int l, const is_t& mls) 
 : IBS_Evaluator(l,mls), rmin(_rmin), rmax(_rmax) 
 {
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
@@ -99,7 +91,7 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     assert(size()==splines.size());
 };
 
- template <size_t K> std::vector<double> BSpline_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
+ template <size_t K> std::vector<double> BSpline_r_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
 {
     assert(Ngrid>1);
     std::vector<double> knots;
@@ -124,7 +116,7 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     return knots;
 }
 
-template <size_t K> rvec_t BSpline_IBS<K>::norms() const
+template <size_t K> rvec_t BSpline_r_IBS<K>::norms() const
 {
     size_t N=splines.size();
     rvec_t ret(N);
@@ -132,7 +124,7 @@ template <size_t K> rvec_t BSpline_IBS<K>::norms() const
     return ret;
 }
 
-template <size_t K> rsmat_t BSpline_IBS<K>::Overlap() const
+template <size_t K> rsmat_t BSpline_r_IBS<K>::Overlap() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -143,7 +135,7 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Overlap() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_IBS<K>::Grad2() const
+template <size_t K> rsmat_t BSpline_r_IBS<K>::Grad2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -154,7 +146,7 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Grad2() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_IBS<K>::Inv_r1() const
+template <size_t K> rsmat_t BSpline_r_IBS<K>::Inv_r1() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -165,7 +157,7 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Inv_r1() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_IBS<K>::Inv_r2() const
+template <size_t K> rsmat_t BSpline_r_IBS<K>::Inv_r2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -176,7 +168,7 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Inv_r2() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_IBS<K>::Repulsion() const
+template <size_t K> rsmat_t BSpline_r_IBS<K>::Repulsion() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -187,7 +179,7 @@ template <size_t K> rsmat_t BSpline_IBS<K>::Repulsion() const
     return S;
 }
 
-template <size_t K> rvec_t BSpline_IBS<K>::Charge() const
+template <size_t K> rvec_t BSpline_r_IBS<K>::Charge() const
 {
     rvec_t V(size());
     for (auto i:iv_t(0,size()))
@@ -196,9 +188,9 @@ template <size_t K> rvec_t BSpline_IBS<K>::Charge() const
     return V;
 }
 
-template <size_t K> rmat_t BSpline_IBS<K>::XRepulsion(const Fit_IBS& _b) const
+template <size_t K> rmat_t BSpline_r_IBS<K>::XRepulsion(const Fit_IBS& _b) const
 {
-    const BSpline_IBS<K>& b=dynamic_cast<const BSpline_IBS<K>&>(_b);
+    const BSpline_r_IBS<K>& b=dynamic_cast<const BSpline_r_IBS<K>&>(_b);
     size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
@@ -207,9 +199,9 @@ template <size_t K> rmat_t BSpline_IBS<K>::XRepulsion(const Fit_IBS& _b) const
     return M;
 }
 
-template <size_t K> rmat_t BSpline_IBS<K>::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+template <size_t K> rmat_t BSpline_r_IBS<K>::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
 {
-    const BSpline_IBS<K>* b=dynamic_cast<const BSpline_IBS<K>*>(_b);
+    const BSpline_r_IBS<K>* b=dynamic_cast<const BSpline_r_IBS<K>*>(_b);
     assert(b);
     assert(l==b->l);
     size_t Nr=size(), Nc=b->size();
@@ -220,9 +212,9 @@ template <size_t K> rmat_t BSpline_IBS<K>::XKinetic(const Orbital_RKBS_IBS<doubl
     return M;
 }
 
-template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
+template <size_t K> dERI3 BSpline_r_IBS<K>::Overlap(const Fit_IBS& _c) const
 {
-    const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
+    const BSpline_r_IBS<K>& c=dynamic_cast<const BSpline_r_IBS<K>&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -239,9 +231,9 @@ template <size_t K> dERI3 BSpline_IBS<K>::Overlap(const Fit_IBS& _c) const
     }
     return S3;
 }
-template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
+template <size_t K> dERI3 BSpline_r_IBS<K>::Repulsion(const Fit_IBS& _c) const
 {
-    const BSpline_IBS<K>& c=dynamic_cast<const BSpline_IBS<K>&>(_c);
+    const BSpline_r_IBS<K>& c=dynamic_cast<const BSpline_r_IBS<K>&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -256,20 +248,20 @@ template <size_t K> dERI3 BSpline_IBS<K>::Repulsion(const Fit_IBS& _c) const
     return S3;
 }
 
-template <size_t K> rvec_t BSpline_IBS<K>::operator() (const rvec3_t& r) const
+template <size_t K> rvec_t BSpline_r_IBS<K>::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
     double mr=norm(r);
     size_t i=0;
     for (auto s:splines) 
     {
-        ret[i]=ns[i]*s(mr);
+        ret[i]=ns[i]*s(mr)/mr;
         ++i;
     }
     return ret;
 }
 
-template <size_t K> rvec3vec_t BSpline_IBS<K>::Gradient(const rvec3_t& r) const
+template <size_t K> rvec3vec_t BSpline_r_IBS<K>::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -291,11 +283,11 @@ template <size_t K> rvec3vec_t BSpline_IBS<K>::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-template <size_t K> std::ostream&  BSpline_IBS<K>::Write(std::ostream& os) const
+template <size_t K> std::ostream&  BSpline_r_IBS<K>::Write(std::ostream& os) const
 {
     return os << " with " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
 }
 
 
-#define INSTANCEk(k) template class BSpline_IBS<k>;
+#define INSTANCEk(k) template class BSpline_r_IBS<k>;
 #include "../../Instance.hpp"

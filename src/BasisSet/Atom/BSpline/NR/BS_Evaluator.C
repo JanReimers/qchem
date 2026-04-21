@@ -24,3 +24,21 @@ private:
     BSpline::RkCache<K>* itsRkCache;
 };
 
+export template <size_t K> class BSpline_r_BS 
+    : public virtual BS_Evaluator
+{
+public:
+    BSpline_r_BS() : itsRkCache(0) {};
+    virtual ~BSpline_r_BS();
+    virtual void Register(IBS_Evaluator *);
+    virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const; //4 center
+    virtual double loop_4_direct  (size_t id, size_t la, size_t lc,const rvec11_t& Ak) const; //Return vector dot product A[k]*R[k] 
+    virtual double loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak) const; //Return vector dot product A[k]*R[k] 
+protected:
+    void BuildCache(size_t lmax);
+private:
+    const GLCache* GetGL(size_t l) const;
+    SplineGrouper<K> grouper;
+    BSpline::RkCache_r<K>* itsRkCache;
+};
+

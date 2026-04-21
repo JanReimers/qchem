@@ -4,21 +4,20 @@ module;
 #include <vector>
 #include <memory>
 #include <iosfwd>
-export module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
+export module BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
 import qchem.BasisSet.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
-
 //
-//  This version is for phi(r) = sum(Bi(r),i)
-// 
+//  This version is for phi(r) = 1/r * sum(Bi(r),i)
+//
 class BSplineTests;
-export template <size_t K> class BSpline_IBS : public IBS_Evaluator
+export template <size_t K> class BSpline_r_IBS : public IBS_Evaluator
 {
     typedef bspline::Spline<double, K> spline_t;
 public: 
  
-    BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
-    BSpline_IBS(size_t Ngrid, double rmin, double rmax, int _l) : BSpline_IBS(Ngrid,rmin,rmax,_l,{}) {};
+    BSpline_r_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
+    BSpline_r_IBS(size_t Ngrid, double rmin, double rmax, int _l) : BSpline_r_IBS(Ngrid,rmin,rmax,_l,{}) {};
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
     virtual std::ostream& Write   (std::ostream&) const;
