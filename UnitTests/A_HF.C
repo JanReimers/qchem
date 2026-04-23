@@ -9,13 +9,13 @@ import qchem.Cluster;
 const bool verbose=false;
 inline SCFParams scf_params(int Z) 
 {
-//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   80     ,Z*1e-5    ,1e-10   ,Z*1e-6        ,Z<40 ? 0.5 : 0.4     ,1e-7  ,verbose};
+//           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    return {   80     ,Z*1e-5    ,1e-10 , 1e-13  ,Z*1e-6        ,Z<40 ? 0.5 : 0.4     ,1e-7  ,verbose};
 }
 inline SCFParams scf_params_BS(int Z) 
 {
-//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   30     ,Z*1e-5    ,1e-10   ,Z*1e-11        ,0.5     ,1e-7  ,verbose};
+//           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    return {   30     ,Z*1e-5    ,1e-10 , 1e-13    ,Z*1e-11        ,0.5     ,1e-7  ,verbose};
 }
 
 //---------------------------------------------------------------------------------------------------------------
@@ -377,8 +377,8 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5)); //7 fails Z
 
 inline SCFParams saito_params_BS(int Z) 
 {
-//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   30     ,Z*1e-5    ,1e-10   ,Z*1e-11        ,0.1     ,1e-7  ,true};
+//           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    return {   50     ,Z*1e-10    ,1e-13 , 1e-12   ,Z*5e-10        ,0.5     ,1e-7  ,true};
 }
 
 class A_BS_saito_HF_P : public ::testing::TestWithParam<int>
@@ -393,16 +393,20 @@ TEST_P(A_BS_saito_HF_P,Saito)
     int Z=GetParam();
     nlohmann::json js = {
         {"type",BasisSetAtom::Type::BSpliner9},
-        {"N", 100}, {"rmin", 0.0001}, {"rmax", 80},
+        {"N", 50}, {"rmin", 0.005}, {"rmax", 40},
     };
     QchemTester::Init(1e-3,js);
     Iterate(saito_params_BS(Z));
-    EXPECT_LT(RelativeHFError(),1e-9);
-    EXPECT_GT(RelativeHFError(),-1e-4);
+    double Eerr=RelativeHFError();
+    EXPECT_LT(Eerr,1e-9);
+    EXPECT_GT(Eerr,-1e-4);
+    EXPECT_TRUE(Converged());
 }
 
 #ifdef NDEBUG
-INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,93)); 
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(64)); 
 #else
-INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(64)); 
 #endif

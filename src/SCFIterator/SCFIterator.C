@@ -15,6 +15,7 @@ public:
     const WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
+    bool                Converged() const {return itsConverged;}
 private:
     void Initialize(DM_CD* cd);  //Does on iteration to set up the exact charge density.
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD) const;
@@ -28,6 +29,7 @@ private:
     DM_CD*          itsOldCD;
 
     size_t          itsIterationCount;
+    bool            itsConverged;
 };
 
 

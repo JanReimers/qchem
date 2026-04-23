@@ -101,6 +101,11 @@ size_t QchemTester::GetIterationCount() const
     return itsSCFIterator->GetIterationCount();
 }
 
+bool   QchemTester::Converged() const
+{
+    return itsSCFIterator->Converged();
+}
+
 double QchemTester::RelativeError(double E,bool quiet) const
 {
     double error=(E-TotalEnergy())/E;
@@ -111,8 +116,10 @@ double QchemTester::RelativeError(double E,bool quiet) const
         std::cout.precision(2);
         if (fabs(error)>1e-7)
             std::cout << error*1e6 << "(ppm)" << std::endl;
-        else
+        else if (fabs(error)>1e-10)
             std::cout << error*1e9 << "(ppb)" << std::endl;
+        else
+            std::cout << error*1e12 << "(ppt)" << std::endl;
     }
     return error;
 }

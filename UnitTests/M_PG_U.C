@@ -61,7 +61,8 @@ bool verbose=false;
 TEST_F(M_PG_HF_U,N2)
 {
     Init(MakeN2());
-    Iterate({20,1e-4,1e-7,1e-5,1.0,1e-4,verbose});
+    //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,MaxRelErrE);
 }
@@ -69,7 +70,8 @@ TEST_F(M_PG_HF_U,N2)
 TEST_F(M_PG_DFT_U,N2)
 {
     Init(MakeN2());
-    Iterate({20,1e-4,1e-7,1e-5,1.0,1e-4,verbose});
+    //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,MaxRelErrE);
 }

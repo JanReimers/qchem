@@ -31,6 +31,7 @@ public:
     double RelativeError(double expected,bool quiet=false) const;
     double RelativeHFError(bool quiet=false) const;
     double RelativeDFTError(bool quiet=false) const;
+    bool   Converged() const;
     int    GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
     size_t GetIterationCount() const;
     irrepv_t GetIrreps(const Spin& ms) const;

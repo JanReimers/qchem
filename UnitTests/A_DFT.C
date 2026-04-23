@@ -8,8 +8,8 @@ import qchem.Cluster;
 
 inline SCFParams dft_scf_params(int Z) 
 {
-//           NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
-    return {   20     ,Z*1e-3    ,1e-10   ,Z*1e-4        ,0.1      ,1e-8  ,true};
+//           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    return {   20     ,Z*1e-3    ,1e-10  ,1e-13 ,Z*1e-4        ,0.1      ,1e-8  ,true};
 }
 
 using namespace HamiltonianF;
