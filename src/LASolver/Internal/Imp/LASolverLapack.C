@@ -156,6 +156,7 @@ template <class T> void LASolverCholsky<T>::SetBasisOverlap(const smat_t<T>& S)
 {
     mat_t<T> Sm(S);
     blaze::potrf( Sm, 'U' );
+    LASolverCommon<T>::Diag=blaze::diagonal(Sm);
     blaze::trtri( Sm, 'U', 'N' );
     size_t N=Sm.rows();
     for (size_t i=0;i<N;i++)
@@ -165,7 +166,6 @@ template <class T> void LASolverCholsky<T>::SetBasisOverlap(const smat_t<T>& S)
     
 
     LASolverCommon<T>::AssignVs(V,blaze::trans(V)); //V=U^-1, Vd=transpose(U^-1)
-    LASolverCommon<T>::Diag=blaze::diagonal(V);
 }
 
 template <class T> rsmat_t LASolverCholsky<T>::Inverse(const rsmat_t& S) const
