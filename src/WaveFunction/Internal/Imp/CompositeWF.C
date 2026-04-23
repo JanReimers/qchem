@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <memory>
 #include "tabulate/table.hpp"
-
+// #include <blaze/Math.h>
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.SCFAccelerator;
 import qchem.BasisSet;
@@ -37,7 +37,7 @@ void CompositeWF::MakeIrrepWFs(Spin s)
     {
         LASolver<double>* lasb=LASolver<double>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
         lasb->SetBasisOverlap(b->Overlap());
-    // std::cout << "Minimum singular value for basis set overlap= " << Min(las->Get_BS_Diagonal()) << std::endl;
+        // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
         Irrep_QNs qns(b->GetIrrep(s));
         SCFIrrepAccelerator* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
         
