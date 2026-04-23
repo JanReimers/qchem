@@ -39,6 +39,6 @@ private:
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.
     double charge;
-    size_t itsLMax;
+    size_t itsLMax,itsLValance;
 };
 
