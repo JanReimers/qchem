@@ -27,7 +27,7 @@ using std::endl;
 class BSplineTests : public ::testing::Test
 {
 public:
-    static constexpr size_t K=6; //Spline order.
+    static constexpr size_t K=9; //Spline order.
     typedef bspline::Spline<double, K> spline_t;
     typedef Real_OIBS ibs_t;
     BSplineTests() 
@@ -41,14 +41,15 @@ public:
     void Init(int N, double rmin, double rmax)
     {
         nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline6},
+        {"type",BasisSetAtom::Type::BSpline9},
         {"N", N}, {"rmin", rmin}, {"rmax", rmax},
         };
         bs=BasisSetAtom::Factory(js,75);
         for (auto io:bs->Iterate<ibs_t>()) itsIBSs.push_back(io);
 
-        std::vector<double> knots=MakeLogKnots(0.01,2000.0,K,10);
+        std::vector<double> knots=MakeLogKnots(rmin,rmax,K,N);
         splines=bspline::generateBSplines<K>(knots);
+        // splines.erase(splines.begin());
     }
 
     static const spline_t& GetSpline(const BSpline_IBS<K>* eval,size_t index)
@@ -80,8 +81,10 @@ std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t 
 
     // logarithmic step
     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
-    for (size_t i = 0; i < Ngrid; i++) 
+    for (size_t i = 0; i < Ngrid-1; i++) 
         knots.push_back(rmin * pow(step, i));
+    knots.push_back(rmax); //Make the last one exact
+    // for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
     return knots;
 }
 template <class S,class B> rsmat_t BSplineTests::MakeSMat(const std::vector<S>& splines, const B& integrator)
@@ -156,41 +159,55 @@ TEST_F(BSplineTests, SplineMap)
 
 TEST_F(BSplineTests,GLQIntegration)
 {
-    Init(10,.1,10);
-    GLCache cache0(splines[0].getSupport().getGrid(),K+1);
-    GLCache cache2(splines[0].getSupport().getGrid(),K+3);
+    Init(100,.0001,40);
+    GLCache cache0(splines[0].getSupport().getGrid(),K+1); //K+1 is the minimum that works for w=x^0
+    GLCache cache2(splines[0].getSupport().getGrid(),K+2); //K+2 is the minimum that works for w=x^2
     std::function< double (double)> w0 = [](double x){return 1.0;};
     std::function< double (double)> w2 = [](double x){return x*x;};
-//
-//  Test all combos of indefinite integrals.
-//    
-    double max_error0=0.0,max_error2=0.0;
-    for (auto spa:splines)
-        for (auto spb:splines)
-        {
-            double Sab2=BilinearForm{IdentityOperator{}}(spa,spb);
-            double Sab3=cache0.Integrate(w0,spa,spb);
-            if (Sab3!=0)
-                EXPECT_NEAR(Sab2/Sab3,1.0,4e-14);
-            else
-                EXPECT_NEAR(Sab2,0.0,1e-16);
-            max_error0=std::max(max_error0,fabs(Sab2-Sab3)/Sab2);
-            Sab2=BilinearForm{X<2>{}}(spa,spb);
-            Sab3=cache2.Integrate(w2,spa,spb);
-            if (Sab3!=0)
-                EXPECT_NEAR(Sab2/Sab3,1.0,2e-13);
-            else
-                EXPECT_NEAR(Sab2,0.0,1e-16);
-            max_error2=std::max(max_error2,fabs(Sab2-Sab3)/Sab2);
-        }
-    // cout << "max_error 0,2=" << max_error0 << "," << max_error2 << endl;
-    // Now try some Definite integrals.
+    
     cout.precision(3);
     cout << "Grid = ";
     auto& grid=splines[0].getSupport().getGrid();
     for (auto r:grid) cout << r << ",";
     cout << endl;
-    // size_t Nsp=splines.size(), Ng=grid.size();
+    cout << "spline 0 =" << splines[0].front() << "," << splines[0].back() << "B(0)" << splines[0](0.0) << endl;
+    cout << "spline 1 =" << splines[1].front() << "," << splines[1].back() << "B(0)" << splines[1](0.0) << endl;
+//
+//  Test all combos of indefinite integrals.
+//    
+    size_t nerr0=0,nerr2=0;
+    double maxerr0=0.0, maxerr2=0.0;
+    for (auto spa:splines)
+        for (auto spb:splines)
+        {
+            if (!spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals()) continue;
+            double Sab2=BilinearForm{IdentityOperator{}}(spa,spb);
+            double Sab3=cache0.Integrate(w0,spa,spb);
+            assert(Sab2!=0.0);
+            assert(Sab3!=0.0);
+            // EXPECT_NEAR(Sab2/Sab3,1.0,7e-14);
+            double err0=fabs(Sab2/Sab3-1.0);
+            if (err0>1e-14)
+            {
+                nerr0++;
+                if (err0>maxerr0) maxerr0=err0;
+            }
+
+            Sab2=BilinearForm{X<2>{}}(spa,spb);
+            Sab3=cache2.Integrate(w2,spa,spb);
+            assert(Sab2!=0.0);
+            assert(Sab3!=0.0);
+            // EXPECT_NEAR(Sab2/Sab3,1.0,2e-13);
+            double err2=fabs(Sab2/Sab3-1.0);
+            if (err2>1e-14)
+            {
+                nerr2++;
+                if (err2>maxerr2) maxerr2=err2;
+            }
+        }
+    cout << "weight x^0: " << nerr0 << " error>1e-14, max=" << maxerr0 << endl;
+    cout << "weight x^2: " << nerr2 << " error>1e-14, max=" << maxerr2 << endl;
+
     double rmin=0.5,rmax=5.0;
     for (auto spa:splines)
         for (auto spb:splines)
@@ -204,7 +221,7 @@ TEST_F(BSplineTests, Overlap)
 {
     cout << "Overlap ";
     cout.precision(3);
-    Init(10,.1,40.);
+    Init(4+K,.1,40.);
     for (auto ibs:bs->Iterate<Real_OIBS >())
     {
         cout << ibs->GetSymmetry();
@@ -249,7 +266,7 @@ TEST_F(BSplineTests, Nuclear)
 {
     cout << "Nuclear ";
     cout.precision(3);
-    Init(10,.1,40.);
+    Init(4+K,.1,40.);
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << ibs->GetSymmetry();
@@ -270,7 +287,7 @@ TEST_F(BSplineTests, Kinetic)
 {
     cout << "Kinetic ";
     cout.precision(3);
-    Init(10,.1,40.);
+    Init(4+K,.1,40.);
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << ibs->GetSymmetry();

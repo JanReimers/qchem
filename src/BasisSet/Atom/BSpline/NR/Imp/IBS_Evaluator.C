@@ -90,11 +90,14 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
+    // DOn;t pop the first spline for 1.0 weightingm only for 1.r
+    // splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
+    splines.pop_back(); //Last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
     auto grid=splines[0].getSupport().getGrid();
     // std::cout << "Grid = " << grid.size() << "    ";
     // for (auto r:grid) std::cout << r << ",";
     // std::cout << std::endl;
-    itsGL.reset(new GLCache(grid,K+2*l));
+    itsGL.reset(new GLCache(grid,K+3));
     ns=norms();
     assert(size()==splines.size());
 };
@@ -114,12 +117,12 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     for (size_t i = 0; i < Ngrid-1; i++) //Skip 0.0 and rmax
         knots.push_back(rmin * pow(step, i));
     
-    // cout << Ngrid << " " << l << " " << numberOfZeros << " ";
+    std::cout << Ngrid << " " << l << " " << numberOfZeros << " ";
     if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
     if (numberOfZeros<1) numberOfZeros=1;
-    // cout << numberOfZeros << endl;
+        std::cout << numberOfZeros << std::endl;
 
-    for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
+     for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
     // std::cout << knots << std::endl;
     return knots;
 }
