@@ -161,24 +161,41 @@ bool SCFAcceleratorDIIS::CalculateProjections()
 {
     blaze::clear(itsCs);
     itsEn=0.0;
+    bailoutReason="            ";
     for (auto k:itsIrreps) 
     {
         double Enk=k->GetError();
-        if (Enk==0.0) return false;
+        if (Enk==0.0) 
+        {
+            bailoutReason="Enk==0.0    ";
+            return false;
+        }
         itsEn+=Enk*Enk;
     }
     itsEn=sqrt(itsEn);
     // cout << "itsEn=" << itsEn << endl;
-    if (itsEn>itsParams.EMax) return false;
+    if (itsEn>itsParams.EMax) 
+    {
+        bailoutReason="En>EMax     ";
+        return false;
+    }
     
     if (Append1()>itsParams.Nproj) Purge1();
     assert(GetNProj()<=itsParams.Nproj);
-    if (GetNProj()<2) return false;
+    if (GetNProj()<2) 
+    {
+        bailoutReason="Nproj<2     ";
+        return false;
+    }
     
     rsmat_t B=BuildPrunedB(itsParams.SVTol);
-    if (B.rows()<=2) return false;
+    if (B.rows()<=2) 
+    {
+        bailoutReason="B.rows()<=2 ";
+        return false;
+    }
                 
-    itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a refeence to this in order to the the projections.
+    itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a reference to this in order to do the projections.
    
     return true;
 }
@@ -186,7 +203,7 @@ bool SCFAcceleratorDIIS::CalculateProjections()
 
 void SCFAcceleratorDIIS::ShowLabels(std::ostream& os) const
 {
-    os << " [F,D]   Nproj    SVMin";
+    os << " [F,D]   Nproj    SVMin   Bail   ";
 }
 void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
 {
@@ -198,6 +215,7 @@ void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
     }
         else
         os << "                ";
+    os << bailoutReason;
 }
 double SCFAcceleratorDIIS::GetError() const
 {

@@ -91,5 +91,6 @@ private:
 
     double itsEn,itsLastSVMin;
     rvec_t itsCs;
+    std::string bailoutReason;
 };
 
