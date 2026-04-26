@@ -18,12 +18,12 @@ import qchem.Common.Strings;
 using std::cout;
 using std::endl;
 
-// struct ml_Breakdown
-// {
-//     std::vector<int> ml_paired;     //List of ml values for paired orbitals
-//     std::vector<int> ml_unpaired;   //List of ml values for unpaired orbitals
-//     std::vector<int> ml_unoccupied; //List of ml values for empty orbitals
-// };
+struct ml_Breakdown
+{
+    std::vector<int> ml_paired;     //List of ml values for paired orbitals
+    std::vector<int> ml_unpaired;   //List of ml values for unpaired orbitals
+    std::vector<int> ml_unoccupied; //List of ml values for empty orbitals
+};
 
 //----------------------------------------------------------------------------------------------
 //

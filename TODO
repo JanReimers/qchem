@@ -29,88 +29,15 @@ Priority 1:
         -LApack Cholsky/SVD/Eigen
         -Basis set
         -
-    -Atom radial functions are often expressed as phi(r) = 1/r * Pnl(r)  where Pnl(r) is then expanded in some basis set.
-        Then the overlap S_ab = integral(Phi_a*Phi_b*r^2*dr) = integral(Pnl_a*Pnl_b*dr).
-        Currently the qchem package handles all basis sets as phi(r) = Pnl(r) without the 1/r
-        Starting with splines we should add support for 1/r * Pnl(r)
-        This might enhance numerical stability for N>40 basis functions.
-        The problem is to decide a naming convention for each case:
-            phi(r) = 1/r * Pnl(r) name= BSpline_r
-            phi(r) =       Pnl(r) name= BSpline
-        Done: -In order to implement this we will need to support <a|1/r|b> and <a|1/r^2|b> integrals.  These are not directly
-         supported by c++ BSpline package.  only operator X<n> where n>=0 are supported.
-        Done: -We can do the integrals with numerical recipes gauleg function which calculates sets {x},{w} for quadrature integration.
-        Fixed: -However it seems that BilinearForm{X<2>{}}(a,b)*FourPi; and gauleg.Integrate(x2,a,b)*FourPi; are giving different results
-         especially near the origin.
-         -gauleg was using order K+2*l,  changed to K+3 and error disapeared.
-        Goals:
-        1) Get BilinearForm{X<2>{}}(a,b) == gl.Integrate(x2,a,b) to machine accuracy
-            K=9 weight x^0: 378 error>1e-14, max=2.24e-12, weight x^2: 382 error>1e-14, max=5.77e-12
-            k=8 weight x^0: 234 error>1e-14, max=6.37e-13, weight x^2: 561 error>1e-14, max=1.22e-12
-            K=7 weight x^0: 241 error>1e-14, max=2.22e-13, weight x^2: 212 error>1e-14, max=3.73e-13
-            K=6 weight x^0: 226 error>1e-14, max=6.17e-14, weight x^2: 160 error>1e-14, max=9.21e-14
-            K=5 weight x^0: 229 error>1e-14, max=3.06e-14, weight x^2: 69  error>1e-14, max=7.87e-14
-            K=4 weight x^0: 3   error>1e-14, max=2.22e-14, weight x^2: 201 error>1e-14, max=1.49e-14
-            K=3 weight x^0: 1   error>1e-14, max=1.42e-14, weight x^2: 3   error>1e-14, max=1.29e-14
-            Errors between BSpline package and gauleg integration grow rapidly for K>~4
-        Done: 2) Check all the other required integrals.
-        Done: 3) Support both basis set options above 1) phi(r) = 1/r * Pnl(r) and 2) phi(r) = Pnl(r)
-        4) Verify comments from Saito: To construct the B-spline set for atomic calculations, the knot
-            sequence must be generated in [0, R] with K-fold multiple end-
-            points. Since the first and last terms of such B-splines are nonzero
-            at r = 0 and at r = R, respectively, they were removed from the basis
-            set in order to satisfy the boundary conditions. An N-term B-spline
-            set {Bi,K}i=2,. . .,N+1 is thereby obtained...
-            -Saito uses Rmin=10^-4=0.0001  qchem can't handle this, even for Hydrogen!!
-            -Rmin=0.01 workes well for Z=1..10.
-            -Toughest atoms in the first two rows for virial ratio Are:
-                N=100,R=[0.01,40]  Li,B, O
-                N=50 ,R=[0.01,40]  Li,B, O
-        4.5) Add V/K-2 to convergence criteria.
-
-        Done: 5) Get He working to high precision.  In particular fabs(V/K+2) < 1e-11
-        6) Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
-        7) Try to run atoms 2->118 and compared E, Eo and <r> moments.
-            
-
-    -re-imagine Electron configurations
-        -How about map<Irrep_QNs,size_t> Occs to track all occupations.
-        -Yes this is what we need
-        -We need to build this list from ElCounts=
-            int N [LMax+1]; //Total N[l]
-            int Nf[LMax+1]; //Full shell or core, N[l]
-            int Nv[LMax+1]; //Valance shell N[l].  He is considered to have no valance electrons ... all are core.
-            int Nu[LMax+1]; //# of unpaired electrons for a given l.
-        -if l=0, then no magnetic splitting. 
-            assert((N+Nu)%2) 
-            Occs[Up,s]=(N+Nu)/2
-            Occs[Dn,s]=(N-Nu)/2
-            or:
-            Occs[Up,s]=Nf/2+Nu
-            Occs[Dn,s]=Nf/2
-        -if l>0  now we need to worry about magnetic splitting
-            Npair=(Nv-Nu)/2 (for l=1 this 0,1,2)
-            m_unpaired has Nu m values, g_unpaired=Nu
-            m_paired gets the remainder, g_paired=g-Nu
-            n_levels=Nf/g2
-            Occs[Up,Ylm_paired]=n_levels*g_paired+Npair
-            Occs[Dn,Ylm_paired]=n_levels*g_paired+Npair
-            Occs[Up,Ylm_unpaired]=n_levels*g_unpaired+Nu
-        Done except for Ce, Z=58.  
-        We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
-        -Now build an un polarized version of the itsOccupations list;
-            We need to create a Yl symmetry from and Ylms.
-
-
+    -Can we support syms_t GetIrreps() const; at the most abstract EC level ElectronConfiguration?
+        Molecule: Should return a list of point group irreps
+        Lattice: Should return a list of K points.  With space group irreps?
+    -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
+        [k] capture makes this very difficult.
+    -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
+    -Figure EC for Ce Z=58 ground state.
     -Support null accelerator.
-
-    Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
-    Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
-    Done: -clean up qchem.LASolver;
-    Done: -Get rid of Orbital_IBS::CreateSolver
-        Only used by CompositeWF
-        Move default LAParams into CompositeWF.
-    Done: -Do something with MeshIntegrals.C
+    -Speed up bspline Rk.  Too many find calls!!
     -Clean up SCFiterator
         Clean handling of E>Eold
         Use deque<std:shared_ptr<DM_CD>>
@@ -129,13 +56,6 @@ Priority 1:
             S=3.14 set to constant
         Bounds checking in DEBUG mode.
     	
-    Done: -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
-    Done: -Refactor Lattice and UnitCell
-        UnitCell->Cluster should hold the atom basis.
-            Private inherit from Molecule?
-        Lattice should hold a UnitCell, Nx Ny Nz
-        If ReciprocalLattice is also a Lattice then it must hold a clone of atom basis?
-            The basis of the rec lattice is really i/Nx,j/Ny,k/Nz. 
             
     -Migrate away from valarray in favour of blaze dynamic vector.
     Done: -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
@@ -617,7 +537,92 @@ Priority 3:
 
 
 
+    Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
+    Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
+    Done: -clean up qchem.LASolver;
+    Done: -Get rid of Orbital_IBS::CreateSolver
+        Only used by CompositeWF
+        Move default LAParams into CompositeWF.
+    Done: -Do something with MeshIntegrals.C
+    Done: -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
+    Done: -Refactor Lattice and UnitCell
+        UnitCell->Cluster should hold the atom basis.
+            Private inherit from Molecule?
+        Lattice should hold a UnitCell, Nx Ny Nz
+        If ReciprocalLattice is also a Lattice then it must hold a clone of atom basis?
+            The basis of the rec lattice is really i/Nx,j/Ny,k/Nz. 
 
+    Done: -Atom radial functions are often expressed as phi(r) = 1/r * Pnl(r)  where Pnl(r) is then expanded in some basis set.
+        Then the overlap S_ab = integral(Phi_a*Phi_b*r^2*dr) = integral(Pnl_a*Pnl_b*dr).
+        Currently the qchem package handles all basis sets as phi(r) = Pnl(r) without the 1/r
+        Starting with splines we should add support for 1/r * Pnl(r)
+        This might enhance numerical stability for N>40 basis functions.
+        The problem is to decide a naming convention for each case:
+            phi(r) = 1/r * Pnl(r) name= BSpline_r
+            phi(r) =       Pnl(r) name= BSpline
+        Done: -In order to implement this we will need to support <a|1/r|b> and <a|1/r^2|b> integrals.  These are not directly
+         supported by c++ BSpline package.  only operator X<n> where n>=0 are supported.
+        Done: -We can do the integrals with numerical recipes gauleg function which calculates sets {x},{w} for quadrature integration.
+        Fixed: -However it seems that BilinearForm{X<2>{}}(a,b)*FourPi; and gauleg.Integrate(x2,a,b)*FourPi; are giving different results
+         especially near the origin.
+         -gauleg was using order K+2*l,  changed to K+3 and error disapeared.
+        Goals:
+        Done: 1) Get BilinearForm{X<2>{}}(a,b) == gl.Integrate(x2,a,b) to machine accuracy
+            K=9 weight x^0: 378 error>1e-14, max=2.24e-12, weight x^2: 382 error>1e-14, max=5.77e-12
+            k=8 weight x^0: 234 error>1e-14, max=6.37e-13, weight x^2: 561 error>1e-14, max=1.22e-12
+            K=7 weight x^0: 241 error>1e-14, max=2.22e-13, weight x^2: 212 error>1e-14, max=3.73e-13
+            K=6 weight x^0: 226 error>1e-14, max=6.17e-14, weight x^2: 160 error>1e-14, max=9.21e-14
+            K=5 weight x^0: 229 error>1e-14, max=3.06e-14, weight x^2: 69  error>1e-14, max=7.87e-14
+            K=4 weight x^0: 3   error>1e-14, max=2.22e-14, weight x^2: 201 error>1e-14, max=1.49e-14
+            K=3 weight x^0: 1   error>1e-14, max=1.42e-14, weight x^2: 3   error>1e-14, max=1.29e-14
+            Errors between BSpline package and gauleg integration grow rapidly for K>~4
+        Done: 2) Check all the other required integrals.
+        Done: 3) Support both basis set options above 1) phi(r) = 1/r * Pnl(r) and 2) phi(r) = Pnl(r)
+        Done: 4) Verify comments from Saito: To construct the B-spline set for atomic calculations, the knot
+            sequence must be generated in [0, R] with K-fold multiple end-
+            points. Since the first and last terms of such B-splines are nonzero
+            at r = 0 and at r = R, respectively, they were removed from the basis
+            set in order to satisfy the boundary conditions. An N-term B-spline
+            set {Bi,K}i=2,. . .,N+1 is thereby obtained...
+            -Saito uses Rmin=10^-4=0.0001  qchem can't handle this, even for Hydrogen!!
+            -Rmin=0.01 workes well for Z=1..10.
+            -Toughest atoms in the first two rows for virial ratio Are:
+                N=100,R=[0.01,40]  Li,B, O
+                N=50 ,R=[0.01,40]  Li,B, O
+        Done: 4.5) Add V/K-2 to convergence criteria.
+
+        Done: 5) Get He working to high precision.  In particular fabs(V/K+2) < 1e-11
+        6) 
+        Done: 7) Try to run atoms 2->118 and compared E, Eo and <r> moments.
+            
+
+    Done: -re-imagine Electron configurations
+        -How about map<Irrep_QNs,size_t> Occs to track all occupations.
+        -Yes this is what we need
+        -We need to build this list from ElCounts=
+            int N [LMax+1]; //Total N[l]
+            int Nf[LMax+1]; //Full shell or core, N[l]
+            int Nv[LMax+1]; //Valance shell N[l].  He is considered to have no valance electrons ... all are core.
+            int Nu[LMax+1]; //# of unpaired electrons for a given l.
+        -if l=0, then no magnetic splitting. 
+            assert((N+Nu)%2) 
+            Occs[Up,s]=(N+Nu)/2
+            Occs[Dn,s]=(N-Nu)/2
+            or:
+            Occs[Up,s]=Nf/2+Nu
+            Occs[Dn,s]=Nf/2
+        -if l>0  now we need to worry about magnetic splitting
+            Npair=(Nv-Nu)/2 (for l=1 this 0,1,2)
+            m_unpaired has Nu m values, g_unpaired=Nu
+            m_paired gets the remainder, g_paired=g-Nu
+            n_levels=Nf/g2
+            Occs[Up,Ylm_paired]=n_levels*g_paired+Npair
+            Occs[Dn,Ylm_paired]=n_levels*g_paired+Npair
+            Occs[Up,Ylm_unpaired]=n_levels*g_unpaired+Nu
+        Done except for Ce, Z=58.  
+        
+        Done: -Now build an un polarized version of the itsOccupations list;
+            We need to create a Yl symmetry from and Ylms.
 
     Done: -Rk inconsistencies that should be cleaned up.
 	Done: -GetSymmetry() should return a const Symmetry& instead of a shared ptr instance?

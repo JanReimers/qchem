@@ -122,6 +122,9 @@ Atom_EC::Atom_EC(int Z)
         itsNs.Nu[2]=1; //One unpaired in d↑
         itsNs.Nu[3]=-1; //One unparied in f↓
     }
+    //
+    //  Now build a list of symmetries with occupation numbers.
+    //
     for (int l=0;l<=LMax;l++)
     {
         int N=itsNs.N[l],Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
@@ -226,45 +229,6 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
     // assert(i!=itsOccupations.end());
     return i->second;
      
-}
-
-ml_Breakdown Atom_EC::GetBreadown(size_t l) const
-{
-    itsNs.DebugCheck(); //Check self consistency
-    ml_Breakdown mls;
-    size_t g=2*l+1; //degenracy
-    size_t Nunp=abs(itsNs.Nu[l]); //These can be negative Z=58 Ce.
-    size_t Npairs= g-Nunp; // For full shell systems this ends up being zero.
-    size_t Nempty=g-Npairs-Nunp;
-    if (Nempty==g) //Fix up for full shell systems.
-    {
-        Npairs=g;
-        Nempty=0;
-    }
-    // if (itsNs.Nu[l]>0)
-    {
-        int ml=-(int)l;
-        for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml++);
-        for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml++);
-        for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
-        assert(ml==(int)(l+1));
-
-    }
-    // if (l==3 && Nunp==1 && mls.ml_unpaired[0]==-3) mls.ml_unpaired[0]=0;
-    // else
-    // {
-    //     int ml=(int)l;
-    //     for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml--);
-    //     for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml--);
-    //     for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml--);
-    //     assert(ml==-(int)(l+1));
-
-    // }
-
-    // cout << "ml_paired    =" << mls.ml_paired << endl;
-    // cout << "ml_unpaired  =" << mls.ml_unpaired << endl;
-    // cout << "ml_unoccupied=" << mls.ml_unoccupied << endl;
-    return mls;
 }
 
 // Get a list of spatial symmetries (ignore spin).  Use std::set to avoid duplicates.
