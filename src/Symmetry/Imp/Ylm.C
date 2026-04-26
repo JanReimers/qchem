@@ -36,7 +36,7 @@ int Ylm_Sym::GetDegeneracy() const
 
 //  This function is non trivial  we need to count how many total, and how many unpaired electrons
 //  there are for a given l and list of ml values.
-//  We do this by dumping elkectrons into valance and un paired buckets.
+//  We do this by dumping electrons into valance and un paired buckets.
 ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
 {
     ec.DebugCheck();
@@ -50,6 +50,7 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
     int nlmdns[2*LMax+1]={0,0,0,0,0,0,0};
     for (int m=-l;m<=l && nup>0;m++,nup--) nlmups[m+l]++;
     for (int m=-l;m<=l && ndn>0;m++,ndn--) nlmdns[m+l]++;
+    // for (int m=l;m<=-1l && ndn>0;m--,ndn--) nlmdns[m+l]++;
     // Now count how many of these occupied states are in the ml list.
     int nlmup=0,nlmdn=0;
     for (auto m:ml)
@@ -57,7 +58,7 @@ ElCounts_l Ylm_Sym::GetN(const ElCounts& ec) const
         nlmup+=nlmups[m+l];
         nlmdn+=nlmdns[m+l];
     }
-    assert(nlmup>=nlmdn);
+    //assert(nlmup>=nlmdn);  Not for Z=58 Ce  with 5d1↑ 4f1↓ valance configuration.
     int nlmv=nlmup+nlmdn; //Total valance
     int nlmu=nlmup-nlmdn; //Total unpaired.
 

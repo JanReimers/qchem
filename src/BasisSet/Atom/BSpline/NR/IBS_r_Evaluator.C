@@ -18,6 +18,7 @@ public:
  
     BSpline_r_IBS(size_t Ngrid, double rmin, double rmax, int _l, const is_t& _mls);
     BSpline_r_IBS(size_t Ngrid, double rmin, double rmax, int _l) : BSpline_r_IBS(Ngrid,rmin,rmax,_l,{}) {};
+    BSpline_r_IBS(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
     virtual std::ostream& Write   (std::ostream&) const;

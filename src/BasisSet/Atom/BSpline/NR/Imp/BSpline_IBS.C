@@ -66,6 +66,14 @@ template <size_t K> Orbital_IBS_r<K>::Orbital_IBS_r(const DB_BS_2E<double>* db,s
     , AtomBS::Orbital_DFT_IBS<double>(db,this)
 {
 };
+template <size_t K> Orbital_IBS_r<K>::Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& ylm)
+    : BSpline_r_IBS<K>(N,rmin,rmax,ylm)
+    , AtomBS::IrrepBasisSet(this,ylm)
+    , AtomBS::Orbital_HF_IBS <double>(db)
+    , AtomBS::Orbital_IBS    <double>(db,this)
+    , AtomBS::Orbital_DFT_IBS<double>(db,this)
+{
+};
 
 
 template <size_t K> ::Fit_IBS* Orbital_IBS_r<K>::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const

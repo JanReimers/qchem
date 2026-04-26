@@ -76,10 +76,10 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
     if (ipar.Verbose)
     {
         cout << endl << endl;
-        cout << " #             Etotal       2+V/K    Del(E)  Del(Ro)";
+        cout << " #           Etotal       2+V/K    Del(E)  Del(Ro)";
         itsAccelerator->ShowLabels(cout);
         cout << "   relax" << endl;
-        cout << "                           ";
+        cout << "                         ";
         cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinVirial  << ")  ";
         cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinDelE  << ") ";
         cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinDeltaRo  << ") ";
@@ -141,6 +141,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
                  && Error               < ipar.MinError
                  && fabs(eb.GetVirial()+2) < ipar.MinVirial
                   ;
+        // DisplayEigen();
     }
     itsIterationCount--;
     size_t nprec=12,ndigits=log10(-eb.Een)+1,w=1+ndigits+1+nprec;
@@ -157,7 +158,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         << "Een  : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een << "  "
         << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee << "  "
         << "Eex      : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
-        cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(11) << eb.GetVirial() << "   ";
+        cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(11) << eb.GetVirial() << "  ";
         if (eb.Exc!=0.0)
             cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc ;
         cout << endl;
@@ -184,7 +185,7 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
 {
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(3)  << i << " ";
-    cout << setw(2+6+14) << setprecision(14) << eb.GetTotalEnergy() << " ";
+    cout << setw(2+6+12) << setprecision(12) << eb.GetTotalEnergy() << " ";
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+2.0 << " ";
         
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dE  << " ";

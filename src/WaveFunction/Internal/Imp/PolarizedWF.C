@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <iomanip>
+#include <set>
 #include "tabulate/table.hpp"
 
 module qchem.WaveFunction.Internal.PolarizedWF;
@@ -43,11 +44,22 @@ void PolarizedWF::DisplayEigen() const
 
 
     EnergyLevels els_up=GetEnergyLevels(Spin::Up), els_dn=GetEnergyLevels(Spin::Down);
-    for (auto [eup,up]:els_up)
+    std::set<Orbital_QNs> alreadyGotIt;
+    for (auto elp:GetEnergyLevels())
     {
-        if (eup>0.0 || up.occ==0) break;
-        Orbital_QNs dnqns(up.qns.n,Spin::Down,up.qns.sym);
+        const EnergyLevel& el=elp.second;
+        Orbital_QNs upqns(el.qns.n,Spin::Up  ,el.qns.sym);
+        Orbital_QNs dnqns(el.qns.n,Spin::Down,el.qns.sym);
+        auto up=els_up.find(upqns); 
         auto dn=els_dn.find(dnqns); 
+        if (alreadyGotIt.find(upqns)!=alreadyGotIt.end())
+        {
+            assert(alreadyGotIt.find(dnqns)!=alreadyGotIt.end());
+            continue;
+        }
+        alreadyGotIt.insert(upqns);
+        alreadyGotIt.insert(dnqns);
+        if (up.occ==0 && dn.occ==0) continue;
         std::ostringstream sym_string,up_occ_string,dn_occ_string;
         sym_string << up.qns.n << *up.qns.sym;
         up_occ_string << std::fixed << std::setprecision(0) << up.occ << "/" << up.degen;
@@ -55,7 +67,7 @@ void PolarizedWF::DisplayEigen() const
         size_t l=up.qns.sym->GetPrincipleOffset();
 
         RowStream rs;
-        rs << up_occ_string.str() << std::fixed << std::setprecision(8) << eup; 
+        rs << up_occ_string.str() << std::fixed << std::setprecision(8) << up.e; 
         rs << sym_string.str();
         rs << dn_occ_string.str() << std::fixed << std::setprecision(8) << dn.e;
         rs << std::fixed << up.e-dn.e;

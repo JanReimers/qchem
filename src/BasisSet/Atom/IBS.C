@@ -22,6 +22,10 @@ public:
     : IrrepBasisSet_Common<double>(sym)
     , itsEval(eval)
     {};
+    IrrepBasisSet(IBS_Evaluator* eval, const Irrep_QNs::sym_t& sym)
+    : IrrepBasisSet_Common<double>(sym)
+    , itsEval(eval)
+    {};
     virtual size_t  GetNumFunctions() const {return itsEval->size();}
     virtual size_t  size           () const {return itsEval->size();}
     virtual rvec_t     operator() (const rvec3_t& r) const {return itsEval->operator()(r);}

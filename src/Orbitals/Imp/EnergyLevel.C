@@ -40,8 +40,11 @@ const EnergyLevel& EnergyLevels::find(const Orbital_QNs& oqns) const
 {
     auto i=itsQNLevels.find(oqns);
     if (i==itsQNLevels.end())
+    {
+        std::cout << "EnergyLevels cannot find:" << oqns << " int this list:" << std::endl;
         for (auto o:itsQNLevels)
-            std::cout << o.first << std::endl;
+            std::cout << "   " << o.first << std::endl;
+    }
     assert(i!=itsQNLevels.end());
     return i->second;
 }

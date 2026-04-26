@@ -40,12 +40,12 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     assert(&*itsCluster);
     itsBasisSet=GetBasisSet(js); //SG, PG, Slater
     assert(itsBasisSet);
-    if (verbose)
+    // if (verbose)
     {
         std::cout << " " << *itsBasisSet << std::endl;
     }
     int Z=GetZ();
-    nlohmann::json jsacc={{"NProj",8},{"EMax",Z*Z*0.1/16},{"EMin",1e-7},{"SVTol",1e-9}};
+    nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",1e-9}};
     SCFAccelerator* acc=SCFAcceleratorF::Factory(SCFAcceleratorF::Type::DIIS,jsacc);
     // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);

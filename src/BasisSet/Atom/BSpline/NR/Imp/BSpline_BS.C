@@ -55,18 +55,22 @@ template <size_t K> BasisSet_r<K>::BasisSet_r(size_t N, double rmin, double rmax
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
-    for (size_t L=0;L<=LMax;L++)
+    for (auto ir:aec.GetIrreps())
     {
-        auto mls=aec.GetBreadown(L);
-        if (mls.ml_paired.size()>0)   
-            Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,L,mls.ml_paired));            
-        if (mls.ml_unpaired.size()>0)   
-            Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,L,mls.ml_unpaired));            
-        if (mls.ml_unoccupied.size()>0)   
-            Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,L,mls.ml_unoccupied));            
+         Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,ir));  
+    }
+    // for (size_t L=0;L<=LMax;L++)
+    // {
+    //     auto mls=aec.GetBreadown(L);
+    //     if (mls.ml_paired.size()>0)   
+    //         Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,L,mls.ml_paired));            
+    //     if (mls.ml_unpaired.size()>0)   
+    //         Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,L,mls.ml_unpaired));            
+    //     if (mls.ml_unoccupied.size()>0)   
+    //         Insert(new Orbital_IBS_r<K>(this,N,rmin,rmax,L,mls.ml_unoccupied));            
 
     
-    }           
+    // }           
     BuildCache(LMax);
 }
 

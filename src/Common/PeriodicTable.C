@@ -430,7 +430,7 @@ double PeriodicTable::NumUnpaired[N_Elements]=
     1.0,//Cs
     0.0,//Ba
     1.0,//La
-    2.0,//Ce //There is some controversy on this between 1G 3H term symbols
+    0.0,//Ce //There is some controversy on this between 1G 3H term symbols
     3.0,//Pr
     4.0,//Nd
     5.0,//Pm

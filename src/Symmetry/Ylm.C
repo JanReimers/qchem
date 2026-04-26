@@ -28,6 +28,7 @@ public:
     virtual std::ostream&  Write(std::ostream&) const;
    
     using Yl_Sym::GetL;
+    const std::vector<int>& Getmls() const {return ml;}
 protected:
     std::vector<int> ml;
 };

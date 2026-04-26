@@ -33,6 +33,11 @@ public:
     {
         assert(itsSymmetry);
     };
+    IrrepBasisSet_Common(const Irrep_QNs::sym_t& sym) : itsSymmetry(sym) 
+    {
+        assert(itsSymmetry);
+    };
+    
     virtual const Symmetry& GetSymmetry() const;
     virtual Irrep_QNs GetIrrep(const Spin& s) const;
     using UniqueIDImp::GetID;

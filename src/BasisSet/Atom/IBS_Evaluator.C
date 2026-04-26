@@ -3,12 +3,14 @@ module;
 #include <vector>
 #include <ranges>
 #include <iosfwd>
+#include <cassert>
 export module qchem.BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Fit_IBS;
 export import qchem.Orbital_DHF_IBS;
 export import qchem.VectorFunction;
+import qchem.Symmetry.Ylm;
 
 export using dERI3=ERI3<double>;
 
@@ -20,6 +22,7 @@ public:
     
 
     IBS_Evaluator(int _l, const is_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
+    IBS_Evaluator(const Irrep_QNs::sym_t& ylm);
     virtual ~IBS_Evaluator() {};
 
     virtual void          Register(Grouper*)=0; //Set up unique spline or exponent indexes.
@@ -55,3 +58,16 @@ protected:
     std::vector<size_t> es_indices; //Unique exponent index
 
 };
+
+
+IBS_Evaluator::IBS_Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
+{
+    const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(y.get());
+    assert(yl);
+    l=yl->GetL();
+    const Ylm_Sym* ylm=dynamic_cast<const Ylm_Sym*>(y.get());
+    if (ylm)
+    {
+        mls=ylm->Getmls();
+    }
+}

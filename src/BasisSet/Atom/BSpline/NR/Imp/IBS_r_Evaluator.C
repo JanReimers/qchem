@@ -93,6 +93,23 @@ template <size_t K> BSpline_r_IBS<K>::BSpline_r_IBS(size_t Ngrid, double _rmin, 
     assert(size()==splines.size());
 };
 
+template <size_t K> BSpline_r_IBS<K>::BSpline_r_IBS(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
+: IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) 
+{
+    std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
+    // std::cout << "Knots=" << knots << std::endl;
+    splines=bspline::generateBSplines<K>(knots);
+    splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
+    splines.pop_back(); //Last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
+    auto grid=splines[0].getSupport().getGrid();
+    // std::cout << "Grid = " << grid.size() << "    ";
+    // for (auto r:grid) std::cout << r << ",";
+    // std::cout << std::endl;
+    itsGL.reset(new GLCache(grid,K+1));
+    ns=norms();
+    assert(size()==splines.size());
+};
+
  template <size_t K> std::vector<double> BSpline_r_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
 {
     assert(Ngrid>1);

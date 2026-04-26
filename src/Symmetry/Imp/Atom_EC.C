@@ -3,11 +3,14 @@ module;
 #include <cassert>
 #include <iostream>
 #include <initializer_list>
+#include <vector>
 
 module qchem.Symmetry.AtomEC;
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Angular;
+import qchem.Symmetry.Ylm;
+import qchem.stl_io;
 
 using std::cout;
 using std::endl;
@@ -114,7 +117,58 @@ Atom_EC::Atom_EC(int Z)
                 nup--;
             }
     }
-    // Display();
+    if (Z==58 && nup==0) //Special handling for Ce with 5d1↑ 4f1↓ valance configuration.
+    {
+        itsNs.Nu[2]=1; //One unpaired in d↑
+        itsNs.Nu[3]=-1; //One unparied in f↓
+    }
+    for (int l=0;l<=LMax;l++)
+    {
+        int N=itsNs.N[l],Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
+        int g=2*l+1;
+        int g2=2*g;
+        assert(Nv<g2);
+        assert(Nu<=g);
+        assert(Nf%g2==0);
+        int Nlevel=Nf/g2;
+        assert((Nv-Nu)%2==0);
+        int Npair=(Nv-Nu)/2;
+        int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
+        if (gu==g) //No m splitting, but g unapired electrons
+        {
+            Irrep_QNs::sym_t ylm(new Yl_Sym(l));
+            itsOccupations[Irrep_QNs(Spin::Up  ,ylm)]=Nlevel*g+Nu;
+            itsOccupations[Irrep_QNs(Spin::Down,ylm)]=Nlevel*g;
+        }
+        else if(gu==0) //No m splitting, everything paired
+        {
+            Irrep_QNs::sym_t ylm(new Yl_Sym(l));
+            itsOccupations[Irrep_QNs(Spin::Up  ,ylm)]=Nlevel*g;
+            itsOccupations[Irrep_QNs(Spin::Down,ylm)]=Nlevel*g;
+        }
+        else // M splitting
+        {
+            std::vector<int> ms_p,ms_u;
+            int ml=-(int)l;
+            for (size_t i=0;i<gu;i++) ms_u.push_back(ml++);
+            for (size_t i=0;i<gp;i++) ms_p.push_back(ml++);
+            // for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
+            assert(ml==(int)(l+1));
+            Irrep_QNs::sym_t ylm_p(new Ylm_Sym(l,ms_p));
+            Irrep_QNs::sym_t ylm_u(new Ylm_Sym(l,ms_u));
+            itsOccupations[Irrep_QNs(Spin::Up  ,ylm_p)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep_QNs(Spin::Down,ylm_p)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep_QNs(Spin::Up  ,ylm_u)]=Nlevel*gu+Nu;
+            itsOccupations[Irrep_QNs(Spin::Down,ylm_u)]=Nlevel*gu;
+        }
+    }
+
+        
+    // for (auto o:itsOccupations)
+    // {
+    //     if (o.second!=0)
+    //         cout << "N(" << o.first << ")=" << o.second << endl;
+    // }
     assert(nup==0); //By now all unpaired electrons should have gobbled up.        
 }
 
@@ -159,38 +213,71 @@ int Atom_EC::GetN(const sym_t& qn) const
 int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
     if (qns.ms==Spin::None) return GetN(qns.sym);
-    
-    const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
-    ElCounts_l ecl=sqn->GetN(itsNs);
-    assert((ecl.N+ecl.Nu)%2==0);
-    return ecl.GetN(qns.ms);  // Should be total core+valance      
+    auto i=itsOccupations.find(qns);
+    if (i==itsOccupations.end())
+    {
+        // std::cout << "Cannot find irrep=" <<  qns << endl;
+        // for (auto o:itsOccupations)
+        //     cout << "   N(" << o.first << ")=" << o.second << endl;
+        const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
+        ElCounts_l ecl=sqn->GetN(itsNs);
+        assert((ecl.N+ecl.Nu)%2==0);
+        // cout << qns << " N=" << ecl.GetN(qns.ms) << endl;
+        return ecl.GetN(qns.ms);  // Should be total core+valance    
+    }
+    // assert(i!=itsOccupations.end());
+    return i->second;
+     
 }
 
 ml_Breakdown Atom_EC::GetBreadown(size_t l) const
 {
     itsNs.DebugCheck(); //Check self consistency
     ml_Breakdown mls;
-    size_t g=(2*l+1); //degenracy
-    size_t Nunp=itsNs.Nu[l];
-    size_t Npairs= (itsNs.Nv[l]-itsNs.Nu[l])/2; // For full shell systems this ends up being zero.
+    size_t g=2*l+1; //degenracy
+    size_t Nunp=abs(itsNs.Nu[l]); //These can be negative Z=58 Ce.
+    size_t Npairs= g-Nunp; // For full shell systems this ends up being zero.
     size_t Nempty=g-Npairs-Nunp;
     if (Nempty==g) //Fix up for full shell systems.
     {
         Npairs=g;
         Nempty=0;
     }
-    int ml=-(int)l;
-    for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml++);
-    for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml++);
-    for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
+    // if (itsNs.Nu[l]>0)
+    {
+        int ml=-(int)l;
+        for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml++);
+        for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml++);
+        for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
+        assert(ml==(int)(l+1));
+
+    }
+    // if (l==3 && Nunp==1 && mls.ml_unpaired[0]==-3) mls.ml_unpaired[0]=0;
+    // else
+    // {
+    //     int ml=(int)l;
+    //     for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml--);
+    //     for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml--);
+    //     for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml--);
+    //     assert(ml==-(int)(l+1));
+
+    // }
 
     // cout << "ml_paired    =" << mls.ml_paired << endl;
     // cout << "ml_unpaired  =" << mls.ml_unpaired << endl;
     // cout << "ml_unoccupied=" << mls.ml_unoccupied << endl;
-    assert(ml==(int)(l+1));
     return mls;
 }
 
+// Get a list of spatial symmetries (ignore spin).  Use std::set to avoid duplicates.
+Atom_EC::syms_t Atom_EC::GetIrreps() const
+{
+    syms_t syms;
+    for (auto ir:itsOccupations)
+        if (ir.second>0) 
+            syms.insert(ir.first.sym);
+    return syms;
+}
 void Atom_EC::Display() const
 {
     cout << "N: ";

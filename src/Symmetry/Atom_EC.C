@@ -1,6 +1,8 @@
 // File: Atom_EC.C  Electron configuration for atoms.
 module;
 #include <vector>
+#include <set>
+#include <map>
 #include <memory>
 #include "forward.H"
 
@@ -20,6 +22,7 @@ export struct ml_Breakdown
 export class Atom_EC : public virtual ElectronConfiguration
 {
 public: 
+    typedef std::set<Irrep_QNs::sym_t> syms_t;
     Atom_EC(int Z);
     
     virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance
@@ -28,7 +31,7 @@ public:
     virtual bool   IsMagnetic() const; //Does this EC require ml splitting for the basis set?
     
     ml_Breakdown GetBreadown(size_t l) const;
-
+    syms_t GetIrreps() const;
 private:
     typedef std::shared_ptr<const Symmetry> sym_t;
     friend class ElectronConfigurationTests;
@@ -40,5 +43,6 @@ private:
     ElCounts itsNs; //Total,core, valance and unpaired counts.
     double charge;
     size_t itsLMax,itsLValance;
+    std::map<Irrep_QNs,size_t> itsOccupations;
 };
 
