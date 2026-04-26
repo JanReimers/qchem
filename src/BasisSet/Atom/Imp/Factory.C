@@ -32,7 +32,6 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
     size_t N=js["N"];
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
-    AngularType atype = aec.IsMagnetic() ? AngularType::Ylm : AngularType::Yl;
     BasisSet* bs=0;
     switch (type)
     {

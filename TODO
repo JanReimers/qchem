@@ -98,6 +98,8 @@ Priority 1:
             Occs[Up,Ylm_unpaired]=n_levels*g_unpaired+Nu
         Done except for Ce, Z=58.  
         We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
+        -Now build an un polarized version of the itsOccupations list;
+            We need to create a Yl symmetry from and Ylms.
 
 
     -Support null accelerator.

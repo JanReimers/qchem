@@ -162,30 +162,19 @@ Atom_EC::Atom_EC(int Z)
             itsOccupations[Irrep_QNs(Spin::Down,ylm_u)]=Nlevel*gu;
         }
     }
-
+    //
+    //  Now build an un polarized version of the itsOccupations list;
+    //
+    for (auto ir:GetIrreps())
+    {
+        Irrep_QNs nqns(Spin::None,ir), uqns(Spin::Up,ir),dqns(Spin::Down,ir);
+        itsUnpolOccupations[nqns]=GetN(uqns)+GetN(dqns);
+    }
         
-    // for (auto o:itsOccupations)
-    // {
-    //     if (o.second!=0)
-    //         cout << "N(" << o.first << ")=" << o.second << endl;
-    // }
+   
     assert(nup==0); //By now all unpaired electrons should have gobbled up.        
 }
 
-//
-//  If all 2l+1 of the m valance states are either unpaired or paired then we don't need m splitting in the basis set.
-//
-bool Atom_EC::IsMagnetic() const
-{
-    bool magnetic=false;
-    for (size_t l=0;l<=LMax;l++)
-    {
-        size_t g=2*l+1;
-        ml_Breakdown bd=GetBreadown(l);
-        magnetic=magnetic || !(bd.ml_paired.size()==g || bd.ml_unpaired.size()==g);
-    }
-    return magnetic;
-}
 
 int Atom_EC::GetN() const
 {
@@ -212,13 +201,22 @@ int Atom_EC::GetN(const sym_t& qn) const
 }
 int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
-    if (qns.ms==Spin::None) return GetN(qns.sym);
+    if (qns.ms==Spin::None) 
+    {
+        auto i=itsUnpolOccupations.find(qns);
+        if (i==itsOccupations.end())
+        {
+            std::cout << "Cannot find irrep=" <<  qns << endl;
+            Display();
+            exit(-1);
+        }
+        return i->second;
+    }
     auto i=itsOccupations.find(qns);
     if (i==itsOccupations.end())
     {
-        // std::cout << "Cannot find irrep=" <<  qns << endl;
-        // for (auto o:itsOccupations)
-        //     cout << "   N(" << o.first << ")=" << o.second << endl;
+        std::cout << "Cannot find irrep=" <<  qns << endl;
+        //Still need this for Dirac atoms.
         const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
         ElCounts_l ecl=sqn->GetN(itsNs);
         assert((ecl.N+ecl.Nu)%2==0);
@@ -292,5 +290,10 @@ void Atom_EC::Display() const
     cout << "Nu: ";
     for (auto n:itsNs.Nu) cout << n << ",";
     cout << endl;
+     for (auto o:itsOccupations)
+    {
+        if (o.second!=0)
+            cout << "N(" << o.first << ")=" << o.second << endl;
+    }
 }
    

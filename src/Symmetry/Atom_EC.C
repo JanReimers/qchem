@@ -28,7 +28,6 @@ public:
     virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance
     virtual size_t GetLMax() const {return itsLMax;}
     virtual void   Display() const;
-    virtual bool   IsMagnetic() const; //Does this EC require ml splitting for the basis set?
     
     ml_Breakdown GetBreadown(size_t l) const;
     syms_t GetIrreps() const;
@@ -43,6 +42,7 @@ private:
     ElCounts itsNs; //Total,core, valance and unpaired counts.
     double charge;
     size_t itsLMax,itsLValance;
-    std::map<Irrep_QNs,size_t> itsOccupations;
+    std::map<Irrep_QNs,size_t> itsOccupations; //Spin polarized list;
+    std::map<Irrep_QNs,size_t> itsUnpolOccupations; //Spin un polarized list;
 };
 
