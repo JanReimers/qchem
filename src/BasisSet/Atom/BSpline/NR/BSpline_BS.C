@@ -23,8 +23,7 @@ template <size_t K> class Orbital_IBS
     , public AtomBS::Orbital_DFT_IBS<double>
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
-    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
+    Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t&);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
 
@@ -39,8 +38,6 @@ template <size_t K> class Orbital_IBS_r
     , public AtomBS::Orbital_DFT_IBS<double>
 {
 public:
-    Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L);
-    Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L,  const std::vector<int>& ml);
     Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t&);
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
@@ -66,7 +63,6 @@ template <size_t K> class BasisSet
     , public AtomIE_BS_2E<double> //HF support
 {
 public:
-    BasisSet(size_t N, double rmin, double rmax, size_t Lmax); 
     BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
     using BSpline_BS<K>::BuildCache;
 private:
@@ -79,7 +75,6 @@ template <size_t K> class BasisSet_r
     , public AtomIE_BS_2E<double> //HF support
 {
 public:
-    BasisSet_r(size_t N, double rmin, double rmax, size_t Lmax); 
     BasisSet_r(size_t N, double rmin, double rmax, const ElectronConfiguration& ec);
     using BSpline_r_BS<K>::BuildCache;
 private:

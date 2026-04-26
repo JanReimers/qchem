@@ -18,23 +18,15 @@ namespace BSpline
 //
 // Orbital BSpline basis set.
 //
-template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db ,size_t N, double rmin, double rmax, size_t L)
-    : BSpline_IBS<K>(N,rmin,rmax,L)
-    , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
+template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& ylm)
+    : BSpline_IBS<K>(N,rmin,rmax,ylm)
+    , AtomBS::IrrepBasisSet(this,ylm)
     , AtomBS::Orbital_HF_IBS <double>(db)
     , AtomBS::Orbital_IBS    <double>(db,this)
     , AtomBS::Orbital_DFT_IBS<double>(db,this)
 {
 };
 
-template <size_t K> Orbital_IBS<K>::Orbital_IBS(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
-    : BSpline_IBS<K>(N,rmin,rmax,L,ml)
-    , AtomBS::IrrepBasisSet(this,new Ylm_Sym(L,ml))
-    , AtomBS::Orbital_HF_IBS <double>(db)
-    , AtomBS::Orbital_IBS    <double>(db,this)
-    , AtomBS::Orbital_DFT_IBS<double>(db,this)
-{
-};
 
 
 template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
@@ -49,23 +41,6 @@ template <size_t K> ::Fit_IBS* Orbital_IBS<K>::CreateVxcFitBasisSet(const ::Basi
 }
 
 
-template <size_t K> Orbital_IBS_r<K>::Orbital_IBS_r(const DB_BS_2E<double>* db ,size_t N, double rmin, double rmax, size_t L)
-    : BSpline_r_IBS<K>(N,rmin,rmax,L)
-    , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
-    , AtomBS::Orbital_HF_IBS <double>(db)
-    , AtomBS::Orbital_IBS    <double>(db,this)
-    , AtomBS::Orbital_DFT_IBS<double>(db,this)
-{
-};
-
-template <size_t K> Orbital_IBS_r<K>::Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, size_t L, const std::vector<int>& ml)
-    : BSpline_r_IBS<K>(N,rmin,rmax,L,ml)
-    , AtomBS::IrrepBasisSet(this,new Ylm_Sym(L,ml))
-    , AtomBS::Orbital_HF_IBS <double>(db)
-    , AtomBS::Orbital_IBS    <double>(db,this)
-    , AtomBS::Orbital_DFT_IBS<double>(db,this)
-{
-};
 template <size_t K> Orbital_IBS_r<K>::Orbital_IBS_r(const DB_BS_2E<double>* db,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& ylm)
     : BSpline_r_IBS<K>(N,rmin,rmax,ylm)
     , AtomBS::IrrepBasisSet(this,ylm)
@@ -91,7 +66,7 @@ template <size_t K> ::Fit_IBS* Orbital_IBS_r<K>::CreateVxcFitBasisSet(const ::Ba
 //  Fit with Slater_l  basis set.
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
-    : BSpline_IBS<K>(N,rmin,rmax,L)
+    : BSpline_IBS<K>(N,rmin,rmax,Irrep_QNs::sym_t(new Yl_Sym(L)))
     , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
     , AtomBS::Fit_IBS(db,this)
 {};

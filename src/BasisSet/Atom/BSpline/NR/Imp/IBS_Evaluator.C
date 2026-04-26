@@ -84,13 +84,12 @@ template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
     grouper->itsGLs[l]=itsGL.get();
 }
 
-template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax, int l, const is_t& mls) 
-: IBS_Evaluator(l,mls), rmin(_rmin), rmax(_rmax) 
+template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
+: IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) 
 {
     std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
-    // DOn;t pop the first spline for 1.0 weightingm only for 1.r
     // splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
     splines.pop_back(); //Last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
     auto grid=splines[0].getSupport().getGrid();
@@ -101,6 +100,7 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     ns=norms();
     assert(size()==splines.size());
 };
+
 
  template <size_t K> std::vector<double> BSpline_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
 {

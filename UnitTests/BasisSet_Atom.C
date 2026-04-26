@@ -21,6 +21,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.BasisSet.Atom.Gaussian.NR.BS;
 import qchem.Orbital_HF_IBS;
+import qchem.Symmetry.Yl;
 
 
 bool operator==(const ERI4& a, const ERI4& b)
@@ -367,7 +368,7 @@ public:
     BasisSet_BS() : BasisSet_Common(new BSpline_BS<6>)
     {
         for (size_t l=0;l<=0;l++)
-            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,l));    
+            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));    
     }
    
 };
