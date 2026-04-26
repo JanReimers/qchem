@@ -154,7 +154,7 @@ public:
 
     BasisSet_SL() : BasisSet_Common(new Slater_BS)
     {
-        Atom_EC ec(86);
+        Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater_IBS(es,ir)); 
         bs=new AtomBS::Slater::BasisSet(es,ec);
@@ -273,9 +273,14 @@ public:
 
     BasisSet_SG() : BasisSet_Common(new Gaussian_BS)
     {
-        for (size_t l=0;l<=LMax;l++)
-            Insert(new Gaussian_IBS(es,l));    
-        bs=new AtomBS::Gaussian::BasisSet(es,LMax);
+        // for (size_t l=0;l<=LMax;l++)
+        //     Insert(new Gaussian_IBS(es,l));    
+        // bs=new AtomBS::Gaussian::BasisSet(es,LMax);
+
+        Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
+        for (auto ir:ec.GetIrreps())
+            Insert(new Gaussian_IBS(es,ir)); 
+        bs=new AtomBS::Gaussian::BasisSet(es,ec);
     }
     static double R0(double a, double b, int la, int lb);
 };

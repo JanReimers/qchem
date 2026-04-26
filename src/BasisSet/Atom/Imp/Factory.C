@@ -45,15 +45,7 @@ BasisSet* Factory(Type type, const nlohmann::json& js,const ElectronConfiguratio
     case Type::Gaussian:
     {
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        switch (atype)
-        {
-        case AngularType::Yl:
-            bs=new AtomBS::Gaussian::BasisSet(N,emin,emax,LMax);
-            break;
-        
-        case AngularType::Ylm:
-            bs=new AtomBS::Gaussian::BasisSet(N,emin,emax,ec);
-        }
+        bs=new AtomBS::Gaussian::BasisSet(N,emin,emax,ec);
         break;
     }
     case Type::BSpline6:

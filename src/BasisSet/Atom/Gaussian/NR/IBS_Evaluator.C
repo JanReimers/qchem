@@ -9,8 +9,9 @@ export class Gaussian_IBS : public Exponential_IBS_Evaluator
 {
 public: 
  
-    Gaussian_IBS(const   rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Gaussian_IBS(const   rvec_t& es, int l) : Gaussian_IBS(es,l,{}) {}
+    Gaussian_IBS(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Gaussian_IBS(const rvec_t& es, int l) : Gaussian_IBS(es,l,{}) {}
+    Gaussian_IBS(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
 
     virtual std::ostream& Write   (std::ostream&) const;
 

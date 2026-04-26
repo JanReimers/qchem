@@ -11,21 +11,15 @@ namespace AtomBS
 namespace Gaussian
 {
   
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents, size_t L)
-    : Gaussian_IBS(exponents,L)
-    , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents,const Irrep_QNs::sym_t& ir)
+    : Gaussian_IBS(exponents,ir)
+    , AtomBS::IrrepBasisSet(this,ir)
     , AtomBS::Orbital_HF_IBS <double>(db)
     , AtomBS::Orbital_IBS    <double>(db,this)
     , AtomBS::Orbital_DFT_IBS<double>(db,this)
 {};
 
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents, size_t L, const std::vector<int>& ml)
-    : Gaussian_IBS(exponents,L,ml)
-    , AtomBS::IrrepBasisSet(this,new Ylm_Sym(L,ml))
-    , AtomBS::Orbital_HF_IBS <double>(db)
-    , AtomBS::Orbital_IBS    <double>(db,this)
-    , AtomBS::Orbital_DFT_IBS<double>(db,this)
-{};
+
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
 {

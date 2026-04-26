@@ -10,19 +10,23 @@ namespace AtomBS
 namespace Gaussian
 {
 
-BasisSet::BasisSet(size_t N, double emin, double emax, size_t LMax)
+
+BasisSet::BasisSet(const rvec_t& exponents, const ElectronConfiguration& ec)
 : AtomIE_BS_2E(this)
 {
-    ::Gaussian::ExponentScaler gs(N,emin,emax,LMax);
-    for (size_t L=0;L<=LMax;L++)
-        Insert(new Orbital_IBS(this,gs.Get_es(L),L)); 
-}
-BasisSet::BasisSet(const rvec_t& exponents, size_t LMax)
-: AtomIE_BS_2E(this)
-{
-    for (size_t L=0;L<=LMax;L++)
-        Insert(new Orbital_IBS(this,exponents,L));
-        
+    const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+    for (auto ir:aec.GetIrreps())
+        Insert(new Orbital_IBS(this,exponents,ir));
+    // for (size_t L=0;L<=aec.GetLMax();L++)
+    // {
+    //     auto mls=aec.GetBreadown(L);
+    //     if (mls.ml_paired.size()>0)   
+    //         Insert(new Orbital_IBS(this,exponents,L,mls.ml_paired));            
+    //     if (mls.ml_unpaired.size()>0)   
+    //         Insert(new Orbital_IBS(this,exponents,L,mls.ml_unpaired));            
+    //     if (mls.ml_unoccupied.size()>0)   
+    //         Insert(new Orbital_IBS(this,exponents,L,mls.ml_unoccupied));            
+    // }
 }
 
 BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
@@ -30,16 +34,19 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());
-    for (size_t L=0;L<=aec.GetLMax();L++)
-    {
-        auto mls=aec.GetBreadown(L);
-        if (mls.ml_paired.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
-        if (mls.ml_unpaired.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
-        if (mls.ml_unoccupied.size()>0)   
-            Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
-    }
+    for (auto ir:aec.GetIrreps())
+        Insert(new Orbital_IBS(this,ss.Get_es(ir),ir));
+
+    // for (size_t L=0;L<=aec.GetLMax();L++)
+    // {
+    //     auto mls=aec.GetBreadown(L);
+    //     if (mls.ml_paired.size()>0)   
+    //         Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_paired));            
+    //     if (mls.ml_unpaired.size()>0)   
+    //         Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unpaired));            
+    //     if (mls.ml_unoccupied.size()>0)   
+    //         Insert(new Orbital_IBS(this,ss.Get_es(L),L,mls.ml_unoccupied));            
+    // }
 }
 
 void BasisSet::Insert(Orbital_IBS* oibs)

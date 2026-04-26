@@ -21,6 +21,9 @@ Priority 1:
         10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
 
+    -Clean up fit BS construction:
+         : Slater_IBS(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
+        , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
     -std::set<Symmetry> from GetIrreps() should have a deterministic order to it.
     -If verbose=true, spit out
         -LApack Cholsky/SVD/Eigen
@@ -93,6 +96,8 @@ Priority 1:
             Occs[Up,Ylm_paired]=n_levels*g_paired+Npair
             Occs[Dn,Ylm_paired]=n_levels*g_paired+Npair
             Occs[Up,Ylm_unpaired]=n_levels*g_unpaired+Nu
+        Done except for Ce, Z=58.  
+        We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
 
 
     -Support null accelerator.
