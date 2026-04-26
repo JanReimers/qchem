@@ -22,6 +22,7 @@ import qchem.BasisSet.Atom.Slater.NR.BS;
 import qchem.BasisSet.Atom.Gaussian.NR.BS;
 import qchem.Orbital_HF_IBS;
 import qchem.Symmetry.Yl;
+import qchem.Symmetry.AtomEC;
 
 
 bool operator==(const ERI4& a, const ERI4& b)
@@ -153,9 +154,11 @@ public:
 
     BasisSet_SL() : BasisSet_Common(new Slater_BS)
     {
-        for (size_t l=0;l<=LMax;l++)
-            Insert(new Slater_IBS(es,l)); 
-        bs=new AtomBS::Slater::BasisSet(es,LMax);
+        Atom_EC ec(86);
+        for (auto ir:ec.GetIrreps())
+            Insert(new Slater_IBS(es,ir)); 
+        bs=new AtomBS::Slater::BasisSet(es,ec);
+        cout << es << endl << *bs << endl;
     }
     
     static double R0(double a, double b, int la, int lb);

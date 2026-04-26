@@ -63,7 +63,7 @@ template <size_t K> ::Fit_IBS* Orbital_IBS_r<K>::CreateVxcFitBasisSet(const ::Ba
 }
 //----------------------------------------------------------------
 //
-//  Fit with Slater_l  basis set.
+//  Fit with BSpline  basis set.
 //
 template <size_t K> Fit_IBS<K>::Fit_IBS(const DB_cache<double>* db,size_t N, double rmin, double rmax, size_t L)
     : BSpline_IBS<K>(N,rmin,rmax,Irrep_QNs::sym_t(new Yl_Sym(L)))

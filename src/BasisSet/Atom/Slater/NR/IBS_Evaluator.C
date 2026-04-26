@@ -10,6 +10,7 @@ export class Slater_IBS : public Exponential_IBS_Evaluator
 public: 
     Slater_IBS(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Slater_IBS(const rvec_t& es, int l) : Slater_IBS(es,l,{}) {}
+    Slater_IBS(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
 
    
     virtual std::ostream& Write   (std::ostream&) const;

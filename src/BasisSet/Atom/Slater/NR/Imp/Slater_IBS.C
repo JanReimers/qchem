@@ -29,6 +29,14 @@ Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents, siz
     , AtomBS::Orbital_DFT_IBS<double>(db,this)
 {};
 
+Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents,const Irrep_QNs::sym_t& ir)
+    : Slater_IBS(exponents,ir)
+    , AtomBS::IrrepBasisSet(this,ir)
+    , AtomBS::Orbital_HF_IBS <double>(db)
+    , AtomBS::Orbital_IBS    <double>(db,this)
+    , AtomBS::Orbital_DFT_IBS<double>(db,this)
+{};
+
 
 
 ::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const ::BasisSet* bs,const Cluster*) const
