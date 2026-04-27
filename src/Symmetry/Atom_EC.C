@@ -15,7 +15,11 @@ const int Nshell=8;
 export class Atom_EC : public virtual ElectronConfiguration
 {
 public: 
-    typedef std::set<Irrep_QNs::sym_t> syms_t;
+    static constexpr auto cmp = [](Irrep_QNs::sym_t a, Irrep_QNs::sym_t b) 
+        {
+             return a->SequenceIndex() < b->SequenceIndex();
+        }; 
+    typedef std::set<Irrep_QNs::sym_t,decltype(cmp)> syms_t;
     Atom_EC(int Z);
     
     virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance
@@ -24,11 +28,10 @@ public:
     
     syms_t GetIrreps() const;
 private:
-    typedef std::shared_ptr<const Symmetry> sym_t;
     friend class ElectronConfigurationTests;
     int  GetN() const;
     int  GetN(const Spin&) const;
-    int  GetN(const sym_t&) const;
+    int  GetN(const Irrep_QNs::sym_t&) const;
 
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.
