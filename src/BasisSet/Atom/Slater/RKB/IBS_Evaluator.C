@@ -1,5 +1,6 @@
 // File: BasisSet/Atom/Slater/NR/IBS_Evaluator.C
 module;
+#include <string>
 export module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 
@@ -13,6 +14,8 @@ public:
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+
+    virtual std::string Name() const;
 private:
     rvec_t eval(const rvec3_t&) const;
     int kappa;

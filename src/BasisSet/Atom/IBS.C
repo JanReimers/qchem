@@ -31,6 +31,10 @@ public:
     virtual rvec_t     operator() (const rvec3_t& r) const {return itsEval->operator()(r);}
     virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return itsEval->Gradient(r);}
     virtual std::ostream&  Write(std::ostream&) const;
+
+    virtual std::string RadialID () const {return itsEval->RadialID();}
+    virtual std::string AngularID() const {return itsEval->AngularID();}
+    virtual std::string Name     () const {return itsEval->Name();}
 private:
     IBS_Evaluator* itsEval;
 };

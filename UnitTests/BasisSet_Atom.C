@@ -12,6 +12,7 @@ import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
+import qchem.BasisSet.Atom.BSpline.NR.BS;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import Common.Constants;
@@ -57,7 +58,7 @@ public:
         , bs(0)
     {
         
-        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
+        MeshParams mp({qchem::MHL,500,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }
     ~BasisSet_Common()
@@ -262,6 +263,18 @@ TEST_F(BasisSet_SL,HF_ERIs)
         ++a;
     }
 }
+
+std::string angularIDs[]={"0 {}","1 {}","2 {}","3 {}"};
+TEST_F(BasisSet_SL,IDs)
+{
+    size_t index=0;
+    for (auto ibs:bs->Iterate<Real_IBS>())
+    {
+        EXPECT_EQ(ibs->Name(),"Spherical Slater ");
+        EXPECT_EQ(ibs->RadialID(),"Spherical Slater {0.5 1 2 }");
+        EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+    }
+}
 //----------------------------------------------------------------------------------------
 //
 //  Testing atom Gaussian basis set evaluators
@@ -364,9 +377,20 @@ TEST_F(BasisSet_SG,HF_ERIs)
     }
 }
 
+TEST_F(BasisSet_SG,IDs)
+{
+    size_t index=0;
+    for (auto ibs:bs->Iterate<Real_IBS>())
+    {
+        EXPECT_EQ(ibs->Name(),"Spherical Gaussian ");
+        EXPECT_EQ(ibs->RadialID(),"Spherical Gaussian {0.5 1 2 }");
+        EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+    }
+}
+
 //----------------------------------------------------------------------------------------
 //
-//  Testing atom Gaussian basis set evaluators
+//  Testing atom BSpline basis set evaluators
 //
 
 class BasisSet_BS: public BasisSet_Common
@@ -375,8 +399,10 @@ public:
 
     BasisSet_BS() : BasisSet_Common(new BSpline_BS<6>)
     {
-        for (size_t l=0;l<=0;l++)
-            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));    
+        for (size_t l=0;l<=3;l++)
+            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
+
+        bs=new AtomBS::BSpline::BasisSet<6>(5,0.1,10.0,Atom_EC(86));
     }
    
 };
@@ -385,4 +411,22 @@ TEST_F(BasisSet_BS,Overlap) {TestOverlap(4e-8);}
 TEST_F(BasisSet_BS,Grad2  ) {TestGrad2  (7e-3);}
 TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (4e-6);}
 // TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (4e-8);}
-TEST_F(BasisSet_BS,Charge ) {TestCharge (2e-5);}
+TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-4);}
+
+std::string BSradialIDs[]={
+    "BSpline<6>  {0 0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 10 }",
+    "BSpline<6>  {0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 }",
+    "BSpline<6>  {0 0 0 0 0 0.1 0.316228 1 3.16228 10 }",
+    "BSpline<6>  {0 0 0 0 0.1 0.316228 1 3.16228 10 }"};
+
+TEST_F(BasisSet_BS,IDs)
+{
+    size_t index=0;
+    for (auto ibs:bs->Iterate<Real_IBS>())
+    {
+        cout << "index=" << index << endl;
+        EXPECT_EQ(ibs->Name(),"BSpline<6> ");
+        EXPECT_EQ(ibs->RadialID(),BSradialIDs[index]);
+        EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+    }
+}

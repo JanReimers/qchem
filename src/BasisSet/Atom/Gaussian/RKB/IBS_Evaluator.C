@@ -1,5 +1,6 @@
 // File: BasisSet/Atom/Gaussian/RKB/IBS_Evaluator.C
 module;
+#include <string>
 export module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.Types;
@@ -13,6 +14,9 @@ public:
     virtual double Inv_r1(double ea , double eb,size_t l_total) const;
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+
+    virtual std::string Name() const;
+
 private:
     rvec_t eval(const rvec3_t&) const;
     int kappa;

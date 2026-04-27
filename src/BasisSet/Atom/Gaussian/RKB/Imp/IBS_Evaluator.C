@@ -8,6 +8,10 @@ module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import qchem.BasisSet.Atom.GaussianIntegrals;
 import Common.Constants;
 
+std::string Gaussian_RKBS_IBS::Name() const
+{
+    return "Spherical Gaussian RKB ";
+}
 
 rvec_t Gaussian_RKBS_IBS::norms() const
 {

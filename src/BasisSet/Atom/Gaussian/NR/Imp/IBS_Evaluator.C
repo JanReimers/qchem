@@ -32,6 +32,11 @@ inline double Charge(double ea, size_t l)
 //
 //  Start member functions.
 //
+std::string Gaussian_IBS::Name() const
+{
+    return "Spherical Gaussian ";
+}
+
 
 double Gaussian_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
 {

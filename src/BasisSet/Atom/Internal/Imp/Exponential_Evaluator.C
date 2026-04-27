@@ -15,3 +15,13 @@ void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
     for (auto e:es) es_indices.push_back(grouper->Insert(e,l));
     // std::cout << "es_indices=" << es_indices << std::endl;
 }
+
+std::string Exponential_IBS_Evaluator::RadialID () const
+{
+    std::ostringstream os;
+    os << Name() << "{";
+    for (auto e:es) os << e << " ";
+    os << "}";
+    return os.str();
+}
+

@@ -4,6 +4,7 @@ module;
 #include <ranges>
 #include <iosfwd>
 #include <cassert>
+#include <sstream>
 export module qchem.BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Internal.ERI3;
@@ -50,9 +51,15 @@ public:
 
     virtual dERI3  Overlap  (const Fit_IBS&) const=0; //3 center
     virtual dERI3  Repulsion(const Fit_IBS&) const=0; //3 center
+    virtual std::string RadialID () const=0;
+    virtual std::string AngularID() const;
+    virtual std::string Name() const=0;
 protected:
     int  l;
+private:
+    // used by Coulomb_AngularIntegrals and ExchangeAngularIntegrals
     is_t   mls;
+protected:
     rvec_t ns;
     const ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
@@ -70,4 +77,13 @@ IBS_Evaluator::IBS_Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),g
     {
         mls=ylm->Getmls();
     }
+}
+
+std::string IBS_Evaluator::AngularID() const
+{
+     std::ostringstream os;
+     os << l << " {";
+     for (auto ml:mls) os << ml << " ";
+     os << "}";
+     return os.str();
 }

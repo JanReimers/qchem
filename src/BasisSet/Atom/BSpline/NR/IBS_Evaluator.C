@@ -38,6 +38,9 @@ public:
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
+    virtual std::string RadialID() const;
+    virtual std::string Name    () const;
+
     const spline_t& operator[](int index) const {return splines[index];}
 
 protected:
@@ -46,6 +49,7 @@ protected:
     rvec_t norms() const; //assumes es,l are already initialized
 
     double rmin,rmax; //This might be needed for creating fit basis sets.
+    std::vector<double> knots;
     std::vector<spline_t> splines;
     std::unique_ptr<GLCache> itsGL;
 };

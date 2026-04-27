@@ -8,6 +8,10 @@ module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet.Atom.Slater.Integrals;
 import Common.Constants;
 
+std::string Slater_RKBS_IBS::Name() const
+{
+    return "Spherical Slater RKB ";
+}
 
 rvec_t Slater_RKBS_IBS::norms() const
 {

@@ -39,7 +39,6 @@ export template <class T> class IrrepBasisSet
     , public virtual Integrals_Overlap<T>
 {
 public:
-    typedef std::shared_ptr<const Symmetry> sym_t;
     //! Readonly ref to the polymorphic Symmetry object.
     virtual const Symmetry& GetSymmetry() const=0;
     //! Very often the client code needs as derived class ref.
@@ -53,6 +52,11 @@ public:
     virtual size_t GetNumFunctions() const=0;
     // virtual size_t GetVectorSize() const {return GetNumFunctions();} //This is all we need in clang++ 20,21
     virtual size_t GetVectorSize() const; // g++ 15.2 BUG very hard to instance this intermediary class.
+
+    //  The are used for caching 1) radial Slater integrals R_k(abcd) 2) Direct/Exchange integrals
+    virtual std::string RadialID () const=0;
+    virtual std::string AngularID() const=0;
+    virtual std::string Name     () const=0;
 };
 
 export typedef IrrepBasisSet<double>    Real_IBS;

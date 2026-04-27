@@ -5,6 +5,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <functional>
+#include <sstream>
 
 module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.Rk;
@@ -87,7 +88,7 @@ template <size_t K> void BSpline_IBS<K>::Register(Grouper* _grouper)
 template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
 : IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) 
 {
-    std::vector<double> knots=MakeLogKnots(Ngrid,rmin,rmax);
+    knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     // splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
@@ -102,7 +103,7 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
 };
 
 
- template <size_t K> std::vector<double> BSpline_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
+template <size_t K> std::vector<double> BSpline_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
 {
     assert(Ngrid>1);
     std::vector<double> knots;
@@ -126,6 +127,23 @@ template <size_t K> BSpline_IBS<K>::BSpline_IBS(size_t Ngrid, double _rmin, doub
     // std::cout << knots << std::endl;
     return knots;
 }
+
+template <size_t K> std::string BSpline_IBS<K>::Name () const
+{
+    std::ostringstream os;
+    os << "BSpline<" << K << "> ";
+    return os.str();
+}
+
+template <size_t K> std::string BSpline_IBS<K>::RadialID () const
+{
+    std::ostringstream os;
+    os << Name() << " {";
+    for (auto k:knots) os << k << " ";
+    os << "}";
+    return os.str();
+}
+
 
 template <size_t K> rvec_t BSpline_IBS<K>::norms() const
 {

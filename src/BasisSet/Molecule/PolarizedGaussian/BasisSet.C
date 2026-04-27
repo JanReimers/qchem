@@ -41,6 +41,9 @@ class IrrepBasisSet
         virtual rvec_t     operator() (const rvec3_t&) const;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
+        virtual std::string RadialID () const {return PGData::RadialID();}
+        virtual std::string AngularID() const {return PGData::AngularID();}
+        virtual std::string Name     () const;
         virtual std::ostream &Write(std::ostream &) const;
 
     private:

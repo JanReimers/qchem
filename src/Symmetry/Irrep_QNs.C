@@ -30,3 +30,5 @@ export struct Irrep_QNs
 
     static const size_t ms_max; //Used for calculating sequenxe indexes.
 };
+
+

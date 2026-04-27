@@ -196,7 +196,7 @@ int Atom_EC::GetN(const Spin& s) const
     return s==Spin::Up ? (ne+NUnpaired)/2 : (ne-NUnpaired)/2;
 }
 
-int Atom_EC::GetN(const sym_t& qn) const
+int Atom_EC::GetN(const Irrep_QNs::sym_t& qn) const
 {
     const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qn.get());
     ElCounts_l ecl=sqn->GetN(itsNs);

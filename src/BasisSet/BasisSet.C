@@ -26,8 +26,6 @@ public:
     typedef Orbital_IBS<double> bs_t; 
     typedef std::vector<std::unique_ptr<bs_t>> bsv_t;
     typedef bsv_t::const_iterator const_iterator;
-    typedef std::shared_ptr<const Symmetry> sym_t;
-    typedef std::vector<sym_t> symv_t;
     typedef std::vector<Irrep_QNs> irrepv_t; 
     
     BasisSet() {};

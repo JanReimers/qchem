@@ -31,6 +31,8 @@ public:
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
+    virtual std::string Name() const;
+
 protected:
     rvec_t norms() const; //assumes es,l are already initialized
     virtual double Inv_r1(double ea , double eb,size_t l_total) const; // RKB needs to override

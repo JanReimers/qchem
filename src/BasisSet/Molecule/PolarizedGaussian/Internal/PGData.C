@@ -1,6 +1,8 @@
 // File BasisSet/Molecule/PolarizedGaussian/Internal/PGData.C Flattened rep of PG IBS suitable for integral evaluation.
 module;
 #include <vector>
+#include <string>
+
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
@@ -12,6 +14,9 @@ export namespace PolarizedGaussian
 
 struct PGData
 {
+    std::string RadialID () const;
+    std::string AngularID() const;
+
     void Init(std::vector<const Block*>&);
     std::vector<const RadialFunction*> radials; // Flattened radials
     std::vector<Polarization>          pols;    // Flattened polarizations

@@ -209,6 +209,11 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
     return os << itsBlocks;
 }
 
+std::string IrrepBasisSet::Name() const 
+{
+    return "Pol. Gaussian ";
+}
+
 //----------------------------------------------------------------
 //
 // Orbital PG basis set.

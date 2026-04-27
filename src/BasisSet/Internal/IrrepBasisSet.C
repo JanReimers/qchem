@@ -1,6 +1,7 @@
 // File: IBS_Common.C  Irrep Basis set common implementation.
 module;
 #include <cassert>
+#include <string>
 #include "forward.H"
 
 export module qchem.BasisSet.Internal.IrrepBasisSet;
@@ -27,7 +28,6 @@ export template <class T> class IrrepBasisSet_Common
     : public virtual IrrepBasisSet<T>
     , private UniqueIDImp
 {
-    using sym_t=IrrepBasisSet<T>::sym_t;
 public:
     IrrepBasisSet_Common(Symmetry* sym) : itsSymmetry(sym) 
     {
@@ -44,7 +44,7 @@ public:
 
 private:
 
-    sym_t itsSymmetry;
+    Irrep_QNs::sym_t itsSymmetry;
 };
 
 
@@ -98,6 +98,11 @@ public:
 
     virtual vec_t    <T> operator() (const rvec3_t&) const;
     virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
+
+    virtual std::string RadialID () const {return itsRKBL->RadialID();}
+    virtual std::string AngularID() const {return itsRKBL->AngularID();}
+    virtual std::string Name     () const {return itsRKBL->Name();}
+
 protected:
     Orbital_RKB_IBS_Common(const DB_cache<T>* db, int kappa,::Orbital_RKBL_IBS<T>*,::Orbital_RKBS_IBS<T>*);
     ::Orbital_RKBL_IBS<T>* itsRKBL;

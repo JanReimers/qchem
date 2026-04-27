@@ -34,6 +34,11 @@ inline double Charge(double ea, size_t l)
 //  Start member functions.
 //
 
+std::string Slater_IBS::Name() const
+{
+    return "Spherical Slater ";
+}
+
 // This need overridability.
 double Slater_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
 {

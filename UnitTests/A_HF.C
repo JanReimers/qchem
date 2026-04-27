@@ -395,7 +395,7 @@ TEST_P(A_BS_saito_HF_P,Saito)
 {
     int Z=GetParam();
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpliner9},
+        {"type",BasisSetAtom::Type::BSpliner6},
         {"N", 50}, {"rmin", 0.005}, {"rmax", 40},
     };
     QchemTester::Init(1e-3,js);
@@ -407,9 +407,9 @@ TEST_P(A_BS_saito_HF_P,Saito)
 }
 
 #ifdef NDEBUG
-INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,2)); 
-// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(21)); 
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,2)); 
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21)); 
 #else
 // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
-// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(2)); 
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(2)); 
 #endif

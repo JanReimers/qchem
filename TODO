@@ -54,23 +54,19 @@ Priority 1:
             2) Change inheritance to containment DB_BS_2E : public DB_Cache to DB_BS_2E {DB_Cache itsRadialCache}
             3) Change inheritance to containment BS_Evaluator->Cache4 to BS_Evaluator{Cache4 itsRadialCache}
             4) Move ownership of Cache4 itsRadialCache into DB_Cache
-            5) Define IBS radial hash:
-                BSPline: struct radial {std::vector<double> knots}, 
-                Slater/Gauusian struct radial{std::vector<double> exponents}
-                PolGaussian struct radial{std::vector<Block> blocks} //no pointers??!!
-                Lattice ??
-                use std::hash<radial> to ID irrep basis sets
-            6) Define a basisSet radial hash: std::hash<std::vector<size_t IBS radial hashes>>
-                Don't need and angular hash for BS?
+            5) Define IBS radial ID:
+                Use Strings, not hashes.
+            6) Define a basisSet radialID, AngularID
+                Also need Name()
             7) Add constructor chain that accepts a global cache.
         UNit tests
-            Test radial and angular, and full ID strings for IBS
-            
+            Done Test radial and angular, and full ID strings for IBS
+
 
         
 
-
-    -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
+    -Make more use of CastSymmetry()?
+    Fixed -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
         Right now it is probably ordering based on pointer values inside std::shared_ptr
     -If verbose=true, spit out
         -LApack Cholsky/SVD/Eigen
