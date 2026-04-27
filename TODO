@@ -20,11 +20,58 @@ Priority 1:
         9) Hint use c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
         10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
-
+    
+    -Saito paper conclusions
+        1) 50 basis functions, r={0.005...40} is enough for Z=1-92
+        2) phi(r)=sum{Bi}, and phi(r)=1/r * sum{Bi} both work
+        3) Z=1-56 K=9 vs K=6: K=6 give faster and lower HF energies.
+        4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
+        5) Z=92: 
     -Clean up fit BS construction:
          : Slater_IBS(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
         , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
-    -std::set<Symmetry> from GetIrreps() should have a deterministic order to it.
+    -For how to use one integral cache for all 118 elements?
+        Hold cache in QChemTester
+        IBS->ID needs to be a hash of radial,angular perameters
+        RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
+        On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
+        Right now BS_Evaluator derives from Cache4.  
+            BSpline::BasisSet->BSpline::BSpline_BS<K>->BS_Evaluator->Cache4
+            Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
+            But the global cache need to store std::map<size_t hash, Cache4> 
+                Can we add this to DB_cache?
+        Problem: hashing to size_t opens the remote possibility O(2^-64) of collisions.
+            We could use ID strings, for example 
+                "BSpline<6> {0,0,0,0,0.1,.....40.0}" (list of knots)
+                "Slater {0.01,.... 100.0}" (list of exponents)
+            We need to be careful to get consistent float formatting. std::defaultfloat + choose a precision
+
+
+
+        PolGaussian::CDCache plays a similar to Cache4 for atoms.
+        Plan:
+            1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
+            2) Change inheritance to containment DB_BS_2E : public DB_Cache to DB_BS_2E {DB_Cache itsRadialCache}
+            3) Change inheritance to containment BS_Evaluator->Cache4 to BS_Evaluator{Cache4 itsRadialCache}
+            4) Move ownership of Cache4 itsRadialCache into DB_Cache
+            5) Define IBS radial hash:
+                BSPline: struct radial {std::vector<double> knots}, 
+                Slater/Gauusian struct radial{std::vector<double> exponents}
+                PolGaussian struct radial{std::vector<Block> blocks} //no pointers??!!
+                Lattice ??
+                use std::hash<radial> to ID irrep basis sets
+            6) Define a basisSet radial hash: std::hash<std::vector<size_t IBS radial hashes>>
+                Don't need and angular hash for BS?
+            7) Add constructor chain that accepts a global cache.
+        UNit tests
+            Test radial and angular, and full ID strings for IBS
+            
+
+        
+
+
+    -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
+        Right now it is probably ordering based on pointer values inside std::shared_ptr
     -If verbose=true, spit out
         -LApack Cholsky/SVD/Eigen
         -Basis set
@@ -35,11 +82,14 @@ Priority 1:
     -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
         [k] capture makes this very difficult.
     -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
-    -Figure EC for Ce Z=58 ground state.
+    -Figure out EC for Ce Z=58 ground state.
+        Need a way to hop electrons in Atom_EC
     -Support null accelerator.
     -Speed up bspline Rk.  Too many find calls!!
     -Clean up SCFiterator
         Clean handling of E>Eold
+        Use FD=[F,D] instead of E<Eold for adjusting relax.
+        use relax=1 if accelerator is working.
         Use deque<std:shared_ptr<DM_CD>>
 
     -Blaze include specific headers instead everything in blaze/Math.h.
