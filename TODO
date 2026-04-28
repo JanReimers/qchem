@@ -52,16 +52,17 @@ Priority 1:
         PolGaussian::CDCache plays a similar to Cache4 for atoms.
         Plan:
             Done: 1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
-            2) Change inheritance to containment DB_BS_2E : public DB_Cache to DB_BS_2E {DB_Cache itsRadialCache}
-            3) Change inheritance to containment BS_Evaluator->Cache4 to BS_Evaluator{Cache4 itsRadialCache}
-            4) Move ownership of Cache4 itsRadialCache into DB_Cache
-            5) Define IBS radial ID:
+            2) Make a new DB_Cache1 class.  
+                Stores all integral matrices by {RadialID,AngularID}
+                Stores Cache4 by RadialID
+            3) Pick one IBS (BSpline6) and support construct with DB_Cache1
+
+            Done: 5) Define IBS radial ID:
                 Use Strings, not hashes.
-            6) Define a basisSet radialID, AngularID
+            Why?: 6) Define a basisSet radialID, AngularID
                 Also need Name()
-            7) Add constructor chain that accepts a global cache.
         UNit tests
-            Done Test radial and angular, and full ID strings for IBS
+            Done: Test radial and angular, and full ID strings for IBS
 
 
         

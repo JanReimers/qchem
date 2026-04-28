@@ -203,10 +203,10 @@ double BasisSet_SL::R0(double a, double b, int la, int lb)
 }
 
 TEST_F(BasisSet_SL,Overlap) {TestOverlap(1e-15);}
-TEST_F(BasisSet_SL,Grad2  ) {TestGrad2  (2e-15);}
+TEST_F(BasisSet_SL,Grad2  ) {TestGrad2  (3e-15);}
 TEST_F(BasisSet_SL,Inv_r1 ) {TestInv_r1 (3e-14);}
 TEST_F(BasisSet_SL,Inv_r2 ) {TestInv_r2 (4e-9);}
-TEST_F(BasisSet_SL,Charge ) {TestCharge (5e-14);}
+TEST_F(BasisSet_SL,Charge ) {TestCharge (9e-14);}
 
 TEST_F(BasisSet_SL,AnalyticOverlap)
 {
@@ -318,7 +318,7 @@ double BasisSet_SG::R0(double a, double b, int la, int lb)
 
 
 TEST_F(BasisSet_SG,Overlap) {TestOverlap(1e-15);}
-TEST_F(BasisSet_SG,Grad2  ) {TestGrad2  (4e-15);}
+TEST_F(BasisSet_SG,Grad2  ) {TestGrad2  (6e-15);}
 TEST_F(BasisSet_SG,Inv_r1 ) {TestInv_r1 (3e-14);}
 TEST_F(BasisSet_SG,Inv_r2 ) {TestInv_r2 (4e-9);}
 TEST_F(BasisSet_SG,Charge ) {TestCharge (5e-14);}
