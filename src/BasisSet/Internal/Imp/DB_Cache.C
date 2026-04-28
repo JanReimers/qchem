@@ -5,11 +5,11 @@ module qchem.BasisSet.Internal.DB_Cache;
 
 
 
-template <class T> void DB_BS_2E<T>::Append(const Orbital_HF_IBS<T>* oibs)
+template <class T> void DB_BS_HF<T>::Append(const Orbital_HF_IBS<T>* oibs)
 {
     itsIrreps.push_back(oibs);
 }
-template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
+template <class T> ERI4 DB_BS_HF<T>::Direct(IDType a,IDType c) const
 {
     // assert(a<=c);
     if (Jac.size()==0) MakeDirect();
@@ -19,7 +19,7 @@ template <class T> ERI4 DB_BS_2E<T>::Direct(IDType a,IDType c) const
     
     return Jac[a][c];
 }
-template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
+template <class T> ERI4 DB_BS_HF<T>::Exchange(IDType a,IDType b) const
 {
     // assert(a<=b);
     if (Kab.size()==0) MakeExchange(); 
@@ -29,7 +29,7 @@ template <class T> ERI4 DB_BS_2E<T>::Exchange(IDType a,IDType b) const
     
     return Kab[a][b];
 }
-template <class T> void DB_BS_2E<T>::MakeDirect() const
+template <class T> void DB_BS_HF<T>::MakeDirect() const
 {
     Jac.clear();
     for (auto a: itsIrreps)
@@ -41,7 +41,7 @@ template <class T> void DB_BS_2E<T>::MakeDirect() const
             Jac[ic][ia]= ia==ic ? jac : jac.Transpose();
         }
 }
-template <class T> void DB_BS_2E<T>::MakeExchange() const
+template <class T> void DB_BS_HF<T>::MakeExchange() const
 {
     Kab.clear();
     for (auto a: itsIrreps)
@@ -55,4 +55,4 @@ template <class T> void DB_BS_2E<T>::MakeExchange() const
     
 }
 
-template class DB_BS_2E<double>;
+template class DB_BS_HF<double>;

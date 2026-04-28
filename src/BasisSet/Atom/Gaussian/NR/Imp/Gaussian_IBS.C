@@ -11,7 +11,7 @@ namespace AtomBS
 namespace Gaussian
 {
   
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents,const Irrep_QNs::sym_t& ir)
+Orbital_IBS::Orbital_IBS(const DB_BS_HF<double>* db,const rvec_t& exponents,const Irrep_QNs::sym_t& ir)
     : Gaussian_IBS(exponents,ir)
     , AtomBS::IrrepBasisSet(this,ir)
     , AtomBS::Orbital_HF_IBS <double>(db)

@@ -21,7 +21,7 @@ public:
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
 //! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)
 //! using IBS IDs.
-export template <class T> class Integrals_BS_2E
+export template <class T> class Integrals_BS_HF
 {
 public:
     typedef UniqueID::IDtype IDType;   

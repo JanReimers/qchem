@@ -30,11 +30,12 @@ Priority 1:
     -Clean up fit BS construction:
          : Slater_IBS(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
         , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
-    -For how to use one integral cache for all 118 elements?
+    -How to use one integral cache for all 118 elements?
         Hold cache in QChemTester
         IBS->ID needs to be a hash of radial,angular perameters
         RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
         On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
+            These Rk engines may need to adapt to high k values on request.
         Right now BS_Evaluator derives from Cache4.  
             BSpline::BasisSet->BSpline::BSpline_BS<K>->BS_Evaluator->Cache4
             Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
@@ -50,7 +51,7 @@ Priority 1:
 
         PolGaussian::CDCache plays a similar to Cache4 for atoms.
         Plan:
-            1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
+            Done: 1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
             2) Change inheritance to containment DB_BS_2E : public DB_Cache to DB_BS_2E {DB_Cache itsRadialCache}
             3) Change inheritance to containment BS_Evaluator->Cache4 to BS_Evaluator{Cache4 itsRadialCache}
             4) Move ownership of Cache4 itsRadialCache into DB_Cache

@@ -6,14 +6,14 @@ module;
 module qchem.BasisSet.Atom.IE;
 import qchem.Orbital_HF_IBS;
 
-template <class T> void AtomIE_BS_2E<T>::Append(const Orbital_HF_IBS<T>* oibs, IBS_Evaluator* eval)
+template <class T> void AtomIE_BS_HF<T>::Append(const Orbital_HF_IBS<T>* oibs, IBS_Evaluator* eval)
 {
     assert(eval);
     itsEvaluator->Register(eval);
     assert(oibs);
-    DB_BS_2E<T>::Append(oibs);
+    DB_BS_HF<T>::Append(oibs);
 }
-template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const Orbital_HF_IBS<T>* _a, const Orbital_HF_IBS<T>* _c) const
+template <class T> ERI4 AtomIE_BS_HF<T>::MakeDirect  (const Orbital_HF_IBS<T>* _a, const Orbital_HF_IBS<T>* _c) const
 {
     const IBS_Evaluator* a=dynamic_cast<const IBS_Evaluator*>(_a);
     const IBS_Evaluator* c=dynamic_cast<const IBS_Evaluator*>(_c);
@@ -21,7 +21,7 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeDirect  (const Orbital_HF_IBS<T>* _
     assert(c);
     return itsEvaluator->Direct(a,c);
 }
-template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const Orbital_HF_IBS<T>* _a, const Orbital_HF_IBS<T>* _c) const
+template <class T> ERI4 AtomIE_BS_HF<T>::MakeExchange(const Orbital_HF_IBS<T>* _a, const Orbital_HF_IBS<T>* _c) const
 {
     const IBS_Evaluator* a=dynamic_cast<const IBS_Evaluator*>(_a);
     const IBS_Evaluator* c=dynamic_cast<const IBS_Evaluator*>(_c);
@@ -30,6 +30,6 @@ template <class T> ERI4 AtomIE_BS_2E<T>::MakeExchange(const Orbital_HF_IBS<T>* _
     return itsEvaluator->Exchange(a,c);
 }
 
-template class AtomIE_BS_2E<double>;
+template class AtomIE_BS_HF<double>;
 
  

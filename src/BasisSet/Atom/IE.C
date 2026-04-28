@@ -72,11 +72,11 @@ private:
 
 // HF
 
-template <class T> class AtomIE_BS_2E 
-    : public DB_BS_2E<T>
+template <class T> class AtomIE_BS_HF 
+    : public DB_BS_HF<T>
 {
 public:
-    AtomIE_BS_2E(BS_Evaluator* bse) : itsEvaluator(bse) {};
+    AtomIE_BS_HF(BS_Evaluator* bse) : itsEvaluator(bse) {};
     virtual ERI4 MakeDirect  (const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const;
     virtual ERI4 MakeExchange(const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const;
 protected:

@@ -30,7 +30,7 @@ export template  <class T> struct DB_cache
     mutable erij_t Jac,Kab; //4 center, 2 electron integrals.  Direct: Jac and Exchange: Kab
 };
 
-export template <class T> class DB_BS_2E : public virtual Integrals_BS_2E<T>, public DB_cache<T>
+export template <class T> class DB_BS_HF : public virtual Integrals_BS_HF<T>, public DB_cache<T>
 {
     typedef UniqueID::IDtype IDType;   
 public: 

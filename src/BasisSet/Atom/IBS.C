@@ -69,7 +69,7 @@ template <class T> class Orbital_HF_IBS
     , public Orbital_HF_IBS_Common<T>
 {
 protected:
-    Orbital_HF_IBS(const Integrals_BS_2E<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
+    Orbital_HF_IBS(const Integrals_BS_HF<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
 };
 
 // Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 

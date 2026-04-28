@@ -74,10 +74,10 @@ public:
 
 export template <class T> class Orbital_HF_IBS_Common
     : public virtual Orbital_HF_IBS<T>
-    , public DB_2E<T>
+    , public DB_HF<T>
 {
 public:
-    Orbital_HF_IBS_Common(const Integrals_BS_2E<double>* db) : DB_2E<T>(db) {};
+    Orbital_HF_IBS_Common(const Integrals_BS_HF<double>* db) : DB_HF<T>(db) {};
     virtual void AccumulateDirect  (rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
     virtual void AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
 };

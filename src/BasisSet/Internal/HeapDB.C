@@ -105,7 +105,7 @@ private:
 
 };
 
-export template <class T> class DB_2E 
+export template <class T> class DB_HF 
     : virtual public Integrals_HF<T>
     , virtual public UniqueID
 {
@@ -113,10 +113,10 @@ public:
     virtual ERI4 Direct  (const Orbital_HF_IBS<T>& c) const;
     virtual ERI4 Exchange(const Orbital_HF_IBS<T>& b) const;
 protected:
-    DB_2E() : itsDB_BS_2E(0) {};
-    DB_2E(const Integrals_BS_2E<T>* db);
+    DB_HF() : itsDB_BS_HF(0) {};
+    DB_HF(const Integrals_BS_HF<T>* db);
 private:
-    const Integrals_BS_2E<T>* itsDB_BS_2E; //Database of all supermatrix tables.
+    const Integrals_BS_HF<T>* itsDB_BS_HF; //Database of all supermatrix tables.
 };
 
 

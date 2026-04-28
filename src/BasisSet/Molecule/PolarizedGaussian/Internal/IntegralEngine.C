@@ -54,7 +54,7 @@ public:
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
 protected:
-    Orbital_IE(const DB_BS_2E<double>* db) 
+    Orbital_IE(const DB_BS_HF<double>* db) 
         : DB_Overlap<double>(db)
         , DB_Kinetic<double>(db)
         , DB_Nuclear<double>(db)

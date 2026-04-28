@@ -134,23 +134,23 @@ template <class T> const ERI3<T>& DB_DFT<T>::Repulsion3C(const Fit_IBS& c) const
 template class DB_DFT<double>;
 
 
-template <class T> DB_2E<T>::DB_2E(const Integrals_BS_2E<T>* db) 
-    : itsDB_BS_2E(db) 
+template <class T> DB_HF<T>::DB_HF(const Integrals_BS_HF<T>* db) 
+    : itsDB_BS_HF(db) 
     {
-        assert(itsDB_BS_2E);
+        assert(itsDB_BS_HF);
     };
-template <class T> ERI4 DB_2E<T>::Direct(const Orbital_HF_IBS<T>& c) const
+template <class T> ERI4 DB_HF<T>::Direct(const Orbital_HF_IBS<T>& c) const
 {
-    assert(itsDB_BS_2E);
-    return itsDB_BS_2E->Direct(this->GetID(),c.GetID());
+    assert(itsDB_BS_HF);
+    return itsDB_BS_HF->Direct(this->GetID(),c.GetID());
 }
-template <class T> ERI4 DB_2E<T>::Exchange(const Orbital_HF_IBS<T>& b) const
+template <class T> ERI4 DB_HF<T>::Exchange(const Orbital_HF_IBS<T>& b) const
 {
-    assert(itsDB_BS_2E);
-    return itsDB_BS_2E->Exchange(this->GetID(),b.GetID()); 
+    assert(itsDB_BS_HF);
+    return itsDB_BS_HF->Exchange(this->GetID(),b.GetID()); 
 }
 
-template class DB_2E<double>;
+template class DB_HF<double>;
 template class DB_RKB<double>;
 template class DB_RKBL<double>;
 template class DB_RKBS<double>;

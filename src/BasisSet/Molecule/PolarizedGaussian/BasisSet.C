@@ -61,7 +61,7 @@ class Orbital_IBS
         public Orbital_IE
 
 {
-    typedef DB_BS_2E<double> db_t;
+    typedef DB_BS_HF<double> db_t;
 public:
     Orbital_IBS(const db_t* db, Reader *, const Cluster *);
     Orbital_IBS(const db_t* db, const rvec_t& exponents, size_t L, const Cluster *);
@@ -83,7 +83,7 @@ public:
 };
 class BasisSet 
     : public BS_Common
-    , public DB_BS_2E<double>
+    , public DB_BS_HF<double>
 {
 public:
     BasisSet() {};

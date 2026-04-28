@@ -13,7 +13,7 @@ namespace Slater
 //
 // Orbital SL basis set.
 //
-Orbital_IBS::Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents,const Irrep_QNs::sym_t& ir)
+Orbital_IBS::Orbital_IBS(const DB_BS_HF<double>* db,const rvec_t& exponents,const Irrep_QNs::sym_t& ir)
     : Slater_IBS(exponents,ir)
     , AtomBS::IrrepBasisSet(this,ir)
     , AtomBS::Orbital_HF_IBS <double>(db)

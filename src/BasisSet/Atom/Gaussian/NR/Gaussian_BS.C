@@ -22,7 +22,7 @@ class Orbital_IBS
     , public AtomBS::Orbital_DFT_IBS<double>
 {
 public:
-    Orbital_IBS(const DB_BS_2E<double>* db,const rvec_t& exponents, const Irrep_QNs::sym_t&);
+    Orbital_IBS(const DB_BS_HF<double>* db,const rvec_t& exponents, const Irrep_QNs::sym_t&);
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const;
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const;
@@ -40,7 +40,7 @@ public:
 class BasisSet 
     : public Gaussian_BS 
     , public ::BS_Common
-    , public AtomIE_BS_2E<double> //HF support
+    , public AtomIE_BS_HF<double> //HF support
 {
 public:
     BasisSet(const rvec_t& exponents, const ElectronConfiguration& ec);

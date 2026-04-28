@@ -12,7 +12,7 @@ namespace Gaussian
 
 
 BasisSet::BasisSet(const rvec_t& exponents, const ElectronConfiguration& ec)
-: AtomIE_BS_2E(this)
+: AtomIE_BS_HF(this)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     for (auto ir:aec.GetIrreps())
@@ -20,7 +20,7 @@ BasisSet::BasisSet(const rvec_t& exponents, const ElectronConfiguration& ec)
 }
 
 BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfiguration& ec)
-: AtomIE_BS_2E(this)
+: AtomIE_BS_HF(this)
 {
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     ::Gaussian::ExponentScaler ss(N,emin,emax,aec.GetLMax());
@@ -32,7 +32,7 @@ BasisSet::BasisSet(size_t N, double emin, double emax, const ElectronConfigurati
 void BasisSet::Insert(Orbital_IBS* oibs)
 {
     ::BS_Common::Insert(oibs);
-    AtomIE_BS_2E<double>::Append(oibs,oibs); //implicit casts to two different intefraces.
+    AtomIE_BS_HF<double>::Append(oibs,oibs); //implicit casts to two different intefraces.
 }
 
 
