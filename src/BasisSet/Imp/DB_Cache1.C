@@ -4,6 +4,8 @@ module;
 #include <cassert>
 #include <vector>
 #include <string>
+#include <variant>
+#include <iostream>
 module qchem.BasisSet.DB_Cache1;
 // import qchem.BasisSet.Internal.ERI4;
 // import qchem.BasisSet.Internal.ERI3;
@@ -19,3 +21,122 @@ size_t Cache41::Register(const std::string& bf_id)
         index=i->second;
     return index;
 }
+
+template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) const
+{
+    bool ret=false;
+    if (std::holds_alternative<I1C>(ix))
+    {
+        itsLastKey1=key1_t(std::get<I1C>(ix),id);
+        its1CIterator=itsVecs.find(itsLastKey1);
+        ret=its1CIterator!=itsVecs.end(); 
+    }
+    else if (std::holds_alternative<I2C>(ix))
+    {
+        itsLastKey2=key2_t(std::get<I2C>(ix),id);
+        auto i=itsSMats.find(itsLastKey2);
+        its2CnIterator=i;
+        ret=i!=itsSMats.end(); 
+    }
+    else
+    {
+        std::cerr << "IntegralsCache_RAM: Unhandled integral type alternative " << std::endl;
+        assert(false);
+        exit(-1);
+    }
+    return ret;
+}
+
+template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,const IBS_ID_t& idb) const
+{
+    bool ret=false;
+    if (std::holds_alternative<I2x>(ix))
+    {
+        itsLastKeyx=keyx_t(std::get<I2x>(ix),ida,idb);
+        its2xIterator=itsMats.find(itsLastKeyx);
+        ret=its2xIterator!=itsMats.end(); 
+    }
+    else if (std::holds_alternative<I3C>(ix))
+    {
+        itsLastKey3=key3_t(std::get<I3C>(ix),ida,idb);
+        its3CIterator=itsERI3s.find(itsLastKey3);
+        ret=its3CIterator!=itsERI3s.end(); 
+    }
+    else if (std::holds_alternative<I4C>(ix))
+    {
+        switch (std::get<I4C>(ix))
+        {
+            case IntegralsCache<T>::I4C::Direct:
+            {
+                auto ia=Jac.find(ida);
+                if (ia!=Jac.end())
+                {
+                    its4CIterator=ia->second.find(idb);
+                    ret=its4CIterator!=ia->second.end(); 
+                }
+                break;
+            }
+            case IntegralsCache<T>::I4C::Exchange:
+            {
+                auto ia=Kab.find(ida);
+                if (ia!=Kab.end())
+                {
+                    its4CIterator=ia->second.find(idb);
+                    ret=its4CIterator!=ia->second.end(); 
+                }
+                break;
+            }
+        } //switch
+        
+    }
+    else
+    {
+        std::cerr << "IntegralsCache_RAM: Unhandled integral type alternative " << std::endl;
+        assert(false);
+        exit(-1);
+    }
+    return ret;
+}
+
+template <class T> bool IntegralsCache_RAM<T>::Has(I2n,const IBS_ID_t& IBS_id,const Cluster_ID_t& cluster_id) const
+{
+    itsLastKeyn=keyn_t(IBS_id,cluster_id);
+    auto i=itsNMats.find(itsLastKeyn);
+    its2CnIterator=i;
+    return i!=itsNMats.end(); 
+}
+
+template <class T>  const rvec_t& IntegralsCache_RAM<T>::GetVec() const
+{
+    assert(its1CIterator!=itsVecs.end());
+    return its1CIterator->second;
+}
+template <class T>  const smat_t<T>& IntegralsCache_RAM<T>::GetSMat() const
+{
+    if (std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator))
+        return std::get<typename map2_t::const_iterator>(its2CnIterator)->second;
+    else //if (std::holds_alternative<typename mapn_t::const_iterator>(its2CnIterator))
+        return std::get<typename mapn_t::const_iterator>(its2CnIterator)->second;
+}
+template <class T>  const mat_t<T>& IntegralsCache_RAM<T>::GetMat() const
+{
+    return its2xIterator->second;
+}
+template <class T>  const ERI3<T>& IntegralsCache_RAM<T>::GetERI3() const
+{
+    return its3CIterator->second;
+}
+template <class T>  const ERI4& IntegralsCache_RAM<T>::GetERI4() const
+{
+    return its4CIterator->second;
+}
+
+
+
+template <class T>  void IntegralsCache_RAM<T>::Set(const rvec_t& v)
+{
+    itsVecs[itsLastKey1]=v;
+}
+
+template struct IntegralsCache<double>;
+template struct IntegralsCache_RAM<double>;

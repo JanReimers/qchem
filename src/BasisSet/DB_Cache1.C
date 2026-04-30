@@ -72,18 +72,24 @@ public:
 
     enum class I1C  {Charge, Normalization};
     enum class I2C  {Overlap, Repulsion,Kinetic,Nuclear,RestMass, InvOverlap, InvRepulsion};
+    enum class I2n  {Nuclear};
     enum class I2x  {Kinetic};
     enum class I3C  {Overlap, Repulsion}; // <ab|c> and <ar|1/r12|c>
     enum class I4C  {Direct,Exchange}; // <ab|cd> and <ar|1/r12|cd>
-    using Ix=std::variant<I1C,I2C,I2x,I3C,I4C>;
-    using IBSid_t=std::tuple<std::string,std::string>; // <RadialID,AngularID> identifies and IBS
-    virtual bool Has(Ix,const IBSid_t&) const=0;
+    using Ix1=std::variant<I1C,I2C>; //Integrals that depend on 1 IBS id;
+    using Ix2=std::variant<I2x,I3C,I4C>; //Integrals that depend on 2 IBS ids;
+    using IBS_ID_t=std::tuple<std::string,std::string>; // <RadialID,AngularID> identifies and IBS
+    using Cluster_ID_t=std::string;
+    virtual bool Has(Ix1,const IBS_ID_t&) const=0;
+    virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const=0;
+    virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const=0;
+    
     // All of these are expected to use the iterator from the latest Has() call.
-    virtual const rvec_t   & GetI1C() const=0; //Always real?
-    virtual const smat_t<T>& GetI2C() const=0; 
-    virtual const  mat_t<T>& GetI2x() const=0; 
-    virtual const ERI3  <T>& GetI3C() const=0; 
-    virtual const ERI4     & GetI4C() const=0; 
+    virtual const rvec_t   & GetVec () const=0; //Always real?
+    virtual const smat_t<T>& GetSMat() const=0; 
+    virtual const  mat_t<T>& GetMat () const=0; 
+    virtual const ERI3  <T>& GetERI3() const=0; 
+    virtual const ERI4     & GetERI4() const=0; 
 
     virtual void Set(const rvec_t   &)=0; 
     virtual void Set(const smat_t<T>&)=0; 
@@ -95,70 +101,64 @@ public:
 template  <class T> struct IntegralsCache_RAM : public virtual IntegralsCache<T>
 {
 public:
-    using Ix=IntegralsCache<T>::Ix;
+    using Ix1=IntegralsCache<T>::Ix1;
+    using Ix2=IntegralsCache<T>::Ix2;
     using I1C=IntegralsCache<T>::I1C;
     using I2C=IntegralsCache<T>::I2C;
+    using I2n=IntegralsCache<T>::I2n;
     using I2x=IntegralsCache<T>::I2x;
     using I3C=IntegralsCache<T>::I3C;
     using I4C=IntegralsCache<T>::I4C;
-    using IBSid_t=IntegralsCache<T>::IBSid_t;
+    using IBS_ID_t=IntegralsCache<T>::IBS_ID_t;
+    using Cluster_ID_t=IntegralsCache<T>::Cluster_ID_t;
 
-    virtual bool Has(Ix ix,const IBSid_t& id) const
-    {
-        bool ret=false;
-        if (std::holds_alternative<I1C>(ix))
-        {
-            itsLastKey1=key(std::get<I1C>(ix),id);
-            auto i=itsVecs.find(itsLastKey1);
-            itsLastIterator=i;  
-            ret=i!=itsVecs.end(); 
-        }
-        if (std::holds_alternative<I2C>(ix))
-        {
-            itsLastKey2=key(std::get<I2C>(ix),id);
-            auto i=itsSMats.find(itsLastKey2);
-            itsLastIterator=i;  
-            ret=i!=itsSMats.end(); 
-        }
-    }
+    virtual bool Has(Ix1,const IBS_ID_t&) const;
+    virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const;
+    virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const;
 
-    virtual const rvec_t& GetI1C() const
-    {
-        auto i=std::get<map1_t::const_iterator>(itsLastIterator);
-        assert(i!=itsVecs.end());
-        return i->second;
-    }
+    virtual const rvec_t   & GetVec () const; 
+    virtual const smat_t<T>& GetSMat() const; 
+    virtual const  mat_t<T>& GetMat () const; 
+    virtual const ERI3  <T>& GetERI3() const; 
+    virtual const ERI4     & GetERI4() const; 
 
-    virtual void Set(const rvec_t& v)
-    {
-        itsVecs[itsLastKey1]=v;
-    }
+    virtual void Set(const rvec_t   &); 
+    virtual void Set(const smat_t<T>&); 
+    virtual void Set(const  mat_t<T>&); 
+    virtual void Set(const   ERI3<T>&); 
+    virtual void Set(const   ERI4   &); 
 
 private:
-    using key1_t=std::tuple<I1C,IBSid_t>; //Integral key for one IBS, 1 centers.
-    using key2_t=std::tuple<I2C,IBSid_t>; //Integral key for one IBS, 2 centers.
-    using keyx_t=std::tuple<I2x,IBSid_t,IBSid_t>; //Integral key for cross IBS integrals.
-    using key3_t=std::tuple<I3C,IBSid_t,IBSid_t>; //Integral key for 3 center ERI integrals between 2 IBSs.
+    using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
+    using key2_t=std::tuple<I2C,IBS_ID_t>; //Integral key for one IBS, 2 centers.
+    using keyx_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t>; //Integral key for cross IBS integrals.
+    using keyn_t=std::tuple<IBS_ID_t,Cluster_ID_t>; //Integral key for nuclear integrals.
+    using key3_t=std::tuple<I3C,IBS_ID_t,IBS_ID_t>; //Integral key for 3 center ERI integrals between 2 IBSs.
 
     using map1_t=std::map<key1_t ,rvec_t   >;
     using map2_t=std::map<key2_t ,smat_t<T>>;
+    using mapn_t=std::map<keyn_t ,smat_t<T>>;
     using mapx_t=std::map<keyx_t , mat_t<T>>;
     using map3_t=std::map<key3_t ,  ERI3<T>>;
-    using map4_t=std::map<IBSid_t,std::map<IBSid_t,ERI4>>;
+    using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;
 
-    std::variant<typename map1_t::const_iterator,
-                 typename map2_t::const_iterator,
-                 typename mapx_t::const_iterator,
-                 typename map3_t::const_iterator,
-                 typename map4_t::const_iterator> itsLastIterator;
-    key1_t itsLastKey1;
-    key2_t itsLastKey2;
-    keyx_t itsLastKeyx;
-    key3_t itsLastKey3;
-    IBSid_t itsLastKey4a,itsLastKey4b;
+    mutable map1_t::const_iterator its1CIterator;
+    mutable std::variant<typename map2_t::const_iterator,typename mapn_t::const_iterator> its2CnIterator;
+    mutable mapx_t::const_iterator its2xIterator;
+    mutable map3_t::const_iterator its3CIterator;
+    mutable std::map<IBS_ID_t,ERI4>::const_iterator its4CIterator; //Iterator into the inner map.
+
+    
+    mutable key1_t itsLastKey1;
+    mutable key2_t itsLastKey2;
+    mutable keyn_t itsLastKeyn;
+    mutable keyx_t itsLastKeyx;
+    mutable key3_t itsLastKey3;
+    mutable IBS_ID_t itsLastKey4a,itsLastKey4b;
 
     map1_t itsVecs;  //Vectors (charge)
     map2_t itsSMats; //Symmetric 2 center matrices
+    mapn_t itsNMats; //Symmetric 2 center matrices for nuclear attraction integrals.
     mapx_t itsMats;  //Non-symmetric cross integrals between 2 IBSs.
     map3_t itsERI3s;  //3 center, 2 IBS ERI integrals for DFT.
     map4_t Jac,Kab; //4 center, 2 IBS ERI integrals for HF.
@@ -187,7 +187,7 @@ public:
     {
         auto cache=IntegralsCache<T>::theGlobalCache;
         assert(cache);
-        if (!cache->Has(IntegralsCache<T>::I2C::Overlap,IntegralsCache<T>::IBSid_t(RadialID(),AngularID())))
+        if (!cache->Has(IntegralsCache<T>::I2C::Overlap,IntegralsCache<T>::IBS_ID_t(RadialID(),AngularID())))
             cache->Set(MakeOverlap());
         return cache->GetI2C();
     }
