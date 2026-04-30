@@ -30,8 +30,17 @@ Priority 1:
     -Clean up fit BS construction:
          : Slater_IBS(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
         , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
+
+    -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
+        1) Merge DB_X into Integrals_X for X=Overlap, Kinetic, Nuclear etc.
+            Trying to make these generic is very hard because of the required argument for 
+            Nuclear, cross kinetic, 3C and 4C integrals.
+        2) Use a GetCache() that return a cache interface.
+        3) We need ClusterID string in the map key for Nuclear integrals.
+
     -How to use one integral cache for all 118 elements?
-        Hold cache in QChemTester
+        Hold cache in QChemTester or ... have a global/static Cache* ?   
+
         IBS->ID needs to be a hash of radial,angular perameters
         RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
         On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
@@ -41,12 +50,18 @@ Priority 1:
             Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
             But the global cache need to store std::map<size_t hash, Cache4> 
                 Can we add this to DB_cache?
-        Problem: hashing to size_t opens the remote possibility O(2^-64) of collisions.
+        Done: Problem: hashing to size_t opens the remote possibility O(2^-64) of collisions.
             We could use ID strings, for example 
                 "BSpline<6> {0,0,0,0,0.1,.....40.0}" (list of knots)
                 "Slater {0.01,.... 100.0}" (list of exponents)
             We need to be careful to get consistent float formatting. std::defaultfloat + choose a precision
-
+        Problem: We need to handle a situation where IBS1 has some (not all) basis functions in common with IBS2.
+            The cache needs maintain a (growing) list of unique basis functions for each type {Slater,Gaussian,BSpline6, PolGaussian,Block,...}
+                This is done by specialized groupers right now.
+                Groupers should be part of the cache.
+            For atoms we always want to know LMax for each radial function.
+                Calculating Rk for LMax=2 and then recalculating later for LMax=3 (higher k values)
+                is wastefull.
 
 
         PolGaussian::CDCache plays a similar to Cache4 for atoms.
@@ -56,7 +71,9 @@ Priority 1:
                 Stores all integral matrices by {RadialID,AngularID}
                 Stores Cache4 by RadialID
             3) Pick one IBS (BSpline6) and support construct with DB_Cache1
-
+                3.1) It looks like each IBS needs to support
+                    std::vector<std::string> BasisFunctionIDs() const=0;
+                    Used by Cache41 to maintian itsUniqueBFs.
             Done: 5) Define IBS radial ID:
                 Use Strings, not hashes.
             Why?: 6) Define a basisSet radialID, AngularID

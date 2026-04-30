@@ -9,7 +9,7 @@ export import qchem.Types;
 //  These are often called Slater integrals. They represent the radial part of the 
 //  2 electron repulsion integrals (ERIs) encountered in atomic Hartree-Fock (HF) 
 //  calculations.  For large l they can become rather complicated. But recursion
-//  relations allows us to calculate and store tables of these integrals in an 
+//  relations allow us to calculate and store tables of these integrals in an 
 //  efficient manner.
 //  Using this interface is part of the architecture for enabling a generic
 //  quadruple nested loop required for evaluating direct and exchange integrals

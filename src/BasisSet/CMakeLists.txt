@@ -2,6 +2,7 @@ add_library(qcBasisSet)
 target_sources(qcBasisSet PRIVATE 
   Imp/BasisSet.C
   Imp/IrrepBasisSet.C
+  Imp/DB_Cache1.C
   Internal/Imp/HeapDB.C
   Internal/Imp/DB_Cache.C
   Internal/Imp/Cache4.C
@@ -22,6 +23,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C
   Orbital_1E_IBS.C
+  DB_Cache1.C
   Internal/ERI3.C
   Internal/ERI4T.C
   Internal/ERI4.C
