@@ -53,7 +53,9 @@ class DBCach1Tests : public ::testing::Test
 {
 public:
     DBCach1Tests() 
-        : cl(new Atom(1,0.0,Vector3D(0,0,0)))
+        : cl_hydrogen    (new Atom(1,0.0,Vector3D(0,0,0)))
+        , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
+        , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
         , yl(new Yl_Sym(0))
         , ibs1(new AtomBS1::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
         , ibs2(new AtomBS1::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
@@ -63,7 +65,9 @@ public:
     }
     ~DBCach1Tests()
     {
-        delete cl;
+        delete cl_hydrogen;
+        delete cl_hydrogen_100;
+        delete cl_helium;
         delete ibs1;
         delete ibs2;
         // delete bs1;
@@ -76,7 +80,7 @@ public:
         // bs2=new AtomBS::BSpline::BasisSet1<6>(3,0.1,10.0,Atom_EC(Z));
     }
     
-    Cluster* cl;
+    Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
     Irrep_QNs::sym_t yl;
      Real_OIBS1 *ibs1,*ibs2;
     // BasisSet *bs1,*bs2;
@@ -99,10 +103,16 @@ TEST_F(DBCach1Tests,BSplineKinetic)
 }
 TEST_F(DBCach1Tests,BSplineNuclear)
 {
-    auto& S1=ibs1->Nuclear(cl);
-    auto& S2=ibs2->Nuclear(cl);
+    auto& S1=ibs1->Nuclear(cl_hydrogen);
+    auto& S2=ibs2->Nuclear(cl_hydrogen);
+    auto& S3=ibs2->Nuclear(cl_hydrogen_100);
+    auto& S4=ibs2->Nuclear(cl_helium);
     EXPECT_EQ(S1,S2);
+    EXPECT_EQ(S1,S3);
+    EXPECT_NE(S1,S4);
     EXPECT_EQ(&S1,&S2);
+    EXPECT_NE(&S1,&S3);
+    EXPECT_NE(&S1,&S4);
 
 }
 
