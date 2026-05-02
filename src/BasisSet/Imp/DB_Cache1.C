@@ -11,16 +11,18 @@ module qchem.BasisSet.DB_Cache1;
 // import qchem.BasisSet.Internal.ERI3;
 // import qchem.BasisSet.Internal.IntegralEnums;
 
-size_t Cache41::Register(const std::string& bf_id)
-{
-    size_t index;
-    auto i=itsUniqueBFs.find(bf_id);
-    if (i==itsUniqueBFs.end())
-        itsUniqueBFs[bf_id]=index=itsUniqueBFs.size();
-    else
-        index=i->second;
-    return index;
-}
+// template  <> IntegralsCache<double>* IntegralsCache<double>::theGlobalCache;
+
+// size_t Cache41::Register(const std::string& bf_id)
+// {
+//     size_t index;
+//     auto i=itsUniqueBFs.find(bf_id);
+//     if (i==itsUniqueBFs.end())
+//         itsUniqueBFs[bf_id]=index=itsUniqueBFs.size();
+//     else
+//         index=i->second;
+//     return index;
+// }
 
 template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) const
 {
@@ -136,6 +138,34 @@ template <class T>  const ERI4& IntegralsCache_RAM<T>::GetERI4() const
 template <class T>  void IntegralsCache_RAM<T>::Set(const rvec_t& v)
 {
     itsVecs[itsLastKey1]=v;
+}
+
+template <class T> void IntegralsCache_RAM<T>::Set(const smat_t<T>& m)
+{
+    if (std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator))
+        its2CnIterator=itsSMats.insert({itsLastKey2,m}).first; //Non-nuclear
+    else //if (std::holds_alternative<typename mapn_t::const_iterator>(its2CnIterator))
+        its2CnIterator=itsNMats.insert({itsLastKeyn,m}).first; //Nuclear
+    
+}
+
+template <class T> void IntegralsCache_RAM<T>::Set(const  mat_t<T>& m)
+{
+    itsMats[itsLastKeyx]=m;
+}
+
+template <class T> void IntegralsCache_RAM<T>::Set(const   ERI3<T>& eri3)
+{
+    itsERI3s[itsLastKey3]=eri3;
+}
+
+template <class T> void IntegralsCache_RAM<T>::SetDirect(const   ERI4   & eri4)
+{
+    Jac[itsLastKey4a][itsLastKey4b]=eri4;
+}
+template <class T> void IntegralsCache_RAM<T>::SetExchange(const   ERI4   & eri4)
+{
+    Kab[itsLastKey4a][itsLastKey4b]=eri4;
 }
 
 template struct IntegralsCache<double>;

@@ -6,6 +6,13 @@ module;
 module qchem.Cluster;
  
 
+std::string Cluster::ID() const
+{
+    std::string id;
+    for(auto& b:*this) id+=b->ID()+" ";
+    return id;
+}
+
 
 int Cluster::GetNuclearCharge() const
 {

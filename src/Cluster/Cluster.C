@@ -28,7 +28,8 @@ public:
     typedef av_t::const_iterator const_iterator;
 
     virtual ~Cluster() {};
-    
+
+    virtual std::string ID          () const;
     virtual size_t GetNumAtoms      () const=0;
     virtual int    GetNuclearCharge () const;
     virtual double GetNumElectrons  () const;
@@ -57,6 +58,7 @@ public:
     virtual size_t GetNumAtoms      () const {return 1;}
     virtual Mesh*  CreateMesh(const MeshParams&) const;
 
+    virtual std::string   ID     () const;
     virtual std::ostream& Write  (std::ostream&) const;
     
     virtual const_iterator begin() const {return dummy.begin();}

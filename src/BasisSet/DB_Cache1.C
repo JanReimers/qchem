@@ -29,47 +29,48 @@ public:
 //  Use covariant return types for the loop_4 overload. 
 //  Derived class also needs to supply a Create function.
 //
-class Cache41
+// class Cache41
+// {
+// public:
+//     size_t Register(const std::string& BF_ID); //register a BasisFunction ID and return its unique index.
+
+//     virtual ~Cache41() {};
+//     void       loop_1(size_t i1) const;
+//     void       loop_2(size_t i2) const;
+//     void       loop_3(size_t i3) const;
+//     virtual    const Cacheable1* loop_4(size_t i4) const;
+//     template <class T> const T* Tloop_4(size_t i4) const
+//     {
+//         const Cacheable1* c=loop_4(i4);
+//         assert(c);
+//         const T* Tc=dynamic_cast<const T*>(c);
+//         assert(Tc);
+//         return Tc;
+//     } 
+    
+// private:
+//     virtual const Cacheable1* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
+
+//     typedef std::map<size_t,const Cacheable1*> cache_4; 
+//     typedef std::map<size_t,cache_4> cache_3; 
+//     typedef std::map<size_t,cache_3> cache_2; 
+//     typedef std::map<size_t,cache_2> cache_t; 
+    
+//     mutable cache_t cache;
+//     mutable cache_2* i1_cache;
+//     mutable cache_3* i2_cache;
+//     mutable cache_4* i3_cache;
+//     mutable size_t i1,i2,i3,i4; //Current indexes into unique list.
+
+//     mutable std::map<std::string,size_t> itsUniqueBFs; //unique list of basis functions and thier indexes.
+// };
+
+// Non-template bass class helps avoid so many annoying using statements in derived classes
+// (in C++ typedefs don't get pulled in from template base classes)
+struct IntegralsCache_Base
 {
 public:
-    size_t Register(const std::string& BF_ID); //register a BasisFunction ID and return its unique index.
-
-    virtual ~Cache41();
-    void       loop_1(size_t i1) const;
-    void       loop_2(size_t i2) const;
-    void       loop_3(size_t i3) const;
-    virtual    const Cacheable1* loop_4(size_t i4) const;
-    template <class T> const T* Tloop_4(size_t i4) const
-    {
-        const Cacheable1* c=loop_4(i4);
-        assert(c);
-        const T* Tc=dynamic_cast<const T*>(c);
-        assert(Tc);
-        return Tc;
-    } 
-    
-private:
-    virtual const Cacheable1* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
-
-    typedef std::map<size_t,const Cacheable1*> cache_4; 
-    typedef std::map<size_t,cache_4> cache_3; 
-    typedef std::map<size_t,cache_3> cache_2; 
-    typedef std::map<size_t,cache_2> cache_t; 
-    
-    mutable cache_t cache;
-    mutable cache_2* i1_cache;
-    mutable cache_3* i2_cache;
-    mutable cache_4* i3_cache;
-    mutable size_t i1,i2,i3,i4; //Current indexes into unique list.
-
-    mutable std::map<std::string,size_t> itsUniqueBFs; //unique list of basis functions and thier indexes.
-};
-
-template  <class T> struct IntegralsCache
-{
-public:
-    static IntegralsCache* theGlobalCache;
-
+    virtual ~IntegralsCache_Base() {};
     enum class I1C  {Charge, Normalization};
     enum class I2C  {Overlap, Repulsion,Kinetic,Nuclear,RestMass, InvOverlap, InvRepulsion};
     enum class I2n  {Nuclear};
@@ -83,7 +84,21 @@ public:
     virtual bool Has(Ix1,const IBS_ID_t&) const=0;
     virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const=0;
     virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const=0;
-    
+};
+
+//
+// Cache all integrals required for any calcuation.  Basis sets are expected to identify
+// based on a RadialID and an AngularID.  Final integrals depend on both IDs.  But
+// for many calculations a lot of info required for 3 and 4 center integrals depends only
+// on the radial aspect of the IBSs involved.  In particular for atoms the Slater integrals
+// Rk(abcd) are radial only.  Hence the separation of radial and angular IDs
+//
+template  <class T> class IntegralsCache : public virtual IntegralsCache_Base
+{
+public:
+
+    virtual ~IntegralsCache() {};
+
     // All of these are expected to use the iterator from the latest Has() call.
     virtual const rvec_t   & GetVec () const=0; //Always real?
     virtual const smat_t<T>& GetSMat() const=0; 
@@ -95,23 +110,18 @@ public:
     virtual void Set(const smat_t<T>&)=0; 
     virtual void Set(const  mat_t<T>&)=0; 
     virtual void Set(const   ERI3<T>&)=0; 
-    virtual void Set(const   ERI4   &)=0; 
+    virtual void SetDirect  (const   ERI4   &)=0; 
+    virtual void SetExchange(const   ERI4   &)=0; 
 };
 
-template  <class T> struct IntegralsCache_RAM : public virtual IntegralsCache<T>
+IntegralsCache<double>* theGlobalCache;
+
+
+template  <class T> struct IntegralsCache_RAM 
+    : public virtual IntegralsCache<T>
+    , public virtual IntegralsCache_Base //Get all the typedefs
 {
 public:
-    using Ix1=IntegralsCache<T>::Ix1;
-    using Ix2=IntegralsCache<T>::Ix2;
-    using I1C=IntegralsCache<T>::I1C;
-    using I2C=IntegralsCache<T>::I2C;
-    using I2n=IntegralsCache<T>::I2n;
-    using I2x=IntegralsCache<T>::I2x;
-    using I3C=IntegralsCache<T>::I3C;
-    using I4C=IntegralsCache<T>::I4C;
-    using IBS_ID_t=IntegralsCache<T>::IBS_ID_t;
-    using Cluster_ID_t=IntegralsCache<T>::Cluster_ID_t;
-
     virtual bool Has(Ix1,const IBS_ID_t&) const;
     virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const;
     virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const;
@@ -126,7 +136,8 @@ public:
     virtual void Set(const smat_t<T>&); 
     virtual void Set(const  mat_t<T>&); 
     virtual void Set(const   ERI3<T>&); 
-    virtual void Set(const   ERI4   &); 
+    virtual void SetDirect  (const   ERI4   &); 
+    virtual void SetExchange(const   ERI4   &); 
 
 private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
@@ -163,34 +174,15 @@ private:
     map3_t itsERI3s;  //3 center, 2 IBS ERI integrals for DFT.
     map4_t Jac,Kab; //4 center, 2 IBS ERI integrals for HF.
 
-    std::map<std::string,Cache41*> itsCaches; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
+    // std::map<std::string,Cache41*> itsCaches; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
 
 
 };
-//
-// Cache all integrals required for any calcuation.  Basis sets are expected to identify
-// based on a RadialID and an AngularID.  Final integrals depend on both IDs.  But
-// for many calculations a lot of info required for 3 and 4 center integrals depends only
-// on the radial aspect of the IBSs involved.  In particular for atoms the Slater integrals
-// Rk(abcd) are radial only.
-//
 
-template <class T> class Integrals_Overlap 
-{
-    using I2C=IntegralsCache<T>::I2C;
-public:
-    virtual smat_t<T> MakeOverlap() const=0;
-    virtual std::string  RadialID() const=0;
-    virtual std::string AngularID() const=0;
-    
-    const smat_t<T>& Overlap() const
-    {
-        auto cache=IntegralsCache<T>::theGlobalCache;
-        assert(cache);
-        if (!cache->Has(IntegralsCache<T>::I2C::Overlap,IntegralsCache<T>::IBS_ID_t(RadialID(),AngularID())))
-            cache->Set(MakeOverlap());
-        return cache->GetI2C();
-    }
-};
+
+
+
 
 } //export
+
+

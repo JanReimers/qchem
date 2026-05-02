@@ -40,6 +40,12 @@ Mesh* Atom::CreateMesh(const MeshParams& mp) const
 }
 
 
+std::string Atom::ID() const
+{
+    std::ostringstream os;
+    os << "Z=" << itsZ << " R=" << itsR;
+    return os.str();
+}
 
 std::ostream& Atom::Write  (std::ostream& os) const
 {

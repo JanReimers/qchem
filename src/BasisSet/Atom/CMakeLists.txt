@@ -12,7 +12,9 @@ target_sources(qcAtom_BS PRIVATE
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Factory.C
     IE.C
+    IE1.C
     IBS.C
+    IBS1.C
     IBS_Evaluator.C
     BS_Evaluator.C
     Rk.C
