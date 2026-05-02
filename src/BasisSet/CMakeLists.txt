@@ -10,6 +10,7 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
   Internal/Imp/BasisSet.C
+  Internal/Imp/BasisSet1.C
   Internal/Imp/IrrepBasisSet.C
   Internal/Imp/Fit_IBS_Common.C
   Internal/Imp/DFT_IBS_Common.C

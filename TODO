@@ -82,7 +82,13 @@ Priority 1:
             Done: Test radial and angular, and full ID strings for IBS
 
 
-        
+
+    -Namespaces
+        -Cluster namespace.  
+            Structure
+        -Put everything atom basis set in an AtomBS name space
+        -Put everything abstract/general basis set in a BasisSet namespace.
+            AtomBS->BasisSet::Atom an now avoids class with Cluster::Atom
     -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
         Can we store just one virtual base class?
         Or make a GetEvaluator() virtual function call.

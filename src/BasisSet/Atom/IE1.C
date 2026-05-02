@@ -12,7 +12,7 @@ export import qchem.Orbital_HF_IBS1;
 // export import qchem.Fit_IBS;
 
 export import qchem.BasisSet.Atom.IBS_Evaluator;
-import qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
+import qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.Types;
 
 
@@ -63,8 +63,17 @@ class Integrals_HF1
 , public virtual Integrals_Base
 {
 protected:
-    virtual ERI4 MakeDirect  (const Orbital_HF_IBS1<double>& c) const {return ERI4();}
-    virtual ERI4 MakeExchange(const Orbital_HF_IBS1<double>& c) const {return ERI4();}
+    Integrals_HF1(BS_Evaluator* bse) : itsEvaluator(bse) {assert(itsEvaluator);}
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS1<double>& c) const 
+    {
+        return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Integrals_HF1&>(c).GetEvaluator());
+    }
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS1<double>& c) const 
+    {
+        return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Integrals_HF1&>(c).GetEvaluator());
+    }
+private: 
+    BS_Evaluator* itsEvaluator;
 };
 // template <class T> class AtomIE_XKinetic
 // : public DB_XKinetic<T>
@@ -81,15 +90,16 @@ protected:
 
 // HF
 
-// template <class T> class AtomIE_BS_HF 
-//     : public DB_BS_HF<T>
+// class AtomIE_BS_HF1 
+//     : public Integrals_BS_HF1<double>
 // {
 // public:
-//     AtomIE_BS_HF(BS_Evaluator* bse) : itsEvaluator(bse) {};
-//     virtual ERI4 MakeDirect  (const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const;
-//     virtual ERI4 MakeExchange(const Orbital_HF_IBS<T>* a, const Orbital_HF_IBS<T>* c) const;
+//     AtomIE_BS_HF1(BS_Evaluator* bse) : itsEvaluator(bse) {};
+//     using IBS_t=Orbital_HF_IBS1<double>;
+//     virtual ERI4 MakeDirect  (const IBS_t* a, const IBS_t* c) const;
+//     virtual ERI4 MakeExchange(const IBS_t* a, const IBS_t* c) const;
 // protected:
-//     virtual void Append(const Orbital_HF_IBS<T>*, IBS_Evaluator*);
+//     virtual void Append(const Orbital_HF_IBS1<T>*, IBS_Evaluator*);
 
 // private: 
 //     BS_Evaluator* itsEvaluator;

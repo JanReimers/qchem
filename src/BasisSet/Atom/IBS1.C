@@ -9,6 +9,7 @@ import qchem.BasisSet.Atom.IE1;
 import qchem.IrrepBasisSet1;
 import qchem.Orbital_1E_IBS1;
 import qchem.Orbital_HF_IBS1;
+import qchem.BasisSet.Atom.BS_Evaluator;
 
 export namespace AtomBS
 {
@@ -71,7 +72,10 @@ class Orbital_HF_IBS1
     , public AtomBS::Integrals_HF1
 {
 protected:
-    Orbital_HF_IBS1(const Irrep_QNs::sym_t& yl) : ::Orbital_HF_IBS1<double>(yl) {} 
+    Orbital_HF_IBS1(BS_Evaluator* bse,const Irrep_QNs::sym_t& yl) 
+        : ::Orbital_HF_IBS1<double>(yl) 
+        , AtomBS::Integrals_HF1(bse)
+        {} 
 };
 
 // // Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 

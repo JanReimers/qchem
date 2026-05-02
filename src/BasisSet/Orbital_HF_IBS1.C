@@ -38,15 +38,14 @@ public:
 };
 
 //! \brief Interface for 4-center ERI integrals used in HF calculations.
-//! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs)
-//! using IBS IDs.
-// export template <class T> class Integrals_BS_HF
-// {
-// public:
-//     typedef UniqueID::IDtype IDType;   
-//     virtual ERI4 Direct  (IDType a,IDType c) const=0;
-//     virtual ERI4 Exchange(IDType a,IDType b) const=0;
-// };
+//! This particular interface if for serving up ERIs between two Irrep Basis Sets (IRBs).
+//! 
+export template <class T> class Integrals_BS_HF1
+{
+public:
+    virtual ERI4 Direct  (const Orbital_HF_IBS1<T>& a,const Orbital_HF_IBS1<T>& c) const=0;
+    virtual ERI4 Exchange(const Orbital_HF_IBS1<T>& a,const Orbital_HF_IBS1<T>& b) const=0;
+};
 
 
 export template <class T> class Orbital_HF_IBS1

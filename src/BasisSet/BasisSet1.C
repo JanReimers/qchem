@@ -33,8 +33,8 @@ public:
     virtual size_t GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
     
-    virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;
+    // virtual Fit_IBS* CreateCDFitBasisSet(const Cluster* cl) const;
+    // virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster* cl) const;
 
 private:
     virtual const_iterator begin() const=0;

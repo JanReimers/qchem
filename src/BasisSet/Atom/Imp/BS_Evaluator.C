@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <blaze/Math.h>
-module qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
+module qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.BasisSet.Atom.Internal.AngularIntegrals; 
 
 BS_Evaluator::rvec11_t BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const

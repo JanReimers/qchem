@@ -17,6 +17,9 @@ import qchem.BasisSet.Atom.IE1;
 import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 import qchem.Orbital_1E_IBS1;
+import BasisSet.Atom.BSpline.NR.BS_Evaluator;
+import qchem.BasisSet.Internal.Common1;
+import qchem.Symmetry.AtomEC;
 
 namespace AtomBS
 {
@@ -40,6 +43,33 @@ public:
     // virtual size_t  size           () const {return BSpline_IBS<K>::size();}
 
 };
+
+
+template <size_t K> class BasisSet1
+    : public BSpline_BS<K> 
+    , public ::BS_Common1
+    , public AtomBS::Integrals_HF1 //HF support
+{
+public:
+    BasisSet1(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
+    : AtomBS::Integrals_HF1(this)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new Orbital_IBS<K>(N,rmin,rmax,ir));  
+     
+        BSpline_BS<K>::BuildCache(LMax);
+    }
+private:
+    void Insert(Orbital_IBS<K>* oibs)
+    {
+        ::BS_Common1::Insert(oibs);
+        BSpline_BS<K>::Register(oibs);
+    }
+};
+
+
 }} //namespace 
 
 
