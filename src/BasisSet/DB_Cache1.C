@@ -111,8 +111,8 @@ public:
     virtual const smat_t<T>& Set(const smat_t<T>&)=0; 
     virtual void Set(const  mat_t<T>&)=0; 
     virtual void Set(const   ERI3<T>&)=0; 
-    virtual void SetDirect  (const   ERI4   &)=0; 
-    virtual void SetExchange(const   ERI4   &)=0; 
+    virtual const ERI4&  SetDirect  (const   ERI4   &)=0; 
+    virtual const ERI4&  SetExchange(const   ERI4   &)=0; 
 };
 
 IntegralsCache<double>* theGlobalCache;
@@ -137,8 +137,8 @@ public:
     virtual const smat_t<T>& Set(const smat_t<T>&); 
     virtual void Set(const  mat_t<T>&); 
     virtual void Set(const   ERI3<T>&); 
-    virtual void SetDirect  (const   ERI4   &); 
-    virtual void SetExchange(const   ERI4   &); 
+    virtual const ERI4     &  SetDirect  (const   ERI4   &); 
+    virtual const ERI4     &  SetExchange(const   ERI4   &); 
 
 private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.

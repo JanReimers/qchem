@@ -174,13 +174,19 @@ template <class T> void IntegralsCache_RAM<T>::Set(const   ERI3<T>& eri3)
     itsERI3s[itsLastKey3]=eri3;
 }
 
-template <class T> void IntegralsCache_RAM<T>::SetDirect(const   ERI4   & eri4)
+template <class T> const ERI4     &  IntegralsCache_RAM<T>::SetDirect(const   ERI4   & eri4)
 {
-    Jac[itsLastKey4a][itsLastKey4b]=eri4;
+    const auto [iterator, success]=Jac[itsLastKey4a].insert({itsLastKey4b,eri4});
+    assert(success);
+    its4CIterator=iterator;
+    return iterator->second;
 }
-template <class T> void IntegralsCache_RAM<T>::SetExchange(const   ERI4   & eri4)
+template <class T> const ERI4     &  IntegralsCache_RAM<T>::SetExchange(const   ERI4   & eri4)
 {
-    Kab[itsLastKey4a][itsLastKey4b]=eri4;
+    const auto [iterator, success]=Kab[itsLastKey4a].insert({itsLastKey4b,eri4});
+    assert(success);
+    its4CIterator=iterator;
+    return iterator->second;
 }
 
 template struct IntegralsCache<double>;

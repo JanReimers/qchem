@@ -7,6 +7,8 @@ module;
 export module qchem.BasisSet.Atom.IBS1;
 import qchem.BasisSet.Atom.IE1;
 import qchem.IrrepBasisSet1;
+import qchem.Orbital_1E_IBS1;
+import qchem.Orbital_HF_IBS1;
 
 export namespace AtomBS
 {
@@ -43,9 +45,9 @@ public:
 class Orbital_1E_IBS1
     : public ::Orbital_1E_IBS1<double> //This part has the symmetry.
     , public AtomBS::IrrepBasisSet1
-    , public AtomBS::Integrals_Overlap1<double>
-    , public AtomBS::Integrals_Kinetic1<double>
-    , public AtomBS::Integrals_Nuclear1<double>
+    , private AtomBS::Integrals_Overlap1
+    , private AtomBS::Integrals_Kinetic1
+    , private AtomBS::Integrals_Nuclear1
 {
 public:
     Orbital_1E_IBS1(const Irrep_QNs::sym_t& yl) : ::Orbital_1E_IBS1<double>(yl) {};
@@ -64,13 +66,13 @@ public:
 //     {};
 // };
 
-// template <class T> class Orbital_HF_IBS
-//     : public virtual ::Orbital_HF_IBS<T> 
-//     , public Orbital_HF_IBS_Common<T>
-// {
-// protected:
-//     Orbital_HF_IBS(const Integrals_BS_HF<double>* db) : Orbital_HF_IBS_Common<T>(db) {};
-// };
+class Orbital_HF_IBS1
+    : public ::Orbital_HF_IBS1<double> 
+    , public AtomBS::Integrals_HF1
+{
+protected:
+    Orbital_HF_IBS1(const Irrep_QNs::sym_t& yl) : ::Orbital_HF_IBS1<double>(yl) {} 
+};
 
 // // Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 
 // // by combining blocks from the L/S sectors.  So we just declate RKBL/RKBS here.

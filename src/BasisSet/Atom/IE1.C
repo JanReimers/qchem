@@ -8,7 +8,7 @@ export import qchem.BasisSet.Internal.ERI4;
 export import qchem.Orbital_1E_IBS1;
 // export import qchem.Orbital_DHF_IBS;
 // export import qchem.Orbital_DFT_IBS;
-// export import qchem.Orbital_HF_IBS;
+export import qchem.Orbital_HF_IBS1;
 // export import qchem.Fit_IBS;
 
 export import qchem.BasisSet.Atom.IBS_Evaluator;
@@ -24,37 +24,47 @@ class Integrals_Base
 public:
     virtual const IBS_Evaluator* GetEvaluator() const=0;
 };
-template <class T> class Integrals_Overlap1
-: public virtual ::Integrals_Overlap1<T>
+
+class Integrals_Overlap1
+: public virtual ::Integrals_Overlap1<double>
 , public virtual Integrals_Base
 {
 protected:
-    virtual smat_t<T> MakeOverlap() const {return GetEvaluator()->Overlap();}
+    virtual smat_t<double> MakeOverlap() const {return GetEvaluator()->Overlap();}
 };
-template <class T> class Integrals_Kinetic1
-: public virtual ::Integrals_Kinetic1<T>
+class Integrals_Kinetic1
+: public virtual ::Integrals_Kinetic1<double>
 , public virtual Integrals_Base
 {
 public:
-    virtual smat_t<T> MakeKinetic() const
+    virtual smat_t<double> MakeKinetic() const
     {
         auto eval=GetEvaluator();
         int l=eval->Getl();
         return eval->Grad2() + l*(l+1)*eval->Inv_r2();
     }
 };
-template <class T> class Integrals_Nuclear1
-: public virtual ::Integrals_Nuclear1<T>
+class Integrals_Nuclear1
+: public virtual ::Integrals_Nuclear1<double>
 , public virtual Integrals_Base
 {
 protected:
-    virtual smat_t<T> MakeNuclear(const Cluster* cl) const
+    virtual smat_t<double> MakeNuclear(const Cluster* cl) const
     {
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
         int Z=-cl->GetNuclearCharge(); 
         return Z*GetEvaluator()->Inv_r1();
     }
+};
+
+class Integrals_HF1
+: public virtual ::Integrals_HF1<double>
+, public virtual Integrals_Base
+{
+protected:
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS1<double>& c) const {return ERI4();}
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS1<double>& c) const {return ERI4();}
 };
 // template <class T> class AtomIE_XKinetic
 // : public DB_XKinetic<T>
