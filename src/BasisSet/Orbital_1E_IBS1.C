@@ -17,9 +17,9 @@ public:
     {
         auto cache=theGlobalCache;
         assert(cache);
-        if (!cache->Has(IntegralsCache_Base::I2C::Kinetic,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID())))
-            cache->Set(MakeKinetic()); //Uses the key from the Has call.
-        return cache->GetSMat(); //Uses the iterator from the Has call.
+        return cache->Has(IntegralsCache_Base::I2C::Kinetic,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
+            ? cache->GetSMat() : cache->Set(MakeKinetic());
+       
     }
 };
 
@@ -35,9 +35,8 @@ public:
         assert(cl);
         auto cache=theGlobalCache;
         assert(cache);
-        if (!cache->Has(IntegralsCache_Base::I2n::Nuclear,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),cl->ID()))
-            cache->Set(MakeNuclear(cl)); //Uses the key from the Has call.
-        return cache->GetSMat(); //Uses the iterator from the Has call.
+        return cache->Has(IntegralsCache_Base::I2n::Nuclear,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),cl->ID())
+            ? cache->GetSMat() : cache->Set(MakeNuclear(cl));
     }
 };
 

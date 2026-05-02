@@ -107,7 +107,7 @@ public:
     virtual const ERI4     & GetERI4() const=0; 
 
     virtual void Set(const rvec_t   &)=0; 
-    virtual void Set(const smat_t<T>&)=0; 
+    virtual const smat_t<T>& Set(const smat_t<T>&)=0; 
     virtual void Set(const  mat_t<T>&)=0; 
     virtual void Set(const   ERI3<T>&)=0; 
     virtual void SetDirect  (const   ERI4   &)=0; 
@@ -133,7 +133,7 @@ public:
     virtual const ERI4     & GetERI4() const; 
 
     virtual void Set(const rvec_t   &); 
-    virtual void Set(const smat_t<T>&); 
+    virtual const smat_t<T>& Set(const smat_t<T>&); 
     virtual void Set(const  mat_t<T>&); 
     virtual void Set(const   ERI3<T>&); 
     virtual void SetDirect  (const   ERI4   &); 

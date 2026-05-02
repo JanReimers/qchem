@@ -38,9 +38,8 @@ public:
     {
         auto cache=theGlobalCache;
         assert(cache);
-        if (!cache->Has(IntegralsCache_Base::I2C::Overlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID())))
-            cache->Set(MakeOverlap()); //Uses the key from the Has call.
-        return cache->GetSMat(); //Uses the iterator from the Has call.
+        return cache->Has(IntegralsCache_Base::I2C::Overlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
+            ? cache->GetSMat() : cache->Set(MakeOverlap());
     }
 };
 

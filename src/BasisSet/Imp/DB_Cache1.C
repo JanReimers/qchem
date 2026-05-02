@@ -140,12 +140,27 @@ template <class T>  void IntegralsCache_RAM<T>::Set(const rvec_t& v)
     itsVecs[itsLastKey1]=v;
 }
 
-template <class T> void IntegralsCache_RAM<T>::Set(const smat_t<T>& m)
+template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Set(const smat_t<T>& m)
 {
+    // auto iterator= std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator)
+    //     ? itsSMats.insert({itsLastKey2,m})  //Non-nuclear
+    //     : itsNMats.insert({itsLastKeyn,m}); //Nuclear
+    // its2CnIterator=iterator.first;
+    // return iterator.second;
     if (std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator))
-        its2CnIterator=itsSMats.insert({itsLastKey2,m}).first; //Non-nuclear
+    {
+        const auto [iterator, success]=itsSMats.insert({itsLastKey2,m});  //Non-nuclear
+        assert(success);
+        its2CnIterator=iterator;
+        return iterator->second; 
+    }
     else //if (std::holds_alternative<typename mapn_t::const_iterator>(its2CnIterator))
-        its2CnIterator=itsNMats.insert({itsLastKeyn,m}).first; //Nuclear
+    {
+        const auto [iterator, success]=itsNMats.insert({itsLastKeyn,m}); //Nuclear
+        assert(success);
+        its2CnIterator=iterator;
+        return iterator->second;
+    }
     
 }
 
