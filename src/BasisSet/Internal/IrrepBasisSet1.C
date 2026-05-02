@@ -6,7 +6,7 @@ module;
 
 export module qchem.BasisSet.Internal.IrrepBasisSet1;
 export import qchem.IrrepBasisSet1;
-import qchem.BasisSet.DB_Cache1;
+// import qchem.BasisSet.DB_Cache1;
 // import qchem.Fit_IBS;
 // import qchem.Orbital_DFT_IBS;
 // import qchem.Orbital_HF_IBS;

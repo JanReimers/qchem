@@ -23,7 +23,7 @@ export class BasisSet1
     , public virtual Streamable
 {
 public:
-    typedef Orbital_IBS1<double> bs_t; 
+    typedef Orbital_1E_IBS1<double> bs_t; 
     typedef std::vector<std::unique_ptr<bs_t>> bsv_t;
     typedef bsv_t::const_iterator const_iterator;
     typedef std::vector<Irrep_QNs> irrepv_t; 

@@ -99,13 +99,14 @@ public:
 
     virtual ~IntegralsCache() {};
 
-    // All of these are expected to use the iterator from the latest Has() call.
+    // All of these are expected to use the iterator from the latest Has() or Set() call.
     virtual const rvec_t   & GetVec () const=0; //Always real?
     virtual const smat_t<T>& GetSMat() const=0; 
     virtual const  mat_t<T>& GetMat () const=0; 
     virtual const ERI3  <T>& GetERI3() const=0; 
     virtual const ERI4     & GetERI4() const=0; 
 
+    // Insert and cache the iterator.  Return ref to the *stored* object.
     virtual void Set(const rvec_t   &)=0; 
     virtual const smat_t<T>& Set(const smat_t<T>&)=0; 
     virtual void Set(const  mat_t<T>&)=0; 

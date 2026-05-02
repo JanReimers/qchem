@@ -83,7 +83,10 @@ Priority 1:
 
 
         
-
+    -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
+        Can we store just one virtual base class?
+        Or make a GetEvaluator() virtual function call.
+    -ERI3<T>, ERI4 make consistent.
     -Make more use of CastSymmetry()?
     Fixed -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
         Right now it is probably ordering based on pointer values inside std::shared_ptr

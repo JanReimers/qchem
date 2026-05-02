@@ -18,31 +18,25 @@ import qchem.BasisSet;
 import qchem.Symmetry.Yl;
 import qchem.Orbital_1E_IBS1;
 
-namespace AtomBS1
+namespace AtomBS
 {
+
 namespace BSpline1
 {
 template <size_t K> class Orbital_IBS
-    : public Orbital_IBS1<double>
+    : public AtomBS::Orbital_1E_IBS1
     , private BSpline_IBS<K>
-    , public AtomBS::IrrepBasisSet1
-    , public AtomIE_Overlap1<double>
-    , public AtomIE_Kinetic1<double>
-    , public AtomIE_Nuclear1<double>
 {
 public:
     Orbital_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : Orbital_IBS1<double>(yl)
+    : AtomBS::Orbital_1E_IBS1(yl)
     , BSpline_IBS<K>(N,rmin,rmax,yl)
-    , AtomBS::IrrepBasisSet1(this)
-    , AtomIE_Overlap1<double>(this)
-    , AtomIE_Kinetic1<double>(this)
-    , AtomIE_Nuclear1<double>(this)
     {};
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet*,const Cluster*) const {return 0;}
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet*,const Cluster*) const {return 0;}
     virtual size_t GetNumFunctions() const {return BSpline_IBS<K>::size();}
+    const IBS_Evaluator* GetEvaluator() const {return this;}
     // virtual size_t  size           () const {return BSpline_IBS<K>::size();}
 
 };
@@ -57,8 +51,8 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
         , yl(new Yl_Sym(0))
-        , ibs1(new AtomBS1::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
-        , ibs2(new AtomBS1::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
+        , ibs1(new AtomBS::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
+        , ibs2(new AtomBS::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
         // , bs1(0), bs2(0)
     {
         theGlobalCache=new IntegralsCache_RAM<double>();

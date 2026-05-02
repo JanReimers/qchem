@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include "blaze/Math.h"
 export module qchem.BasisSet.Atom.IE1;
-import qchem.BasisSet.DB_Cache1;
 export import qchem.BasisSet.Internal.ERI4;
 
 export import qchem.Orbital_1E_IBS1;
@@ -17,45 +16,45 @@ import qchem.BasisSet.Atom.Gaussian.NR.BS_Evaluator;
 import qchem.Types;
 
 
-export
+export namespace AtomBS
 {
 
-template <class T> class AtomIE_Overlap1
-: public virtual Integrals_Overlap1<T>
-{
-protected:
-    AtomIE_Overlap1(const IBS_Evaluator* _eval) : eval(_eval) {};
-    virtual smat_t<T> MakeOverlap() const {return eval->Overlap();}
-private:
-    const IBS_Evaluator* eval;
-};
-template <class T> class AtomIE_Kinetic1
-: public virtual Integrals_Kinetic1<T>
+class Integrals_Base
 {
 public:
-    AtomIE_Kinetic1(const IBS_Evaluator* _eval) : eval(_eval) {};
+    virtual const IBS_Evaluator* GetEvaluator() const=0;
+};
+template <class T> class Integrals_Overlap1
+: public virtual ::Integrals_Overlap1<T>
+, public virtual Integrals_Base
+{
+protected:
+    virtual smat_t<T> MakeOverlap() const {return GetEvaluator()->Overlap();}
+};
+template <class T> class Integrals_Kinetic1
+: public virtual ::Integrals_Kinetic1<T>
+, public virtual Integrals_Base
+{
+public:
     virtual smat_t<T> MakeKinetic() const
     {
+        auto eval=GetEvaluator();
         int l=eval->Getl();
         return eval->Grad2() + l*(l+1)*eval->Inv_r2();
     }
-private:
-    const IBS_Evaluator* eval;
 };
-template <class T> class AtomIE_Nuclear1
-: public virtual Integrals_Nuclear1<T>
+template <class T> class Integrals_Nuclear1
+: public virtual ::Integrals_Nuclear1<T>
+, public virtual Integrals_Base
 {
 protected:
-    AtomIE_Nuclear1(const IBS_Evaluator* _eval) : eval(_eval) {};
     virtual smat_t<T> MakeNuclear(const Cluster* cl) const
     {
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
         int Z=-cl->GetNuclearCharge(); 
-        return Z*eval->Inv_r1();
+        return Z*GetEvaluator()->Inv_r1();
     }
-private:
-    const IBS_Evaluator* eval;
 };
 // template <class T> class AtomIE_XKinetic
 // : public DB_XKinetic<T>

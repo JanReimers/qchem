@@ -23,7 +23,7 @@ public:
 //
     virtual std::ostream&  Write(std::ostream&    ) const;
 protected:
-    void Insert(Orbital_IBS1<double>*);
+    void Insert(Orbital_1E_IBS1<double>*);
 
     virtual const_iterator begin() const {return itsBasisSets.begin();}
     virtual const_iterator end  () const {return itsBasisSets.end  ();}

@@ -7,51 +7,51 @@ module;
 export module qchem.BasisSet.Atom.IBS1;
 import qchem.BasisSet.Atom.IE1;
 import qchem.IrrepBasisSet1;
-import qchem.BasisSet.DB_Cache1;
 
 export namespace AtomBS
 {
 
+//
+//  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
+//
 class IrrepBasisSet1
     : public virtual VectorFunction<double>
     , public virtual IrrepBasisSet_IDs
     , public virtual Streamable
+    , public virtual Integrals_Base
 {
 public:
-    IrrepBasisSet1(IBS_Evaluator* eval)
-    : itsEval(eval)
-    {};
-    virtual size_t  GetNumFunctions() const {return itsEval->size();}
+    virtual size_t  GetNumFunctions() const {return GetEvaluator()->size();}
     // virtual size_t  size           () const {return itsEval->size();}
-    virtual rvec_t     operator() (const rvec3_t& r) const {return itsEval->operator()(r);}
-    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return itsEval->Gradient(r);}
+    virtual rvec_t     operator() (const rvec3_t& r) const {return GetEvaluator()->operator()(r);}
+    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return GetEvaluator()->Gradient(r);}
     virtual std::ostream&  Write(std::ostream& os) const
     {
-        os << itsEval->Name() << " ";
-        itsEval->Write(os);
+        os << GetEvaluator()->Name() << " ";
+        GetEvaluator()->Write(os);
         return os;
     }
 
-    virtual std::string RadialID () const {return itsEval->RadialID();}
-    virtual std::string AngularID() const {return itsEval->AngularID();}
-    virtual std::string Name     () const {return itsEval->Name();}
-private:
-    IBS_Evaluator* itsEval;
+    virtual std::string RadialID () const {return GetEvaluator()->RadialID();}
+    virtual std::string AngularID() const {return GetEvaluator()->AngularID();}
+    virtual std::string Name     () const {return GetEvaluator()->Name();}
 };
 
-// template <class T> class Orbital_IBS1
-//     : public virtual ::Orbital_IBS1<T> 
-//     , public AtomIE_Overlap1<double>
-//     , public AtomIE_Kinetic1<double>
-//     , public AtomIE_Nuclear1<double>
-// {
-// protected:
-//     Orbital_IBS1(const IBS_Evaluator* eval) 
-//     : AtomIE_Overlap1<double>(eval)
-//     , AtomIE_Kinetic1<double>(eval)
-//     , AtomIE_Nuclear1<double>(eval) 
-//     {};
-// };
+//
+//  1E orbital for atoms.  Use mixins to get he integral evaluations.
+//
+class Orbital_1E_IBS1
+    : public ::Orbital_1E_IBS1<double> //This part has the symmetry.
+    , public AtomBS::IrrepBasisSet1
+    , public AtomBS::Integrals_Overlap1<double>
+    , public AtomBS::Integrals_Kinetic1<double>
+    , public AtomBS::Integrals_Nuclear1<double>
+{
+public:
+    Orbital_1E_IBS1(const Irrep_QNs::sym_t& yl) : ::Orbital_1E_IBS1<double>(yl) {};
+
+};
+
 
 // template <class T> class Orbital_DFT_IBS
 //     : public virtual ::Orbital_DFT_IBS<T> 
