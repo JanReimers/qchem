@@ -91,20 +91,6 @@ private:
 
 // HF
 
-// class AtomIE_BS_HF1 
-//     : public Integrals_BS_HF1<double>
-// {
-// public:
-//     AtomIE_BS_HF1(BS_Evaluator* bse) : itsEvaluator(bse) {};
-//     using IBS_t=Orbital_HF_IBS1<double>;
-//     virtual ERI4 MakeDirect  (const IBS_t* a, const IBS_t* c) const;
-//     virtual ERI4 MakeExchange(const IBS_t* a, const IBS_t* c) const;
-// protected:
-//     virtual void Append(const Orbital_HF_IBS1<T>*, IBS_Evaluator*);
-
-// private: 
-//     BS_Evaluator* itsEvaluator;
-// };
 
 // DFT
 // template <class T> class AtomIE_DFT 

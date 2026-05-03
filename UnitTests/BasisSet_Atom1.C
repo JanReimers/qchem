@@ -6,20 +6,22 @@
 using std::cout;
 using std::endl;
 
-import qchem.Cluster;
 import qchem.BasisSet.DB_Cache1;
+import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
-import qchem.Types;
-// import qchem.Orbital_1E_IBS;
+
 import qchem.IrrepBasisSet1;
 import qchem.BasisSet.Atom.IBS1;
 import qchem.BasisSet.Atom.IE1;
-import qchem.BasisSet1;
-import qchem.Symmetry.Yl;
-import qchem.Orbital_1E_IBS1;
-import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Internal.Common1;
+
+import qchem.Orbital_1E_IBS1;
+import qchem.BasisSet1;
+
+import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
+import qchem.Cluster;
+import qchem.Types;
 
 bool operator==(const ERI4& a, const ERI4& b);
 // {
@@ -43,20 +45,19 @@ namespace AtomBS
 
 namespace BSpline1
 {
-template <size_t K> class Orbital_IBS
+template <size_t K,class Evaluator> class Orbital_IBS
     : public AtomBS::Orbital_HF_IBS1
-    // , private IrrepBasisSet1<double>
-    , private BSpline_IBS<K>
+    , private Evaluator
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
     : AtomBS::Orbital_HF_IBS1(bse,yl)
-    , BSpline_IBS<K>(N,rmin,rmax,yl)
+    , Evaluator(N,rmin,rmax,yl)
     {};
 
     virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet1*,const Cluster*) const {return 0;}
     virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet1*,const Cluster*) const {return 0;}
-    virtual size_t GetNumFunctions() const {return BSpline_IBS<K>::size();}
+    virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
     // virtual size_t  size           () const {return BSpline_IBS<K>::size();}
@@ -64,28 +65,27 @@ public:
 };
 
 
-template <size_t K> class BasisSet
+template <size_t K,template<size_t> class Evaluator> class BasisSet
     : public virtual ::BasisSet1
     , public ::BS_Common1
-    , public BSpline_BS<K> 
-    // , public AtomBS::Integrals_BS_HF1 //HF support
+    , public Evaluator<K> 
 {
+    using oibs_t=Orbital_IBS<K,typename Evaluator<K>::IBS_Evaluator_t>; //Corresponding Orbital IBS type
 public:
     BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
-    // : AtomBS::Integrals_BS_HF1(this)
     {
         const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
         size_t LMax=aec.GetLMax();
         for (auto ir:aec.GetIrreps())
-            Insert(new Orbital_IBS<K>(this,N,rmin,rmax,ir));  
+            Insert(new oibs_t(this,N,rmin,rmax,ir));  
      
-        BSpline_BS<K>::BuildCache(LMax);
+        Evaluator<K>::BuildCache(LMax);
     }
 private:
-    void Insert(Orbital_IBS<K>* oibs)
+    void Insert(oibs_t* oibs)
     {
         ::BS_Common1::Insert(oibs);
-        BSpline_BS<K>::Register(oibs->GetEvaluator());
+        Evaluator<K>::Register(oibs->GetEvaluator());
     }
 };
 
@@ -101,12 +101,8 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
         , yl(new Yl_Sym(0))
-        ,  bs1(new AtomBS::BSpline1::BasisSet<6>(3,0.1,10.0,Atom_EC(86)))
-        ,  bs2(new AtomBS::BSpline1::BasisSet<6>(3,0.1,10.0,Atom_EC(86)))
-        // , ibs1(&bs1->Iterate<Real_OIBS1>())
-        // , ibs2(&bs2->Iterate<Real_OIBS1>())
-        // // , ibs1(new AtomBS::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
-        // , ibs2(new AtomBS::BSpline1::Orbital_IBS<6>(3,.5,2.0,yl))
+        ,  bs1(new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
+        ,  bs2(new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
     {
         theGlobalCache=new IntegralsCache_RAM<double>();
     }
@@ -123,7 +119,6 @@ public:
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
     Irrep_QNs::sym_t yl;
     ::BasisSet1 *bs1,*bs2;
-    // Real_OIBS1 *ibs1,*ibs2;
 };
 
 
