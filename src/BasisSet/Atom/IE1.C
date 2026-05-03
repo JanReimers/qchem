@@ -23,6 +23,7 @@ class Integrals_Base
 {
 public:
     virtual const IBS_Evaluator* GetEvaluator() const=0;
+    virtual IBS_Evaluator* GetEvaluator()=0;
 };
 
 class Integrals_Overlap1

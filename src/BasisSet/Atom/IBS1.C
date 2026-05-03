@@ -69,11 +69,12 @@ public:
 
 class Orbital_HF_IBS1
     : public ::Orbital_HF_IBS1<double> 
+    , public AtomBS::Orbital_1E_IBS1
     , public AtomBS::Integrals_HF1
 {
 protected:
     Orbital_HF_IBS1(BS_Evaluator* bse,const Irrep_QNs::sym_t& yl) 
-        : ::Orbital_HF_IBS1<double>(yl) 
+        : AtomBS::Orbital_1E_IBS1(yl) 
         , AtomBS::Integrals_HF1(bse)
         {} 
 };

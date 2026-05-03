@@ -49,11 +49,10 @@ public:
 
 
 export template <class T> class Orbital_HF_IBS1
-    : public virtual Orbital_1E_IBS1<T>
-    , public virtual Integrals_HF1<T> //Two electron integrals used for HF
+    : public virtual Integrals_HF1<T> //Two electron integrals used for HF
 {
 public:
-    Orbital_HF_IBS1(const Irrep_QNs::sym_t& sym) : Orbital_1E_IBS1<T>(sym) {};
+    // Orbital_HF_IBS1(const Irrep_QNs::sym_t& sym) : Orbital_1E_IBS1<T>(sym) {};
     using Integrals_HF1<T>::Direct;
     using Integrals_HF1<T>::Exchange;
     virtual void AccumulateDirect  (rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS1<T>* bs_cd) const;
