@@ -5,7 +5,7 @@ module;
 export module qchem.BasisSet.Internal.Common1;
 export import qchem.Types;
 import Common.UniqueIDImp;
-import qchem.BasisSet1;
+export import qchem.BasisSet1;
 
 
 export class BS_Common1

@@ -1,4 +1,4 @@
-// File: UnitTests/BasisSet_Atom.C  Unit test the Atom IBS Evaluators
+// File: UnitTests/BasisSet_Atom1.C  Unit test the Atom IBS Evaluators
 #include "gtest/gtest.h"
 #include <iostream>
 // #include <cmath>
@@ -7,90 +7,11 @@ using std::cout;
 using std::endl;
 
 import qchem.BasisSet.DB_Cache1;
+import qchem.BasisSet.Atom.BSpline.NR.BS1;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
-import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
-
-import qchem.IrrepBasisSet1;
-import qchem.BasisSet.Atom.IBS1;
-import qchem.BasisSet.Atom.IE1;
-import qchem.BasisSet.Internal.Common1;
-
-import qchem.Orbital_1E_IBS1;
-import qchem.BasisSet1;
-
 import qchem.Symmetry.Yl;
-import qchem.Symmetry.AtomEC;
-import qchem.Cluster;
-import qchem.Types;
 
-bool operator==(const ERI4& a, const ERI4& b);
-// {
-//     static double eps=5e-16;
-//     if (a.size()!=b.size()) return false;
-//     for (size_t i=0;i<a.Nab();i++)
-//         for (size_t j=0;j<a.Nab();j++)
-//             if (norm(a(i,j)-b(i,j))>eps) 
-//             {
-//                 std::cout << "a(" << i << "," << j << ")=" << a(i,j);
-//                 std::cout << "b(" << i << "," << j << ")=" << b(i,j);
-//                 std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
-//                 std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
-//                 return false;
-//             }
-//     return true;
-// }
-
-namespace AtomBS
-{
-
-namespace BSpline1
-{
-template <size_t K,class Evaluator> class Orbital_IBS
-    : public AtomBS::Orbital_HF_IBS1
-    , private Evaluator
-{
-public:
-    Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : AtomBS::Orbital_HF_IBS1(bse,yl)
-    , Evaluator(N,rmin,rmax,yl)
-    {};
-
-    virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet1*,const Cluster*) const {return 0;}
-    virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet1*,const Cluster*) const {return 0;}
-    virtual size_t GetNumFunctions() const {return Evaluator::size();}
-    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
-    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
-    // virtual size_t  size           () const {return BSpline_IBS<K>::size();}
-
-};
-
-
-template <size_t K,template<size_t> class Evaluator> class BasisSet
-    : public virtual ::BasisSet1
-    , public ::BS_Common1
-    , public Evaluator<K> 
-{
-    using oibs_t=Orbital_IBS<K,typename Evaluator<K>::IBS_Evaluator_t>; //Corresponding Orbital IBS type
-public:
-    BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
-    {
-        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
-        size_t LMax=aec.GetLMax();
-        for (auto ir:aec.GetIrreps())
-            Insert(new oibs_t(this,N,rmin,rmax,ir));  
-     
-        Evaluator<K>::BuildCache(LMax);
-    }
-private:
-    void Insert(oibs_t* oibs)
-    {
-        ::BS_Common1::Insert(oibs);
-        Evaluator<K>::Register(oibs->GetEvaluator());
-    }
-};
-
-
-}} //namespace 
+bool operator==(const ERI4& a, const ERI4& b); //Defined in UnitTests/BasisSet_Atom.C
 
 
 class DBCach1Tests : public ::testing::Test
@@ -199,19 +120,3 @@ TEST_F(DBCach1Tests,BSplineExchange)
         ++ibs21;
     }
 }
-// TESTF(DBCach1Tests,Overlap)
-// {
-//     Init(86);
-//     std::vector<rsmat_t*> S1s;
-//     std::vector<rsmat_t*> S2s;
-
-//     for (auto ibs:*bs1)
-//         S1s.push_back(&ibs->Overlap());
-//     for (auto ibs:*bs2)
-//         S2s.push_back(&ibs->Overlap());
-
-//     for (auto i:iv_t(0,S1s.size()))
-//     {
-//         EXPECT_EQ(S1s[i],S2s[i]);
-//     }
-// }

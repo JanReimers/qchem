@@ -38,6 +38,29 @@ target_include_directories(UTMain PRIVATE
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
+
+add_executable(UTMain1 gtestmain.C QchemTester1.C BasisSet_Atom1.C)
+target_compile_options(UTMain1 PRIVATE -Wall 
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2 -pg>
+)
+target_compile_definitions(UTMain1 PRIVATE 
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+set_property(TARGET UTMain1 PROPERTY CXX_STANDARD 20)
+
+target_link_options(UTMain1 PRIVATE -pg)
+target_include_directories(UTMain1 PRIVATE 
+    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+
+)
+target_link_libraries(UTMain1 PUBLIC qchem qcCommon)
+
+
 # Symmetry module
 add_executable(UTSym gtestmain.C SymQN.C ElectronConfigurations.C)
 target_include_directories(UTSym PRIVATE 
