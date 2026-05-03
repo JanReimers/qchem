@@ -6,8 +6,8 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet.DB_Cache1;
-import qchem.BasisSet.Atom.BSpline.NR.BS1;
+import qchem.BasisSet1.DB_Cache;
+import qchem.BasisSet1.Atom.BSpline.NR.BS;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.Symmetry.Yl;
 

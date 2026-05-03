@@ -1,13 +1,13 @@
 // File: BasisSet/Atom/BSpline/NR/BSpline_BS.C BSpline Basis Set for atoms.
 module;
-export module qchem.BasisSet.Atom.BSpline.NR.BS1;
+export module qchem.BasisSet1.Atom.BSpline.NR.BS;
 
 export import qchem.BasisSet1;
 import qchem.BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Internal.Common1;
+import qchem.BasisSet1.Internal.Common;
 
 export import qchem.Orbital_HF_IBS1;
-import qchem.BasisSet.Atom.IBS1;
+import qchem.BasisSet1.Atom.IBS;
 
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;

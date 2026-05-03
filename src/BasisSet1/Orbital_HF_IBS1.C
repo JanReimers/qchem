@@ -3,7 +3,7 @@ module;
 #include <cassert>
 export module qchem.Orbital_HF_IBS1;
 export import qchem.Orbital_1E_IBS1;
-import qchem.BasisSet.DB_Cache1;
+import qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
 
 export template <class T> class Orbital_HF_IBS1;

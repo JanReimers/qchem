@@ -5,7 +5,7 @@ module;
 export module qchem.Orbital_1E_IBS1;
 export import qchem.IrrepBasisSet1;
 export import qchem.Cluster;
-import qchem.BasisSet.DB_Cache1;
+import qchem.BasisSet1.DB_Cache;
 
 //  The are used for caching 1) radial Slater integrals R_k(abcd) 2) Direct/Exchange integrals
 export class IrrepBasisSet_IDs

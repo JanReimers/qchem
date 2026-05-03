@@ -4,8 +4,8 @@ module;
 #include <memory>
 #include "forward.H"
 
-export module qchem.BasisSet.Atom.IBS1;
-import qchem.BasisSet.Atom.IE1;
+export module qchem.BasisSet1.Atom.IBS;
+import qchem.BasisSet1.Atom.IE;
 import qchem.IrrepBasisSet1;
 import qchem.Orbital_1E_IBS1;
 import qchem.Orbital_HF_IBS1;

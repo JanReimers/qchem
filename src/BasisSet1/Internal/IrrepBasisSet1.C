@@ -4,7 +4,7 @@ module;
 #include <string>
 #include "forward.H"
 
-export module qchem.BasisSet.Internal.IrrepBasisSet1;
+export module qchem.BasisSet1.Internal.IrrepBasisSet;
 export import qchem.IrrepBasisSet1;
 // import qchem.BasisSet.DB_Cache1;
 // import qchem.Fit_IBS;

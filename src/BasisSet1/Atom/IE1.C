@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include "blaze/Math.h"
-export module qchem.BasisSet.Atom.IE1;
+export module qchem.BasisSet1.Atom.IE;
 export import qchem.BasisSet.Internal.ERI4;
 
 export import qchem.Orbital_1E_IBS1;

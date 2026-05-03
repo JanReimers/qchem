@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 #include "forward.H"
-export module qchem.BasisSet.Internal.Common1;
+export module qchem.BasisSet1.Internal.Common;
 export import qchem.Types;
 import Common.UniqueIDImp;
 export import qchem.BasisSet1;

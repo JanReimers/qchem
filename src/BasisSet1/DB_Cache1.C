@@ -5,7 +5,7 @@ module;
 #include <vector>
 #include <string>
 #include <variant>
-export module qchem.BasisSet.DB_Cache1;
+export module qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.IntegralEnums;
