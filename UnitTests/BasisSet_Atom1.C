@@ -21,6 +21,23 @@ import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Internal.Common1;
 import qchem.Symmetry.AtomEC;
 
+bool operator==(const ERI4& a, const ERI4& b);
+// {
+//     static double eps=5e-16;
+//     if (a.size()!=b.size()) return false;
+//     for (size_t i=0;i<a.Nab();i++)
+//         for (size_t j=0;j<a.Nab();j++)
+//             if (norm(a(i,j)-b(i,j))>eps) 
+//             {
+//                 std::cout << "a(" << i << "," << j << ")=" << a(i,j);
+//                 std::cout << "b(" << i << "," << j << ")=" << b(i,j);
+//                 std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
+//                 std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
+//                 return false;
+//             }
+//     return true;
+// }
+
 namespace AtomBS
 {
 
@@ -153,6 +170,40 @@ TEST_F(DBCach1Tests,BSplineNuclear)
     }
 }
 
+TEST_F(DBCach1Tests,BSplineDirect)
+{
+    auto ibs21=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
+    for (auto ibs11:bs1->Iterate<Orbital_HF_IBS1<double>>())
+    {
+        auto ibs22=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
+        for (auto ibs12:bs1->Iterate<Orbital_HF_IBS1<double>>())
+        {
+            const ERI4& J1=ibs11->Direct(*ibs12);
+            const ERI4& J2=(*ibs21)->Direct(**ibs22);
+            EXPECT_EQ(J1,J2);
+            EXPECT_EQ(&J1,&J2);
+            ++ibs22;
+        }
+        ++ibs21;
+    }
+}
+TEST_F(DBCach1Tests,BSplineExchange)
+{
+    auto ibs21=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
+    for (auto ibs11:bs1->Iterate<Orbital_HF_IBS1<double>>())
+    {
+        auto ibs22=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
+        for (auto ibs12:bs1->Iterate<Orbital_HF_IBS1<double>>())
+        {
+            const ERI4& K1=ibs11->Exchange(*ibs12);
+            const ERI4& K2=(*ibs21)->Exchange(**ibs22);
+            EXPECT_EQ(K1,K2);
+            EXPECT_EQ(&K1,&K2);
+            ++ibs22;
+        }
+        ++ibs21;
+    }
+}
 // TESTF(DBCach1Tests,Overlap)
 // {
 //     Init(86);

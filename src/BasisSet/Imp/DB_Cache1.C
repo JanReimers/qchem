@@ -66,6 +66,8 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
     }
     else if (std::holds_alternative<I4C>(ix))
     {
+        itsLastKey4a=ida;
+        itsLastKey4b=idb;
         switch (std::get<I4C>(ix))
         {
             case IntegralsCache<T>::I4C::Direct:
