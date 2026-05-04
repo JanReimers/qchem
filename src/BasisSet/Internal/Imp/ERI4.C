@@ -43,3 +43,33 @@ bool operator==(const ERI4& a, const ERI4& b)
             }
     return true;
 }
+
+double fnorm(const ERI4& a, const ERI4& b)
+{
+    double ret=0.0;
+    assert(a.Nab()==b.Nab());
+    assert(a.Ncd()==b.Ncd());
+    for (size_t i=0;i<a.Nab();i++)
+        for (size_t j=0;j<a.Nab();j++)
+        {
+            double norm_ab=norm(a(i,j)-b(i,j));
+            ret+=norm_ab*norm_ab;
+        }
+    return sqrt(ret);    
+}
+
+double relative_fnorm(const ERI4& a, const ERI4& b)
+{
+    double ret=0.0;
+    assert(a.Nab()==b.Nab());
+    assert(a.Ncd()==b.Ncd());
+    for (size_t i=0;i<a.Nab();i++)
+        for (size_t j=0;j<a.Nab();j++)
+        {
+            double norm_ab=norm(a(i,j)-b(i,j));
+            double avg_norm_ab=(norm(a(i,j))+norm(b(i,j)))/2.0;
+            if (avg_norm_ab>0.0) norm_ab/=avg_norm_ab;
+            ret+=norm_ab*norm_ab;
+        }
+    return sqrt(ret);    
+}

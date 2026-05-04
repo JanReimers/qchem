@@ -23,6 +23,10 @@ public:
     friend rmat_t MatMul(const M4& gabcd,const rmat_t& Scd);
 };
 
+//
+//  The may be usefull for unit testing.
+// 
 export bool operator==(const ERI4& a, const ERI4& b);
-
+export double fnorm(const ERI4& a, const ERI4& b);
+export double relative_fnorm(const ERI4& a, const ERI4& b);
 
