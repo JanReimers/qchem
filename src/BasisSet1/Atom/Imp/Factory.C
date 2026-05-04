@@ -11,8 +11,10 @@ import qchem.Symmetry.AtomEC;
 // import qchem.BasisSet.Atom.Slater.NR.BS;
 // import qchem.BasisSet.Atom.BSpline.NR.BS;
 
-import qchem.BasisSet1.Atom.BSpline.NR.BS;
+import qchem.BasisSet1.Atom.BasisSet;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
+import BasisSet.Atom.Gaussian_BS;
+import BasisSet.Atom.Slater.NR.BS_Evaluator;
 
 using json = nlohmann::json;
 
@@ -38,22 +40,22 @@ BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronCo
     BasisSet1::Real_BS* bs=0;
     switch (type)
     {
-    // case Type::Slater:
-    // {
-    //     double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-    //     bs=new AtomBS::Slater::BasisSet(N,emin,emax,ec);
-    //     break;
-    // }
-    // case Type::Gaussian:
-    // {
-    //     double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-    //     bs=new AtomBS::Gaussian::BasisSet(N,emin,emax,ec);
-    //     break;
-    // }
+    case Type::Slater:
+    {
+        double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
+        bs=new BasisSet<Slater_BS>(N,emin,emax,ec);
+        break;
+    }
+    case Type::Gaussian:
+    {
+        double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
+        bs=new BasisSet<Gaussian_BS>(N,emin,emax,ec);
+        break;
+    }
     case Type::BSpline6:
     {
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new BSpline1::BasisSet<BSpline_r_BS<6>>(N,rmin,rmax,ec);
+        bs=new BasisSet<BSpline_r_BS<6>>(N,rmin,rmax,ec);
         break;   
     }
 //     case Type::BSpline16:

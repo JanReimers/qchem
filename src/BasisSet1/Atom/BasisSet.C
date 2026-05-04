@@ -1,23 +1,20 @@
 // File: BasisSet/Atom/BSpline/NR/BSpline_BS.C BSpline Basis Set for atoms.
 module;
-export module qchem.BasisSet1.Atom.BSpline.NR.BS;
+export module qchem.BasisSet1.Atom.BasisSet;
 
 export import qchem.BasisSet1;
-import qchem.BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Atom.IBS_Evaluator;
-
-import qchem.BasisSet1.Internal.Common;
-
 export import qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet1.Atom.IBS;
-
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
+
+import qchem.BasisSet.Atom.BS_Evaluator;
+import qchem.BasisSet.Atom.IBS_Evaluator;
+import qchem.BasisSet1.Atom.IBS;
+import qchem.BasisSet1.Internal.Common;
 
 export 
 namespace BasisSet1 {
 namespace Atom {
-namespace BSpline1 {
 
 template <class Evaluator> class Orbital_IBS
     : public Orbital_HF_IBS
@@ -72,5 +69,5 @@ private:
 };
 
 
-}}} //namespaces 
+}} //namespaces 
 

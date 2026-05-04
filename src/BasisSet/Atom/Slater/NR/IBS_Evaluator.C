@@ -11,7 +11,8 @@ public:
     Slater_IBS(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Slater_IBS(const rvec_t& es, int l) : Slater_IBS(es,l,{}) {}
     Slater_IBS(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
-
+    Slater_IBS(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
+    : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
    
     virtual std::ostream& Write   (std::ostream&) const;
  
@@ -34,6 +35,7 @@ public:
     virtual std::string Name() const;
 
 protected:
+    static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized
     virtual double Inv_r1(double ea , double eb,size_t l_total) const; //Needs an override for RKB.
     static  double Grad2 (double ea , double eb,size_t la, size_t lb); //RKB needs access

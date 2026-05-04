@@ -8,6 +8,7 @@ module;
 module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Gaussian.Rk;
 import qchem.BasisSet.Atom.GaussianIntegrals;
+import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
 import Common.Constants;
 
 
@@ -59,6 +60,12 @@ double Gaussian_IBS::Inv_r1(double ea , double eb,size_t l_total) const
     return Gaussian::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
+rvec_t Gaussian_IBS::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
+{
+    size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
+    ::Gaussian::ExponentScaler ss(N,emin,emax,LMax);
+    return ss.Get_es(ir);
+}
 
 rvec_t Gaussian_IBS::norms() const
 {

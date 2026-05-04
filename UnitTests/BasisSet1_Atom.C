@@ -18,14 +18,20 @@ public:
         : cl_hydrogen    (new Atom(1,0.0,Vector3D(0,0,0)))
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
-        // ,  bs1(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
-        // ,  bs2(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
     {
         BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();
-        nlohmann::json js = {{"type",BasisSet1::Atom::Type::BSpline6},{"N", 3}, {"rmin", 0.1}, {"rmax", 10}};
+        
+    }
+    void Init(nlohmann::json js)
+    {
         bs1=BasisSet1::Atom::Factory(js,86);
         bs2=BasisSet1::Atom::Factory(js,86);
     }
+    void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", 3}, {"rmin", 0.1}, {"rmax", 10}});}
+    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian},{"N", 3}, {"emin", 0.1}, {"emax", 10}});}
+    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater  },{"N", 3}, {"emin", 0.1}, {"emax", 10}});}
+
+    
     ~DBCach1Tests()
     {
         delete cl_hydrogen;
@@ -45,6 +51,7 @@ using BasisSet1::Real_OIBS;
 
 TEST_F(DBCach1Tests,BSplineOverlap)
 {
+    InitBSpline6();
     auto ibs2=bs2->Iterate<Real_OIBS>().begin();
     for (auto ibs1:bs1->Iterate<Real_OIBS>())
     {
@@ -55,8 +62,37 @@ TEST_F(DBCach1Tests,BSplineOverlap)
         ++ibs2;
     }
 }
+TEST_F(DBCach1Tests,GaussianOverlap)
+{
+    InitGaussian();
+    auto ibs2=bs2->Iterate<Real_OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<Real_OIBS>())
+    {
+        auto& S1=ibs1->Overlap();
+        auto& S2=(*ibs2)->Overlap();
+        EXPECT_EQ(S1,S2);
+        EXPECT_EQ(&S1,&S2);
+        ++ibs2;
+    }
+}
+TEST_F(DBCach1Tests,SlaterOverlap)
+{
+    InitSlater();
+    auto ibs2=bs2->Iterate<Real_OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<Real_OIBS>())
+    {
+        auto& S1=ibs1->Overlap();
+        auto& S2=(*ibs2)->Overlap();
+        EXPECT_EQ(S1,S2);
+        EXPECT_EQ(&S1,&S2);
+        ++ibs2;
+    }
+}
+
+
 TEST_F(DBCach1Tests,BSplineKinetic)
 {
+    InitBSpline6();
     auto ibs2=bs2->Iterate<Real_OIBS>().begin();
     for (auto ibs1:bs1->Iterate<Real_OIBS>())
     {
@@ -69,6 +105,7 @@ TEST_F(DBCach1Tests,BSplineKinetic)
 }
 TEST_F(DBCach1Tests,BSplineNuclear)
 {
+    InitBSpline6();
     auto ibs2=bs2->Iterate<Real_OIBS>().begin();
     for (auto ibs1:bs1->Iterate<Real_OIBS>())
     {
@@ -89,6 +126,7 @@ TEST_F(DBCach1Tests,BSplineNuclear)
 using BasisSet1::Real_HF_OIBS;
 TEST_F(DBCach1Tests,BSplineDirect)
 {
+    InitBSpline6();
     auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
     for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
     {
@@ -106,6 +144,7 @@ TEST_F(DBCach1Tests,BSplineDirect)
 }
 TEST_F(DBCach1Tests,BSplineExchange)
 {
+    InitBSpline6();
     auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
     for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
     {

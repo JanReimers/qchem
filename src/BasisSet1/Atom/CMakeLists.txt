@@ -6,6 +6,7 @@ target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factory.C
     IE.C
     IrrepBasisSet.C
+    BasisSet.C
 )
 target_include_directories(qcAtom_BS1 PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
@@ -26,6 +27,6 @@ target_compile_options(qcAtom_BS1 PRIVATE
 
 set_property(TARGET qcAtom_BS1 PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcAtom_BS1 PUBLIC qcAtom_BS qcBasisSet1 qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
-add_subdirectory(BSpline)
+# add_subdirectory(BSpline)
 # add_subdirectory(Gaussian)
 # add_subdirectory(Slater)
