@@ -24,8 +24,8 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
         , yl(new Yl_Sym(0))
-        ,  bs1(new BasisSet1::Atom::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
-        ,  bs2(new BasisSet1::Atom::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
+        ,  bs1(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
+        ,  bs2(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
     {
         BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();
     }

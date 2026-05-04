@@ -19,7 +19,7 @@ namespace BasisSet1 {
 namespace Atom {
 namespace BSpline1 {
 
-template <size_t K,class Evaluator> class Orbital_IBS
+template <class Evaluator> class Orbital_IBS
     : public Orbital_HF_IBS
     , private Evaluator
 {
@@ -47,12 +47,12 @@ public:
 
     // Full basis set.
 
-template <size_t K,template<size_t> class Evaluator> class BasisSet
+template <class Evaluator> class BasisSet
     : public virtual ::BasisSet1::BasisSet<double>
     , public BasisSet1::BS_Common<double>
-    , public Evaluator<K> 
+    , public Evaluator 
 {
-    using oibs_t=Orbital_IBS<K,typename Evaluator<K>::IBS_Evaluator_t>; //Corresponding Orbital IBS type
+    using oibs_t=Orbital_IBS<typename Evaluator::IBS_Evaluator_t>; //Corresponding Orbital IBS type
 public:
     BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
     {
@@ -61,13 +61,13 @@ public:
         for (auto ir:aec.GetIrreps())
             Insert(new oibs_t(this,N,rmin,rmax,ir));  
      
-        Evaluator<K>::BuildCache(LMax);
+        Evaluator::BuildCache(LMax);
     }
 private:
     void Insert(oibs_t* oibs)
     {
         BasisSet1::BS_Common<double>::Insert(oibs);
-        Evaluator<K>::Register(oibs->GetEvaluator());
+        Evaluator::Register(oibs->GetEvaluator());
     }
 };
 

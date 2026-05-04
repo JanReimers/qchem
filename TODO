@@ -82,6 +82,14 @@ Priority 1:
             Done: Test radial and angular, and full ID strings for IBS
 
 
+    -BasisSet reorg
+        We a general way to adjust basis sets for increasing L
+            For BSpline the repeated edge knots get removed for increasing L
+            For Gaussian and Slater we want less large exponents for increasing L
+            Can we do this in the evaluator?
+        Common interface is constructor(size_t N, double rmin/emin, double rmax/emax, sym_t Irrep)
+            Only the variable names for the double changes.  just call then remin remax
+        Fixed:: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
 
     -Namespaces
         -Cluster namespace.  

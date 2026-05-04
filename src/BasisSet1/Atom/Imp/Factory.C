@@ -53,7 +53,7 @@ BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronCo
     case Type::BSpline6:
     {
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new BSpline1::BasisSet<6,BSpline_r_BS>(N,rmin,rmax,ec);
+        bs=new BSpline1::BasisSet<BSpline_r_BS<6>>(N,rmin,rmax,ec);
         break;   
     }
 //     case Type::BSpline16:
