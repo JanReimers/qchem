@@ -1,5 +1,6 @@
 module;
 #include <cassert>
+#include <iostream>
 #include <blaze/Math.h>
 module qchem.BasisSet.Internal.ERI4;
 import qchem.Blaze;
@@ -26,3 +27,19 @@ ERI4 ERI4::Transpose() const
     return Jcdab;
 }
 
+bool operator==(const ERI4& a, const ERI4& b)
+{
+    static double eps=5e-16;
+    if (a.size()!=b.size()) return false;
+    for (size_t i=0;i<a.Nab();i++)
+        for (size_t j=0;j<a.Nab();j++)
+            if (norm(a(i,j)-b(i,j))>eps) 
+            {
+                std::cout << "a(" << i << "," << j << ")=" << a(i,j);
+                std::cout << "b(" << i << "," << j << ")=" << b(i,j);
+                std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
+                std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
+                return false;
+            }
+    return true;
+}

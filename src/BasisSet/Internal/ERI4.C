@@ -22,6 +22,7 @@ public:
     M4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
     friend rmat_t MatMul(const M4& gabcd,const rmat_t& Scd);
 };
- 
+
+export bool operator==(const ERI4& a, const ERI4& b);
 
 

@@ -3,18 +3,13 @@
 #include <iostream>
 // #include <cmath>
 #include <blaze/Math.h>
+#include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;
 
 import qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet1.Atom.BSpline.NR.BS;
-import BasisSet.Atom.BSpline.NR.BS_Evaluator;
-import qchem.Symmetry.Yl;
-
-bool operator==(const ERI4& a, const ERI4& b); //Defined in UnitTests/BasisSet_Atom.C
-
-
-
+import qchem.BasisSet1.Atom.Factory;
+import qchem.BasisSet1.Orbital_HF_IBS;
 
 class DBCach1Tests : public ::testing::Test
 {
@@ -23,11 +18,13 @@ public:
         : cl_hydrogen    (new Atom(1,0.0,Vector3D(0,0,0)))
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
-        , yl(new Yl_Sym(0))
-        ,  bs1(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
-        ,  bs2(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
+        // ,  bs1(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
+        // ,  bs2(new BasisSet1::Atom::BSpline1::BasisSet<BSpline_r_BS<6>>(3,0.1,10.0,Atom_EC(86)))
     {
         BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();
+        nlohmann::json js = {{"type",BasisSet1::Atom::Type::BSpline6},{"N", 3}, {"rmin", 0.1}, {"rmax", 10}};
+        bs1=BasisSet1::Atom::Factory(js,86);
+        bs2=BasisSet1::Atom::Factory(js,86);
     }
     ~DBCach1Tests()
     {
@@ -40,17 +37,16 @@ public:
     }
     
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
-    Irrep_QNs::sym_t yl;
     BasisSet1::Real_BS *bs1,*bs2;
 };
 
-using OIBS=BasisSet1::Real_OIBS;
+using BasisSet1::Real_OIBS;
 
 
 TEST_F(DBCach1Tests,BSplineOverlap)
 {
-    auto ibs2=bs2->Iterate<OIBS>().begin();
-    for (auto ibs1:bs1->Iterate<OIBS>())
+    auto ibs2=bs2->Iterate<Real_OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<Real_OIBS>())
     {
         auto& S1=ibs1->Overlap();
         auto& S2=(*ibs2)->Overlap();
@@ -61,8 +57,8 @@ TEST_F(DBCach1Tests,BSplineOverlap)
 }
 TEST_F(DBCach1Tests,BSplineKinetic)
 {
-    auto ibs2=bs2->Iterate<OIBS>().begin();
-    for (auto ibs1:bs1->Iterate<OIBS>())
+    auto ibs2=bs2->Iterate<Real_OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<Real_OIBS>())
     {
         auto& S1=ibs1->Kinetic();
         auto& S2=(*ibs2)->Kinetic();
@@ -73,8 +69,8 @@ TEST_F(DBCach1Tests,BSplineKinetic)
 }
 TEST_F(DBCach1Tests,BSplineNuclear)
 {
-    auto ibs2=bs2->Iterate<OIBS>().begin();
-    for (auto ibs1:bs1->Iterate<OIBS>())
+    auto ibs2=bs2->Iterate<Real_OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<Real_OIBS>())
     {
         auto& S1=ibs1->Nuclear(cl_hydrogen);
         auto& S2=(*ibs2)->Nuclear(cl_hydrogen);
@@ -90,13 +86,14 @@ TEST_F(DBCach1Tests,BSplineNuclear)
     }
 }
 
+using BasisSet1::Real_HF_OIBS;
 TEST_F(DBCach1Tests,BSplineDirect)
 {
-    auto ibs21=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
-    for (auto ibs11:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
+    auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+    for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
     {
-        auto ibs22=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
-        for (auto ibs12:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
+        auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+        for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
         {
             const ERI4& J1=ibs11->Direct(*ibs12);
             const ERI4& J2=(*ibs21)->Direct(**ibs22);
@@ -109,11 +106,11 @@ TEST_F(DBCach1Tests,BSplineDirect)
 }
 TEST_F(DBCach1Tests,BSplineExchange)
 {
-    auto ibs21=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
-    for (auto ibs11:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
+    auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+    for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
     {
-        auto ibs22=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
-        for (auto ibs12:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
+        auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+        for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
         {
             const ERI4& K1=ibs11->Exchange(*ibs12);
             const ERI4& K2=(*ibs21)->Exchange(**ibs22);

@@ -33,3 +33,4 @@ public:
 private:
     M<M<T> > itsData;
 };
+

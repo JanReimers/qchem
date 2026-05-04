@@ -11,7 +11,7 @@ link_directories(
 #  Main
 add_executable(UTMain gtestmain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C 
 DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C
-UTCluster.C UTBasisSet.C BasisSet_Atom.C BasisSet_Atom1.C PeriodicTable.C)
+UTCluster.C UTBasisSet.C BasisSet_Atom.C  PeriodicTable.C)
 #add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
 #GCM_PATH := $(LIB_PATH)/gcm.cache
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
@@ -39,7 +39,7 @@ target_include_directories(UTMain PRIVATE
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 
-add_executable(UTMain1 gtestmain.C QchemTester1.C BasisSet_Atom1.C)
+add_executable(UTMain1 gtestmain.C BasisSet1_Atom.C)
 target_compile_options(UTMain1 PRIVATE -Wall 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>

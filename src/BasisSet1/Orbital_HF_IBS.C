@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet1.Orbital_HF_IBS;
 export import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet.Internal.ERI4;
+export import qchem.BasisSet.Internal.ERI4;
 
 export namespace BasisSet1
 {
@@ -60,5 +60,8 @@ public:
     virtual void AccumulateDirect  (rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
     virtual void AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
 };
+
+typedef Orbital_HF_IBS<double>    Real_HF_OIBS;
+typedef Orbital_HF_IBS<dcmplx> Complex_HF_OIBS;
 
 } //namespace
