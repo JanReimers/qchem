@@ -7,10 +7,13 @@ module;
 #include <variant>
 #include <iostream>
 module qchem.BasisSet1.DB_Cache;
+
 // import qchem.BasisSet.Internal.ERI4;
 // import qchem.BasisSet.Internal.ERI3;
 // import qchem.BasisSet.Internal.IntegralEnums;
 
+namespace BasisSet1
+{
 // template  <> IntegralsCache<double>* IntegralsCache<double>::theGlobalCache;
 
 // size_t Cache41::Register(const std::string& bf_id)
@@ -193,3 +196,5 @@ template <class T> const ERI4     &  IntegralsCache_RAM<T>::SetExchange(const   
 
 template struct IntegralsCache<double>;
 template struct IntegralsCache_RAM<double>;
+
+} //namespace

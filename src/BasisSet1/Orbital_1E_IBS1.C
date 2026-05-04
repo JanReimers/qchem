@@ -2,13 +2,16 @@
 module;
 #include <cassert>
 #include <string>
-export module qchem.Orbital_1E_IBS1;
-export import qchem.IrrepBasisSet1;
+export module qchem.BasisSet1.Orbital_1E_IBS;
+export import qchem.BasisSet1.IrrepBasisSet;
 export import qchem.Cluster;
+
 import qchem.BasisSet1.DB_Cache;
 
+export namespace BasisSet1
+{
 //  The are used for caching 1) radial Slater integrals R_k(abcd) 2) Direct/Exchange integrals
-export class IrrepBasisSet_IDs
+class IrrepBasisSet_IDs
 {
 public:
     virtual std::string  RadialID() const=0;
@@ -28,7 +31,7 @@ public:
 
 //! \brief Interface for overlap integrals.
 //! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
-export template <class T> class Integrals_Overlap1 : public virtual IrrepBasisSet_IDs
+template <class T> class Integrals_Overlap : public virtual IrrepBasisSet_IDs
 {
 public:
     virtual smat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
@@ -43,7 +46,7 @@ public:
 
 //! \brief Interface for Kinetic energy integrals.
 //! Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
-export template <class T> class Integrals_Kinetic1 : public virtual IrrepBasisSet_IDs
+template <class T> class Integrals_Kinetic : public virtual IrrepBasisSet_IDs
 {
 public:
     virtual smat_t<T> MakeKinetic() const=0; //Only called once for a given {radial,angular} ID pair.
@@ -60,7 +63,7 @@ public:
 
 //! \brief Interface for electron-nucleus attraction integrals.
 //! Nuclear attraction \f$ \sum_{i}\left\langle a\left|\frac{-Z_{i}}{\left|\vec{r}-\vec{R}_{c}\right|}\right|b\right\rangle =-\sum_{i}Z_{i}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\frac{1}{\left|\vec{r}-\vec{R}_{c}\right|}g_{b}\left(\vec{r}\right)\f$
-export template <class T> class Integrals_Nuclear1 : public virtual IrrepBasisSet_IDs
+template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 {
 public:
     virtual smat_t<T> MakeNuclear(const Cluster* cl) const=0; //Only called once for a given {radial,angular, cluster} ID triple.
@@ -80,15 +83,17 @@ public:
 // Define an orbital irrep basis set which supports integrals for 1-electron (1E) orbital calculations.
 // Mix-in the integral interfaces required for a 1E orbital basis. 
 //
-export template <class T> class Orbital_1E_IBS1
-    : public IrrepBasisSet1<T> //brings in symmetry and op()(r)
-    , public virtual Integrals_Overlap1<T> 
-    , public virtual Integrals_Kinetic1<T> 
-    , public virtual Integrals_Nuclear1<T> 
+template <class T> class Orbital_1E_IBS
+    : public IrrepBasisSet<T> //brings in symmetry and op()(r)
+    , public virtual Integrals_Overlap<T> 
+    , public virtual Integrals_Kinetic<T> 
+    , public virtual Integrals_Nuclear<T> 
 {
 public:    
-    Orbital_1E_IBS1(const Irrep_QNs::sym_t& sym) : IrrepBasisSet1<T>(sym) {};
+    Orbital_1E_IBS(const Irrep_QNs::sym_t& sym) : IrrepBasisSet<T>(sym) {};
 };
 
-export typedef Orbital_1E_IBS1<double>    Real_OIBS1;
-export typedef Orbital_1E_IBS1<dcmplx> Complex_OIBS1;
+typedef Orbital_1E_IBS<double>    Real_OIBS;
+typedef Orbital_1E_IBS<dcmplx> Complex_OIBS;
+
+} //namespace

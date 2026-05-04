@@ -14,6 +14,8 @@ import qchem.Symmetry.Yl;
 bool operator==(const ERI4& a, const ERI4& b); //Defined in UnitTests/BasisSet_Atom.C
 
 
+
+
 class DBCach1Tests : public ::testing::Test
 {
 public:
@@ -22,10 +24,10 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
         , yl(new Yl_Sym(0))
-        ,  bs1(new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
-        ,  bs2(new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
+        ,  bs1(new BasisSet1::Atom::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
+        ,  bs2(new BasisSet1::Atom::BSpline1::BasisSet<6,BSpline_r_BS>(3,0.1,10.0,Atom_EC(86)))
     {
-        theGlobalCache=new IntegralsCache_RAM<double>();
+        BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();
     }
     ~DBCach1Tests()
     {
@@ -34,19 +36,21 @@ public:
         delete cl_helium;
         delete bs1;
         delete bs2;
-        delete theGlobalCache;
+        delete BasisSet1::theGlobalCache;
     }
     
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
     Irrep_QNs::sym_t yl;
-    ::BasisSet1 *bs1,*bs2;
+    BasisSet1::Real_BS *bs1,*bs2;
 };
+
+using OIBS=BasisSet1::Real_OIBS;
 
 
 TEST_F(DBCach1Tests,BSplineOverlap)
 {
-    auto ibs2=bs2->Iterate<Real_OIBS1>().begin();
-    for (auto ibs1:bs1->Iterate<Real_OIBS1>())
+    auto ibs2=bs2->Iterate<OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<OIBS>())
     {
         auto& S1=ibs1->Overlap();
         auto& S2=(*ibs2)->Overlap();
@@ -57,8 +61,8 @@ TEST_F(DBCach1Tests,BSplineOverlap)
 }
 TEST_F(DBCach1Tests,BSplineKinetic)
 {
-    auto ibs2=bs2->Iterate<Real_OIBS1>().begin();
-    for (auto ibs1:bs1->Iterate<Real_OIBS1>())
+    auto ibs2=bs2->Iterate<OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<OIBS>())
     {
         auto& S1=ibs1->Kinetic();
         auto& S2=(*ibs2)->Kinetic();
@@ -69,8 +73,8 @@ TEST_F(DBCach1Tests,BSplineKinetic)
 }
 TEST_F(DBCach1Tests,BSplineNuclear)
 {
-    auto ibs2=bs2->Iterate<Real_OIBS1>().begin();
-    for (auto ibs1:bs1->Iterate<Real_OIBS1>())
+    auto ibs2=bs2->Iterate<OIBS>().begin();
+    for (auto ibs1:bs1->Iterate<OIBS>())
     {
         auto& S1=ibs1->Nuclear(cl_hydrogen);
         auto& S2=(*ibs2)->Nuclear(cl_hydrogen);
@@ -88,11 +92,11 @@ TEST_F(DBCach1Tests,BSplineNuclear)
 
 TEST_F(DBCach1Tests,BSplineDirect)
 {
-    auto ibs21=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
-    for (auto ibs11:bs1->Iterate<Orbital_HF_IBS1<double>>())
+    auto ibs21=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
+    for (auto ibs11:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
     {
-        auto ibs22=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
-        for (auto ibs12:bs1->Iterate<Orbital_HF_IBS1<double>>())
+        auto ibs22=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
+        for (auto ibs12:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
         {
             const ERI4& J1=ibs11->Direct(*ibs12);
             const ERI4& J2=(*ibs21)->Direct(**ibs22);
@@ -105,11 +109,11 @@ TEST_F(DBCach1Tests,BSplineDirect)
 }
 TEST_F(DBCach1Tests,BSplineExchange)
 {
-    auto ibs21=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
-    for (auto ibs11:bs1->Iterate<Orbital_HF_IBS1<double>>())
+    auto ibs21=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
+    for (auto ibs11:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
     {
-        auto ibs22=bs2->Iterate<Orbital_HF_IBS1<double>>().begin();
-        for (auto ibs12:bs1->Iterate<Orbital_HF_IBS1<double>>())
+        auto ibs22=bs2->Iterate<BasisSet1::Orbital_HF_IBS<double>>().begin();
+        for (auto ibs12:bs1->Iterate<BasisSet1::Orbital_HF_IBS<double>>())
         {
             const ERI4& K1=ibs11->Exchange(*ibs12);
             const ERI4& K2=(*ibs21)->Exchange(**ibs22);

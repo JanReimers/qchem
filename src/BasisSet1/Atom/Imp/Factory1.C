@@ -16,27 +16,26 @@ import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 
 using json = nlohmann::json;
 
-namespace BasisSetAtom1
+namespace BasisSet1::Atom
 {
-enum class AngularType {Yl,Ylm};
 
-BasisSet1* Factory(Type type,const nlohmann::json& js,size_t Z)
+BasisSet1::Real_BS* Factory(Type type,const nlohmann::json& js,size_t Z)
 {
     return Factory(type,js,Atom_EC(Z));
 }
 
-BasisSet1* Factory(const nlohmann::json& js,size_t Z)
+BasisSet1::Real_BS* Factory(const nlohmann::json& js,size_t Z)
 {
     Type type=js["type"].template get<Type>();
     return Factory(type,js,Z);
 }
 
-BasisSet1* Factory(Type type, const nlohmann::json& js,const ElectronConfiguration& ec)
+BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronConfiguration& ec)
 {
     size_t N=js["N"];
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
-    BasisSet1* bs=0;
+    BasisSet1::Real_BS* bs=0;
     switch (type)
     {
     // case Type::Slater:
@@ -54,7 +53,7 @@ BasisSet1* Factory(Type type, const nlohmann::json& js,const ElectronConfigurati
     case Type::BSpline6:
     {
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS>(N,rmin,rmax,ec);
+        bs=new BSpline1::BasisSet<6,BSpline_r_BS>(N,rmin,rmax,ec);
         break;   
     }
 //     case Type::BSpline16:

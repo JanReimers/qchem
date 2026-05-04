@@ -10,10 +10,8 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Types;
-// import qchem.Orbital_HF_IBS;
-// import qchem.BasisSet.Internal.Cache4;
  
-export {
+export namespace BasisSet1 {
 //
 //  Abstract base for the type being cached.
 //

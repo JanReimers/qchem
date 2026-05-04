@@ -9,6 +9,9 @@ import qchem.stl_io;
 import qchem.IrrepBasisSet;
 import qchem.Streamable;
 
+export namespace BasisSet1
+{
+
 void BS_Common1::Insert(bs_t* bs)
 {
     assert(bs);
@@ -37,3 +40,4 @@ std::ostream&  BS_Common1::Write(std::ostream&  os  ) const
     return os << itsBasisSets;
 }
 
+} //namespace

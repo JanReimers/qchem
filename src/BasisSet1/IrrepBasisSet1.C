@@ -2,13 +2,14 @@
 module;
 #include <memory>
 #include <cassert>
-export module qchem.IrrepBasisSet1;
+export module qchem.BasisSet1.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 export import qchem.Streamable;
 
 
-
+export namespace BasisSet1
+{
 //----------------------------------------------------------------------------
 //
 //  Bare bones (no integrals) Interface for an irreducible representation basis sets.  
@@ -19,12 +20,12 @@ export import qchem.Streamable;
 //  Also supports op()(r) interface from VectorFunction<T>
 //  IrrepBasisSet1 has implementation data (itsSymmetry) so do not multiply inherit from this class.
 //
-export template <class T> class IrrepBasisSet1
+template <class T> class IrrepBasisSet
     : public virtual Streamable
     , public virtual VectorFunction<T>
 {
 public:
-    IrrepBasisSet1(const Irrep_QNs::sym_t& sym) : itsSymmetry(sym) {assert(itsSymmetry);}
+    IrrepBasisSet(const Irrep_QNs::sym_t& sym) : itsSymmetry(sym) {assert(itsSymmetry);}
     //! Readonly ref to the polymorphic Symmetry object.
     virtual const Symmetry& GetSymmetry() const {return *itsSymmetry;}
     //! Very often the client code needs as derived class ref.
@@ -44,6 +45,7 @@ private:
     Irrep_QNs::sym_t itsSymmetry;
 };
 
-export typedef IrrepBasisSet1<double>    Real_IBS1;
-export typedef IrrepBasisSet1<dcmplx> Complex_IBS1;
+typedef IrrepBasisSet<double>    Real_IBS;
+typedef IrrepBasisSet<dcmplx> Complex_IBS;
 
+} //namespace

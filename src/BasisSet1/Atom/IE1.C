@@ -5,10 +5,10 @@ module;
 export module qchem.BasisSet1.Atom.IE;
 export import qchem.BasisSet.Internal.ERI4;
 
-export import qchem.Orbital_1E_IBS1;
+export import qchem.BasisSet1.Orbital_1E_IBS;
 // export import qchem.Orbital_DHF_IBS;
 // export import qchem.Orbital_DFT_IBS;
-export import qchem.Orbital_HF_IBS1;
+export import qchem.BasisSet1.Orbital_HF_IBS;
 // export import qchem.Fit_IBS;
 
 export import qchem.BasisSet.Atom.IBS_Evaluator;
@@ -16,7 +16,9 @@ import qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.Types;
 
 
-export namespace AtomBS
+export namespace BasisSet1
+{
+namespace Atom
 {
 
 class Integrals_Base
@@ -26,15 +28,15 @@ public:
     virtual IBS_Evaluator* GetEvaluator()=0;
 };
 
-class Integrals_Overlap1
-: public virtual ::Integrals_Overlap1<double>
+class Integrals_Overlap
+: public virtual BasisSet1::Integrals_Overlap<double>
 , public virtual Integrals_Base
 {
 protected:
     virtual smat_t<double> MakeOverlap() const {return GetEvaluator()->Overlap();}
 };
-class Integrals_Kinetic1
-: public virtual ::Integrals_Kinetic1<double>
+class Integrals_Kinetic
+: public virtual BasisSet1::Integrals_Kinetic<double>
 , public virtual Integrals_Base
 {
 public:
@@ -45,8 +47,8 @@ public:
         return eval->Grad2() + l*(l+1)*eval->Inv_r2();
     }
 };
-class Integrals_Nuclear1
-: public virtual ::Integrals_Nuclear1<double>
+class Integrals_Nuclear
+: public virtual BasisSet1::Integrals_Nuclear<double>
 , public virtual Integrals_Base
 {
 protected:
@@ -59,19 +61,19 @@ protected:
     }
 };
 
-class Integrals_HF1
-: public virtual ::Integrals_HF1<double>
+class Integrals_HF
+: public virtual BasisSet1::Integrals_HF<double>
 , public virtual Integrals_Base
 {
 protected:
-    Integrals_HF1(BS_Evaluator* bse) : itsEvaluator(bse) {assert(itsEvaluator);}
-    virtual ERI4 MakeDirect  (const Orbital_HF_IBS1<double>& c) const 
+    Integrals_HF(BS_Evaluator* bse) : itsEvaluator(bse) {assert(itsEvaluator);}
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>& c) const 
     {
-        return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Integrals_HF1&>(c).GetEvaluator());
+        return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Integrals_HF&>(c).GetEvaluator());
     }
-    virtual ERI4 MakeExchange(const Orbital_HF_IBS1<double>& c) const 
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>& c) const 
     {
-        return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Integrals_HF1&>(c).GetEvaluator());
+        return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Integrals_HF&>(c).GetEvaluator());
     }
 private: 
     BS_Evaluator* itsEvaluator;
@@ -144,4 +146,4 @@ private:
 //     const IBS_Evaluator* eval;
 // };
 
-} // export block
+}} // namespaces

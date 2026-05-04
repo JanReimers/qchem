@@ -4,30 +4,33 @@ export module qchem.BasisSet1.Atom.BSpline.NR.BS;
 
 export import qchem.BasisSet1;
 import qchem.BasisSet.Atom.BS_Evaluator;
+import qchem.BasisSet.Atom.IBS_Evaluator;
+
 import qchem.BasisSet1.Internal.Common;
 
-export import qchem.Orbital_HF_IBS1;
+export import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Atom.IBS;
 
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
 
-export namespace AtomBS
-{
-namespace BSpline1
-{
+export 
+namespace BasisSet1 {
+namespace Atom {
+namespace BSpline1 {
+
 template <size_t K,class Evaluator> class Orbital_IBS
-    : public AtomBS::Orbital_HF_IBS1
+    : public Orbital_HF_IBS
     , private Evaluator
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : AtomBS::Orbital_HF_IBS1(bse,yl)
+    : Orbital_HF_IBS(bse,yl)
     , Evaluator(N,rmin,rmax,yl)
     {};
 
-    virtual ::Fit_IBS* CreateCDFitBasisSet(const ::BasisSet1*,const Cluster*) const {return 0;}
-    virtual ::Fit_IBS* CreateVxcFitBasisSet(const ::BasisSet1*,const Cluster*) const {return 0;}
+    // virtual ::Fit_IBS* CreateCDFitBasisSet(const Real_BS*,const Cluster*) const {return 0;}
+    // virtual ::Fit_IBS* CreateVxcFitBasisSet(const Real_BS*,const Cluster*) const {return 0;}
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
@@ -45,8 +48,8 @@ public:
     // Full basis set.
 
 template <size_t K,template<size_t> class Evaluator> class BasisSet
-    : public virtual ::BasisSet1
-    , public ::BS_Common1
+    : public virtual ::BasisSet1::BasisSet<double>
+    , public BasisSet1::BS_Common<double>
     , public Evaluator<K> 
 {
     using oibs_t=Orbital_IBS<K,typename Evaluator<K>::IBS_Evaluator_t>; //Corresponding Orbital IBS type
@@ -63,11 +66,11 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
-        ::BS_Common1::Insert(oibs);
+        BasisSet1::BS_Common<double>::Insert(oibs);
         Evaluator<K>::Register(oibs->GetEvaluator());
     }
 };
 
 
-}} //namespace AtomBS::BSpline1
+}}} //namespaces 
 

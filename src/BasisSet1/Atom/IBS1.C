@@ -6,18 +6,19 @@ module;
 
 export module qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Atom.IE;
-import qchem.IrrepBasisSet1;
-import qchem.Orbital_1E_IBS1;
-import qchem.Orbital_HF_IBS1;
+import qchem.BasisSet1.IrrepBasisSet;
+import qchem.BasisSet1.Orbital_1E_IBS;
+import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet.Atom.BS_Evaluator;
 
-export namespace AtomBS
+export namespace BasisSet1
 {
-
+namespace Atom
+{
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
-class IrrepBasisSet1
+class IrrepBasisSet
     : public virtual VectorFunction<double>
     , public virtual IrrepBasisSet_IDs
     , public virtual Streamable
@@ -43,15 +44,15 @@ public:
 //
 //  1E orbital for atoms.  Use mixins to get he integral evaluations.
 //
-class Orbital_1E_IBS1
-    : public ::Orbital_1E_IBS1<double> //This part has the symmetry.
-    , public AtomBS::IrrepBasisSet1
-    , private AtomBS::Integrals_Overlap1
-    , private AtomBS::Integrals_Kinetic1
-    , private AtomBS::Integrals_Nuclear1
+class Orbital_1E_IBS
+    : public BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
+    , public IrrepBasisSet
+    , private Integrals_Overlap
+    , private Integrals_Kinetic
+    , private Integrals_Nuclear
 {
 public:
-    Orbital_1E_IBS1(const Irrep_QNs::sym_t& yl) : ::Orbital_1E_IBS1<double>(yl) {};
+    Orbital_1E_IBS(const Irrep_QNs::sym_t& yl) : BasisSet1::Orbital_1E_IBS<double>(yl) {};
 
 };
 
@@ -67,15 +68,15 @@ public:
 //     {};
 // };
 
-class Orbital_HF_IBS1
-    : public ::Orbital_HF_IBS1<double> 
-    , public AtomBS::Orbital_1E_IBS1
-    , public AtomBS::Integrals_HF1
+class Orbital_HF_IBS
+    : public BasisSet1::Orbital_HF_IBS<double> 
+    , public Orbital_1E_IBS
+    , public Integrals_HF
 {
 protected:
-    Orbital_HF_IBS1(BS_Evaluator* bse,const Irrep_QNs::sym_t& yl) 
-        : AtomBS::Orbital_1E_IBS1(yl) 
-        , AtomBS::Integrals_HF1(bse)
+    Orbital_HF_IBS(BS_Evaluator* bse,const Irrep_QNs::sym_t& yl) 
+        : Orbital_1E_IBS(yl) 
+        , Integrals_HF(bse)
         {} 
 };
 
@@ -121,4 +122,4 @@ protected:
 
 
 
-} //namespace
+}} //namespaces
