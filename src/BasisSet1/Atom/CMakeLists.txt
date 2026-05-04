@@ -1,11 +1,11 @@
 add_library(qcAtom_BS1) 
 target_sources(qcAtom_BS1 PRIVATE 
-    Imp/Factory1.C
+    Imp/Factory.C
 )
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Factory.C
-    IE1.C
-    IBS1.C
+    IE.C
+    IrrepBasisSet.C
 )
 target_include_directories(qcAtom_BS1 PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
