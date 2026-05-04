@@ -72,6 +72,8 @@ template <class T> void FittedFunctionImp<T>::DoFitInternal(const DensityFFClien
 template <class T> vec_t<T> FittedFunctionImp<T>::
 FitGet2CenterOverlap(const Fit_IBS* bs) const
 {
+    // No UT coverage.
+    assert(false);
     return trans(itsBasisSet->Overlap(itsMesh.get(),*bs))*itsFitCoeff;
 }
 

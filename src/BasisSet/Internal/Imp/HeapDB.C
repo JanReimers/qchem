@@ -204,15 +204,15 @@ const rvec_t& DB_Fit::Norm   (const Mesh* m        ) const
     else
         return i->second;
 }
-const rvec_t& DB_Fit::Charge (const Mesh* m        ) const
-{
-    DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
-    if (auto i = itsCache->itsbVecs.find(key); i==itsCache->itsbVecs.end())
-        return itsCache->itsbVecs[key] = MakeCharge(m);
-    else
-        return i->second;
+// const rvec_t& DB_Fit::Charge (const Mesh* m        ) const
+// {
+//     DB_cache<double>::id2c_t key=std::make_tuple(qchem::NumCharge,this->GetID());
+//     if (auto i = itsCache->itsbVecs.find(key); i==itsCache->itsbVecs.end())
+//         return itsCache->itsbVecs[key] = MakeCharge(m);
+//     else
+//         return i->second;
+// }
 
-}
 const rmat_t& DB_Fit::Overlap(const Mesh* m,const Fit_IBS& b) const
 {
     DB_cache<double>::idx_t key=std::make_tuple(qchem::NumOverlap,this->GetID(),b.GetID());

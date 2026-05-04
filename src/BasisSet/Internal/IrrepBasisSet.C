@@ -54,7 +54,7 @@ export class Fit_IBS_Common : public virtual Fit_IBS, public virtual FitIntegral
     
     public:
     virtual  rvec_t MakeNorm   (const Mesh*        ) const; //Numerical .
-    virtual  rvec_t MakeCharge (const Mesh*        ) const; //Numerical .
+    // virtual  rvec_t MakeCharge (const Mesh*        ) const; //Numerical .
     virtual  rmat_t MakeOverlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
     virtual const rvec_t Overlap  (const Mesh*,const Sf&) const; //Numerical  

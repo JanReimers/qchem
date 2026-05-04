@@ -88,13 +88,13 @@ protected:
     virtual const rsmat_t& InvOverlap() const;
     virtual const rsmat_t& InvRepulsion() const;
     virtual const  rvec_t& Norm   (const Mesh*        ) const; //Numerical .
-    virtual const  rvec_t& Charge (const Mesh*        ) const; //Numerical .
+    // virtual const  rvec_t& Charge (const Mesh*        ) const; //Numerical .
     virtual const  rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
 
 private:
     // One time calls to un-buffered integral calculations.
-    using FitIntegrals::MakeCharge;
+    // using FitIntegrals::MakeCharge;
     virtual  rvec_t MakeCharge() const=0;
     virtual rsmat_t MakeRepulsion() const=0;
     virtual  rmat_t MakeRepulsion(const Fit_IBS&) const=0;

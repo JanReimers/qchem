@@ -22,7 +22,7 @@ public:
     virtual const rsmat_t& InvRepulsion() const=0;
     // Pure numerial versions
     virtual  const rvec_t& Norm   (const Mesh*        ) const=0; //Numerical .
-    virtual  const rvec_t& Charge (const Mesh*        ) const=0; //Numerical .
+    // virtual  const rvec_t& Charge (const Mesh*        ) const=0; //Numerical .
     virtual  const rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
     //
     //  These are used for charge and Vxc fitting.  They change with iterations
@@ -34,7 +34,7 @@ public:
 
 protected:
     virtual  rvec_t MakeNorm   (const Mesh*        ) const=0; //Numerical .
-    virtual  rvec_t MakeCharge (const Mesh*        ) const=0; //Numerical .
+    // virtual  rvec_t MakeCharge (const Mesh*        ) const=0; //Numerical .
     virtual  rmat_t MakeOverlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
 };
 

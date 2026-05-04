@@ -12,11 +12,11 @@ rvec_t Fit_IBS_Common::MakeNorm   (const Mesh* m) const
     MeshIntegrator<double> mintegrator(m);
     return mintegrator.Normalize(*this);
 }
-rvec_t Fit_IBS_Common::MakeCharge (const Mesh*  m) const
-{
-    assert(false);
-    return *new rvec_t();
-}
+// rvec_t Fit_IBS_Common::MakeCharge (const Mesh*  m) const
+// {
+//     assert(false);
+//     return *new rvec_t();
+// }
 rmat_t Fit_IBS_Common::MakeOverlap(const Mesh* m,const Fit_IBS& b) const
 {
     assert(false);
