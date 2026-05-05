@@ -23,9 +23,9 @@ public:
     const rsmat_t& InvRepulsion() const;
 
     // Pure numerial versions
-    virtual  const rvec_t& Norm   (const Mesh*        ) const=0; //Numerical .
+    virtual  const rvec_t& Norm   (const Mesh*        ) const; //Numerical .
     // virtual  const rvec_t& Charge (const Mesh*        ) const=0; //Numerical .
-    // virtual  const rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const=0; //Numerical X overlap.
+    virtual  const rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
     //
     //  These are used for charge and Vxc fitting.  They change with iterations
     //  So they MUST not be cached.

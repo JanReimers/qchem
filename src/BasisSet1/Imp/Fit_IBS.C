@@ -53,8 +53,26 @@ const rsmat_t& Fit_IBS::InvRepulsion() const
         ? cache->GetSMat() : cache->Set(MakeInvRepulsion());
 }
 
+const rvec_t& Fit_IBS::Norm(const Mesh* m) const
+{
+    assert(m);
+    auto cache=theGlobalCache;
+    assert(cache);
+    return cache->Has(IntegralsCache_Base::I1C::Normalization,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),m->ID())
+        ? cache->GetVec() : cache->Set(MakeNorm(m));
+}
 
-
+const rmat_t& Fit_IBS::Overlap(const Mesh* m,const Fit_IBS& b) const
+{
+    assert(m);
+    auto cache=theGlobalCache;
+    assert(cache);
+    return cache->Has(IntegralsCache_Base::I2x::Overlap,
+        IntegralsCache_Base::IBS_ID_t(  RadialID(),  AngularID()),
+        IntegralsCache_Base::IBS_ID_t(b.RadialID(),b.AngularID()),
+        m->ID())
+        ? cache->GetMat() : cache->Set(MakeOverlap(m,b));
+}
 rvec_t Fit_IBS::MakeNorm   (const Mesh* m) const
 {
     MeshIntegrator<double> mintegrator(m);

@@ -129,21 +129,5 @@ private:
 //     : AtomIE_Kinetic<T>(db,eval)
 //     , AtomIE_Nuclear<T>(db,eval) {};
 // };
-// // Fit
-// class AtomIE_Fit 
-// : public DB_Fit
-// {
-//     protected:
-//     AtomIE_Fit(const DB_cache<double>* db,const IBS_Evaluator* _eval) : DB_Fit(db), eval(_eval) {};
-
-//     virtual  rvec_t MakeCharge   (                ) const {return eval->Charge    ( );}
-//     virtual rsmat_t MakeRepulsion(                ) const {return eval->Repulsion ( );}
-//     virtual  rmat_t MakeRepulsion(const Fit_IBS& f) const {return eval->XRepulsion(f);}
-// private:
-//     using DB_Fit::Charge; //un hide
-//     using DB_Fit::Repulsion; //un hide
-// private:
-//     const IBS_Evaluator* eval;
-// };
 
 }} // namespaces

@@ -9,6 +9,7 @@ import qchem.BasisSet1.Atom.IE;
 import qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
+import qchem.BasisSet1.Fit_IBS;
 import qchem.BasisSet.Atom.BS_Evaluator;
 
 export namespace BasisSet1
@@ -107,19 +108,14 @@ protected:
 
 // };
 
-// class Fit_IBS
-//     : public virtual ::Fit_IBS 
-//     , public Fit_IBS_Common
-//     , public AtomIE_Overlap<double>
-//     , public AtomIE_Fit
-// {
-// protected:
-//     Fit_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval) 
-//     : AtomIE_Overlap<double>(db,eval)
-//     , AtomIE_Fit(db,eval)
-//     {};
-// };
-
+class Fit_IBS
+    : public virtual BasisSet1::Fit_IBS 
+    , public virtual Integrals_Base
+{
+    virtual  rvec_t MakeCharge   (                ) const {return GetEvaluator()->Charge    ( );}
+    virtual rsmat_t MakeRepulsion(                ) const {return GetEvaluator()->Repulsion ( );}
+    // virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const {return GetEvaluator()->XRepulsion(f);}
+};
 
 
 }} //namespaces

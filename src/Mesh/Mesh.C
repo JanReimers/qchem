@@ -2,7 +2,7 @@
 module;
 #include <tuple>
 #include <vector>
-
+#include <string>
 export module qchem.Mesh;
 export import qchem.Types;
 
@@ -13,7 +13,8 @@ public:
 
     virtual void    ShiftOrigin(const rvec3_t&);
     virtual Mesh*   Clone      () const;
-    
+    virtual std::string ID() const;
+
     typedef std::tuple<rvec3_t,double> rw_t;
     typedef std::vector<rw_t>        vec_t;
     typedef vec_t::const_iterator const_iterator;
@@ -29,6 +30,16 @@ private:
 
 export inline const rvec3_t & r(const Mesh::rw_t& rw) {return std::get<0>(rw);}
 export inline const double& w(const Mesh::rw_t& rw) {return std::get<1>(rw);}
+
+std::string Mesh::ID() const
+{
+    std::ostringstream os;
+    os << "N=" << size() << " {";
+    if (size()>0) os << w(itsRWs[0       ]) << " " << r(itsRWs[0       ]) << " ... ";
+    if (size()>1) os << w(itsRWs[size()-1]) << " " << r(itsRWs[size()-1]);
+    os << "}";
+    return os.str();
+}
 
 export namespace qchem
 {
