@@ -209,7 +209,7 @@ template <size_t K> rvec_t BSpline_r_IBS<K>::Charge() const
     return V;
 }
 
-template <size_t K> rmat_t BSpline_r_IBS<K>::XRepulsion(const Fit_IBS& _b) const
+template <size_t K> rmat_t BSpline_r_IBS<K>::XRepulsion(const IBS_Evaluator& _b) const
 {
     const BSpline_r_IBS<K>& b=dynamic_cast<const BSpline_r_IBS<K>&>(_b);
     size_t Nr=size(), Nc=b.size();

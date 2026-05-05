@@ -46,7 +46,11 @@ public:
     virtual rsmat_t Repulsion () const=0;
     virtual  rvec_t Charge    () const=0;
     virtual  rvec_t Norm      () const=0;
-    virtual rmat_t XRepulsion(const Fit_IBS&) const=0;
+    virtual rmat_t XRepulsion(const Fit_IBS& b) const
+    {
+        return XRepulsion(dynamic_cast<const IBS_Evaluator&>(b));
+    }
+    virtual rmat_t XRepulsion(const IBS_Evaluator&) const=0;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const=0;
 
     virtual dERI3  Overlap  (const Fit_IBS&) const=0; //3 center
@@ -65,6 +69,7 @@ protected:
     std::vector<size_t> es_indices; //Unique exponent index
 
 };
+
 
 
 IBS_Evaluator::IBS_Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),grouper(0)

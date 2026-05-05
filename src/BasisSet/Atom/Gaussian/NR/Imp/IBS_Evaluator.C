@@ -139,7 +139,7 @@ rvec_t Gaussian_IBS::Charge() const
     return V;
 }
 
-rmat_t Gaussian_IBS::XRepulsion(const Fit_IBS& _b) const
+rmat_t Gaussian_IBS::XRepulsion(const IBS_Evaluator& _b) const
 {
     const Gaussian_IBS& b=dynamic_cast<const Gaussian_IBS&>(_b);
     size_t Nr=size(), Nc=b.size();

@@ -28,7 +28,7 @@ public:
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
-    virtual rmat_t XRepulsion(const Fit_IBS&) const;
+    virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const;
 
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center

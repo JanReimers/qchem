@@ -7,7 +7,7 @@ module;
 export module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import qchem.BasisSet.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
-
+import qchem.Symmetry.Yl;
 //
 //  This version is for phi(r) = sum(Bi(r),i)
 // 
@@ -17,6 +17,11 @@ export template <size_t K> class BSpline_IBS : public IBS_Evaluator
     typedef bspline::Spline<double, K> spline_t;
 public: 
     BSpline_IBS(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
+    BSpline_IBS(const BSpline_IBS& b) : BSpline_IBS(b.splines.size(),b.rmin,b.rmax,Irrep_QNs::sym_t(new Yl_Sym(0))) {};
+    BSpline_IBS Rescale(double scale_factor) const
+    {
+        return BSpline_IBS(*this);
+    }    
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
     virtual std::ostream& Write   (std::ostream&) const;
@@ -29,7 +34,7 @@ public:
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
-    virtual rmat_t XRepulsion(const Fit_IBS&) const;
+    virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const;
 
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center

@@ -1,6 +1,7 @@
 // File: BasisSet/Atom/Gaussian/NR/IBS_Evaluator.C
 module;
 #include <iosfwd>
+#include <blaze/Math.h>
 export module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
 import Common.IntPow;
@@ -15,6 +16,11 @@ public:
     Gaussian_IBS(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
     : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
 
+    Gaussian_IBS Rescale(double scale_factor) const
+    {
+        return Gaussian_IBS(scale_factor*es,0);
+    }
+
     virtual std::ostream& Write   (std::ostream&) const;
 
     virtual rsmat_t Overlap  () const;
@@ -24,7 +30,7 @@ public:
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
-    virtual rmat_t XRepulsion(const Fit_IBS&) const;
+    virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
     virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const;
 
     virtual dERI3  Overlap  (const Fit_IBS&) const; //3 center

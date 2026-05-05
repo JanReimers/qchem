@@ -84,6 +84,7 @@ Priority 1:
 
     -BasisSet reorg
         BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
+            This will mess up the copy constructor!
         For efficiency legacy calculations do Jcdab=Jabcd.Transpose(). The BasisSet1 version recalculates Jcdab directly 
             and does not yet do the Transpose call.  For Guassian and Slater this results in a minor error <1e-15.  For 
             BSpline near the origin we get much bigger errors.  Perhaps this related to problems encountered when trying 
@@ -95,7 +96,8 @@ Priority 1:
         Done: Common interface is constructor(size_t N, double rmin/emin, double rmax/emax, sym_t Irrep)
             Only the variable names for the double changes.  just call then remin remax
         Fixed:: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
-
+        IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  These should replace
+        is const IBS_Evaluator& .
     -Namespaces
         -Cluster namespace.  
             Structure

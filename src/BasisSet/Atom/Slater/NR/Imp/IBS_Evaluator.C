@@ -134,7 +134,7 @@ rsmat_t Slater_IBS::Repulsion() const
     return S;
 }
 
-rmat_t Slater_IBS::XRepulsion(const Fit_IBS& _b) const
+rmat_t Slater_IBS::XRepulsion(const IBS_Evaluator& _b) const
 {
     const Slater_IBS& b=dynamic_cast<const Slater_IBS&>(_b);
     size_t Nr=size(), Nc=b.size();

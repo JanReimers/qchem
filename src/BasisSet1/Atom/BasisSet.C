@@ -1,12 +1,17 @@
 // File: BasisSet/Atom/BSpline/NR/BSpline_BS.C BSpline Basis Set for atoms.
 module;
+#include <blaze/Math.h>
 export module qchem.BasisSet1.Atom.BasisSet;
 
 export import qchem.BasisSet1;
 export import qchem.BasisSet1.Orbital_HF_IBS;
+import qchem.BasisSet1.Fit_IBS;
+import qchem.BasisSet1.Atom.IE;
+
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
 
+import qchem.Symmetry.Yl;
 import qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet1.Atom.IBS;
@@ -15,6 +20,29 @@ import qchem.BasisSet1.Internal.Common;
 export 
 namespace BasisSet1 {
 namespace Atom {
+
+template <class Evaluator> class Fit_IBS
+    : public virtual BasisSet1::Fit_IBS 
+    , public virtual Integrals_Base
+    , public BasisSet1::Atom::IrrepBasisSet
+    , private Evaluator
+{
+    public:
+    Fit_IBS(const Evaluator& e) : Evaluator(e) {};
+
+    virtual size_t GetNumFunctions() const {return Evaluator::size();}
+    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
+    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
+    
+    virtual rsmat_t MakeOverlap  (                ) const {return GetEvaluator()->Overlap   ( );}
+    virtual rsmat_t MakeRepulsion(                ) const {return GetEvaluator()->Repulsion ( );}
+    virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
+    {
+        return GetEvaluator()->XRepulsion(dynamic_cast<const IBS_Evaluator&>(f));
+    }
+    virtual  rvec_t MakeCharge   (                ) const {return GetEvaluator()->Charge    ( );}
+};
+
 
 template <class Evaluator> class Orbital_IBS
     : public Orbital_HF_IBS
@@ -26,24 +54,21 @@ public:
     , Evaluator(N,rmin,rmax,yl)
     {};
 
-    // virtual ::Fit_IBS* CreateCDFitBasisSet(const Real_BS*,const Cluster*) const {return 0;}
-    // virtual ::Fit_IBS* CreateVxcFitBasisSet(const Real_BS*,const Cluster*) const {return 0;}
+    virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
+    {
+        return new Fit_IBS(Evaluator::Rescale(2.0));
+    }
+    virtual BasisSet1::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
+    {
+        return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
+    }
+
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
 };
 
-// template <size_t K> class Fit_IBS 
-// : public BSpline_IBS<K>
-// , public AtomBS::IrrepBasisSet1
-// // , public AtomBS::Fit_IBS
-// {
-// public:
-//     Fit_IBS(size_t N, double rmin, double rmax, size_t L);
-// };
-
-    // Full basis set.
-
+// Full basis set.
 template <class Evaluator> class BasisSet
     : public virtual ::BasisSet1::BasisSet<double>
     , public BasisSet1::BS_Common<double>
