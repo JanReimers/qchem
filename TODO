@@ -84,7 +84,11 @@ Priority 1:
 
     -BasisSet reorg
         BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
-        We a general way to adjust basis sets for increasing L
+        For efficiency legacy calculations do Jcdab=Jabcd.Transpose(). The BasisSet1 version recalculates Jcdab directly 
+            and does not yet do the Transpose call.  For Guassian and Slater this results in a minor error <1e-15.  For 
+            BSpline near the origin we get much bigger errors.  Perhaps this related to problems encountered when trying 
+            to reproduce Saitos results with rmin=0.0001.
+        We need a general way to adjust basis sets for increasing L
             For BSpline the repeated edge knots get removed for increasing L
             For Gaussian and Slater we want less large exponents for increasing L
             Can we do this in the evaluator?

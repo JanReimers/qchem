@@ -7,9 +7,44 @@ export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 export import qchem.Streamable;
 
+import qchem.BasisSet1.DB_Cache;
 
 export namespace BasisSet1
 {
+
+//  The are used for caching 1) radial Slater integrals R_k(abcd) 2) Direct/Exchange integrals
+class IrrepBasisSet_IDs
+{
+public:
+    virtual std::string  RadialID() const=0;
+    virtual std::string AngularID() const=0;
+    virtual std::string Name     () const=0;
+
+};
+
+//--------------------------------------------------------------------------------
+//
+//! The method of integral evaluation is of course strongly dependant on the
+//! precise details of basis functions or basis set.  
+//! All integral functions except MakeNormalization return normalized integrals.
+//! Interfaces for 1 electron integrals used for all Irrep basis sets: 1E,Fit,HF,DFT,DHF  
+//! The calls return matrix refrences which implies they are buffered behind the scenes.
+//
+
+//! \brief Interface for overlap integrals.
+//! Single basis set Overlap \f$ \left\langle a\left|1\right|b\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$ 
+template <class T> class Integrals_Overlap : public virtual IrrepBasisSet_IDs
+{
+public:
+    virtual smat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
+    const   smat_t<T>&     Overlap() const
+    {
+        auto cache=theGlobalCache;
+        assert(cache);
+        return cache->Has(IntegralsCache_Base::I2C::Overlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
+            ? cache->GetSMat() : cache->Set(MakeOverlap());
+    }
+};
 //----------------------------------------------------------------------------
 //
 //  Bare bones (no integrals) Interface for an irreducible representation basis sets.  

@@ -113,6 +113,22 @@ template <class T> bool IntegralsCache_RAM<T>::Has(I2n,const IBS_ID_t& IBS_id,co
     return i!=itsNMats.end(); 
 }
 
+template <class T>  bool IntegralsCache_RAM<T>::Has(I1C ix,const IBS_ID_t& id,const Mesh_ID_t& mid) const
+{
+    itsLastKey1m=key1m_t(ix,id,mid);
+    auto i=itsmVecs.find(itsLastKey1m);
+    its1CmIterator=i;
+    return i!=itsmVecs.end(); 
+}
+template <class T>  bool IntegralsCache_RAM<T>::Has(I2x ix,const IBS_ID_t& a,const IBS_ID_t& b,const Mesh_ID_t& mid) const
+{
+    itsLastKey2xm=key2xm_t(ix,a,b,mid);
+    auto i=itsmMats.find(itsLastKey2xm);
+    its2xmIterator=i;
+    return i!=itsmMats.end(); 
+}
+
+
 template <class T>  const rvec_t& IntegralsCache_RAM<T>::GetVec() const
 {
     assert(its1CIterator!=itsVecs.end());
@@ -140,18 +156,17 @@ template <class T>  const ERI4& IntegralsCache_RAM<T>::GetERI4() const
 
 
 
-template <class T>  void IntegralsCache_RAM<T>::Set(const rvec_t& v)
+template <class T>  const rvec_t&  IntegralsCache_RAM<T>::Set(const rvec_t& v)
 {
     itsVecs[itsLastKey1]=v;
+    const auto [iterator, success]=itsVecs.insert({itsLastKey1,v});  //Non-nuclear
+    assert(success);
+    its1CIterator=iterator;
+    return iterator->second; 
 }
 
 template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Set(const smat_t<T>& m)
 {
-    // auto iterator= std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator)
-    //     ? itsSMats.insert({itsLastKey2,m})  //Non-nuclear
-    //     : itsNMats.insert({itsLastKeyn,m}); //Nuclear
-    // its2CnIterator=iterator.first;
-    // return iterator.second;
     if (std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator))
     {
         const auto [iterator, success]=itsSMats.insert({itsLastKey2,m});  //Non-nuclear
@@ -169,9 +184,12 @@ template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Set(const smat_t<T>& 
     
 }
 
-template <class T> void IntegralsCache_RAM<T>::Set(const  mat_t<T>& m)
+template <class T> const  mat_t<T>& IntegralsCache_RAM<T>::Set(const  mat_t<T>& m)
 {
-    itsMats[itsLastKeyx]=m;
+    const auto [iterator, success]=itsMats.insert({itsLastKeyx,m});  //Non-nuclear
+    assert(success);
+    its2xIterator=iterator;
+    return iterator->second; 
 }
 
 template <class T> void IntegralsCache_RAM<T>::Set(const   ERI3<T>& eri3)
