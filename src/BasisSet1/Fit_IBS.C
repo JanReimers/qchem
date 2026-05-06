@@ -1,11 +1,9 @@
 // File: BasisSet/Fit_IBS.C  Interface for a fitting Basis Set.
 module;
-#include <cassert>
 export module qchem.BasisSet1.Fit_IBS;
 export import qchem.BasisSet1.IrrepBasisSet;
-export import qchem.Mesh;
 export import qchem.ScalarFunction;
-import qchem.Symmetry.Yl;
+export import qchem.Mesh;
 
 export namespace BasisSet1
 {

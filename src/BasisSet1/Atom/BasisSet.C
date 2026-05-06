@@ -61,8 +61,7 @@ template <class Evaluator> class Orbital_IBS
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : Orbital_1E_IBS()
-    , Orbital_HF_IBS(bse)
+    : Orbital_HF_IBS(bse)
     , IrrepBasisSetImp(yl)
     , Evaluator(N,rmin,rmax,yl)
     {};

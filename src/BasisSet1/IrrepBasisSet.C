@@ -1,11 +1,10 @@
 // File: BasisSet1/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
-#include <memory>
-#include <cassert>
+#include <string>
 export module qchem.BasisSet1.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
-export import qchem.VectorFunction;
-export import qchem.Streamable;
+import qchem.VectorFunction;
+import qchem.Streamable;
 
 export namespace BasisSet1
 {
@@ -47,7 +46,8 @@ public:
 //  IrrepBasisSet1 has implementation data (itsSymmetry) so do not multiply inherit from this class.
 //
 template <class T> class IrrepBasisSet
-    : public virtual Streamable
+    : public virtual IrrepBasisSet_IDs
+    , public virtual Streamable
     , public virtual VectorFunction<T>
 {
 public:

@@ -24,7 +24,6 @@ namespace Atom
 class IrrepBasisSetImp
     : public virtual BasisSet1::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
-    , public virtual Streamable
     , public virtual Integrals_Base
     , public BasisSet1::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
@@ -50,7 +49,7 @@ public:
 //  1E orbital for atoms.  Use mixins to get he integral evaluations.
 //
 class Orbital_1E_IBS
-    : public BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
+    : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
     , private Integrals_Overlap
     , private Integrals_Kinetic
     , private Integrals_Nuclear
@@ -68,7 +67,7 @@ public:
 
 class Orbital_DFT_IBS
     : public virtual Integrals_Base
-    , public BasisSet1::Orbital_DFT_IBS<double>
+    , public virtual BasisSet1::Orbital_DFT_IBS<double>
 {
 protected:
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const
@@ -84,7 +83,7 @@ protected:
 
 
 class Orbital_HF_IBS
-    : public BasisSet1::Orbital_HF_IBS<double> 
+    : public virtual BasisSet1::Orbital_HF_IBS<double> 
     , public virtual Integrals_Base
 
 {

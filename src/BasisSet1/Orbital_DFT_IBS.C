@@ -1,7 +1,7 @@
 // File: BasisSet/Orbital_DFT_IBS.C  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
 module;
 export module qchem.BasisSet1.Orbital_DFT_IBS;
-export import qchem.BasisSet1;
+export import qchem.BasisSet1.IrrepBasisSet;
 export import qchem.BasisSet1.Orbital_1E_IBS;
 export import qchem.BasisSet1.Fit_IBS;
 export import qchem.BasisSet.Internal.ERI3;
@@ -10,8 +10,8 @@ export namespace BasisSet1
 {
 
 template <class T> class Orbital_DFT_IBS
-    : public virtual IrrepBasisSet_IDs
-    , public virtual Streamable
+    : public virtual Orbital_1E_IBS<T>
+    , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
 {
 public:
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$
