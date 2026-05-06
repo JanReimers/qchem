@@ -7,6 +7,7 @@ module;
 
 export module qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Atom.IE;
+import qchem.BasisSet1.Internal.IrrepBasisSetImp;
 import qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
@@ -20,13 +21,15 @@ namespace Atom
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
-class IrrepBasisSet
-    : public virtual VectorFunction<double>
+class IrrepBasisSetImp
+    : public virtual BasisSet1::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
     , public virtual Streamable
     , public virtual Integrals_Base
+    , public BasisSet1::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
 public:
+    IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet1::IrrepBasisSetImp<double>(yl) {}
     virtual size_t  GetNumFunctions() const {return GetEvaluator()->size();}
     // virtual size_t  size           () const {return itsEval->size();}
     virtual rvec_t     operator() (const rvec3_t& r) const {return GetEvaluator()->operator()(r);}
@@ -48,13 +51,11 @@ public:
 //
 class Orbital_1E_IBS
     : public BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
-    , public IrrepBasisSet
     , private Integrals_Overlap
     , private Integrals_Kinetic
     , private Integrals_Nuclear
 {
 public:
-    Orbital_1E_IBS(const Irrep_QNs::sym_t& yl) : BasisSet1::Orbital_1E_IBS<double>(yl) {};
     virtual std::ostream&  Write(std::ostream& os) const
     {
         os << "Orbital IBS " << Name() << " ";

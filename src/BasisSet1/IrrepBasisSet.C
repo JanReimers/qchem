@@ -17,7 +17,6 @@ public:
     virtual std::string  RadialID() const=0;
     virtual std::string AngularID() const=0;
     virtual std::string Name     () const=0;
-
 };
 
 //--------------------------------------------------------------------------------
@@ -52,28 +51,21 @@ template <class T> class IrrepBasisSet
     , public virtual VectorFunction<T>
 {
 public:
-    IrrepBasisSet(const Irrep_QNs::sym_t& sym) : itsSymmetry(sym) {assert(itsSymmetry);}
     //! Readonly ref to the polymorphic Symmetry object.
-    virtual const Symmetry& GetSymmetry() const {return *itsSymmetry;}
+    virtual const Symmetry& GetSymmetry() const=0;
     //! Very often the client code needs as derived class ref.
     template <class Sym> const Sym& CastSymmetry() const
     {
         return dynamic_cast<const Sym&>(GetSymmetry());
     }
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
-    virtual Irrep_QNs GetIrrep(const Spin& s) const
-    {
-        return Irrep_QNs(s,itsSymmetry);
-    }
-    
+    virtual Irrep_QNs GetIrrep(const Spin& s) const=0;
     virtual size_t GetNumFunctions() const=0;
     virtual size_t GetVectorSize() const {return GetNumFunctions();}
     virtual std::ostream&  Write(std::ostream& os) const
     {
         return os << "Symmetry=" << GetSymmetry() << " ";
     }
-private:
-    Irrep_QNs::sym_t itsSymmetry;
 };
 
 typedef IrrepBasisSet<double>    Real_IBS;

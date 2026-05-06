@@ -24,11 +24,11 @@ namespace Atom {
 template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public virtual Integrals_Base
-    , public BasisSet1::Atom::IrrepBasisSet
+    , public IrrepBasisSetImp
     , public Evaluator
 {
     public:
-    Fit_IBS(const Evaluator& e) : Evaluator(e) {};
+    Fit_IBS(const Evaluator& e) : IrrepBasisSetImp(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
 
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
@@ -56,12 +56,14 @@ template <class Evaluator> class Orbital_IBS
     : public Orbital_1E_IBS
     , public Orbital_DFT_IBS
     , public Orbital_HF_IBS
+    , public IrrepBasisSetImp
     , public Evaluator
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : Orbital_1E_IBS(yl)
+    : Orbital_1E_IBS()
     , Orbital_HF_IBS(bse)
+    , IrrepBasisSetImp(yl)
     , Evaluator(N,rmin,rmax,yl)
     {};
 

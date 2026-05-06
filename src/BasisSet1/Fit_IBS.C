@@ -13,10 +13,9 @@ export namespace BasisSet1
  //! \brief Interface for fit basis set that can all integrals required by least the squares Fitting module.
 class Fit_IBS 
     : public virtual Integrals_Overlap<double> 
-    , public Real_IBS //Real Irrep basis Set
+    , public virtual Real_IBS //Real Irrep basis Set
 {
 public:
-    Fit_IBS() : Real_IBS(Irrep_QNs::sym_t(new Yl_Sym(0))) {};
     using Integrals_Overlap<double>::Overlap;
     const  rvec_t& Charge   () const;
     const rsmat_t& Repulsion() const;

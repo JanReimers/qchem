@@ -43,13 +43,12 @@ public:
 // Mix-in the integral interfaces required for a 1E orbital basis. 
 //
 template <class T> class Orbital_1E_IBS
-    : public IrrepBasisSet<T> //brings in symmetry and op()(r)
+    : public virtual IrrepBasisSet<T> //brings in symmetry and op()(r)
     , public virtual Integrals_Overlap<T> 
     , public virtual Integrals_Kinetic<T> 
     , public virtual Integrals_Nuclear<T> 
 {
 public:    
-    Orbital_1E_IBS(const Irrep_QNs::sym_t& sym) : IrrepBasisSet<T>(sym) {};
 };
 
 typedef Orbital_1E_IBS<double>    Real_OIBS;
