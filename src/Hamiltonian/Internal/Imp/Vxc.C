@@ -12,6 +12,9 @@ import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Blaze;
 
+namespace qchem::Hamiltonian
+{
+
 //########################################################################
 //
 //  Let the charge density do the work.
@@ -38,3 +41,4 @@ std::ostream& Vxc::Write(std::ostream& os) const
     return os;
 }
 
+} //namespace

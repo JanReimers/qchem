@@ -11,6 +11,8 @@ import qchem.VectorFunction;
 import qchem.Streamable;
 import Common.Iterators;
 
+using qchem::ChargeDensity::DM_CD;
+
 //#############################################################
 //
 //  An orbital is 1) a real space function, 2) it holds some number

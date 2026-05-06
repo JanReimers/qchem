@@ -11,6 +11,9 @@ import qchem.ChargeDensity;
 import qchem.Energy;
 import Common.Constants;
 
+namespace qchem::Hamiltonian
+{
+
 rsmat_t RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     static const double f=-2.0*c_light*c_light;
@@ -32,3 +35,4 @@ std::ostream& RestMass::Write(std::ostream& os) const
 }
 
 
+} //namespace

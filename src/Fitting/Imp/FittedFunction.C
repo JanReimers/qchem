@@ -12,6 +12,9 @@ import qchem.Mesh;
 import qchem.Streamable;
 import qchem.Blaze;
 
+namespace qchem::Fitting
+{
+
 //---------------------------------------------------------------------
 //
 //  Construction zone.  The CDFit flag indicates to fit the electric
@@ -70,7 +73,7 @@ template <class T> void FittedFunctionImp<T>::DoFitInternal(const DensityFFClien
 //  Provide Overlap and Repulsion matricies for derived classes.
 //
 template <class T> vec_t<T> FittedFunctionImp<T>::
-FitGet2CenterOverlap(const Fit_IBS* bs) const
+FitGet2CenterOverlap(const fbs_t* bs) const
 {
     // No UT coverage.
     assert(false);
@@ -78,13 +81,13 @@ FitGet2CenterOverlap(const Fit_IBS* bs) const
 }
 
 template <class T> vec_t<T> FittedFunctionImp<T>::
-FitGet2CenterRepulsion(const Fit_IBS* bs) const
+FitGet2CenterRepulsion(const fbs_t* bs) const
 {
     return trans(itsBasisSet->Repulsion(*bs))*itsFitCoeff;
 }
 
 template <class T> smat_t<T> FittedFunctionImp<T>::
-FitGet3CenterOverlap(const Orbital_DFT_IBS<double>* bs) const
+FitGet3CenterOverlap(const obs_t* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
     smat_t<T> J=zero<T>(bs->GetNumFunctions());
@@ -182,3 +185,5 @@ template <class T> std::ostream& FittedFunctionImp<T>::Write(std::ostream& os) c
 
 
 template class FittedFunctionImp<double>;
+
+} //namespace

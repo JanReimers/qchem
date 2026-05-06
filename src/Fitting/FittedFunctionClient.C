@@ -1,7 +1,10 @@
 // File: FittedFunctionClient.C  Linear fitted function interface
 export module qchem.FittedFunctionClient;
-import qchem.Fit_IBS;
 import qchem.ScalarFunction;
+
+import qchem.Fit_IBS;
+// import qchem.BasisSet1.Fit_IBS;
+
 //-------------------------------------------------------------------
 //
 //  Abstract interfaces used by the FittedFunction class.
@@ -12,7 +15,10 @@ import qchem.ScalarFunction;
 //
 //  Fit to a simple scalar function.  Requires numerical integration.
 // 
-export class ScalarFFClient
+export namespace qchem::Fitting
+{
+
+class ScalarFFClient
 {
 public:
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;
@@ -22,10 +28,12 @@ public:
 //
 //  Fit to a density matrix function like ro(r)=a(r)*b(r)*Dab 
 //
-export class DensityFFClient
+class DensityFFClient
 {
 public:
+    typedef Fit_IBS fbs_t;
     virtual double FitGetConstraint() const=0;
-    virtual rvec_t GetRepulsion3C(const Fit_IBS*) const=0;
+    virtual rvec_t GetRepulsion3C(const fbs_t*) const=0;
 };
 
+} //namespace

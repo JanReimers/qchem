@@ -2,12 +2,16 @@
 export module qchem.ChargeDensity.Imp.PolarizedCD;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Spin;
+
+export namespace qchem::ChargeDensity
+{
+
 //---------------------------------------------------------------------------------------
 //
 //  Store spin and spin down a ChargeDensity*'s to allow polymorphism.
 //  All member functions just return the unpolarized answer.
 //
-export class Polarized_CDImp
+class Polarized_CDImp
     : public virtual Polarized_CD
 {
 public:
@@ -24,3 +28,4 @@ private:
     DM_CD* itsSpinDownCD;
 };
 
+} //namespace

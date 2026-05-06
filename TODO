@@ -98,10 +98,18 @@ Priority 1:
         Fixed:: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
         IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  These should replace
         is const IBS_Evaluator& .
+        Cut over trials
+            Fitting:
+                Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
+                2 problems arise:
+                1) asserts using GetID()
+                2) no member named 'GetNumFunctions' in 'BasisSet1::Orbital_DFT_IBS<double>'
+            Charge Density:
+                
     -Namespaces
         -Cluster namespace.  
             Structure
-        -Put everything atom basis set in an AtomBS name space
+        -Put everything atom basis set in an qchem::Basiset1::Atom name space
         -Put everything abstract/general basis set in a BasisSet namespace.
             AtomBS->BasisSet::Atom an now avoids class with Cluster::Atom
     -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  

@@ -7,7 +7,10 @@ export import qchem.FittedFunctionClient;
 
 import qchem.Symmetry.Irrep;
 
-export class HT_Common
+export namespace qchem::Hamiltonian
+{
+
+class HT_Common
 {
 protected:
     typedef std::map<Irrep_QNs,rsmat_t> CacheMap;
@@ -16,7 +19,7 @@ protected:
 };
 
 
-export class Static_HT_Imp
+class Static_HT_Imp
     : public virtual Static_HT
     , protected HT_Common
 {
@@ -28,7 +31,7 @@ protected:
     virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const=0;
 };
 
-export class Dynamic_HT_Imp
+class Dynamic_HT_Imp
 : public virtual Dynamic_HT
 , protected HT_Common
 {
@@ -45,7 +48,7 @@ protected:
 };
 
 // Used for polarized potentials (Vxc) which each polarization will handle its own cache.
-export class Dynamic_HT_Imp_NoCache
+class Dynamic_HT_Imp_NoCache
 : public virtual Dynamic_HT
 {
 public:
@@ -56,10 +59,12 @@ protected:
     mutable rsmat_t itsMat;
 };
 
-export class FittablePotential
+class FittablePotential
     : public virtual Dynamic_HT
-    , public virtual ScalarFFClient
+    , public virtual Fitting::ScalarFFClient
 {
 public:
     virtual void UseChargeDensity(const DM_CD*)       =0;
 };
+
+} //namespace

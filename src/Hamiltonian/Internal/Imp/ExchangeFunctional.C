@@ -4,7 +4,10 @@ module;
 #include "blaze/Math.h"
 module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.ChargeDensity;
- 
+
+namespace qchem::Hamiltonian
+{
+
 ExFunctional::ExFunctional()
     : itsChargeDensity(0)
     , isPolarized(true)
@@ -27,3 +30,4 @@ rvec_t ExFunctional::GetVxcs(const rvec_t& ros) const
 }
 
 
+} //namespace

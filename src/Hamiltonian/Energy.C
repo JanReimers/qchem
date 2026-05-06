@@ -1,6 +1,9 @@
 // File: Energy.C  Store and display a breakdown of the total energy.
 export module qchem.Energy;
  
+namespace qchem
+{
+
 export class EnergyBreakdown
 {
 public:
@@ -30,3 +33,5 @@ public:
     double ExcFitFit;
     double RestMass;
 };
+
+} //namespace

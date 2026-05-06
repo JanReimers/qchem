@@ -12,7 +12,7 @@ inline SCFParams dft_scf_params(int Z)
     return {   20     ,Z*1e-3    ,1e-10  ,1e-13 ,Z*1e-4        ,0.1      ,1e-8  ,true};
 }
 
-using namespace HamiltonianF;
+using namespace qchem::Hamiltonian;
 class DFT_U : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const

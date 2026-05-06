@@ -10,6 +10,9 @@ export import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
 export import qchem.Orbitals;
 
+export using qchem::ChargeDensity::DM_CD;
+export using qchem::Hamiltonian::Hamiltonian;
+
 export class WaveFunction 
 {
 public:

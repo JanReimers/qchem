@@ -3,12 +3,16 @@ export module qchem.FittedCD;
 
 export import qchem.Orbital_DFT_IBS;
 import qchem.FittedFunction;
+
+export namespace qchem::ChargeDensity
+{
+
 //----------------------------------------------------------------------------------
 //
 //
-export class FittedCD
+class FittedCD
     : public virtual ScalarFunction<double>
-    , public virtual FittedFunction
+    , public virtual Fitting::FittedFunction
 {
 public:
     using FittedFunction::DoFit;
@@ -18,3 +22,5 @@ public:
     //Required for creating a polarized CD from and un-polarized CD
     virtual FittedCD*  Clone  (        ) const=0;
 };
+
+} //namespace

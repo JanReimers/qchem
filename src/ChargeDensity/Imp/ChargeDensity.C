@@ -6,6 +6,10 @@ module;
 module qchem.ChargeDensity;
 
 import qchem.Symmetry.Spin;
+
+namespace qchem::ChargeDensity
+{
+
 //----------------------------------------------------------------------------
 //
 //  Various integrals.
@@ -128,3 +132,4 @@ rvec3_t SpinDensity::Gradient  (const rvec3_t& r) const
     return itsSpinUpCD->Gradient(r) - itsSpinDownCD->Gradient(r);
 }
 
+} //namespace

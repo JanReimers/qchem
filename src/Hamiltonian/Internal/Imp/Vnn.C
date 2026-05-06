@@ -10,6 +10,9 @@ import qchem.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Blaze;
 
+namespace qchem::Hamiltonian
+{
+
 Vnn::Vnn(const cl_t& cl)
     : Static_HT_Imp()
     , theCluster(cl)
@@ -42,3 +45,4 @@ std::ostream& Vnn::Write(std::ostream& os) const
     return os;
 }
 
+} //namespace

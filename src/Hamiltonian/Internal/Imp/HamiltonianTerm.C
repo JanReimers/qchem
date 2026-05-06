@@ -9,6 +9,9 @@ import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
 import qchem.Symmetry;
 
+namespace qchem::Hamiltonian
+{
+
 Dynamic_HT_Imp::Dynamic_HT_Imp() : itsCD(0) {};
 
 const rsmat_t& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
@@ -51,3 +54,4 @@ const rsmat_t& Dynamic_HT_Imp_NoCache::GetMatrix(const ibs_t* bs,const Spin& s,c
     return itsMat=CalcMatrix(bs,s,cd);
 }
 
+} //namespace

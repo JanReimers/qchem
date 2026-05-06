@@ -9,6 +9,9 @@ import qchem.Energy;
 import qchem.IrrepBasisSet;
 import Common.Constants;
 
+namespace qchem::Hamiltonian
+{
+
 rsmat_t DiracKinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
 {
     // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
@@ -26,4 +29,5 @@ std::ostream& DiracKinetic::Write(std::ostream& os) const
     return os;
 }
 
+} //namespace
 

@@ -3,6 +3,8 @@ module;
 #include <iostream>
 module qchem.Energy;
 
+namespace qchem
+{
 EnergyBreakdown::EnergyBreakdown()
     : Kinetic  (0)
     , Enn      (0)
@@ -54,3 +56,5 @@ void EnergyBreakdown::Display() const
     cout << "ExcFitFit :" << ExcFitFit << endl;
     cout << "------------------------" << endl << endl;
 }
+
+} //namespace 

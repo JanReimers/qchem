@@ -11,14 +11,17 @@ import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
 import qchem.Blaze;
 
+namespace qchem::ChargeDensity
+{
+
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.
 //
 template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
-    : IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
+    : Fitting::IntegralConstrainedFF<double>(bs,m) //Use repulsion overlap for fitting
 {
-    FittedFunctionImp<double>::ReScale(totalCharge);
+    Fitting::FittedFunctionImp<double>::ReScale(totalCharge);
     assert(totalCharge>0);
     assert(fabs(totalCharge-FitGetCharge())<1e-10);
 };
@@ -43,7 +46,7 @@ template <class T> smat_t<T> FittedCDImp<T>::GetRepulsion(const Orbital_DFT_IBS<
 
 template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 {
-    return 0.5 * FittedFunctionImp<T>::FitGetRepulsion(this);
+    return 0.5 * Fitting::FittedFunctionImp<T>::FitGetRepulsion(this);
 }
 
 //-------------------------------------------------------------------------
@@ -54,13 +57,13 @@ template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
 template <class T> double FittedCDImp<T>::operator()(const rvec3_t& r) const
 {
     // No UT coverage
-    return FittedFunctionImp<T>::operator()(r);
+    return Fitting::FittedFunctionImp<T>::operator()(r);
 }
 
 template <class T> rvec3_t FittedCDImp<T>::Gradient(const rvec3_t& r) const
 {
     // No UT coverage
-    return FittedFunctionImp<T>::Gradient(r);
+    return Fitting::FittedFunctionImp<T>::Gradient(r);
 }
 
 template <class T> FittedCD* FittedCDImp<T>::Clone() const
@@ -70,3 +73,5 @@ template <class T> FittedCD* FittedCDImp<T>::Clone() const
 
 
 template class FittedCDImp<double>;
+
+} //namespace

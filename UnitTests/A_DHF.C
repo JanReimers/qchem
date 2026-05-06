@@ -27,7 +27,7 @@ double Enk(int n, int kappa,int Z, double alpha)
     return (1/sqrt(1.0+a2*Z*Z/(d*d))-1.0)/a2;
 }
 
-using namespace HamiltonianF;
+using namespace qchem::Hamiltonian;
 class HF_P : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const

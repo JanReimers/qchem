@@ -24,7 +24,7 @@ inline SCFParams scf_params_BS(int Z)
 //
 //  Un-polarized tests.
 //
-using namespace HamiltonianF;
+using namespace qchem::Hamiltonian;
 class HF_U : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const

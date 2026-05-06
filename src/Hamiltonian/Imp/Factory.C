@@ -3,7 +3,8 @@ module;
 #include <cassert>
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
-namespace HamiltonianF
+
+namespace qchem::Hamiltonian
 {
     
     Hamiltonian* Factory(Model m,Pol p, const cl_t& cl)

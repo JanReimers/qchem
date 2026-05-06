@@ -7,6 +7,7 @@ export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 
+using qchem::ChargeDensity::DM_CD;
 
 
 export template <class T> class TOrbitalsImp

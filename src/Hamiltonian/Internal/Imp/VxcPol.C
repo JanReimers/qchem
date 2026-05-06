@@ -13,6 +13,8 @@ import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 import qchem.Blaze;
 
+namespace qchem::Hamiltonian
+{
 
 //########################################################################
 //
@@ -55,4 +57,4 @@ std::ostream& VxcPol::Write(std::ostream& os) const
     return os;
 }
 
-
+} //namespace

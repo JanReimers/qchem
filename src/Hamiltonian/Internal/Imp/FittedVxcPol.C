@@ -9,6 +9,10 @@ import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Symmetry.Spin;
 
+namespace qchem::Hamiltonian
+{
+
+
 FittedVxcPol::FittedVxcPol(bs_t& bs, ex_t& lda, mesh_t& m)
     : itsUpVxc               (new FittedVxc(bs,lda,m))
     , itsDownVxc             (new FittedVxc(bs,lda,m))
@@ -80,3 +84,4 @@ std::ostream& FittedVxcPol::Write(std::ostream& os) const
     return os << itsUpVxc << itsDownVxc;
 }
 
+} //namespace

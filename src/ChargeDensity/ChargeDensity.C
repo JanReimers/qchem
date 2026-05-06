@@ -6,17 +6,21 @@ export import qchem.Fit_IBS;
 export import qchem.Symmetry.Spin;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
-//
+
+
+export namespace qchem::ChargeDensity
+{
 //
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
-export class Static_CC //Contract client for static Ham terms.
+//
+class Static_CC //Contract client for static Ham terms.
 {
 public:
     virtual const rsmat_t& GetMatrix(const Orbital_IBS<double>*,const Spin&) const=0;    
 };
 
-export class DM_CD;
-export class Dynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
+class DM_CD;
+class Dynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
     virtual const rsmat_t& GetMatrix(const Orbital_IBS<double>*,const Spin&,const DM_CD*) const=0;    
@@ -35,9 +39,9 @@ public:
 //
 //  This is the interface for a charge density representation based on the density matrix.
 //
-export class DM_CD 
+class DM_CD 
 : public virtual ScalarFunction<double>
-, public virtual DensityFFClient //Fitted function can be fit to this.
+, public virtual Fitting::DensityFFClient //Fitted function can be fit to this.
 {
 public:
     virtual double DM_Contract(const Static_CC*) const=0; //Amounts to Integral(ro*V*d3r);
@@ -60,7 +64,7 @@ public:
 //  Store spin up and spin down as a ChargeDensity
 //  Generic: Could be fitted or exact.
 //
-export class Polarized_CD
+class Polarized_CD
     : public virtual DM_CD
 {
 public:
@@ -85,7 +89,7 @@ public:
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 };
 
-export class SpinDensity : public virtual ScalarFunction<double>
+class SpinDensity : public virtual ScalarFunction<double>
 {
 public:
     SpinDensity(DM_CD* up,DM_CD* down);
@@ -96,3 +100,5 @@ private:
     DM_CD* itsSpinUpCD;
     DM_CD* itsSpinDownCD;
 };
+
+} //namespace

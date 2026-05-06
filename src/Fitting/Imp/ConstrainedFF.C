@@ -6,6 +6,8 @@ module qchem.FittedFunctionImp;
 import qchem.FittedFunctionClient;
 import qchem.Fit_IBS;
 
+namespace qchem::Fitting
+{
 
 template <class T> ConstrainedFF<T>::ConstrainedFF()
     : FittedFunctionImp<T>()
@@ -41,3 +43,5 @@ template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const
 
 
 template class ConstrainedFF<double>;
+
+} //namespace

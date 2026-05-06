@@ -20,7 +20,10 @@ import qchem.FittedFunctionClient;
 //!  The GetFunctionOverlap is supplied by the client (derived) class to calculate a vector of 
 //! \f$ \int d^{3}\vec{r}F\left(\vec{r}\right)f_{b}\left(\vec{r}\right)=F_{b} \f$ values.
 //! 
-export class FittedFunction
+export namespace qchem::Fitting
+{
+
+class FittedFunction
     : public virtual ScalarFunction<double>
 {
 public:
@@ -35,4 +38,6 @@ public:
     //! returns \f$ \sum_{a}\left(c_{a}-g_{a}\right)\int d^{3}\vec{r}f_{a}\left(\vec{r}\right) \f$
     virtual double FitGetChangeFrom(const FittedFunction& g) const=0;
 };
+
+} //namespace
 

@@ -7,11 +7,14 @@ export import qchem.ChargeDensity;
 export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 
+export namespace qchem::ChargeDensity
+{
+
 //--------------------------------------------------------------------------
 //
 //  Full charge density represented Compositely as sum of density matricies.
 //
-export class Composite_CD
+class Composite_CD
     : public virtual DM_CD
 {
 public:
@@ -42,3 +45,4 @@ private:
     cdv_t itsCDs;
 };
 
+} //namespace

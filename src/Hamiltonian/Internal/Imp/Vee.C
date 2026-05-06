@@ -11,6 +11,8 @@ import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Blaze;
 
+namespace qchem::Hamiltonian
+{
 
 //########################################################################
 //
@@ -46,6 +48,4 @@ std::ostream& Vee::Write(std::ostream& os) const
     return os;
 }
 
-
-
-
+} //namespace

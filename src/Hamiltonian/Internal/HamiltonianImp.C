@@ -6,7 +6,10 @@ export module qchem.Hamiltonian.Internal.Hamiltonian;
 export import qchem.Hamiltonian;
 import qchem.Cluster;
 
-export class HamiltonianImp
+export namespace qchem::Hamiltonian
+{
+
+class HamiltonianImp
     : public virtual Hamiltonian
 {
 public:
@@ -29,3 +32,5 @@ protected:
     dhtv_t itsDHTs;
     bool   itsIsPolarized;
 };
+
+} //namespace

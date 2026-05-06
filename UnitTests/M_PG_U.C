@@ -19,7 +19,7 @@ double Alpha_N2=0.75197;
 //
 //  Un-polarized tests.
 //
-using namespace HamiltonianF;
+using namespace qchem::Hamiltonian;
 
 class M_PG_HF_U : public ::testing::Test
 , public TestMolecule

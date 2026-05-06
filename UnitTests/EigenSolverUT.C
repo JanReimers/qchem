@@ -133,9 +133,10 @@ TEST_F(OrthogonalizeTests, Blaze)
 
 TEST_F(OrthogonalizeTests, BlazeHydrogen)
 {
+    using namespace qchem::Hamiltonian;
     typedef std::shared_ptr<const Cluster> cl_t;
     Cluster* cla=new Atom(1,0);
-    Hamiltonian* Ham=HamiltonianF::Factory(HamiltonianF::Model::E1,HamiltonianF::Pol::Polarized,cl_t(cla));
+        Hamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,cl_t(cla));
     Set(21,1);
     for (auto ibs:bs->Iterate<Real_OIBS>())
     {

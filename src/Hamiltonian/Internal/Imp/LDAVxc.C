@@ -7,6 +7,9 @@ module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.ChargeDensity;
 import qchem.Streamable;
 
+namespace qchem::Hamiltonian
+{
+
 LDAVxc::LDAVxc()
     : itsExchangeFunctional  (0)
 {};
@@ -47,3 +50,4 @@ std::ostream& LDAVxc::Write(std::ostream& os) const
     return os;
 }
 
+} //namespace

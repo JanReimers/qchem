@@ -5,13 +5,16 @@ export module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
 
+export namespace qchem::Hamiltonian
+{
+
 //###############################################################################
 //
 //  Local density exchange potential using exact charge density.
 //
-export class LDAVxc
+class LDAVxc
     : public virtual FittablePotential
-    , public virtual ScalarFFClient
+    , public virtual Fitting::ScalarFFClient
     , private        Dynamic_HT_Imp
 {
     typedef std::shared_ptr<ExFunctional> ex_t;
@@ -31,3 +34,4 @@ private:
     ex_t itsExchangeFunctional;
 };
 
+} //namespace

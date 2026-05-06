@@ -3,6 +3,9 @@ module;
 module qchem.FittedFunctionImp;
 import qchem.Fit_IBS;
 
+namespace qchem::Fitting
+{
+
 template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
     : ConstrainedFF<T>()
 {};
@@ -13,3 +16,5 @@ IntegralConstrainedFF(bs_t& fbs, mesh_t&  m)
     {};
 
 template class IntegralConstrainedFF<double>;
+
+} //namespace

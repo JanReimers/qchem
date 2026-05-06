@@ -2,17 +2,21 @@
 export module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.FittedCD;
 import qchem.FittedFunctionImp;
+
+export namespace qchem::ChargeDensity
+{
+
 //---------------------------------------------------------------------------------
 //
 //  A charge density implemented by fitting the real charge density to an
 //  auxillary basis set.
 //
-export template <class T> class FittedCDImp
+template <class T> class FittedCDImp
     : public virtual FittedCD
-    , public         IntegralConstrainedFF<T> //Pick up the DoFit method.
+    , public         Fitting::IntegralConstrainedFF<T> //Pick up the DoFit method.
 {
-     typedef typename IntegralConstrainedFF<T>::mesh_t mesh_t;
-     typedef typename IntegralConstrainedFF<T>::bs_t   bs_t;
+     typedef typename Fitting::IntegralConstrainedFF<T>::mesh_t mesh_t;
+     typedef typename Fitting::IntegralConstrainedFF<T>::bs_t   bs_t;
 public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
@@ -25,11 +29,12 @@ public:
     virtual FittedCD* Clone(        ) const;
 
 private:
-    using FittedFunctionImp<T>::FitGetCharge;
-    using FittedFunctionImp<T>::FitGet2CenterOverlap;
-    using FittedFunctionImp<T>::FitGet2CenterRepulsion;
-    using FittedFunctionImp<T>::itsFitCoeff;
-    using FittedFunctionImp<T>::itsBasisSet;
+    using Fitting::FittedFunctionImp<T>::FitGetCharge;
+    using Fitting::FittedFunctionImp<T>::FitGet2CenterOverlap;
+    using Fitting::FittedFunctionImp<T>::FitGet2CenterRepulsion;
+    using Fitting::FittedFunctionImp<T>::itsFitCoeff;
+    using Fitting::FittedFunctionImp<T>::itsBasisSet;
     
 };
 
+} //namespace

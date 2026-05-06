@@ -5,7 +5,8 @@ import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.BasisSet;
 import qchem.Mesh;
 
-export {
+export namespace qchem::Hamiltonian
+{
 //
 //  1 Electron
 //
@@ -70,4 +71,4 @@ public:
     Ham_DHF(const cl_t& cl);
 };
 
-} //export block
+} //namespace

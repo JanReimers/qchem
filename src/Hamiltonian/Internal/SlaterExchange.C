@@ -6,7 +6,10 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Symmetry.Spin;
 import qchem.Vector3D;
 
-export class SlaterExchange
+export namespace qchem::Hamiltonian
+{
+
+class SlaterExchange
     : public  ExFunctional
 {
     typedef Vector3D<double> Vec3;
@@ -27,3 +30,4 @@ private:
     Spin   itsSpin;
 };
 
+} //namespace

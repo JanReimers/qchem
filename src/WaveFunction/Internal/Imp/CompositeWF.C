@@ -67,6 +67,7 @@ void CompositeWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 
 DM_CD* CompositeWF::GetChargeDensity(Spin s) const
 {
+    using qchem::ChargeDensity::Composite_CD;
     auto i = itsSpinWFs.find(s);
     assert(i!=itsSpinWFs.end());
     Composite_CD* cd = new Composite_CD();

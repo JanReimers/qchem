@@ -4,7 +4,12 @@ import qchem.ChargeDensity;
 import qchem.ScalarFunction;
 import qchem.Streamable;
 
-export class ExFunctional
+export namespace qchem::Hamiltonian
+{
+
+using ChargeDensity::DM_CD;
+
+class ExFunctional
     : public virtual Streamable
     , public virtual ScalarFunction<double>{
 public:
@@ -21,3 +26,4 @@ protected:
     bool            isPolarized;
 };
 
+} //namespace 

@@ -12,8 +12,11 @@ import qchem.FittedCD;
 import qchem.Mesh;
 
 
-export {
-    
+export namespace qchem::Hamiltonian
+{
+
+using ChargeDensity::Polarized_CD;
+
 class Kinetic
     : public virtual Static_HT
     , private        Static_HT_Imp
@@ -172,7 +175,7 @@ public:
 private:
     virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
 
-    FittedCD* itsFittedChargeDensity;
+    ChargeDensity::FittedCD* itsFittedChargeDensity;
 };
 
 //###############################################################################
@@ -182,14 +185,14 @@ private:
 //  does not get deleted by ~FittedVee.  The LDA function is owned by Vxc.
 //
 class FittedVxc
-    : public virtual FittedFunction
+    : public virtual Fitting::FittedFunction
     , public virtual Dynamic_HT
     , private        Dynamic_HT_Imp
-    , public         FittedFunctionImp<double>
+    , public         Fitting::FittedFunctionImp<double>
 {
 public:
-    typedef FittedFunctionImp<double>::mesh_t mesh_t;
-    typedef FittedFunctionImp<double>::bs_t   bs_t;
+    typedef Fitting::FittedFunctionImp<double>::mesh_t mesh_t;
+    typedef Fitting::FittedFunctionImp<double>::bs_t   bs_t;
     typedef std::shared_ptr<ExFunctional>     ex_t;
 
     FittedVxc(bs_t& VxcFitBasisSet, ex_t&, mesh_t&);
@@ -237,4 +240,4 @@ private:
 
 };
 
-} //export block
+} //namespace

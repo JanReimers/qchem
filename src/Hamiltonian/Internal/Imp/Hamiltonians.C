@@ -9,6 +9,9 @@ import qchem.BasisSet;
 import qchem.Fit_IBS;
 import qchem.Cluster;
 
+namespace qchem::Hamiltonian
+{
+
 Ham_1E::Ham_1E(const cl_t& cl) 
 {
     InsertStandardTerms(cl);
@@ -81,3 +84,5 @@ Ham_DHF::Ham_DHF(const cl_t& cl)
     // Add(new Vee());
     // Add(new VxcPol());
 }
+
+} //namespace

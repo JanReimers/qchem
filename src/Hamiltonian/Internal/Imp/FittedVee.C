@@ -12,8 +12,11 @@ import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 
+namespace qchem::Hamiltonian
+{
+
 FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElectrons)
-    : itsFittedChargeDensity(FittedCD_Factory(chargeDensityFitBasisSet,m,numElectrons))
+    : itsFittedChargeDensity(ChargeDensity::FittedCD_Factory(chargeDensityFitBasisSet,m,numElectrons))
 {
     assert(itsFittedChargeDensity);
 };
@@ -44,3 +47,4 @@ void FittedVee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
     te.Eee = 2*te.EeeFit - te.EeeFitFit;
 }
 
+} //namespace

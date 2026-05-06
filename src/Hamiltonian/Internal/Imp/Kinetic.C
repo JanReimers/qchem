@@ -10,6 +10,8 @@ import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.IrrepBasisSet;
 
+namespace qchem::Hamiltonian
+{
 
 
 rsmat_t Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
@@ -29,3 +31,4 @@ std::ostream& Kinetic::Write(std::ostream& os) const
 }
 
 
+} //namespace

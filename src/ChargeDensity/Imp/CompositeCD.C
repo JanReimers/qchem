@@ -5,6 +5,10 @@ module;
 #include <memory>
 module qchem.CompositeCD;
 import qchem.Blaze;
+
+namespace qchem::ChargeDensity
+{
+
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.
@@ -120,3 +124,4 @@ rvec3_t Composite_CD::Gradient  (const rvec3_t& r) const
 }
 
 
+} //namespace

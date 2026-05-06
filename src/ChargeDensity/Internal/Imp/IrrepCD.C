@@ -12,6 +12,9 @@ import qchem.Orbital_DFT_IBS;
 import qchem.Symmetry;
 import qchem.Blaze;
 
+namespace qchem::ChargeDensity
+{
+
 typedef Vector3D<std::complex<double> > Vec3;
 
 rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const rsmat_t&);
@@ -180,3 +183,4 @@ rvec3_t GradientContraction(const vec_t<rvec3_t>& g, const vec_t<double>& v, con
 //     return real(ret);
 // }
 
+} //namespace

@@ -12,6 +12,9 @@ import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
 
+namespace qchem::Hamiltonian
+{
+
 HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
 {};
 
@@ -65,3 +68,5 @@ std::ostream& HamiltonianImp::Write(std::ostream& os) const
     os << itsDHTs;
     return os;
 }
+
+} //namespace

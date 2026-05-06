@@ -9,13 +9,16 @@ import qchem.IrrepBasisSet;
 export import qchem.Orbital_HF_IBS;
 export import qchem.Fit_IBS;
 
+export namespace qchem::ChargeDensity
+{
+
 //------------------------------------------------------------------------------------
 //
 //  This maintains the exact charge density represented by the density matrix
 //  of one irreducable representation.  The full charge density will in general
 //  be a summation of these guys.
 //
-export template <class T> class IrrepCD
+template <class T> class IrrepCD
     : public virtual DM_CD
 {
 public:
@@ -51,3 +54,4 @@ private:
     Irrep_QNs             itsIrrep;
 };
 
+} //namespace

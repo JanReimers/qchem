@@ -5,6 +5,8 @@ export import qchem.WaveFunction;
 export import qchem.SCFParams;
 export import qchem.BasisSet;
 
+export using qchem::EnergyBreakdown;
+
 export class SCFIterator
 {
 public:

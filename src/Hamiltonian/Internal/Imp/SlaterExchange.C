@@ -7,6 +7,8 @@ module qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.ChargeDensity;
 import Common.Constants;
 
+namespace qchem::Hamiltonian
+{
 
 SlaterExchange::SlaterExchange()
     : itsAlpha(0)
@@ -62,3 +64,4 @@ std::ostream& SlaterExchange::Write(std::ostream& os) const
 }
 
 
+} //namespace

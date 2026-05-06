@@ -107,7 +107,7 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
 
 template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 {
-    return IrrepCD_Factory(itsD,itsBasisSet,GetQNs());
+    return qchem::ChargeDensity::IrrepCD_Factory(itsD,itsBasisSet,GetQNs());
 }
 
 

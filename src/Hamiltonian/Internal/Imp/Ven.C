@@ -10,6 +10,9 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.IrrepBasisSet;
 
+namespace qchem::Hamiltonian
+{
+
 Ven::Ven(const cl_t& cl)
     : Static_HT_Imp()
     , theCluster(cl)
@@ -36,3 +39,4 @@ std::ostream& Ven::Write(std::ostream& os) const
 }
 
 
+} //namespace

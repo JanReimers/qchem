@@ -4,15 +4,21 @@ export import qchem.ChargeDensity;
 import qchem.Streamable;
 export import qchem.Energy;
 
+
+export namespace qchem::Hamiltonian
+{
+
+using ChargeDensity::DM_CD;
+
 //
 //  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.
 //  We have two distinct types of HT:
 //  Static_HT - Does not depend on the Charge Dnesity (CD), and therefore does change during iterations
 //  Dynamic_HT - Vee, Vac which depend on the CD, and change with each iteration.
 //
-export class Static_HT
+class Static_HT
     : public virtual Streamable
-    , public virtual Static_CC
+    , public virtual ChargeDensity::Static_CC
 {
 public:
     typedef Orbital_IBS<double> ibs_t;
@@ -22,9 +28,9 @@ public:
     virtual bool           IsPolarized() const {return false;}
 };
 
-export class Dynamic_HT
+class Dynamic_HT
     : public virtual Streamable
-    , public virtual Dynamic_CC
+    , public virtual ChargeDensity::Dynamic_CC
 {
 public:
     typedef Orbital_IBS<double> ibs_t;    
@@ -37,7 +43,7 @@ public:
 
 
 
-export class Hamiltonian
+class Hamiltonian
     : public virtual Streamable
 {
 public:
@@ -49,4 +55,6 @@ public:
     virtual EnergyBreakdown GetTotalEnergy  (  const DM_CD*    ) const=0;
     virtual bool            IsPolarized() const=0;
 };
+
+} //namespace
 

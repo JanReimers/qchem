@@ -5,6 +5,9 @@ module qchem.ChargeDensity.Imp.PolarizedCD;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 
+namespace qchem::ChargeDensity
+{
+
 //---------------------------------------------------------------------------------
 //
 //  Construction zone.
@@ -54,3 +57,4 @@ const DM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s) const
     return ret;
 }
 
+} //namespace

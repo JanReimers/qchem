@@ -32,7 +32,7 @@ DM_CD* PolarizedWF::GetChargeDensity() const
 
 WaveFunction::sf_t* PolarizedWF::GetSpinDensity() const
 {
-    return new SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
+    return new qchem::ChargeDensity::SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
 

@@ -6,9 +6,13 @@ module;
 export module qchem.FittedFunctionImp;
 export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;
+export import qchem.Mesh;
+
 import qchem.Orbital_DFT_IBS;
 import qchem.Fit_IBS;
-export import qchem.Mesh;
+
+// import qchem.BasisSet1.Orbital_DFT_IBS;
+// import qchem.BasisSet1.Fit_IBS;
 
 
 //--------------------------------------------------------------------------
@@ -16,12 +20,17 @@ export import qchem.Mesh;
 //  The fit function is assumed to be real valued, but the basis set and
 //  coefficients can be complex.
 //
-export template <class T> class FittedFunctionImp
+export namespace qchem::Fitting
+{
+
+template <class T> class FittedFunctionImp
     : public virtual FittedFunction
 {
 public:
-    typedef std::shared_ptr<const Mesh>    mesh_t;
-    typedef std::shared_ptr<const Fit_IBS> bs_t;
+    using fbs_t=DensityFFClient::fbs_t;
+    using obs_t=Orbital_DFT_IBS<T>;
+    typedef std::shared_ptr<const Mesh>  mesh_t;
+    typedef std::shared_ptr<const fbs_t> bs_t;
     
     FittedFunctionImp(                                         );
     FittedFunctionImp(bs_t&, mesh_t&);
@@ -41,9 +50,9 @@ protected:
     virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
     virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
 
-    virtual vec_t<T>    FitGet2CenterOverlap  (const Fit_IBS*) const;
-    virtual vec_t<T>    FitGet2CenterRepulsion(const Fit_IBS*) const;
-    virtual smat_t<T>   FitGet3CenterOverlap  (const Orbital_DFT_IBS<double>*) const;
+    virtual vec_t<T>    FitGet2CenterOverlap  (const fbs_t*) const;
+    virtual vec_t<T>    FitGet2CenterRepulsion(const fbs_t*) const;
+    virtual smat_t<T>   FitGet3CenterOverlap  (const obs_t*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;
@@ -54,7 +63,7 @@ public: //Client code needs read access to this data.
     mesh_t   itsMesh;
 };
 
-export template <class T> class ConstrainedFF
+template <class T> class ConstrainedFF
     : public FittedFunctionImp<T>
 {
     typedef FittedFunctionImp<T> Base;
@@ -75,7 +84,7 @@ private:
     T        gSg;
 };
 
-export template <class T> class IntegralConstrainedFF
+template <class T> class IntegralConstrainedFF
     : public ConstrainedFF<T>
 {
 public:
@@ -85,3 +94,5 @@ public:
     IntegralConstrainedFF(              );
     IntegralConstrainedFF(bs_t&, mesh_t&);
 };
+
+} //namespace

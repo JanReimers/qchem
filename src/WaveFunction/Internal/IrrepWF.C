@@ -10,6 +10,9 @@ export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Symmetry.ElectronConfiguration;
 
+export using qchem::ChargeDensity::DM_CD;
+export using qchem::Hamiltonian::Hamiltonian;
+
 export class IrrepWF
 {
 public:
