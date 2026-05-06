@@ -105,6 +105,9 @@ Priority 1:
                 1) asserts using GetID().  
                 2) no member named 'GetNumFunctions' in 'BasisSet1::Orbital_DFT_IBS<double>'
             Charge Density:
+        Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
+        Move large amd small OIBS *and Integrals_XKinetic to Internal?
+            
                 
     -Namespaces
         -Cluster namespace.  

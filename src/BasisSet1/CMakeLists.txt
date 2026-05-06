@@ -5,7 +5,9 @@ target_sources(qcBasisSet1 PRIVATE
   Imp/Orbital_1E_IBS.C
   Imp/Orbital_HF_IBS.C
   Imp/Orbital_DFT_IBS.C
+  Imp/Orbital_DHF_IBS.C
   Imp/Fit_IBS.C
+  Internal/Imp/Orbital_DHF_IBS.C
 )
 target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   DB_Cache.C
@@ -14,10 +16,12 @@ target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_1E_IBS.C
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
+  Orbital_DHF_IBS.C
   Fit_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C
-)
+  Internal/Orbital_DHF_IBS.C
+  )
 target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet1 PROPERTY CXX_STANDARD 20)
 target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
