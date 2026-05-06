@@ -8,8 +8,27 @@ import qchem.BasisSet.Internal.ERI4;
 namespace BasisSet1
 {
 
-template <class T> void Orbital_HF_IBS<T>::
-AccumulateDirect(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
+template <class T> const ERI4& Orbital_HF_IBS<T>::Direct(const Orbital_HF_IBS<T>& c) const
+{
+    auto cache=theGlobalCache;
+    assert(cache);
+    IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
+    IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
+    return cache->Has(IntegralsCache_Base::I4C::Direct,ab,cd)
+        ? cache->GetERI4() : cache->SetDirect(MakeDirect(c));
+}
+
+template <class T> const   ERI4&  Orbital_HF_IBS<T>::Exchange(const Orbital_HF_IBS<T>& c) const
+{
+    auto cache=theGlobalCache;
+    assert(cache);
+    IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
+    IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
+    return cache->Has(IntegralsCache_Base::I4C::Exchange,ab,cd)
+        ? cache->GetERI4() : cache->SetExchange(MakeExchange(c));
+}
+
+template <class T> void Orbital_HF_IBS<T>::AccumulateDirect(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 {
     assert(!isnan(Dcd));
     assert(max(abs(Dcd))>0.0);  //Dcd should be pre-screened for zero.
@@ -17,8 +36,7 @@ AccumulateDirect(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd
     MatMul(Sab,ab->Direct(*cd),Dcd); //ERI4 Jabcd=ab->Direct(*cd);
 }
 
-template <class T> void Orbital_HF_IBS<T>::
-AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
+template <class T> void Orbital_HF_IBS<T>::AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
 {
     assert(!isnan(Dcd));
     assert(max(abs(Dcd))>0.0);  //Dcd should be pre-screened for zero.

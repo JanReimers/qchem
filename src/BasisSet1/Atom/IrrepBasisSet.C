@@ -2,6 +2,7 @@
 module;
 #include <iosfwd>
 #include <memory>
+#include <cassert>
 #include "forward.H"
 
 export module qchem.BasisSet1.Atom.IBS;
@@ -83,12 +84,22 @@ protected:
 
 class Orbital_HF_IBS
     : public BasisSet1::Orbital_HF_IBS<double> 
-    , public Integrals_HF
+    , public virtual Integrals_Base
+
 {
 protected:
-    Orbital_HF_IBS(BS_Evaluator* bse) 
-        : Integrals_HF(bse)
-        {} 
+    Orbital_HF_IBS(BS_Evaluator* bse)  : itsEvaluator(bse) {assert(itsEvaluator);} 
+
+    virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& c) const 
+    {
+        return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Orbital_HF_IBS&>(c).GetEvaluator());
+    }
+    virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& c) const 
+    {
+        return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Orbital_HF_IBS&>(c).GetEvaluator());
+    }
+private: 
+    BS_Evaluator* itsEvaluator;
 };
 
 // // Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 

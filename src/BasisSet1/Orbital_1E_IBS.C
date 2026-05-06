@@ -6,8 +6,6 @@ export module qchem.BasisSet1.Orbital_1E_IBS;
 export import qchem.BasisSet1.IrrepBasisSet;
 export import qchem.Cluster;
 
-import qchem.BasisSet1.DB_Cache;
-
 export namespace BasisSet1
 {
 
@@ -26,16 +24,8 @@ export namespace BasisSet1
 template <class T> class Integrals_Kinetic : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual smat_t<T> MakeKinetic() const=0; //Only called once for a given {radial,angular} ID pair.
-    
-    const smat_t<T>& Kinetic() const
-    {
-        auto cache=theGlobalCache;
-        assert(cache);
-        return cache->Has(IntegralsCache_Base::I2C::Kinetic,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-            ? cache->GetSMat() : cache->Set(MakeKinetic());
-       
-    }
+    virtual smat_t<T>  MakeKinetic() const=0; //Only called once for a given {radial,angular} ID pair.
+    const   smat_t<T>&     Kinetic() const;
 };
 
 //! \brief Interface for electron-nucleus attraction integrals.
@@ -43,16 +33,8 @@ public:
 template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual smat_t<T> MakeNuclear(const Cluster* cl) const=0; //Only called once for a given {radial,angular, cluster} ID triple.
-    
-    const smat_t<T>& Nuclear(const Cluster* cl) const
-    {
-        assert(cl);
-        auto cache=theGlobalCache;
-        assert(cache);
-        return cache->Has(IntegralsCache_Base::I2n::Nuclear,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),cl->ID())
-            ? cache->GetSMat() : cache->Set(MakeNuclear(cl));
-    }
+    virtual smat_t<T>  MakeNuclear(const Cluster* cl) const=0; //Only called once for a given {radial,angular, cluster} ID triple.
+    const   smat_t<T>&     Nuclear(const Cluster* cl) const;
 };
 
 

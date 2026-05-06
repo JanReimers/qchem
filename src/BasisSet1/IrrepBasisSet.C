@@ -1,4 +1,4 @@
-// File: BasisSet/IrrepBasisSet1.C  Interface for an Irrep Basis Set (IBS)
+// File: BasisSet1/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
 #include <memory>
 #include <cassert>
@@ -6,8 +6,6 @@ export module qchem.BasisSet1.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 export import qchem.Streamable;
-
-import qchem.BasisSet1.DB_Cache;
 
 export namespace BasisSet1
 {
@@ -37,13 +35,7 @@ template <class T> class Integrals_Overlap : public virtual IrrepBasisSet_IDs
 {
 public:
     virtual smat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
-    const   smat_t<T>&     Overlap() const
-    {
-        auto cache=theGlobalCache;
-        assert(cache);
-        return cache->Has(IntegralsCache_Base::I2C::Overlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-            ? cache->GetSMat() : cache->Set(MakeOverlap());
-    }
+    const   smat_t<T>&     Overlap() const;
 };
 //----------------------------------------------------------------------------
 //

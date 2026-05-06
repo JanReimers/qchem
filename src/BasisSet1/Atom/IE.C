@@ -28,6 +28,9 @@ public:
     virtual IBS_Evaluator* GetEvaluator()=0;
 };
 
+//
+//  Implement these separately as they shared between NR and RKB 1E orbital IBS implementations.
+//
 class Integrals_Overlap
 : public virtual BasisSet1::Integrals_Overlap<double>
 , public virtual Integrals_Base
@@ -61,23 +64,23 @@ protected:
     }
 };
 
-class Integrals_HF
-: public virtual BasisSet1::Integrals_HF<double>
-, public virtual Integrals_Base
-{
-protected:
-    Integrals_HF(BS_Evaluator* bse) : itsEvaluator(bse) {assert(itsEvaluator);}
-    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>& c) const 
-    {
-        return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Integrals_HF&>(c).GetEvaluator());
-    }
-    virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>& c) const 
-    {
-        return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Integrals_HF&>(c).GetEvaluator());
-    }
-private: 
-    BS_Evaluator* itsEvaluator;
-};
+// class Integrals_HF
+// : public virtual BasisSet1::Integrals_HF<double>
+// , public virtual Integrals_Base
+// {
+// protected:
+//     Integrals_HF(BS_Evaluator* bse) : itsEvaluator(bse) {assert(itsEvaluator);}
+//     virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>& c) const 
+//     {
+//         return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Integrals_HF&>(c).GetEvaluator());
+//     }
+//     virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>& c) const 
+//     {
+//         return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Integrals_HF&>(c).GetEvaluator());
+//     }
+// private: 
+//     BS_Evaluator* itsEvaluator;
+// };
 // template <class T> class AtomIE_XKinetic
 // : public DB_XKinetic<T>
 // {

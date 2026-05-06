@@ -1,6 +1,8 @@
 add_library(qcBasisSet1) 
 target_sources(qcBasisSet1 PRIVATE 
   Imp/DB_Cache.C
+  Imp/IrrepBasisSet.C
+  Imp/Orbital_1E_IBS.C
   Imp/Orbital_HF_IBS.C
   Imp/Orbital_DFT_IBS.C
   Imp/Fit_IBS.C
