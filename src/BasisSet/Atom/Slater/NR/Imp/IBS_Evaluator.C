@@ -168,7 +168,7 @@ rvec_t Slater_IBS::Charge() const
     return V;
 }
 
-dERI3 Slater_IBS::Overlap  (const Fit_IBS& _c) const
+dERI3 Slater_IBS::Overlap  (const IBS_Evaluator& _c) const
 {
     const Slater_IBS& c=dynamic_cast<const Slater_IBS&>(_c);
     dERI3 S3;
@@ -184,7 +184,7 @@ dERI3 Slater_IBS::Overlap  (const Fit_IBS& _c) const
     }
     return S3;
 }
-dERI3 Slater_IBS::Repulsion(const Fit_IBS& _c) const
+dERI3 Slater_IBS::Repulsion(const IBS_Evaluator& _c) const
 {
     const Slater_IBS& c=dynamic_cast<const Slater_IBS&>(_c);
     dERI3 S3;

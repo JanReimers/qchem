@@ -5,6 +5,7 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/HeapDB.C
   Internal/Imp/DB_Cache.C
   Internal/Imp/Cache4.C
+  Internal/Imp/ERI3.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
   Internal/Imp/BasisSet.C

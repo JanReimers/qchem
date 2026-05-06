@@ -25,7 +25,7 @@ template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public virtual Integrals_Base
     , public BasisSet1::Atom::IrrepBasisSet
-    , private Evaluator
+    , public Evaluator
 {
     public:
     Fit_IBS(const Evaluator& e) : Evaluator(e) {};
@@ -41,16 +41,27 @@ template <class Evaluator> class Fit_IBS
         return GetEvaluator()->XRepulsion(dynamic_cast<const IBS_Evaluator&>(f));
     }
     virtual  rvec_t MakeCharge   (                ) const {return GetEvaluator()->Charge    ( );}
+    virtual std::ostream&  Write(std::ostream& os) const
+    {
+        os << "Atom fit IBS ";
+        BasisSet1::IrrepBasisSet<double>::Write(os);
+        Evaluator::Write(os);
+        return os;
+    }
+
 };
 
 
-template <class Evaluator> class Orbital_IBS
-    : public Orbital_HF_IBS
-    , private Evaluator
+template <class Evaluator> class Orbital_IBS 
+    : public Orbital_1E_IBS
+    , public Orbital_DFT_IBS
+    , public Orbital_HF_IBS
+    , public Evaluator
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : Orbital_HF_IBS(bse,yl)
+    : Orbital_1E_IBS(yl)
+    , Orbital_HF_IBS(bse)
     , Evaluator(N,rmin,rmax,yl)
     {};
 

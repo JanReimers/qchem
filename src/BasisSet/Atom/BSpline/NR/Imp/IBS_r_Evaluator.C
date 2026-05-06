@@ -233,7 +233,7 @@ template <size_t K> rmat_t BSpline_r_IBS<K>::XKinetic(const Orbital_RKBS_IBS<dou
     return M;
 }
 
-template <size_t K> dERI3 BSpline_r_IBS<K>::Overlap(const Fit_IBS& _c) const
+template <size_t K> dERI3 BSpline_r_IBS<K>::Overlap(const IBS_Evaluator& _c) const
 {
     const BSpline_r_IBS<K>& c=dynamic_cast<const BSpline_r_IBS<K>&>(_c);
     dERI3 S3;
@@ -252,7 +252,7 @@ template <size_t K> dERI3 BSpline_r_IBS<K>::Overlap(const Fit_IBS& _c) const
     }
     return S3;
 }
-template <size_t K> dERI3 BSpline_r_IBS<K>::Repulsion(const Fit_IBS& _c) const
+template <size_t K> dERI3 BSpline_r_IBS<K>::Repulsion(const IBS_Evaluator& _c) const
 {
     const BSpline_r_IBS<K>& c=dynamic_cast<const BSpline_r_IBS<K>&>(_c);
     dERI3 S3;

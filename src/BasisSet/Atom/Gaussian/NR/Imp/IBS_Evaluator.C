@@ -164,7 +164,7 @@ rmat_t Gaussian_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
 }
 
 
-dERI3 Gaussian_IBS::Overlap  (const Fit_IBS& _c) const
+dERI3 Gaussian_IBS::Overlap  (const IBS_Evaluator& _c) const
 {
     const Gaussian_IBS& c=dynamic_cast<const Gaussian_IBS&>(_c);
     dERI3 S3;
@@ -180,7 +180,7 @@ dERI3 Gaussian_IBS::Overlap  (const Fit_IBS& _c) const
     }
     return S3;
 }
-dERI3 Gaussian_IBS::Repulsion(const Fit_IBS& _c) const
+dERI3 Gaussian_IBS::Repulsion(const IBS_Evaluator& _c) const
 {
     const Gaussian_IBS& c=dynamic_cast<const Gaussian_IBS&>(_c);
     dERI3 S3;

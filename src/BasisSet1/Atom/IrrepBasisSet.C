@@ -8,6 +8,7 @@ export module qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Atom.IE;
 import qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.Orbital_1E_IBS;
+import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet.Atom.BS_Evaluator;
 
@@ -29,12 +30,12 @@ public:
     // virtual size_t  size           () const {return itsEval->size();}
     virtual rvec_t     operator() (const rvec3_t& r) const {return GetEvaluator()->operator()(r);}
     virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return GetEvaluator()->Gradient(r);}
-    virtual std::ostream&  Write(std::ostream& os) const
-    {
-        os << GetEvaluator()->Name() << " ";
-        GetEvaluator()->Write(os);
-        return os;
-    }
+    // virtual std::ostream&  Write(std::ostream& os) const
+    // {
+    //     os << GetEvaluator()->Name() << " ";
+    //     GetEvaluator()->Write(os);
+    //     return os;
+    // }
 
     virtual std::string RadialID () const {return GetEvaluator()->RadialID();}
     virtual std::string AngularID() const {return GetEvaluator()->AngularID();}
@@ -53,30 +54,40 @@ class Orbital_1E_IBS
 {
 public:
     Orbital_1E_IBS(const Irrep_QNs::sym_t& yl) : BasisSet1::Orbital_1E_IBS<double>(yl) {};
-
+    virtual std::ostream&  Write(std::ostream& os) const
+    {
+        os << "Orbital IBS " << Name() << " ";
+        BasisSet1::IrrepBasisSet<double>::Write(os);
+        GetEvaluator()->Write(os);
+        return os;
+    }
 };
 
 
-// template <class T> class Orbital_DFT_IBS
-//     : public virtual ::Orbital_DFT_IBS<T> 
-//     , public Orbital_DFT_IBS_Common<double>
-//     , public AtomIE_DFT<double>
-// {
-// protected:
-//     Orbital_DFT_IBS(const DB_cache<double>* db,const IBS_Evaluator* eval) 
-//     : AtomIE_DFT<double>(db,eval)
-//     {};
-// };
+class Orbital_DFT_IBS
+    : public virtual Integrals_Base
+    , public BasisSet1::Orbital_DFT_IBS<double>
+{
+protected:
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const
+    {
+        return GetEvaluator()->Overlap(dynamic_cast<const ::IBS_Evaluator&>(c));
+    }
+    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const
+    {
+        return GetEvaluator()->Repulsion(dynamic_cast<const ::IBS_Evaluator&>(c));
+    }
+};
+
+
 
 class Orbital_HF_IBS
     : public BasisSet1::Orbital_HF_IBS<double> 
-    , public Orbital_1E_IBS
     , public Integrals_HF
 {
 protected:
-    Orbital_HF_IBS(BS_Evaluator* bse,const Irrep_QNs::sym_t& yl) 
-        : Orbital_1E_IBS(yl) 
-        , Integrals_HF(bse)
+    Orbital_HF_IBS(BS_Evaluator* bse) 
+        : Integrals_HF(bse)
         {} 
 };
 

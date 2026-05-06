@@ -10,17 +10,19 @@ using std::endl;
 import qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet1.Atom.Factory;
 import qchem.BasisSet1.Orbital_HF_IBS;
+import qchem.BasisSet1.Orbital_DFT_IBS;
 
 // Legacy BS imports
 import qchem.BasisSet.Atom.Factory;
 import qchem.Orbital_HF_IBS;
+import qchem.Orbital_DFT_IBS;
 
 
 class DBCach1Tests : public ::testing::Test
 {
 public:
     DBCach1Tests() 
-        : N(5),Z(86)
+        : N(3),Z(86)
         , cl_hydrogen    (new Atom(1,0.0,Vector3D(0,0,0)))
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
@@ -104,33 +106,85 @@ public:
             ++legacy_ibs;
         }
     }
-    void TestDirect(double eps) const
+    void TestOverlap3C(double eps) const
     {
-        using BasisSet1::Real_HF_OIBS;
-        auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-        auto legacy_ibs1=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
-        for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+        using BasisSet1::Real_DFT_OIBS;
+        auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
+        auto legacy_ibs=legacy_bs->Iterate<Orbital_DFT_IBS<double>>().begin();
+        for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
         {
-            auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-            auto legacy_ibs2=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
-            for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
-            {
-                const ERI4& J1=ibs11->Direct(*ibs12);
-                const ERI4& J2=(*ibs21)->Direct(**ibs22);
-                const ERI4& J3=(*legacy_ibs1)->Direct(**legacy_ibs2);
-                EXPECT_EQ(J1,J2);
-                EXPECT_EQ(&J1,&J2);
-                EXPECT_LT(fnorm(J1,J3),eps);
-                EXPECT_LT(relative_fnorm(J1,J3),eps);
-                // EXPECT_TRUE(J1==J3);
-                ++ibs22;
-                ++legacy_ibs2;
-            }
-            ++ibs21;
-            ++legacy_ibs1;
+            auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen);
+            auto legacy_ff=(*legacy_ibs)->CreateCDFitBasisSet(legacy_bs,cl_hydrogen);
+            // std::cout << "ibs1=" << *ibs1;
+            // std::cout << "legacy_ibs=" << **legacy_ibs;
+            // std::cout << "ff=" << *ff << std::endl;
+            // std::cout << "legacy_ff=" << *legacy_ff;
+            const ERI3<double>& E1=ibs1->Overlap3C(*ff);
+            const ERI3<double>& E2=(*ibs2)->Overlap3C(*ff);
+            const ERI3<double>& E3=(*legacy_ibs)->Overlap3C(*legacy_ff);
+            EXPECT_EQ(E1,E2);
+            EXPECT_EQ(&E1,&E2);
+            EXPECT_LT(fnorm(E1,E3),eps);
+            EXPECT_LT(relative_fnorm(E1,E3),eps);
+            // EXPECT_TRUE(J1==J3);
+            ++ibs2;
+            ++legacy_ibs;
         }
 
     }
+    void TestRepulsion3C(double eps) const
+        {
+            using BasisSet1::Real_DFT_OIBS;
+            auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
+            auto legacy_ibs=legacy_bs->Iterate<Orbital_DFT_IBS<double>>().begin();
+            for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
+            {
+                auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen);
+                auto legacy_ff=(*legacy_ibs)->CreateCDFitBasisSet(legacy_bs,cl_hydrogen);
+                // std::cout << "ibs1=" << *ibs1 << std::endl;
+                // std::cout << "legacy_ibs=" << **legacy_ibs << std::endl;
+                // std::cout << "ff=" << *ff << std::endl;
+                // std::cout << "legacy_ff=" << *legacy_ff << std::endl;
+                const ERI3<double>& E1=ibs1->Repulsion3C(*ff);
+                const ERI3<double>& E2=(*ibs2)->Repulsion3C(*ff);
+                const ERI3<double>& E3=(*legacy_ibs)->Repulsion3C(*legacy_ff);
+                EXPECT_EQ(E1,E2);
+                EXPECT_EQ(&E1,&E2);
+                EXPECT_LT(fnorm(E1,E3),eps);
+                EXPECT_LT(relative_fnorm(E1,E3),eps);
+                // EXPECT_TRUE(J1==J3);
+                ++ibs2;
+                ++legacy_ibs;
+            }
+
+        }
+    void TestDirect(double eps) const
+        {
+            using BasisSet1::Real_HF_OIBS;
+            auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+            auto legacy_ibs1=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
+            for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+            {
+                auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+                auto legacy_ibs2=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
+                for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+                {
+                    const ERI4& J1=ibs11->Direct(*ibs12);
+                    const ERI4& J2=(*ibs21)->Direct(**ibs22);
+                    const ERI4& J3=(*legacy_ibs1)->Direct(**legacy_ibs2);
+                    EXPECT_EQ(J1,J2);
+                    EXPECT_EQ(&J1,&J2);
+                    EXPECT_LT(fnorm(J1,J3),eps);
+                    EXPECT_LT(relative_fnorm(J1,J3),eps);
+                    // EXPECT_TRUE(J1==J3);
+                    ++ibs22;
+                    ++legacy_ibs2;
+                }
+                ++ibs21;
+                ++legacy_ibs1;
+            }
+
+        }
     void TestExchange(double eps) const
     {
         
@@ -213,6 +267,27 @@ TEST_F(DBCach1Tests,SlaterNuclear)
     InitSlater();
     TestNuclear();
 }
+TEST_F(DBCach1Tests,GaussianOverlap3C)
+{
+    InitGaussian();
+    TestOverlap3C(1e-14);
+}
+TEST_F(DBCach1Tests,SlaterOverlap3C)
+{
+    InitSlater();
+    TestOverlap3C(1e-14);
+}
+TEST_F(DBCach1Tests,GaussianRepulsion3C)
+{
+    InitGaussian();
+    TestRepulsion3C(1e-14);
+}
+TEST_F(DBCach1Tests,SlaterRepulsion3C)
+{
+    InitSlater();
+    TestRepulsion3C(1e-14);
+}
+
 
 //
 //  For efficiency legacy calculations do Jcdab=Jabcd.Transpose().   

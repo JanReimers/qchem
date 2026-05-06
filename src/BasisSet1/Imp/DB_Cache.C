@@ -192,9 +192,12 @@ template <class T> const  mat_t<T>& IntegralsCache_RAM<T>::Set(const  mat_t<T>& 
     return iterator->second; 
 }
 
-template <class T> void IntegralsCache_RAM<T>::Set(const   ERI3<T>& eri3)
+template <class T> const   ERI3<T>& IntegralsCache_RAM<T>::Set(const   ERI3<T>& eri3)
 {
-    itsERI3s[itsLastKey3]=eri3;
+    const auto [iterator, success]=itsERI3s.insert({itsLastKey3,eri3});  
+    assert(success);
+    its3CIterator=iterator;
+    return iterator->second; 
 }
 
 template <class T> const ERI4     &  IntegralsCache_RAM<T>::SetDirect(const   ERI4   & eri4)
