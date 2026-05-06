@@ -10,6 +10,8 @@ import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.IrrepBasisSet;
 import qchem.Blaze;
 
+namespace qchem::SCFAccelerators
+{
 using std::cout;
 using std::endl;
 
@@ -224,3 +226,4 @@ double SCFAcceleratorDIIS::GetError() const
 }
 
 
+} //namespace

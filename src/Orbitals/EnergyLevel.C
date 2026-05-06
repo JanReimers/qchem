@@ -6,7 +6,10 @@ export module qchem.EnergyLevel;
 export import qchem.Symmetry.Orbital;
 export import qchem.Orbitals;
 
-export struct EnergyLevel
+export namespace qchem::Orbitals
+{
+
+struct EnergyLevel
 {
     EnergyLevel(const Orbital* o);
     EnergyLevel(const EnergyLevel&);
@@ -20,7 +23,7 @@ export struct EnergyLevel
   
 };
 
-export class EnergyLevels
+class EnergyLevels
 {
     typedef std::multimap<double,EnergyLevel> el_t;
     typedef std::map<Orbital_QNs,EnergyLevel> oel_t;
@@ -51,3 +54,4 @@ private:
      oel_t itsQNLevels; //All levels indexed by QNs.
 };
 
+} //namespace

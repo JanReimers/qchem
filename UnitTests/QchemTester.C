@@ -14,6 +14,8 @@ import qchem.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Streamable;
 
+using qchem::SCFAccelerators::SCFAccelerator;
+
 PeriodicTable QchemTester::itsPT;
 
 QchemTester::QchemTester()
@@ -46,7 +48,7 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     }
     int Z=GetZ();
     nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",1e-9}};
-    SCFAccelerator* acc=SCFAcceleratorF::Factory(SCFAcceleratorF::Type::DIIS,jsacc);
+    SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS,jsacc);
     // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);

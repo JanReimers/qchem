@@ -217,6 +217,8 @@ double S12g(double r,double alpha)
     return pow(r,g-1.0)*exp(-r)/sqrt(n);
 }
 
+using qchem::Orbitals::TOrbital;
+
 std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, double alpha)
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);

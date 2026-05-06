@@ -11,6 +11,9 @@ import qchem.VectorFunction;
 import qchem.Streamable;
 import Common.Iterators;
 
+export namespace qchem::Orbitals
+{
+
 using qchem::ChargeDensity::DM_CD;
 
 //#############################################################
@@ -20,7 +23,7 @@ using qchem::ChargeDensity::DM_CD;
 //  templated portion is independant of whether the orbital real
 //  or complex valued.
 //
-export class Orbital
+class Orbital
     : public virtual Streamable
 {
 public:
@@ -41,7 +44,7 @@ public:
 //  Templated depending or whether it is a real or
 //  complex valued orbital.
 //
-export template <class T> class TOrbital
+template <class T> class TOrbital
     : public virtual Orbital
     , public virtual ScalarFunction<T>
 {
@@ -58,7 +61,7 @@ public:
 //  templated portion is independant of whether the orbitals are real
 //  or complex valued.
 //
-export class Orbitals : public virtual Streamable
+class Orbitals : public virtual Streamable
 {
 public:
     typedef std::vector<std::unique_ptr<Orbital>> ov_t;
@@ -105,7 +108,7 @@ public:
 //  Templated depending or whether it is a real or
 //  complex valued orbital.
 //
-export template <class T> class TOrbitals
+template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
 {
@@ -120,3 +123,5 @@ public:
     virtual ds_t TakeElectrons (double ne)=0;
 
 };
+
+} //namespace

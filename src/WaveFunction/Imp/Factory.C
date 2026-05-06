@@ -6,9 +6,14 @@ module qchem.WaveFunction.Factory;
 import qchem.WaveFunction.Internal.UnPolarizedWF;
 import qchem.WaveFunction.Internal.PolarizedWF;
 
-namespace WaveFunctionF
+namespace qchem::WaveFunction
 {
-    WaveFunction* Factory(const Hamiltonian* h, const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
+
+    WaveFunction* Factory(
+        const Hamiltonian::Hamiltonian* h,
+        const BasisSet* bs,
+        const ElectronConfiguration* ec,
+        SCFAccelerators::SCFAccelerator* acc)
     {
         return h->IsPolarized() ? (WaveFunction*)new PolarizedWF(bs,ec,acc) : (WaveFunction*)new UnPolarizedWF(bs,ec,acc);
     }

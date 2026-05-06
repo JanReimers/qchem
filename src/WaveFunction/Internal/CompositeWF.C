@@ -9,7 +9,12 @@ export import qchem.BasisSet;
 import qchem.SCFAccelerator;
 import qchem.WaveFunction.Internal.IrrepWF;
 
-export class CompositeWF
+export namespace qchem::WaveFunction
+{
+
+using SCFAccelerators::SCFAccelerator;
+
+class CompositeWF
     : public virtual WaveFunction
 {
 public:
@@ -46,3 +51,4 @@ private:
     std::map<Spin,std::vector<IrrepWF*>> itsSpinWFs; //Sort by spin.
 };
 
+} //namespace

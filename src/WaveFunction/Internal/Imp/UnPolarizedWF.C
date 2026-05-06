@@ -10,6 +10,9 @@ import qchem.Symmetry;
 import qchem.Streamable;
 import qchem.Common.Strings;
 
+namespace qchem::WaveFunction
+{
+
 using namespace tabulate;
 
 UnPolarizedWF::UnPolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
@@ -51,3 +54,5 @@ void UnPolarizedWF::DisplayEigen() const
     for (size_t i:{0,2}) eigen_table.column(i).format().font_align(FontAlign::center);
     std::cout << eigen_table << std::endl;
 }
+
+} //namespace

@@ -7,8 +7,13 @@ export import qchem.Hamiltonian;
 export import qchem.BasisSet;
 export import qchem.Symmetry.ElectronConfiguration;
 
-export namespace WaveFunctionF
+export namespace qchem::WaveFunction
 {
-    WaveFunction* Factory(const Hamiltonian*, const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc);
+    WaveFunction* Factory(
+            const Hamiltonian::Hamiltonian*,
+            const BasisSet* bs,
+            const ElectronConfiguration* ec,
+            SCFAccelerators::SCFAccelerator* acc
+        );
 }
 

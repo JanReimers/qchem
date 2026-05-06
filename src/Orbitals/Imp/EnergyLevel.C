@@ -6,6 +6,9 @@ module;
 module qchem.EnergyLevel;
 import qchem.Streamable;
 
+namespace qchem::Orbitals
+{
+
 EnergyLevel::EnergyLevel(const Orbital* o)
     : e(o->GetEigenEnergy()), occ(o->GetOccupation()), degen(o->GetDegeneracy()), qns(o->GetQNs())
 {};
@@ -98,3 +101,4 @@ void EnergyLevels::Report(std::ostream& os) const
     }
 }
 
+} //namespace

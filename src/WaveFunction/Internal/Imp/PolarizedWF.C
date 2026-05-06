@@ -12,6 +12,9 @@ import qchem.ChargeDensity.Factory;
 import qchem.Streamable;
 import qchem.Common.Strings;
 
+namespace qchem::WaveFunction
+{
+
 using namespace tabulate;
 
 using std::cout;
@@ -47,7 +50,7 @@ void PolarizedWF::DisplayEigen() const
     std::set<Orbital_QNs> alreadyGotIt;
     for (auto elp:GetEnergyLevels())
     {
-        const EnergyLevel& el=elp.second;
+        const Orbitals::EnergyLevel& el=elp.second;
         Orbital_QNs upqns(el.qns.n,Spin::Up  ,el.qns.sym);
         Orbital_QNs dnqns(el.qns.n,Spin::Down,el.qns.sym);
         auto up=els_up.find(upqns); 
@@ -93,3 +96,4 @@ void PolarizedWF::DisplayEigen() const
     cout << eigen_table << endl;
 }
 
+} //namespace

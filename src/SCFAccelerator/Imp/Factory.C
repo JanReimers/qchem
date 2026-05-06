@@ -6,7 +6,7 @@ module qchem.SCFAccelerator.Factory;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 using json = nlohmann::json;
 
-namespace SCFAcceleratorF
+namespace qchem::SCFAccelerators
 {
 
 SCFAccelerator* Factory(Type type,const nlohmann::json& js)

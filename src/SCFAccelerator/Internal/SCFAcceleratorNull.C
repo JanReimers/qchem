@@ -2,7 +2,10 @@
 export module qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 export import qchem.SCFAccelerator;
 
-export class SCFIrrepAcceleratorNull : public virtual SCFIrrepAccelerator
+export namespace qchem::SCFAccelerators
+{
+
+class SCFIrrepAcceleratorNull : public virtual SCFIrrepAccelerator
 {
 public:
     SCFIrrepAcceleratorNull(const LASolver<double>* lasb,const Irrep_QNs&) 
@@ -14,3 +17,5 @@ private:
     const LASolver<double>*   itsLASolver; //Knows the ortho transform
     smat_t<double>   itsFPrime;
 };
+
+} //namespace

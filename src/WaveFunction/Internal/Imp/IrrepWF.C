@@ -10,13 +10,16 @@ module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.Orbitals.Factory;
 import qchem.Blaze;
 
+namespace qchem::WaveFunction
+{
+
 using std::cout;
 using std::endl;
 
 IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (lasb)
-    , itsOrbitals   (OrbitalsF::Factory(bs,qns.ms))
+    , itsOrbitals   (qchem::Orbitals::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
     , itsDPrime     (zero<double>(bs->GetNumFunctions()))
@@ -63,8 +66,8 @@ const EnergyLevels& IrrepWF::FillOrbitals(const ElectronConfiguration* ec)
     
     // Step three: Make a list of energy levels.  Degenerate levels should get merged.
     itsELevels.clear();
-    for (auto o:itsOrbitals->Iterate<Orbital>())
-        itsELevels.insert(EnergyLevel(o));
+    for (auto o:itsOrbitals->Iterate<qchem::Orbitals::Orbital>())
+        itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
     
     return itsELevels;
 }
@@ -99,3 +102,4 @@ void  IrrepWF::DisplayEigen() const
    
 }
 
+} //namespace

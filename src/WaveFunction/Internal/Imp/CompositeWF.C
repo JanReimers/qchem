@@ -12,6 +12,8 @@ import qchem.CompositeCD;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.LASolver;
 
+namespace qchem::WaveFunction
+{
 
 LAParams DefaultLAP({qchem::Cholsky,1e-12});
 
@@ -117,7 +119,4 @@ void CompositeWF::FillOrbitals(double mergeTol)
         
 }
 
-
-
-
-
+} //namespace

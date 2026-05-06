@@ -31,7 +31,7 @@ using std::ios;
 SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
     : itsHamiltonian (H )
     , itsAccelerator (acc)       
-    , itsWaveFunction(WaveFunctionF::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
+    , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
     , itsCD          (0)
     , itsOldCD       (0)
     , itsIterationCount(0)

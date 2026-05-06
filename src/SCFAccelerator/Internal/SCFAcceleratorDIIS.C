@@ -7,7 +7,10 @@ module;
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 export import qchem.SCFAccelerator;
 
-export struct DIISParams
+export namespace qchem::SCFAccelerators
+{
+
+struct DIISParams
 {
     size_t Nproj;  //Number of terms to keep for proections.
     double EMax;   //DIIS starts when E<EMax
@@ -17,7 +20,7 @@ export struct DIISParams
 
 
 
-export class SCFAcceleratorDIIS;
+class SCFAcceleratorDIIS;
 class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
 {
 public:
@@ -57,7 +60,7 @@ private:
 };
 
 
-export class SCFAcceleratorDIIS : public virtual SCFAccelerator
+class SCFAcceleratorDIIS : public virtual SCFAccelerator
 {
 public:
 
@@ -94,3 +97,4 @@ private:
     std::string bailoutReason;
 };
 
+} //namespace

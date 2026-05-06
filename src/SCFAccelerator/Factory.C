@@ -4,7 +4,7 @@ module;
 export module qchem.SCFAccelerator.Factory;
 export import qchem.SCFAccelerator;
 
-export namespace SCFAcceleratorF
+export namespace qchem::SCFAccelerators
 {
     enum class Type {DIIS,GDM};
     SCFAccelerator* Factory(Type,const nlohmann::json& js);

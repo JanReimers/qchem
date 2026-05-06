@@ -6,7 +6,10 @@ import qchem.Orbitals;
 import qchem.IrrepBasisSet;
 import qchem.Symmetry.Orbital;
 
-export class OrbitalImp
+export namespace qchem::Orbitals
+{
+
+class OrbitalImp
     : public virtual Orbital
 {
 public:
@@ -30,7 +33,7 @@ private:
     Orbital_QNs itsQNs;
 };
 
-export template <class T> class TOrbitalImp
+template <class T> class TOrbitalImp
     : public virtual TOrbital<T>
     , protected      OrbitalImp  
 {
@@ -51,3 +54,4 @@ private:
     const Orbital_IBS<T>* itsBasisSet;
 };
 
+} //namespace

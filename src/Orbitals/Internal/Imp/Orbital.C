@@ -8,6 +8,9 @@ module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Symmetry;
 import qchem.Streamable;
 
+namespace qchem::Orbitals
+{
+
 OrbitalImp::OrbitalImp(double e, const Orbital_QNs& qns)
     : itsEigenEnergy(e)
     , itsOccupation       (0)
@@ -70,3 +73,4 @@ std::ostream& OrbitalImp::Write(std::ostream& os) const
     return os << itsQNs;
 }
 
+} //namespace

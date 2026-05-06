@@ -6,6 +6,10 @@ export import qchem.SCFParams;
 export import qchem.BasisSet;
 
 export using qchem::EnergyBreakdown;
+using qchem::Hamiltonian::Hamiltonian;
+using qchem::WaveFunction::WaveFunction;
+using qchem::SCFAccelerators::SCFAccelerator;
+using qchem::ChargeDensity::DM_CD;
 
 export class SCFIterator
 {

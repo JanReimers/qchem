@@ -5,7 +5,10 @@ export module qchem.SCFAccelerator;
 export import qchem.Symmetry.Irrep;
 export import qchem.LASolver;
 
-export class SCFIrrepAccelerator
+export namespace qchem::SCFAccelerators
+{
+
+class SCFIrrepAccelerator
 {
 public:
     virtual ~SCFIrrepAccelerator() {};
@@ -13,7 +16,7 @@ public:
     virtual smat_t<double> Project()=0; 
 };
 
-export class SCFAccelerator
+class SCFAccelerator
 {
 public:
     virtual ~SCFAccelerator() {};
@@ -24,4 +27,5 @@ public:
     virtual double GetError() const=0;
 };
 
+} //namespace
 

@@ -10,8 +10,14 @@ export import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
 export import qchem.Orbitals;
 
+
+namespace qchem::WaveFunction
+{
+
 export using qchem::ChargeDensity::DM_CD;
-export using qchem::Hamiltonian::Hamiltonian;
+export using qchem::Orbitals::EnergyLevels;
+using Hamiltonian::Hamiltonian;
+using Orbitals::Orbitals; //Keep this one last, otherwise it interferes with the two previous declarations!
 
 export class WaveFunction 
 {
@@ -35,3 +41,4 @@ private:
     WaveFunction& operator=(const WaveFunction&);
 };
 
+} //namespace

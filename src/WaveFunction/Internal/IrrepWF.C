@@ -3,6 +3,7 @@ module;
 export module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 export import qchem.EnergyLevel;
+export import qchem.Orbitals;
 export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
@@ -10,10 +11,17 @@ export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Symmetry.ElectronConfiguration;
 
-export using qchem::ChargeDensity::DM_CD;
-export using qchem::Hamiltonian::Hamiltonian;
+export namespace qchem::WaveFunction
+{
 
-export class IrrepWF
+using ChargeDensity::DM_CD;
+using Hamiltonian::Hamiltonian;
+using Orbitals::TOrbitals;
+using Orbitals::EnergyLevels;
+using Orbitals::Orbitals; //Keep this one here, otherwise it interferes with the two previous declarations!
+using SCFAccelerators::SCFIrrepAccelerator;
+
+class IrrepWF
 {
 public:
     IrrepWF(const Real_OIBS*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
@@ -42,3 +50,4 @@ public:
     rsmat_t              itsF;
 }; 
 
+} //namespace

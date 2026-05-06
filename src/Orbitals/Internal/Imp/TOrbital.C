@@ -7,6 +7,9 @@ module;
 module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.IrrepBasisSet;
 
+namespace qchem::Orbitals
+{
+
 //-----------------------------------------------------------------
 //
 //  Construction zone
@@ -69,3 +72,5 @@ template <class T> std::ostream& TOrbitalImp<T>::Write(std::ostream& os) const
 
 template class TOrbitalImp<double>;
 // template class TOrbitalImp<std::complex<double> >;
+
+} //namespace

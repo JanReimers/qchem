@@ -15,6 +15,10 @@ import qchem.Symmetry.AtomEC;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
 
+using qchem::Orbitals::Orbital;
+using qchem::Orbitals::Orbitals;
+using qchem::Hamiltonian::Hamiltonian;
+
 class QchemTester
 {
 public:

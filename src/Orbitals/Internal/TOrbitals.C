@@ -7,10 +7,12 @@ export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 
+export namespace qchem::Orbitals
+{
+
 using qchem::ChargeDensity::DM_CD;
 
-
-export template <class T> class TOrbitalsImp
+template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
 {
@@ -49,3 +51,4 @@ private:
     smat_t<T>              itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 
+} //namespace

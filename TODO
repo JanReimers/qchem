@@ -1109,7 +1109,7 @@ Priority 3:
         Done: -DIIS design
             Done: Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
                 only the orbital knows D or Dprime.
-                In software (currently) IrrepWF and TOrbtials are alsmost the same thing.  But this is mostly an effect of
+                In software (currently) IrrepWF and TOrbitals are alsmost the same thing.  But this is mostly an effect of
                     1) We done ask for pair or high quantities like WF(r1,r2,r3...)
                     2) Antisymmetry is all encapsulated in integral rules.
                 In any case building H depends in principle on the Slater determinant, which is a concept that belongs in WF, not orbitals.

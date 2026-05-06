@@ -16,6 +16,9 @@ import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
 
+namespace qchem::Orbitals
+{
+
 //-----------------------------------------------------------------
 //
 //  Construction zone
@@ -159,5 +162,6 @@ template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
     return os;
 }
 
-
 template class TOrbitalsImp<double>;
+
+} //namespace

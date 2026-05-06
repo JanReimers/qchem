@@ -6,7 +6,10 @@ export module qchem.WaveFunction.Internal.PolarizedWF;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.Internal.CompositeWF;
 
-export class PolarizedWF
+export namespace qchem::WaveFunction
+{
+
+class PolarizedWF
     : public virtual WaveFunction
     , public CompositeWF
 {
@@ -21,3 +24,4 @@ public:
 
 };
 
+} //namespace

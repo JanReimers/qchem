@@ -2,7 +2,7 @@
 module qchem.Orbitals.Factory;
 import qchem.Orbitals.Internal.OrbitalsImp;
 
-namespace OrbitalsF 
+namespace qchem::Orbitals
 {
     TOrbitals<double>* Factory(const Orbital_IBS<double>* bs, Spin ms)
     {
