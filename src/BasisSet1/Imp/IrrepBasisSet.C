@@ -1,10 +1,8 @@
 // File: BasisSet1/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
-#include <memory>
 #include <cassert>
 module qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.DB_Cache;
-
 
 namespace BasisSet1
 {

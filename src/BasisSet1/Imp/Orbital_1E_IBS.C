@@ -1,7 +1,6 @@
 // File: BasisSet1/Imp/Orbital_1E_IBS.C Orbital that knows enough integrals for a 1 electron calculation.
 module;
 #include <cassert>
-#include <string>
 module qchem.BasisSet1.Orbital_1E_IBS;
 
 import qchem.BasisSet1.DB_Cache;

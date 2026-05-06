@@ -1,6 +1,5 @@
 // File: BasisSet1/Imp/Orbital_DFT_IBS.C
 module;
-// #include <vector>
 #include <cassert>
 #include <blaze/Math.h>
 module qchem.BasisSet1.Orbital_DFT_IBS;

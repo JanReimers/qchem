@@ -15,7 +15,7 @@ import qchem.Symmetry.Yl;
 import qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet1.Atom.IBS;
-import qchem.BasisSet1.Internal.Common;
+import qchem.BasisSet1.Internal.BasisSetImp;
 
 export 
 namespace BasisSet1 {
@@ -83,7 +83,7 @@ public:
 // Full basis set.
 template <class Evaluator> class BasisSet
     : public virtual ::BasisSet1::BasisSet<double>
-    , public BasisSet1::BS_Common<double>
+    , public BasisSet1::BasisSetImp<double>
     , public Evaluator 
 {
     using oibs_t=Orbital_IBS<typename Evaluator::IBS_Evaluator_t>; //Corresponding Orbital IBS type
@@ -100,7 +100,7 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
-        BasisSet1::BS_Common<double>::Insert(oibs);
+        BasisSet1::BasisSetImp<double>::Insert(oibs);
         Evaluator::Register(oibs->GetEvaluator());
     }
 };

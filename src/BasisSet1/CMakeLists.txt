@@ -15,7 +15,7 @@ target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Fit_IBS.C
-  Internal/BS_Common.C
+  Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C
 )
 target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/src)

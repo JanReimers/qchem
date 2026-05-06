@@ -1,10 +1,8 @@
-// File: IBS_Common.C  Irrep Basis set common implementation.
+// File: src/BasisSet1/Internal/BasisSetImp.C  Common implementation for a full basis set.
 module;
-#include <iosfwd>
 #include <memory>
 #include <cassert>
-#include "forward.H"
-export module qchem.BasisSet1.Internal.Common;
+export module qchem.BasisSet1.Internal.BasisSetImp;
 export import qchem.Types;
 export import qchem.BasisSet1;
 import qchem.stl_io;
@@ -12,7 +10,7 @@ import qchem.stl_io;
 export namespace BasisSet1
 {
 
-template <class T> class BS_Common
+template <class T> class BasisSetImp
     : public virtual BasisSet<T>
 {
 public:

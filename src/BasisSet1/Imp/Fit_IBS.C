@@ -1,10 +1,6 @@
 // File: BasisSet1/Imp/Fit_IBS.C  Imple,ent a few function for a fit basis set
-
-
 module;
-#include <iostream>
 #include <cassert>
-#include <memory>
 #include "blaze/Math.h"
 module qchem.BasisSet1.Fit_IBS;
 import qchem.Mesh.Integrator;
