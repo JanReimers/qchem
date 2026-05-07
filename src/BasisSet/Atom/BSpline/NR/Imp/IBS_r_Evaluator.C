@@ -220,7 +220,7 @@ template <size_t K> rmat_t BSpline_r_IBS<K>::XRepulsion(const IBS_Evaluator& _b)
     return M;
 }
 
-template <size_t K> rmat_t BSpline_r_IBS<K>::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+template <size_t K> rmat_t BSpline_r_IBS<K>::XKinetic(const IBS_Evaluator* _b) const
 {
     const BSpline_r_IBS<K>* b=dynamic_cast<const BSpline_r_IBS<K>*>(_b);
     assert(b);

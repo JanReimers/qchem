@@ -16,6 +16,8 @@ import qchem.BasisSet.Atom.BS_Evaluator;
 import qchem.BasisSet.Atom.IBS_Evaluator;
 import qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Internal.BasisSetImp;
+import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
+import qchem.BasisSet1.Internal.IrrepBasisSetImp;
 
 export 
 namespace BasisSet1 {
@@ -80,6 +82,56 @@ public:
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
 };
 
+template <class Evaluator> class EOrbital_RKBL_IBS 
+    : public Orbital_RKBL_IBS
+    , public IrrepBasisSetImp
+    , public Evaluator
+{
+public:
+    EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+    : IrrepBasisSetImp(yl)
+    , Evaluator(N,rmin,rmax,yl)
+    {};
+
+    virtual size_t GetNumFunctions() const {return Evaluator::size();}
+    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
+    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
+};
+
+template <class Evaluator> class EOrbital_RKBS_IBS 
+    : public Orbital_RKBS_IBS
+    , public IrrepBasisSetImp
+    , public Evaluator
+{
+public:
+    EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+    : IrrepBasisSetImp(yl)
+    , Evaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
+    {};
+
+    virtual size_t GetNumFunctions() const {return Evaluator::size();}
+    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
+    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
+};
+
+template <class LEvaluator, class SEvaluator> class EOrbital_RKB_IBS 
+    : public virtual Orbital_RKB_IBS<double>
+    , private Orbital_RKB_IBS_Imp<double>
+    , public  BasisSet1::IrrepBasisSetImp<double>
+{
+public:
+    EOrbital_RKB_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+    : Orbital_RKB_IBS_Imp(
+                new EOrbital_RKBL_IBS<LEvaluator>(N,rmin,rmax,yl),
+                new EOrbital_RKBS_IBS<SEvaluator>(N,rmin,rmax,yl)
+            )
+    , BasisSet1::IrrepBasisSetImp<double>(yl)
+    {};
+
+    virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}
+};
+
+
 // Full basis set.
 template <class Evaluator> class BasisSet
     : public virtual ::BasisSet1::BasisSet<double>
@@ -102,6 +154,28 @@ private:
     {
         BasisSet1::BasisSetImp<double>::Insert(oibs);
         Evaluator::Register(oibs->GetEvaluator());
+    }
+};
+
+template <class LEvaluator, class SEvaluator> class BasisSet_RKB
+    : public virtual ::BasisSet1::BasisSet<double>
+    , public BasisSet1::BasisSetImp<double>
+{
+    using oibs_t=EOrbital_RKB_IBS<LEvaluator,SEvaluator>;
+public:
+    BasisSet_RKB(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(N,rmin,rmax,ir));  
+     
+    }
+private:
+    void Insert(oibs_t* oibs)
+    {
+        BasisSet1::BasisSetImp<double>::Insert(oibs);
+        // Evaluator::Register(oibs->GetEvaluator());
     }
 };
 

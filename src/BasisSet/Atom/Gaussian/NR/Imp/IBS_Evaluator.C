@@ -150,7 +150,7 @@ rmat_t Gaussian_IBS::XRepulsion(const IBS_Evaluator& _b) const
     return M;
 }
 
-rmat_t Gaussian_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+rmat_t Gaussian_IBS::XKinetic(const IBS_Evaluator* _b) const
 {
     const Gaussian_IBS* b=dynamic_cast<const Gaussian_IBS*>(_b);
     assert(b);

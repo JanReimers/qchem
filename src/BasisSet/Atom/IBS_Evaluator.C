@@ -51,7 +51,12 @@ public:
         return XRepulsion(dynamic_cast<const IBS_Evaluator&>(b));
     }
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const=0;
-    virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*) const=0;
+
+    virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*b) const
+    {
+        return XKinetic(dynamic_cast<const IBS_Evaluator*>(b));
+    }
+    virtual rmat_t XKinetic(const IBS_Evaluator*) const=0;
 
     virtual dERI3  Overlap  (const Fit_IBS& c) const //3 center
     {

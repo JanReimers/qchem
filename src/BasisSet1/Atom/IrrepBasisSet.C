@@ -8,6 +8,7 @@ module;
 export module qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Atom.IE;
 import qchem.BasisSet1.Internal.IrrepBasisSetImp;
+import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
@@ -39,7 +40,7 @@ public:
     //     GetEvaluator()->Write(os);
     //     return os;
     // }
-
+   
     virtual std::string RadialID () const {return GetEvaluator()->RadialID();}
     virtual std::string AngularID() const {return GetEvaluator()->AngularID();}
     virtual std::string Name     () const {return GetEvaluator()->Name();}
@@ -102,32 +103,41 @@ private:
     BS_Evaluator* itsEvaluator;
 };
 
-// // Orbital_RKB_IBS does all its integrals in BasisSet.Orbital_RKB_IBS_Common by 
-// // by combining blocks from the L/S sectors.  So we just declate RKBL/RKBS here.
-
-// template <class T> class Orbital_RKBL_IBS
-//     : public Orbital_RKBL_IBS_Common<T>
-//     , public AtomIE_RKBL<T>
+// Orbital_RKB_IBS does all its integrals by by combining blocks from the L/S sectors.  
+// class Orbital_RKB_IBS
+//     : public virtual BasisSet1::Orbital_DHF_IBS<double> 
+//     , public virtual Integrals_Base
+//     // , public Orbital_1E_IBS //pick O
 // {
-// protected:
-//     Orbital_RKBL_IBS(const DB_cache<T>* db,const IBS_Evaluator* eval,int kappa)
-//         : Orbital_RKBL_IBS_Common<T>(kappa)
-//         , AtomIE_RKBL<T>(db,eval)
-//         {}
-// };
+//     virtual       smat_t<T>  MakeRestMass() const;  
+// }
 
-// template <class T> class Orbital_RKBS_IBS
-//     : public Orbital_RKBS_IBS_Common<T>
-//     , public AtomIE_RKBS<T>
-// {
-//     virtual const smat_t<T>& Overlap() const {return DB_Kinetic<T>::Kinetic();}
-// protected:
-//     Orbital_RKBS_IBS(const DB_cache<T>* db,const IBS_Evaluator* eval,int kappa)
-//         : Orbital_RKBS_IBS_Common<T>(kappa)
-//         , AtomIE_RKBS<T>(db,eval)
-//         {}
+class Orbital_RKBL_IBS
+    : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
+    , public virtual Integrals_Base
+    , private Integrals_Overlap
+    , private Integrals_Nuclear
+{
+public:
+    virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>* rkbs) const
+    {
+        return GetEvaluator()->XKinetic(dynamic_cast<const ::IBS_Evaluator*>(rkbs));
+    }
+};
 
-// };
+class Orbital_RKBS_IBS
+    : public virtual BasisSet1::Orbital_RKBS_IBS<double> 
+    , public virtual Integrals_Base
+    , private Integrals_Kinetic
+    , private Integrals_Nuclear //RKBS Evaluator overrides Inv_r1 definition
+{
+    virtual rsmat_t MakeOverlap() const
+    {
+        return MakeKinetic();
+    }
+  
+
+};
 
 
 

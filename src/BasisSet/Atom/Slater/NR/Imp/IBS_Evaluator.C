@@ -145,7 +145,7 @@ rmat_t Slater_IBS::XRepulsion(const IBS_Evaluator& _b) const
     return M;
 }
 
-rmat_t Slater_IBS::XKinetic(const Orbital_RKBS_IBS<double>* _b) const
+rmat_t Slater_IBS::XKinetic(const IBS_Evaluator* _b) const
 {
     const Slater_IBS* b=dynamic_cast<const Slater_IBS*>(_b);
     assert(b);

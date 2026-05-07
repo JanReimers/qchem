@@ -5,7 +5,6 @@ module;
 
 module qchem.BasisSet1.Atom.Factory;
 import qchem.Symmetry.AtomEC;
-// import qchem.BasisSet.Atom.Gaussian.RKB.BS;
 // import qchem.BasisSet.Atom.Slater.RKB.BS;
 // import qchem.BasisSet.Atom.Gaussian.NR.BS;
 // import qchem.BasisSet.Atom.Slater.NR.BS;
@@ -15,6 +14,8 @@ import qchem.BasisSet1.Atom.BasisSet;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.Slater.NR.BS_Evaluator;
+// import qchem.BasisSet.Atom.Gaussian.RKB.BS;
+import BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 
 using json = nlohmann::json;
 
@@ -89,12 +90,12 @@ BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronCo
 //         bs=new AtomBS::Slater_RKB::BasisSet(N,emin,emax,LMax);
 //         break;
 //     }
-//     case Type::Gaussian_RKB:
-//     {
-//         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-//         bs=new AtomBS::Gaussian_RKB::BasisSet(N,emin,emax,LMax);
-//         break;
-//     }
+    case Type::Gaussian_RKB:
+    {
+        double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
+        bs=new BasisSet_RKB<Gaussian_IBS,Gaussian_RKBS_IBS>(N,emin,emax,ec);
+        break;
+    }
 //     case Type::BSpline_RKB:
 //     {
 //         assert(false);

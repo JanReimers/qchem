@@ -39,7 +39,7 @@ target_include_directories(UTMain PRIVATE
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 
-add_executable(UTMain1 gtestmain.C BasisSet1_Atom.C)
+add_executable(UTMain1 gtestmain.C BasisSet1_Atom.C BasisSet1_DHF.C)
 target_compile_options(UTMain1 PRIVATE -Wall 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
