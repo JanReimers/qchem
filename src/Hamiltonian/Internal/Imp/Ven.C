@@ -8,7 +8,6 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
 import qchem.ChargeDensity;
-import qchem.IrrepBasisSet;
 
 namespace qchem::Hamiltonian
 {

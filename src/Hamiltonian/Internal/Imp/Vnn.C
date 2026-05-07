@@ -6,7 +6,6 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Blaze;
 

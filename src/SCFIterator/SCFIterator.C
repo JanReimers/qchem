@@ -1,5 +1,6 @@
 // File: SCFIterator/SCFIterator.C  Interface for an object that manages SCF convergence.
 export module qchem.SCFIterator;
+import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 export import qchem.SCFParams;
@@ -11,14 +12,17 @@ using qchem::WaveFunction::WaveFunction;
 using qchem::SCFAccelerators::SCFAccelerator;
 using qchem::ChargeDensity::DM_CD;
 
-export class SCFIterator
+export namespace qchem::SCFIterator
+{
+
+class SCFIterator
 {
 public:
-    SCFIterator(const BasisSet*, const ElectronConfiguration*, Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
+    SCFIterator(const bs_t*, const ElectronConfiguration*, class Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
     virtual ~SCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
 
-    const WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
+    const class WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
@@ -28,9 +32,9 @@ private:
     void DisplayEigen   () const;
 
     //All owned, see destructor.
-    Hamiltonian*    itsHamiltonian;
+    class Hamiltonian*    itsHamiltonian;
     SCFAccelerator* itsAccelerator;
-    WaveFunction*   itsWaveFunction;  
+    class WaveFunction*   itsWaveFunction;  
     DM_CD*          itsCD;
     DM_CD*          itsOldCD;
 
@@ -38,6 +42,6 @@ private:
     bool            itsConverged;
 };
 
-
+} //namespace
 
 

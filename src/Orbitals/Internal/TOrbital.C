@@ -3,9 +3,8 @@ module;
 #include <string>
 export module qchem.Orbitals.Internal.OrbitalImp;
 import qchem.Orbitals;
-import qchem.IrrepBasisSet;
+import qchem.Orbitals.Types;
 import qchem.Symmetry.Orbital;
-export import qchem.Orbital_1E_IBS;
 
 export namespace qchem::Orbitals
 {
@@ -40,7 +39,7 @@ template <class T> class TOrbitalImp
 {
 public:
     TOrbitalImp() {};
-    TOrbitalImp(const Orbital_IBS<T>*,const vec_t<T>& C, const vec_t<T>& CPrime, double e, const Orbital_QNs&);
+    TOrbitalImp(const tobs_t<T>*,const vec_t<T>& C, const vec_t<T>& CPrime, double e, const Orbital_QNs&);
 
     virtual void   AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const;
 
@@ -50,9 +49,9 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
    
 private:
-    vec_t<T>              itsCoeff;  //C=V*CPrime
-    vec_t<T>              itsCoeffPrime; //Un transdormed coefficients.
-    const Orbital_IBS<T>* itsBasisSet;
+    vec_t<T>         itsCoeff;  //C=V*CPrime
+    vec_t<T>         itsCoeffPrime; //Un transdormed coefficients.
+    const tobs_t<T>* itsBasisSet;
 };
 
 } //namespace

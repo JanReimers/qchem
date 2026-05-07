@@ -6,7 +6,6 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Term;
 import qchem.ChargeDensity;
-import qchem.IrrepBasisSet;
 import qchem.Symmetry;
 
 namespace qchem::Hamiltonian

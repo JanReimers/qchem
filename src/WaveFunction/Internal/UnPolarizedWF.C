@@ -1,10 +1,11 @@
 // File: UnPolarizedWF.C  Wave function for an unpolarized atom.
 module;
-import qchem.SCFAccelerator;
 
 export module qchem.WaveFunction.Internal.UnPolarizedWF;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.Internal.CompositeWF;
+import qchem.WaveFunction.Types;
+import qchem.SCFAccelerator;
 
 export namespace qchem::WaveFunction
 {
@@ -14,7 +15,7 @@ class UnPolarizedWF
     , public CompositeWF
 {
 public:
-    UnPolarizedWF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator* acc);
+    UnPolarizedWF(const bs_t*,const ElectronConfiguration*,SCFAccelerator* acc);
     using CompositeWF::GetChargeDensity;
     using CompositeWF::GetEnergyLevels;
 

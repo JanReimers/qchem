@@ -3,6 +3,7 @@ target_sources(qcWaveFunction PRIVATE Imp/Factory.C   Internal/Imp/PolarizedWF.C
 target_sources(qcWaveFunction PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     WaveFunction.C
     Factory.C 
+    Types.C
     Internal/PolarizedWF.C 
     Internal/CompositeWF.C  
     Internal/IrrepWF.C   

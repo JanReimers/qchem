@@ -5,9 +5,9 @@ module;
 #include <memory>
 export module qchem.WaveFunction.Internal.CompositeWF;
 export import qchem.WaveFunction;
-export import qchem.BasisSet;
 import qchem.SCFAccelerator;
 import qchem.WaveFunction.Internal.IrrepWF;
+import qchem.WaveFunction.Types;
 
 export namespace qchem::WaveFunction
 {
@@ -18,7 +18,7 @@ class CompositeWF
     : public virtual WaveFunction
 {
 public:
-    CompositeWF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator*);
+    CompositeWF(const bs_t*,const ElectronConfiguration*,SCFAccelerator*);
     ~CompositeWF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
@@ -38,7 +38,7 @@ protected:
 private:
     typedef std::unique_ptr<IrrepWF> uiwf_t;
 
-    const BasisSet*              itsBS; 
+    const bs_t*                  itsBS; 
     const ElectronConfiguration* itsEC;
     SCFAccelerator*              itsAccelerator;
     EnergyLevels                 itsELevels;

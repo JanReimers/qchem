@@ -16,7 +16,7 @@ namespace qchem::WaveFunction
 using std::cout;
 using std::endl;
 
-IrrepWF::IrrepWF(const Orbital_IBS<double>* bs, LASolver<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
+IrrepWF::IrrepWF(const obs_t* bs, LASolver<double>* lasb,const Irrep_QNs& qns,SCFIrrepAccelerator* acc)
     : itsBasisSet   (bs)
     , itsLASolver   (lasb)
     , itsOrbitals   (qchem::Orbitals::Factory(bs,qns.ms))

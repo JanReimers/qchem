@@ -26,9 +26,11 @@ using std::setprecision;
 using std::ios;
 
 
+namespace qchem::SCFIterator
+{
 
 
-SCFIterator::SCFIterator(const BasisSet* bs, const ElectronConfiguration* ec,Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
+SCFIterator::SCFIterator(const bs_t* bs, const ElectronConfiguration* ec,class Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
     : itsHamiltonian (H )
     , itsAccelerator (acc)       
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
@@ -197,3 +199,4 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
 
 //-------------------------------------------------------------------------------------------------------------------------
 
+} //namespace

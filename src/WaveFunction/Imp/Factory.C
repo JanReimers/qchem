@@ -11,7 +11,7 @@ namespace qchem::WaveFunction
 
     WaveFunction* Factory(
         const Hamiltonian::Hamiltonian* h,
-        const BasisSet* bs,
+        const bs_t* bs,
         const ElectronConfiguration* ec,
         SCFAccelerators::SCFAccelerator* acc)
     {

@@ -21,7 +21,7 @@ using std::cout;
 using std::endl;
 
 
-PolarizedWF::PolarizedWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
+PolarizedWF::PolarizedWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
     : CompositeWF(bs,ec,acc) 
 {
     MakeIrrepWFs(Spin::Up);

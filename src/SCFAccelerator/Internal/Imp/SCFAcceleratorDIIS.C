@@ -7,7 +7,6 @@ module;
 #include "blaze/Math.h" 
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
-import qchem.IrrepBasisSet;
 import qchem.Blaze;
 
 namespace qchem::SCFAccelerators

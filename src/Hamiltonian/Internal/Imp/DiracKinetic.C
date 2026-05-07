@@ -6,7 +6,6 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
-import qchem.IrrepBasisSet;
 import Common.Constants;
 
 namespace qchem::Hamiltonian

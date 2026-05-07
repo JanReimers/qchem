@@ -15,7 +15,7 @@ namespace qchem::Orbitals
 //  Construction zone
 //
 template <class T> TOrbitalImp<T>::
-TOrbitalImp(const Orbital_IBS<T>* bs,const vec_t<T>& _C,const vec_t<T>& _CPrime,double e, const Orbital_QNs& qns)
+TOrbitalImp(const tobs_t<T>* bs,const vec_t<T>& _C,const vec_t<T>& _CPrime,double e, const Orbital_QNs& qns)
     : OrbitalImp   (e,qns)
     , itsCoeff     (_C)
     , itsCoeffPrime(_CPrime)

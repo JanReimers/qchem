@@ -4,6 +4,7 @@ target_sources(qcOrbitals PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Orbitals.C 
     Factory.C
     EnergyLevel.C
+    Types.C
     Internal/TOrbital.C  
     Internal/TOrbitals.C
 )

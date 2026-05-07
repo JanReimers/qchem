@@ -3,11 +3,11 @@ module;
 #include <iosfwd>
 export module qchem.Orbitals.Internal.OrbitalsImp;
 export import qchem.Orbitals;
-export import qchem.IrrepBasisSet;
-export import qchem.Orbital_1E_IBS;
-
 export import qchem.Symmetry.Irrep;
 export import qchem.Types;
+
+import qchem.Orbitals.Types;
+
 
 export namespace qchem::Orbitals
 {
@@ -20,7 +20,7 @@ template <class T> class TOrbitalsImp
 {
     typedef typename TOrbitals<T>::ds_t ds_t; //{double,smat_t}
 public:
-    TOrbitalsImp(const Orbital_IBS<T>*, Spin s);
+    TOrbitalsImp(const tobs_t<T>*, Spin s);
     virtual ~TOrbitalsImp();
 
 
@@ -47,10 +47,10 @@ public:
 private:
     TOrbitalsImp(const TOrbitalsImp&);
 
-    const Orbital_IBS<T>*  itsBasisSet;
-    ov_t                   itsOrbitals;
-    Irrep_QNs              itsQNs;
-    smat_t<T>              itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    const tobs_t<T>*  itsBasisSet;
+    ov_t              itsOrbitals;
+    Irrep_QNs         itsQNs;
+    smat_t<T>         itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 
 } //namespace

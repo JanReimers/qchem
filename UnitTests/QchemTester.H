@@ -14,10 +14,13 @@ import qchem.Cluster;
 import qchem.Symmetry.AtomEC;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
+import qchem.WaveFunction.Types;
 
 using qchem::Orbitals::Orbital;
 using qchem::Orbitals::Orbitals;
 using qchem::Hamiltonian::Hamiltonian;
+using qchem::WaveFunction::bs_t;
+using qchem::SCFIterator::SCFIterator;
 
 class QchemTester
 {
@@ -54,7 +57,7 @@ protected:
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
 protected:
     cl_t          itsCluster;
-    BasisSet*     itsBasisSet;
+    bs_t*         itsBasisSet;
     SCFIterator*  itsSCFIterator;
 public:
     static PeriodicTable itsPT;

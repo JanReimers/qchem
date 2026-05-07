@@ -5,6 +5,7 @@ import qchem.SCFAccelerator;
 export module qchem.WaveFunction.Internal.PolarizedWF;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.Internal.CompositeWF;
+import qchem.WaveFunction.Types;
 
 export namespace qchem::WaveFunction
 {
@@ -14,7 +15,7 @@ class PolarizedWF
     , public CompositeWF
 {
 public:
-    PolarizedWF(const BasisSet*,const ElectronConfiguration*,SCFAccelerator* acc);
+    PolarizedWF(const bs_t*,const ElectronConfiguration*,SCFAccelerator* acc);
     using CompositeWF::GetEnergyLevels;
     using CompositeWF::GetChargeDensity;
 

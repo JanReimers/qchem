@@ -24,7 +24,7 @@ namespace qchem::Orbitals
 //  Construction zone
 //
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const Orbital_IBS<T>* bs, Spin ms)
+TOrbitalsImp(const tobs_t<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsQNs(bs->GetIrrep(ms))
     , itsD(zero<T>( bs->GetNumFunctions()))

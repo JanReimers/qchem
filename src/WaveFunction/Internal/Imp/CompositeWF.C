@@ -5,9 +5,8 @@ module;
 #include "tabulate/table.hpp"
 // #include <blaze/Math.h>
 module qchem.WaveFunction.Internal.CompositeWF;
+import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;
-import qchem.BasisSet;
-import qchem.IrrepBasisSet;
 import qchem.CompositeCD;
 import qchem.Symmetry.ElectronConfiguration;
 import qchem.LASolver;
@@ -18,7 +17,7 @@ namespace qchem::WaveFunction
 LAParams DefaultLAP({qchem::Cholsky,1e-12});
 
 
-CompositeWF::CompositeWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
+CompositeWF::CompositeWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)
     , itsEC(ec)
     , itsAccelerator(acc)
@@ -35,7 +34,7 @@ CompositeWF::CompositeWF(const BasisSet* bs,const ElectronConfiguration* ec,SCFA
 void CompositeWF::MakeIrrepWFs(Spin s)
 {
 
-    for (auto b:itsBS->Iterate<Orbital_IBS<double> >())
+    for (auto b:itsBS->Iterate<obs_t>())
     {
         LASolver<double>* lasb=LASolver<double>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
         lasb->SetBasisOverlap(b->Overlap());

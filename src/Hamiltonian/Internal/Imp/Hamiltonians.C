@@ -6,7 +6,6 @@ import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Types;
-import qchem.BasisSet;
 import qchem.Cluster;
 
 namespace qchem::Hamiltonian
@@ -25,11 +24,11 @@ Ham_HF_U::Ham_HF_U(const cl_t& cl)
 }
 
 
-Ham_DFT_U::Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_U::Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams& mp, const bs_t* bs)
     : Ham_DFT_U(cl,new SlaterExchange(alpha_ex),mp,bs)
 {};
 
-Ham_DFT_U::Ham_DFT_U(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_U::Ham_DFT_U(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(cl);
        

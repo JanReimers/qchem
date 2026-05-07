@@ -2,7 +2,7 @@
 export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
-import qchem.BasisSet;
+import qchem.Hamiltonian.Types;
 import qchem.Mesh;
 
 export namespace qchem::Hamiltonian
@@ -31,8 +31,8 @@ public:
 class Ham_DFT_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* fit_bs);
-    Ham_DFT_U(const cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* fit_bs);
+    Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams&, const bs_t* bs);
+    Ham_DFT_U(const cl_t& cl,ExFunctional*  , const MeshParams&, const bs_t* bs);
 };
 
 //

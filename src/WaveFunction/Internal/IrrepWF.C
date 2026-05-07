@@ -1,16 +1,16 @@
 // File: IrrepWF.H  Wave function for an irreducable representation.
 module;
 export module qchem.WaveFunction.Internal.IrrepWF;
+import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;
 export import qchem.EnergyLevel;
 export import qchem.Orbitals;
 export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
-export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Symmetry.ElectronConfiguration;
-import qchem.Orbital_1E_IBS;
+
 export namespace qchem::WaveFunction
 {
 
@@ -24,7 +24,7 @@ using SCFAccelerators::SCFIrrepAccelerator;
 class IrrepWF
 {
 public:
-    IrrepWF(const Real_OIBS*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
+    IrrepWF(const obs_t*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
     ~IrrepWF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
@@ -40,7 +40,7 @@ public:
  private:
     IrrepWF(const IrrepWF&);
 
-    const Real_OIBS*     itsBasisSet;
+    const obs_t*         itsBasisSet;
     LASolver<double>*    itsLASolver;
     TOrbitals<double>*   itsOrbitals; //Owned
     Irrep_QNs            itsIrrep;
