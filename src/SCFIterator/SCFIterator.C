@@ -4,7 +4,6 @@ import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 export import qchem.SCFParams;
-export import qchem.BasisSet;
 
 export using qchem::EnergyBreakdown;
 using qchem::Hamiltonian::Hamiltonian;

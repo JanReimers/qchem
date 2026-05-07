@@ -51,8 +51,8 @@ public:
 class Ham_DFT_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams&, const BasisSet* or_bs);
-    Ham_DFT_P(const cl_t& cl,ExFunctional*  , const MeshParams&, const BasisSet* or_bs);
+    Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams&, const bs_t* or_bs);
+    Ham_DFT_P(const cl_t& cl,ExFunctional*  , const MeshParams&, const bs_t* or_bs);
 };
 
 

@@ -49,11 +49,11 @@ Ham_HF_P::Ham_HF_P(const cl_t& cl)
 }
 
 
-Ham_DFT_P::Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_P::Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams& mp, const bs_t* bs)
     : Ham_DFT_P(cl,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
 {};
 
-Ham_DFT_P::Ham_DFT_P(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const BasisSet* bs)
+Ham_DFT_P::Ham_DFT_P(const cl_t& cl,ExFunctional* ex, const MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(cl);
     FittedVee::bs_t CFitBasis(bs->CreateCDFitBasisSet(cl.get()));

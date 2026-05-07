@@ -56,7 +56,7 @@ namespace qchem::Hamiltonian
         return h;
     }
     //DFT version
-    Hamiltonian* Factory(Pol p,const cl_t& cl,ExFunctional* ex  , const MeshParams& mp, const BasisSet* bs)
+    Hamiltonian* Factory(Pol p,const cl_t& cl,ExFunctional* ex  , const MeshParams& mp, const bs_t* bs)
     {
         Hamiltonian* h=0;
         switch (p)
@@ -72,7 +72,7 @@ namespace qchem::Hamiltonian
         return h;
     }
 
-    Hamiltonian* Factory(Pol p,const cl_t& cl,double alpha  , const MeshParams& mp, const BasisSet* bs)
+    Hamiltonian* Factory(Pol p,const cl_t& cl,double alpha  , const MeshParams& mp, const bs_t* bs)
     {
         Hamiltonian* h=0;
         switch (p)
