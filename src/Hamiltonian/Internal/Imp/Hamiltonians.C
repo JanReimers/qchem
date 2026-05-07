@@ -5,8 +5,8 @@ module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
+import qchem.Hamiltonian.Types;
 import qchem.BasisSet;
-import qchem.Fit_IBS;
 import qchem.Cluster;
 
 namespace qchem::Hamiltonian

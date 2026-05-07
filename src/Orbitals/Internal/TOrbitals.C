@@ -4,6 +4,8 @@ module;
 export module qchem.Orbitals.Internal.OrbitalsImp;
 export import qchem.Orbitals;
 export import qchem.IrrepBasisSet;
+export import qchem.Orbital_1E_IBS;
+
 export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 

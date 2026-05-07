@@ -14,13 +14,13 @@ namespace qchem::ChargeDensity
 //
 //  Various integrals.
 //
-void Polarized_CD::AccumulateDirect(rsmat_t& Jab,const Orbital_HF_IBS<double>* bs) const
+void Polarized_CD::AccumulateDirect(rsmat_t& Jab,const ohfbs_t* bs) const
 {
     GetChargeDensity(Spin::Up  )->AccumulateDirect(Jab,bs);
     GetChargeDensity(Spin::Down)->AccumulateDirect(Jab,bs);
 }
 
-void Polarized_CD::AccumulateExchange(rsmat_t& Kab,const Orbital_HF_IBS<double>* bs) const
+void Polarized_CD::AccumulateExchange(rsmat_t& Kab,const ohfbs_t* bs) const
 {
     // No UT coverage
     GetChargeDensity(Spin::Up  )->AccumulateExchange(Kab,bs);
@@ -49,7 +49,7 @@ double Polarized_CD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-rvec_t Polarized_CD::GetRepulsion3C(const Fit_IBS* fbs) const
+rvec_t Polarized_CD::GetRepulsion3C(const fbs_t* fbs) const
 {
     return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
         +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);

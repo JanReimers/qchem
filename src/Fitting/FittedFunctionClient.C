@@ -1,9 +1,8 @@
 // File: FittedFunctionClient.C  Linear fitted function interface
 export module qchem.FittedFunctionClient;
+import qchem.Fitting.Types;
 import qchem.ScalarFunction;
 
-import qchem.Fit_IBS;
-// import qchem.BasisSet1.Fit_IBS;
 
 //-------------------------------------------------------------------
 //
@@ -31,7 +30,6 @@ public:
 class DensityFFClient
 {
 public:
-    typedef Fit_IBS fbs_t;
     virtual double FitGetConstraint() const=0;
     virtual rvec_t GetRepulsion3C(const fbs_t*) const=0;
 };

@@ -1,5 +1,6 @@
 // File: FittedCDImp.C  Fitted charge density.
 export module qchem.ChargeDensity.Imp.FittedCD;
+import qchem.ChargeDensity.Types;
 import qchem.FittedCD;
 import qchem.FittedFunctionImp;
 
@@ -20,11 +21,11 @@ template <class T> class FittedCDImp
 public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
 
-    virtual smat_t<T> GetRepulsion    (const Orbital_DFT_IBS<double>*) const;
+    virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(                      ) const;  //Does GetRepulsion(*this);
     
-    virtual double operator()(const rvec3_t&) const; // No UT coverage
-    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
+    virtual double  operator()(const rvec3_t&) const; // No UT coverage
+    virtual rvec3_t Gradient  (const rvec3_t&) const; // No UT coverage
 
     virtual FittedCD* Clone(        ) const;
 

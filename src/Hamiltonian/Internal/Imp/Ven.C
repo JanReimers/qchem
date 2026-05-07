@@ -21,7 +21,7 @@ Ven::Ven(const cl_t& cl)
 };
 
 
-rsmat_t Ven::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t Ven::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
     return bs->Nuclear(&*theCluster);

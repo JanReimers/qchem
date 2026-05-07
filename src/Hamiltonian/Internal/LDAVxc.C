@@ -4,6 +4,8 @@ module;
 export module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
+import qchem.ScalarFunction;
+import qchem.Hamiltonian.Types;
 
 export namespace qchem::Hamiltonian
 {
@@ -29,7 +31,7 @@ public:
     
     virtual std::ostream&           Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
     ex_t itsExchangeFunctional;
 };

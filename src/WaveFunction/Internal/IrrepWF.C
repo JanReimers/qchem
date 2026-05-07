@@ -10,7 +10,7 @@ export import qchem.ChargeDensity;
 export import qchem.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.Symmetry.ElectronConfiguration;
-
+import qchem.Orbital_1E_IBS;
 export namespace qchem::WaveFunction
 {
 

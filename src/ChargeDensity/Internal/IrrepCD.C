@@ -5,9 +5,7 @@ export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
-import qchem.IrrepBasisSet;
-export import qchem.Orbital_HF_IBS;
-export import qchem.Fit_IBS;
+import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
 {
@@ -26,10 +24,10 @@ public:
     typedef smat_t<T> DenSMat; //Type for the density matrix.
     
     IrrepCD();
-    IrrepCD(const DenSMat&,const Orbital_IBS<T>*, Irrep_QNs);
+    IrrepCD(const DenSMat&,const tobs_t<T>*, Irrep_QNs);
 
-    virtual void AccumulateDirect  (rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
-    virtual void AccumulateExchange(rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
+    virtual void AccumulateDirect  (rsmat_t& Sab, const ohfbs_t*) const;
+    virtual void AccumulateExchange(rsmat_t& Sab, const ohfbs_t*) const;
     virtual rvec_t    GetRepulsion3C(const Fit_IBS*) const;
 
     virtual double DM_Contract(const Static_CC*) const;
@@ -48,10 +46,10 @@ public:
 private:
     bool IsZero() const;
     
-    DenSMat               itsDensityMatrix;
-    const Orbital_IBS<T>* itsBasisSet;
-    Spin                  itsSpin;
-    Irrep_QNs             itsIrrep;
+    DenSMat          itsDensityMatrix;
+    const tobs_t<T>* itsBasisSet;
+    Spin             itsSpin;
+    Irrep_QNs        itsIrrep;
 };
 
 } //namespace

@@ -7,10 +7,10 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.Orbital_DFT_IBS;
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
+import qchem.Hamiltonian.Types;
 
 namespace qchem::Hamiltonian
 {
@@ -31,10 +31,10 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
 //  Where ro is the fitted charge density.
 //
 
-rsmat_t FittedVee::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVee::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
-    auto dft_bs=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs);
+    auto dft_bs=dynamic_cast<const odftbs_t*>(bs);
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 

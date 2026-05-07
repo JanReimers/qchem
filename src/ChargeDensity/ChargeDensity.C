@@ -1,12 +1,9 @@
 // File: ChargeDensity.C  Interface for a charge density 
 export module qchem.ChargeDensity;
 import qchem.FittedFunctionClient;
-export import qchem.Orbital_HF_IBS;
-export import qchem.Fit_IBS;
 export import qchem.Symmetry.Spin;
-import qchem.Symmetry.ElectronConfiguration;
 import qchem.ScalarFunction;
-
+import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
 {
@@ -16,14 +13,14 @@ export namespace qchem::ChargeDensity
 class Static_CC //Contract client for static Ham terms.
 {
 public:
-    virtual const rsmat_t& GetMatrix(const Orbital_IBS<double>*,const Spin&) const=0;    
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&) const=0;    
 };
 
 class DM_CD;
 class Dynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
-    virtual const rsmat_t& GetMatrix(const Orbital_IBS<double>*,const Spin&,const DM_CD*) const=0;    
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD*) const=0;    
 };
 
 //----------------------------------------------------------------------------------
@@ -54,8 +51,8 @@ public:
     virtual double GetTotalCharge  () const=0;  // <ro>
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
-    virtual void AccumulateDirect  (rsmat_t& Jab, const Orbital_HF_IBS<double>*) const=0;
-    virtual void AccumulateExchange(rsmat_t& Kab, const Orbital_HF_IBS<double>*) const=0;
+    virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const=0;
+    virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const=0;
 
 };
 
@@ -77,9 +74,9 @@ public:
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
-    virtual rvec_t GetRepulsion3C(const Fit_IBS*) const;
-    virtual void AccumulateDirect  (rsmat_t& Jab, const Orbital_HF_IBS<double>*) const;
-    virtual void AccumulateExchange(rsmat_t& Kab, const Orbital_HF_IBS<double>*) const;
+    virtual rvec_t GetRepulsion3C(const fbs_t*) const;
+    virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const;
+    virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const;
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.

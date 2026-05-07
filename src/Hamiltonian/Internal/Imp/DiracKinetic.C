@@ -12,7 +12,7 @@ import Common.Constants;
 namespace qchem::Hamiltonian
 {
 
-rsmat_t DiracKinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t DiracKinetic::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
     // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
     return c_light*bs->Kinetic();

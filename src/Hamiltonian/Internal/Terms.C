@@ -10,6 +10,7 @@ import qchem.FittedFunctionImp;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Mesh;
+import qchem.Hamiltonian.Types;
 
 
 export namespace qchem::Hamiltonian
@@ -26,7 +27,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 };
 
 class DiracKinetic
@@ -39,7 +40,7 @@ public:
     virtual bool          IsPolarized() const {return true;}
 
 private:
-    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 };
 
 class RestMass
@@ -51,7 +52,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 };
 
 class Vnn
@@ -66,7 +67,7 @@ public:
     // Required by Streamable
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
     cl_t theCluster;
 };
 
@@ -84,7 +85,7 @@ public:
     virtual std::ostream&   Write(std::ostream&) const;
    
 private:
-    virtual rsmat_t CalculateMatrix(const ibs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 
     cl_t theCluster;
 };
@@ -110,7 +111,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 };
 
 //###############################################################################
@@ -126,7 +127,7 @@ public:
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 };
 
 //###############################################################################
@@ -145,7 +146,7 @@ public:
     virtual std::ostream&  Write    (std::ostream&) const;
 
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
 };
 
@@ -167,13 +168,13 @@ class FittedVee
     , private        Dynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Mesh>    mesh_t;
-    typedef std::shared_ptr<const Fit_IBS> bs_t;
+    typedef std::shared_ptr<const Mesh>  mesh_t;
+    typedef std::shared_ptr<const fbs_t> bs_t;
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd      ) const;
     virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
     ChargeDensity::FittedCD* itsFittedChargeDensity;
 };
@@ -205,7 +206,7 @@ public:
     
 
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
 };
@@ -222,7 +223,7 @@ class FittedVxcPol
 {
 public:
     typedef std::shared_ptr<const Mesh>          mesh_t;
-    typedef std::shared_ptr<const Fit_IBS>       bs_t;
+    typedef std::shared_ptr<const fbs_t>         bs_t;
     typedef std::shared_ptr<      ExFunctional>  ex_t;
     
     FittedVxcPol(bs_t&, ex_t&, mesh_t& );
@@ -233,7 +234,7 @@ public:
 
     virtual std::ostream&   Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const ibs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
     Dynamic_HT* itsUpVxc  ; //Spin up.
     Dynamic_HT* itsDownVxc; //Spin down.

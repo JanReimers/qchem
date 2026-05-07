@@ -4,6 +4,7 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FittedFunction.C
     FittedFunctionClient.C
     FittedFunctionImp.C
+    Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)
 target_include_directories(qcFitting PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)

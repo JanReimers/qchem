@@ -7,7 +7,6 @@ module;
 #include "blaze/Math.h"
 
 module qchem.ChargeDensity.Imp.FittedCD;
-import qchem.Orbital_DFT_IBS;
 import qchem.Mesh;
 import qchem.Blaze;
 
@@ -32,7 +31,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
 //  Totale energy terms for a charge density.
 //
 
-template <class T> smat_t<T> FittedCDImp<T>::GetRepulsion(const Orbital_DFT_IBS<double>* bs) const
+template <class T> smat_t<T> FittedCDImp<T>::GetRepulsion(const odftbs_t* bs) const
 {
     assert(bs);
     const ERI3<T>& repulsions=bs->Repulsion3C(*itsBasisSet);

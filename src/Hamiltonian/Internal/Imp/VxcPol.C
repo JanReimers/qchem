@@ -7,7 +7,7 @@ module;
 #include "blaze/Math.h" 
 
 module qchem.Hamiltonian.Internal.Terms;
-import qchem.Orbital_HF_IBS;
+import qchem.Hamiltonian.Types;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
@@ -29,14 +29,14 @@ namespace qchem::Hamiltonian
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-rsmat_t VxcPol::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t VxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if  (s==Spin::None)
     {
         std::cerr << "PolarizedHartreeFockVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
         exit(-1);
     }
-    auto hf_bs = dynamic_cast<const Orbital_HF_IBS<double>*>(bs);
+    auto hf_bs = dynamic_cast<const ohfbs_t*>(bs);
     assert(hf_bs);
 
     const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(cd);

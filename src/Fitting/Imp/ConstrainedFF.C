@@ -4,7 +4,7 @@ module;
 #include "blaze/Math.h"
 module qchem.FittedFunctionImp;
 import qchem.FittedFunctionClient;
-import qchem.Fit_IBS;
+import qchem.Fitting.Types;
 
 namespace qchem::Fitting
 {

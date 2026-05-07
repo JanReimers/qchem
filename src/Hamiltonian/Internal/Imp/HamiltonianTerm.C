@@ -14,7 +14,7 @@ namespace qchem::Hamiltonian
 
 Dynamic_HT_Imp::Dynamic_HT_Imp() : itsCD(0) {};
 
-const rsmat_t& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
+const rsmat_t& Static_HT_Imp::GetMatrix(const obs_t* bs,const Spin& s) const
 {
     assert(bs);
     Irrep_QNs qns(bs->GetIrrep(s));
@@ -25,7 +25,7 @@ const rsmat_t& Static_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s) const
         return i->second;
 }
 
-const rsmat_t& Dynamic_HT_Imp::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+const rsmat_t& Dynamic_HT_Imp::GetMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(bs);
     Irrep_QNs qns(bs->GetIrrep(s));
@@ -49,7 +49,7 @@ bool Dynamic_HT_Imp::newCD(const DM_CD* cd) const
 
 }
 
-const rsmat_t& Dynamic_HT_Imp_NoCache::GetMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+const rsmat_t& Dynamic_HT_Imp_NoCache::GetMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     return itsMat=CalcMatrix(bs,s,cd);
 }

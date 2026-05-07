@@ -18,7 +18,7 @@ Vnn::Vnn(const cl_t& cl)
     , theCluster(cl)
 {};
 
-rsmat_t Vnn::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t Vnn::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     rsmat_t ret=zero<double>(n);

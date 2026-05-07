@@ -8,17 +8,12 @@ export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;
 export import qchem.Mesh;
 
-import qchem.Orbital_DFT_IBS;
-import qchem.Fit_IBS;
-
-// import qchem.BasisSet1.Orbital_DFT_IBS;
-// import qchem.BasisSet1.Fit_IBS;
-
+import qchem.Fitting.Types;
 
 //--------------------------------------------------------------------------
 //
-//  The fit function is assumed to be real valued, but the basis set and
-//  coefficients can be complex.
+//  The fit function and fit basis set are assumed to be real valued. 
+//  But the orbtial basis set and coefficients can be complex. 
 //
 export namespace qchem::Fitting
 {
@@ -27,8 +22,6 @@ template <class T> class FittedFunctionImp
     : public virtual FittedFunction
 {
 public:
-    using fbs_t=DensityFFClient::fbs_t;
-    using obs_t=Orbital_DFT_IBS<T>;
     typedef std::shared_ptr<const Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
     
@@ -52,7 +45,7 @@ protected:
 
     virtual vec_t<T>    FitGet2CenterOverlap  (const fbs_t*) const;
     virtual vec_t<T>    FitGet2CenterRepulsion(const fbs_t*) const;
-    virtual smat_t<T>   FitGet3CenterOverlap  (const obs_t*) const;
+    virtual smat_t<T>   FitGet3CenterOverlap  (const obs_t<T>*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;

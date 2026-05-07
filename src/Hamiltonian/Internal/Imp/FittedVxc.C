@@ -6,7 +6,7 @@ module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Energy;
 import qchem.ChargeDensity;
-import qchem.Orbital_DFT_IBS;
+import qchem.Hamiltonian.Types;
 
 namespace qchem::Hamiltonian
 {
@@ -40,7 +40,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-rsmat_t FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     if (newCD(cd))
     {
@@ -48,7 +48,7 @@ rsmat_t FittedVxc::CalcMatrix(const ibs_t* bs,const Spin& s,const DM_CD* cd) con
         FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
         cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
     }
-    auto dftbs=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs);
+    auto dftbs=dynamic_cast<const odftbs_t*>(bs);
     return FitGet3CenterOverlap(dftbs);
 }
 

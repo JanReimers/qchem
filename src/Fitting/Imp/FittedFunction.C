@@ -6,8 +6,8 @@ module;
 #include "blaze/Math.h"
 module qchem.FittedFunctionImp;
 import qchem.FittedFunction;
-import qchem.Fit_IBS;
-import qchem.Orbital_DFT_IBS;
+import qchem.Fitting.Types;
+
 import qchem.Mesh;
 import qchem.Streamable;
 import qchem.Blaze;
@@ -87,7 +87,7 @@ FitGet2CenterRepulsion(const fbs_t* bs) const
 }
 
 template <class T> smat_t<T> FittedFunctionImp<T>::
-FitGet3CenterOverlap(const obs_t* bs) const
+FitGet3CenterOverlap(const obs_t<T>* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
     smat_t<T> J=zero<T>(bs->GetNumFunctions());

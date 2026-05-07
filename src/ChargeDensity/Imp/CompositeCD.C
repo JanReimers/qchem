@@ -4,6 +4,7 @@ module;
 #include <vector>
 #include <memory>
 module qchem.CompositeCD;
+import qchem.ChargeDensity.Types;
 import qchem.Blaze;
 
 namespace qchem::ChargeDensity
@@ -25,12 +26,12 @@ void Composite_CD::Insert(DM_CD* cd)
 //
 //  Total energy terms for a charge density.
 //
-void Composite_CD::AccumulateDirect(rsmat_t& Jab, const Orbital_HF_IBS<double>* bs_ab) const
+void Composite_CD::AccumulateDirect(rsmat_t& Jab, const ohfbs_t* bs_ab) const
 {
     for (auto& c:itsCDs) c->AccumulateDirect(Jab,bs_ab);
 }
 
-void Composite_CD::AccumulateExchange(rsmat_t& Kab, const Orbital_HF_IBS<double>* bs_ab) const
+void Composite_CD::AccumulateExchange(rsmat_t& Kab, const ohfbs_t* bs_ab) const
 {
     for (auto& c:itsCDs) c->AccumulateExchange(Kab,bs_ab);
 }
@@ -60,7 +61,7 @@ double Composite_CD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-rvec_t Composite_CD::GetRepulsion3C(const Fit_IBS* fbs) const
+rvec_t Composite_CD::GetRepulsion3C(const fbs_t* fbs) const
 {
     rvec_t ret(fbs->GetNumFunctions(),0);
     for (auto& c:itsCDs) ret+=c->GetRepulsion3C(fbs);

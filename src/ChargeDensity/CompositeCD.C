@@ -4,8 +4,8 @@ module;
 #include <memory>
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
-export import qchem.Orbital_HF_IBS;
-export import qchem.Fit_IBS;
+import qchem.ChargeDensity.Types;
+
 
 export namespace qchem::ChargeDensity
 {
@@ -21,15 +21,15 @@ public:
     Composite_CD();
     void Insert(DM_CD*);
 
-    virtual void AccumulateDirect  (rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
-    virtual void AccumulateExchange(rsmat_t& Sab, const Orbital_HF_IBS<double>*) const;
+    virtual void AccumulateDirect  (rsmat_t& Sab, const ohfbs_t*) const;
+    virtual void AccumulateExchange(rsmat_t& Sab, const ohfbs_t*) const;
 
     virtual double DM_Contract(const Static_CC*) const;
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
 
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual rvec_t GetRepulsion3C(const Fit_IBS*) const;
+    virtual rvec_t GetRepulsion3C(const fbs_t*) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.

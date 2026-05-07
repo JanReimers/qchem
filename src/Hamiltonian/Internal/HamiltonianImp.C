@@ -4,6 +4,7 @@ module;
 #include <memory>
 export module qchem.Hamiltonian.Internal.Hamiltonian;
 export import qchem.Hamiltonian;
+import qchem.Hamiltonian.Types;
 import qchem.Cluster;
 
 export namespace qchem::Hamiltonian
@@ -17,7 +18,7 @@ public:
     virtual void Add(Static_HT* );
     virtual void Add(Dynamic_HT*);
 
-    virtual rsmat_t         GetMatrix(const ibs_t*,const Spin& S,const DM_CD*);
+    virtual rsmat_t         GetMatrix(const obs_t*,const Spin& S,const DM_CD*);
     virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual std::ostream&   Write(std::ostream&) const;

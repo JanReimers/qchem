@@ -12,6 +12,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     FittedCD.C 
     CompositeCD.C 
     Factory.C 
+    Types.C
     Internal/IrrepCD.C 
     Internal/FittedCDImp.C 
     Internal/PolarizedCDImp.C

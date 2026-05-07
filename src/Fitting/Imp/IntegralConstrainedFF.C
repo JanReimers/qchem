@@ -1,7 +1,7 @@
 // File: IntegralConstrainedFF.C  Integral constrained fit.
 module;
 module qchem.FittedFunctionImp;
-import qchem.Fit_IBS;
+import qchem.Fitting.Types;
 
 namespace qchem::Fitting
 {

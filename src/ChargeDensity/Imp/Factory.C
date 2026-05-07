@@ -9,7 +9,7 @@ import qchem.ChargeDensity.Imp.PolarizedCD;
 namespace qchem::ChargeDensity
 {
 
-DM_CD*     IrrepCD_Factory(const mat_t<double>& dm,const Orbital_IBS<double>* bs, Irrep_QNs qns)
+DM_CD*     IrrepCD_Factory(const mat_t<double>& dm,const obs_t* bs, Irrep_QNs qns)
 {
     return new IrrepCD<double>(dm,bs,qns);
 }

@@ -6,7 +6,6 @@ module;
 #include "blaze/Math.h" 
 
 module qchem.Hamiltonian.Internal.Terms;
-import qchem.Orbital_DHF_IBS;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import Common.Constants;
@@ -14,11 +13,11 @@ import Common.Constants;
 namespace qchem::Hamiltonian
 {
 
-rsmat_t RestMass::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t RestMass::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
     static const double f=-2.0*c_light*c_light;
     // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;
-    auto sbs=dynamic_cast<const Orbital_RKB_IBS<double>*>(bs);
+    auto sbs=dynamic_cast<const orkbbs_t*>(bs);
     assert(sbs);
     return f*sbs->RestMass();
 }

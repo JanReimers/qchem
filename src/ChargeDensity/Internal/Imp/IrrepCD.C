@@ -8,7 +8,6 @@ module;
 #include "blaze/Math.h" 
 
 module qchem.ChargeDensity.Imp.IrrepCD;
-import qchem.Orbital_DFT_IBS;
 import qchem.Symmetry;
 import qchem.Blaze;
 
@@ -27,10 +26,7 @@ rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const
 template <class T> IrrepCD<T>::IrrepCD()
 {};
 
-template <class T> IrrepCD<T>::IrrepCD
-    (const DenSMat& D,
-    const Orbital_IBS<T>* theBasisSet,
-    Irrep_QNs qns)
+template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep_QNs qns)
     : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)
@@ -50,16 +46,16 @@ template <> bool IrrepCD<double>::IsZero() const
 //
 //  Total energy terms for a charge density.
 //
-template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Sab, const Orbital_HF_IBS<double>* bs_ab) const
+template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Sab, const ohfbs_t* bs_ab) const
 {
-    const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
+    const ohfbs_t* bs_cd=dynamic_cast<const ohfbs_t*>(itsBasisSet);
     assert(bs_cd);
     if (!IsZero()) bs_ab->AccumulateDirect(Sab,itsDensityMatrix,bs_cd);
 }
 
-template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const Orbital_HF_IBS<double>* bs_ab) const
+template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t* bs_ab) const
 {
-    const Orbital_HF_IBS<double>* bs_cd=dynamic_cast<const Orbital_HF_IBS<double>*>(itsBasisSet);
+    const ohfbs_t* bs_cd=dynamic_cast<const ohfbs_t*>(itsBasisSet);
     assert(bs_cd);
     if (!IsZero()) bs_ab->AccumulateExchange(Sab,itsDensityMatrix,bs_cd);
 }
@@ -68,10 +64,10 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const Orbital
 //
 //  Required by fitting routines.
 //
-template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const Fit_IBS* fbs) const
+template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const fbs_t* fbs) const
 {
     if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
-    auto dftbs=dynamic_cast<const Orbital_DFT_IBS<T>*>(itsBasisSet);
+    auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
     assert(dftbs);
     return dftbs->Repulsion3C(itsDensityMatrix,fbs);
 }

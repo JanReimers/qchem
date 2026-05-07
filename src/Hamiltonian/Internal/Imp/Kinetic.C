@@ -14,7 +14,7 @@ namespace qchem::Hamiltonian
 {
 
 
-rsmat_t Kinetic::CalculateMatrix(const ibs_t* bs,const Spin&) const
+rsmat_t Kinetic::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
     return 0.5*bs->Kinetic();
 }
