@@ -23,5 +23,6 @@ public:
 
 };
 
+typedef Orbital_RKB_IBS<double> Real_ORKB;
 
 } //namespace

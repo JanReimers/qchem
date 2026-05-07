@@ -45,13 +45,13 @@ public:
     }
     // void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}},BasisSetAtom::Type::BSpline6);}
     void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian_RKB},{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Gaussian_RKB);}
-    // void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater  },{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Slater);}
-
+    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater_RKB  },{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Slater_RKB);}
+    using OIBS=BasisSet1::Real_ORKB;
+    using Legacy_OIBS=Orbital_RKB_IBS<double>;
     void TestOverlap() const
     {
-        using OIBS=BasisSet1::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Real_OIBS>().begin();
+        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Overlap();
@@ -66,9 +66,8 @@ public:
     }
     void TestKinetic() const
     {
-        using OIBS=BasisSet1::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Real_OIBS>().begin();
+        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Kinetic();
@@ -83,9 +82,8 @@ public:
     }
     void TestNuclear() const
     {
-        using OIBS=BasisSet1::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Real_OIBS>().begin();
+        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Nuclear(cl_hydrogen);
@@ -99,6 +97,22 @@ public:
             EXPECT_EQ(&S1,&S2);
             EXPECT_NE(&S1,&S3);
             EXPECT_NE(&S1,&S4);
+            EXPECT_EQ(S1,legacyS);
+            ++ibs2;
+            ++legacy_ibs;
+        }
+    }
+    void TestRestMass() const
+    {
+        auto ibs2=bs2->Iterate<OIBS>().begin();
+        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
+        for (auto ibs1:bs1->Iterate<OIBS>())
+        {
+            auto& S1=ibs1->RestMass();
+            auto& S2=(*ibs2)->RestMass();
+            auto& legacyS=(*legacy_ibs)->RestMass();
+            EXPECT_EQ(S1,S2);
+            EXPECT_EQ(&S1,&S2);
             EXPECT_EQ(S1,legacyS);
             ++ibs2;
             ++legacy_ibs;
@@ -118,4 +132,39 @@ TEST_F(Basis1_RKB_Tests,GaussianOverlap)
 {
     InitGaussian();
     TestOverlap();
+}
+TEST_F(Basis1_RKB_Tests,GaussianKinetic)
+{
+    InitGaussian();
+    TestKinetic();
+}
+TEST_F(Basis1_RKB_Tests,GaussianNuclear)
+{
+    InitGaussian();
+    TestNuclear();
+}
+TEST_F(Basis1_RKB_Tests,GaussianRestMass)
+{
+    InitGaussian();
+    TestRestMass();
+}
+TEST_F(Basis1_RKB_Tests,SlaterOverlap)
+{
+    InitSlater();
+    TestOverlap();
+}
+TEST_F(Basis1_RKB_Tests,SlaterKinetic)
+{
+    InitSlater();
+    TestKinetic();
+}
+TEST_F(Basis1_RKB_Tests,SlaterNuclear)
+{
+    InitSlater();
+    TestNuclear();
+}
+TEST_F(Basis1_RKB_Tests,SlaterRestMass)
+{
+    InitSlater();
+    TestRestMass();
 }

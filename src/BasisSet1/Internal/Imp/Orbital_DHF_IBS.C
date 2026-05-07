@@ -57,27 +57,29 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::merge_off_diag(const mat_t<
             k(i,Ns+j)=ls(i,j);
    
     return k;
-}    
+}
+
+// Do not call the cached versions itsRKBL->Overlap() from here.
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeOverlap() const
 {
-    smat_t<T> ol=itsRKBL->Overlap();
-    smat_t<T> os=itsRKBS->Overlap();
+    smat_t<T> ol=itsRKBL->MakeOverlap();
+    smat_t<T> os=itsRKBS->MakeOverlap();
     return merge_diag(ol,os);
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeKinetic() const
 {
-    mat_t<T> kls=-itsRKBL->Kinetic(itsRKBS);
+    mat_t<T> kls=-itsRKBL->MakeKinetic(itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeNuclear(const Cluster* c) const
 {
-    smat_t<T> nl=itsRKBL->Nuclear(c);
-    smat_t<T> ns=itsRKBS->Nuclear(c);
+    smat_t<T> nl=itsRKBL->MakeNuclear(c);
+    smat_t<T> ns=itsRKBS->MakeNuclear(c);
     return merge_diag(nl,ns);
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeRestMass() const
 {
-    smat_t<T> rs=itsRKBS->Overlap();
+    smat_t<T> rs=itsRKBS->MakeOverlap();
     smat_t<T> rl=zero<T>(rs.rows());
     return merge_diag(rl,rs);
 }

@@ -14,8 +14,9 @@ import qchem.BasisSet1.Atom.BasisSet;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.Slater.NR.BS_Evaluator;
-// import qchem.BasisSet.Atom.Gaussian.RKB.BS;
 import BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
+import BasisSet.Atom.Slater.RKB.IBS_Evaluator;
+import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 
 using json = nlohmann::json;
 
@@ -84,12 +85,12 @@ BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronCo
 //         break;   
 //     } 
 
-//     case Type::Slater_RKB:
-//     {
-//         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-//         bs=new AtomBS::Slater_RKB::BasisSet(N,emin,emax,LMax);
-//         break;
-//     }
+    case Type::Slater_RKB:
+    {
+        double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
+        bs=new BasisSet_RKB<Slater_IBS,Slater_RKBS_IBS>(N,emin,emax,ec);
+        break;
+    }
     case Type::Gaussian_RKB:
     {
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
