@@ -119,7 +119,7 @@ public:
     virtual const ERI4&      SetExchange(const ERI4&)=0; 
 };
 
-IntegralsCache<double>* theGlobalCache;
+IntegralsCache<double>* theGlobalCache=0;
 
 
 template  <class T> struct IntegralsCache_RAM 
@@ -157,7 +157,6 @@ private:
     using key1m_t=std::tuple<I1C,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.
     using key2xm_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.
 
-
     using map1_t=std::map<key1_t ,rvec_t   >;
     using map2_t=std::map<key2_t ,smat_t<T>>;
     using mapn_t=std::map<keyn_t ,smat_t<T>>;
@@ -168,12 +167,11 @@ private:
     using map1m_t =std::map<key1m_t  ,rvec_t>;
     using map2xm_t=std::map<key2xm_t ,rmat_t>;
 
-    mutable map1_t::const_iterator its1CIterator;
+    mutable std::variant<typename map1_t::const_iterator,typename map1m_t::const_iterator> its1CIterator;
     mutable std::variant<typename map2_t::const_iterator,typename mapn_t::const_iterator> its2CnIterator;
     mutable mapx_t::const_iterator its2xIterator;
     mutable map3_t::const_iterator its3CIterator;
     mutable std::map<IBS_ID_t,ERI4>::const_iterator its4CIterator; //Iterator into the inner map.
-    mutable map1m_t ::const_iterator its1CmIterator;
     mutable map2xm_t::const_iterator its2xmIterator;
     
     mutable key1_t   itsLastKey1;

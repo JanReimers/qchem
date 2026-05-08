@@ -60,12 +60,14 @@ template <class T> void FittedFunctionImp<T>::DoFit(const DensityFFClient& ffc)
 
 template <class T> void FittedFunctionImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
-    itsFitCoeff=itsBasisSet->InvOverlap() * itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
+    auto Sinv=itsBasisSet->InvOverlap();
+    itsFitCoeff= Sinv * itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
 }
 
 template <class T> void FittedFunctionImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
-{
-    itsFitCoeff=itsBasisSet->InvRepulsion() * ffc.GetRepulsion3C(itsBasisSet.get());
+{   
+    auto Sinv=itsBasisSet->InvRepulsion();
+    itsFitCoeff=Sinv * ffc.GetRepulsion3C(itsBasisSet.get());
 }
 
 //---------------------------------------------------------------------------

@@ -96,11 +96,11 @@ rvec_t Fit_IBS::Repulsion(const Mesh* m,const Sf& f) const
 
  rsmat_t Fit_IBS::MakeInvOverlap  () const
  {
-    return blaze::inv(Overlap());
+    return blaze::inv(MakeOverlap());
  }
  rsmat_t Fit_IBS::MakeInvRepulsion() const
  {
-   return blaze::inv(Repulsion());
+   return blaze::inv(MakeRepulsion());
  }
 
 } //namespace

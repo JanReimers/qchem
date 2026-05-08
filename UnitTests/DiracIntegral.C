@@ -118,7 +118,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         rsmat_t SLnum = mintegrator->Overlap(*GetLarge(oi));
         rsmat_t SSnum = mintegrator->Overlap(*GetSmall(oi));
         rsmat_t Snum=merge_diag(SLnum,SSnum);
-        // cout << Snum << S << endl;
+        cout << Snum << S << endl;
 
         EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-14);
     }

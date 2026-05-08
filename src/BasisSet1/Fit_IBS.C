@@ -15,6 +15,7 @@ class Fit_IBS
 {
 public:
     using Integrals_Overlap<double>::Overlap;
+    using Integrals_Overlap<double>::MakeOverlap;
     const  rvec_t& Charge   () const;
     const rsmat_t& Repulsion() const;
     const  rmat_t& Repulsion(const Fit_IBS& b) const;

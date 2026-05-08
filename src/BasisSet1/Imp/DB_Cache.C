@@ -33,8 +33,9 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) co
     if (std::holds_alternative<I1C>(ix))
     {
         itsLastKey1=key1_t(std::get<I1C>(ix),id);
-        its1CIterator=itsVecs.find(itsLastKey1);
-        ret=its1CIterator!=itsVecs.end(); 
+        auto i=itsVecs.find(itsLastKey1);
+        its1CIterator=i;
+        ret=i!=itsVecs.end(); 
     }
     else if (std::holds_alternative<I2C>(ix))
     {
@@ -117,7 +118,7 @@ template <class T>  bool IntegralsCache_RAM<T>::Has(I1C ix,const IBS_ID_t& id,co
 {
     itsLastKey1m=key1m_t(ix,id,mid);
     auto i=itsmVecs.find(itsLastKey1m);
-    its1CmIterator=i;
+    its1CIterator=i;
     return i!=itsmVecs.end(); 
 }
 template <class T>  bool IntegralsCache_RAM<T>::Has(I2x ix,const IBS_ID_t& a,const IBS_ID_t& b,const Mesh_ID_t& mid) const
@@ -131,8 +132,11 @@ template <class T>  bool IntegralsCache_RAM<T>::Has(I2x ix,const IBS_ID_t& a,con
 
 template <class T>  const rvec_t& IntegralsCache_RAM<T>::GetVec() const
 {
-    assert(its1CIterator!=itsVecs.end());
-    return its1CIterator->second;
+    if (std::holds_alternative<typename map1_t::const_iterator>(its1CIterator))
+        return std::get<typename  map1_t::const_iterator>(its1CIterator)->second;
+    else //
+        return std::get<typename map1m_t::const_iterator>(its1CIterator)->second;
+
 }
 template <class T>  const smat_t<T>& IntegralsCache_RAM<T>::GetSMat() const
 {
@@ -158,11 +162,20 @@ template <class T>  const ERI4& IntegralsCache_RAM<T>::GetERI4() const
 
 template <class T>  const rvec_t&  IntegralsCache_RAM<T>::Set(const rvec_t& v)
 {
-    itsVecs[itsLastKey1]=v;
-    const auto [iterator, success]=itsVecs.insert({itsLastKey1,v});  //Non-nuclear
-    assert(success);
-    its1CIterator=iterator;
-    return iterator->second; 
+    if (std::holds_alternative<typename map1_t::const_iterator>(its1CIterator))
+    {
+        const auto [iterator, success]=itsVecs.insert({itsLastKey1,v});  //Non-nuclear
+        assert(success);
+        its1CIterator=iterator;
+        return iterator->second; 
+    }
+    else //if (std::holds_alternative<typename map1m_t::const_iterator>(its1CmIterator))
+    {
+        const auto [iterator, success]=itsmVecs.insert({itsLastKey1m,v});  //Non-nuclear
+        assert(success);
+        its1CIterator=iterator;
+        return iterator->second; 
+    }
 }
 
 template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Set(const smat_t<T>& m)
