@@ -10,8 +10,6 @@ import qchem.LAParams;
 #include <blaze/Math.h>
 
 import qchem.Factory;
-import qchem.BasisSet;
-import qchem.IrrepBasisSet;
 import Common.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
@@ -36,10 +34,10 @@ public:
     , mintegrator()
     {
         nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Gaussian},
+        {"type",BasisSetAtomFactory::Type::Gaussian},
         {"N", 5}, {"emin", 0.01}, {"emax", 100.0},
         };
-        bs=BasisSetAtom::Factory(js,75);
+        bs=BasisSetAtomFactory::Factory(js,75);
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
         

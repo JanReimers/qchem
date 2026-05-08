@@ -1,4 +1,4 @@
-// File: ERIList.C  Test the DFT persistance classes
+// File: UnitTests/SlaterIntegral.C 
 
 
 #include "gtest/gtest.h"
@@ -11,16 +11,13 @@
 
 import qchem.LAParams;
 import qchem.Factory;
-import qchem.Orbital_HF_IBS;
 import qchem.BasisSet.Internal.ERI4;
 
-import qchem.BasisSet;
-import qchem.IrrepBasisSet;
 import Common.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry.Angular;
-import BasisSet.Atom.Slater.NR.IBS_Evaluator;
+// import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 
 using std::cout;
 using std::endl;
@@ -40,10 +37,10 @@ public:
     , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
         nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Slater},
+        {"type",BasisSetAtomFactory::Type::Slater},
         {"N", 6}, {"emin", 0.1}, {"emax", 10.0},
         };
-        bs=BasisSetAtom::Factory(js,75);
+        bs=BasisSetAtomFactory::Factory(js,75);
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
         MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,32,0,0,3});

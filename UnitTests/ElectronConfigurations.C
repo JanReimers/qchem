@@ -11,9 +11,15 @@ import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Ylm;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
-import qchem.BasisSet;
 import qchem.Factory;
 import qchem.Common.Strings;
+// #ifdef LegacyBasisSet
+// import qchem.BasisSet;
+// #else
+// import qchem.BasisSet1;
+// using BasisSet1::Real_OIBS;
+// #endif
+
 
 using std::cout;
 using std::endl;
@@ -135,7 +141,7 @@ TEST_F(ElectronConfigurationTests, BasisSets)
         tabulate::RowStream rs;
         rs << Z;
         rs << pt.GetSymbol(Z);
-        BasisSet* bs=BasisSetAtom::Factory(BasisSetAtom::Type::Slater,js,Z);
+        bs_t* bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Slater,js,Z);
         size_t l=0;
         std::ostringstream os[4];
         for (auto ibs:bs->Iterate<Real_OIBS>())

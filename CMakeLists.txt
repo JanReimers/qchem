@@ -19,18 +19,19 @@ set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
 
 set(CXX_SCAN_FOR_MODULES on)
 
-add_subdirectory(src)
 
 # -Wno-unknown-pragmas
+set(CXX_COMMON_DEFINES NewBasisSet)
 target_compile_options(qchem PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
 )
-target_compile_definitions(qchem PRIVATE 
+target_compile_definitions(qchem PUBLIC ${CXX_COMMON_DEFINES}
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )
 target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcAtom_BS1 qcBasisSet1 qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry wignerSymbols lapack blas gtest )
+add_subdirectory(src)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 add_subdirectory(./submodules/wignerSymbols)

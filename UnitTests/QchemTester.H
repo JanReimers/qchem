@@ -8,24 +8,31 @@
 import qchem.SCFIterator;
 import qchem.LAParams;
 import qchem.Hamiltonian;
-import qchem.BasisSet;
 import Common.PeriodicTable;
 import qchem.Cluster;
 import qchem.Symmetry.AtomEC;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
-import qchem.WaveFunction.Types;
+import qchem.Factory;
+
+#ifdef LegacyBasisSet
+// import qchem.BasisSet;
+typedef BasisSet::irrepv_t irrepv_t;
+
+#else
+typedef BasisSet1::irrepv_t irrepv_t;
+
+#endif
+
 
 using qchem::Orbitals::Orbital;
 using qchem::Orbitals::Orbitals;
 using qchem::Hamiltonian::Hamiltonian;
-using qchem::WaveFunction::bs_t;
 using qchem::SCFIterator::SCFIterator;
 
 class QchemTester
 {
 public:
-    typedef BasisSet::irrepv_t irrepv_t;
     QchemTester();
     virtual ~QchemTester();
     void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
@@ -57,7 +64,7 @@ protected:
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
 protected:
     cl_t          itsCluster;
-    bs_t*         itsBasisSet;
+    BasisSet*         itsBasisSet;
     SCFIterator*  itsSCFIterator;
 public:
     static PeriodicTable itsPT;

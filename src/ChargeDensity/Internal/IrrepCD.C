@@ -28,7 +28,7 @@ public:
 
     virtual void AccumulateDirect  (rsmat_t& Sab, const ohfbs_t*) const;
     virtual void AccumulateExchange(rsmat_t& Sab, const ohfbs_t*) const;
-    virtual rvec_t    GetRepulsion3C(const Fit_IBS*) const;
+    virtual rvec_t    GetRepulsion3C(const fbs_t*) const;
 
     virtual double DM_Contract(const Static_CC*) const;
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;

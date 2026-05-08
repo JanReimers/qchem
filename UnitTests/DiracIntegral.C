@@ -9,16 +9,27 @@
 #include <blaze/Math.h>
 import qchem.LAParams;
 
-import qchem.BasisSet.Internal.IrrepBasisSet;
 
 import qchem.Factory;
-import qchem.BasisSet;
-import qchem.IrrepBasisSet;
 import qchem.BasisSet.Internal.ERI4;
 import Common.Constants;
 import qchem.Cluster;
 import qchem.Mesh.Integrator;
 import qchem.Streamable;
+#ifdef LegacyBasisSet
+import qchem.BasisSet.Internal.IrrepBasisSet;
+using RKB_OIBS=Orbital_RKB_IBS_Common<double>;
+using RKBL_OIBS=Real_IBS;
+using RKBS_OIBS=Real_IBS;
+#else
+import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
+using BasisSet1::Real_OIBS;
+using Real_IBS=Real_OIBS;
+using RKB_OIBS=BasisSet1::Orbital_RKB_IBS_Imp<double>;
+using RKBL_OIBS=BasisSet1::Orbital_RKBL_IBS<double>;
+using RKBS_OIBS=BasisSet1::Orbital_RKBS_IBS<double>;
+#endif
+
 
 using std::cout;
 using std::endl;
@@ -38,25 +49,25 @@ public:
     , gbs(0)
     , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
-        nlohmann::json js = {{"type",BasisSetAtom::Type::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
-        sbs=BasisSetAtom::Factory(js,2);
-        js = {{"type",BasisSetAtom::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
-        gbs=BasisSetAtom::Factory(js,2);
+        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
+        sbs=BasisSetAtomFactory::Factory(js,2);
+        js = {{"type",BasisSetAtomFactory::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
+        gbs=BasisSetAtomFactory::Factory(js,2);
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }
     
-    static const Real_IBS* GetLarge(const Real_IBS* ibs)
+    static const RKBL_OIBS* GetLarge(const Real_IBS* ibs)
     {
         assert(ibs);
-        const Orbital_RKB_IBS_Common<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common<double>*>(ibs);
+        const RKB_OIBS* dirbs=dynamic_cast<const RKB_OIBS*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBL;
     }
-    static const Real_IBS* GetSmall(const Real_IBS* ibs)
+    static const RKBS_OIBS* GetSmall(const Real_IBS* ibs)
     {
         assert(ibs);
-        const Orbital_RKB_IBS_Common<double>* dirbs=dynamic_cast<const Orbital_RKB_IBS_Common<double>*>(ibs);
+        const RKB_OIBS* dirbs=dynamic_cast<const RKB_OIBS*>(ibs);
         assert(dirbs);
         return dirbs->itsRKBS;
     }
@@ -65,12 +76,12 @@ public:
     
     static rsmat_t merge_diag(const rsmat_t& l,const rsmat_t& s)
     {
-        return Orbital_RKB_IBS_Common<double>::merge_diag(l,s);
+        return RKB_OIBS::merge_diag(l,s);
     }
 
     static rsmat_t merge_off_diag(const rmat_t& l)
     {
-        return Orbital_RKB_IBS_Common<double>::merge_off_diag(l);
+        return RKB_OIBS::merge_off_diag(l);
     }
 
     int Lmax, Z;

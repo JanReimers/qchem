@@ -2,14 +2,20 @@
 module;
 
 export module qchem.SCFIterator.Types;
-// export import qchem.Orbital_1E_IBS;
-export import qchem.BasisSet;
+#ifdef LegacyBasisSet
 
-// import qchem.BasisSet1.Orbital_DFT_IBS;
-// import qchem.BasisSet1.Fit_IBS;
+export import qchem.BasisSet;
 
 export namespace qchem::SCFIterator
 {
-    // using obs_t=Orbital_IBS<double>;
     using bs_t=BasisSet;
 }
+#else
+export import qchem.BasisSet1;
+
+export namespace qchem::SCFIterator
+{
+    using bs_t=BasisSet1::BasisSet<double>;
+}
+
+#endif

@@ -16,6 +16,7 @@ public:
     virtual std::string  RadialID() const=0;
     virtual std::string AngularID() const=0;
     virtual std::string Name     () const=0;
+    virtual std::string GetID() const {return RadialID()+AngularID();}
 };
 
 //--------------------------------------------------------------------------------

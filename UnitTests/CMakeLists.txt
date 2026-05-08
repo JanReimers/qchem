@@ -9,7 +9,8 @@ link_directories(
 )
 
 #  Main
-add_executable(UTMain gtestmain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C M_PG_U.C 
+# M_PG_U.C 
+add_executable(UTMain gtestmain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C 
 DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C
 UTCluster.C UTBasisSet.C BasisSet_Atom.C  PeriodicTable.C)
 #add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
@@ -22,7 +23,7 @@ target_compile_options(UTMain PRIVATE -Wall
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
 )
-target_compile_definitions(UTMain PRIVATE 
+target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_DEFINES}
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )

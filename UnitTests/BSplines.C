@@ -14,8 +14,6 @@ import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 
 
 import qchem.Factory;
-import qchem.BasisSet;
-import qchem.IrrepBasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry;
@@ -27,7 +25,7 @@ using std::endl;
 class BSplineTests : public ::testing::Test
 {
 public:
-    static constexpr size_t K=9; //Spline order.
+    static constexpr size_t K=6; //Spline order.
     typedef bspline::Spline<double, K> spline_t;
     typedef Real_OIBS ibs_t;
     BSplineTests() 
@@ -41,10 +39,10 @@ public:
     void Init(int N, double rmin, double rmax)
     {
         nlohmann::json js = {
-        {"type",BasisSetAtom::Type::BSpline9},
+        {"type",BasisSetAtomFactory::Type::BSpline6},
         {"N", N}, {"rmin", rmin}, {"rmax", rmax},
         };
-        bs=BasisSetAtom::Factory(js,75);
+        bs=BasisSetAtomFactory::Factory(js,75);
         for (auto io:bs->Iterate<ibs_t>()) itsIBSs.push_back(io);
 
         std::vector<double> knots=MakeLogKnots(rmin,rmax,K,N);
@@ -61,7 +59,7 @@ public:
     template <class S,class B> rsmat_t MakeSMat(const std::vector<S>& splines, const B&);
    
     size_t LMax;
-    BasisSet* bs;
+    bs_t* bs;
     std::vector<const ibs_t*> itsIBSs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;

@@ -13,3 +13,7 @@ target_include_directories(qcOrbitals PRIVATE
       ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
 target_link_libraries(qcOrbitals PUBLIC qcChargeDensity qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
+target_compile_definitions(qcOrbitals PUBLIC ${CXX_COMMON_DEFINES}
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)

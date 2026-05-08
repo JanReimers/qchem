@@ -15,3 +15,7 @@ target_include_directories(qcWaveFunction PRIVATE
     )
 set_property(TARGET qcWaveFunction PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcWaveFunction PUBLIC qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcBasisSet qcSymmetry qcCluster qcMesh qcCommon) 
+target_compile_definitions(qcWaveFunction PUBLIC ${CXX_COMMON_DEFINES}
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)

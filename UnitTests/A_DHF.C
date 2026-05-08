@@ -61,7 +61,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     if (Z>12) N=35;
     if (Z>50) N=40;
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Slater},
+        {"type",BasisSetAtomFactory::Type::Slater},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
     QchemTester::Init(1e-3,js);
@@ -91,13 +91,13 @@ TEST_P(A_SLmj_DHF,Multiple)
     // DHF wave functions have a weak singulatory at the origin.  We need very large exponents in order
     // mock that singularity.  Hence Z*Z*100 for emax.
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Slater_RKB},
+        {"type",BasisSetAtomFactory::Type::Slater_RKB},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*100.},
     };
     QchemTester::Init(1e-3,js);
     Iterate({5,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
-    BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+    irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
@@ -157,14 +157,14 @@ TEST_P(A_SG_DHF,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Gaussian_RKB},
+        {"type",BasisSetAtomFactory::Type::Gaussian_RKB},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(1e-3,js);
     // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
 
-    BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+    irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
@@ -252,14 +252,14 @@ TEST_F(A_SG_HFP_H,Phir)
     int N=22;
     double alpha=0.01024,beta=2.0;
     nlohmann::json js = {
-        {"type",BasisSetAtom::Type::Gaussian},
+        {"type",BasisSetAtomFactory::Type::Gaussian},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(1e-3,js,true);
     Iterate({2,1e-4,1e-7,1e-5,1.0,1e-4,true});
 
     
-    BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
+    irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
     std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),0.0);

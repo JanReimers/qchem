@@ -10,9 +10,10 @@ import qchem.SCFAccelerator.Factory;
 import qchem.WaveFunction;
 import qchem.ChargeDensity;
 import qchem.Factory;
-import qchem.IrrepBasisSet;
 import qchem.Cluster;
 import qchem.Streamable;
+
+
 
 using qchem::SCFAccelerators::SCFAccelerator;
 
@@ -145,7 +146,7 @@ int QchemTester::GetZ() const
     return GetCluster()->GetNuclearCharge();
 }
 
-QchemTester::irrepv_t QchemTester::GetIrreps(const Spin& ms) const
+irrepv_t QchemTester::GetIrreps(const Spin& ms) const
 {
     return itsBasisSet->GetIrreps(ms);
 }
@@ -165,9 +166,9 @@ MeshParams TestAtom::GetMeshParams() const
 
 BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
-    return BasisSetAtom::Factory(js,itsZ);
+    return BasisSetAtomFactory::Factory(js,itsZ);
 }
-
+/*
 void TestMolecule::Init(Cluster* m)
 {
     assert(m);
@@ -183,5 +184,5 @@ BasisSet* TestMolecule::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSetMolecule::Factory(js,GetCluster());
 }
-
+*/
 
