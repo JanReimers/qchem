@@ -21,10 +21,11 @@ TEST_F(jsonTests,Slater)
         {"N", 10},
         {"emin", 0.1},
         {"emax", 5000.0},
+        {"type", BasisSetAtomFactory::Type::Slater},
     };
 
     for (size_t Z=1;Z<=92;Z++)
-        BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Slater,js,Z);
+        BasisSetAtomFactory::Factory(js,Z);
 
 }
 
@@ -34,10 +35,11 @@ TEST_F(jsonTests,Gaussian)
         {"N", 9},
         {"emin", 0.1},
         {"emax", 5000.0},
+        {"type", BasisSetAtomFactory::Type::Gaussian},
     };
 
     for (size_t Z=1;Z<=92;Z++)
-        BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Gaussian,js,Z);
+        BasisSetAtomFactory::Factory(js,Z);
 
 }
 
@@ -47,8 +49,9 @@ TEST_F(jsonTests,BSpline)
         {"N", 20},
         {"rmin", 0.1},
         {"rmax", 50.0},
+        {"type", BasisSetAtomFactory::Type::BSpline6},
     };
 
     for (size_t Z=1;Z<=92;Z++)
-        BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::BSpline6,js,Z);
+        BasisSetAtomFactory::Factory(js,Z);
 }

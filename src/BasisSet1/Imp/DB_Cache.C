@@ -7,12 +7,102 @@ module;
 #include <variant>
 #include <iostream>
 #include <fstream>
+#include <format>
 module qchem.BasisSet1.DB_Cache;
 
 // import qchem.BasisSet.Internal.ERI4;
 // import qchem.BasisSet.Internal.ERI3;
 // import qchem.BasisSet.Internal.IntegralEnums;
 
+namespace std
+{
+    using I1C=BasisSet1::IntegralsCache_Base::I1C;
+    template <> struct formatter<I1C> : formatter<string_view> {  
+    auto format(I1C c, std::format_context& ctx) const {  
+        string_view name;  
+        switch (c) { // Reuse switch-case logic, but integrate with format  
+        case I1C::Charge:   name = "Charge"; break;  
+        case I1C::Normalization: name = "Normalization"; break;  
+        }  
+        return formatter<string_view>::format(name, ctx);  
+    }  
+    }; 
+
+    using I2C=BasisSet1::IntegralsCache_Base::I2C;
+    template <> struct formatter<I2C> : formatter<string_view> 
+    {  
+        auto format(I2C c, format_context& ctx) const 
+        {  
+            string_view name;  
+            switch (c) { // Reuse switch-case logic, but integrate with format  
+                case I2C::Overlap:      name = "Overlap"     ; break;  
+                case I2C::Repulsion:    name = "Repulsion"   ; break;  
+                case I2C::Kinetic:      name = "Kinetic"     ; break;  
+                case I2C::Nuclear:      name = "Nuclear"     ; break;  
+                case I2C::RestMass:     name = "RestMass"    ; break;  
+                case I2C::InvOverlap:   name = "InvOverlap"  ; break;  
+                case I2C::InvRepulsion: name = "InvRepulsion"; break;  
+            }  
+            return formatter<string_view>::format(name, ctx);  
+        }
+    };  
+    using I2x=BasisSet1::IntegralsCache_Base::I2x;
+    template <> struct formatter<I2x> : formatter<string_view> 
+    {  
+        auto format(I2x c, format_context& ctx) const 
+        {  
+            string_view name;  
+            switch (c) { // Reuse switch-case logic, but integrate with format  
+                case I2x::Overlap:      name = "Overlap"     ; break;  
+                case I2x::Repulsion:    name = "Repulsion"   ; break;  
+                case I2x::Kinetic:      name = "Kinetic"     ; break;  
+            }  
+            return formatter<string_view>::format(name, ctx);  
+        }
+    };  
+
+    using I2n=BasisSet1::IntegralsCache_Base::I2n;
+    template <> struct formatter<I2n> : formatter<string_view> 
+    {  
+        auto format(I2n c, format_context& ctx) const 
+        {  
+            string_view name;  
+            switch (c) { // Reuse switch-case logic, but integrate with format  
+                case I2n::Nuclear:      name = "Nuclear"     ; break;  
+            }  
+            return formatter<string_view>::format(name, ctx);  
+        }
+    };  
+
+    using I3C=BasisSet1::IntegralsCache_Base::I3C;
+    template <> struct formatter<I3C> : formatter<string_view> 
+    {  
+        auto format(I3C c, format_context& ctx) const 
+        {  
+            string_view name;  
+            switch (c) { // Reuse switch-case logic, but integrate with format  
+                case I3C::Overlap:   name = "Overlap"     ; break;  
+                case I3C::Repulsion: name = "Repulsion"     ; break;  
+            }  
+            return formatter<string_view>::format(name, ctx);  
+        }
+    };  
+
+    using I4C=BasisSet1::IntegralsCache_Base::I4C;
+    template <> struct formatter<I4C> : formatter<string_view> 
+    {  
+        auto format(I4C c, format_context& ctx) const 
+        {  
+            string_view name;  
+            switch (c) { // Reuse switch-case logic, but integrate with format  
+                case I4C::Direct:      name = "Direct"     ; break;  
+                case I4C::Exchange:      name = "Exchange"     ; break;  
+            }  
+            return formatter<string_view>::format(name, ctx);  
+        }
+    };  
+
+}
 namespace BasisSet1
 {
 // template  <> IntegralsCache<double>* IntegralsCache<double>::theGlobalCache;
@@ -27,6 +117,12 @@ namespace BasisSet1
 //         index=i->second;
 //     return index;
 // }
+
+//
+// Specialize std::formatter for I1C,I2C
+//
+ 
+
 
 std::string Hit(bool hit)
 {
@@ -49,19 +145,21 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) co
     std::string type;
     if (std::holds_alternative<I1C>(ix))
     {
-        itsLastKey1=key1_t(std::get<I1C>(ix),id);
+        auto i1c=std::get<I1C>(ix);
+        itsLastKey1=key1_t(i1c,id);
         auto i=itsVecs.find(itsLastKey1);
         its1CIterator=i;
         ret=i!=itsVecs.end(); 
-        type="1C ";
+        type=std::format("I1C {:<12}", i1c);
     }
     else if (std::holds_alternative<I2C>(ix))
     {
-        itsLastKey2=key2_t(std::get<I2C>(ix),id);
+        auto i2c=std::get<I2C>(ix);
+        itsLastKey2=key2_t(i2c,id);
         auto i=itsSMats.find(itsLastKey2);
         its2CIterator=i;
         ret=i!=itsSMats.end(); 
-        type="2C ";
+        type=std::format("I2C {:<12}", i2c);
     }
     else
     {
@@ -70,7 +168,7 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) co
         exit(-1);
     }
     if (itsMakeLog)
-        itsLogger << "Ix1 " << type << " cache " << Hit(ret) << " " << id << std::endl;
+        itsLogger << "Ix1 " << type << " cache " << Hit(ret) << " a=" << id << std::endl;
 
     return ret;
 }
@@ -81,23 +179,27 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
     std::string type;
     if (std::holds_alternative<I2x>(ix))
     {
-        itsLastKeyx=keyx_t(std::get<I2x>(ix),ida,idb);
+        auto i2x=std::get<I2x>(ix);
+        itsLastKeyx=keyx_t(i2x,ida,idb);
         its2xIterator=itsMats.find(itsLastKeyx);
         ret=its2xIterator!=itsMats.end(); 
-        type="2Cx";
+        type=std::format("I2x {:<12}", i2x);
     }
     else if (std::holds_alternative<I3C>(ix))
     {
-        itsLastKey3=key3_t(std::get<I3C>(ix),ida,idb);
+        auto i3c=std::get<I3C>(ix);
+        itsLastKey3=key3_t(i3c,ida,idb);
         its3CIterator=itsERI3s.find(itsLastKey3);
         ret=its3CIterator!=itsERI3s.end(); 
-        type="3C ";
+        type=std::format("I3C {:<12}", i3c);
     }
     else if (std::holds_alternative<I4C>(ix))
     {
         itsLastKey4a=ida;
         itsLastKey4b=idb;
-        switch (std::get<I4C>(ix))
+        auto i4c=std::get<I4C>(ix);
+        type=std::format("I4C {:<12}", i4c);
+        switch (i4c)
         {
             case IntegralsCache<T>::I4C::Direct:
             {
@@ -107,7 +209,6 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
                     its4CIterator=ia->second.find(idb);
                     ret=its4CIterator!=ia->second.end(); 
                 }
-                type="Jac";
                 break;
             }
             case IntegralsCache<T>::I4C::Exchange:
@@ -118,7 +219,6 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
                     its4CIterator=ia->second.find(idb);
                     ret=its4CIterator!=ia->second.end(); 
                 }
-                type="Kab";
                 break;
             }
         } //switch
@@ -130,42 +230,44 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
         assert(false);
         exit(-1);
     }
-    assert(type.size()==3);
     if (itsMakeLog)
         itsLogger << "Ix2 " << type << " cache " << Hit(ret) << " a=" << ida << " b=" << idb << std::endl;
 
     return ret;
 }
 
-template <class T> bool IntegralsCache_RAM<T>::Has(I2n,const IBS_ID_t& IBS_id,const Cluster_ID_t& cluster_id) const
+template <class T> bool IntegralsCache_RAM<T>::Has(I2n i2n,const IBS_ID_t& IBS_id,const Cluster_ID_t& cluster_id) const
 {
     itsLastKeyn=keyn_t(IBS_id,cluster_id);
     auto i=itsNMats.find(itsLastKeyn);
     its2CIterator=i;
     bool ret=i!=itsNMats.end();
+    std::string type=std::format("    {:<12}", i2n);
     if (itsMakeLog)
-        itsLogger << "I2n     cache " << Hit(ret) << " " << IBS_id << " cluster=" << cluster_id << std::endl;
+        itsLogger << "I2n " << type << " cache " << Hit(ret) << " a=" << IBS_id << " cluster=" << cluster_id << std::endl;
     return ret; 
 }
 
-template <class T>  bool IntegralsCache_RAM<T>::Has(I1C ix,const IBS_ID_t& id,const Mesh_ID_t& mid) const
+template <class T>  bool IntegralsCache_RAM<T>::Has(I1C i1c,const IBS_ID_t& id,const Mesh_ID_t& mid) const
 {
-    itsLastKey1m=key1m_t(ix,id,mid);
+    itsLastKey1m=key1m_t(i1c,id,mid);
     auto i=itsmVecs.find(itsLastKey1m);
     its1CIterator=i;
     bool ret=i!=itsmVecs.end();
+    std::string type=std::format("    {:<12}", i1c);
     if (itsMakeLog)
-        itsLogger << "1Cm     cache " << Hit(ret) << " " << id << " mesh=" << mid << std::endl;
+        itsLogger << "1Cm " << type << " cache " << Hit(ret) << " a=" << id << " mesh=" << mid << std::endl;
     return ret; 
 }
-template <class T>  bool IntegralsCache_RAM<T>::Has(I2x ix,const IBS_ID_t& a,const IBS_ID_t& b,const Mesh_ID_t& mid) const
+template <class T>  bool IntegralsCache_RAM<T>::Has(I2x i2x,const IBS_ID_t& a,const IBS_ID_t& b,const Mesh_ID_t& mid) const
 {
-    itsLastKey2xm=key2xm_t(ix,a,b,mid);
+    itsLastKey2xm=key2xm_t(i2x,a,b,mid);
     auto i=itsmMats.find(itsLastKey2xm);
     its2xmIterator=i;
     bool ret=i!=itsmMats.end(); 
+    std::string type=std::format("    {:<12}", i2x);
     if (itsMakeLog)
-        itsLogger << "I2xm    cache " << Hit(ret) << " a=" << a << " b=" << b << " mesh=" << mid << std::endl;
+        itsLogger << "2xm " << type << " cache " << Hit(ret) << " a=" << a << " b=" << b << " mesh=" << mid << std::endl;
     return ret;
 }
 

@@ -25,21 +25,16 @@ using json = nlohmann::json;
 namespace BasisSet1::Atom
 {
 
-BasisSet1::Real_BS* Factory(Type type,const nlohmann::json& js,size_t Z)
-{
-    return Factory(type,js,Atom_EC(Z));
-}
-
 BasisSet1::Real_BS* Factory(const nlohmann::json& js,size_t Z)
 {
-    Type type=js["type"].template get<Type>();
-    return Factory(type,js,Z);
+    return Factory(js,Atom_EC(Z));
 }
 
-BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronConfiguration& ec)
+BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
 {
     if (BasisSet1::theGlobalCache==0)
         BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>(true);     
+    Type type=js["type"].template get<Type>();
     size_t N=js["N"];
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();

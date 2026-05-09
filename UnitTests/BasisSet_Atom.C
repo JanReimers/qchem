@@ -146,7 +146,7 @@ public:
         for (auto ir:ec.GetIrreps())
             Insert(new Slater_IBS(es,ir)); 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater},{"N", 3}, {"emin", 0.5}, {"emax", 2.0}};
-        bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Slater,js,ec);
+        bs=BasisSetAtomFactory::Factory(js,ec);
         cout << es << endl << *bs << endl;
     }
     
@@ -282,7 +282,7 @@ public:
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian_IBS(es,ir)); 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Gaussian},{"N", 3}, {"emin", 0.5}, {"emax", 2.0}};
-        bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Gaussian,js,ec);
+        bs=BasisSetAtomFactory::Factory(js,ec);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -392,7 +392,7 @@ public:
             Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
-        bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::BSpline6,js,86);
+        bs=BasisSetAtomFactory::Factory(js,86);
     }
    
 };

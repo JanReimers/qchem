@@ -135,13 +135,14 @@ TEST_F(ElectronConfigurationTests, BasisSets)
     BS_table.format().multi_byte_characters(true);
     BS_table.add_row({"Z","Name","s","p","d","f"});
     
-    nlohmann::json js = {{"N", 10},{"emin", 0.1},{"emax", 5000.0}};
+    nlohmann::json js = {{"N", 10},{"emin", 0.1},{"emax", 5000.0}
+                        ,{"type",BasisSetAtomFactory::Type::Slater}};
     for (size_t Z=1;Z<=92;Z++)
     {
         tabulate::RowStream rs;
         rs << Z;
         rs << pt.GetSymbol(Z);
-        bs_t* bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Slater,js,Z);
+        bs_t* bs=BasisSetAtomFactory::Factory(js,Z);
         size_t l=0;
         std::ostringstream os[4];
         for (auto ibs:bs->Iterate<Real_OIBS>())
