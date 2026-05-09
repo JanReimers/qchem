@@ -98,33 +98,30 @@ Priority 1:
         Fixed:: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
         IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  These should replace
         is const IBS_Evaluator& .
-        Cut over trials
+        Done: Cut over trials
             Fitting:
                 Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
                 2 problems arise:
                 1) asserts using GetID().  
                 2) no member named 'GetNumFunctions' in 'BasisSet1::Orbital_DFT_IBS<double>'
             Charge Density:
-        Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
-        Move large amd small OIBS *and Integrals_XKinetic to Internal?
+        Done: Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
+        Done: Move large amd small OIBS *and Integrals_XKinetic to Internal?
         XKinetic  (const IBS_Evaluator*) switch to reference
         Done: For Atom factory interface
             BasisSet1::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
                                         ^^^^
                 Type should be in json
-        We need to also support es={...} in addition N,emin,emax.  good for unit testing.
+        Done: We need to also support es={...} in addition N,emin,emax.  good for unit testing.
         Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
             -It is a common base for Fit_IBS and Orbtial_IBS
         -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
         -Define a restriced set of exponents and spline grids for all unit tests
             This should help with more cache hits.
         -Get BasisSet1::PG working.
-
-    EOrbital_RKB_IBS -->Orbital_RKB_IBS<double>
-                        -->Orbital_1E_IBS<T>
-                        -->IrrepBasisSet_IDs
-                     -->IrrepBasisSetImp
-                     -->Orbital_RKB_IBS_Imp<double>        
+        -Make RadialID shorter N=3 {.01 ... 50000.0 } 
+            Only if even tempered.
+ 
                 
     -Namespaces
         -Cluster namespace.  
