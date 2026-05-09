@@ -118,10 +118,10 @@ template <size_t K> std::vector<double> BSpline_IBS<K>::MakeLogKnots(size_t Ngri
     for (size_t i = 0; i < Ngrid-1; i++) //Skip 0.0 and rmax
         knots.push_back(rmin * pow(step, i));
     
-    std::cout << Ngrid << " " << l << " " << numberOfZeros << " ";
+    // std::cout << Ngrid << " " << l << " " << numberOfZeros << " ";
     if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
-    if (numberOfZeros<1) numberOfZeros=1;
-        std::cout << numberOfZeros << std::endl;
+    // if (numberOfZeros<1) numberOfZeros=1;
+    //     std::cout << numberOfZeros << std::endl;
 
      for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
     // std::cout << knots << std::endl;

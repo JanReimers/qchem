@@ -39,7 +39,7 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,size_t Z)
 BasisSet1::Real_BS* Factory(Type type, const nlohmann::json& js,const ElectronConfiguration& ec)
 {
     if (BasisSet1::theGlobalCache==0)
-        BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();     
+        BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>(true);     
     size_t N=js["N"];
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();

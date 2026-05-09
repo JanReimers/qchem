@@ -108,7 +108,11 @@ Priority 1:
         Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
         Move large amd small OIBS *and Integrals_XKinetic to Internal?
         XKinetic  (const IBS_Evaluator*) switch to reference
-
+        For Atom factory interface
+            BasisSet1::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
+                                        ^^^^
+                Type should be in json
+        We need to also support es={...} in addition N,emin,emax.  good for unit testing.
 
     EOrbital_RKB_IBS -->Orbital_RKB_IBS<double>
                         -->Orbital_1E_IBS<T>

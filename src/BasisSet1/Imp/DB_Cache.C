@@ -6,6 +6,7 @@ module;
 #include <string>
 #include <variant>
 #include <iostream>
+#include <fstream>
 module qchem.BasisSet1.DB_Cache;
 
 // import qchem.BasisSet.Internal.ERI4;
@@ -27,22 +28,40 @@ namespace BasisSet1
 //     return index;
 // }
 
+std::string Hit(bool hit)
+{
+    return hit ? "Hit " : "Miss";
+}
+std::ostream& operator<<(std::ostream& os,IntegralsCache_Base::IBS_ID_t id)
+{
+    return os << std::get<0>(id) << " " << std::get<1>(id);
+}
+template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog) 
+    : itsMakeLog(makelog) 
+    {
+        if (itsMakeLog)
+            itsLogger=std::ofstream("cache.log");
+    };
+
 template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) const
 {
     bool ret=false;
+    std::string type;
     if (std::holds_alternative<I1C>(ix))
     {
         itsLastKey1=key1_t(std::get<I1C>(ix),id);
         auto i=itsVecs.find(itsLastKey1);
         its1CIterator=i;
         ret=i!=itsVecs.end(); 
+        type="1C ";
     }
     else if (std::holds_alternative<I2C>(ix))
     {
         itsLastKey2=key2_t(std::get<I2C>(ix),id);
         auto i=itsSMats.find(itsLastKey2);
-        its2CnIterator=i;
+        its2CIterator=i;
         ret=i!=itsSMats.end(); 
+        type="2C ";
     }
     else
     {
@@ -50,23 +69,29 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) co
         assert(false);
         exit(-1);
     }
+    if (itsMakeLog)
+        itsLogger << "Ix1 " << type << " cache " << Hit(ret) << " " << id << std::endl;
+
     return ret;
 }
 
 template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,const IBS_ID_t& idb) const
 {
     bool ret=false;
+    std::string type;
     if (std::holds_alternative<I2x>(ix))
     {
         itsLastKeyx=keyx_t(std::get<I2x>(ix),ida,idb);
         its2xIterator=itsMats.find(itsLastKeyx);
         ret=its2xIterator!=itsMats.end(); 
+        type="2Cx";
     }
     else if (std::holds_alternative<I3C>(ix))
     {
         itsLastKey3=key3_t(std::get<I3C>(ix),ida,idb);
         its3CIterator=itsERI3s.find(itsLastKey3);
         ret=its3CIterator!=itsERI3s.end(); 
+        type="3C ";
     }
     else if (std::holds_alternative<I4C>(ix))
     {
@@ -82,6 +107,7 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
                     its4CIterator=ia->second.find(idb);
                     ret=its4CIterator!=ia->second.end(); 
                 }
+                type="Jac";
                 break;
             }
             case IntegralsCache<T>::I4C::Exchange:
@@ -92,6 +118,7 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
                     its4CIterator=ia->second.find(idb);
                     ret=its4CIterator!=ia->second.end(); 
                 }
+                type="Kab";
                 break;
             }
         } //switch
@@ -103,6 +130,10 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
         assert(false);
         exit(-1);
     }
+    assert(type.size()==3);
+    if (itsMakeLog)
+        itsLogger << "Ix2 " << type << " cache " << Hit(ret) << " a=" << ida << " b=" << idb << std::endl;
+
     return ret;
 }
 
@@ -110,8 +141,11 @@ template <class T> bool IntegralsCache_RAM<T>::Has(I2n,const IBS_ID_t& IBS_id,co
 {
     itsLastKeyn=keyn_t(IBS_id,cluster_id);
     auto i=itsNMats.find(itsLastKeyn);
-    its2CnIterator=i;
-    return i!=itsNMats.end(); 
+    its2CIterator=i;
+    bool ret=i!=itsNMats.end();
+    if (itsMakeLog)
+        itsLogger << "I2n     cache " << Hit(ret) << " " << IBS_id << " cluster=" << cluster_id << std::endl;
+    return ret; 
 }
 
 template <class T>  bool IntegralsCache_RAM<T>::Has(I1C ix,const IBS_ID_t& id,const Mesh_ID_t& mid) const
@@ -119,14 +153,20 @@ template <class T>  bool IntegralsCache_RAM<T>::Has(I1C ix,const IBS_ID_t& id,co
     itsLastKey1m=key1m_t(ix,id,mid);
     auto i=itsmVecs.find(itsLastKey1m);
     its1CIterator=i;
-    return i!=itsmVecs.end(); 
+    bool ret=i!=itsmVecs.end();
+    if (itsMakeLog)
+        itsLogger << "1Cm     cache " << Hit(ret) << " " << id << " mesh=" << mid << std::endl;
+    return ret; 
 }
 template <class T>  bool IntegralsCache_RAM<T>::Has(I2x ix,const IBS_ID_t& a,const IBS_ID_t& b,const Mesh_ID_t& mid) const
 {
     itsLastKey2xm=key2xm_t(ix,a,b,mid);
     auto i=itsmMats.find(itsLastKey2xm);
     its2xmIterator=i;
-    return i!=itsmMats.end(); 
+    bool ret=i!=itsmMats.end(); 
+    if (itsMakeLog)
+        itsLogger << "I2xm    cache " << Hit(ret) << " a=" << a << " b=" << b << " mesh=" << mid << std::endl;
+    return ret;
 }
 
 
@@ -140,10 +180,10 @@ template <class T>  const rvec_t& IntegralsCache_RAM<T>::GetVec() const
 }
 template <class T>  const smat_t<T>& IntegralsCache_RAM<T>::GetSMat() const
 {
-    if (std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator))
-        return std::get<typename map2_t::const_iterator>(its2CnIterator)->second;
+    if (std::holds_alternative<typename map2_t::const_iterator>(its2CIterator))
+        return std::get<typename map2_t::const_iterator>(its2CIterator)->second;
     else //if (std::holds_alternative<typename mapn_t::const_iterator>(its2CnIterator))
-        return std::get<typename mapn_t::const_iterator>(its2CnIterator)->second;
+        return std::get<typename mapn_t::const_iterator>(its2CIterator)->second;
 }
 template <class T>  const mat_t<T>& IntegralsCache_RAM<T>::GetMat() const
 {
@@ -180,18 +220,18 @@ template <class T>  const rvec_t&  IntegralsCache_RAM<T>::Set(const rvec_t& v)
 
 template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Set(const smat_t<T>& m)
 {
-    if (std::holds_alternative<typename map2_t::const_iterator>(its2CnIterator))
+    if (std::holds_alternative<typename map2_t::const_iterator>(its2CIterator))
     {
         const auto [iterator, success]=itsSMats.insert({itsLastKey2,m});  //Non-nuclear
         assert(success);
-        its2CnIterator=iterator;
+        its2CIterator=iterator;
         return iterator->second; 
     }
     else //if (std::holds_alternative<typename mapn_t::const_iterator>(its2CnIterator))
     {
         const auto [iterator, success]=itsNMats.insert({itsLastKeyn,m}); //Nuclear
         assert(success);
-        its2CnIterator=iterator;
+        its2CIterator=iterator;
         return iterator->second;
     }
     

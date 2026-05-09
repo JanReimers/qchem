@@ -1,5 +1,6 @@
 // File: UnitTests/BasisSet_Atom.C  Unit test the Atom IBS Evaluators
 #include "gtest/gtest.h"
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <cmath>
 #include <blaze/Math.h>
@@ -13,19 +14,20 @@ import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
 import qchem.BasisSet.Atom.BSpline.NR.BS;
+import qchem.BasisSet.Atom.Slater.NR.BS;
+import qchem.BasisSet.Atom.Gaussian.NR.BS;
+
+import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import Common.Constants;
-import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet;
-import qchem.BasisSet.Atom.Slater.NR.BS;
-import qchem.BasisSet.Atom.Gaussian.NR.BS;
-import qchem.Orbital_HF_IBS;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
+import qchem.Hamiltonian.Types;
 
-
+using qchem::Hamiltonian::ohfbs_t;
+using qchem::Hamiltonian::obs_t;
 
 //----------------------------------------------------------------------------------------
 //
@@ -143,7 +145,8 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater_IBS(es,ir)); 
-        bs=new AtomBS::Slater::BasisSet(es,ec);
+        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater},{"N", 3}, {"emin", 0.5}, {"emax", 2.0}};
+        bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Slater,js,ec);
         cout << es << endl << *bs << endl;
     }
     
@@ -232,10 +235,10 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
 TEST_F(BasisSet_SL,HF_ERIs)
 {
     auto a=evals.begin();
-    for (auto aibs:bs->Iterate<Orbital_HF_IBS<double>>())
+    for (auto aibs:bs->Iterate<ohfbs_t>())
     {
         auto c=evals.begin();
-        for (auto cibs:bs->Iterate<Orbital_HF_IBS<double>>())
+        for (auto cibs:bs->Iterate<ohfbs_t>())
         {
             ERI4 J1=bs_eval->Direct(*a,*c);
             ERI4 J2=aibs->Direct(*cibs);
@@ -253,7 +256,7 @@ std::string angularIDs[]={"0 {}","1 {}","2 {}","3 {}"};
 TEST_F(BasisSet_SL,IDs)
 {
     size_t index=0;
-    for (auto ibs:bs->Iterate<Real_IBS>())
+    for (auto ibs:bs->Iterate<obs_t>())
     {
         EXPECT_EQ(ibs->Name(),"Spherical Slater ");
         EXPECT_EQ(ibs->RadialID(),"Spherical Slater {0.5 1 2 }");
@@ -278,7 +281,8 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian_IBS(es,ir)); 
-        bs=new AtomBS::Gaussian::BasisSet(es,ec);
+        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Gaussian},{"N", 3}, {"emin", 0.5}, {"emax", 2.0}};
+        bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::Gaussian,js,ec);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -345,10 +349,10 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
 TEST_F(BasisSet_SG,HF_ERIs)
 {
     auto a=evals.begin();
-    for (auto aibs:bs->Iterate<Orbital_HF_IBS<double>>())
+    for (auto aibs:bs->Iterate<ohfbs_t>())
     {
         auto c=evals.begin();
-        for (auto cibs:bs->Iterate<Orbital_HF_IBS<double>>())
+        for (auto cibs:bs->Iterate<ohfbs_t>())
         {
             ERI4 J1=bs_eval->Direct(*a,*c);
             ERI4 J2=aibs->Direct(*cibs);
@@ -365,7 +369,7 @@ TEST_F(BasisSet_SG,HF_ERIs)
 TEST_F(BasisSet_SG,IDs)
 {
     size_t index=0;
-    for (auto ibs:bs->Iterate<Real_IBS>())
+    for (auto ibs:bs->Iterate<obs_t>())
     {
         EXPECT_EQ(ibs->Name(),"Spherical Gaussian ");
         EXPECT_EQ(ibs->RadialID(),"Spherical Gaussian {0.5 1 2 }");
@@ -387,7 +391,8 @@ public:
         for (size_t l=0;l<=3;l++)
             Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
-        bs=new AtomBS::BSpline::BasisSet<6>(5,0.1,10.0,Atom_EC(86));
+        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
+        bs=BasisSetAtomFactory::Factory(BasisSetAtomFactory::Type::BSpline6,js,86);
     }
    
 };
@@ -407,9 +412,9 @@ std::string BSradialIDs[]={
 TEST_F(BasisSet_BS,IDs)
 {
     size_t index=0;
-    for (auto ibs:bs->Iterate<Real_IBS>())
+    for (auto ibs:bs->Iterate<obs_t>())
     {
-        cout << "index=" << index << endl;
+        cout << "index=" << index << " ibs=" << *ibs << endl;
         EXPECT_EQ(ibs->Name(),"BSpline<6> ");
         EXPECT_EQ(ibs->RadialID(),BSradialIDs[index]);
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);

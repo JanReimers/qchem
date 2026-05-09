@@ -29,7 +29,7 @@ using RKB_OIBS=BasisSet1::Orbital_RKB_IBS_Imp<double>;
 using RKBL_OIBS=BasisSet1::Orbital_RKBL_IBS<double>;
 using RKBS_OIBS=BasisSet1::Orbital_RKBS_IBS<double>;
 #endif
-
+import qchem.BasisSet1.DB_Cache;
 
 using std::cout;
 using std::endl;
@@ -118,7 +118,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         rsmat_t SLnum = mintegrator->Overlap(*GetLarge(oi));
         rsmat_t SSnum = mintegrator->Overlap(*GetSmall(oi));
         rsmat_t Snum=merge_diag(SLnum,SSnum);
-        cout << Snum << S << endl;
+        // cout << Snum << S << endl;
 
         EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-14);
     }

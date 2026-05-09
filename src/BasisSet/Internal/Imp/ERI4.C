@@ -30,7 +30,11 @@ ERI4 ERI4::Transpose() const
 bool operator==(const ERI4& a, const ERI4& b)
 {
     static double eps=5e-16;
-    if (a.size()!=b.size()) return false;
+    if (a.size()!=b.size()) 
+    {
+        std::cout << "ERI4 size mis match a.size()=" << a.size() << ", b.size()=" << b.size() << std::endl;
+        return false;
+    }
     for (size_t i=0;i<a.Nab();i++)
         for (size_t j=0;j<a.Nab();j++)
             if (norm(a(i,j)-b(i,j))>eps) 

@@ -58,7 +58,7 @@ public:
         return itsRKBL->Gradient(r) + itsRKBS->Gradient(r);
     }
 
-    virtual std::string  RadialID() const {return itsRKBL->RadialID();}
+    virtual std::string  RadialID() const {return itsRKBL->RadialID()+itsRKBS->RadialID();}
     virtual std::string AngularID() const {return itsRKBL->AngularID();}
     virtual std::string Name     () const {return itsRKBL->Name();}
 protected:

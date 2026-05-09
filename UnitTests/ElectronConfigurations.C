@@ -87,7 +87,7 @@ TEST_F(ElectronConfigurationTests, ElectronConfigurations)
 
     for (size_t Z=1;Z<=92;Z++)
     {
-        cout << "Z=" << Z << endl;
+        // cout << "Z=" << Z << endl;
         Atom_EC ec(Z);
        
         tabulate::RowStream rs;

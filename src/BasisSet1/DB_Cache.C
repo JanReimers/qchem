@@ -5,6 +5,7 @@ module;
 #include <vector>
 #include <string>
 #include <variant>
+#include <fstream>
 export module qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
@@ -81,6 +82,8 @@ public:
     using Cluster_ID_t=std::string;
     using Mesh_ID_t=std::string;
 
+    
+
     virtual bool Has(Ix1,const IBS_ID_t&                    ) const=0;
     virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&    ) const=0;
     virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const=0;
@@ -127,6 +130,7 @@ template  <class T> struct IntegralsCache_RAM
     , public virtual IntegralsCache_Base //Get all the typedefs
 {
 public:
+    IntegralsCache_RAM(bool makelog=false);
     virtual bool Has(Ix1,const IBS_ID_t&) const;
     virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const;
     virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const;
@@ -168,7 +172,7 @@ private:
     using map2xm_t=std::map<key2xm_t ,rmat_t>;
 
     mutable std::variant<typename map1_t::const_iterator,typename map1m_t::const_iterator> its1CIterator;
-    mutable std::variant<typename map2_t::const_iterator,typename mapn_t::const_iterator> its2CnIterator;
+    mutable std::variant<typename map2_t::const_iterator,typename mapn_t::const_iterator> its2CIterator;
     mutable mapx_t::const_iterator its2xIterator;
     mutable map3_t::const_iterator its3CIterator;
     mutable std::map<IBS_ID_t,ERI4>::const_iterator its4CIterator; //Iterator into the inner map.
@@ -195,7 +199,8 @@ private:
 
     // std::map<std::string,Cache41*> itsCaches; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
 
-
+    bool itsMakeLog;
+    mutable std::ofstream itsLogger;
 };
 
 
