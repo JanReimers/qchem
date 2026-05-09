@@ -47,7 +47,7 @@ public:
 };
 
 //
-//  1E orbital for atoms.  Use mixins to get he integral evaluations.
+//  1E orbital for atoms.  Use mixins to get the integral evaluations.
 //
 class Orbital_1E_IBS
     : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
@@ -59,7 +59,7 @@ public:
     virtual std::ostream&  Write(std::ostream& os) const
     {
         os << "Orbital IBS " << Name() << " ";
-        BasisSet1::IrrepBasisSet<double>::Write(os);
+        os << "Symmetry=" << GetSymmetry() << " ";
         GetEvaluator()->Write(os);
         return os;
     }
@@ -123,6 +123,7 @@ public:
     {
         return GetEvaluator()->XKinetic(dynamic_cast<const ::IBS_Evaluator*>(rkbs));
     }
+    
 };
 
 class Orbital_RKBS_IBS

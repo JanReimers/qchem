@@ -223,7 +223,7 @@ rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const
 
 std::ostream&  Gaussian_IBS::Write(std::ostream& os) const
 {
-    return os << " with " << size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
+    return os << " with N=" << es.size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
 }
 
 

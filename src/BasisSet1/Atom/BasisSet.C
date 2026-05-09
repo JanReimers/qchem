@@ -46,7 +46,6 @@ template <class Evaluator> class Fit_IBS
     virtual std::ostream&  Write(std::ostream& os) const
     {
         os << "Atom fit IBS ";
-        BasisSet1::IrrepBasisSet<double>::Write(os);
         Evaluator::Write(os);
         return os;
     }
@@ -96,6 +95,13 @@ public:
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
+
+    virtual std::ostream& Write(std::ostream& os) const
+    {
+        os << " Large=";
+        Evaluator::Write(os);
+        return os;
+    }
 };
 
 template <class Evaluator> class EOrbital_RKBS_IBS 
@@ -112,6 +118,12 @@ public:
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
+    virtual std::ostream& Write(std::ostream& os) const
+    {
+        os << " Small=";
+        Evaluator::Write(os);
+        return os;
+    }
 };
 
 template <class LEvaluator, class SEvaluator> class EOrbital_RKB_IBS 

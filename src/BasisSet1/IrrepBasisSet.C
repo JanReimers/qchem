@@ -63,10 +63,6 @@ public:
     virtual Irrep_QNs GetIrrep(const Spin& s) const=0;
     virtual size_t GetNumFunctions() const=0;
     virtual size_t GetVectorSize() const {return GetNumFunctions();}
-    virtual std::ostream&  Write(std::ostream& os) const
-    {
-        return os << "Symmetry=" << GetSymmetry() << " ";
-    }
 };
 
 typedef IrrepBasisSet<double>    Real_IBS;

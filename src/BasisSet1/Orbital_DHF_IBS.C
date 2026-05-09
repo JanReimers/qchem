@@ -20,7 +20,6 @@ public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
     virtual const smat_t<T>&     RestMass() const;   
     virtual       smat_t<T>  MakeRestMass() const=0;   
-
 };
 
 typedef Orbital_RKB_IBS<double> Real_ORKB;

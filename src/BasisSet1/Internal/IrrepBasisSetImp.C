@@ -21,6 +21,7 @@ public:
         return Irrep_QNs(s,itsSymmetry);
     }
     
+    
 private:
     Irrep_QNs::sym_t itsSymmetry;
 };

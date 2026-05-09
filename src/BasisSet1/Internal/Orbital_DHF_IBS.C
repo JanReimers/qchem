@@ -1,6 +1,7 @@
 // File: BasisSet1/Orbital_DHF_IBS.C Interface for a Dirac-Hartree-Fock (HF) Orbital Irrep Basis Set.
 module;
 #include <string>
+#include <iostream>
 #include "forward.H"
 export module qchem.BasisSet1.Internal.Orbital_DHF_IBS;
 export import qchem.BasisSet1.IrrepBasisSet;
@@ -61,6 +62,12 @@ public:
     virtual std::string  RadialID() const {return itsRKBL->RadialID()+itsRKBS->RadialID();}
     virtual std::string AngularID() const {return itsRKBL->AngularID();}
     virtual std::string Name     () const {return itsRKBL->Name();}
+
+    virtual std::ostream& Write(std::ostream& os) const
+    {
+        return os << "Orbital RKB IBS " << *itsRKBL << std::endl;
+    }
+
 protected:
     friend class ::DiracIntegralTests; //Unit tests can use these
     Orbital_RKB_IBS_Imp(Orbital_RKBL_IBS<T>* rkbl,Orbital_RKBS_IBS<T>* rkbs);
