@@ -66,6 +66,11 @@ public:
     , IrrepBasisSetImp(yl)
     , Evaluator(N,rmin,rmax,yl)
     {};
+    Orbital_IBS(BS_Evaluator* bse,const rvec_t& es, const Irrep_QNs::sym_t& yl)
+    : Orbital_HF_IBS(bse)
+    , IrrepBasisSetImp(yl)
+    , Evaluator(es,yl)
+    {};
 
     virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
     {
@@ -152,12 +157,21 @@ template <class Evaluator> class BasisSet
 {
     using oibs_t=Orbital_IBS<typename Evaluator::IBS_Evaluator_t>; //Corresponding Orbital IBS type
 public:
-    BasisSet(size_t N, double rmin, double rmax, const ElectronConfiguration& ec)
+    BasisSet(size_t N, double remin, double remax, const ElectronConfiguration& ec)
     {
         const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
         size_t LMax=aec.GetLMax();
         for (auto ir:aec.GetIrreps())
-            Insert(new oibs_t(this,N,rmin,rmax,ir));  
+            Insert(new oibs_t(this,N,remin,remax,ir));  
+     
+        Evaluator::BuildCache(LMax);
+    }
+    BasisSet(const rvec_t& es, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(this,es,ir));  
      
         Evaluator::BuildCache(LMax);
     }

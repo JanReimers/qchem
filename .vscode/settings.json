@@ -109,5 +109,6 @@
         "ranges": "cpp",
         "shared_mutex": "cpp"
     },
-    "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}"
+    "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
+    "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
 }

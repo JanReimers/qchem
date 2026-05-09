@@ -145,7 +145,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater_IBS(es,ir)); 
-        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater},{"N", 3}, {"emin", 0.5}, {"emax", 2.0}};
+        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater},{"exponents", {0.5,1.0,2.0}}};
         bs=BasisSetAtomFactory::Factory(js,ec);
         cout << es << endl << *bs << endl;
     }
@@ -281,7 +281,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian_IBS(es,ir)); 
-        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Gaussian},{"N", 3}, {"emin", 0.5}, {"emax", 2.0}};
+        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Gaussian},{"exponents", {0.5,1.0,2.0}}};
         bs=BasisSetAtomFactory::Factory(js,ec);
     }
     static double R0(double a, double b, int la, int lb);

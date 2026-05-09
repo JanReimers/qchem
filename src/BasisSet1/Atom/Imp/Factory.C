@@ -35,7 +35,6 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
     if (BasisSet1::theGlobalCache==0)
         BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>(true);     
     Type type=js["type"].template get<Type>();
-    size_t N=js["N"];
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
     BasisSet1::Real_BS* bs=0;
@@ -43,18 +42,40 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
     {
     case Type::Slater:
     {
-        double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new BasisSet<Slater_BS>(N,emin,emax,ec);
+        if (js.contains("exponents"))
+        {
+            auto es1=js["exponents"].template get<std::vector<double>>();
+            rvec_t es(es1.size(),&es1[0]);
+            bs=new BasisSet<Slater_BS>(es,ec);
+
+        }
+        else
+        {
+            size_t N=js["N"];
+            double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
+            bs=new BasisSet<Slater_BS>(N,emin,emax,ec);
+        }
         break;
     }
     case Type::Gaussian:
     {
-        double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new BasisSet<Gaussian_BS>(N,emin,emax,ec);
+        if (js.contains("exponents"))
+        {
+            auto es1=js["exponents"].template get<std::vector<double>>();
+            rvec_t es(es1.size(),&es1[0]);
+            bs=new BasisSet<Gaussian_BS>(es,ec);
+        }
+        else
+        {
+            size_t N=js["N"];
+            double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
+            bs=new BasisSet<Gaussian_BS>(N,emin,emax,ec);
+        }
         break;
     }
     case Type::BSpline6:
     {
+        size_t N=js["N"];
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
         bs=new BasisSet<BSpline_BS<6>>(N,rmin,rmax,ec);
         break;   
@@ -86,12 +107,14 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
 
     case Type::Slater_RKB:
     {
+        size_t N=js["N"];
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
         bs=new BasisSet_RKB<Slater_IBS,Slater_RKBS_IBS>(N,emin,emax,ec);
         break;
     }
     case Type::Gaussian_RKB:
     {
+        size_t N=js["N"];
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
         bs=new BasisSet_RKB<Gaussian_IBS,Gaussian_RKBS_IBS>(N,emin,emax,ec);
         break;
