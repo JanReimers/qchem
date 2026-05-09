@@ -113,6 +113,11 @@ Priority 1:
                                         ^^^^
                 Type should be in json
         We need to also support es={...} in addition N,emin,emax.  good for unit testing.
+        Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
+            -It is a common base for Fit_IBS and Orbtial_IBS
+        -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
+        -Define a restriced set of exponents and spline grids for all unit tests
+            This should help with more cache hits.
 
     EOrbital_RKB_IBS -->Orbital_RKB_IBS<double>
                         -->Orbital_1E_IBS<T>
