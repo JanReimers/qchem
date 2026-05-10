@@ -28,8 +28,8 @@ namespace BasisSet1::Molecule::PolarizedGaussian
 std::string PGData::RadialID () const
 {
     std::ostringstream os;
-    os << "{ ";
-    for (auto r:radials) os << r << " ";
+    os << " PG { ";
+    for (auto r:radials) os << *r << " ";
     os << "}";
     return os.str();
 }
