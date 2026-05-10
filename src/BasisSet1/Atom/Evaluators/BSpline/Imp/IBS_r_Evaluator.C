@@ -311,4 +311,4 @@ template <size_t K> std::ostream&  BSpline_r_IBS<K>::Write(std::ostream& os) con
 
 
 #define INSTANCEk(k) template class BSpline_r_IBS<k>;
-#include "../../Instance.hpp"
+#include "../Instance.hpp"

@@ -54,4 +54,4 @@ template <size_t K> double BSpline_BS<K>::loop_4_exchange(size_t id, size_t la, 
 }
 
 #define INSTANCEk(k) template class BSpline_BS<k>;
-#include "../../Instance.hpp"
+#include "../Instance.hpp"
