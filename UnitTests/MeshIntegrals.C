@@ -4,13 +4,15 @@
 #include <iomanip>
 #include <blaze/Math.h>
 import qchem.LAParams;
-import qchem.BasisSet;
-import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet1;
+import qchem.BasisSet1.Molecule.PolarizedGaussian;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 
+using namespace BasisSet1::Molecule;
+using BasisSet1::Real_OIBS;
 
 using std::cout;
 using std::endl;

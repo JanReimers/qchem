@@ -13,9 +13,6 @@ import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import BasisSet.Atom.Gaussian_BS;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;
-import qchem.BasisSet.Atom.BSpline.NR.BS;
-import qchem.BasisSet.Atom.Slater.NR.BS;
-import qchem.BasisSet.Atom.Gaussian.NR.BS;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;

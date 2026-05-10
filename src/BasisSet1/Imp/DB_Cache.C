@@ -135,7 +135,7 @@ std::ostream& operator<<(std::ostream& os,IntegralsCache_Base::IBS_ID_t id)
 template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog) 
     : itsMakeLog(makelog) 
     {
-        if (itsMakeLog)
+        if  (itsMakeLog)
             itsLogger=std::ofstream("cache.log");
     };
 
@@ -167,7 +167,7 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) co
         assert(false);
         exit(-1);
     }
-    if (itsMakeLog)
+    if  (itsMakeLog && !ret)
         itsLogger << "Ix1 " << type << " cache " << Hit(ret) << " a=" << id << std::endl;
 
     return ret;
@@ -230,7 +230,7 @@ template <class T> bool IntegralsCache_RAM<T>::Has(Ix2 ix,const IBS_ID_t& ida,co
         assert(false);
         exit(-1);
     }
-    if (itsMakeLog)
+    if  (itsMakeLog && !ret)
         itsLogger << "Ix2 " << type << " cache " << Hit(ret) << " a=" << ida << " b=" << idb << std::endl;
 
     return ret;
@@ -243,7 +243,7 @@ template <class T> bool IntegralsCache_RAM<T>::Has(I2n i2n,const IBS_ID_t& IBS_i
     its2CIterator=i;
     bool ret=i!=itsNMats.end();
     std::string type=std::format("    {:<12}", i2n);
-    if (itsMakeLog)
+    if  (itsMakeLog && !ret)
         itsLogger << "I2n " << type << " cache " << Hit(ret) << " a=" << IBS_id << " cluster=" << cluster_id << std::endl;
     return ret; 
 }
@@ -255,7 +255,7 @@ template <class T>  bool IntegralsCache_RAM<T>::Has(I1C i1c,const IBS_ID_t& id,c
     its1CIterator=i;
     bool ret=i!=itsmVecs.end();
     std::string type=std::format("    {:<12}", i1c);
-    if (itsMakeLog)
+    if  (itsMakeLog && !ret)
         itsLogger << "1Cm " << type << " cache " << Hit(ret) << " a=" << id << " mesh=" << mid << std::endl;
     return ret; 
 }
@@ -266,7 +266,7 @@ template <class T>  bool IntegralsCache_RAM<T>::Has(I2x i2x,const IBS_ID_t& a,co
     its2xmIterator=i;
     bool ret=i!=itsmMats.end(); 
     std::string type=std::format("    {:<12}", i2x);
-    if (itsMakeLog)
+    if  (itsMakeLog && !ret)
         itsLogger << "2xm " << type << " cache " << Hit(ret) << " a=" << a << " b=" << b << " mesh=" << mid << std::endl;
     return ret;
 }

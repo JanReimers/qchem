@@ -9,7 +9,5 @@ module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Internal.IntegralEnums;
-import qchem.Fit_IBS;
-import qchem.IrrepBasisSet;
 
 

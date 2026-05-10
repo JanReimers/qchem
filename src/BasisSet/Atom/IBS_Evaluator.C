@@ -8,8 +8,9 @@ module;
 export module qchem.BasisSet.Atom.IBS_Evaluator;
 export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet.Internal.ERI3;
-export import qchem.Fit_IBS;
-export import qchem.Orbital_DHF_IBS;
+// export import qchem.Fit_IBS;
+// export import qchem.Orbital_DHF_IBS;
+export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 import qchem.Symmetry.Ylm;
 
@@ -46,26 +47,27 @@ public:
     virtual rsmat_t Repulsion () const=0;
     virtual  rvec_t Charge    () const=0;
     virtual  rvec_t Norm      () const=0;
-    virtual rmat_t XRepulsion(const Fit_IBS& b) const
-    {
-        return XRepulsion(dynamic_cast<const IBS_Evaluator&>(b));
-    }
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const=0;
-
-    virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*b) const
-    {
-        return XKinetic(dynamic_cast<const IBS_Evaluator*>(b));
-    }
     virtual rmat_t XKinetic(const IBS_Evaluator*) const=0;
 
-    virtual dERI3  Overlap  (const Fit_IBS& c) const //3 center
-    {
-        return Overlap(dynamic_cast<const IBS_Evaluator&>(c));
-    }
-    virtual dERI3  Repulsion(const Fit_IBS& c) const //3 center
-    {
-        return Repulsion(dynamic_cast<const IBS_Evaluator&>(c));
-    }
+    // virtual rmat_t XRepulsion(const Fit_IBS& b) const
+    // {
+    //     return XRepulsion(dynamic_cast<const IBS_Evaluator&>(b));
+    // }
+
+    // virtual rmat_t XKinetic  (const Orbital_RKBS_IBS<double>*b) const
+    // {
+    //     return XKinetic(dynamic_cast<const IBS_Evaluator*>(b));
+    // }
+
+    // virtual dERI3  Overlap  (const Fit_IBS& c) const //3 center
+    // {
+    //     return Overlap(dynamic_cast<const IBS_Evaluator&>(c));
+    // }
+    // virtual dERI3  Repulsion(const Fit_IBS& c) const //3 center
+    // {
+    //     return Repulsion(dynamic_cast<const IBS_Evaluator&>(c));
+    // }
     virtual dERI3  Overlap  (const IBS_Evaluator&) const=0; //3 center
     virtual dERI3  Repulsion(const IBS_Evaluator&) const=0; //3 center
     virtual std::string RadialID () const=0;

@@ -3,10 +3,10 @@ target_sources(qcAtom_BS PRIVATE
   Imp/Rk.C
   NR/Imp/BS_Evaluator.C
   NR/Imp/IBS_Evaluator.C
-  NR/Imp/Gaussian_BS.C
-  NR/Imp/Gaussian_IBS.C
-  RKB/Imp/Gaussian_BS.C
-  RKB/Imp/Gaussian_IBS.C
+  # NR/Imp/Gaussian_BS.C
+  # NR/Imp/Gaussian_IBS.C
+  # RKB/Imp/Gaussian_BS.C
+  # RKB/Imp/Gaussian_IBS.C
   RKB/Imp/IBS_Evaluator.C
 )
 
@@ -16,8 +16,8 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Rk.C
   NR/BS_Evaluator.C
   NR/IBS_Evaluator.C
-  NR/Gaussian_BS.C
-  RKB/Gaussian_BS.C
+  # NR/Gaussian_BS.C
+  # RKB/Gaussian_BS.C
   RKB/IBS_Evaluator.C
   
 )

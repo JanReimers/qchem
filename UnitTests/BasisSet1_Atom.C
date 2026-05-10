@@ -13,9 +13,9 @@ import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 
 // Legacy BS imports
-import qchem.BasisSet.Atom.Factory;
-import qchem.Orbital_HF_IBS;
-import qchem.Orbital_DFT_IBS;
+// import qchem.BasisSet1.Atom.Factory;
+// import qchem.Orbital_HF_IBS;
+// import qchem.Orbital_DFT_IBS;
 
 
 class DBCach1Tests : public ::testing::Test
@@ -27,8 +27,6 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
     {
-        // if (BasisSet1::theGlobalCache=0)
-        //     BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();       
     }
     ~DBCach1Tests()
     {
@@ -37,99 +35,73 @@ public:
         delete cl_helium;
         delete bs1;
         delete bs2;
-        // delete BasisSet1::theGlobalCache;
     }
-    void Init(nlohmann::json js,BasisSetAtom::Type legacy_type)
+    void Init(nlohmann::json js)
     {
         bs1=BasisSet1::Atom::Factory(js,Z);
         bs2=BasisSet1::Atom::Factory(js,Z);
-        js["type"]=legacy_type;
-        legacy_bs=BasisSetAtom::Factory(js,Z);
     }
-    void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}},BasisSetAtom::Type::BSpline6);}
-    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian},{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Gaussian);}
-    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater  },{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Slater);}
+    void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}});}
+    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
+    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
 
     void TestOverlap() const
     {
         using OIBS=BasisSet1::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Real_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Overlap();
             auto& S2=(*ibs2)->Overlap();
-            auto& legacyS=(*legacy_ibs)->Overlap();
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(&S1,&S2);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     void TestKinetic() const
     {
         using OIBS=BasisSet1::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Real_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Kinetic();
             auto& S2=(*ibs2)->Kinetic();
-            auto& legacyS=(*legacy_ibs)->Kinetic();
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(&S1,&S2);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     void TestNuclear() const
     {
         using OIBS=BasisSet1::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Real_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Nuclear(cl_hydrogen);
             auto& S2=(*ibs2)->Nuclear(cl_hydrogen);
             auto& S3=(*ibs2)->Nuclear(cl_hydrogen_100);
             auto& S4=(*ibs2)->Nuclear(cl_helium);
-            auto& legacyS=(*legacy_ibs)->Nuclear(cl_hydrogen);
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(S1,S3);
             EXPECT_NE(S1,S4);
             EXPECT_EQ(&S1,&S2);
             EXPECT_NE(&S1,&S3);
             EXPECT_NE(&S1,&S4);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     void TestOverlap3C(double eps) const
     {
         using BasisSet1::Real_DFT_OIBS;
         auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Orbital_DFT_IBS<double>>().begin();
         for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
         {
             auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen);
-            auto legacy_ff=(*legacy_ibs)->CreateCDFitBasisSet(legacy_bs,cl_hydrogen);
-            // std::cout << "ibs1=" << *ibs1;
-            // std::cout << "legacy_ibs=" << **legacy_ibs;
-            // std::cout << "ff=" << *ff << std::endl;
-            // std::cout << "legacy_ff=" << *legacy_ff;
             const ERI3<double>& E1=ibs1->Overlap3C(*ff);
             const ERI3<double>& E2=(*ibs2)->Overlap3C(*ff);
-            const ERI3<double>& E3=(*legacy_ibs)->Overlap3C(*legacy_ff);
             EXPECT_EQ(E1,E2);
             EXPECT_EQ(&E1,&E2);
-            EXPECT_LT(fnorm(E1,E3),eps);
-            EXPECT_LT(relative_fnorm(E1,E3),eps);
-            // EXPECT_TRUE(J1==J3);
             ++ibs2;
-            ++legacy_ibs;
         }
 
     }
@@ -137,25 +109,14 @@ public:
         {
             using BasisSet1::Real_DFT_OIBS;
             auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
-            auto legacy_ibs=legacy_bs->Iterate<Orbital_DFT_IBS<double>>().begin();
             for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
             {
                 auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen);
-                auto legacy_ff=(*legacy_ibs)->CreateCDFitBasisSet(legacy_bs,cl_hydrogen);
-                // std::cout << "ibs1=" << *ibs1 << std::endl;
-                // std::cout << "legacy_ibs=" << **legacy_ibs << std::endl;
-                // std::cout << "ff=" << *ff << std::endl;
-                // std::cout << "legacy_ff=" << *legacy_ff << std::endl;
                 const ERI3<double>& E1=ibs1->Repulsion3C(*ff);
                 const ERI3<double>& E2=(*ibs2)->Repulsion3C(*ff);
-                const ERI3<double>& E3=(*legacy_ibs)->Repulsion3C(*legacy_ff);
                 EXPECT_EQ(E1,E2);
                 EXPECT_EQ(&E1,&E2);
-                EXPECT_LT(fnorm(E1,E3),eps);
-                EXPECT_LT(relative_fnorm(E1,E3),eps);
-                // EXPECT_TRUE(J1==J3);
                 ++ibs2;
-                ++legacy_ibs;
             }
 
         }
@@ -163,26 +124,18 @@ public:
         {
             using BasisSet1::Real_HF_OIBS;
             auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-            auto legacy_ibs1=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
             for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
             {
                 auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-                auto legacy_ibs2=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
                 for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
                 {
                     const ERI4& J1=ibs11->Direct(*ibs12);
                     const ERI4& J2=(*ibs21)->Direct(**ibs22);
-                    const ERI4& J3=(*legacy_ibs1)->Direct(**legacy_ibs2);
                     EXPECT_EQ(J1,J2);
                     EXPECT_EQ(&J1,&J2);
-                    EXPECT_LT(fnorm(J1,J3),eps);
-                    EXPECT_LT(relative_fnorm(J1,J3),eps);
-                    // EXPECT_TRUE(J1==J3);
                     ++ibs22;
-                    ++legacy_ibs2;
                 }
                 ++ibs21;
-                ++legacy_ibs1;
             }
 
         }
@@ -191,32 +144,23 @@ public:
         
         using BasisSet1::Real_HF_OIBS;
         auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-        auto legacy_ibs1=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
         for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
         {
             auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-            auto legacy_ibs2=legacy_bs->Iterate<Orbital_HF_IBS<double>>().begin();
             for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
             {
                 const ERI4& K1=ibs11->Exchange(*ibs12);
                 const ERI4& K2=(*ibs21)->Exchange(**ibs22);
-                const ERI4& K3=(*legacy_ibs1)->Exchange(**legacy_ibs2);
                 EXPECT_EQ(K1,K2);
                 EXPECT_EQ(&K1,&K2);
-                EXPECT_LT(fnorm(K1,K3),eps);
-                EXPECT_LT(relative_fnorm(K1,K3),eps);
-                // EXPECT_EQ(K1,K3);
                 ++ibs22;
-                ++legacy_ibs2;
             }
             ++ibs21;
-            ++legacy_ibs1;
         }
     }
     size_t N,Z;
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
     BasisSet1::Real_BS *bs1,*bs2;
-    BasisSet* legacy_bs;
 };
 
 

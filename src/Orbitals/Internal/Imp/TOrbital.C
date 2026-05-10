@@ -5,7 +5,6 @@ module;
 #include <complex>
 #include "blaze/Math.h" 
 module qchem.Orbitals.Internal.OrbitalImp;
-import qchem.IrrepBasisSet;
 
 namespace qchem::Orbitals
 {

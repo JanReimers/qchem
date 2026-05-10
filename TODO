@@ -114,13 +114,15 @@ Priority 1:
                 Type should be in json
         Done: We need to also support es={...} in addition N,emin,emax.  good for unit testing.
         Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
-            -It is a common base for Fit_IBS and Orbtial_IBS
+            -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
         -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
         -Define a restriced set of exponents and spline grids for all unit tests
             This should help with more cache hits.
-        -Get BasisSet1::PG working.
+        Done: -Get BasisSet1::PG working.
         -Make RadialID shorter N=3 {.01 ... 50000.0 } 
             Only if even tempered.
+        -Sort out PG cache ... keep one cache in DB_cache.
+        -Clean out old BasisSet cruft.  (except for Lattice)
  
                 
     -Namespaces

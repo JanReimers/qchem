@@ -9,8 +9,8 @@ target_sources(qcAtom_BS PRIVATE
   NR/Imp/BS_r_Evaluator.C
   NR/Imp/IBS_Evaluator.C
   NR/Imp/IBS_r_Evaluator.C
-  NR/Imp/BSpline_BS.C
-  NR/Imp/BSpline_IBS.C
+  # NR/Imp/BSpline_BS.C
+  # NR/Imp/BSpline_IBS.C
 )
 
 target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -20,6 +20,6 @@ target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   NR/BS_Evaluator.C
   NR/IBS_Evaluator.C
   NR/IBS_r_Evaluator.C
-  NR/BSpline_BS.C
+  # NR/BSpline_BS.C
 )
 
