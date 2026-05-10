@@ -55,17 +55,17 @@ public:
  
 };
 
-// class A_PG_HF_U : public ::testing::TestWithParam<int>
-// , public TestMolecule,  HF_U
-// {
-// public:
-//     void Init()
-//     { 
-//         TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
-//         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-//         QchemTester::Init(1e-3,js);
-//     }
-// };
+class A_PG_HF_U : public ::testing::TestWithParam<int>
+, public TestMolecule,  HF_U
+{
+public:
+    void Init()
+    { 
+        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-3,js);
+    }
+};
 
 
 
@@ -132,14 +132,14 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_U,::testing::Values(2,4,10,12,18));
 INSTANTIATE_TEST_SUITE_P(Multiple,A_BS_HF_U,::testing::Values(4)); 
 #endif
 
-// TEST_P(A_PG_HF_U,Multiple)
-// {
-//     int Z=GetParam();
-//     Init();
-//     Iterate(scf_params(Z));
-//     EXPECT_LT(RelativeHFError(),MaxRelErrE);
-// }
-// INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18)); //36 is slow
+TEST_P(A_PG_HF_U,Multiple)
+{
+    int Z=GetParam();
+    Init();
+    Iterate(scf_params(Z));
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_U,::testing::Values(2,4,10,18)); //36 is slow
 
 
 
@@ -355,27 +355,27 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_BSm_HF_P,::testing::Values(5));
 #endif
 
 
-// class A_PG_HF_P : public ::testing::TestWithParam<int>
-// , public TestMolecule,  HF_P
-// {
-// public:
-//     void Init()
-//     { 
-//         TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
-//         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-//         QchemTester::Init(1e-3,js);
-//     }
-// };
+class A_PG_HF_P : public ::testing::TestWithParam<int>
+, public TestMolecule,  HF_P
+{
+public:
+    void Init()
+    { 
+        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
+        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        QchemTester::Init(1e-3,js);
+    }
+};
 
-// TEST_P(A_PG_HF_P,Multiple)
-// {
-//     int Z=GetParam();
-//     Init();
-//     Iterate(scf_params(Z));
-//     EXPECT_LT(RelativeHFError(),MaxRelErrE);
-// }
-// // INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5)); //7 fails Z=21,37,51 is slow
-// INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3)); //5,7 fails Z=21,37,51 is slow
+TEST_P(A_PG_HF_P,Multiple)
+{
+    int Z=GetParam();
+    Init();
+    Iterate(scf_params(Z));
+    EXPECT_LT(RelativeHFError(),MaxRelErrE);
+}
+// INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3,5)); //7 fails Z=21,37,51 is slow
+INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3)); //5,7 fails Z=21,37,51 is slow
 
 
 inline SCFParams saito_params_BS(int Z) 

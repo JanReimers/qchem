@@ -168,7 +168,7 @@ BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSetAtomFactory::Factory(js,itsZ);
 }
-/*
+
 void TestMolecule::Init(Cluster* m)
 {
     assert(m);
@@ -182,7 +182,7 @@ MeshParams TestMolecule::GetMeshParams() const
 }
 BasisSet* TestMolecule::GetBasisSet (const nlohmann::json& js) const
 {
-    return BasisSetMolecule::Factory(js,GetCluster());
+    return BasisSet1::Molecule::Factory(js,GetCluster());
 }
-*/
+
 

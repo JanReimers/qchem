@@ -30,7 +30,7 @@ target_compile_definitions(qchem PUBLIC ${CXX_COMMON_DEFINES}
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcAtom_BS1 qcBasisSet1 qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry wignerSymbols lapack blas gtest )
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS1 qcAtom_BS1 qcBasisSet1 qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry wignerSymbols lapack blas gtest )
 add_subdirectory(src)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)

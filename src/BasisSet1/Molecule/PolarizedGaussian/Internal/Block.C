@@ -1,0 +1,49 @@
+// File: Block.C  A block of basis functions with the same radial function.
+module;
+#include <iosfwd>
+#include <cassert>
+#include <vector>
+export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.Streamable;
+import qchem.Types;
+
+export namespace BasisSet1::Molecule::PolarizedGaussian
+{
+
+//-----------------------------------------------------------------------
+//
+//  This class or structure represents a group of basis functions
+//  with differing polarizations and the same radial part.
+//
+class Block
+    : public virtual Streamable
+{
+public:
+    Block(                         );
+    Block(RadialFunction*, size_t  );
+    Block(const Block&);
+    ~Block(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
+
+    void Add(const Polarization& p)
+    {
+        itsPols.push_back(p);
+    }
+    size_t  size() const
+    {
+        return itsPols.size();
+    }
+    size_t LMax() const;
+
+    virtual std::ostream&       Write  (std::ostream&) const;
+    virtual Block* Clone  (             ) const;
+    virtual Block* Clone  (const rvec3_t& ) const;
+
+    RadialFunction*           itsRadial; //Common radial function.
+    std::vector<Polarization> itsPols;   //All polarizations for this block.
+    size_t                    itsN;      //Index of first basis function in block.
+};
+
+} //namespace BasisSet1::Molecule::PolarizedGaussian
+

@@ -32,6 +32,6 @@ target_compile_options(qchem PRIVATE
     $<$<CONFIG:Release>: -O2 -pg>
 )
 add_subdirectory(Atom)
-# add_subdirectory(Molecule)
+add_subdirectory(Molecule)
 # add_subdirectory(Lattice)
 

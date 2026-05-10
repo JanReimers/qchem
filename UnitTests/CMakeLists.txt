@@ -9,9 +9,9 @@ link_directories(
 )
 
 #  Main
-# M_PG_U.C 
+# 
 add_executable(UTMain gtestmain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C 
-DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C
+DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF.C A_DFT.C M_PG_U.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C
 UTCluster.C UTBasisSet.C BasisSet1_Atom.C BasisSet_Atom.C PeriodicTable.C)
 #add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
 #GCM_PATH := $(LIB_PATH)/gcm.cache
