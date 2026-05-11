@@ -95,9 +95,9 @@ Priority 1:
             Can we do this in the evaluator?
         Done: Common interface is constructor(size_t N, double rmin/emin, double rmax/emax, sym_t Irrep)
             Only the variable names for the double changes.  just call them remin remax
-        Fixed:: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
-        IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  These should replace
-        is const IBS_Evaluator& .
+        Fixed: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
+        Fixed: IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  
+            These should be replaced with const IBS_Evaluator& .
         Done: Cut over trials
             Fitting:
                 Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
