@@ -1,11 +1,11 @@
-// File: GLQuadrature.C Perform Gauss-Legendre quadrature integration over B-Splines.
+// File: BasisSet1/Atom/Evaluators/BSpline/Internal/GLQuadrature.C Perform Gauss-Legendre quadrature integration over B-Splines.
 module;
 #include <functional>
 #include <bspline/Core.h>
 #include <cassert>
 #include <iostream>
 #include <map>
-export module qchem.Basisset.Atom.BSpline.GLQuadrature;
+export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Types;
 
 export class GLCache;

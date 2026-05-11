@@ -1,11 +1,11 @@
-// File: BasisSet/Atom/radial/BSpline/SplineGrouper.C Group spline basis functions by unique rmin values.
+// File: BasisSet1/Atom/Evaluators/BSpline/Internal/SplineGrouper.C Group spline basis functions by unique rmin values.
 module;
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
-export module qchem.BasisSet1.Atom.BSpline.SplineGrouper;
+export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 export import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
-import qchem.Basisset.Atom.BSpline.GLQuadrature;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
 // 
 // We can use this class for splines by using the support window {rmin,rmax}.

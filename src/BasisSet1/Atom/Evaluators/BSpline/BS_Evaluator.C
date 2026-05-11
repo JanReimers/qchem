@@ -1,12 +1,12 @@
 // File: BasisSet1/Atom/Evaluators/BSpline/BS_Evaluator.C
 module;
-export module BasisSet1.Atom.Evaluators.BSpline.BS;
-export import qchem.BasisSet1.Atom.BS_Evaluator;
-export import BasisSet1.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet1.Atom.BSpline.SplineGrouper;
-import qchem.BasisSet1.Atom.BSpline.Rk;
-import qchem.Basisset.Atom.BSpline.GLQuadrature;
-import BasisSet1.Atom.Evaluators.BSpline.IBS;
+export module qchem.BasisSet1.Atom.Evaluators.BSpline.BS;
+export import qchem.BasisSet1.Atom.Evaluators.BS;
+export import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 
 export template <size_t K> class BSpline_BS_Evaluator 
     : public virtual BS_Evaluator

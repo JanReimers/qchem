@@ -7,9 +7,9 @@ module;
 #include <functional>
 #include <sstream>
 
-module BasisSet1.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet1.Atom.BSpline.Rk;
-import qchem.BasisSet1.Atom.BSpline.SplineGrouper;
+module qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
 using namespace bspline::operators; 
@@ -319,4 +319,4 @@ template <size_t K> std::ostream&  BSpline_IBS_Evaluator<K>::Write(std::ostream&
 
 
 #define INSTANCEk(k) template class BSpline_IBS_Evaluator<k>;
-#include "../Instance.hpp"
+#include "../Internal/Instance.hpp"

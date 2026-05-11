@@ -2,7 +2,7 @@
 module;
 #include <string>
 export module qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
-export import qchem.BasisSet1.Atom.IBS_Evaluator;
+export import qchem.BasisSet1.Atom.Evaluators.IBS;
 
 export class Exponential_IBS_Evaluator : public IBS_Evaluator
 {

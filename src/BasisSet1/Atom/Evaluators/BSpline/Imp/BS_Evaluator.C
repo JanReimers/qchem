@@ -1,8 +1,8 @@
 // File: BasisSet/Atom/radial/Imp/BSpline_BS_Evaluator.C
 module;
 #include <cassert>
-module BasisSet1.Atom.Evaluators.BSpline.BS;
-import qchem.BasisSet1.Atom.BSpline.Rk;
+module qchem.BasisSet1.Atom.Evaluators.BSpline.BS;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
 
 
 template <size_t K> BSpline_BS_Evaluator<K>::~BSpline_BS_Evaluator()
@@ -54,4 +54,4 @@ template <size_t K> double BSpline_BS_Evaluator<K>::loop_4_exchange(size_t id, s
 }
 
 #define INSTANCEk(k) template class BSpline_BS_Evaluator<k>;
-#include "../Instance.hpp"
+#include "../Internal/Instance.hpp"

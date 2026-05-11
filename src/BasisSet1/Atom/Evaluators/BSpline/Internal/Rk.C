@@ -1,9 +1,9 @@
-// File: BasisSet/Atom/radial/BSpline/Rk.C  4 electron Charge distribution of BSpline orbitals. 
+// File: src/BasisSet1/Atom/Evaluators/BSpline/Internal/Rk.C  4 electron Charge distribution of BSpline orbitals. 
 module;
 #include <map>
 #include <bspline/Core.h>
-export module qchem.BasisSet1.Atom.BSpline.Rk;
-import qchem.Basisset.Atom.BSpline.GLQuadrature;
+export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet1.Internal.Cache4;
 export import qchem.BasisSet1.Atom.Rk;
 

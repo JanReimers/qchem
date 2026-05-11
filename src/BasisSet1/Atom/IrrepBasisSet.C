@@ -13,7 +13,7 @@ import qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet1.Atom.BS_Evaluator;
+import qchem.BasisSet1.Atom.Evaluators.BS;
 
 export namespace BasisSet1
 {

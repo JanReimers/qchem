@@ -4,9 +4,9 @@ module;
 #include <vector>
 #include <memory>
 #include <iosfwd>
-export module BasisSet1.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet1.Atom.IBS_Evaluator;
-import qchem.Basisset.Atom.BSpline.GLQuadrature;
+export module qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet1.Atom.Evaluators.IBS;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Symmetry.Yl;
 //
 //  This version is for phi(r) = sum(Bi(r),i)

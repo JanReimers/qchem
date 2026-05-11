@@ -2,7 +2,7 @@
 module;
 #include <algorithm>
 #include <iostream>
-module qchem.BasisSet1.Atom.BSpline.SplineGrouper;
+module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Types;
 using std::cout;
 using std::endl;

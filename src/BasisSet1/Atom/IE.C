@@ -7,8 +7,8 @@ export import qchem.BasisSet1.Internal.ERI4;
 
 export import qchem.BasisSet1.Orbital_1E_IBS;
 export import qchem.BasisSet1.Orbital_HF_IBS;
-export import qchem.BasisSet1.Atom.IBS_Evaluator;
-import qchem.BasisSet1.Atom.BS_Evaluator;
+export import qchem.BasisSet1.Atom.Evaluators.IBS;
+import qchem.BasisSet1.Atom.Evaluators.BS;
 import qchem.Types;
 
 

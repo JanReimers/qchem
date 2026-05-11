@@ -8,9 +8,9 @@
 #include <iomanip>
 #include <blaze/Math.h>
 
-import qchem.Basisset.Atom.BSpline.GLQuadrature;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Symmetry.Angular;
-import BasisSet1.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 
 
 import qchem.Factory;

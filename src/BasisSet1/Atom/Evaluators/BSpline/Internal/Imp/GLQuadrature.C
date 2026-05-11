@@ -7,7 +7,7 @@ module;
 #include <bspline/Core.h>
 #include <blaze/Math.h>
 
-module qchem.Basisset.Atom.BSpline.GLQuadrature;
+module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 using std::cout;
 using std::endl;
 
