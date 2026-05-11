@@ -119,9 +119,9 @@ class Orbital_RKBL_IBS
     , private Integrals_Nuclear
 {
 public:
-    virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>* rkbs) const
+    virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
     {
-        return GetEvaluator()->XKinetic(dynamic_cast<const ::IBS_Evaluator*>(rkbs));
+        return GetEvaluator()->XKinetic(dynamic_cast<const ::IBS_Evaluator&>(rkbs));
     }
     
 };

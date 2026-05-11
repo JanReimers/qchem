@@ -220,16 +220,16 @@ template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XRepulsion(const IBS_Eval
     return M;
 }
 
-template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XKinetic(const IBS_Evaluator* _b) const
+template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XKinetic(const IBS_Evaluator& _b) const
 {
-    const BSpline_r_IBS_Evaluator<K>* b=dynamic_cast<const BSpline_r_IBS_Evaluator<K>*>(_b);
+    const BSpline_r_IBS_Evaluator<K>& b=dynamic_cast<const BSpline_r_IBS_Evaluator<K>&>(_b);
     assert(b);
-    assert(l==b->l);
-    size_t Nr=size(), Nc=b->size();
+    assert(l==b.l);
+    size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
             for (auto j:iv_t(0,Nc))
-                M(i,j)=(::Grad2(splines[i],b->splines[j],l,l,*itsGL) + l*(l+1)*::Inv_r2(splines[i],b->splines[j],2*l,*itsGL))*ns[i]*b->ns[j];
+                M(i,j)=(::Grad2(splines[i],b.splines[j],l,l,*itsGL) + l*(l+1)*::Inv_r2(splines[i],b.splines[j],2*l,*itsGL))*ns[i]*b.ns[j];
     return M;
 }
 

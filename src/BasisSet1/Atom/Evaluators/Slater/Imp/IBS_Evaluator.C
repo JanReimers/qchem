@@ -145,16 +145,16 @@ rmat_t Slater_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
     return M;
 }
 
-rmat_t Slater_IBS_Evaluator::XKinetic(const IBS_Evaluator* _b) const
+rmat_t Slater_IBS_Evaluator::XKinetic(const IBS_Evaluator& _b) const
 {
-    const Slater_IBS_Evaluator* b=dynamic_cast<const Slater_IBS_Evaluator*>(_b);
+    const Slater_IBS_Evaluator& b=dynamic_cast<const Slater_IBS_Evaluator&>(_b);
     assert(b);
-    assert(l==b->l);
-    size_t Nr=size(), Nc=b->size();
+    assert(l==b.l);
+    size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
             for (auto j:iv_t(0,Nc))
-                M(i,j)=(Grad2(es[i],b->es[j],l,l) + l*(l+1)*Inv_r2(es[i],b->es[j],2*l))*ns[i]*b->ns[j];
+                M(i,j)=(Grad2(es[i],b.es[j],l,l) + l*(l+1)*Inv_r2(es[i],b.es[j],2*l))*ns[i]*b.ns[j];
     return M;
 }
 

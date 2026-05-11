@@ -107,7 +107,7 @@ Priority 1:
             Charge Density:
         Done: Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
         Done: Move large amd small OIBS *and Integrals_XKinetic to Internal?
-        XKinetic  (const IBS_Evaluator*) switch to reference
+        Done: XKinetic  (const IBS_Evaluator*) switch to reference
         Done: For Atom factory interface
             BasisSet1::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
                                         ^^^^
@@ -122,7 +122,8 @@ Priority 1:
         -Make RadialID shorter N=3 {.01 ... 50000.0 } 
             Only if even tempered.
         -Sort out PG cache ... keep one cache in DB_cache.
-        -Clean out old BasisSet cruft.  (except for Lattice)
+        Done: -Clean out old BasisSet cruft.  (except for Lattice)
+        -Put evaluators in a namespace
  
                 
     -Namespaces

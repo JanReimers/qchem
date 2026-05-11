@@ -9,13 +9,13 @@ import qchem.Blaze;
 namespace BasisSet1
 {
 
-template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RKBS_IBS<T>* rkbs) const
+template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RKBS_IBS<T>& rkbs) const
 {
     auto cache=theGlobalCache;
     assert(cache);
     return cache->Has(IntegralsCache_Base::I2x::Kinetic,
-            IntegralsCache_Base::IBS_ID_t(      RadialID(),      AngularID()),
-            IntegralsCache_Base::IBS_ID_t(rkbs->RadialID(),rkbs->AngularID())
+            IntegralsCache_Base::IBS_ID_t(     RadialID(),     AngularID()),
+            IntegralsCache_Base::IBS_ID_t(rkbs.RadialID(),rkbs.AngularID())
         )
         ? cache->GetMat() : cache->Set(MakeKinetic(rkbs));
     
@@ -68,7 +68,7 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeOverlap() const
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeKinetic() const
 {
-    mat_t<T> kls=-itsRKBL->MakeKinetic(itsRKBS);
+    mat_t<T> kls=-itsRKBL->MakeKinetic(*itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeNuclear(const Cluster* c) const
