@@ -1,7 +1,7 @@
 // File: BasisSet1/Atom/Evaluators/Gaussian/Internal/Rk.C  Slater inrtegrals for radial Gaussian functions. 
 module;
 export module qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
-export import qchem.BasisSet1.Atom.Rk;
+export import qchem.BasisSet1.Atom.Evaluators.Internal.Rk;
 
 export namespace Gaussian
 {

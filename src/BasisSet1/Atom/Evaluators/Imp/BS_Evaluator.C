@@ -5,7 +5,7 @@ module;
 #include <iostream>
 #include <blaze/Math.h>
 module qchem.BasisSet1.Atom.Evaluators.BS;
-import qchem.BasisSet1.Atom.Internal.AngularIntegrals; 
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals; 
 
 BS_Evaluator::rvec11_t BS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator* a,const IBS_Evaluator* c) const
 {

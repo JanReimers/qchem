@@ -1,7 +1,7 @@
 // File: src/BasisSet1/Atom/Evaluators/Slater/Internal/Rk.C  Slater integrals for radial Slater functions.
 module;
 export module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
-export import qchem.BasisSet1.Atom.Rk;
+export import qchem.BasisSet1.Atom.Evaluators.Internal.Rk;
 
 export namespace Slater
 {

@@ -4,7 +4,7 @@ export module qchem.BasisSet1.Atom.Evaluators.BS;
 export import qchem.BasisSet1.Atom.Evaluators.IBS;
 export import qchem.BasisSet1.Internal.Cache4;
 export import qchem.BasisSet1.Internal.ERI4;
-import qchem.BasisSet1.Atom.Internal.AngularIntegrals;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 
 export class BS_Evaluator : public Cache4
 {

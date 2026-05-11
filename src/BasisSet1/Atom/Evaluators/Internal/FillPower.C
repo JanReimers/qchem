@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/Internal/FillPower.C  power series to create tempered basis set exponents.
+// File: BasisSet1/Atom/Evaluators/Internal/FillPower.C  power series to create tempered basis set exponents.
 module;
 #include <cmath>
 #include <cassert>

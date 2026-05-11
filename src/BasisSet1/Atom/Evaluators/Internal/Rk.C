@@ -1,9 +1,9 @@
-// File: BasisSet/Atom/Rk.C Interface for all Rk (Slater Integral) engines.
+// File: BasisSet1/Atom/Evaluators/Internal/Rk.C Interface for all Rk Slater Integrals.
 module;
 
-export module qchem.BasisSet1.Atom.Rk;
+export module qchem.BasisSet1.Atom.Evaluators.Internal.Rk;
 export import qchem.BasisSet1.Internal.Cache4;
-import qchem.BasisSet1.Atom.Internal.AngularIntegrals;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 export import qchem.Types;
 //
 //  These are often called Slater integrals. They represent the radial part of the 

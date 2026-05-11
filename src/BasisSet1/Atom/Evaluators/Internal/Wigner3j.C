@@ -1,5 +1,5 @@
-// File: BasisSet/Atom/Wigner3j.C  Lookup table of Wigner3j symbols.
-export module qchem.BasisSet1.Atom.Internal.Wigner3j;
+// File: BasisSet1/Atom/Evaluators/Internal/Wigner3j.C  Lookup table of Wigner3j symbols.
+export module qchem.BasisSet1.Atom.Evaluators.Internal.Wigner3j;
 
 //
 //  Server up special Wigner3j symbols resulting from exchange integral angular integrations:

@@ -5,7 +5,7 @@ module;
 export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet1.Internal.Cache4;
-export import qchem.BasisSet1.Atom.Rk;
+export import qchem.BasisSet1.Atom.Evaluators.Internal.Rk;
 
 export namespace BSpline
 {

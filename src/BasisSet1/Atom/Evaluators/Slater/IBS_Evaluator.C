@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 #include <blaze/Math.h>
 export module qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
-export import qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
+export import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import Common.IntPow;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Yl;

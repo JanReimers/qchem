@@ -1,7 +1,7 @@
-// File: AngularIntegrals.C  Handle the angular part of 2-electron ERIs
+// File: BasisSet1/Atom/Evaluators/Internal/AngularIntegrals.C  Handle the angular part of 2-electron ERIs
 module;
 #include <blaze/Math.h>
-export module qchem.BasisSet1.Atom.Internal.AngularIntegrals;
+export module qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 
 export namespace AngularIntegrals
 {

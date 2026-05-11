@@ -1,8 +1,9 @@
+// File: src/BasisSet1/Atom/Evaluators/Internal/Imp/Wigner3j.C
 module;
 #include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cassert>
 #include <iostream>
-module qchem.BasisSet1.Atom.Internal.Wigner3j;
+module qchem.BasisSet1.Atom.Evaluators.Internal.Wigner3j;
 
 Wigner3j Wigner3j::w3j;
 

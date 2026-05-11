@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/Internal/PascalTriangle.C
+// File: BasisSet1/Atom/Evaluators/Internal/PascalTriangle.C
 module;
 #include <vector>
 #include <iostream>

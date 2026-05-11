@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include <iostream>
 #include <blaze/Math.h>
-import qchem.BasisSet1.Atom.Internal.AngularIntegrals;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 
 using std::cout;
 using std::endl;

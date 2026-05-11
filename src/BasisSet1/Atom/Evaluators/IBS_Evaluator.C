@@ -6,7 +6,7 @@ module;
 #include <cassert>
 #include <sstream>
 export module qchem.BasisSet1.Atom.Evaluators.IBS;
-export import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
+export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 export import qchem.BasisSet1.Internal.ERI3;
 // export import qchem.Fit_IBS;
 // export import qchem.Orbital_DHF_IBS;

@@ -1,7 +1,7 @@
-// File: BasisSet/Atom/radial/Imp/ExponentGrouper.C
+// File: src/BasisSet1/Atom/Evaluators/Internal/Imp/ExponentGrouper.C
 module;
 #include <algorithm>
-module qchem.BasisSet1.Atom.Internal.ExponentGrouper;
+module qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.Types;
 
 size_t ExponentGrouper::Insert(double e,size_t l)

@@ -1,10 +1,10 @@
-// File: AngularIntegrals.C  Handle the angular part of 2-electron ERIs
+// File: BasisSet1/Atom/Evaluators/Internal/Imp/AngularIntegrals.C  Handle the angular part of 2-electron ERIs
 module;
 #include <cassert>
 #include <cmath>
 #include <iostream>
-module qchem.BasisSet1.Atom.Internal.AngularIntegrals;
-import qchem.BasisSet1.Atom.Internal.Wigner3j;
+module qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet1.Atom.Evaluators.Internal.Wigner3j;
 import Common.Constants;
 import Common.IntPow;
 
