@@ -4,8 +4,8 @@ module;
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
 
-module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
-import qchem.BasisSet1.Atom.GaussianIntegrals;
+module qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import Common.Constants;
 
 std::string Gaussian_RKBS_IBS_Evaluator::Name() const

@@ -1,7 +1,7 @@
 // File: BasisSet1/Atom/Evaluators/Gaussian/BS_Evaluator.C
 module;
-export module BasisSet.Atom.Gaussian_BS_Evaluator;
-export import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
+export module qchem.BasisSet1.Atom.Evaluators.Gaussian.BS; 
+export import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
 export import qchem.BasisSet1.Atom.Evaluators.BS;
 export import qchem.BasisSet1.Atom.Rk;
 import qchem.BasisSet1.Atom.Internal.ExponentGrouper;

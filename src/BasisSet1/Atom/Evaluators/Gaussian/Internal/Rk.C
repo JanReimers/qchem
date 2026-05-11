@@ -1,6 +1,6 @@
-// File: Gaussian::Rk.H  2 electron Charge distribution of Gaussian orbitals. 
+// File: BasisSet1/Atom/Evaluators/Gaussian/Internal/Rk.C  Slater inrtegrals for radial Gaussian functions. 
 module;
-export module qchem.BasisSet1.Atom.Gaussian.Rk;
+export module qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
 export import qchem.BasisSet1.Atom.Rk;
 
 export namespace Gaussian

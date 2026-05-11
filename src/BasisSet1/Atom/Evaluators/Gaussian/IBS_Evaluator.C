@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 #include <blaze/Math.h>
-export module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
+export module qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
 import qchem.Symmetry.Yl;
 import Common.IntPow;

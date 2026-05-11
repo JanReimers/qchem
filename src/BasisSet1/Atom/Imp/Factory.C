@@ -12,7 +12,7 @@ import qchem.Symmetry.AtomEC;
 
 import qchem.BasisSet1.Atom.BasisSet;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.BS;
-import BasisSet.Atom.Gaussian_BS_Evaluator;
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.BS; 
 import BasisSet.Atom.Slater.NR.BS_Evaluator;
 import BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;

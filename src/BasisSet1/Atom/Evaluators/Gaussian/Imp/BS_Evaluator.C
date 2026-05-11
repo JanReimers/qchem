@@ -1,8 +1,8 @@
 // File: BasisSet/Atom/Gaussian/NR/Imp/BS_Evaluator.C
 module;
 #include <cassert>
-module BasisSet.Atom.Gaussian_BS_Evaluator;
-import qchem.BasisSet1.Atom.Gaussian.Rk;
+module qchem.BasisSet1.Atom.Evaluators.Gaussian.BS; 
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
 
 void Gaussian_BS_Evaluator::Register(IBS_Evaluator * eval)
 {
