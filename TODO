@@ -119,13 +119,14 @@ Priority 1:
         -Define a restriced set of exponents and spline grids for all unit tests
             This should help with more cache hits.
         Done: -Get BasisSet1::PG working.
-        -Make RadialID shorter N=3 {.01 ... 50000.0 } 
+        Done: -Make RadialID shorter N=3 {.01 ... 50000.0 } 
             Only if even tempered.
         -Sort out PG cache ... keep one cache in DB_cache.
         Done: -Clean out old BasisSet cruft.  (except for Lattice)
         -Put evaluators in a namespace
  
-                
+    -Everything->Cluster->Mesh 
+        One tweak fo Mesh and you get ~100% rebuild. Not good.
     -Namespaces
         -Cluster namespace.  
             Structure

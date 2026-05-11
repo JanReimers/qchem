@@ -19,9 +19,35 @@ void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
 std::string Exponential_IBS_Evaluator::RadialID () const
 {
     std::ostringstream os;
-    os << Name() << "{";
-    for (auto e:es) os << e << " ";
+    if (isEvenTempered)
+    {
+        os << Name() << " N=" << es.size() << " {}";
+        if (es.size()>0) os << es[0];
+        if (es.size()>1) os << " ... " << es[es.size()-1];
+    }
+    else
+    {
+        os << Name() << "{";
+        for (auto e:es) os << e << " ";
+    }
     os << "}";
     return os.str();
+}
+
+bool Exponential_IBS_Evaluator::EvenTempered(const rvec_t& es)
+{
+    bool et=true;
+    if (es.size()>1)
+    { 
+        double beta=es[1]/es[0];
+        for (size_t i=2;i<es.size();i++)
+            if (fabs(es[i]/(beta*es[i-1])-1.0)>1e-14)
+            {
+                std::cout << "Warning: Irrep basis set is not even tempered fabs(es[" << i << "]/(beta*es[" << i-1 << "])-1.0) = " << fabs(es[i]/(beta*es[i-1])-1.0) << std::endl;
+                et=false;
+                break;
+            }
+    }
+    return et;
 }
 
