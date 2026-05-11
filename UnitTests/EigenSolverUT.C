@@ -8,14 +8,9 @@
 #include "gtest/gtest.h"
 #include "blaze/Math.h"
 
-#ifdef LegacyBasisSet
-import qchem.IrrepBasisSet;
-import qchem.BasisSet;
-#else
 import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1;
 using Real_OIBS=BasisSet1::Real_OIBS;
-#endif
 
 import qchem.LAParams;
 import qchem.LASolver;

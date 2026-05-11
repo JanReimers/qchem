@@ -21,7 +21,7 @@ set(CXX_SCAN_FOR_MODULES on)
 
 
 # -Wno-unknown-pragmas
-set(CXX_COMMON_DEFINES NewBasisSet)
+#set(CXX_COMMON_DEFINES )
 target_compile_options(qchem PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>

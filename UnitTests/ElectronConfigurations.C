@@ -13,13 +13,6 @@ import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
 import qchem.Factory;
 import qchem.Common.Strings;
-// #ifdef LegacyBasisSet
-// import qchem.BasisSet;
-// #else
-// import qchem.BasisSet1;
-// using BasisSet1::Real_OIBS;
-// #endif
-
 
 using std::cout;
 using std::endl;

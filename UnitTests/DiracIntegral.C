@@ -16,19 +16,12 @@ import Common.Constants;
 import qchem.Cluster;
 import qchem.Mesh.Integrator;
 import qchem.Streamable;
-#ifdef LegacyBasisSet
-import qchem.BasisSet.Internal.IrrepBasisSet;
-using RKB_OIBS=Orbital_RKB_IBS_Common<double>;
-using RKBL_OIBS=Real_IBS;
-using RKBS_OIBS=Real_IBS;
-#else
 import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
 using BasisSet1::Real_OIBS;
 using Real_IBS=Real_OIBS;
 using RKB_OIBS=BasisSet1::Orbital_RKB_IBS_Imp<double>;
 using RKBL_OIBS=BasisSet1::Orbital_RKBL_IBS<double>;
 using RKBS_OIBS=BasisSet1::Orbital_RKBS_IBS<double>;
-#endif
 import qchem.BasisSet1.DB_Cache;
 
 using std::cout;

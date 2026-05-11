@@ -11,10 +11,6 @@ import qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet1.Atom.Factory;
 import qchem.BasisSet1.Orbital_DHF_IBS;
 
-// Legacy BS imports
-import qchem.BasisSet.Atom.Factory;
-import qchem.Orbital_DHF_IBS;
-
 
 class Basis1_RKB_Tests : public ::testing::Test
 {
@@ -36,93 +32,73 @@ public:
         delete bs2;
         delete BasisSet1::theGlobalCache;
     }
-    void Init(nlohmann::json js,BasisSetAtom::Type legacy_type)
+    void Init(nlohmann::json js)
     {
         bs1=BasisSet1::Atom::Factory(js,Z);
         bs2=BasisSet1::Atom::Factory(js,Z);
-        js["type"]=legacy_type;
-        legacy_bs=BasisSetAtom::Factory(js,Z);
     }
     // void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}},BasisSetAtom::Type::BSpline6);}
-    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian_RKB},{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Gaussian_RKB);}
-    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater_RKB  },{"N", N}, {"emin", 0.1}, {"emax", 10}},BasisSetAtom::Type::Slater_RKB);}
+    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian_RKB},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
+    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater_RKB  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
     using OIBS=BasisSet1::Real_ORKB;
-    using Legacy_OIBS=Orbital_RKB_IBS<double>;
     void TestOverlap() const
     {
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Overlap();
             auto& S2=(*ibs2)->Overlap();
-            auto& legacyS=(*legacy_ibs)->Overlap();
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(&S1,&S2);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     void TestKinetic() const
     {
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Kinetic();
             auto& S2=(*ibs2)->Kinetic();
-            auto& legacyS=(*legacy_ibs)->Kinetic();
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(&S1,&S2);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     void TestNuclear() const
     {
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->Nuclear(cl_hydrogen);
             auto& S2=(*ibs2)->Nuclear(cl_hydrogen);
             auto& S3=(*ibs2)->Nuclear(cl_hydrogen_100);
             auto& S4=(*ibs2)->Nuclear(cl_helium);
-            auto& legacyS=(*legacy_ibs)->Nuclear(cl_hydrogen);
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(S1,S3);
             EXPECT_NE(S1,S4);
             EXPECT_EQ(&S1,&S2);
             EXPECT_NE(&S1,&S3);
             EXPECT_NE(&S1,&S4);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     void TestRestMass() const
     {
         auto ibs2=bs2->Iterate<OIBS>().begin();
-        auto legacy_ibs=legacy_bs->Iterate<Legacy_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
             auto& S1=ibs1->RestMass();
             auto& S2=(*ibs2)->RestMass();
-            auto& legacyS=(*legacy_ibs)->RestMass();
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(&S1,&S2);
-            EXPECT_EQ(S1,legacyS);
             ++ibs2;
-            ++legacy_ibs;
         }
     }
     
     size_t N,Z;
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
     BasisSet1::Real_BS *bs1,*bs2;
-    BasisSet* legacy_bs;
 };
 
 

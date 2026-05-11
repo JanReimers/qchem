@@ -1,7 +1,6 @@
 // File: UnitTests/BasisSet_Atom1.C  Unit test the Atom IBS Evaluators
 #include "gtest/gtest.h"
 #include <iostream>
-// #include <cmath>
 #include <blaze/Math.h>
 #include <nlohmann/json.hpp>
 using std::cout;
@@ -11,12 +10,6 @@ import qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet1.Atom.Factory;
 import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
-
-// Legacy BS imports
-// import qchem.BasisSet1.Atom.Factory;
-// import qchem.Orbital_HF_IBS;
-// import qchem.Orbital_DFT_IBS;
-
 
 class DBCach1Tests : public ::testing::Test
 {

@@ -3,22 +3,6 @@ module;
 
 export module qchem.ChargeDensity.Types;
 
-#ifdef LegacyBasisSet
-export import qchem.Orbital_HF_IBS;
-export import qchem.Orbital_DFT_IBS;
-export import qchem.Orbital_1E_IBS;
-export import qchem.Fit_IBS;
-
-export namespace qchem::ChargeDensity
-{
-    using fbs_t=Fit_IBS;
-    template <class T> using tobs_t=Orbital_IBS<T>;
-    template <class T> using todftbs_t=Orbital_DFT_IBS<T>;
-    using obs_t=tobs_t<double>;
-    using ohfbs_t=Orbital_HF_IBS<double>;
-    using odftbs_t=todftbs_t<double>;
-}
-#else
 export import qchem.BasisSet1.Orbital_HF_IBS;
 export import qchem.BasisSet1.Orbital_1E_IBS;
 export import qchem.BasisSet1.Orbital_DFT_IBS;
@@ -33,4 +17,3 @@ export namespace qchem::ChargeDensity
     using obs_t=tobs_t<double>;
     using odftbs_t=todftbs_t<double>;
 }
-#endif

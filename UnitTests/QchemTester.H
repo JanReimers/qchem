@@ -15,15 +15,7 @@ import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
 import qchem.Factory;
 
-#ifdef LegacyBasisSet
-// import qchem.BasisSet;
-typedef BasisSet::irrepv_t irrepv_t;
-
-#else
 typedef BasisSet1::irrepv_t irrepv_t;
-
-#endif
-
 
 using qchem::Orbitals::Orbital;
 using qchem::Orbitals::Orbitals;
