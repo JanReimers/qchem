@@ -8,7 +8,7 @@
 #include <blaze/Math.h>
 using std::cout;
 using std::endl;
-import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet1.Internal.ERI4;
 import qchem.Blaze;
 
 

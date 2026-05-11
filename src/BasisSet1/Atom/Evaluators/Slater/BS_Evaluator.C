@@ -2,9 +2,9 @@
 module;
 export module BasisSet.Atom.Slater.NR.BS_Evaluator;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
-export import qchem.BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Atom.Internal.ExponentGrouper;
-export import qchem.BasisSet.Atom.Rk;
+export import qchem.BasisSet1.Atom.BS_Evaluator;
+import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
+export import qchem.BasisSet1.Atom.Rk;
 
 
 export class Slater_BS 

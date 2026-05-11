@@ -5,7 +5,7 @@ module;
 #include <memory>
 #include <iosfwd>
 export module BasisSet.Atom.BSpline.NR.IBS_Evaluator;
-import qchem.BasisSet.Atom.IBS_Evaluator;
+import qchem.BasisSet1.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.Symmetry.Yl;
 //

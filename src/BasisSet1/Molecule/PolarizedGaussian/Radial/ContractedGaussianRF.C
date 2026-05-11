@@ -9,7 +9,7 @@ import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.Common;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.IntegralEnums;
 import qchem.Cluster;
 import qchem.Types;
 

@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 #include <blaze/Math.h>
 export module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
-import qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
+import qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
 import Common.IntPow;
 
 export class Gaussian_IBS : public Exponential_IBS_Evaluator

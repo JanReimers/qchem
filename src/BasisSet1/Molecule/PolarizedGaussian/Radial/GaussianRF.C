@@ -11,7 +11,7 @@ import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GData;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 
-import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.IntegralEnums;
 import qchem.Cluster;
 export namespace BasisSet1::Molecule::PolarizedGaussian
 {

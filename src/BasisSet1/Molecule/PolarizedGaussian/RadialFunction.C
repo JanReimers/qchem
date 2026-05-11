@@ -8,7 +8,7 @@ import Common.UniqueID;
 import qchem.Cluster;
 import qchem.ScalarFunction;
 import qchem.Streamable;
-import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.IntegralEnums;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;

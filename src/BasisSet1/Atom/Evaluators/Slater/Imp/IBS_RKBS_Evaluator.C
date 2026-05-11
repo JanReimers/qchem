@@ -5,7 +5,7 @@ module;
 #include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
-import qchem.BasisSet.Atom.Slater.Integrals;
+import qchem.BasisSet1.Atom.Slater.Integrals;
 import Common.Constants;
 
 std::string Slater_RKBS_IBS::Name() const

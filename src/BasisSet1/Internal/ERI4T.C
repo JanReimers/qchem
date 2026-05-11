@@ -1,7 +1,7 @@
 // File ERI4T.C  Generical containter for and ERI (Electron Repulsion Integral) 4 index super matrix.
 module;
 #include <blaze/Math.h>
-export module qchem.BasisSet.Internal.ERI4T;
+export module qchem.BasisSet1.Internal.ERI4T;
 export import qchem.Types;
 //------------------------------------------------------------------
 //

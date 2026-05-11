@@ -20,7 +20,7 @@ import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 
-import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.IntegralEnums;
 
 namespace BasisSet1::Molecule::PolarizedGaussian
 {

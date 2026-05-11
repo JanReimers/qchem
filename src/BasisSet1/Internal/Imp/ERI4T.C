@@ -1,5 +1,5 @@
 module;
-module qchem.BasisSet.Internal.ERI4T;
+module qchem.BasisSet1.Internal.ERI4T;
 import qchem.Blaze;
 
 template <> ERI4T<double,mat_t>::ERI4T(size_t Nab, size_t Ncd) : itsData(Nab,Nab)

@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module BasisSet.Atom.BSpline.NR.BS_Evaluator;
-import qchem.BasisSet.Atom.BSpline.Rk;
+import qchem.BasisSet1.Atom.BSpline.Rk;
 
 
 template <size_t K> BSpline_r_BS<K>::~BSpline_r_BS()

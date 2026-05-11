@@ -2,7 +2,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <blaze/Math.h>
-module qchem.BasisSet.Internal.ERI4;
+module qchem.BasisSet1.Internal.ERI4;
 import qchem.Blaze;
 
 // This version is much faster.

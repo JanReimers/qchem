@@ -5,7 +5,7 @@ module;
 #include <functional>
 #include <cassert>
 #include <bspline/Core.h>
-module qchem.BasisSet.Atom.BSpline.Rk;
+module qchem.BasisSet1.Atom.BSpline.Rk;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 import Common.IntPow;

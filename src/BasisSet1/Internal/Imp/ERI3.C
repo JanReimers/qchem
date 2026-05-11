@@ -2,7 +2,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <blaze/Math.h>
-module qchem.BasisSet.Internal.ERI3;
+module qchem.BasisSet1.Internal.ERI3;
 import qchem.Blaze;
 
 template <class T> double fnorm(const ERI3<T>& a, const ERI3<T>& b)

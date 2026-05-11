@@ -3,7 +3,7 @@ module;
 #include <vector>
 #include <iostream>
 #include <cassert>
-export module qchem.BasisSet.Atom.Internal.PascalTriangle;
+export module qchem.BasisSet1.Atom.Internal.PascalTriangle;
 
 #if DEBUG
 #define CHECK(i,j) Check(i,j)

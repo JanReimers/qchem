@@ -1,10 +1,10 @@
 // File: BasisSet/Atom/BSpline/NR/BS_Evaluator.C
 module;
 export module BasisSet.Atom.BSpline.NR.BS_Evaluator;
-export import qchem.BasisSet.Atom.BS_Evaluator;
+export import qchem.BasisSet1.Atom.BS_Evaluator;
 export import BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
-import qchem.BasisSet.Atom.BSpline.SplineGrouper;
-import qchem.BasisSet.Atom.BSpline.Rk;
+import qchem.BasisSet1.Atom.BSpline.SplineGrouper;
+import qchem.BasisSet1.Atom.BSpline.Rk;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
 

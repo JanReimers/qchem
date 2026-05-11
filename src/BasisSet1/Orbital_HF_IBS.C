@@ -2,7 +2,7 @@
 module;
 export module qchem.BasisSet1.Orbital_HF_IBS;
 export import qchem.BasisSet1.Orbital_1E_IBS;
-export import qchem.BasisSet.Internal.ERI4;
+export import qchem.BasisSet1.Internal.ERI4;
 
 export namespace BasisSet1
 {

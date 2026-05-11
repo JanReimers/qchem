@@ -6,9 +6,9 @@ module;
 #include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
-import qchem.BasisSet.Atom.Gaussian.Rk;
-import qchem.BasisSet.Atom.GaussianIntegrals;
-import qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
+import qchem.BasisSet1.Atom.Gaussian.Rk;
+import qchem.BasisSet1.Atom.GaussianIntegrals;
+import qchem.BasisSet1.Atom.Gaussian.ExponentScaler; 
 import Common.Constants;
 
 

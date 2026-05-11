@@ -10,7 +10,7 @@ import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet1.Fit_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 
-import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.IntegralEnums;
 
 
 export namespace BasisSet1::Molecule::PolarizedGaussian

@@ -1,6 +1,6 @@
 enable_language(Fortran)
-set(CMAKE_Fortran_FLAGS "-O2 -askjdfhalsdjf")
-target_sources(qcAtom_BS PRIVATE 
+set(CMAKE_Fortran_FLAGS "-O2 ")
+target_sources(qcAtom_BS1 PRIVATE 
   gauleg.f
   Imp/GLQuadrature.C  
   Imp/Rk.C
@@ -11,7 +11,7 @@ target_sources(qcAtom_BS PRIVATE
   Imp/IBS_r_Evaluator.C
 )
 
-target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   GLQuadrature.C  
   Rk.C
   SplineGrouper.C

@@ -11,13 +11,12 @@
 
 import qchem.LAParams;
 import qchem.Factory;
-import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet1.Internal.ERI4;
 
 import Common.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry.Angular;
-// import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 
 using std::cout;
 using std::endl;

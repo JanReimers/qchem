@@ -4,8 +4,8 @@ module;
 #include <cassert>
 #include <cmath>
 #include <vector>
-module qchem.BasisSet.Atom.Gaussian.Rk;
-import qchem.BasisSet.Atom.Internal.PascalTriangle;
+module qchem.BasisSet1.Atom.Gaussian.Rk;
+import qchem.BasisSet1.Atom.Internal.PascalTriangle;
 import Common.Constants;
 import Common.Factorials;
 

@@ -3,8 +3,8 @@ module;
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
-export module qchem.BasisSet.Atom.BSpline.SplineGrouper;
-export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
+export module qchem.BasisSet1.Atom.BSpline.SplineGrouper;
+export import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 
 // 

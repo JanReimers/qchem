@@ -5,9 +5,9 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <sstream>
-export module qchem.BasisSet.Atom.IBS_Evaluator;
-export import qchem.BasisSet.Atom.Internal.ExponentGrouper;
-export import qchem.BasisSet.Internal.ERI3;
+export module qchem.BasisSet1.Atom.IBS_Evaluator;
+export import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
+export import qchem.BasisSet1.Internal.ERI3;
 // export import qchem.Fit_IBS;
 // export import qchem.Orbital_DHF_IBS;
 export import qchem.Symmetry.Irrep;

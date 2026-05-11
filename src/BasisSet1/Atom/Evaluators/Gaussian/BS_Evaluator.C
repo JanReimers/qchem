@@ -2,9 +2,9 @@
 module;
 export module BasisSet.Atom.Gaussian_BS;
 export import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
-export import qchem.BasisSet.Atom.BS_Evaluator;
-export import qchem.BasisSet.Atom.Rk;
-import qchem.BasisSet.Atom.Internal.ExponentGrouper;
+export import qchem.BasisSet1.Atom.BS_Evaluator;
+export import qchem.BasisSet1.Atom.Rk;
+import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 
 
 export class Gaussian_BS 

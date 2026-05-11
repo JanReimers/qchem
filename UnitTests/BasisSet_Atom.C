@@ -18,7 +18,7 @@ import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import Common.Constants;
-import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet1.Internal.ERI4;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
 import qchem.Hamiltonian.Types;

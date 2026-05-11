@@ -26,7 +26,5 @@ target_compile_options(qcAtom_BS1 PRIVATE
 )
 
 set_property(TARGET qcAtom_BS1 PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcAtom_BS1 PUBLIC qcAtom_BS qcBasisSet1 qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
+target_link_libraries(qcAtom_BS1 PUBLIC qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon)
 add_subdirectory(Evaluators)
-# add_subdirectory(Gaussian)
-# add_subdirectory(Slater)

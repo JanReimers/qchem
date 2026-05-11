@@ -11,7 +11,7 @@ import qchem.LAParams;
 
 
 import qchem.Factory;
-import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet1.Internal.ERI4;
 import Common.Constants;
 import qchem.Cluster;
 import qchem.Mesh.Integrator;

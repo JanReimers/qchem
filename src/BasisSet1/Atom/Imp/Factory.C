@@ -5,10 +5,10 @@ module;
 
 module qchem.BasisSet1.Atom.Factory;
 import qchem.Symmetry.AtomEC;
-// import qchem.BasisSet.Atom.Slater.RKB.BS;
-// import qchem.BasisSet.Atom.Gaussian.NR.BS;
-// import qchem.BasisSet.Atom.Slater.NR.BS;
-// import qchem.BasisSet.Atom.BSpline.NR.BS;
+// import qchem.BasisSet1.Atom.Slater.RKB.BS;
+// import qchem.BasisSet1.Atom.Gaussian.NR.BS;
+// import qchem.BasisSet1.Atom.Slater.NR.BS;
+// import qchem.BasisSet1.Atom.BSpline.NR.BS;
 
 import qchem.BasisSet1.Atom.BasisSet;
 import BasisSet.Atom.BSpline.NR.BS_Evaluator;

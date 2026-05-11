@@ -9,8 +9,8 @@ module;
 #include <sstream>
 
 module BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
-import qchem.BasisSet.Atom.BSpline.Rk;
-import qchem.BasisSet.Atom.BSpline.SplineGrouper;
+import qchem.BasisSet1.Atom.BSpline.Rk;
+import qchem.BasisSet1.Atom.BSpline.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
 using namespace bspline::operators; 

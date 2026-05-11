@@ -1,8 +1,8 @@
 // File: Gaussian/ExponentScaler.C  Rescale Gaussian exponents based in angular momentum L.
 module;
 #include <blaze/math/views/Subvector.h>
-module qchem.BasisSet.Atom.Gaussian.ExponentScaler; 
-import qchem.BasisSet.Atom.Internal.FillPower;
+module qchem.BasisSet1.Atom.Gaussian.ExponentScaler; 
+import qchem.BasisSet1.Atom.Internal.FillPower;
 import qchem.Symmetry.Yl;
 
 namespace Gaussian

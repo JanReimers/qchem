@@ -6,9 +6,9 @@ module;
 #include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Slater.NR.IBS_Evaluator;
-import qchem.BasisSet.Atom.Slater.Rk;
-import qchem.BasisSet.Atom.Slater.Integrals;
-import qchem.BasisSet.Atom.Slater.ExponentScaler; 
+import qchem.BasisSet1.Atom.Slater.Rk;
+import qchem.BasisSet1.Atom.Slater.Integrals;
+import qchem.BasisSet1.Atom.Slater.ExponentScaler; 
 import Common.Constants;
 
 

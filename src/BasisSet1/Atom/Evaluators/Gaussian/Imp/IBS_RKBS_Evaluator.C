@@ -5,7 +5,7 @@ module;
 #include <blaze/math/DynamicVector.h>
 
 module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
-import qchem.BasisSet.Atom.GaussianIntegrals;
+import qchem.BasisSet1.Atom.GaussianIntegrals;
 import Common.Constants;
 
 std::string Gaussian_RKBS_IBS::Name() const

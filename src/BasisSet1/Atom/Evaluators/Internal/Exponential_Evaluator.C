@@ -1,8 +1,8 @@
 // File: BasisSet/Atom/radial/Exponential_Evaluator.C  Common for Slater and Gaussian evaluators
 module;
 #include <string>
-export module qchem.BasisSet.Atom.Internal.Exponential_IBS_Evaluator;
-export import qchem.BasisSet.Atom.IBS_Evaluator;
+export module qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
+export import qchem.BasisSet1.Atom.IBS_Evaluator;
 
 export class Exponential_IBS_Evaluator : public IBS_Evaluator
 {

@@ -2,7 +2,7 @@
 module;
 #include <vector>
 #include <map>
-export module qchem.BasisSet.Atom.Internal.ExponentGrouper;
+export module qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 // 
 // Keep a list of unique exponents for a group Slater or Gaussian irrep basis functions.
 // For each unique exponent also store an index and the maximum l angular momentum used

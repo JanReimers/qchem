@@ -12,14 +12,14 @@ import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet1.Molecule.PolarizedGaussian.Reader;
 
 import qchem.BasisSet1.Internal.BasisSetImp;
-import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet1.Internal.ERI4;
 import qchem.BasisSet1.Internal.IrrepBasisSetImp;
 import qchem.Cluster;
 import qchem.Types;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
 
-import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.IntegralEnums;
 
 export namespace BasisSet1::Molecule::PolarizedGaussian
 {

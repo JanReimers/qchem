@@ -5,7 +5,7 @@ module;
 #include <memory>
 #include <iosfwd>
 export module BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
-import qchem.BasisSet.Atom.IBS_Evaluator;
+import qchem.BasisSet1.Atom.IBS_Evaluator;
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 //
 //  This version is for phi(r) = 1/r * sum(Bi(r),i)

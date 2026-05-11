@@ -4,7 +4,7 @@ export module qchem.BasisSet1.Orbital_DFT_IBS;
 export import qchem.BasisSet1.IrrepBasisSet;
 export import qchem.BasisSet1.Orbital_1E_IBS;
 export import qchem.BasisSet1.Fit_IBS;
-export import qchem.BasisSet.Internal.ERI3;
+export import qchem.BasisSet1.Internal.ERI3;
 
 export namespace BasisSet1
 {

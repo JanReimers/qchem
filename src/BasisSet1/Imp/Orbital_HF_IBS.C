@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <blaze/math/SymmetricMatrix.h>
 module qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet1.Internal.ERI4;
 import qchem.BasisSet1.DB_Cache;
 
 namespace BasisSet1

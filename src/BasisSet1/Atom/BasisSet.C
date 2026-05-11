@@ -12,8 +12,8 @@ export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
 
 import qchem.Symmetry.Yl;
-import qchem.BasisSet.Atom.BS_Evaluator;
-import qchem.BasisSet.Atom.IBS_Evaluator;
+import qchem.BasisSet1.Atom.BS_Evaluator;
+import qchem.BasisSet1.Atom.IBS_Evaluator;
 import qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Internal.BasisSetImp;
 import qchem.BasisSet1.Internal.Orbital_DHF_IBS;

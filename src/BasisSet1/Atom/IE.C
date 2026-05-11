@@ -3,16 +3,12 @@ module;
 #include <cassert>
 #include "blaze/Math.h"
 export module qchem.BasisSet1.Atom.IE;
-export import qchem.BasisSet.Internal.ERI4;
+export import qchem.BasisSet1.Internal.ERI4;
 
 export import qchem.BasisSet1.Orbital_1E_IBS;
-// export import qchem.Orbital_DHF_IBS;
-// export import qchem.Orbital_DFT_IBS;
 export import qchem.BasisSet1.Orbital_HF_IBS;
-// export import qchem.Fit_IBS;
-
-export import qchem.BasisSet.Atom.IBS_Evaluator;
-import qchem.BasisSet.Atom.BS_Evaluator;
+export import qchem.BasisSet1.Atom.IBS_Evaluator;
+import qchem.BasisSet1.Atom.BS_Evaluator;
 import qchem.Types;
 
 
