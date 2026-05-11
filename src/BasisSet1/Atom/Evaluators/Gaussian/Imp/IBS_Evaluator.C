@@ -153,7 +153,6 @@ rmat_t Gaussian_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
 rmat_t Gaussian_IBS_Evaluator::XKinetic(const IBS_Evaluator& _b) const
 {
     const Gaussian_IBS_Evaluator& b=dynamic_cast<const Gaussian_IBS_Evaluator&>(_b);
-    assert(b);
     assert(l==b.l);
     size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);

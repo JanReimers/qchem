@@ -223,7 +223,6 @@ template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XRepulsion(const IBS_Eval
 template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XKinetic(const IBS_Evaluator& _b) const
 {
     const BSpline_r_IBS_Evaluator<K>& b=dynamic_cast<const BSpline_r_IBS_Evaluator<K>&>(_b);
-    assert(b);
     assert(l==b.l);
     size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
