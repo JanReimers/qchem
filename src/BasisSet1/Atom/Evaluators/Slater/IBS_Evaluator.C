@@ -6,18 +6,18 @@ export module BasisSet.Atom.Slater.NR.IBS_Evaluator;
 export import qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
 import Common.IntPow;
 
-export class Slater_IBS : public Exponential_IBS_Evaluator
+export class Slater_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
 public: 
-    Slater_IBS(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Slater_IBS(const rvec_t& es, int l) : Slater_IBS(es,l,{}) {}
-    Slater_IBS(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
-    Slater_IBS(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
+    Slater_IBS_Evaluator(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Slater_IBS_Evaluator(const rvec_t& es, int l) : Slater_IBS_Evaluator(es,l,{}) {}
+    Slater_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
+    Slater_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
     : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
    
-    Slater_IBS Rescale(double scale_factor) const
+    Slater_IBS_Evaluator Rescale(double scale_factor) const
     {
-        return Slater_IBS(scale_factor*es,0);
+        return Slater_IBS_Evaluator(scale_factor*es,0);
     }
     virtual std::ostream& Write   (std::ostream&) const;
  

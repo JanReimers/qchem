@@ -47,8 +47,8 @@ public:
         //cout << *bs << endl;
     }
     
-    // bool   supported(const Slater_IBS&,const Slater_IBS&,int ia, int ib, int ic, int id) const;
-    // double R0       (const Slater_IBS&,const Slater_IBS&,int ia, int ib, int ic, int id) const;
+    // bool   supported(const Slater_IBS_Evaluator&,const Slater_IBS_Evaluator&,int ia, int ib, int ic, int id) const;
+    // double R0       (const Slater_IBS_Evaluator&,const Slater_IBS_Evaluator&,int ia, int ib, int ic, int id) const;
     
     
     int Lmax, Z;

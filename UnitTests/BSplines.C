@@ -10,7 +10,7 @@
 
 import qchem.Basisset.Atom.BSpline.GLQuadrature;
 import qchem.Symmetry.Angular;
-import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
+import BasisSet1.Atom.Evaluators.BSpline.IBS;
 
 
 import qchem.Factory;
@@ -50,7 +50,7 @@ public:
         // splines.erase(splines.begin());
     }
 
-    static const spline_t& GetSpline(const BSpline_IBS<K>* eval,size_t index)
+    static const spline_t& GetSpline(const BSpline_IBS_Evaluator<K>* eval,size_t index)
     {
         return (*eval)[index];
     }
@@ -235,7 +235,7 @@ TEST_F(BSplineTests, Overlap)
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
         // Now try GLQ integration.
-        const BSpline_IBS<K>* eval=dynamic_cast<const BSpline_IBS<K>*>(ibs);
+        const BSpline_IBS_Evaluator<K>* eval=dynamic_cast<const BSpline_IBS_Evaluator<K>*>(ibs);
         auto ns=eval->Norm();
         auto grid=GetSpline(eval,0).getSupport().getGrid();
         GLCache cache2(grid,K+3);

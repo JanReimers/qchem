@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/radial/Imp/Slater_IBS.C
+// File: BasisSet/Atom/radial/Imp/Slater_IBS_Evaluator.C
 module;
 #include <cmath>
 #include <cassert>
@@ -35,13 +35,13 @@ inline double Charge(double ea, size_t l)
 //  Start member functions.
 //
 
-std::string Slater_IBS::Name() const
+std::string Slater_IBS_Evaluator::Name() const
 {
     return "Spherical Slater ";
 }
 
 // This need overridability.
-double Slater_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
+double Slater_IBS_Evaluator::Grad2(double ea , double eb,size_t la, size_t lb)
 {
     assert(la==lb);
     double ab=ea+eb;
@@ -53,17 +53,17 @@ double Slater_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
     return Term1+Term2+Term3;
 }
 
-double Slater_IBS::Inv_r2(double ea , double eb,size_t l_total)
+double Slater_IBS_Evaluator::Inv_r2(double ea , double eb,size_t l_total)
 {
     return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
 }
 
-double Slater_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+double Slater_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-rvec_t Slater_IBS::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
+rvec_t Slater_IBS_Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
 {
     size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
     ::Slater::ExponentScaler ss(N,emin,emax,LMax);
@@ -71,7 +71,7 @@ rvec_t Slater_IBS::exponents(size_t N, double emin, double emax, const Irrep_QNs
 }
 
 
-rvec_t Slater_IBS::norms() const
+rvec_t Slater_IBS_Evaluator::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
@@ -79,7 +79,7 @@ rvec_t Slater_IBS::norms() const
     return ret;
 }
 
-rsmat_t Slater_IBS::Overlap() const
+rsmat_t Slater_IBS_Evaluator::Overlap() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -90,7 +90,7 @@ rsmat_t Slater_IBS::Overlap() const
     return S;
 }
 
-rsmat_t Slater_IBS::Grad2() const
+rsmat_t Slater_IBS_Evaluator::Grad2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -101,7 +101,7 @@ rsmat_t Slater_IBS::Grad2() const
     return S;
 }
 
-rsmat_t Slater_IBS::Inv_r1() const
+rsmat_t Slater_IBS_Evaluator::Inv_r1() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -112,7 +112,7 @@ rsmat_t Slater_IBS::Inv_r1() const
     return S;
 }
 
-rsmat_t Slater_IBS::Inv_r2() const
+rsmat_t Slater_IBS_Evaluator::Inv_r2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -123,7 +123,7 @@ rsmat_t Slater_IBS::Inv_r2() const
     return S;
 }
 
-rsmat_t Slater_IBS::Repulsion() const
+rsmat_t Slater_IBS_Evaluator::Repulsion() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -134,9 +134,9 @@ rsmat_t Slater_IBS::Repulsion() const
     return S;
 }
 
-rmat_t Slater_IBS::XRepulsion(const IBS_Evaluator& _b) const
+rmat_t Slater_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
 {
-    const Slater_IBS& b=dynamic_cast<const Slater_IBS&>(_b);
+    const Slater_IBS_Evaluator& b=dynamic_cast<const Slater_IBS_Evaluator&>(_b);
     size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
@@ -145,9 +145,9 @@ rmat_t Slater_IBS::XRepulsion(const IBS_Evaluator& _b) const
     return M;
 }
 
-rmat_t Slater_IBS::XKinetic(const IBS_Evaluator* _b) const
+rmat_t Slater_IBS_Evaluator::XKinetic(const IBS_Evaluator* _b) const
 {
-    const Slater_IBS* b=dynamic_cast<const Slater_IBS*>(_b);
+    const Slater_IBS_Evaluator* b=dynamic_cast<const Slater_IBS_Evaluator*>(_b);
     assert(b);
     assert(l==b->l);
     size_t Nr=size(), Nc=b->size();
@@ -159,7 +159,7 @@ rmat_t Slater_IBS::XKinetic(const IBS_Evaluator* _b) const
 }
 
 
-rvec_t Slater_IBS::Charge() const
+rvec_t Slater_IBS_Evaluator::Charge() const
 {
     rvec_t V(size());
     for (auto i:iv_t(0,size()))
@@ -168,9 +168,9 @@ rvec_t Slater_IBS::Charge() const
     return V;
 }
 
-dERI3 Slater_IBS::Overlap  (const IBS_Evaluator& _c) const
+dERI3 Slater_IBS_Evaluator::Overlap  (const IBS_Evaluator& _c) const
 {
-    const Slater_IBS& c=dynamic_cast<const Slater_IBS&>(_c);
+    const Slater_IBS_Evaluator& c=dynamic_cast<const Slater_IBS_Evaluator&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -184,9 +184,9 @@ dERI3 Slater_IBS::Overlap  (const IBS_Evaluator& _c) const
     }
     return S3;
 }
-dERI3 Slater_IBS::Repulsion(const IBS_Evaluator& _c) const
+dERI3 Slater_IBS_Evaluator::Repulsion(const IBS_Evaluator& _c) const
 {
-    const Slater_IBS& c=dynamic_cast<const Slater_IBS&>(_c);
+    const Slater_IBS_Evaluator& c=dynamic_cast<const Slater_IBS_Evaluator&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -203,12 +203,12 @@ dERI3 Slater_IBS::Repulsion(const IBS_Evaluator& _c) const
 
 
 
-rvec_t Slater_IBS::operator() (const rvec3_t& r) const
+rvec_t Slater_IBS_Evaluator::operator() (const rvec3_t& r) const
 {
     return slater(norm(r),l,es,ns);
 }
 
-rvec3vec_t Slater_IBS::Gradient(const rvec3_t& r) const
+rvec3vec_t Slater_IBS_Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -231,7 +231,7 @@ rvec3vec_t Slater_IBS::Gradient(const rvec3_t& r) const
 }
 
 
-std::ostream&  Slater_IBS::Write(std::ostream& os) const
+std::ostream&  Slater_IBS_Evaluator::Write(std::ostream& os) const
 {
     return os << " with " << size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
 }

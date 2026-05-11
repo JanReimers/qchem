@@ -1,24 +1,25 @@
-// File: BasisSet/Atom/Gaussian/NR/IBS_Evaluator.C
+// File: BasisSet1/Atom/Evaluators/Gaussian/IBS_Evaluator.C
 module;
 #include <iosfwd>
 #include <blaze/Math.h>
 export module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet1.Atom.Internal.Exponential_IBS_Evaluator;
+import qchem.Symmetry.Yl;
 import Common.IntPow;
 
-export class Gaussian_IBS : public Exponential_IBS_Evaluator
+export class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
 public: 
  
-    Gaussian_IBS(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Gaussian_IBS(const rvec_t& es, int l) : Gaussian_IBS(es,l,{}) {}
-    Gaussian_IBS(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
-    Gaussian_IBS(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
+    Gaussian_IBS_Evaluator(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Gaussian_IBS_Evaluator(const rvec_t& es, int l) : Gaussian_IBS_Evaluator(es,l,{}) {}
+    Gaussian_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir) : Exponential_IBS_Evaluator(es,ir) {ns=norms();}
+    Gaussian_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
     : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
 
-    Gaussian_IBS Rescale(double scale_factor) const
+    Gaussian_IBS_Evaluator Rescale(double scale_factor) const
     {
-        return Gaussian_IBS(scale_factor*es,0);
+        return Gaussian_IBS_Evaluator(scale_factor*es,0);
     }
 
     virtual std::ostream& Write   (std::ostream&) const;
@@ -59,6 +60,24 @@ protected:
 
     
 
+};
+
+export class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
+{
+public:
+    Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l, const is_t& mls) : Gaussian_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+    Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Gaussian_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
+    Gaussian_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Gaussian_IBS_Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
+    virtual rvec_t norms() const; //assumes es,l are already initialized
+    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
+    virtual rvec_t     operator() (const rvec3_t&) const;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+
+    virtual std::string Name() const;
+
+private:
+    rvec_t eval(const rvec3_t&) const;
+    int kappa;
 };
 
 

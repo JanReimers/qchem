@@ -12,6 +12,5 @@ target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Rk.C
   BS_Evaluator.C
   IBS_Evaluator.C
-  IBS_RKBS_Evaluator.C
   
 )

@@ -1,16 +1,16 @@
-// File: BasisSet/Atom/radial/Imp/Slater_BS.C
+// File: BasisSet/Atom/radial/Imp/Slater_BS_Evaluator.C
 module;
 #include <cassert>
 module BasisSet.Atom.Slater.NR.BS_Evaluator;
 import qchem.BasisSet1.Atom.Slater.Rk;
 
-void Slater_BS::Register(IBS_Evaluator * eval)
+void Slater_BS_Evaluator::Register(IBS_Evaluator * eval)
 {
     assert(eval);
     eval->Register(&grouper);
 }
 
-Rk* Slater_BS::Create(size_t ia,size_t ic,size_t ib,size_t id) const
+Rk* Slater_BS_Evaluator::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
     return new Slater::RkEngine(
         grouper.unique_esv[ia]+grouper.unique_esv[ib],
@@ -18,13 +18,13 @@ Rk* Slater_BS::Create(size_t ia,size_t ic,size_t ib,size_t id) const
         grouper.LMax(ia,ib,ic,id));
 }
 
-double Slater_BS::loop_4_direct(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
+double Slater_BS_Evaluator::loop_4_direct(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const Slater::RkEngine* cd = dynamic_cast<const Slater::RkEngine*>(c);
     return cd->Coulomb_Rk(la,lc,Ak);
 }
-double Slater_BS::loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
+double Slater_BS_Evaluator::loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const Slater::RkEngine* cd = dynamic_cast<const Slater::RkEngine*>(c);

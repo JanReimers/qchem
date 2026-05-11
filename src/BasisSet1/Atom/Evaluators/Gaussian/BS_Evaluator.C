@@ -1,17 +1,17 @@
-// File: BasisSet/Atom/Gaussian/NR/BS_Evaluator.C
+// File: BasisSet1/Atom/Evaluators/Gaussian/BS_Evaluator.C
 module;
-export module BasisSet.Atom.Gaussian_BS;
+export module BasisSet.Atom.Gaussian_BS_Evaluator;
 export import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 export import qchem.BasisSet1.Atom.BS_Evaluator;
 export import qchem.BasisSet1.Atom.Rk;
 import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 
 
-export class Gaussian_BS 
+export class Gaussian_BS_Evaluator 
     : public /* virtual g++-15.2 BUG failed to read compiled module cluster 32: Bad file data */ BS_Evaluator
 {
 public:
-    using IBS_Evaluator_t = Gaussian_IBS;
+    using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
     virtual void Register(IBS_Evaluator *);
     void BuildCache(size_t LMax) {};
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const; //4 center

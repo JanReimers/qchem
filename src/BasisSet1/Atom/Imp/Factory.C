@@ -11,10 +11,9 @@ import qchem.Symmetry.AtomEC;
 // import qchem.BasisSet1.Atom.BSpline.NR.BS;
 
 import qchem.BasisSet1.Atom.BasisSet;
-import BasisSet.Atom.BSpline.NR.BS_Evaluator;
-import BasisSet.Atom.Gaussian_BS;
+import BasisSet1.Atom.Evaluators.BSpline.BS;
+import BasisSet.Atom.Gaussian_BS_Evaluator;
 import BasisSet.Atom.Slater.NR.BS_Evaluator;
-import BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
 import BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 
@@ -46,14 +45,14 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet<Slater_BS>(es,ec);
+            bs=new BasisSet<Slater_BS_Evaluator>(es,ec);
 
         }
         else
         {
             size_t N=js["N"];
             double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet<Slater_BS>(N,emin,emax,ec);
+            bs=new BasisSet<Slater_BS_Evaluator>(N,emin,emax,ec);
         }
         break;
     }
@@ -63,13 +62,13 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet<Gaussian_BS>(es,ec);
+            bs=new BasisSet<Gaussian_BS_Evaluator>(es,ec);
         }
         else
         {
             size_t N=js["N"];
             double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet<Gaussian_BS>(N,emin,emax,ec);
+            bs=new BasisSet<Gaussian_BS_Evaluator>(N,emin,emax,ec);
         }
         break;
     }
@@ -77,13 +76,13 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
     {
         size_t N=js["N"];
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new BasisSet<BSpline_BS<6>>(N,rmin,rmax,ec);
+        bs=new BasisSet<BSpline_BS_Evaluator<6>>(N,rmin,rmax,ec);
         break;   
     }
 //     case Type::BSpline16:
 //     {
 //         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-//         bs=new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS>(N,rmin,rmax,ec);
+//         bs=new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS_Evaluator>(N,rmin,rmax,ec);
 //         break;   
 //     } 
 //     case Type::BSpline9:
@@ -109,14 +108,14 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
     {
         size_t N=js["N"];
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new BasisSet_RKB<Slater_IBS,Slater_RKBS_IBS>(N,emin,emax,ec);
+        bs=new BasisSet_RKB<Slater_IBS_Evaluator,Slater_RKBS_IBS_Evaluator>(N,emin,emax,ec);
         break;
     }
     case Type::Gaussian_RKB:
     {
         size_t N=js["N"];
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new BasisSet_RKB<Gaussian_IBS,Gaussian_RKBS_IBS>(N,emin,emax,ec);
+        bs=new BasisSet_RKB<Gaussian_IBS_Evaluator,Gaussian_RKBS_IBS_Evaluator>(N,emin,emax,ec);
         break;
     }
 //     case Type::BSpline_RKB:

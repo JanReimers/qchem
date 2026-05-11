@@ -1,16 +1,16 @@
 // File: BasisSet/Atom/Gaussian/NR/Imp/BS_Evaluator.C
 module;
 #include <cassert>
-module BasisSet.Atom.Gaussian_BS;
+module BasisSet.Atom.Gaussian_BS_Evaluator;
 import qchem.BasisSet1.Atom.Gaussian.Rk;
 
-void Gaussian_BS::Register(IBS_Evaluator * eval)
+void Gaussian_BS_Evaluator::Register(IBS_Evaluator * eval)
 {
     assert(eval);
     eval->Register(&grouper);
 }
 
-Rk* Gaussian_BS::Create(size_t ia,size_t ic,size_t ib,size_t id) const
+Rk* Gaussian_BS_Evaluator::Create(size_t ia,size_t ic,size_t ib,size_t id) const
 {
     return new Gaussian::RkEngine(
         grouper.unique_esv[ia]+grouper.unique_esv[ib],
@@ -18,13 +18,13 @@ Rk* Gaussian_BS::Create(size_t ia,size_t ic,size_t ib,size_t id) const
         grouper.LMax(ia,ib,ic,id));
 }
 
-double Gaussian_BS::loop_4_direct(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
+double Gaussian_BS_Evaluator::loop_4_direct(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
     return cd->Coulomb_Rk(la,lc,Ak);
 }
-double Gaussian_BS::loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
+double Gaussian_BS_Evaluator::loop_4_exchange(size_t id, size_t la, size_t lc,const rvec11_t& Ak)  const
 {
     const Cacheable* c=Cache4::loop_4(id);
     const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);

@@ -7,11 +7,11 @@ import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet1.Atom.Rk;
 
 
-export class Slater_BS 
+export class Slater_BS_Evaluator 
     : public /* virtual g++-15.2 BUG failed to read compiled module cluster 32: Bad file data */ BS_Evaluator
 {
 public:
-    using IBS_Evaluator_t = Slater_IBS;
+    using IBS_Evaluator_t = Slater_IBS_Evaluator;
     virtual void Register(IBS_Evaluator *);
     void BuildCache(size_t LMax) {};
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const; //4 center

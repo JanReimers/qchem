@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/radial/Imp/BSpline_IBS.C
+// File: BasisSet1/Atom/Evaluators/BSpline/Imp/IBS_r_Evaluator.C
 module;
 #include <bspline/Core.h>
 #include <InvPosition.H> // 1/x^n operator are not provided in bspline package, so a roll our own.
@@ -8,7 +8,7 @@ module;
 #include <functional>
 #include <sstream>
 
-module BasisSet.Atom.BSpline.NR.IBS_Evaluator_r;
+module BasisSet1.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet1.Atom.BSpline.Rk;
 import qchem.BasisSet1.Atom.BSpline.SplineGrouper;
 import Common.Constants;
@@ -69,7 +69,7 @@ template <size_t K> double Charge(const spline_t<K>& a , size_t l)
 //
 //  Start member functions.
 //
-template <size_t K> void BSpline_r_IBS<K>::Register(Grouper* _grouper)
+template <size_t K> void BSpline_r_IBS_Evaluator<K>::Register(Grouper* _grouper)
 {
     assert(_grouper);
     auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
@@ -78,7 +78,7 @@ template <size_t K> void BSpline_r_IBS<K>::Register(Grouper* _grouper)
     grouper->itsGLs[l]=itsGL.get();
 }
 
-template <size_t K> BSpline_r_IBS<K>::BSpline_r_IBS(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
+template <size_t K> BSpline_r_IBS_Evaluator<K>::BSpline_r_IBS_Evaluator(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
 : IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) 
 {
     knots=MakeLogKnots(Ngrid,rmin,rmax);
@@ -95,7 +95,7 @@ template <size_t K> BSpline_r_IBS<K>::BSpline_r_IBS(size_t Ngrid, double _rmin, 
     assert(size()==splines.size());
 };
 
- template <size_t K> std::vector<double> BSpline_r_IBS<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
+ template <size_t K> std::vector<double> BSpline_r_IBS_Evaluator<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
 {
     assert(Ngrid>1);
     std::vector<double> knots;
@@ -121,14 +121,14 @@ template <size_t K> BSpline_r_IBS<K>::BSpline_r_IBS(size_t Ngrid, double _rmin, 
 }
 
 
-template <size_t K> std::string BSpline_r_IBS<K>::Name () const
+template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::Name () const
 {
     std::ostringstream os;
     os << "BSpline<" << K << "> 1/r ";
     return os.str();
 }
 
-template <size_t K> std::string BSpline_r_IBS<K>::RadialID () const
+template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::RadialID () const
 {
     std::ostringstream os;
     os << Name() << " {";
@@ -137,7 +137,7 @@ template <size_t K> std::string BSpline_r_IBS<K>::RadialID () const
     return os.str();
 }
 
-template <size_t K> rvec_t BSpline_r_IBS<K>::norms() const
+template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::norms() const
 {
     size_t N=splines.size();
     rvec_t ret(N);
@@ -145,7 +145,7 @@ template <size_t K> rvec_t BSpline_r_IBS<K>::norms() const
     return ret;
 }
 
-template <size_t K> rsmat_t BSpline_r_IBS<K>::Overlap() const
+template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Overlap() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -156,7 +156,7 @@ template <size_t K> rsmat_t BSpline_r_IBS<K>::Overlap() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_r_IBS<K>::Grad2() const
+template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Grad2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -167,7 +167,7 @@ template <size_t K> rsmat_t BSpline_r_IBS<K>::Grad2() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_r_IBS<K>::Inv_r1() const
+template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Inv_r1() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -178,7 +178,7 @@ template <size_t K> rsmat_t BSpline_r_IBS<K>::Inv_r1() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_r_IBS<K>::Inv_r2() const
+template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Inv_r2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -189,7 +189,7 @@ template <size_t K> rsmat_t BSpline_r_IBS<K>::Inv_r2() const
     return S;
 }
 
-template <size_t K> rsmat_t BSpline_r_IBS<K>::Repulsion() const
+template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Repulsion() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -200,7 +200,7 @@ template <size_t K> rsmat_t BSpline_r_IBS<K>::Repulsion() const
     return S;
 }
 
-template <size_t K> rvec_t BSpline_r_IBS<K>::Charge() const
+template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::Charge() const
 {
     rvec_t V(size());
     for (auto i:iv_t(0,size()))
@@ -209,9 +209,9 @@ template <size_t K> rvec_t BSpline_r_IBS<K>::Charge() const
     return V;
 }
 
-template <size_t K> rmat_t BSpline_r_IBS<K>::XRepulsion(const IBS_Evaluator& _b) const
+template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XRepulsion(const IBS_Evaluator& _b) const
 {
-    const BSpline_r_IBS<K>& b=dynamic_cast<const BSpline_r_IBS<K>&>(_b);
+    const BSpline_r_IBS_Evaluator<K>& b=dynamic_cast<const BSpline_r_IBS_Evaluator<K>&>(_b);
     size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
@@ -220,9 +220,9 @@ template <size_t K> rmat_t BSpline_r_IBS<K>::XRepulsion(const IBS_Evaluator& _b)
     return M;
 }
 
-template <size_t K> rmat_t BSpline_r_IBS<K>::XKinetic(const IBS_Evaluator* _b) const
+template <size_t K> rmat_t BSpline_r_IBS_Evaluator<K>::XKinetic(const IBS_Evaluator* _b) const
 {
-    const BSpline_r_IBS<K>* b=dynamic_cast<const BSpline_r_IBS<K>*>(_b);
+    const BSpline_r_IBS_Evaluator<K>* b=dynamic_cast<const BSpline_r_IBS_Evaluator<K>*>(_b);
     assert(b);
     assert(l==b->l);
     size_t Nr=size(), Nc=b->size();
@@ -233,9 +233,9 @@ template <size_t K> rmat_t BSpline_r_IBS<K>::XKinetic(const IBS_Evaluator* _b) c
     return M;
 }
 
-template <size_t K> dERI3 BSpline_r_IBS<K>::Overlap(const IBS_Evaluator& _c) const
+template <size_t K> dERI3 BSpline_r_IBS_Evaluator<K>::Overlap(const IBS_Evaluator& _c) const
 {
-    const BSpline_r_IBS<K>& c=dynamic_cast<const BSpline_r_IBS<K>&>(_c);
+    const BSpline_r_IBS_Evaluator<K>& c=dynamic_cast<const BSpline_r_IBS_Evaluator<K>&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -252,9 +252,9 @@ template <size_t K> dERI3 BSpline_r_IBS<K>::Overlap(const IBS_Evaluator& _c) con
     }
     return S3;
 }
-template <size_t K> dERI3 BSpline_r_IBS<K>::Repulsion(const IBS_Evaluator& _c) const
+template <size_t K> dERI3 BSpline_r_IBS_Evaluator<K>::Repulsion(const IBS_Evaluator& _c) const
 {
-    const BSpline_r_IBS<K>& c=dynamic_cast<const BSpline_r_IBS<K>&>(_c);
+    const BSpline_r_IBS_Evaluator<K>& c=dynamic_cast<const BSpline_r_IBS_Evaluator<K>&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -269,7 +269,7 @@ template <size_t K> dERI3 BSpline_r_IBS<K>::Repulsion(const IBS_Evaluator& _c) c
     return S3;
 }
 
-template <size_t K> rvec_t BSpline_r_IBS<K>::operator() (const rvec3_t& r) const
+template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
     double mr=norm(r);
@@ -282,7 +282,7 @@ template <size_t K> rvec_t BSpline_r_IBS<K>::operator() (const rvec3_t& r) const
     return ret;
 }
 
-template <size_t K> rvec3vec_t BSpline_r_IBS<K>::Gradient(const rvec3_t& r) const
+template <size_t K> rvec3vec_t BSpline_r_IBS_Evaluator<K>::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -304,11 +304,11 @@ template <size_t K> rvec3vec_t BSpline_r_IBS<K>::Gradient(const rvec3_t& r) cons
     return ret;
 }
 
-template <size_t K> std::ostream&  BSpline_r_IBS<K>::Write(std::ostream& os) const
+template <size_t K> std::ostream&  BSpline_r_IBS_Evaluator<K>::Write(std::ostream& os) const
 {
     return os << " with " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
 }
 
 
-#define INSTANCEk(k) template class BSpline_r_IBS<k>;
+#define INSTANCEk(k) template class BSpline_r_IBS_Evaluator<k>;
 #include "../Instance.hpp"

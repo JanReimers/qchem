@@ -33,13 +33,13 @@ inline double Charge(double ea, size_t l)
 //
 //  Start member functions.
 //
-std::string Gaussian_IBS::Name() const
+std::string Gaussian_IBS_Evaluator::Name() const
 {
     return "Spherical Gaussian ";
 }
 
 
-double Gaussian_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
+double Gaussian_IBS_Evaluator::Grad2(double ea , double eb,size_t la, size_t lb)
 {
     assert(la==lb);
     double t=ea+eb;
@@ -49,25 +49,25 @@ double Gaussian_IBS::Grad2(double ea , double eb,size_t la, size_t lb)
             +4*ea*eb  * Gaussian::Integral(t,2*la+2);
 }
 
-double Gaussian_IBS::Inv_r2(double ea , double eb,size_t l_total)
+double Gaussian_IBS_Evaluator::Inv_r2(double ea , double eb,size_t l_total)
 {
     return Gaussian::Integral(ea+eb,l_total-2); //Already has 4*Pi
 }
 
 // This need overridability.
-double Gaussian_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+double Gaussian_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return Gaussian::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-rvec_t Gaussian_IBS::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
+rvec_t Gaussian_IBS_Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
 {
     size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
     ::Gaussian::ExponentScaler ss(N,emin,emax,LMax);
     return ss.Get_es(ir);
 }
 
-rvec_t Gaussian_IBS::norms() const
+rvec_t Gaussian_IBS_Evaluator::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
@@ -75,7 +75,7 @@ rvec_t Gaussian_IBS::norms() const
     return ret;
 }
 
-rsmat_t Gaussian_IBS::Overlap() const
+rsmat_t Gaussian_IBS_Evaluator::Overlap() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -86,7 +86,7 @@ rsmat_t Gaussian_IBS::Overlap() const
     return S;
 }
 
-rsmat_t Gaussian_IBS::Grad2() const
+rsmat_t Gaussian_IBS_Evaluator::Grad2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -97,7 +97,7 @@ rsmat_t Gaussian_IBS::Grad2() const
     return S;
 }
 
-rsmat_t Gaussian_IBS::Inv_r1() const
+rsmat_t Gaussian_IBS_Evaluator::Inv_r1() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -108,7 +108,7 @@ rsmat_t Gaussian_IBS::Inv_r1() const
     return S;
 }
 
-rsmat_t Gaussian_IBS::Inv_r2() const
+rsmat_t Gaussian_IBS_Evaluator::Inv_r2() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -119,7 +119,7 @@ rsmat_t Gaussian_IBS::Inv_r2() const
     return S;
 }
 
-rsmat_t Gaussian_IBS::Repulsion() const
+rsmat_t Gaussian_IBS_Evaluator::Repulsion() const
 {
     size_t N=size();
     rsmat_t S(N);
@@ -130,7 +130,7 @@ rsmat_t Gaussian_IBS::Repulsion() const
     return S;
 }
 
-rvec_t Gaussian_IBS::Charge() const
+rvec_t Gaussian_IBS_Evaluator::Charge() const
 {
     rvec_t V(size());
     for (auto i:iv_t(0,size()))
@@ -139,9 +139,9 @@ rvec_t Gaussian_IBS::Charge() const
     return V;
 }
 
-rmat_t Gaussian_IBS::XRepulsion(const IBS_Evaluator& _b) const
+rmat_t Gaussian_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
 {
-    const Gaussian_IBS& b=dynamic_cast<const Gaussian_IBS&>(_b);
+    const Gaussian_IBS_Evaluator& b=dynamic_cast<const Gaussian_IBS_Evaluator&>(_b);
     size_t Nr=size(), Nc=b.size();
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
@@ -150,9 +150,9 @@ rmat_t Gaussian_IBS::XRepulsion(const IBS_Evaluator& _b) const
     return M;
 }
 
-rmat_t Gaussian_IBS::XKinetic(const IBS_Evaluator* _b) const
+rmat_t Gaussian_IBS_Evaluator::XKinetic(const IBS_Evaluator* _b) const
 {
-    const Gaussian_IBS* b=dynamic_cast<const Gaussian_IBS*>(_b);
+    const Gaussian_IBS_Evaluator* b=dynamic_cast<const Gaussian_IBS_Evaluator*>(_b);
     assert(b);
     assert(l==b->l);
     size_t Nr=size(), Nc=b->size();
@@ -164,9 +164,9 @@ rmat_t Gaussian_IBS::XKinetic(const IBS_Evaluator* _b) const
 }
 
 
-dERI3 Gaussian_IBS::Overlap  (const IBS_Evaluator& _c) const
+dERI3 Gaussian_IBS_Evaluator::Overlap  (const IBS_Evaluator& _c) const
 {
-    const Gaussian_IBS& c=dynamic_cast<const Gaussian_IBS&>(_c);
+    const Gaussian_IBS_Evaluator& c=dynamic_cast<const Gaussian_IBS_Evaluator&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -180,9 +180,9 @@ dERI3 Gaussian_IBS::Overlap  (const IBS_Evaluator& _c) const
     }
     return S3;
 }
-dERI3 Gaussian_IBS::Repulsion(const IBS_Evaluator& _c) const
+dERI3 Gaussian_IBS_Evaluator::Repulsion(const IBS_Evaluator& _c) const
 {
-    const Gaussian_IBS& c=dynamic_cast<const Gaussian_IBS&>(_c);
+    const Gaussian_IBS_Evaluator& c=dynamic_cast<const Gaussian_IBS_Evaluator&>(_c);
     dERI3 S3;
     size_t N=size();
     for (size_t ic=0;ic<c.size();ic++) 
@@ -200,12 +200,12 @@ dERI3 Gaussian_IBS::Repulsion(const IBS_Evaluator& _c) const
 
 
 
-rvec_t Gaussian_IBS::operator() (const rvec3_t& r) const
+rvec_t Gaussian_IBS_Evaluator::operator() (const rvec3_t& r) const
 {
     return gaussian(norm(r),l,es,ns); 
 }
 
-rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const
+rvec3vec_t Gaussian_IBS_Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -221,7 +221,7 @@ rvec3vec_t Gaussian_IBS::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-std::ostream&  Gaussian_IBS::Write(std::ostream& os) const
+std::ostream&  Gaussian_IBS_Evaluator::Write(std::ostream& os) const
 {
     return os << " with N=" << es.size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
 }

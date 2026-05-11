@@ -4,27 +4,27 @@ module;
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
 
-module BasisSet.Atom.Gaussian.RKB.IBS_EValuator;
+module BasisSet.Atom.Gaussian.NR.IBS_EValuator;
 import qchem.BasisSet1.Atom.GaussianIntegrals;
 import Common.Constants;
 
-std::string Gaussian_RKBS_IBS::Name() const
+std::string Gaussian_RKBS_IBS_Evaluator::Name() const
 {
     return "Spherical Gaussian RKB ";
 }
 
-rvec_t Gaussian_RKBS_IBS::norms() const
+rvec_t Gaussian_RKBS_IBS_Evaluator::norms() const
 {
-    return Gaussian_IBS::norms()/(2*c_light);
+    return Gaussian_IBS_Evaluator::norms()/(2*c_light);
 }
 
-double Gaussian_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+double Gaussian_RKBS_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
 }
 
 
-rvec_t Gaussian_RKBS_IBS::eval(const rvec3_t& r) const
+rvec_t Gaussian_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     rvec_t f=-2*es*mr;
@@ -34,12 +34,12 @@ rvec_t Gaussian_RKBS_IBS::eval(const rvec3_t& r) const
     return f*gaussian(mr,l,es,ns);
 }
 
-rvec_t Gaussian_RKBS_IBS::operator() (const rvec3_t& r) const
+rvec_t Gaussian_RKBS_IBS_Evaluator::operator() (const rvec3_t& r) const
 {
    return eval(r); 
 }
 
-rvec3vec_t Gaussian_RKBS_IBS::Gradient(const rvec3_t& r) const
+rvec3vec_t Gaussian_RKBS_IBS_Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

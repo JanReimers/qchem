@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/BSpline/NR/BSpline_BS.C BSpline Basis Set for atoms.
+// File: BasisSet/Atom/BSpline/NR/BSpline_BS_Evaluator.C BSpline Basis Set for atoms.
 module;
 #include <blaze/Math.h>
 export module qchem.BasisSet1.Atom.BasisSet;

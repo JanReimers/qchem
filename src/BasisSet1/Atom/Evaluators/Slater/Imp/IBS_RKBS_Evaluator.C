@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/radial/Imp/Slater_IBS.C
+// File: BasisSet/Atom/radial/Imp/Slater_IBS_Evaluator.C
 module;
 #include <cmath>
 #include <cassert>
@@ -8,22 +8,22 @@ module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
 import qchem.BasisSet1.Atom.Slater.Integrals;
 import Common.Constants;
 
-std::string Slater_RKBS_IBS::Name() const
+std::string Slater_RKBS_IBS_Evaluator::Name() const
 {
     return "Spherical Slater RKB ";
 }
 
-rvec_t Slater_RKBS_IBS::norms() const
+rvec_t Slater_RKBS_IBS_Evaluator::norms() const
 {
-    return Slater_IBS::norms()/(2*c_light);
+    return Slater_IBS_Evaluator::norms()/(2*c_light);
 }
 
-double Slater_RKBS_IBS::Inv_r1(double ea , double eb,size_t l_total) const
+double Slater_RKBS_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
 {
     return ea*eb*::Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
 }
 
-rvec_t Slater_RKBS_IBS::eval(const rvec3_t& r) const
+rvec_t Slater_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     rvec_t f=-es;
@@ -33,12 +33,12 @@ rvec_t Slater_RKBS_IBS::eval(const rvec3_t& r) const
     return f*slater(mr,l,es,ns);
 }
 
-rvec_t Slater_RKBS_IBS::operator() (const rvec3_t& r) const
+rvec_t Slater_RKBS_IBS_Evaluator::operator() (const rvec3_t& r) const
 {
    return eval(r); 
 }
 
-rvec3vec_t Slater_RKBS_IBS::Gradient(const rvec3_t& r) const
+rvec3vec_t Slater_RKBS_IBS_Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

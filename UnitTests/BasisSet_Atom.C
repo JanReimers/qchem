@@ -10,9 +10,9 @@ using std::endl;
 import BasisSet.Atom.Slater.NR.IBS_Evaluator;
 import BasisSet.Atom.Slater.NR.BS_Evaluator;
 import BasisSet.Atom.Gaussian.NR.IBS_EValuator;
-import BasisSet.Atom.Gaussian_BS;
-import BasisSet.Atom.BSpline.NR.IBS_Evaluator;
-import BasisSet.Atom.BSpline.NR.BS_Evaluator;
+import BasisSet.Atom.Gaussian_BS_Evaluator;
+import BasisSet1.Atom.Evaluators.BSpline.IBS;
+import BasisSet1.Atom.Evaluators.BSpline.BS;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
@@ -137,11 +137,11 @@ class BasisSet_SL: public BasisSet_Common
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common(new Slater_BS)
+    BasisSet_SL() : BasisSet_Common(new Slater_BS_Evaluator)
     {
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Slater_IBS(es,ir)); 
+            Insert(new Slater_IBS_Evaluator(es,ir)); 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater},{"exponents", {0.5,1.0,2.0}}};
         bs=BasisSetAtomFactory::Factory(js,ec);
         cout << es << endl << *bs << endl;
@@ -269,15 +269,15 @@ class BasisSet_SG: public BasisSet_Common
 {
 public:
 
-    BasisSet_SG() : BasisSet_Common(new Gaussian_BS)
+    BasisSet_SG() : BasisSet_Common(new Gaussian_BS_Evaluator)
     {
         // for (size_t l=0;l<=LMax;l++)
-        //     Insert(new Gaussian_IBS(es,l));    
+        //     Insert(new Gaussian_IBS_Evaluator(es,l));    
         // bs=new AtomBS::Gaussian::BasisSet(es,LMax);
 
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Gaussian_IBS(es,ir)); 
+            Insert(new Gaussian_IBS_Evaluator(es,ir)); 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Gaussian},{"exponents", {0.5,1.0,2.0}}};
         bs=BasisSetAtomFactory::Factory(js,ec);
     }
@@ -383,10 +383,10 @@ class BasisSet_BS: public BasisSet_Common
 {
 public:
 
-    BasisSet_BS() : BasisSet_Common(new BSpline_BS<6>)
+    BasisSet_BS() : BasisSet_Common(new BSpline_BS_Evaluator<6>)
     {
         for (size_t l=0;l<=3;l++)
-            Insert(new BSpline_IBS<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
+            Insert(new BSpline_IBS_Evaluator<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
         bs=BasisSetAtomFactory::Factory(js,86);

@@ -28,7 +28,7 @@ Priority 1:
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
         5) Z=92: 
     -Clean up fit BS construction:
-         : Slater_IBS(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
+         : Slater_IBS_Evaluator(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
         , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
 
     -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
@@ -46,7 +46,7 @@ Priority 1:
         On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
             These Rk engines may need to adapt to high k values on request.
         Right now BS_Evaluator derives from Cache4.  
-            BSpline::BasisSet->BSpline::BSpline_BS<K>->BS_Evaluator->Cache4
+            BSpline::BasisSet->BSpline::BSpline_BS_Evaluator<K>->BS_Evaluator->Cache4
             Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
             But the global cache need to store std::map<size_t hash, Cache4> 
                 Can we add this to DB_cache?
@@ -774,7 +774,7 @@ Priority 3:
         Orbital_IBS(... L,mls.ml_unoccupied)
     Done: -Check mempory leaks
         Missing delete itsCD; in SCFiterator
-        Missing delete cache in BSpline_BS
+        Missing delete cache in BSpline_BS_Evaluator
     Done: -Blaze:
         Done: -Add as submodule
         Done: -Make unit test to try out some simple ops
@@ -854,7 +854,7 @@ Priority 3:
             Done: Make Unit tests
             Done: Derive IBS from Evaluator, and pass this in constructor.
             Done: Clean up RKBS evaluators norms handling.
-            Done: Slater_IBS make constructor with no mls
+            Done: Slater_IBS_Evaluator make constructor with no mls
 
 
         Done: How to integrate into the old code?
@@ -976,10 +976,10 @@ Priority 3:
         Done: BasisSet.Atom
         Done: BasisSet.Molecule
     
-    Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
+    Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS_Evaluator.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
         [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
         [build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
-        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Orbital_RKBL_IBS<double>::Orbital_RKBL_IBS' requested here
+        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Slater_IBS_Evaluator.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Orbital_RKBL_IBS<double>::Orbital_RKBL_IBS' requested here
         [build]    33 |         , new Orbital_RKBL_IBS<double>(db,exponents, kappa)
         [build]       |              
     Done: -Get rid of index_t 
