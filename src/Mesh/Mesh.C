@@ -3,6 +3,7 @@ module;
 #include <tuple>
 #include <vector>
 #include <string>
+#include <sstream>
 export module qchem.Mesh;
 export import qchem.Types;
 
