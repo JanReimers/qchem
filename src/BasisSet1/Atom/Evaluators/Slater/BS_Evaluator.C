@@ -1,10 +1,11 @@
-// File: BasisSet/Atom/Slater/NR/BS_Evaluator.C
+// File: BasisSet1/Atom/Evaluators/Slater/BS_Evaluator.C
 module;
-export module BasisSet.Atom.Slater.NR.BS_Evaluator;
-import BasisSet.Atom.Slater.NR.IBS_Evaluator;
+export module qchem.BasisSet1.Atom.Evaluators.Slater.BS;
+export import qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.BS;
-import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 export import qchem.BasisSet1.Atom.Rk;
+
+import qchem.BasisSet1.Atom.Internal.ExponentGrouper;
 
 
 export class Slater_BS_Evaluator 

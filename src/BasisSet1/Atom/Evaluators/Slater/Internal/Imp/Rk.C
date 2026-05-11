@@ -1,9 +1,9 @@
-// File: Slater::RkEngine.C  4 electron Charge distribution of Slater orbitals. 
+// File: BasisSet1/Atom/Evaluators/Slater/Internal/Imp/Rk.C  Slater integrals for radial Slater functions.
 module;
 #include <cassert>
 #include <cmath>
 #include <vector>
-module qchem.BasisSet1.Atom.Slater.Rk;
+module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet1.Atom.Internal.PascalTriangle;
 import Common.Factorials;
 

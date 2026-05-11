@@ -1,8 +1,8 @@
-// File: BasisSet/Atom/radial/Slater/Integrals.C   Slater radial integral functions.
+// File: BasisSet1/Atom/Evaluators/Slater/Internal/Integrals.C   Slater radial integral functions.
 module;
 #include <cassert>
 #include <cmath>
-export module qchem.BasisSet1.Atom.Slater.Integrals;
+export module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
 import Common.Constants;
 import Common.Factorials;
 import Common.IntPow;

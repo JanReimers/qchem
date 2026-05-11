@@ -1,8 +1,8 @@
-// File: ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
+// File: src/BasisSet1/Atom/Evaluators/Slater/Internal/Imp/ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
 module;
 #include <cmath>
 #include <blaze/math/Subvector.h>
-module qchem.BasisSet1.Atom.Slater.ExponentScaler;
+module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.ExponentScaler;
 import qchem.BasisSet1.Atom.Internal.FillPower;
 import qchem.Symmetry.Yl;
 

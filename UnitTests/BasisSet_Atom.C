@@ -7,11 +7,8 @@
 using std::cout;
 using std::endl;
 
-import BasisSet.Atom.Slater.NR.IBS_Evaluator;
-import BasisSet.Atom.Slater.NR.BS_Evaluator;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet1.Atom.Evaluators.Slater.BS;
 import qchem.BasisSet1.Atom.Evaluators.Gaussian.BS; 
-import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.BS;
 
 import qchem.Factory;

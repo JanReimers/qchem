@@ -2,7 +2,7 @@
 module;
 #include <string>
 export module BasisSet.Atom.Slater.RKB.IBS_Evaluator;
-import BasisSet.Atom.Slater.NR.IBS_Evaluator;
+import qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Yl;
 

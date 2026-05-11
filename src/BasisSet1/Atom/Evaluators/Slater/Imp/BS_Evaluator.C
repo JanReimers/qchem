@@ -1,8 +1,8 @@
-// File: BasisSet/Atom/radial/Imp/Slater_BS_Evaluator.C
+// File: BasisSet1/Atom/Evaluators/Slater/Imp/BS_Evaluator.C
 module;
 #include <cassert>
-module BasisSet.Atom.Slater.NR.BS_Evaluator;
-import qchem.BasisSet1.Atom.Slater.Rk;
+module qchem.BasisSet1.Atom.Evaluators.Slater.BS;
+import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
 
 void Slater_BS_Evaluator::Register(IBS_Evaluator * eval)
 {
