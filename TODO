@@ -83,8 +83,9 @@ Priority 1:
 
 
     -BasisSet reorg
-        BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
+        Fixed: BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
             This will mess up the copy constructor!
+            N splines = Nintervals+K-1-l
         For efficiency legacy calculations do Jcdab=Jabcd.Transpose(). The BasisSet1 version recalculates Jcdab directly 
             and does not yet do the Transpose call.  For Guassian and Slater this results in a minor error <1e-15.  For 
             BSpline near the origin we get much bigger errors.  Perhaps this related to problems encountered when trying 

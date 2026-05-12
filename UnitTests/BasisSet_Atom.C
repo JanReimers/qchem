@@ -74,6 +74,7 @@ public:
 void BasisSet_Common::TestOverlap(double eps) const
 {
     EXPECT_GT(evals.size(),0);
+    size_t index=0;
     for (auto ev:evals)
     {
         rsmat_t S=ev->Overlap();
@@ -81,6 +82,7 @@ void BasisSet_Common::TestOverlap(double eps) const
         rsmat_t Snum = mintegrator->Overlap(*ev);
         cout.precision(2);
         // cout << S-Snum << endl;
+        cout << "l=" << index++ << std::endl;
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
 }
@@ -253,7 +255,7 @@ TEST_F(BasisSet_SL,IDs)
     for (auto ibs:bs->Iterate<obs_t>())
     {
         EXPECT_EQ(ibs->Name(),"Spherical Slater ");
-        EXPECT_EQ(ibs->RadialID(),"Spherical Slater {0.5 1 2 }");
+        EXPECT_EQ(ibs->RadialID(),"Spherical Slater N=3 {0.5 ... 2}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }
@@ -366,7 +368,7 @@ TEST_F(BasisSet_SG,IDs)
     for (auto ibs:bs->Iterate<obs_t>())
     {
         EXPECT_EQ(ibs->Name(),"Spherical Gaussian ");
-        EXPECT_EQ(ibs->RadialID(),"Spherical Gaussian {0.5 1 2 }");
+        EXPECT_EQ(ibs->RadialID(),"Spherical Gaussian N=3 {0.5 ... 2}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }
@@ -383,7 +385,7 @@ public:
     BasisSet_BS() : BasisSet_Common(new BSpline_BS_Evaluator<6>)
     {
         for (size_t l=0;l<=3;l++)
-            Insert(new BSpline_IBS_Evaluator<6>(9+2*l,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
+            Insert(new BSpline_IBS_Evaluator<6>(5,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
         nlohmann::json js = {{"type",BasisSetAtomFactory::Type::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
         bs=BasisSetAtomFactory::Factory(js,86);
@@ -391,24 +393,24 @@ public:
    
 };
 
-TEST_F(BasisSet_BS,Overlap) {TestOverlap(4e-8);}
-TEST_F(BasisSet_BS,Grad2  ) {TestGrad2  (7e-3);}
-TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (4e-6);}
+TEST_F(BasisSet_BS,Overlap) {TestOverlap(3e-11);}
+TEST_F(BasisSet_BS,Grad2  ) {TestGrad2  (1e-4);}
+TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (5e-9);}
 // TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (4e-8);}
-TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-4);}
+TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-7);}
 
 std::string BSradialIDs[]={
     "BSpline<6>  {0 0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 10 }",
     "BSpline<6>  {0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 }",
-    "BSpline<6>  {0 0 0 0 0 0.1 0.316228 1 3.16228 10 }",
-    "BSpline<6>  {0 0 0 0 0.1 0.316228 1 3.16228 10 }"};
+    "BSpline<6>  {0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 }",
+    "BSpline<6>  {0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 }"};
 
 TEST_F(BasisSet_BS,IDs)
 {
     size_t index=0;
     for (auto ibs:bs->Iterate<obs_t>())
     {
-        cout << "index=" << index << " ibs=" << *ibs << endl;
+        // cout << "index=" << index << " ibs=" << *ibs << endl;
         EXPECT_EQ(ibs->Name(),"BSpline<6> ");
         EXPECT_EQ(ibs->RadialID(),BSradialIDs[index]);
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);

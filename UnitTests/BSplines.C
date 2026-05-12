@@ -81,8 +81,8 @@ std::vector<double> BSplineTests::MakeLogKnots(double rmin, double rmax, size_t 
     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
     for (size_t i = 0; i < Ngrid-1; i++) 
         knots.push_back(rmin * pow(step, i));
-    knots.push_back(rmax); //Make the last one exact
-    // for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
+    // knots.push_back(rmax); //Make the last one exact
+    for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
     return knots;
 }
 template <class S,class B> rsmat_t BSplineTests::MakeSMat(const std::vector<S>& splines, const B& integrator)
@@ -98,14 +98,37 @@ template <class S,class B> rsmat_t BSplineTests::MakeSMat(const std::vector<S>& 
 
 TEST_F(BSplineTests, Example1)
 {
-    static constexpr size_t SPLINE_ORDER = 3;
-    using Spline = bspline::Spline<double, SPLINE_ORDER>;
-
-    // Define knots vector.
-    const std::vector<double> knots{0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
-
-    // Generate Splines.
-    const std::vector<Spline> splines = bspline::generateBSplines<SPLINE_ORDER>(knots);
+    static constexpr size_t K = 3;
+    using Spline = bspline::Spline<double, K>;
+    const std::vector<double> knots{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0};
+    const std::vector<Spline> splines = bspline::generateBSplines<K>(knots);
+    EXPECT_EQ(splines.size(),knots.size()-K-1);
+    double k0=knots[0], kn=knots[knots.size()-1];
+    EXPECT_NEAR(splines[0](k0),0.0,1e-16);
+    EXPECT_NEAR(splines[1](k0),0.0,1e-16);
+    EXPECT_NEAR(splines[2](k0),0.0,1e-16);
+    size_t Slast=splines.size()-1;
+    EXPECT_NEAR(splines[Slast-0](kn),0.0,1e-16);
+    EXPECT_NEAR(splines[Slast-1](kn),0.0,1e-16);
+    EXPECT_NEAR(splines[Slast-2](kn),0.0,1e-16);
+}
+TEST_F(BSplineTests, Example2)
+{
+    // Now we put K+1 duplicate knots at each end in order to get B_0(0)=1.0;
+    // We need this behaviour for s orbitals.
+    static constexpr size_t K = 3;
+    using Spline = bspline::Spline<double, K>;
+    const std::vector<double> knots{0,0,0,0,  1.0, 2.0, 3.0, 4.0, 5,5,5,5};
+    const std::vector<Spline> splines = bspline::generateBSplines<K>(knots);
+    EXPECT_EQ(splines.size(),knots.size()-K-1);
+    double k0=knots[0], kn=knots[knots.size()-1];
+    EXPECT_NEAR(splines[0](k0),1.0,1e-16);
+    EXPECT_NEAR(splines[1](k0),0.0,1e-16);
+    EXPECT_NEAR(splines[2](k0),0.0,1e-16);
+    size_t Slast=splines.size()-1;
+    EXPECT_NEAR(splines[Slast-0](kn),1.0,1e-16);
+    EXPECT_NEAR(splines[Slast-1](kn),0.0,1e-16);
+    EXPECT_NEAR(splines[Slast-2](kn),0.0,1e-16);
 }
 
 using namespace bspline::operators;
@@ -114,17 +137,21 @@ using namespace bspline::integration;
 TEST_F(BSplineTests, Knots)
 {
     
-    static constexpr size_t SPLINE_ORDER = 3;
-    std::vector<double> knots=MakeLogKnots(0.01,2000.0,SPLINE_ORDER,10);
-    // cout << knots << endl;
-    using Spline = bspline::Spline<double, SPLINE_ORDER>;
-    std::vector<Spline> splines=bspline::generateBSplines<SPLINE_ORDER>(knots);
-    // for (double r=0.01;r<2000;r*=2.0)
-    //     cout << r << " " << splines[5](r) << endl;
-
+    static constexpr size_t K = 3;
+    std::vector<double> knots=MakeLogKnots(0.01,2000.0,K,10);
+    using Spline = bspline::Spline<double, K>;
+    std::vector<Spline> splines=bspline::generateBSplines<K>(knots);
+    EXPECT_EQ(splines.size(),knots.size()-K-1);
+    double k0=knots[0], kn=knots[knots.size()-1];
+    EXPECT_NEAR(splines[0](k0),1.0,2e-16);
+    EXPECT_NEAR(splines[1](k0),0.0,2e-16);
+    EXPECT_NEAR(splines[2](k0),0.0,2e-16);
+    size_t Slast=splines.size()-1;
+    EXPECT_NEAR(splines[Slast-0](kn),1.0,3e-16);
+    EXPECT_NEAR(splines[Slast-1](kn),0.0,2e-16);
+    EXPECT_NEAR(splines[Slast-2](kn),0.0,2e-16);
     const BilinearForm bilinearForm{IdentityOperator{}};
     rsmat_t S=MakeSMat(splines,bilinearForm);
-    // cout << "overlap=" << S << endl;
 }
 
 #include <map>
@@ -163,13 +190,13 @@ TEST_F(BSplineTests,GLQIntegration)
     std::function< double (double)> w0 = [](double x){return 1.0;};
     std::function< double (double)> w2 = [](double x){return x*x;};
     
-    cout.precision(3);
-    cout << "Grid = ";
-    auto& grid=splines[0].getSupport().getGrid();
-    for (auto r:grid) cout << r << ",";
-    cout << endl;
-    cout << "spline 0 =" << splines[0].front() << "," << splines[0].back() << "B(0)" << splines[0](0.0) << endl;
-    cout << "spline 1 =" << splines[1].front() << "," << splines[1].back() << "B(0)" << splines[1](0.0) << endl;
+    // cout.precision(3);
+    // cout << "Grid = ";
+    // auto& grid=splines[0].getSupport().getGrid();
+    // for (auto r:grid) cout << r << ",";
+    // cout << endl;
+    cout << "spline 0 =" << splines[0].front() << "," << splines[0].back() << "  B(0)=" << splines[0](0.0) << endl;
+    cout << "spline 1 =" << splines[1].front() << "," << splines[1].back() << "  B(0)=" << splines[1](0.0) << endl;
 //
 //  Test all combos of indefinite integrals.
 //    
