@@ -92,7 +92,7 @@ template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     // splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
-    splines.pop_back(); //Last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
+    for (size_t n=0;n<=3-l;n++) splines.pop_back(); //For s orbital the last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
     auto grid=splines[0].getSupport().getGrid();
     // std::cout << "Grid = " << grid.size() << "    ";
     // for (auto r:grid) std::cout << r << ",";
@@ -119,7 +119,7 @@ template <size_t K> std::vector<double> BSpline_IBS_Evaluator<K>::MakeLogKnots(s
         knots.push_back(rmin * pow(step, i));
     
     // std::cout << Ngrid << " " << l << " " << numberOfZeros << " ";
-    if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
+    // if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
     // if (numberOfZeros<1) numberOfZeros=1;
     //     std::cout << numberOfZeros << std::endl;
 
