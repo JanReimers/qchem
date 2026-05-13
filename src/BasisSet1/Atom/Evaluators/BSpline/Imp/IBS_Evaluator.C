@@ -240,41 +240,6 @@ template <size_t K> rmat_t BSpline_IBS_Evaluator<K>::XKinetic(const IBS_Evaluato
     return M;
 }
 
-template <size_t K> dERI3 BSpline_IBS_Evaluator<K>::Overlap(const IBS_Evaluator& _c) const
-{
-    const BSpline_IBS_Evaluator<K>& c=dynamic_cast<const BSpline_IBS_Evaluator<K>&>(_c);
-    dERI3 S3;
-    size_t N=size();
-    for (size_t ic=0;ic<c.size();ic++) 
-    {
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
-            {
-                auto ab=splines[i-1]+splines[j-1];
-                S(i,j)=::Overlap(ab,c.splines[ic],l+l+c.l,*itsGL)*ns[i-1]*ns[j-1]*c.ns[ic];  
-            }
-        
-        S3.push_back(S);
-    }
-    return S3;
-}
-template <size_t K> dERI3 BSpline_IBS_Evaluator<K>::Repulsion(const IBS_Evaluator& _c) const
-{
-    const BSpline_IBS_Evaluator<K>& c=dynamic_cast<const BSpline_IBS_Evaluator<K>&>(_c);
-    dERI3 S3;
-    size_t N=size();
-    for (size_t ic=0;ic<c.size();ic++) 
-    {
-        rsmat_t S(size());
-        // for (auto i:iv_t(0,N))
-        //     for (auto j:iv_t(i,N))
-        //         S(i,j)=::Repulsion(splines[i]*splines[j],c.splines[ic],l,c.l)*ns[i]*ns[j]*c.ns[ic];  
-        
-        S3.push_back(S);
-    }
-    return S3;
-}
 
 template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::operator() (const rvec3_t& r) const
 {

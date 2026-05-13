@@ -120,41 +120,6 @@ rmat_t Gaussian_IBS_Evaluator::XKinetic(const IBS_Evaluator& _b) const
 }
 
 
-dERI3 Gaussian_IBS_Evaluator::Overlap  (const IBS_Evaluator& _c) const
-{
-    const Gaussian_IBS_Evaluator& c=dynamic_cast<const Gaussian_IBS_Evaluator&>(_c);
-    dERI3 S3;
-    size_t N=size();
-    for (size_t ic=0;ic<c.size();ic++) 
-    {
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
-                S(i,j)=::Overlap(es[i]+es[j],c.es[ic],l+l+c.l)*ns[i]*ns[j]*c.ns[ic];  
-        
-        S3.push_back(S);
-    }
-    return S3;
-}
-dERI3 Gaussian_IBS_Evaluator::Repulsion(const IBS_Evaluator& _c) const
-{
-    const Gaussian_IBS_Evaluator& c=dynamic_cast<const Gaussian_IBS_Evaluator&>(_c);
-    dERI3 S3;
-    size_t N=size();
-    for (size_t ic=0;ic<c.size();ic++) 
-    {
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
-                S(i,j)=::Repulsion(es[i]+es[j],c.es[ic],l,c.l)*ns[i]*ns[j]*c.ns[ic];  
-        
-        S3.push_back(S);
-    }
-    return S3;
-}
-
-
-
 
 rvec_t Gaussian_IBS_Evaluator::operator() (const rvec3_t& r) const
 {

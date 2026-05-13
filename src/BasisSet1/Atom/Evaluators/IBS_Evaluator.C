@@ -55,8 +55,6 @@ public:
     
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const=0;
     virtual rmat_t XKinetic  (const IBS_Evaluator&) const=0;
-    virtual dERI3  Overlap   (const IBS_Evaluator&) const=0; //3 center
-    virtual dERI3  Repulsion (const IBS_Evaluator&) const=0; //3 center
     virtual std::string RadialID () const=0;
     virtual std::string AngularID() const;
     virtual std::string Name() const=0;

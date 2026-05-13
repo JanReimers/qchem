@@ -75,9 +75,6 @@ public:
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
     virtual rmat_t XKinetic  (const IBS_Evaluator&) const;
 
-    virtual dERI3  Overlap  (const IBS_Evaluator&) const; //3 center
-    virtual dERI3  Repulsion(const IBS_Evaluator&) const; //3 center
-
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
