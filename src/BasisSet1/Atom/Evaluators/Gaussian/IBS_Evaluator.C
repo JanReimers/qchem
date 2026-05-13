@@ -56,7 +56,19 @@ public:
         Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
         return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     } 
-
+    double Repulsion(size_t i,size_t j) const
+    {
+        Gaussian::RkEngine cd(es[i],es[j],l);
+        return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
+    }
+    double Charge(size_t i) const
+    {
+        return Gaussian::Integral(es[i],l)*ns[i];
+    }
+    double Norm(size_t i) const
+    {
+        return 1.0/sqrt(Gaussian::Integral(2*es[i],2*l));
+    }
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}

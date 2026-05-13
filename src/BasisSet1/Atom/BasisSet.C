@@ -38,12 +38,30 @@ template <class Evaluator> class Fit_IBS
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
     
     // virtual rsmat_t MakeOverlap  (                ) const {return GetEvaluator()->Overlap   ( );}
-    virtual rsmat_t MakeRepulsion(                ) const {return GetEvaluator()->Repulsion ( );}
+    virtual rsmat_t MakeRepulsion(                ) const 
+    {
+        auto e=dynamic_cast<const Evaluator*>(GetEvaluator());
+        size_t N=e->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= e->Repulsion(i,j);
+
+        return S;
+    }
     virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
     {
         return GetEvaluator()->XRepulsion(dynamic_cast<const IBS_Evaluator&>(f));
     }
-    virtual  rvec_t MakeCharge   (                ) const {return GetEvaluator()->Charge    ( );}
+    virtual  rvec_t MakeCharge   (                ) const 
+    {
+        auto e=dynamic_cast<const Evaluator*>(GetEvaluator());
+        size_t N=e->size();
+        rvec_t c(N);
+        for (auto i:iv_t(0,N))
+            c[i]=e->Charge(i);
+        return c;
+    }
     virtual std::ostream&  Write(std::ostream& os) const
     {
         os << "Atom fit IBS ";

@@ -21,7 +21,10 @@ export template <class E> concept isEvaluator = requires (E e,size_t i, size_t j
                 e.Inv_r1 (i,j);
                 e.Inv_r2 (i,j);
                 e.Overlap  (i,j,e,ic); 
-                e.Repulsion(i,j,e,ic); 
+                e.Repulsion(i,j,e,ic);
+                e.Repulsion(i,j);
+                e.Charge(i);
+                e.Norm(i);
                 // etc.....
             };
 
