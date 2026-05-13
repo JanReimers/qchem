@@ -5,6 +5,8 @@ module;
 export module qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
+import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
+
 
 import Common.IntPow;
 import qchem.Symmetry.Irrep;
@@ -49,6 +51,11 @@ public:
     double Overlap(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
     {
         return Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+    } 
+    double Repulsion(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
+    {
+        Slater::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
+        return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     } 
 
     virtual rsmat_t Repulsion() const;

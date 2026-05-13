@@ -4,6 +4,7 @@ module;
 #include <vector>
 #include <memory>
 #include <iosfwd>
+#include <cassert>
 export module qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet1.Atom.Evaluators.IBS;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
@@ -59,6 +60,11 @@ public:
         using namespace bspline::operators; 
         return BilinearForm{X<2>{}}(splines[i]+splines[j],c.splines[ic])*FourPi*ns[i]*ns[j]*c.ns[ic]; 
     } 
+    double Repulsion(size_t i,size_t j, const BSpline_IBS_Evaluator& c, size_t ic) const
+    {
+        assert(false);
+        return 0;
+    }
     virtual rsmat_t Overlap  () const;
     virtual rsmat_t Grad2    () const;
     virtual rsmat_t Inv_r1   () const;

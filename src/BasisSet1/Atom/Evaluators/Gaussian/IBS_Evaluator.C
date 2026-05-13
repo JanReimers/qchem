@@ -5,6 +5,7 @@ module;
 export module qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.Symmetry.Yl;
 import Common.IntPow;
 
@@ -50,6 +51,12 @@ public:
     {
         return Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     } 
+    double Repulsion(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
+    {
+        Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
+        return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
+    } 
+
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
