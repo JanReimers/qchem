@@ -56,7 +56,7 @@ template <class Evaluator> class Fit_IBS
 
 template <class Evaluator> class Orbital_IBS 
     : public Orbital_1E_IBS<Evaluator>
-    , public Orbital_DFT_IBS
+    , public Orbital_DFT_IBS<Evaluator>
     , public Orbital_HF_IBS
     , public IrrepBasisSetImp
     , public Evaluator

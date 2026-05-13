@@ -53,6 +53,12 @@ public:
         using namespace bspline::operators; 
         return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
+     double Overlap(size_t i,size_t j, const BSpline_IBS_Evaluator& c, size_t ic) const
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        return BilinearForm{X<2>{}}(splines[i]+splines[j],c.splines[ic])*FourPi*ns[i]*ns[j]*c.ns[ic]; 
+    } 
     virtual rsmat_t Overlap  () const;
     virtual rsmat_t Grad2    () const;
     virtual rsmat_t Inv_r1   () const;

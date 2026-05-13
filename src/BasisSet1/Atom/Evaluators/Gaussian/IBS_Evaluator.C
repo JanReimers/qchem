@@ -46,6 +46,10 @@ public:
     {
         return Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     } 
+    double Overlap(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
+    {
+        return Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+    } 
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}

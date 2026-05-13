@@ -67,14 +67,28 @@ public:
 };
 
 
-class Orbital_DFT_IBS
+template <isEvaluator E> class Orbital_DFT_IBS
     : public virtual Integrals_Base
     , public virtual BasisSet1::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& _c) const
     {
-        return GetEvaluator()->Overlap(dynamic_cast<const ::IBS_Evaluator&>(c));
+        auto ab=dynamic_cast<const E*>(GetEvaluator());
+        const E& c=dynamic_cast<const E&>(_c);
+        ERI3<double> S3;
+        size_t N=ab->size();
+        for (size_t ic=0;ic<c.size();ic++) 
+        {
+            rsmat_t S(N);
+            for (auto i:iv_t(0,N))
+                for (auto j:iv_t(i,N))
+                    S(i,j)=ab->Overlap(i,j,c,ic);  
+            
+            S3.push_back(S);
+        }
+        return S3;
+
     }
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const
     {
