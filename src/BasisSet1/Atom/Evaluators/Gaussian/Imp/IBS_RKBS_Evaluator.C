@@ -18,11 +18,6 @@ rvec_t Gaussian_RKBS_IBS_Evaluator::norms() const
     return Gaussian_IBS_Evaluator::norms()/(2*c_light);
 }
 
-double Gaussian_RKBS_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
-{
-    return 4*ea*eb*::Gaussian::Integral(ea+eb,l_total+1); //Don't count the r^2 in dr^3
-}
-
 
 rvec_t Gaussian_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
 {

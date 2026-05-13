@@ -18,11 +18,6 @@ rvec_t Slater_RKBS_IBS_Evaluator::norms() const
     return Slater_IBS_Evaluator::norms()/(2*c_light);
 }
 
-double Slater_RKBS_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
-{
-    return ea*eb*::Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
-}
-
 rvec_t Slater_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
 {
     double mr=norm(r);

@@ -27,7 +27,7 @@ using qchem::Hamiltonian::obs_t;
 //
 //  Testing common to all atom basis set evaluators
 //
-class BasisSet_Common : public ::testing::Test
+template <isEvaluator E> class BasisSet_Common : public ::testing::Test
 {
 public:
     BasisSet_Common(BS_Evaluator* _bseval) 
@@ -50,7 +50,7 @@ public:
         delete bs_eval;
         delete bs;
     }
-    void Insert(IBS_Evaluator* eval)
+    void Insert(E* eval)
     {
         evals.push_back(eval);
         bs_eval->Register(eval);
@@ -65,19 +65,23 @@ public:
 
     rvec_t es;
     size_t N,LMax;
-    std::vector<IBS_Evaluator*> evals;
+    std::vector<E*> evals;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     BS_Evaluator* bs_eval;
     BasisSet* bs;
 };
-void BasisSet_Common::TestOverlap(double eps) const
+template <isEvaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
 {
     EXPECT_GT(evals.size(),0);
     size_t index=0;
     for (auto ev:evals)
     {
-        rsmat_t S=ev->Overlap();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Overlap(i,j);
         for (auto d:diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         rsmat_t Snum = mintegrator->Overlap(*ev);
         cout.precision(2);
@@ -86,37 +90,49 @@ void BasisSet_Common::TestOverlap(double eps) const
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
 }
-void BasisSet_Common::TestGrad2  (double eps) const
+template <isEvaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
 {
     for (auto ev:evals)
     {
-        rsmat_t S=ev->Grad2();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Grad2(i,j);
         rsmat_t Snum = mintegrator->Grad2(*ev);
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
-void BasisSet_Common::TestInv_r1 (double eps) const
+template <isEvaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) const
 {
     for (auto ev:evals)
     {
-        rsmat_t S=ev->Inv_r1();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Inv_r1(i,j);
         rsmat_t Snum = mintegrator->Inv_r1(*ev);
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
-void BasisSet_Common::TestInv_r2 (double eps) const
+template <isEvaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) const
 {
     for (auto ev:evals)
     {
-        rsmat_t S=ev->Inv_r2();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Inv_r2(i,j);
         rsmat_t Snum = mintegrator->Inv_r2(*ev);
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
         
 }
-void BasisSet_Common::TestCharge (double eps) const
+template <isEvaluator E> void BasisSet_Common<E>::TestCharge (double eps) const
 {
     for (auto ev:evals)
     {
@@ -132,11 +148,11 @@ void BasisSet_Common::TestCharge (double eps) const
 //  Testing atom Slater basis set evaluators
 //
 
-class BasisSet_SL: public BasisSet_Common
+class BasisSet_SL: public BasisSet_Common<Slater_IBS_Evaluator>
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common(new Slater_BS_Evaluator)
+    BasisSet_SL() : BasisSet_Common<Slater_IBS_Evaluator>(new Slater_BS_Evaluator)
     {
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
@@ -197,7 +213,11 @@ TEST_F(BasisSet_SL,AnalyticOverlap)
     for (auto ev:evals)
     {
         int l=ev->Getl();
-        rsmat_t S=ev->Overlap();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Overlap(i,j);
         // cout << S << endl;
         for (auto i:iv_t(0,S.rows()))
             for (auto j:iv_t(i,S.rows()))
@@ -264,7 +284,7 @@ TEST_F(BasisSet_SL,IDs)
 //  Testing atom Gaussian basis set evaluators
 //
 
-class BasisSet_SG: public BasisSet_Common
+class BasisSet_SG: public BasisSet_Common<Gaussian_IBS_Evaluator>
 {
 public:
 
@@ -313,7 +333,12 @@ TEST_F(BasisSet_SG,AnalyticOverlap)
     for (auto ev:evals)
     {
         int l=ev->Getl();
-        rsmat_t S=ev->Overlap();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Overlap(i,j);
+
          for (auto i:iv_t(0,S.rows()))
             for (auto j:iv_t(i,S.rows()))
             {
@@ -378,7 +403,7 @@ TEST_F(BasisSet_SG,IDs)
 //  Testing atom BSpline basis set evaluators
 //
 
-class BasisSet_BS: public BasisSet_Common
+class BasisSet_BS: public BasisSet_Common<BSpline_IBS_Evaluator<6>>
 {
 public:
 

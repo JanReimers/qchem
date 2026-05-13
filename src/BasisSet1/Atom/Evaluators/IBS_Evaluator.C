@@ -8,13 +8,20 @@ module;
 export module qchem.BasisSet1.Atom.Evaluators.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 export import qchem.BasisSet1.Internal.ERI3;
-// export import qchem.Fit_IBS;
-// export import qchem.Orbital_DHF_IBS;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 import qchem.Symmetry.Ylm;
 
 export using dERI3=ERI3<double>;
+
+export template <class E> concept isEvaluator = requires (E e,size_t i, size_t j)
+            {
+                e.Overlap(i,j); //Should all be inline.
+                e.Grad2  (i,j);
+                e.Inv_r1 (i,j);
+                e.Inv_r2 (i,j);
+                // etc.....
+            };
 
 export class IBS_Evaluator : public VectorFunction<double>
 {
@@ -40,10 +47,6 @@ public:
 
     virtual size_t        GetVectorSize() const {return size();}
 
-    virtual rsmat_t Overlap   () const=0;
-    virtual rsmat_t Grad2     () const=0;
-    virtual rsmat_t Inv_r1    () const=0;
-    virtual rsmat_t Inv_r2    () const=0;
     virtual rsmat_t Repulsion () const=0;
     virtual  rvec_t Charge    () const=0;
     virtual  rvec_t Norm      () const=0;

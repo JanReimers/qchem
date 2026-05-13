@@ -4,8 +4,10 @@ module;
 #include <blaze/Math.h>
 export module qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.Symmetry.Yl;
 import Common.IntPow;
+
 
 export class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
@@ -24,10 +26,26 @@ public:
 
     virtual std::ostream& Write   (std::ostream&) const;
 
-    virtual rsmat_t Overlap  () const;
-    virtual rsmat_t Grad2    () const;
-    virtual rsmat_t Inv_r1   () const;
-    virtual rsmat_t Inv_r2   () const;
+    double Overlap(size_t i,size_t j) const
+    {
+        return Gaussian::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
+    } 
+    double Grad2(size_t i,size_t j) const
+    {
+        double t=es[i]+es[j];
+        size_t l1=l+1;
+        return  (l1*l1         * Gaussian::Integral(t,2*l-2)
+                -2*l1 * t      * Gaussian::Integral(t,2*l  )
+                +4*es[i]*es[j] * Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
+    } 
+    double Inv_r1(size_t i,size_t j) const
+    {
+        return Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+    } 
+    double Inv_r2(size_t i,size_t j) const
+    {
+        return Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+    } 
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
@@ -69,7 +87,11 @@ public:
     Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Gaussian_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
     Gaussian_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Gaussian_IBS_Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     virtual rvec_t norms() const; //assumes es,l are already initialized
-    virtual double Inv_r1(double ea , double eb,size_t l_total) const;
+    double Inv_r1(size_t i,size_t j) const
+    {
+        return 4*es[i]*es[j]*::Gaussian::Integral(es[i]+es[j],2*l+1)*ns[i]*ns[j]; //Already has 4*Pi
+    }    
+    
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 

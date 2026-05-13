@@ -49,12 +49,13 @@ public:
 //
 //  1E orbital for atoms.  Use mixins to get the integral evaluations.
 //
-class Orbital_1E_IBS
+template <isEvaluator E> class Orbital_1E_IBS
     : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
-    , private Integrals_Overlap
-    , private Integrals_Kinetic
-    , private Integrals_Nuclear
+    , private Integrals_EOverlap<E>
+    , private Integrals_EKinetic<E>
+    , private Integrals_ENuclear<E>
 {
+    using Integrals_Base::GetEvaluator;
 public:
     virtual std::ostream&  Write(std::ostream& os) const
     {
@@ -112,11 +113,11 @@ private:
 //     virtual       smat_t<T>  MakeRestMass() const;  
 // }
 
-class Orbital_RKBL_IBS
+template <isEvaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
     , public virtual Integrals_Base
-    , private Integrals_Overlap
-    , private Integrals_Nuclear
+    , private Integrals_EOverlap<E>
+    , private Integrals_ENuclear<E>
 {
 public:
     virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
@@ -126,15 +127,15 @@ public:
     
 };
 
-class Orbital_RKBS_IBS
+template <isEvaluator E> class Orbital_RKBS_IBS
     : public virtual BasisSet1::Orbital_RKBS_IBS<double> 
     , public virtual Integrals_Base
-    , private Integrals_Kinetic
-    , private Integrals_Nuclear //RKBS Evaluator overrides Inv_r1 definition
+    , private Integrals_EKinetic<E>
+    , private Integrals_ENuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
     virtual rsmat_t MakeOverlap() const
     {
-        return MakeKinetic();
+        return Integrals_EKinetic<E>::MakeKinetic();
     }
   
 

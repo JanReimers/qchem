@@ -26,6 +26,7 @@ namespace Atom {
 template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public virtual Integrals_Base
+    , private Integrals_EOverlap<Evaluator>
     , public IrrepBasisSetImp
     , public Evaluator
 {
@@ -36,7 +37,7 @@ template <class Evaluator> class Fit_IBS
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
     virtual       IBS_Evaluator* GetEvaluator()       {return this;}
     
-    virtual rsmat_t MakeOverlap  (                ) const {return GetEvaluator()->Overlap   ( );}
+    // virtual rsmat_t MakeOverlap  (                ) const {return GetEvaluator()->Overlap   ( );}
     virtual rsmat_t MakeRepulsion(                ) const {return GetEvaluator()->Repulsion ( );}
     virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
     {
@@ -54,7 +55,7 @@ template <class Evaluator> class Fit_IBS
 
 
 template <class Evaluator> class Orbital_IBS 
-    : public Orbital_1E_IBS
+    : public Orbital_1E_IBS<Evaluator>
     , public Orbital_DFT_IBS
     , public Orbital_HF_IBS
     , public IrrepBasisSetImp
@@ -87,7 +88,7 @@ public:
 };
 
 template <class Evaluator> class EOrbital_RKBL_IBS 
-    : public Orbital_RKBL_IBS
+    : public Orbital_RKBL_IBS<Evaluator>
     , public IrrepBasisSetImp
     , public Evaluator
 {
@@ -110,7 +111,7 @@ public:
 };
 
 template <class Evaluator> class EOrbital_RKBS_IBS 
-    : public Orbital_RKBS_IBS
+    : public Orbital_RKBS_IBS<Evaluator>
     , public IrrepBasisSetImp
     , public Evaluator
 {

@@ -75,49 +75,6 @@ rvec_t Gaussian_IBS_Evaluator::norms() const
     return ret;
 }
 
-rsmat_t Gaussian_IBS_Evaluator::Overlap() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Overlap(es[i],es[j],2*l)*ns[i]*ns[j];
-
-    return S;
-}
-
-rsmat_t Gaussian_IBS_Evaluator::Grad2() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= Grad2(es[i],es[j],l,l)*ns[i]*ns[j];
-
-    return S;
-}
-
-rsmat_t Gaussian_IBS_Evaluator::Inv_r1() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= Inv_r1(es[i],es[j],2*l)*ns[i]*ns[j];
-
-    return S;
-}
-
-rsmat_t Gaussian_IBS_Evaluator::Inv_r2() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= Inv_r2(es[i],es[j],2*l)*ns[i]*ns[j];
-
-    return S;
-}
 
 rsmat_t Gaussian_IBS_Evaluator::Repulsion() const
 {

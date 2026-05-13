@@ -17,6 +17,15 @@
     "/proc": true,
     "/etc":true
     },
+    "C_Cpp.files.exclude": {
+        "/": true,
+        "**/.vscode": true,
+        "**/.vs": true,
+        "**/.git": true,
+        "${workspaceFolder}/submodules": true,
+        "${workspaceFolder}/build": true,
+    },
+    "C_Cpp.exclusionPolicy": "checkFilesAndFolders",
     "files.associations": {
         "*.C": "cpp",
         "*.H": "cpp",

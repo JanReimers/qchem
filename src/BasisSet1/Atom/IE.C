@@ -27,38 +27,64 @@ public:
 //
 //  Implement these separately as they shared between NR and RKB 1E orbital IBS implementations.
 //
-class Integrals_Overlap
+// 
+
+template <isEvaluator E> class Integrals_EOverlap
 : public virtual BasisSet1::Integrals_Overlap<double>
 , public virtual Integrals_Base
 {
 protected:
-    virtual smat_t<double> MakeOverlap() const {return GetEvaluator()->Overlap();}
+    virtual smat_t<double> MakeOverlap() const 
+    {
+        auto e=dynamic_cast<const E*>(GetEvaluator());
+        size_t N=e->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= e->Overlap(i,j);
+
+        return S;
+    }
 };
-class Integrals_Kinetic
+
+template <isEvaluator E> class Integrals_EKinetic
 : public virtual BasisSet1::Integrals_Kinetic<double>
 , public virtual Integrals_Base
 {
-public:
-    virtual smat_t<double> MakeKinetic() const
+protected:
+    virtual smat_t<double> MakeKinetic() const 
     {
-        auto eval=GetEvaluator();
-        int l=eval->Getl();
-        return eval->Grad2() + l*(l+1)*eval->Inv_r2();
+        auto e=dynamic_cast<const E*>(GetEvaluator());
+        size_t N=e->size();
+        int l=e->Getl();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= e->Grad2(i,j) + l*(l+1)*e->Inv_r2(i,j);
+
+        return S;
     }
 };
-class Integrals_Nuclear
+
+template <isEvaluator E> class Integrals_ENuclear
 : public virtual BasisSet1::Integrals_Nuclear<double>
 , public virtual Integrals_Base
 {
 protected:
-    virtual smat_t<double> MakeNuclear(const Cluster* cl) const
+    virtual smat_t<double> MakeNuclear(const Cluster* cl) const 
     {
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
         int Z=-cl->GetNuclearCharge(); 
-        return Z*GetEvaluator()->Inv_r1();
+        auto e=dynamic_cast<const E*>(GetEvaluator());
+        size_t N=e->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= Z*e->Inv_r1(i,j);
+
+        return S;
     }
 };
-
 
 }} // namespaces

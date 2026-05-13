@@ -8,6 +8,8 @@ export module qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet1.Atom.Evaluators.IBS;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Symmetry.Yl;
+import Common.Constants;
+
 //
 //  This version is for phi(r) = sum(Bi(r),i)
 // 
@@ -26,6 +28,31 @@ public:
     virtual std::ostream& Write   (std::ostream&) const;
     virtual size_t maxSpan() const {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan
 
+    double Overlap(size_t i,size_t j) const //no l dependence
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        return BilinearForm{X<2>{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
+    } 
+    double Grad2(size_t i,size_t j) const //no l dependence
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
+        return BilinearForm{T}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
+    } 
+    double Inv_r1(size_t i,size_t j) const //no l dependence
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        return BilinearForm{X<1>{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j];
+    } 
+    double Inv_r2(size_t i,size_t j) const //no l dependence
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
+    } 
     virtual rsmat_t Overlap  () const;
     virtual rsmat_t Grad2    () const;
     virtual rsmat_t Inv_r1   () const;

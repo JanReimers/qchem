@@ -3,6 +3,58 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -DBcache
+        -Make a Direct version of DB_cache ... don't cache anything!!  (this used to be called DirectSCF)
+        -Intermediate: Save all slater integrals a,d recals J/K on demand.
+        -When to use Jcdab=Jabcd.Transpose()?
+            Avoid transposing for every iteration.
+
+        -Eventually we need some sort of high level mamangement
+            Factory
+            Auto instance?
+            Auto save/restor from disk
+
+    -BasisSet reorg
+        -Fix small r BSpline accuracy.
+            See UT DBCach1Tests.BSplineDirect/Exchange
+            -Create an Rk UT Rk(abcd) vs Rk(cdab) and try to identify the worst case
+            -elminate the error.
+            -For comparison SG, SL are both good to 1e-15.
+            -BSpline near the origin we get much bigger errors.  
+            -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
+        We need a general way to adjust basis sets for increasing L
+            Fixed: For BSpline the repeated edge knots get removed for increasing L
+            For Gaussian and Slater we want less large exponents for increasing L
+            Can we do this in the evaluator?
+        Maybe: Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
+            -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
+        -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
+        -Define a restriced set of exponents and spline grids for all unit tests
+            This should help with more cache hits.
+        -Sort out PG cache ... keep one cache in DB_cache.
+        -Put evaluators in a namespace
+        -Store all Rk caches in DB_cache.
+            -key on RadialID()?
+            -What if unique exponents list increase?
+        -Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
+            -Template on evaluator.  Use concetps.  
+            template <class E> concept isEvaluator = requires (E v)
+            {
+                v.Overlap(size_t i,size_t j,size_t la, size_t lb); //SHould be inline.
+                v.Grad2(size_t i,size_t j,size_t la, size_t lb);
+                v.Invr1(size_t i,size_t j,size_t la, size_t lb);
+                v.Invr2(size_t i,size_t j,size_t la, size_t lb);
+                etc.....
+            };
+            -Or: Function forward and pass lambdas to base class.
+        -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
+            [k] capture makes this very difficult.
+
+    -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
+        Let's fix the totale energy problem first.
+
+
+
     -AI
         Write a c++ program to calculate the ground state of the Dirac hydrogen atom.  Details:
         1) Hint: These specifications are based on refining two previous AI attempts at this problem,
@@ -22,7 +74,7 @@ Priority 1:
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
     
     -Saito paper conclusions
-        1) 50 basis functions, r={0.005...40} is enough for Z=1-92
+        1) 50 basis functions, r={0.003...40} is enough for Z=1-92
         2) phi(r)=sum{Bi}, and phi(r)=1/r * sum{Bi} both work
         3) Z=1-56 K=9 vs K=6: K=6 give faster and lower HF energies.
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
@@ -31,7 +83,7 @@ Priority 1:
          : Slater_IBS_Evaluator(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
         , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
 
-    -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
+    Done: -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
         1) Merge DB_X into Integrals_X for X=Overlap, Kinetic, Nuclear etc.
             Trying to make these generic is very hard because of the required argument for 
             Nuclear, cross kinetic, 3C and 4C integrals.
@@ -39,9 +91,6 @@ Priority 1:
         3) We need ClusterID string in the map key for Nuclear integrals.
 
     -How to use one integral cache for all 118 elements?
-        Hold cache in QChemTester or ... have a global/static Cache* ?   
-
-        IBS->ID needs to be a hash of radial,angular perameters
         RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
         On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
             These Rk engines may need to adapt to high k values on request.
@@ -50,11 +99,6 @@ Priority 1:
             Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
             But the global cache need to store std::map<size_t hash, Cache4> 
                 Can we add this to DB_cache?
-        Done: Problem: hashing to size_t opens the remote possibility O(2^-64) of collisions.
-            We could use ID strings, for example 
-                "BSpline<6> {0,0,0,0,0.1,.....40.0}" (list of knots)
-                "Slater {0.01,.... 100.0}" (list of exponents)
-            We need to be careful to get consistent float formatting. std::defaultfloat + choose a precision
         Problem: We need to handle a situation where IBS1 has some (not all) basis functions in common with IBS2.
             The cache needs maintain a (growing) list of unique basis functions for each type {Slater,Gaussian,BSpline6, PolGaussian,Block,...}
                 This is done by specialized groupers right now.
@@ -62,69 +106,10 @@ Priority 1:
             For atoms we always want to know LMax for each radial function.
                 Calculating Rk for LMax=2 and then recalculating later for LMax=3 (higher k values)
                 is wastefull.
-
-
+        -With shared DB_cache, running 1-92 time=  {Z,time,RAM}={73,29:00,9.6g} {80,32:00,9.8g} {80,33:00,10g} {92,39:40,10.7g}
+            Fails:Z= 62 63 65 67 68 71 72
         PolGaussian::CDCache plays a similar to Cache4 for atoms.
-        Plan:
-            Done: 1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
-            2) Make a new DB_Cache1 class.  
-                Stores all integral matrices by {RadialID,AngularID}
-                Stores Cache4 by RadialID
-            3) Pick one IBS (BSpline6) and support construct with DB_Cache1
-                3.1) It looks like each IBS needs to support
-                    std::vector<std::string> BasisFunctionIDs() const=0;
-                    Used by Cache41 to maintian itsUniqueBFs.
-            Done: 5) Define IBS radial ID:
-                Use Strings, not hashes.
-            Why?: 6) Define a basisSet radialID, AngularID
-                Also need Name()
-        UNit tests
-            Done: Test radial and angular, and full ID strings for IBS
 
-
-    -BasisSet reorg
-        Fixed: BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
-            This will mess up the copy constructor!
-            N splines = Nintervals+K-1-l
-        For efficiency legacy calculations do Jcdab=Jabcd.Transpose(). The BasisSet1 version recalculates Jcdab directly 
-            and does not yet do the Transpose call.  For Guassian and Slater this results in a minor error <1e-15.  For 
-            BSpline near the origin we get much bigger errors.  Perhaps this related to problems encountered when trying 
-            to reproduce Saitos results with rmin=0.0001.
-        We need a general way to adjust basis sets for increasing L
-            For BSpline the repeated edge knots get removed for increasing L
-            For Gaussian and Slater we want less large exponents for increasing L
-            Can we do this in the evaluator?
-        Done: Common interface is constructor(size_t N, double rmin/emin, double rmax/emax, sym_t Irrep)
-            Only the variable names for the double changes.  just call them remin remax
-        Fixed: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
-        Fixed: IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  
-            These should be replaced with const IBS_Evaluator& .
-        Done: Cut over trials
-            Fitting:
-                Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
-                2 problems arise:
-                1) asserts using GetID().  
-                2) no member named 'GetNumFunctions' in 'BasisSet1::Orbital_DFT_IBS<double>'
-            Charge Density:
-        Done: Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
-        Done: Move large amd small OIBS *and Integrals_XKinetic to Internal?
-        Done: XKinetic  (const IBS_Evaluator*) switch to reference
-        Done: For Atom factory interface
-            BasisSet1::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
-                                        ^^^^
-                Type should be in json
-        Done: We need to also support es={...} in addition N,emin,emax.  good for unit testing.
-        Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
-            -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
-        -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
-        -Define a restriced set of exponents and spline grids for all unit tests
-            This should help with more cache hits.
-        Done: -Get BasisSet1::PG working.
-        Done: -Make RadialID shorter N=3 {.01 ... 50000.0 } 
-            Only if even tempered.
-        -Sort out PG cache ... keep one cache in DB_cache.
-        Done: -Clean out old BasisSet cruft.  (except for Lattice)
-        -Put evaluators in a namespace
  
     -Everything->Cluster->Mesh 
         One tweak fo Mesh and you get ~100% rebuild. Not good.
@@ -134,13 +119,11 @@ Priority 1:
         -Put everything atom basis set in an qchem::Basiset1::Atom name space
         -Put everything abstract/general basis set in a BasisSet namespace.
             AtomBS->BasisSet::Atom an now avoids class with Cluster::Atom
-    -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
+    Fixed: -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
         Can we store just one virtual base class?
-        Or make a GetEvaluator() virtual function call.
+        Yes-->Or make a GetEvaluator() virtual function call.
     -ERI3<T>, ERI4 make consistent.
     -Make more use of CastSymmetry()?
-    Fixed -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
-        Right now it is probably ordering based on pointer values inside std::shared_ptr
     -If verbose=true, spit out
         -LApack Cholsky/SVD/Eigen
         -Basis set
@@ -148,9 +131,6 @@ Priority 1:
     -Can we support syms_t GetIrreps() const; at the most abstract EC level ElectronConfiguration?
         Molecule: Should return a list of point group irreps
         Lattice: Should return a list of K points.  With space group irreps?
-    -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
-        [k] capture makes this very difficult.
-    -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
     -Figure out EC for Ce Z=58 ground state.
         Need a way to hop electrons in Atom_EC
     -Support null accelerator.
@@ -176,11 +156,11 @@ Priority 1:
         Bounds checking in DEBUG mode.
     	
             
-    -Migrate away from valarray in favour of blaze dynamic vector.
+    Fixed -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
+        Right now it is probably ordering based on pointer values inside std::shared_ptr
+    Done: -Migrate away from valarray in favour of blaze dynamic vector.
     Done: -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
         In the long run we need ween off oml in preparation for Blaze for linear algebra.  (exp templates are not the right solution)
-    -Maybe: Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
-        -Or: Function forward and pass lambdas to base class.
 
 
     DHF/Dirac: Factor of 2 problem
@@ -654,6 +634,61 @@ Priority 3:
 
 
 
+        Done: Plan:
+            Done: 1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
+            Done: 2) Make a new DB_Cache1 class.  
+                Stores all integral matrices by {RadialID,AngularID}
+                Stores Cache4 by RadialID
+            3) Pick one IBS (BSpline6) and support construct with DB_Cache1
+                3.1) It looks like each IBS needs to support
+                    std::vector<std::string> BasisFunctionIDs() const=0;
+                    Used by Cache41 to maintian itsUniqueBFs.
+            Done: 5) Define IBS radial ID:
+                Use Strings, not hashes.
+            Done: 6) Define a basisSet radialID, AngularID
+                Also need Name()
+        UNit tests
+            Done: Test radial and angular, and full ID strings for IBS
+
+
+    Done: -BasisSet reorg
+        Fixed: BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
+            This will mess up the copy constructor!
+            N splines = Nintervals+K-1-l
+        Done: Common interface is constructor(size_t N, double rmin/emin, double rmax/emax, sym_t Irrep)
+            Only the variable names for the double changes.  just call them remin remax
+        Fixed: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
+        Fixed: IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  
+            These should be replaced with const IBS_Evaluator& .
+        Done: Cut over trials
+            Fitting:
+                Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
+                2 problems arise:
+                1) asserts using GetID().  
+                2) no member named 'GetNumFunctions' in 'BasisSet1::Orbital_DFT_IBS<double>'
+            Charge Density:
+        Done: Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
+        Done: Move large amd small OIBS *and Integrals_XKinetic to Internal?
+        Done: XKinetic  (const IBS_Evaluator*) switch to reference
+        Done: For Atom factory interface
+            BasisSet1::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
+                                        ^^^^
+                Type should be in json
+        Done: We need to also support es={...} in addition N,emin,emax.  good for unit testing.
+        Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
+            -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
+        -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
+        -Define a restriced set of exponents and spline grids for all unit tests
+            This should help with more cache hits.
+        Done: -Get BasisSet1::PG working.
+        Done: -Make RadialID shorter N=3 {.01 ... 50000.0 } 
+            Only if even tempered.
+        -Sort out PG cache ... keep one cache in DB_cache.
+        Done: -Clean out old BasisSet cruft.  (except for Lattice)
+        -Put evaluators in a namespace
+        -Store all Rk caches in DB_cache.
+            -key on RadialID()?
+            -What unique exponents list increase?
 
 
     Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
@@ -708,6 +743,7 @@ Priority 3:
             -Toughest atoms in the first two rows for virial ratio Are:
                 N=100,R=[0.01,40]  Li,B, O
                 N=50 ,R=[0.01,40]  Li,B, O
+            -Rmin=0.003 works for H and U
         Done: 4.5) Add V/K-2 to convergence criteria.
 
         Done: 5) Get He working to high precision.  In particular fabs(V/K+2) < 1e-11

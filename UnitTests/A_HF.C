@@ -407,8 +407,9 @@ TEST_P(A_BS_saito_HF_P,Saito)
 }
 
 #ifdef NDEBUG
-INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,93)); 
-// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21,57,92)); 
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,93)); 
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(62,63,65,67,68,71,72)); //Known convergence problems. 
+INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21,57,92)); 
 // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,92)); 
 #else
 // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 

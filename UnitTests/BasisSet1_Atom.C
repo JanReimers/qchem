@@ -126,6 +126,10 @@ public:
                     const ERI4& J2=(*ibs21)->Direct(**ibs22);
                     EXPECT_EQ(J1,J2);
                     EXPECT_EQ(&J1,&J2);
+                    const ERI4& J1ba=ibs12->Direct(*ibs11);
+                    const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
+                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,1e-15);
+                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,1e-15);
                     ++ibs22;
                 }
                 ++ibs21;
@@ -146,6 +150,10 @@ public:
                 const ERI4& K2=(*ibs21)->Exchange(**ibs22);
                 EXPECT_EQ(K1,K2);
                 EXPECT_EQ(&K1,&K2);
+                const ERI4& K1ba=ibs12->Exchange(*ibs11);
+                const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
+                EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,1e-15);
+                EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,1e-15);
                 ++ibs22;
             }
             ++ibs21;
